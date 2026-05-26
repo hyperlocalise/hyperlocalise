@@ -5,8 +5,8 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db } from "@/lib/database";
 
-import { toolCanAccessStoredFileProject } from "./tool-access";
-import type { ToolContext } from "./types";
+import { toolCanAccessStoredFileProject } from "@/lib/tools/tool-access";
+import type { ToolContext } from "@/lib/tools/types";
 
 const fixture = createAuthTestFixture();
 

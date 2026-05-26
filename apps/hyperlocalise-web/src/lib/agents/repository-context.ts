@@ -7,9 +7,9 @@ import { escapeRegExp } from "@/lib/primitives/escapeRegExp/escapeRegExp";
 
 import { getInstallationOctokit } from "./github/app";
 import type {
-  RepoTmsAgentGitHubContext,
-  UnresolvedRepoTmsAgentGitHubContext,
-} from "./repo-tms-task";
+  RepositoryAgentGitHubContext,
+  UnresolvedRepositoryAgentGitHubContext,
+} from "./repository-agent-task";
 
 export type GitHubPullRequestReference = {
   repositoryFullName: string;
@@ -37,20 +37,20 @@ type ResolvedContextSource =
   | "single_installed_repository"
   | "github_trigger";
 
-export type RepoTmsGitHubContextResolution =
+export type RepositoryGitHubContextResolution =
   | { status: "not_applicable" }
   | {
       status: "resolved";
       source: ResolvedContextSource;
-      context: RepoTmsAgentGitHubContext;
+      context: RepositoryAgentGitHubContext;
     }
   | {
       status: "unresolved";
-      context: UnresolvedRepoTmsAgentGitHubContext;
+      context: UnresolvedRepositoryAgentGitHubContext;
       followUp: string;
     };
 
-export type RepoTmsGitHubContextDependencies = {
+export type RepositoryGitHubContextDependencies = {
   findEnabledRepository: (input: {
     organizationId: string;
     repositoryFullName: string;
@@ -144,16 +144,16 @@ export function extractGitHubRepositoryFullNameReferences(text: string): string[
   return [...references.values()];
 }
 
-export async function resolveSlackRepoTmsGitHubContext(input: {
+export async function resolveSlackRepositoryGitHubContext(input: {
   organizationId: string;
   text: string;
   connectorConfig?: Record<string, unknown> | null;
   projectId?: string | null;
   channelId?: string | null;
   requirePullRequest?: boolean;
-  dependencies?: RepoTmsGitHubContextDependencies;
-}): Promise<RepoTmsGitHubContextResolution> {
-  const dependencies = input.dependencies ?? defaultRepoTmsGitHubContextDependencies;
+  dependencies?: RepositoryGitHubContextDependencies;
+}): Promise<RepositoryGitHubContextResolution> {
+  const dependencies = input.dependencies ?? defaultRepositoryGitHubContextDependencies;
   const references = extractGitHubPullRequestReferences(input.text);
 
   if (references.length > 1) {
@@ -242,11 +242,11 @@ export async function resolveSlackRepoTmsGitHubContext(input: {
   });
 }
 
-export async function resolveGitHubRepoTmsGitHubContext(input: {
+export async function resolveGitHubRepositoryGitHubContext(input: {
   raw: GitHubRawMessage;
   installationId: number;
-  dependencies?: Pick<RepoTmsGitHubContextDependencies, "loadPullRequest">;
-}): Promise<RepoTmsGitHubContextResolution> {
+  dependencies?: Pick<RepositoryGitHubContextDependencies, "loadPullRequest">;
+}): Promise<RepositoryGitHubContextResolution> {
   if (input.raw.type === "issue_comment" && input.raw.threadType === "issue") {
     return unresolved(
       "The GitHub request was made from an issue instead of a pull request.",
@@ -265,7 +265,8 @@ export async function resolveGitHubRepoTmsGitHubContext(input: {
   }
 
   const loadPullRequest =
-    input.dependencies?.loadPullRequest ?? defaultRepoTmsGitHubContextDependencies.loadPullRequest;
+    input.dependencies?.loadPullRequest ??
+    defaultRepositoryGitHubContextDependencies.loadPullRequest;
   const details = await loadPullRequest({
     installationId: input.installationId,
     repositoryFullName,
@@ -295,7 +296,9 @@ export async function resolveGitHubRepoTmsGitHubContext(input: {
   };
 }
 
-export function buildRepoTmsGitHubContextInstructions(context: RepoTmsAgentGitHubContext): string {
+export function buildRepositoryGitHubContextInstructions(
+  context: RepositoryAgentGitHubContext,
+): string {
   return [
     "Resolved GitHub repository context:",
     `- installationId: ${context.installationId}`,
@@ -318,8 +321,8 @@ async function resolveInstalledGitHubContext(input: {
   source: ResolvedContextSource;
   accessFailureFollowUp: string;
   installedRepositories?: EnabledGitHubRepository[];
-  dependencies: RepoTmsGitHubContextDependencies;
-}): Promise<RepoTmsGitHubContextResolution> {
+  dependencies: RepositoryGitHubContextDependencies;
+}): Promise<RepositoryGitHubContextResolution> {
   const repositoryFullName = normalizeRepositoryFullName(input.repositoryFullName);
   if (!repositoryFullName) {
     return unresolved(
@@ -374,8 +377,8 @@ async function resolveEnabledGitHubRepositoryContext(input: {
   pullRequestNumber?: number;
   source: ResolvedContextSource;
   accessFailureFollowUp: string;
-  dependencies: Pick<RepoTmsGitHubContextDependencies, "loadPullRequest">;
-}): Promise<RepoTmsGitHubContextResolution> {
+  dependencies: Pick<RepositoryGitHubContextDependencies, "loadPullRequest">;
+}): Promise<RepositoryGitHubContextResolution> {
   if (input.pullRequestNumber === undefined) {
     return {
       status: "resolved",
@@ -422,8 +425,8 @@ function getConfiguredRepository(input: {
   channelId?: string | null;
 }): SlackRepositoryFallback | null {
   const root = asRecord(input.config);
-  const repoTms = asRecord(root?.repoTms);
-  const github = asRecord(repoTms?.github) ?? asRecord(root?.github);
+  const repository = asRecord(root?.repository);
+  const github = asRecord(repository?.github) ?? asRecord(root?.github);
   if (!github) {
     return null;
   }
@@ -462,7 +465,7 @@ type SlackReferencedRepositoryResolution =
   | { status: "resolved"; repository: SlackRepositoryFallback }
   | {
       status: "unresolved";
-      resolution: Extract<RepoTmsGitHubContextResolution, { status: "unresolved" }>;
+      resolution: Extract<RepositoryGitHubContextResolution, { status: "unresolved" }>;
     };
 
 function resolveSlackReferencedRepository(input: {
@@ -610,7 +613,7 @@ function unresolved(
   reason: string,
   hint: string,
   followUp: string,
-): Extract<RepoTmsGitHubContextResolution, { status: "unresolved" }> {
+): Extract<RepositoryGitHubContextResolution, { status: "unresolved" }> {
   return {
     status: "unresolved",
     context: {
@@ -622,7 +625,7 @@ function unresolved(
   };
 }
 
-export const defaultRepoTmsGitHubContextDependencies: RepoTmsGitHubContextDependencies = {
+export const defaultRepositoryGitHubContextDependencies: RepositoryGitHubContextDependencies = {
   async findEnabledRepository(input) {
     const [repository] = await db
       .select({

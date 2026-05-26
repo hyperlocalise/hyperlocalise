@@ -1,7 +1,9 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { Sandbox } from "@vercel/sandbox";
 
+import { getVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
+import { auditRepositoryMutation } from "@/lib/agent-runtime/tools/audit";
+import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import { schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import {
@@ -10,12 +12,8 @@ import {
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
-import type { ToolContext } from "./types";
-import {
-  canPushToGitHubBranch,
-  checkRepoTmsWriteGate,
-  type WriteAction,
-} from "@/lib/agents/repo-tms-write-gate";
+import type { ToolContext } from "@/lib/tools/types";
+import { canPushToGitHubBranch, type WriteAction } from "@/lib/agents/repository-write-gate";
 
 async function logMutation(
   ctx: ToolContext,
@@ -30,42 +28,11 @@ async function logMutation(
     };
   },
 ) {
-  const taskId = ctx.conversationId;
-  const workflowRunId = ctx.workflowRunId ?? ctx.conversationId;
-  await ctx.db.insert(schema.repoTmsMutationLogs).values({
-    organizationId: ctx.organizationId,
-    projectId: ctx.projectId,
-    workflowRunId,
-    taskId,
-    actor: {
-      sourceUserId: ctx.actor?.sourceUserId ?? "unknown",
-      userId: ctx.actor?.userId,
-      email: ctx.actor?.email,
-      displayName: ctx.actor?.displayName,
-      role: ctx.actor?.role,
-    },
-    action: input.action,
-    source: ctx.repoTmsSource ?? (ctx.actor ? "repo_tms_agent" : "unknown"),
-    provider: ctx.githubContext ? "github" : "tms",
-    status: input.status,
-    details: input.details ?? {},
-  });
+  await auditRepositoryMutation(ctx, input);
 }
 
 function assertWriteAllowed(ctx: ToolContext, action: WriteAction) {
-  if (!ctx.workMode || !ctx.repoTmsSource || !ctx.actor) {
-    return {
-      allowed: false as const,
-      reason: "Write context is not available for this tool.",
-    };
-  }
-
-  return checkRepoTmsWriteGate({
-    workMode: ctx.workMode,
-    source: ctx.repoTmsSource,
-    actor: ctx.actor,
-    action,
-  });
+  return assertRepositoryWriteAllowed(ctx, action);
 }
 
 async function runSandboxCommand(
@@ -74,12 +41,8 @@ async function runSandboxCommand(
   args: string[],
   outputStream: "both" | "stdout" = "both",
 ): Promise<{ exitCode: number; output: string }> {
-  const sandbox = await Sandbox.get({ sandboxId });
-  const result = await sandbox.runCommand(command, args);
-  return {
-    exitCode: result.exitCode,
-    output: await result.output(outputStream),
-  };
+  const workspace = getVercelSandboxWorkspace(sandboxId);
+  return workspace.runCommand(command, args, { output: outputStream });
 }
 
 function sourceFilename(path: string) {
@@ -450,7 +413,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
                   sourcePath: normalizedPath,
                   commitSha: ctx.githubContext?.commitSha,
                   workflowRunId: ctx.workflowRunId ?? ctx.conversationId,
-                  uploadSurface: "repo_tms_agent",
+                  uploadSurface: "repository_agent",
                 },
                 adapter,
                 db: tx,
@@ -462,7 +425,7 @@ export function createUploadSourcesTool(ctx: ToolContext) {
                 commitSha: ctx.githubContext?.commitSha,
                 workflowRunId: ctx.workflowRunId ?? ctx.conversationId,
                 uploadedByUserId: ctx.actor?.userId,
-                uploadSurface: "repo_tms_agent",
+                uploadSurface: "repository_agent",
                 db: tx,
               });
 

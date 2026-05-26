@@ -1,5 +1,4 @@
 import { Chat, emoji } from "chat";
-import { randomUUID } from "node:crypto";
 import { createSlackAdapter } from "@chat-adapter/slack";
 import type { Message, Thread, UserInfo } from "chat";
 
@@ -10,21 +9,18 @@ import {
   createConversationToolLoopAgent,
   loadInteractionModelMessages,
   replaceLastUserMessage,
-} from "@/lib/agents/hyperlocalise-agent";
+} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import {
-  buildRepoTmsGitHubContextInstructions,
-  resolveSlackRepoTmsGitHubContext,
-} from "@/lib/agents/repo-tms-context";
-import { createRepoTmsSandbox, stopRepoTmsSandbox } from "@/lib/agents/repo-tms-sandbox";
+  buildRepositoryGitHubContextInstructions,
+  resolveSlackRepositoryGitHubContext,
+} from "@/lib/agents/repository-context";
 import {
-  buildRepoTmsTaskIdempotencyKey,
-  type RepoTmsAgentGitHubContext,
-  type RepoTmsAgentTask,
-} from "@/lib/agents/repo-tms-task";
-import { createRepoTmsAgentTaskQueue } from "@/workflows/adapters";
-import { hasCapability } from "@/api/auth/policy";
+  createRepositorySandbox,
+  stopRepositorySandbox,
+} from "@/lib/agent-runtime/workspaces/repository-sandbox";
+import { type RepositoryAgentGitHubContext } from "@/lib/agents/repository-agent-task";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
-import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
+import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger } from "@/lib/log";
@@ -102,7 +98,7 @@ function buildSlackFileTranslationInstructions() {
   return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
 
-async function buildSlackRepoTmsInstructions(
+async function buildSlackRepositoryInstructions(
   interactionId: string,
   latestText: string,
 ): Promise<string> {
@@ -196,14 +192,14 @@ async function processSlackMessage(
     const intent = classifyHyperlocaliseAgentIntent({ surface: "slack", text: message.text });
     const intentInstructions = buildHyperlocaliseAgentIntentInstructions(intent);
     const additionalInstructions = [buildSlackFileTranslationInstructions(), intentInstructions];
-    let resolvedRepoTmsContext: RepoTmsAgentGitHubContext | undefined;
-    const repoTmsInstructions =
-      intent.kind === "repo_tms"
-        ? await buildSlackRepoTmsInstructions(interactionId, message.text)
+    let resolvedRepositoryContext: RepositoryAgentGitHubContext | undefined;
+    const repositoryInstructions =
+      intent.kind === "repository"
+        ? await buildSlackRepositoryInstructions(interactionId, message.text)
         : message.text;
 
-    if (intent.kind === "repo_tms") {
-      const githubContextResolution = await resolveSlackRepoTmsGitHubContext({
+    if (intent.kind === "repository") {
+      const githubContextResolution = await resolveSlackRepositoryGitHubContext({
         organizationId,
         text: message.text,
         connectorConfig,
@@ -220,53 +216,12 @@ async function processSlackMessage(
       }
 
       if (githubContextResolution.status === "resolved") {
-        resolvedRepoTmsContext = githubContextResolution.context;
+        resolvedRepositoryContext = githubContextResolution.context;
       }
     }
 
-    if (intent.kind === "repo_tms") {
-      const repoTmsWorkMode = hasCapability(membership.role, "integrations:write")
-        ? "write"
-        : "read_only";
-
-      if (repoTmsWorkMode === "write") {
-        const repoTmsTask: RepoTmsAgentTask = {
-          id: randomUUID(),
-          source: "slack",
-          sourceThreadId: thread.id,
-          actor: {
-            sourceUserId: message.author.userId,
-            userId: membership.localUserId,
-            email: slackUser?.email,
-            displayName: message.author.fullName ?? message.author.userName,
-            role: membership.role,
-          },
-          organizationId,
-          projectId,
-          workMode: repoTmsWorkMode,
-          instructions: repoTmsInstructions,
-          githubContext: resolvedRepoTmsContext,
-          createdAt: new Date().toISOString(),
-          idempotencyKey: buildRepoTmsTaskIdempotencyKey({
-            source: "slack",
-            sourceThreadId: thread.id,
-            organizationId,
-            instructions: repoTmsInstructions,
-            githubContext: resolvedRepoTmsContext,
-          }),
-        };
-        await createRepoTmsAgentTaskQueue().enqueue(repoTmsTask);
-
-        await removeEyesReaction(thread, message);
-        wrapThreadPost(thread, interactionId);
-        await thread.post({
-          markdown:
-            "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
-        });
-        return;
-      }
-
-      if (!resolvedRepoTmsContext) {
+    if (intent.kind === "repository") {
+      if (!resolvedRepositoryContext) {
         await removeEyesReaction(thread, message);
         wrapThreadPost(thread, interactionId);
         await thread.post({
@@ -277,10 +232,10 @@ async function processSlackMessage(
 
       let sandboxId: string | null = null;
       try {
-        sandboxId = await createRepoTmsSandbox(resolvedRepoTmsContext);
+        sandboxId = await createRepositorySandbox(resolvedRepositoryContext);
         const chatMessages = replaceLastUserMessage(
           await loadInteractionModelMessages(interactionId),
-          repoTmsInstructions,
+          repositoryInstructions,
         );
         const agent = createConversationToolLoopAgent({
           surface: "slack",
@@ -292,9 +247,9 @@ async function processSlackMessage(
             projectId,
             db,
             sandboxId,
-            githubContext: resolvedRepoTmsContext,
+            githubContext: resolvedRepositoryContext,
             workMode: "read_only",
-            repoTmsSource: "slack",
+            repositorySource: "slack",
             actor: {
               sourceUserId: message.author.userId,
               userId: membership.localUserId,
@@ -304,7 +259,7 @@ async function processSlackMessage(
           additionalInstructions: [
             buildSlackFileTranslationInstructions(),
             intentInstructions,
-            buildRepoTmsGitHubContextInstructions(resolvedRepoTmsContext),
+            buildRepositoryGitHubContextInstructions(resolvedRepositoryContext),
             "Use searchRepoFiles with the user's quoted string, then readRepoFile for surrounding lines.",
           ]
             .filter((instruction): instruction is string => instruction !== null)
@@ -320,7 +275,7 @@ async function processSlackMessage(
         }
       } finally {
         if (sandboxId) {
-          await stopRepoTmsSandbox(sandboxId).catch(() => {
+          await stopRepositorySandbox(sandboxId).catch(() => {
             // Best-effort cleanup
           });
         }

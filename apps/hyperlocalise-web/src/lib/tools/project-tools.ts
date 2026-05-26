@@ -4,8 +4,8 @@ import { z } from "zod";
 
 import { schema } from "@/lib/database";
 
-import { toolAccessibleProjectsWhere, toolCanAccessProject } from "./tool-access";
-import type { ToolContext } from "./types";
+import { toolAccessibleProjectsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
+import type { ToolContext } from "@/lib/tools/types";
 
 /**
  * List projects in the current organization so the agent can suggest

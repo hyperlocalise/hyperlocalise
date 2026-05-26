@@ -27,7 +27,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("./tool-access", () => ({
+vi.mock("@/lib/tools/tool-access", () => ({
   toolCanAccessProject: vi.fn(async () => ({ id: "project_123" })),
   toolCanAccessGlossary: vi.fn(async () => true),
   toolCanAccessMemory: vi.fn(async () => true),
@@ -42,7 +42,7 @@ vi.mock("./tool-access", () => ({
   toolProjectLinkedMemoryWhere: vi.fn(async () => ({})),
 }));
 
-import { createTranslationJobTool } from "./job-tools";
+import { createTranslationJobTool } from "@/lib/agent-runtime/tools/translation-tools";
 import {
   createCreateGlossaryTool,
   createUpdateGlossaryTool,
@@ -53,7 +53,7 @@ import {
   createUpdateTranslationMemoryTool,
   createDeleteTranslationMemoryTool,
 } from "./memory-tools";
-import type { ToolContext } from "./types";
+import type { ToolContext } from "@/lib/tools/types";
 
 describe("Agent Tools RBAC", () => {
   const mockCtx = (role: "owner" | "admin" | "member"): ToolContext => ({

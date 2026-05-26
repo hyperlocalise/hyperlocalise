@@ -48,14 +48,14 @@ vi.mock("@/lib/agents/github/app", () => ({
   getInstallationOctokit: getInstallationOctokitMock,
 }));
 
-vi.mock("@/lib/agents/hyperlocalise-agent", () => ({
+vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => ({
   getHyperlocaliseAgentModel: vi.fn(() => ({ modelId: "x" })),
   buildHyperlocaliseAgentInstructions: buildHyperlocaliseAgentInstructionsMock,
 }));
 
-vi.mock("@/lib/tools/registry", () => ({ buildTools: buildToolsMock }));
+vi.mock("@/lib/agent-runtime/tools/registry", () => ({ buildTools: buildToolsMock }));
 
-import { repoTmsAgentWorkflow } from "./repo-tms-agent";
+import { repositoryAgentWorkflow } from "./repository-agent";
 
 const baseTask = {
   id: "task_1",
@@ -70,7 +70,7 @@ const baseTask = {
   idempotencyKey: "idem",
 } as const;
 
-describe("repoTmsAgentWorkflow", () => {
+describe("repositoryAgentWorkflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authMock.mockResolvedValue({ token: "installation-token" });
@@ -82,12 +82,12 @@ describe("repoTmsAgentWorkflow", () => {
   });
 
   it("returns success state with source target and workflowRunId", async () => {
-    const result = await repoTmsAgentWorkflow(baseTask as never);
+    const result = await repositoryAgentWorkflow(baseTask as never);
 
     expect(toolLoopAgentCtor).toHaveBeenCalledWith(
       expect.objectContaining({
         instructions: "sys",
-        experimental_context: { sandboxId: null, repoTmsTaskId: "task_1" },
+        experimental_context: { sandboxId: null, repositoryTaskId: "task_1" },
       }),
     );
     expect(generateMock).toHaveBeenCalledWith({
@@ -102,7 +102,7 @@ describe("repoTmsAgentWorkflow", () => {
   });
 
   it("cleans up disposable sandbox runs", async () => {
-    await repoTmsAgentWorkflow({
+    await repositoryAgentWorkflow({
       ...baseTask,
       githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
     } as never);
@@ -121,7 +121,7 @@ describe("repoTmsAgentWorkflow", () => {
   });
 
   it("allows a larger repo task tool-call budget", async () => {
-    await repoTmsAgentWorkflow(baseTask as never);
+    await repositoryAgentWorkflow(baseTask as never);
 
     const options = toolLoopAgentCtor.mock.calls[0]?.[0] as unknown as {
       stopWhen: Array<(step: { steps: unknown[] }) => boolean>;
@@ -133,7 +133,7 @@ describe("repoTmsAgentWorkflow", () => {
   });
 
   it("uses member permissions when the task actor role is unresolved", async () => {
-    await repoTmsAgentWorkflow(baseTask as never);
+    await repositoryAgentWorkflow(baseTask as never);
 
     expect(buildToolsMock).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -144,7 +144,7 @@ describe("repoTmsAgentWorkflow", () => {
         membershipRole: "member",
         projectId: null,
         workMode: "read_only",
-        repoTmsSource: "github",
+        repositorySource: "github",
         actor: baseTask.actor,
         sandboxId: null,
         githubContext: null,
@@ -152,26 +152,24 @@ describe("repoTmsAgentWorkflow", () => {
     );
   });
 
-  it("refuses workflow when actor has no linked Hyperlocalise user", async () => {
-    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
-
-    const result = await repoTmsAgentWorkflow({
+  it("runs read-only repository context lookup for external actors without linked users", async () => {
+    const result = await repositoryAgentWorkflow({
       ...baseTask,
       actor: { sourceUserId: "u1" },
     } as never);
 
-    expect(result).toEqual({
-      ok: false,
+    expect(result).toMatchObject({
+      ok: true,
       workflowRunId: "run_123",
       sourceReplyTarget: { source: "github", threadId: "thread_1" },
-      summary:
-        "Repo/TMS workflow could not run because the external actor is not linked to a Hyperlocalise user.",
-      error: "actor_not_linked",
+      summary: "done",
     });
-    expect(toolLoopAgentCtor).not.toHaveBeenCalled();
-    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("refusing workflow run_123"));
-
-    warnSpy.mockRestore();
+    expect(buildToolsMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        localUserId: "repository_agent",
+        workMode: "read_only",
+      }),
+    );
   });
 
   it.each([
@@ -179,7 +177,7 @@ describe("repoTmsAgentWorkflow", () => {
     ["github", "github"],
     ["chat_ui", "web"],
   ] as const)("maps %s tasks to %s agent instructions", async (source, surface) => {
-    await repoTmsAgentWorkflow({ ...baseTask, source } as never);
+    await repositoryAgentWorkflow({ ...baseTask, source } as never);
 
     expect(buildHyperlocaliseAgentInstructionsMock).toHaveBeenCalledWith(
       expect.objectContaining({ surface }),
@@ -187,7 +185,7 @@ describe("repoTmsAgentWorkflow", () => {
   });
 
   it("adds read-only guidance to read-only repo workflows", async () => {
-    await repoTmsAgentWorkflow({
+    await repositoryAgentWorkflow({
       ...baseTask,
       githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
     } as never);
@@ -195,7 +193,7 @@ describe("repoTmsAgentWorkflow", () => {
     expect(buildHyperlocaliseAgentInstructionsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         additionalInstructions: expect.stringContaining(
-          "This workflow is read-only. Gather repository and TMS context",
+          "This workflow is read-only. Gather repository context",
         ),
       }),
     );
@@ -204,27 +202,27 @@ describe("repoTmsAgentWorkflow", () => {
   it("captures failures from tool execution", async () => {
     generateMock.mockRejectedValueOnce(new Error("tool failed"));
 
-    const result = await repoTmsAgentWorkflow(baseTask as never);
+    const result = await repositoryAgentWorkflow(baseTask as never);
 
     expect(result.ok).toBe(false);
     expect(result.error).toContain("tool failed");
   });
 
-  it("cleans up write-mode sandbox runs", async () => {
-    await repoTmsAgentWorkflow({
+  it("cleans up read-only sandbox runs", async () => {
+    await repositoryAgentWorkflow({
       ...baseTask,
-      workMode: "write",
+      workMode: "read_only",
       githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
     } as never);
 
     expect(stopMock).toHaveBeenCalledTimes(1);
   });
 
-  it("passes repo-tms context fields to tools when github context is resolved", async () => {
-    await repoTmsAgentWorkflow({
+  it("passes repository context fields to tools when github context is resolved", async () => {
+    await repositoryAgentWorkflow({
       ...baseTask,
       actor: { sourceUserId: "u1", userId: "user_admin", role: "admin" },
-      workMode: "approval_required",
+      workMode: "read_only",
       githubContext: {
         resolved: true,
         installationId: 1,
@@ -241,8 +239,8 @@ describe("repoTmsAgentWorkflow", () => {
         localUserId: "user_admin",
         membershipRole: "admin",
         projectId: null,
-        workMode: "approval_required",
-        repoTmsSource: "github",
+        workMode: "read_only",
+        repositorySource: "github",
         actor: { sourceUserId: "u1", userId: "user_admin", role: "admin" },
         sandboxId: "sbx_1",
         githubContext: {
@@ -258,7 +256,7 @@ describe("repoTmsAgentWorkflow", () => {
   it("preserves the structured result when cleanup fails", async () => {
     stopMock.mockRejectedValueOnce(new Error("cleanup failed"));
 
-    const result = await repoTmsAgentWorkflow({
+    const result = await repositoryAgentWorkflow({
       ...baseTask,
       githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
     } as never);

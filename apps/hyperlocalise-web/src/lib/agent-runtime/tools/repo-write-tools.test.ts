@@ -10,13 +10,13 @@ vi.mock("@vercel/sandbox", () => ({
   },
 }));
 
-const { checkRepoTmsWriteGateMock, canPushToGitHubBranchMock } = vi.hoisted(() => ({
-  checkRepoTmsWriteGateMock: vi.fn(),
+const { checkRepositoryWriteGateMock, canPushToGitHubBranchMock } = vi.hoisted(() => ({
+  checkRepositoryWriteGateMock: vi.fn(),
   canPushToGitHubBranchMock: vi.fn(),
 }));
 
-vi.mock("@/lib/agents/repo-tms-write-gate", () => ({
-  checkRepoTmsWriteGate: checkRepoTmsWriteGateMock,
+vi.mock("@/lib/agents/repository-write-gate", () => ({
+  checkRepositoryWriteGate: checkRepositoryWriteGateMock,
   canPushToGitHubBranch: canPushToGitHubBranchMock,
 }));
 
@@ -49,8 +49,8 @@ import {
   createPushToBranchTool,
   createUploadSourcesTool,
   getCommittableChangedPaths,
-} from "./repo-tms-write-tools";
-import type { ToolContext } from "./types";
+} from "./repo-write-tools";
+import type { ToolContext } from "@/lib/tools/types";
 
 function createBaseCtx(overrides: Partial<ToolContext> = {}): ToolContext {
   const db = {
@@ -69,7 +69,7 @@ function createBaseCtx(overrides: Partial<ToolContext> = {}): ToolContext {
     projectId: "proj_1",
     db,
     workMode: "approval_required",
-    repoTmsSource: "slack",
+    repositorySource: "slack",
     actor: { sourceUserId: "U1", role: "member" },
     sandboxId: "sbx_1",
     githubContext: {
@@ -85,13 +85,13 @@ function createBaseCtx(overrides: Partial<ToolContext> = {}): ToolContext {
 describe("createApplyHyperlocaliseFixesTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    checkRepoTmsWriteGateMock.mockReturnValue({ allowed: true });
+    checkRepositoryWriteGateMock.mockReturnValue({ allowed: true });
   });
 
-  it("passes the explicit repo-tms source to the write gate", async () => {
+  it("passes the explicit repository source to the write gate", async () => {
     const tool = createApplyHyperlocaliseFixesTool(
       createBaseCtx({
-        repoTmsSource: "chat_ui",
+        repositorySource: "chat_ui",
         actor: { sourceUserId: "user_1", role: "member" },
       }),
     );
@@ -101,7 +101,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
       { messages: [], toolCallId: "tc1", abortSignal: new AbortController().signal },
     );
 
-    expect(checkRepoTmsWriteGateMock).toHaveBeenCalledWith(
+    expect(checkRepositoryWriteGateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         source: "chat_ui",
         actor: { sourceUserId: "user_1", role: "member" },
@@ -110,7 +110,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
   });
 
   it("denies the fix when the write gate rejects it", async () => {
-    checkRepoTmsWriteGateMock.mockReturnValue({
+    checkRepositoryWriteGateMock.mockReturnValue({
       allowed: false,
       reason: "Approval required",
     });
@@ -125,7 +125,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
     expect(result.error).toBe("Approval required");
   });
 
-  it("logs the repo-tms source and workflow run id", async () => {
+  it("logs the repository source and workflow run id", async () => {
     const valuesMock = vi.fn(() => Promise.resolve([]));
     const db = {
       insert: vi.fn(() => ({
@@ -133,7 +133,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
       })),
       transaction: vi.fn(),
     } as unknown as ToolContext["db"];
-    checkRepoTmsWriteGateMock.mockReturnValue({
+    checkRepositoryWriteGateMock.mockReturnValue({
       allowed: false,
       reason: "Approval required",
     });
@@ -143,7 +143,7 @@ describe("createApplyHyperlocaliseFixesTool", () => {
         db,
         conversationId: "task_1",
         workflowRunId: "run_123",
-        repoTmsSource: "github",
+        repositorySource: "github",
       }),
     );
 
@@ -215,11 +215,11 @@ describe("createApplyHyperlocaliseFixesTool", () => {
 describe("createCommitChangesTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    checkRepoTmsWriteGateMock.mockReturnValue({ allowed: true });
+    checkRepositoryWriteGateMock.mockReturnValue({ allowed: true });
   });
 
   it("denies commit when the write gate rejects it", async () => {
-    checkRepoTmsWriteGateMock.mockReturnValue({
+    checkRepositoryWriteGateMock.mockReturnValue({
       allowed: false,
       reason: "read-only mode",
     });
@@ -286,12 +286,12 @@ describe("createCommitChangesTool", () => {
 describe("createPushToBranchTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    checkRepoTmsWriteGateMock.mockReturnValue({ allowed: true });
+    checkRepositoryWriteGateMock.mockReturnValue({ allowed: true });
     canPushToGitHubBranchMock.mockResolvedValue({ canPush: true });
   });
 
   it("denies push when the write gate rejects it", async () => {
-    checkRepoTmsWriteGateMock.mockReturnValue({
+    checkRepositoryWriteGateMock.mockReturnValue({
       allowed: false,
       reason: "Approval required",
     });
@@ -374,7 +374,7 @@ describe("getCommittableChangedPaths", () => {
 describe("createUploadSourcesTool", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    checkRepoTmsWriteGateMock.mockReturnValue({ allowed: true });
+    checkRepositoryWriteGateMock.mockReturnValue({ allowed: true });
     createStoredFileMock.mockImplementation(async (input) => ({
       id: `file_${input.filename}`,
       organizationId: input.organizationId,
@@ -392,7 +392,7 @@ describe("createUploadSourcesTool", () => {
   });
 
   it("denies upload when the write gate rejects it", async () => {
-    checkRepoTmsWriteGateMock.mockReturnValue({
+    checkRepositoryWriteGateMock.mockReturnValue({
       allowed: false,
       reason: "read-only mode",
     });
@@ -461,7 +461,7 @@ describe("createUploadSourcesTool", () => {
         metadata: expect.objectContaining({
           sourcePath: "src/i18n/en.json",
           workflowRunId: "run_1",
-          uploadSurface: "repo_tms_agent",
+          uploadSurface: "repository_agent",
         }),
       }),
     );
@@ -469,7 +469,7 @@ describe("createUploadSourcesTool", () => {
       expect.objectContaining({
         sourcePath: "src/i18n/en.json",
         workflowRunId: "run_1",
-        uploadSurface: "repo_tms_agent",
+        uploadSurface: "repository_agent",
       }),
     );
   });

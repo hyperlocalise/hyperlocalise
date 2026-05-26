@@ -5,7 +5,7 @@ vi.mock("@/lib/interactions", () => ({
   addInteractionMessage: vi.fn(),
 }));
 
-import { wrapThreadPostForInteraction } from "./tracking";
+import { wrapThreadPostForInteraction } from "./agent-run-events";
 
 function createThread() {
   const posts: unknown[] = [];

@@ -7,8 +7,8 @@ import { schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { bufferFromStream } from "@/lib/streams";
 
-import { toolCanAccessStoredFileProject } from "./tool-access";
-import type { ToolContext } from "./types";
+import { toolCanAccessStoredFileProject } from "@/lib/tools/tool-access";
+import type { ToolContext } from "@/lib/tools/types";
 
 /**
  * Read the contents of a stored file.

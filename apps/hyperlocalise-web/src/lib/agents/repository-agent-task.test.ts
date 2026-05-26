@@ -1,15 +1,15 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  buildRepoTmsTaskIdempotencyKey,
-  deserializeRepoTmsAgentTask,
+  buildRepositoryTaskIdempotencyKey,
+  deserializeRepositoryAgentTask,
   isResolvedGitHubContext,
   isUnresolvedGitHubContext,
-  repoTmsAgentTaskSchema,
-  serializeRepoTmsAgentTask,
-} from "./repo-tms-task";
+  repositoryAgentTaskSchema,
+  serializeRepositoryAgentTask,
+} from "./repository-agent-task";
 
-describe("repoTmsAgentTaskSchema", () => {
+describe("repositoryAgentTaskSchema", () => {
   it("accepts a minimal valid task", () => {
     const task = {
       id: "task_001",
@@ -26,7 +26,7 @@ describe("repoTmsAgentTaskSchema", () => {
       idempotencyKey: "key_001",
     };
 
-    expect(() => repoTmsAgentTaskSchema.parse(task)).not.toThrow();
+    expect(() => repositoryAgentTaskSchema.parse(task)).not.toThrow();
   });
 
   it("accepts a task with resolved GitHub context", () => {
@@ -42,7 +42,7 @@ describe("repoTmsAgentTaskSchema", () => {
       },
       organizationId: "org_def",
       projectId: "proj_123",
-      workMode: "write" as const,
+      workMode: "read_only" as const,
       instructions: "Fix i18n issues in the login flow",
       githubContext: {
         resolved: true,
@@ -57,7 +57,7 @@ describe("repoTmsAgentTaskSchema", () => {
       idempotencyKey: "key_002",
     };
 
-    const parsed = repoTmsAgentTaskSchema.parse(task);
+    const parsed = repositoryAgentTaskSchema.parse(task);
     expect(parsed.githubContext).toEqual(task.githubContext);
   });
 
@@ -71,7 +71,7 @@ describe("repoTmsAgentTaskSchema", () => {
       },
       organizationId: "org_def",
       projectId: null,
-      workMode: "approval_required" as const,
+      workMode: "read_only" as const,
       instructions: "Update translations",
       githubContext: {
         resolved: false as const,
@@ -82,7 +82,7 @@ describe("repoTmsAgentTaskSchema", () => {
       idempotencyKey: "key_003",
     };
 
-    const parsed = repoTmsAgentTaskSchema.parse(task);
+    const parsed = repositoryAgentTaskSchema.parse(task);
     expect(parsed.githubContext).toEqual(task.githubContext);
   });
 
@@ -100,7 +100,7 @@ describe("repoTmsAgentTaskSchema", () => {
       idempotencyKey: "key_004",
     };
 
-    expect(() => repoTmsAgentTaskSchema.parse(task)).toThrow();
+    expect(() => repositoryAgentTaskSchema.parse(task)).toThrow();
   });
 
   it("rejects a task with an invalid source", () => {
@@ -117,7 +117,7 @@ describe("repoTmsAgentTaskSchema", () => {
       idempotencyKey: "key_005",
     };
 
-    expect(() => repoTmsAgentTaskSchema.parse(task)).toThrow();
+    expect(() => repositoryAgentTaskSchema.parse(task)).toThrow();
   });
 
   it("rejects a task with a missing required actor field", () => {
@@ -134,7 +134,7 @@ describe("repoTmsAgentTaskSchema", () => {
       idempotencyKey: "key_006",
     };
 
-    expect(() => repoTmsAgentTaskSchema.parse(task)).toThrow();
+    expect(() => repositoryAgentTaskSchema.parse(task)).toThrow();
   });
 
   it("rejects a task with an invalid datetime string", () => {
@@ -151,11 +151,11 @@ describe("repoTmsAgentTaskSchema", () => {
       idempotencyKey: "key_007",
     };
 
-    expect(() => repoTmsAgentTaskSchema.parse(task)).toThrow();
+    expect(() => repositoryAgentTaskSchema.parse(task)).toThrow();
   });
 });
 
-describe("buildRepoTmsTaskIdempotencyKey", () => {
+describe("buildRepositoryTaskIdempotencyKey", () => {
   it("produces the same key for identical inputs", () => {
     const input = {
       source: "slack" as const,
@@ -164,8 +164,8 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
       instructions: "Check translation coverage",
     };
 
-    const first = buildRepoTmsTaskIdempotencyKey(input);
-    const second = buildRepoTmsTaskIdempotencyKey(input);
+    const first = buildRepositoryTaskIdempotencyKey(input);
+    const second = buildRepositoryTaskIdempotencyKey(input);
 
     expect(first).toBe(second);
   });
@@ -177,8 +177,8 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
       instructions: "Check translation coverage",
     };
 
-    const slackKey = buildRepoTmsTaskIdempotencyKey({ ...base, source: "slack" });
-    const githubKey = buildRepoTmsTaskIdempotencyKey({ ...base, source: "github" });
+    const slackKey = buildRepositoryTaskIdempotencyKey({ ...base, source: "slack" });
+    const githubKey = buildRepositoryTaskIdempotencyKey({ ...base, source: "github" });
 
     expect(slackKey).not.toBe(githubKey);
   });
@@ -190,11 +190,11 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
       organizationId: "org_abc",
     };
 
-    const first = buildRepoTmsTaskIdempotencyKey({
+    const first = buildRepositoryTaskIdempotencyKey({
       ...base,
       instructions: "Check translation coverage",
     });
-    const second = buildRepoTmsTaskIdempotencyKey({
+    const second = buildRepositoryTaskIdempotencyKey({
       ...base,
       instructions: "Fix translation coverage",
     });
@@ -210,8 +210,8 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
       instructions: "Fix i18n",
     };
 
-    const withoutGitHub = buildRepoTmsTaskIdempotencyKey(base);
-    const withGitHub = buildRepoTmsTaskIdempotencyKey({
+    const withoutGitHub = buildRepositoryTaskIdempotencyKey(base);
+    const withGitHub = buildRepositoryTaskIdempotencyKey({
       ...base,
       githubContext: {
         resolved: true,
@@ -241,8 +241,8 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
       },
     };
 
-    const first = buildRepoTmsTaskIdempotencyKey(base);
-    const second = buildRepoTmsTaskIdempotencyKey({
+    const first = buildRepositoryTaskIdempotencyKey(base);
+    const second = buildRepositoryTaskIdempotencyKey({
       ...base,
       githubContext: {
         ...base.githubContext,
@@ -267,8 +267,8 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
       },
     };
 
-    const first = buildRepoTmsTaskIdempotencyKey(base);
-    const second = buildRepoTmsTaskIdempotencyKey({
+    const first = buildRepositoryTaskIdempotencyKey(base);
+    const second = buildRepositoryTaskIdempotencyKey({
       ...base,
       githubContext: {
         ...base.githubContext,
@@ -280,7 +280,7 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
   });
 
   it("handles missing optional GitHub context fields gracefully", () => {
-    const key = buildRepoTmsTaskIdempotencyKey({
+    const key = buildRepositoryTaskIdempotencyKey({
       source: "github",
       sourceThreadId: "thread_456",
       organizationId: "org_def",
@@ -294,7 +294,7 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
 
     expect(key).toMatch(/^[a-f0-9]{64}$/);
     expect(key).toBe(
-      buildRepoTmsTaskIdempotencyKey({
+      buildRepositoryTaskIdempotencyKey({
         source: "github",
         sourceThreadId: "thread_456",
         organizationId: "org_def",
@@ -309,9 +309,9 @@ describe("buildRepoTmsTaskIdempotencyKey", () => {
   });
 });
 
-describe("serializeRepoTmsAgentTask", () => {
+describe("serializeRepositoryAgentTask", () => {
   it("round-trips a task through JSON", () => {
-    const task = repoTmsAgentTaskSchema.parse({
+    const task = repositoryAgentTaskSchema.parse({
       id: "task_roundtrip",
       source: "github",
       sourceThreadId: "thread_rt",
@@ -323,7 +323,7 @@ describe("serializeRepoTmsAgentTask", () => {
       },
       organizationId: "org_rt",
       projectId: "proj_rt",
-      workMode: "write",
+      workMode: "read_only",
       instructions: "Round-trip test",
       githubContext: {
         resolved: true,
@@ -338,21 +338,21 @@ describe("serializeRepoTmsAgentTask", () => {
       idempotencyKey: "key_rt",
     });
 
-    const json = serializeRepoTmsAgentTask(task);
-    const recovered = deserializeRepoTmsAgentTask(json);
+    const json = serializeRepositoryAgentTask(task);
+    const recovered = deserializeRepositoryAgentTask(json);
 
     expect(recovered).toEqual(task);
   });
 
   it("round-trips a task with unresolved GitHub context", () => {
-    const task = repoTmsAgentTaskSchema.parse({
+    const task = repositoryAgentTaskSchema.parse({
       id: "task_unresolved",
       source: "github",
       sourceThreadId: "thread_unres",
       actor: { sourceUserId: "octocat" },
       organizationId: "org_unres",
       projectId: null,
-      workMode: "approval_required",
+      workMode: "read_only",
       instructions: "Unresolved test",
       githubContext: {
         resolved: false,
@@ -363,19 +363,19 @@ describe("serializeRepoTmsAgentTask", () => {
       idempotencyKey: "key_unres",
     });
 
-    const json = serializeRepoTmsAgentTask(task);
-    const recovered = deserializeRepoTmsAgentTask(json);
+    const json = serializeRepositoryAgentTask(task);
+    const recovered = deserializeRepositoryAgentTask(json);
 
     expect(recovered).toEqual(task);
   });
 
   it("throws on invalid JSON during deserialization", () => {
-    expect(() => deserializeRepoTmsAgentTask("not-json")).toThrow();
+    expect(() => deserializeRepositoryAgentTask("not-json")).toThrow();
   });
 
   it("throws on schema violations during deserialization", () => {
     const bad = JSON.stringify({ unexpected: "shape" });
-    expect(() => deserializeRepoTmsAgentTask(bad)).toThrow();
+    expect(() => deserializeRepositoryAgentTask(bad)).toThrow();
   });
 });
 

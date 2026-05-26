@@ -4,7 +4,7 @@ import type { Message, Thread } from "chat";
 import { and, eq } from "drizzle-orm";
 
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
-import { wrapThreadPostForInteraction } from "@/lib/agents/runtime/tracking";
+import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger } from "@/lib/log";

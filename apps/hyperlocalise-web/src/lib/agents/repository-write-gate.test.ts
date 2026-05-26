@@ -7,9 +7,9 @@ vi.mock("@/lib/agents/github/app", () => ({
 import { getInstallationOctokit } from "@/lib/agents/github/app";
 import {
   canPushToGitHubBranch,
-  checkRepoTmsWriteGate,
+  checkRepositoryWriteGate,
   type WriteGateResult,
-} from "./repo-tms-write-gate";
+} from "./repository-write-gate";
 
 function deniedReason(result: WriteGateResult): string {
   if (!result.allowed) {
@@ -18,9 +18,9 @@ function deniedReason(result: WriteGateResult): string {
   return "";
 }
 
-describe("checkRepoTmsWriteGate", () => {
+describe("checkRepositoryWriteGate", () => {
   it("denies all writes in read_only mode regardless of source or role", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "read_only",
       source: "slack",
       actor: { sourceUserId: "U1", role: "owner" },
@@ -32,7 +32,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("allows Slack write for admin role in write mode", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "write",
       source: "slack",
       actor: { sourceUserId: "U1", role: "admin" },
@@ -43,7 +43,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("allows Slack write for owner role in write mode", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "write",
       source: "slack",
       actor: { sourceUserId: "U1", role: "owner" },
@@ -54,7 +54,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("denies Slack write for member role in write mode", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "write",
       source: "slack",
       actor: { sourceUserId: "U1", role: "member" },
@@ -66,7 +66,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("denies Slack write when role is missing in write mode", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "write",
       source: "slack",
       actor: { sourceUserId: "U1" },
@@ -78,7 +78,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("allows Slack approval_required for admin role", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "approval_required",
       source: "slack",
       actor: { sourceUserId: "U1", role: "admin" },
@@ -89,7 +89,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("denies legacy Slack approval_required for member role", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "approval_required",
       source: "slack",
       actor: { sourceUserId: "U1", role: "member" },
@@ -101,7 +101,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("allows GitHub write mode for any role", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "write",
       source: "github",
       actor: { sourceUserId: "octocat" },
@@ -112,7 +112,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("denies GitHub approval_required for member role without implying an approval path", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "approval_required",
       source: "github",
       actor: { sourceUserId: "octocat", role: "member" },
@@ -124,7 +124,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("allows GitHub approval_required for admin role (auto-approve)", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "approval_required",
       source: "github",
       actor: { sourceUserId: "octocat", role: "admin" },
@@ -135,7 +135,7 @@ describe("checkRepoTmsWriteGate", () => {
   });
 
   it("treats chat_ui like Slack for permission checks", () => {
-    const result = checkRepoTmsWriteGate({
+    const result = checkRepositoryWriteGate({
       workMode: "write",
       source: "chat_ui",
       actor: { sourceUserId: "user_1", role: "member" },

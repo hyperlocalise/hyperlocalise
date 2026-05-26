@@ -12,14 +12,14 @@ import {
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { escapeRegExp } from "@/lib/primitives/escapeRegExp/escapeRegExp";
+import { buildTools } from "@/lib/agent-runtime/tools/registry";
 import { getConversationActiveTools } from "@/lib/tools/conversation-tools";
-import { buildTools } from "@/lib/tools/registry";
 import type { ToolContext } from "@/lib/tools/types";
 
 import {
   extractGitHubRepositoryFullNameReferences,
   githubPullRequestUrlPatternSource,
-} from "./repo-tms-context";
+} from "@/lib/agents/repository-context";
 
 export const hyperlocaliseAgentModelId = "gpt-5.4-mini";
 export const hyperlocaliseAgentStepLimit = 5;
@@ -29,7 +29,7 @@ export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
 
 export type HyperlocaliseAgentIntentKind =
   | "translation"
-  | "repo_tms"
+  | "repository"
   | "job_status"
   | "glossary_memory"
   | "project"
@@ -68,16 +68,8 @@ type CreateConversationAgentInput = {
 };
 
 const intentToolsets = {
-  translation: ["createTranslationJob", "searchRepoFiles", "readRepoFile"],
-  repo_tms: [
-    "searchRepoFiles",
-    "readRepoFile",
-    "detectRepoConfig",
-    "applyHyperlocaliseFixes",
-    "commitChanges",
-    "pushToBranch",
-    "uploadSources",
-  ],
+  translation: ["createTranslationJob"],
+  repository: ["searchRepoFiles", "readRepoFile"],
   job_status: [],
   glossary_memory: [],
   project: [],
@@ -92,12 +84,12 @@ export function classifyHyperlocaliseAgentIntent(input: {
 }): HyperlocaliseAgentIntent {
   const text = input.text.trim();
 
-  if (isRepoTmsPullRequestIntent(text)) {
-    return { kind: "repo_tms", githubContextRequirement: "pull_request" };
+  if (isRepositoryPullRequestIntent(text)) {
+    return { kind: "repository", githubContextRequirement: "pull_request" };
   }
 
-  if (isRepoTmsRepositoryIntent(text)) {
-    return { kind: "repo_tms", githubContextRequirement: "repository" };
+  if (isRepositoryRepositoryIntent(text)) {
+    return { kind: "repository", githubContextRequirement: "repository" };
   }
 
   if (
@@ -132,8 +124,8 @@ export function getActiveToolsForHyperlocaliseAgentIntent(
 
 export function buildTranslationAttachmentRequiredMessage(surface: HyperlocaliseAgentSurface) {
   const lines = [
-    "I can translate supported files, localize images, or search your connected GitHub repository.",
-    "Attach a file or image with a target language, or ask me to find text in a repo you have enabled in Agent → GitHub.",
+    "I can translate supported localization files.",
+    "Attach a file with a target language to create a translation job.",
   ];
 
   if (surface === "slack") {
@@ -144,42 +136,47 @@ export function buildTranslationAttachmentRequiredMessage(surface: Hyperlocalise
 }
 
 export function buildHyperlocaliseAgentIntentInstructions(intent: HyperlocaliseAgentIntent) {
-  if (intent.kind === "repo_tms") {
+  if (intent.kind === "repository") {
     return [
-      "Intent: repository/TMS work.",
+      "Intent: repository context lookup.",
       "Use only the repository context provided by the source adapter.",
       "Strings in owner/repository format (for example hyperlocalise/hyperlocalise) are GitHub repositories, not Hyperlocalise projects. Do not call listProjects to resolve them.",
-      "When the user asks to find or locate text in GitHub, use searchRepoFiles with the quoted string as the pattern, then readRepoFile for surrounding context when needed.",
+      "Use searchRepoFiles with the localized string as the literal pattern, then readRepoFile for surrounding context when needed.",
+      "Only explain where localized messages or strings appear and what nearby code implies. Do not modify files, upload sources, commit, push, or create jobs.",
       "Do not infer or invent a GitHub repository, pull request, branch, or installation ID.",
-      "If repository/TMS execution is unavailable, say that clearly and keep the response tied to the resolved context.",
+      "If repository execution is unavailable, say that clearly and keep the response tied to the resolved context.",
     ].join("\n");
   }
 
   return null;
 }
 
-function isRepoTmsPullRequestIntent(text: string) {
+function isRepositoryPullRequestIntent(text: string) {
   return (
-    githubPullRequestUrlPattern.test(text) ||
-    /\b(?:pull request|pr)\s*#?\d+\b/i.test(text) ||
-    /\bgithub\s+#?\d+\b/i.test(text)
+    hasRepositoryContextLookupIntent(text) &&
+    (githubPullRequestUrlPattern.test(text) ||
+      /\b(?:pull request|pr)\s*#?\d+\b/i.test(text) ||
+      /\bgithub\s+#?\d+\b/i.test(text))
   );
 }
 
-function isRepoTmsRepositoryIntent(text: string) {
+function isRepositoryRepositoryIntent(text: string) {
   if (isExplicitGitHubRepositoryMessage(text)) {
     return true;
   }
 
-  const repoSubject = /\b(?:repo|repository|github|hl|hyperlocalise)\b/i.test(text);
-  const repoAction =
-    /\b(?:checks?|fix|review|scan|inspect|sync|extract|analy[sz]e|search|find(?:ing)?|locate|lookup)\b/i.test(
-      text,
-    );
-  const repoRunAction = /\brun\s+(?:the\s+)?(?:repo|repository|github|hl|hyperlocalise)\b/i.test(
-    text,
-  );
-  return repoSubject && (repoAction || repoRunAction);
+  const repoSubject = /\b(?:repo|repository|github)\b/i.test(text);
+  return repoSubject && hasRepositoryContextLookupIntent(text);
+}
+
+function hasRepositoryContextLookupIntent(text: string) {
+  const contextAction =
+    /\b(?:context|search|find(?:ing)?|locate|lookup|where|usage|surrounding|nearby)\b/i.test(text);
+  const localizedStringSubject =
+    /\b(?:locali[sz]ed|translated|message|messages|string|strings|copy|text)\b/i.test(text) ||
+    /["'`][^"'`]+["'`]/.test(text);
+
+  return contextAction && localizedStringSubject;
 }
 
 function isExplicitGitHubRepositoryMessage(text: string) {
@@ -194,7 +191,7 @@ function isExplicitGitHubRepositoryMessage(text: string) {
     .replace(/https?:\/\/(?:www\.)?github\.com\/[^\s]+/gi, "")
     .trim();
 
-  return remainder.length <= 40;
+  return remainder.length === 0;
 }
 
 export function getHyperlocaliseAgentModel() {
@@ -211,8 +208,8 @@ export function buildHyperlocaliseAgentInstructions(input: {
   additionalInstructions?: string;
 }) {
   const lines = [
-    "You are Hyperlocalise, a localization assistant focused on file translation and GitHub repository lookup.",
-    "Use the tools you are given; do not guess repository paths or file contents.",
+    "You are Hyperlocalise, a localization assistant focused on translating uploaded files.",
+    "Use the tools you are given; do not guess file IDs, repository paths, or file contents.",
   ];
 
   if (input.surface === "slack") {
@@ -237,10 +234,8 @@ export function buildHyperlocaliseAgentInstructions(input: {
     "",
     "Guidelines:",
     '- Use createTranslationJob with type "file" when sourceFileId values are present in the message.',
-    "- Use searchRepoFiles with the user's quoted string as the pattern, then readRepoFile for surrounding context.",
     "- Ask for targetLocales (and sourceLocale when missing) before creating a translation job.",
     "- Do not invent sourceFileId values; use only IDs provided in the conversation.",
-    "- If the user asks to find copy in GitHub but repo search tools are unavailable, say the repository context is missing.",
     "- Be concise but thorough. Responses should be scannable.",
     "- Always maintain a professional, helpful tone.",
   );

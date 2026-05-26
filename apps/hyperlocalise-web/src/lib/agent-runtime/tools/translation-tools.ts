@@ -20,8 +20,8 @@ import {
 } from "@/lib/translation/file-formats";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
-import { toolAccessibleJobsWhere, toolCanAccessProject } from "./tool-access";
-import type { ToolContext } from "./types";
+import { toolAccessibleJobsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
+import type { ToolContext } from "@/lib/tools/types";
 
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
 type JobKind = (typeof jobKinds)[number];

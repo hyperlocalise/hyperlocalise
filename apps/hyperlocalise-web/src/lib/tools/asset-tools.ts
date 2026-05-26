@@ -9,8 +9,8 @@ import {
   toolCanAccessProject,
   toolProjectLinkedGlossaryWhere,
   toolProjectLinkedMemoryWhere,
-} from "./tool-access";
-import type { ToolContext } from "./types";
+} from "@/lib/tools/tool-access";
+import type { ToolContext } from "@/lib/tools/types";
 
 /**
  * Build a prefix-ready tsquery string from free-form user input.

@@ -1,17 +1,12 @@
 import type {
-  RepoTmsAgentActor,
-  RepoTmsAgentTaskSource,
-  RepoTmsAgentWorkMode,
-} from "./repo-tms-task";
+  RepositoryAgentActor,
+  RepositoryAgentTaskSource,
+  RepositoryAgentWorkMode,
+} from "./repository-agent-task";
 import { hasCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
-export type WriteAction =
-  | "upload_sources"
-  | "apply_fixes"
-  | "commit_changes"
-  | "push_to_branch"
-  | "tms_mutate";
+export type WriteAction = "upload_sources" | "apply_fixes" | "commit_changes" | "push_to_branch";
 
 export type WriteGateResult = { allowed: true } | { allowed: false; reason: string };
 
@@ -24,7 +19,7 @@ function canApproveAgentWrite(role: OrganizationMembershipRole | null | undefine
 }
 
 /**
- * Determine whether a repo/TMS write action is allowed for the current task.
+ * Determine whether a repository write action is allowed for the current task.
  *
  * Rules:
  * - read_only: all writes are denied.
@@ -36,10 +31,10 @@ function canApproveAgentWrite(role: OrganizationMembershipRole | null | undefine
  * GitHub-sourced write-mode tasks are assumed to have passed bot-level
  * permission checks (requesterCanRunFix) before enqueuing.
  */
-export function checkRepoTmsWriteGate(input: {
-  workMode: RepoTmsAgentWorkMode;
-  source: RepoTmsAgentTaskSource;
-  actor: RepoTmsAgentActor;
+export function checkRepositoryWriteGate(input: {
+  workMode: RepositoryAgentWorkMode;
+  source: RepositoryAgentTaskSource;
+  actor: RepositoryAgentActor;
   action: WriteAction;
 }): WriteGateResult {
   if (input.workMode === "read_only") {
@@ -62,8 +57,8 @@ export function checkRepoTmsWriteGate(input: {
 }
 
 function checkSlackWriteGate(
-  _workMode: RepoTmsAgentWorkMode,
-  actor: RepoTmsAgentActor,
+  _workMode: RepositoryAgentWorkMode,
+  actor: RepositoryAgentActor,
 ): WriteGateResult {
   if (actor.role && hasAdminCapability(actor.role)) {
     return { allowed: true };
@@ -76,7 +71,7 @@ function checkSlackWriteGate(
   };
 }
 
-function checkVerifiedMemberWriteGate(actor: RepoTmsAgentActor): WriteGateResult {
+function checkVerifiedMemberWriteGate(actor: RepositoryAgentActor): WriteGateResult {
   const isMember = actor.role === "owner" || actor.role === "admin" || actor.role === "member";
   if (isMember) {
     return { allowed: true };
@@ -89,8 +84,8 @@ function checkVerifiedMemberWriteGate(actor: RepoTmsAgentActor): WriteGateResult
 }
 
 function checkGitHubWriteGate(
-  workMode: RepoTmsAgentWorkMode,
-  actor: RepoTmsAgentActor,
+  workMode: RepositoryAgentWorkMode,
+  actor: RepositoryAgentActor,
 ): WriteGateResult {
   const isAdmin = canApproveAgentWrite(actor.role);
 

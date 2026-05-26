@@ -104,7 +104,7 @@ export function buildGitHubFixRequestInput(
   };
 }
 
-export function buildGitHubRepoTmsRequestInput(input: {
+export function buildGitHubRepositoryRequestInput(input: {
   installationId: number;
   repositoryFullName: string;
   pullRequestNumber: number;
@@ -112,12 +112,12 @@ export function buildGitHubRepoTmsRequestInput(input: {
   instructions: string;
 }): GitHubAgentRequestInput {
   return {
-    requestKind: "repo_tms",
+    requestKind: "repository",
     githubInstallationId: String(input.installationId),
     repositoryFullName: input.repositoryFullName,
     pullRequestNumber: input.pullRequestNumber,
     commentId: String(input.commentId ?? 0),
-    scopeType: "repo_tms",
+    scopeType: "repository",
     scopeKey: input.instructions,
   };
 }

@@ -1,4 +1,4 @@
-import type { ToolContext } from "./types";
+import type { ToolContext } from "@/lib/tools/types";
 
 export const conversationFileTranslationToolNames = ["createTranslationJob"] as const;
 

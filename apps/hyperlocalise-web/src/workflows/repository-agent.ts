@@ -1,72 +1,62 @@
 import { ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 import { getWorkflowMetadata } from "workflow";
 
-import type { RepoTmsAgentGitHubContext, RepoTmsAgentTask } from "@/lib/agents/repo-tms-task";
+import type {
+  RepositoryAgentGitHubContext,
+  RepositoryAgentTask,
+} from "@/lib/agents/repository-agent-task";
 import {
-  createRepoTmsSandbox as createRepoTmsSandboxImpl,
-  stopRepoTmsSandbox as stopRepoTmsSandboxImpl,
-} from "@/lib/agents/repo-tms-sandbox";
+  createRepositorySandbox as createRepositorySandboxImpl,
+  stopRepositorySandbox as stopRepositorySandboxImpl,
+} from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import {
   buildHyperlocaliseAgentInstructions,
   getHyperlocaliseAgentModel,
-} from "@/lib/agents/hyperlocalise-agent";
-import { buildRepoTmsGitHubContextInstructions } from "@/lib/agents/repo-tms-context";
+} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { buildRepositoryGitHubContextInstructions } from "@/lib/agents/repository-context";
+import { buildTools } from "@/lib/agent-runtime/tools/registry";
 import type { ToolContext } from "@/lib/tools/types";
-import { buildTools } from "@/lib/tools/registry";
 import { db } from "@/lib/database";
 
-export type RepoTmsWorkflowResult = {
+export type RepositoryWorkflowResult = {
   ok: boolean;
   workflowRunId: string;
-  sourceReplyTarget: { source: RepoTmsAgentTask["source"]; threadId: string };
+  sourceReplyTarget: { source: RepositoryAgentTask["source"]; threadId: string };
   summary: string;
   error?: string;
 };
 
 const agentStepLimit = 20;
 const readOnlyRepoInstructions =
-  "This workflow is read-only. Gather repository and TMS context, but do not modify files, upload sources, commit, push, or create TMS-side effects.";
+  "This workflow is read-only. Gather repository context, but do not modify files, upload sources, commit, push, or create external effects.";
 
-type ResolvedRepoTmsGitHubContext = Extract<RepoTmsAgentGitHubContext, { resolved: true }>;
+type ResolvedRepositoryGitHubContext = Extract<RepositoryAgentGitHubContext, { resolved: true }>;
 
-async function createRepoTmsSandboxStep(
-  githubContext: ResolvedRepoTmsGitHubContext,
+async function createRepositorySandboxStep(
+  githubContext: ResolvedRepositoryGitHubContext,
 ): Promise<string> {
   "use step";
-  return createRepoTmsSandboxImpl(githubContext);
+  return createRepositorySandboxImpl(githubContext);
 }
 
-async function stopRepoTmsSandboxStep(sandboxId: string): Promise<void> {
+async function stopRepositorySandboxStep(sandboxId: string): Promise<void> {
   "use step";
-  return stopRepoTmsSandboxImpl(sandboxId);
+  return stopRepositorySandboxImpl(sandboxId);
 }
 
-export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<RepoTmsWorkflowResult> {
+export async function repositoryAgentWorkflow(
+  task: RepositoryAgentTask,
+): Promise<RepositoryWorkflowResult> {
   "use workflow";
 
   const { workflowRunId } = getWorkflowMetadata();
-  const localUserId = task.actor.userId?.trim();
-
-  if (!localUserId) {
-    console.warn(
-      `repo-tms-agent: refusing workflow ${workflowRunId} for ${task.source} actor ${task.actor.sourceUserId}: no linked Hyperlocalise user (team-scoped tools require a matched member).`,
-    );
-
-    return {
-      ok: false,
-      workflowRunId,
-      sourceReplyTarget: { source: task.source, threadId: task.sourceThreadId },
-      summary:
-        "Repo/TMS workflow could not run because the external actor is not linked to a Hyperlocalise user.",
-      error: "actor_not_linked",
-    };
-  }
+  const localUserId = task.actor.userId?.trim() || "repository_agent";
 
   let sandboxId: string | null = null;
 
   try {
     if (task.githubContext?.resolved) {
-      sandboxId = await createRepoTmsSandboxStep(task.githubContext);
+      sandboxId = await createRepositorySandboxStep(task.githubContext);
     }
 
     const toolContext: ToolContext = {
@@ -77,8 +67,8 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       membershipRole: task.actor.role ?? "member",
       projectId: task.projectId,
       db,
-      workMode: task.workMode,
-      repoTmsSource: task.source,
+      workMode: "read_only",
+      repositorySource: task.source,
       actor: task.actor,
       sandboxId: sandboxId ?? null,
       githubContext: task.githubContext && task.githubContext.resolved ? task.githubContext : null,
@@ -97,17 +87,17 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
             ? `Sandbox id available to tools: ${sandboxId}. Access repo only via tools.`
             : "No repository sandbox required for this task.",
           task.githubContext?.resolved
-            ? buildRepoTmsGitHubContextInstructions(task.githubContext)
+            ? buildRepositoryGitHubContextInstructions(task.githubContext)
             : null,
           sandboxId
             ? "Use searchRepoFiles to locate literal strings in the repository. Use readRepoFile to inspect surrounding lines and explain where copy appears."
             : null,
-          task.workMode === "read_only" ? readOnlyRepoInstructions : null,
+          readOnlyRepoInstructions,
         ]
           .filter((instruction): instruction is string => instruction !== null)
           .join("\n\n"),
       }),
-      experimental_context: { sandboxId, repoTmsTaskId: task.id },
+      experimental_context: { sandboxId, repositoryTaskId: task.id },
     });
 
     const result = await agent.generate({
@@ -118,7 +108,7 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       ok: true,
       workflowRunId,
       sourceReplyTarget: { source: task.source, threadId: task.sourceThreadId },
-      summary: result.text.trim() || "Completed repo/TMS agent task.",
+      summary: result.text.trim() || "Completed repository agent task.",
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -126,13 +116,13 @@ export async function repoTmsAgentWorkflow(task: RepoTmsAgentTask): Promise<Repo
       ok: false,
       workflowRunId,
       sourceReplyTarget: { source: task.source, threadId: task.sourceThreadId },
-      summary: "Repo/TMS workflow failed.",
+      summary: "Repository workflow failed.",
       error: message,
     };
   } finally {
     if (sandboxId) {
       try {
-        await stopRepoTmsSandboxStep(sandboxId);
+        await stopRepositorySandboxStep(sandboxId);
       } catch {
         // Best-effort cleanup; preserve the structured workflow result.
       }

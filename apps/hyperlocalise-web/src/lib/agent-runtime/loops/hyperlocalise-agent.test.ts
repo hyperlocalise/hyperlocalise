@@ -29,7 +29,7 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-vi.mock("@/lib/tools/registry", () => ({
+vi.mock("@/lib/agent-runtime/tools/registry", () => ({
   buildTools: buildToolsMock,
 }));
 
@@ -81,26 +81,26 @@ describe("hyperlocalise agent core", () => {
       projectId: null,
     });
 
-    expect(instructions).toContain("searchRepoFiles");
+    expect(instructions).toContain("focused on translating uploaded files");
   });
 
-  it("classifies GitHub pull request URLs as repo/TMS pull request intent", () => {
+  it("classifies localized-string PR lookups as repository pull request intent", () => {
     const intent = classifyHyperlocaliseAgentIntent({
       surface: "slack",
-      text: "Can you check https://github.com/acme/web/pull/42",
+      text: "Can you find the context for 'Email agent' in https://github.com/acme/web/pull/42",
     });
 
     expect(intent).toEqual({
-      kind: "repo_tms",
+      kind: "repository",
       githubContextRequirement: "pull_request",
     });
     expect(getActiveToolsForHyperlocaliseAgentIntent(intent)).toContain("searchRepoFiles");
     expect(buildHyperlocaliseAgentIntentInstructions(intent)).toContain(
-      "Intent: repository/TMS work.",
+      "Intent: repository context lookup.",
     );
   });
 
-  it("does not classify normal translation requests as repo/TMS intent", () => {
+  it("does not classify normal translation requests as repository intent", () => {
     expect(
       classifyHyperlocaliseAgentIntent({
         surface: "slack",
@@ -109,7 +109,7 @@ describe("hyperlocalise agent core", () => {
     ).toEqual({ kind: "translation" });
   });
 
-  it("does not treat standalone run plus hl as repo/TMS intent", () => {
+  it("does not treat standalone run plus hl as repository intent", () => {
     expect(
       classifyHyperlocaliseAgentIntent({
         surface: "slack",
@@ -118,31 +118,31 @@ describe("hyperlocalise agent core", () => {
     ).toEqual({ kind: "translation" });
   });
 
-  it("classifies explicit repo run requests as repo/TMS repository intent", () => {
+  it("keeps explicit repo run requests out of repository context lookup", () => {
     expect(
       classifyHyperlocaliseAgentIntent({
         surface: "slack",
         text: "Run the repo checks",
       }),
-    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
+    ).toEqual({ kind: "general" });
   });
 
-  it("classifies GitHub copy lookup requests as repo/TMS repository intent", () => {
+  it("classifies GitHub copy lookup requests as repository repository intent", () => {
     expect(
       classifyHyperlocaliseAgentIntent({
         surface: "slack",
         text: "Can you help me find the context of the text 'Email agent' in our github",
       }),
-    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
+    ).toEqual({ kind: "repository", githubContextRequirement: "repository" });
   });
 
-  it("classifies owner/repository-only Slack replies as repo/TMS repository intent", () => {
+  it("classifies owner/repository-only Slack replies as repository repository intent", () => {
     expect(
       classifyHyperlocaliseAgentIntent({
         surface: "slack",
         text: "hyperlocalise/hyperlocalise",
       }),
-    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
+    ).toEqual({ kind: "repository", githubContextRequirement: "repository" });
   });
 
   it("converts interaction rows to model messages", () => {

@@ -10,18 +10,18 @@ vi.mock("./github/app", () => ({
 }));
 
 import {
-  buildRepoTmsGitHubContextInstructions,
-  defaultRepoTmsGitHubContextDependencies,
+  buildRepositoryGitHubContextInstructions,
+  defaultRepositoryGitHubContextDependencies,
   extractGitHubPullRequestReferences,
   extractGitHubRepositoryFullNameReferences,
-  resolveGitHubRepoTmsGitHubContext,
-  resolveSlackRepoTmsGitHubContext,
-  type RepoTmsGitHubContextDependencies,
-} from "./repo-tms-context";
+  resolveGitHubRepositoryGitHubContext,
+  resolveSlackRepositoryGitHubContext,
+  type RepositoryGitHubContextDependencies,
+} from "./repository-context";
 
 function createDependencies(
-  overrides: Partial<RepoTmsGitHubContextDependencies> = {},
-): RepoTmsGitHubContextDependencies {
+  overrides: Partial<RepositoryGitHubContextDependencies> = {},
+): RepositoryGitHubContextDependencies {
   return {
     findEnabledRepository: vi.fn(async ({ repositoryFullName }) => ({
       installationId: 12345,
@@ -91,11 +91,11 @@ describe("extractGitHubRepositoryFullNameReferences", () => {
   });
 });
 
-describe("resolveSlackRepoTmsGitHubContext", () => {
+describe("resolveSlackRepositoryGitHubContext", () => {
   it("resolves Slack context from a GitHub pull request URL", async () => {
     const dependencies = createDependencies();
 
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Run the repo agent for https://github.com/acme/web/pull/42 please",
       requirePullRequest: true,
@@ -121,12 +121,12 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 
   it("resolves Slack context from project-level repository fallback", async () => {
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       projectId: "project_123",
       text: "Run the checks for PR #84",
       connectorConfig: {
-        repoTms: {
+        repository: {
           github: {
             projectRepositories: {
               project_123: "acme/web",
@@ -165,7 +165,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
       ]),
     });
 
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Run the checks for web PR #84",
       requirePullRequest: true,
@@ -185,7 +185,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 
   it("resolves Slack context from the only installed repository when no name is provided", async () => {
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Run the checks for PR #84",
       requirePullRequest: true,
@@ -212,7 +212,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 
   it("asks for owner/repository when a repository name matches multiple installed repos", async () => {
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Run checks for web PR #84",
       requirePullRequest: true,
@@ -243,7 +243,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 
   it("returns a Slack follow-up when repository access validation fails", async () => {
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "https://github.com/acme/private/pull/12",
       dependencies: createDependencies({
@@ -270,7 +270,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
       },
     ]);
 
-    await resolveSlackRepoTmsGitHubContext({
+    await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Find the text 'Email agent' in org/disabled-repo",
       requirePullRequest: false,
@@ -284,7 +284,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 
   it("does not substitute a different enabled repository when an explicit owner/repo is unavailable", async () => {
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Find the text 'Email agent' in org/disabled-repo",
       requirePullRequest: false,
@@ -314,7 +314,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 
   it("falls back to the only enabled repository when an explicit owner/repo is not enabled", async () => {
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Find the text 'Email agent' in hyperlocalise/hyperlocalise",
       requirePullRequest: false,
@@ -341,7 +341,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 
   it("asks for repo or PR context when required context is missing", async () => {
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Run the repo checks",
       requirePullRequest: true,
@@ -355,7 +355,7 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 
   it("asks for repo context when a Slack repo intent has no repository fallback", async () => {
-    const resolution = await resolveSlackRepoTmsGitHubContext({
+    const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
       text: "Run the repo checks",
       requirePullRequest: false,
@@ -369,9 +369,9 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
   });
 });
 
-describe("resolveGitHubRepoTmsGitHubContext", () => {
+describe("resolveGitHubRepositoryGitHubContext", () => {
   it("preserves GitHub trigger repository, pull request, installation, branch, and comment scope", async () => {
-    const resolution = await resolveGitHubRepoTmsGitHubContext({
+    const resolution = await resolveGitHubRepositoryGitHubContext({
       raw: createGitHubRawMessage(),
       installationId: 54321,
       dependencies: {
@@ -398,7 +398,7 @@ describe("resolveGitHubRepoTmsGitHubContext", () => {
   });
 
   it("returns a GitHub follow-up when PR access validation fails", async () => {
-    const resolution = await resolveGitHubRepoTmsGitHubContext({
+    const resolution = await resolveGitHubRepositoryGitHubContext({
       raw: createGitHubRawMessage(),
       installationId: 54321,
       dependencies: {
@@ -417,7 +417,7 @@ describe("resolveGitHubRepoTmsGitHubContext", () => {
   });
 });
 
-describe("defaultRepoTmsGitHubContextDependencies.loadPullRequest", () => {
+describe("defaultRepositoryGitHubContextDependencies.loadPullRequest", () => {
   it("returns null when GitHub returns unauthorized for pull request access", async () => {
     const unauthorizedError = Object.assign(new Error("Bad credentials"), { status: 401 });
     const pullsGet = vi.fn(async () => {
@@ -432,7 +432,7 @@ describe("defaultRepoTmsGitHubContextDependencies.loadPullRequest", () => {
     });
 
     await expect(
-      defaultRepoTmsGitHubContextDependencies.loadPullRequest({
+      defaultRepositoryGitHubContextDependencies.loadPullRequest({
         installationId: 54321,
         repositoryFullName: "acme/web",
         pullRequestNumber: 42,
@@ -447,10 +447,10 @@ describe("defaultRepoTmsGitHubContextDependencies.loadPullRequest", () => {
   });
 });
 
-describe("buildRepoTmsGitHubContextInstructions", () => {
+describe("buildRepositoryGitHubContextInstructions", () => {
   it("formats resolved context for agent instructions", () => {
     expect(
-      buildRepoTmsGitHubContextInstructions({
+      buildRepositoryGitHubContextInstructions({
         resolved: true,
         installationId: 123,
         repositoryFullName: "acme/web",

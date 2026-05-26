@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import type { ToolContext } from "./types";
+import type { ToolContext } from "@/lib/tools/types";
 
 /**
  * Marks the current interaction's inbox item as active or archived.

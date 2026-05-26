@@ -1,15 +1,17 @@
 import type { Bash } from "just-bash";
 
-import { runSandboxCommand } from "@/lib/translation/sandbox-translation";
+import { getVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 
 /**
  * Minimal Bash adapter backed by a Vercel sandbox for repo read/search tools.
  */
 export function createSandboxRepoBash(sandboxId: string): Pick<Bash, "exec" | "readFile"> {
+  const workspace = getVercelSandboxWorkspace(sandboxId);
+
   return {
     async exec(command, options) {
       const args = options?.args ?? [];
-      const result = await runSandboxCommand(sandboxId, command, args);
+      const result = await workspace.runCommand(command, args);
       return {
         exitCode: result.exitCode,
         stdout: result.output,
@@ -18,11 +20,7 @@ export function createSandboxRepoBash(sandboxId: string): Pick<Bash, "exec" | "r
       };
     },
     async readFile(path) {
-      const result = await runSandboxCommand(sandboxId, "cat", [path], { output: "stdout" });
-      if (result.exitCode !== 0) {
-        throw new Error(result.output || `Failed to read ${path}`);
-      }
-      return result.output;
+      return workspace.readFile(path);
     },
   };
 }

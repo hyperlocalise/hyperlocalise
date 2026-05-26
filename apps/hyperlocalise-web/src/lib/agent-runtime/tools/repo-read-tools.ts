@@ -497,14 +497,18 @@ export type RunHyperlocaliseCliOutput = {
   truncated: boolean;
 };
 
-const HL_SUBCOMMANDS = ["check", "status", "extract", "crowdin", "lokalise", "phrase"] as const;
-const READ_ONLY_TMS_ACTIONS = new Set([
-  "config",
-  "check",
-  "translations:download",
-  "glossary:download",
-  "tm:download",
-]);
+const HL_SUBCOMMANDS = ["check", "status", "extract"] as const;
+// TODO: Re-enable provider/TMS CLI actions when the repository agent grows a
+// dedicated context-ingestion flow. For now the repo agent only searches local
+// files for context around already-localized strings/messages.
+// const TMS_SUBCOMMANDS = ["crowdin", "lokalise", "phrase"] as const;
+// const READ_ONLY_TMS_ACTIONS = new Set([
+//   "config",
+//   "check",
+//   "translations:download",
+//   "glossary:download",
+//   "tm:download",
+// ]);
 
 /**
  * Run an allowlisted hyperlocalise CLI subcommand with structured inputs.
@@ -512,7 +516,7 @@ const READ_ONLY_TMS_ACTIONS = new Set([
 export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
   return tool({
     description:
-      "Run an allowlisted hyperlocalise CLI subcommand for read-only repo/TMS checks. Does not expose arbitrary shell execution.",
+      "Run an allowlisted hyperlocalise CLI subcommand for read-only repository checks. Does not expose arbitrary shell execution.",
     inputSchema: z.object({
       subcommand: z.enum(HL_SUBCOMMANDS).describe("The subcommand to run."),
       args: z.array(z.string()).optional().describe("Positional arguments."),
@@ -639,10 +643,7 @@ function extractReport(subcommand: string, stdout: string): unknown {
 function assertReadOnlyAction(subcommand: string, args?: string[]): void {
   if (subcommand === "check" || subcommand === "status" || subcommand === "extract") return;
 
-  const actionKey = args && args.length >= 2 ? `${args[0]}:${args[1]}` : (args?.[0] ?? "");
-  if (READ_ONLY_TMS_ACTIONS.has(actionKey)) {
-    if (!actionKey.includes(":") || (args?.length ?? 0) >= 2) return;
-  }
+  // TODO: Wire TMS/provider actions here after the next agent scope lands.
 
   throw new Error(
     `Only read-only TMS actions are allowed. Received "${subcommand} ${args?.join(" ") ?? ""}".`,
