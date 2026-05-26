@@ -299,6 +299,53 @@ export function Bar() {
 	assertPackGroupedOutput(t, got, want)
 }
 
+func TestPackCommandStripsPrefixIDInPlainJSONFlatOutput(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.components.app-header.button.label": "Save settings",
+  "src.components.app-header.cta": "Create project"
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackFlatOutput(t, out.Bytes())
+	want := map[string]string{
+		"button.label": "Save settings",
+		"cta":          "Create project",
+	}
+	assertPackFlatOutput(t, got, want)
+}
+
+func TestPackCommandRejectsPrefixIDCollisionsInPlainJSONFlatOutput(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.foo.button.label": "Save settings",
+  "src.bar.button.label": "Start trial"
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected pack command to fail on prefix-id collision")
+	}
+	if !strings.Contains(err.Error(), `ids "src.bar.button.label" and "src.foo.button.label" both strip to "label"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
 func TestPackCommandSupportsPlainJSONTranslations(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(dir, "messages.json")

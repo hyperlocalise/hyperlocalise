@@ -86,7 +86,7 @@ func runPackDefault(path string, options packOptions) (any, error) {
 		if err := translationfileparser.FlattenJSON(out, "", payload); err != nil {
 			return nil, err
 		}
-		return buildPackFlat(out, options), nil
+		return buildPackFlat(out, options)
 	}
 
 	values, err := translationfileparser.NewDefaultStrategy().Parse(trimmedPath, content)
@@ -94,7 +94,7 @@ func runPackDefault(path string, options packOptions) (any, error) {
 		return nil, err
 	}
 
-	return buildPackFlat(values, options), nil
+	return buildPackFlat(values, options)
 }
 
 func buildPackCatalog(payload map[string]any, options packOptions) (map[string]extractCatalogMessage, error) {
@@ -136,22 +136,39 @@ func buildPackCatalog(payload map[string]any, options packOptions) (map[string]e
 	return catalog, nil
 }
 
-func buildPackFlat(values map[string]string, options packOptions) map[string]string {
+func buildPackFlat(values map[string]string, options packOptions) (map[string]string, error) {
 	prefixIndex := packPrefixIndex{}
 	if options.prefixID {
 		prefixIndex = collectPackPrefixIndex()
 	}
 
 	out := make(map[string]string, len(values))
-	for id, translation := range values {
+	sourceByPackedID := make(map[string]string, len(values))
+	ids := make([]string, 0, len(values))
+	for id := range values {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+
+	for _, id := range ids {
+		translation := values[id]
 		packedID := id
 		if options.prefixID {
 			packedID = stripPackPrefixID(id, prefixIndex)
 		}
+		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			return nil, fmt.Errorf(
+				"pack --prefix-id: ids %q and %q both strip to %q",
+				existingSourceID,
+				id,
+				packedID,
+			)
+		}
+		sourceByPackedID[packedID] = id
 		out[packedID] = translation
 	}
 
-	return out
+	return out, nil
 }
 
 func runPackGrouped(path string, options packOptions) (map[string][]string, error) {
