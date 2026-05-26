@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/crowdin/crowdin-api-client-go/crowdin/model"
@@ -220,9 +221,9 @@ func glossaryCSVRows(
 
 func glossaryCSVRow(glossaryID int, sourceLanguage string, term *model.Term, concept *model.Concept, sourceTerm string) []string {
 	row := []string{
-		fmt.Sprintf("%d", glossaryID),
-		fmt.Sprintf("%d", term.ConceptID),
-		fmt.Sprintf("%d", term.ID),
+		strconv.Itoa(glossaryID),
+		strconv.Itoa(term.ConceptID),
+		strconv.Itoa(term.ID),
 		sourceLanguage,
 		sourceTerm,
 		term.LanguageID,
