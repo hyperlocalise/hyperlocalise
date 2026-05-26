@@ -63,11 +63,13 @@ function agentErrorRedirect(
   org: { id: string; slug: string | null },
   error: string,
 ): GitHubInstallCallbackResult {
+  const query = new URLSearchParams({ error }).toString();
+
   if (org.slug) {
-    return { redirectTo: `/org/${org.slug}/agent?error=${error}` };
+    return { redirectTo: `/org/${org.slug}/agent?${query}` };
   }
 
-  return { redirectTo: `/dashboard?error=${error}` };
+  return { redirectTo: `/dashboard?${query}` };
 }
 
 async function resolveOrganizationFromState(verified: { slug: string }) {

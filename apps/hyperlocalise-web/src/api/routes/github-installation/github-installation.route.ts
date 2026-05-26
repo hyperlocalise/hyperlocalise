@@ -17,9 +17,9 @@ import { getGitHubApp } from "@/lib/agents/github/app";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
 import { createLogger } from "@/lib/log";
 
-const logger = createLogger("github-installation");
-
 import { searchRepositoriesSchema, updateRepositoriesSchema } from "./github-installation.schema";
+
+const logger = createLogger("github-installation");
 
 const validateRepositorySearch = validator("query", (value) => {
   const parsed = searchRepositoriesSchema.safeParse(value);

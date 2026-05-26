@@ -19,15 +19,33 @@ function encodeSignature(signature: ArrayBuffer): string {
   return Buffer.from(signature).toString("base64url");
 }
 
+function stripBase64Padding(value: string): string {
+  return value.replace(/=+$/, "");
+}
+
+function tryDecodeBase64(candidate: string, encoding: "base64url" | "base64"): Buffer | null {
+  if (!candidate) {
+    return null;
+  }
+
+  const decoded = Buffer.from(candidate, encoding);
+  const reencoded = stripBase64Padding(decoded.toString(encoding));
+  if (reencoded !== stripBase64Padding(candidate)) {
+    return null;
+  }
+
+  return decoded;
+}
+
 function decodeSignatureBytes(value: string): Buffer | null {
   const normalized = value.replace(/ /g, "+");
+  const candidates = value === normalized ? [value] : [value, normalized];
 
-  for (const candidate of [value, normalized]) {
+  for (const candidate of candidates) {
     for (const encoding of ["base64url", "base64"] as const) {
-      try {
-        return Buffer.from(candidate, encoding);
-      } catch {
-        // Try the next encoding variant.
+      const decoded = tryDecodeBase64(candidate, encoding);
+      if (decoded) {
+        return decoded;
       }
     }
   }
