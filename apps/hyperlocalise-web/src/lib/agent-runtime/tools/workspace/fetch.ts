@@ -30,9 +30,50 @@ function isPrivateIpv4Address(hostname: string): boolean {
   );
 }
 
+function ipv4FromIpv4MappedIpv6(hostname: string): string | null {
+  if (!/^::ffff:/i.test(hostname)) {
+    return null;
+  }
+
+  const rest = hostname.slice(7);
+  if (rest.includes(".")) {
+    return rest;
+  }
+
+  const [highPart, lowPart] = rest.split(":");
+  if (!highPart || !lowPart) {
+    return null;
+  }
+
+  const high = Number.parseInt(highPart, 16);
+  const low = Number.parseInt(lowPart, 16);
+  if (Number.isNaN(high) || Number.isNaN(low)) {
+    return null;
+  }
+
+  return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
+}
+
+function isPrivateIpv6Address(hostname: string): boolean {
+  if (hostname === "::1") {
+    return true;
+  }
+
+  const mappedIpv4 = ipv4FromIpv4MappedIpv6(hostname);
+  if (mappedIpv4) {
+    return isPrivateIpv4Address(mappedIpv4);
+  }
+
+  return false;
+}
+
 function isPrivateHost(hostname: string): boolean {
   const normalized = normalizeHostname(hostname);
-  return normalized === "localhost" || isPrivateIpv4Address(normalized);
+  return (
+    normalized === "localhost" ||
+    isPrivateIpv4Address(normalized) ||
+    isPrivateIpv6Address(normalized)
+  );
 }
 
 export function isAllowedWebUrl(value: string): boolean {

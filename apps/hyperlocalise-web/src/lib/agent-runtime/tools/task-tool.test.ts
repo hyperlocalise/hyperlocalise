@@ -83,6 +83,39 @@ describe("task tool", () => {
     });
   });
 
+  it("returns structured failure when the subagent throws", async () => {
+    runSubagentMock.mockRejectedValueOnce(new Error("rate limit exceeded"));
+
+    const taskTool = createTaskTool();
+    const result = await taskTool.execute!(
+      {
+        subagentType: "translation",
+        task: "Translate attached JSON",
+        instructions: "Target fr-FR.",
+      },
+      createToolExecutionOptions({
+        surface: "web",
+        suggestedMode: "translation",
+        hasFileAttachments: true,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      success: false,
+      subagentType: "translation",
+      summary: "Specialist encountered an error.",
+      error: "rate limit exceeded",
+    });
+  });
+
   it("returns unavailable when repository search has no sandbox", async () => {
     const taskTool = createTaskTool();
     const result = await taskTool.execute!(

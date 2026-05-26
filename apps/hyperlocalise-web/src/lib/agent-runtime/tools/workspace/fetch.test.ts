@@ -16,6 +16,15 @@ describe("isAllowedWebUrl", () => {
   it("blocks private IPs", () => {
     expect(isAllowedWebUrl("http://192.168.1.1")).toBe(false);
   });
+
+  it("blocks IPv6 loopback", () => {
+    expect(isAllowedWebUrl("http://[::1]/internal")).toBe(false);
+  });
+
+  it("blocks IPv4-mapped IPv6 loopback", () => {
+    expect(isAllowedWebUrl("http://[::ffff:127.0.0.1]/internal")).toBe(false);
+    expect(isAllowedWebUrl("http://[::ffff:7f00:1]/internal")).toBe(false);
+  });
 });
 
 describe("createFetchTool", () => {

@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 vi.mock("@/lib/env", () => ({
   env: {
     DATABASE_URL: "postgres://localhost:5432/test",
+    OPENAI_API_KEY: "test-openai-api-key",
   },
 }));
 

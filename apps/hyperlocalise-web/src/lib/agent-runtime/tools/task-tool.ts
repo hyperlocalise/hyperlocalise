@@ -73,17 +73,27 @@ BEHAVIOR:
         };
       }
 
-      const result = await runSubagent(subagentType, {
-        toolContext: runtime.toolContext,
-        task,
-        instructions,
-      });
+      try {
+        const result = await runSubagent(subagentType, {
+          toolContext: runtime.toolContext,
+          task,
+          instructions,
+        });
 
-      return {
-        success: true,
-        subagentType,
-        summary: result.text.trim() || "Specialist completed the task.",
-      };
+        return {
+          success: true,
+          subagentType,
+          summary: result.text.trim() || "Specialist completed the task.",
+        };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        return {
+          success: false,
+          subagentType,
+          summary: "Specialist encountered an error.",
+          error: message,
+        };
+      }
     },
   });
 }

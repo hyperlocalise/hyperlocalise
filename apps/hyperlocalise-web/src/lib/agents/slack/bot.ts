@@ -148,11 +148,22 @@ function shouldAttemptRepositoryContextResolution(input: {
     return true;
   }
 
-  if (!input.hasStoredFileAttachments) {
-    return githubReferencePattern.test(input.text);
+  if (githubReferencePattern.test(input.text)) {
+    return true;
   }
 
-  return githubReferencePattern.test(input.text);
+  if (
+    repositoryContextQuestionPattern.test(input.text) &&
+    (repositoryStringSubjectPattern.test(input.text) || /["'`][^"'`]+["'`]/.test(input.text))
+  ) {
+    return true;
+  }
+
+  if (!input.hasStoredFileAttachments) {
+    return true;
+  }
+
+  return false;
 }
 
 function shouldRequireRepositoryContextClarification(text: string) {
