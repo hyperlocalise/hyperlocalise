@@ -3,6 +3,9 @@ const RESTRICTED_PATHS = [
   "/auth/sign-out",
   "/auth/callback",
   "/auth/github/callback",
+  "/auth/select-organization",
+  "/auth/onboarding",
+  "/auth/access-denied",
 ];
 
 export function sanitizeReturnTo(value: string | null | undefined, fallback = "/dashboard") {

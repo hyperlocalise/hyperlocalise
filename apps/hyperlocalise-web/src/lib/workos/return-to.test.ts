@@ -29,6 +29,9 @@ describe("sanitizeReturnTo", () => {
     expect(sanitizeReturnTo("/auth/sign-out")).toBe("/dashboard");
     expect(sanitizeReturnTo("/auth/callback")).toBe("/dashboard");
     expect(sanitizeReturnTo("/auth/github/callback")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/auth/select-organization")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/auth/onboarding")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/auth/access-denied")).toBe("/dashboard");
   });
 
   it("should return the fallback if the value starts with a restricted auth path followed by ?, #, or /", () => {
