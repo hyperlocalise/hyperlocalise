@@ -442,6 +442,60 @@ func TestPackCommandWritesOutFile(t *testing.T) {
 	assertPackCatalogOutput(t, got, want)
 }
 
+func TestPackCommandDiscoversLocaleFilesFromConfigWithOutSuffix(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+
+	langDir := filepath.Join(dir, "lang")
+	distDir := filepath.Join(dir, "dist")
+	writePackTestFile(t, filepath.Join(langDir, "en-US.json"), `{
+  "home.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Home heading"
+  }
+}`)
+	writePackTestFile(t, filepath.Join(distDir, "es-ES.json"), `{
+  "home.title": {
+    "defaultMessage": "Panel",
+    "description": "Home heading"
+  }
+}`)
+
+	writePackConfig(t, filepath.Join(dir, "i18n.jsonc"), filepath.Join(langDir, "{{source}}.json"))
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	errOut := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(errOut)
+	cmd.SetArgs([]string{"--out-suffix", ".packed"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+	if !strings.Contains(errOut.String(), "dist/es-ES.packed.json") {
+		t.Fatalf("expected status output for packed file, got %q", errOut.String())
+	}
+
+	content, err := os.ReadFile(filepath.Join(distDir, "es-ES.packed.json"))
+	if err != nil {
+		t.Fatalf("read packed output file: %v", err)
+	}
+	got := decodePackCatalogOutput(t, content)
+	want := map[string]extractCatalogMessage{
+		"home.title": {DefaultMessage: "Panel"},
+	}
+	assertPackCatalogOutput(t, got, want)
+
+	originalContent, err := os.ReadFile(filepath.Join(distDir, "es-ES.json"))
+	if err != nil {
+		t.Fatalf("read original target file: %v", err)
+	}
+	if !strings.Contains(string(originalContent), "description") {
+		t.Fatalf("expected original target file to remain unchanged when using --out-suffix")
+	}
+}
+
 func TestPackCommandDiscoversLocaleFilesFromConfig(t *testing.T) {
 	dir := t.TempDir()
 	t.Chdir(dir)
@@ -479,11 +533,11 @@ func TestPackCommandDiscoversLocaleFilesFromConfig(t *testing.T) {
 	if out.Len() != 0 {
 		t.Fatalf("expected batch pack to keep stdout empty, got %q", out.String())
 	}
-	if !strings.Contains(errOut.String(), "dist/es-ES.packed.json") {
+	if !strings.Contains(errOut.String(), "dist/es-ES.json") {
 		t.Fatalf("expected status output for packed file, got %q", errOut.String())
 	}
 
-	content, err := os.ReadFile(filepath.Join(distDir, "es-ES.packed.json"))
+	content, err := os.ReadFile(filepath.Join(distDir, "es-ES.json"))
 	if err != nil {
 		t.Fatalf("read packed output file: %v", err)
 	}
@@ -493,10 +547,19 @@ func TestPackCommandDiscoversLocaleFilesFromConfig(t *testing.T) {
 	}
 	assertPackCatalogOutput(t, got, want)
 
-	if _, err := os.Stat(filepath.Join(langDir, "en-US.packed.json")); err == nil {
+	sourceContent, err := os.ReadFile(filepath.Join(langDir, "en-US.json"))
+	if err != nil {
+		t.Fatalf("read source locale file: %v", err)
+	}
+	if !strings.Contains(string(sourceContent), "description") {
 		t.Fatalf("expected source locale file to be skipped during auto discovery")
 	}
-	if _, err := os.Stat(filepath.Join(langDir, "plain.packed.json")); err == nil {
+
+	plainContent, err := os.ReadFile(filepath.Join(langDir, "plain.json"))
+	if err != nil {
+		t.Fatalf("read plain JSON file: %v", err)
+	}
+	if strings.Contains(string(plainContent), "defaultMessage") {
 		t.Fatalf("expected plain JSON file to be skipped during auto discovery")
 	}
 }
@@ -534,13 +597,18 @@ func TestPackCommandSkipsNonJSONFilesDuringDiscovery(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("execute pack command: %v", err)
 	}
-	if !strings.Contains(errOut.String(), "dist/es-ES.packed.json") {
+	if !strings.Contains(errOut.String(), "dist/es-ES.json") {
 		t.Fatalf("expected status output for packed JSON file, got %q", errOut.String())
 	}
-	if _, err := os.Stat(filepath.Join(distDir, "es-ES.packed.json")); err != nil {
+	if _, err := os.Stat(filepath.Join(distDir, "es-ES.json")); err != nil {
 		t.Fatalf("expected packed JSON output file: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(distDir, "es-ES.yaml.packed.json")); err == nil {
+
+	yamlContent, err := os.ReadFile(filepath.Join(distDir, "es-ES.yaml"))
+	if err != nil {
+		t.Fatalf("read YAML locale file: %v", err)
+	}
+	if !strings.Contains(string(yamlContent), "home.title: Panel") {
 		t.Fatalf("expected YAML locale file to be skipped during auto discovery")
 	}
 }

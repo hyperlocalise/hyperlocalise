@@ -49,7 +49,7 @@ Use `--group-by-value` to invert the shape and group ids that share the same tra
 
 When no translation file is passed, `pack` loads your i18n config (`i18n.yml` or `i18n.jsonc` in the working directory by default) and packs every react-intl translation file referenced by bucket `to` paths for the selected target locales. Only JSON files in strict FormatJS shape (`defaultMessage` per id) are packed; plain nested JSON, non-JSON files, and missing files are skipped.
 
-Batch discovery writes one output file per input, using `--out-suffix` (default `.packed`). For example, `lang/es-ES.json` becomes `lang/es-ES.packed.json`. Progress is printed to stderr.
+Batch discovery writes the packed output back to each input file in place by default. Use `--out-suffix` to write separate output files instead (for example, `--out-suffix .packed` turns `lang/es-ES.json` into `lang/es-ES.packed.json`). Progress is printed to stderr.
 
 ## Flags
 
@@ -59,14 +59,20 @@ Batch discovery writes one output file per input, using `--out-suffix` (default 
 - `--config <path>`: optional path to i18n config when discovering locale files (default: `i18n.yml` or `i18n.jsonc`).
 - `--group <name>`: filter config discovery by group name.
 - `--bucket <name>`: filter config discovery by bucket name.
-- `--out-suffix <suffix>`: output filename suffix when packing multiple files (default `.packed`).
+- `--out-suffix <suffix>`: optional output filename suffix when packing multiple files. When omitted, each input file is overwritten in place.
 
 ## Examples
 
 Strip descriptions from an extracted catalog:
 
 ```bash
-hyperlocalise pack lang/en.json --out-file lang/en.packed.json
+hyperlocalise pack lang/en.json --out-file lang/en.json
+```
+
+Write packed files with a suffix during batch discovery:
+
+```bash
+hyperlocalise pack --out-suffix .packed
 ```
 
 Pack every react-intl translation file from the default i18n config:
