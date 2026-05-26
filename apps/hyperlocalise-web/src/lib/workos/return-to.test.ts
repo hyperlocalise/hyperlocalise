@@ -29,6 +29,9 @@ describe("sanitizeReturnTo", () => {
     expect(sanitizeReturnTo("/auth/sign-out")).toBe("/dashboard");
     expect(sanitizeReturnTo("/auth/callback")).toBe("/dashboard");
     expect(sanitizeReturnTo("/auth/github/callback")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/auth/select-organization")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/auth/onboarding")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/auth/access-denied")).toBe("/dashboard");
   });
 
   it("should preserve GitHub install callback URLs that include installation params", () => {
