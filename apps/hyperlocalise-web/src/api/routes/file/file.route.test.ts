@@ -55,7 +55,7 @@ afterEach(async () => {
 
 describe("file download route", () => {
   it("streams a stored file when the user belongs to the organization", async () => {
-    const identity = createWorkosIdentity();
+    const identity = createWorkosIdentityWithRole("member");
     const headers = await authHeadersFor(identity);
     const orgId = globalThis.__testApiAuthContext!.activeOrganization.localOrganizationId;
     const fileContent = Buffer.from(JSON.stringify({ hello: "world" }));
@@ -185,5 +185,59 @@ describe("file download route", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("streams a stored file when a member belongs to the file project's team", async () => {
+    const admin = createWorkosIdentityWithRole("admin");
+    const member = createWorkosIdentityForOrganization(admin.organization, "member");
+
+    await authHeadersFor(admin);
+    await authHeadersFor(member);
+
+    const teamResponse = await teamFixture.createTeamViaApi(admin, { name: "Team Files" });
+    expect(teamResponse.status).toBe(201);
+    const teamBody = (await teamResponse.json()) as TeamResponse;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: teamBody.team.id,
+      userId: await getLocalUserId(member.user.workosUserId),
+      role: "member",
+    });
+
+    const projectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+        json: {
+          name: "Team Files Project",
+          teamId: teamBody.team.id,
+        },
+      },
+      { headers: await authHeadersFor(admin) },
+    );
+    expect(projectResponse.status).toBe(201);
+    const projectBody = (await projectResponse.json()) as ProjectResponse;
+
+    const orgId = globalThis.__testApiAuthContext!.activeOrganization.localOrganizationId;
+    const fileContent = Buffer.from('{"team":"files"}');
+    const file = await createStoredFile({
+      organizationId: orgId,
+      projectId: projectBody.project.id,
+      role: "source",
+      sourceKind: "chat_upload",
+      filename: "team-files.json",
+      contentType: "application/json",
+      content: fileContent,
+      adapter: fileStorageAdapter,
+    });
+
+    const response = await app.request(`/api/orgs/${admin.organization.slug}/files/${file.id}`, {
+      method: "GET",
+      headers: await authHeadersFor(member),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toBe("application/json");
+    expect(response.headers.get("content-disposition")).toContain("team-files.json");
+    await expect(response.text()).resolves.toBe(fileContent.toString());
   });
 });

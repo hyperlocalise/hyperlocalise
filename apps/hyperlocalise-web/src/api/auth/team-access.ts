@@ -197,7 +197,7 @@ export async function canAccessStoredFile(
     return Boolean(project);
   }
 
-  return hasOrganizationWideProjectAccess(auth);
+  return true;
 }
 
 export async function canAccessMemory(auth: ApiAuthContext, memoryId: string) {
