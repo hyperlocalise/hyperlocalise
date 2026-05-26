@@ -50,9 +50,7 @@ export function classifyAgentRequestText(text: string): AgentPlannerIntent {
 
   if (
     hasRepositoryContextLookupIntent(text) &&
-    (/\b(?:pull request|pr)\s*#?\d+\b/i.test(text) ||
-      /\bpr\b/i.test(text) ||
-      /github\.com\/[^/\s]+\/[^/\s]+/i.test(text))
+    (/\b(?:pull request|pr)\s*#?\d+\b/i.test(text) || /github\.com\/[^/\s]+\/[^/\s]+/i.test(text))
   ) {
     return "repository";
   }

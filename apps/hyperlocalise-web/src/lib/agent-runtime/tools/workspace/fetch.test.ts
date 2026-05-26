@@ -38,6 +38,20 @@ describe("createFetchTool", () => {
     globalThis.fetch = originalFetch;
   });
 
+  it("blocks redirects to private hosts", async () => {
+    globalThis.fetch = vi.fn(async () =>
+      Response.redirect("http://169.254.169.254/latest/meta-data/", 302),
+    ) as typeof fetch;
+
+    const tool = createFetchTool();
+    const result = await tool.execute!({ url: "https://example.com/page" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringContaining("Blocked redirect"),
+    });
+  });
+
   it("fetches allowed URLs", async () => {
     const tool = createFetchTool();
     const result = await tool.execute!({ url: "https://example.com/page" }, toolCallInfo);

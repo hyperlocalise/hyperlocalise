@@ -24,11 +24,15 @@ export type ResolvedToolPolicy = {
   isToolAllowed(toolName: string): boolean;
 };
 
-export function resolveToolPolicy(_input: {
+export function resolveToolPolicy(input: {
   organizationId: string;
   membershipRole: OrganizationMembershipRole;
   rules?: ToolPolicyRule[];
 }): ResolvedToolPolicy {
+  if (input.rules && input.rules.length > 0) {
+    throw new Error("Tool policy rules are not implemented yet.");
+  }
+
   return {
     isToolAllowed: () => true,
   };

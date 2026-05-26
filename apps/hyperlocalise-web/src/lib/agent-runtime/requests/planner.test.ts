@@ -36,6 +36,10 @@ describe("agent request planner", () => {
     });
   });
 
+  it("does not classify generic PR mentions as repository lookup", () => {
+    expect(classifyAgentRequestText("search the string in our PR team docs")).toBe("general");
+  });
+
   it("keeps translation requests out of repo planning", () => {
     expect(classifyAgentRequestText("Translate this JSON file to French")).toBe("translation");
     expect(planAgentRequest(createRequest("Translate this JSON file to French"))).toMatchObject({
