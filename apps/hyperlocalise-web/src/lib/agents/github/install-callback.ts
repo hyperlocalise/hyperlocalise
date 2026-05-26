@@ -176,7 +176,6 @@ export async function handleGitHubInstallCallback(
     {
       installationId,
       organizationSlug: verified.slug,
-      nonce: verified.nonce,
       stateAgeMs: Date.now() - verified.timestamp,
     },
     "github install callback state verified",
@@ -186,7 +185,7 @@ export async function handleGitHubInstallCallback(
   if (!org) {
     return finish(
       "/dashboard?error=organization_not_found",
-      { installationId, organizationSlug: verified.slug, nonce: verified.nonce },
+      { installationId, organizationSlug: verified.slug },
       "github install callback organization not found for state",
     );
   }
@@ -195,7 +194,6 @@ export async function handleGitHubInstallCallback(
     installationId,
     organizationId: org.id,
     organizationSlug: org.slug,
-    nonce: verified.nonce,
   };
 
   const now = new Date();

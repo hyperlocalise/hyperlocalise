@@ -120,9 +120,6 @@ export function createGithubInstallationRoutes() {
           organizationId: c.var.auth.organization.localOrganizationId,
           organizationSlug: slug,
           userId: c.var.auth.user.localUserId,
-          nonce,
-          expiresAt: new Date(timestamp + GITHUB_STATE_TTL_MS).toISOString(),
-          githubAppSlug: env.GITHUB_APP_SLUG,
         },
         "minted github app install url",
       );

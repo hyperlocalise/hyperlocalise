@@ -105,9 +105,7 @@ function createInternalRoutes() {
 }
 
 function createAuthRoutes() {
-  return new Hono()
-    .route("/", authRoutes)
-    .route("/slack", createSlackOAuthRoutes());
+  return new Hono().route("/", authRoutes).route("/slack", createSlackOAuthRoutes());
 }
 
 function createOrgScopedAppRoutes(
