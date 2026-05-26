@@ -104,6 +104,7 @@ hyperlocalise crowdin download --language fr --include-sources
 ```
 
 `--merge-approved` 将已批准的 JSON 对象键合并到现有的本地翻译文件中，并保留 Crowdin 已批准导出中省略的本地键。
+当 Crowdin 在该导出中包含源语言回退值时，Hyperlocalise 会跳过那些仍与源 JSON 匹配的值，因此先前翻译过的本地字符串会被保留。
 
 `--include-sources` 也会在写入翻译之前，将匹配的 Crowdin 源文件下载到已配置的 `files[].source` 路径中。如果缺少精确的源路径，则可以在本地创建；通配的源路径仅限于本地 glob 展开匹配到的文件。
 

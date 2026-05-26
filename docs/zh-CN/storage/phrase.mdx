@@ -35,3 +35,38 @@ description: "配置 Phrase 以进行远程翻译同步。"
 - 未找到标记：export `PHRASE_API_TOKEN`
 - 模式验证错误：将 `mode` 设置为 `strings` 或 `files`
 - 文件模式导入失败：请验证 `fileFormat` 是否与你的项目设置一致
+
+## Phrase CLI 配置
+
+文件工作流命令也可以读取 Phrase 的`.phrase.yml`格式：
+
+```yaml
+phrase:
+  access_token: $PHRASE_ACCESS_TOKEN
+  project_id: project-uuid
+  file_format: json
+  host: https://api.phrase.com/v2
+  locale_mapping:
+    fr-FR: fr
+  push:
+    sources:
+      - file: ./locales/en.json
+        params:
+          locale_id: en-US
+          tags: app,source
+          update_translations: true
+  pull:
+    targets:
+      - file: ./locales/<locale_name>.json
+        params:
+          locale_id: fr-FR
+          include_unverified_translations: false
+```
+
+支持的命令：
+
+- `hyperlocalise phrase config validate --config .phrase.yml`
+- `hyperlocalise phrase upload sources --config .phrase.yml`
+- `hyperlocalise phrase download translations --config .phrase.yml`
+
+如果省略 `--config`，Hyperlocalise 会先检查 `PHRASEAPP_CONFIG`，然后检查当前目录中的 `.phrase.yml`，再检查 `$HOME/.phrase.yml`。

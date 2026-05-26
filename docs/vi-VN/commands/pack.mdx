@@ -1,0 +1,26 @@
+---
+title: "gói"
+description: "Nhóm các ID dịch theo cùng giá trị chuỗi."
+---
+
+## Cách sử dụng
+
+```bash
+hyperlocalise pack <translation-file> [--prefix-id]
+```
+
+## Hành vi
+
+`pack` đọc một tệp bản dịch, nhóm các chuỗi đã dịch giống nhau lại với nhau, và ghi JSON trong đó mỗi khóa là giá trị chuỗi và mỗi giá trị là một mảng các id sử dụng chuỗi đó.
+
+Đối với JSON thông điệp FormatJS, `pack` sử dụng `defaultMessage` làm giá trị chuỗi và bỏ qua siêu dữ liệu `description` khỏi đầu ra.
+
+```json
+{
+  "Dashboard": ["src.components.app-header.title", "src.components.hero.title"]
+}
+```
+
+## Các cờ
+
+- `--prefix-id`: loại bỏ tiền tố tên tệp `extract --prefix-id` khỏi các id. Ví dụ, `src.components.app-header.title` sẽ trở thành `title`.

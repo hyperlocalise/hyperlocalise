@@ -57,3 +57,15 @@ Dùng `buckets.*.files[].from` và `to` để trỏ đến các tệp `.csv` khi
 
 - Các tệp theo từng ngôn ngữ thường sử dụng `[locale]` trong đường dẫn `to`.
 - Các tệp CSV được chia sẻ có thể tái sử dụng cùng đường dẫn `from` và `to`.
+
+## Ghi chú quy trình làm việc Fluent
+
+Sử dụng `buckets.*.files[].from` và `to` để trỏ tới các tệp `.ftl` cho các luồng bản địa hóa Mozilla Fluent.
+
+- Các tệp theo từng ngôn ngữ thường sử dụng `[locale]` trong đường dẫn `to`, ví dụ `locales/[locale]/messages.ftl`.
+- Các mục được hỗ trợ bao gồm thông báo, thuộc tính, giá trị nhiều dòng và các mẫu select/plural được biểu diễn dưới dạng giá trị đầy đủ.
+- Các thuật ngữ Fluent không được hỗ trợ và sẽ không phân tích được thay vì được viết lại.
+
+## Ghi chú quy trình thuộc tính Java
+
+Sử dụng `buckets.*.files[].from` và `to` để trỏ tới các gói tài nguyên `.properties` theo từng ngôn ngữ, ví dụ `messages_{{source}}.properties` -> `messages_{{target}}.properties`.

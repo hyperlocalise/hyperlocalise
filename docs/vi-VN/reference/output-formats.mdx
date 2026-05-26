@@ -59,3 +59,7 @@ Các trường hợp cảnh báo đồng bộ hoặc xung đột phổ biến ba
 ## Các tệp dịch CSV
 
 Khi `run` ghi các mục tiêu dịch `.csv`, thứ tự hàng đầu ra là xác định đối với các khóa mới được thêm vào (được sắp xếp theo khóa), và các hàng hiện có giữ nguyên thứ tự ban đầu của chúng.
+
+## Tệp dịch Fluent
+
+Khi `run` ghi các mục tiêu dịch `.ftl`, các chú thích hiện có, dòng trống và thứ tự thông điệp sẽ được lấy từ mẫu đã chọn. Các phạm vi giá trị thuộc tính và thông điệp đã phân tích được thay thế ngay tại chỗ. Các khóa thông điệp cấp cao nhất bị thiếu sẽ được nối thêm theo thứ tự đã sắp xếp, và các thuật ngữ Fluent không được hỗ trợ sẽ gây lỗi trước khi dữ liệu đầu ra được ghi.

@@ -15,7 +15,7 @@ hyperlocalise sync push [--config <path>] [flags]
 
 ## 默认行为
 
-`sync push` 默认会提交源文件并创建 Hyperlocalise 作业。需要预览报告且不上传文件或创建作业时，请使用 `--dry-run`。
+`sync push` 默认会提交源文件并创建 Hyperlocalise 任务。当你想在不上传文件或不创建任务的情况下预览报告时，请使用 `--dry-run`。
 
 在实际推送过程中，Hyperlocalise 会从`i18n.yml`读取已配置的源文件，将每个源文件上传到公开的 Hyperlocalise API，创建文件翻译任务，并写出任务清单。请将此清单用作 GitHub Actions 产物，以供后续的`sync pull`任务使用。
 
@@ -26,7 +26,7 @@ hyperlocalise sync push [--config <path>] [flags]
 - `--config`: 配置路径
 - `--locale`：目标区域设置，可重复
 - `--manifest`：作业清单路径
-- `--dry-run`：仅预览（默认`true`）
+- `--dry-run`：仅预览
 - `--output`: `text`、`json`，或 `markdown`
 - `--force-conflicts`：不支持 Hyperlocalise 任务同步
 

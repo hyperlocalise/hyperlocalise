@@ -52,6 +52,45 @@ Mỗi ánh xạ tệp sử dụng:
 
 Sử dụng `{{source}}`, `{{target}}`, và `{{localeDir}}` trong các mẫu. `{{localeDir}}` được phân giải thành một phân đoạn trống khi đích bằng nguồn, và thành ngôn ngữ của đích trong các trường hợp khác.
 
+### Các mẫu ánh xạ locale của mảng PHP
+
+Các mảng locale kiểu Laravel có thể được ánh xạ trực tiếp khi mỗi tệp trả về một mảng PHP tĩnh duy nhất.
+
+```yaml
+buckets:
+  app:
+    files:
+      - from: resources/lang/en/messages.php
+        to: resources/lang/{{target}}/messages.php
+      - from: resources/lang/en/validation.php
+        to: resources/lang/{{target}}/validation.php
+```
+
+Các tệp ngôn ngữ PHP được hỗ trợ phải bắt đầu bằng `<?php` và trả về một literal tĩnh `[...]` hoặc `array(...)`. Hyperlocalise dịch các chuỗi lá, làm phẳng các khóa lồng nhau bằng đường dẫn có dấu chấm, và giữ nguyên chú thích, thứ tự cũng như cú pháp mảng khi ghi. PHP động như biến, lời gọi hàm, hằng số, `declare(...)`, hoặc các chuỗi được nội suy trong dấu ngoặc kép kép đều bị từ chối một cách có chủ ý.
+
+Các phần mở rộng tệp ngôn ngữ được hỗ trợ bao gồm `.json`, `.jsonc`, `.yaml`, `.yml`, `.php`, `.xml`, `.resx`, `.arb`, `.xlf`, `.xlif`, `.xliff`, `.po`, `.html`, `.liquid`, `.md`, `.mdx`, `.strings`, `.stringsdict`, và `.csv`.
+
+Các tệp ngôn ngữ YAML/YML nên là các tệp có dạng ánh xạ với các lá là chuỗi. Các ánh xạ lồng nhau sẽ trở thành các khóa dạng chấm, các chuỗi sẽ trở thành các khóa `[index]`, và writeback sẽ ghi lại các lá chuỗi hiện có trong khi vẫn giữ nguyên thứ tự khóa/chú thích nếu có thể. Các khóa ánh xạ không được chứa `.`, `[`, hoặc `]` vì các ký tự đó được dành riêng cho các đường dẫn đã được làm phẳng. Các lá vô hướng không phải chuỗi như số, giá trị boolean, null, dấu thời gian, anchor và alias sẽ bị từ chối để tránh làm hỏng siêu dữ liệu một cách âm thầm.
+
+```yaml
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.yaml
+        to: apps/web/lang/{{target}}.yaml
+```
+
+Các ánh xạ XML chung có thể trỏ tới các tệp locale XML không phải Android:
+
+```yaml
+buckets:
+  xml:
+    files:
+      - from: locales/en-US.xml
+        to: locales/[locale].xml
+```
+
+Các mục XML phải là các phần tử lá chỉ chứa văn bản, được định danh bằng `key`, `id`, hoặc `name`, hoặc là các lá theo đường dẫn lồng nhau. Các tệp `<resources>` của Android, XML có nội dung hỗn hợp, và ghi trả lại giữ nguyên CDATA không được trình phân tích cú pháp XML tổng quát xử lý.
 
 ### Các mẫu ánh xạ tệp CSV
 
@@ -77,30 +116,84 @@ Tệp đa ngôn ngữ dùng chung:
 
 Đối với các tệp CSV đa ngôn ngữ được chia sẻ, hãy giữ một cột khóa và một cột ngôn ngữ đích mà `run` có thể cập nhật một cách nhất quán.
 
-## Các nhóm
+### Các mẫu ánh xạ tệp Fluent
 
-`groups.<name>` xác định những gì cần xử lý cùng nhau.
+Sử dụng các ánh xạ `.ftl` cho các tệp ngôn ngữ Mozilla Fluent:
 
-- `targets`: tập con của `locales.targets`
-- `buckets`: danh sách tên bucket
+```json
+{
+  "from": "locales/en-US/messages.ftl",
+  "to": "locales/[locale]/messages.ftl"
+}
+```
 
-`groups` là tùy chọn cho các cấu hình dành cho người mới bắt đầu. Thêm nó khi bạn muốn tách việc thực thi theo locale hoặc theo bộ tệp.
+Hyperlocalise hỗ trợ các thông điệp Fluent, thuộc tính, giá trị nhiều dòng và các giá trị select/plural như các đơn vị dịch hoàn chỉnh. Thuộc tính sử dụng các khóa có dấu chấm như `brand.title`. Các term Fluent không được hỗ trợ và sẽ bị lỗi khi phân tích cú pháp.
 
-## các hồ sơ LLM
+### Mẫu mô-đun ngôn ngữ JS/TS
 
-`llm.profiles.<name>` trường:
+Sử dụng các ánh xạ mô-đun locale của JavaScript hoặc TypeScript khi ứng dụng của bạn nhập trực tiếp các đối tượng locale:
 
-- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, `mistral`, hoặc `ollama`
-- `model`: mã mô hình nhà cung cấp
-- `system_prompt` (tùy chọn): mẫu thông báo hệ thống rõ ràng
-- `user_prompt` (tùy chọn): mẫu thông điệp người dùng rõ ràng
-- `prompt` (lỗi thời, không bắt buộc): mẫu lời nhắc cũ được dùng làm phương án dự phòng của hệ thống
+```yaml
+buckets:
+  web:
+    files:
+      - from: apps/web/messages/{{source}}.ts
+        to: apps/web/messages/{{target}}.ts
+```
 
-Biến nhắc:
+Các mô-đun được hỗ trợ phải xuất một đối tượng tĩnh, ví dụ:
 
-- `{{source}}`
-- `{{target}}`
-- `{{input}}`
+```ts
+export default {
+  home: {
+    title: "Welcome",
+    cta: "Start now",
+  },
+} as const;
+```
+
+Hyperlocalise bảo toàn các chú thích, import, cú pháp export và văn bản mô-đun không phải thông điệp. Nó từ chối các giá trị động, khóa tính toán, thuộc tính spread, nhiều đối tượng ngôn ngữ được export, và các template literal được nội suy.
+
+### Các mẫu ánh xạ catalog chuỗi của Apple
+
+Sử dụng các ánh xạ `.xcstrings` cho các string catalog của Xcode:
+
+```json
+{
+  "from": "ios/en.lproj/Localizable.xcstrings",
+  "to": "ios/[locale].lproj/Localizable.xcstrings"
+}
+```
+
+Hyperlocalise ghi các giá trị đích vào `localizations[targetLocale]` và bảo toàn siêu dữ liệu của danh mục. `status` và `check` đọc ngôn ngữ miền địa phương đích được yêu cầu từ danh mục. Các mục nguồn của biến thể và thay thế phải bao gồm bản địa hóa bằng ngôn ngữ nguồn để Hyperlocalise có thể trích xuất các dạng nguồn một cách an toàn.
+
+### Ánh xạ chuỗi tài nguyên XML của Android
+
+Hỗ trợ XML của Android được cố ý giới hạn trong các tệp tài nguyên chuỗi có tên `strings.xml` trong các thư mục `res/values*`. Sử dụng tên định danh ngôn ngữ Android trong đường dẫn đích của bạn:
+
+```yaml
+buckets:
+  android:
+    files:
+      - from: app/src/main/res/values/strings.xml
+        to: app/src/main/res/values-{{target}}/strings.xml
+```
+
+Các mục tài nguyên được hỗ trợ là `<string name="...">` và `<plurals name="..."><item quantity="...">`. Các tài nguyên được đánh dấu `translatable="false"` sẽ được giữ nguyên và bỏ qua. Các dạng tài nguyên có thể dịch không được hỗ trợ như `<string-array>` sẽ lỗi theo cơ chế fail closed, vì vậy chúng không bị loại bỏ âm thầm.
+
+### Các mẫu ánh xạ của tệp thuộc tính Java
+
+Sử dụng các ánh xạ `.properties` cho các gói tài nguyên Java với một tệp cho mỗi locale:
+
+```yaml
+buckets:
+  java:
+    files:
+      - from: src/main/resources/messages_{{source}}.properties
+        to: src/main/resources/messages_{{target}}.properties
+```
+
+Các mục được hỗ trợ là các khóa thuộc tính Java phẳng với giá trị chuỗi. Hyperlocalise bảo toàn chú thích, dấu phân tách và thứ tự khóa khi ghi; các giá trị đã dịch được ghi dưới dạng giá trị một dòng được thoát `.properties`.
 
 ## Quy tắc
 
@@ -108,7 +201,6 @@ Biến nhắc:
 
 - `priority`: giá trị cao hơn thắng
 - `group`: tên nhóm
-- `profile`: tên hồ sơ
 
 `llm.rules` là tùy chọn. Khi không có quy tắc nào khớp với một nhóm, Hyperlocalise sẽ chuyển sang `llm.profiles.default`.
 
@@ -120,8 +212,34 @@ Biến nhắc:
 - `endpoint` (không bắt buộc trừ khi `enabled=true`): điểm cuối dịch vụ bộ nhớ đệm từ xa.
 - `project_key_env` (tùy chọn trừ khi `enabled=true`): biến môi trường chứa khóa bộ nhớ đệm của dự án.
 - `timeout_seconds` (tùy chọn): thời gian chờ yêu cầu bộ nhớ đệm từ xa tính bằng giây.
+- Nếu bạn bỏ qua `groups`, mọi bucket sẽ chạy cho mọi locale đích.
+
+Biến nhắc:
+
+- `{{source}}`
+- `{{target}}`
+- `{{input}}`
 
 ## Ví dụ nâng cao
+
+Sau đó chỉnh sửa `i18n.yml` đã được tạo cho dự án của bạn.
+
+- Giữ các mục tiêu nhóm bên trong `locales.targets`.
+- Giữ các bucket nhóm được căn chỉnh với các khóa `buckets`.
+- Giữ tên hồ sơ nhất quán giữa `profiles` và `rules`.
+
+`llm.profiles.<name>` trường:
+
+## Tạo một mẫu khởi đầu
+
+`groups` là tùy chọn cho các cấu hình dành cho người mới bắt đầu. Thêm nó khi bạn muốn tách việc thực thi theo locale hoặc theo bộ tệp.
+
+- Dùng `hyperlocalise` cho các công việc `sync push` và `sync pull`.
+- Giữ `storage` cho cấu hình bộ điều hợp TMS dành riêng cho nhà cung cấp.
+- `profile`: tên hồ sơ
+- `prompt` (lỗi thời, không bắt buộc): mẫu lời nhắc cũ được dùng làm phương án dự phòng của hệ thống
+
+## Mẹo xác thực
 
 ```yaml
 locales:
@@ -194,19 +312,19 @@ cache:
   timeout_seconds: 5
 ```
 
-## Tạo một mẫu khởi đầu
+## các hồ sơ LLM
 
 ```bash
 hyperlocalise init
 ```
 
-Sau đó chỉnh sửa `i18n.yml` đã được tạo cho dự án của bạn.
+`groups.<name>` xác định những gì cần xử lý cùng nhau.
 
-## Mẹo xác thực
+## Các nhóm
 
-- Nếu bạn bỏ qua `groups`, mọi bucket sẽ chạy cho mọi locale đích.
-- Giữ các mục tiêu nhóm bên trong `locales.targets`.
-- Giữ các bucket nhóm được căn chỉnh với các khóa `buckets`.
-- Giữ tên hồ sơ nhất quán giữa `profiles` và `rules`.
-- Dùng `hyperlocalise` cho các công việc `sync push` và `sync pull`.
-- Giữ `storage` cho cấu hình bộ điều hợp TMS dành riêng cho nhà cung cấp.
+- `user_prompt` (tùy chọn): mẫu thông điệp người dùng rõ ràng
+- `system_prompt` (tùy chọn): mẫu thông báo hệ thống rõ ràng
+- `model`: mã mô hình nhà cung cấp
+- `provider`: `openai`, `azure_openai`, `anthropic`, `gemini`, `bedrock`, `lmstudio`, `groq`, `mistral`, hoặc `ollama`
+- `buckets`: danh sách tên bucket
+- `targets`: tập con của `locales.targets`

@@ -1,0 +1,48 @@
+---
+title: "trích xuất"
+description: "Trích xuất các thông điệp React Intl từ các tệp TypeScript và TSX."
+---
+
+## Cách sử dụng
+
+```bash
+hyperlocalise extract [path...] [flags]
+```
+
+Nếu bạn bỏ qua `path`, `extract` sẽ quét thư mục hiện tại.
+
+## Hành vi
+
+`extract` quét các tệp `.ts` và `.tsx` để tìm các mô tả thông điệp React Intl trong `defineMessage`, `defineMessages`, `intl.formatMessage`, và `<FormattedMessage />`.
+
+Theo mặc định, nó ghi một catalog JSON theo kiểu FormatJS ra stdout. Mỗi khóa là id thông báo. Mỗi giá trị bao gồm `defaultMessage` và, khi có, `description`.
+
+```json
+{
+  "app.header.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Main dashboard heading"
+  }
+}
+```
+
+Nếu một descriptor không có `id`, `extract` sẽ tạo một id tương thích với FormatJS từ `defaultMessage` và `description`.
+
+`extract` bỏ qua các tệp `.d.ts` và các thư mục được tạo tự động phổ biến như `.git`, `.next`, `build`, `coverage`, `dist`, và `node_modules`.
+
+## Cờ
+
+- `--flatten`: đưa các nhánh ICU plural và select lên trên để mỗi nhánh chứa một câu hoàn chỉnh.
+- `--ignore <glob>`: loại trừ các tệp khớp với một mẫu glob. Bạn có thể truyền cờ này nhiều hơn một lần.
+- `--out-file <path>`: ghi danh mục đã trích xuất vào một tệp JSON thay vì stdout.
+- `--prefix-id`: thêm tiền tố cho các mã thông báo bằng tên tệp nguồn đã chuẩn hóa. Dùng `pack --prefix-id` để bỏ các tiền tố này về sau.
+
+## Ví dụ
+
+```bash
+hyperlocalise extract src --out-file lang/en.json
+```
+
+```bash
+hyperlocalise extract "src/**/*.{ts,tsx}" --ignore "**/*.test.{ts,tsx}" --flatten
+```

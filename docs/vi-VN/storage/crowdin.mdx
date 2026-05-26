@@ -104,6 +104,7 @@ hyperlocalise crowdin download --language fr --include-sources
 ```
 
 `--merge-approved` hợp nhất các khóa đối tượng JSON đã được phê duyệt vào các tệp dịch cục bộ hiện có và bảo toàn các khóa cục bộ bị bỏ qua khỏi bản xuất đã được phê duyệt của Crowdin.
+Khi Crowdin bao gồm các giá trị dự phòng của ngôn ngữ nguồn trong bản xuất đó, Hyperlocalise sẽ bỏ qua những giá trị vẫn khớp với JSON nguồn để các chuỗi nội bộ đã được dịch trước đó được giữ nguyên.
 
 `--include-sources` cũng tải các tệp nguồn Crowdin khớp xuống các đường dẫn `files[].source` đã cấu hình trước khi ghi bản dịch. Các đường dẫn nguồn chính xác có thể được tạo cục bộ nếu còn thiếu; các đường dẫn nguồn theo glob bị giới hạn ở những tệp khớp với phần mở rộng glob cục bộ.
 

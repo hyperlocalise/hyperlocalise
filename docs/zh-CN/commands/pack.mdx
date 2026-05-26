@@ -1,0 +1,26 @@
+---
+title: "打包"
+description: "按共享的字符串值对翻译 ID 进行分组。"
+---
+
+## 用法
+
+```bash
+hyperlocalise pack <translation-file> [--prefix-id]
+```
+
+## 行为
+
+`pack` 读取翻译文件，将相同的译文分组到一起，并写入 JSON，其中每个键都是字符串值，每个值都是使用该字符串的 id 数组。
+
+对于 FormatJS 消息 JSON，`pack` 使用 `defaultMessage` 作为字符串值，并在输出中省略 `description` 元数据。
+
+```json
+{
+  "Dashboard": ["src.components.app-header.title", "src.components.hero.title"]
+}
+```
+
+## 标志
+
+- `--prefix-id`：从 ids 中去除 `extract --prefix-id` 文件名前缀。例如，`src.components.app-header.title` 会变成 `title`。

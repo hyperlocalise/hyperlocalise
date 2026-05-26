@@ -30,14 +30,14 @@ Lưu CSV dưới dạng artifact xây dựng để theo dõi xu hướng.
 
 ### 3. Cổng xem trước đồng bộ
 
-`sync pull` và `sync push` mặc định áp dụng thay đổi. Thêm `--dry-run` cho các tác vụ xem trước CI không làm thay đổi.
+`sync pull` và `sync push` áp dụng thay đổi theo mặc định. Thêm `--dry-run` cho các job xem trước CI không làm thay đổi.
 
 ```bash
 hyperlocalise sync pull --output json --dry-run
 hyperlocalise sync push --output json --dry-run
 ```
 
-Chỉ bỏ `--dry-run` trong các tác vụ được ủy quyền rõ ràng để ghi tệp cục bộ hoặc hệ thống từ xa.
+Chỉ chạy không có `--dry-run` trong các tác vụ được ủy quyền rõ ràng để ghi tệp cục bộ hoặc hệ thống từ xa.
 
 ## Ví dụ về tác vụ đồng bộ theo lịch
 

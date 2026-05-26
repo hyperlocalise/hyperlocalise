@@ -124,3 +124,4 @@ hyperlocalise crowdin download --language fr --merge-approved
 ```
 
 `--merge-approved`目前支持 JSON 对象翻译文件。它会为该请求强制执行仅限已批准的稀疏导出，然后只覆盖已批准的 Crowdin 载荷中存在的键。
+仍然与源 JSON 匹配的已下载值会被视为 Crowdin 源语言回退值，不会覆盖现有的本地翻译。

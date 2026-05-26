@@ -1,0 +1,48 @@
+---
+title: "extract"
+description: "Extract React Intl messages from TypeScript and TSX files."
+---
+
+## Usage
+
+```bash
+hyperlocalise extract [path...] [flags]
+```
+
+If you omit `path`, `extract` scans the current directory.
+
+## Behavior
+
+`extract` scans `.ts` and `.tsx` files for React Intl message descriptors in `defineMessage`, `defineMessages`, `intl.formatMessage`, and `<FormattedMessage />`.
+
+It writes a FormatJS-style JSON catalog to stdout by default. Each key is the message id. Each value includes `defaultMessage` and, when present, `description`.
+
+```json
+{
+  "app.header.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Main dashboard heading"
+  }
+}
+```
+
+If a descriptor has no `id`, `extract` generates a FormatJS-compatible id from `defaultMessage` and `description`.
+
+`extract` skips `.d.ts` files and common generated directories such as `.git`, `.next`, `build`, `coverage`, `dist`, and `node_modules`.
+
+## Flags
+
+- `--flatten`: hoist ICU plural and select branches so each branch contains a full sentence.
+- `--ignore <glob>`: exclude files that match a glob pattern. You can pass this flag more than once.
+- `--out-file <path>`: write the extracted catalog to a JSON file instead of stdout.
+- `--prefix-id`: prefix message ids with the normalized source filename. Use `pack --prefix-id` to strip these prefixes later.
+
+## Examples
+
+```bash
+hyperlocalise extract src --out-file lang/en.json
+```
+
+```bash
+hyperlocalise extract "src/**/*.{ts,tsx}" --ignore "**/*.test.{ts,tsx}" --flatten
+```

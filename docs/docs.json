@@ -56,6 +56,8 @@
               "commands/init",
               "commands/crowdin",
               "commands/run",
+              "commands/extract",
+              "commands/pack",
               "commands/check",
               "commands/eval",
               "commands/status",

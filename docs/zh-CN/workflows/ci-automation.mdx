@@ -30,14 +30,14 @@ hyperlocalise status --output csv
 
 ### 3. 同步预览门控
 
-`sync pull` 和 `sync push` 默认会应用更改。对于不产生变更的 CI 预览任务，请添加 `--dry-run`。
+`sync pull` 和 `sync push` 默认会应用更改。为非变更的 CI 预览作业添加 `--dry-run`。
 
 ```bash
 hyperlocalise sync pull --output json --dry-run
 hyperlocalise sync push --output json --dry-run
 ```
 
-仅在明确授权可向本地文件或远程系统写入的任务中省略 `--dry-run`。
+仅在明确授权可写入本地文件或远程系统的作业中运行，不要包含`--dry-run`。
 
 ## 计划同步任务示例
 

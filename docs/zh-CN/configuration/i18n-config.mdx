@@ -52,6 +52,45 @@ llm:
 
 在模板中使用 `{{source}}`、`{{target}}` 和 `{{localeDir}}`。当目标等于源时，`{{localeDir}}` 会解析为空片段；否则会解析为目标区域设置。
 
+### PHP 数组区域设置映射模式
+
+当每个文件返回一个静态的 PHP 数组时，Laravel 风格的区域设置数组可以直接映射。
+
+```yaml
+buckets:
+  app:
+    files:
+      - from: resources/lang/en/messages.php
+        to: resources/lang/{{target}}/messages.php
+      - from: resources/lang/en/validation.php
+        to: resources/lang/{{target}}/validation.php
+```
+
+受支持的 PHP 区域设置文件必须以 `<?php` 开头，并返回静态的 `[...]` 或 `array(...)` 字面量。Hyperlocalise 会翻译字符串叶子节点，将嵌套键展平成带点路径，并在写入时保留注释、顺序和数组语法。像变量、函数调用、常量、`declare(...)` 或插值的双引号字符串等动态 PHP 会被有意拒绝。
+
+支持的区域设置文件扩展名包括`.json`、`.jsonc`、`.yaml`、`.yml`、`.php`、`.xml`、`.resx`、`.arb`、`.xlf`、`.xlif`、`.xliff`、`.po`、`.html`、`.liquid`、`.md`、`.mdx`、`.strings`、`.stringsdict`和`.csv`。
+
+YAML/YML 区域设置文件应为映射结构的文件，且叶子节点为字符串。嵌套映射会变成点分键，序列会变成 `[index]` 键，而写回会在尽可能保留键顺序/注释的同时重写现有字符串叶子节点。映射键不能包含 `.`、`[` 或 `]`，因为这些字符保留用于展平后的路径。为避免静默损坏元数据，会拒绝非字符串标量叶子节点，例如数字、布尔值、空值、时间戳、锚点和别名。
+
+```yaml
+buckets:
+  ui:
+    files:
+      - from: packages/ui/lang/{{source}}.yaml
+        to: apps/web/lang/{{target}}.yaml
+```
+
+通用 XML 映射可以指向非 Android 的 XML 区域设置文件：
+
+```yaml
+buckets:
+  xml:
+    files:
+      - from: locales/en-US.xml
+        to: locales/[locale].xml
+```
+
+XML 条目必须是仅文本的叶子元素，并以 `key`、`id` 或 `name` 为键，或者是嵌套的路径形叶子。Android `<resources>` 文件、混合内容 XML，以及保留 CDATA 的回写，通用 XML 解析器都不处理。
 
 ### CSV 文件映射模式
 
@@ -77,30 +116,84 @@ llm:
 
 对于共享的多语言 CSV 文件，请保留一个键列和一个目标语言列，这样 `run` 就可以保持一致地更新。
 
-## 分组
+### Fluent 文件映射模式
 
-`groups.<name>` 定义了要一起处理的内容。
+用于 Mozilla Fluent 语言环境文件的 `.ftl` 映射：
 
-- `targets`：`locales.targets`的子集
-- `buckets`：存储桶名称列表
+```json
+{
+  "from": "locales/en-US/messages.ftl",
+  "to": "locales/[locale]/messages.ftl"
+}
+```
 
-`groups` 对于初学者配置是可选的。当你想按语言环境或文件集拆分执行时，再添加它。
+Hyperlocalise 支持 Fluent 消息、属性、多行值以及 select/plural 值作为完整的翻译单元。属性使用带点的键，例如 `brand.title`。不支持 Fluent 术语，并且会在解析期间失败。
 
-## LLM 配置文件
+### JS/TS 区域设置模块模式
 
-`llm.profiles.<name>` 字段：
+当你的应用直接导入 locale 对象时，请使用 JavaScript 或 TypeScript 的 locale 模块映射：
 
-- `provider`: `openai`、`azure_openai`、`anthropic`、`gemini`、`bedrock`、`lmstudio`、`groq`、`mistral`，或`ollama`
-- `model`：提供者模型 ID
-- `system_prompt`（可选）：显式系统消息模板
-- `user_prompt`（可选）：显式用户消息模板
-- `prompt`（已弃用，可选）：作为系统回退使用的旧版提示模板
+```yaml
+buckets:
+  web:
+    files:
+      - from: apps/web/messages/{{source}}.ts
+        to: apps/web/messages/{{target}}.ts
+```
 
-提示变量：
+受支持的模块必须导出一个静态对象，例如：
 
-- `{{source}}`
-- `{{target}}`
-- `{{input}}`
+```ts
+export default {
+  home: {
+    title: "Welcome",
+    cta: "Start now",
+  },
+} as const;
+```
+
+Hyperlocalise 会保留注释、导入、导出语法以及非消息模块文本。它会拒绝动态值、计算属性键、展开属性、多个导出的区域设置对象以及插值模板字面量。
+
+### Apple 字符串目录映射模式
+
+用于 Xcode 字符串目录的`.xcstrings`映射：
+
+```json
+{
+  "from": "ios/en.lproj/Localizable.xcstrings",
+  "to": "ios/[locale].lproj/Localizable.xcstrings"
+}
+```
+
+Hyperlocalise 将目标值写入 `localizations[targetLocale]` 并保留目录元数据。`status` 和 `check` 从目录中读取请求的目标区域设置。变体和替换源条目必须包含源语言本地化，这样 Hyperlocalise 才能安全地提取源形式。
+
+### Android XML 字符串资源映射
+
+Android XML 支持有意限定于位于 `strings.xml` 下、名为字符串资源文件的文件，并且这些文件位于 `res/values*` 目录中。请在目标路径中使用 Android 语言环境限定符名称：
+
+```yaml
+buckets:
+  android:
+    files:
+      - from: app/src/main/res/values/strings.xml
+        to: app/src/main/res/values-{{target}}/strings.xml
+```
+
+支持的资源条目是 `<string name="...">` 和 `<plurals name="..."><item quantity="...">`。标记为 `translatable="false"` 的资源会被保留并跳过。诸如 `<string-array>` 之类不受支持的可翻译资源形状会默认失败关闭，因此不会被静默丢弃。
+
+### Java 属性文件映射模式
+
+将 `.properties` 映射用于 Java 资源包，每个区域设置一个文件：
+
+```yaml
+buckets:
+  java:
+    files:
+      - from: src/main/resources/messages_{{source}}.properties
+        to: src/main/resources/messages_{{target}}.properties
+```
+
+支持的条目是具有字符串值的扁平 Java 属性键。Hyperlocalise 在写入时会保留注释、分隔符和键的顺序；翻译后的值会以转义的单行`.properties`值写入。
 
 ## 规则
 
@@ -108,7 +201,6 @@ llm:
 
 - `priority`：更高者获胜
 - `group`：组名
-- `profile`：个人资料名称
 
 `llm.rules` 是可选的。当没有规则匹配某个组时，Hyperlocalise 会回退到 `llm.profiles.default`。
 
@@ -120,8 +212,34 @@ llm:
 - `endpoint`（除非 `enabled=true`，否则为可选）：远程缓存服务端点。
 - `project_key_env`（可选，除非`enabled=true`）：包含项目缓存键的环境变量。
 - `timeout_seconds`（可选）：远程缓存请求超时时间（秒）。
+- 如果你省略`groups`，每个存储桶都会针对每个目标区域设置运行。
+
+提示变量：
+
+- `{{source}}`
+- `{{target}}`
+- `{{input}}`
 
 ## 高级示例
+
+然后为你的项目编辑生成的`i18n.yml`。
+
+- 将组目标保留在 `locales.targets` 中。
+- 保持组桶与 `buckets` 键对齐。
+- 在 `profiles` 和 `rules` 之间保持配置文件名称一致。
+
+`llm.profiles.<name>` 字段：
+
+## 生成一个入门模板
+
+`groups` 对于初学者配置是可选的。当你想按语言环境或文件集拆分执行时，再添加它。
+
+- 将`hyperlocalise`用于`sync push`和`sync pull`任务。
+- 保留 `storage` 用于特定提供商的 TMS 适配器配置。
+- `profile`：个人资料名称
+- `prompt`（已弃用，可选）：作为系统回退使用的旧版提示模板
+
+## 验证提示
 
 ```yaml
 locales:
@@ -194,19 +312,19 @@ cache:
   timeout_seconds: 5
 ```
 
-## 生成一个入门模板
+## LLM 配置文件
 
 ```bash
 hyperlocalise init
 ```
 
-然后为你的项目编辑生成的`i18n.yml`。
+`groups.<name>` 定义了要一起处理的内容。
 
-## 验证提示
+## 分组
 
-- 如果你省略`groups`，每个存储桶都会针对每个目标区域设置运行。
-- 将组目标保留在 `locales.targets` 中。
-- 保持组桶与 `buckets` 键对齐。
-- 在 `profiles` 和 `rules` 之间保持配置文件名称一致。
-- 将`hyperlocalise`用于`sync push`和`sync pull`任务。
-- 保留 `storage` 用于特定提供商的 TMS 适配器配置。
+- `user_prompt`（可选）：显式用户消息模板
+- `system_prompt`（可选）：显式系统消息模板
+- `model`：提供者模型 ID
+- `provider`: `openai`、`azure_openai`、`anthropic`、`gemini`、`bedrock`、`lmstudio`、`groq`、`mistral`，或`ollama`
+- `buckets`：存储桶名称列表
+- `targets`：`locales.targets`的子集
