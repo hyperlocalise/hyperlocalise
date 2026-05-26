@@ -63,7 +63,24 @@ Use `hyperlocalise --help` for the local command surface, or see the docs for fu
 
 ## GitHub Action
 
-This repository also ships a composite GitHub Action at [`action.yml`](action.yml).
+This repository ships two composite GitHub Actions:
+
+- [`action.yml`](action.yml): opinionated localization CI checks (`drift` and `check`)
+- [`install/action.yml`](install/action.yml): install the Hyperlocalise CLI from GitHub releases
+
+Install the CLI in a workflow:
+
+```yaml
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: latest
+```
+
+Use `@v1` for the latest compatible release, or pin an exact tag such as `@v1.3.1` for stricter control.
+
+### Hyperlocalise CI
+
+The root action at [`action.yml`](action.yml) runs localization checks in CI.
 
 Current scope:
 
