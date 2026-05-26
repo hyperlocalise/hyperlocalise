@@ -442,7 +442,7 @@ describe("handleNewConversation", () => {
     expect(posts).toEqual([{ markdown: "AI response" }]);
   });
 
-  it("attempts GitHub context discovery for ordinary chat without attachments", async () => {
+  it("skips GitHub context discovery for ordinary chat without attachments", async () => {
     const { thread } = createThread();
     const message = createMessage({ text: "Translate this to French" });
 
@@ -464,12 +464,8 @@ describe("handleNewConversation", () => {
 
     await handleNewConversation(thread, message);
 
-    expect(resolveSlackRepositoryGitHubContextMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        text: "Translate this to French",
-        requirePullRequest: false,
-      }),
-    );
+    expect(resolveSlackRepositoryGitHubContextMock).not.toHaveBeenCalled();
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
   });
 
   it("exposes repository read tools when GitHub context resolves", async () => {

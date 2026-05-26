@@ -159,10 +159,6 @@ function shouldAttemptRepositoryContextResolution(input: {
     return true;
   }
 
-  if (!input.hasStoredFileAttachments) {
-    return true;
-  }
-
   return false;
 }
 
