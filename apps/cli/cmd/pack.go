@@ -16,8 +16,6 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const defaultPackOutSuffix = ".packed"
-
 type packOptions struct {
 	groupByValue bool
 	outFile      string
@@ -29,9 +27,7 @@ type packOptions struct {
 }
 
 func newPackCmd() *cobra.Command {
-	o := packOptions{
-		outSuffix: defaultPackOutSuffix,
-	}
+	o := packOptions{}
 
 	cmd := &cobra.Command{
 		Use:   "pack [translation-file]",
@@ -72,6 +68,12 @@ files from your i18n config (i18n.yml or i18n.jsonc by default).`,
 				if err := writePackPayloadToFile(payload, outPath); err != nil {
 					return err
 				}
+				if outPath == path {
+					if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "packed %s\n", path); err != nil {
+						return fmt.Errorf("write pack status: %w", err)
+					}
+					continue
+				}
 				if _, err := fmt.Fprintf(cmd.ErrOrStderr(), "packed %s -> %s\n", path, outPath); err != nil {
 					return fmt.Errorf("write pack status: %w", err)
 				}
@@ -87,7 +89,7 @@ files from your i18n config (i18n.yml or i18n.jsonc by default).`,
 	cmd.Flags().StringVar(&o.configPath, "config", "", "path to i18n config (default: i18n.yml or i18n.jsonc in the working directory)")
 	cmd.Flags().StringVar(&o.group, "group", "", "filter config discovery by group name")
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "filter config discovery by bucket name")
-	cmd.Flags().StringVar(&o.outSuffix, "out-suffix", o.outSuffix, "output filename suffix when packing multiple files (for example .packed -> en-US.packed.json)")
+	cmd.Flags().StringVar(&o.outSuffix, "out-suffix", "", "optional output filename suffix when packing multiple files (for example .packed -> en-US.packed.json; default overwrites each input file in place)")
 
 	return cmd
 }
@@ -100,8 +102,6 @@ func validatePackOptions(args []string, options packOptions) error {
 		return fmt.Errorf("pack cannot combine a translation file with --config")
 	case !hasFile && strings.TrimSpace(options.outFile) != "":
 		return fmt.Errorf("pack --out-file requires a translation file")
-	case !hasFile && strings.TrimSpace(options.outSuffix) == "":
-		return fmt.Errorf("pack --out-suffix cannot be empty")
 	case !hasFile && options.groupByValue:
 		return fmt.Errorf("pack --group-by-value requires a translation file")
 	}
@@ -195,6 +195,10 @@ func isPackFormatJSFile(path string) (bool, error) {
 }
 
 func packOutputPath(inputPath, suffix string) string {
+	if strings.TrimSpace(suffix) == "" {
+		return inputPath
+	}
+
 	ext := filepath.Ext(inputPath)
 	base := strings.TrimSuffix(inputPath, ext)
 	return base + suffix + ext
