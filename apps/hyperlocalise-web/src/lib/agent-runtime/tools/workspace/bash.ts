@@ -5,7 +5,7 @@ import { normalizeWorkspacePath } from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
 
-const DISALLOWED_SUBSTRINGS = [";", "&&", "||", "|", ">", "<", "`", "$(", "${"];
+const DISALLOWED_SUBSTRINGS = [";", "&&", "||", "|", ">", "<", "`", "$(", "${", "-exec"];
 
 const ALLOWED_COMMAND_PATTERNS = [
   /^git\s+(status|log|diff|rev-parse|show)\b/i,

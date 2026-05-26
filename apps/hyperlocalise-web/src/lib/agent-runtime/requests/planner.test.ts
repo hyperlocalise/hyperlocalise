@@ -48,4 +48,20 @@ describe("agent request planner", () => {
       workspace: "none",
     });
   });
+
+  it("prefers translation over project/workspace keywords", () => {
+    expect(
+      classifyAgentRequestText("translate my project workspace localization files to French"),
+    ).toBe("translation");
+    expect(
+      planAgentRequest(
+        createRequest("translate my project workspace localization files to French"),
+      ),
+    ).toMatchObject({
+      domain: "translation",
+      operation: "translate",
+      mutationPolicy: "direct_write",
+      requiredCapabilities: ["translation:create"],
+    });
+  });
 });

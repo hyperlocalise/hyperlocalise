@@ -23,6 +23,10 @@ describe("isAllowedBashCommand", () => {
   it("blocks curl", () => {
     expect(isAllowedBashCommand("curl https://example.com")).toBe(false);
   });
+
+  it("blocks find -exec", () => {
+    expect(isAllowedBashCommand("find . -type f -exec bash -c 'env' {} +")).toBe(false);
+  });
 });
 
 describe("createBashTool", () => {

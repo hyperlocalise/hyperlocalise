@@ -66,13 +66,13 @@ export function classifyAgentRequestText(text: string): AgentPlannerIntent {
   if (/\b(glossar(?:y|ies)|term(?:s)?|translation memor(?:y|ies)|tmx|tm)\b/i.test(text)) {
     return "glossary_memory";
   }
-  if (/\b(project|workspace)\b/i.test(text)) {
-    return "project";
-  }
   if (
     /\b(translat(?:e|ion|ing)|locali[sz](?:e|ation|ing)|source locale|target locale)\b/i.test(text)
   ) {
     return "translation";
+  }
+  if (/\b(project|workspace)\b/i.test(text)) {
+    return "project";
   }
   return "general";
 }
