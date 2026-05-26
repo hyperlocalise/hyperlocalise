@@ -206,27 +206,6 @@ async function rollbackPendingInvite(input: {
   await cleanupInvitedPlaceholderUser(input.localUserId);
 }
 
-async function restoreOrganizationMembership(input: {
-  membershipId: string;
-  organizationId: string;
-  userId: string;
-  role: OrganizationMembershipRole;
-  workosMembershipId: string | null;
-  createdAt: Date;
-}) {
-  await db
-    .insert(schema.organizationMemberships)
-    .values({
-      id: input.membershipId,
-      organizationId: input.organizationId,
-      userId: input.userId,
-      role: input.role,
-      workosMembershipId: input.workosMembershipId,
-      createdAt: input.createdAt,
-    })
-    .onConflictDoNothing();
-}
-
 export function createMemberRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -437,6 +416,50 @@ export function createMemberRoutes() {
       const workos = getWorkosServerClient();
       const isPendingInvite = isInvitedPlaceholderWorkosUserId(member.workosUserId);
 
+      if (member.role === "owner") {
+        const ownerGuardResult = await db.transaction(async (tx) => {
+          const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
+          if (ownerCount <= 1) {
+            return { error: "last_owner_protected" as const };
+          }
+
+          return { ok: true as const };
+        });
+
+        if ("error" in ownerGuardResult) {
+          return lastOwnerProtectedResponse(c);
+        }
+      }
+
+      if (
+        shouldSyncMembershipToWorkos({
+          workosMembershipId: member.workosMembershipId,
+        })
+      ) {
+        try {
+          await workos!.userManagement.deleteOrganizationMembership(member.workosMembershipId!);
+        } catch {
+          return internalErrorResponse(
+            c,
+            "member_sync_failed",
+            "Failed to sync member removal with identity provider",
+          );
+        }
+      } else if (isPendingInvite) {
+        try {
+          await revokePendingWorkosInvitation({
+            workosOrganizationId,
+            email: member.email,
+          });
+        } catch {
+          return internalErrorResponse(
+            c,
+            "member_sync_failed",
+            "Failed to revoke workspace invitation with identity provider",
+          );
+        }
+      }
+
       const deletionResult = await db.transaction(async (tx) => {
         if (member.role === "owner") {
           const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
@@ -464,53 +487,6 @@ export function createMemberRoutes() {
           "member_sync_failed",
           "Failed to sync member removal with identity provider",
         );
-      }
-
-      if (
-        shouldSyncMembershipToWorkos({
-          workosMembershipId: member.workosMembershipId,
-        })
-      ) {
-        try {
-          await workos!.userManagement.deleteOrganizationMembership(member.workosMembershipId!);
-        } catch {
-          await restoreOrganizationMembership({
-            membershipId: member.membershipId,
-            organizationId,
-            userId: member.localUserId,
-            role: member.role,
-            workosMembershipId: member.workosMembershipId,
-            createdAt: member.createdAt,
-          });
-
-          return internalErrorResponse(
-            c,
-            "member_sync_failed",
-            "Failed to sync member removal with identity provider",
-          );
-        }
-      } else if (isPendingInvite) {
-        try {
-          await revokePendingWorkosInvitation({
-            workosOrganizationId,
-            email: member.email,
-          });
-        } catch {
-          await restoreOrganizationMembership({
-            membershipId: member.membershipId,
-            organizationId,
-            userId: member.localUserId,
-            role: member.role,
-            workosMembershipId: member.workosMembershipId,
-            createdAt: member.createdAt,
-          });
-
-          return internalErrorResponse(
-            c,
-            "member_sync_failed",
-            "Failed to revoke workspace invitation with identity provider",
-          );
-        }
       }
 
       if (shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserId)) {

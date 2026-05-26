@@ -355,6 +355,50 @@ describe("memberRoutes", () => {
     );
     await authHeadersFor(memberIdentity);
 
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.organizations)
+      .where(
+        eq(
+          schema.organizations.workosOrganizationId,
+          ownerIdentity.organization.workosOrganizationId,
+        ),
+      )
+      .limit(1);
+    const [memberUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, memberIdentity.user.workosUserId))
+      .limit(1);
+
+    expect(organization).toBeDefined();
+    expect(memberUser).toBeDefined();
+
+    const [team] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: organization!.id,
+        slug: "workos-removal-rollback",
+        name: "WorkOS removal rollback",
+      })
+      .returning({ id: schema.teams.id });
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: team.id,
+      userId: memberUser!.id,
+      role: "member",
+    });
+
+    await db.insert(schema.mcpSessions).values({
+      userId: memberUser!.id,
+      organizationId: organization!.id,
+      scope: "mcp",
+      accessTokenHash: `access_${memberUser!.id}`,
+      refreshTokenHash: `refresh_${memberUser!.id}`,
+      expiresAt: new Date(Date.now() + 60_000),
+      refreshExpiresAt: new Date(Date.now() + 120_000),
+    });
+
     const response = await removeMemberViaApi(
       ownerIdentity,
       memberIdentity.user.workosUserId,
@@ -368,6 +412,28 @@ describe("memberRoutes", () => {
     expect(
       listBody.members.find((m) => m.workosUserId === memberIdentity.user.workosUserId)?.role,
     ).toBe("member");
+
+    const remainingTeamMemberships = await db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, team.id),
+          eq(schema.teamMemberships.userId, memberUser!.id),
+        ),
+      );
+    const remainingMcpSessions = await db
+      .select({ id: schema.mcpSessions.id })
+      .from(schema.mcpSessions)
+      .where(
+        and(
+          eq(schema.mcpSessions.organizationId, organization!.id),
+          eq(schema.mcpSessions.userId, memberUser!.id),
+        ),
+      );
+
+    expect(remainingTeamMemberships).toHaveLength(1);
+    expect(remainingMcpSessions).toHaveLength(1);
   });
 
   it("prevents admin from assigning owner role", async () => {
