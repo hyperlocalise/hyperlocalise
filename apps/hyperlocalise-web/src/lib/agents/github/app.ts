@@ -1,3 +1,5 @@
+import { createPrivateKey } from "node:crypto";
+
 import { App, type Octokit } from "octokit";
 
 import { env } from "@/lib/env";
@@ -17,6 +19,11 @@ export function getGitHubAppPrivateKey(): string {
   if (!cachedPrivateKey) {
     const normalized = normalizeGitHubAppPrivateKey(env.GITHUB_APP_PRIVATE_KEY);
     assertGitHubAppPrivateKeyParsable(normalized);
+    try {
+      createPrivateKey({ key: normalized });
+    } catch {
+      throw new Error("invalid GitHub App private key PEM format");
+    }
     cachedPrivateKey = normalized;
   }
 
