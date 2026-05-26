@@ -1,4 +1,4 @@
-import { generateKeyPairSync } from "node:crypto";
+import { createPrivateKey, generateKeyPairSync } from "node:crypto";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
@@ -17,6 +17,7 @@ function expectParsablePem(normalized: string) {
   expect(normalized).toContain("-----BEGIN");
   expect(normalized).toContain("-----END");
   expect(() => assertGitHubAppPrivateKeyParsable(normalized)).not.toThrow();
+  expect(() => createPrivateKey({ key: normalized })).not.toThrow();
 }
 
 describe("normalizeGitHubAppPrivateKey", () => {
@@ -53,6 +54,14 @@ describe("normalizeGitHubAppPrivateKey", () => {
     const crlf = samplePem.replaceAll("\n", "\r\n");
     const normalized = normalizeGitHubAppPrivateKey(crlf);
     expectParsablePem(normalized);
+  });
+});
+
+describe("assertGitHubAppPrivateKeyParsable", () => {
+  it("rejects non-PEM placeholders", () => {
+    expect(() => assertGitHubAppPrivateKeyParsable("test-github-app-private-key")).toThrow(
+      "invalid GitHub App private key PEM format",
+    );
   });
 });
 

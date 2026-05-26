@@ -1,5 +1,3 @@
-import { createPrivateKey } from "node:crypto";
-
 /**
  * Normalizes a GitHub App PEM private key from environment variables.
  * Hosting platforms often store PEMs as a single line with escaped newlines,
@@ -40,8 +38,16 @@ export function normalizeGitHubAppPrivateKey(raw: string): string {
   return key.trim();
 }
 
+const PEM_PRIVATE_KEY_HEADER = /^-----BEGIN (?:RSA )?PRIVATE KEY-----$/m;
+const PEM_PRIVATE_KEY_FOOTER = /^-----END (?:RSA )?PRIVATE KEY-----$/m;
+
+/** Structural PEM check only (safe for workflow import graphs; no node:crypto). */
 export function assertGitHubAppPrivateKeyParsable(privateKey: string): void {
-  createPrivateKey({ key: privateKey });
+  const trimmed = privateKey.trim();
+
+  if (!PEM_PRIVATE_KEY_HEADER.test(trimmed) || !PEM_PRIVATE_KEY_FOOTER.test(trimmed)) {
+    throw new Error("invalid GitHub App private key PEM format");
+  }
 }
 
 export function isGitHubAppPrivateKeyDecoderError(error: unknown): boolean {
