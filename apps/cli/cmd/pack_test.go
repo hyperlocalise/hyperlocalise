@@ -193,6 +193,43 @@ func TestPackCommandSupportsPlainJSONTranslations(t *testing.T) {
 	assertPackOutput(t, got, want)
 }
 
+func TestPackCommandWritesOutFile(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "home.title": {
+    "defaultMessage": "Dashboard"
+  },
+  "nav.title": {
+    "defaultMessage": "Dashboard"
+  }
+}`)
+
+	outPath := filepath.Join(dir, "packed.json")
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--out-file", outPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("expected out-file mode to keep stdout empty, got %q", out.String())
+	}
+
+	content, err := os.ReadFile(outPath)
+	if err != nil {
+		t.Fatalf("read pack output file: %v", err)
+	}
+
+	got := decodePackTestOutput(t, content)
+	want := map[string][]string{
+		"Dashboard": {"home.title", "nav.title"},
+	}
+	assertPackOutput(t, got, want)
+}
+
 func TestRootHelpIncludesPackCommand(t *testing.T) {
 	cmd := newRootCmd("")
 	b := bytes.NewBufferString("")

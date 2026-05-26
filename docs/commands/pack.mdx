@@ -6,7 +6,7 @@ description: "Group translation ids by shared string value."
 ## Usage
 
 ```bash
-hyperlocalise pack <translation-file> [--prefix-id]
+hyperlocalise pack <translation-file> [flags]
 ```
 
 ## Behavior
@@ -23,4 +23,15 @@ For FormatJS message JSON, `pack` uses `defaultMessage` as the string value and 
 
 ## Flags
 
+- `--out-file <path>`: write the packed JSON to a file instead of stdout.
 - `--prefix-id`: strip `extract --prefix-id` filename prefixes from ids. For example, `src.components.app-header.title` becomes `title`.
+
+## Examples
+
+```bash
+hyperlocalise pack lang/en.json --out-file lang/packed.json
+```
+
+```bash
+hyperlocalise pack lang/en.json --prefix-id --out-file lang/packed.json
+```

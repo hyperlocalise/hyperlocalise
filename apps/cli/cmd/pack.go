@@ -15,6 +15,7 @@ import (
 )
 
 type packOptions struct {
+	outFile  string
 	prefixID bool
 }
 
@@ -32,10 +33,11 @@ func newPackCmd() *cobra.Command {
 				return err
 			}
 
-			return writePackOutput(cmd, packed)
+			return writePackOutput(cmd, packed, o)
 		},
 	}
 
+	cmd.Flags().StringVar(&o.outFile, "out-file", "", "write packed translations to a JSON file")
 	cmd.Flags().BoolVar(&o.prefixID, "prefix-id", false, "strip extract --prefix-id filename prefixes from packed ids")
 
 	return cmd
@@ -79,13 +81,27 @@ func runPack(path string, options packOptions) (map[string][]string, error) {
 	return packed, nil
 }
 
-func writePackOutput(cmd *cobra.Command, packed map[string][]string) error {
+func writePackOutput(cmd *cobra.Command, packed map[string][]string, options packOptions) error {
 	var buf bytes.Buffer
 	enc := json.NewEncoder(&buf)
 	enc.SetIndent("", "  ")
 	enc.SetEscapeHTML(false)
 	if err := enc.Encode(packed); err != nil {
 		return fmt.Errorf("encode pack output: %w", err)
+	}
+
+	outFile := strings.TrimSpace(options.outFile)
+	if options.outFile != "" {
+		if outFile == "" {
+			return fmt.Errorf("pack out-file cannot be empty")
+		}
+		if err := os.MkdirAll(filepath.Dir(outFile), 0o755); err != nil {
+			return fmt.Errorf("create pack output directory: %w", err)
+		}
+		if err := os.WriteFile(outFile, buf.Bytes(), 0o644); err != nil {
+			return fmt.Errorf("write pack output file %q: %w", outFile, err)
+		}
+		return nil
 	}
 
 	if _, err := cmd.OutOrStdout().Write(buf.Bytes()); err != nil {
