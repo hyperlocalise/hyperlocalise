@@ -17,6 +17,23 @@ import { TypographyP } from "@/components/ui/typography";
 
 const api = createApiClient();
 
+const GITHUB_CONNECT_ERROR_MESSAGES: Record<string, string> = {
+  missing_callback_params:
+    "GitHub did not return installation_id on the Setup URL callback. Confirm the GitHub App Setup URL points to this app and try connecting again.",
+  invalid_state:
+    "The GitHub install link expired or was already used. Click Connect GitHub again from this page.",
+  github_install_pending_approval:
+    "GitHub is waiting for an org owner to approve this app install. Approve it on GitHub, then connect again.",
+  github_app_not_configured: "GitHub App integration is not configured for this environment.",
+  github_installation_invalid:
+    "GitHub rejected the installation ID. Confirm the app is installed on the expected account.",
+  github_installation_already_linked:
+    "That GitHub installation is already linked to another Hyperlocalise organization.",
+  organization_not_found: "The organization for this install request could not be found.",
+  github_use_setup_url:
+    'GitHub returned a user OAuth code instead of an installation ID. In GitHub App settings, turn off "Request user authorization (OAuth) during installation" and set the Setup URL to this app\'s /auth/github/callback.',
+};
+
 type GitHubAgentCardProps = {
   organizationSlug: string;
 };
@@ -197,6 +214,25 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
   } = useGitHubInstallation(organizationSlug);
 
   const handledGithubConnectedRef = useRef(false);
+  const handledGithubErrorRef = useRef(false);
+
+  useEffect(() => {
+    const errorCode = searchParams.get("error");
+    if (!errorCode || handledGithubErrorRef.current) {
+      return;
+    }
+
+    handledGithubErrorRef.current = true;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("error");
+    window.history.replaceState(null, "", url.toString());
+
+    const message =
+      GITHUB_CONNECT_ERROR_MESSAGES[errorCode] ??
+      "GitHub App connection failed. Try connecting again.";
+    toast.error(message);
+  }, [searchParams]);
 
   useEffect(() => {
     if (searchParams.get("github_connected") !== "1" || handledGithubConnectedRef.current) {

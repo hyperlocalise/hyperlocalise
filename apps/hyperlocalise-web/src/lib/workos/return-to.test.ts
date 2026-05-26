@@ -31,6 +31,14 @@ describe("sanitizeReturnTo", () => {
     expect(sanitizeReturnTo("/auth/github/callback")).toBe("/dashboard");
   });
 
+  it("should preserve GitHub install callback URLs that include installation params", () => {
+    expect(
+      sanitizeReturnTo(
+        "/auth/github/callback?installation_id=123456&state=org-slug%3A123%3Anonce%3Asignature",
+      ),
+    ).toBe("/auth/github/callback?installation_id=123456&state=org-slug%3A123%3Anonce%3Asignature");
+  });
+
   it("should return the fallback if the value starts with a restricted auth path followed by ?, #, or /", () => {
     expect(sanitizeReturnTo("/auth/sign-in?foo=bar")).toBe("/dashboard");
     expect(sanitizeReturnTo("/auth/sign-in#section")).toBe("/dashboard");

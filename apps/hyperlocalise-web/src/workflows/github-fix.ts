@@ -392,7 +392,7 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
     if (!pr.canPush) {
       await postPullRequestComment(
         event,
-        "## Hyperlocalise fix skipped\n\nI do not have permission to push to this PR branch.",
+        "## Hyperlocalise fix skipped\n\nI do not have permission to push to this PR branch. Fork pull requests are not supported — open the PR from a branch in the installed repository.",
       );
       return;
     }
