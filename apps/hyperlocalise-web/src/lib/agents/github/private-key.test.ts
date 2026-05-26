@@ -72,6 +72,12 @@ describe("isGitHubAppPrivateKeyDecoderError", () => {
     ).toBe(true);
   });
 
+  it("detects structural PEM format failures", () => {
+    expect(
+      isGitHubAppPrivateKeyDecoderError(new Error("invalid GitHub App private key PEM format")),
+    ).toBe(true);
+  });
+
   it("ignores unrelated errors", () => {
     expect(isGitHubAppPrivateKeyDecoderError(new Error("Not Found"))).toBe(false);
   });

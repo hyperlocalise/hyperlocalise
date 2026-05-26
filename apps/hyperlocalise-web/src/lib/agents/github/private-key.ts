@@ -60,6 +60,7 @@ export function isGitHubAppPrivateKeyDecoderError(error: unknown): boolean {
     message.includes("decoder routines") ||
     message.includes("no start line") ||
     message.includes("bad decrypt") ||
-    message.includes("error:1e08010c")
+    message.includes("error:1e08010c") ||
+    message.includes("invalid github app private key pem format")
   );
 }

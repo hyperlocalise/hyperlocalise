@@ -15,8 +15,9 @@ export function getGitHubAppPrivateKey(): string {
   }
 
   if (!cachedPrivateKey) {
-    cachedPrivateKey = normalizeGitHubAppPrivateKey(env.GITHUB_APP_PRIVATE_KEY);
-    assertGitHubAppPrivateKeyParsable(cachedPrivateKey);
+    const normalized = normalizeGitHubAppPrivateKey(env.GITHUB_APP_PRIVATE_KEY);
+    assertGitHubAppPrivateKeyParsable(normalized);
+    cachedPrivateKey = normalized;
   }
 
   return cachedPrivateKey;
