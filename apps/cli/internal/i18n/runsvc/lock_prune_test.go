@@ -15,10 +15,10 @@ func TestPruneLockEntriesRemovesStaleKeysForInScopeTargets(t *testing.T) {
 	}
 	state := &lockfile.File{
 		RunCompleted: map[string]lockfile.RunCompletion{
-			taskIdentity(targetPath, "hello"): {SourceHash: "a"},
-			taskIdentity(targetPath, "legacy"): {SourceHash: "b"},
+			taskIdentity(targetPath, "hello"):      {SourceHash: "a"},
+			taskIdentity(targetPath, "legacy"):     {SourceHash: "b"},
 			taskIdentity(targetPath, "nested.old"): {SourceHash: "c"},
-			taskIdentity("/other.json", "bye"): {SourceHash: "d"},
+			taskIdentity("/other.json", "bye"):     {SourceHash: "d"},
 		},
 		RunCheckpoint: map[string]lockfile.RunCheckpoint{
 			taskIdentity(targetPath, "legacy"): {TargetPath: targetPath, EntryKey: "legacy"},
