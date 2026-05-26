@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 
+import { canAccessStoredFile } from "@/api/auth/team-access";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
@@ -29,6 +30,7 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
         .select({
           id: schema.storedFiles.id,
           organizationId: schema.storedFiles.organizationId,
+          projectId: schema.storedFiles.projectId,
           storageProvider: schema.storedFiles.storageProvider,
           storageKey: schema.storedFiles.storageKey,
           storageUrl: schema.storedFiles.storageUrl,
@@ -39,7 +41,13 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
         .where(and(eq(schema.storedFiles.id, fileId), eq(schema.storedFiles.organizationId, orgId)))
         .limit(1);
 
-      if (!file) {
+      if (
+        !file ||
+        !(await canAccessStoredFile(c.var.auth, {
+          organizationId: file.organizationId,
+          projectId: file.projectId,
+        }))
+      ) {
         return fileNotFoundResponse(c);
       }
 
