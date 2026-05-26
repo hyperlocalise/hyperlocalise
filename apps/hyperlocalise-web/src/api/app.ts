@@ -32,7 +32,6 @@ import { createProviderCredentialRoutes } from "./routes/provider-credential/pro
 import { createPublicFileRoutes } from "./routes/public-files/public-files.route";
 import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
-import { createGithubOAuthRoutes } from "./routes/github-oauth/github-oauth.route";
 import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
 import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
 import { createFileRoutes } from "./routes/file/file.route";
@@ -108,7 +107,6 @@ function createInternalRoutes() {
 function createAuthRoutes() {
   return new Hono()
     .route("/", authRoutes)
-    .route("/github", createGithubOAuthRoutes())
     .route("/slack", createSlackOAuthRoutes());
 }
 

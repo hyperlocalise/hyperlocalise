@@ -124,6 +124,21 @@ describe("GitHubCallbackPage", () => {
     await fixture.cleanup();
   });
 
+  it("rejects user oauth code callbacks and points admins to setup url", async () => {
+    const { state } = await createCallbackState({ role: "admin" });
+
+    await expect(
+      GitHubCallbackPage({
+        searchParams: Promise.resolve({
+          code: "oauth-code-123",
+          state,
+        }),
+      }),
+    ).rejects.toThrow("redirect:/dashboard?error=github_use_setup_url");
+
+    expect(getGitHubAppMock).not.toHaveBeenCalled();
+  });
+
   it("persists an installation, syncs repositories, and consumes state for the same admin user", async () => {
     const { auth, nonce, slug, state } = await createCallbackState({ role: "admin" });
 

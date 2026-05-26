@@ -15,6 +15,7 @@ export type GitHubInstallCallbackInput = {
   installationId?: string;
   setupAction?: string;
   state?: string;
+  code?: string;
 };
 
 export type GitHubInstallCallbackResult = {
@@ -88,7 +89,8 @@ async function resolveOrganizationFromState(verified: { slug: string }) {
 }
 
 /**
- * Completes a GitHub App installation after GitHub redirects to the app Setup URL.
+ * Completes a GitHub App installation after GitHub redirects to the app Setup URL
+ * with `installation_id` and signed `state`.
  *
  * Authorization is enforced when the install URL is minted (admin-only API route
  * that writes `github_installation_states`). The callback only needs the signed
@@ -106,10 +108,19 @@ export async function handleGitHubInstallCallback(
       installationId: installationId ?? null,
       setupAction: setupAction ?? null,
       hasState: Boolean(stateParam),
+      hasCode: Boolean(input.code),
       stateLength: stateParam?.length ?? 0,
     },
     "github install callback received",
   );
+
+  if (input.code) {
+    return finish(
+      "/dashboard?error=github_use_setup_url",
+      { hasCode: true },
+      "github install callback received user oauth code; setup url required",
+    );
+  }
 
   if (!stateParam) {
     return finish(

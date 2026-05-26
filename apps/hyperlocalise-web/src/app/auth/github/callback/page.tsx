@@ -10,6 +10,7 @@ type GitHubCallbackPageProps = {
     installation_id?: string;
     setup_action?: string;
     state?: string;
+    code?: string;
   }>;
 };
 
@@ -22,6 +23,7 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
       installationId: params.installation_id ?? null,
       setupAction: params.setup_action ?? null,
       hasState: Boolean(params.state),
+      hasCode: Boolean(params.code),
     },
     "github install callback page hit",
   );
@@ -30,6 +32,7 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     installationId: params.installation_id,
     setupAction: params.setup_action,
     state: params.state,
+    code: params.code,
   });
 
   redirect(result.redirectTo);

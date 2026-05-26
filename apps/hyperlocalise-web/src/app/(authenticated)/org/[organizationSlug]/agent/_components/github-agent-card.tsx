@@ -30,6 +30,8 @@ const GITHUB_CONNECT_ERROR_MESSAGES: Record<string, string> = {
   github_installation_already_linked:
     "That GitHub installation is already linked to another Hyperlocalise organization.",
   organization_not_found: "The organization for this install request could not be found.",
+  github_use_setup_url:
+    'GitHub returned a user OAuth code instead of an installation ID. In GitHub App settings, turn off "Request user authorization (OAuth) during installation" and set the Setup URL to this app\'s /auth/github/callback.',
 };
 
 type GitHubAgentCardProps = {
