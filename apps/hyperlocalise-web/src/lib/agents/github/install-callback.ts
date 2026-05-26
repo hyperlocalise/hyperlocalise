@@ -4,6 +4,7 @@ import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import { getGitHubApp } from "@/lib/agents/github/app";
+import { isGitHubAppPrivateKeyDecoderError } from "@/lib/agents/github/private-key";
 import { getGitHubStateSecret, verifyGitHubState } from "@/lib/agents/github/oauth-state";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
 
@@ -248,16 +249,31 @@ export async function handleGitHubInstallCallback(
       "github install callback validated installation with GitHub API",
     );
   } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const privateKeyMisconfigured = isGitHubAppPrivateKeyDecoderError(error);
+
     logger.error(
       {
         ...orgContext,
-        error: error instanceof Error ? error.message : String(error),
+        error: errorMessage,
+        privateKeyMisconfigured,
       },
-      "github install callback getInstallation failed",
+      privateKeyMisconfigured
+        ? "github install callback getInstallation failed: invalid GITHUB_APP_PRIVATE_KEY"
+        : "github install callback getInstallation failed",
     );
 
-    const redirectTo = agentErrorRedirect(org, "github_installation_invalid").redirectTo;
-    return finish(redirectTo, orgContext, "github install callback installation invalid");
+    const redirectTo = agentErrorRedirect(
+      org,
+      privateKeyMisconfigured ? "github_app_private_key_invalid" : "github_installation_invalid",
+    ).redirectTo;
+    return finish(
+      redirectTo,
+      orgContext,
+      privateKeyMisconfigured
+        ? "github install callback rejected: app private key could not be decoded"
+        : "github install callback installation invalid",
+    );
   }
 
   const githubInstallationId = installationId;

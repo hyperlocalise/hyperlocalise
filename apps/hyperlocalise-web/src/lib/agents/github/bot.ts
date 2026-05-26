@@ -27,6 +27,7 @@ import type {
   RepoTmsAgentTaskQueue,
 } from "@/lib/workflow/types";
 
+import { getGitHubAppPrivateKey } from "./app";
 import { parseHyperlocaliseCommand } from "./commands";
 import { buildFixEvent } from "./events";
 import { requesterCanRunFix } from "./permissions";
@@ -295,7 +296,7 @@ export async function getGitHubBot(options: GitHubBotOptions) {
     adapters: {
       github: createGitHubAdapter({
         appId: env.GITHUB_APP_ID,
-        privateKey: env.GITHUB_APP_PRIVATE_KEY.replaceAll("\\n", "\n"),
+        privateKey: getGitHubAppPrivateKey(),
         userName: "hyperlocalise",
         webhookSecret: env.GITHUB_APP_WEBHOOK_SECRET,
       }),

@@ -25,6 +25,8 @@ const GITHUB_CONNECT_ERROR_MESSAGES: Record<string, string> = {
   github_install_pending_approval:
     "GitHub is waiting for an org owner to approve this app install. Approve it on GitHub, then connect again.",
   github_app_not_configured: "GitHub App integration is not configured for this environment.",
+  github_app_private_key_invalid:
+    "The GitHub App private key in this environment is invalid or malformed. Re-save GITHUB_APP_PRIVATE_KEY as the PEM from GitHub (use literal \\n line breaks or base64-encode the whole file).",
   github_installation_invalid:
     "GitHub rejected the installation ID. Confirm the app is installed on the expected account.",
   github_installation_already_linked:
