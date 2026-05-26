@@ -15,11 +15,46 @@ async function importHmacKey(secret: string): Promise<CryptoKey> {
   );
 }
 
+function encodeSignature(signature: ArrayBuffer): string {
+  return Buffer.from(signature).toString("base64url");
+}
+
+function decodeSignatureBytes(value: string): Buffer | null {
+  const normalized = value.replace(/ /g, "+");
+
+  for (const candidate of [value, normalized]) {
+    for (const encoding of ["base64url", "base64"] as const) {
+      try {
+        return Buffer.from(candidate, encoding);
+      } catch {
+        // Try the next encoding variant.
+      }
+    }
+  }
+
+  return null;
+}
+
+function signatureBytesMatch(providedSignature: string, expectedSignature: string): boolean {
+  const providedBytes = decodeSignatureBytes(providedSignature);
+  const expectedBytes = decodeSignatureBytes(expectedSignature);
+
+  if (!providedBytes || !expectedBytes) {
+    return false;
+  }
+
+  if (providedBytes.byteLength !== expectedBytes.byteLength) {
+    return false;
+  }
+
+  return timingSafeEqual(providedBytes, expectedBytes);
+}
+
 export async function signGitHubState(payload: string, secret: string): Promise<string> {
   const key = await importHmacKey(secret);
   const encoder = new TextEncoder();
   const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-  return Buffer.from(signature).toString("base64");
+  return encodeSignature(signature);
 }
 
 export async function verifyGitHubState(
@@ -34,11 +69,7 @@ export async function verifyGitHubState(
 
   const payload = `${slug}:${timestampStr}:${nonce}`;
   const expectedSignature = await signGitHubState(payload, secret);
-  const enc = new TextEncoder();
-  const providedBytes = enc.encode(providedSignature);
-  const expectedBytes = enc.encode(expectedSignature);
-  if (providedBytes.byteLength !== expectedBytes.byteLength) return null;
-  if (!timingSafeEqual(providedBytes, expectedBytes)) return null;
+  if (!signatureBytesMatch(providedSignature, expectedSignature)) return null;
 
   const timestamp = Number.parseInt(timestampStr, 10);
   if (!Number.isFinite(timestamp)) return null;

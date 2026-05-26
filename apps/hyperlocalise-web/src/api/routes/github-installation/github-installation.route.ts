@@ -15,6 +15,9 @@ import {
 } from "@/lib/agents/github/oauth-state";
 import { getGitHubApp } from "@/lib/agents/github/app";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
+import { createLogger } from "@/lib/log";
+
+const logger = createLogger("github-installation");
 
 import { searchRepositoriesSchema, updateRepositoriesSchema } from "./github-installation.schema";
 
@@ -111,6 +114,18 @@ export function createGithubInstallationRoutes() {
       // TODO: support custom GitHub App URLs (e.g. GitHub Enterprise).
       const url = new URL(`https://github.com/apps/${env.GITHUB_APP_SLUG}/installations/new`);
       url.searchParams.set("state", state);
+
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          organizationSlug: slug,
+          userId: c.var.auth.user.localUserId,
+          nonce,
+          expiresAt: new Date(timestamp + GITHUB_STATE_TTL_MS).toISOString(),
+          githubAppSlug: env.GITHUB_APP_SLUG,
+        },
+        "minted github app install url",
+      );
 
       return c.json({ url: url.toString() }, 200);
     })
