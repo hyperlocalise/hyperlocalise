@@ -131,6 +131,18 @@ vi.mock("@/lib/log", () => ({
     warn: vi.fn(),
     error: vi.fn(),
   })),
+  createLogger: vi.fn(() => ({
+    child: vi.fn(() => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+    })),
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  })),
 }));
 
 vi.mock("@/lib/database", () => {

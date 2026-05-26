@@ -22,7 +22,7 @@ import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
-import { createChatLogger } from "@/lib/log";
+import { createChatLogger, createLogger, serializeErrorForLog } from "@/lib/log";
 import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
 import {
   addInteractionMessage,
@@ -42,6 +42,8 @@ import {
 import { getSlackImageAttachments, handleSlackImageAttachments } from "./image-attachments";
 
 type SlackBotState = Record<string, unknown>;
+
+const logger = createLogger("slack-bot");
 
 let botInstance: Chat<{ slack: ReturnType<typeof createSlackAdapter> }, SlackBotState> | null =
   null;
@@ -202,12 +204,29 @@ async function processSlackMessage(
   projectId: string | null,
   connectorConfig: Record<string, unknown> | null,
 ) {
+  const channelId = getSlackChannelId(thread, message);
+  const log = logger.child({
+    interactionId,
+    organizationId,
+    projectId,
+    slackThreadId: thread.id,
+    slackMessageId: message.id,
+    slackChannelId: channelId,
+  });
+
   try {
     await thread.adapter.addReaction(thread.id, message.id, emoji.eyes).catch(() => {
       // Ignore reaction failures so message processing continues
     });
 
     const slackUser = await getSlackUser(thread, message.author.userId);
+    log.info(
+      {
+        hasSlackUser: Boolean(slackUser),
+        hasSlackUserEmail: Boolean(slackUser?.email),
+      },
+      "processing slack agent message",
+    );
 
     const persistedMessage = await addInteractionMessage({
       interactionId,
@@ -221,6 +240,12 @@ async function processSlackMessage(
       : null;
 
     if (!membership) {
+      log.warn(
+        {
+          hasSlackUserEmail: Boolean(slackUser?.email),
+        },
+        "slack agent membership lookup failed",
+      );
       const state = await thread.state;
       const warnedUsers = (state?.warnedNonMemberUsers as string[] | undefined) ?? [];
 
@@ -246,6 +271,14 @@ async function processSlackMessage(
     const imageAttachments = getSlackImageAttachments(message);
     const fileAttachments = getSlackTranslationFileAttachments(message);
     const unsupportedFileAttachments = getUnsupportedSlackFileAttachments(message);
+    log.info(
+      {
+        imageAttachmentCount: imageAttachments.length,
+        fileAttachmentCount: fileAttachments.length,
+        unsupportedFileAttachmentCount: unsupportedFileAttachments.length,
+      },
+      "slack agent attachments classified",
+    );
     const storedFileAttachments =
       fileAttachments.length > 0
         ? await storeSlackFileAttachments({
@@ -284,27 +317,54 @@ async function processSlackMessage(
     }
 
     const conversationMode = classifyConversationMode(message.text);
+    const shouldResolveRepositoryContext = shouldAttemptRepositoryContextResolution({
+      text: message.text,
+      hasStoredFileAttachments: storedFileAttachments.length > 0,
+      mode: conversationMode,
+    });
+    log.info(
+      {
+        conversationMode,
+        shouldResolveRepositoryContext,
+        hasConnectorConfig: Boolean(connectorConfig),
+      },
+      "slack agent conversation mode classified",
+    );
 
     let resolvedRepositoryContext: RepositoryAgentGitHubContext | null = null;
     let repositoryContextInstructions: string | null = null;
-    if (
-      shouldAttemptRepositoryContextResolution({
-        text: message.text,
-        hasStoredFileAttachments: storedFileAttachments.length > 0,
-        mode: conversationMode,
-      })
-    ) {
+    if (shouldResolveRepositoryContext) {
       const githubContextResolution = await resolveSlackRepositoryGitHubContext({
         organizationId,
         text: message.text,
         connectorConfig,
         projectId,
-        channelId: getSlackChannelId(thread, message),
+        channelId,
         requirePullRequest: conversationModeRequiresPullRequestContext(
           message.text,
           conversationMode,
         ),
       });
+      log.info(
+        {
+          status: githubContextResolution.status,
+          source:
+            githubContextResolution.status === "resolved" ? githubContextResolution.source : null,
+          repositoryFullName:
+            githubContextResolution.status === "resolved"
+              ? githubContextResolution.context.repositoryFullName
+              : null,
+          installationId:
+            githubContextResolution.status === "resolved"
+              ? githubContextResolution.context.installationId
+              : null,
+          unresolvedReason:
+            githubContextResolution.status === "unresolved"
+              ? githubContextResolution.context.reason
+              : null,
+        },
+        "slack agent repository context resolved",
+      );
 
       if (githubContextResolution.status === "resolved") {
         resolvedRepositoryContext = githubContextResolution.context;
@@ -361,7 +421,17 @@ async function processSlackMessage(
     let sandboxId: string | null = null;
     try {
       if (resolvedRepositoryContext) {
+        log.info(
+          {
+            repositoryFullName: resolvedRepositoryContext.repositoryFullName,
+            installationId: resolvedRepositoryContext.installationId,
+            branch: resolvedRepositoryContext.branch ?? null,
+            commitSha: resolvedRepositoryContext.commitSha ?? null,
+          },
+          "creating repository sandbox for slack agent",
+        );
         sandboxId = await createRepositorySandbox(resolvedRepositoryContext);
+        log.info({ sandboxId }, "repository sandbox created for slack agent");
       }
 
       const agent = createConversationToolLoopAgent({
@@ -396,7 +466,21 @@ async function processSlackMessage(
           .filter((instruction): instruction is string => instruction !== null)
           .join("\n\n"),
       });
+      log.info(
+        {
+          hasRepositoryContext: Boolean(resolvedRepositoryContext),
+          hasSandbox: Boolean(sandboxId),
+          hasFileAttachments: storedFileAttachments.length > 0,
+        },
+        "running slack conversation agent",
+      );
       const result = await agent.generate({ messages: chatMessages });
+      log.info(
+        {
+          hasReplyText: result.text.trim().length > 0,
+        },
+        "slack conversation agent completed",
+      );
 
       await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
@@ -406,12 +490,13 @@ async function processSlackMessage(
       }
     } finally {
       if (sandboxId) {
-        await stopRepositorySandbox(sandboxId).catch(() => {
-          // Best-effort cleanup
+        await stopRepositorySandbox(sandboxId).catch((error: unknown) => {
+          log.warn(serializeErrorForLog(error), "repository sandbox cleanup failed");
         });
       }
     }
-  } catch {
+  } catch (error) {
+    log.error(serializeErrorForLog(error), "slack agent message processing failed");
     await removeEyesReaction(thread, message);
     wrapThreadPost(thread, interactionId);
     await thread.post({
