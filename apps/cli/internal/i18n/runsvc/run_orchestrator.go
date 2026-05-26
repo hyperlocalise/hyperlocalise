@@ -110,9 +110,15 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	endRunSpan(pruneSpan, nil, "")
 
 	if in.DryRun || (len(executable) == 0 && len(report.PruneCandidates) == 0 && len(checkpointStaged) == 0) {
-		if !in.DryRun && lockMigrated {
-			if err := s.saveLock(in.LockPath, *state); err != nil {
-				return report, fmt.Errorf("persist lock migration: %w", err)
+		if !in.DryRun {
+			lockChanged := lockMigrated
+			if s.reconcileLockEntries(in, planned, state) > 0 {
+				lockChanged = true
+			}
+			if lockChanged {
+				if err := s.saveLock(in.LockPath, *state); err != nil {
+					return report, fmt.Errorf("persist lock state: %w", err)
+				}
 			}
 		}
 		emitter.emit(completedEvent(report))
@@ -170,6 +176,7 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		emitter.emit(completedEvent(report))
 		return report, err
 	}
+	s.reconcileLockEntries(in, planned, state)
 	if err := s.clearRunCheckpoints(in.LockPath, state); err != nil {
 		emitter.emit(completedEvent(report))
 		return report, err
