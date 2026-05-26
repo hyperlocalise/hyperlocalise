@@ -72,7 +72,7 @@ describe("hyperlocalise agent core", () => {
     expect(instructions).toContain("bold labels");
     expect(instructions).toContain("relevant emoji");
     expect(instructions).toContain("This conversation is attached to project proj_123.");
-    expect(instructions).toContain("Call getProjectContext");
+    expect(instructions).toContain("createTranslationJob");
   });
 
   it("builds missing-project guidance for web conversations", () => {
@@ -81,8 +81,7 @@ describe("hyperlocalise agent core", () => {
       projectId: null,
     });
 
-    expect(instructions).toContain("This conversation is NOT attached to a project yet.");
-    expect(instructions).toContain("call listProjects");
+    expect(instructions).toContain("searchRepoFiles");
   });
 
   it("classifies GitHub pull request URLs as repo/TMS pull request intent", () => {
@@ -95,7 +94,7 @@ describe("hyperlocalise agent core", () => {
       kind: "repo_tms",
       githubContextRequirement: "pull_request",
     });
-    expect(getActiveToolsForHyperlocaliseAgentIntent(intent)).toContain("createSyncJob");
+    expect(getActiveToolsForHyperlocaliseAgentIntent(intent)).toContain("searchRepoFiles");
     expect(buildHyperlocaliseAgentIntentInstructions(intent)).toContain(
       "Intent: repository/TMS work.",
     );
@@ -124,6 +123,24 @@ describe("hyperlocalise agent core", () => {
       classifyHyperlocaliseAgentIntent({
         surface: "slack",
         text: "Run the repo checks",
+      }),
+    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
+  });
+
+  it("classifies GitHub copy lookup requests as repo/TMS repository intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "Can you help me find the context of the text 'Email agent' in our github",
+      }),
+    ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
+  });
+
+  it("classifies owner/repository-only Slack replies as repo/TMS repository intent", () => {
+    expect(
+      classifyHyperlocaliseAgentIntent({
+        surface: "slack",
+        text: "hyperlocalise/hyperlocalise",
       }),
     ).toEqual({ kind: "repo_tms", githubContextRequirement: "repository" });
   });
@@ -190,14 +207,14 @@ describe("hyperlocalise agent core", () => {
     createConversationToolLoopAgent({
       surface: "web",
       toolContext,
-      intent: { kind: "repo_tms", githubContextRequirement: "repository" },
+      hasFileAttachments: true,
     });
 
     expect(buildToolsMock).toHaveBeenCalledWith(toolContext);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         tools: { listProjects: { description: "mock tool" } },
-        activeTools: expect.arrayContaining(["createSyncJob"]),
+        activeTools: ["createTranslationJob"],
       }),
     );
   });

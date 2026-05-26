@@ -257,7 +257,86 @@ describe("resolveSlackRepoTmsGitHubContext", () => {
         resolved: false,
         reason: "The GitHub repository is not enabled for this workspace.",
       },
-      followUp: expect.stringContaining("can't access that pull request"),
+      followUp: expect.stringContaining("enabled for this workspace"),
+    });
+  });
+
+  it("lists enabled repositories once when resolving an explicit owner/repo reference", async () => {
+    const listEnabledRepositories = vi.fn(async () => [
+      {
+        installationId: 12345,
+        repositoryFullName: "org/enabled-repo",
+        defaultBranch: "main",
+      },
+    ]);
+
+    await resolveSlackRepoTmsGitHubContext({
+      organizationId: "org_123",
+      text: "Find the text 'Email agent' in org/disabled-repo",
+      requirePullRequest: false,
+      dependencies: createDependencies({
+        findEnabledRepository: vi.fn(async () => null),
+        listEnabledRepositories,
+      }),
+    });
+
+    expect(listEnabledRepositories).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not substitute a different enabled repository when an explicit owner/repo is unavailable", async () => {
+    const resolution = await resolveSlackRepoTmsGitHubContext({
+      organizationId: "org_123",
+      text: "Find the text 'Email agent' in org/disabled-repo",
+      requirePullRequest: false,
+      dependencies: createDependencies({
+        findEnabledRepository: vi.fn(async () => null),
+        listEnabledRepositories: vi.fn(async () => [
+          {
+            installationId: 12345,
+            repositoryFullName: "org/enabled-repo",
+            defaultBranch: "main",
+          },
+        ]),
+      }),
+    });
+
+    expect(resolution).toMatchObject({
+      status: "unresolved",
+      context: {
+        resolved: false,
+        reason: "The GitHub repository is not enabled for this workspace.",
+      },
+      followUp: expect.stringContaining("org/disabled-repo"),
+    });
+    expect(resolution).toMatchObject({
+      followUp: expect.stringContaining("enabled for this workspace"),
+    });
+  });
+
+  it("falls back to the only enabled repository when an explicit owner/repo is not enabled", async () => {
+    const resolution = await resolveSlackRepoTmsGitHubContext({
+      organizationId: "org_123",
+      text: "Find the text 'Email agent' in hyperlocalise/hyperlocalise",
+      requirePullRequest: false,
+      dependencies: createDependencies({
+        findEnabledRepository: vi.fn(async () => null),
+        listEnabledRepositories: vi.fn(async () => [
+          {
+            installationId: 12345,
+            repositoryFullName: "hyperlocalise/hyperlocalise",
+            defaultBranch: "main",
+          },
+        ]),
+      }),
+    });
+
+    expect(resolution).toMatchObject({
+      status: "resolved",
+      source: "single_installed_repository",
+      context: {
+        resolved: true,
+        repositoryFullName: "hyperlocalise/hyperlocalise",
+      },
     });
   });
 

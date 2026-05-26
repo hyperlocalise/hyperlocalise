@@ -9,8 +9,6 @@ import {
   handleSubscribedMessage,
   wrapThreadPost,
 } from "./bot";
-import { buildRepoTmsTaskIdempotencyKey } from "@/lib/agents/repo-tms-task";
-
 const {
   agentGenerateMock,
   createConversationToolLoopAgentMock,
@@ -93,6 +91,11 @@ vi.mock("@/lib/tools/registry", () => ({
 
 vi.mock("@/lib/image-generation", () => ({
   regenerateImageFromAttachment: vi.fn(),
+}));
+
+vi.mock("@/lib/agents/repo-tms-sandbox", () => ({
+  createRepoTmsSandbox: vi.fn(async () => "sbx_test"),
+  stopRepoTmsSandbox: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/lib/file-storage/records", () => ({
@@ -434,22 +437,11 @@ describe("handleNewConversation", () => {
       senderEmail: "alice@example.com",
     });
     expect(getSubscribed()).toBe(true);
-    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        surface: "slack",
-        toolContext: expect.objectContaining({
-          conversationId: "interaction-123",
-          organizationId: "org-123",
-          localUserId: "user-123",
-          membershipRole: "member",
-          projectId: null,
-        }),
-      }),
-    );
-    expect(agentGenerateMock).toHaveBeenCalledWith({
-      messages: [{ role: "user", content: "Help me translate" }],
-    });
-    expect(posts).toEqual([{ markdown: "AI response" }]);
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+    expect(agentGenerateMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([
+      expect.objectContaining({ markdown: expect.stringContaining("Attach") }),
+    ]);
   });
 
   it("does not resolve GitHub context for ordinary translation chat", async () => {
@@ -521,49 +513,75 @@ describe("handleNewConversation", () => {
       channelId: "C123",
       requirePullRequest: true,
     });
-    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
-    expect(enqueueRepoTmsTaskMock).toHaveBeenCalledTimes(1);
-    expect(enqueueRepoTmsTaskMock).toHaveBeenCalledWith(
+    expect(enqueueRepoTmsTaskMock).not.toHaveBeenCalled();
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        source: "slack",
-        sourceThreadId: thread.id,
-        actor: {
-          sourceUserId: message.author.userId,
-          userId: "user-123",
-          email: "alice@example.com",
-          displayName: "Alice",
-          role: "member",
-        },
-        organizationId: "org-123",
-        projectId: "project-123",
-        workMode: "read_only",
-        instructions: "Can you check https://github.com/acme/web/pull/42",
-        githubContext: {
-          resolved: true,
-          installationId: 12345,
-          repositoryFullName: "acme/web",
-          pullRequestNumber: 42,
-        },
-        idempotencyKey: buildRepoTmsTaskIdempotencyKey({
-          source: "slack",
-          sourceThreadId: thread.id,
-          organizationId: "org-123",
-          instructions: "Can you check https://github.com/acme/web/pull/42",
-          githubContext: {
-            resolved: true,
-            installationId: 12345,
-            repositoryFullName: "acme/web",
-            pullRequestNumber: 42,
-          },
+        surface: "slack",
+        toolContext: expect.objectContaining({
+          sandboxId: "sbx_test",
+          workMode: "read_only",
         }),
       }),
     );
-    expect(posts).toEqual([
-      {
-        markdown:
-          "Queued your read-only repo/TMS workflow. I'll gather context and post results in this thread.",
+    expect(agentGenerateMock).toHaveBeenCalled();
+    expect(posts).toEqual([{ markdown: "AI response" }]);
+  });
+
+  it("resolves GitHub context from the current Slack message only", async () => {
+    const { thread } = createThread();
+    const message = createMessage({
+      text: "Find 'Email agent' in org/new-repo",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    loadMessagesMock.mockResolvedValueOnce([
+      { role: "user", content: "Find 'Email agent' in org/old-repo" },
+      { role: "assistant", content: "I searched org/old-repo." },
+    ] as never);
+    resolveSlackRepoTmsGitHubContextMock.mockResolvedValueOnce({
+      status: "resolved",
+      source: "slack_repo_reference",
+      context: {
+        resolved: true,
+        installationId: 12345,
+        repositoryFullName: "org/new-repo",
       },
-    ]);
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: {},
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleNewConversation(thread, message);
+
+    expect(resolveSlackRepoTmsGitHubContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        text: "Find 'Email agent' in org/new-repo",
+        requirePullRequest: false,
+      }),
+    );
+    expect(enqueueRepoTmsTaskMock).not.toHaveBeenCalled();
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
+    expect(agentGenerateMock).toHaveBeenCalledWith({
+      messages: expect.arrayContaining([
+        expect.objectContaining({
+          role: "user",
+          content: expect.stringContaining("org/old-repo"),
+        }),
+      ]),
+    });
   });
 
   it("queues write-mode repo/TMS Slack tasks for workspace admins", async () => {
@@ -655,7 +673,17 @@ describe("handleNewConversation", () => {
 
   it("resumes existing interaction and posts AI response", async () => {
     const { thread, posts, getSubscribed } = createThread();
-    const message = createMessage({ text: "Follow up" });
+    const message = createMessage({
+      text: "Translate to French",
+      attachments: [
+        {
+          type: "file",
+          name: "copy.json",
+          mimeType: "application/json",
+          fetchData: vi.fn(async () => Buffer.from("{}")),
+        },
+      ],
+    });
 
     vi.mocked(findSlackConnector).mockResolvedValue({
       id: "connector-123",
@@ -679,10 +707,11 @@ describe("handleNewConversation", () => {
     expect(addInteractionMessage).toHaveBeenCalledWith({
       interactionId: "interaction-123",
       senderType: "user",
-      text: "Follow up",
+      text: "Translate to French",
       senderEmail: "alice@example.com",
     });
     expect(getSubscribed()).toBe(false);
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
     expect(agentGenerateMock).toHaveBeenCalled();
     expect(posts).toEqual([{ markdown: "AI response" }]);
   });
@@ -790,7 +819,17 @@ describe("handleSubscribedMessage", () => {
 
   it("creates or resumes interaction and posts AI response", async () => {
     const { thread, posts } = createThread();
-    const message = createMessage({ text: "Second message" });
+    const message = createMessage({
+      text: "Translate to German",
+      attachments: [
+        {
+          type: "file",
+          name: "copy.json",
+          mimeType: "application/json",
+          fetchData: vi.fn(async () => Buffer.from("{}")),
+        },
+      ],
+    });
 
     vi.mocked(findSlackConnector).mockResolvedValue({
       id: "connector-123",
@@ -813,9 +852,10 @@ describe("handleSubscribedMessage", () => {
     expect(addInteractionMessage).toHaveBeenCalledWith({
       interactionId: "interaction-123",
       senderType: "user",
-      text: "Second message",
+      text: expect.stringContaining("Translate to German"),
       senderEmail: "alice@example.com",
     });
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
     expect(agentGenerateMock).toHaveBeenCalled();
     expect(posts).toEqual([{ markdown: "AI response" }]);
 

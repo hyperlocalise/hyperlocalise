@@ -1,7 +1,9 @@
 import type { GitHubRawMessage } from "@chat-adapter/github";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+
+import { escapeRegExp } from "@/lib/primitives/escapeRegExp/escapeRegExp";
 
 import { getInstallationOctokit } from "./github/app";
 import type {
@@ -235,6 +237,7 @@ export async function resolveSlackRepoTmsGitHubContext(input: {
     pullRequestNumber: pullRequestNumber ?? undefined,
     source: fallback.source,
     accessFailureFollowUp: `I found repository context for ${fallback.repositoryFullName}, but I can't access it with the GitHub App installation. Please check the app is installed and the repository is enabled for this workspace.`,
+    installedRepositories,
     dependencies,
   });
 }
@@ -314,6 +317,7 @@ async function resolveInstalledGitHubContext(input: {
   pullRequestNumber?: number;
   source: ResolvedContextSource;
   accessFailureFollowUp: string;
+  installedRepositories?: EnabledGitHubRepository[];
   dependencies: RepoTmsGitHubContextDependencies;
 }): Promise<RepoTmsGitHubContextResolution> {
   const repositoryFullName = normalizeRepositoryFullName(input.repositoryFullName);
@@ -330,10 +334,29 @@ async function resolveInstalledGitHubContext(input: {
     repositoryFullName,
   });
   if (!repository) {
+    const enabledRepositories =
+      input.installedRepositories ??
+      (await input.dependencies.listEnabledRepositories({
+        organizationId: input.organizationId,
+      }));
+    const singleRepository = getSingleInstalledRepository(enabledRepositories);
+    if (
+      singleRepository?.enabledRepository &&
+      repositoryFullName.toLowerCase() === singleRepository.repositoryFullName.toLowerCase()
+    ) {
+      return resolveEnabledGitHubRepositoryContext({
+        repository: singleRepository.enabledRepository,
+        pullRequestNumber: input.pullRequestNumber,
+        source: singleRepository.source,
+        accessFailureFollowUp: input.accessFailureFollowUp,
+        dependencies: input.dependencies,
+      });
+    }
+
     return unresolved(
       "The GitHub repository is not enabled for this workspace.",
-      "Install the GitHub App for the repository and enable it in Hyperlocalise.",
-      input.accessFailureFollowUp,
+      "Install the GitHub App for the repository and enable it in Agent → GitHub.",
+      `I couldn't find \`${repositoryFullName}\` among the GitHub repositories enabled for this workspace. Open Agent → GitHub, enable the repository, or ask again without naming the repo when only one is enabled.`,
     );
   }
 
@@ -536,10 +559,6 @@ function slackTextContainsRepositoryName(text: string, repositoryFullName: strin
   ).test(text);
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function repositoryFullNameFromConfigValue(value: unknown): string | null {
   if (typeof value === "string") {
     return normalizeRepositoryFullName(value);
@@ -615,7 +634,7 @@ export const defaultRepoTmsGitHubContextDependencies: RepoTmsGitHubContextDepend
       .where(
         and(
           eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
-          eq(schema.githubInstallationRepositories.fullName, input.repositoryFullName),
+          sql`lower(${schema.githubInstallationRepositories.fullName}) = lower(${input.repositoryFullName})`,
           eq(schema.githubInstallationRepositories.enabled, true),
         ),
       )

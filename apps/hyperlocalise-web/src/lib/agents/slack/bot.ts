@@ -6,11 +6,16 @@ import type { Message, Thread, UserInfo } from "chat";
 import {
   buildHyperlocaliseAgentIntentInstructions,
   classifyHyperlocaliseAgentIntent,
+  buildTranslationAttachmentRequiredMessage,
   createConversationToolLoopAgent,
   loadInteractionModelMessages,
   replaceLastUserMessage,
 } from "@/lib/agents/hyperlocalise-agent";
-import { resolveSlackRepoTmsGitHubContext } from "@/lib/agents/repo-tms-context";
+import {
+  buildRepoTmsGitHubContextInstructions,
+  resolveSlackRepoTmsGitHubContext,
+} from "@/lib/agents/repo-tms-context";
+import { createRepoTmsSandbox, stopRepoTmsSandbox } from "@/lib/agents/repo-tms-sandbox";
 import {
   buildRepoTmsTaskIdempotencyKey,
   type RepoTmsAgentGitHubContext,
@@ -97,6 +102,32 @@ function buildSlackFileTranslationInstructions() {
   return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
 
+async function buildSlackRepoTmsInstructions(
+  interactionId: string,
+  latestText: string,
+): Promise<string> {
+  const messages = await loadInteractionModelMessages(interactionId);
+  const userLines = messages.flatMap((chatMessage) => {
+    if (chatMessage.role !== "user" || typeof chatMessage.content !== "string") {
+      return [];
+    }
+
+    const text = chatMessage.content.trim();
+    return text ? [text] : [];
+  });
+
+  const trimmedLatest = latestText.trim();
+  if (trimmedLatest && userLines.at(-1) !== trimmedLatest) {
+    userLines.push(trimmedLatest);
+  }
+
+  if (userLines.length === 0) {
+    return trimmedLatest;
+  }
+
+  return userLines.slice(-5).join("\n");
+}
+
 function getSlackChannelId(thread: Thread<SlackBotState>, message: Message): string | null {
   const channelId = thread.channelId;
   if (typeof channelId === "string" && channelId.length > 0) {
@@ -166,6 +197,10 @@ async function processSlackMessage(
     const intentInstructions = buildHyperlocaliseAgentIntentInstructions(intent);
     const additionalInstructions = [buildSlackFileTranslationInstructions(), intentInstructions];
     let resolvedRepoTmsContext: RepoTmsAgentGitHubContext | undefined;
+    const repoTmsInstructions =
+      intent.kind === "repo_tms"
+        ? await buildSlackRepoTmsInstructions(interactionId, message.text)
+        : message.text;
 
     if (intent.kind === "repo_tms") {
       const githubContextResolution = await resolveSlackRepoTmsGitHubContext({
@@ -193,41 +228,103 @@ async function processSlackMessage(
       const repoTmsWorkMode = hasCapability(membership.role, "integrations:write")
         ? "write"
         : "read_only";
-      const repoTmsTask: RepoTmsAgentTask = {
-        id: randomUUID(),
-        source: "slack",
-        sourceThreadId: thread.id,
-        actor: {
-          sourceUserId: message.author.userId,
-          userId: membership.localUserId,
-          email: slackUser?.email,
-          displayName: message.author.fullName ?? message.author.userName,
-          role: membership.role,
-        },
-        organizationId,
-        projectId,
-        workMode: repoTmsWorkMode,
-        instructions: message.text,
-        githubContext: resolvedRepoTmsContext,
-        createdAt: new Date().toISOString(),
-        idempotencyKey: buildRepoTmsTaskIdempotencyKey({
+
+      if (repoTmsWorkMode === "write") {
+        const repoTmsTask: RepoTmsAgentTask = {
+          id: randomUUID(),
           source: "slack",
           sourceThreadId: thread.id,
+          actor: {
+            sourceUserId: message.author.userId,
+            userId: membership.localUserId,
+            email: slackUser?.email,
+            displayName: message.author.fullName ?? message.author.userName,
+            role: membership.role,
+          },
           organizationId,
-          instructions: message.text,
+          projectId,
+          workMode: repoTmsWorkMode,
+          instructions: repoTmsInstructions,
           githubContext: resolvedRepoTmsContext,
-        }),
-      };
-      await createRepoTmsAgentTaskQueue().enqueue(repoTmsTask);
+          createdAt: new Date().toISOString(),
+          idempotencyKey: buildRepoTmsTaskIdempotencyKey({
+            source: "slack",
+            sourceThreadId: thread.id,
+            organizationId,
+            instructions: repoTmsInstructions,
+            githubContext: resolvedRepoTmsContext,
+          }),
+        };
+        await createRepoTmsAgentTaskQueue().enqueue(repoTmsTask);
 
-      await removeEyesReaction(thread, message);
-      wrapThreadPost(thread, interactionId);
-      await thread.post({
-        markdown:
-          repoTmsWorkMode === "write"
-            ? "Queued your repo/TMS workflow. I'll post progress and final results in this thread."
-            : "Queued your read-only repo/TMS workflow. I'll gather context and post results in this thread.",
-      });
+        await removeEyesReaction(thread, message);
+        wrapThreadPost(thread, interactionId);
+        await thread.post({
+          markdown:
+            "Queued your repo/TMS workflow. I'll post progress and final results in this thread.",
+        });
+        return;
+      }
+
+      if (!resolvedRepoTmsContext) {
+        await removeEyesReaction(thread, message);
+        wrapThreadPost(thread, interactionId);
+        await thread.post({
+          markdown: buildTranslationAttachmentRequiredMessage("slack"),
+        });
+        return;
+      }
+
+      let sandboxId: string | null = null;
+      try {
+        sandboxId = await createRepoTmsSandbox(resolvedRepoTmsContext);
+        const chatMessages = replaceLastUserMessage(
+          await loadInteractionModelMessages(interactionId),
+          repoTmsInstructions,
+        );
+        const agent = createConversationToolLoopAgent({
+          surface: "slack",
+          toolContext: {
+            conversationId: interactionId,
+            organizationId,
+            localUserId: membership.localUserId,
+            membershipRole: membership.role,
+            projectId,
+            db,
+            sandboxId,
+            githubContext: resolvedRepoTmsContext,
+            workMode: "read_only",
+            repoTmsSource: "slack",
+            actor: {
+              sourceUserId: message.author.userId,
+              userId: membership.localUserId,
+              role: membership.role,
+            },
+          },
+          additionalInstructions: [
+            buildSlackFileTranslationInstructions(),
+            intentInstructions,
+            buildRepoTmsGitHubContextInstructions(resolvedRepoTmsContext),
+            "Use searchRepoFiles with the user's quoted string, then readRepoFile for surrounding lines.",
+          ]
+            .filter((instruction): instruction is string => instruction !== null)
+            .join("\n\n"),
+        });
+        const result = await agent.generate({ messages: chatMessages });
+
+        await removeEyesReaction(thread, message);
+        wrapThreadPost(thread, interactionId);
+        const replyText = result.text.trim();
+        if (replyText) {
+          await thread.post({ markdown: replyText });
+        }
+      } finally {
+        if (sandboxId) {
+          await stopRepoTmsSandbox(sandboxId).catch(() => {
+            // Best-effort cleanup
+          });
+        }
+      }
       return;
     }
 
@@ -302,6 +399,15 @@ async function processSlackMessage(
       }
     }
 
+    if (storedFileAttachments.length === 0) {
+      await removeEyesReaction(thread, message);
+      wrapThreadPost(thread, interactionId);
+      await thread.post({
+        markdown: buildTranslationAttachmentRequiredMessage("slack"),
+      });
+      return;
+    }
+
     const agent = createConversationToolLoopAgent({
       surface: "slack",
       toolContext: {
@@ -312,7 +418,7 @@ async function processSlackMessage(
         projectId,
         db,
       },
-      intent,
+      hasFileAttachments: true,
       additionalInstructions: additionalInstructions
         .filter((instruction): instruction is string => instruction !== null)
         .join("\n\n"),
@@ -330,7 +436,7 @@ async function processSlackMessage(
     wrapThreadPost(thread, interactionId);
     await thread.post({
       markdown:
-        "I'm having trouble processing that right now. I can help with translation jobs, project questions, glossary lookups, and job status checks. How can I assist you?",
+        "I'm having trouble processing that right now. Attach a supported file or image with a target language and I can help translate it.",
     });
   }
 }
