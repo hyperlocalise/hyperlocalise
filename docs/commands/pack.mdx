@@ -47,9 +47,9 @@ Use `--group-by-value` to invert the shape and group ids that share the same tra
 
 ### Automatic discovery
 
-When no translation file is passed, `pack` loads your i18n config (`i18n.yml` or `i18n.jsonc` in the working directory by default) and packs every react-intl source locale file referenced by bucket `from` paths. Only JSON files in strict FormatJS shape (`defaultMessage` per id) are packed; plain nested JSON, non-JSON files, and missing files are skipped.
+When no translation file is passed, `pack` loads your i18n config (`i18n.yml` or `i18n.jsonc` in the working directory by default) and packs every react-intl translation file referenced by bucket `to` paths for the selected target locales. Only JSON files in strict FormatJS shape (`defaultMessage` per id) are packed; plain nested JSON, non-JSON files, and missing files are skipped.
 
-Batch discovery writes one output file per input, using `--out-suffix` (default `.packed`). For example, `lang/en-US.json` becomes `lang/en-US.packed.json`. Progress is printed to stderr.
+Batch discovery writes one output file per input, using `--out-suffix` (default `.packed`). For example, `lang/es-ES.json` becomes `lang/es-ES.packed.json`. Progress is printed to stderr.
 
 ## Flags
 
@@ -69,7 +69,7 @@ Strip descriptions from an extracted catalog:
 hyperlocalise pack lang/en.json --out-file lang/en.packed.json
 ```
 
-Pack every react-intl source locale file from the default i18n config:
+Pack every react-intl translation file from the default i18n config:
 
 ```bash
 hyperlocalise pack

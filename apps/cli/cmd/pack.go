@@ -115,6 +115,14 @@ func collectPackLocaleFilesFromConfig(options packOptions) ([]string, error) {
 		return nil, fmt.Errorf("load config: %w", err)
 	}
 
+	locales, err := resolveStatusLocales(cfg, nil, options.group)
+	if err != nil {
+		return nil, err
+	}
+	if len(locales) == 0 {
+		return nil, fmt.Errorf("pack: no locales selected")
+	}
+
 	buckets, err := selectedStatusBuckets(cfg, options.group, options.bucket)
 	if err != nil {
 		return nil, err
@@ -134,22 +142,29 @@ func collectPackLocaleFilesFromConfig(options packOptions) ([]string, error) {
 				if shouldIgnoreSourcePathForStatus(sourcePath, cfg.Locales.Targets) {
 					continue
 				}
-				cleaned := filepath.Clean(sourcePath)
-				if _, ok := seen[cleaned]; ok {
-					continue
-				}
-				formatJS, err := isPackFormatJSFile(cleaned)
-				if err != nil {
-					if os.IsNotExist(err) {
+				for _, locale := range locales {
+					targetPattern := pathresolver.ResolveTargetPath(file.To, cfg.Locales.Source, locale)
+					targetPath, err := resolveTargetPathForStatus(sourcePattern, targetPattern, sourcePath)
+					if err != nil {
+						return nil, fmt.Errorf("resolve target path for source %q: %w", sourcePath, err)
+					}
+					cleaned := filepath.Clean(targetPath)
+					if _, ok := seen[cleaned]; ok {
 						continue
 					}
-					return nil, fmt.Errorf("inspect %q: %w", cleaned, err)
+					formatJS, err := isPackFormatJSFile(cleaned)
+					if err != nil {
+						if os.IsNotExist(err) {
+							continue
+						}
+						return nil, fmt.Errorf("inspect %q: %w", cleaned, err)
+					}
+					if !formatJS {
+						continue
+					}
+					seen[cleaned] = struct{}{}
+					paths = append(paths, cleaned)
 				}
-				if !formatJS {
-					continue
-				}
-				seen[cleaned] = struct{}{}
-				paths = append(paths, cleaned)
 			}
 		}
 	}
