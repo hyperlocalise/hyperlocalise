@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 )
 
@@ -94,34 +95,52 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		templateMessageKeys[field.Key] = struct{}{}
 	}
 
-	sourceMessageMetadata, err := arbMessageMetadataFields(sourceTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("arb decode: %w", err)
+	var sourceMessageMetadata map[string]json.RawMessage
+	if bytes.Equal(template, sourceTemplate) {
+		sourceMessageMetadata = make(map[string]json.RawMessage)
+		for _, field := range fields {
+			messageKey, isMessageMeta := arbMessageMetadataKey(field.Key, templateMessageKeys)
+			if !isMessageMeta {
+				continue
+			}
+			sourceMessageMetadata[messageKey] = field.RawValue
+		}
+	} else {
+		var err error
+		sourceMessageMetadata, err = arbMessageMetadataFields(sourceTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("arb decode: %w", err)
+		}
 	}
 
 	writtenFields := make(map[string]struct{}, len(values))
 	var out bytes.Buffer
+	// Heuristic pre-allocation: template + values overhead.
+	out.Grow(len(template) + len(values)*32)
 	out.WriteString("{\n")
 
 	first := true
+	keyBuf := make([]byte, 0, 64)
 	writeField := func(key string, value []byte) error {
 		if !first {
 			out.WriteString(",\n")
 		}
 		first = false
 
-		encodedKey, err := json.Marshal(key)
-		if err != nil {
-			return err
-		}
-		normalizedValue, err := normalizeJSONValueIndent(value)
-		if err != nil {
-			return err
-		}
 		out.WriteString("  ")
-		out.Write(encodedKey)
+		keyBuf = strconv.AppendQuote(keyBuf[:0], key)
+		out.Write(keyBuf)
 		out.WriteString(": ")
-		out.Write(normalizedValue)
+
+		// Fast-path: if value is a simple JSON string (starts with "), skip json.Indent
+		// as it's a heavy operation. Metadata objects still use json.Indent.
+		if len(value) > 0 && value[0] == '"' {
+			out.Write(value)
+		} else {
+			if err := json.Indent(&out, value, "  ", "  "); err != nil {
+				return err
+			}
+		}
 		return nil
 	}
 
@@ -294,14 +313,6 @@ func arbMessageMetadataFields(content []byte) (map[string]json.RawMessage, error
 		metadataByKey[messageKey] = field.RawValue
 	}
 	return metadataByKey, nil
-}
-
-func normalizeJSONValueIndent(value []byte) ([]byte, error) {
-	var out bytes.Buffer
-	if err := json.Indent(&out, value, "  ", "  "); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
 }
 
 func isARBMetadataKey(key string) bool {
