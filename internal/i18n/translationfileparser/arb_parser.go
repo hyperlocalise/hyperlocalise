@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"slices"
-	"strconv"
 	"strings"
 )
 
@@ -120,7 +119,6 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	out.WriteString("{\n")
 
 	first := true
-	keyBuf := make([]byte, 0, 64)
 	writeField := func(key string, value []byte) error {
 		if !first {
 			out.WriteString(",\n")
@@ -128,8 +126,11 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		first = false
 
 		out.WriteString("  ")
-		keyBuf = strconv.AppendQuote(keyBuf[:0], key)
-		out.Write(keyBuf)
+		encodedKey, err := json.Marshal(key)
+		if err != nil {
+			return err
+		}
+		out.Write(encodedKey)
 		out.WriteString(": ")
 
 		// Fast-path: if value is a simple JSON string (starts with "), skip json.Indent
