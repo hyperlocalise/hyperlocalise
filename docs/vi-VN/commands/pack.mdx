@@ -1,19 +1,43 @@
 ---
 title: "gói"
-description: "Nhóm các ID dịch theo cùng giá trị chuỗi."
+description: "Chuẩn bị JSON bản dịch bằng cách loại bỏ siêu dữ liệu hoặc nhóm các chuỗi trùng lặp."
 ---
 
 ## Cách sử dụng
 
 ```bash
-hyperlocalise pack <translation-file> [--prefix-id]
+hyperlocalise pack [translation-file] [flags]
 ```
+
+Truyền vào một tệp bản dịch duy nhất, hoặc bỏ qua nó để phát hiện các tệp JSON ngôn ngữ react-intl từ cấu hình i18n của bạn.
 
 ## Hành vi
 
-`pack` đọc một tệp bản dịch, nhóm các chuỗi đã dịch giống nhau lại với nhau, và ghi JSON trong đó mỗi khóa là giá trị chuỗi và mỗi giá trị là một mảng các id sử dụng chuỗi đó.
+Theo mặc định, `pack` chuẩn bị một tệp dịch cho các quy trình làm việc tiếp theo bằng cách loại bỏ siêu dữ liệu `description` trong khi vẫn giữ nguyên đầu ra được gắn khóa theo id.
 
-Đối với JSON thông điệp FormatJS, `pack` sử dụng `defaultMessage` làm giá trị chuỗi và bỏ qua siêu dữ liệu `description` khỏi đầu ra.
+Đối với JSON thông điệp FormatJS, đầu ra mặc định giữ nguyên từng id thông điệp và `defaultMessage`:
+
+```json
+{
+  "src.components.app-header.title": {
+    "defaultMessage": "Dashboard"
+  },
+  "src.components.hero.title": {
+    "defaultMessage": "Dashboard"
+  }
+}
+```
+
+Đối với JSON lồng nhau thông thường, đầu ra mặc định là một ánh xạ phẳng từ id sang chuỗi:
+
+```json
+{
+  "home.title": "Dashboard",
+  "nav.title": "Dashboard"
+}
+```
+
+Sử dụng `--group-by-value` để đảo ngược hình dạng và nhóm các id dùng chung cùng một chuỗi bản dịch:
 
 ```json
 {
@@ -21,6 +45,50 @@ hyperlocalise pack <translation-file> [--prefix-id]
 }
 ```
 
+### Khám phá tự động
+
+Khi không có tệp dịch nào được truyền vào, `pack` sẽ tải cấu hình i18n của bạn (`i18n.yml` hoặc `i18n.jsonc` trong thư mục làm việc theo mặc định) và đóng gói mọi tệp ngôn ngữ nguồn react-intl được tham chiếu bởi các đường dẫn của bucket `from`. Chỉ các tệp JSON có định dạng FormatJS nghiêm ngặt (`defaultMessage` cho mỗi id) mới được đóng gói; JSON lồng nhau thông thường và các tệp bị thiếu sẽ bị bỏ qua.
+
+Batch discovery ghi một tệp đầu ra cho mỗi đầu vào, sử dụng `--out-suffix` (mặc định `.packed`). Ví dụ, `lang/en-US.json` trở thành `lang/en-US.packed.json`. Tiến độ được in ra stderr.
+
 ## Các cờ
 
+- `--group-by-value`: nhóm các ID theo chuỗi bản dịch dùng chung thay vì giữ nguyên đầu ra được ánh xạ theo ID.
+- `--out-file <path>`: ghi JSON đã đóng gói vào một tệp thay vì stdout. Chỉ dùng với một tệp đầu vào duy nhất.
 - `--prefix-id`: loại bỏ tiền tố tên tệp `extract --prefix-id` khỏi các id. Ví dụ, `src.components.app-header.title` sẽ trở thành `title`.
+- `--config <path>`: đường dẫn tùy chọn đến cấu hình i18n khi phát hiện các tệp ngôn ngữ (mặc định: `i18n.yml` hoặc `i18n.jsonc`).
+- `--group <name>`: khám phá cấu hình bộ lọc theo tên nhóm.
+- `--bucket <name>`: phát hiện cấu hình bộ lọc theo tên bucket.
+- `--out-suffix <suffix>`: hậu tố tên tệp đầu ra khi đóng gói nhiều tệp (mặc định `.packed`).
+
+## Ví dụ
+
+Xóa mô tả khỏi một catalog đã trích xuất:
+
+```bash
+hyperlocalise pack lang/en.json --out-file lang/en.packed.json
+```
+
+Đóng gói mọi tệp ngôn ngữ nguồn react-intl từ cấu hình i18n mặc định:
+
+```bash
+hyperlocalise pack
+```
+
+Sử dụng đường dẫn cấu hình tùy chỉnh:
+
+```bash
+hyperlocalise pack --config path/to/i18n.yml
+```
+
+Nhóm các chuỗi trùng lặp để xem xét:
+
+```bash
+hyperlocalise pack lang/en.json --group-by-value --out-file lang/duplicates.json
+```
+
+Loại bỏ các id có tiền tố khi nhóm:
+
+```bash
+hyperlocalise pack lang/en.json --group-by-value --prefix-id --out-file lang/packed.json
+```

@@ -1,19 +1,43 @@
 ---
 title: "打包"
-description: "按共享的字符串值对翻译 ID 进行分组。"
+description: "通过删除元数据或分组重复字符串来准备翻译 JSON。"
 ---
 
 ## 用法
 
 ```bash
-hyperlocalise pack <translation-file> [--prefix-id]
+hyperlocalise pack [translation-file] [flags]
 ```
+
+传入一个单独的翻译文件，或者省略它，以便从你的 i18n 配置中发现 react-intl 语言环境 JSON 文件。
 
 ## 行为
 
-`pack` 读取翻译文件，将相同的译文分组到一起，并写入 JSON，其中每个键都是字符串值，每个值都是使用该字符串的 id 数组。
+默认情况下，`pack` 会通过移除 `description` 元数据来为下游工作流准备翻译文件，同时保留以 id 为键的输出。
 
-对于 FormatJS 消息 JSON，`pack` 使用 `defaultMessage` 作为字符串值，并在输出中省略 `description` 元数据。
+对于 FormatJS 消息 JSON，默认输出会保留每个消息 id 和其`defaultMessage`：
+
+```json
+{
+  "src.components.app-header.title": {
+    "defaultMessage": "Dashboard"
+  },
+  "src.components.hero.title": {
+    "defaultMessage": "Dashboard"
+  }
+}
+```
+
+对于普通的嵌套 JSON，默认输出是一个扁平的 id 到字符串映射：
+
+```json
+{
+  "home.title": "Dashboard",
+  "nav.title": "Dashboard"
+}
+```
+
+使用 `--group-by-value` 来反转形状和共享相同翻译字符串的组 ID：
 
 ```json
 {
@@ -21,6 +45,50 @@ hyperlocalise pack <translation-file> [--prefix-id]
 }
 ```
 
+### 自动发现
+
+当未传入翻译文件时，`pack` 会加载你的 i18n 配置（默认情况下为工作目录中的 `i18n.yml` 或 `i18n.jsonc`），并打包 bucket `from` 路径所引用的每个 react-intl 源语言环境文件。仅会打包严格符合 FormatJS 结构（每个 id 对应 `defaultMessage`）的 JSON 文件；普通的嵌套 JSON 和缺失的文件会被跳过。
+
+批量发现会为每个输入写入一个输出文件，使用`--out-suffix`（默认`.packed`）。例如，`lang/en-US.json`会变为`lang/en-US.packed.json`。进度会打印到 stderr。
+
 ## 标志
 
+- `--group-by-value`：按共享的译文字符串对组 ID 进行分组，而不是保留按 ID 键控的输出。
+- `--out-file <path>`：将打包后的 JSON 写入文件，而不是标准输出。仅与单个输入文件一起使用。
 - `--prefix-id`：从 ids 中去除 `extract --prefix-id` 文件名前缀。例如，`src.components.app-header.title` 会变成 `title`。
+- `--config <path>`：在发现区域设置文件时，i18n 配置的可选路径（默认：`i18n.yml` 或 `i18n.jsonc`）。
+- `--group <name>`：按组名称筛选配置发现。
+- `--bucket <name>`：按存储桶名称筛选配置发现。
+- `--out-suffix <suffix>`：打包多个文件时的输出文件名后缀（默认 `.packed`）。
+
+## 示例
+
+从提取的目录中删除描述：
+
+```bash
+hyperlocalise pack lang/en.json --out-file lang/en.packed.json
+```
+
+打包默认 i18n 配置中的每个 react-intl 源语言环境文件：
+
+```bash
+hyperlocalise pack
+```
+
+使用自定义配置路径：
+
+```bash
+hyperlocalise pack --config path/to/i18n.yml
+```
+
+将重复字符串分组以供审查：
+
+```bash
+hyperlocalise pack lang/en.json --group-by-value --out-file lang/duplicates.json
+```
+
+分组时去除前缀 ID：
+
+```bash
+hyperlocalise pack lang/en.json --group-by-value --prefix-id --out-file lang/packed.json
+```
