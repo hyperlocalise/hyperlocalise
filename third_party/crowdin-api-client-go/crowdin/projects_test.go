@@ -353,29 +353,29 @@ func TestProjectsService_Get(t *testing.T) {
 			},
 		},
 		AssignedGlossaries: []int{2},
-			TMPenalties: &model.ProjectTMPenalties{
-				AutoSubstitution: 1,
-				TMPriority: struct {
-					Priority int `json:"priority,omitempty"`
-					Penalty  int `json:"penalty,omitempty"`
-				}{
-					Priority: 2,
-					Penalty:  1,
+		TMPenalties: &model.ProjectTMPenalties{
+			AutoSubstitution: 1,
+			TMPriority: struct {
+				Priority int `json:"priority,omitempty"`
+				Penalty  int `json:"penalty,omitempty"`
+			}{
+				Priority: 2,
+				Penalty:  1,
 			},
-				MultipleTranslations: 1,
-				TimeSinceLastUsage: struct {
-					Months  int `json:"months,omitempty"`
-					Penalty int `json:"penalty,omitempty"`
-				}{
-					Months:  2,
-					Penalty: 1,
+			MultipleTranslations: 1,
+			TimeSinceLastUsage: struct {
+				Months  int `json:"months,omitempty"`
+				Penalty int `json:"penalty,omitempty"`
+			}{
+				Months:  2,
+				Penalty: 1,
 			},
-				TimeSinceLastModified: struct {
-					Months  int `json:"months,omitempty"`
-					Penalty int `json:"penalty,omitempty"`
-				}{
-					Months:  2,
-					Penalty: 1,
+			TimeSinceLastModified: struct {
+				Months  int `json:"months,omitempty"`
+				Penalty int `json:"penalty,omitempty"`
+			}{
+				Months:  2,
+				Penalty: 1,
 			},
 		},
 		NormalizePlaceholder: false,
@@ -769,29 +769,29 @@ func TestProjectsService_Get_Enterprise(t *testing.T) {
 			},
 		},
 		AssignedGlossaries: []int{2},
-			TMPenalties: &model.ProjectTMPenalties{
-				AutoSubstitution: 1,
-				TMPriority: struct {
-					Priority int `json:"priority,omitempty"`
-					Penalty  int `json:"penalty,omitempty"`
-				}{
-					Priority: 2,
-					Penalty:  1,
+		TMPenalties: &model.ProjectTMPenalties{
+			AutoSubstitution: 1,
+			TMPriority: struct {
+				Priority int `json:"priority,omitempty"`
+				Penalty  int `json:"penalty,omitempty"`
+			}{
+				Priority: 2,
+				Penalty:  1,
 			},
-				MultipleTranslations: 1,
-				TimeSinceLastUsage: struct {
-					Months  int `json:"months,omitempty"`
-					Penalty int `json:"penalty,omitempty"`
-				}{
-					Months:  2,
-					Penalty: 1,
+			MultipleTranslations: 1,
+			TimeSinceLastUsage: struct {
+				Months  int `json:"months,omitempty"`
+				Penalty int `json:"penalty,omitempty"`
+			}{
+				Months:  2,
+				Penalty: 1,
 			},
-				TimeSinceLastModified: struct {
-					Months  int `json:"months,omitempty"`
-					Penalty int `json:"penalty,omitempty"`
-				}{
-					Months:  2,
-					Penalty: 1,
+			TimeSinceLastModified: struct {
+				Months  int `json:"months,omitempty"`
+				Penalty int `json:"penalty,omitempty"`
+			}{
+				Months:  2,
+				Penalty: 1,
 			},
 		},
 		SaveMetaInfoInSource:          true,
