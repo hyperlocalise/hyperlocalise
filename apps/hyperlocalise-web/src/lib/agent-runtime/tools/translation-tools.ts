@@ -19,6 +19,7 @@ import {
   supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
+import { reserveUsageEvent, usageFeatureIds } from "@/lib/billing/usage-control";
 
 import { toolAccessibleJobsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";
@@ -163,6 +164,17 @@ async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queued
   if (!job) {
     throw new Error("Failed to create job: no row returned.");
   }
+
+  await reserveUsageEvent({
+    db: ctx.db,
+    organizationId: ctx.organizationId,
+    featureId: usageFeatureIds.translationJobs,
+    operationKey: `job:${job.id}:translation_jobs`,
+    source: "translation_job_create",
+    jobId: job.id,
+    interactionId: ctx.conversationId ?? undefined,
+    quantity: 1,
+  });
 
   return job;
 }
