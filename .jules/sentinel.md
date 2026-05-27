@@ -27,3 +27,8 @@
 **Vulnerability:** The `sanitizeReturnTo` utility prevented external open redirects but allowed redirecting back to sensitive internal authentication routes (e.g., `/auth/sign-in`, `/auth/callback`). This could be exploited to create redirect loops or target sensitive callback logic.
 **Learning:** Redirect sanitizers must account for internal "restricted" paths that, while technically local, should never be the destination of a `returnTo` parameter to avoid auth flow abuse.
 **Prevention:** Maintain a centralized blacklist of restricted authentication paths within the URL sanitizer and ensure it is used by all login/session redirection logic.
+
+## 2026-06-05 - [Enhancement] Robust Webhook Signature Verification
+**Vulnerability:** Webhook verification logic (Slack, WorkOS) converted request headers directly into Buffers for comparison. While `timingSafeEqual` prevents timing attacks, extremely large signature headers could cause excessive memory allocation or unexpected behavior during Buffer conversion before the equality check.
+**Learning:** Defensive signature verification should include an early-exit length check against the expected hash length. This prevents unnecessary work and potential resource exhaustion from malformed or malicious headers.
+**Prevention:** Always verify that the provided signature string matches the expected hex/base64 length before allocating Buffers for constant-time comparison.
