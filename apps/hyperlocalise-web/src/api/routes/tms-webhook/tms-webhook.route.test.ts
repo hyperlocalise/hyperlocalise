@@ -132,7 +132,7 @@ describe("tmsWebhookRoutes", () => {
   it("stores accepted events and queues reconciliation", async () => {
     const { organizationId, subscription } = await createSubscriptionFixture();
     const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
-    const syncIntentId = randomUUID();
+    const syncIntentId = "run_workflow_abc123";
     const app = createApp({
       providerWebhookReconciliationQueue: {
         async enqueue(event) {
@@ -175,6 +175,31 @@ describe("tmsWebhookRoutes", () => {
       resourceId: "file-1",
       providerSyncIntentId: syncIntentId,
     });
+  });
+
+  it("persists workflow run ids from the reconciliation queue", async () => {
+    const { subscription } = await createSubscriptionFixture();
+    const workflowRunId = "run_workflow_persisted789";
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue() {
+          return { ids: [workflowRunId] };
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-workflow-run",
+      event_type: "file.updated",
+    });
+
+    const response = await postWebhook({ app, body });
+    expect(response.status).toBe(202);
+
+    const [event] = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(event?.providerSyncIntentId).toBe(workflowRunId);
   });
 
   it("dedupes provider retries that use a new delivery id for the same event", async () => {
@@ -252,7 +277,7 @@ describe("tmsWebhookRoutes", () => {
   it("requeues a pending duplicate when the first enqueue failed", async () => {
     const { subscription } = await createSubscriptionFixture();
     const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
-    const syncIntentId = randomUUID();
+    const syncIntentId = "run_workflow_retry456";
     let enqueueAttempts = 0;
     const app = createApp({
       providerWebhookReconciliationQueue: {
