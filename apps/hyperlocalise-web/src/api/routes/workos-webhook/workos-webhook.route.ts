@@ -52,7 +52,7 @@ function verifyWorkosWebhookSignature(input: {
   }
 
   const eventTime = Number(parsed.timestamp) * 1000;
-  if (Math.abs(Date.now() - eventTime) > 5 * 60 * 1000) {
+  if (isNaN(eventTime) || Math.abs(Date.now() - eventTime) > 5 * 60 * 1000) {
     return false;
   }
 
