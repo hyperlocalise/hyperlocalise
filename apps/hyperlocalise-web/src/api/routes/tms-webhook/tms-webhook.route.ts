@@ -353,10 +353,7 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
               : "webhook duplicate ignored for unrecognized provider event",
           );
 
-          return c.json(
-            { ok: true, ignored: providerSyncIntentId === null, duplicate: true },
-            202,
-          );
+          return c.json({ ok: true, ignored: providerSyncIntentId === null, duplicate: true }, 202);
         }
 
         log.info({ subscriptionId: subscription.id }, "ignoring duplicate webhook delivery");
@@ -381,7 +378,9 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
           providerSyncIntentId,
           providerWebhookEventId: stored.event.id,
         },
-        providerSyncIntentId ? "webhook accepted" : "webhook ignored for unrecognized provider event",
+        providerSyncIntentId
+          ? "webhook accepted"
+          : "webhook ignored for unrecognized provider event",
       );
 
       return c.json({ ok: true, ignored: providerSyncIntentId === null }, 202);

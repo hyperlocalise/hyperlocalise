@@ -100,7 +100,7 @@ describe("provider sync intents", () => {
       ),
     );
 
-    expect(new Set(results.map((result) => result.intent.id))).toHaveSize(1);
+    expect(new Set(results.map((result) => result.intent.id)).size).toBe(1);
     expect(results.filter((result) => !result.coalesced)).toHaveLength(1);
 
     const intents = await db

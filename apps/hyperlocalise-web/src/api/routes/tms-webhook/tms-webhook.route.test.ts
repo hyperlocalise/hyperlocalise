@@ -135,7 +135,6 @@ describe("tmsWebhookRoutes", () => {
   it("stores accepted events and queues reconciliation", async () => {
     const { organizationId, subscription } = await createSubscriptionFixture();
     const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
-    const syncIntentId = "run_workflow_abc123";
     const app = createApp({
       providerWebhookReconciliationQueue: {
         async enqueue(event) {
@@ -340,7 +339,6 @@ describe("tmsWebhookRoutes", () => {
   it("requeues a pending duplicate when the first enqueue failed", async () => {
     const { subscription } = await createSubscriptionFixture();
     const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
-    const syncIntentId = "run_workflow_retry456";
     let enqueueAttempts = 0;
     const app = createApp({
       providerWebhookReconciliationQueue: {
