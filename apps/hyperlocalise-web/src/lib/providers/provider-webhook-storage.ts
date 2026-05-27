@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type {
@@ -127,6 +127,41 @@ export async function insertProviderWebhookEvent(input: {
   return event ?? null;
 }
 
+function isUniqueViolation(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "23505") {
+    return true;
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
+
+async function findExistingProviderWebhookEvent(input: {
+  subscriptionId: string;
+  providerEventId: string;
+  dedupeKey: string;
+}) {
+  const [existing] = await db
+    .select()
+    .from(schema.providerWebhookEvents)
+    .where(
+      and(
+        eq(schema.providerWebhookEvents.subscriptionId, input.subscriptionId),
+        or(
+          eq(schema.providerWebhookEvents.providerEventId, input.providerEventId),
+          eq(schema.providerWebhookEvents.dedupeKey, input.dedupeKey),
+        ),
+      ),
+    )
+    .limit(1);
+
+  return existing;
+}
+
 export async function insertProviderWebhookEventIdempotent(input: {
   organizationId: string;
   subscriptionId: string;
@@ -140,34 +175,57 @@ export async function insertProviderWebhookEventIdempotent(input: {
   externalResourceId?: string | null;
   redactedPayload?: Record<string, unknown>;
 }) {
-  const [event] = await db
-    .insert(schema.providerWebhookEvents)
-    .values({
-      organizationId: input.organizationId,
-      subscriptionId: input.subscriptionId,
-      providerKind: input.providerKind,
-      projectId: input.projectId ?? null,
-      providerEventId: input.providerEventId,
-      eventType: input.eventType,
-      dedupeKey: input.dedupeKey,
-      resourceType: input.resourceType ?? null,
-      resourceId: input.resourceId ?? null,
-      externalResourceId: input.externalResourceId ?? null,
-      redactedPayload: input.redactedPayload ?? {},
-      processingStatus: "pending",
-    })
-    .onConflictDoNothing({
-      target: [
-        schema.providerWebhookEvents.subscriptionId,
-        schema.providerWebhookEvents.providerEventId,
-      ],
-    })
-    .returning();
-
-  return {
-    event,
-    inserted: event != null,
+  const values = {
+    organizationId: input.organizationId,
+    subscriptionId: input.subscriptionId,
+    providerKind: input.providerKind,
+    projectId: input.projectId ?? null,
+    providerEventId: input.providerEventId,
+    eventType: input.eventType,
+    dedupeKey: input.dedupeKey,
+    resourceType: input.resourceType ?? null,
+    resourceId: input.resourceId ?? null,
+    externalResourceId: input.externalResourceId ?? null,
+    redactedPayload: input.redactedPayload ?? {},
+    processingStatus: "pending" as const,
   };
+
+  const lookupKeys = {
+    subscriptionId: input.subscriptionId,
+    providerEventId: input.providerEventId,
+    dedupeKey: input.dedupeKey,
+  };
+
+  try {
+    const [event] = await db
+      .insert(schema.providerWebhookEvents)
+      .values(values)
+      .onConflictDoNothing({
+        target: [
+          schema.providerWebhookEvents.subscriptionId,
+          schema.providerWebhookEvents.dedupeKey,
+        ],
+      })
+      .returning();
+
+    if (event) {
+      return { event, inserted: true };
+    }
+
+    const existing = await findExistingProviderWebhookEvent(lookupKeys);
+    return { event: existing, inserted: false };
+  } catch (error) {
+    if (!isUniqueViolation(error)) {
+      throw error;
+    }
+
+    const existing = await findExistingProviderWebhookEvent(lookupKeys);
+    if (!existing) {
+      throw error;
+    }
+
+    return { event: existing, inserted: false };
+  }
 }
 
 export async function updateProviderWebhookEventProcessingStatus(input: {

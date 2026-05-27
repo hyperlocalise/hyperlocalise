@@ -213,7 +213,7 @@ describe("provider webhook storage", () => {
       redactedPayload: { fileId: 99 },
     });
     expect(duplicate.inserted).toBe(false);
-    expect(duplicate.event).toBeUndefined();
+    expect(duplicate.event?.id).toBe(first.event?.id);
 
     const rows = await db
       .select()
@@ -221,6 +221,42 @@ describe("provider webhook storage", () => {
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
 
     expect(rows).toHaveLength(1);
+    expect(rows[0]?.redactedPayload).toEqual({ fileId: 42 });
+  });
+
+  it("treats redelivery with a new provider event id but the same dedupe key as a duplicate", async () => {
+    const { organizationId, subscription } = await createSubscriptionFixture();
+
+    const first = await insertProviderWebhookEventIdempotent({
+      organizationId,
+      subscriptionId: subscription.id,
+      providerKind: "crowdin",
+      providerEventId: "evt-original",
+      eventType: "file.translated",
+      dedupeKey: "file:42:translated",
+      redactedPayload: { fileId: 42 },
+    });
+    expect(first.inserted).toBe(true);
+
+    const redelivery = await insertProviderWebhookEventIdempotent({
+      organizationId,
+      subscriptionId: subscription.id,
+      providerKind: "crowdin",
+      providerEventId: "evt-redelivery",
+      eventType: "file.translated",
+      dedupeKey: "file:42:translated",
+      redactedPayload: { fileId: 99 },
+    });
+    expect(redelivery.inserted).toBe(false);
+    expect(redelivery.event?.id).toBe(first.event?.id);
+
+    const rows = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.providerEventId).toBe("evt-original");
     expect(rows[0]?.redactedPayload).toEqual({ fileId: 42 });
   });
 
