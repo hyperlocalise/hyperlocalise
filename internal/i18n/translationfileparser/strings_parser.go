@@ -1,8 +1,9 @@
 package translationfileparser
 
 import (
+	"cmp"
 	"fmt"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -50,7 +51,7 @@ func (d stringsDocument) render(values map[string]string) []byte {
 	}
 
 	entries := append([]stringsEntry(nil), d.entries...)
-	sort.Slice(entries, func(i, j int) bool { return entries[i].valueStart < entries[j].valueStart })
+	slices.SortFunc(entries, func(a, b stringsEntry) int { return cmp.Compare(a.valueStart, b.valueStart) })
 
 	var b strings.Builder
 	cursor := 0
