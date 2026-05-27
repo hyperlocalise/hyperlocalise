@@ -60,12 +60,12 @@ function verifyWorkosWebhookSignature(input: {
 
   const expectedSignature = createHmac("sha256", input.secret).update(signedPayload).digest("hex");
 
-  const providedBuffer = Buffer.from(parsed.signature);
-  const expectedBuffer = Buffer.from(expectedSignature);
-
-  if (providedBuffer.length !== expectedBuffer.length) {
+  if (parsed.signature.length !== expectedSignature.length) {
     return false;
   }
+
+  const providedBuffer = Buffer.from(parsed.signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
 
   return timingSafeEqual(providedBuffer, expectedBuffer);
 }

@@ -36,6 +36,10 @@ async function verifySlackSignature(request: Request, bodyText: string): Promise
   const baseString = `v0:${timestamp}:${bodyText}`;
   const expectedSignature = `v0=${createHmac("sha256", signingSecret).update(baseString).digest("hex")}`;
 
+  if (signature.length !== expectedSignature.length) {
+    return false;
+  }
+
   try {
     return timingSafeEqual(Buffer.from(expectedSignature), Buffer.from(signature));
   } catch {
