@@ -2,10 +2,15 @@ import { and, eq, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type {
+  ProviderWebhookEvent,
+  ProviderWebhookSubscription,
   ProviderWebhookEventProcessingStatus,
   ProviderWebhookSubscriptionStatus,
 } from "@/lib/database/types";
-import { encryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  encryptProviderCredential,
+} from "@/lib/security/provider-credential-crypto";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
@@ -13,6 +18,10 @@ type ProviderWebhookSecretMetadata = {
   maskedSecretSuffix?: string;
   encryptionAlgorithm?: string;
   keyVersion?: number;
+};
+
+export type ProviderWebhookSubscriptionWithSecret = ProviderWebhookSubscription & {
+  webhookSecretPlaintext: string | null;
 };
 
 export async function insertProviderWebhookSubscription(input: {
@@ -99,6 +108,55 @@ export async function updateProviderWebhookSubscriptionStatus(input: {
   }
 
   return subscription;
+}
+
+function decryptWebhookSecret(subscription: ProviderWebhookSubscription): string | null {
+  if (
+    !subscription.webhookSecretCiphertext ||
+    !subscription.webhookSecretIv ||
+    !subscription.webhookSecretAuthTag ||
+    !subscription.webhookSecretKeyVersion
+  ) {
+    return null;
+  }
+
+  try {
+    return decryptProviderCredential({
+      algorithm: subscription.secretMetadata.encryptionAlgorithm ?? "aes-256-gcm",
+      keyVersion: subscription.webhookSecretKeyVersion,
+      ciphertext: subscription.webhookSecretCiphertext,
+      iv: subscription.webhookSecretIv,
+      authTag: subscription.webhookSecretAuthTag,
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function findActiveProviderWebhookSubscription(input: {
+  providerKind: ExternalTmsProviderKind;
+  providerWebhookId: string;
+}): Promise<ProviderWebhookSubscriptionWithSecret | null> {
+  const [subscription] = await db
+    .select()
+    .from(schema.providerWebhookSubscriptions)
+    .where(
+      and(
+        eq(schema.providerWebhookSubscriptions.providerKind, input.providerKind),
+        eq(schema.providerWebhookSubscriptions.providerWebhookId, input.providerWebhookId),
+        eq(schema.providerWebhookSubscriptions.status, "active"),
+      ),
+    )
+    .limit(1);
+
+  if (!subscription) {
+    return null;
+  }
+
+  return {
+    ...subscription,
+    webhookSecretPlaintext: decryptWebhookSecret(subscription),
+  };
 }
 
 export async function insertProviderWebhookEvent(input: {
@@ -288,4 +346,26 @@ export async function updateProviderWebhookEventProcessingStatus(input: {
   }
 
   return event;
+}
+
+export async function updateProviderWebhookEventSyncIntent(input: {
+  eventId: string;
+  organizationId: string;
+  providerSyncIntentId: string;
+}): Promise<ProviderWebhookEvent | null> {
+  const [event] = await db
+    .update(schema.providerWebhookEvents)
+    .set({
+      providerSyncIntentId: input.providerSyncIntentId,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.providerWebhookEvents.id, input.eventId),
+        eq(schema.providerWebhookEvents.organizationId, input.organizationId),
+      ),
+    )
+    .returning();
+
+  return event ?? null;
 }

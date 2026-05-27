@@ -1,3 +1,5 @@
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+
 export type JobEventData<Kind extends string, Type extends string = string> = {
   kind: Kind;
   jobId: string;
@@ -127,3 +129,12 @@ export type ProviderAgentWritebackEventData = {
 };
 
 export type ProviderAgentWritebackQueue = JobQueue<ProviderAgentWritebackEventData>;
+
+export type ProviderWebhookReconciliationEventData = {
+  providerWebhookEventId: string;
+  organizationId: string;
+  subscriptionId: string;
+  providerKind: ExternalTmsProviderKind;
+};
+
+export type ProviderWebhookReconciliationQueue = JobQueue<ProviderWebhookReconciliationEventData>;
