@@ -299,6 +299,49 @@ func TestNumericPlaceholderInPlaceholders(t *testing.T) {
 	}
 }
 
+func TestParseInvariantDeduplicatesPlaceholders(t *testing.T) {
+	// ParseInvariant MUST return a unique set of placeholders, even if an
+	// argument is used multiple times or through different elements (like #).
+	tests := []struct {
+		name string
+		msg  string
+		want []string
+	}{
+		{
+			name: "duplicate arguments",
+			msg:  "Hello {name} {name}",
+			want: []string{"name"},
+		},
+		{
+			name: "plural with multiple pounds",
+			msg:  "{n, plural, one {#} other {# items}}",
+			want: []string{"n"},
+		},
+		{
+			name: "mixed argument and pound",
+			msg:  "{count, plural, other {Value: {count} (#)}}",
+			want: []string{"count"},
+		},
+		{
+			name: "nested duplicates",
+			msg:  "{n, plural, other {{n, plural, other {#}}}}",
+			want: []string{"n"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv, err := ParseInvariant(tt.msg)
+			if err != nil {
+				t.Fatalf("ParseInvariant(%q) failed: %v", tt.msg, err)
+			}
+			if !slicesEqual(inv.Placeholders, tt.want) {
+				t.Errorf("ParseInvariant(%q) placeholders = %v, want %v", tt.msg, inv.Placeholders, tt.want)
+			}
+		})
+	}
+}
+
 func TestHasDuplicatePounds(t *testing.T) {
 	tests := []struct {
 		name string

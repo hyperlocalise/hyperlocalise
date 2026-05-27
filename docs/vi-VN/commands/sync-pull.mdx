@@ -15,9 +15,9 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 ## Hành vi mặc định
 
-`sync pull` mặc định áp dụng các đầu ra của tác vụ đã hoàn tất. Dùng `--dry-run` khi bạn muốn xem trước báo cáo mà không ghi tệp.
+`sync pull` áp dụng đầu ra của công việc đã hoàn tất theo mặc định. Sử dụng `--dry-run` khi bạn muốn xem trước báo cáo mà không ghi tệp.
 
-`sync pull` đọc một manifest công việc hoàn chỉnh, thăm dò API Hyperlocalise công khai theo ID công việc cho đến khi từng công việc đang chờ hoàn tất hoặc hết thời gian chờ đã cấu hình, tải xuống các tệp đầu ra thành công và ghi chúng vào các đường dẫn đích được phân giải bởi `i18n.yml`.
+`sync pull` đọc một manifest công việc hoàn chỉnh, truy vấn định kỳ API Hyperlocalise công khai theo ID công việc cho đến khi từng công việc đang chờ hoàn tất hoặc thời gian chờ được cấu hình hết hạn, tải xuống các tệp đầu ra thành công và ghi chúng vào các đường dẫn đích được phân giải bởi `i18n.yml`.
 
 Manifest thường được truyền từ một công việc GitHub Actions `sync push` sang một công việc `sync pull` với `actions/upload-artifact` và `actions/download-artifact`.
 
@@ -43,7 +43,7 @@ hl pull --manifest .hyperlocalise/jobs.json
 ## Ghi chú
 
 - `sync pull` từ chối các manifest có `complete: false`.
-- Lỗi hết thời gian chờ bao gồm ID công việc đang chờ, đường dẫn nguồn, ngôn ngữ mục tiêu và trạng thái khi có.
+- Lỗi hết thời gian chờ bao gồm ID công việc đang chờ, đường dẫn nguồn, ngôn ngữ đích và trạng thái khi có sẵn.
 - Các tệp đầu ra được ánh xạ theo ngôn ngữ sang các đường dẫn đích được ghi lại trong tệp kê khai.
 - Các lệnh TMS cụ thể theo nhà cung cấp như `crowdin` và `phrase` giữ nguyên cấu hình và hành vi riêng của chúng.
 

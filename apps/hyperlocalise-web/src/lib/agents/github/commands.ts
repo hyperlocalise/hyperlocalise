@@ -3,12 +3,12 @@ export type HyperlocaliseFixCommand = {
   locale: string | null;
 };
 
-export type HyperlocaliseRepoTmsCommand = {
-  command: "repo_tms";
+export type HyperlocaliseRepositoryCommand = {
+  command: "repository";
   instructions: string;
 };
 
-export type HyperlocaliseCommand = HyperlocaliseFixCommand | HyperlocaliseRepoTmsCommand;
+export type HyperlocaliseCommand = HyperlocaliseFixCommand | HyperlocaliseRepositoryCommand;
 
 export function parseHyperlocaliseCommand(text: string): HyperlocaliseCommand | null {
   const mentionIndex = text.toLowerCase().indexOf("@hyperlocalise");
@@ -33,7 +33,7 @@ export function parseHyperlocaliseCommand(text: string): HyperlocaliseCommand | 
   }
 
   return {
-    command: "repo_tms",
+    command: "repository",
     instructions: parts.join(" "),
   };
 }

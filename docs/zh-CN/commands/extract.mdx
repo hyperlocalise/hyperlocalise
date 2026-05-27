@@ -1,0 +1,48 @@
+---
+title: "提取"
+description: "从 TypeScript 和 TSX 文件中提取 React Intl 消息。"
+---
+
+## 用法
+
+```bash
+hyperlocalise extract [path...] [flags]
+```
+
+如果你省略 `path`，`extract` 会扫描当前目录。
+
+## 行为
+
+`extract` 扫描 `.ts` 和 `.tsx` 文件中 `defineMessage`、`defineMessages`、`intl.formatMessage` 和 `<FormattedMessage />` 中的 React Intl 消息描述符。
+
+默认情况下，它会将 FormatJS 风格的 JSON 目录写入 stdout。每个键都是消息 id。每个值都包含 `defaultMessage`，并且在存在时还包含 `description`。
+
+```json
+{
+  "app.header.title": {
+    "defaultMessage": "Dashboard",
+    "description": "Main dashboard heading"
+  }
+}
+```
+
+如果描述符没有`id`，则`extract`会根据`defaultMessage`和`description`生成一个与 FormatJS 兼容的 id。
+
+`extract` 会跳过 `.d.ts` 文件以及常见的生成目录，例如 `.git`、`.next`、`build`、`coverage`、`dist` 和 `node_modules`。
+
+## 标志
+
+- `--flatten`：将 ICU 的 plural 和 select 分支提升出来，使每个分支都包含完整的句子。
+- `--ignore <glob>`：排除匹配 glob 模式的文件。你可以多次传递此标志。
+- `--out-file <path>`：将提取的目录写入 JSON 文件，而不是标准输出。
+- `--prefix-id`：在消息 ID 前添加规范化的源文件名作为前缀。稍后使用 `pack --prefix-id` 去除这些前缀。
+
+## 示例
+
+```bash
+hyperlocalise extract src --out-file lang/en.json
+```
+
+```bash
+hyperlocalise extract "src/**/*.{ts,tsx}" --ignore "**/*.test.{ts,tsx}" --flatten
+```

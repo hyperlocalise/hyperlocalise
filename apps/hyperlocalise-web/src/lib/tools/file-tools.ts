@@ -7,7 +7,8 @@ import { schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { bufferFromStream } from "@/lib/streams";
 
-import type { ToolContext } from "./types";
+import { toolCanAccessStoredFileProject } from "@/lib/tools/tool-access";
+import type { ToolContext } from "@/lib/tools/types";
 
 /**
  * Read the contents of a stored file.
@@ -55,6 +56,13 @@ export function createReadStoredFileTool(ctx: ToolContext) {
         return {
           success: false,
           error: "File does not belong to the current project.",
+        };
+      }
+
+      if (!(await toolCanAccessStoredFileProject(ctx, file.projectId))) {
+        return {
+          success: false,
+          error: "File not found for this organization.",
         };
       }
 

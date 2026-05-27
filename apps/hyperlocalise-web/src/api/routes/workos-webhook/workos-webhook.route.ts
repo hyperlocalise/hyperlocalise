@@ -52,7 +52,7 @@ function verifyWorkosWebhookSignature(input: {
   }
 
   const eventTime = Number(parsed.timestamp) * 1000;
-  if (Math.abs(Date.now() - eventTime) > 5 * 60 * 1000) {
+  if (isNaN(eventTime) || Math.abs(Date.now() - eventTime) > 5 * 60 * 1000) {
     return false;
   }
 
@@ -60,14 +60,18 @@ function verifyWorkosWebhookSignature(input: {
 
   const expectedSignature = createHmac("sha256", input.secret).update(signedPayload).digest("hex");
 
-  const providedBuffer = Buffer.from(parsed.signature);
-  const expectedBuffer = Buffer.from(expectedSignature);
-
-  if (providedBuffer.length !== expectedBuffer.length) {
+  if (parsed.signature.length !== expectedSignature.length) {
     return false;
   }
 
-  return timingSafeEqual(providedBuffer, expectedBuffer);
+  const providedBuffer = Buffer.from(parsed.signature);
+  const expectedBuffer = Buffer.from(expectedSignature);
+
+  try {
+    return timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
 }
 
 function readString(data: Record<string, unknown>, ...keys: string[]): string | undefined {

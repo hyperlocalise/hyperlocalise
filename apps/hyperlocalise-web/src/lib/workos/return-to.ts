@@ -3,6 +3,9 @@ const RESTRICTED_PATHS = [
   "/auth/sign-out",
   "/auth/callback",
   "/auth/github/callback",
+  "/auth/select-organization",
+  "/auth/onboarding",
+  "/auth/access-denied",
 ];
 
 export function sanitizeReturnTo(value: string | null | undefined, fallback = "/dashboard") {
@@ -18,6 +21,16 @@ export function sanitizeReturnTo(value: string | null | undefined, fallback = "/
   );
 
   if (isRestricted) {
+    if (urlPath === "/auth/github/callback") {
+      const queryIndex = value.indexOf("?");
+      if (queryIndex !== -1) {
+        const params = new URLSearchParams(value.slice(queryIndex + 1));
+        if (params.has("installation_id") && params.has("state")) {
+          return value;
+        }
+      }
+    }
+
     return fallback;
   }
 

@@ -8,7 +8,7 @@ export const tmsAgentAutomationSettingsSchema = z.object({
   autoDraftTranslations: z
     .object({
       enabled: z.boolean().default(false),
-      locales: z.array(z.string()).default([]),
+      locales: z.array(z.string().trim().min(1).max(32)).default([]),
     })
     .default({ enabled: false, locales: [] }),
   writeBack: z
@@ -29,7 +29,7 @@ const tmsAgentAutomationSettingsPartialSchema = z.object({
   autoDraftTranslations: z
     .object({
       enabled: z.boolean().optional(),
-      locales: z.array(z.string()).optional(),
+      locales: z.array(z.string().trim().min(1).max(32)).optional(),
     })
     .optional(),
   writeBack: z

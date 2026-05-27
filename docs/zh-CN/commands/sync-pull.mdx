@@ -15,9 +15,9 @@ hyperlocalise sync pull [--config <path>] [flags]
 
 ## 默认行为
 
-`sync pull` 默认会应用已完成的作业输出。需要只预览报告且不写入文件时，请使用 `--dry-run`。
+`sync pull` 默认会应用已完成的作业输出。若要在不写入文件的情况下预览报告，请使用 `--dry-run`。
 
-`sync pull` 读取完整的作业清单，按作业 ID 轮询公开的 Hyperlocalise API，直到每个待处理作业完成或达到配置的超时时间，然后下载成功的输出文件，并将它们写入由 `i18n.yml` 解析出的目标路径。
+`sync pull` 读取完整的作业清单，按作业 ID 轮询公共 Hyperlocalise API，直到每个待处理作业完成或配置的超时到期，下载成功的输出文件，并将它们写入由 `i18n.yml` 解析出的目标路径。
 
 清单通常会从一个 `sync push` GitHub Actions 作业传递到一个 `sync pull` 作业，使用 `actions/upload-artifact` 和 `actions/download-artifact`。
 
@@ -43,7 +43,7 @@ hl pull --manifest .hyperlocalise/jobs.json
 ## 备注
 
 - `sync pull` 拒绝包含 `complete: false` 的清单。
-- 超时错误会尽可能包含待处理作业 ID、源路径、目标语言环境和状态。
+- 超时错误在可用时包括待处理的作业 ID、源路径、目标语言环境和状态。
 - 输出文件会按语言区域映射到清单中捕获的目标路径。
 - 特定于提供商的 TMS 命令，例如 `crowdin` 和 `phrase`，保留各自的配置和行为。
 

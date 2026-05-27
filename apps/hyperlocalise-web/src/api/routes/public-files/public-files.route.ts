@@ -187,6 +187,7 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
         `attachment; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
       );
       c.header("Content-Security-Policy", "default-src 'none'; sandbox;");
+      c.header("X-Content-Type-Options", "nosniff");
       c.header("X-Download-Options", "noopen");
       c.header("Cache-Control", "no-store");
 

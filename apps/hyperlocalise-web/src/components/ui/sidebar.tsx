@@ -266,12 +266,12 @@ function SidebarTrigger({ className, onClick, ...props }: React.ComponentProps<t
               toggleSidebar();
             }}
             {...props}
-          />
+          >
+            <HugeiconsIcon icon={SidebarLeftIcon} strokeWidth={2} className="rtl:rotate-180" />
+            <span className="sr-only">Toggle Sidebar</span>
+          </Button>
         }
-      >
-        <HugeiconsIcon icon={SidebarLeftIcon} strokeWidth={2} className="rtl:rotate-180" />
-        <span className="sr-only">Toggle Sidebar</span>
-      </TooltipTrigger>
+      />
       <TooltipContent side="bottom" align="start">
         Toggle Sidebar
         <Kbd className="ms-2">{isMac ? "⌘B" : "Ctrl+B"}</Kbd>

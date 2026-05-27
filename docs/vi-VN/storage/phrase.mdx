@@ -35,3 +35,38 @@ description: "Cấu hình Phrase để đồng bộ dịch từ xa."
 - không tìm thấy token: export `PHRASE_API_TOKEN`
 - lỗi xác thực chế độ: đặt `mode` thành `strings` hoặc `files`
 - lỗi nhập chế độ tệp: hãy xác minh `fileFormat` khớp với cài đặt dự án của bạn
+
+## Cấu hình Phrase CLI
+
+Các lệnh quy trình tệp cũng có thể đọc định dạng `.phrase.yml` của Phrase:
+
+```yaml
+phrase:
+  access_token: $PHRASE_ACCESS_TOKEN
+  project_id: project-uuid
+  file_format: json
+  host: https://api.phrase.com/v2
+  locale_mapping:
+    fr-FR: fr
+  push:
+    sources:
+      - file: ./locales/en.json
+        params:
+          locale_id: en-US
+          tags: app,source
+          update_translations: true
+  pull:
+    targets:
+      - file: ./locales/<locale_name>.json
+        params:
+          locale_id: fr-FR
+          include_unverified_translations: false
+```
+
+Các lệnh được hỗ trợ:
+
+- `hyperlocalise phrase config validate --config .phrase.yml`
+- `hyperlocalise phrase upload sources --config .phrase.yml`
+- `hyperlocalise phrase download translations --config .phrase.yml`
+
+Nếu `--config` bị bỏ qua, Hyperlocalise sẽ kiểm tra `PHRASEAPP_CONFIG`, sau đó là `.phrase.yml` trong thư mục hiện tại, rồi đến `$HOME/.phrase.yml`.

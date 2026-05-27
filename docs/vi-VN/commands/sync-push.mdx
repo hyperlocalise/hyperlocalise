@@ -15,7 +15,7 @@ hyperlocalise sync push [--config <path>] [flags]
 
 ## Hành vi mặc định
 
-`sync push` mặc định gửi tệp nguồn và tạo công việc Hyperlocalise. Dùng `--dry-run` khi bạn muốn xem trước báo cáo mà không tải tệp lên hoặc tạo công việc.
+`sync push` sẽ gửi các tệp nguồn và tạo công việc Hyperlocalise theo mặc định. Hãy dùng `--dry-run` khi bạn muốn xem trước báo cáo mà không tải lên tệp hoặc tạo công việc.
 
 Trong một lần push thực sự, Hyperlocalise đọc các tệp nguồn đã được cấu hình từ `i18n.yml`, tải từng tệp nguồn lên API công khai của Hyperlocalise, tạo các tác vụ dịch tệp, và ghi một bản kê khai tác vụ. Hãy dùng bản kê khai này làm artifact của GitHub Actions cho một job `sync pull` sau đó.
 
@@ -26,7 +26,7 @@ Trong một lần push thực sự, Hyperlocalise đọc các tệp nguồn đã
 - `--config`: đường dẫn cấu hình
 - `--locale`: ngôn ngữ/vùng đích, có thể lặp lại
 - `--manifest`: đường dẫn đến tệp kê khai công việc
-- `--dry-run`: chỉ xem trước (mặc định `true`)
+- `--dry-run`: chỉ xem trước
 - `--output`: `text`, `json`, hoặc `markdown`
 - `--force-conflicts`: không được hỗ trợ cho đồng bộ hóa công việc Hyperlocalise
 

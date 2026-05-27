@@ -34,8 +34,10 @@ hyperlocalise init --force
 
 修复：
 
+- 使用以下之一：`.json`、`.jsonc`、`.yaml`、`.yml`、`.js`、`.jsx`、`.mjs`、`.cjs`、`.ts`、`.tsx`、`.mts`、`.cts`、`.properties`、`.xml`、`.resx`、`.arb`、`.xlf`、`.xlif`、`.xliff`、`.po`、`.html`、`.liquid`、`.md`、`.mdx`、`.strings`、`.stringsdict`、`.xcstrings`、`.csv`、`.ftl`
 - 使用以下之一：`.json`、`.jsonc`、`.yaml`、`.yml`、`.properties`、`.xml`、`.resx`、`.arb`、`.xlf`、`.xlif`、`.xliff`、`.po`、`.html`、`.liquid`、`.md`、`.mdx`、`.strings`、`.stringsdict`、`.xcstrings`、`.csv`、`.ftl`
-- 验证存储桶 `from` 和 `to` 路径是否解析为预期的文件名
+
+对于 `.xcstrings`，请确保目录具有一个 `strings` 对象，并且要么为变体/替换条目提供源语言本地化，要么提供可用作源文本的简单目录键。
 
 ## 提供者身份验证失败
 

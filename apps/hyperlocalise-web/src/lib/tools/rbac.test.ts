@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vite-plus/test";
 vi.mock("@/lib/env", () => ({
   env: {
     DATABASE_URL: "postgres://localhost:5432/test",
+    OPENAI_API_KEY: "test-openai-api-key",
   },
 }));
 
@@ -23,10 +24,26 @@ vi.mock("@/lib/database", () => ({
     glossaryTerms: { id: "glossaryTerms" },
     memories: { id: "memories" },
     memoryEntries: { id: "memoryEntries" },
+    projects: { id: "id", organizationId: "organizationId", teamId: "teamId" },
   },
 }));
 
-import { createTranslationJobTool } from "./job-tools";
+vi.mock("@/lib/tools/tool-access", () => ({
+  toolCanAccessProject: vi.fn(async () => ({ id: "project_123" })),
+  toolCanAccessGlossary: vi.fn(async () => true),
+  toolCanAccessMemory: vi.fn(async () => true),
+  toolGetAccessibleGlossary: vi.fn(async () => ({ id: "glossary_123" })),
+  toolGetAccessibleMemory: vi.fn(async () => ({ id: "memory_123" })),
+  toolGlossaryOrgMutationWhere: vi.fn(() => ({})),
+  toolMemoryOrgMutationWhere: vi.fn(() => ({})),
+  toolCanAccessStoredFileProject: vi.fn(async () => true),
+  toolAccessibleProjectsWhere: vi.fn(async () => ({})),
+  toolAccessibleJobsWhere: vi.fn(async () => ({})),
+  toolProjectLinkedGlossaryWhere: vi.fn(async () => ({})),
+  toolProjectLinkedMemoryWhere: vi.fn(async () => ({})),
+}));
+
+import { createTranslationJobTool } from "@/lib/agent-runtime/tools/translation-tools";
 import {
   createCreateGlossaryTool,
   createUpdateGlossaryTool,
@@ -37,12 +54,13 @@ import {
   createUpdateTranslationMemoryTool,
   createDeleteTranslationMemoryTool,
 } from "./memory-tools";
-import type { ToolContext } from "./types";
+import type { ToolContext } from "@/lib/tools/types";
 
 describe("Agent Tools RBAC", () => {
   const mockCtx = (role: "owner" | "admin" | "member"): ToolContext => ({
     conversationId: "conv_123",
     organizationId: "org_123",
+    localUserId: "user_123",
     membershipRole: role,
     projectId: "project_123",
     db: {

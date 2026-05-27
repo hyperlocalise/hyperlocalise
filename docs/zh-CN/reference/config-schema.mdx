@@ -57,3 +57,15 @@ description: "hyperlocalise i18n 配置架构的简明参考。"
 
 - 按区域设置的文件通常在 `[locale]` 路径中使用 `to`。
 - 共享 CSV 文件可以复用相同的 `from` 和 `to` 路径。
+
+## Fluent 工作流说明
+
+使用 `buckets.*.files[].from` 和 `to` 指向用于 Mozilla Fluent 本地化流程的 `.ftl` 文件。
+
+- 按语言环境的文件通常在 `[locale]` 路径中使用 `to`，例如 `locales/[locale]/messages.ftl`。
+- 支持的条目包括消息、属性、多行值以及作为完整值表示的 select/plural 模式。
+- 不支持 Fluent 术语，且解析会失败，而不会被重写。
+
+## Java 属性工作流说明
+
+使用 `buckets.*.files[].from` 和 `to` 指向按区域设置划分的 `.properties` 资源包，例如 `messages_{{source}}.properties` -> `messages_{{target}}.properties`。

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strconv"
 	"strings"
 
 	"github.com/crowdin/crowdin-api-client-go/crowdin/model"
@@ -222,24 +223,24 @@ func translationMemorySegmentRecords(segment *model.TMSegment, sourceLanguage st
 
 func translationMemoryCSVRow(tmID, segmentID int, sourceLanguage string, source, target *model.TMSegmentRecord) []string {
 	return []string{
-		fmt.Sprintf("%d", tmID),
-		fmt.Sprintf("%d", segmentID),
+		strconv.Itoa(tmID),
+		strconv.Itoa(segmentID),
 		sourceLanguage,
 		target.LanguageID,
 		source.Text,
 		target.Text,
-		fmt.Sprintf("%d", source.ID),
-		fmt.Sprintf("%d", target.ID),
-		fmt.Sprintf("%d", source.UsageCount),
-		fmt.Sprintf("%d", target.UsageCount),
+		strconv.Itoa(source.ID),
+		strconv.Itoa(target.ID),
+		strconv.Itoa(source.UsageCount),
+		strconv.Itoa(target.UsageCount),
 		source.CreatedAt,
 		target.CreatedAt,
 		source.UpdatedAt,
 		target.UpdatedAt,
-		fmt.Sprintf("%d", source.CreatedBy),
-		fmt.Sprintf("%d", target.CreatedBy),
-		fmt.Sprintf("%d", source.UpdatedBy),
-		fmt.Sprintf("%d", target.UpdatedBy),
+		strconv.Itoa(source.CreatedBy),
+		strconv.Itoa(target.CreatedBy),
+		strconv.Itoa(source.UpdatedBy),
+		strconv.Itoa(target.UpdatedBy),
 	}
 }
 
@@ -356,7 +357,7 @@ func writeTranslationMemoryTMX(w io.Writer, sourceLanguage string, units []trans
 }
 
 func writeTranslationMemoryTMXUnit(encoder *xml.Encoder, unit translationMemoryTMXUnit) error {
-	tuStart := xml.StartElement{Name: xml.Name{Local: "tu"}, Attr: []xml.Attr{{Name: xml.Name{Local: "tuid"}, Value: fmt.Sprintf("%d", unit.ID)}}}
+	tuStart := xml.StartElement{Name: xml.Name{Local: "tu"}, Attr: []xml.Attr{{Name: xml.Name{Local: "tuid"}, Value: strconv.Itoa(unit.ID)}}}
 	if err := encoder.EncodeToken(tuStart); err != nil {
 		return fmt.Errorf("write translation memory tmx unit: %w", err)
 	}

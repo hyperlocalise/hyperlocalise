@@ -2,6 +2,8 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
+const sourceFileIdPattern = /\bsourceFileId=/;
+
 type CreateInteractionInput = {
   organizationId: string;
   source: "chat_ui" | "email_agent" | "github_agent" | "slack_agent";
@@ -74,6 +76,25 @@ export async function addInteractionMessage(input: AddMessageInput) {
     .where(eq(schema.inboxItems.interactionId, input.interactionId));
 
   return message;
+}
+
+export async function interactionHasTranslationAttachments(interactionId: string) {
+  const messages = await db
+    .select({
+      text: schema.interactionMessages.text,
+      attachments: schema.interactionMessages.attachments,
+    })
+    .from(schema.interactionMessages)
+    .where(eq(schema.interactionMessages.interactionId, interactionId));
+
+  return messages.some((message) => {
+    if (sourceFileIdPattern.test(message.text)) {
+      return true;
+    }
+
+    const attachments = message.attachments;
+    return Array.isArray(attachments) && attachments.length > 0;
+  });
 }
 
 export async function updateInteractionMessage(

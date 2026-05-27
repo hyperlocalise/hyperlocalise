@@ -12,7 +12,34 @@ For remote adapters, keep secrets in your CI secret manager and inject them only
 - Use separate credentials for read-only checks vs write-enabled sync jobs.
 - Avoid printing environment variables in pipeline steps.
 
+## Install the CLI in GitHub Actions
+
+Use the install action to download a release binary and add `hyperlocalise` to `PATH` for later steps. This is the recommended setup for CI jobs that run CLI commands directly.
+
+```yaml
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: latest
+```
+
+Pin a specific release when you want tighter change control:
+
+```yaml
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: v1.2.3
+```
+
+Inputs:
+
+- `version`: release tag to install. Defaults to `latest`.
+- `install-dir`: optional install directory. Defaults to a runner temp directory.
+
+For pull request drift and integrity checks without hand-rolling CLI steps, use the [GitHub Action drift check](/workflows/github-action-drift-check) composite action instead.
+
 ## Suggested checks
+
+Install the CLI first, then run these commands in your job.
 
 ### 1. Config + planning smoke test
 
@@ -63,16 +90,16 @@ jobs:
       LOKALISE_API_TOKEN: ${{ secrets.LOKALISE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: hyperlocalise/hyperlocalise/install@v1
         with:
-          go-version-file: go.mod
-      - run: go run ./apps/cli sync pull --output json --dry-run
+          version: latest
+      - run: hyperlocalise sync pull --output json --dry-run
 ```
 
 To apply remote changes to local files in CI, switch to:
 
 ```bash
-go run ./apps/cli sync pull --output json
+hyperlocalise sync pull --output json
 ```
 
 ### Scheduled push sync (write-enabled, active)
@@ -96,16 +123,16 @@ jobs:
       LOKALISE_API_TOKEN: ${{ secrets.LOKALISE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: hyperlocalise/hyperlocalise/install@v1
         with:
-          go-version-file: go.mod
-      - run: go run ./apps/cli sync push --output json
+          version: latest
+      - run: hyperlocalise sync push --output json
 ```
 
 For a non-mutating validation pass, use:
 
 ```bash
-go run ./apps/cli sync push --output json --dry-run
+hyperlocalise sync push --output json --dry-run
 ```
 
 For write-enabled jobs, prefer protected environments, approval gates, and least-privilege service credentials.

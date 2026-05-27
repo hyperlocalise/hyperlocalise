@@ -123,3 +123,57 @@ msgstr "Accueil hero"
 		t.Fatalf("expected last msgid variant to win, got %+v", got)
 	}
 }
+
+func TestMarshalPOFileWithMultilineContent(t *testing.T) {
+	template := []byte(`msgid "hello "
+"world"
+msgstr "Hello "
+"World"
+
+  msgid "key "
+  "with "
+  "tabs"
+  msgstr "Value "
+  "with "
+  "tabs"
+`)
+
+	values := map[string]string{
+		"hello world":   "Bonjour le monde",
+		"key with tabs": "Valeur avec\nnewlines",
+	}
+
+	out, err := MarshalPOFile(template, values)
+	if err != nil {
+		t.Fatalf("MarshalPOFile() error = %v", err)
+	}
+
+	content := string(out)
+
+	// Check "hello world" replacement
+	if !strings.Contains(content, `msgid "hello "`) {
+		t.Errorf("expected msgid hello to be preserved")
+	}
+	if !strings.Contains(content, `msgstr "Bonjour le monde"`) {
+		t.Errorf("expected msgstr to be replaced and flattened, got:\n%s", content)
+	}
+	if strings.Contains(content, `msgstr "Hello "`) {
+		t.Errorf("expected old msgstr to be removed")
+	}
+	// The continuation line "World" should have been replaced by ""
+	if !strings.Contains(content, `""`) {
+		t.Errorf("expected continuation line to be cleared, got:\n%s", content)
+	}
+
+	// Check "key with tabs" replacement (indented)
+	if !strings.Contains(content, `  msgid "key "`) {
+		t.Errorf("expected indented msgid to be preserved")
+	}
+	if !strings.Contains(content, `  msgstr "Valeur avec\nnewlines"`) {
+		t.Errorf("expected indented msgstr to be replaced with quoted newline, got:\n%s", content)
+	}
+	// Check that indentation of continuation lines is preserved when cleared
+	if !strings.Contains(content, `  ""`) {
+		t.Errorf("expected indented cleared continuation lines, got:\n%s", content)
+	}
+}

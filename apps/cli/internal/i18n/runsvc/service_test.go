@@ -3421,6 +3421,154 @@ func TestRunPruneRemovesStaleKeysForJSONAndNestedKeys(t *testing.T) {
 	}
 }
 
+func TestRunPruneRemovesStaleLockEntries(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	lockState := &lockfile.File{
+		RunCompleted: map[string]lockfile.RunCompletion{
+			taskIdentity(targetPath, "hello"):        {SourceHash: hashSourceText("Hello")},
+			taskIdentity(targetPath, "nested.title"): {SourceHash: hashSourceText("Title")},
+			taskIdentity(targetPath, "legacy"):       {SourceHash: hashSourceText("Legacy")},
+			taskIdentity(targetPath, "nested.old"):   {SourceHash: hashSourceText("Old")},
+		},
+	}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) { return lockState, nil }
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello","nested.title":"Title"}`), nil
+		case targetPath:
+			return []byte(`{"hello":"Bonjour","nested":{"title":"Titre","old":"Ancien"},"legacy":"Legacy"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, req translator.Request) (string, error) {
+		if req.Source == "Hello" {
+			return "Salut", nil
+		}
+		return "Titre mis à jour", nil
+	}
+	svc.writeFile = func(_ string, _ []byte) error { return nil }
+
+	_, err := svc.Run(context.Background(), Input{Prune: true})
+	if err != nil {
+		t.Fatalf("run prune: %v", err)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "legacy")]; ok {
+		t.Fatalf("expected legacy lock entry to be pruned, got %+v", lockState.RunCompleted)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "nested.old")]; ok {
+		t.Fatalf("expected nested.old lock entry to be pruned, got %+v", lockState.RunCompleted)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "hello")]; !ok {
+		t.Fatalf("expected hello lock entry to remain")
+	}
+}
+
+func TestRunUnscopedPrunesStaleLockWithoutPruneFlag(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	lockState := &lockfile.File{
+		RunCompleted: map[string]lockfile.RunCompletion{
+			taskIdentity(targetPath, "hello"):  {SourceHash: hashSourceText("Hello")},
+			taskIdentity(targetPath, "legacy"): {SourceHash: hashSourceText("Legacy")},
+		},
+	}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) { return lockState, nil }
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{"hello":"Bonjour","legacy":"Legacy"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		t.Fatal("did not expect translation when all tasks are lock-skipped")
+		return "", nil
+	}
+	svc.writeFile = func(_ string, _ []byte) error {
+		t.Fatal("did not expect writes without --prune")
+		return nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{})
+	if err != nil {
+		t.Fatalf("run: %v", err)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "legacy")]; ok {
+		t.Fatalf("expected stale legacy lock entry to be pruned, got %+v", lockState.RunCompleted)
+	}
+	if _, ok := lockState.RunCompleted[taskIdentity(targetPath, "hello")]; !ok {
+		t.Fatalf("expected hello lock entry to remain")
+	}
+}
+
+func TestRunScopedDoesNotPruneLockOutsideScope(t *testing.T) {
+	svc := newTestService()
+	sourcePath := "/tmp/source.json"
+	targetPath := "/tmp/out.json"
+	legacyID := taskIdentity(targetPath, "legacy")
+	lockState := &lockfile.File{
+		RunCompleted: map[string]lockfile.RunCompletion{
+			taskIdentity(targetPath, "hello"): {SourceHash: hashSourceText("Hello")},
+			legacyID:                          {SourceHash: hashSourceText("Legacy")},
+		},
+	}
+	svc.loadConfig = func(_ string) (*config.I18NConfig, error) {
+		cfg := testConfig(sourcePath, targetPath)
+		return &cfg, nil
+	}
+	svc.loadLock = func(_ string) (*lockfile.File, error) { return lockState, nil }
+	svc.saveLock = func(_ string, f lockfile.File) error {
+		*lockState = f
+		return nil
+	}
+	svc.readFile = func(path string) ([]byte, error) {
+		switch path {
+		case sourcePath:
+			return []byte(`{"hello":"Hello"}`), nil
+		case targetPath:
+			return []byte(`{"hello":"Bonjour","legacy":"Legacy"}`), nil
+		default:
+			return nil, filepath.ErrBadPattern
+		}
+	}
+	svc.translate = func(_ context.Context, _ translator.Request) (string, error) {
+		t.Fatal("did not expect translation when all tasks are lock-skipped")
+		return "", nil
+	}
+
+	_, err := svc.Run(context.Background(), Input{Bucket: "ui"})
+	if err != nil {
+		t.Fatalf("run scoped: %v", err)
+	}
+	if _, ok := lockState.RunCompleted[legacyID]; !ok {
+		t.Fatalf("expected stale lock entry to remain for scoped run, got %+v", lockState.RunCompleted)
+	}
+}
+
 func TestRunWarnsWhenJSONTargetIsMalformedAndFallsBack(t *testing.T) {
 	svc := newTestService()
 	sourcePath := "/tmp/source.json"

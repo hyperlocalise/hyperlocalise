@@ -9,3 +9,11 @@
 ## 2026-05-24 - [Tooltip Content and Prop Forwarding]
 **Learning:** Tooltip content in this design system should avoid block-level typography components (like `TypographyP`) to prevent excessive line-height; plain text or inline elements are preferred for compact tooltips. Additionally, when using the `render` prop on `TooltipTrigger` for icon-only buttons, the icons and screen-reader only text must be nested *inside* the component being rendered (e.g., `<TooltipTrigger render={<Button>...</Button>} />`) to ensure proper event delegation and accessibility prop forwarding.
 **Action:** Use plain text for tooltips and ensure all button children are placed inside the `render` prop's component when wrapping with a `TooltipTrigger`.
+
+## 2026-05-25 - [TooltipTrigger Structural Consistency]
+**Learning:** In , several components were found to have children (icons, accessible text) placed outside the component passed to the `render` prop of `TooltipTrigger`. This pattern can lead to empty interactive elements or broken event delegation. Consistently nesting all content within the rendered component ensures that accessibility properties (like ARIA labels or screen-reader text) are correctly associated with the interactive trigger.
+**Action:** When using `<TooltipTrigger render={<Component ... />} >`, always place the component's children inside `<Component>` rather than as children of `TooltipTrigger`.
+
+## 2026-05-25 - [TooltipTrigger Structural Consistency]
+**Learning:** In `apps/hyperlocalise-web`, several components were found to have children (icons, accessible text) placed outside the component passed to the `render` prop of `TooltipTrigger`. This pattern can lead to empty interactive elements or broken event delegation. Consistently nesting all content within the rendered component ensures that accessibility properties (like ARIA labels or screen-reader text) are correctly associated with the interactive trigger.
+**Action:** When using `<TooltipTrigger render={<Component ... />} >`, always place the component's children inside `<Component>` rather than as children of `TooltipTrigger`.

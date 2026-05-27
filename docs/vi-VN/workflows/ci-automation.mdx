@@ -12,38 +12,65 @@ description: "Mẫu CI an toàn cho kiểm tra sai lệch và đồng bộ kéo/
 - Sử dụng thông tin xác thực riêng cho các kiểm tra chỉ đọc so với các tác vụ đồng bộ có bật ghi.
 - Tránh in các biến môi trường trong các bước của pipeline.
 
+## Cài đặt CLI trong GitHub Actions
+
+Dùng hành động cài đặt để tải xuống một binary phát hành và thêm `hyperlocalise` vào `PATH` cho các bước sau. Đây là cấu hình được khuyến nghị cho các tác vụ CI chạy trực tiếp các lệnh CLI.
+
+```yaml
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: latest
+```
+
+Ghim một bản phát hành cụ thể khi bạn muốn kiểm soát thay đổi chặt chẽ hơn:
+
+```yaml
+- uses: hyperlocalise/hyperlocalise/install@v1
+  with:
+    version: v1.2.3
+```
+
+Đầu vào:
+
+- `version`: thẻ phát hành để cài đặt. Mặc định là `latest`.
+- `install-dir`: thư mục cài đặt tùy chọn. Mặc định là thư mục tạm của runner.
+
+Đối với kiểm tra drift và tính toàn vẹn của pull request mà không cần tự thực hiện từng bước CLI, hãy dùng [GitHub Action drift check](/workflows/github-action-drift-check) composite action thay vào đó.
+
 ## Các kiểm tra được đề xuất
 
-### 1. Kiểm tra khói cấu hình + lập kế hoạch
+Cài đặt CLI trước, sau đó chạy các lệnh này trong công việc của bạn.
+
+### 3. Cổng xem trước đồng bộ
 
 ```bash
 hyperlocalise run --dry-run
 ```
 
-### 2. Ảnh chụp trạng thái
+### Đồng bộ kéo theo lịch (chỉ đọc, mặc định an toàn)
 
 ```bash
 hyperlocalise status --output csv
 ```
 
-Lưu CSV dưới dạng artifact xây dựng để theo dõi xu hướng.
+Để áp dụng các thay đổi từ xa vào các tệp cục bộ trong CI, chuyển sang:
 
-### 3. Cổng xem trước đồng bộ
+### Đồng bộ đẩy theo lịch trình (đã bật ghi, đang hoạt động)
 
-`sync pull` và `sync push` mặc định áp dụng thay đổi. Thêm `--dry-run` cho các tác vụ xem trước CI không làm thay đổi.
+Đối với một lần kiểm tra xác thực không làm thay đổi, hãy sử dụng:
 
 ```bash
 hyperlocalise sync pull --output json --dry-run
 hyperlocalise sync push --output json --dry-run
 ```
 
-Chỉ bỏ `--dry-run` trong các tác vụ được ủy quyền rõ ràng để ghi tệp cục bộ hoặc hệ thống từ xa.
+Đối với các công việc có quyền ghi, hãy ưu tiên các môi trường được bảo vệ, các cổng phê duyệt và thông tin xác thực dịch vụ theo nguyên tắc đặc quyền tối thiểu.
 
 ## Ví dụ về tác vụ đồng bộ theo lịch
 
 Sử dụng các ví dụ GitHub Actions này làm nền tảng. Điều chỉnh tên bí mật và quy tắc phê duyệt cho nền tảng CI của bạn.
 
-### Đồng bộ kéo theo lịch (chỉ đọc, mặc định an toàn)
+### 2. Ảnh chụp trạng thái
 
 ```yaml
 name: tms-pull-sync
@@ -63,19 +90,19 @@ jobs:
       LOKALISE_API_TOKEN: ${{ secrets.LOKALISE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: hyperlocalise/hyperlocalise/install@v1
         with:
-          go-version-file: go.mod
-      - run: go run ./apps/cli sync pull --output json --dry-run
+          version: latest
+      - run: hyperlocalise sync pull --output json --dry-run
 ```
 
-Để áp dụng các thay đổi từ xa vào các tệp cục bộ trong CI, chuyển sang:
+Chỉ chạy không có `--dry-run` trong các tác vụ được ủy quyền rõ ràng để ghi tệp cục bộ hoặc hệ thống từ xa.
 
 ```bash
-go run ./apps/cli sync pull --output json
+hyperlocalise sync pull --output json
 ```
 
-### Đồng bộ đẩy theo lịch trình (đã bật ghi, đang hoạt động)
+### 1. Kiểm tra khói cấu hình + lập kế hoạch
 
 ```yaml
 name: tms-push-sync
@@ -96,16 +123,16 @@ jobs:
       LOKALISE_API_TOKEN: ${{ secrets.LOKALISE_API_TOKEN }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: hyperlocalise/hyperlocalise/install@v1
         with:
-          go-version-file: go.mod
-      - run: go run ./apps/cli sync push --output json
+          version: latest
+      - run: hyperlocalise sync push --output json
 ```
 
-Đối với một lần kiểm tra xác thực không làm thay đổi, hãy sử dụng:
+`sync pull` và `sync push` áp dụng thay đổi theo mặc định. Thêm `--dry-run` cho các job xem trước CI không làm thay đổi.
 
 ```bash
-go run ./apps/cli sync push --output json --dry-run
+hyperlocalise sync push --output json --dry-run
 ```
 
-Đối với các công việc có quyền ghi, hãy ưu tiên các môi trường được bảo vệ, các cổng phê duyệt và thông tin xác thực dịch vụ theo nguyên tắc đặc quyền tối thiểu.
+Lưu CSV dưới dạng artifact xây dựng để theo dõi xu hướng.

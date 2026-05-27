@@ -13,7 +13,6 @@ import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { Streamdown } from "streamdown";
-import { TypographyP } from "@/components/ui/typography";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
@@ -83,9 +82,7 @@ export const MessageAction = ({
     return (
       <Tooltip>
         <TooltipTrigger render={button} />
-        <TooltipContent>
-          <TypographyP>{tooltip}</TypographyP>
-        </TooltipContent>
+        <TooltipContent>{tooltip}</TooltipContent>
       </Tooltip>
     );
   }

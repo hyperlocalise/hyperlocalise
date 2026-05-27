@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { GitBranchIcon, GithubIcon, Refresh01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -15,6 +16,25 @@ import { createApiClient } from "@/lib/api-client";
 import { TypographyP } from "@/components/ui/typography";
 
 const api = createApiClient();
+
+const GITHUB_CONNECT_ERROR_MESSAGES: Record<string, string> = {
+  missing_callback_params:
+    "GitHub did not return installation_id on the Setup URL callback. Confirm the GitHub App Setup URL points to this app and try connecting again.",
+  invalid_state:
+    "The GitHub install link expired or was already used. Click Connect GitHub again from this page.",
+  github_install_pending_approval:
+    "GitHub is waiting for an org owner to approve this app install. Approve it on GitHub, then connect again.",
+  github_app_not_configured: "GitHub App integration is not configured for this environment.",
+  github_app_private_key_invalid:
+    "GitHub rejected the app credentials in this environment. Set GITHUB_APP_ID to the App ID from GitHub App settings and GITHUB_APP_PRIVATE_KEY to the matching PEM (use literal \\n line breaks or base64-encode the whole file).",
+  github_installation_invalid:
+    "GitHub rejected the installation ID. Confirm the app is installed on the expected account.",
+  github_installation_already_linked:
+    "That GitHub installation is already linked to another Hyperlocalise organization.",
+  organization_not_found: "The organization for this install request could not be found.",
+  github_use_setup_url:
+    'GitHub returned a user OAuth code instead of an installation ID. In GitHub App settings, turn off "Request user authorization (OAuth) during installation" and set the Setup URL to this app\'s /auth/github/callback.',
+};
 
 type GitHubAgentCardProps = {
   organizationSlug: string;
@@ -185,7 +205,56 @@ function useDisconnectInstallation(organizationSlug: string) {
 }
 
 export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
-  const { data: installation, isLoading } = useGitHubInstallation(organizationSlug);
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
+  const {
+    data: installation,
+    isLoading,
+    isError,
+    error,
+    refetch: refetchInstallation,
+  } = useGitHubInstallation(organizationSlug);
+
+  const handledGithubConnectedRef = useRef(false);
+  const handledGithubErrorRef = useRef(false);
+
+  useEffect(() => {
+    const errorCode = searchParams.get("error");
+    if (!errorCode || handledGithubErrorRef.current) {
+      return;
+    }
+
+    handledGithubErrorRef.current = true;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("error");
+    window.history.replaceState(null, "", url.toString());
+
+    const message =
+      GITHUB_CONNECT_ERROR_MESSAGES[errorCode] ??
+      "GitHub App connection failed. Try connecting again.";
+    toast.error(message);
+  }, [searchParams]);
+
+  useEffect(() => {
+    if (searchParams.get("github_connected") !== "1" || handledGithubConnectedRef.current) {
+      return;
+    }
+
+    handledGithubConnectedRef.current = true;
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("github_connected");
+    window.history.replaceState(null, "", url.toString());
+
+    void (async () => {
+      await refetchInstallation();
+      await queryClient.invalidateQueries({
+        queryKey: ["github-installation-repositories", organizationSlug],
+      });
+      toast.success("GitHub App connected");
+    })();
+  }, [organizationSlug, queryClient, refetchInstallation, searchParams]);
   const { data: repositories = [], isLoading: isLoadingRepositories } = useGitHubRepositories(
     organizationSlug,
     Boolean(installation),
@@ -289,6 +358,21 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
       <CardContent className="px-5 py-5 lg:px-6">
         {isLoading ? (
           <Skeleton className="h-10 bg-foreground/5" />
+        ) : isError ? (
+          <div className="flex flex-col gap-4">
+            <TypographyP className="text-sm text-red-300">
+              {error instanceof Error
+                ? error.message
+                : "Unable to load GitHub installation status right now."}
+            </TypographyP>
+            <Button
+              variant="outline"
+              className="w-fit border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8"
+              onClick={() => void refetchInstallation()}
+            >
+              Retry
+            </Button>
+          </div>
         ) : installation ? (
           <div className="flex flex-col gap-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">

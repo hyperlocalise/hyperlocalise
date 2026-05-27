@@ -53,16 +53,20 @@ type GitHubWebhookPayload = {
   repositories_removed?: GitHubWebhookRepository[];
 };
 
-async function verifyGitHubWebhookSignature(bodyText: string, signature: string | undefined) {
+async function verifyGitHubWebhookSignature(
+  bodyText: string,
+  signature: string | undefined,
+  log = logger,
+) {
   if (!signature) {
-    logger.warn("missing webhook signature");
+    log.warn("missing webhook signature");
     return false;
   }
 
   try {
     return await getGitHubApp().webhooks.verify(bodyText, signature);
   } catch (error) {
-    logger.error(
+    log.error(
       { error: error instanceof Error ? error.message : String(error) },
       "webhook signature verification failed",
     );
@@ -158,24 +162,22 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
     async (c) => {
       const event = c.req.header("x-github-event");
       const delivery = c.req.header("x-github-delivery");
+      const log = logger.child({ delivery, event });
 
       const bodyBuffer = await c.req.raw.arrayBuffer();
       const bodyText = new TextDecoder().decode(bodyBuffer);
 
       const parseResult = safeJsonParse(bodyText);
       if (!parseResult.ok) {
-        logger.warn({ delivery, event }, "invalid webhook payload");
+        log.warn("invalid webhook payload");
         return c.json({ error: "invalid_payload" }, 400);
       }
       const payload = parseResult.value as GitHubWebhookPayload;
 
-      logger.info(
+      log.info(
         {
-          delivery,
-          event,
           action: payload.action,
           installationId: payload.installation?.id,
-          repository: payload.repository?.full_name,
         },
         "webhook received",
       );
@@ -184,15 +186,16 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
         const verified = await verifyGitHubWebhookSignature(
           bodyText,
           c.req.header("x-hub-signature-256"),
+          log,
         );
         if (!verified) {
-          logger.warn({ delivery, event }, "invalid webhook signature");
+          log.warn("invalid webhook signature");
           return c.json({ error: "invalid_signature" }, 401);
         }
       }
 
       if (event === "installation" && payload.action === "deleted" && payload.installation?.id) {
-        logger.info({ installationId: payload.installation.id }, "deleting github installation");
+        log.info({ installationId: payload.installation.id }, "deleting github installation");
         await db
           .delete(schema.githubInstallations)
           .where(
@@ -203,12 +206,11 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
       }
 
       if (event === "installation_repositories" || event === "repository") {
-        logger.info(
+        log.info(
           {
             installationId: payload.installation?.id,
             repositoriesAdded: payload.repositories_added?.length ?? 0,
             repositoriesRemoved: payload.repositories_removed?.length ?? 0,
-            repository: payload.repository?.full_name,
             action: payload.action,
           },
           "applying repository webhook",
@@ -218,13 +220,13 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
       }
 
       if (!payload.installation?.id) {
-        logger.info({ delivery, event }, "ignoring webhook: no installation id");
+        log.info("ignoring webhook: no installation id");
         return c.json({ ok: true, ignored: true }, 200);
       }
 
       const installation = await findStoredInstallation(String(payload.installation.id));
       if (!installation) {
-        logger.info(
+        log.info(
           { installationId: payload.installation.id },
           "ignoring webhook: installation not found",
         );
@@ -232,10 +234,7 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
       }
 
       if (!payload.repository?.id) {
-        logger.info(
-          { installationId: payload.installation.id, event },
-          "ignoring webhook: no repository id",
-        );
+        log.info({ installationId: payload.installation.id }, "ignoring webhook: no repository id");
         return c.json({ ok: true, ignored: true }, 200);
       }
 
@@ -245,11 +244,10 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
         githubRepositoryId: String(payload.repository.id),
       });
       if (!enabled) {
-        logger.info(
+        log.info(
           {
             installationId: installation.githubInstallationId,
             repositoryId: payload.repository.id,
-            repository: payload.repository.full_name,
           },
           "ignoring webhook: repository not enabled",
         );
@@ -261,7 +259,7 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
         (await defaultGithubWebhookHandler(options.githubFixQueue ?? createGitHubFixQueue()));
 
       if (!handler) {
-        logger.error("github adapter not configured");
+        log.error("github adapter not configured");
         return c.json({ error: "github_adapter_not_configured" }, 503);
       }
 
@@ -274,13 +272,11 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
 
       try {
         const response = await handler(request);
-        logger.info({ delivery, event, status: response.status }, "webhook processed");
+        log.info({ status: response.status }, "webhook processed");
         return response;
       } catch (error) {
-        logger.error(
+        log.error(
           {
-            delivery,
-            event,
             error: error instanceof Error ? error.message : String(error),
           },
           "webhook handler failed",

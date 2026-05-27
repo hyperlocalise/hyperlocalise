@@ -24,8 +24,11 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <
 `run` 可以读取带有以下扩展名的源文件和目标文件：
 
 - `.json`
+- `.jsonc`
+- `.yaml` 和 `.yml`
+- `.js`、`.jsx`、`.mjs`、`.cjs`、`.ts`、`.tsx`、`.mts`和`.cts`
 - `.arb`
-- `.xlf` 和 `.xliff`
+- `.xlf`、`.xlif`和`.xliff`
 - `.po`
 - `.html`
 - `.liquid`
@@ -35,7 +38,11 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <
 - `.stringsdict`
 - `.xcstrings`
 - `.csv`
+- `.php`
 - `.ftl`
+- Android XML `strings.xml` 文件位于 `**/res/values*/strings.xml`
+- `.xml` 和 `.resx` 用于通用 XML 区域设置文件
+- `.properties`
 
 对于 JSON（`.json`），`run` 支持：
 
@@ -45,16 +52,20 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <
 
 在 FormatJS 模式下，仅翻译 `defaultMessage`。键（消息 ID）、`description` 以及其他非消息元数据都会被保留。
 
-对于 Flutter ARB (`.arb`)，`run` 仅翻译消息键，保留诸如 `@key` 之类的元数据键，并在写入时将 `@@locale` 规范化为目标语言环境。
+对于 JavaScript 和 TypeScript 区域设置模块（`.js`、`.jsx`、`.mjs`、`.cjs`、`.ts`、`.tsx`、`.mts`、`.cts`），`run` 支持静态区域设置对象导出：
+
+- `export default { ... }`
+- `export const messages = { ... }`
+- `module.exports = { ... }`
+- `const messages = { ... }; export default messages`
+
+嵌套对象会被展平为点分隔的键，字符串数组使用方括号索引，而严格的 FormatJS 风格条目只翻译 `defaultMessage`，同时保留 `description` 元数据。注释、导入、导出语法以及 `as const` 会在写入时保留。动态值、计算属性键、展开属性、多个导出的 locale 对象，以及包含 `${...}` 插值的模板字面量会导致解析器错误，而不是被重写。
+
+当现有的 JS/TS 目标模块与源具有相同的键集合时，`run` 会写入目标模板，因此会保留译者注释和现有的模块布局。如果源键集合发生变化，`run` 会回退到源模板，以避免合并不匹配的对象形状。
+
+对于 YAML/YML（`.yaml`、`.yml`），`run` 支持带有字符串叶节点的映射形状区域设置文件。嵌套映射会变成带点的键，序列会变成 `[index]` 键，而写回会在尽可能保留键顺序/注释的同时重写现有的字符串叶节点。映射键不能包含 `.`、`[` 或 `]`，因为这些字符保留用于扁平化路径。诸如数字、布尔值、null、时间戳、锚点和别名等非字符串标量叶节点会被拒绝，以避免静默损坏。
 
 对于 Markdown 和 MDX（`.md`、`.mdx`），`run` 会翻译提取出的散文内容，并保留不可翻译的结构：
-
-- frontmatter 块（`---`）
-- 围栏代码块（```` ``` ```` 和 `~~~`）
-- 行内代码片段
-- Markdown 锚点，例如链接目标
-- MDX `import` 和 `export` 行
-- JSX/MDX 组件标签和属性值
 
 对于 HTML（`.html`），`run` 会翻译块级元素中的文本内容：
 
@@ -63,56 +74,57 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <
 - `<img alt="...">` — `alt` 属性值被提取为其自身的翻译单元；标签的其余部分（src、class 等）将按原样保留
 - HTML 实体（`&amp;`、`&lt;` 等）在翻译往返过程中将保持原样
 - HTML 注释将按原样保留
-
-对于 Liquid（`.liquid`），`run` 会翻译硬编码的可见模板文本，并保留 Liquid 语法：
-
 - Liquid 输出分隔符 (`{{ ... }}`) 受到保护，作为占位符并按原样还原
-- 独立的 Liquid 标签（`{% ... %}`）充当模板边界；HTML 属性中的标签会作为内联内容受到保护，并按原样还原
-- Shopify 区域设置键调用，例如 `{{ 'header.title' | t }}`，会作为模板结构保留，不会作为源文本进行翻译
-- `{% raw %}`、`{% comment %}`、`{% schema %}`、`{% javascript %}` 和 `{% stylesheet %}` 块将原样保留
-- HTML 形状的 Liquid 模板使用与 HTML 相同的可见文本提取行为
 
 对于 Apple/Xcode 字符串（`.strings`），`run` 会在保留模板中的注释和键/值格式的同时，将值字面量替换为翻译后的文本。
 
-
-对于 CSV（`.csv`），`run` 支持两种布局：
-
 - 键/值布局（例如：`key,value`）
 - 按区域设置的列布局（例如：`id,en,fr,de`）
-
-在写入 CSV 目标时，`run` 会保留现有的表头和非目标列，原地更新匹配的键，并按确定性的排序顺序追加新键。
-
-## 标志
-
 - `--config`：配置文件路径（默认 `i18n.yml`，回退到当前目录中的 `i18n.jsonc`）
 - `--group`：仅运行给定组名的任务
 - `--bucket`：仅为给定的存储桶名称运行任务
+
+对于 Liquid（`.liquid`），`run` 会翻译硬编码的可见模板文本，并保留 Liquid 语法：
+
 - `--file`：仅运行给定源文件路径的任务（可重复）
 - `--locale`：仅为给定的目标语言环境运行任务（可重复）；`--target-locale` 是一个别名
 - `--dry-run`：仅打印计划，不要翻译或写入文件
 - `--force`：重新运行所有计划任务并忽略锁文件跳过状态
 - `--prune`：删除源文件中不再存在的目标键
-- `--prune-max-deletions`：在一次运行中删除的最大过期键数量，超过此值后需要显式覆盖（默认 `100`）
-- `--prune-force`：绕过 prune 删除安全限制
-- `--workers`：并行翻译工作线程数量（默认为 CPU 核心数）
-- `--progress`：进度渲染模式（`auto|on|off`，默认：`auto`）
-- `--output`：将机器可读的 JSON 运行报告写入给定路径
-- `--experimental-context-memory`：在翻译每个作用域之前启用两阶段上下文记忆生成
-- `--context-memory-scope`：上下文共享范围（`file|bucket|group`，默认`file`）
-- `--context-memory-max-chars`：注入到每个翻译请求中的最大上下文内存长度（默认 `1200`）
 
-## 提示词契约用于 `run`
-
-- `system_prompt` 用于说明和运行时上下文。
-- `user_prompt` 用于负载内容（要翻译的文本，或用于上下文记忆摘要的源内容）。
-- 翻译流程支持配置文件 `user_prompt` 覆盖。
-- 上下文记忆摘要流程始终使用内置的摘要负载模板，不会应用配置文件`user_prompt`覆盖。
-
-<Note>
 更改提示结构（例如将上下文从用户消息移到系统消息）不会自动使远程缓存条目失效。要在提示重构后强制重新翻译，请在你的配置文件中提升 `prompt_version`。
-</Note>
 
-### 进度调试日志（可选）
+对于 PHP 区域设置数组（`.php`），`run` 支持仅包含 PHP 开始标签和单个静态返回数组的文件：
+
+- `return [ ... ];` 和 `return array(...);` 已支持
+- 带引号的字符串键会被展平成带点号的路径，例如 `auth.failed`
+- 字符串值可以使用单引号或双引号；写入时会保留注释、空白、键顺序和数组语法
+- 嵌套数组可以用诸如 `items.one` 和 `items.other` 这样的键来表示复数或 select 变体
+- 可执行的 PHP、变量、函数调用、常量、`declare(...)` 以及双引号插值都会被明确的解析错误拒绝
+
+示例配置映射：
+
+```yaml
+buckets:
+  app:
+    files:
+      - from: resources/lang/en/messages.php
+        to: resources/lang/{{target}}/messages.php
+```
+
+对于 Apple/Xcode String Catalogs（`.xcstrings`），`run` 在存在时会从 `strings[*].localizations[sourceLanguage]` 读取目录条目，对仅源文本的简单条目回退使用目录键，并将译文写入 `localizations[targetLocale]` 下。复数、设备和替换叶子节点会作为稳定键公开，例如 `item_count::plural.one`、`search_label::device.mac` 和 `count_label::substitution.total::plural.other`。输出会规范化为确定性的 JSON；注释、提取状态、字符串单元状态以及无关的目录元数据会作为 JSON 字段保留，但不会逐字节保留原始空白和对象顺序。
+
+对于 Android XML 字符串资源（`**/res/values*/strings.xml`），`run` 翻译为：
+
+- `<string name="...">` 值
+- `<plurals name="..."><item quantity="...">` 值，使用诸如 `item_count.one` 和 `item_count.other` 的键
+
+Android 注释、命名空间以及资源属性（例如 `formatted`、`tools:*` 和 `translatable`）会被保留。标记为 `translatable="false"` 的资源会被跳过。类似 `%1$s` 和 `%d` 的 Android 占位符会保留在提取出的文本中，并在写回时带上翻译后的值。
+
+诸如 `<string-array>` 这样的不受支持的可翻译 Android 资源形状会以清晰的解析器错误失败，而不会被忽略。
+
+
+对于 Java 属性（`.properties`），`run` 支持按区域设置划分的键/值资源包，例如 `messages_en.properties` -> `messages_[locale].properties`。它会解析 Java 风格的分隔符（`=`、`:`，或空白字符）、转义的键和值、`\uXXXX` Unicode 转义以及续行。以 `#` 或 `!` 开头的注释会被保留，相邻注释可作为条目上下文。写入时，现有的键顺序、注释、分隔符和间距都会保留；翻译后的值会规范化为单行的转义值。重复键、格式错误的 Unicode 转义、无效的 UTF-8 输入以及悬空续行都会以清晰的解析错误失败。
 
 要排查进度渲染问题，你可以在不更改 CLI 标志的情况下启用调试日志：
 
@@ -121,11 +133,65 @@ hyperlocalise run [--config <path>] [--group <name>] [--bucket <name>] [--file <
 
 启用时的默认日志路径：`.hyperlocalise/logs/run.log`。
 
+对于 Mozilla Fluent (`.ftl`)，`run` 支持顶级消息、消息属性、多行值，以及表示为完整消息值的 select/plural 模式：
+
+- 属性会以带点号的键形式暴露，例如 `brand.title`
+- 在现有模板中替换值时，会保留注释、空行和未解析的元数据
+- 不支持 Fluent 术语（`-brand = ...`）和术语引用，并且会以明确的解析器错误失败
+- 新追加的消息键会按确定性顺序排序；只有当其父消息尚未存在于模板中时，才能追加新属性
+
+对于通用 XML（`.xml`、`.resx`），`run` 仅翻译纯文本叶子元素，并保留无关的 XML 结构：
+
+- 带键的叶子使用 `key`、`id` 或 `name` 属性，例如 `<message key="checkout.cta">Checkout now</message>`
+- 嵌套的路径形叶子使用点号分隔的元素路径，例如 `<home><title>Welcome</title></home>` -> `home.title`
+- 支持 `.resx`-style `<data name="home.title"><value>Welcome</value></data>` 条目
+- 评论、属性、元数据元素（如 `<metadata>`、`<comment>` 和 `<resheader>`）会被保留
+- 诸如 `Hello <ph/>` 和 Android `<resources>` 文件之类的混合内容值会被拒绝，而不是被重写为通用 XML
+
 ## 实验性上下文记忆流
 
-当 `--experimental-context-memory` 启用时，`run` 会按每个作用域（默认：每个源文件）构建一次共享内存，然后在该作用域内的所有条目中重复使用它。
+- 新作用域中的第一个条目会等待内存生成完成。
+- 同一作用域中的后续条目会复用现有的作用域内存，并在不重新构建的情况下继续执行。
+- 进度 UI 现在会在文件列表中显示上下文内存步骤，这样你就可以看到当前作用域级别的工作。
+- `system_prompt` 用于说明和运行时上下文。
+- `user_prompt` 用于负载内容（要翻译的文本，或用于上下文记忆摘要的源内容）。
+- 翻译流程支持配置文件 `user_prompt` 覆盖。
+- 上下文记忆摘要流程始终使用内置的摘要负载模板，不会应用配置文件`user_prompt`覆盖。
+- `--context-memory-max-chars`：注入到每个翻译请求中的最大上下文内存长度（默认 `1200`）
+- `--context-memory-scope`：上下文共享范围（`file|bucket|group`，默认`file`）
+- `--experimental-context-memory`：在翻译每个作用域之前启用两阶段上下文记忆生成
+- [eval](/commands/eval)
+- [状态](/commands/status)
+- [sync push](/commands/sync-push)
+- [sync pull](/commands/sync-pull)
+- [锁定文件合约](/reference/lockfile-contract)
+- `--output`：将机器可读的 JSON 运行报告写入给定路径
 
+## 作用范围延伸到一个组
+
+- `--progress`：进度渲染模式（`auto|on|off`，默认：`auto`）
+- `--workers`：并行翻译工作线程数量（默认为 CPU 核心数）
+- `--prune-force`：绕过 prune 删除安全限制
+- `--prune-max-deletions`：在一次运行中删除的最大过期键数量，超过此值后需要显式覆盖（默认 `100`）
+
+<Note>
 如果内存生成失败或超时，`run` 会记录一条警告，并在该作用域内继续在没有共享内存的情况下进行翻译。
+</Note>
+
+### 为什么它看起来像是在等待
+
+要仅运行一个已配置的组时，请使用 `--group`。
+
+- HTML 形状的 Liquid 模板使用与 HTML 相同的可见文本提取行为
+- `{% raw %}`、`{% comment %}`、`{% schema %}`、`{% javascript %}` 和 `{% stylesheet %}` 块将原样保留
+
+如果你的配置中不存在该组，`run` 会因 `unknown group` 规划错误而失败。
+
+## 范围适用于一个桶
+
+当你只想运行一个已配置的桶时，请使用 `--bucket`。这对于有针对性的更新、CI 分区，或在完整运行之前验证单个区域都很有用。
+
+如果你的配置中不存在该 bucket，`run` 会因 `unknown bucket` 规划错误而失败。
 
 ```mermaid
 flowchart TD
@@ -143,39 +209,19 @@ flowchart TD
     I --> T
 ```
 
-### 为什么它看起来像是在等待
+### 进度调试日志（可选）
 
-- 新作用域中的第一个条目会等待内存生成完成。
-- 同一作用域中的后续条目会复用现有的作用域内存，并在不重新构建的情况下继续执行。
-- 进度 UI 现在会在文件列表中显示上下文内存步骤，这样你就可以看到当前作用域级别的工作。
+- Shopify 区域设置键调用，例如 `{{ 'header.title' | t }}`，会作为模板结构保留，不会作为源文本进行翻译
+- 独立的 Liquid 标签（`{% ... %}`）充当模板边界；HTML 属性中的标签会作为内联内容受到保护，并按原样还原
+- JSX/MDX 组件标签和属性值
 
-
-## 作用范围延伸到一个组
-
-要仅运行一个已配置的组时，请使用 `--group`。
-
-```bash
-hyperlocalise run --group tests --dry-run
-```
-
-如果你的配置中不存在该组，`run` 会因 `unknown group` 规划错误而失败。
-
-## 范围适用于一个桶
-
-当你只想运行一个已配置的桶时，请使用 `--bucket`。这对于有针对性的更新、CI 分区，或在完整运行之前验证单个区域都很有用。
-
-```bash
-hyperlocalise run --bucket ui --dry-run
-```
-
-如果你的配置中不存在该 bucket，`run` 会因 `unknown bucket` 规划错误而失败。
 
 ## 范围仅适用于一个源文件
 
 当你只想运行一个已配置的源文件时，请使用 `--file`。你可以重复该标志以选择多个源文件，并且可以将其与 `--group`、`--bucket` 和 `--locale` 结合使用。
 
 ```bash
-hyperlocalise run --file content/en/checkout.json --dry-run
+hyperlocalise run --group tests --dry-run
 ```
 
 如果该文件不属于已配置的源映射，`run` 会以 `unknown source file` 规划错误失败。
@@ -185,26 +231,46 @@ hyperlocalise run --file content/en/checkout.json --dry-run
 当你想在不更改组或分桶选择的情况下，仅重新运行特定区域设置时，请使用 `--locale`。你可以重复该标志以选择多个区域设置。为了兼容旧脚本，同样的过滤器也可作为 `--target-locale` 使用。
 
 ```bash
-hyperlocalise run --group tests --locale fr --locale de --dry-run
+hyperlocalise run --bucket ui --dry-run
 ```
 
 如果请求的区域设置不在 `locales.targets` 中，`run` 会因 `unknown target locale` 规划错误而失败。与 `--group` 结合时，仅会规划属于该组的区域设置。
 
+## 强制重新运行所有计划任务
+
 当与`--prune`结合时，过期键检测也仅限于所选的目标语言环境。`run` 只会扫描并清理属于筛选后的语言环境集合的目标文件。
+
+```bash
+hyperlocalise run --file content/en/checkout.json --dry-run
+```
+
+使用 `--force` 来忽略锁定文件跳过状态并再次执行所有计划的任务。
+
+## 输出字段
+
+每个语言区域的 token 使用情况会打印为：`locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`。
+
+```bash
+hyperlocalise run --group tests --locale fr --locale de --dry-run
+```
+
+当你传递`--output`时，JSON 报告会包含运行元数据（`generatedAt`、`configPath`）、汇总的 token 使用情况、按语言环境的使用情况以及按条目的批处理使用情况。
+
+任务失败时，输出包括 `failure target=<...> key=<...> reason=<...>`。
 
 ```bash
 hyperlocalise run --prune --locale de --dry-run
 ```
 
-## 强制重新运行所有计划任务
+## 失败输出
 
-使用 `--force` 来忽略锁定文件跳过状态并再次执行所有计划的任务。
+当你遇到提供方速率限制或在受限的 CI 环境中运行时，降低`--workers`。先从`1`开始以稳定重试，然后逐步增加。
 
 ```bash
 hyperlocalise run --group tests --force
 ```
 
-## 输出字段
+## Worker 调优指南
 
 - `planned_total`
 - `skipped_by_lock`
@@ -216,25 +282,25 @@ hyperlocalise run --group tests --force
 - `completion_tokens`
 - `total_tokens`
 
-每个语言区域的 token 使用情况会打印为：`locale_usage locale=<locale> prompt_tokens=<...> completion_tokens=<...> total_tokens=<...>`。
-
-当你传递`--output`时，JSON 报告会包含运行元数据（`generatedAt`、`configPath`）、汇总的 token 使用情况、按语言环境的使用情况以及按条目的批处理使用情况。
-
-## 失败输出
-
-任务失败时，输出包括 `failure target=<...> key=<...> reason=<...>`。
-
-
-## Worker 调优指南
-
-当你遇到提供方速率限制或在受限的 CI 环境中运行时，降低`--workers`。先从`1`开始以稳定重试，然后逐步增加。
-
 当你的提供方配额和机器资源允许更高吞吐量时，提高`--workers`。请小幅递增，并观察 API 错误率以及本地 CPU 和内存使用情况。
+
+当 `--experimental-context-memory` 启用时，`run` 会按每个作用域（默认：每个源文件）构建一次共享内存，然后在该作用域内的所有条目中重复使用它。
 
 ## 另见
 
-- [eval](/commands/eval)
-- [状态](/commands/status)
-- [sync push](/commands/sync-push)
-- [sync pull](/commands/sync-pull)
-- [锁定文件合约](/reference/lockfile-contract)
+在写入 CSV 目标时，`run` 会保留现有的表头和非目标列，原地更新匹配的键，并按确定性的排序顺序追加新键。
+
+
+## 提示词契约用于 `run`
+
+对于 CSV（`.csv`），`run` 支持两种布局：
+
+对于 Flutter ARB (`.arb`)，`run` 仅翻译消息键，保留诸如 `@key` 之类的元数据键，并在写入时将 `@@locale` 规范化为目标语言环境。
+
+## 标志
+
+- MDX `import` 和 `export` 行
+- Markdown 锚点，例如链接目标
+- 行内代码片段
+- 围栏代码块（```` ``` ```` 和 `~~~`）
+- frontmatter 块（`---`）
