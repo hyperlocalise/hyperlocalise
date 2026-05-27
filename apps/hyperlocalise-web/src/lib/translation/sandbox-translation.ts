@@ -23,11 +23,11 @@ export async function createTranslationSandbox(): Promise<{ sandboxId: string }>
     timeout: sandboxTimeoutMs,
   });
 
-  return { sandboxId: sandbox.sandboxId };
+  return { sandboxId: sandbox.name };
 }
 
 export async function stopTranslationSandbox(sandboxId: string): Promise<void> {
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   await sandbox.stop();
 }
 
@@ -37,7 +37,7 @@ export async function runSandboxCommand(
   args: string[],
   options?: { env?: Record<string, string>; output?: "stdout" | "stderr" | "both" },
 ): Promise<{ exitCode: number; output: string }> {
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   const result = await sandbox.runCommand({
     cmd: command,
     args,
@@ -82,7 +82,7 @@ export async function writeFilesToSandbox(
   sandboxId: string,
   files: Array<{ path: string; content: string | Buffer }>,
 ): Promise<void> {
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   await sandbox.writeFiles(
     files.map((file) => ({
       path: file.path,
@@ -190,7 +190,7 @@ export async function runTranslationCommand(
 }
 
 export async function readTranslatedFile(sandboxId: string, outputFile: string): Promise<Buffer> {
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   const content = await sandbox.readFileToBuffer({ path: outputFile });
   if (!content) {
     throw new Error(`failed to read translated file: ${outputFile}`);

@@ -117,13 +117,13 @@ async function createFixSandbox(
     timeout: sandboxTimeoutMs,
   });
 
-  return { sandboxId: sandbox.sandboxId, token };
+  return { sandboxId: sandbox.name, token };
 }
 
 async function stopFixSandbox(sandboxId: string): Promise<void> {
   "use step";
 
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   await sandbox.stop();
 }
 
@@ -132,7 +132,7 @@ async function runSandboxCommand(
   command: string,
   args: string[],
 ): Promise<{ exitCode: number; output: string }> {
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   const result = await sandbox.runCommand(command, args);
   return {
     exitCode: result.exitCode,

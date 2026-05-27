@@ -21,13 +21,13 @@ async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
     timeout: sandboxTimeoutMs,
   });
 
-  return { sandboxId: sandbox.sandboxId };
+  return { sandboxId: sandbox.name };
 }
 
 async function stopTranslationSandbox(sandboxId: string): Promise<void> {
   "use step";
 
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   await sandbox.stop();
 }
 
@@ -37,7 +37,7 @@ async function runSandboxCommand(
   args: string[],
   options?: { env?: Record<string, string> },
 ): Promise<{ exitCode: number; output: string }> {
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   const result = await sandbox.runCommand({
     cmd: command,
     args,
@@ -123,7 +123,7 @@ async function writeTempConfig(
 ): Promise<void> {
   "use step";
 
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   await sandbox.writeFiles([{ path: configPath, content: configContent }]);
 }
 
@@ -157,7 +157,7 @@ async function runTranslationCommand(
 async function readTranslatedFile(sandboxId: string, outputFile: string): Promise<Buffer> {
   "use step";
 
-  const sandbox = await Sandbox.get({ sandboxId });
+  const sandbox = await Sandbox.get({ name: sandboxId });
   const content = await sandbox.readFileToBuffer({ path: outputFile });
   if (!content) {
     throw new Error(`failed to read translated file: ${outputFile}`);
