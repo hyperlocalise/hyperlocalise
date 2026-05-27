@@ -137,8 +137,8 @@ func TestScreenshotsService_ListScreenshot(t *testing.T) {
 			opts: &model.ScreenshotListOptions{
 				OrderBy:         "createdAt desc,name,tagsCount",
 				StringID:        1, // TODO: StringID is deprecated
-				LabelIDs:        []string{"1", "2", "3"},
-				ExcludeLabelIDs: []string{"1", "2", "3"},
+				LabelIDs:        []int{1, 2, 3},
+				ExcludeLabelIDs: []int{1, 2, 3},
 				ListOptions: model.ListOptions{
 					Limit:  10,
 					Offset: 20,

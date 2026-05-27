@@ -95,3 +95,9 @@
 **Learning:** In Crowdin API v2, `groupId` is an optional field that can be set to `0` to indicate the root group. The Go SDK used an `int` which, when combined with `omitempty`, would drop the field if set to `0`. Additionally, the `tmPenalties` field in the `Project` response was untyped (`any`), making it difficult to use correctly in Go.
 
 **Action:** Updated `ProjectsAddRequest.GroupID` to `*int` in `model/projects.go` to allow explicit `0` values. Changed `Project.TMPenalties` from `any` to `*ProjectTMPenalties` for better type safety. Fixed a documentation typo in `ProjectsListResponse`. Updated unit tests in `projects_test.go` to verify correct serialization and parsing with the new types.
+
+## 2026-08-01 - Improve Label and Screenshot model parity and type consistency
+
+**Learning:** The Crowdin Label response model was missing the `projectId` field, which is standard for most Crowdin resources. Additionally, `ScreenshotListOptions` used `[]string` for `StringIDs`, `LabelIDs`, and `ExcludeLabelIDs`, which is inconsistent with other models that use `[]int` for numeric identifiers and with the official API contract.
+
+**Action:** Added `ProjectID` to the `Label` struct in `model/labels.go`. Updated `ScreenshotListOptions` in `model/screenshot.go` to use `[]int` for `StringIDs`, `LabelIDs`, and `ExcludeLabelIDs`. Updated corresponding contract tests in `labels_test.go`, `screenshot_test.go`, and `screenshots_test.go` to reflect these changes and ensure correct query parameter encoding.
