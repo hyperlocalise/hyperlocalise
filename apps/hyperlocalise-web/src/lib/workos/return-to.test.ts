@@ -71,9 +71,9 @@ describe("sanitizeReturnTo", () => {
   });
 
   it("should preserve GitHub install callback URLs with encoded query separator", () => {
-    expect(
-      sanitizeReturnTo("/auth/github/callback%3Finstallation_id=123456&state=abc"),
-    ).toBe("/auth/github/callback%3Finstallation_id=123456&state=abc");
+    expect(sanitizeReturnTo("/auth/github/callback%3Finstallation_id=123456&state=abc")).toBe(
+      "/auth/github/callback%3Finstallation_id=123456&state=abc",
+    );
   });
 
   it("should reject double-encoded slashes that lead to open redirects", () => {
