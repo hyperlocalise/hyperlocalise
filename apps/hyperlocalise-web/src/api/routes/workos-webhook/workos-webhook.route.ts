@@ -67,7 +67,11 @@ function verifyWorkosWebhookSignature(input: {
   const providedBuffer = Buffer.from(parsed.signature);
   const expectedBuffer = Buffer.from(expectedSignature);
 
-  return timingSafeEqual(providedBuffer, expectedBuffer);
+  try {
+    return timingSafeEqual(providedBuffer, expectedBuffer);
+  } catch {
+    return false;
+  }
 }
 
 function readString(data: Record<string, unknown>, ...keys: string[]): string | undefined {
