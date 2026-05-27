@@ -35,7 +35,7 @@
     "@tanstack/react-query": "5.100.14",
     "@vercel/analytics": "2.0.1",
     "@vercel/blob": "^2.3.3",
-    "@vercel/sandbox": "1.10.2",
+    "@vercel/sandbox": "2.0.0",
     "@workos-inc/authkit-nextjs": "4.1.0",
     "@workos-inc/node": "^9.3.0",
     "@xyflow/react": "^12.10.2",

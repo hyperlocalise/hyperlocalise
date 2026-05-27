@@ -23,7 +23,7 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
     args: string[],
     options: { output?: "both" | "stdout" } = {},
   ): Promise<WorkspaceCommandResult> {
-    const sandbox = await Sandbox.get({ sandboxId: this.id });
+    const sandbox = await Sandbox.get({ name: this.id });
     const result = await sandbox.runCommand(command, args);
     return {
       exitCode: result.exitCode,
@@ -93,7 +93,7 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
   }
 
   async stop(): Promise<void> {
-    const sandbox = await Sandbox.get({ sandboxId: this.id });
+    const sandbox = await Sandbox.get({ name: this.id });
     await sandbox.stop();
   }
 }
@@ -107,7 +107,7 @@ export async function createVercelSandboxWorkspace(input: {
     timeout: input.timeoutMs ?? defaultSandboxTimeoutMs,
   });
 
-  return new VercelSandboxRuntime(sandbox.sandboxId);
+  return new VercelSandboxRuntime(sandbox.name);
 }
 
 export function getVercelSandboxWorkspace(sandboxId: string): WorkspaceRuntime {

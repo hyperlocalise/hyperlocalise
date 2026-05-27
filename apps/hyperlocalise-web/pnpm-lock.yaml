@@ -79,8 +79,8 @@ importers:
         specifier: ^2.3.3
         version: 2.4.0
       '@vercel/sandbox':
-        specifier: 1.10.2
-        version: 1.10.2
+        specifier: 2.0.0
+        version: 2.0.0
       '@workos-inc/authkit-nextjs':
         specifier: 4.1.0
         version: 4.1.0(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
@@ -3167,8 +3167,8 @@ packages:
     resolution: {integrity: sha512-4Uk9LOvDPVYqBJGrNDk4fdLte4CmFERXCUJI2y7SRYX1d//dI96Ww7sgKZF4+YDj/YaBXoCZ11AU0HYkVwW9Eg==}
     engines: {node: '>=20.0.0'}
 
-  '@vercel/sandbox@1.10.2':
-    resolution: {integrity: sha512-rWhYfIyW0Va0gFxtz434LhVirV+eQs+AK0QQWtsOPw2oTvOSA4iogQqemRqvRPPbqI8nfZOz6kbCsytVa20gdw==}
+  '@vercel/sandbox@2.0.0':
+    resolution: {integrity: sha512-fmg6lNfDJdhQ43Njc0jUIXTQP2wKPY6tJszeVq5C25v1XsDK3wwnlFBQfSKzZfkMkh1N269pPgOopjTEqJJamA==}
 
   '@voidzero-dev/vite-plus-core@0.1.15':
     resolution: {integrity: sha512-0qAbqwcvQwiC8xGKSSuFtsjJUEM4LZzpXF7dffRazghGEQ8HH8NAvVryp/PiMSFwreJlV3rujwL4amKjnwCHpg==}
@@ -5332,6 +5332,9 @@ packages:
 
   jose@6.2.2:
     resolution: {integrity: sha512-d7kPDd34KO/YnzaDOlikGpOurfF0ByC2sEV4cANCtdqLlTfBlw2p14O/5d/zv40gJPbIQxfES3nSx1/oYNyuZQ==}
+
+  jose@6.2.3:
+    resolution: {integrity: sha512-YYVDInQKFJfR/xa3ojUTl8c2KoTwiL1R5Wg9YCydwH0x0B9grbzlg5HC7mMjCtUJjbQ/YnGEZIhI5tCgfTb4Hw==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -10248,11 +10251,12 @@ snapshots:
       mixpart: 0.0.6
       picocolors: 1.1.1
 
-  '@vercel/sandbox@1.10.2':
+  '@vercel/sandbox@2.0.0':
     dependencies:
       '@vercel/oidc': 3.2.0
       '@workflow/serde': 4.1.0-beta.2
       async-retry: 1.3.3
+      jose: 6.2.3
       jsonlines: 0.1.1
       ms: 2.1.3
       picocolors: 1.1.1
@@ -12570,6 +12574,8 @@ snapshots:
   jose@5.10.0: {}
 
   jose@6.2.2: {}
+
+  jose@6.2.3: {}
 
   js-tokens@4.0.0: {}
 
