@@ -19,7 +19,7 @@ const {
   const buildHyperlocaliseAgentInstructionsMock = vi.fn(() => "sys");
   const buildToolsMock = vi.fn(() => ({}));
   const stopMock = vi.fn();
-  const createMock = vi.fn(async () => ({ sandboxId: "sbx_1" }));
+  const createMock = vi.fn(async () => ({ name: "sbx_1" }));
   const getMock = vi.fn(async () => ({ stop: stopMock }));
   const getInstallationOctokitMock = vi.fn(async () => ({ auth: authMock }));
   const generateMock = vi.fn(async () => ({ text: "done" }));
@@ -74,7 +74,7 @@ describe("repositoryAgentWorkflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authMock.mockResolvedValue({ token: "installation-token" });
-    createMock.mockResolvedValue({ sandboxId: "sbx_1" });
+    createMock.mockResolvedValue({ name: "sbx_1" });
     generateMock.mockResolvedValue({ text: "done" });
     getInstallationOctokitMock.mockResolvedValue({ auth: authMock });
     getMock.mockResolvedValue({ stop: stopMock });
