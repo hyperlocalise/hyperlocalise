@@ -313,20 +313,20 @@ async function resolveRevocationTarget(
     return null;
   }
 
-  const [organization, user] = await Promise.all([
-    database
-      .select({ id: schema.organizations.id })
-      .from(schema.organizations)
-      .where(eq(schema.organizations.workosOrganizationId, input.workosOrganizationId))
-      .limit(1)
-      .then(([row]) => row),
-    database
-      .select({ id: schema.users.id })
-      .from(schema.users)
-      .where(eq(schema.users.workosUserId, input.workosUserId))
-      .limit(1)
-      .then(([row]) => row),
-  ]);
+  const [orgRow] = await database
+    .select({ id: schema.organizations.id })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.workosOrganizationId, input.workosOrganizationId))
+    .limit(1);
+
+  const [userRow] = await database
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(eq(schema.users.workosUserId, input.workosUserId))
+    .limit(1);
+
+  const organization = orgRow;
+  const user = userRow;
 
   if (!organization || !user) {
     return null;

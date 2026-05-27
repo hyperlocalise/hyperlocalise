@@ -345,7 +345,7 @@ describe("memberRoutes", () => {
     ).toBe("member");
   });
 
-  it("restores local membership when WorkOS removal fails", async () => {
+  it("preserves local membership and team data when WorkOS removal fails", async () => {
     deleteOrganizationMembershipMock.mockRejectedValueOnce(new Error("boom"));
     const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
