@@ -6,6 +6,8 @@ import { bodyLimit } from "hono/body-limit";
 import { createLogger } from "@/lib/log";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { enqueueProviderSyncIntentFromWebhookEvent } from "@/lib/providers/provider-sync-intent-worker";
+import { resolveSyncKindFromWebhookEvent } from "@/lib/providers/provider-webhook-sync-mapping";
 import {
   findActiveProviderWebhookSubscription,
   insertProviderWebhookEventIdempotent,
@@ -183,17 +185,42 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
     organizationId: string;
     subscriptionId: string;
     providerKind: ExternalTmsProviderKind;
+    providerCredentialId: string;
+    projectId?: string | null;
+    eventType: string;
+    resourceType?: string | null;
+    resourceId?: string | null;
   }) {
-    const queued = await queue.enqueue({
+    const syncKind = resolveSyncKindFromWebhookEvent({
+      eventType: input.eventType,
+      resourceType: input.resourceType,
+    });
+
+    const { intent } = await enqueueProviderSyncIntentFromWebhookEvent({
+      organizationId: input.organizationId,
+      providerKind: input.providerKind,
+      providerCredentialId: input.providerCredentialId,
+      projectId: input.projectId,
+      syncKind,
       providerWebhookEventId: input.providerWebhookEventId,
+      resourceId: input.resourceId,
+    });
+
+    await queue.enqueue({
+      providerWebhookEventId: input.providerWebhookEventId,
+      providerSyncIntentId: intent.id,
       organizationId: input.organizationId,
       subscriptionId: input.subscriptionId,
       providerKind: input.providerKind,
     } satisfies ProviderWebhookReconciliationEventData);
 
-    return queued.ids[0] ?? null;
-  }
+    await updateProviderWebhookEventSyncIntent({
+      eventId: input.providerWebhookEventId,
+      organizationId: input.organizationId,
+      providerSyncIntentId: intent.id,
+    });
 
+<<<<<<< HEAD
   async function recordSyncIntent(input: {
     providerWebhookEventId: string;
     organizationId: string;
@@ -220,6 +247,9 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         "failed to record webhook sync intent",
       );
     }
+=======
+    return intent.id;
+>>>>>>> c021f50 (feat(web): add provider sync intent queue with lease coalescing)
   }
 
   return new Hono().post(
@@ -307,12 +337,11 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
             organizationId: subscription.organizationId,
             subscriptionId: subscription.id,
             providerKind: providerKindParam,
-          });
-          await recordSyncIntent({
-            providerWebhookEventId: stored.event.id,
-            organizationId: subscription.organizationId,
-            providerSyncIntentId,
-            log,
+            providerCredentialId: subscription.providerCredentialId,
+            projectId: subscription.projectId,
+            eventType: stored.event.eventType,
+            resourceType: stored.event.resourceType,
+            resourceId: stored.event.resourceId,
           });
 
           log.info(
@@ -336,12 +365,11 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         organizationId: subscription.organizationId,
         subscriptionId: subscription.id,
         providerKind: providerKindParam,
-      });
-      await recordSyncIntent({
-        providerWebhookEventId: stored.event.id,
-        organizationId: subscription.organizationId,
-        providerSyncIntentId,
-        log,
+        providerCredentialId: subscription.providerCredentialId,
+        projectId: subscription.projectId,
+        eventType: descriptor.eventType,
+        resourceType: descriptor.resourceType,
+        resourceId: descriptor.resourceId,
       });
 
       log.info(

@@ -104,6 +104,9 @@ afterEach(async () => {
 
   if (organizationIds.length > 0) {
     await db
+      .delete(schema.providerSyncIntents)
+      .where(inArray(schema.providerSyncIntents.organizationId, organizationIds));
+    await db
       .delete(schema.providerWebhookEvents)
       .where(inArray(schema.providerWebhookEvents.organizationId, organizationIds));
     await db
@@ -137,7 +140,7 @@ describe("tmsWebhookRoutes", () => {
       providerWebhookReconciliationQueue: {
         async enqueue(event) {
           queuedEvents.push(event);
-          return { ids: [syncIntentId] };
+          return { ids: [randomUUID()] };
         },
       },
     });
@@ -152,9 +155,24 @@ describe("tmsWebhookRoutes", () => {
 
     expect(response.status).toBe(202);
     await expect(response.json()).resolves.toEqual({ ok: true, ignored: false });
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, organizationId));
+
+    expect(intent).toMatchObject({
+      organizationId,
+      providerKind: "crowdin",
+      syncKind: "file_key_scan",
+      cause: "webhook",
+      status: "pending",
+    });
+    expect(intent?.eventReferences.length).toBeGreaterThan(0);
+
     expect(queuedEvents).toEqual([
       {
         providerWebhookEventId: expect.any(String),
+        providerSyncIntentId: intent?.id,
         organizationId,
         subscriptionId: subscription.id,
         providerKind: "crowdin",
@@ -173,7 +191,7 @@ describe("tmsWebhookRoutes", () => {
       dedupeKey: "evt-1",
       resourceType: "file",
       resourceId: "file-1",
-      providerSyncIntentId: syncIntentId,
+      providerSyncIntentId: intent?.id,
     });
   });
 
@@ -288,7 +306,7 @@ describe("tmsWebhookRoutes", () => {
           }
 
           queuedEvents.push(event);
-          return { ids: [syncIntentId] };
+          return { ids: [randomUUID()] };
         },
       },
     });
@@ -307,9 +325,15 @@ describe("tmsWebhookRoutes", () => {
       ignored: false,
       duplicate: true,
     });
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, subscription.organizationId));
+
     expect(queuedEvents).toEqual([
       {
         providerWebhookEventId: expect.any(String),
+        providerSyncIntentId: intent?.id,
         organizationId: subscription.organizationId,
         subscriptionId: subscription.id,
         providerKind: "crowdin",
@@ -322,7 +346,7 @@ describe("tmsWebhookRoutes", () => {
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
     expect(event).toMatchObject({
       providerEventId: "evt-retry",
-      providerSyncIntentId: syncIntentId,
+      providerSyncIntentId: intent?.id,
       processingStatus: "pending",
     });
   });
