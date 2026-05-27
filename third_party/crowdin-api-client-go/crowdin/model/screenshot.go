@@ -75,13 +75,13 @@ type ScreenshotListOptions struct {
 	// String Identifiers.
 	// Example: stringIds=1,2,3,4,5
 	// Note: Cannot be used with stringId in the same request.
-	StringIDs []string `json:"stringIds,omitempty"`
+	StringIDs []int `json:"stringIds,omitempty"`
 	// Label Identifiers.
 	// Example: labelIds=1,2,3
-	LabelIDs []string `json:"labelIds,omitempty"`
+	LabelIDs []int `json:"labelIds,omitempty"`
 	// Label Identifiers to exclude.
 	// Example: excludeLabelIds=1,2,3
-	ExcludeLabelIDs []string `json:"excludeLabelIds,omitempty"`
+	ExcludeLabelIDs []int `json:"excludeLabelIds,omitempty"`
 
 	ListOptions
 }

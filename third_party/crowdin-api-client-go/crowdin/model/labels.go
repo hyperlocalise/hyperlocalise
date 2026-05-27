@@ -7,8 +7,9 @@ import (
 
 // Label represents a Crowdin label.
 type Label struct {
-	ID    int    `json:"id"`
-	Title string `json:"title"`
+	ID        int    `json:"id"`
+	ProjectID int    `json:"projectId"`
+	Title     string `json:"title"`
 }
 
 // LabelResponse defines the structure of a response when
