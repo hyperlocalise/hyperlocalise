@@ -9,11 +9,14 @@ import { createProjectTestFixture } from "../../api/routes/project/project.fixtu
 import { buildProviderSyncIntentLeaseKey } from "./provider-sync-intent-lease";
 import {
   resolveProviderSyncDispatchRunner,
+  loadProviderSyncIntentApprovedTranslations,
   type ProviderSyncIntentDispatcher,
 } from "./provider-sync-intent-dispatch";
 import { processProviderSyncIntent } from "./provider-sync-intent-worker";
 import { startProviderSyncRun } from "./provider-sync-runs";
 import { resolveSyncKindFromWebhookEvent } from "./provider-webhook-sync-mapping";
+import { completeAgentRun, createAgentRun, startAgentRun } from "./agent-runs";
+import { upsertExternalJob } from "./organization-external-tms-jobs";
 import {
   claimProviderSyncIntent,
   enqueueProviderSyncIntent,
@@ -78,6 +81,56 @@ describe("provider sync intents", () => {
       .from(schema.providerSyncIntents)
       .where(eq(schema.providerSyncIntents.organizationId, project.organizationId));
     expect(intents).toHaveLength(1);
+  });
+
+  it("atomically coalesces concurrent webhook events on the same lease key", async () => {
+    const project = await createTestProject();
+
+    const results = await Promise.all(
+      Array.from({ length: 8 }, (_, index) =>
+        enqueueProviderSyncIntent({
+          organizationId: project.organizationId,
+          providerKind: "phrase",
+          projectId: project.id,
+          syncKind: "job_task_scan",
+          resourceId: "job-1",
+          cause: "webhook",
+          eventReferences: [`event-${index}`],
+        }),
+      ),
+    );
+
+    expect(new Set(results.map((result) => result.intent.id))).toHaveSize(1);
+    expect(results.filter((result) => !result.coalesced)).toHaveLength(1);
+
+    const intents = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, project.organizationId));
+    expect(intents).toHaveLength(1);
+    expect(new Set(intents[0]?.eventReferences)).toEqual(
+      new Set(Array.from({ length: 8 }, (_, index) => `event-${index}`)),
+    );
+  });
+
+  it("builds lease keys without delimiter collisions", async () => {
+    const first = buildProviderSyncIntentLeaseKey({
+      organizationId: "00000000-0000-0000-0000-000000000001",
+      providerKind: "phrase",
+      projectId: "project",
+      syncKind: "job_task_scan",
+      resourceId: "job_task_scan:resource",
+    });
+    const second = buildProviderSyncIntentLeaseKey({
+      organizationId: "00000000-0000-0000-0000-000000000001",
+      providerKind: "phrase",
+      projectId: "project:job_task_scan",
+      syncKind: "job_task_scan",
+      resourceId: "resource",
+    });
+
+    expect(first).toMatch(/^sha256:[a-f0-9]{64}$/);
+    expect(first).not.toBe(second);
   });
 
   it("releases expired leases and allows reclaim", async () => {
@@ -155,6 +208,78 @@ describe("provider sync intents", () => {
         resourceType: "project",
       }),
     ).toBe("project_scan");
+    expect(
+      resolveSyncKindFromWebhookEvent({
+        eventType: "system.ping",
+        resourceType: "webhook",
+      }),
+    ).toBe("unknown");
+  });
+
+  it("loads accepted translations for push translation intents from provider jobs", async () => {
+    const project = await createTestProject();
+    const externalJob = await upsertExternalJob({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      providerKind: "phrase",
+      externalJobId: "phrase-job-1",
+      externalStatus: "in_progress",
+    });
+    const run = await createAgentRun({
+      organizationId: project.organizationId,
+      providerKind: "phrase",
+      externalJobId: "phrase-job-1",
+      kind: "translate",
+      hyperlocaliseJobId: externalJob.id,
+    });
+
+    await startAgentRun({ runId: run.id, organizationId: project.organizationId });
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: project.organizationId,
+      changedItems: [
+        {
+          itemId: "string-1:fr",
+          externalStringId: "string-1",
+          key: "hello",
+          locale: "fr",
+          sourceText: "Hello",
+          from: "",
+          to: "Bonjour",
+          reviewState: "accepted",
+          changedFields: ["target"],
+          warnings: {},
+        },
+        {
+          itemId: "string-2:fr",
+          externalStringId: "string-2",
+          key: "bye",
+          locale: "fr",
+          sourceText: "Goodbye",
+          from: "",
+          to: "Au revoir",
+          reviewState: "pending",
+          changedFields: ["target"],
+          warnings: {},
+        },
+      ],
+    });
+
+    await expect(
+      loadProviderSyncIntentApprovedTranslations({
+        organizationId: project.organizationId,
+        projectId: project.id,
+        providerKind: "phrase",
+        externalJobId: "phrase-job-1",
+      }),
+    ).resolves.toEqual([
+      {
+        externalStringId: "string-1",
+        key: "hello",
+        locale: "fr",
+        text: "Bonjour",
+      },
+    ]);
   });
 
   it("processes intents with an injected dispatcher", async () => {

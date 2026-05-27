@@ -30,10 +30,14 @@ import { fetchSmartlingTranslationMemories } from "@/lib/providers/smartling/sma
 
 import type { ProviderSyncIntent } from "@/lib/database/types";
 
+import { collectAcceptedAgentRunProposalsForJob } from "./agent-run-proposals";
+import { listAgentRuns } from "./agent-runs";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
+import { getExternalJobByProviderJobId } from "./organization-external-tms-jobs";
 import { getProviderContentPuller } from "./provider-content-pullers";
 import type { ProviderSyncIntentKind } from "./provider-sync-intent-kinds";
 import { getProviderTranslationPusher } from "./provider-translation-pushers";
+import type { ExternalTmsApprovedTranslationUpload } from "./external-tms-content-sync";
 
 export type ProviderSyncIntentDispatchResult = {
   runId: string;
@@ -64,6 +68,74 @@ function resolveExternalJobId(intent: ProviderSyncIntent) {
   }
 
   return externalJobId;
+}
+
+const PROVIDER_SYNC_AGENT_RUNS_PAGE_SIZE = 200;
+
+async function listAllAgentRunsForProviderJob(input: {
+  organizationId: string;
+  hyperlocaliseJobId: string;
+}) {
+  const runs: Awaited<ReturnType<typeof listAgentRuns>> = [];
+  let offset = 0;
+
+  while (true) {
+    const page = await listAgentRuns({
+      organizationId: input.organizationId,
+      hyperlocaliseJobId: input.hyperlocaliseJobId,
+      limit: PROVIDER_SYNC_AGENT_RUNS_PAGE_SIZE,
+      offset,
+    });
+
+    runs.push(...page);
+
+    if (page.length < PROVIDER_SYNC_AGENT_RUNS_PAGE_SIZE) {
+      break;
+    }
+
+    offset += PROVIDER_SYNC_AGENT_RUNS_PAGE_SIZE;
+  }
+
+  return runs;
+}
+
+export async function loadProviderSyncIntentApprovedTranslations(input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalJobId: string;
+}): Promise<ExternalTmsApprovedTranslationUpload[]> {
+  const externalJob = await getExternalJobByProviderJobId(input);
+
+  if (!externalJob) {
+    return [];
+  }
+
+  const details = externalJob.external_job_details;
+  const hyperlocaliseJobIds = [
+    ...new Set(
+      [details.jobId, details.linkedJobId].filter(
+        (jobId): jobId is string => typeof jobId === "string" && jobId.length > 0,
+      ),
+    ),
+  ];
+  const runs = (
+    await Promise.all(
+      hyperlocaliseJobIds.map((hyperlocaliseJobId) =>
+        listAllAgentRunsForProviderJob({
+          organizationId: input.organizationId,
+          hyperlocaliseJobId,
+        }),
+      ),
+    )
+  ).flat();
+
+  return collectAcceptedAgentRunProposalsForJob({ runs }).map((proposal) => ({
+    externalStringId: proposal.externalStringId,
+    key: proposal.key,
+    locale: proposal.locale,
+    text: proposal.to,
+  }));
 }
 
 const projectFetchers: Partial<
@@ -219,13 +291,21 @@ export async function dispatchProviderSyncIntent(
       if (!pushTranslations) {
         throw new Error("provider_sync_not_implemented");
       }
+      const projectId = requireProjectId(intent);
+      const externalJobId = resolveExternalJobId(intent);
+      const translations = await loadProviderSyncIntentApprovedTranslations({
+        organizationId: intent.organizationId,
+        projectId,
+        providerKind: intent.providerKind,
+        externalJobId,
+      });
 
       const result = await pushExternalTmsTranslations({
         organizationId: intent.organizationId,
-        projectId: requireProjectId(intent),
+        projectId,
         providerKind: intent.providerKind,
-        externalJobId: resolveExternalJobId(intent),
-        translations: [],
+        externalJobId,
+        translations,
         pushTranslations,
       });
 

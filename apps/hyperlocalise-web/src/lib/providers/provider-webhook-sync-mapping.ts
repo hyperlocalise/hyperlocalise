@@ -1,9 +1,11 @@
 import type { ProviderSyncIntentKind } from "./provider-sync-intent-kinds";
 
+export type ProviderWebhookSyncKind = ProviderSyncIntentKind | "unknown";
+
 export function resolveSyncKindFromWebhookEvent(input: {
   eventType: string;
   resourceType?: string | null;
-}): ProviderSyncIntentKind {
+}): ProviderWebhookSyncKind {
   const eventType = input.eventType.toLowerCase();
   const resourceType = input.resourceType?.toLowerCase() ?? null;
 
@@ -50,5 +52,5 @@ export function resolveSyncKindFromWebhookEvent(input: {
     return "pull_content";
   }
 
-  return "job_task_scan";
+  return "unknown";
 }

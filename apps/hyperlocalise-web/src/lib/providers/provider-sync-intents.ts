@@ -1,4 +1,4 @@
-import { and, eq, inArray, or, sql } from "drizzle-orm";
+import { and, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type {
@@ -18,6 +18,7 @@ import {
 export const PROVIDER_SYNC_INTENT_LEASE_MS = 5 * 60 * 1000;
 export const PROVIDER_SYNC_INTENT_DEFAULT_MAX_ATTEMPTS = 5;
 const ACTIVE_INTENT_STATUSES: ProviderSyncIntentStatus[] = ["pending", "running", "retryable"];
+const ACTIVE_INTENT_TARGET_WHERE = sql`${schema.providerSyncIntents.status} in ('pending', 'running', 'retryable')`;
 
 export type EnqueueProviderSyncIntentInput = {
   organizationId: string;
@@ -40,6 +41,25 @@ export type EnqueueProviderSyncIntentResult = {
 
 function mergeUniqueIds(existing: string[], incoming: string[]) {
   return [...new Set([...existing, ...incoming].filter((value) => value.length > 0))];
+}
+
+type ProviderSyncIntentJsonbStringArrayColumn =
+  | typeof schema.providerSyncIntents.eventReferences
+  | typeof schema.providerSyncIntents.resourceIds;
+
+function mergeJsonbStringArray(
+  column: ProviderSyncIntentJsonbStringArrayColumn,
+  excludedColumn: string,
+) {
+  return sql<string[]>`(
+    select coalesce(jsonb_agg(value order by first_ordinal), '[]'::jsonb)
+    from (
+      select value, min(ordinality) as first_ordinal
+      from jsonb_array_elements_text(${column} || excluded.${sql.identifier(excludedColumn)}) with ordinality as merged(value, ordinality)
+      where length(value) > 0
+      group by value
+    ) unique_values
+  )`;
 }
 
 function assertSupportedSyncKind(
@@ -84,34 +104,7 @@ export async function enqueueProviderSyncIntent(
     input.resourceId ? [input.resourceId] : [],
   );
 
-  const existing = await findActiveProviderSyncIntentByLeaseKey(leaseKey);
-  if (existing) {
-    const mergedEventReferences = mergeUniqueIds(existing.eventReferences, eventReferences);
-    const mergedResourceIds = mergeUniqueIds(existing.resourceIds, resourceIds);
-    const nextPriority = Math.max(existing.priority, input.priority ?? 0);
-
-    const [intent] = await db
-      .update(schema.providerSyncIntents)
-      .set({
-        eventReferences: mergedEventReferences,
-        resourceIds: mergedResourceIds,
-        priority: nextPriority,
-        ...(input.providerCredentialId !== undefined
-          ? { providerCredentialId: input.providerCredentialId }
-          : {}),
-        updatedAt: new Date(),
-      })
-      .where(eq(schema.providerSyncIntents.id, existing.id))
-      .returning();
-
-    if (!intent) {
-      throw new Error("Failed to coalesce provider sync intent");
-    }
-
-    return { intent, coalesced: true };
-  }
-
-  const [intent] = await db
+  const [row] = await db
     .insert(schema.providerSyncIntents)
     .values({
       organizationId: input.organizationId,
@@ -128,13 +121,33 @@ export async function enqueueProviderSyncIntent(
       maxAttempts: input.maxAttempts ?? PROVIDER_SYNC_INTENT_DEFAULT_MAX_ATTEMPTS,
       status: "pending",
     })
-    .returning();
+    .onConflictDoUpdate({
+      target: schema.providerSyncIntents.leaseKey,
+      targetWhere: ACTIVE_INTENT_TARGET_WHERE,
+      set: {
+        eventReferences: mergeJsonbStringArray(
+          schema.providerSyncIntents.eventReferences,
+          "event_references",
+        ),
+        resourceIds: mergeJsonbStringArray(schema.providerSyncIntents.resourceIds, "resource_ids"),
+        priority: sql`greatest(${schema.providerSyncIntents.priority}, excluded.priority)`,
+        ...(input.providerCredentialId !== undefined
+          ? { providerCredentialId: sql`excluded.provider_credential_id` }
+          : {}),
+        updatedAt: new Date(),
+      },
+    })
+    .returning({
+      ...getTableColumns(schema.providerSyncIntents),
+      inserted: sql<boolean>`xmax = 0`,
+    });
 
-  if (!intent) {
+  if (!row) {
     throw new Error("Failed to enqueue provider sync intent");
   }
 
-  return { intent, coalesced: false };
+  const { inserted, ...intent } = row;
+  return { intent, coalesced: !inserted };
 }
 
 export async function releaseExpiredProviderSyncIntentLeases(input?: { now?: Date }) {

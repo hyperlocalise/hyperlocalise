@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { ProviderSyncIntentKind } from "./provider-sync-intent-kinds";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
@@ -8,14 +10,13 @@ export function buildProviderSyncIntentLeaseKey(input: {
   syncKind: ProviderSyncIntentKind;
   resourceId?: string | null;
 }) {
-  const projectSegment = input.projectId ?? "";
-  const resourceSegment = input.resourceId ?? "";
-
-  return [
+  const keyParts = [
     input.organizationId,
     input.providerKind,
-    projectSegment,
+    input.projectId ?? null,
     input.syncKind,
-    resourceSegment,
-  ].join(":");
+    input.resourceId ?? null,
+  ];
+
+  return `sha256:${createHash("sha256").update(JSON.stringify(keyParts)).digest("hex")}`;
 }

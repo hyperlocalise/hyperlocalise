@@ -195,7 +195,7 @@ describe("tmsWebhookRoutes", () => {
     });
   });
 
-  it("persists workflow run ids from the reconciliation queue", async () => {
+  it("persists provider sync intent ids for reconciliation", async () => {
     const { subscription } = await createSubscriptionFixture();
     const workflowRunId = "run_workflow_persisted789";
     const app = createApp({
@@ -213,11 +213,56 @@ describe("tmsWebhookRoutes", () => {
     const response = await postWebhook({ app, body });
     expect(response.status).toBe(202);
 
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, subscription.organizationId));
     const [event] = await db
       .select()
       .from(schema.providerWebhookEvents)
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
-    expect(event?.providerSyncIntentId).toBe(workflowRunId);
+    expect(event?.providerSyncIntentId).toBe(intent?.id);
+    expect(event?.providerSyncIntentId).not.toBe(workflowRunId);
+  });
+
+  it("skips unrecognized webhook event types without queueing reconciliation", async () => {
+    const { organizationId, subscription } = await createSubscriptionFixture();
+    const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue(event) {
+          queuedEvents.push(event);
+          return { ids: [randomUUID()] };
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-unknown-event-type",
+      event_type: "system.ping",
+      resource_type: "webhook",
+    });
+
+    const response = await postWebhook({ app, body });
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ ok: true, ignored: true });
+    expect(queuedEvents).toHaveLength(0);
+
+    const intents = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, organizationId));
+    expect(intents).toHaveLength(0);
+
+    const [event] = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(event).toMatchObject({
+      processingStatus: "skipped",
+      errorMessage: "unrecognized_provider_webhook_event",
+      providerSyncIntentId: null,
+    });
   });
 
   it("dedupes provider retries that use a new delivery id for the same event", async () => {
