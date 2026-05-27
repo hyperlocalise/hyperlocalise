@@ -1,5 +1,6 @@
 import { initLogger, log as evlog } from "evlog";
 import type { DrainFn, LogLevel, LoggerConfig } from "evlog";
+import { createBetterStackDrain } from 'evlog/better-stack'
 import type { Logger as ChatLogger } from "chat";
 
 const isProduction = process.env.NODE_ENV === "production";
@@ -123,6 +124,7 @@ function initializeLogger(config: Pick<LoggerConfig, "drain" | "silent"> = {}) {
     },
     minLevel: logLevelFromEnv(process.env.LOG_LEVEL),
     pretty: !isProduction,
+    drain: isProduction ? createBetterStackDrain() : undefined,
     redact: {
       paths: REDACTION_PATHS,
       builtins: false,
