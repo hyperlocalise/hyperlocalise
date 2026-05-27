@@ -182,6 +182,50 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
   const queue =
     options.providerWebhookReconciliationQueue ?? createProviderWebhookReconciliationQueue();
 
+  async function enqueueReconciliation(input: {
+    providerWebhookEventId: string;
+    organizationId: string;
+    subscriptionId: string;
+    providerKind: ExternalTmsProviderKind;
+  }) {
+    const queued = await queue.enqueue({
+      providerWebhookEventId: input.providerWebhookEventId,
+      organizationId: input.organizationId,
+      subscriptionId: input.subscriptionId,
+      providerKind: input.providerKind,
+    } satisfies ProviderWebhookReconciliationEventData);
+
+    return queued.ids[0] ?? null;
+  }
+
+  async function recordSyncIntent(input: {
+    providerWebhookEventId: string;
+    organizationId: string;
+    providerSyncIntentId: string | null;
+    log: ReturnType<typeof logger.child>;
+  }) {
+    if (!input.providerSyncIntentId || !isUuid(input.providerSyncIntentId)) {
+      return;
+    }
+
+    try {
+      await updateProviderWebhookEventSyncIntent({
+        eventId: input.providerWebhookEventId,
+        organizationId: input.organizationId,
+        providerSyncIntentId: input.providerSyncIntentId,
+      });
+    } catch (error) {
+      input.log.warn(
+        {
+          err: error,
+          providerSyncIntentId: input.providerSyncIntentId,
+          providerWebhookEventId: input.providerWebhookEventId,
+        },
+        "failed to record webhook sync intent",
+      );
+    }
+  }
+
   return new Hono().post(
     "/:providerKind",
     bodyLimit({
@@ -225,6 +269,10 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         log.info("ignoring webhook: subscription not found");
         return c.json({ ok: true, ignored: true }, 202);
       }
+      if (!subscription.webhookSecretPlaintext) {
+        log.error({ subscriptionId: subscription.id }, "webhook secret unavailable");
+        return c.json({ error: "webhook_secret_unavailable" }, 500);
+      }
 
       const verified = await verifier.verify({
         providerKind: providerKindParam,
@@ -254,25 +302,51 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
       });
 
       if (!stored.inserted || !stored.event) {
+        if (
+          stored.event?.processingStatus === "pending" &&
+          stored.event.providerSyncIntentId === null
+        ) {
+          const providerSyncIntentId = await enqueueReconciliation({
+            providerWebhookEventId: stored.event.id,
+            organizationId: subscription.organizationId,
+            subscriptionId: subscription.id,
+            providerKind: providerKindParam,
+          });
+          await recordSyncIntent({
+            providerWebhookEventId: stored.event.id,
+            organizationId: subscription.organizationId,
+            providerSyncIntentId,
+            log,
+          });
+
+          log.info(
+            {
+              subscriptionId: subscription.id,
+              providerSyncIntentId,
+              providerWebhookEventId: stored.event.id,
+            },
+            "webhook reconciliation requeued for pending duplicate",
+          );
+
+          return c.json({ ok: true, ignored: false, duplicate: true }, 202);
+        }
+
         log.info({ subscriptionId: subscription.id }, "ignoring duplicate webhook delivery");
         return c.json({ ok: true, ignored: true, duplicate: true }, 200);
       }
 
-      const queued = await queue.enqueue({
+      const providerSyncIntentId = await enqueueReconciliation({
         providerWebhookEventId: stored.event.id,
         organizationId: subscription.organizationId,
         subscriptionId: subscription.id,
         providerKind: providerKindParam,
-      } satisfies ProviderWebhookReconciliationEventData);
-      const providerSyncIntentId = queued.ids[0] ?? null;
-
-      if (providerSyncIntentId && isUuid(providerSyncIntentId)) {
-        await updateProviderWebhookEventSyncIntent({
-          eventId: stored.event.id,
-          organizationId: subscription.organizationId,
-          providerSyncIntentId,
-        });
-      }
+      });
+      await recordSyncIntent({
+        providerWebhookEventId: stored.event.id,
+        organizationId: subscription.organizationId,
+        providerSyncIntentId,
+        log,
+      });
 
       log.info(
         {

@@ -41,7 +41,7 @@ async function createOrganizationUser() {
   return { organizationId, userId };
 }
 
-async function createSubscriptionFixture() {
+async function createSubscriptionFixture(input: { webhookSecretPlaintext?: string | null } = {}) {
   const { organizationId, userId } = await createOrganizationUser();
   const credential = await upsertOrganizationExternalTmsProviderCredential({
     organizationId,
@@ -57,7 +57,10 @@ async function createSubscriptionFixture() {
     providerKind: "crowdin",
     providerWebhookId: "webhook-1",
     endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
-    webhookSecretPlaintext: "webhook-signing-secret",
+    webhookSecretPlaintext:
+      input.webhookSecretPlaintext === undefined
+        ? "webhook-signing-secret"
+        : input.webhookSecretPlaintext,
   });
 
   return { organizationId, subscription };
@@ -203,6 +206,59 @@ describe("tmsWebhookRoutes", () => {
     expect(rows).toHaveLength(1);
   });
 
+  it("requeues a pending duplicate when the first enqueue failed", async () => {
+    const { subscription } = await createSubscriptionFixture();
+    const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+    const syncIntentId = randomUUID();
+    let enqueueAttempts = 0;
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue(event) {
+          enqueueAttempts += 1;
+          if (enqueueAttempts === 1) {
+            throw new Error("queue unavailable");
+          }
+
+          queuedEvents.push(event);
+          return { ids: [syncIntentId] };
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-retry",
+      event_type: "file.updated",
+    });
+
+    const first = await postWebhook({ app, body });
+    const retry = await postWebhook({ app, body });
+
+    expect(first.status).toBe(500);
+    expect(retry.status).toBe(202);
+    await expect(retry.json()).resolves.toEqual({
+      ok: true,
+      ignored: false,
+      duplicate: true,
+    });
+    expect(queuedEvents).toEqual([
+      {
+        providerWebhookEventId: expect.any(String),
+        organizationId: subscription.organizationId,
+        subscriptionId: subscription.id,
+        providerKind: "crowdin",
+      },
+    ]);
+
+    const [event] = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(event).toMatchObject({
+      providerEventId: "evt-retry",
+      providerSyncIntentId: syncIntentId,
+      processingStatus: "pending",
+    });
+  });
+
   it("intentionally ignores unknown subscriptions", async () => {
     const app = createApp({
       providerWebhookReconciliationQueue: {
@@ -248,6 +304,32 @@ describe("tmsWebhookRoutes", () => {
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "invalid_signature" });
+
+    const rows = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("rejects active subscriptions when the webhook secret is unavailable", async () => {
+    const { subscription } = await createSubscriptionFixture({ webhookSecretPlaintext: null });
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue() {
+          throw new Error("unexpected enqueue");
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-no-secret",
+      event_type: "file.updated",
+    });
+
+    const response = await postWebhook({ app, body, signature: signatureFor(body) });
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({ error: "webhook_secret_unavailable" });
 
     const rows = await db
       .select()
