@@ -85,7 +85,7 @@ BEHAVIOR:
                   "",
                   "Repository specialist handoff requirements:",
                   "- Include the exact source text, key, file path, surrounding text, source locale, target locale, and repo hint when known.",
-                  "- Ask for localization context only: product surface, user intent, tone/register, placeholders, nearby copy, existing translations, and ambiguities.",
+                  "- Return localization context only: product surface, user intent, tone/register, placeholders, nearby copy, existing translations, and ambiguities.",
                   "- Do not ask for code changes, PR review, checks, or broad architecture analysis.",
                 ].join("\n")
               : instructions,
