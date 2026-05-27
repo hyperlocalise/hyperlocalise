@@ -144,7 +144,7 @@ const defaultVerifier: ProviderTmsWebhookVerifier = {
       providerWebhookId,
       providerEventId,
       eventType,
-      dedupeKey: firstString(payload["dedupe_key"], deliveryId, providerEventId) ?? providerEventId,
+      dedupeKey: firstString(payload["dedupe_key"], providerEventId) ?? providerEventId,
       deliveryId,
       resourceType,
       resourceId,

@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/database";
 
 import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
 import {
+  findActiveProviderWebhookSubscription,
   insertProviderWebhookEventIdempotent,
   insertProviderWebhookSubscription,
   updateProviderWebhookEventProcessingStatus,
@@ -142,6 +143,23 @@ describe("provider webhook storage", () => {
     }
 
     createdRecordsByTest.delete(testKey);
+  });
+
+  it("returns null webhook secret when decryption fails", async () => {
+    const { subscription } = await createSubscriptionFixture();
+
+    await db
+      .update(schema.providerWebhookSubscriptions)
+      .set({ webhookSecretKeyVersion: 999 })
+      .where(eq(schema.providerWebhookSubscriptions.id, subscription.id));
+
+    const loaded = await findActiveProviderWebhookSubscription({
+      providerKind: "crowdin",
+      providerWebhookId: subscription.providerWebhookId,
+    });
+
+    expect(loaded?.id).toBe(subscription.id);
+    expect(loaded?.webhookSecretPlaintext).toBeNull();
   });
 
   it("inserts webhook subscriptions with encrypted secret material", async () => {

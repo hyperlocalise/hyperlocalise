@@ -75,14 +75,21 @@ function postWebhook(input: {
   body: string;
   signature?: string;
   webhookId?: string;
+  deliveryId?: string;
 }) {
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "x-hyperlocalise-provider-webhook-id": input.webhookId ?? "webhook-1",
+    "x-hyperlocalise-signature-256": input.signature ?? signatureFor(input.body),
+  };
+
+  if (input.deliveryId) {
+    headers["x-hyperlocalise-delivery-id"] = input.deliveryId;
+  }
+
   return input.app.request("http://localhost/api/webhooks/tms/crowdin", {
     method: "POST",
-    headers: {
-      "content-type": "application/json",
-      "x-hyperlocalise-provider-webhook-id": input.webhookId ?? "webhook-1",
-      "x-hyperlocalise-signature-256": input.signature ?? signatureFor(input.body),
-    },
+    headers,
     body: input.body,
   });
 }
@@ -168,6 +175,42 @@ describe("tmsWebhookRoutes", () => {
       resourceId: "file-1",
       providerSyncIntentId: syncIntentId,
     });
+  });
+
+  it("dedupes provider retries that use a new delivery id for the same event", async () => {
+    const { subscription } = await createSubscriptionFixture();
+    const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue(event) {
+          queuedEvents.push(event);
+          return { ids: [randomUUID()] };
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-retry-delivery",
+      event_type: "file.updated",
+    });
+
+    const first = await postWebhook({ app, body, deliveryId: "delivery-1" });
+    const retry = await postWebhook({ app, body, deliveryId: "delivery-2" });
+
+    expect(first.status).toBe(202);
+    expect(retry.status).toBe(200);
+    await expect(retry.json()).resolves.toEqual({
+      ok: true,
+      ignored: true,
+      duplicate: true,
+    });
+    expect(queuedEvents).toHaveLength(1);
+
+    const rows = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.dedupeKey).toBe("evt-retry-delivery");
   });
 
   it("dedupes repeated deliveries without queueing duplicate work", async () => {

@@ -120,13 +120,17 @@ function decryptWebhookSecret(subscription: ProviderWebhookSubscription): string
     return null;
   }
 
-  return decryptProviderCredential({
-    algorithm: subscription.secretMetadata.encryptionAlgorithm ?? "aes-256-gcm",
-    keyVersion: subscription.webhookSecretKeyVersion,
-    ciphertext: subscription.webhookSecretCiphertext,
-    iv: subscription.webhookSecretIv,
-    authTag: subscription.webhookSecretAuthTag,
-  });
+  try {
+    return decryptProviderCredential({
+      algorithm: subscription.secretMetadata.encryptionAlgorithm ?? "aes-256-gcm",
+      keyVersion: subscription.webhookSecretKeyVersion,
+      ciphertext: subscription.webhookSecretCiphertext,
+      iv: subscription.webhookSecretIv,
+      authTag: subscription.webhookSecretAuthTag,
+    });
+  } catch {
+    return null;
+  }
 }
 
 export async function findActiveProviderWebhookSubscription(input: {
