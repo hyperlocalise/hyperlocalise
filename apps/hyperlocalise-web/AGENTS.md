@@ -34,6 +34,12 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 - If shared handler composition is unavoidable, prefer `createFactory()` and `factory.createHandlers()` over controller-style indirection.
 - Keep middleware focused on request concerns such as auth, validation, request context, and response shaping.
 
+## Logging
+
+- Do not log PII, credentials, secrets, raw request bodies, email addresses, file contents, user-supplied text, repository names, organization names, or other customer-identifying values.
+- Prefer stable opaque identifiers, counts, statuses, and event names. If customer-identifying context is needed for debugging, log the internal database ID or provider ID instead of display names or free-form content.
+- Do not assume every emitted log has a trace ID. Bind a safe correlation ID such as a request ID, webhook delivery ID, job ID, or provider event ID when logging work that may need cross-event debugging.
+
 ## Testing
 
 - Use Hono's `testClient` for route tests.
