@@ -17,6 +17,10 @@ import type {
   providerSyncRunKindEnum,
   providerSyncRuns,
   providerSyncRunStatusEnum,
+  providerWebhookEventProcessingStatusEnum,
+  providerWebhookEvents,
+  providerWebhookSubscriptionStatusEnum,
+  providerWebhookSubscriptions,
   repositorySourceFiles,
   repositorySourceFileVersions,
   translationJobDetails,
@@ -73,6 +77,14 @@ export type ProviderSyncRun = typeof providerSyncRuns.$inferSelect;
 export type NewProviderSyncRun = typeof providerSyncRuns.$inferInsert;
 export type ProviderSyncRunKind = (typeof providerSyncRunKindEnum.enumValues)[number];
 export type ProviderSyncRunStatus = (typeof providerSyncRunStatusEnum.enumValues)[number];
+export type ProviderWebhookSubscription = typeof providerWebhookSubscriptions.$inferSelect;
+export type NewProviderWebhookSubscription = typeof providerWebhookSubscriptions.$inferInsert;
+export type ProviderWebhookSubscriptionStatus =
+  (typeof providerWebhookSubscriptionStatusEnum.enumValues)[number];
+export type ProviderWebhookEvent = typeof providerWebhookEvents.$inferSelect;
+export type NewProviderWebhookEvent = typeof providerWebhookEvents.$inferInsert;
+export type ProviderWebhookEventProcessingStatus =
+  (typeof providerWebhookEventProcessingStatusEnum.enumValues)[number];
 export type Team = typeof teams.$inferSelect;
 export type NewTeam = typeof teams.$inferInsert;
 export type TeamMembership = typeof teamMemberships.$inferSelect;
