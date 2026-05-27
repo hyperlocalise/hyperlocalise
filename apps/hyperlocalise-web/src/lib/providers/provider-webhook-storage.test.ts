@@ -177,6 +177,15 @@ describe("provider webhook storage", () => {
     expect(errored.lastError).toBe("Crowdin rejected webhook update");
     expect(errored.lastErrorAt).toBeTruthy();
 
+    const errorWithoutMessage = await updateProviderWebhookSubscriptionStatus({
+      subscriptionId: subscription.id,
+      organizationId,
+      status: "error",
+    });
+    expect(errorWithoutMessage.status).toBe("error");
+    expect(errorWithoutMessage.lastError).toBe("Crowdin rejected webhook update");
+    expect(errorWithoutMessage.lastErrorAt).toBeTruthy();
+
     const reactivated = await updateProviderWebhookSubscriptionStatus({
       subscriptionId: subscription.id,
       organizationId,
@@ -188,7 +197,7 @@ describe("provider webhook storage", () => {
     expect(reactivated.lastErrorAt).toBeNull();
   });
 
-  it("dedupes provider events per subscription and provider event id", async () => {
+  it("dedupes provider events per subscription and dedupe key", async () => {
     const { organizationId, subscription } = await createSubscriptionFixture();
 
     const first = await insertProviderWebhookEventIdempotent({
@@ -197,7 +206,7 @@ describe("provider webhook storage", () => {
       providerKind: "crowdin",
       providerEventId: "evt-123",
       eventType: "file.translated",
-      dedupeKey: "evt-123",
+      dedupeKey: "file:42:translated",
       redactedPayload: { fileId: 42 },
     });
     expect(first.inserted).toBe(true);
@@ -209,7 +218,7 @@ describe("provider webhook storage", () => {
       providerKind: "crowdin",
       providerEventId: "evt-123",
       eventType: "file.translated",
-      dedupeKey: "evt-123",
+      dedupeKey: "file:42:translated",
       redactedPayload: { fileId: 99 },
     });
     expect(duplicate.inserted).toBe(false);
@@ -221,6 +230,43 @@ describe("provider webhook storage", () => {
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
 
     expect(rows).toHaveLength(1);
+    expect(rows[0]?.redactedPayload).toEqual({ fileId: 42 });
+  });
+
+  it("dedupes when provider event id collides but dedupe key differs", async () => {
+    const { organizationId, subscription } = await createSubscriptionFixture();
+
+    const first = await insertProviderWebhookEventIdempotent({
+      organizationId,
+      subscriptionId: subscription.id,
+      providerKind: "crowdin",
+      providerEventId: "evt-123",
+      eventType: "file.translated",
+      dedupeKey: "file:42:translated:v1",
+      redactedPayload: { fileId: 42 },
+    });
+    expect(first.inserted).toBe(true);
+
+    const conflictingDedupeKey = await insertProviderWebhookEventIdempotent({
+      organizationId,
+      subscriptionId: subscription.id,
+      providerKind: "crowdin",
+      providerEventId: "evt-123",
+      eventType: "file.translated",
+      dedupeKey: "file:42:translated:v2",
+      redactedPayload: { fileId: 99 },
+    });
+    expect(conflictingDedupeKey.inserted).toBe(false);
+    expect(conflictingDedupeKey.event?.id).toBe(first.event?.id);
+
+    const rows = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.providerEventId).toBe("evt-123");
+    expect(rows[0]?.dedupeKey).toBe("file:42:translated:v1");
     expect(rows[0]?.redactedPayload).toEqual({ fileId: 42 });
   });
 

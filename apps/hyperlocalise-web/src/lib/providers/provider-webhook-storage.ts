@@ -69,8 +69,12 @@ export async function updateProviderWebhookSubscriptionStatus(input: {
     .update(schema.providerWebhookSubscriptions)
     .set({
       status: input.status,
-      lastError: input.lastError ?? null,
-      lastErrorAt: input.lastError ? now : null,
+      ...(input.lastError !== undefined
+        ? {
+            lastError: input.lastError,
+            lastErrorAt: input.lastError ? now : null,
+          }
+        : {}),
       updatedAt: now,
     })
     .where(
