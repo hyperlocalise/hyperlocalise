@@ -52,4 +52,21 @@ describe("sanitizeReturnTo", () => {
     expect(sanitizeReturnTo("/not/auth/sign-in")).toBe("/not/auth/sign-in");
     expect(sanitizeReturnTo("/auth/sign-in-not-really")).toBe("/auth/sign-in-not-really");
   });
+
+  it("should detect URL-encoded restricted paths", () => {
+    // %73 is 's'
+    expect(sanitizeReturnTo("/auth/%73ign-in")).toBe("/dashboard");
+    // %2f is '/'
+    expect(sanitizeReturnTo("%2fauth/sign-in")).toBe("/dashboard");
+  });
+
+  it("should detect mixed-case restricted paths", () => {
+    expect(sanitizeReturnTo("/AUTH/SIGN-IN")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/Auth/Onboarding")).toBe("/dashboard");
+  });
+
+  it("should handle encoded query separators", () => {
+    expect(sanitizeReturnTo("/auth/sign-in%3Ffoo=bar")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/auth/sign-in%23section")).toBe("/dashboard");
+  });
 });
