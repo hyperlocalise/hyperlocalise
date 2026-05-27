@@ -67,7 +67,7 @@ type (
 		DefaultGlossaryID               int                        `json:"defaultGlossaryId,omitempty"`
 		AssignedTMs                     map[int]map[string]int     `json:"assignedTms,omitempty"`
 		AssignedGlossaries              []int                      `json:"assignedGlossaries,omitempty"`
-		TMPenalties                     any                        `json:"tmPenalties,omitempty"`
+		TMPenalties                     *ProjectTMPenalties        `json:"tmPenalties,omitempty"`
 		NormalizePlaceholder            bool                       `json:"normalizePlaceholder,omitempty"`
 		TMPreTranslate                  *ProjectTMPreTranslate     `json:"tmPreTranslate,omitempty"`
 		MTPreTranslate                  *ProjectMTPreTranslate     `json:"mtPreTranslate,omitempty"`
@@ -188,7 +188,7 @@ type ProjectsGetResponse struct {
 	Data *Project `json:"data"`
 }
 
-// GroupListResponse defines the structure of a response when getting a list of groups.
+// ProjectsListResponse defines the structure of a response when getting a list of projects.
 type ProjectsListResponse struct {
 	Data       []*ProjectsGetResponse `json:"data"`
 	Pagination *Pagination            `json:"pagination"`
@@ -307,7 +307,7 @@ type ProjectsAddRequest struct {
 	//       `vendorId`, `mtEngineId` in same request.
 	Steps []*WorkflowTemplateStep `json:"steps,omitempty"`
 	// Group Identifier.
-	GroupID int `json:"groupId,omitempty"`
+	GroupID *int `json:"groupId,omitempty"`
 	// Specify Vendor Identifier, if no Vendor is assigned to Workflow step yet.
 	VendorID int `json:"vendorId,omitempty"`
 	// Specify Machine Translation engine Identifier, if no MT engine is
