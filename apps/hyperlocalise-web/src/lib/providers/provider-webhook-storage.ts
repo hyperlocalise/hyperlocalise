@@ -253,7 +253,7 @@ export async function updateProviderWebhookEventProcessingStatus(input: {
       processedAt: isTerminal ? now : null,
       nextRetryAt: input.nextRetryAt ?? null,
       attemptCount:
-        input.processingStatus === "failed" || input.processingStatus === "processing"
+        input.processingStatus === "processing"
           ? sql`${schema.providerWebhookEvents.attemptCount} + 1`
           : undefined,
       updatedAt: now,
