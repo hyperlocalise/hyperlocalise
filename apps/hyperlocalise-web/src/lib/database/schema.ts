@@ -1026,8 +1026,8 @@ export const providerWebhookEvents = pgTable(
       .notNull()
       .default("pending"),
     dedupeKey: text("dedupe_key").notNull(),
-    // Opaque sync-worker intent id; not FK-backed until a provider_sync_intents table exists.
-    providerSyncIntentId: uuid("provider_sync_intent_id"),
+    // Workflow run id returned by workflow/api start(); opaque until provider_sync_intents exists.
+    providerSyncIntentId: text("provider_sync_intent_id"),
     providerSyncRunId: uuid("provider_sync_run_id").references(() => providerSyncRuns.id, {
       onDelete: "set null",
     }),

@@ -1,0 +1,1 @@
+ALTER TABLE "provider_webhook_events" ALTER COLUMN "provider_sync_intent_id" SET DATA TYPE text;
