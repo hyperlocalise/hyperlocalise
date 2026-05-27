@@ -1,10 +1,10 @@
 package translationfileparser
 
 import (
+	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
 	"slices"
-	"cmp"
 	"strconv"
 	"strings"
 	"unicode"

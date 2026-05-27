@@ -2,10 +2,10 @@ package translationfileparser
 
 import (
 	"bytes"
+	"cmp"
 	"encoding/xml"
 	"fmt"
 	"regexp"
-	"cmp"
 	"slices"
 	"strings"
 )

@@ -1,8 +1,8 @@
 package translationfileparser
 
 import (
-	"fmt"
 	"cmp"
+	"fmt"
 	"slices"
 	"strconv"
 	"strings"
