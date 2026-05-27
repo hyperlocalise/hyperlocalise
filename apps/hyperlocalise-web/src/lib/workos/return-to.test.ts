@@ -69,4 +69,15 @@ describe("sanitizeReturnTo", () => {
     expect(sanitizeReturnTo("/auth/sign-in%3Ffoo=bar")).toBe("/dashboard");
     expect(sanitizeReturnTo("/auth/sign-in%23section")).toBe("/dashboard");
   });
+
+  it("should preserve GitHub install callback URLs with encoded query separator", () => {
+    expect(
+      sanitizeReturnTo("/auth/github/callback%3Finstallation_id=123456&state=abc"),
+    ).toBe("/auth/github/callback%3Finstallation_id=123456&state=abc");
+  });
+
+  it("should reject double-encoded slashes that lead to open redirects", () => {
+    expect(sanitizeReturnTo("/%2fgoogle.com")).toBe("/dashboard");
+    expect(sanitizeReturnTo("/%2f%5cexample.com")).toBe("/dashboard");
+  });
 });
