@@ -115,7 +115,14 @@ func FormatICUBlocks(blocks []BlockSignature) string {
 }
 
 func normalizeMustachePlaceholders(s string) string {
+	// BOLT OPTIMIZATION: Fast-path for strings without mustache placeholders
+	// to avoid strings.Builder allocations and byte-by-byte iteration.
+	if !strings.Contains(s, "{{") {
+		return s
+	}
+
 	var b strings.Builder
+	b.Grow(len(s))
 
 	for i := 0; i < len(s); {
 		if i+3 < len(s) && s[i] == '{' && s[i+1] == '{' {

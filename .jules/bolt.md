@@ -90,3 +90,7 @@
 ## 2026-07-15 - Optimizing PO file line processing
 **Learning:** `strings.Split(string(content), "\n")` allocates a large slice of strings, which is memory-intensive for large PO files. Manual iteration with `strings.IndexByte` reduces peak memory and allocations.
 **Action:** Replace `strings.Split` with manual `strings.IndexByte` loops for large text file processing.
+
+## 2026-07-20 - Fast-path and pre-allocation for mustache placeholder normalization
+**Learning:** In the ICU parser's fallback path, `normalizeMustachePlaceholders` was always allocating a `strings.Builder` and performing byte-by-byte iteration even when no mustache placeholders (`{{`) were present. A simple `strings.Contains` fast-path avoids these allocations entirely for the common case.
+**Action:** Implement `strings.Contains(s, "{{")` fast-path and use `strings.Builder.Grow` to minimize allocations in hot parsing paths.
