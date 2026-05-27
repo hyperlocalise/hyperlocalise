@@ -301,6 +301,7 @@ describe("provider webhook storage", () => {
     });
     expect(failed.processingStatus).toBe("failed");
     expect(failed.errorMessage).toBe("Worker unavailable");
+    expect(failed.providerSyncRunId).toBe(syncRun.id);
     expect(failed.nextRetryAt?.toISOString()).toBe("2030-01-01T00:00:00.000Z");
     expect(failed.attemptCount).toBe(2);
 

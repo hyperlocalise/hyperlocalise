@@ -250,8 +250,6 @@ export async function updateProviderWebhookEventProcessingStatus(input: {
       processingStatus: input.processingStatus,
       errorMessage: input.errorMessage ?? null,
       errorDetails: input.errorDetails ?? {},
-      providerSyncIntentId: input.providerSyncIntentId ?? null,
-      providerSyncRunId: input.providerSyncRunId ?? null,
       processedAt: isTerminal ? now : null,
       nextRetryAt: input.nextRetryAt ?? null,
       attemptCount:
@@ -259,6 +257,12 @@ export async function updateProviderWebhookEventProcessingStatus(input: {
           ? sql`${schema.providerWebhookEvents.attemptCount} + 1`
           : undefined,
       updatedAt: now,
+      ...(input.providerSyncIntentId !== undefined
+        ? { providerSyncIntentId: input.providerSyncIntentId }
+        : {}),
+      ...(input.providerSyncRunId !== undefined
+        ? { providerSyncRunId: input.providerSyncRunId }
+        : {}),
     })
     .where(
       and(
