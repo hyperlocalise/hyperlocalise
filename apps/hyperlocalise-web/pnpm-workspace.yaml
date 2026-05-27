@@ -17,7 +17,6 @@ ignoredBuiltDependencies:
 overrides:
   vite: "8.0.14"
   vitest: "catalog:"
-  undici: "8.3.0"
 peerDependencyRules:
   allowAny:
     - vite

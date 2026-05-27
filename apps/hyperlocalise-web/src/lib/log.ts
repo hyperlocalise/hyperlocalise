@@ -1,6 +1,6 @@
 import { initLogger, log as evlog } from "evlog";
 import type { DrainFn, LogLevel, LoggerConfig } from "evlog";
-import { createBetterStackDrain } from 'evlog/better-stack'
+import { createBetterStackDrain } from "evlog/better-stack";
 import type { Logger as ChatLogger } from "chat";
 
 const isProduction = process.env.NODE_ENV === "production";
