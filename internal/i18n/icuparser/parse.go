@@ -149,8 +149,7 @@ func (p *astParser) handleOpenTag(text *strings.Builder, ctx parseCtx, out *[]El
 		*out = append(*out, tag)
 		return true, nil
 	}
-
-	text.WriteByte(p.src[p.pos])
+	text.WriteByte('<')
 	p.pos++
 	return true, nil
 }
@@ -162,7 +161,7 @@ func (p *astParser) parseArgumentLike(ctx parseCtx) (Element, error) {
 	p.skipSpaces()
 	arg, ok := p.readIdentifierLike()
 	if !ok {
-		return nil, fmt.Errorf("expected argument name at %d", p.pos)
+		return nil, fmt.Errorf("expected ICU argument name at %d", p.pos)
 	}
 	p.skipSpaces()
 	if p.consume('}') {
@@ -174,23 +173,20 @@ func (p *astParser) parseArgumentLike(ctx parseCtx) (Element, error) {
 	p.skipSpaces()
 	kind, ok := p.readIdentifierLike()
 	if !ok {
-		return nil, fmt.Errorf("expected format type at %d", p.pos)
+		return nil, fmt.Errorf("expected ICU argument type at %d", p.pos)
 	}
-	// BOLT OPTIMIZATION: readIdentifierLike results are already trimmed.
-	kind = strings.ToLower(kind)
-	p.skipSpaces()
-
-	if kind == "number" || kind == "date" || kind == "time" {
-		return p.parseSimpleTypedArgument(arg, kind)
-	}
-	if kind == "select" {
+	// kind is case-insensitive in ICU.
+	kindLower := strings.ToLower(kind)
+	switch kindLower {
+	case "number", "date", "time":
+		return p.parseSimpleTypedArgument(arg, kindLower)
+	case "select":
 		return p.parseSelectArgument(arg, ctx)
+	case "plural", "selectordinal":
+		return p.parsePluralArgument(arg, kindLower)
+	default:
+		return p.parseCustomArgument(arg)
 	}
-	if kind == "plural" || kind == "selectordinal" {
-		return p.parsePluralArgument(arg, kind)
-	}
-
-	return p.parseCustomArgument(arg)
 }
 
 func (p *astParser) parseSimpleTypedArgument(arg, kind string) (Element, error) {
@@ -198,7 +194,6 @@ func (p *astParser) parseSimpleTypedArgument(arg, kind string) (Element, error) 
 	if err != nil {
 		return nil, err
 	}
-
 	switch kind {
 	case "number":
 		return p.finishNumberElement(arg, style)
@@ -250,12 +245,9 @@ func (p *astParser) finishDateElement(arg, style string) (Element, error) {
 		}
 	}
 	return DateElement{
-		Value: arg,
-		Style: style,
-		Skeleton: &DateTimeSkeleton{
-			Pattern:       pattern,
-			ParsedOptions: parsed,
-		},
+		Value:    arg,
+		Style:    style,
+		Skeleton: &DateTimeSkeleton{Pattern: pattern, ParsedOptions: parsed},
 	}, nil
 }
 
@@ -277,12 +269,9 @@ func (p *astParser) finishTimeElement(arg, style string) (Element, error) {
 		}
 	}
 	return TimeElement{
-		Value: arg,
-		Style: style,
-		Skeleton: &DateTimeSkeleton{
-			Pattern:       pattern,
-			ParsedOptions: parsed,
-		},
+		Value:    arg,
+		Style:    style,
+		Skeleton: &DateTimeSkeleton{Pattern: pattern, ParsedOptions: parsed},
 	}, nil
 }
 
@@ -648,6 +637,15 @@ func (p *astParser) peek() byte {
 func (p *astParser) readIdentifierLike() (string, bool) {
 	start := p.pos
 	for p.pos < len(p.src) {
+		ch := p.src[p.pos]
+		if ch < 0x80 {
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f' || ch == ',' || ch == '{' || ch == '}' {
+				break
+			}
+			p.pos++
+			continue
+		}
+
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
 		if unicode.IsSpace(r) || r == ',' || r == '{' || r == '}' {
 			break
@@ -673,6 +671,15 @@ func (p *astParser) readSelector() (string, bool) {
 		return p.src[start:p.pos], p.pos > start+1
 	}
 	for p.pos < len(p.src) {
+		ch := p.src[p.pos]
+		if ch < 0x80 {
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f' || ch == '{' || ch == '}' || ch == ',' {
+				break
+			}
+			p.pos++
+			continue
+		}
+
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
 		if unicode.IsSpace(r) || r == '{' || r == '}' || r == ',' {
 			break

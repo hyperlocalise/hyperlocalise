@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 type Invariant struct {
@@ -299,21 +300,33 @@ func slicesEqual[T comparable](a, b []T) bool {
 }
 
 func isPlaceholderName(s string) bool {
-	// BOLT OPTIMIZATION: Internal callers (readIdentifierLike, normalizeMustachePlaceholders)
-	// already provide trimmed strings, so we skip TrimSpace here.
 	if s == "" {
 		return false
 	}
-	for i, r := range s {
-		if i == 0 {
-			if !isPlaceholderFirstRune(r) {
-				return false
+
+	// BOLT OPTIMIZATION: Manual byte-by-byte iteration with ASCII fast-paths
+	// to avoid decoding UTF-8 and calling unicode.IsLetter for common cases.
+	for i := 0; i < len(s); {
+		b := s[i]
+		if b < 0x80 {
+			if i == 0 {
+				if !isPlaceholderFirstASCII(b) {
+					return false
+				}
+			} else {
+				if !isPlaceholderSubsequentASCII(b) {
+					return false
+				}
 			}
+			i++
 			continue
 		}
-		if !isPlaceholderSubsequentRune(r) {
+
+		r, w := utf8.DecodeRuneInString(s[i:])
+		if !unicode.IsLetter(r) {
 			return false
 		}
+		i += w
 	}
 	return true
 }
@@ -322,14 +335,14 @@ func isASCIIDigit(b byte) bool {
 	return b >= '0' && b <= '9'
 }
 
-func isPlaceholderFirstRune(r rune) bool {
-	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '$'
-}
-
-func isPlaceholderSubsequentRune(r rune) bool {
-	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '.' || r == '-' || r == '$'
-}
-
 func isASCIIDigitRune(r rune) bool {
 	return r >= '0' && r <= '9'
+}
+
+func isPlaceholderFirstASCII(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '$'
+}
+
+func isPlaceholderSubsequentASCII(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '.' || b == '-' || b == '$'
 }
