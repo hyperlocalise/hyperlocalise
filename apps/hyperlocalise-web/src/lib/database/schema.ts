@@ -123,6 +123,14 @@ export const providerSyncRunStatusEnum = pgEnum("provider_sync_run_status", [
   "failed",
   "cancelled",
 ]);
+export const providerWebhookSubscriptionStatusEnum = pgEnum(
+  "provider_webhook_subscription_status",
+  ["active", "disabled", "error"],
+);
+export const providerWebhookEventProcessingStatusEnum = pgEnum(
+  "provider_webhook_event_processing_status",
+  ["pending", "processing", "succeeded", "failed", "skipped"],
+);
 export const agentRunKindEnum = pgEnum("agent_run_kind", [
   "translate",
   "review",
@@ -936,6 +944,127 @@ export const providerSyncRuns = pgTable(
       table.startedAt,
     ),
     index("idx_provider_sync_runs_status").on(table.status),
+  ],
+);
+
+export const providerWebhookSubscriptions = pgTable(
+  "provider_webhook_subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id")
+      .notNull()
+      .references(() => organizationExternalTmsProviderCredentials.id, { onDelete: "cascade" }),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    providerWebhookId: text("provider_webhook_id").notNull(),
+    endpointUrl: text("endpoint_url").notNull(),
+    secretMetadata: jsonb("secret_metadata")
+      .$type<{
+        maskedSecretSuffix?: string;
+        encryptionAlgorithm?: string;
+        keyVersion?: number;
+      }>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    webhookSecretCiphertext: text("webhook_secret_ciphertext"),
+    webhookSecretIv: text("webhook_secret_iv"),
+    webhookSecretAuthTag: text("webhook_secret_auth_tag"),
+    webhookSecretKeyVersion: integer("webhook_secret_key_version"),
+    subscribedEvents: jsonb("subscribed_events")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    status: providerWebhookSubscriptionStatusEnum("status").notNull().default("active"),
+    lastError: text("last_error"),
+    lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("provider_webhook_subscriptions_credential_webhook_key").on(
+      table.providerCredentialId,
+      table.providerWebhookId,
+    ),
+    index("idx_provider_webhook_subscriptions_org").on(table.organizationId),
+    index("idx_provider_webhook_subscriptions_credential").on(table.providerCredentialId),
+    index("idx_provider_webhook_subscriptions_credential_project").on(
+      table.providerCredentialId,
+      table.projectId,
+    ),
+    index("idx_provider_webhook_subscriptions_org_status").on(table.organizationId, table.status),
+  ],
+);
+
+export const providerWebhookEvents = pgTable(
+  "provider_webhook_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    subscriptionId: uuid("subscription_id")
+      .notNull()
+      .references(() => providerWebhookSubscriptions.id, { onDelete: "cascade" }),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    providerEventId: text("provider_event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    resourceType: text("resource_type"),
+    resourceId: text("resource_id"),
+    externalResourceId: text("external_resource_id"),
+    redactedPayload: jsonb("redacted_payload")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    processingStatus: providerWebhookEventProcessingStatusEnum("processing_status")
+      .notNull()
+      .default("pending"),
+    dedupeKey: text("dedupe_key").notNull(),
+    // Opaque sync-worker intent id; not FK-backed until a provider_sync_intents table exists.
+    providerSyncIntentId: uuid("provider_sync_intent_id"),
+    providerSyncRunId: uuid("provider_sync_run_id").references(() => providerSyncRuns.id, {
+      onDelete: "set null",
+    }),
+    errorMessage: text("error_message"),
+    errorDetails: jsonb("error_details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    attemptCount: integer("attempt_count").notNull().default(0),
+    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
+    processedAt: timestamp("processed_at", { withTimezone: true }),
+    nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("provider_webhook_events_subscription_provider_event_key").on(
+      table.subscriptionId,
+      table.providerEventId,
+    ),
+    uniqueIndex("provider_webhook_events_subscription_dedupe_key").on(
+      table.subscriptionId,
+      table.dedupeKey,
+    ),
+    index("idx_provider_webhook_events_org_received").on(table.organizationId, table.receivedAt),
+    index("idx_provider_webhook_events_subscription_received").on(
+      table.subscriptionId,
+      table.receivedAt,
+    ),
+    index("idx_provider_webhook_events_pending_retry").on(
+      table.processingStatus,
+      table.nextRetryAt,
+    ),
+    index("idx_provider_webhook_events_sync_run").on(table.providerSyncRunId),
   ],
 );
 
