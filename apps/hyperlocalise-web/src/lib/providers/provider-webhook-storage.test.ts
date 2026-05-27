@@ -150,7 +150,11 @@ describe("provider webhook storage", () => {
     expect(subscription.organizationId).toBe(organizationId);
     expect(subscription.status).toBe("active");
     expect(subscription.subscribedEvents).toEqual(["file.translated", "project.created"]);
-    expect(subscription.secretMetadata).toEqual({ maskedSecretSuffix: "cret" });
+    expect(subscription.secretMetadata).toEqual({
+      maskedSecretSuffix: "cret",
+      encryptionAlgorithm: "aes-256-gcm",
+      keyVersion: 1,
+    });
     expect(subscription.webhookSecretCiphertext).toBeTruthy();
     expect(subscription.webhookSecretIv).toBeTruthy();
     expect(subscription.webhookSecretAuthTag).toBeTruthy();
@@ -349,6 +353,7 @@ describe("provider webhook storage", () => {
     expect(failed.errorMessage).toBe("Worker unavailable");
     expect(failed.providerSyncRunId).toBe(syncRun.id);
     expect(failed.nextRetryAt?.toISOString()).toBe("2030-01-01T00:00:00.000Z");
+    expect(failed.processedAt).toBeNull();
     expect(failed.attemptCount).toBe(1);
 
     const succeeded = await updateProviderWebhookEventProcessingStatus({

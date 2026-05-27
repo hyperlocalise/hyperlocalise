@@ -31,6 +31,15 @@ export async function insertProviderWebhookSubscription(input: {
     input.webhookSecretPlaintext != null && input.webhookSecretPlaintext.length > 0
       ? encryptProviderCredential(input.webhookSecretPlaintext)
       : null;
+  const secretMetadata: ProviderWebhookSecretMetadata = {
+    ...input.secretMetadata,
+    ...(encrypted
+      ? {
+          encryptionAlgorithm: encrypted.algorithm,
+          keyVersion: encrypted.keyVersion,
+        }
+      : {}),
+  };
 
   const [subscription] = await db
     .insert(schema.providerWebhookSubscriptions)
@@ -43,7 +52,7 @@ export async function insertProviderWebhookSubscription(input: {
       endpointUrl: input.endpointUrl,
       subscribedEvents: input.subscribedEvents ?? [],
       status: input.status ?? "active",
-      secretMetadata: input.secretMetadata ?? {},
+      secretMetadata,
       webhookSecretCiphertext: encrypted?.ciphertext ?? null,
       webhookSecretIv: encrypted?.iv ?? null,
       webhookSecretAuthTag: encrypted?.authTag ?? null,
@@ -243,10 +252,8 @@ export async function updateProviderWebhookEventProcessingStatus(input: {
   nextRetryAt?: Date | null;
 }) {
   const now = new Date();
-  const isTerminal =
-    input.processingStatus === "succeeded" ||
-    input.processingStatus === "failed" ||
-    input.processingStatus === "skipped";
+  const isProcessed =
+    input.processingStatus === "succeeded" || input.processingStatus === "skipped";
 
   const [event] = await db
     .update(schema.providerWebhookEvents)
@@ -254,7 +261,7 @@ export async function updateProviderWebhookEventProcessingStatus(input: {
       processingStatus: input.processingStatus,
       errorMessage: input.errorMessage ?? null,
       errorDetails: input.errorDetails ?? {},
-      processedAt: isTerminal ? now : null,
+      processedAt: isProcessed ? now : null,
       nextRetryAt: input.nextRetryAt ?? null,
       attemptCount:
         input.processingStatus === "processing"
