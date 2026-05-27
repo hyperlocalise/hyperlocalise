@@ -14,14 +14,24 @@ export function sanitizeReturnTo(value: string | null | undefined, fallback = "/
   }
 
   try {
-    // Normalize the value by decoding URI components and lowercasing for consistent checking.
+    // Normalize the value by decoding URI components.
     const decodedValue = decodeURIComponent(value);
-    const urlPath = decodedValue.split(/[?#]/)[0].toLowerCase();
 
     // Re-verify it still looks like a safe relative path after decoding.
-    if (urlPath.startsWith("//") || urlPath.startsWith("/\\")) {
+    // We check for // and /\ which can be used for open redirects.
+    if (decodedValue.startsWith("//") || decodedValue.startsWith("/\\")) {
       return fallback;
     }
+
+    // Use URL parser to robustly handle the path and parameters.
+    const url = new URL(decodedValue, "http://localhost");
+
+    // Ensure it didn't decode into an absolute URL.
+    if (url.origin !== "http://localhost") {
+      return fallback;
+    }
+
+    const urlPath = url.pathname.toLowerCase();
 
     // Prevent redirect loops by avoiding sensitive auth routes.
     const isRestricted = RESTRICTED_PATHS.some(
@@ -31,12 +41,8 @@ export function sanitizeReturnTo(value: string | null | undefined, fallback = "/
     if (isRestricted) {
       // Special case for GitHub installation callback which is restricted but needed.
       if (urlPath === "/auth/github/callback") {
-        const queryIndex = decodedValue.indexOf("?");
-        if (queryIndex !== -1) {
-          const params = new URLSearchParams(decodedValue.slice(queryIndex + 1));
-          if (params.has("installation_id") && params.has("state")) {
-            return value;
-          }
+        if (url.searchParams.has("installation_id") && url.searchParams.has("state")) {
+          return value;
         }
       }
 
