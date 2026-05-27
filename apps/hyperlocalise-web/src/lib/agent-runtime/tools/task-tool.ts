@@ -47,12 +47,13 @@ ${subagentSummaryLines}
 
 WHEN TO USE:
 - Translation requests with attached files → \`translation\`
-- Finding localized copy in GitHub → \`repository\`
+- Finding localization context for source strings, messages, keys, or uploaded-file segments in GitHub → \`repository\`
 - Any work that matches a specialist description above
 
 WHEN NOT TO USE:
 - Simple questions you can answer without tools
 - Requests that need a specialist that is unavailable (explain what is missing instead)
+- General repository architecture summaries, PR fixes, code review, or checks unless a specialist explicitly supports them
 
 BEHAVIOR:
 - Specialists run autonomously for up to ${SUBAGENT_STEP_LIMIT} tool steps
@@ -77,7 +78,17 @@ BEHAVIOR:
         const result = await runSubagent(subagentType, {
           toolContext: runtime.toolContext,
           task,
-          instructions,
+          instructions:
+            subagentType === "repository"
+              ? [
+                  instructions,
+                  "",
+                  "Repository specialist handoff requirements:",
+                  "- Include the exact source text, key, file path, surrounding text, source locale, target locale, and repo hint when known.",
+                  "- Return localization context only: product surface, user intent, tone/register, placeholders, nearby copy, existing translations, and ambiguities.",
+                  "- Do not ask for code changes, PR review, checks, or broad architecture analysis.",
+                ].join("\n")
+              : instructions,
         });
 
         return {

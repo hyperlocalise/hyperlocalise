@@ -145,4 +145,44 @@ describe("task tool", () => {
       error: "subagent_unavailable",
     });
   });
+
+  it("adds localization-context handoff requirements for repository specialists", async () => {
+    runSubagentMock.mockResolvedValueOnce({ text: "Found context in src/messages.ts:12." });
+
+    const taskTool = createTaskTool();
+    await taskTool.execute!(
+      {
+        subagentType: "repository",
+        task: "Find Email agent string context",
+        instructions: "Search for 'Email agent'.",
+      },
+      createToolExecutionOptions({
+        surface: "slack",
+        suggestedMode: "repository",
+        hasFileAttachments: false,
+        toolContext: {
+          conversationId: "conv_1",
+          organizationId: "org_1",
+          localUserId: "user_1",
+          membershipRole: "member",
+          projectId: null,
+          db: {} as never,
+          sandboxId: "sbx_1",
+        },
+      }),
+    );
+
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("product surface"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("Do not ask for code changes"),
+      }),
+    );
+  });
 });
