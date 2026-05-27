@@ -127,3 +127,12 @@ export type ProviderAgentWritebackEventData = {
 };
 
 export type ProviderAgentWritebackQueue = JobQueue<ProviderAgentWritebackEventData>;
+
+export type ProviderWebhookReconciliationEventData = {
+  providerWebhookEventId: string;
+  organizationId: string;
+  subscriptionId: string;
+  providerKind: string;
+};
+
+export type ProviderWebhookReconciliationQueue = JobQueue<ProviderWebhookReconciliationEventData>;

@@ -11,6 +11,7 @@ import type {
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
+  ProviderWebhookReconciliationQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
@@ -39,6 +40,10 @@ import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-f
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
+import {
+  createTmsWebhookRoutes,
+  type ProviderTmsWebhookVerifier,
+} from "./routes/tms-webhook/tms-webhook.route";
 import { createMemberRoutes } from "./routes/member/member.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
@@ -60,6 +65,8 @@ type CreateAppOptions = {
   providerAgentQaQueue?: ProviderAgentQaQueue;
   providerAgentCommentQueue?: ProviderAgentCommentQueue;
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
+  providerWebhookReconciliationQueue?: ProviderWebhookReconciliationQueue;
+  providerTmsWebhookVerifier?: ProviderTmsWebhookVerifier;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -169,6 +176,13 @@ function createWebhookRoutes(options: CreateAppOptions) {
       }),
     )
     .route("/workos", workosWebhookRoutes)
+    .route(
+      "/tms",
+      createTmsWebhookRoutes({
+        verifier: options.providerTmsWebhookVerifier,
+        providerWebhookReconciliationQueue: options.providerWebhookReconciliationQueue,
+      }),
+    )
     .route(
       "/resend",
       createResendWebhookRoutes({
