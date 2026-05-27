@@ -2,7 +2,8 @@ package translationfileparser
 
 import (
 	"fmt"
-	"sort"
+	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -102,7 +103,7 @@ func (d jstsLocaleDocument) render(values map[string]string) ([]byte, error) {
 	}
 
 	entries := append([]jstsLocaleEntry(nil), d.entries...)
-	sort.Slice(entries, func(i, j int) bool { return entries[i].valueStart < entries[j].valueStart })
+	slices.SortFunc(entries, func(a, b jstsLocaleEntry) int { return cmp.Compare(a.valueStart, b.valueStart) })
 
 	var b strings.Builder
 	cursor := 0

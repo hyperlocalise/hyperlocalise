@@ -2,7 +2,8 @@ package translationfileparser
 
 import (
 	"fmt"
-	"sort"
+	"cmp"
+	"slices"
 	"strconv"
 	"strings"
 )
@@ -68,7 +69,7 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 	}
 
 	entries := append([]phpArrayEntry(nil), d.entries...)
-	sort.Slice(entries, func(i, j int) bool { return entries[i].valueStart < entries[j].valueStart })
+	slices.SortFunc(entries, func(a, b phpArrayEntry) int { return cmp.Compare(a.valueStart, b.valueStart) })
 
 	var b strings.Builder
 	cursor := 0

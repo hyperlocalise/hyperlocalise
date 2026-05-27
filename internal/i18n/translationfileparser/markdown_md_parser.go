@@ -4,7 +4,7 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"slices"
-	"sort"
+	"cmp"
 	"strconv"
 	"strings"
 	"unicode"
@@ -42,11 +42,11 @@ func parseMarkdownASTDocument(content []byte) (markdownDocument, map[string]stri
 	content = []byte(strings.ReplaceAll(string(content), "\r\n", "\n"))
 	candidates, bodyStart := collectFrontmatterCandidates(content)
 	candidates = append(candidates, collectMarkdownBodyCandidates(content[bodyStart:], bodyStart)...)
-	sort.Slice(candidates, func(i, j int) bool {
-		if candidates[i].start == candidates[j].start {
-			return candidates[i].stop < candidates[j].stop
+	slices.SortFunc(candidates, func(a, b markdownSpanCandidate) int {
+		if c := cmp.Compare(a.start, b.start); c != 0 {
+			return c
 		}
-		return candidates[i].start < candidates[j].start
+		return cmp.Compare(a.stop, b.stop)
 	})
 
 	doc := markdownDocument{parts: make([]markdownPart, 0, len(candidates)*2+1)}

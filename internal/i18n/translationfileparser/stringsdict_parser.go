@@ -5,7 +5,8 @@ import (
 	"encoding/xml"
 	"fmt"
 	"regexp"
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 )
 
@@ -55,7 +56,7 @@ func (d stringsdictDocument) render(values map[string]string) []byte {
 	}
 
 	entries := append([]stringsdictEntry(nil), d.entries...)
-	sort.Slice(entries, func(i, j int) bool { return entries[i].valueStart < entries[j].valueStart })
+	slices.SortFunc(entries, func(a, b stringsdictEntry) int { return cmp.Compare(a.valueStart, b.valueStart) })
 
 	var b strings.Builder
 	cursor := 0
