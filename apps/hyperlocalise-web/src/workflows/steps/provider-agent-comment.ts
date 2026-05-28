@@ -1,11 +1,9 @@
-import { failAgentRun } from "@/lib/providers/agent-runs";
-import { executeProviderAgentComment } from "@/lib/providers/provider-agent-comment";
-
 export async function executeProviderAgentCommentStep(input: {
   agentRunId: string;
   organizationId: string;
 }) {
   "use step";
+  const { executeProviderAgentComment } = await import("@/lib/providers/provider-agent-comment");
   return executeProviderAgentComment(input);
 }
 
@@ -16,6 +14,7 @@ export async function failProviderAgentCommentStep(input: {
   message: string;
 }) {
   "use step";
+  const { failAgentRun } = await import("@/lib/providers/agent-runs");
 
   await failAgentRun({
     runId: input.agentRunId,
