@@ -270,6 +270,52 @@ describe("tmsWebhookRoutes", () => {
     });
   });
 
+  it("stores write-back confirmations as unsupported without queueing write-back", async () => {
+    const { organizationId, subscription } = await createSubscriptionFixture();
+    const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue(event) {
+          queuedEvents.push(event);
+          return { ids: [randomUUID()] };
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-writeback-confirmed",
+      event_type: "write_back.completed",
+      resource_type: "task",
+      resource_id: "task-1",
+    });
+
+    const response = await postWebhook({ app, body });
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ ok: true, ignored: true });
+    expect(queuedEvents).toHaveLength(0);
+
+    const intents = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, organizationId));
+    expect(intents).toHaveLength(0);
+
+    const [event] = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(event).toMatchObject({
+      processingStatus: "skipped",
+      errorMessage: "unsupported_provider_webhook_event",
+      providerSyncIntentId: null,
+      errorDetails: {
+        eventType: "write_back.completed",
+        resourceType: "task",
+        mappedIntentKinds: ["post_write_back_confirmation"],
+      },
+    });
+  });
+
   it("dedupes provider retries that use a new delivery id for the same event", async () => {
     const { subscription } = await createSubscriptionFixture();
     const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
