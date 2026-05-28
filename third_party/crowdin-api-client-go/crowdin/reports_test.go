@@ -242,6 +242,7 @@ func TestReportsService_ExportArchive(t *testing.T) {
 				Attributes: model.ReportStatusAttributes{
 					Format:     "xlsx",
 					ReportName: "costs-estimation",
+					ProjectIDs: []int{1, 2},
 					Schema:     map[string]any{},
 				},
 				CreatedAt:  "2023-09-23T11:26:54+00:00",
@@ -294,6 +295,7 @@ func TestReportsService_CheckArchiveExportStatus(t *testing.T) {
 		Attributes: model.ReportStatusAttributes{
 			Format:     "xlsx",
 			ReportName: "costs-estimation",
+			ProjectIDs: []int{1, 2},
 			Schema:     map[string]any{},
 		},
 		CreatedAt:  "2023-09-23T11:26:54+00:00",
@@ -450,6 +452,7 @@ func TestReportsService_CheckStatus(t *testing.T) {
 		Attributes: model.ReportStatusAttributes{
 			Format:     "xlsx",
 			ReportName: "costs-estimation",
+			ProjectIDs: []int{1, 2},
 			Schema:     map[string]any{},
 		},
 		CreatedAt:  "2023-09-23T11:26:54+00:00",
@@ -529,6 +532,12 @@ func TestReportsService_GetSettingsTemplate(t *testing.T) {
 								"price": 0.1
 							}
 						],
+						"aiMatch": [
+							{
+								"matchType": "100",
+								"price": 0.1
+							}
+						],
 						"suggestionMatch": [
 							{
 								"matchType": "100",
@@ -567,6 +576,7 @@ func TestReportsService_GetSettingsTemplate(t *testing.T) {
 			NetRateSchemes: &model.ReportNetRateSchemes{
 				TMMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
 				MTMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
+				AIMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
 				SuggestionMatch: []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
 			},
 		},
@@ -719,6 +729,12 @@ func TestReportsService_AddSettingsTemplate(t *testing.T) {
 							"price":0.1
 						}
 					],
+					"aiMatch": [
+						{
+							"matchType": "100",
+							"price": 0.1
+						}
+					],
 					"suggestionMatch":[
 						{
 							"matchType":"100",
@@ -759,6 +775,7 @@ func TestReportsService_AddSettingsTemplate(t *testing.T) {
 			NetRateSchemes: &model.ReportNetRateSchemes{
 				TMMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
 				MTMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
+				AIMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
 				SuggestionMatch: []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
 			},
 		},
@@ -883,6 +900,7 @@ func TestReportsService_CheckGroupReportStatus(t *testing.T) {
 		Attributes: model.ReportStatusAttributes{
 			Format:     "xlsx",
 			ReportName: "costs-estimation",
+			ProjectIDs: []int{1, 2},
 			Schema:     map[string]any{},
 		},
 		CreatedAt:  "2023-09-23T11:26:54+00:00",
@@ -1202,6 +1220,7 @@ func TestReportsService_CheckOrganizationReportStatus(t *testing.T) {
 		Attributes: model.ReportStatusAttributes{
 			Format:     "xlsx",
 			ReportName: "costs-estimation",
+			ProjectIDs: []int{1, 2},
 			Schema:     map[string]any{},
 		},
 		CreatedAt:  "2023-09-23T11:26:54+00:00",
@@ -1248,6 +1267,7 @@ func jsonReportStatus() string {
 			"attributes": {
 				"format": "xlsx",
 				"reportName": "costs-estimation",
+				"projectIds": [1, 2],
 				"schema": {}
 			},
 			"createdAt": "2023-09-23T11:26:54+00:00",
@@ -1343,6 +1363,7 @@ func TestReportsService_GetUserSettingsTemplate(t *testing.T) {
 			NetRateSchemes: &model.ReportNetRateSchemes{
 				TMMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
 				MTMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
+				AIMatch:         []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
 				SuggestionMatch: []model.ReportNetRateSchemeMatch{{MatchType: "100", Price: 0.1}},
 			},
 		},

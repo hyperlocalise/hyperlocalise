@@ -101,3 +101,9 @@
 **Learning:** The Crowdin Label response model was missing the `projectId` field, which is standard for most Crowdin resources. Additionally, `ScreenshotListOptions` used `[]string` for `StringIDs`, `LabelIDs`, and `ExcludeLabelIDs`, which is inconsistent with other models that use `[]int` for numeric identifiers and with the official API contract.
 
 **Action:** Added `ProjectID` to the `Label` struct in `model/labels.go`. Updated `ScreenshotListOptions` in `model/screenshot.go` to use `[]int` for `StringIDs`, `LabelIDs`, and `ExcludeLabelIDs`. Updated corresponding contract tests in `labels_test.go`, `screenshot_test.go`, and `screenshots_test.go` to reflect these changes and ensure correct query parameter encoding.
+
+## 2026-08-08 - Improve Reports model parity for AI Match and ProjectIDs
+
+**Learning:** Crowdin API v2 Reports have evolved to include AI-specific matching in net rate schemes and more granular metadata in report status attributes. Specifically, `aiMatch` was missing from `ReportNetRateSchemes`, and `projectIds` was missing from `ReportStatusAttributes` for group/organization reports. Additionally, several new report names and the `status` filter in `GroupTaskUsageSchema` were absent.
+
+**Action:** Added `AIMatch` to `ReportNetRateSchemes`, `ProjectIDs` to `ReportStatusAttributes`, and `Status` to `GroupTaskUsageSchema` in `model/reports.go`. Added missing `ReportName` constants for project and group reports (including TM-specific and comprehensive summaries). Updated comprehensive contract tests in `reports_test.go` to verify correct parsing and serialization of these new fields.
