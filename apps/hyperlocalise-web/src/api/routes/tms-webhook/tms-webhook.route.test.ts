@@ -74,7 +74,6 @@ function postWebhook(input: {
   app: ReturnType<typeof createApp>;
   body: string;
   signature?: string | null;
-  signatureHeader?: "x-hyperlocalise-signature-256" | "x-crowdin-signature";
   webhookSecretHeader?: string;
   webhookId?: string;
   deliveryId?: string;
@@ -85,8 +84,7 @@ function postWebhook(input: {
   };
 
   if (input.signature !== null) {
-    headers[input.signatureHeader ?? "x-hyperlocalise-signature-256"] =
-      input.signature ?? signatureFor(input.body);
+    headers["x-hyperlocalise-signature-256"] = input.signature ?? signatureFor(input.body);
   }
   if (input.webhookSecretHeader) {
     headers["x-hyperlocalise-webhook-secret"] = input.webhookSecretHeader;
@@ -484,33 +482,6 @@ describe("tmsWebhookRoutes", () => {
       .from(schema.providerWebhookEvents)
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
     expect(rows).toHaveLength(0);
-  });
-
-  it("accepts Crowdin HMAC signatures", async () => {
-    await createSubscriptionFixture();
-    const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
-    const app = createApp({
-      providerWebhookReconciliationQueue: {
-        async enqueue(event) {
-          queuedEvents.push(event);
-          return { ids: [] };
-        },
-      },
-    });
-    const body = JSON.stringify({
-      event_id: "evt-crowdin-signature",
-      event_type: "file.updated",
-    });
-
-    const response = await postWebhook({
-      app,
-      body,
-      signature: signatureFor(body),
-      signatureHeader: "x-crowdin-signature",
-    });
-
-    expect(response.status).toBe(202);
-    expect(queuedEvents).toHaveLength(1);
   });
 
   it("rejects active subscriptions when the webhook secret is unavailable", async () => {

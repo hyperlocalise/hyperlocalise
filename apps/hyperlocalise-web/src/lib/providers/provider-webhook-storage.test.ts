@@ -87,7 +87,7 @@ describe("provider webhook storage", () => {
       organizationId,
       providerCredentialId: credential.id,
       providerKind: "crowdin",
-      providerWebhookId: "crowdin-webhook-1",
+      providerWebhookId: "provider-webhook-1",
       endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
       subscribedEvents: ["file.translated", "project.created"],
       webhookSecretPlaintext: "signing-secret",
@@ -193,10 +193,10 @@ describe("provider webhook storage", () => {
       subscriptionId: subscription.id,
       organizationId,
       status: "provider_error",
-      lastError: "Crowdin rejected webhook update",
+      lastError: "Provider rejected webhook update",
     });
     expect(errored.status).toBe("provider_error");
-    expect(errored.lastError).toBe("Crowdin rejected webhook update");
+    expect(errored.lastError).toBe("Provider rejected webhook update");
     expect(errored.lastErrorAt).toBeTruthy();
 
     const errorWithoutMessage = await updateProviderWebhookSubscriptionStatus({
@@ -205,7 +205,7 @@ describe("provider webhook storage", () => {
       status: "provider_error",
     });
     expect(errorWithoutMessage.status).toBe("provider_error");
-    expect(errorWithoutMessage.lastError).toBe("Crowdin rejected webhook update");
+    expect(errorWithoutMessage.lastError).toBe("Provider rejected webhook update");
     expect(errorWithoutMessage.lastErrorAt).toBeTruthy();
 
     const reactivated = await updateProviderWebhookSubscriptionStatus({

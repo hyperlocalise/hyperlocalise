@@ -2,6 +2,11 @@ import type { ProviderWebhookSubscriptionStatus } from "@/lib/database/types";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
+/**
+ * Manual setup details shown when Hyperlocalise cannot configure a provider
+ * webhook through that provider's API. Provider-specific tickets can add richer
+ * instructions while preserving this response shape.
+ */
 export type ProviderWebhookManualFallback = {
   webhookUrl: string;
   secretHeaderName?: string;
@@ -10,6 +15,10 @@ export type ProviderWebhookManualFallback = {
   lastError?: string;
 };
 
+/**
+ * API-safe subscription summary for integrations screens and retry flows. Secret
+ * material and encrypted columns are intentionally excluded.
+ */
 export type ProviderWebhookSubscriptionSummary = {
   id: string;
   organizationId: string;
@@ -28,11 +37,13 @@ export type ProviderWebhookSubscriptionSummary = {
   canRetry: boolean;
 };
 
+/** Result returned after attempting to create or refresh a subscription. */
 export type ProviderWebhookSubscriptionSetupResult = {
   subscription: ProviderWebhookSubscriptionSummary;
   status: ProviderWebhookSubscriptionStatus;
 };
 
+/** Single audit decision for a stored subscription. */
 export type ProviderWebhookSubscriptionAuditResult = {
   subscriptionId: string;
   action: "unchanged" | "reconciled" | "disabled" | "marked_stale";
@@ -45,6 +56,11 @@ export type ProviderWebhookSubscriptionAdapterErrorCode =
   | "not_supported"
   | "invalid_configuration";
 
+/**
+ * Normalized provider-adapter failure. The manager maps these codes onto stored
+ * subscription statuses and keeps the provider error detail in manual fallback
+ * state so sync can continue.
+ */
 export class ProviderWebhookSubscriptionAdapterError extends Error {
   readonly code: ProviderWebhookSubscriptionAdapterErrorCode;
   readonly httpStatus?: number;
@@ -61,6 +77,10 @@ export class ProviderWebhookSubscriptionAdapterError extends Error {
   }
 }
 
+/**
+ * Provider-side webhook representation after an adapter reads, creates, or
+ * updates a remote subscription.
+ */
 export type ProviderWebhookRemoteSubscription = {
   providerWebhookId: string;
   endpointUrl: string;
@@ -69,6 +89,11 @@ export type ProviderWebhookRemoteSubscription = {
   secret?: string | null;
 };
 
+/**
+ * Context passed to provider-specific webhook adapters. The shared manager owns
+ * persistence, secret generation, credential decryption, and fallback handling;
+ * adapters should only translate this context into provider API calls.
+ */
 export type ProviderWebhookSubscriptionAdapterContext = {
   organizationId: string;
   providerCredentialId: string;
@@ -84,24 +109,40 @@ export type ProviderWebhookSubscriptionAdapterContext = {
   fetchFn?: typeof fetch;
 };
 
+/**
+ * Provider boundary for automatic webhook setup. Implementations must not write
+ * local subscription rows directly; they return the remote subscription state so
+ * the shared manager can persist status consistently.
+ */
 export interface ProviderWebhookSubscriptionAdapter {
+  /** Whether this adapter can configure remote webhooks without manual user setup. */
   supportsAutomaticSetup: boolean;
+
+  /** List remote webhooks for audit and stale-subscription reconciliation. */
   listRemoteSubscriptions(
     context: ProviderWebhookSubscriptionAdapterContext,
   ): Promise<ProviderWebhookRemoteSubscription[]>;
+
+  /** Create a provider webhook pointing at Hyperlocalise's shared intake route. */
   createRemoteSubscription(
     context: ProviderWebhookSubscriptionAdapterContext,
   ): Promise<ProviderWebhookRemoteSubscription>;
+
+  /** Update endpoint, events, activation state, or secret for a remote webhook. */
   updateRemoteSubscription(
     context: ProviderWebhookSubscriptionAdapterContext & {
       providerWebhookId: string;
     },
   ): Promise<ProviderWebhookRemoteSubscription>;
+
+  /** Disable a remote webhook while retaining enough provider state for audit. */
   disableRemoteSubscription(
     context: ProviderWebhookSubscriptionAdapterContext & {
       providerWebhookId: string;
     },
   ): Promise<void>;
+
+  /** Delete a remote webhook if a provider supports hard removal. */
   deleteRemoteSubscription(
     context: ProviderWebhookSubscriptionAdapterContext & {
       providerWebhookId: string;

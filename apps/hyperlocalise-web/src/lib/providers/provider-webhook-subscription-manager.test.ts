@@ -2,42 +2,17 @@ import "dotenv/config";
 
 import { randomUUID } from "node:crypto";
 
-import { eq, inArray } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { inArray } from "drizzle-orm";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
 import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
-import { listDefaultWebhookEvents } from "./provider-webhook-default-events";
 import {
-  auditProviderWebhookSubscriptions,
   disableProviderWebhookSubscription,
   ensureProviderWebhookSubscription,
   retryProviderWebhookSubscriptionSetup,
 } from "./provider-webhook-subscription-manager";
-import { ProviderWebhookSubscriptionAdapterError } from "./provider-webhook-subscription-types";
-
-function activeCrowdinRemoteSubscription(providerWebhookId: string) {
-  return {
-    providerWebhookId,
-    endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
-    subscribedEvents: listDefaultWebhookEvents("crowdin"),
-    isActive: true,
-  };
-}
-
-const mockAdapter = {
-  supportsAutomaticSetup: true,
-  listRemoteSubscriptions: vi.fn(),
-  createRemoteSubscription: vi.fn(),
-  updateRemoteSubscription: vi.fn(),
-  disableRemoteSubscription: vi.fn(),
-  deleteRemoteSubscription: vi.fn(),
-};
-
-vi.mock("./provider-webhook-subscription-adapters", () => ({
-  getProviderWebhookSubscriptionAdapter: () => mockAdapter,
-}));
 
 describe("provider webhook subscription manager", () => {
   const createdRecordsByTest = new Map<
@@ -126,9 +101,6 @@ describe("provider webhook subscription manager", () => {
   });
 
   afterEach(async () => {
-    vi.clearAllMocks();
-    mockAdapter.supportsAutomaticSetup = true;
-
     const testKey = currentTestKey();
     const records = createdRecordsByTest.get(testKey);
     if (!records) {
@@ -171,10 +143,8 @@ describe("provider webhook subscription manager", () => {
     createdRecordsByTest.delete(testKey);
   });
 
-  it("creates an active subscription when provider setup succeeds", async () => {
+  it("creates a manual-required subscription until provider adapters are implemented", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
-
-    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("99"));
 
     const result = await ensureProviderWebhookSubscription({
       organizationId,
@@ -184,18 +154,17 @@ describe("provider webhook subscription manager", () => {
       externalProjectId: "12345",
     });
 
-    expect(result.status).toBe("active");
-    expect(result.subscription.providerWebhookId).toBe("99");
-    expect(result.subscription.manualFallback).toBeNull();
-    expect(mockAdapter.createRemoteSubscription).toHaveBeenCalledOnce();
+    expect(result.status).toBe("manual_required");
+    expect(result.subscription.providerWebhookId).toMatch(/^pending-/);
+    expect(result.subscription.manualFallback?.webhookUrl).toContain("/api/webhooks/tms/crowdin");
+    expect(result.subscription.manualFallback?.subscribedEvents).toEqual([]);
+    expect(result.subscription.canRetry).toBe(true);
   });
 
-  it("skips remote updates for unchanged active subscriptions", async () => {
+  it("reuses an existing manual subscription for the same credential and project", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
 
-    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("99"));
-
-    await ensureProviderWebhookSubscription({
+    const first = await ensureProviderWebhookSubscription({
       organizationId,
       providerKind: "crowdin",
       providerCredentialId: credential.id,
@@ -211,59 +180,13 @@ describe("provider webhook subscription manager", () => {
       externalProjectId: "12345",
     });
 
-    expect(second.status).toBe("active");
-    expect(mockAdapter.createRemoteSubscription).toHaveBeenCalledOnce();
-    expect(mockAdapter.updateRemoteSubscription).not.toHaveBeenCalled();
+    expect(second.status).toBe("manual_required");
+    expect(second.subscription.id).toBe(first.subscription.id);
+    expect(second.subscription.providerWebhookId).toBe(first.subscription.providerWebhookId);
   });
 
-  it("stores permission_error with manual fallback when provider rejects access", async () => {
+  it("disables subscriptions locally", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
-
-    mockAdapter.createRemoteSubscription.mockRejectedValue(
-      new ProviderWebhookSubscriptionAdapterError("permission_denied", "Insufficient scope", {
-        httpStatus: 403,
-      }),
-    );
-
-    const result = await ensureProviderWebhookSubscription({
-      organizationId,
-      providerKind: "crowdin",
-      providerCredentialId: credential.id,
-      projectId,
-      externalProjectId: "12345",
-    });
-
-    expect(result.status).toBe("permission_error");
-    expect(result.subscription.manualFallback?.webhookUrl).toContain("/api/webhooks/tms/crowdin");
-    expect(result.subscription.manualFallback?.lastError).toBe("Insufficient scope");
-    expect(result.subscription.canRetry).toBe(true);
-  });
-
-  it("stores provider_error when remote setup fails", async () => {
-    const { organizationId, credential, projectId } = await createCrowdinCredential();
-
-    mockAdapter.createRemoteSubscription.mockRejectedValue(
-      new ProviderWebhookSubscriptionAdapterError("provider_error", "Crowdin API unavailable", {
-        httpStatus: 502,
-      }),
-    );
-
-    const result = await ensureProviderWebhookSubscription({
-      organizationId,
-      providerKind: "crowdin",
-      providerCredentialId: credential.id,
-      projectId,
-      externalProjectId: "12345",
-    });
-
-    expect(result.status).toBe("provider_error");
-    expect(result.subscription.lastError).toBe("Crowdin API unavailable");
-  });
-
-  it("disables active subscriptions locally and at the provider", async () => {
-    const { organizationId, credential, projectId } = await createCrowdinCredential();
-
-    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("77"));
 
     const created = await ensureProviderWebhookSubscription({
       organizationId,
@@ -273,35 +196,25 @@ describe("provider webhook subscription manager", () => {
       externalProjectId: "12345",
     });
 
-    mockAdapter.disableRemoteSubscription.mockResolvedValue(undefined);
-
     const disabled = await disableProviderWebhookSubscription({
       organizationId,
       subscriptionId: created.subscription.id,
     });
 
     expect(disabled.status).toBe("disabled");
-    expect(mockAdapter.disableRemoteSubscription).toHaveBeenCalledOnce();
   });
 
-  it("retries setup after a previous failure", async () => {
+  it("retries by refreshing the manual fallback subscription", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
 
-    mockAdapter.createRemoteSubscription.mockRejectedValueOnce(
-      new ProviderWebhookSubscriptionAdapterError("provider_error", "Temporary outage"),
-    );
-    mockAdapter.createRemoteSubscription.mockResolvedValueOnce(
-      activeCrowdinRemoteSubscription("88"),
-    );
-
-    const failed = await ensureProviderWebhookSubscription({
+    const first = await ensureProviderWebhookSubscription({
       organizationId,
       providerKind: "crowdin",
       providerCredentialId: credential.id,
       projectId,
       externalProjectId: "12345",
     });
-    expect(failed.status).toBe("provider_error");
+    expect(first.status).toBe("manual_required");
 
     const retried = await retryProviderWebhookSubscriptionSetup({
       organizationId,
@@ -310,73 +223,11 @@ describe("provider webhook subscription manager", () => {
       projectId,
     });
 
-    expect(retried.status).toBe("active");
-    expect(retried.subscription.providerWebhookId).toBe("88");
+    expect(retried.status).toBe("manual_required");
+    expect(retried.subscription.id).toBe(first.subscription.id);
   });
 
-  it("marks subscriptions stale when remote webhook disappears during audit", async () => {
-    const { organizationId, credential, projectId } = await createCrowdinCredential();
-
-    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("55"));
-    mockAdapter.listRemoteSubscriptions.mockResolvedValue([]);
-
-    const created = await ensureProviderWebhookSubscription({
-      organizationId,
-      providerKind: "crowdin",
-      providerCredentialId: credential.id,
-      projectId,
-      externalProjectId: "12345",
-    });
-    expect(created.status).toBe("active");
-
-    const results = await auditProviderWebhookSubscriptions({ organizationId });
-    const audited = results.find((item) => item.subscriptionId === created.subscription.id);
-
-    expect(audited?.action).toBe("marked_stale");
-    expect(audited?.status).toBe("provider_error");
-
-    const [row] = await db
-      .select({ status: schema.providerWebhookSubscriptions.status })
-      .from(schema.providerWebhookSubscriptions)
-      .where(eq(schema.providerWebhookSubscriptions.id, created.subscription.id))
-      .limit(1);
-
-    expect(row?.status).toBe("provider_error");
-  });
-
-  it("reconciles stale remote webhooks with the stored signing secret", async () => {
-    const { organizationId, credential, projectId } = await createCrowdinCredential();
-
-    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("66"));
-    mockAdapter.listRemoteSubscriptions.mockResolvedValue([
-      {
-        ...activeCrowdinRemoteSubscription("66"),
-        isActive: false,
-      },
-    ]);
-    mockAdapter.updateRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("66"));
-
-    const created = await ensureProviderWebhookSubscription({
-      organizationId,
-      providerKind: "crowdin",
-      providerCredentialId: credential.id,
-      projectId,
-      externalProjectId: "12345",
-    });
-    expect(created.status).toBe("active");
-
-    await auditProviderWebhookSubscriptions({ organizationId });
-
-    const createdSecret = mockAdapter.createRemoteSubscription.mock.calls[0]?.[0].webhookSecret;
-    const reconciledSecret = mockAdapter.updateRemoteSubscription.mock.calls[0]?.[0].webhookSecret;
-
-    expect(createdSecret).toBeTruthy();
-    expect(reconciledSecret).toBe(createdSecret);
-  });
-
-  it("requires manual setup for providers without automatic adapters", async () => {
-    mockAdapter.supportsAutomaticSetup = false;
-
+  it("uses the same provider-agnostic fallback for other TMS providers", async () => {
     const { organizationId, userId } = await createOrganizationUser();
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
@@ -396,6 +247,5 @@ describe("provider webhook subscription manager", () => {
 
     expect(result.status).toBe("manual_required");
     expect(result.subscription.manualFallback?.webhookUrl).toContain("/api/webhooks/tms/phrase");
-    expect(mockAdapter.createRemoteSubscription).not.toHaveBeenCalled();
   });
 });

@@ -1,19 +1,16 @@
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
-import { crowdinWebhookSubscriptionAdapter } from "./crowdin/crowdin-webhook-subscription-adapter";
 import { createManualProviderWebhookSubscriptionAdapter } from "./manual-provider-webhook-subscription-adapter";
 import type { ProviderWebhookSubscriptionAdapter } from "./provider-webhook-subscription-types";
 
 const manualAdapter = createManualProviderWebhookSubscriptionAdapter();
 
+/**
+ * Returns the subscription adapter for a provider. HL-402 keeps all providers on
+ * the manual adapter; HL-404 and later provider tickets should register concrete
+ * adapters here.
+ */
 export function getProviderWebhookSubscriptionAdapter(
-  providerKind: ExternalTmsProviderKind,
+  _providerKind: ExternalTmsProviderKind,
 ): ProviderWebhookSubscriptionAdapter {
-  switch (providerKind) {
-    case "crowdin":
-      return crowdinWebhookSubscriptionAdapter;
-    case "phrase":
-    case "lokalise":
-    case "smartling":
-      return manualAdapter;
-  }
+  return manualAdapter;
 }

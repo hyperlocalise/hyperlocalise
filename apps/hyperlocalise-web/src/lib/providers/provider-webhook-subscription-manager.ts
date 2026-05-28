@@ -33,6 +33,10 @@ import {
 } from "./provider-webhook-storage";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
+/**
+ * Compares subscription event lists without requiring provider adapters to
+ * preserve ordering.
+ */
 function subscribedEventsEqual(left: string[], right: string[]) {
   if (left.length !== right.length) {
     return false;
@@ -42,6 +46,10 @@ function subscribedEventsEqual(left: string[], right: string[]) {
   return left.every((event) => rightSet.has(event));
 }
 
+/**
+ * Converts a database row into the API shape exposed to settings pages. Secret
+ * material remains server-only; manual fallback is included only when populated.
+ */
 function summarizeSubscription(
   subscription: ProviderWebhookSubscription,
 ): ProviderWebhookSubscriptionSummary {
@@ -73,6 +81,11 @@ function summarizeSubscription(
   };
 }
 
+/**
+ * Builds provider-agnostic manual webhook setup details. Provider-specific
+ * tickets can refine event names and provider instructions through the adapter
+ * layer without changing the integrations UI contract.
+ */
 function buildManualFallback(input: {
   providerKind: ExternalTmsProviderKind;
   endpointUrl: string;
@@ -89,12 +102,17 @@ function buildManualFallback(input: {
   };
 }
 
+/** Creates a random signing secret for inbound webhook verification. */
 function generateWebhookSecret() {
   return randomBytes(32).toString("hex");
 }
 
 const emptyManualFallback = {} as ProviderWebhookSubscription["manualFallback"];
 
+/**
+ * Loads and decrypts the external TMS credential used by automatic setup and
+ * audit operations.
+ */
 async function loadCredentialContext(input: {
   organizationId: string;
   providerCredentialId: string;
@@ -126,6 +144,10 @@ async function loadCredentialContext(input: {
   };
 }
 
+/**
+ * Resolves the provider project id from a local project row when callers only
+ * know the Hyperlocalise project id.
+ */
 async function resolveProjectExternalId(projectId: string | null) {
   if (!projectId) {
     return null;
@@ -142,6 +164,9 @@ async function resolveProjectExternalId(projectId: string | null) {
   return project?.externalProjectId ?? null;
 }
 
+/**
+ * Lists webhook subscriptions for one provider credential in the UI-safe shape.
+ */
 export async function listProviderWebhookSubscriptionSummaries(input: {
   organizationId: string;
   providerCredentialId: string;
@@ -150,6 +175,15 @@ export async function listProviderWebhookSubscriptionSummaries(input: {
   return subscriptions.map(summarizeSubscription);
 }
 
+/**
+ * Ensures a local webhook subscription exists for a provider credential/project
+ * pair, then attempts automatic provider setup when the selected adapter and
+ * deployment configuration support it.
+ *
+ * Failure to configure the provider is intentionally non-fatal: the stored row is
+ * moved to `manual_required`, `permission_error`, or `provider_error` with
+ * fallback details so manual provider sync remains usable.
+ */
 export async function ensureProviderWebhookSubscription(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;
@@ -350,6 +384,11 @@ export async function ensureProviderWebhookSubscription(input: {
   };
 }
 
+/**
+ * Re-runs subscription setup for an existing provider/project pair. The retry
+ * path shares the normal ensure logic so status transitions and fallback details
+ * stay consistent.
+ */
 export async function retryProviderWebhookSubscriptionSetup(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;
@@ -360,6 +399,10 @@ export async function retryProviderWebhookSubscriptionSetup(input: {
   return ensureProviderWebhookSubscription(input);
 }
 
+/**
+ * Disables a subscription locally and, when a future provider adapter supports
+ * automatic setup, best-effort disables the remote provider webhook first.
+ */
 export async function disableProviderWebhookSubscription(input: {
   organizationId: string;
   subscriptionId: string;
@@ -428,6 +471,11 @@ export async function disableProviderWebhookSubscription(input: {
   return summarizeSubscription(updated);
 }
 
+/**
+ * Audits stored subscriptions against provider-side webhook state. Missing or
+ * drifted provider webhooks are marked for attention, while automatic adapters
+ * may reconcile stale endpoint/activation state.
+ */
 export async function auditProviderWebhookSubscriptions(input: {
   organizationId?: string;
   fetchFn?: typeof fetch;
@@ -610,6 +658,11 @@ export async function auditProviderWebhookSubscriptions(input: {
   return results;
 }
 
+/**
+ * Ensures webhook subscriptions for every active external-TMS project attached
+ * to a credential. This is used after credential validation and project sync so
+ * hosted deployments can prepare automatic webhooks without blocking sync.
+ */
 export async function ensureProviderWebhookSubscriptionsForCredential(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;

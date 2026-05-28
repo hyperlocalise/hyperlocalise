@@ -83,9 +83,7 @@ function firstString(...values: unknown[]) {
 
 function readSignature(headers: Headers) {
   const signature =
-    headers.get("x-hyperlocalise-signature-256") ??
-    headers.get("x-provider-signature-256") ??
-    headers.get("x-crowdin-signature");
+    headers.get("x-hyperlocalise-signature-256") ?? headers.get("x-provider-signature-256");
 
   if (!signature) {
     return null;
