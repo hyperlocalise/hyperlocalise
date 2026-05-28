@@ -119,7 +119,23 @@ describe("tms provider webhook adapters", () => {
         eventType: "project.translation.updated",
         resourceId: "789",
         externalResourceId: "lokalise-project-1",
-        mappedIntentKinds: ["project_scan"],
+        mappedIntentKinds: ["file_key_scan"],
+      },
+    },
+    {
+      providerKind: "lokalise",
+      payload: {
+        uuid: "lokalise-task-1",
+        event: "project.task.closed",
+        task: { id: 42 },
+        project: { id: "lokalise-project-1" },
+      },
+      expected: {
+        providerEventId: "lokalise-task-1",
+        eventType: "project.task.closed",
+        resourceId: "42",
+        externalResourceId: "lokalise-project-1",
+        mappedIntentKinds: ["job_task_scan"],
       },
     },
   ])(
@@ -384,6 +400,81 @@ describe("tms provider webhook adapters", () => {
         }),
       ),
     ).resolves.toBe(false);
+  });
+
+  it("verifies Lokalise X-Secret headers", async () => {
+    const payload = {
+      uuid: "evt-lokalise-1",
+      event: "project.key.added",
+      key: { id: 1 },
+    };
+    const body = JSON.stringify(payload);
+    const adapter = tmsProviderWebhookAdapters.lokalise;
+    const descriptor = extract({ providerKind: "lokalise", payload });
+
+    expect(descriptor).not.toBeNull();
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "lokalise",
+          headers: new Headers({ "x-secret": "webhook-signing-secret" }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: descriptor!,
+        }),
+      ),
+    ).resolves.toBe(true);
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "lokalise",
+          headers: new Headers({ "x-secret": "wrong-secret" }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: descriptor!,
+        }),
+      ),
+    ).resolves.toBe(false);
+  });
+
+  it("extracts Lokalise ping payloads from Webhook-Id headers", () => {
+    const descriptor = tmsProviderWebhookAdapters.lokalise.extract({
+      providerKind: "lokalise",
+      headers: new Headers({
+        "webhook-id": "wh-ping",
+        "project-id": "lokalise-project-1",
+        "x-secret": "secret",
+      }),
+      payload: ["ping"] as unknown as ProviderWebhookPayload,
+    });
+
+    expect(descriptor).toMatchObject({
+      providerWebhookId: "wh-ping",
+      providerEventId: "ping:wh-ping",
+      eventType: "ping",
+      externalResourceId: "lokalise-project-1",
+      mappedIntents: [],
+    });
+  });
+
+  it("maps Lokalise proofread events to file and content reconciliation", () => {
+    const descriptor = extract({
+      providerKind: "lokalise",
+      payload: {
+        uuid: "evt-proofread",
+        event: "project.translation.proofread",
+        key: { id: 99 },
+      },
+    });
+
+    expect(descriptor?.mappedIntents.map((intent) => intent.kind)).toEqual([
+      "file_key_scan",
+      "pull_content",
+    ]);
   });
 
   it("default verification rejects echoed secrets without body signatures", async () => {

@@ -142,6 +142,38 @@ export interface LokaliseComment {
   addedAtTimestamp: number | null;
 }
 
+export type LokaliseWebhookEvent =
+  | "project.branch.added"
+  | "project.branch.deleted"
+  | "project.branch.merged"
+  | "project.imported"
+  | "project.exported"
+  | "project.key.added"
+  | "project.key.modified"
+  | "project.keys.deleted"
+  | "project.languages.added"
+  | "project.language.settings_changed"
+  | "project.task.created"
+  | "project.task.closed"
+  | "project.task.deleted"
+  | "project.task.language.closed"
+  | "project.translation.updated"
+  | "project.translation.proofread";
+
+export interface LokaliseWebhook {
+  webhookId: string;
+  url: string;
+  branch: string | null;
+  secret: string;
+  events: string[];
+}
+
+export interface LokaliseWebhookRequest {
+  url: string;
+  events: string[];
+  branch?: string | null;
+}
+
 export interface LokaliseKey {
   keyId: number;
   keyName: LokalisePlatformStrings;
@@ -525,6 +557,79 @@ export class LokaliseApiClient {
     return (response.comments ?? []).map(normalizeLokaliseComment);
   }
 
+  async listWebhooks(projectId: string): Promise<LokaliseWebhook[]> {
+    const response = await this.get<LokaliseWebhooksListResponse>(
+      `/projects/${encodeURIComponent(projectId)}/webhooks`,
+    );
+    return (response.webhooks ?? []).map(normalizeLokaliseWebhook);
+  }
+
+  async createWebhook(projectId: string, input: LokaliseWebhookRequest): Promise<LokaliseWebhook> {
+    const response = await this.post<LokaliseWebhookCreateResponse>(
+      `/projects/${encodeURIComponent(projectId)}/webhooks`,
+      {
+        url: input.url,
+        events: input.events,
+        ...(input.branch != null ? { branch: input.branch } : {}),
+      },
+    );
+    if (!response.webhook) {
+      throw new LokaliseApiError(
+        `Lokalise webhook create for project ${projectId} did not return a webhook`,
+        502,
+        response,
+      );
+    }
+
+    return normalizeLokaliseWebhook(response.webhook);
+  }
+
+  async updateWebhook(
+    projectId: string,
+    webhookId: string,
+    input: LokaliseWebhookRequest,
+  ): Promise<LokaliseWebhook> {
+    const response = await this.put<LokaliseWebhookUpdateResponse>(
+      `/projects/${encodeURIComponent(projectId)}/webhooks/${encodeURIComponent(webhookId)}`,
+      {
+        url: input.url,
+        events: input.events,
+        ...(input.branch != null ? { branch: input.branch } : {}),
+      },
+    );
+    if (!response.webhook) {
+      throw new LokaliseApiError(
+        `Lokalise webhook update for project ${projectId} did not return a webhook`,
+        502,
+        response,
+      );
+    }
+
+    return normalizeLokaliseWebhook(response.webhook);
+  }
+
+  async deleteWebhook(projectId: string, webhookId: string): Promise<void> {
+    await this.delete(
+      `/projects/${encodeURIComponent(projectId)}/webhooks/${encodeURIComponent(webhookId)}`,
+    );
+  }
+
+  async regenerateWebhookSecret(projectId: string, webhookId: string): Promise<LokaliseWebhook> {
+    const response = await this.patch<LokaliseWebhookRegenerateSecretResponse>(
+      `/projects/${encodeURIComponent(projectId)}/webhooks/${encodeURIComponent(webhookId)}/secret/regenerate`,
+      {},
+    );
+    if (!response.webhook) {
+      throw new LokaliseApiError(
+        `Lokalise webhook secret regenerate for project ${projectId} did not return a webhook`,
+        502,
+        response,
+      );
+    }
+
+    return normalizeLokaliseWebhook(response.webhook);
+  }
+
   private authHeaders(): Record<string, string> {
     return {
       "X-Api-Token": this.token,
@@ -595,6 +700,64 @@ export class LokaliseApiClient {
     });
     return body;
   }
+
+  private async patch<T>(path: string, payload: unknown): Promise<T> {
+    const { body } = await this.request<T>(path, {
+      method: "PATCH",
+      headers: {
+        ...this.authHeaders(),
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+    return body;
+  }
+
+  private async delete(path: string): Promise<void> {
+    await this.request<Record<string, never>>(path, {
+      method: "DELETE",
+      headers: this.authHeaders(),
+    });
+  }
+}
+
+type LokaliseWebhookApiRecord = {
+  webhook_id?: string;
+  url?: string;
+  branch?: string | null;
+  secret?: string;
+  events?: string[];
+};
+
+type LokaliseWebhooksListResponse = {
+  webhooks?: LokaliseWebhookApiRecord[];
+};
+
+type LokaliseWebhookCreateResponse = {
+  webhook?: LokaliseWebhookApiRecord;
+};
+
+type LokaliseWebhookUpdateResponse = {
+  webhook?: LokaliseWebhookApiRecord;
+};
+
+type LokaliseWebhookRegenerateSecretResponse = {
+  webhook?: LokaliseWebhookApiRecord;
+};
+
+function normalizeLokaliseWebhook(record: LokaliseWebhookApiRecord): LokaliseWebhook {
+  const webhookId = record.webhook_id?.trim() ?? "";
+  if (!webhookId) {
+    throw new LokaliseApiError("Lokalise webhook response is missing webhook_id", 502, record);
+  }
+
+  return {
+    webhookId,
+    url: record.url?.trim() ?? "",
+    branch: record.branch ?? null,
+    secret: record.secret?.trim() ?? "",
+    events: record.events ?? [],
+  };
 }
 
 type LokaliseGlossaryTermTranslationApiRecord = {

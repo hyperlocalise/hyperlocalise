@@ -92,6 +92,17 @@ function buildManualFallback(input: {
   subscribedEvents: string[];
   lastError?: string;
 }): ProviderWebhookManualFallback {
+  if (input.providerKind === "lokalise") {
+    return {
+      webhookUrl: input.endpointUrl,
+      secretHeaderName: "X-Secret",
+      secretInstructions:
+        "Lokalise sends the webhook secret in the X-Secret header. Copy the secret from the Lokalise webhook settings after creating the webhook.",
+      subscribedEvents: input.subscribedEvents,
+      ...(input.lastError ? { lastError: input.lastError } : {}),
+    };
+  }
+
   return {
     webhookUrl: input.endpointUrl,
     secretHeaderName: "X-Hyperlocalise-Signature-256",
@@ -331,6 +342,8 @@ export async function ensureProviderWebhookSubscription(input: {
           })
         : await adapter.createRemoteSubscription(adapterContext);
 
+    const storedWebhookSecret = remote.secret?.trim() || webhookSecret;
+
     subscription = await updateProviderWebhookSubscription({
       subscriptionId: subscription.id,
       organizationId: input.organizationId,
@@ -340,9 +353,9 @@ export async function ensureProviderWebhookSubscription(input: {
       subscribedEvents: remote.subscribedEvents,
       manualFallback: emptyManualFallback,
       lastError: null,
-      webhookSecretPlaintext: webhookSecret,
+      webhookSecretPlaintext: storedWebhookSecret,
       secretMetadata: {
-        maskedSecretSuffix: maskProviderCredentialSuffix(webhookSecret),
+        maskedSecretSuffix: maskProviderCredentialSuffix(storedWebhookSecret),
       },
     });
   } catch (error) {
@@ -372,6 +385,8 @@ export async function ensureProviderWebhookSubscription(input: {
       lastError: message,
     });
 
+    const storedWebhookSecret = webhookSecret;
+
     subscription = await updateProviderWebhookSubscription({
       subscriptionId: subscription.id,
       organizationId: input.organizationId,
@@ -380,9 +395,9 @@ export async function ensureProviderWebhookSubscription(input: {
       manualFallback,
       lastError: message,
       subscribedEvents,
-      webhookSecretPlaintext: webhookSecret,
+      webhookSecretPlaintext: storedWebhookSecret,
       secretMetadata: {
-        maskedSecretSuffix: maskProviderCredentialSuffix(webhookSecret),
+        maskedSecretSuffix: maskProviderCredentialSuffix(storedWebhookSecret),
       },
     });
   }
