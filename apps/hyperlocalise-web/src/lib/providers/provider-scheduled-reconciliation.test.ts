@@ -98,8 +98,7 @@ describe("provider scheduled reconciliation", () => {
     expect(
       projects.some(
         (project) =>
-          project.organizationId === included.organization.id &&
-          project.id !== included.project.id,
+          project.organizationId === included.organization.id && project.id !== included.project.id,
       ),
     ).toBe(false);
   });
