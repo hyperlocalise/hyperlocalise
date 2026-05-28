@@ -48,6 +48,7 @@ import { createMemberRoutes } from "./routes/member/member.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
+import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import {
   createTranslationJobEventQueue,
   createProviderAgentCommentQueue,
@@ -88,6 +89,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .notFound(notFoundHandler)
     .route("/", createInternalRoutes())
     .route("/auth", createAuthRoutes())
+    .route("/autumn", createAutumnRoutes())
     .route(
       "/orgs/:organizationSlug",
       createOrgScopedAppRoutes({

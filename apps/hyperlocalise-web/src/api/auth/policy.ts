@@ -9,6 +9,7 @@ const MEMBER_READ_CAPABILITIES = [
 ] as const;
 
 const ADMIN_WRITE_CAPABILITIES = [
+  "billing:write",
   "workspace:update",
   "members:invite",
   "teams:write",
