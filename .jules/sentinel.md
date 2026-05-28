@@ -32,3 +32,8 @@
 **Vulnerability:** Webhook verification logic (Slack, WorkOS) converted request headers directly into Buffers for comparison. While `timingSafeEqual` prevents timing attacks, extremely large signature headers could cause excessive memory allocation or unexpected behavior during Buffer conversion before the equality check.
 **Learning:** Defensive signature verification should include an early-exit length check against the expected hash length. This prevents unnecessary work and potential resource exhaustion from malformed or malicious headers.
 **Prevention:** Always verify that the provided signature string matches the expected hex/base64 length before allocating Buffers for constant-time comparison.
+
+## 2026-05-28 - [High] Broken Project Level Authorization in Workspace Job Routes
+**Vulnerability:** Several workspace-scoped job endpoints (agent-runs, provider-actions, QA, retry, mark-failed) only verified that a job belonged to the user's organization, but did not check if the user had access to the specific project containing that job. This allowed users to access or modify jobs in projects they were not members of within the same organization (BOLA).
+**Learning:** Checking for organization ownership is a baseline but often insufficient in multi-tenant apps with nested resource hierarchies (e.g., Teams/Projects). Direct lookups by ID must always incorporate the full accessibility context of the current user.
+**Prevention:** Centralize resource accessibility logic into shared helpers (like `buildAccessibleJobsWhere`) and ensure these are used in every endpoint that performs a direct object lookup or modification, even when a `jobId` is provided.
