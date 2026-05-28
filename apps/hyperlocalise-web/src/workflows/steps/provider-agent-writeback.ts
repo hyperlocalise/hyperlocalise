@@ -3,9 +3,8 @@ export async function executeProviderAgentWritebackStep(input: {
   organizationId: string;
 }) {
   "use step";
-  const { executeProviderAgentWriteback } = await import(
-    "@/lib/providers/provider-agent-writeback"
-  );
+  const { executeProviderAgentWriteback } =
+    await import("@/lib/providers/provider-agent-writeback");
   return executeProviderAgentWriteback(input);
 }
 

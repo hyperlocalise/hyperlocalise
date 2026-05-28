@@ -3,9 +3,8 @@ export async function executeProviderAgentTranslationStep(input: {
   organizationId: string;
 }) {
   "use step";
-  const { executeProviderAgentTranslation } = await import(
-    "@/lib/providers/provider-agent-translate"
-  );
+  const { executeProviderAgentTranslation } =
+    await import("@/lib/providers/provider-agent-translate");
   return executeProviderAgentTranslation(input);
 }
 

@@ -11,9 +11,8 @@ export async function runProviderHlCheckSandboxStep(input: {
   workspaceRoot: string;
 }> {
   "use step";
-  const { runHlCheckOnProviderContentInSandbox } = await import(
-    "@/lib/providers/provider-job-qa/sandbox-hl-check"
-  );
+  const { runHlCheckOnProviderContentInSandbox } =
+    await import("@/lib/providers/provider-job-qa/sandbox-hl-check");
 
   const result = await runHlCheckOnProviderContentInSandbox(input);
   return {

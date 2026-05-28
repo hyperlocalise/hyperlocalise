@@ -8,9 +8,7 @@ async function processProviderSyncIntentStep(input: {
   workerId: string;
 }) {
   "use step";
-  const { processProviderSyncIntent } = await import(
-    "@/lib/providers/provider-sync-intent-worker"
-  );
+  const { processProviderSyncIntent } = await import("@/lib/providers/provider-sync-intent-worker");
   return processProviderSyncIntent(input);
 }
 
