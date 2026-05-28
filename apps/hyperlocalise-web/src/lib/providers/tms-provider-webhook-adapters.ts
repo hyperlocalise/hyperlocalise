@@ -204,6 +204,19 @@ export function verifySmartlingWebhook(input: TmsProviderWebhookVerificationInpu
   return verifyCrowdinWebhook(input);
 }
 
+export function verifyLokaliseWebhook(input: TmsProviderWebhookVerificationInput) {
+  if (!input.webhookSecret) {
+    return true;
+  }
+
+  const secret = input.headers.get("x-secret");
+  if (!secret) {
+    return false;
+  }
+
+  return constantTimeEqual(secret, input.webhookSecret);
+}
+
 function verifyCrowdinWebhook(input: TmsProviderWebhookVerificationInput) {
   if (!input.webhookSecret) {
     return true;
@@ -482,6 +495,154 @@ function genericTmsEventMapping(input: {
   return [];
 }
 
+function mapLokaliseEvent(input: {
+  eventType: string;
+  resourceType: string | null;
+  resourceId: string | null;
+}) {
+  const eventType = input.eventType.toLowerCase();
+  const resourceId = input.resourceId;
+
+  if (eventType === "ping") {
+    return [];
+  }
+
+  if (
+    includesAny(eventType, ["write_back", "writeback"]) ||
+    (eventType.includes("translation") && eventType.includes("push"))
+  ) {
+    return [postWriteBackConfirmation(resourceId)];
+  }
+
+  if (
+    includesAny(eventType, ["project.key.added", "project.key.modified", "project.keys.deleted"])
+  ) {
+    return [fileKeyScan(resourceId)];
+  }
+
+  if (includesAny(eventType, ["project.translation.updated", "project.translation.proofread"])) {
+    const intents: TmsWebhookMappedIntent[] = [fileKeyScan(resourceId)];
+    if (eventType.includes("proofread")) {
+      intents.push(pullContent(resourceId));
+    }
+    return intents;
+  }
+
+  if (
+    includesAny(eventType, [
+      "project.task.created",
+      "project.task.closed",
+      "project.task.deleted",
+      "project.task.language.closed",
+    ])
+  ) {
+    return [jobTaskScan(resourceId)];
+  }
+
+  if (
+    includesAny(eventType, [
+      "project.imported",
+      "project.exported",
+      "project.languages.added",
+      "project.language.settings_changed",
+      "project.branch.added",
+      "project.branch.deleted",
+      "project.branch.merged",
+    ])
+  ) {
+    return [projectScan(resourceId)];
+  }
+
+  return genericTmsEventMapping(input);
+}
+
+function isLokalisePingPayload(payload: ProviderWebhookPayload) {
+  return Array.isArray(payload) && payload.length === 1 && payload[0] === "ping";
+}
+
+const baseLokaliseWebhookAdapter = createProviderWebhookAdapter({
+  subscriptionIdPaths: [["webhook_id"], ["webhook", "id"]],
+  eventIdHeaders: ["x-event-id"],
+  deliveryIdHeaders: ["x-event-id"],
+  eventTypePaths: [["event"], ["event_type"], ["type"]],
+  eventIdPaths: [["uuid"], ["event_id"], ["id"]],
+  resourceTypePaths: [["resource_type"], ["object_type"]],
+  resourceIdPaths: [
+    ["resource_id"],
+    ["file", "id"],
+    ["key", "id"],
+    ["task", "id"],
+    ["task", "task_id"],
+  ],
+  externalResourceIdPaths: [["external_resource_id"], ["project", "id"], ["project_id"]],
+  mapEvent: mapLokaliseEvent,
+  verify: verifyLokaliseWebhook,
+});
+
+export const lokaliseWebhookAdapter: TmsProviderWebhookAdapter = {
+  ...baseLokaliseWebhookAdapter,
+  resolveSubscription(input) {
+    const providerWebhookId = firstString(
+      input.headers.get("webhook-id"),
+      input.headers.get("x-hyperlocalise-provider-webhook-id"),
+      input.headers.get("x-provider-webhook-id"),
+      firstPathString(input.payload, [["webhook_id"], ["webhook", "id"]]),
+    );
+
+    return providerWebhookId ? { providerWebhookId } : null;
+  },
+  extractEventType(input) {
+    return firstString(
+      input.headers.get("x-event"),
+      input.headers.get("x-provider-event-type"),
+      firstPathString(input.payload, [["event"], ["event_type"], ["type"]]),
+      isLokalisePingPayload(input.payload) ? "ping" : null,
+    );
+  },
+  extractResource(input) {
+    const resource = baseLokaliseWebhookAdapter.extractResource(input);
+    const externalResourceId = firstString(
+      resource.externalResourceId,
+      input.headers.get("project-id"),
+    );
+
+    return {
+      ...resource,
+      externalResourceId,
+    };
+  },
+  extract(input) {
+    if (!isLokalisePingPayload(input.payload)) {
+      return baseLokaliseWebhookAdapter.extract(input);
+    }
+
+    const subscription = lokaliseWebhookAdapter.resolveSubscription(input);
+    if (!subscription) {
+      return null;
+    }
+
+    const providerEventId = `ping:${subscription.providerWebhookId}`;
+    const externalResourceId = firstString(input.headers.get("project-id"));
+    const descriptor: TmsProviderWebhookDescriptor = {
+      ...subscription,
+      providerEventId,
+      eventType: "ping",
+      dedupeKey: providerEventId,
+      deliveryId: null,
+      resourceType: null,
+      resourceId: null,
+      externalResourceId,
+      redactedPayload: {},
+      mappedIntents: [],
+    };
+
+    descriptor.mappedIntents = lokaliseWebhookAdapter.mapToIntents({ ...input, descriptor });
+    descriptor.redactedPayload = lokaliseWebhookAdapter.redact({ ...input, descriptor });
+
+    return descriptor;
+  },
+};
+
 export const crowdinWebhookAdapter = createProviderWebhookAdapter({
   eventTypePaths: [["event"], ["event_type"], ["type"]],
   eventIdPaths: [["event_id"], ["id"], ["uuid"]],
@@ -533,15 +694,6 @@ export const smartlingWebhookAdapter = createProviderWebhookAdapter({
   ],
   mapEvent: genericTmsEventMapping,
   verify: verifySmartlingWebhook,
-});
-
-export const lokaliseWebhookAdapter = createProviderWebhookAdapter({
-  eventTypePaths: [["event"], ["event_type"], ["type"]],
-  eventIdPaths: [["uuid"], ["event_id"], ["id"]],
-  resourceTypePaths: [["resource_type"], ["object_type"]],
-  resourceIdPaths: [["resource_id"], ["file", "id"], ["key", "id"], ["task", "id"]],
-  externalResourceIdPaths: [["external_resource_id"], ["project", "id"], ["project_id"]],
-  mapEvent: genericTmsEventMapping,
 });
 
 export const tmsProviderWebhookAdapters = {
