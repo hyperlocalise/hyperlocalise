@@ -146,6 +146,43 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
     return intent.id;
   }
 
+  function remapStoredDescriptor(input: {
+    adapter: TmsProviderWebhookAdapter;
+    providerKind: ExternalTmsProviderKind;
+    headers: Headers;
+    redactedPayload: ProviderWebhookPayload;
+    descriptor: TmsProviderWebhookDescriptor;
+    eventType: string;
+    resourceType: string | null;
+    resourceId: string | null;
+    externalResourceId: string | null;
+  }): TmsProviderWebhookDescriptor {
+    const descriptor: TmsProviderWebhookDescriptor = {
+      ...input.descriptor,
+      eventType: input.eventType,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      externalResourceId: input.externalResourceId,
+      mappedIntents: [],
+      redactedPayload: {},
+    };
+
+    descriptor.mappedIntents = input.adapter.mapToIntents({
+      providerKind: input.providerKind,
+      headers: input.headers,
+      payload: input.redactedPayload,
+      descriptor,
+    });
+    descriptor.redactedPayload = input.adapter.redact({
+      providerKind: input.providerKind,
+      headers: input.headers,
+      payload: input.redactedPayload,
+      descriptor,
+    });
+
+    return descriptor;
+  }
+
   return new Hono().post(
     "/:providerKind",
     bodyLimit({
@@ -234,12 +271,17 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
             providerKind: providerKindParam,
             providerCredentialId: subscription.providerCredentialId,
             projectId: subscription.projectId,
-            descriptor: {
-              ...descriptor,
+            descriptor: remapStoredDescriptor({
+              adapter,
+              providerKind: providerKindParam,
+              headers: c.req.raw.headers,
+              redactedPayload: stored.event.redactedPayload,
+              descriptor,
               eventType: stored.event.eventType,
               resourceType: stored.event.resourceType,
               resourceId: stored.event.resourceId,
-            },
+              externalResourceId: stored.event.externalResourceId,
+            }),
           });
 
           log.info(

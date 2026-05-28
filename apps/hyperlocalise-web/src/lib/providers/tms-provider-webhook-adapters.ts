@@ -143,7 +143,11 @@ function dedupeIntents(intents: TmsWebhookMappedIntent[]) {
   const deduped: TmsWebhookMappedIntent[] = [];
 
   for (const intent of intents) {
-    const key = `${intent.kind}:${intent.resourceId ?? ""}`;
+    const key = JSON.stringify({
+      kind: intent.kind,
+      resourceId: intent.resourceId ?? null,
+      resourceIds: intent.resourceIds ?? [],
+    });
     if (seen.has(key)) {
       continue;
     }
@@ -167,7 +171,7 @@ function baseRedactedPayload(descriptor: TmsProviderWebhookDescriptor) {
   };
 }
 
-type ProviderWebhookAdapterConfig = {
+export type ProviderWebhookAdapterConfig = {
   subscriptionIdPaths?: readonly (readonly string[])[];
   eventIdPaths?: readonly (readonly string[])[];
   deliveryIdPaths?: readonly (readonly string[])[];
@@ -196,7 +200,7 @@ function firstPathString(payload: ProviderWebhookPayload, paths: readonly (reado
   return firstString(...paths.map((path) => getPath(payload, path)));
 }
 
-function createProviderWebhookAdapter(
+export function createProviderWebhookAdapter(
   config: ProviderWebhookAdapterConfig,
 ): TmsProviderWebhookAdapter {
   const adapter: TmsProviderWebhookAdapter = {
@@ -334,7 +338,7 @@ function genericTmsEventMapping(input: {
   // provider sync dispatcher only supports initiating write-back, not confirming
   // a write-back that already happened.
   if (
-    includesAny(eventType, ["write_back", "writeback", "uploaded", "pushed"]) ||
+    includesAny(eventType, ["write_back", "writeback"]) ||
     (eventType.includes("translation") && eventType.includes("push"))
   ) {
     return [postWriteBackConfirmation(resourceId)];

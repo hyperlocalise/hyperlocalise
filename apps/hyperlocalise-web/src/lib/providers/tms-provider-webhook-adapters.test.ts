@@ -3,6 +3,7 @@ import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  createProviderWebhookAdapter,
   tmsProviderWebhookAdapters,
   type ProviderWebhookPayload,
   type TmsWebhookMappedIntentKind,
@@ -139,6 +140,8 @@ describe("tms provider webhook adapters", () => {
   }>([
     { eventType: "project.updated", expectedMappedIntentKinds: ["project_scan"] },
     { eventType: "file.updated", expectedMappedIntentKinds: ["file_key_scan"] },
+    { eventType: "file.uploaded", expectedMappedIntentKinds: ["file_key_scan"] },
+    { eventType: "file.pushed", expectedMappedIntentKinds: ["file_key_scan"] },
     { eventType: "task.created", expectedMappedIntentKinds: ["job_task_scan"] },
     { eventType: "translation_memory.updated", expectedMappedIntentKinds: ["tm_scan"] },
     { eventType: "glossary.updated", expectedMappedIntentKinds: ["glossary_scan"] },
@@ -174,6 +177,32 @@ describe("tms provider webhook adapters", () => {
     });
 
     expect(descriptor?.mappedIntents).toEqual([{ kind: "pull_content", resourceId: "task-1" }]);
+  });
+
+  it("dedupes mapped intents by resourceIds as well as kind and resourceId", () => {
+    const adapter = createProviderWebhookAdapter({
+      mapEvent() {
+        return [
+          { kind: "file_key_scan", resourceId: "file-1", resourceIds: ["key-1"] },
+          { kind: "file_key_scan", resourceId: "file-1", resourceIds: ["key-2"] },
+          { kind: "file_key_scan", resourceId: "file-1", resourceIds: ["key-1"] },
+        ];
+      },
+    });
+
+    const descriptor = adapter.extract({
+      providerKind: "crowdin",
+      headers: new Headers({ "x-hyperlocalise-provider-webhook-id": "webhook-1" }),
+      payload: {
+        event_id: "evt-resource-ids",
+        event: "file.updated",
+      },
+    });
+
+    expect(descriptor?.mappedIntents).toEqual([
+      { kind: "file_key_scan", resourceId: "file-1", resourceIds: ["key-1"] },
+      { kind: "file_key_scan", resourceId: "file-1", resourceIds: ["key-2"] },
+    ]);
   });
 
   it("returns no sync intents for valid but unsupported provider events", () => {

@@ -446,6 +446,72 @@ describe("tmsWebhookRoutes", () => {
     });
   });
 
+  it("re-derives duplicate requeue mapping from the stored event fields", async () => {
+    const { subscription } = await createSubscriptionFixture();
+    const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+    let enqueueAttempts = 0;
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue(event) {
+          enqueueAttempts += 1;
+          if (enqueueAttempts === 1) {
+            throw new Error("queue unavailable");
+          }
+
+          queuedEvents.push(event);
+          return { ids: [randomUUID()] };
+        },
+      },
+    });
+    const firstBody = JSON.stringify({
+      event_id: "evt-stored-file-update",
+      event_type: "file.updated",
+      resource_type: "file",
+      resource_id: "file-1",
+      dedupe_key: "shared-dedupe-key",
+    });
+    const duplicateBody = JSON.stringify({
+      event_id: "evt-live-writeback-confirmation",
+      event_type: "write_back.completed",
+      resource_type: "task",
+      resource_id: "task-1",
+      dedupe_key: "shared-dedupe-key",
+    });
+
+    const first = await postWebhook({ app, body: firstBody });
+    const duplicate = await postWebhook({ app, body: duplicateBody });
+
+    expect(first.status).toBe(500);
+    expect(duplicate.status).toBe(202);
+    await expect(duplicate.json()).resolves.toEqual({
+      ok: true,
+      ignored: false,
+      duplicate: true,
+    });
+    expect(queuedEvents).toHaveLength(1);
+
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, subscription.organizationId));
+    expect(intent).toMatchObject({
+      syncKind: "file_key_scan",
+      resourceId: "file-1",
+    });
+
+    const [event] = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(event).toMatchObject({
+      providerEventId: "evt-stored-file-update",
+      eventType: "file.updated",
+      resourceType: "file",
+      resourceId: "file-1",
+      providerSyncIntentId: intent?.id,
+    });
+  });
+
   it("intentionally ignores unknown subscriptions", async () => {
     const app = createApp({
       providerWebhookReconciliationQueue: {
