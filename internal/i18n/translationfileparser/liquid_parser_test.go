@@ -542,3 +542,27 @@ func TestMarshalLiquidRejectsUnauthorizedHTML(t *testing.T) {
 		t.Errorf("Security vulnerability: output contains raw script tag: %s", rendered)
 	}
 }
+
+func TestMarshalLiquidRejectsIntroducedIncompleteHTMLTag(t *testing.T) {
+	template := []byte("<p>Welcome, {{ user.name }}!</p>")
+
+	entries, err := (LiquidParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	key, source := singleLiquidEntry(t, entries)
+
+	output, diags := MarshalLiquid(template, map[string]string{
+		key: strings.Replace(source, "!", " <img src=x onerror=alert(1)//!", 1),
+	})
+	rendered := string(output)
+	if rendered != string(template) {
+		t.Fatalf("expected source fallback for incomplete HTML opener, got %q", rendered)
+	}
+	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
+		t.Fatalf("expected fallback diagnostic for key %q, got %+v", key, diags)
+	}
+	if strings.Contains(rendered, "<img") {
+		t.Fatalf("security vulnerability: output contains raw img fragment: %s", rendered)
+	}
+}

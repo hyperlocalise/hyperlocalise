@@ -86,10 +86,16 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "unknown tags are ignored in both",
+			name: "custom tags are treated as markup",
 			src:  "Hello <not-a-tag>world</not-a-tag>",
 			tgt:  "Bonjour world",
-			want: false,
+			want: true,
+		},
+		{
+			name: "mdx component tags are treated as markup",
+			src:  "Hello <Badge>world</Badge>",
+			tgt:  "Bonjour world",
+			want: true,
 		},
 		{
 			name: "img tags with different attributes",

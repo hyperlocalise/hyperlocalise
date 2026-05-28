@@ -737,3 +737,56 @@ func TestMarshalHTMLRejectsUnauthorizedHTML(t *testing.T) {
 		t.Errorf("Security vulnerability: output contains raw img tag: %s", rendered)
 	}
 }
+
+func TestMarshalHTMLRejectsIntroducedIncompleteHTMLTag(t *testing.T) {
+	template := []byte("<p>Hello</p>")
+
+	entries, err := HTMLParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %d", len(entries))
+	}
+
+	var key string
+	for k := range entries {
+		key = k
+	}
+
+	output, diags := MarshalHTML(template, map[string]string{
+		key: "<img src=x onerror=alert(1)//",
+	})
+	rendered := string(output)
+	if rendered != string(template) {
+		t.Fatalf("expected source fallback for incomplete HTML opener, got %q", rendered)
+	}
+	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
+		t.Fatalf("expected fallback diagnostic for key %q, got %+v", key, diags)
+	}
+	if strings.Contains(rendered, "<img") {
+		t.Fatalf("security vulnerability: output contains raw img fragment: %s", rendered)
+	}
+}
+
+func TestMarshalHTMLAllowsLiteralLessThanComparisons(t *testing.T) {
+	template := []byte("<p>Math result</p>")
+
+	entries, err := HTMLParser{}.Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	translated := map[string]string{}
+	for k := range entries {
+		translated[k] = "2 < 3 and 5 > 4"
+	}
+
+	output, diags := MarshalHTML(template, translated)
+	if len(diags.SourceFallbackKeys) != 0 {
+		t.Fatalf("unexpected fallbacks: %v", diags.SourceFallbackKeys)
+	}
+	if !strings.Contains(string(output), "2 < 3 and 5 > 4") {
+		t.Fatalf("expected literal comparison text preserved, got %q", string(output))
+	}
+}

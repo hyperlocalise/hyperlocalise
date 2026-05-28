@@ -325,6 +325,32 @@ func TestMarshalMarkdownRejectsIntroducedRawHTMLWithPlaceholders(t *testing.T) {
 	}
 }
 
+func TestMarshalMarkdownRejectsIntroducedIncompleteRawHTMLBeforePlaceholder(t *testing.T) {
+	template := []byte("Press <kbd>Ctrl</kbd> to continue.\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(entries) != 1 {
+		t.Fatalf("expected one entry, got %d", len(entries))
+	}
+
+	var key, value string
+	for k, v := range entries {
+		key, value = k, v
+	}
+
+	translated := strings.Replace(value, "Ctrl", "Ctrl <img src=x onerror=alert(1)//", 1)
+	output, diags := MarshalMarkdownWithDiagnostics(template, map[string]string{key: translated}, false)
+	if string(output) != string(template) {
+		t.Fatalf("expected source markdown fallback for introduced raw HTML fragment, got %q", string(output))
+	}
+	if len(diags.SourceFallbackKeys) != 1 || diags.SourceFallbackKeys[0] != key {
+		t.Fatalf("expected fallback diagnostic for key %q, got %+v", key, diags)
+	}
+}
+
 func TestMarshalMarkdownLeavesUnclosedMultiBacktickSpanLiteral(t *testing.T) {
 	template := []byte("Document ``unfinished span safely.\n")
 

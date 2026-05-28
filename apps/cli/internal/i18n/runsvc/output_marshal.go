@@ -64,13 +64,13 @@ func (s *Service) marshalTemplateBasedTarget(ext, path, sourcePath, sourceLocale
 }
 
 func (s *Service) marshalSourceTemplateTarget(ext, path, sourcePath, sourceLocale, targetLocale string, values map[string]string) ([]byte, error) {
-	sourceTemplate, err := s.readFile(sourcePath)
+	sourceTemplate, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 
 	template := sourceTemplate
-	targetTemplate, err := s.readFile(path)
+	targetTemplate, err := s.readProjectFile(path)
 	if err == nil {
 		var (
 			targetEntries map[string]string
@@ -202,12 +202,12 @@ func (s *Service) marshalMarkdownTarget(path, sourcePath string, stagedEntries m
 		return marshalMarkdownTargetHook(path, sourcePath, stagedEntries)
 	}
 	mdx := strings.EqualFold(filepath.Ext(sourcePath), ".mdx")
-	sourceTemplate, err := s.readFile(sourcePath)
+	sourceTemplate, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 
-	targetTemplate, err := s.readFile(path)
+	targetTemplate, err := s.readProjectFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			content, diags := translationfileparser.MarshalMarkdownWithDiagnostics(sourceTemplate, stagedEntries, mdx)
@@ -236,12 +236,12 @@ func markdownASTParityFlushError(targetPath string, sourceTemplate, marshaledCon
 }
 
 func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
-	sourceTemplate, err := s.readFile(sourcePath)
+	sourceTemplate, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 
-	targetTemplate, err := s.readFile(path)
+	targetTemplate, err := s.readProjectFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			content, diags := translationfileparser.MarshalHTML(sourceTemplate, stagedEntries)
@@ -255,12 +255,12 @@ func (s *Service) marshalHTMLTarget(path, sourcePath string, stagedEntries map[s
 }
 
 func (s *Service) marshalLiquidTarget(path, sourcePath string, stagedEntries map[string]string) ([]byte, []string, error) {
-	sourceTemplate, err := s.readFile(sourcePath)
+	sourceTemplate, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		return nil, nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, err)
 	}
 
-	targetTemplate, err := s.readFile(path)
+	targetTemplate, err := s.readProjectFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			content, diags := translationfileparser.MarshalLiquid(sourceTemplate, stagedEntries)
@@ -316,14 +316,14 @@ func markdownRenderWarnings(path string, diags translationfileparser.MarkdownRen
 }
 
 func (s *Service) loadTemplateFallback(targetPath, sourcePath string) ([]byte, error) {
-	content, err := s.readFile(targetPath)
+	content, err := s.readProjectFile(targetPath)
 	if err == nil {
 		return content, nil
 	}
 	if !os.IsNotExist(err) {
 		return nil, fmt.Errorf("flush outputs: read target file %q: %w", targetPath, err)
 	}
-	template, srcErr := s.readFile(sourcePath)
+	template, srcErr := s.readProjectFile(sourcePath)
 	if srcErr != nil {
 		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, srcErr)
 	}

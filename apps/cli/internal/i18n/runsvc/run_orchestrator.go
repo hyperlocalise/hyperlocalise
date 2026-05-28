@@ -40,6 +40,12 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		endRunSpan(planSpan, err, "cache_unsupported")
 		return Report{}, err
 	}
+	restorePathRoot, err := s.configureProjectPathRoot(in.ConfigPath)
+	if err != nil {
+		endRunSpan(planSpan, err, "config_path_root")
+		return Report{}, err
+	}
+	defer restorePathRoot()
 
 	planned, planWarnings, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths, in.FixTargets, in.FixMarkdownScopes)
 	if err != nil {
@@ -69,7 +75,7 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	initializeLockState(state)
 
 	activeRunID := ensureActiveRunID(state)
-	report, executable, checkpointStaged, lockMigrated, err := applyLockFilterWithReader(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readFile)
+	report, executable, checkpointStaged, lockMigrated, err := applyLockFilterWithReader(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readProjectFile)
 	if err != nil {
 		endRunSpan(lockSpan, err, "lock_filter")
 		return Report{}, err
