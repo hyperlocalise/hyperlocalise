@@ -13,24 +13,43 @@ export function sanitizeReturnTo(value: string | null | undefined, fallback = "/
     return fallback;
   }
 
-  // Prevent redirect loops by avoiding sensitive auth routes.
-  // We check the path part of the URL (before ? or #) to avoid bypasses.
-  const urlPath = value.split(/[?#]/)[0];
-  const isRestricted = RESTRICTED_PATHS.some(
-    (path) => urlPath === path || urlPath.startsWith(`${path}/`),
-  );
+  try {
+    // Normalize the value by decoding URI components.
+    const decodedValue = decodeURIComponent(value);
 
-  if (isRestricted) {
-    if (urlPath === "/auth/github/callback") {
-      const queryIndex = value.indexOf("?");
-      if (queryIndex !== -1) {
-        const params = new URLSearchParams(value.slice(queryIndex + 1));
-        if (params.has("installation_id") && params.has("state")) {
+    // Re-verify it still looks like a safe relative path after decoding.
+    // We check for // and /\ which can be used for open redirects.
+    if (decodedValue.startsWith("//") || decodedValue.startsWith("/\\")) {
+      return fallback;
+    }
+
+    // Use URL parser to robustly handle the path and parameters.
+    const url = new URL(decodedValue, "http://localhost");
+
+    // Ensure it didn't decode into an absolute URL.
+    if (url.origin !== "http://localhost") {
+      return fallback;
+    }
+
+    const urlPath = url.pathname.toLowerCase();
+
+    // Prevent redirect loops by avoiding sensitive auth routes.
+    const isRestricted = RESTRICTED_PATHS.some(
+      (path) => urlPath === path || urlPath.startsWith(`${path}/`),
+    );
+
+    if (isRestricted) {
+      // Special case for GitHub installation callback which is restricted but needed.
+      if (urlPath === "/auth/github/callback") {
+        if (url.searchParams.has("installation_id") && url.searchParams.has("state")) {
           return value;
         }
       }
-    }
 
+      return fallback;
+    }
+  } catch {
+    // If decoding fails, the URI is likely malformed and should be rejected.
     return fallback;
   }
 
