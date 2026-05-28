@@ -1,5 +1,3 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
-
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
@@ -7,13 +5,20 @@ import { createLogger } from "@/lib/log";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { enqueueProviderSyncIntentFromWebhookEvent } from "@/lib/providers/provider-sync-intent-worker";
-import { resolveSyncKindFromWebhookEvent } from "@/lib/providers/provider-webhook-sync-mapping";
 import {
   findActiveProviderWebhookSubscription,
   insertProviderWebhookEventIdempotent,
   updateProviderWebhookEventProcessingStatus,
   updateProviderWebhookEventSyncIntent,
 } from "@/lib/providers/provider-webhook-storage";
+import {
+  getTmsProviderWebhookAdapter,
+  isExecutableTmsWebhookMappedIntent,
+  type ProviderWebhookPayload,
+  type TmsProviderWebhookAdapter,
+  type TmsProviderWebhookDescriptor,
+  type TmsWebhookExecutableIntent,
+} from "@/lib/providers/tms-provider-webhook-adapters";
 import type {
   ProviderWebhookReconciliationEventData,
   ProviderWebhookReconciliationQueue,
@@ -29,38 +34,11 @@ const providerKinds = new Set<ExternalTmsProviderKind>([
   "lokalise",
 ]);
 
-type WebhookPayload = Record<string, unknown>;
-
-type ProviderWebhookDescriptor = {
-  providerWebhookId: string;
-  providerEventId: string;
-  eventType: string;
-  dedupeKey: string;
-  deliveryId: string | null;
-  resourceType?: string | null;
-  resourceId?: string | null;
-  externalResourceId?: string | null;
-  redactedPayload?: Record<string, unknown>;
-};
-
-export type ProviderTmsWebhookVerifier = {
-  extract(input: {
-    providerKind: ExternalTmsProviderKind;
-    headers: Headers;
-    payload: WebhookPayload;
-  }): ProviderWebhookDescriptor | null;
-  verify(input: {
-    providerKind: ExternalTmsProviderKind;
-    headers: Headers;
-    rawBody: string;
-    payload: WebhookPayload;
-    webhookSecret: string | null;
-    descriptor: ProviderWebhookDescriptor;
-  }): boolean | Promise<boolean>;
-};
+export type ProviderTmsWebhookVerifier = TmsProviderWebhookAdapter;
 
 type CreateTmsWebhookRoutesOptions = {
   verifier?: ProviderTmsWebhookVerifier;
+  providerAdapters?: Partial<Record<ExternalTmsProviderKind, TmsProviderWebhookAdapter>>;
   providerWebhookReconciliationQueue?: ProviderWebhookReconciliationQueue;
 };
 
@@ -68,118 +46,17 @@ function isExternalTmsProviderKind(value: string): value is ExternalTmsProviderK
   return providerKinds.has(value as ExternalTmsProviderKind);
 }
 
-function firstString(...values: unknown[]) {
-  for (const value of values) {
-    if (typeof value === "string" && value.length > 0) {
-      return value;
-    }
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return String(value);
-    }
-  }
-
-  return null;
-}
-
-function readSignature(headers: Headers) {
-  const signature =
-    headers.get("x-hyperlocalise-signature-256") ?? headers.get("x-provider-signature-256");
-
-  if (!signature) {
-    return null;
-  }
-
-  return signature.startsWith("sha256=") ? signature.slice("sha256=".length) : signature;
-}
-
-function verifyHmacSha256(input: { rawBody: string; webhookSecret: string; signature: string }) {
-  const expected = createHmac("sha256", input.webhookSecret).update(input.rawBody).digest("hex");
-
-  if (input.signature.length !== expected.length) {
-    return false;
-  }
-
-  try {
-    return timingSafeEqual(Buffer.from(input.signature, "hex"), Buffer.from(expected, "hex"));
-  } catch {
-    return false;
-  }
-}
-
-const defaultVerifier: ProviderTmsWebhookVerifier = {
-  extract({ headers, payload }) {
-    const providerWebhookId = firstString(
-      headers.get("x-hyperlocalise-provider-webhook-id"),
-      headers.get("x-provider-webhook-id"),
-      payload["provider_webhook_id"],
-      payload["webhook_id"],
-    );
-    const providerEventId = firstString(
-      headers.get("x-hyperlocalise-provider-event-id"),
-      headers.get("x-provider-event-id"),
-      headers.get("x-webhook-event-id"),
-      payload["provider_event_id"],
-      payload["event_id"],
-      payload["id"],
-    );
-    const deliveryId = firstString(
-      headers.get("x-hyperlocalise-delivery-id"),
-      headers.get("x-provider-delivery-id"),
-      headers.get("x-delivery-id"),
-      payload["delivery_id"],
-    );
-    const eventType = firstString(
-      headers.get("x-provider-event-type"),
-      payload["event_type"],
-      payload["event"],
-      payload["type"],
-    );
-
-    if (!providerWebhookId || !providerEventId || !eventType) {
-      return null;
-    }
-
-    const resourceType = firstString(payload["resource_type"], payload["resource"]);
-    const resourceId = firstString(payload["resource_id"]);
-    const externalResourceId = firstString(payload["external_resource_id"]);
-
-    return {
-      providerWebhookId,
-      providerEventId,
-      eventType,
-      dedupeKey: firstString(payload["dedupe_key"], providerEventId) ?? providerEventId,
-      deliveryId,
-      resourceType,
-      resourceId,
-      externalResourceId,
-      redactedPayload: {
-        providerEventId,
-        deliveryId,
-        eventType,
-        resourceType,
-        resourceId,
-        externalResourceId,
-      },
-    };
-  },
-  verify({ headers, rawBody, webhookSecret }) {
-    if (!webhookSecret) {
-      return true;
-    }
-
-    const signature = readSignature(headers);
-    if (!signature) {
-      return false;
-    }
-
-    return verifyHmacSha256({ rawBody, webhookSecret, signature });
-  },
-};
-
 export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = {}) {
-  const verifier = options.verifier ?? defaultVerifier;
   const queue =
     options.providerWebhookReconciliationQueue ?? createProviderWebhookReconciliationQueue();
+
+  function adapterFor(providerKind: ExternalTmsProviderKind) {
+    return (
+      options.verifier ??
+      options.providerAdapters?.[providerKind] ??
+      getTmsProviderWebhookAdapter(providerKind)
+    );
+  }
 
   async function enqueueReconciliation(input: {
     providerWebhookEventId: string;
@@ -188,49 +65,74 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
     providerKind: ExternalTmsProviderKind;
     providerCredentialId: string;
     projectId?: string | null;
-    eventType: string;
-    resourceType?: string | null;
-    resourceId?: string | null;
+    descriptor: TmsProviderWebhookDescriptor;
   }) {
-    const syncKind = resolveSyncKindFromWebhookEvent({
-      eventType: input.eventType,
-      resourceType: input.resourceType,
-    });
+    const mappedIntent = input.descriptor.mappedIntents.find(isExecutableTmsWebhookMappedIntent);
+    if (!mappedIntent) {
+      const errorMessage =
+        input.descriptor.mappedIntents.length > 0
+          ? "unsupported_provider_webhook_event"
+          : "unrecognized_provider_webhook_event";
 
-    if (syncKind === "unknown") {
       logger.warn(
         {
           providerKind: input.providerKind,
           subscriptionId: input.subscriptionId,
           providerWebhookEventId: input.providerWebhookEventId,
-          eventType: input.eventType,
-          resourceType: input.resourceType ?? null,
+          eventType: input.descriptor.eventType,
+          resourceType: input.descriptor.resourceType ?? null,
+          mappedIntentKinds: input.descriptor.mappedIntents.map((intent) => intent.kind),
         },
-        "ignoring webhook: unrecognized provider event",
+        "ignoring webhook: unsupported provider event",
       );
 
       await updateProviderWebhookEventProcessingStatus({
         eventId: input.providerWebhookEventId,
         organizationId: input.organizationId,
         processingStatus: "skipped",
-        errorMessage: "unrecognized_provider_webhook_event",
+        errorMessage,
         errorDetails: {
-          eventType: input.eventType,
-          resourceType: input.resourceType ?? null,
+          eventType: input.descriptor.eventType,
+          resourceType: input.descriptor.resourceType ?? null,
+          mappedIntentKinds: input.descriptor.mappedIntents.map((intent) => intent.kind),
         },
       });
 
       return null;
     }
 
+    const providerSyncIntentId = await enqueueMappedReconciliation({
+      ...input,
+      mappedIntent,
+    });
+
+    await updateProviderWebhookEventSyncIntent({
+      eventId: input.providerWebhookEventId,
+      organizationId: input.organizationId,
+      providerSyncIntentId,
+    });
+
+    return providerSyncIntentId;
+  }
+
+  async function enqueueMappedReconciliation(input: {
+    providerWebhookEventId: string;
+    organizationId: string;
+    subscriptionId: string;
+    providerKind: ExternalTmsProviderKind;
+    providerCredentialId: string;
+    projectId?: string | null;
+    mappedIntent: TmsWebhookExecutableIntent;
+  }) {
     const { intent } = await enqueueProviderSyncIntentFromWebhookEvent({
       organizationId: input.organizationId,
       providerKind: input.providerKind,
       providerCredentialId: input.providerCredentialId,
       projectId: input.projectId,
-      syncKind,
+      syncKind: input.mappedIntent.kind,
       providerWebhookEventId: input.providerWebhookEventId,
-      resourceId: input.resourceId,
+      resourceId: input.mappedIntent.resourceId,
+      resourceIds: input.mappedIntent.resourceIds,
     });
 
     await queue.enqueue({
@@ -241,13 +143,44 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
       providerKind: input.providerKind,
     } satisfies ProviderWebhookReconciliationEventData);
 
-    await updateProviderWebhookEventSyncIntent({
-      eventId: input.providerWebhookEventId,
-      organizationId: input.organizationId,
-      providerSyncIntentId: intent.id,
+    return intent.id;
+  }
+
+  function remapStoredDescriptor(input: {
+    adapter: TmsProviderWebhookAdapter;
+    providerKind: ExternalTmsProviderKind;
+    headers: Headers;
+    redactedPayload: ProviderWebhookPayload;
+    descriptor: TmsProviderWebhookDescriptor;
+    eventType: string;
+    resourceType: string | null;
+    resourceId: string | null;
+    externalResourceId: string | null;
+  }): TmsProviderWebhookDescriptor {
+    const descriptor: TmsProviderWebhookDescriptor = {
+      ...input.descriptor,
+      eventType: input.eventType,
+      resourceType: input.resourceType,
+      resourceId: input.resourceId,
+      externalResourceId: input.externalResourceId,
+      mappedIntents: [],
+      redactedPayload: {},
+    };
+
+    descriptor.mappedIntents = input.adapter.mapToIntents({
+      providerKind: input.providerKind,
+      headers: input.headers,
+      payload: input.redactedPayload,
+      descriptor,
+    });
+    descriptor.redactedPayload = input.adapter.redact({
+      providerKind: input.providerKind,
+      headers: input.headers,
+      payload: input.redactedPayload,
+      descriptor,
     });
 
-    return intent.id;
+    return descriptor;
   }
 
   return new Hono().post(
@@ -268,8 +201,9 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         return c.json({ error: "invalid_payload" }, 400);
       }
 
-      const payload = parseResult.value as WebhookPayload;
-      const descriptor = verifier.extract({
+      const payload = parseResult.value as ProviderWebhookPayload;
+      const adapter = adapterFor(providerKindParam);
+      const descriptor = adapter.extract({
         providerKind: providerKindParam,
         headers: c.req.raw.headers,
         payload,
@@ -298,7 +232,7 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         return c.json({ error: "webhook_secret_unavailable" }, 500);
       }
 
-      const verified = await verifier.verify({
+      const verified = await adapter.verify({
         providerKind: providerKindParam,
         headers: c.req.raw.headers,
         rawBody,
@@ -337,9 +271,17 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
             providerKind: providerKindParam,
             providerCredentialId: subscription.providerCredentialId,
             projectId: subscription.projectId,
-            eventType: stored.event.eventType,
-            resourceType: stored.event.resourceType,
-            resourceId: stored.event.resourceId,
+            descriptor: remapStoredDescriptor({
+              adapter,
+              providerKind: providerKindParam,
+              headers: c.req.raw.headers,
+              redactedPayload: stored.event.redactedPayload,
+              descriptor,
+              eventType: stored.event.eventType,
+              resourceType: stored.event.resourceType,
+              resourceId: stored.event.resourceId,
+              externalResourceId: stored.event.externalResourceId,
+            }),
           });
 
           log.info(
@@ -367,9 +309,7 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         providerKind: providerKindParam,
         providerCredentialId: subscription.providerCredentialId,
         projectId: subscription.projectId,
-        eventType: descriptor.eventType,
-        resourceType: descriptor.resourceType,
-        resourceId: descriptor.resourceId,
+        descriptor,
       });
 
       log.info(

@@ -209,6 +209,7 @@ export async function enqueueProviderSyncIntentFromWebhookEvent(input: {
   syncKind: import("./provider-sync-intent-kinds").ProviderSyncIntentKind;
   providerWebhookEventId: string;
   resourceId?: string | null;
+  resourceIds?: string[];
   priority?: number;
 }) {
   return enqueueProviderSyncIntent({
@@ -218,6 +219,7 @@ export async function enqueueProviderSyncIntentFromWebhookEvent(input: {
     projectId: input.projectId,
     syncKind: input.syncKind,
     resourceId: input.resourceId,
+    resourceIds: input.resourceIds,
     cause: "webhook",
     eventReferences: [input.providerWebhookEventId],
     priority: input.priority ?? 0,

@@ -14,7 +14,6 @@ import {
 } from "./provider-sync-intent-dispatch";
 import { processProviderSyncIntent } from "./provider-sync-intent-worker";
 import { startProviderSyncRun } from "./provider-sync-runs";
-import { resolveSyncKindFromWebhookEvent } from "./provider-webhook-sync-mapping";
 import { completeAgentRun, createAgentRun, startAgentRun } from "./agent-runs";
 import { upsertExternalJob } from "./organization-external-tms-jobs";
 import {
@@ -275,18 +274,6 @@ describe("provider sync intents", () => {
 
   it("dispatches intents through the runner mapping", async () => {
     expect(resolveProviderSyncDispatchRunner("tm_scan")).toBe("tm_scan");
-    expect(
-      resolveSyncKindFromWebhookEvent({
-        eventType: "project.created",
-        resourceType: "project",
-      }),
-    ).toBe("project_scan");
-    expect(
-      resolveSyncKindFromWebhookEvent({
-        eventType: "system.ping",
-        resourceType: "webhook",
-      }),
-    ).toBe("unknown");
   });
 
   it("loads accepted translations for push translation intents from provider jobs", async () => {
