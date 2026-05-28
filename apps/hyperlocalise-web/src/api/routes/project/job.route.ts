@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
-import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
   conflictResponse,
@@ -189,19 +189,19 @@ function jobListFilters(input: {
   return filters;
 }
 
-function retryableJobWhere(input: { organizationId: string; jobId: string }) {
+async function retryableJobWhere(auth: ApiAuthContext, jobId: string) {
   return and(
-    eq(schema.jobs.id, input.jobId),
-    eq(schema.jobs.organizationId, input.organizationId),
+    eq(schema.jobs.id, jobId),
+    await buildAccessibleJobsWhere(auth),
     eq(schema.jobs.kind, "translation"),
     or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "failed")),
   );
 }
 
-function activeJobWhere(input: { organizationId: string; jobId: string }) {
+async function activeJobWhere(auth: ApiAuthContext, jobId: string) {
   return and(
-    eq(schema.jobs.id, input.jobId),
-    eq(schema.jobs.organizationId, input.organizationId),
+    eq(schema.jobs.id, jobId),
+    await buildAccessibleJobsWhere(auth),
     or(eq(schema.jobs.status, "queued"), eq(schema.jobs.status, "running")),
   );
 }
@@ -630,9 +630,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         })
         .from(schema.jobs)
         .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .where(
-          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
-        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
         .limit(1);
 
       if (!job) {
@@ -675,9 +673,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           })
           .from(schema.jobs)
           .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-          .where(
-            and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
-          )
+          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
           .limit(1);
 
         if (!job) {
@@ -809,7 +805,6 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     )
     .get("/:jobId/provider-actions", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");
-      const organizationId = c.var.auth.organization.localOrganizationId;
 
       const [job] = await db
         .select({
@@ -817,9 +812,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         })
         .from(schema.jobs)
         .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .where(
-          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
-        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
         .limit(1);
 
       if (!job) {
@@ -855,9 +848,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           })
           .from(schema.jobs)
           .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-          .where(
-            and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
-          )
+          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
           .limit(1);
 
         if (!job) {
@@ -1017,9 +1008,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         })
         .from(schema.jobs)
         .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .where(
-          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
-        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
         .limit(1);
 
       if (!job) {
@@ -1106,24 +1095,14 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
-        .where(
-          retryableJobWhere({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            jobId: params.jobId,
-          }),
-        )
+        .where(await retryableJobWhere(c.var.auth, params.jobId))
         .limit(1);
 
       if (!job) {
         const [existingJob] = await db
           .select({ id: schema.jobs.id })
           .from(schema.jobs)
-          .where(
-            and(
-              eq(schema.jobs.id, params.jobId),
-              eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-            ),
-          )
+          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
           .limit(1);
 
         return existingJob
@@ -1148,12 +1127,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             outcomePayload: null,
             completedAt: null,
           })
-          .where(
-            retryableJobWhere({
-              organizationId: c.var.auth.organization.localOrganizationId,
-              jobId: params.jobId,
-            }),
-          )
+          .where(await retryableJobWhere(c.var.auth, params.jobId))
           .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
 
         if (!updatedJob) {
@@ -1189,12 +1163,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
                 error instanceof Error ? error.message : "translation job queue unavailable",
               completedAt: new Date(),
             })
-            .where(
-              and(
-                eq(schema.jobs.id, params.jobId),
-                eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-              ),
-            );
+            .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)));
 
           await tx
             .update(schema.translationJobDetails)
@@ -1226,12 +1195,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             eq(schema.projects.organizationId, schema.jobs.organizationId),
           ),
         )
-        .where(
-          and(
-            eq(schema.jobs.id, params.jobId),
-            eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-          ),
-        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
         .limit(1);
 
       return c.json({ job: updatedJob }, 200);
@@ -1255,12 +1219,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             },
             completedAt: new Date(),
           })
-          .where(
-            activeJobWhere({
-              organizationId: c.var.auth.organization.localOrganizationId,
-              jobId: params.jobId,
-            }),
-          )
+          .where(await activeJobWhere(c.var.auth, params.jobId))
           .returning({ id: schema.jobs.id, kind: schema.jobs.kind });
 
         if (job?.kind === "translation") {
@@ -1277,12 +1236,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         const [existingJob] = await db
           .select({ id: schema.jobs.id })
           .from(schema.jobs)
-          .where(
-            and(
-              eq(schema.jobs.id, params.jobId),
-              eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-            ),
-          )
+          .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
           .limit(1);
 
         return existingJob
@@ -1311,12 +1265,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             eq(schema.projects.organizationId, schema.jobs.organizationId),
           ),
         )
-        .where(
-          and(
-            eq(schema.jobs.id, params.jobId),
-            eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-          ),
-        )
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
         .limit(1);
 
       return c.json({ job }, 200);
