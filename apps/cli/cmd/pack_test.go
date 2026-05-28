@@ -342,9 +342,7 @@ func TestPackCommandRejectsPrefixIDCollisionsInPlainJSONFlatOutput(t *testing.T)
 	if err == nil {
 		t.Fatalf("expected pack command to fail on prefix-id collision")
 	}
-	if !strings.Contains(err.Error(), `ids "src.bar.button.label" and "src.foo.button.label" both strip to "label"`) {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	assertPackPrefixIDCollisionError(t, err, "src.bar.button.label", "src.foo.button.label", "label")
 }
 
 func TestPackCommandRejectsPrefixIDCollisionsInFormatJSCatalog(t *testing.T) {
@@ -368,9 +366,7 @@ func TestPackCommandRejectsPrefixIDCollisionsInFormatJSCatalog(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected pack command to fail on prefix-id collision")
 	}
-	if !strings.Contains(err.Error(), `ids "src.bar.button.label" and "src.foo.button.label" both strip to "label"`) {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	assertPackPrefixIDCollisionError(t, err, "src.bar.button.label", "src.foo.button.label", "label")
 }
 
 func TestPackCommandRejectsPrefixIDCollisionsInGroupedOutput(t *testing.T) {
@@ -390,9 +386,7 @@ func TestPackCommandRejectsPrefixIDCollisionsInGroupedOutput(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected pack command to fail on prefix-id collision")
 	}
-	if !strings.Contains(err.Error(), `ids "src.bar.button.label" and "src.foo.button.label" both strip to "label"`) {
-		t.Fatalf("unexpected error: %v", err)
-	}
+	assertPackPrefixIDCollisionError(t, err, "src.bar.button.label", "src.foo.button.label", "label")
 }
 
 func TestPackCommandSupportsPlainJSONTranslations(t *testing.T) {
@@ -872,5 +866,21 @@ func assertPackGroupedOutput(t *testing.T, got, want map[string][]string) {
 				t.Fatalf("translation %q ids = %#v, want %#v", translation, gotIDs, wantIDs)
 			}
 		}
+	}
+}
+
+func assertPackPrefixIDCollisionError(t *testing.T, err error, idA, idB, packedID string) {
+	t.Helper()
+
+	if err == nil {
+		t.Fatal("expected prefix-id collision error")
+	}
+
+	msg := err.Error()
+	if !strings.Contains(msg, idA) || !strings.Contains(msg, idB) {
+		t.Fatalf("error %q must mention both %q and %q", msg, idA, idB)
+	}
+	if !strings.Contains(msg, fmt.Sprintf(`both strip to %q`, packedID)) {
+		t.Fatalf("error %q must mention packed id %q", msg, packedID)
 	}
 }
