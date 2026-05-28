@@ -49,7 +49,11 @@ const requireBillingWriteForRouteMiddleware = createMiddleware<{ Variables: Auth
   },
 );
 
-const requireBillableWorkspaceMiddleware = createMiddleware<{ Variables: AuthVariables }>(
+type AutumnVariables = AuthVariables & {
+  autumnCustomerIdentity: NonNullable<ReturnType<typeof resolveAutumnCustomerIdentity>>;
+};
+
+const requireBillableWorkspaceMiddleware = createMiddleware<{ Variables: AutumnVariables }>(
   async (c, next) => {
     const identity = resolveAutumnCustomerIdentity(c.get("auth"));
     if (!identity?.customerId) {
@@ -60,6 +64,7 @@ const requireBillableWorkspaceMiddleware = createMiddleware<{ Variables: AuthVar
       );
     }
 
+    c.set("autumnCustomerIdentity", identity);
     await next();
   },
 );
@@ -67,7 +72,7 @@ const requireBillableWorkspaceMiddleware = createMiddleware<{ Variables: AuthVar
 export function createAutumnRoutes() {
   const secretKey = getAutumnSecretKey();
 
-  return new Hono<{ Variables: AuthVariables }>()
+  return new Hono<{ Variables: AutumnVariables }>()
     .use("*", createWorkosAuthMiddleware())
     .use("*", requireBillingReadMiddleware)
     .use("*", requireBillingWriteForRouteMiddleware)
@@ -77,7 +82,7 @@ export function createAutumnRoutes() {
       autumnHandler({
         secretKey,
         pathPrefix: AUTUMN_API_PATH_PREFIX,
-        identify: (c) => resolveAutumnCustomerIdentity(c.get("auth")),
+        identify: (c) => c.get("autumnCustomerIdentity"),
       }),
     );
 }

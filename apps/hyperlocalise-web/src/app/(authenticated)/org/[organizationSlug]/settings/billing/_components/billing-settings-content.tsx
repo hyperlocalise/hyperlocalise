@@ -12,7 +12,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { formatAutumnBillingError } from "@/lib/billing/autumn-errors";
-import { isAutumnConfigured } from "@/lib/billing/autumn-config";
 import { getUsageFeatureLabel, meteredUsageFeatureIds } from "@/lib/billing/usage-feature-labels";
 
 function SurfaceCard({
@@ -64,9 +63,11 @@ function BillingSettingsHeader() {
 }
 
 function BillingSettingsPanel({
+  autumnConfigured,
   canManageBilling,
   organizationSlug,
 }: {
+  autumnConfigured: boolean;
   canManageBilling: boolean;
   organizationSlug: string;
 }) {
@@ -165,7 +166,7 @@ function BillingSettingsPanel({
     await runBillingAction("portal", () => openCustomerPortal({ returnUrl }));
   }
 
-  if (!isAutumnConfigured()) {
+  if (!autumnConfigured) {
     return (
       <SurfaceCard>
         <CardHeader className="px-5 py-5">
@@ -394,9 +395,11 @@ function BillingSettingsPanel({
 }
 
 export function BillingSettingsPageContent({
+  autumnConfigured,
   canManageBilling,
   organizationSlug,
 }: {
+  autumnConfigured: boolean;
   canManageBilling: boolean;
   organizationSlug: string;
 }) {
@@ -404,6 +407,7 @@ export function BillingSettingsPageContent({
     <main className="space-y-5">
       <BillingSettingsHeader />
       <BillingSettingsPanel
+        autumnConfigured={autumnConfigured}
         canManageBilling={canManageBilling}
         organizationSlug={organizationSlug}
       />

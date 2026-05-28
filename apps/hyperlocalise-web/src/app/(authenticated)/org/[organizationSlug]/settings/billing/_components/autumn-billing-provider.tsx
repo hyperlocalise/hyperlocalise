@@ -2,7 +2,10 @@
 
 import { AutumnProvider } from "autumn-js/react";
 
-import { AUTUMN_API_PATH_PREFIX, ORGANIZATION_SLUG_HEADER } from "@/lib/billing/autumn-config";
+import {
+  AUTUMN_API_PATH_PREFIX,
+  ORGANIZATION_SLUG_HEADER,
+} from "@/lib/billing/autumn-public-config";
 
 export function AutumnBillingProvider({
   children,

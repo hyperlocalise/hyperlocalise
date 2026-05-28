@@ -32,6 +32,33 @@ function testSessionTokenFromCookie(cookie: string | undefined) {
     ?.slice("wos-session=".length);
 }
 
+function switchAuthContextOrganization(
+  authContext: ApiAuthContext,
+  organizationSlug: string | undefined,
+) {
+  if (!organizationSlug || authContext.organization.slug == null) {
+    return authContext;
+  }
+
+  const activeOrganization = authContext.organizations.find(
+    (organization) => organization.slug === organizationSlug,
+  );
+
+  if (!activeOrganization) {
+    return authContext;
+  }
+
+  return enrichAuthContextWithCapabilities({
+    ...authContext,
+    organization: activeOrganization,
+    activeOrganization,
+    membership: {
+      workosMembershipId: activeOrganization.membership.workosMembershipId,
+      role: activeOrganization.membership.role,
+    },
+  });
+}
+
 globalThis.__resolveTestApiAuthContextFromSession = (options = {}) => {
   const token = testSessionTokenFromCookie(options.cookie);
   const authContext =
@@ -45,31 +72,7 @@ globalThis.__resolveTestApiAuthContextFromSession = (options = {}) => {
     return null;
   }
 
-  if (!options.organizationSlug) {
-    return authContext;
-  }
-
-  if (authContext.organization.slug == null) {
-    return authContext;
-  }
-
-  const activeOrganization = authContext.organizations.find(
-    (organization) => organization.slug === options.organizationSlug,
-  );
-
-  if (!activeOrganization) {
-    return authContext;
-  }
-
-  return {
-    ...authContext,
-    organization: activeOrganization,
-    activeOrganization,
-    membership: {
-      workosMembershipId: activeOrganization.membership.workosMembershipId,
-      role: activeOrganization.membership.role,
-    },
-  };
+  return switchAuthContextOrganization(authContext, options.organizationSlug);
 };
 
 export function createAuthTestFixture() {

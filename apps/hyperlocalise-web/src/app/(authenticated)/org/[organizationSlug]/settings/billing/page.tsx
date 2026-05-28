@@ -1,4 +1,5 @@
 import { hasCapability } from "@/api/auth/policy";
+import { isAutumnConfigured } from "@/lib/billing/autumn-config";
 import { requireAppAuthContext, requireAppCapability } from "@/lib/workos/app-auth";
 
 import { AutumnBillingProvider } from "./_components/autumn-billing-provider";
@@ -16,6 +17,7 @@ export default async function BillingSettingsPage({
   return (
     <AutumnBillingProvider organizationSlug={organizationSlug}>
       <BillingSettingsPageContent
+        autumnConfigured={isAutumnConfigured()}
         organizationSlug={organizationSlug}
         canManageBilling={hasCapability(auth.membership.role, "billing:write")}
       />

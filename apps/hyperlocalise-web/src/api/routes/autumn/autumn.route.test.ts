@@ -60,7 +60,7 @@ vi.mock("autumn-js/hono", () => ({
 import { createApp } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { ORGANIZATION_SLUG_HEADER } from "@/lib/billing/autumn-config";
+import { ORGANIZATION_SLUG_HEADER } from "@/lib/billing/autumn-public-config";
 import { LOCAL_ORG_WORKOS_ID_PREFIX } from "@/lib/billing/autumn-customer";
 import { db } from "@/lib/database";
 
