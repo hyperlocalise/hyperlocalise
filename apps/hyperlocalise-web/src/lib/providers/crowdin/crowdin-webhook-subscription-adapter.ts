@@ -95,8 +95,19 @@ function buildReplaceOperations(
   ];
 }
 
-function mapCrowdinError(error: unknown): ProviderWebhookSubscriptionAdapterError {
+function mapCrowdinError(
+  error: unknown,
+  options?: { providerWebhookId?: string },
+): ProviderWebhookSubscriptionAdapterError {
   if (error instanceof ProviderWebhookSubscriptionAdapterError) {
+    if (options?.providerWebhookId && !error.providerWebhookId) {
+      return new ProviderWebhookSubscriptionAdapterError(error.code, error.message, {
+        httpStatus: error.httpStatus,
+        cause: error.cause,
+        providerWebhookId: options.providerWebhookId,
+      });
+    }
+
     return error;
   }
 
@@ -106,14 +117,18 @@ function mapCrowdinError(error: unknown): ProviderWebhookSubscriptionAdapterErro
     return new ProviderWebhookSubscriptionAdapterError(
       code,
       `Crowdin webhook API returned HTTP ${error.status}`,
-      { httpStatus: error.status, cause: error },
+      {
+        httpStatus: error.status,
+        cause: error,
+        providerWebhookId: options?.providerWebhookId,
+      },
     );
   }
 
   return new ProviderWebhookSubscriptionAdapterError(
     "provider_error",
     error instanceof Error ? error.message : "Crowdin webhook setup failed",
-    { cause: error },
+    { cause: error, providerWebhookId: options?.providerWebhookId },
   );
 }
 
@@ -133,11 +148,18 @@ export function createCrowdinWebhookSubscriptionAdapter(): ProviderWebhookSubscr
     },
 
     async createRemoteSubscription(context) {
+      const projectId = parseCrowdinProjectId(context.externalProjectId);
+      const client = createCrowdinClient(context);
+
+      let created: CrowdinWebhook;
       try {
-        const projectId = parseCrowdinProjectId(context.externalProjectId);
-        const client = createCrowdinClient(context);
-        const created = await client.createWebhook(projectId, buildCreateRequest(context));
-        const providerWebhookId = String(created.id);
+        created = await client.createWebhook(projectId, buildCreateRequest(context));
+      } catch (error) {
+        throw mapCrowdinError(error);
+      }
+
+      const providerWebhookId = String(created.id);
+      try {
         const updated = await client.updateWebhook(projectId, created.id, [
           {
             op: "replace",
@@ -150,7 +172,7 @@ export function createCrowdinWebhookSubscriptionAdapter(): ProviderWebhookSubscr
         ]);
         return mapCrowdinWebhook(updated);
       } catch (error) {
-        throw mapCrowdinError(error);
+        throw mapCrowdinError(error, { providerWebhookId });
       }
     },
 

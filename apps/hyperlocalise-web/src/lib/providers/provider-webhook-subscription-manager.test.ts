@@ -97,7 +97,7 @@ describe("provider webhook subscription manager", () => {
     return { organizationId, credential, projectId };
   }
 
-  function createCrowdinWebhookFetch(input: { status?: number } = {}) {
+  function createCrowdinWebhookFetch(input: { status?: number; patchFails?: boolean } = {}) {
     return vi.fn(async (_url, init) => {
       if (input.status) {
         return new Response(JSON.stringify({ error: "provider failure" }), {
@@ -133,6 +133,12 @@ describe("provider webhook subscription manager", () => {
       }
 
       if (method === "PATCH") {
+        if (input.patchFails) {
+          return new Response(JSON.stringify({ error: "provider failure" }), {
+            status: 500,
+          });
+        }
+
         const operations = Array.isArray(body) ? body : [];
         const headers = operations.find((operation) => operation.path === "/headers")?.value as
           | Record<string, string>
@@ -234,6 +240,43 @@ describe("provider webhook subscription manager", () => {
     }
 
     createdRecordsByTest.delete(testKey);
+  });
+
+  it("resumes Crowdin webhook setup after header activation fails", async () => {
+    const { organizationId, credential, projectId } = await createCrowdinCredential();
+    const failingFetch = createCrowdinWebhookFetch({ patchFails: true });
+
+    const failed = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "12345",
+      fetchFn: failingFetch,
+    });
+
+    expect(failed.status).toBe("provider_error");
+    expect(failed.subscription.providerWebhookId).toBe("77");
+
+    const resumeFetch = createCrowdinWebhookFetch();
+    const resumed = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "12345",
+      fetchFn: resumeFetch,
+    });
+
+    expect(resumed.status).toBe("active");
+    expect(resumed.subscription.providerWebhookId).toBe("77");
+    expect(resumed.subscription.id).toBe(failed.subscription.id);
+    expect(failingFetch).toHaveBeenCalledTimes(2);
+    expect(resumeFetch).toHaveBeenCalledTimes(1);
+    expect(resumeFetch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ method: "PATCH" }),
+    );
   });
 
   it("creates an automatic Crowdin webhook subscription", async () => {

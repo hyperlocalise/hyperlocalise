@@ -111,6 +111,17 @@ function readSignature(headers: Headers) {
   return signature.startsWith("sha256=") ? signature.slice("sha256=".length) : signature;
 }
 
+function constantTimeEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function verifyHmacSha256(input: { rawBody: string; webhookSecret: string; signature: string }) {
   const expected = createHmac("sha256", input.webhookSecret).update(input.rawBody).digest("hex");
 
@@ -153,7 +164,11 @@ function verifyCrowdinWebhook(input: TmsProviderWebhookVerificationInput) {
   }
 
   const echoedSecret = input.headers.get("x-hyperlocalise-webhook-secret");
-  return echoedSecret === input.webhookSecret;
+  if (!echoedSecret) {
+    return false;
+  }
+
+  return constantTimeEqual(echoedSecret, input.webhookSecret);
 }
 
 function dedupeIntents(intents: TmsWebhookMappedIntent[]) {

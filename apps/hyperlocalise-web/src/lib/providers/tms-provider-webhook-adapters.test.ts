@@ -251,6 +251,19 @@ describe("tms provider webhook adapters", () => {
         }),
       ),
     ).resolves.toBe(true);
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "crowdin",
+          headers: new Headers({ "x-hyperlocalise-webhook-secret": "wrong-secret" }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: descriptor!,
+        }),
+      ),
+    ).resolves.toBe(false);
   });
 
   it("default verification rejects echoed secrets without body signatures", async () => {
