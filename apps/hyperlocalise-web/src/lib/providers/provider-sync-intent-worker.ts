@@ -20,7 +20,13 @@ export type ProcessProviderSyncIntentInput = {
 
 export type ProcessProviderSyncIntentResult =
   | { ok: true; intentId: string; providerSyncRunId: string; status: "succeeded" }
-  | { ok: false; intentId: string; status: "retryable" | "failed" | "skipped"; reason: string };
+  | {
+      ok: false;
+      intentId: string;
+      status: "retryable" | "failed" | "skipped";
+      reason: string;
+      nextAttemptAt?: Date | null;
+    };
 
 export async function processProviderSyncIntent(
   input: ProcessProviderSyncIntentInput,
@@ -82,10 +88,20 @@ export async function processProviderSyncIntent(
       const failedIntent = await failProviderSyncIntent({
         intentId: claimed.id,
         organizationId: input.organizationId,
+        workerId: input.workerId,
         errorMessage: "provider_sync_run_failed",
         providerSyncRunId: dispatchResult.runId,
         retryable: true,
       });
+
+      if (!failedIntent) {
+        return {
+          ok: false,
+          intentId: claimed.id,
+          status: "skipped",
+          reason: "intent_lease_lost",
+        };
+      }
 
       for (const eventId of webhookEventIds) {
         await updateProviderWebhookEventProcessingStatus({
@@ -95,23 +111,34 @@ export async function processProviderSyncIntent(
           errorMessage: "provider_sync_run_failed",
           providerSyncRunId: dispatchResult.runId,
           providerSyncIntentId: claimed.id,
-          nextRetryAt: failedIntent?.nextAttemptAt ?? null,
+          nextRetryAt: failedIntent.nextAttemptAt ?? null,
         });
       }
 
       return {
         ok: false,
         intentId: claimed.id,
-        status: failedIntent?.status === "retryable" ? "retryable" : "failed",
+        status: failedIntent.status === "retryable" ? "retryable" : "failed",
         reason: "provider_sync_run_failed",
+        nextAttemptAt: failedIntent.nextAttemptAt,
       };
     }
 
-    await completeProviderSyncIntent({
+    const completedIntent = await completeProviderSyncIntent({
       intentId: claimed.id,
       organizationId: input.organizationId,
+      workerId: input.workerId,
       providerSyncRunId: dispatchResult.runId,
     });
+
+    if (!completedIntent) {
+      return {
+        ok: false,
+        intentId: claimed.id,
+        status: "skipped",
+        reason: "intent_lease_lost",
+      };
+    }
 
     for (const eventId of webhookEventIds) {
       await updateProviderWebhookEventProcessingStatus({
@@ -136,12 +163,22 @@ export async function processProviderSyncIntent(
     const failedIntent = await failProviderSyncIntent({
       intentId: claimed.id,
       organizationId: input.organizationId,
+      workerId: input.workerId,
       errorMessage: message,
       errorDetails: {
         name: error instanceof Error ? error.name : "UnknownError",
       },
       retryable,
     });
+
+    if (!failedIntent) {
+      return {
+        ok: false,
+        intentId: claimed.id,
+        status: "skipped",
+        reason: "intent_lease_lost",
+      };
+    }
 
     for (const eventId of webhookEventIds) {
       await updateProviderWebhookEventProcessingStatus({
@@ -150,15 +187,16 @@ export async function processProviderSyncIntent(
         processingStatus: "failed",
         errorMessage: message,
         providerSyncIntentId: claimed.id,
-        nextRetryAt: failedIntent?.nextAttemptAt ?? null,
+        nextRetryAt: failedIntent.nextAttemptAt ?? null,
       });
     }
 
     return {
       ok: false,
       intentId: claimed.id,
-      status: failedIntent?.status === "retryable" ? "retryable" : "failed",
+      status: failedIntent.status === "retryable" ? "retryable" : "failed",
       reason: message,
+      nextAttemptAt: failedIntent.nextAttemptAt,
     };
   }
 }

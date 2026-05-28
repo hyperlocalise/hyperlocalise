@@ -18,7 +18,6 @@ import {
 export const PROVIDER_SYNC_INTENT_LEASE_MS = 5 * 60 * 1000;
 export const PROVIDER_SYNC_INTENT_DEFAULT_MAX_ATTEMPTS = 5;
 const ACTIVE_INTENT_STATUSES: ProviderSyncIntentStatus[] = ["pending", "running", "retryable"];
-const ACTIVE_INTENT_TARGET_WHERE = sql`${schema.providerSyncIntents.status} in ('pending', 'running', 'retryable')`;
 
 export type EnqueueProviderSyncIntentInput = {
   organizationId: string;
@@ -68,6 +67,10 @@ function assertSupportedSyncKind(
   if (!isProviderSyncIntentKind(syncKind)) {
     throw new Error("unsupported_provider_sync_intent_kind");
   }
+}
+
+function activeIntentTargetWhere() {
+  return sql`${schema.providerSyncIntents.status} in ('pending', 'running', 'retryable')`;
 }
 
 export async function findActiveProviderSyncIntentByLeaseKey(leaseKey: string) {
@@ -123,7 +126,7 @@ export async function enqueueProviderSyncIntent(
     })
     .onConflictDoUpdate({
       target: schema.providerSyncIntents.leaseKey,
-      targetWhere: ACTIVE_INTENT_TARGET_WHERE,
+      targetWhere: activeIntentTargetWhere(),
       set: {
         eventReferences: mergeJsonbStringArray(
           schema.providerSyncIntents.eventReferences,
@@ -227,6 +230,7 @@ export async function claimProviderSyncIntent(input: {
 export async function completeProviderSyncIntent(input: {
   intentId: string;
   organizationId: string;
+  workerId: string;
   providerSyncRunId?: string | null;
 }) {
   const now = new Date();
@@ -245,6 +249,7 @@ export async function completeProviderSyncIntent(input: {
       and(
         eq(schema.providerSyncIntents.id, input.intentId),
         eq(schema.providerSyncIntents.organizationId, input.organizationId),
+        eq(schema.providerSyncIntents.leasedBy, input.workerId),
       ),
     )
     .returning();
@@ -255,6 +260,7 @@ export async function completeProviderSyncIntent(input: {
 export async function failProviderSyncIntent(input: {
   intentId: string;
   organizationId: string;
+  workerId: string;
   errorMessage: string;
   errorDetails?: Record<string, unknown>;
   retryable?: boolean;
@@ -269,6 +275,7 @@ export async function failProviderSyncIntent(input: {
       and(
         eq(schema.providerSyncIntents.id, input.intentId),
         eq(schema.providerSyncIntents.organizationId, input.organizationId),
+        eq(schema.providerSyncIntents.leasedBy, input.workerId),
       ),
     )
     .limit(1);
@@ -293,7 +300,13 @@ export async function failProviderSyncIntent(input: {
       completedAt: shouldRetry ? null : now,
       updatedAt: now,
     })
-    .where(eq(schema.providerSyncIntents.id, current.id))
+    .where(
+      and(
+        eq(schema.providerSyncIntents.id, current.id),
+        eq(schema.providerSyncIntents.organizationId, input.organizationId),
+        eq(schema.providerSyncIntents.leasedBy, input.workerId),
+      ),
+    )
     .returning();
 
   return intent ?? null;

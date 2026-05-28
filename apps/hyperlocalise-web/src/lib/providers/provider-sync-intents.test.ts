@@ -19,6 +19,7 @@ import { completeAgentRun, createAgentRun, startAgentRun } from "./agent-runs";
 import { upsertExternalJob } from "./organization-external-tms-jobs";
 import {
   claimProviderSyncIntent,
+  completeProviderSyncIntent,
   enqueueProviderSyncIntent,
   failProviderSyncIntent,
   PROVIDER_SYNC_INTENT_LEASE_MS,
@@ -185,12 +186,13 @@ describe("provider sync intents", () => {
 
     await db
       .update(schema.providerSyncIntents)
-      .set({ status: "running", attempts: 1 })
+      .set({ status: "running", attempts: 1, leasedBy: "worker-a" })
       .where(eq(schema.providerSyncIntents.id, intent.id));
 
     const failed = await failProviderSyncIntent({
       intentId: intent.id,
       organizationId: project.organizationId,
+      workerId: "worker-a",
       errorMessage: "temporary provider outage",
       retryable: true,
     });
@@ -198,6 +200,77 @@ describe("provider sync intents", () => {
     expect(failed?.status).toBe("retryable");
     expect(failed?.eventReferences).toEqual(["event-1"]);
     expect(failed?.nextAttemptAt).toBeTruthy();
+  });
+
+  it("does not complete an intent after the worker loses its lease", async () => {
+    const project = await createTestProject();
+
+    const { intent } = await enqueueProviderSyncIntent({
+      organizationId: project.organizationId,
+      providerKind: "phrase",
+      projectId: project.id,
+      syncKind: "project_scan",
+      cause: "manual",
+    });
+
+    await db
+      .update(schema.providerSyncIntents)
+      .set({ status: "running", attempts: 2, leasedBy: "worker-b" })
+      .where(eq(schema.providerSyncIntents.id, intent.id));
+
+    const completed = await completeProviderSyncIntent({
+      intentId: intent.id,
+      organizationId: project.organizationId,
+      workerId: "worker-a",
+      providerSyncRunId: null,
+    });
+
+    expect(completed).toBeNull();
+
+    const [updated] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.id, intent.id));
+    expect(updated?.status).toBe("running");
+    expect(updated?.leasedBy).toBe("worker-b");
+    expect(updated?.providerSyncRunId).toBeNull();
+    expect(updated?.completedAt).toBeNull();
+  });
+
+  it("does not fail an intent after the worker loses its lease", async () => {
+    const project = await createTestProject();
+
+    const { intent } = await enqueueProviderSyncIntent({
+      organizationId: project.organizationId,
+      providerKind: "crowdin",
+      projectId: project.id,
+      syncKind: "tm_scan",
+      cause: "manual",
+    });
+
+    await db
+      .update(schema.providerSyncIntents)
+      .set({ status: "running", attempts: 2, leasedBy: "worker-b" })
+      .where(eq(schema.providerSyncIntents.id, intent.id));
+
+    const failed = await failProviderSyncIntent({
+      intentId: intent.id,
+      organizationId: project.organizationId,
+      workerId: "worker-a",
+      errorMessage: "late worker failure",
+      retryable: true,
+    });
+
+    expect(failed).toBeNull();
+
+    const [updated] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.id, intent.id));
+    expect(updated?.status).toBe("running");
+    expect(updated?.leasedBy).toBe("worker-b");
+    expect(updated?.lastError).toBeNull();
+    expect(updated?.nextAttemptAt).toBeNull();
   });
 
   it("dispatches intents through the runner mapping", async () => {
