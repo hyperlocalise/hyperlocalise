@@ -61,6 +61,13 @@ const (
 	ReportSavingActivity              ReportName = "saving-activity"
 	ReportTranslationActivity         ReportName = "translation-activity"
 
+	ReportCostsEstimation             ReportName = "costs-estimation"
+	ReportTranslationCosts            ReportName = "translation-costs"
+	ReportUserComprehensiveSummary    ReportName = "user-comprehensive-summary"
+	ReportProjectComprehensiveSummary ReportName = "project-comprehensive-summary"
+	ReportTranslationCostsTM          ReportName = "translation-costs-tm"
+	ReportCostsEstimationTM           ReportName = "costs-estimation-tm"
+
 	// Deprecated: Use ReportPreTranslateAccuracy instead.
 	ReportPreTranslateEfficiency ReportName = "pre-translate-efficiency"
 
@@ -70,6 +77,11 @@ const (
 	ReportGroupTaskUsage                   ReportName = "group-task-usage"
 	ReportGroupQACheckIssues               ReportName = "group-qa-check-issues"
 	ReportGroupTranslationActivity         ReportName = "group-translation-activity"
+
+	ReportGroupTranslationCosts           ReportName = "group-translation-costs"
+	ReportGroupCostsEstimationPostEditing ReportName = "group-costs-estimation-pe"
+	ReportGroupTranslationCostsTM         ReportName = "group-translation-costs-tm"
+	ReportGroupCostsEstimationTM          ReportName = "group-costs-estimation-tm"
 )
 
 // ReportArchive represents a report archive.
@@ -147,6 +159,7 @@ type (
 	ReportStatusAttributes struct {
 		Format     string `json:"format"`
 		ReportName string `json:"reportName"`
+		ProjectIDs []int  `json:"projectIds,omitempty"`
 		Schema     any    `json:"schema"`
 	}
 )
@@ -189,6 +202,8 @@ type (
 		TMMatch []ReportNetRateSchemeMatch `json:"tmMatch,omitempty"`
 		// Match type enum: "100", "99-82", "81-60".
 		MTMatch []ReportNetRateSchemeMatch `json:"mtMatch,omitempty"`
+		// Match type enum: "100", "99-82", "81-60".
+		AIMatch []ReportNetRateSchemeMatch `json:"aiMatch,omitempty"`
 		// Match type enum: "100", "99-82".
 		SuggestionMatch []ReportNetRateSchemeMatch `json:"suggestionMatch,omitempty"`
 	}
@@ -725,6 +740,8 @@ type (
 		CreatorID int `json:"creatorId,omitempty"`
 		// Task assignee identifier filter.
 		AssigneeID int `json:"assigneeId,omitempty"`
+		// Task status filter.
+		Status string `json:"status,omitempty"`
 	}
 
 	// GroupQACheckIssuesSchema defines the schema for the group QA check issues report.
