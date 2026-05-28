@@ -49,6 +49,7 @@ import { createTeamRoutes } from "./routes/team/team.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
+import { createTmsScheduledReconciliationRoutes } from "./routes/cron/tms-scheduled-reconciliation.route";
 import {
   createTranslationJobEventQueue,
   createProviderAgentCommentQueue,
@@ -87,7 +88,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .basePath("/api")
     .onError(handleUnexpectedError)
     .notFound(notFoundHandler)
-    .route("/", createInternalRoutes())
+    .route("/", createInternalRoutes(options))
     .route("/auth", createAuthRoutes())
     .route("/autumn", createAutumnRoutes())
     .route(
@@ -109,8 +110,16 @@ export const app = createApp();
 
 export type AppType = typeof app;
 
-function createInternalRoutes() {
-  return new Hono().route("/", createMcpRoutes()).route("/health", healthRoutes);
+function createInternalRoutes(options: CreateAppOptions = {}) {
+  return new Hono()
+    .route("/", createMcpRoutes())
+    .route("/health", healthRoutes)
+    .route(
+      "/cron/tms-scheduled-reconciliation",
+      createTmsScheduledReconciliationRoutes({
+        providerWebhookReconciliationQueue: options.providerWebhookReconciliationQueue,
+      }),
+    );
 }
 
 function createAuthRoutes() {
