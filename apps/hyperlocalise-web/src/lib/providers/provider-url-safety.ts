@@ -18,6 +18,7 @@ export function normalizeProviderDownloadUrl(url: string) {
   try {
     const parsed = new URL(url);
     if (!isSafeProviderUrl(parsed)) return null;
+    parsed.hash = "";
     return parsed.toString();
   } catch {
     return null;

@@ -28,7 +28,7 @@ describe("provider URL safety", () => {
   it("rejects unsafe download URLs while keeping signed public URLs intact", () => {
     expect(
       normalizeProviderDownloadUrl("https://files.example.test/download?token=signed#ignored"),
-    ).toBe("https://files.example.test/download?token=signed#ignored");
+    ).toBe("https://files.example.test/download?token=signed");
     expect(normalizeProviderDownloadUrl("https://192.168.1.10/download")).toBeNull();
   });
 });

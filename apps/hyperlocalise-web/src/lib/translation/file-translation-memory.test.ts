@@ -169,6 +169,25 @@ describe("reuseFileTranslationMemoryEntries", () => {
     vi.clearAllMocks();
   });
 
+  it("excludes non-approved memory entries from reuse lookup", async () => {
+    whereMock.mockResolvedValueOnce([{ memoryId: "memory_1" }]).mockResolvedValueOnce([]);
+
+    await reuseFileTranslationMemoryEntries({
+      projectId: "project_1",
+      sourceEntries: { first: "Hello" },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    expect(andMock).toHaveBeenCalledWith(
+      ["eq", "sourceLocale", "en"],
+      ["eq", "targetLocale", "fr"],
+      ["eq", "reviewStatus", "approved"],
+      ["inArray", "memoryId", ["memory_1"]],
+      ["inArray", "normalizedSourceText", ["hello"]],
+    );
+  });
+
   it("scopes reusable memory entry lookup to the project's attached memories", async () => {
     whereMock
       .mockResolvedValueOnce([{ memoryId: "memory_1" }, { memoryId: "memory_2" }])

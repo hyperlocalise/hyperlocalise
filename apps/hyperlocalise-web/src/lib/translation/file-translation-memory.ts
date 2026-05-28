@@ -32,6 +32,8 @@ export async function reuseFileTranslationMemoryEntries(input: {
   if (memoryIds.length === 0) return {} as Record<string, string>;
   const normalizedSourceTexts = [...new Set(units.map((unit) => unit.normalizedSourceText))];
 
+  // Only human-approved TM rows are eligible for reuse; pending or unreviewed
+  // suggestions must not short-circuit fresh translation work.
   const rows = await db
     .select({
       memoryId: schema.memoryEntries.memoryId,

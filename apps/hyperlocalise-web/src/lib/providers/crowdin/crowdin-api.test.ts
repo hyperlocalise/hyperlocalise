@@ -217,7 +217,7 @@ describe("CrowdinApiClient", () => {
     ).toThrow("Crowdin provider base URL is invalid or unsafe.");
     expect(fetchMock).not.toHaveBeenCalled();
   });
-  
+
   it("manages project webhooks", async () => {
     const fetchMock = vi.fn(async (url, init) => {
       const method = init?.method;

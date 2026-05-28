@@ -1012,7 +1012,11 @@ export function deriveServiceBaseUrl(
 }
 
 export function normalizeServiceBaseUrl(baseUrl: string | undefined, fallback: string) {
-  return requireProviderBaseUrl(baseUrl, fallback, "Smartling");
+  try {
+    return requireProviderBaseUrl(baseUrl, fallback, "Smartling");
+  } catch {
+    return requireProviderBaseUrl(undefined, fallback, "Smartling");
+  }
 }
 
 export function classifySmartlingHttpError(status: number, responseBody: unknown) {

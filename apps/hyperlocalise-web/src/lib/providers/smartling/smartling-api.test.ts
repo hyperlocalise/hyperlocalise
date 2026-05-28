@@ -5,6 +5,7 @@ import {
   SmartlingApiError,
   classifySmartlingHttpError,
   deriveServiceBaseUrl,
+  normalizeServiceBaseUrl,
 } from "./smartling-api";
 
 describe("SmartlingApiClient", () => {
@@ -407,5 +408,20 @@ describe("deriveServiceBaseUrl", () => {
     expect(deriveServiceBaseUrl("https://api.smartling.test/auth-api/v2", "jobs")).toBe(
       "https://api.smartling.test/jobs-api/v3",
     );
+  });
+});
+
+describe("normalizeServiceBaseUrl", () => {
+  const fallback = "https://api.smartling.com/auth-api/v2";
+
+  it("normalizes a valid stored base URL", () => {
+    expect(normalizeServiceBaseUrl("https://api.smartling.test/auth-api/v2/", fallback)).toBe(
+      "https://api.smartling.test/auth-api/v2",
+    );
+  });
+
+  it("falls back to the default when the stored base URL is invalid or unsafe", () => {
+    expect(normalizeServiceBaseUrl("not-a-url", fallback)).toBe(fallback);
+    expect(normalizeServiceBaseUrl("https://192.168.1.10/auth-api/v2", fallback)).toBe(fallback);
   });
 });
