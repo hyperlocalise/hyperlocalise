@@ -220,9 +220,14 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json({ error: "provider_credential_not_found" }, 404);
         }
 
-        const providerWebhookSubscriptions = await ensureProviderWebhookSubscriptionsForCredential({
+        await ensureProviderWebhookSubscriptionsForCredential({
           organizationId: c.var.auth.organization.localOrganizationId,
           providerKind: providerKind.data,
+          providerCredentialId: providerCredentialSummary.id,
+        });
+
+        const providerWebhookSubscriptions = await listProviderWebhookSubscriptionSummaries({
+          organizationId: c.var.auth.organization.localOrganizationId,
           providerCredentialId: providerCredentialSummary.id,
         });
 

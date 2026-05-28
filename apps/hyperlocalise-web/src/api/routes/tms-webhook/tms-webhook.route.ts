@@ -168,8 +168,14 @@ const defaultVerifier: ProviderTmsWebhookVerifier = {
     }
 
     const headerSecret = headers.get("x-hyperlocalise-webhook-secret");
-    if (headerSecret && headerSecret === webhookSecret) {
-      return true;
+    if (headerSecret && headerSecret.length === webhookSecret.length) {
+      try {
+        if (timingSafeEqual(Buffer.from(headerSecret), Buffer.from(webhookSecret))) {
+          return true;
+        }
+      } catch {
+        // fall through to signature check
+      }
     }
 
     const signature = readSignature(headers);

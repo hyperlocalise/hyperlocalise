@@ -178,11 +178,9 @@ export const env = createEnv({
       process.env.MCP_ENCRYPTION_KEY ??
       (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
     HYPERLOCALISE_PUBLIC_APP_URL:
-      (process.env.HYPERLOCALISE_PUBLIC_APP_URL ?? process.env.VERCEL_URL)
-        ? `https://${process.env.VERCEL_URL}`
-        : isTestEnv
-          ? "https://app.example.test"
-          : undefined,
+      process.env.HYPERLOCALISE_PUBLIC_APP_URL ??
+      (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
+      (isTestEnv ? "https://app.example.test" : undefined),
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),

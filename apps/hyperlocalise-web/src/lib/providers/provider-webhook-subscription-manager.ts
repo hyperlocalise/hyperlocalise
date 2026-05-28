@@ -32,6 +32,15 @@ import {
 } from "./provider-webhook-storage";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
+function subscribedEventsEqual(left: string[], right: string[]) {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  const rightSet = new Set(right);
+  return left.every((event) => rightSet.has(event));
+}
+
 function summarizeSubscription(
   subscription: ProviderWebhookSubscription,
 ): ProviderWebhookSubscriptionSummary {
@@ -235,6 +244,17 @@ export async function ensureProviderWebhookSubscription(input: {
 
   if (!credentialContext) {
     throw new Error("provider_credential_not_found");
+  }
+
+  if (
+    existing?.status === "active" &&
+    existing.endpointUrl === endpointUrl &&
+    subscribedEventsEqual(existing.subscribedEvents, subscribedEvents)
+  ) {
+    return {
+      subscription: summarizeSubscription(existing),
+      status: existing.status,
+    };
   }
 
   const webhookSecret = generateWebhookSecret();

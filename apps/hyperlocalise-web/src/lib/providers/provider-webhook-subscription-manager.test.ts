@@ -185,6 +185,37 @@ describe("provider webhook subscription manager", () => {
     expect(mockAdapter.createRemoteSubscription).toHaveBeenCalledOnce();
   });
 
+  it("skips remote updates for unchanged active subscriptions", async () => {
+    const { organizationId, credential, projectId } = await createCrowdinCredential();
+
+    mockAdapter.createRemoteSubscription.mockResolvedValue({
+      providerWebhookId: "99",
+      endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
+      subscribedEvents: ["file.translated"],
+      isActive: true,
+    });
+
+    await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "12345",
+    });
+
+    const second = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "12345",
+    });
+
+    expect(second.status).toBe("active");
+    expect(mockAdapter.createRemoteSubscription).toHaveBeenCalledOnce();
+    expect(mockAdapter.updateRemoteSubscription).not.toHaveBeenCalled();
+  });
+
   it("stores permission_error with manual fallback when provider rejects access", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
 
