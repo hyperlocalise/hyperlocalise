@@ -73,16 +73,22 @@ function signatureFor(body: string, secret = "webhook-signing-secret") {
 function postWebhook(input: {
   app: ReturnType<typeof createApp>;
   body: string;
-  signature?: string;
+  signature?: string | null;
+  webhookSecretHeader?: string;
   webhookId?: string;
   deliveryId?: string;
 }) {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     "x-hyperlocalise-provider-webhook-id": input.webhookId ?? "webhook-1",
-    "x-hyperlocalise-signature-256": input.signature ?? signatureFor(input.body),
   };
 
+  if (input.signature !== null) {
+    headers["x-hyperlocalise-signature-256"] = input.signature ?? signatureFor(input.body);
+  }
+  if (input.webhookSecretHeader) {
+    headers["x-hyperlocalise-webhook-secret"] = input.webhookSecretHeader;
+  }
   if (input.deliveryId) {
     headers["x-hyperlocalise-delivery-id"] = input.deliveryId;
   }
@@ -435,6 +441,37 @@ describe("tmsWebhookRoutes", () => {
       app,
       body,
       signature: signatureFor(body, "wrong-secret"),
+    });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_signature" });
+
+    const rows = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("rejects echoed webhook secrets without a body signature", async () => {
+    const { subscription } = await createSubscriptionFixture();
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue() {
+          throw new Error("unexpected enqueue");
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-plaintext-secret",
+      event_type: "file.updated",
+    });
+
+    const response = await postWebhook({
+      app,
+      body,
+      signature: null,
+      webhookSecretHeader: "webhook-signing-secret",
     });
 
     expect(response.status).toBe(401);

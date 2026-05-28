@@ -13,6 +13,8 @@ import {
   type TmsProviderCapability,
   type TmsProviderCapabilityAction,
 } from "@/lib/providers/tms-capabilities";
+import { listProviderWebhookSubscriptionSummaries } from "@/lib/providers/provider-webhook-subscription-manager";
+import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/provider-webhook-subscription-types";
 
 export type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
 
@@ -38,6 +40,7 @@ export type ExternalTmsProviderCredentialListItem = ExternalTmsProviderCredentia
   lastSuccessfulSyncAt: string | null;
   projectCount: number;
   capabilities: Record<TmsProviderCapabilityAction, TmsProviderCapability>;
+  webhookSubscriptions: ProviderWebhookSubscriptionSummary[];
 };
 
 function summarizeExternalCredential(
@@ -79,7 +82,7 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
 
   const providerKinds = credentials.map((c) => c.providerKind);
 
-  const [projectCounts, lastSyncs] = await Promise.all([
+  const [projectCounts, lastSyncs, webhookSubscriptions] = await Promise.all([
     db
       .select({
         providerKind: schema.projects.externalProviderKind,
@@ -112,6 +115,14 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
         ),
       )
       .groupBy(schema.providerSyncRuns.providerKind),
+    Promise.all(
+      credentials.map((credential) =>
+        listProviderWebhookSubscriptionSummaries({
+          organizationId,
+          providerCredentialId: credential.id,
+        }),
+      ),
+    ),
   ]);
 
   const projectCountByProvider = Object.fromEntries(
@@ -122,11 +133,12 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
     lastSyncs.map((row) => [row.providerKind, row.completedAt?.toISOString() ?? null]),
   ) as Record<string, string | null>;
 
-  return credentials.map((credential) => ({
+  return credentials.map((credential, index) => ({
     ...credential,
     lastSuccessfulSyncAt: lastSyncByProvider[credential.providerKind] ?? null,
     projectCount: projectCountByProvider[credential.providerKind] ?? 0,
     capabilities: getTmsProviderCapability(credential.providerKind).capabilities,
+    webhookSubscriptions: webhookSubscriptions[index] ?? [],
   }));
 }
 

@@ -138,7 +138,7 @@ export const providerSyncIntentStatusEnum = pgEnum("provider_sync_intent_status"
 ]);
 export const providerWebhookSubscriptionStatusEnum = pgEnum(
   "provider_webhook_subscription_status",
-  ["active", "disabled", "error"],
+  ["pending", "active", "permission_error", "provider_error", "disabled", "manual_required"],
 );
 export const providerWebhookEventProcessingStatusEnum = pgEnum(
   "provider_webhook_event_processing_status",
@@ -1063,9 +1063,20 @@ export const providerWebhookSubscriptions = pgTable(
       .$type<string[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
-    status: providerWebhookSubscriptionStatusEnum("status").notNull().default("active"),
+    status: providerWebhookSubscriptionStatusEnum("status").notNull().default("pending"),
+    manualFallback: jsonb("manual_fallback")
+      .$type<{
+        webhookUrl: string;
+        secretHeaderName?: string;
+        secretInstructions?: string;
+        subscribedEvents: string[];
+        lastError?: string;
+      }>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     lastError: text("last_error"),
     lastErrorAt: timestamp("last_error_at", { withTimezone: true }),
+    lastAuditedAt: timestamp("last_audited_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .notNull()

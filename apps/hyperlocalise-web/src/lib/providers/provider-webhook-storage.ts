@@ -1,4 +1,4 @@
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type {
@@ -20,10 +20,19 @@ type ProviderWebhookSecretMetadata = {
   keyVersion?: number;
 };
 
+/**
+ * Subscription row with decrypted secret material for the inbound webhook route.
+ * Keep this type server-side only; API responses should use summaries instead.
+ */
 export type ProviderWebhookSubscriptionWithSecret = ProviderWebhookSubscription & {
   webhookSecretPlaintext: string | null;
 };
 
+/**
+ * Inserts a provider webhook subscription and encrypts the optional signing
+ * secret. Callers should pass `status: "pending"` for setup flows that have not
+ * confirmed provider-side creation yet.
+ */
 export async function insertProviderWebhookSubscription(input: {
   organizationId: string;
   providerCredentialId: string;
@@ -76,21 +85,58 @@ export async function insertProviderWebhookSubscription(input: {
   return subscription;
 }
 
-export async function updateProviderWebhookSubscriptionStatus(input: {
+/**
+ * Applies partial updates to a subscription while preserving omitted fields.
+ * Passing `webhookSecretPlaintext` rotates the encrypted signing secret and
+ * stamps the encryption metadata used by later decrypt operations.
+ */
+export async function updateProviderWebhookSubscription(input: {
   subscriptionId: string;
   organizationId: string;
-  status: ProviderWebhookSubscriptionStatus;
+  status?: ProviderWebhookSubscriptionStatus;
+  providerWebhookId?: string;
+  endpointUrl?: string;
+  subscribedEvents?: string[];
+  manualFallback?: ProviderWebhookSubscription["manualFallback"];
   lastError?: string | null;
+  lastAuditedAt?: Date | null;
+  webhookSecretPlaintext?: string | null;
+  secretMetadata?: ProviderWebhookSecretMetadata;
 }) {
   const now = new Date();
+  const encrypted =
+    input.webhookSecretPlaintext != null && input.webhookSecretPlaintext.length > 0
+      ? encryptProviderCredential(input.webhookSecretPlaintext)
+      : null;
+
   const [subscription] = await db
     .update(schema.providerWebhookSubscriptions)
     .set({
-      status: input.status,
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.providerWebhookId !== undefined
+        ? { providerWebhookId: input.providerWebhookId }
+        : {}),
+      ...(input.endpointUrl !== undefined ? { endpointUrl: input.endpointUrl } : {}),
+      ...(input.subscribedEvents !== undefined ? { subscribedEvents: input.subscribedEvents } : {}),
+      ...(input.manualFallback !== undefined ? { manualFallback: input.manualFallback } : {}),
       ...(input.lastError !== undefined
         ? {
             lastError: input.lastError,
             lastErrorAt: input.lastError ? now : null,
+          }
+        : {}),
+      ...(input.lastAuditedAt !== undefined ? { lastAuditedAt: input.lastAuditedAt } : {}),
+      ...(encrypted
+        ? {
+            webhookSecretCiphertext: encrypted.ciphertext,
+            webhookSecretIv: encrypted.iv,
+            webhookSecretAuthTag: encrypted.authTag,
+            webhookSecretKeyVersion: encrypted.keyVersion,
+            secretMetadata: {
+              ...input.secretMetadata,
+              encryptionAlgorithm: encrypted.algorithm,
+              keyVersion: encrypted.keyVersion,
+            },
           }
         : {}),
       updatedAt: now,
@@ -110,7 +156,93 @@ export async function updateProviderWebhookSubscriptionStatus(input: {
   return subscription;
 }
 
-function decryptWebhookSecret(subscription: ProviderWebhookSubscription): string | null {
+/**
+ * Compatibility wrapper for callers that only need to transition status-related
+ * fields. New setup code should prefer `updateProviderWebhookSubscription`.
+ */
+export async function updateProviderWebhookSubscriptionStatus(input: {
+  subscriptionId: string;
+  organizationId: string;
+  status: ProviderWebhookSubscriptionStatus;
+  lastError?: string | null;
+  manualFallback?: ProviderWebhookSubscription["manualFallback"];
+  lastAuditedAt?: Date | null;
+}) {
+  return updateProviderWebhookSubscription(input);
+}
+
+/**
+ * Lists subscriptions for a credential, optionally narrowed to a single project.
+ * `projectId: null` intentionally means credential-level subscriptions.
+ */
+export async function listProviderWebhookSubscriptionsForCredential(input: {
+  organizationId: string;
+  providerCredentialId: string;
+  projectId?: string | null;
+}) {
+  const conditions = [
+    eq(schema.providerWebhookSubscriptions.organizationId, input.organizationId),
+    eq(schema.providerWebhookSubscriptions.providerCredentialId, input.providerCredentialId),
+  ];
+
+  if (input.projectId !== undefined) {
+    conditions.push(
+      input.projectId === null
+        ? sql`${schema.providerWebhookSubscriptions.projectId} is null`
+        : eq(schema.providerWebhookSubscriptions.projectId, input.projectId),
+    );
+  }
+
+  return db
+    .select()
+    .from(schema.providerWebhookSubscriptions)
+    .where(and(...conditions));
+}
+
+/** Finds the existing subscription for a credential/project pair, if present. */
+export async function findProviderWebhookSubscriptionByCredentialProject(input: {
+  organizationId: string;
+  providerCredentialId: string;
+  projectId: string | null;
+}) {
+  const [subscription] = await listProviderWebhookSubscriptionsForCredential({
+    organizationId: input.organizationId,
+    providerCredentialId: input.providerCredentialId,
+    projectId: input.projectId,
+  });
+
+  return subscription ?? null;
+}
+
+/**
+ * Lists subscriptions that should be considered by audit jobs. Omitting filters
+ * returns all subscriptions, which is useful for one-off maintenance scripts.
+ */
+export async function listProviderWebhookSubscriptionsForAudit(input: {
+  organizationId?: string;
+  statuses?: ProviderWebhookSubscriptionStatus[];
+}) {
+  const conditions = [];
+
+  if (input.organizationId) {
+    conditions.push(eq(schema.providerWebhookSubscriptions.organizationId, input.organizationId));
+  }
+
+  if (input.statuses && input.statuses.length > 0) {
+    conditions.push(inArray(schema.providerWebhookSubscriptions.status, input.statuses));
+  }
+
+  return db
+    .select()
+    .from(schema.providerWebhookSubscriptions)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
+}
+
+/**
+ * Decrypts a stored webhook signing secret. Returns null instead of throwing so
+ * webhook intake can fail closed with `webhook_secret_unavailable`.
+ */
+export function decryptWebhookSecret(subscription: ProviderWebhookSubscription): string | null {
   if (
     !subscription.webhookSecretCiphertext ||
     !subscription.webhookSecretIv ||
@@ -133,6 +265,10 @@ function decryptWebhookSecret(subscription: ProviderWebhookSubscription): string
   }
 }
 
+/**
+ * Resolves an active subscription by provider webhook id for inbound delivery
+ * verification and includes the decrypted signing secret when available.
+ */
 export async function findActiveProviderWebhookSubscription(input: {
   providerKind: ExternalTmsProviderKind;
   providerWebhookId: string;
@@ -159,6 +295,10 @@ export async function findActiveProviderWebhookSubscription(input: {
   };
 }
 
+/**
+ * Inserts a provider webhook event without dedupe handling. Prefer
+ * `insertProviderWebhookEventIdempotent` for route intake.
+ */
 export async function insertProviderWebhookEvent(input: {
   organizationId: string;
   subscriptionId: string;
@@ -233,6 +373,11 @@ async function findExistingProviderWebhookEvent(input: {
   return existing;
 }
 
+/**
+ * Inserts a webhook event using subscription-local dedupe keys and returns the
+ * existing row for duplicate deliveries. This lets retry logic distinguish
+ * already-queued work from duplicates that still need enqueue recovery.
+ */
 export async function insertProviderWebhookEventIdempotent(input: {
   organizationId: string;
   subscriptionId: string;
@@ -299,6 +444,10 @@ export async function insertProviderWebhookEventIdempotent(input: {
   }
 }
 
+/**
+ * Updates webhook event processing state. Only succeeded/skipped events stamp
+ * `processedAt`; failed events remain retryable and visibly incomplete.
+ */
 export async function updateProviderWebhookEventProcessingStatus(input: {
   eventId: string;
   organizationId: string;
@@ -348,6 +497,10 @@ export async function updateProviderWebhookEventProcessingStatus(input: {
   return event;
 }
 
+/**
+ * Backfills the reconciliation queue intent id after enqueue succeeds. This is
+ * best-effort metadata used to avoid duplicate queueing on repeated deliveries.
+ */
 export async function updateProviderWebhookEventSyncIntent(input: {
   eventId: string;
   organizationId: string;

@@ -11,6 +11,7 @@ import {
   failProviderSyncRun,
   startProviderSyncRun,
 } from "./provider-sync-runs";
+import { ensureProviderWebhookSubscription } from "./provider-webhook-subscription-manager";
 
 type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
 
@@ -102,7 +103,7 @@ export async function syncExternalTmsProjects(input: {
     for (const project of projects) {
       try {
         const targetLocales = project.targetLocales ?? [];
-        await upsertOrganizationExternalTmsProject({
+        const syncedProject = await upsertOrganizationExternalTmsProject({
           organizationId: input.organizationId,
           providerCredentialId: credential.id,
           providerKind: input.providerKind,
@@ -114,6 +115,13 @@ export async function syncExternalTmsProjects(input: {
           isActive: project.isActive ?? true,
           metadata: project.metadata,
         });
+        void ensureProviderWebhookSubscription({
+          organizationId: input.organizationId,
+          providerKind: input.providerKind,
+          providerCredentialId: credential.id,
+          projectId: syncedProject.id,
+          externalProjectId: project.externalProjectId,
+        }).catch(() => undefined);
         counts.projectsSynced += 1;
         counts.localesSynced += countProjectLocales(project.sourceLocale, targetLocales);
       } catch (error) {
