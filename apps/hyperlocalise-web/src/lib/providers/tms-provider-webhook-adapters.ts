@@ -138,6 +138,24 @@ function defaultVerify({ headers, rawBody, webhookSecret }: TmsProviderWebhookVe
   return verifyHmacSha256({ rawBody, webhookSecret, signature });
 }
 
+function verifyCrowdinWebhook(input: TmsProviderWebhookVerificationInput) {
+  if (!input.webhookSecret) {
+    return true;
+  }
+
+  const signature = readSignature(input.headers);
+  if (signature) {
+    return verifyHmacSha256({
+      rawBody: input.rawBody,
+      webhookSecret: input.webhookSecret,
+      signature,
+    });
+  }
+
+  const echoedSecret = input.headers.get("x-hyperlocalise-webhook-secret");
+  return echoedSecret === input.webhookSecret;
+}
+
 function dedupeIntents(intents: TmsWebhookMappedIntent[]) {
   const seen = new Set<string>();
   const deduped: TmsWebhookMappedIntent[] = [];
@@ -397,6 +415,7 @@ export const crowdinWebhookAdapter = createProviderWebhookAdapter({
   externalResourceIdPaths: [["external_resource_id"], ["project", "id"]],
   mapEvent: genericTmsEventMapping,
 });
+crowdinWebhookAdapter.verify = verifyCrowdinWebhook;
 
 export const phraseWebhookAdapter = createProviderWebhookAdapter({
   eventTypePaths: [["event"], ["event_type"], ["type"]],

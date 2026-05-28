@@ -202,6 +202,130 @@ describe("CrowdinApiClient", () => {
     );
   });
 
+  it("manages project webhooks", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const method = init?.method;
+      if (method === "GET") {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 9,
+                  projectId: 42,
+                  name: "Hyperlocalise sync",
+                  url: "https://app.example.test/api/webhooks/tms/crowdin",
+                  events: ["file.updated"],
+                  headers: { "X-Hyperlocalise-Provider-Webhook-Id": "9" },
+                  payload: {},
+                  isActive: true,
+                  requestType: "POST",
+                  contentType: "application/json",
+                  batchingEnabled: false,
+                  createdAt: "2026-05-28T00:00:00Z",
+                  updatedAt: "2026-05-28T00:00:00Z",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (method === "POST") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 10,
+              projectId: 42,
+              name: "Hyperlocalise sync",
+              url: "https://app.example.test/api/webhooks/tms/crowdin",
+              events: ["file.updated"],
+              headers: {},
+              payload: {},
+              isActive: true,
+              requestType: "POST",
+              contentType: "application/json",
+              batchingEnabled: false,
+              createdAt: "2026-05-28T00:00:00Z",
+              updatedAt: "2026-05-28T00:00:00Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (method === "PATCH") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 10,
+              projectId: 42,
+              name: "Hyperlocalise sync",
+              url: "https://app.example.test/api/webhooks/tms/crowdin",
+              events: ["file.updated", "task.statusChanged"],
+              headers: { "X-Hyperlocalise-Provider-Webhook-Id": "10" },
+              payload: {},
+              isActive: true,
+              requestType: "POST",
+              contentType: "application/json",
+              batchingEnabled: false,
+              createdAt: "2026-05-28T00:00:00Z",
+              updatedAt: "2026-05-28T00:00:00Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(null, { status: 204 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+
+    await expect(client.listWebhooks(42)).resolves.toMatchObject([{ id: 9 }]);
+    await expect(
+      client.createWebhook(42, {
+        name: "Hyperlocalise sync",
+        url: "https://app.example.test/api/webhooks/tms/crowdin",
+        events: ["file.updated"],
+        requestType: "POST",
+        contentType: "application/json",
+        isActive: true,
+      }),
+    ).resolves.toMatchObject({ id: 10 });
+    await expect(
+      client.updateWebhook(42, 10, [
+        { op: "replace", path: "/events", value: ["file.updated", "task.statusChanged"] },
+      ]),
+    ).resolves.toMatchObject({
+      id: 10,
+      events: ["file.updated", "task.statusChanged"],
+    });
+    await expect(client.deleteWebhook(42, 10)).resolves.toBeUndefined();
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      "https://api.crowdin.test/api/v2/projects/42/webhooks?limit=500&offset=0",
+      expect.objectContaining({ method: "GET" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "https://api.crowdin.test/api/v2/projects/42/webhooks",
+      expect.objectContaining({ method: "POST" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      3,
+      "https://api.crowdin.test/api/v2/projects/42/webhooks/10",
+      expect.objectContaining({ method: "PATCH" }),
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      4,
+      "https://api.crowdin.test/api/v2/projects/42/webhooks/10",
+      expect.objectContaining({ method: "DELETE" }),
+    );
+  });
+
   it("lists directories for a project", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

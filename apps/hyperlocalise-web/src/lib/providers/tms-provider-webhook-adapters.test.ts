@@ -218,7 +218,7 @@ describe("tms provider webhook adapters", () => {
     expect(descriptor?.mappedIntents).toEqual([]);
   });
 
-  it("verifies body signatures without accepting echoed secrets", async () => {
+  it("verifies Crowdin configured secret headers and body signatures", async () => {
     const payload = { event_id: "evt-signature", event: "file.updated" };
     const body = JSON.stringify(payload);
     const adapter = tmsProviderWebhookAdapters.crowdin;
@@ -243,6 +243,28 @@ describe("tms provider webhook adapters", () => {
       Promise.resolve(
         adapter.verify({
           providerKind: "crowdin",
+          headers: new Headers({ "x-hyperlocalise-webhook-secret": "webhook-signing-secret" }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: descriptor!,
+        }),
+      ),
+    ).resolves.toBe(true);
+  });
+
+  it("default verification rejects echoed secrets without body signatures", async () => {
+    const payload = { event_uid: "evt-signature", event: "jobs:completed" };
+    const body = JSON.stringify(payload);
+    const adapter = tmsProviderWebhookAdapters.phrase;
+    const descriptor = extract({ providerKind: "phrase", payload });
+
+    expect(descriptor).not.toBeNull();
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "phrase",
           headers: new Headers({ "x-hyperlocalise-webhook-secret": "webhook-signing-secret" }),
           rawBody: body,
           payload,
