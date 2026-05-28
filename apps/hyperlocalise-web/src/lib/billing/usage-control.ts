@@ -7,16 +7,9 @@ import { db, schema } from "@/lib/database";
 const AUTUMN_API_VERSION = "2.2.0";
 const AUTUMN_TRACK_USAGE_URL = "https://api.useautumn.com/v1/balances.track";
 
-export const usageFeatureIds = {
-  translationJobs: "translation_jobs",
-  translationUnits: "translation_units",
-  sourceCharacters: "source_characters",
-  aiTokens: "ai_tokens",
-  apiRequests: "api_requests",
-  agentRuns: "agent_runs",
-} as const;
+import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
 
-type UsageFeatureId = (typeof usageFeatureIds)[keyof typeof usageFeatureIds];
+export { usageFeatureIds, type UsageFeatureId };
 
 export async function reserveUsageEvent(input: {
   db?: DatabaseClient;

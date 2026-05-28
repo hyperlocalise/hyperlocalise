@@ -1,0 +1,19 @@
+import { env } from "@/lib/env";
+
+/** Header used to scope Autumn billing to the active organization workspace. */
+export const ORGANIZATION_SLUG_HEADER = "x-hyperlocalise-organization-slug";
+
+/** Autumn API route prefix mounted on the Hono app (under `/api`). */
+export const AUTUMN_API_PATH_PREFIX = "/api/autumn";
+
+/**
+ * Resolves the Autumn secret key. The app stores `AUTUMN_API_KEY`; Autumn's SDK
+ * also accepts `AUTUMN_SECRET_KEY`, which we mirror when a key is configured.
+ */
+export function getAutumnSecretKey(): string | undefined {
+  return env.AUTUMN_API_KEY ?? process.env.AUTUMN_SECRET_KEY;
+}
+
+export function isAutumnConfigured(): boolean {
+  return Boolean(getAutumnSecretKey());
+}

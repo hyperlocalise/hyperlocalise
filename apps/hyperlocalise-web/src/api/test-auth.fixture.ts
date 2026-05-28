@@ -153,9 +153,11 @@ export function createAuthTestFixture() {
     };
   }
 
-  async function authHeadersFor(identity: WorkosAuthIdentity) {
-    const { user, organization, membership } = await syncWorkosIdentity(db, identity);
-    const activeOrganization = {
+  function toAuthOrganization(
+    organization: Awaited<ReturnType<typeof syncWorkosIdentity>>["organization"],
+    membership: Awaited<ReturnType<typeof syncWorkosIdentity>>["membership"],
+  ) {
+    return {
       workosOrganizationId: organization.workosOrganizationId,
       localOrganizationId: organization.id,
       name: organization.name,
@@ -165,6 +167,11 @@ export function createAuthTestFixture() {
         role: membership.role,
       },
     };
+  }
+
+  async function authHeadersFor(identity: WorkosAuthIdentity) {
+    const { user, organization, membership } = await syncWorkosIdentity(db, identity);
+    const activeOrganization = toAuthOrganization(organization, membership);
 
     const authContext = enrichAuthContextWithCapabilities({
       user: {
@@ -190,6 +197,53 @@ export function createAuthTestFixture() {
 
     return {
       cookie: `wos-session=${sessionToken}`,
+    };
+  }
+
+  async function authHeadersForOrganizations(identities: WorkosAuthIdentity[]) {
+    if (identities.length === 0) {
+      throw new Error("expected at least one organization identity");
+    }
+
+    const organizations = [];
+    let user: Awaited<ReturnType<typeof syncWorkosIdentity>>["user"] | null = null;
+
+    for (const identity of identities) {
+      const synced = await syncWorkosIdentity(db, identity);
+      user = synced.user;
+      organizations.push(toAuthOrganization(synced.organization, synced.membership));
+    }
+
+    if (!user) {
+      throw new Error("expected synced user for organization identities");
+    }
+
+    const activeOrganization = organizations[0]!;
+    const authContext = enrichAuthContextWithCapabilities({
+      user: {
+        workosUserId: user.workosUserId,
+        localUserId: user.id,
+        email: user.email,
+      },
+      organizations,
+      organization: activeOrganization,
+      activeOrganization,
+      membership: {
+        workosMembershipId: activeOrganization.membership.workosMembershipId,
+        role: activeOrganization.membership.role,
+      },
+      activeTeam: null,
+    });
+    const sessionToken = `test_${randomUUID()}`;
+    const records = currentTestRecords();
+
+    records.sessionTokens.add(sessionToken);
+    testApiAuthContextsBySession.set(sessionToken, authContext);
+    globalThis.__testApiAuthContext = authContext;
+
+    return {
+      cookie: `wos-session=${sessionToken}`,
+      organizations,
     };
   }
 
@@ -247,6 +301,7 @@ export function createAuthTestFixture() {
 
   return {
     authHeadersFor,
+    authHeadersForOrganizations,
     cleanup,
     createLocalWorkosIdentity,
     createWorkosIdentity,

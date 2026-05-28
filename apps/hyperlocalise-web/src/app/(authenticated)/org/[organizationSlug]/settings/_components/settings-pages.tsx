@@ -10,12 +10,10 @@ import {
   UserGroupIcon,
   CheckmarkCircle01Icon,
   CreditCardIcon,
-  Invoice03Icon,
   Key01Icon,
   Mail01Icon,
   Notification01Icon,
   Settings01Icon,
-  Wallet03Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -314,119 +312,6 @@ export function AccountSettingsPageContent({
         />
       </SurfaceCard>
     </main>
-  );
-}
-
-export function BillingSettingsPageContent() {
-  return (
-    <main className="space-y-5">
-      <SettingsHeader
-        eyebrow="Billing settings"
-        icon={CreditCardIcon}
-        title="Billing"
-        description="Track plan status, usage, and billing records for localization operations."
-      />
-
-      <section className="grid gap-3 lg:grid-cols-[1fr_22rem]">
-        <SurfaceCard>
-          <CardHeader className="px-5 py-5">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <CardTitle className="text-lg font-medium text-foreground">
-                  Enterprise plan
-                </CardTitle>
-                <CardDescription className="mt-1 text-foreground/52">
-                  1.2M of 2M translated words used this cycle.
-                </CardDescription>
-              </div>
-              <Badge
-                variant="outline"
-                className="shrink-0 rounded-full border-bud-500/25 bg-bud-500/10 text-bud-100"
-              >
-                Active
-              </Badge>
-            </div>
-          </CardHeader>
-          <Separator className="bg-foreground/8" />
-          <CardContent className="px-5 py-5">
-            <div className="h-2 overflow-hidden rounded-full bg-foreground/10">
-              <div className="h-full w-[60%] rounded-full bg-bud-500" />
-            </div>
-            <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
-              <Metric label="Cycle usage" value="60%" />
-              <Metric label="Renewal" value="Aug 24, 2027" />
-              <Metric label="Billing owner" value="Finance" />
-            </div>
-          </CardContent>
-        </SurfaceCard>
-
-        <SurfaceCard>
-          <CardHeader className="px-5 py-5">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
-              <HugeiconsIcon icon={Wallet03Icon} strokeWidth={1.8} className="size-5" />
-            </div>
-            <CardTitle className="text-base font-medium text-foreground">Payment method</CardTitle>
-            <CardDescription className="leading-6 text-foreground/52">
-              Card and invoice collection will be managed through the billing provider.
-            </CardDescription>
-          </CardHeader>
-          <Separator className="bg-foreground/8" />
-          <CardContent className="px-5 py-4">
-            <Button
-              variant="outline"
-              className="border-foreground/10 bg-transparent text-foreground/40"
-              disabled
-            >
-              Manage billing
-            </Button>
-          </CardContent>
-        </SurfaceCard>
-      </section>
-
-      <SurfaceCard>
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Invoices</CardTitle>
-          <CardDescription className="text-foreground/52">
-            Recent billing documents.
-          </CardDescription>
-        </CardHeader>
-        <Separator className="bg-foreground/8" />
-        <CardContent className="divide-y divide-foreground/8 px-5 py-0">
-          {["Aug 2025", "Jul 2025", "Jun 2025"].map((invoice) => (
-            <div key={invoice} className="flex items-center justify-between gap-4 py-4">
-              <div className="flex items-center gap-3">
-                <div className="flex size-9 items-center justify-center rounded-lg bg-foreground/5">
-                  <HugeiconsIcon icon={Invoice03Icon} strokeWidth={1.8} className="size-4" />
-                </div>
-                <div>
-                  <TypographyP className="text-sm font-medium text-foreground">
-                    {invoice}
-                  </TypographyP>
-                  <TypographyP className="text-xs text-foreground/42">
-                    Enterprise workspace subscription
-                  </TypographyP>
-                </div>
-              </div>
-              <Badge
-                variant="outline"
-                className="rounded-full border-foreground/10 bg-foreground/4 text-foreground/52"
-              >
-                Paid
-              </Badge>
-            </div>
-          ))}
-        </CardContent>
-      </SurfaceCard>
-    </main>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-lg border border-foreground/8 bg-foreground/4 px-4 py-3">
-      <TypographyP className="text-xs text-foreground/42">{label}</TypographyP>
-      <TypographyP className="mt-1 text-sm font-medium text-foreground">{value}</TypographyP>
-    </div>
   );
 }
 

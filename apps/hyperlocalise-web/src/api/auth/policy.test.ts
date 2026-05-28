@@ -19,6 +19,7 @@ const MEMBER_READ_CAPABILITIES: OrganizationCapability[] = [
 
 const ADMIN_ONLY_CAPABILITIES: OrganizationCapability[] = [
   "billing:read",
+  "billing:write",
   "api_keys:read",
   "provider_credentials:read",
   "integrations:read",
