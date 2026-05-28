@@ -1163,7 +1163,9 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
                 error instanceof Error ? error.message : "translation job queue unavailable",
               completedAt: new Date(),
             })
-            .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)));
+            .where(
+              and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)),
+            );
 
           await tx
             .update(schema.translationJobDetails)
