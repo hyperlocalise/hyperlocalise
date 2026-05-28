@@ -167,6 +167,11 @@ const defaultVerifier: ProviderTmsWebhookVerifier = {
       return true;
     }
 
+    const headerSecret = headers.get("x-hyperlocalise-webhook-secret");
+    if (headerSecret && headerSecret === webhookSecret) {
+      return true;
+    }
+
     const signature = readSignature(headers);
     if (!signature) {
       return false;

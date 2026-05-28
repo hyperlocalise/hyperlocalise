@@ -25,6 +25,10 @@ import {
   persistExternalTmsProviderHealth,
 } from "@/lib/providers/external-tms-health-check";
 import { recordProviderSyncRun } from "@/lib/providers/provider-sync-runs";
+import {
+  ensureProviderWebhookSubscriptionsForCredential,
+  listProviderWebhookSubscriptionSummaries,
+} from "@/lib/providers/provider-webhook-subscription-manager";
 
 import {
   externalTmsProviderKindSchema,
@@ -73,6 +77,12 @@ export function createExternalTmsProviderCredentialRoutes() {
           region: payload.region,
           baseUrl: payload.baseUrl,
         });
+
+        void ensureProviderWebhookSubscriptionsForCredential({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          providerKind: payload.providerKind,
+          providerCredentialId: providerCredential.id,
+        }).catch(() => undefined);
 
         return c.json({ externalTmsProviderCredential: providerCredential }, 200);
       } catch (error) {
@@ -151,6 +161,12 @@ export function createExternalTmsProviderCredentialRoutes() {
           },
         );
 
+        void ensureProviderWebhookSubscriptionsForCredential({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          providerKind: providerKind.data,
+          providerCredentialId: providerCredentialSummary.id,
+        }).catch(() => undefined);
+
         return c.json({ externalTmsProviderHealth: result }, 200);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {
@@ -158,6 +174,62 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         if (error instanceof Error && error.message === "provider_credential_not_found") {
           return c.json({ error: "provider_credential_not_found" }, 404);
+        }
+        throw error;
+      }
+    })
+    .get("/:providerKind/webhook-subscriptions", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
+      if (!providerKind.success) {
+        return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
+      }
+
+      const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
+        c.var.auth.organization.localOrganizationId,
+        providerKind.data,
+      );
+      if (!providerCredentialSummary) {
+        return c.json({ error: "provider_credential_not_found" }, 404);
+      }
+
+      const providerWebhookSubscriptions = await listProviderWebhookSubscriptionSummaries({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        providerCredentialId: providerCredentialSummary.id,
+      });
+
+      return c.json({ providerWebhookSubscriptions }, 200);
+    })
+    .post("/:providerKind/webhook-subscriptions/retry", async (c) => {
+      try {
+        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
+
+        const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
+        if (!providerKind.success) {
+          return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
+        }
+
+        const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
+          c.var.auth.organization.localOrganizationId,
+          providerKind.data,
+        );
+        if (!providerCredentialSummary) {
+          return c.json({ error: "provider_credential_not_found" }, 404);
+        }
+
+        const providerWebhookSubscriptions = await ensureProviderWebhookSubscriptionsForCredential({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          providerKind: providerKind.data,
+          providerCredentialId: providerCredentialSummary.id,
+        });
+
+        return c.json({ providerWebhookSubscriptions }, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "forbidden") {
+          return c.json({ error: "forbidden" }, 403);
         }
         throw error;
       }
@@ -190,6 +262,19 @@ export function createExternalTmsProviderCredentialRoutes() {
           providerKind: providerKind.data,
           fetchProjects,
         });
+
+        const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
+          c.var.auth.organization.localOrganizationId,
+          providerKind.data,
+        );
+
+        if (providerCredentialSummary) {
+          void ensureProviderWebhookSubscriptionsForCredential({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            providerKind: providerKind.data,
+            providerCredentialId: providerCredentialSummary.id,
+          }).catch(() => undefined);
+        }
 
         return c.json({ externalTmsProjectSync: result }, 200);
       } catch (error) {

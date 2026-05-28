@@ -159,6 +159,18 @@ export interface CrowdinStringComment {
   projectId: number;
 }
 
+export interface CrowdinWebhook {
+  id: number;
+  projectId: number;
+  name: string;
+  url: string;
+  events: string[];
+  headers?: Record<string, string>;
+  isActive: boolean;
+  requestType: string;
+  contentType: string;
+}
+
 export interface CrowdinTaskComment {
   id: number;
   userId: number;
@@ -964,6 +976,77 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinTranslationMemory>("/tms");
   }
 
+  async listProjectWebhooks(projectId: number): Promise<CrowdinWebhook[]> {
+    return this.listPaginated<CrowdinWebhook>(`/projects/${projectId}/webhooks`);
+  }
+
+  async createProjectWebhook(
+    projectId: number,
+    input: {
+      name: string;
+      url: string;
+      events: string[];
+      headers?: Record<string, string>;
+      secret?: string;
+      isActive?: boolean;
+    },
+  ): Promise<CrowdinWebhook> {
+    const response = await this.post<CrowdinGetResponse<CrowdinWebhook>>(
+      `/projects/${projectId}/webhooks`,
+      {
+        name: input.name,
+        url: input.url,
+        events: input.events,
+        requestType: "POST",
+        contentType: "application/json",
+        isActive: input.isActive ?? true,
+        headers: {
+          ...input.headers,
+          ...(input.secret ? { "X-Hyperlocalise-Webhook-Secret": input.secret } : {}),
+        },
+      },
+    );
+
+    return response.data;
+  }
+
+  async updateProjectWebhook(
+    projectId: number,
+    webhookId: number,
+    input: {
+      url?: string;
+      events?: string[];
+      isActive?: boolean;
+      headers?: Record<string, string>;
+    },
+  ): Promise<CrowdinWebhook> {
+    const operations: Array<{ op: "replace"; path: string; value: unknown }> = [];
+
+    if (input.url !== undefined) {
+      operations.push({ op: "replace", path: "/url", value: input.url });
+    }
+    if (input.events !== undefined) {
+      operations.push({ op: "replace", path: "/events", value: input.events });
+    }
+    if (input.isActive !== undefined) {
+      operations.push({ op: "replace", path: "/isActive", value: input.isActive });
+    }
+    if (input.headers !== undefined) {
+      operations.push({ op: "replace", path: "/headers", value: input.headers });
+    }
+
+    const response = await this.patch<CrowdinGetResponse<CrowdinWebhook>>(
+      `/projects/${projectId}/webhooks/${webhookId}`,
+      operations,
+    );
+
+    return response.data;
+  }
+
+  async deleteProjectWebhook(projectId: number, webhookId: number): Promise<void> {
+    await this.delete(`/projects/${projectId}/webhooks/${webhookId}`);
+  }
+
   async listTranslationMemorySegments(
     tmId: number,
     options?: {
@@ -1018,6 +1101,21 @@ export class CrowdinApiClient {
       method: "POST",
       headers: this.authHeaders(),
       body: JSON.stringify(body),
+    });
+  }
+
+  private async patch<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "PATCH",
+      headers: this.authHeaders(),
+      body: JSON.stringify(body),
+    });
+  }
+
+  private async delete(path: string): Promise<void> {
+    await this.request<null>(path, {
+      method: "DELETE",
+      headers: this.authHeaders(),
     });
   }
 

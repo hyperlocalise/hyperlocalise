@@ -105,6 +105,12 @@ export const env = createEnv({
 
     /** AES-256-GCM key for MCP token encryption at rest. */
     MCP_ENCRYPTION_KEY: z.string().min(1).optional(),
+
+    /**
+     * Public base URL for inbound TMS webhooks (e.g. https://app.hyperlocalise.com).
+     * When set, hosted deployments attempt automatic provider webhook registration.
+     */
+    HYPERLOCALISE_PUBLIC_APP_URL: z.url().optional(),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -171,6 +177,12 @@ export const env = createEnv({
     MCP_ENCRYPTION_KEY:
       process.env.MCP_ENCRYPTION_KEY ??
       (isTestEnv ? "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=" : undefined),
+    HYPERLOCALISE_PUBLIC_APP_URL:
+      (process.env.HYPERLOCALISE_PUBLIC_APP_URL ?? process.env.VERCEL_URL)
+        ? `https://${process.env.VERCEL_URL}`
+        : isTestEnv
+          ? "https://app.example.test"
+          : undefined,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),

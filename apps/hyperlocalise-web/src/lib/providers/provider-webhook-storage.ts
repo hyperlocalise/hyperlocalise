@@ -1,4 +1,4 @@
-import { and, eq, or, sql } from "drizzle-orm";
+import { and, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type {
@@ -76,21 +76,53 @@ export async function insertProviderWebhookSubscription(input: {
   return subscription;
 }
 
-export async function updateProviderWebhookSubscriptionStatus(input: {
+export async function updateProviderWebhookSubscription(input: {
   subscriptionId: string;
   organizationId: string;
-  status: ProviderWebhookSubscriptionStatus;
+  status?: ProviderWebhookSubscriptionStatus;
+  providerWebhookId?: string;
+  endpointUrl?: string;
+  subscribedEvents?: string[];
+  manualFallback?: ProviderWebhookSubscription["manualFallback"];
   lastError?: string | null;
+  lastAuditedAt?: Date | null;
+  webhookSecretPlaintext?: string | null;
+  secretMetadata?: ProviderWebhookSecretMetadata;
 }) {
   const now = new Date();
+  const encrypted =
+    input.webhookSecretPlaintext != null && input.webhookSecretPlaintext.length > 0
+      ? encryptProviderCredential(input.webhookSecretPlaintext)
+      : null;
+
   const [subscription] = await db
     .update(schema.providerWebhookSubscriptions)
     .set({
-      status: input.status,
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.providerWebhookId !== undefined
+        ? { providerWebhookId: input.providerWebhookId }
+        : {}),
+      ...(input.endpointUrl !== undefined ? { endpointUrl: input.endpointUrl } : {}),
+      ...(input.subscribedEvents !== undefined ? { subscribedEvents: input.subscribedEvents } : {}),
+      ...(input.manualFallback !== undefined ? { manualFallback: input.manualFallback } : {}),
       ...(input.lastError !== undefined
         ? {
             lastError: input.lastError,
             lastErrorAt: input.lastError ? now : null,
+          }
+        : {}),
+      ...(input.lastAuditedAt !== undefined ? { lastAuditedAt: input.lastAuditedAt } : {}),
+      ...(encrypted
+        ? {
+            webhookSecretCiphertext: encrypted.ciphertext,
+            webhookSecretIv: encrypted.iv,
+            webhookSecretAuthTag: encrypted.authTag,
+            webhookSecretKeyVersion: encrypted.keyVersion,
+            secretMetadata: {
+              ...input.secretMetadata,
+              encryptionAlgorithm: encrypted.algorithm,
+              keyVersion: encrypted.keyVersion,
+            },
           }
         : {}),
       updatedAt: now,
@@ -108,6 +140,75 @@ export async function updateProviderWebhookSubscriptionStatus(input: {
   }
 
   return subscription;
+}
+
+export async function updateProviderWebhookSubscriptionStatus(input: {
+  subscriptionId: string;
+  organizationId: string;
+  status: ProviderWebhookSubscriptionStatus;
+  lastError?: string | null;
+  manualFallback?: ProviderWebhookSubscription["manualFallback"];
+  lastAuditedAt?: Date | null;
+}) {
+  return updateProviderWebhookSubscription(input);
+}
+
+export async function listProviderWebhookSubscriptionsForCredential(input: {
+  organizationId: string;
+  providerCredentialId: string;
+  projectId?: string | null;
+}) {
+  const conditions = [
+    eq(schema.providerWebhookSubscriptions.organizationId, input.organizationId),
+    eq(schema.providerWebhookSubscriptions.providerCredentialId, input.providerCredentialId),
+  ];
+
+  if (input.projectId !== undefined) {
+    conditions.push(
+      input.projectId === null
+        ? sql`${schema.providerWebhookSubscriptions.projectId} is null`
+        : eq(schema.providerWebhookSubscriptions.projectId, input.projectId),
+    );
+  }
+
+  return db
+    .select()
+    .from(schema.providerWebhookSubscriptions)
+    .where(and(...conditions));
+}
+
+export async function findProviderWebhookSubscriptionByCredentialProject(input: {
+  organizationId: string;
+  providerCredentialId: string;
+  projectId: string | null;
+}) {
+  const [subscription] = await listProviderWebhookSubscriptionsForCredential({
+    organizationId: input.organizationId,
+    providerCredentialId: input.providerCredentialId,
+    projectId: input.projectId,
+  });
+
+  return subscription ?? null;
+}
+
+export async function listProviderWebhookSubscriptionsForAudit(input: {
+  organizationId?: string;
+  statuses?: ProviderWebhookSubscriptionStatus[];
+}) {
+  const conditions = [];
+
+  if (input.organizationId) {
+    conditions.push(eq(schema.providerWebhookSubscriptions.organizationId, input.organizationId));
+  }
+
+  if (input.statuses && input.statuses.length > 0) {
+    conditions.push(inArray(schema.providerWebhookSubscriptions.status, input.statuses));
+  }
+
+  return db
+    .select()
+    .from(schema.providerWebhookSubscriptions)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
 }
 
 function decryptWebhookSecret(subscription: ProviderWebhookSubscription): string | null {

@@ -192,19 +192,19 @@ describe("provider webhook storage", () => {
     const errored = await updateProviderWebhookSubscriptionStatus({
       subscriptionId: subscription.id,
       organizationId,
-      status: "error",
+      status: "provider_error",
       lastError: "Crowdin rejected webhook update",
     });
-    expect(errored.status).toBe("error");
+    expect(errored.status).toBe("provider_error");
     expect(errored.lastError).toBe("Crowdin rejected webhook update");
     expect(errored.lastErrorAt).toBeTruthy();
 
     const errorWithoutMessage = await updateProviderWebhookSubscriptionStatus({
       subscriptionId: subscription.id,
       organizationId,
-      status: "error",
+      status: "provider_error",
     });
-    expect(errorWithoutMessage.status).toBe("error");
+    expect(errorWithoutMessage.status).toBe("provider_error");
     expect(errorWithoutMessage.lastError).toBe("Crowdin rejected webhook update");
     expect(errorWithoutMessage.lastErrorAt).toBeTruthy();
 

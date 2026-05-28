@@ -22,6 +22,7 @@ import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/cata
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
 import type { ExternalTmsProviderCredentialListItem } from "@/lib/providers/organization-external-tms-provider-credentials";
+import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/provider-webhook-subscription-types";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import {
   AlertDialog,
@@ -90,6 +91,72 @@ function tmsHealthLabel(status: string) {
     default:
       return "Unvalidated";
   }
+}
+
+function webhookStatusTone(status: ProviderWebhookSubscriptionSummary["status"]) {
+  switch (status) {
+    case "active":
+      return "safe" as const;
+    case "pending":
+      return "info" as const;
+    case "disabled":
+      return "info" as const;
+    case "permission_error":
+    case "provider_error":
+    case "manual_required":
+      return "watch" as const;
+    default:
+      return "info" as const;
+  }
+}
+
+function webhookStatusLabel(status: ProviderWebhookSubscriptionSummary["status"]) {
+  switch (status) {
+    case "active":
+      return "Webhooks active";
+    case "pending":
+      return "Webhook setup pending";
+    case "permission_error":
+      return "Webhook permission issue";
+    case "provider_error":
+      return "Webhook setup failed";
+    case "manual_required":
+      return "Manual webhook setup";
+    case "disabled":
+      return "Webhooks disabled";
+    default:
+      return "Webhook status unknown";
+  }
+}
+
+function summarizeWebhookSubscriptions(subscriptions: ProviderWebhookSubscriptionSummary[]) {
+  if (subscriptions.length === 0) {
+    return null;
+  }
+
+  const activeCount = subscriptions.filter((item) => item.status === "active").length;
+  const needsAttention = subscriptions.filter((item) =>
+    ["permission_error", "provider_error", "manual_required"].includes(item.status),
+  );
+
+  if (needsAttention.length > 0) {
+    return {
+      tone: "watch" as const,
+      label: `${needsAttention.length} webhook${needsAttention.length === 1 ? "" : "s"} need attention`,
+    };
+  }
+
+  if (activeCount === subscriptions.length) {
+    return {
+      tone: "safe" as const,
+      label: `${activeCount} active webhook${activeCount === 1 ? "" : "s"}`,
+    };
+  }
+
+  return {
+    tone: "info" as const,
+    label: `${subscriptions.length} webhook subscription${subscriptions.length === 1 ? "" : "s"}`,
+  };
 }
 
 type ProviderCredentialSummary = {
@@ -337,18 +404,36 @@ function TmsIntegrationRow({
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-base font-medium text-foreground">{integration.name}</p>
           {isConnected ? (
-            <Badge
-              variant="outline"
-              className={toneClass(tmsHealthTone(credential.validationStatus))}
-            >
-              <HugeiconsIcon
-                icon={
-                  credential.validationStatus === "connected" ? CheckmarkCircle02Icon : Alert02Icon
+            <>
+              <Badge
+                variant="outline"
+                className={toneClass(tmsHealthTone(credential.validationStatus))}
+              >
+                <HugeiconsIcon
+                  icon={
+                    credential.validationStatus === "connected"
+                      ? CheckmarkCircle02Icon
+                      : Alert02Icon
+                  }
+                  strokeWidth={1.8}
+                />
+                {tmsHealthLabel(credential.validationStatus)}
+              </Badge>
+              {(() => {
+                const webhookSummary = summarizeWebhookSubscriptions(
+                  credential.webhookSubscriptions,
+                );
+                if (!webhookSummary) {
+                  return null;
                 }
-                strokeWidth={1.8}
-              />
-              {tmsHealthLabel(credential.validationStatus)}
-            </Badge>
+
+                return (
+                  <Badge variant="outline" className={toneClass(webhookSummary.tone)}>
+                    {webhookSummary.label}
+                  </Badge>
+                );
+              })()}
+            </>
           ) : null}
         </div>
         <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
@@ -435,6 +520,37 @@ function ModelProviderCard({
   );
 }
 
+function useRetryWebhookSubscriptions(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (providerKind: ExternalTmsProviderKind) => {
+      const res = await api.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
+        ":providerKind"
+      ]["webhook-subscriptions"].retry.$post({
+        param: { organizationSlug, providerKind },
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "webhook_retry_failed" }));
+        throw new Error(
+          "message" in error ? String(error.message) : "Unable to retry webhook setup",
+        );
+      }
+
+      return res.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: ["external-tms-credentials", organizationSlug],
+      });
+      toast.success("Webhook setup retried");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
 function useDeleteExternalTmsCredential(organizationSlug: string) {
   const queryClient = useQueryClient();
 
@@ -482,6 +598,7 @@ export function IntegrationsPageContent({
     useExternalTmsCredentials(organizationSlug);
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
   const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
+  const retryWebhookSetup = useRetryWebhookSubscriptions(organizationSlug);
   const [selectedTmsProvider, setSelectedTmsProvider] = useState<ExternalTmsProviderKind | null>(
     null,
   );
@@ -866,6 +983,98 @@ export function IntegrationsPageContent({
                   placeholder="https://api.example.com"
                 />
               </Field>
+
+              {selectedTmsCredential && selectedTmsCredential.webhookSubscriptions.length > 0 ? (
+                <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-medium text-foreground">Webhook sync</p>
+                      <p className="mt-0.5 text-sm text-muted-foreground">
+                        Hyperlocalise registers inbound webhooks automatically when the provider API
+                        allows it.
+                      </p>
+                    </div>
+                    {userIsAdmin &&
+                    selectedTmsCredential.webhookSubscriptions.some((item) => item.canRetry) ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={retryWebhookSetup.isPending}
+                        onClick={() => {
+                          if (!selectedTmsProvider) {
+                            return;
+                          }
+
+                          retryWebhookSetup.mutate(selectedTmsProvider);
+                        }}
+                      >
+                        {retryWebhookSetup.isPending ? "Retrying..." : "Retry setup"}
+                      </Button>
+                    ) : null}
+                  </div>
+
+                  <div className="space-y-3">
+                    {selectedTmsCredential.webhookSubscriptions.map((subscription) => (
+                      <div
+                        key={subscription.id}
+                        className="space-y-2 rounded-md border border-border bg-card p-3"
+                      >
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge
+                            variant="outline"
+                            className={toneClass(webhookStatusTone(subscription.status))}
+                          >
+                            {webhookStatusLabel(subscription.status)}
+                          </Badge>
+                          {subscription.projectId ? (
+                            <span className="text-xs text-muted-foreground">
+                              Project {subscription.projectId}
+                            </span>
+                          ) : null}
+                        </div>
+
+                        {subscription.manualFallback ? (
+                          <div className="space-y-2 text-sm text-muted-foreground">
+                            <p>
+                              <span className="font-medium text-foreground">Webhook URL:</span>{" "}
+                              <code className="break-all rounded bg-muted px-1 py-0.5 text-xs">
+                                {subscription.manualFallback.webhookUrl}
+                              </code>
+                            </p>
+                            {subscription.manualFallback.secretHeaderName ? (
+                              <p>
+                                <span className="font-medium text-foreground">Secret header:</span>{" "}
+                                {subscription.manualFallback.secretHeaderName}
+                              </p>
+                            ) : null}
+                            {subscription.manualFallback.secretInstructions ? (
+                              <p>{subscription.manualFallback.secretInstructions}</p>
+                            ) : null}
+                            {subscription.manualFallback.subscribedEvents.length > 0 ? (
+                              <p>
+                                <span className="font-medium text-foreground">Events:</span>{" "}
+                                {subscription.manualFallback.subscribedEvents.join(", ")}
+                              </p>
+                            ) : null}
+                            {subscription.manualFallback.lastError ? (
+                              <p className="text-destructive">
+                                {subscription.manualFallback.lastError}
+                              </p>
+                            ) : null}
+                          </div>
+                        ) : subscription.lastError ? (
+                          <p className="text-sm text-destructive">{subscription.lastError}</p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : selectedTmsCredential ? (
+                <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+                  Webhook subscriptions appear after projects are synced for this provider.
+                </div>
+              ) : null}
 
               <DialogFooter className="gap-2 sm:justify-between">
                 {selectedTmsCredential && userIsAdmin ? (
