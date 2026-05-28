@@ -99,7 +99,6 @@ export const crowdinWebhookSubscriptionAdapter: ProviderWebhookSubscriptionAdapt
         secret: context.webhookSecret,
         headers: {
           "X-Provider-Webhook-Id": `pending`,
-          "X-Hyperlocalise-Webhook-Secret": context.webhookSecret,
         },
       });
 
@@ -107,7 +106,6 @@ export const crowdinWebhookSubscriptionAdapter: ProviderWebhookSubscriptionAdapt
       await client.updateProjectWebhook(projectId, webhook.id, {
         headers: {
           "X-Provider-Webhook-Id": mapped.providerWebhookId,
-          "X-Hyperlocalise-Webhook-Secret": context.webhookSecret,
         },
       });
 
@@ -129,9 +127,9 @@ export const crowdinWebhookSubscriptionAdapter: ProviderWebhookSubscriptionAdapt
         url: context.endpointUrl,
         events: context.subscribedEvents,
         isActive: true,
+        secret: context.webhookSecret,
         headers: {
           "X-Provider-Webhook-Id": context.providerWebhookId,
-          "X-Hyperlocalise-Webhook-Secret": context.webhookSecret,
         },
       });
       return mapWebhook(webhook);

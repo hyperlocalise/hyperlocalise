@@ -28,6 +28,7 @@ import {
   insertProviderWebhookSubscription,
   listProviderWebhookSubscriptionsForAudit,
   listProviderWebhookSubscriptionsForCredential,
+  decryptWebhookSecret,
   updateProviderWebhookSubscription,
 } from "./provider-webhook-storage";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
@@ -487,6 +488,7 @@ export async function auditProviderWebhookSubscriptions(input: {
       iv: credentialRow.iv,
       authTag: credentialRow.authTag,
     });
+    const webhookSecret = decryptWebhookSecret(subscription) ?? "";
 
     let remoteWebhooks: Awaited<ReturnType<typeof adapter.listRemoteSubscriptions>> = [];
 
@@ -503,7 +505,7 @@ export async function auditProviderWebhookSubscriptions(input: {
         baseUrl: credentialRow.baseUrl,
         region: credentialRow.region,
         endpointUrl: subscription.endpointUrl,
-        webhookSecret: "",
+        webhookSecret,
         subscribedEvents: subscription.subscribedEvents,
         fetchFn: input.fetchFn,
       });
@@ -556,7 +558,7 @@ export async function auditProviderWebhookSubscriptions(input: {
           baseUrl: credentialRow.baseUrl,
           region: credentialRow.region,
           endpointUrl: subscription.endpointUrl,
-          webhookSecret: "",
+          webhookSecret,
           subscribedEvents: subscription.subscribedEvents,
           providerWebhookId: subscription.providerWebhookId,
           fetchFn: input.fetchFn,

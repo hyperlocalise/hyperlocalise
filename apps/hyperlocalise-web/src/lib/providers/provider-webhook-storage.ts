@@ -211,7 +211,7 @@ export async function listProviderWebhookSubscriptionsForAudit(input: {
     .where(conditions.length > 0 ? and(...conditions) : undefined);
 }
 
-function decryptWebhookSecret(subscription: ProviderWebhookSubscription): string | null {
+export function decryptWebhookSecret(subscription: ProviderWebhookSubscription): string | null {
   if (
     !subscription.webhookSecretCiphertext ||
     !subscription.webhookSecretIv ||

@@ -344,6 +344,36 @@ describe("provider webhook subscription manager", () => {
     expect(row?.status).toBe("provider_error");
   });
 
+  it("reconciles stale remote webhooks with the stored signing secret", async () => {
+    const { organizationId, credential, projectId } = await createCrowdinCredential();
+
+    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("66"));
+    mockAdapter.listRemoteSubscriptions.mockResolvedValue([
+      {
+        ...activeCrowdinRemoteSubscription("66"),
+        isActive: false,
+      },
+    ]);
+    mockAdapter.updateRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("66"));
+
+    const created = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "12345",
+    });
+    expect(created.status).toBe("active");
+
+    await auditProviderWebhookSubscriptions({ organizationId });
+
+    const createdSecret = mockAdapter.createRemoteSubscription.mock.calls[0]?.[0].webhookSecret;
+    const reconciledSecret = mockAdapter.updateRemoteSubscription.mock.calls[0]?.[0].webhookSecret;
+
+    expect(createdSecret).toBeTruthy();
+    expect(reconciledSecret).toBe(createdSecret);
+  });
+
   it("requires manual setup for providers without automatic adapters", async () => {
     mockAdapter.supportsAutomaticSetup = false;
 

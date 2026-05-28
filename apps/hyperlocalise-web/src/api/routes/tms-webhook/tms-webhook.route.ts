@@ -83,7 +83,9 @@ function firstString(...values: unknown[]) {
 
 function readSignature(headers: Headers) {
   const signature =
-    headers.get("x-hyperlocalise-signature-256") ?? headers.get("x-provider-signature-256");
+    headers.get("x-hyperlocalise-signature-256") ??
+    headers.get("x-provider-signature-256") ??
+    headers.get("x-crowdin-signature");
 
   if (!signature) {
     return null;
@@ -165,17 +167,6 @@ const defaultVerifier: ProviderTmsWebhookVerifier = {
   verify({ headers, rawBody, webhookSecret }) {
     if (!webhookSecret) {
       return true;
-    }
-
-    const headerSecret = headers.get("x-hyperlocalise-webhook-secret");
-    if (headerSecret && headerSecret.length === webhookSecret.length) {
-      try {
-        if (timingSafeEqual(Buffer.from(headerSecret), Buffer.from(webhookSecret))) {
-          return true;
-        }
-      } catch {
-        // fall through to signature check
-      }
     }
 
     const signature = readSignature(headers);

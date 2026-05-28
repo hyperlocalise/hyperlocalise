@@ -73,16 +73,24 @@ function signatureFor(body: string, secret = "webhook-signing-secret") {
 function postWebhook(input: {
   app: ReturnType<typeof createApp>;
   body: string;
-  signature?: string;
+  signature?: string | null;
+  signatureHeader?: "x-hyperlocalise-signature-256" | "x-crowdin-signature";
+  webhookSecretHeader?: string;
   webhookId?: string;
   deliveryId?: string;
 }) {
   const headers: Record<string, string> = {
     "content-type": "application/json",
     "x-hyperlocalise-provider-webhook-id": input.webhookId ?? "webhook-1",
-    "x-hyperlocalise-signature-256": input.signature ?? signatureFor(input.body),
   };
 
+  if (input.signature !== null) {
+    headers[input.signatureHeader ?? "x-hyperlocalise-signature-256"] =
+      input.signature ?? signatureFor(input.body);
+  }
+  if (input.webhookSecretHeader) {
+    headers["x-hyperlocalise-webhook-secret"] = input.webhookSecretHeader;
+  }
   if (input.deliveryId) {
     headers["x-hyperlocalise-delivery-id"] = input.deliveryId;
   }
@@ -445,6 +453,64 @@ describe("tmsWebhookRoutes", () => {
       .from(schema.providerWebhookEvents)
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
     expect(rows).toHaveLength(0);
+  });
+
+  it("rejects echoed webhook secrets without a body signature", async () => {
+    const { subscription } = await createSubscriptionFixture();
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue() {
+          throw new Error("unexpected enqueue");
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-plaintext-secret",
+      event_type: "file.updated",
+    });
+
+    const response = await postWebhook({
+      app,
+      body,
+      signature: null,
+      webhookSecretHeader: "webhook-signing-secret",
+    });
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_signature" });
+
+    const rows = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("accepts Crowdin HMAC signatures", async () => {
+    await createSubscriptionFixture();
+    const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue(event) {
+          queuedEvents.push(event);
+          return { ids: [] };
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-crowdin-signature",
+      event_type: "file.updated",
+    });
+
+    const response = await postWebhook({
+      app,
+      body,
+      signature: signatureFor(body),
+      signatureHeader: "x-crowdin-signature",
+    });
+
+    expect(response.status).toBe(202);
+    expect(queuedEvents).toHaveLength(1);
   });
 
   it("rejects active subscriptions when the webhook secret is unavailable", async () => {

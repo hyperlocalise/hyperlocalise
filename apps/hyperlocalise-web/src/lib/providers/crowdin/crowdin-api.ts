@@ -1000,10 +1000,8 @@ export class CrowdinApiClient {
         requestType: "POST",
         contentType: "application/json",
         isActive: input.isActive ?? true,
-        headers: {
-          ...input.headers,
-          ...(input.secret ? { "X-Hyperlocalise-Webhook-Secret": input.secret } : {}),
-        },
+        headers: input.headers,
+        ...(input.secret ? { secret: input.secret } : {}),
       },
     );
 
@@ -1018,6 +1016,7 @@ export class CrowdinApiClient {
       events?: string[];
       isActive?: boolean;
       headers?: Record<string, string>;
+      secret?: string;
     },
   ): Promise<CrowdinWebhook> {
     const operations: Array<{ op: "replace"; path: string; value: unknown }> = [];
@@ -1033,6 +1032,9 @@ export class CrowdinApiClient {
     }
     if (input.headers !== undefined) {
       operations.push({ op: "replace", path: "/headers", value: input.headers });
+    }
+    if (input.secret !== undefined) {
+      operations.push({ op: "replace", path: "/secret", value: input.secret });
     }
 
     const response = await this.patch<CrowdinGetResponse<CrowdinWebhook>>(
