@@ -15,17 +15,17 @@ func TestEnsureUnderRoot(t *testing.T) {
 	}
 	root = filepath.Join(root, "root")
 
-	if err := os.MkdirAll(root, 0755); err != nil {
+	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("failed to create root: %v", err)
 	}
 
 	subdir := filepath.Join(root, "subdir")
-	if err := os.MkdirAll(subdir, 0755); err != nil {
+	if err := os.MkdirAll(subdir, 0o755); err != nil {
 		t.Fatalf("failed to create subdir: %v", err)
 	}
 
 	outside := filepath.Join(filepath.Dir(root), "outside")
-	if err := os.MkdirAll(outside, 0755); err != nil {
+	if err := os.MkdirAll(outside, 0o755); err != nil {
 		t.Fatalf("failed to create outside: %v", err)
 	}
 
@@ -84,16 +84,16 @@ func TestEnsureUnderRoot_Symlinks(t *testing.T) {
 	}
 
 	root := filepath.Join(tmp, "root")
-	if err := os.MkdirAll(root, 0755); err != nil {
+	if err := os.MkdirAll(root, 0o755); err != nil {
 		t.Fatalf("failed to create root: %v", err)
 	}
 
 	outside := filepath.Join(tmp, "outside")
-	if err := os.MkdirAll(outside, 0755); err != nil {
+	if err := os.MkdirAll(outside, 0o755); err != nil {
 		t.Fatalf("failed to create outside: %v", err)
 	}
 	outsideFile := filepath.Join(outside, "secret.txt")
-	if err := os.WriteFile(outsideFile, []byte("secret"), 0644); err != nil {
+	if err := os.WriteFile(outsideFile, []byte("secret"), 0o644); err != nil {
 		t.Fatalf("failed to write outside file: %v", err)
 	}
 
@@ -208,7 +208,7 @@ func TestCanonicalForContainment_Symlinks(t *testing.T) {
 	}
 
 	realDir := filepath.Join(tmp, "real")
-	if err := os.MkdirAll(realDir, 0755); err != nil {
+	if err := os.MkdirAll(realDir, 0o755); err != nil {
 		t.Fatalf("failed to create real dir: %v", err)
 	}
 
@@ -219,7 +219,7 @@ func TestCanonicalForContainment_Symlinks(t *testing.T) {
 
 	// Test path through symlink to existing file
 	realFile := filepath.Join(realDir, "file.txt")
-	if err := os.WriteFile(realFile, []byte("hello"), 0644); err != nil {
+	if err := os.WriteFile(realFile, []byte("hello"), 0o644); err != nil {
 		t.Fatalf("failed to write real file: %v", err)
 	}
 
