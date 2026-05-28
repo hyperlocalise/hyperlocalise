@@ -14,26 +14,19 @@ const (
 	defaultRunConfigJSONCPath = "i18n.jsonc"
 )
 
-func (s *Service) configureProjectPathRoot(configPath string) (func(), error) {
-	previousEnforce := s.enforceProjectPaths
-	previousRoot := s.projectRoot
-	restore := func() {
-		s.enforceProjectPaths = previousEnforce
-		s.projectRoot = previousRoot
-	}
-
+func (s *Service) configureProjectPathRoot(configPath string) error {
 	root, ok, err := runtimeConfigRoot(configPath)
 	if err != nil {
-		return restore, err
+		return err
 	}
 	if !ok {
 		s.enforceProjectPaths = false
 		s.projectRoot = ""
-		return restore, nil
+		return nil
 	}
 	s.enforceProjectPaths = true
 	s.projectRoot = root
-	return restore, nil
+	return nil
 }
 
 func runtimeConfigRoot(configPath string) (string, bool, error) {

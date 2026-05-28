@@ -238,9 +238,6 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 				if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("mkdir source output: %w", err)
 				}
-				if err := validateCrowdinContainedPath(baseRoot, sourcePath); err != nil {
-					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("source output path %q: %w", sourcePath, err)
-				}
 				if err := os.WriteFile(sourcePath, payload, 0o644); err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("write source output: %w", err)
 				}

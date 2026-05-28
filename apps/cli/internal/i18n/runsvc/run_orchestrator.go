@@ -14,6 +14,11 @@ import (
 )
 
 func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) {
+	run := *s
+	return run.run(ctx, in)
+}
+
+func (s *Service) run(ctx context.Context, in Input) (report Report, err error) {
 	reportJSONDetail, detailErr := NormalizeReportJSONDetail(in.ReportJSONDetail)
 	if detailErr != nil {
 		return Report{}, detailErr
@@ -40,12 +45,10 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 		endRunSpan(planSpan, err, "cache_unsupported")
 		return Report{}, err
 	}
-	restorePathRoot, err := s.configureProjectPathRoot(in.ConfigPath)
-	if err != nil {
+	if err := s.configureProjectPathRoot(in.ConfigPath); err != nil {
 		endRunSpan(planSpan, err, "config_path_root")
 		return Report{}, err
 	}
-	defer restorePathRoot()
 
 	planned, planWarnings, err := s.planTasks(cfg, in.Bucket, in.Group, in.TargetLocales, in.SourcePaths, in.FixTargets, in.FixMarkdownScopes)
 	if err != nil {
