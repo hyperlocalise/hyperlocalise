@@ -419,6 +419,147 @@ describe("provider webhook subscription manager", () => {
     expect(retried.subscription.id).toBe(first.subscription.id);
   });
 
+  async function createSmartlingCredential() {
+    const { organizationId, userId } = await createOrganizationUser();
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "owner",
+      providerKind: "smartling",
+      displayName: "Smartling",
+      secretMaterial: "user-1:secret-1:acct-smartling-1",
+    });
+
+    const projectId = `project_${randomUUID()}`;
+    await db.insert(schema.projects).values({
+      id: projectId,
+      organizationId,
+      name: "Smartling project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderCredentialId: credential.id,
+      externalProviderKind: "smartling",
+      externalProjectId: "smartling-project-1",
+      targetLocales: ["fr-FR"],
+      isActive: true,
+    });
+
+    return { organizationId, credential, projectId };
+  }
+
+  function createSmartlingWebhookFetch(input: { updateFails?: boolean; status?: number } = {}) {
+    return vi.fn(async (url, init) => {
+      const target = String(url);
+
+      if (input.status) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "VALIDATION_ERROR",
+              errors: [{ message: "maximum subscriptions reached" }],
+            },
+          }),
+          { status: input.status },
+        );
+      }
+
+      if (target.endsWith("/authenticate")) {
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: { accessToken: "access-token", expiresIn: 3600 },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (target.includes("/subscriptions") && (init?.method ?? "GET") === "GET") {
+        return new Response(
+          JSON.stringify({
+            response: { code: "SUCCESS", data: { items: [], totalCount: 0 } },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        target.includes("/subscriptions") &&
+        init?.method === "POST" &&
+        !target.endsWith("/disable")
+      ) {
+        const body =
+          typeof init.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                subscriptionUid: "sub-smartling-1",
+                subscriptionName: body.subscriptionName,
+                subscriptionUrl: body.subscriptionUrl,
+                payloadSecret: body.payloadSecret,
+                requestHeaders: body.requestHeaders ?? [],
+                events: body.events ?? [],
+                projectUids: body.projectUids ?? [],
+                isActive: true,
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (target.includes("/subscriptions/sub-smartling-1") && init?.method === "PUT") {
+        if (input.updateFails) {
+          return new Response(JSON.stringify({ response: { code: "ERROR" } }), { status: 500 });
+        }
+
+        const body =
+          typeof init.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+        return new Response(
+          JSON.stringify({
+            response: {
+              code: "SUCCESS",
+              data: {
+                subscriptionUid: "sub-smartling-1",
+                subscriptionName: body.subscriptionName,
+                subscriptionUrl: body.subscriptionUrl,
+                payloadSecret: body.payloadSecret,
+                requestHeaders: body.requestHeaders ?? [],
+                events: body.events ?? [],
+                projectUids: body.projectUids ?? [],
+                isActive: true,
+              },
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response("Not Found", { status: 404 });
+    }) as unknown as typeof fetch;
+  }
+
+  it("creates an active Smartling webhook subscription when automatic setup is available", async () => {
+    const { organizationId, credential, projectId } = await createSmartlingCredential();
+
+    const result = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "smartling",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "smartling-project-1",
+      fetchFn: createSmartlingWebhookFetch(),
+    });
+
+    expect(result.status).toBe("active");
+    expect(result.subscription.providerWebhookId).toBe("sub-smartling-1");
+    expect(result.subscription.subscribedEvents).toContain("file.published");
+  });
+
   it("uses the same provider-agnostic fallback for other TMS providers", async () => {
     const { organizationId, userId } = await createOrganizationUser();
     const credential = await upsertOrganizationExternalTmsProviderCredential({

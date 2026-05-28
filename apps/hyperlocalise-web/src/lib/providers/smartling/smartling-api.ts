@@ -19,6 +19,7 @@ const DEFAULT_GLOSSARY_BASE_URL = "https://api.smartling.com/glossary-api/v2";
 const DEFAULT_GLOSSARY_V3_BASE_URL = "https://api.smartling.com/glossary-api/v3";
 const DEFAULT_TM_BASE_URL = "https://api.smartling.com/translation-memory-api/v2";
 const DEFAULT_ISSUES_BASE_URL = "https://api.smartling.com/issues-api/v2";
+const DEFAULT_WEBHOOKS_BASE_URL = "https://api.smartling.com/webhooks-api/v2";
 const TOKEN_REFRESH_SKEW_MS = 60_000;
 const DEFAULT_PAGE_SIZE = 500;
 
@@ -36,8 +37,43 @@ export interface SmartlingApiClientOptions {
   glossaryV3BaseUrl?: string;
   tmBaseUrl?: string;
   issuesBaseUrl?: string;
+  webhooksBaseUrl?: string;
   fetchFn?: typeof fetch;
 }
+
+export interface SmartlingWebhookEventSpec {
+  type: string;
+  schemaVersion: string;
+}
+
+export interface SmartlingWebhookRequestHeader {
+  headerName: string;
+  headerValue: string;
+}
+
+export interface SmartlingWebhookSubscription {
+  subscriptionUid: string;
+  subscriptionName: string;
+  subscriptionUrl: string;
+  description?: string | null;
+  payloadSecret?: string | null;
+  requestHeaders?: SmartlingWebhookRequestHeader[];
+  events: SmartlingWebhookEventSpec[];
+  projectUids: string[];
+  isActive?: boolean;
+}
+
+export type SmartlingWebhookSubscriptionCreateRequest = {
+  subscriptionName: string;
+  subscriptionUrl: string;
+  description?: string;
+  payloadSecret?: string;
+  requestHeaders?: SmartlingWebhookRequestHeader[];
+  events: SmartlingWebhookEventSpec[];
+  projectUids: string[];
+};
+
+export type SmartlingWebhookSubscriptionUpdateRequest = SmartlingWebhookSubscriptionCreateRequest;
 
 export interface SmartlingGlossarySummary {
   glossaryUid: string;
@@ -277,6 +313,7 @@ export class SmartlingApiClient {
   private readonly glossaryV3BaseUrl: string;
   private readonly tmBaseUrl: string;
   private readonly issuesBaseUrl: string;
+  private readonly webhooksBaseUrl: string;
   private readonly fetchFn: typeof fetch;
   private tokens: SmartlingAuthTokens | null = null;
 
@@ -321,6 +358,10 @@ export class SmartlingApiClient {
     this.issuesBaseUrl = normalizeServiceBaseUrl(
       options.issuesBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "issues"),
       DEFAULT_ISSUES_BASE_URL,
+    );
+    this.webhooksBaseUrl = normalizeServiceBaseUrl(
+      options.webhooksBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "webhooks"),
+      DEFAULT_WEBHOOKS_BASE_URL,
     );
     this.fetchFn = options.fetchFn ?? fetch;
   }
@@ -920,6 +961,85 @@ export class SmartlingApiClient {
     );
   }
 
+  async listWebhookSubscriptions(accountUid: string): Promise<SmartlingWebhookSubscription[]> {
+    const token = await this.getAccessToken();
+    const subscriptions: SmartlingWebhookSubscription[] = [];
+    let offset = 0;
+
+    while (true) {
+      const params = new URLSearchParams({
+        limit: String(DEFAULT_PAGE_SIZE),
+        offset: String(offset),
+      });
+      const data = await this.get<{ items: SmartlingWebhookSubscription[]; totalCount?: number }>(
+        `${this.webhooksBaseUrl}/accounts/${encodeURIComponent(accountUid)}/subscriptions?${params}`,
+        token,
+      );
+
+      const page = (data.items ?? []).map(normalizeSmartlingWebhookSubscription);
+      subscriptions.push(...page);
+      offset += page.length;
+
+      if (page.length === 0) {
+        break;
+      }
+
+      if (typeof data.totalCount === "number") {
+        if (offset >= data.totalCount) {
+          break;
+        }
+      } else if (page.length < DEFAULT_PAGE_SIZE) {
+        break;
+      }
+    }
+
+    return subscriptions;
+  }
+
+  async createWebhookSubscription(
+    accountUid: string,
+    request: SmartlingWebhookSubscriptionCreateRequest,
+  ): Promise<SmartlingWebhookSubscription> {
+    const token = await this.getAccessToken();
+    const created = await this.post<SmartlingWebhookSubscription>(
+      `${this.webhooksBaseUrl}/accounts/${encodeURIComponent(accountUid)}/subscriptions`,
+      token,
+      request,
+    );
+    return normalizeSmartlingWebhookSubscription(created);
+  }
+
+  async updateWebhookSubscription(
+    accountUid: string,
+    subscriptionUid: string,
+    request: SmartlingWebhookSubscriptionUpdateRequest,
+  ): Promise<SmartlingWebhookSubscription> {
+    const token = await this.getAccessToken();
+    const updated = await this.put<SmartlingWebhookSubscription>(
+      `${this.webhooksBaseUrl}/accounts/${encodeURIComponent(accountUid)}/subscriptions/${encodeURIComponent(subscriptionUid)}`,
+      token,
+      request,
+    );
+    return normalizeSmartlingWebhookSubscription(updated);
+  }
+
+  async disableWebhookSubscription(accountUid: string, subscriptionUid: string): Promise<void> {
+    const token = await this.getAccessToken();
+    await this.post<Record<string, never>>(
+      `${this.webhooksBaseUrl}/accounts/${encodeURIComponent(accountUid)}/subscriptions/${encodeURIComponent(subscriptionUid)}/disable`,
+      token,
+      {},
+    );
+  }
+
+  async deleteWebhookSubscription(accountUid: string, subscriptionUid: string): Promise<void> {
+    const token = await this.getAccessToken();
+    await this.delete(
+      `${this.webhooksBaseUrl}/accounts/${encodeURIComponent(accountUid)}/subscriptions/${encodeURIComponent(subscriptionUid)}`,
+      token,
+    );
+  }
+
   private async get<T>(url: string, token: string): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "GET",
@@ -960,6 +1080,34 @@ export class SmartlingApiClient {
 
     return parseSmartlingResponse<T>(response, url);
   }
+
+  private async delete(url: string, token: string): Promise<void> {
+    const response = await this.fetchFn(url, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    await parseSmartlingResponse<Record<string, never>>(response, url);
+  }
+}
+
+function normalizeSmartlingWebhookSubscription(
+  item: SmartlingWebhookSubscription,
+): SmartlingWebhookSubscription {
+  return {
+    subscriptionUid: item.subscriptionUid,
+    subscriptionName: item.subscriptionName,
+    subscriptionUrl: item.subscriptionUrl,
+    description: item.description ?? null,
+    payloadSecret: item.payloadSecret ?? null,
+    requestHeaders: item.requestHeaders ?? [],
+    events: item.events ?? [],
+    projectUids: item.projectUids ?? [],
+    isActive: item.isActive ?? true,
+  };
 }
 
 export function deriveServiceBaseUrl(
@@ -973,7 +1121,8 @@ export function deriveServiceBaseUrl(
     | "glossary"
     | "glossary-v3"
     | "translation-memory"
-    | "issues",
+    | "issues"
+    | "webhooks",
 ) {
   const normalized = normalizeServiceBaseUrl(authBaseUrl, authBaseUrl);
   if (normalized.includes("/auth-api/")) {
@@ -1008,6 +1157,8 @@ export function deriveServiceBaseUrl(
       return DEFAULT_TM_BASE_URL;
     case "issues":
       return DEFAULT_ISSUES_BASE_URL;
+    case "webhooks":
+      return DEFAULT_WEBHOOKS_BASE_URL;
   }
 }
 

@@ -18,10 +18,11 @@ function extract(input: {
   providerKind: ExternalTmsProviderKind;
   payload: ProviderWebhookPayload;
   headers?: HeadersInit;
+  providerWebhookId?: string;
 }) {
   const adapter = tmsProviderWebhookAdapters[input.providerKind];
   const headers = new Headers(input.headers);
-  headers.set("x-hyperlocalise-provider-webhook-id", "webhook-1");
+  headers.set("x-hyperlocalise-provider-webhook-id", input.providerWebhookId ?? "webhook-1");
 
   return adapter.extract({
     providerKind: input.providerKind,
@@ -91,6 +92,21 @@ describe("tms provider webhook adapters", () => {
       },
     },
     {
+      providerKind: "smartling",
+      payload: {
+        type: "file.published",
+        file: { fileUri: "/locales/en.json" },
+        project: { projectUid: "smartling-project-1" },
+      },
+      expected: {
+        providerEventId: "smartling-delivery-1",
+        eventType: "file.published",
+        resourceId: "/locales/en.json",
+        externalResourceId: "smartling-project-1",
+        mappedIntentKinds: ["file_key_scan"],
+      },
+    },
+    {
       providerKind: "lokalise",
       payload: {
         uuid: "lokalise-event-1",
@@ -109,7 +125,11 @@ describe("tms provider webhook adapters", () => {
   ])(
     "maps representative $providerKind payloads to reconciliation intents",
     ({ providerKind, payload, expected }) => {
-      const descriptor = extract({ providerKind, payload });
+      const headers =
+        providerKind === "smartling" && expected.providerEventId === "smartling-delivery-1"
+          ? { "event-id": "smartling-delivery-1" }
+          : undefined;
+      const descriptor = extract({ providerKind, payload, headers });
 
       expect(descriptor).toMatchObject({
         providerWebhookId: "webhook-1",
@@ -118,13 +138,19 @@ describe("tms provider webhook adapters", () => {
         dedupeKey: expected.providerEventId,
         resourceId: expected.resourceId,
         externalResourceId: expected.externalResourceId,
+        ...(providerKind === "smartling" && expected.providerEventId === "smartling-delivery-1"
+          ? { deliveryId: "smartling-delivery-1" }
+          : {}),
       });
       expect(descriptor?.mappedIntents.map((intent) => intent.kind)).toEqual(
         expected.mappedIntentKinds,
       );
       expect(descriptor?.redactedPayload).toEqual({
         providerEventId: expected.providerEventId,
-        deliveryId: null,
+        deliveryId:
+          providerKind === "smartling" && expected.providerEventId === "smartling-delivery-1"
+            ? "smartling-delivery-1"
+            : null,
         eventType: expected.eventType,
         resourceType: null,
         resourceId: expected.resourceId,
@@ -216,6 +242,100 @@ describe("tms provider webhook adapters", () => {
     });
 
     expect(descriptor?.mappedIntents).toEqual([]);
+  });
+
+  it("verifies Smartling Event-Signature headers using the raw body", async () => {
+    const payload = {
+      type: "file.published",
+      file: { fileUri: "/locales/en.json" },
+      project: { projectUid: "smartling-project-1" },
+    };
+    const body = JSON.stringify(payload);
+    const eventId = "evt-smartling-1";
+    const eventTimestamp = String(Math.floor(Date.now() / 1000));
+    const signedPayload = `${eventId}.${eventTimestamp}.${body}`;
+    const signature = createHmac("sha256", "webhook-signing-secret")
+      .update(signedPayload)
+      .digest("hex");
+    const adapter = tmsProviderWebhookAdapters.smartling;
+    const descriptor = extract({
+      providerKind: "smartling",
+      payload,
+      headers: {
+        "event-id": eventId,
+        "event-timestamp": eventTimestamp,
+        "event-signature": signature,
+      },
+    });
+
+    expect(descriptor).not.toBeNull();
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "smartling",
+          headers: new Headers({
+            "event-id": eventId,
+            "event-timestamp": eventTimestamp,
+            "event-signature": signature,
+          }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: descriptor!,
+        }),
+      ),
+    ).resolves.toBe(true);
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "smartling",
+          headers: new Headers({
+            "event-id": eventId,
+            "event-timestamp": eventTimestamp,
+            "event-signature": "deadbeef",
+          }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: descriptor!,
+        }),
+      ),
+    ).resolves.toBe(false);
+  });
+
+  it("rejects stale Smartling event timestamps before verifying signatures", async () => {
+    const payload = {
+      type: "file.published",
+      file: { fileUri: "/locales/en.json" },
+      project: { projectUid: "smartling-project-1" },
+    };
+    const body = JSON.stringify(payload);
+    const eventId = "evt-smartling-stale";
+    const eventTimestamp = String(Math.floor(Date.now() / 1000) - 301);
+    const signedPayload = `${eventId}.${eventTimestamp}.${body}`;
+    const signature = createHmac("sha256", "webhook-signing-secret")
+      .update(signedPayload)
+      .digest("hex");
+    const adapter = tmsProviderWebhookAdapters.smartling;
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "smartling",
+          headers: new Headers({
+            "event-id": eventId,
+            "event-timestamp": eventTimestamp,
+            "event-signature": signature,
+          }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: extract({ providerKind: "smartling", payload })!,
+        }),
+      ),
+    ).resolves.toBe(false);
   });
 
   it("verifies Crowdin configured secret headers and body signatures", async () => {
