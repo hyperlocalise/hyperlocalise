@@ -104,6 +104,9 @@ afterEach(async () => {
 
   if (organizationIds.length > 0) {
     await db
+      .delete(schema.providerSyncIntents)
+      .where(inArray(schema.providerSyncIntents.organizationId, organizationIds));
+    await db
       .delete(schema.providerWebhookEvents)
       .where(inArray(schema.providerWebhookEvents.organizationId, organizationIds));
     await db
@@ -132,12 +135,11 @@ describe("tmsWebhookRoutes", () => {
   it("stores accepted events and queues reconciliation", async () => {
     const { organizationId, subscription } = await createSubscriptionFixture();
     const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
-    const syncIntentId = "run_workflow_abc123";
     const app = createApp({
       providerWebhookReconciliationQueue: {
         async enqueue(event) {
           queuedEvents.push(event);
-          return { ids: [syncIntentId] };
+          return { ids: [randomUUID()] };
         },
       },
     });
@@ -152,9 +154,24 @@ describe("tmsWebhookRoutes", () => {
 
     expect(response.status).toBe(202);
     await expect(response.json()).resolves.toEqual({ ok: true, ignored: false });
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, organizationId));
+
+    expect(intent).toMatchObject({
+      organizationId,
+      providerKind: "crowdin",
+      syncKind: "file_key_scan",
+      cause: "webhook",
+      status: "pending",
+    });
+    expect(intent?.eventReferences.length).toBeGreaterThan(0);
+
     expect(queuedEvents).toEqual([
       {
         providerWebhookEventId: expect.any(String),
+        providerSyncIntentId: intent?.id,
         organizationId,
         subscriptionId: subscription.id,
         providerKind: "crowdin",
@@ -173,11 +190,11 @@ describe("tmsWebhookRoutes", () => {
       dedupeKey: "evt-1",
       resourceType: "file",
       resourceId: "file-1",
-      providerSyncIntentId: syncIntentId,
+      providerSyncIntentId: intent?.id,
     });
   });
 
-  it("persists workflow run ids from the reconciliation queue", async () => {
+  it("persists provider sync intent ids for reconciliation", async () => {
     const { subscription } = await createSubscriptionFixture();
     const workflowRunId = "run_workflow_persisted789";
     const app = createApp({
@@ -195,11 +212,56 @@ describe("tmsWebhookRoutes", () => {
     const response = await postWebhook({ app, body });
     expect(response.status).toBe(202);
 
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, subscription.organizationId));
     const [event] = await db
       .select()
       .from(schema.providerWebhookEvents)
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
-    expect(event?.providerSyncIntentId).toBe(workflowRunId);
+    expect(event?.providerSyncIntentId).toBe(intent?.id);
+    expect(event?.providerSyncIntentId).not.toBe(workflowRunId);
+  });
+
+  it("skips unrecognized webhook event types without queueing reconciliation", async () => {
+    const { organizationId, subscription } = await createSubscriptionFixture();
+    const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+    const app = createApp({
+      providerWebhookReconciliationQueue: {
+        async enqueue(event) {
+          queuedEvents.push(event);
+          return { ids: [randomUUID()] };
+        },
+      },
+    });
+    const body = JSON.stringify({
+      event_id: "evt-unknown-event-type",
+      event_type: "system.ping",
+      resource_type: "webhook",
+    });
+
+    const response = await postWebhook({ app, body });
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({ ok: true, ignored: true });
+    expect(queuedEvents).toHaveLength(0);
+
+    const intents = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, organizationId));
+    expect(intents).toHaveLength(0);
+
+    const [event] = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+    expect(event).toMatchObject({
+      processingStatus: "skipped",
+      errorMessage: "unrecognized_provider_webhook_event",
+      providerSyncIntentId: null,
+    });
   });
 
   it("dedupes provider retries that use a new delivery id for the same event", async () => {
@@ -277,7 +339,6 @@ describe("tmsWebhookRoutes", () => {
   it("requeues a pending duplicate when the first enqueue failed", async () => {
     const { subscription } = await createSubscriptionFixture();
     const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
-    const syncIntentId = "run_workflow_retry456";
     let enqueueAttempts = 0;
     const app = createApp({
       providerWebhookReconciliationQueue: {
@@ -288,7 +349,7 @@ describe("tmsWebhookRoutes", () => {
           }
 
           queuedEvents.push(event);
-          return { ids: [syncIntentId] };
+          return { ids: [randomUUID()] };
         },
       },
     });
@@ -307,9 +368,15 @@ describe("tmsWebhookRoutes", () => {
       ignored: false,
       duplicate: true,
     });
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, subscription.organizationId));
+
     expect(queuedEvents).toEqual([
       {
         providerWebhookEventId: expect.any(String),
+        providerSyncIntentId: intent?.id,
         organizationId: subscription.organizationId,
         subscriptionId: subscription.id,
         providerKind: "crowdin",
@@ -322,7 +389,7 @@ describe("tmsWebhookRoutes", () => {
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
     expect(event).toMatchObject({
       providerEventId: "evt-retry",
-      providerSyncIntentId: syncIntentId,
+      providerSyncIntentId: intent?.id,
       processingStatus: "pending",
     });
   });

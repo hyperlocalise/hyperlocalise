@@ -14,6 +14,9 @@ import type {
   organizationApiKeys,
   organizationLifecycleStatusEnum,
   organizationLlmProviderCredentials,
+  providerSyncIntentCauseEnum,
+  providerSyncIntents,
+  providerSyncIntentStatusEnum,
   providerSyncRunKindEnum,
   providerSyncRuns,
   providerSyncRunStatusEnum,
@@ -77,6 +80,10 @@ export type ProviderSyncRun = typeof providerSyncRuns.$inferSelect;
 export type NewProviderSyncRun = typeof providerSyncRuns.$inferInsert;
 export type ProviderSyncRunKind = (typeof providerSyncRunKindEnum.enumValues)[number];
 export type ProviderSyncRunStatus = (typeof providerSyncRunStatusEnum.enumValues)[number];
+export type ProviderSyncIntent = typeof providerSyncIntents.$inferSelect;
+export type NewProviderSyncIntent = typeof providerSyncIntents.$inferInsert;
+export type ProviderSyncIntentCause = (typeof providerSyncIntentCauseEnum.enumValues)[number];
+export type ProviderSyncIntentStatus = (typeof providerSyncIntentStatusEnum.enumValues)[number];
 export type ProviderWebhookSubscription = typeof providerWebhookSubscriptions.$inferSelect;
 export type NewProviderWebhookSubscription = typeof providerWebhookSubscriptions.$inferInsert;
 export type ProviderWebhookSubscriptionStatus =

@@ -132,6 +132,7 @@ export type ProviderAgentWritebackQueue = JobQueue<ProviderAgentWritebackEventDa
 
 export type ProviderWebhookReconciliationEventData = {
   providerWebhookEventId: string;
+  providerSyncIntentId: string;
   organizationId: string;
   subscriptionId: string;
   providerKind: ExternalTmsProviderKind;

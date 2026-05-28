@@ -1,21 +1,5 @@
-import { del, get, put } from "@vercel/blob";
-import { and, eq, isNull, or } from "drizzle-orm";
-
-import { db, schema } from "@/lib/database";
-import { env } from "@/lib/env";
-import { createStoredFileId, sha256Hex, storageKey } from "@/lib/file-storage/records";
 import type { StringTranslationJobResult } from "@/lib/translation/string-job-executor";
-import {
-  claimTranslationJob,
-  completeTranslationJob,
-  executeClaimedTranslationJob,
-  failTranslationJob,
-  type ClaimedTranslationJob,
-} from "@/lib/translation/translation-job-queued-function";
-import {
-  persistFileTranslationMemoryEntries,
-  reuseFileTranslationMemoryEntries,
-} from "@/lib/translation/file-translation-memory";
+import type { ClaimedTranslationJob } from "@/lib/translation/translation-job-queued-function";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 export async function claimTranslationJobStep(input: {
@@ -23,11 +7,14 @@ export async function claimTranslationJobStep(input: {
   runId: string;
 }) {
   "use step";
+  const { claimTranslationJob } = await import("@/lib/translation/translation-job-queued-function");
   return claimTranslationJob(input);
 }
 
 export async function executeClaimedTranslationJobStep(job: ClaimedTranslationJob) {
   "use step";
+  const { executeClaimedTranslationJob } =
+    await import("@/lib/translation/translation-job-queued-function");
   return executeClaimedTranslationJob(job);
 }
 
@@ -38,6 +25,8 @@ export async function completeTranslationJobStep(input: {
   result: StringTranslationJobResult;
 }) {
   "use step";
+  const { completeTranslationJob } =
+    await import("@/lib/translation/translation-job-queued-function");
   return completeTranslationJob(input);
 }
 
@@ -49,6 +38,7 @@ export async function failTranslationJobStep(input: {
   message: string;
 }) {
   "use step";
+  const { failTranslationJob } = await import("@/lib/translation/translation-job-queued-function");
   return failTranslationJob(input);
 }
 
@@ -57,6 +47,8 @@ export async function markEmailTranslationJobRunning(input: {
   workflowRunId: string;
 }) {
   "use step";
+  const { and, eq, isNull, or } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
 
   const [updatedJob] = await db
     .update(schema.jobs)
@@ -94,6 +86,8 @@ export async function markEmailTranslationJobSucceeded(input: {
   targetLocale: string;
 }) {
   "use step";
+  const { and, eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
 
   await db.transaction(async (tx) => {
     const [updatedJob] = await tx
@@ -137,6 +131,8 @@ export async function markEmailTranslationJobFailed(input: {
   reason: string;
 }) {
   "use step";
+  const { and, eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
 
   await db.transaction(async (tx) => {
     const [updatedJob] = await tx
@@ -174,6 +170,8 @@ export async function markEmailTranslationJobFailed(input: {
 
 export async function getProjectOrganizationStep(projectId: string): Promise<string> {
   "use step";
+  const { eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
 
   const [project] = await db
     .select({ organizationId: schema.projects.organizationId })
@@ -190,6 +188,8 @@ export async function getProjectOrganizationStep(projectId: string): Promise<str
 
 export async function getStoredFileStep(fileId: string, organizationId: string) {
   "use step";
+  const { and, eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
 
   const [file] = await db
     .select()
@@ -208,6 +208,10 @@ export async function getStoredFileStep(fileId: string, organizationId: string) 
 
 export async function getStoredFileContentStep(fileId: string, organizationId: string) {
   "use step";
+  const { get } = await import("@vercel/blob");
+  const { and, eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
+  const { env } = await import("@/lib/env");
 
   const [file] = await db
     .select({ storageKey: schema.storedFiles.storageKey })
@@ -243,6 +247,10 @@ export async function storeOutputFileStep(input: {
   content: Buffer;
 }) {
   "use step";
+  const { del, put } = await import("@vercel/blob");
+  const { db, schema } = await import("@/lib/database");
+  const { env } = await import("@/lib/env");
+  const { createStoredFileId, sha256Hex, storageKey } = await import("@/lib/file-storage/records");
 
   const id = createStoredFileId();
   const key = storageKey({
@@ -301,6 +309,8 @@ export async function reuseFileTranslationMemoryEntriesStep(input: {
   sourceEntries: Record<string, string>;
 }) {
   "use step";
+  const { reuseFileTranslationMemoryEntries } =
+    await import("@/lib/translation/file-translation-memory");
   return reuseFileTranslationMemoryEntries(input);
 }
 
@@ -315,6 +325,8 @@ export async function persistFileTranslationMemoryEntriesStep(input: {
   targetEntries: Record<string, string>;
 }) {
   "use step";
+  const { persistFileTranslationMemoryEntries } =
+    await import("@/lib/translation/file-translation-memory");
   return persistFileTranslationMemoryEntries(input);
 }
 
@@ -325,6 +337,8 @@ export async function completeFileTranslationJobStep(input: {
   outputFiles: Array<{ fileId: string; locale: string; filename: string }>;
 }) {
   "use step";
+  const { and, eq } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
 
   const didSucceed = await db.transaction(async (tx) => {
     const [updatedJob] = await tx

@@ -123,6 +123,19 @@ export const providerSyncRunStatusEnum = pgEnum("provider_sync_run_status", [
   "failed",
   "cancelled",
 ]);
+export const providerSyncIntentCauseEnum = pgEnum("provider_sync_intent_cause", [
+  "webhook",
+  "manual",
+  "scheduled",
+]);
+export const providerSyncIntentStatusEnum = pgEnum("provider_sync_intent_status", [
+  "pending",
+  "running",
+  "retryable",
+  "succeeded",
+  "failed",
+  "cancelled",
+]);
 export const providerWebhookSubscriptionStatusEnum = pgEnum(
   "provider_webhook_subscription_status",
   ["active", "disabled", "error"],
@@ -944,6 +957,63 @@ export const providerSyncRuns = pgTable(
       table.startedAt,
     ),
     index("idx_provider_sync_runs_status").on(table.status),
+  ],
+);
+
+export const providerSyncIntents = pgTable(
+  "provider_sync_intents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id").references(
+      () => organizationExternalTmsProviderCredentials.id,
+      { onDelete: "set null" },
+    ),
+    providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
+    syncKind: providerSyncRunKindEnum("sync_kind").notNull(),
+    resourceId: text("resource_id"),
+    resourceIds: jsonb("resource_ids")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    cause: providerSyncIntentCauseEnum("cause").notNull(),
+    eventReferences: jsonb("event_references")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    priority: integer("priority").notNull().default(0),
+    status: providerSyncIntentStatusEnum("status").notNull().default("pending"),
+    attempts: integer("attempts").notNull().default(0),
+    maxAttempts: integer("max_attempts").notNull().default(5),
+    leaseKey: text("lease_key").notNull(),
+    leasedUntil: timestamp("leased_until", { withTimezone: true }),
+    leasedBy: text("leased_by"),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    providerSyncRunId: uuid("provider_sync_run_id").references(() => providerSyncRuns.id, {
+      onDelete: "set null",
+    }),
+    lastError: text("last_error"),
+    errorDetails: jsonb("error_details")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    index("idx_provider_sync_intents_org_created").on(table.organizationId, table.createdAt),
+    index("idx_provider_sync_intents_status_next_attempt").on(table.status, table.nextAttemptAt),
+    index("idx_provider_sync_intents_lease_key").on(table.leaseKey),
+    uniqueIndex("provider_sync_intents_lease_key_active_key")
+      .on(table.leaseKey)
+      .where(sql`${table.status} in ('pending', 'running', 'retryable')`),
   ],
 );
 
