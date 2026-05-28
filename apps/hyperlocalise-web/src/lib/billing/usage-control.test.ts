@@ -113,7 +113,11 @@ describe("usage-control", () => {
         "x-api-version": "2.2.0",
       },
     });
-    expect(JSON.parse(String(requestInit?.body))).toMatchObject({
+    const requestBody = requestInit?.body;
+    if (typeof requestBody !== "string") {
+      throw new Error("Expected JSON string request body");
+    }
+    expect(JSON.parse(requestBody)).toMatchObject({
       customer_id: organization.id,
       feature_id: "translation_jobs",
       value: 1,

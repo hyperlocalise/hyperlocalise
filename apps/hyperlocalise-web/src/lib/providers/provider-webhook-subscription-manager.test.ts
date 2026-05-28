@@ -8,6 +8,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { db, schema } from "@/lib/database";
 
 import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
+import { listDefaultWebhookEvents } from "./provider-webhook-default-events";
 import {
   auditProviderWebhookSubscriptions,
   disableProviderWebhookSubscription,
@@ -15,6 +16,15 @@ import {
   retryProviderWebhookSubscriptionSetup,
 } from "./provider-webhook-subscription-manager";
 import { ProviderWebhookSubscriptionAdapterError } from "./provider-webhook-subscription-types";
+
+function activeCrowdinRemoteSubscription(providerWebhookId: string) {
+  return {
+    providerWebhookId,
+    endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
+    subscribedEvents: listDefaultWebhookEvents("crowdin"),
+    isActive: true,
+  };
+}
 
 const mockAdapter = {
   supportsAutomaticSetup: true,
@@ -164,12 +174,7 @@ describe("provider webhook subscription manager", () => {
   it("creates an active subscription when provider setup succeeds", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
 
-    mockAdapter.createRemoteSubscription.mockResolvedValue({
-      providerWebhookId: "99",
-      endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
-      subscribedEvents: ["file.translated"],
-      isActive: true,
-    });
+    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("99"));
 
     const result = await ensureProviderWebhookSubscription({
       organizationId,
@@ -188,12 +193,7 @@ describe("provider webhook subscription manager", () => {
   it("skips remote updates for unchanged active subscriptions", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
 
-    mockAdapter.createRemoteSubscription.mockResolvedValue({
-      providerWebhookId: "99",
-      endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
-      subscribedEvents: ["file.translated"],
-      isActive: true,
-    });
+    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("99"));
 
     await ensureProviderWebhookSubscription({
       organizationId,
@@ -263,12 +263,7 @@ describe("provider webhook subscription manager", () => {
   it("disables active subscriptions locally and at the provider", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
 
-    mockAdapter.createRemoteSubscription.mockResolvedValue({
-      providerWebhookId: "77",
-      endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
-      subscribedEvents: ["file.translated"],
-      isActive: true,
-    });
+    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("77"));
 
     const created = await ensureProviderWebhookSubscription({
       organizationId,
@@ -295,12 +290,7 @@ describe("provider webhook subscription manager", () => {
     mockAdapter.createRemoteSubscription.mockRejectedValueOnce(
       new ProviderWebhookSubscriptionAdapterError("provider_error", "Temporary outage"),
     );
-    mockAdapter.createRemoteSubscription.mockResolvedValueOnce({
-      providerWebhookId: "88",
-      endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
-      subscribedEvents: ["file.translated"],
-      isActive: true,
-    });
+    mockAdapter.createRemoteSubscription.mockResolvedValueOnce(activeCrowdinRemoteSubscription("88"));
 
     const failed = await ensureProviderWebhookSubscription({
       organizationId,
@@ -325,12 +315,7 @@ describe("provider webhook subscription manager", () => {
   it("marks subscriptions stale when remote webhook disappears during audit", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
 
-    mockAdapter.createRemoteSubscription.mockResolvedValue({
-      providerWebhookId: "55",
-      endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
-      subscribedEvents: ["file.translated"],
-      isActive: true,
-    });
+    mockAdapter.createRemoteSubscription.mockResolvedValue(activeCrowdinRemoteSubscription("55"));
     mockAdapter.listRemoteSubscriptions.mockResolvedValue([]);
 
     const created = await ensureProviderWebhookSubscription({
