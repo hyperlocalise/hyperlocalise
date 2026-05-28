@@ -111,6 +111,17 @@ function readSignature(headers: Headers) {
   return signature.startsWith("sha256=") ? signature.slice("sha256=".length) : signature;
 }
 
+function constantTimeEqual(left: string, right: string) {
+  const leftBuffer = Buffer.from(left);
+  const rightBuffer = Buffer.from(right);
+
+  if (leftBuffer.length !== rightBuffer.length) {
+    return false;
+  }
+
+  return timingSafeEqual(leftBuffer, rightBuffer);
+}
+
 function verifyHmacSha256(input: { rawBody: string; webhookSecret: string; signature: string }) {
   const expected = createHmac("sha256", input.webhookSecret).update(input.rawBody).digest("hex");
 
@@ -136,6 +147,28 @@ function defaultVerify({ headers, rawBody, webhookSecret }: TmsProviderWebhookVe
   }
 
   return verifyHmacSha256({ rawBody, webhookSecret, signature });
+}
+
+function verifyCrowdinWebhook(input: TmsProviderWebhookVerificationInput) {
+  if (!input.webhookSecret) {
+    return true;
+  }
+
+  const signature = readSignature(input.headers);
+  if (signature) {
+    return verifyHmacSha256({
+      rawBody: input.rawBody,
+      webhookSecret: input.webhookSecret,
+      signature,
+    });
+  }
+
+  const echoedSecret = input.headers.get("x-hyperlocalise-webhook-secret");
+  if (!echoedSecret) {
+    return false;
+  }
+
+  return constantTimeEqual(echoedSecret, input.webhookSecret);
 }
 
 function dedupeIntents(intents: TmsWebhookMappedIntent[]) {
@@ -179,6 +212,7 @@ export type ProviderWebhookAdapterConfig = {
   resourceTypePaths?: readonly (readonly string[])[];
   resourceIdPaths?: readonly (readonly string[])[];
   externalResourceIdPaths?: readonly (readonly string[])[];
+  verify?: TmsProviderWebhookAdapter["verify"];
   mapEvent: (input: {
     eventType: string;
     resourceType: string | null;
@@ -243,7 +277,7 @@ export function createProviderWebhookAdapter(
 
       return { resourceType, resourceId, externalResourceId };
     },
-    verify: defaultVerify,
+    verify: config.verify ?? defaultVerify,
     redact({ descriptor }) {
       return baseRedactedPayload(descriptor);
     },
@@ -396,6 +430,7 @@ export const crowdinWebhookAdapter = createProviderWebhookAdapter({
   resourceIdPaths: [["resource_id"], ["file", "id"], ["string", "id"], ["task", "id"]],
   externalResourceIdPaths: [["external_resource_id"], ["project", "id"]],
   mapEvent: genericTmsEventMapping,
+  verify: verifyCrowdinWebhook,
 });
 
 export const phraseWebhookAdapter = createProviderWebhookAdapter({

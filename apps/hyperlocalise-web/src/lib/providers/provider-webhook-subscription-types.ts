@@ -64,16 +64,19 @@ export type ProviderWebhookSubscriptionAdapterErrorCode =
 export class ProviderWebhookSubscriptionAdapterError extends Error {
   readonly code: ProviderWebhookSubscriptionAdapterErrorCode;
   readonly httpStatus?: number;
+  /** Set when a remote webhook was created but final activation failed. */
+  readonly providerWebhookId?: string;
 
   constructor(
     code: ProviderWebhookSubscriptionAdapterErrorCode,
     message: string,
-    options?: { httpStatus?: number; cause?: unknown },
+    options?: { httpStatus?: number; cause?: unknown; providerWebhookId?: string },
   ) {
     super(message, { cause: options?.cause });
     this.name = "ProviderWebhookSubscriptionAdapterError";
     this.code = code;
     this.httpStatus = options?.httpStatus;
+    this.providerWebhookId = options?.providerWebhookId;
   }
 }
 
