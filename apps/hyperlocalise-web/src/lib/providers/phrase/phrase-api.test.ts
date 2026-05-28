@@ -47,6 +47,17 @@ describe("PhraseApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("rejects unsafe explicit base URLs before making requests", () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    expect(() => createClient(fetchMock, { baseUrl: "https://10.0.0.10/v2" })).toThrow(
+      "Phrase provider base URL is invalid or unsafe.",
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("lists locales for a project", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

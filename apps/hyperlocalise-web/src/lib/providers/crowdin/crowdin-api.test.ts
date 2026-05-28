@@ -202,6 +202,22 @@ describe("CrowdinApiClient", () => {
     );
   });
 
+  it("rejects unsafe base URLs before making requests", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    expect(
+      () =>
+        new CrowdinApiClient({
+          token: "test",
+          baseUrl: "https://169.254.169.254/api/v2",
+          fetchFn: fetchMock,
+        }),
+    ).toThrow("Crowdin provider base URL is invalid or unsafe.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("manages project webhooks", async () => {
     const fetchMock = vi.fn(async (url, init) => {
       const method = init?.method;

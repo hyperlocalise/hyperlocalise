@@ -7,6 +7,7 @@
 
 import { parseSmartlingCredentials, type SmartlingCredentials } from "./smartling-credentials";
 import { uniqueLocales } from "./smartling-locales";
+import { requireProviderBaseUrl } from "../provider-url-safety";
 
 const DEFAULT_AUTH_BASE_URL = "https://api.smartling.com/auth-api/v2";
 const DEFAULT_ACCOUNTS_BASE_URL = "https://api.smartling.com/accounts-api/v2";
@@ -922,6 +923,7 @@ export class SmartlingApiClient {
   private async get<T>(url: string, token: string): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "GET",
+      redirect: "error",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -934,6 +936,7 @@ export class SmartlingApiClient {
   private async post<T>(url: string, token: string, payload: unknown): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "POST",
+      redirect: "error",
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         "Content-Type": "application/json",
@@ -947,6 +950,7 @@ export class SmartlingApiClient {
   private async put<T>(url: string, token: string, payload: unknown): Promise<T> {
     const response = await this.fetchFn(url, {
       method: "PUT",
+      redirect: "error",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -1009,13 +1013,9 @@ export function deriveServiceBaseUrl(
 
 export function normalizeServiceBaseUrl(baseUrl: string | undefined, fallback: string) {
   try {
-    const url = new URL(baseUrl ?? fallback);
-    url.pathname = url.pathname.replace(/\/+$/, "");
-    url.search = "";
-    url.hash = "";
-    return url.toString().replace(/\/+$/, "");
+    return requireProviderBaseUrl(baseUrl, fallback, "Smartling");
   } catch {
-    return fallback;
+    return requireProviderBaseUrl(undefined, fallback, "Smartling");
   }
 }
 

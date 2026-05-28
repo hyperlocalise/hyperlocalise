@@ -6,6 +6,11 @@
  * attempt to wrap the full Crowdin API surface.
  */
 
+import {
+  normalizeProviderDownloadUrl,
+  requireProviderBaseUrl,
+} from "@/lib/providers/provider-url-safety";
+
 export interface CrowdinApiClientOptions {
   token: string;
   baseUrl?: string;
@@ -378,7 +383,11 @@ export class CrowdinApiClient {
 
   constructor(options: CrowdinApiClientOptions) {
     this.token = options.token;
-    this.baseUrl = (options.baseUrl ?? "https://api.crowdin.com/api/v2").replace(/\/+$/g, "");
+    this.baseUrl = requireProviderBaseUrl(
+      options.baseUrl,
+      "https://api.crowdin.com/api/v2",
+      "Crowdin",
+    );
     this.fetchFn = options.fetchFn ?? fetch;
   }
 
@@ -807,6 +816,7 @@ export class CrowdinApiClient {
     const url = `${this.baseUrl}/storages`;
     const response = await this.fetchFn(url, {
       method: "POST",
+      redirect: "error",
       headers: {
         Authorization: `Bearer ${this.token}`,
         "Content-Type": input.contentType ?? "application/octet-stream",
@@ -907,6 +917,7 @@ export class CrowdinApiClient {
       `${this.baseUrl}/projects/${projectId}/tasks/${taskId}/exports`,
       {
         method: "POST",
+        redirect: "error",
         headers: {
           Authorization: `Bearer ${this.token}`,
           "Content-Type": "application/json",
@@ -942,7 +953,12 @@ export class CrowdinApiClient {
    * Download content from a Crowdin-provided URL.
    */
   async downloadUrl(url: string): Promise<Uint8Array> {
-    const response = await this.fetchFn(url, { method: "GET" });
+    const safeUrl = normalizeProviderDownloadUrl(url);
+    if (!safeUrl) {
+      throw new CrowdinApiError("Crowdin download URL is invalid or unsafe", 400, null);
+    }
+
+    const response = await this.fetchFn(safeUrl, { method: "GET", redirect: "error" });
     if (!response.ok) {
       throw new CrowdinApiError(
         `Crowdin download returned HTTP ${response.status}`,
@@ -1127,7 +1143,7 @@ export class CrowdinApiClient {
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const response = await this.fetchFn(url, init);
+    const response = await this.fetchFn(url, { ...init, redirect: "error" });
 
     if (!response.ok) {
       let body: unknown;

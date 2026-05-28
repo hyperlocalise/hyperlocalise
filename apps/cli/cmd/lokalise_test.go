@@ -285,7 +285,7 @@ func TestLokaliseDownloadTranslationsForceOverwritesExistingOutput(t *testing.T)
 	}
 }
 
-func TestLokaliseDownloadTranslationsForceRemovesOverwrittenOutputOnLaterFailure(t *testing.T) {
+func TestLokaliseDownloadTranslationsForceKeepsOverwrittenOutputOnLaterFailure(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("LOKALISE_API_TOKEN", "secret")
 
@@ -324,8 +324,12 @@ func TestLokaliseDownloadTranslationsForceRemovesOverwrittenOutputOnLaterFailure
 	if err == nil || !strings.Contains(err.Error(), "is a directory") {
 		t.Fatalf("error = %v, want later output write failure", err)
 	}
-	if _, err := os.Stat(frPath); !os.IsNotExist(err) {
-		t.Fatalf("fr output should be removed after partial failure, stat err = %v", err)
+	content, readErr := os.ReadFile(frPath)
+	if readErr != nil {
+		t.Fatalf("fr output should still exist after later failure: %v", readErr)
+	}
+	if string(content) != `{"hello":"Bonjour"}` {
+		t.Fatalf("expected overwritten fr output to be kept, got %q", string(content))
 	}
 }
 

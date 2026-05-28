@@ -1,3 +1,5 @@
+import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
+
 export const PHRASE_TMS_DEFAULT_BASE_URL = "https://cloud.memsource.com/web";
 
 export function resolvePhraseTmsBaseUrl(input: { baseUrl?: string | null }): string {
@@ -6,7 +8,8 @@ export function resolvePhraseTmsBaseUrl(input: { baseUrl?: string | null }): str
     return PHRASE_TMS_DEFAULT_BASE_URL;
   }
 
-  const normalized = explicitBaseUrl.replace(/\/+$/, "");
+  const normalized = normalizeProviderBaseUrl(explicitBaseUrl, PHRASE_TMS_DEFAULT_BASE_URL);
+  if (!normalized) return PHRASE_TMS_DEFAULT_BASE_URL;
 
   try {
     const parsed = new URL(normalized);

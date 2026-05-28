@@ -5,6 +5,7 @@ import { decryptProviderCredential } from "@/lib/security/provider-credential-cr
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import { resolvePhraseBaseUrl } from "./phrase/phrase-base-url";
+import { normalizeProviderBaseUrl } from "./provider-url-safety";
 import { parseSmartlingCredentials } from "./smartling/smartling-credentials";
 import { classifySmartlingHttpError } from "./smartling/smartling-api";
 
@@ -292,42 +293,46 @@ function buildValidationRequest(input: {
 }): { url: string; init: RequestInit } | null {
   switch (input.providerKind) {
     case "crowdin": {
-      const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.crowdin.com/api/v2");
+      const baseUrl = normalizeProviderBaseUrl(input.baseUrl, "https://api.crowdin.com/api/v2");
       if (!baseUrl) return null;
       return {
         url: `${baseUrl}/user`,
-        init: { headers: { Authorization: `Bearer ${input.secretMaterial}` } },
+        init: { headers: { Authorization: `Bearer ${input.secretMaterial}` }, redirect: "error" },
       };
     }
     case "phrase": {
-      const baseUrl = normalizeBaseUrl(
-        resolvePhraseBaseUrl({ region: input.region, baseUrl: input.baseUrl }),
-        resolvePhraseBaseUrl({}),
+      const baseUrl = normalizeProviderBaseUrl(
+        input.baseUrl,
+        resolvePhraseBaseUrl({ region: input.region }),
       );
       if (!baseUrl) return null;
       return {
         url: `${baseUrl}/user`,
-        init: { headers: { Authorization: `token ${input.secretMaterial}` } },
+        init: { headers: { Authorization: `token ${input.secretMaterial}` }, redirect: "error" },
       };
     }
     case "lokalise": {
-      const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.lokalise.com/api2");
+      const baseUrl = normalizeProviderBaseUrl(input.baseUrl, "https://api.lokalise.com/api2");
       if (!baseUrl) return null;
       return {
         url: `${baseUrl}/me`,
-        init: { headers: { "X-Api-Token": input.secretMaterial } },
+        init: { headers: { "X-Api-Token": input.secretMaterial }, redirect: "error" },
       };
     }
     case "smartling": {
       try {
         const credentials = parseSmartlingCredentials(input.secretMaterial);
-        const baseUrl = normalizeBaseUrl(input.baseUrl, "https://api.smartling.com/auth-api/v2");
+        const baseUrl = normalizeProviderBaseUrl(
+          input.baseUrl,
+          "https://api.smartling.com/auth-api/v2",
+        );
         if (!baseUrl) return null;
         return {
           url: `${baseUrl}/authenticate`,
           init: {
             method: "POST",
             headers: { "Content-Type": "application/json" },
+            redirect: "error",
             body: JSON.stringify({
               userIdentifier: credentials.userIdentifier,
               userSecret: credentials.userSecret,
@@ -339,81 +344,6 @@ function buildValidationRequest(input: {
       }
     }
   }
-}
-
-function normalizeBaseUrl(baseUrl: string | null, defaultBaseUrl: string) {
-  try {
-    const url = new URL(baseUrl ?? defaultBaseUrl);
-    if (!isAllowedProviderBaseUrl(url)) return null;
-    url.pathname = url.pathname.replace(/\/+$/, "");
-    url.search = "";
-    url.hash = "";
-    return url.toString().replace(/\/+$/, "");
-  } catch {
-    return null;
-  }
-}
-
-function isAllowedProviderBaseUrl(url: URL) {
-  if (url.protocol !== "https:") return false;
-
-  const hostname = url.hostname
-    .replace(/^\[|\]$/g, "")
-    .replace(/\.$/, "")
-    .toLowerCase();
-  if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost")) return false;
-  if (!hostname.includes(".") && !hostname.includes(":")) return false;
-
-  if (isBlockedIpv4Address(hostname) || isBlockedIpv6Address(hostname)) return false;
-
-  return true;
-}
-
-function isBlockedIpv4Address(hostname: string) {
-  const octets = hostname.split(".");
-  if (octets.length !== 4) return false;
-
-  const bytes = octets.map((octet) => Number(octet));
-  if (
-    bytes.some(
-      (byte, index) => !Number.isInteger(byte) || byte < 0 || byte > 255 || octets[index] === "",
-    )
-  ) {
-    return false;
-  }
-
-  const [first, second] = bytes as [number, number, number, number];
-  return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    first >= 224 ||
-    (first === 100 && second >= 64 && second <= 127) ||
-    (first === 169 && second === 254) ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168) ||
-    (first === 198 && (second === 18 || second === 19))
-  );
-}
-
-function isBlockedIpv6Address(hostname: string) {
-  if (!hostname.includes(":")) return false;
-
-  if (
-    hostname === "::1" ||
-    hostname.startsWith("fe80:") ||
-    hostname.startsWith("fc") ||
-    hostname.startsWith("fd")
-  ) {
-    return true;
-  }
-
-  if (hostname.startsWith("::ffff:")) {
-    const ipv4 = hostname.slice("::ffff:".length);
-    return isBlockedIpv4Address(ipv4);
-  }
-
-  return false;
 }
 
 function readRateLimitHints(headers: Headers): ExternalTmsRateLimitHints {

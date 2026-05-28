@@ -718,3 +718,27 @@ func TestSmartlingUploadSourcesDryRun(t *testing.T) {
 		t.Errorf("unexpected output: %s", out.String())
 	}
 }
+
+func TestSmartlingUploadSourcesRejectsSharedFileURIForMultipleFiles(t *testing.T) {
+	root := newRootCmd("test")
+	out := &bytes.Buffer{}
+	root.SetOut(out)
+	root.SetErr(out)
+
+	root.SetArgs([]string{
+		"smartling", "upload", "sources",
+		"--project-id", "123",
+		"--file", "one.json",
+		"--file", "two.json",
+		"--file-uri", "shared.json",
+		"--dry-run",
+	})
+
+	err := root.Execute()
+	if err == nil {
+		t.Fatal("expected shared file-uri error")
+	}
+	if !strings.Contains(err.Error(), "--file-uri cannot be used with multiple --file values") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

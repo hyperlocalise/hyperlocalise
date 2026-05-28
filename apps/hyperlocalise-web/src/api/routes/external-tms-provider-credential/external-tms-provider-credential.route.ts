@@ -89,6 +89,15 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (error instanceof Error && error.message === "forbidden") {
           return c.json({ error: "forbidden" }, 403);
         }
+        if (error instanceof Error && error.message === "provider_base_url_invalid") {
+          return c.json(
+            {
+              error: "provider_base_url_invalid",
+              message: "Provider base URL is invalid.",
+            },
+            400,
+          );
+        }
         throw error;
       }
     })

@@ -2,6 +2,11 @@
  * Lokalise API v2 client for TMS connector discovery.
  */
 
+import {
+  normalizeProviderDownloadUrl,
+  requireProviderBaseUrl,
+} from "@/lib/providers/provider-url-safety";
+
 export const LOKALISE_DEFAULT_BASE_URL = "https://api.lokalise.com/api2";
 
 /** How far back completed tasks are included in job sync. */
@@ -203,7 +208,7 @@ export class LokaliseApiClient {
 
   constructor(options: LokaliseApiClientOptions) {
     this.token = options.token;
-    this.baseUrl = (options.baseUrl ?? LOKALISE_DEFAULT_BASE_URL).replace(/\/+$/g, "");
+    this.baseUrl = requireProviderBaseUrl(options.baseUrl, LOKALISE_DEFAULT_BASE_URL, "Lokalise");
     this.fetchFn = options.fetchFn ?? fetch;
   }
 
@@ -398,7 +403,12 @@ export class LokaliseApiClient {
   }
 
   async downloadUrl(url: string): Promise<ArrayBuffer> {
-    const response = await this.fetchFn(url, { method: "GET" });
+    const safeUrl = normalizeProviderDownloadUrl(url);
+    if (!safeUrl) {
+      throw new LokaliseApiError("Lokalise download URL is invalid or unsafe", 400, null);
+    }
+
+    const response = await this.fetchFn(safeUrl, { method: "GET", redirect: "error" });
     if (!response.ok) {
       throw new LokaliseApiError(
         `Failed to download Lokalise bundle from ${url}`,
@@ -540,7 +550,7 @@ export class LokaliseApiClient {
     init: RequestInit,
   ): Promise<{ body: T; nextCursor: string | null }> {
     const url = `${this.baseUrl}${path}`;
-    const response = await this.fetchFn(url, init);
+    const response = await this.fetchFn(url, { ...init, redirect: "error" });
 
     if (!response.ok) {
       let body: unknown;
