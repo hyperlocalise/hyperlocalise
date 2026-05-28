@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -380,5 +382,48 @@ describe("provider sync intents", () => {
       .where(eq(schema.providerSyncIntents.id, intent.id));
     expect(updated?.status).toBe("succeeded");
     expect(updated?.providerSyncRunId).toBe(syncRun.id);
+  });
+
+  it("fails non-retryably when referenced webhook events were deleted", async () => {
+    const project = await createTestProject();
+    const staleEventId = randomUUID();
+    const dispatch = vi.fn<ProviderSyncIntentDispatcher["dispatch"]>(async () => ({
+      runId: randomUUID(),
+      status: "succeeded",
+      runner: "project_scan",
+    }));
+
+    const { intent } = await enqueueProviderSyncIntent({
+      organizationId: project.organizationId,
+      providerKind: "lokalise",
+      projectId: project.id,
+      syncKind: "project_scan",
+      cause: "webhook",
+      resourceId: staleEventId,
+      eventReferences: [staleEventId],
+    });
+
+    const result = await processProviderSyncIntent({
+      intentId: intent.id,
+      organizationId: project.organizationId,
+      workerId: "test-worker",
+      dispatcher: { dispatch },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.status).toBe("failed");
+    expect(result.reason).toBe("provider_webhook_event_not_found");
+    expect(dispatch).not.toHaveBeenCalled();
+
+    const [updated] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.id, intent.id));
+    expect(updated?.status).toBe("failed");
+    expect(updated?.leasedUntil).toBeNull();
+    expect(updated?.leasedBy).toBeNull();
   });
 });
