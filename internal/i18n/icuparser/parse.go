@@ -415,8 +415,8 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 			return 0, nil, fmt.Errorf("expected ICU selector at %d", p.pos)
 		}
 		p.skipSpaces()
-		if len(sel) >= 7 && strings.EqualFold(sel[:7], "offset:") {
-			// BOLT OPTIMIZATION: Use EqualFold to avoid ToLower and skip redundant TrimSpace.
+		// BOLT OPTIMIZATION: Quick check for 'o' or 'O' to avoid strings.EqualFold for most selectors.
+		if len(sel) >= 7 && (sel[0] == 'o' || sel[0] == 'O') && strings.EqualFold(sel[:7], "offset:") {
 			n, err := strconv.Atoi(sel[7:])
 			if err != nil {
 				return 0, nil, fmt.Errorf("invalid plural offset %q", sel)
@@ -648,6 +648,16 @@ func (p *astParser) peek() byte {
 func (p *astParser) readIdentifierLike() (string, bool) {
 	start := p.pos
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Fast-path for ASCII to avoid utf8 decoding and unicode checks.
+		ch := p.src[p.pos]
+		if ch < 0x80 {
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f' || ch == ',' || ch == '{' || ch == '}' {
+				break
+			}
+			p.pos++
+			continue
+		}
+
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
 		if unicode.IsSpace(r) || r == ',' || r == '{' || r == '}' {
 			break
@@ -673,6 +683,16 @@ func (p *astParser) readSelector() (string, bool) {
 		return p.src[start:p.pos], p.pos > start+1
 	}
 	for p.pos < len(p.src) {
+		// BOLT OPTIMIZATION: Fast-path for ASCII to avoid utf8 decoding and unicode checks.
+		ch := p.src[p.pos]
+		if ch < 0x80 {
+			if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' || ch == '\v' || ch == '\f' || ch == '{' || ch == '}' || ch == ',' {
+				break
+			}
+			p.pos++
+			continue
+		}
+
 		r, w := utf8.DecodeRuneInString(p.src[p.pos:])
 		if unicode.IsSpace(r) || r == '{' || r == '}' || r == ',' {
 			break

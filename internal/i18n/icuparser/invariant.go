@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 type Invariant struct {
@@ -311,18 +312,45 @@ func isPlaceholderName(s string) bool {
 	if s == "" {
 		return false
 	}
-	for i, r := range s {
+
+	for i := 0; i < len(s); {
+		// BOLT OPTIMIZATION: Fast-path for ASCII to avoid range rune decoding and unicode checks.
+		ch := s[i]
+		if ch < 0x80 {
+			if i == 0 {
+				if !isASCIIPlaceholderFirst(ch) {
+					return false
+				}
+			} else {
+				if !isASCIIPlaceholderSubsequent(ch) {
+					return false
+				}
+			}
+			i++
+			continue
+		}
+
+		r, w := utf8.DecodeRuneInString(s[i:])
 		if i == 0 {
 			if !isPlaceholderFirstRune(r) {
 				return false
 			}
-			continue
+		} else {
+			if !isPlaceholderSubsequentRune(r) {
+				return false
+			}
 		}
-		if !isPlaceholderSubsequentRune(r) {
-			return false
-		}
+		i += w
 	}
 	return true
+}
+
+func isASCIIPlaceholderFirst(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '$'
+}
+
+func isASCIIPlaceholderSubsequent(b byte) bool {
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '.' || b == '-' || b == '$'
 }
 
 func isASCIIDigit(b byte) bool {
