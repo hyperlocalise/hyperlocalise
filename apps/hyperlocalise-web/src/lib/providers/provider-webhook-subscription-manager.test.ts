@@ -290,7 +290,9 @@ describe("provider webhook subscription manager", () => {
     mockAdapter.createRemoteSubscription.mockRejectedValueOnce(
       new ProviderWebhookSubscriptionAdapterError("provider_error", "Temporary outage"),
     );
-    mockAdapter.createRemoteSubscription.mockResolvedValueOnce(activeCrowdinRemoteSubscription("88"));
+    mockAdapter.createRemoteSubscription.mockResolvedValueOnce(
+      activeCrowdinRemoteSubscription("88"),
+    );
 
     const failed = await ensureProviderWebhookSubscription({
       organizationId,
