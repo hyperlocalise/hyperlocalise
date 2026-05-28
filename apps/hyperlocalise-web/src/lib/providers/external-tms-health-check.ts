@@ -34,6 +34,7 @@ type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCreden
 export async function checkExternalTmsProviderHealth(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;
+  credentialId?: string;
   fetchFn?: typeof fetch;
 }): Promise<{
   credential: ExternalTmsCredential | null;
@@ -43,10 +44,22 @@ export async function checkExternalTmsProviderHealth(input: {
     .select()
     .from(schema.organizationExternalTmsProviderCredentials)
     .where(
-      and(
-        eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
-        eq(schema.organizationExternalTmsProviderCredentials.providerKind, input.providerKind),
-      ),
+      input.credentialId
+        ? and(
+            eq(schema.organizationExternalTmsProviderCredentials.id, input.credentialId),
+            eq(
+              schema.organizationExternalTmsProviderCredentials.organizationId,
+              input.organizationId,
+            ),
+            eq(schema.organizationExternalTmsProviderCredentials.providerKind, input.providerKind),
+          )
+        : and(
+            eq(
+              schema.organizationExternalTmsProviderCredentials.organizationId,
+              input.organizationId,
+            ),
+            eq(schema.organizationExternalTmsProviderCredentials.providerKind, input.providerKind),
+          ),
     )
     .limit(1);
 

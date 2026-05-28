@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull } from "drizzle-orm";
+import { and, count, eq, inArray, isNotNull, notInArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
@@ -88,7 +88,12 @@ export async function listScheduledReconciliationCredentials(): Promise<
       providerKind: schema.organizationExternalTmsProviderCredentials.providerKind,
       validationStatus: schema.organizationExternalTmsProviderCredentials.validationStatus,
     })
-    .from(schema.organizationExternalTmsProviderCredentials);
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      inArray(schema.organizationExternalTmsProviderCredentials.validationStatus, [
+        ...ELIGIBLE_CREDENTIAL_STATUSES,
+      ]),
+    );
 
   return credentials.map((credential) => ({
     id: credential.id,
@@ -96,6 +101,19 @@ export async function listScheduledReconciliationCredentials(): Promise<
     providerKind: credential.providerKind as ExternalTmsProviderKind,
     validationStatus: credential.validationStatus,
   }));
+}
+
+async function countIneligibleScheduledReconciliationCredentials(): Promise<number> {
+  const [row] = await db
+    .select({ value: count() })
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      notInArray(schema.organizationExternalTmsProviderCredentials.validationStatus, [
+        ...ELIGIBLE_CREDENTIAL_STATUSES,
+      ]),
+    );
+
+  return row?.value ?? 0;
 }
 
 export async function listScheduledReconciliationProjects(): Promise<
@@ -187,6 +205,7 @@ async function runAuditSchedule(credentials: ScheduledReconciliationCredential[]
       const { credential: credentialRow, health } = await checkExternalTmsProviderHealth({
         organizationId: credential.organizationId,
         providerKind: credential.providerKind,
+        credentialId: credential.id,
       });
 
       if (credentialRow && health) {
@@ -245,14 +264,23 @@ export async function runScheduledReconciliation(
     return [];
   }
 
-  const credentials =
-    (await input.listCredentials?.()) ?? (await listScheduledReconciliationCredentials());
-  const projects = (await input.listProjects?.()) ?? (await listScheduledReconciliationProjects());
+  let eligibleCredentials: ScheduledReconciliationCredential[];
+  let credentialsSkipped: number;
 
-  const eligibleCredentials = credentials.filter((credential) =>
-    shouldIncludeCredentialForScheduledReconciliation(credential.validationStatus),
-  );
-  const credentialsSkipped = credentials.length - eligibleCredentials.length;
+  if (input.listCredentials) {
+    const credentials = await input.listCredentials();
+    eligibleCredentials = credentials.filter((credential) =>
+      shouldIncludeCredentialForScheduledReconciliation(credential.validationStatus),
+    );
+    credentialsSkipped = credentials.length - eligibleCredentials.length;
+  } else {
+    [eligibleCredentials, credentialsSkipped] = await Promise.all([
+      listScheduledReconciliationCredentials(),
+      countIneligibleScheduledReconciliationCredentials(),
+    ]);
+  }
+
+  const projects = (await input.listProjects?.()) ?? (await listScheduledReconciliationProjects());
 
   const results: ScheduledReconciliationEnqueueResult[] = [];
 
@@ -275,6 +303,7 @@ export async function runScheduledReconciliation(
     let intentsEnqueued = 0;
     let intentsCoalesced = 0;
     let intentsSkipped = 0;
+    let projectsSkipped = 0;
     let remainingBudget = config.maxIntentsPerTick;
 
     if (syncKinds.includes("project_scan")) {
@@ -304,6 +333,11 @@ export async function runScheduledReconciliation(
     const projectSyncKinds = syncKinds.filter((kind) => kind !== "project_scan");
 
     for (const project of projects) {
+      if (remainingBudget <= 0) {
+        projectsSkipped += 1;
+        continue;
+      }
+
       for (const syncKind of projectSyncKinds) {
         if (remainingBudget <= 0) {
           intentsSkipped += 1;
@@ -335,6 +369,7 @@ export async function runScheduledReconciliation(
         intentsCoalesced,
         intentsSkipped,
         credentialsSkipped,
+        projectsSkipped,
         eligibleCredentialCount: eligibleCredentials.length,
         projectCount: projects.length,
       },
@@ -347,7 +382,7 @@ export async function runScheduledReconciliation(
       intentsCoalesced,
       intentsSkipped,
       credentialsSkipped,
-      projectsSkipped: 0,
+      projectsSkipped,
       auditsCompleted: 0,
       healthChecksCompleted: 0,
     });

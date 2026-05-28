@@ -216,4 +216,57 @@ describe("provider scheduled reconciliation", () => {
     });
     expect(intents.some((intent) => intent.syncKind === "tm_scan")).toBe(true);
   });
+
+  it("counts projects skipped when the intent budget is exhausted", async () => {
+    const { organization, credential, project } = await createExternalTmsProject();
+    const secondProject = await createExternalTmsProject();
+    const enqueue = vi.fn(async (_event: ProviderWebhookReconciliationEventData) => ({
+      ids: ["workflow-1"],
+    }));
+
+    const results = await runScheduledReconciliation({
+      forceSchedule: "incremental",
+      config: {
+        ...DEFAULT_SCHEDULED_RECONCILIATION_CONFIG,
+        maxIntentsPerTick: 1,
+      },
+      queue: { enqueue },
+      listCredentials: async () => [
+        {
+          id: credential.id,
+          organizationId: organization.id,
+          providerKind: "phrase",
+          validationStatus: "connected",
+        },
+      ],
+      listProjects: async () => [
+        {
+          id: project.id,
+          organizationId: organization.id,
+          providerKind: "phrase",
+          providerCredentialId: credential.id,
+        },
+        {
+          id: secondProject.project.id,
+          organizationId: secondProject.organization.id,
+          providerKind: "phrase",
+          providerCredentialId: secondProject.credential.id,
+        },
+      ],
+    });
+
+    expect(results).toEqual([
+      {
+        schedule: "incremental",
+        intentsEnqueued: 1,
+        intentsCoalesced: 0,
+        intentsSkipped: 1,
+        credentialsSkipped: 0,
+        projectsSkipped: 1,
+        auditsCompleted: 0,
+        healthChecksCompleted: 0,
+      },
+    ]);
+    expect(enqueue).toHaveBeenCalledTimes(1);
+  });
 });

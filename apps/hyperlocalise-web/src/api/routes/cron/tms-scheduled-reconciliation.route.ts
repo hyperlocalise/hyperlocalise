@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { timingSafeEqual } from "node:crypto";
+import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { env } from "@/lib/env";
 import type { ScheduledReconciliationSchedule } from "@/lib/providers/provider-scheduled-reconciliation-config";
@@ -29,15 +29,12 @@ function readCronSecret(request: Request) {
   return request.headers.get("x-cron-secret")?.trim() ?? null;
 }
 
+const HMAC_KEY = Buffer.alloc(32);
+
 function secretsMatch(provided: string, expected: string) {
-  const providedBuffer = Buffer.from(provided);
-  const expectedBuffer = Buffer.from(expected);
-
-  if (providedBuffer.length !== expectedBuffer.length) {
-    return false;
-  }
-
-  return timingSafeEqual(providedBuffer, expectedBuffer);
+  const providedHmac = createHmac("sha256", HMAC_KEY).update(provided).digest();
+  const expectedHmac = createHmac("sha256", HMAC_KEY).update(expected).digest();
+  return timingSafeEqual(providedHmac, expectedHmac);
 }
 
 type CreateTmsScheduledReconciliationRoutesOptions = {
@@ -87,5 +84,3 @@ export function createTmsScheduledReconciliationRoutes(
     return c.json({ results }, 200);
   });
 }
-
-export const tmsScheduledReconciliationRoutes = createTmsScheduledReconciliationRoutes();
