@@ -11,6 +11,7 @@ import {
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
 import { db, schema } from "@/lib/database";
+import { reserveUsageEvent, usageFeatureIds } from "@/lib/billing/usage-control";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
@@ -195,6 +196,16 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
               sourceFileVersionId: sourceFileVersion?.id ?? null,
             })
             .returning();
+
+          await reserveUsageEvent({
+            db: tx,
+            organizationId,
+            featureId: usageFeatureIds.translationJobs,
+            operationKey: `job:${jobId}:translation_jobs`,
+            source: "translation_job_create",
+            jobId,
+            quantity: 1,
+          });
 
           return [{ ...createdJob, type: details.type }];
         });

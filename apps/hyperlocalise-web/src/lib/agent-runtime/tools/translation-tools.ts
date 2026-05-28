@@ -19,12 +19,36 @@ import {
   supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
+import { reserveUsageEvent, usageFeatureIds } from "@/lib/billing/usage-control";
 
 import { toolAccessibleJobsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";
 
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
 type JobKind = (typeof jobKinds)[number];
+
+function queuedJobUsageBilling(kind: JobKind) {
+  switch (kind) {
+    case "translation":
+      return {
+        featureId: usageFeatureIds.translationJobs,
+        source: "translation_job_create",
+        operationKeySuffix: "translation_jobs",
+      } as const;
+    case "research":
+      return {
+        featureId: usageFeatureIds.agentRuns,
+        source: "research_job_create",
+        operationKeySuffix: "research",
+      } as const;
+    default:
+      return {
+        featureId: usageFeatureIds.agentRuns,
+        source: `${kind}_job_create`,
+        operationKeySuffix: kind,
+      } as const;
+  }
+}
 
 const jobQueue = createTranslationJobEventQueue();
 
@@ -158,13 +182,28 @@ function queuedJobValues(
 }
 
 async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queuedJobValues>[1]) {
-  const [job] = await ctx.db.insert(schema.jobs).values(queuedJobValues(ctx, input)).returning();
+  return ctx.db.transaction(async (tx) => {
+    const [job] = await tx.insert(schema.jobs).values(queuedJobValues(ctx, input)).returning();
 
-  if (!job) {
-    throw new Error("Failed to create job: no row returned.");
-  }
+    if (!job) {
+      throw new Error("Failed to create job: no row returned.");
+    }
 
-  return job;
+    const billing = queuedJobUsageBilling(input.kind);
+
+    await reserveUsageEvent({
+      db: tx,
+      organizationId: ctx.organizationId,
+      featureId: billing.featureId,
+      operationKey: `job:${job.id}:${billing.operationKeySuffix}`,
+      source: billing.source,
+      jobId: job.id,
+      interactionId: ctx.conversationId ?? undefined,
+      quantity: 1,
+    });
+
+    return job;
+  });
 }
 
 /**
@@ -333,6 +372,17 @@ export function createTranslationJobTool(ctx: ToolContext) {
           jobId: createdJob.id,
           type: input.type,
           sourceFileVersionId: sourceFileVersion?.id ?? null,
+        });
+
+        await reserveUsageEvent({
+          db: tx,
+          organizationId: ctx.organizationId,
+          featureId: usageFeatureIds.translationJobs,
+          operationKey: `job:${createdJob.id}:translation_jobs`,
+          source: "translation_job_create",
+          jobId: createdJob.id,
+          interactionId: ctx.conversationId ?? undefined,
+          quantity: 1,
         });
 
         return createdJob;

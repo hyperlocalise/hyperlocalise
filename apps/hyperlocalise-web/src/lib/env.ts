@@ -79,6 +79,9 @@ export const env = createEnv({
     /** Slack OAuth redirect URI. Optional — falls back to the current request origin. */
     SLACK_REDIRECT_URI: z.url().optional(),
 
+    /** Autumn secret key for server-side usage checks and tracking. */
+    AUTUMN_API_KEY: z.string().min(1).optional(),
+
     /** Object storage adapter for durable uploaded and generated files. */
     FILE_STORAGE_PROVIDER: z.enum(["vercel_blob"]).default("vercel_blob"),
 
@@ -157,6 +160,7 @@ export const env = createEnv({
       process.env.SLACK_OAUTH_STATE_SECRET ??
       (isTestEnv ? "test-slack-oauth-state-secret" : undefined),
     SLACK_REDIRECT_URI: process.env.SLACK_REDIRECT_URI,
+    AUTUMN_API_KEY: process.env.AUTUMN_API_KEY,
     FILE_STORAGE_PROVIDER: process.env.FILE_STORAGE_PROVIDER,
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:

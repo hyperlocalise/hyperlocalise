@@ -189,6 +189,22 @@ export const storedFileSourceKindEnum = pgEnum("stored_file_source_kind", [
   "repository_file",
   "tms_file",
 ]);
+export const usageFeatureIdEnum = pgEnum("usage_feature_id", [
+  "translation_jobs",
+  "translation_units",
+  "source_characters",
+  "ai_tokens",
+  "api_requests",
+  "agent_runs",
+]);
+export const usageEventStatusEnum = pgEnum("usage_event_status", [
+  "reserved",
+  "succeeded",
+  "rejected",
+  "tracking_pending",
+  "tracking_succeeded",
+  "tracking_failed",
+]);
 
 export const organizations = pgTable(
   "organizations",
@@ -1533,6 +1549,44 @@ export const translationJobDetails = pgTable(
     index("idx_translation_job_details_type").on(table.type),
     index("idx_translation_job_details_source_file_version").on(table.sourceFileVersionId),
     index("idx_translation_job_details_outcome_kind").on(table.outcomeKind),
+  ],
+);
+
+export const usageEvents = pgTable(
+  "usage_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    featureId: usageFeatureIdEnum("feature_id").notNull(),
+    status: usageEventStatusEnum("status").notNull().default("reserved"),
+    operationKey: text("operation_key").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    dimensions: jsonb("dimensions")
+      .$type<Record<string, string | number | boolean | null>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    source: text("source").notNull(),
+    actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
+    apiKeyId: uuid("api_key_id").references(() => organizationApiKeys.id, { onDelete: "set null" }),
+    jobId: text("job_id").references(() => jobs.id, { onDelete: "set null" }),
+    interactionId: uuid("interaction_id").references(() => interactions.id, {
+      onDelete: "set null",
+    }),
+    autumnTrackedAt: timestamp("autumn_tracked_at", { withTimezone: true }),
+    autumnTrackError: text("autumn_track_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("usage_events_operation_key_key").on(table.operationKey),
+    index("idx_usage_events_org_created_at").on(table.organizationId, table.createdAt),
+    index("idx_usage_events_feature_status").on(table.featureId, table.status),
+    index("idx_usage_events_job_id").on(table.jobId),
   ],
 );
 

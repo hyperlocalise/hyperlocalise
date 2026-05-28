@@ -4,6 +4,10 @@ import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema
 import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  markUsageEventSucceededByOperationKey,
+  trackUsageEventInAutumnByOperationKey,
+} from "@/lib/billing/usage-control";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
 import {
   createOpenAIStringTranslationGenerator,
@@ -431,6 +435,18 @@ export async function completeTranslationJob(input: {
     throw new Error(
       `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
     );
+  }
+
+  const operationKey = `job:${input.jobId}:translation_jobs`;
+  await markUsageEventSucceededByOperationKey({ operationKey });
+  try {
+    await trackUsageEventInAutumnByOperationKey({ operationKey });
+  } catch (error) {
+    console.error("[translation-job] Autumn usage tracking failed after job succeeded", {
+      jobId: input.jobId,
+      operationKey,
+      error: error instanceof Error ? error.message : "autumn_tracking_failed",
+    });
   }
 
   const succeededJob = await getStoredJob(input.jobId, input.projectId);

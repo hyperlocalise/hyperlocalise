@@ -345,6 +345,24 @@ describe("jobRoutes", () => {
       },
     });
     expect(body.job.workflowRunId).toBeNull();
+
+    const [usageEvent] = await db
+      .select({
+        operationKey: schema.usageEvents.operationKey,
+        status: schema.usageEvents.status,
+        featureId: schema.usageEvents.featureId,
+        jobId: schema.usageEvents.jobId,
+      })
+      .from(schema.usageEvents)
+      .where(eq(schema.usageEvents.jobId, body.job.id))
+      .limit(1);
+
+    expect(usageEvent).toEqual({
+      operationKey: `job:${body.job.id}:translation_jobs`,
+      status: "reserved",
+      featureId: "translation_jobs",
+      jobId: body.job.id,
+    });
   });
 
   it("lists project jobs and applies type and status filters", async () => {

@@ -6,6 +6,7 @@ import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
+import { reserveUsageEvent, usageFeatureIds } from "@/lib/billing/usage-control";
 import { encryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import {
   claimTranslationJob,
@@ -83,6 +84,16 @@ async function insertJob(input: {
         type: input.type,
       })
       .returning();
+
+    await reserveUsageEvent({
+      db: tx,
+      organizationId: input.organizationId,
+      featureId: usageFeatureIds.translationJobs,
+      operationKey: `job:${job.id}:translation_jobs`,
+      source: "translation_job_create",
+      jobId: job.id,
+      quantity: 1,
+    });
 
     return { ...job, type: details.type };
   });
