@@ -83,6 +83,12 @@ const detectSpeechInputMode = (): SpeechInputMode => {
   return "none";
 };
 
+const stopMediaStream = (stream: MediaStream) => {
+  for (const track of stream.getTracks()) {
+    track.stop();
+  }
+};
+
 export const SpeechInput = ({
   className,
   onTranscriptionChange,
@@ -98,6 +104,7 @@ export const SpeechInput = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isStartingMediaRecorderRef = useRef(false);
+  const isMountedRef = useRef(false);
   const audioChunksRef = useRef<Blob[]>([]);
   const onTranscriptionChangeRef =
     useRef<SpeechInputProps["onTranscriptionChange"]>(onTranscriptionChange);
@@ -168,19 +175,21 @@ export const SpeechInput = ({
   }, [mode, lang]);
 
   // Cleanup MediaRecorder and stream on unmount
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    isMountedRef.current = true;
+
+    return () => {
+      isMountedRef.current = false;
+      isStartingMediaRecorderRef.current = false;
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.stop();
       }
       if (streamRef.current) {
-        for (const track of streamRef.current.getTracks()) {
-          track.stop();
-        }
+        stopMediaStream(streamRef.current);
+        streamRef.current = null;
       }
-    },
-    [],
-  );
+    };
+  }, []);
 
   // Start MediaRecorder recording
   const startMediaRecorder = useCallback(async () => {
@@ -189,17 +198,18 @@ export const SpeechInput = ({
     }
 
     isStartingMediaRecorderRef.current = true;
+    let stream: MediaStream | null = null;
+
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (mediaRecorderRef.current?.state === "recording") {
-        for (const track of stream.getTracks()) {
-          track.stop();
-        }
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!isMountedRef.current || mediaRecorderRef.current?.state === "recording") {
+        stopMediaStream(stream);
         return;
       }
 
-      streamRef.current = stream;
-      const mediaRecorder = new MediaRecorder(stream);
+      const recordingStream = stream;
+      streamRef.current = recordingStream;
+      const mediaRecorder = new MediaRecorder(recordingStream);
       audioChunksRef.current = [];
 
       const handleDataAvailable = (event: BlobEvent) => {
@@ -209,10 +219,17 @@ export const SpeechInput = ({
       };
 
       const handleStop = async () => {
-        for (const track of stream.getTracks()) {
-          track.stop();
+        stopMediaStream(recordingStream);
+        if (streamRef.current === recordingStream) {
+          streamRef.current = null;
         }
-        streamRef.current = null;
+        if (mediaRecorderRef.current === mediaRecorder) {
+          mediaRecorderRef.current = null;
+        }
+
+        if (!isMountedRef.current) {
+          return;
+        }
 
         const audioBlob = new Blob(audioChunksRef.current, {
           type: "audio/webm",
@@ -222,23 +239,30 @@ export const SpeechInput = ({
           setIsProcessing(true);
           try {
             const transcript = await onAudioRecordedRef.current(audioBlob);
-            if (transcript) {
+            if (transcript && isMountedRef.current) {
               onTranscriptionChangeRef.current?.(transcript);
             }
           } catch {
             // Error handling delegated to the onAudioRecorded caller
           } finally {
-            setIsProcessing(false);
+            if (isMountedRef.current) {
+              setIsProcessing(false);
+            }
           }
         }
       };
 
       const handleError = () => {
-        setIsListening(false);
-        for (const track of stream.getTracks()) {
-          track.stop();
+        if (isMountedRef.current) {
+          setIsListening(false);
         }
-        streamRef.current = null;
+        stopMediaStream(recordingStream);
+        if (streamRef.current === recordingStream) {
+          streamRef.current = null;
+        }
+        if (mediaRecorderRef.current === mediaRecorder) {
+          mediaRecorderRef.current = null;
+        }
       };
 
       mediaRecorder.addEventListener("dataavailable", handleDataAvailable);
@@ -248,8 +272,17 @@ export const SpeechInput = ({
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setIsListening(true);
+      stream = null;
     } catch {
-      setIsListening(false);
+      if (stream) {
+        stopMediaStream(stream);
+        if (streamRef.current === stream) {
+          streamRef.current = null;
+        }
+      }
+      if (isMountedRef.current) {
+        setIsListening(false);
+      }
     } finally {
       isStartingMediaRecorderRef.current = false;
     }
