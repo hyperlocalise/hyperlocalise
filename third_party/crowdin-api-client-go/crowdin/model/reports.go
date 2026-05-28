@@ -741,7 +741,7 @@ type (
 		// Task assignee identifier filter.
 		AssigneeID int `json:"assigneeId,omitempty"`
 		// Task status filter.
-		Status string `json:"status,omitempty"`
+		Status TaskStatus `json:"status,omitempty"`
 	}
 
 	// GroupQACheckIssuesSchema defines the schema for the group QA check issues report.
