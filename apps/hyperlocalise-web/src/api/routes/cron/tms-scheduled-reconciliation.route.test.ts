@@ -57,7 +57,7 @@ describe("tms scheduled reconciliation cron route", () => {
   it("rejects requests without the cron secret", async () => {
     const client = await createClient();
 
-    const response = await client.index.$post();
+    const response = await client.index.$get();
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toEqual({ error: "unauthorized" });
@@ -66,7 +66,7 @@ describe("tms scheduled reconciliation cron route", () => {
   it("runs scheduled reconciliation when authorized", async () => {
     const client = await createClient();
 
-    const response = await client.index.$post(
+    const response = await client.index.$get(
       {},
       {
         headers: {
@@ -96,7 +96,7 @@ describe("tms scheduled reconciliation cron route", () => {
   it("returns disabled when scheduled reconciliation is turned off", async () => {
     const client = await createClient({ enabled: false });
 
-    const response = await client.index.$post(
+    const response = await client.index.$get(
       {},
       {
         headers: {

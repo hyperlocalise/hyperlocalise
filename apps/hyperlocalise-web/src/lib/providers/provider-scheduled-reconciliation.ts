@@ -195,6 +195,7 @@ async function enqueueScheduledSyncIntent(input: {
 async function runAuditSchedule(credentials: ScheduledReconciliationCredential[]) {
   let auditsCompleted = 0;
   let healthChecksCompleted = 0;
+  const auditedOrganizationIds = new Set<string>();
 
   for (const credential of credentials) {
     if (!shouldIncludeCredentialForScheduledReconciliation(credential.validationStatus)) {
@@ -228,6 +229,11 @@ async function runAuditSchedule(credentials: ScheduledReconciliationCredential[]
       );
     }
 
+    if (auditedOrganizationIds.has(credential.organizationId)) {
+      continue;
+    }
+    auditedOrganizationIds.add(credential.organizationId);
+
     try {
       const auditResults = await auditProviderWebhookSubscriptions({
         organizationId: credential.organizationId,
@@ -237,8 +243,6 @@ async function runAuditSchedule(credentials: ScheduledReconciliationCredential[]
       logger.warn(
         {
           organizationId: credential.organizationId,
-          providerCredentialId: credential.id,
-          providerKind: credential.providerKind,
           errorCode: error instanceof Error ? error.message : "scheduled_webhook_audit_failed",
         },
         "scheduled webhook subscription audit failed",

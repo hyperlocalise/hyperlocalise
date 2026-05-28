@@ -47,7 +47,7 @@ export function createTmsScheduledReconciliationRoutes(
   const queue =
     options.providerWebhookReconciliationQueue ?? createProviderWebhookReconciliationQueue();
 
-  return new Hono().post("/", async (c) => {
+  return new Hono().get("/", async (c) => {
     if (!env.TMS_SCHEDULED_RECONCILIATION_ENABLED) {
       return c.json({ error: "scheduled_reconciliation_disabled" }, 503);
     }
