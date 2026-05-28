@@ -427,15 +427,19 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    await upsertOrganizationExternalTmsProviderCredential({
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       role: authContext.membership.role,
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "crowdin-secret",
-      baseUrl: "https://169.254.169.254/latest/meta-data",
+      baseUrl: "https://api.crowdin.test/api/v2",
     });
+    await db
+      .update(schema.organizationExternalTmsProviderCredentials)
+      .set({ baseUrl: "https://169.254.169.254/latest/meta-data" })
+      .where(eq(schema.organizationExternalTmsProviderCredentials.id, credential.id));
 
     const response = await client.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
       ":providerKind"

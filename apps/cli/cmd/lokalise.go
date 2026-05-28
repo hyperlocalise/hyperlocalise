@@ -222,7 +222,7 @@ func executeLokaliseDownloadTranslations(cmd *cobra.Command, o lokaliseDownloadT
 		return fmt.Errorf("lokalise download translations: downloaded %d file(s), expected %d", len(result.Files), len(outputs))
 	}
 
-	writtenOutputs := make([]string, 0, len(outputs))
+	writtenOutputs := make([]lokaliseDownloadedOutput, 0, len(outputs))
 	for idx, file := range result.Files {
 		output := outputs[idx]
 		if output == "" || output == "-" {
@@ -234,11 +234,19 @@ func executeLokaliseDownloadTranslations(cmd *cobra.Command, o lokaliseDownloadT
 			}
 			return nil
 		}
+		shouldRemoveOnRollback, err := shouldRemoveLokaliseDownloadOnRollback(output)
+		if err != nil {
+			removeLokaliseDownloadedOutputs(writtenOutputs)
+			return err
+		}
 		if err := writeLokaliseDownloadedTranslation(output, file.Content, o.force); err != nil {
 			removeLokaliseDownloadedOutputs(writtenOutputs)
 			return err
 		}
-		writtenOutputs = append(writtenOutputs, output)
+		writtenOutputs = append(writtenOutputs, lokaliseDownloadedOutput{
+			path:             output,
+			removeOnRollback: shouldRemoveOnRollback,
+		})
 		if _, err := fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d locale=%s format=%s\n", output, len(file.Content), file.Locale, req.Format); err != nil {
 			removeLokaliseDownloadedOutputs(writtenOutputs)
 			return err
@@ -447,6 +455,20 @@ func writeLokaliseDownloadedTranslation(path string, content []byte, force bool)
 	return nil
 }
 
+type lokaliseDownloadedOutput struct {
+	path             string
+	removeOnRollback bool
+}
+
+func shouldRemoveLokaliseDownloadOnRollback(path string) (bool, error) {
+	if _, err := os.Stat(path); err == nil {
+		return false, nil
+	} else if err != nil && !os.IsNotExist(err) {
+		return false, fmt.Errorf("lokalise download translations: stat output file %q: %w", path, err)
+	}
+	return true, nil
+}
+
 func validateLokaliseDownloadOutputPath(path string, force bool) error {
 	if path == "" || path == "-" {
 		return nil
@@ -464,9 +486,11 @@ func validateLokaliseDownloadOutputPath(path string, force bool) error {
 	return nil
 }
 
-func removeLokaliseDownloadedOutputs(paths []string) {
-	for i := len(paths) - 1; i >= 0; i-- {
-		_ = os.Remove(paths[i])
+func removeLokaliseDownloadedOutputs(outputs []lokaliseDownloadedOutput) {
+	for i := len(outputs) - 1; i >= 0; i-- {
+		if outputs[i].removeOnRollback {
+			_ = os.Remove(outputs[i].path)
+		}
 	}
 }
 

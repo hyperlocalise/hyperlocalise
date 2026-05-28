@@ -288,6 +288,7 @@ func buildPackCatalog(payload map[string]any, options packOptions) (map[string]e
 	slices.Sort(keys)
 
 	catalog := make(map[string]extractCatalogMessage, len(keys))
+	sourceByPackedID := make(map[string]string, len(keys))
 	for _, key := range keys {
 		message, ok := payload[key].(map[string]any)
 		if !ok {
@@ -306,6 +307,10 @@ func buildPackCatalog(payload map[string]any, options packOptions) (map[string]e
 		if options.prefixID {
 			packedID = stripPackPrefixID(key, prefixIndex)
 		}
+		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			return nil, packPrefixIDCollisionError(existingSourceID, key, packedID)
+		}
+		sourceByPackedID[packedID] = key
 		catalog[packedID] = extractCatalogMessage{
 			DefaultMessage: defaultMessage,
 		}
@@ -335,12 +340,7 @@ func buildPackFlat(values map[string]string, options packOptions) (map[string]st
 			packedID = stripPackPrefixID(id, prefixIndex)
 		}
 		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
-			return nil, fmt.Errorf(
-				"pack --prefix-id: ids %q and %q both strip to %q",
-				existingSourceID,
-				id,
-				packedID,
-			)
+			return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
 		}
 		sourceByPackedID[packedID] = id
 		out[packedID] = translation
@@ -371,11 +371,16 @@ func runPackGrouped(path string, options packOptions) (map[string][]string, erro
 	}
 
 	packed := make(map[string][]string, len(values))
+	sourceByPackedID := make(map[string]string, len(values))
 	for id, translation := range values {
 		packedID := id
 		if options.prefixID {
 			packedID = stripPackPrefixID(id, prefixIndex)
 		}
+		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
+		}
+		sourceByPackedID[packedID] = id
 		packed[translation] = append(packed[translation], packedID)
 	}
 
@@ -385,6 +390,15 @@ func runPackGrouped(path string, options packOptions) (map[string][]string, erro
 	}
 
 	return packed, nil
+}
+
+func packPrefixIDCollisionError(existingSourceID, sourceID, packedID string) error {
+	return fmt.Errorf(
+		"pack --prefix-id: ids %q and %q both strip to %q",
+		existingSourceID,
+		sourceID,
+		packedID,
+	)
 }
 
 func writePackOutput(cmd *cobra.Command, payload any, options packOptions) error {

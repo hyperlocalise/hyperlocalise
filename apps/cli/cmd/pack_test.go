@@ -247,7 +247,7 @@ export function AppHeader() {
 import { FormattedMessage } from "react-intl";
 
 export function Hero() {
-  return <FormattedMessage id="button.label" defaultMessage="Start trial" />;
+  return <FormattedMessage id="hero-button.label" defaultMessage="Start trial" />;
 }
 `)
 	writePackTestFile(t, filepath.Join(dir, "src", "foo.tsx"), `
@@ -270,7 +270,7 @@ export function Bar() {
   "src.components.app-header.button.label": {
     "defaultMessage": "Save settings"
   },
-  "src.components.hero.button.label": {
+  "src.components.hero.hero-button.label": {
     "defaultMessage": "Start trial"
   },
   "src.components.app-header.title": {
@@ -295,7 +295,7 @@ export function Bar() {
 		"Ambiguous":     {"bar.baz"},
 		"Dashboard":     {"title"},
 		"Save settings": {"button.label"},
-		"Start trial":   {"button.label"},
+		"Start trial":   {"hero-button.label"},
 	}
 	assertPackGroupedOutput(t, got, want)
 }
@@ -337,6 +337,54 @@ func TestPackCommandRejectsPrefixIDCollisionsInPlainJSONFlatOutput(t *testing.T)
 	out := bytes.NewBuffer(nil)
 	cmd.SetOut(out)
 	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected pack command to fail on prefix-id collision")
+	}
+	if !strings.Contains(err.Error(), `ids "src.bar.button.label" and "src.foo.button.label" both strip to "label"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPackCommandRejectsPrefixIDCollisionsInFormatJSCatalog(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.foo.button.label": {
+    "defaultMessage": "Save settings"
+  },
+  "src.bar.button.label": {
+    "defaultMessage": "Start trial"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected pack command to fail on prefix-id collision")
+	}
+	if !strings.Contains(err.Error(), `ids "src.bar.button.label" and "src.foo.button.label" both strip to "label"`) {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestPackCommandRejectsPrefixIDCollisionsInGroupedOutput(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.foo.button.label": "Save settings",
+  "src.bar.button.label": "Start trial"
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id", "--group-by-value"})
 
 	err := cmd.Execute()
 	if err == nil {

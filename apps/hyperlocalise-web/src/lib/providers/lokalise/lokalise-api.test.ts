@@ -70,6 +70,22 @@ describe("LokaliseApiClient", () => {
     );
   });
 
+  it("rejects unsafe base URLs before making requests", () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ projects: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    expect(
+      () =>
+        new LokaliseApiClient({
+          token: "test-token",
+          baseUrl: "https://127.0.0.1/api2",
+          fetchFn: fetchMock,
+        }),
+    ).toThrow("Lokalise provider base URL is invalid or unsafe.");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("lists project languages with pagination", async () => {
     const fetchMock = vi.fn(async (url) => {
       if (String(url).includes("/projects/proj.123/languages")) {

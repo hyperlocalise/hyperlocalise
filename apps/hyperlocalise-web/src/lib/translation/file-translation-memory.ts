@@ -30,11 +30,13 @@ export async function reuseFileTranslationMemoryEntries(input: {
     .where(eq(schema.projectMemories.projectId, input.projectId));
   const memoryIds = attached.map((x) => x.memoryId);
   if (memoryIds.length === 0) return {} as Record<string, string>;
+  const normalizedSourceTexts = [...new Set(units.map((unit) => unit.normalizedSourceText))];
 
   const rows = await db
     .select({
       memoryId: schema.memoryEntries.memoryId,
       normalizedSourceText: schema.memoryEntries.normalizedSourceText,
+      targetLocale: schema.memoryEntries.targetLocale,
       targetText: schema.memoryEntries.targetText,
       metadata: schema.memoryEntries.metadata,
     })
@@ -42,32 +44,68 @@ export async function reuseFileTranslationMemoryEntries(input: {
     .where(
       and(
         eq(schema.memoryEntries.sourceLocale, input.sourceLocale),
+        eq(schema.memoryEntries.targetLocale, input.targetLocale),
+        eq(schema.memoryEntries.reviewStatus, "approved"),
         inArray(schema.memoryEntries.memoryId, memoryIds),
+        inArray(schema.memoryEntries.normalizedSourceText, normalizedSourceTexts),
       ),
     );
 
+  const reusableByUnit = new Map<string, string>();
+  for (const row of rows) {
+    const metadata = row.metadata as {
+      segmentKey?: string;
+      sourceTextHash?: string;
+    } | null;
+    if (!metadata?.segmentKey || !metadata.sourceTextHash || !row.targetText?.trim()) continue;
+    reusableByUnit.set(
+      fileMemoryReuseKey({
+        memoryId: row.memoryId,
+        normalizedSourceText: row.normalizedSourceText,
+        segmentKey: metadata.segmentKey,
+        sourceTextHash: metadata.sourceTextHash,
+        targetLocale: row.targetLocale,
+      }),
+      row.targetText,
+    );
+  }
+
   const reusable: Record<string, string> = {};
   for (const unit of units) {
-    const match = rows.find((row) => {
-      if (!memoryIds.includes(row.memoryId)) return false;
-      if (row.normalizedSourceText !== unit.normalizedSourceText) return false;
-      const metadata = row.metadata as {
-        segmentKey?: string;
-        sourceTextHash?: string;
-        targetLocale?: string;
-      } | null;
-      return (
-        metadata?.segmentKey === unit.key &&
-        metadata?.sourceTextHash === unit.sourceTextHash &&
-        metadata?.targetLocale === input.targetLocale
+    for (const memoryId of memoryIds) {
+      const targetText = reusableByUnit.get(
+        fileMemoryReuseKey({
+          memoryId,
+          normalizedSourceText: unit.normalizedSourceText,
+          segmentKey: unit.key,
+          sourceTextHash: unit.sourceTextHash,
+          targetLocale: input.targetLocale,
+        }),
       );
-    });
-    if (match?.targetText?.trim()) {
-      reusable[unit.key] = match.targetText;
+      if (targetText) {
+        reusable[unit.key] = targetText;
+        break;
+      }
     }
   }
 
   return reusable;
+}
+
+function fileMemoryReuseKey(input: {
+  memoryId: string;
+  normalizedSourceText: string;
+  segmentKey: string;
+  sourceTextHash: string;
+  targetLocale: string;
+}) {
+  return [
+    input.memoryId,
+    input.normalizedSourceText,
+    input.segmentKey,
+    input.sourceTextHash,
+    input.targetLocale,
+  ].join("\0");
 }
 
 export async function persistFileTranslationMemoryEntries(input: {

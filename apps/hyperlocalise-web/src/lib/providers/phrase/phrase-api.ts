@@ -472,7 +472,7 @@ export class PhraseApiClient {
 
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
-    const response = await this.fetchFn(url, init);
+    const response = await this.fetchFn(url, { ...init, redirect: "error" });
 
     if (!response.ok) {
       let body: unknown;

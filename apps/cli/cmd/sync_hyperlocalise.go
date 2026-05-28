@@ -26,6 +26,7 @@ import (
 const hyperlocaliseManifestVersion = 1
 
 var hyperlocaliseJobPollInterval = 5 * time.Second
+var hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
 
 type hyperlocaliseSyncRuntime struct {
 	cfg          *config.I18NConfig
@@ -698,8 +699,14 @@ func (c *hyperlocaliseAPIClient) downloadFile(ctx context.Context, fileID string
 		return nil, &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
 	}
 
-	const maxDownloadBytes = 50 * 1024 * 1024 // 50 MB
-	return io.ReadAll(io.LimitReader(resp.Body, maxDownloadBytes))
+	content, err := io.ReadAll(io.LimitReader(resp.Body, hyperlocaliseMaxDownloadBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(content)) > hyperlocaliseMaxDownloadBytes {
+		return nil, fmt.Errorf("downloaded file exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
+	}
+	return content, nil
 }
 
 func (c *hyperlocaliseAPIClient) doJSON(ctx context.Context, method, path, contentType string, body io.Reader, out any) error {

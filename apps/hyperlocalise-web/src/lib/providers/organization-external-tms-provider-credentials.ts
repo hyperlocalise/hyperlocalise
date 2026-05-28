@@ -15,6 +15,8 @@ import {
 } from "@/lib/providers/tms-capabilities";
 import { listProviderWebhookSubscriptionSummaries } from "@/lib/providers/provider-webhook-subscription-manager";
 import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/provider-webhook-subscription-types";
+import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
+import { resolvePhraseBaseUrl } from "@/lib/providers/phrase/phrase-base-url";
 
 export type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
 
@@ -192,6 +194,11 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
 
   const now = new Date();
   const encrypted = encryptProviderCredential(input.secretMaterial);
+  const baseUrl = normalizeExternalTmsCredentialBaseUrl({
+    providerKind: input.providerKind,
+    region: input.region ?? null,
+    baseUrl: input.baseUrl ?? null,
+  });
   const [credential] = await db
     .insert(schema.organizationExternalTmsProviderCredentials)
     .values({
@@ -201,7 +208,7 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
       providerKind: input.providerKind,
       displayName: input.displayName,
       region: input.region ?? null,
-      baseUrl: input.baseUrl ?? null,
+      baseUrl,
       validationStatus: "unvalidated",
       encryptionAlgorithm: encrypted.algorithm,
       ciphertext: encrypted.ciphertext,
@@ -219,7 +226,7 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
         updatedByUserId: input.userId,
         displayName: input.displayName,
         region: input.region ?? null,
-        baseUrl: input.baseUrl ?? null,
+        baseUrl,
         validationStatus: "unvalidated",
         validationMessage: null,
         lastValidatedAt: null,
@@ -235,6 +242,34 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
     .returning();
 
   return credential;
+}
+
+function normalizeExternalTmsCredentialBaseUrl(input: {
+  providerKind: ExternalTmsProviderKind;
+  region: string | null;
+  baseUrl: string | null;
+}) {
+  if (!input.baseUrl?.trim()) return null;
+
+  const defaultBaseUrl = getExternalTmsDefaultBaseUrl(input.providerKind, input.region);
+  const normalized = normalizeProviderBaseUrl(input.baseUrl, defaultBaseUrl);
+  if (!normalized) {
+    throw new Error("provider_base_url_invalid");
+  }
+  return normalized;
+}
+
+function getExternalTmsDefaultBaseUrl(providerKind: ExternalTmsProviderKind, region: string | null) {
+  switch (providerKind) {
+    case "crowdin":
+      return "https://api.crowdin.com/api/v2";
+    case "phrase":
+      return resolvePhraseBaseUrl({ region });
+    case "lokalise":
+      return "https://api.lokalise.com/api2";
+    case "smartling":
+      return "https://api.smartling.com/auth-api/v2";
+  }
 }
 
 export async function revealOrganizationExternalTmsProviderCredential(input: {

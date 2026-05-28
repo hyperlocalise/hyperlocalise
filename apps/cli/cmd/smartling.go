@@ -744,6 +744,9 @@ func executeSmartlingUploadSources(cmd *cobra.Command, o smartlingUploadSourcesO
 	if len(o.filePaths) == 0 {
 		return fmt.Errorf("smartling upload sources: at least one --file is required")
 	}
+	if strings.TrimSpace(o.fileURI) != "" && len(o.filePaths) > 1 {
+		return fmt.Errorf("smartling upload sources: --file-uri cannot be used with multiple --file values")
+	}
 
 	ctx := context.Background()
 	cfg := smartling.Config{

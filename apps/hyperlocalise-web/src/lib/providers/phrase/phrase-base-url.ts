@@ -1,3 +1,5 @@
+import { requireProviderBaseUrl } from "@/lib/providers/provider-url-safety";
+
 export const PHRASE_EU_BASE_URL = "https://api.phrase.com/v2";
 export const PHRASE_US_BASE_URL = "https://api.us.app.phrase.com/v2";
 
@@ -7,7 +9,7 @@ export function resolvePhraseBaseUrl(input: {
 }): string {
   const explicitBaseUrl = input.baseUrl?.trim();
   if (explicitBaseUrl) {
-    return explicitBaseUrl.replace(/\/+$/, "");
+    return requireProviderBaseUrl(explicitBaseUrl, PHRASE_EU_BASE_URL, "Phrase");
   }
 
   const region = input.region?.trim().toLowerCase();

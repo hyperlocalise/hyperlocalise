@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+import { createHash } from "node:crypto";
 
 type UpsertedMemoryEntry = {
   externalKey: string;
@@ -30,9 +31,9 @@ const {
   const selectMock = vi.fn(() => ({ from: fromMock }));
 
   return {
-    andMock: vi.fn((...conditions: string[]) => ["and", conditions]),
-    eqMock: vi.fn(() => "project filter"),
-    inArrayMock: vi.fn(() => "memory filter"),
+    andMock: vi.fn((...conditions: unknown[]) => ["and", conditions]),
+    eqMock: vi.fn((field: string, value: unknown) => ["eq", field, value]),
+    inArrayMock: vi.fn((field: string, values: unknown[]) => ["inArray", field, values]),
     insertMock,
     onConflictDoUpdateMock,
     selectMock,
@@ -61,7 +62,9 @@ vi.mock("@/lib/database", () => ({
       metadata: "metadata",
       normalizedSourceText: "normalizedSourceText",
       provenance: "provenance",
+      reviewStatus: "reviewStatus",
       sourceLocale: "sourceLocale",
+      sourceText: "sourceText",
       targetLocale: "targetLocale",
       targetText: "targetText",
     },
@@ -163,7 +166,49 @@ describe("reuseFileTranslationMemoryEntries", () => {
     });
 
     expect(inArrayMock).toHaveBeenCalledWith("memoryId", ["memory_1", "memory_2"]);
-    expect(andMock).toHaveBeenCalledWith("project filter", "memory filter");
-    expect(whereMock.mock.calls[1]).toEqual([["and", ["project filter", "memory filter"]]]);
+    expect(inArrayMock).toHaveBeenCalledWith("normalizedSourceText", ["hello"]);
+    expect(andMock).toHaveBeenCalledWith(
+      ["eq", "sourceLocale", "en"],
+      ["eq", "targetLocale", "fr"],
+      ["eq", "reviewStatus", "approved"],
+      ["inArray", "memoryId", ["memory_1", "memory_2"]],
+      ["inArray", "normalizedSourceText", ["hello"]],
+    );
+  });
+
+  it("reuses only rows that match the target locale, segment key, and source hash", async () => {
+    whereMock
+      .mockResolvedValueOnce([{ memoryId: "memory_1" }, { memoryId: "memory_2" }])
+      .mockResolvedValueOnce([
+        {
+          memoryId: "memory_1",
+          metadata: {
+            segmentKey: "first",
+            sourceTextHash: createHash("sha256").update("Hello", "utf8").digest("hex"),
+          },
+          normalizedSourceText: "hello",
+          targetLocale: "fr",
+          targetText: "Bonjour",
+        },
+        {
+          memoryId: "memory_2",
+          metadata: {
+            segmentKey: "first",
+            sourceTextHash: createHash("sha256").update("Hello", "utf8").digest("hex"),
+          },
+          normalizedSourceText: "hello",
+          targetLocale: "de",
+          targetText: "Hallo",
+        },
+      ]);
+
+    const result = await reuseFileTranslationMemoryEntries({
+      projectId: "project_1",
+      sourceEntries: { first: "Hello", second: "Hello" },
+      sourceLocale: "en",
+      targetLocale: "fr",
+    });
+
+    expect(result).toEqual({ first: "Bonjour" });
   });
 });
