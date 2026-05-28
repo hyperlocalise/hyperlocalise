@@ -27,3 +27,7 @@
 ## 2025-05-24 - [Auth Redirect Sanitization Bypasses]
 **Learning:** URL sanitization for redirect parameters (e.g., `returnTo`) can be bypassed using URL-encoded characters (e.g., `%73` for `s`) or mixed casing if the validation check is performed on the raw string. This is particularly dangerous for preventing loops to sensitive authentication routes.
 **Action:** Always decode URI components and normalize the path to lowercase before comparing against restricted route lists. Perform validation on the normalized path while preserving the original string for the final redirect to maintain routing integrity.
+
+## 2025-05-28 - [Cross-platform Path Testing]
+**Learning:** Hardcoded absolute Unix paths (e.g., /tmp/root) in tests are not portable and will fail on non-Unix environments like Windows. Security-sensitive path guarding logic often involves complex interactions with symlinks and canonicalization.
+**Action:** Use t.TempDir() and filepath.Join to construct portable paths for testing. When testing symlink-aware logic, evaluate symlinks on the base temporary directory to ensure consistent behavior across environments where the temporary directory itself might be a symlink (e.g., /var -> /private/var on macOS).
