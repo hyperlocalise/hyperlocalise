@@ -197,6 +197,7 @@ export type ProviderWebhookAdapterConfig = {
   resourceTypePaths?: readonly (readonly string[])[];
   resourceIdPaths?: readonly (readonly string[])[];
   externalResourceIdPaths?: readonly (readonly string[])[];
+  verify?: TmsProviderWebhookAdapter["verify"];
   mapEvent: (input: {
     eventType: string;
     resourceType: string | null;
@@ -261,7 +262,7 @@ export function createProviderWebhookAdapter(
 
       return { resourceType, resourceId, externalResourceId };
     },
-    verify: defaultVerify,
+    verify: config.verify ?? defaultVerify,
     redact({ descriptor }) {
       return baseRedactedPayload(descriptor);
     },
@@ -414,8 +415,8 @@ export const crowdinWebhookAdapter = createProviderWebhookAdapter({
   resourceIdPaths: [["resource_id"], ["file", "id"], ["string", "id"], ["task", "id"]],
   externalResourceIdPaths: [["external_resource_id"], ["project", "id"]],
   mapEvent: genericTmsEventMapping,
+  verify: verifyCrowdinWebhook,
 });
-crowdinWebhookAdapter.verify = verifyCrowdinWebhook;
 
 export const phraseWebhookAdapter = createProviderWebhookAdapter({
   eventTypePaths: [["event"], ["event_type"], ["type"]],
