@@ -51,7 +51,7 @@
     "drizzle-orm": "0.45.2",
     "embla-carousel-react": "^8.6.0",
     "evlog": "^2.17.0",
-    "hono": "4.12.22",
+    "hono": "4.12.23",
     "just-bash": "^3.0.1",
     "lucide-react": "^1.14.0",
     "media-chrome": "^4.19.0",
@@ -96,5 +96,5 @@
     "vite-plus": "0.1.22",
     "vitest": "catalog:"
   },
-  "packageManager": "pnpm@11.2.2"
+  "packageManager": "pnpm@11.3.0"
 }
