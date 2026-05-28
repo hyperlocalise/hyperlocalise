@@ -14,20 +14,35 @@ function signatureFor(body: string, secret = "webhook-signing-secret") {
   return `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
 }
 
+function phraseSignatureFor(body: string, secret = "webhook-signing-secret") {
+  return createHmac("sha256", secret).update(body).digest("hex");
+}
+
 function extract(input: {
   providerKind: ExternalTmsProviderKind;
   payload: ProviderWebhookPayload;
   headers?: HeadersInit;
   providerWebhookId?: string;
+  requestUrl?: string;
 }) {
   const adapter = tmsProviderWebhookAdapters[input.providerKind];
   const headers = new Headers(input.headers);
-  headers.set("x-hyperlocalise-provider-webhook-id", input.providerWebhookId ?? "webhook-1");
+  const providerWebhookId = input.providerWebhookId ?? "webhook-1";
+  if (input.providerKind !== "phrase") {
+    headers.set("x-hyperlocalise-provider-webhook-id", providerWebhookId);
+  }
+
+  const requestUrl =
+    input.requestUrl ??
+    (input.providerKind === "phrase"
+      ? `https://app.example.test/api/webhooks/tms/phrase?provider_webhook_id=${providerWebhookId}`
+      : undefined);
 
   return adapter.extract({
     providerKind: input.providerKind,
     headers,
     payload: input.payload,
+    requestUrl,
   });
 }
 
@@ -166,7 +181,9 @@ describe("tms provider webhook adapters", () => {
         deliveryId:
           providerKind === "smartling" && expected.providerEventId === "smartling-delivery-1"
             ? "smartling-delivery-1"
-            : null,
+            : providerKind === "phrase"
+              ? expected.providerEventId
+              : null,
         eventType: expected.eventType,
         resourceType: null,
         resourceId: expected.resourceId,
@@ -477,11 +494,15 @@ describe("tms provider webhook adapters", () => {
     ]);
   });
 
-  it("default verification rejects echoed secrets without body signatures", async () => {
-    const payload = { event_uid: "evt-signature", event: "jobs:completed" };
+  it("verifies Phrase X-PhraseApp-Signature headers using the raw body", async () => {
+    const payload = { event_uid: "evt-phrase-1", event: "keys:create", key: { id: "key-1" } };
     const body = JSON.stringify(payload);
     const adapter = tmsProviderWebhookAdapters.phrase;
-    const descriptor = extract({ providerKind: "phrase", payload });
+    const descriptor = extract({
+      providerKind: "phrase",
+      payload,
+      requestUrl: "https://app.example.test/api/webhooks/tms/phrase?provider_webhook_id=webhook-1",
+    });
 
     expect(descriptor).not.toBeNull();
 
@@ -489,7 +510,22 @@ describe("tms provider webhook adapters", () => {
       Promise.resolve(
         adapter.verify({
           providerKind: "phrase",
-          headers: new Headers({ "x-hyperlocalise-webhook-secret": "webhook-signing-secret" }),
+          headers: new Headers({
+            "x-phraseapp-signature": phraseSignatureFor(body),
+          }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: descriptor!,
+        }),
+      ),
+    ).resolves.toBe(true);
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "phrase",
+          headers: new Headers({ "x-phraseapp-signature": "deadbeef" }),
           rawBody: body,
           payload,
           webhookSecret: "webhook-signing-secret",
@@ -498,4 +534,82 @@ describe("tms provider webhook adapters", () => {
       ),
     ).resolves.toBe(false);
   });
+
+  it("resolves Phrase subscriptions from provider_webhook_id query params", () => {
+    const descriptor = extract({
+      providerKind: "phrase",
+      payload: { event_uid: "evt-phrase-query", event: "keys:create" },
+      requestUrl:
+        "https://app.example.test/api/webhooks/tms/phrase?provider_webhook_id=phrase-wh-9",
+      headers: { "x-phraseapp-event": "keys:create" },
+    });
+
+    expect(descriptor?.providerWebhookId).toBe("phrase-wh-9");
+  });
+
+  it.each<{
+    eventType: string;
+    resourceId: string | null;
+    expectedMappedIntentKinds: TmsWebhookMappedIntentKind[];
+  }>([
+    {
+      eventType: "uploads:create",
+      resourceId: "upload-1",
+      expectedMappedIntentKinds: ["file_key_scan", "pull_content"],
+    },
+    {
+      eventType: "imports:finished",
+      resourceId: "import-1",
+      expectedMappedIntentKinds: ["file_key_scan", "pull_content"],
+    },
+    {
+      eventType: "keys:create",
+      resourceId: "key-1",
+      expectedMappedIntentKinds: ["file_key_scan"],
+    },
+    {
+      eventType: "translations:review",
+      resourceId: "translation-1",
+      expectedMappedIntentKinds: ["file_key_scan", "pull_content"],
+    },
+    {
+      eventType: "translations:update",
+      resourceId: "translation-2",
+      expectedMappedIntentKinds: ["file_key_scan"],
+    },
+    {
+      eventType: "comments:create",
+      resourceId: "comment-1",
+      expectedMappedIntentKinds: ["file_key_scan"],
+    },
+    {
+      eventType: "locales:create",
+      resourceId: "locale-1",
+      expectedMappedIntentKinds: ["project_scan"],
+    },
+  ])(
+    "maps Phrase $eventType events to reconciliation intents",
+    ({ eventType, resourceId, expectedMappedIntentKinds }) => {
+      const descriptor = extract({
+        providerKind: "phrase",
+        payload: {
+          event_uid: `evt-${eventType}`,
+          event: eventType,
+          upload: resourceId ? { id: resourceId } : undefined,
+          key: resourceId ? { id: resourceId } : undefined,
+          translation: resourceId ? { id: resourceId } : undefined,
+          comment: resourceId ? { id: resourceId } : undefined,
+          locale: resourceId ? { id: resourceId } : undefined,
+        },
+        headers: { "x-phraseapp-event": eventType },
+        requestUrl:
+          "https://app.example.test/api/webhooks/tms/phrase?provider_webhook_id=webhook-1",
+      });
+
+      expect(descriptor?.eventType).toBe(eventType);
+      expect(descriptor?.mappedIntents.map((intent) => intent.kind)).toEqual(
+        expectedMappedIntentKinds,
+      );
+    },
+  );
 });

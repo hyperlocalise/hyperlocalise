@@ -560,7 +560,116 @@ describe("provider webhook subscription manager", () => {
     expect(result.subscription.subscribedEvents).toContain("file.published");
   });
 
-  it("uses the same provider-agnostic fallback for other TMS providers", async () => {
+  function createPhraseWebhookFetch(input: { status?: number } = {}) {
+    return vi.fn(async (url, init) => {
+      if (input.status) {
+        return new Response(JSON.stringify({ message: "forbidden" }), {
+          status: input.status,
+        });
+      }
+
+      const method = init?.method ?? "GET";
+      const body =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+
+      if (method === "GET" && String(url).includes("/webhooks")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (method === "POST" && String(url).includes("/webhooks")) {
+        return new Response(
+          JSON.stringify({
+            id: "phrase-wh-1",
+            callback_url: body.callback_url,
+            events: body.events,
+            active: true,
+          }),
+          { status: 201 },
+        );
+      }
+
+      if (method === "PATCH" && String(url).includes("/webhooks/phrase-wh-1")) {
+        return new Response(
+          JSON.stringify({
+            id: "phrase-wh-1",
+            callback_url: body.callback_url,
+            events: body.events,
+            active: true,
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({}), { status: 404 });
+    }) as unknown as typeof fetch;
+  }
+
+  async function createPhraseCredential() {
+    const { organizationId, userId } = await createOrganizationUser();
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "owner",
+      providerKind: "phrase",
+      displayName: "Phrase",
+      secretMaterial: "secret-token",
+    });
+
+    const projectId = `project_${randomUUID()}`;
+    await db.insert(schema.projects).values({
+      id: projectId,
+      organizationId,
+      name: "Phrase project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderCredentialId: credential.id,
+      externalProviderKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      targetLocales: ["fr"],
+      isActive: true,
+    });
+
+    return { organizationId, credential, projectId };
+  }
+
+  it("creates an automatic Phrase webhook subscription for linked projects", async () => {
+    const { organizationId, credential, projectId } = await createPhraseCredential();
+    const fetchMock = createPhraseWebhookFetch();
+
+    const result = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "phrase",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "phrase-project-1",
+      fetchFn: fetchMock,
+    });
+
+    expect(result.status).toBe("active");
+    expect(result.subscription.providerWebhookId).toBe("phrase-wh-1");
+    expect(result.subscription.endpointUrl).toContain("provider_webhook_id=phrase-wh-1");
+    expect(result.subscription.subscribedEvents).toContain("keys:create");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("marks Phrase permission failures with manual fallback details", async () => {
+    const { organizationId, credential, projectId } = await createPhraseCredential();
+
+    const result = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "phrase",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "phrase-project-1",
+      fetchFn: createPhraseWebhookFetch({ status: 403 }),
+    });
+
+    expect(result.status).toBe("permission_error");
+    expect(result.subscription.manualFallback?.webhookUrl).toContain("/api/webhooks/tms/phrase");
+  });
+
+  it("requires manual setup when no linked project is available", async () => {
     const { organizationId, userId } = await createOrganizationUser();
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
@@ -578,7 +687,7 @@ describe("provider webhook subscription manager", () => {
       projectId: null,
     });
 
-    expect(result.status).toBe("manual_required");
+    expect(result.status).toBe("provider_error");
     expect(result.subscription.manualFallback?.webhookUrl).toContain("/api/webhooks/tms/phrase");
   });
 });

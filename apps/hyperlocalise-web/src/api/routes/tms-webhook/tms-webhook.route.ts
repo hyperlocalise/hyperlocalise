@@ -67,8 +67,10 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
     projectId?: string | null;
     descriptor: TmsProviderWebhookDescriptor;
   }) {
-    const mappedIntent = input.descriptor.mappedIntents.find(isExecutableTmsWebhookMappedIntent);
-    if (!mappedIntent) {
+    const executableIntents = input.descriptor.mappedIntents.filter(
+      isExecutableTmsWebhookMappedIntent,
+    );
+    if (executableIntents.length === 0) {
       const errorMessage =
         input.descriptor.mappedIntents.length > 0
           ? "unsupported_provider_webhook_event"
@@ -101,18 +103,25 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
       return null;
     }
 
-    const providerSyncIntentId = await enqueueMappedReconciliation({
+    const [firstIntent, ...remainingIntents] = executableIntents;
+    const primaryProviderSyncIntentId = await enqueueMappedReconciliation({
       ...input,
-      mappedIntent,
+      mappedIntent: firstIntent,
     });
+    for (const mappedIntent of remainingIntents) {
+      await enqueueMappedReconciliation({
+        ...input,
+        mappedIntent,
+      });
+    }
 
     await updateProviderWebhookEventSyncIntent({
       eventId: input.providerWebhookEventId,
       organizationId: input.organizationId,
-      providerSyncIntentId,
+      providerSyncIntentId: primaryProviderSyncIntentId,
     });
 
-    return providerSyncIntentId;
+    return primaryProviderSyncIntentId;
   }
 
   async function enqueueMappedReconciliation(input: {
@@ -207,6 +216,7 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         providerKind: providerKindParam,
         headers: c.req.raw.headers,
         payload,
+        requestUrl: c.req.url,
       });
       if (!descriptor) {
         logger.info({ providerKind: providerKindParam }, "ignoring webhook: missing identifiers");

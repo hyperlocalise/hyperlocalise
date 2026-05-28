@@ -66,8 +66,34 @@ async function createSubscriptionFixture(input: { webhookSecretPlaintext?: strin
   return { organizationId, subscription };
 }
 
+async function createPhraseSubscriptionFixture() {
+  const { organizationId, userId } = await createOrganizationUser();
+  const credential = await upsertOrganizationExternalTmsProviderCredential({
+    organizationId,
+    userId,
+    role: "owner",
+    providerKind: "phrase",
+    displayName: "Phrase",
+    secretMaterial: "secret-token",
+  });
+  const subscription = await insertProviderWebhookSubscription({
+    organizationId,
+    providerCredentialId: credential.id,
+    providerKind: "phrase",
+    providerWebhookId: "phrase-wh-1",
+    endpointUrl: "https://app.example.test/api/webhooks/tms/phrase?provider_webhook_id=phrase-wh-1",
+    webhookSecretPlaintext: "webhook-signing-secret",
+  });
+
+  return { organizationId, subscription };
+}
+
 function signatureFor(body: string, secret = "webhook-signing-secret") {
   return `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
+}
+
+function phraseSignatureFor(body: string, secret = "webhook-signing-secret") {
+  return createHmac("sha256", secret).update(body).digest("hex");
 }
 
 function postWebhook(input: {
@@ -626,5 +652,113 @@ describe("tmsWebhookRoutes", () => {
       .from(schema.providerWebhookEvents)
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
     expect(rows).toHaveLength(0);
+  });
+
+  describe("Phrase webhooks", () => {
+    function postPhraseWebhook(input: {
+      app: ReturnType<typeof createApp>;
+      body: string;
+      signature?: string | null;
+    }) {
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        "x-phraseapp-event": "uploads:create",
+      };
+
+      if (input.signature !== null) {
+        headers["x-phraseapp-signature"] = input.signature ?? phraseSignatureFor(input.body);
+      }
+
+      return input.app.request(
+        "http://localhost/api/webhooks/tms/phrase?provider_webhook_id=phrase-wh-1",
+        {
+          method: "POST",
+          headers,
+          body: input.body,
+        },
+      );
+    }
+
+    it("accepts signed upload events and queues coarse reconciliation", async () => {
+      const { organizationId, subscription } = await createPhraseSubscriptionFixture();
+      const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+      const app = createApp({
+        providerWebhookReconciliationQueue: {
+          async enqueue(event) {
+            queuedEvents.push(event);
+            return { ids: [randomUUID()] };
+          },
+        },
+      });
+      const body = JSON.stringify({
+        event_uid: "evt-phrase-upload",
+        event: "uploads:create",
+        upload: { id: "upload-1" },
+      });
+
+      const response = await postPhraseWebhook({ app, body });
+
+      expect(response.status).toBe(202);
+      const intents = await db
+        .select()
+        .from(schema.providerSyncIntents)
+        .where(eq(schema.providerSyncIntents.organizationId, organizationId));
+      expect(intents.map((intent) => intent.syncKind).sort()).toEqual([
+        "file_key_scan",
+        "pull_content",
+      ]);
+      expect(queuedEvents).toHaveLength(2);
+      expect(queuedEvents.every((event) => event.subscriptionId === subscription.id)).toBe(true);
+    });
+
+    it("rejects Phrase deliveries with invalid signatures", async () => {
+      await createPhraseSubscriptionFixture();
+      const app = createApp();
+      const body = JSON.stringify({
+        event_uid: "evt-phrase-invalid",
+        event: "keys:create",
+      });
+
+      const response = await postPhraseWebhook({ app, body, signature: "invalid-signature" });
+
+      expect(response.status).toBe(401);
+      await expect(response.json()).resolves.toEqual({ error: "invalid_signature" });
+    });
+
+    it("dedupes repeated Phrase deliveries without queueing duplicate work", async () => {
+      const { subscription } = await createPhraseSubscriptionFixture();
+      const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+      const app = createApp({
+        providerWebhookReconciliationQueue: {
+          async enqueue(event) {
+            queuedEvents.push(event);
+            return { ids: [randomUUID()] };
+          },
+        },
+      });
+      const body = JSON.stringify({
+        event_uid: "evt-phrase-duplicate",
+        event: "uploads:create",
+        upload: { id: "upload-1" },
+      });
+
+      const first = await postPhraseWebhook({ app, body });
+      const duplicate = await postPhraseWebhook({ app, body });
+
+      expect(first.status).toBe(202);
+      expect(duplicate.status).toBe(200);
+      await expect(duplicate.json()).resolves.toEqual({
+        ok: true,
+        ignored: true,
+        duplicate: true,
+      });
+      expect(queuedEvents).toHaveLength(2);
+
+      const rows = await db
+        .select()
+        .from(schema.providerWebhookEvents)
+        .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
+      expect(rows).toHaveLength(1);
+    });
   });
 });
