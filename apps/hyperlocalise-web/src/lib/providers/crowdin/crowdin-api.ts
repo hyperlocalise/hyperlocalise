@@ -248,6 +248,67 @@ export interface CrowdinTranslationMemorySegment {
   records: CrowdinTranslationMemorySegmentRecord[];
 }
 
+export type CrowdinWebhookEvent =
+  | "file.added"
+  | "file.updated"
+  | "file.reverted"
+  | "file.deleted"
+  | "file.translated"
+  | "file.approved"
+  | "project.translated"
+  | "project.approved"
+  | "project.built"
+  | "translation.updated"
+  | "string.added"
+  | "string.updated"
+  | "string.deleted"
+  | "stringComment.created"
+  | "stringComment.updated"
+  | "stringComment.deleted"
+  | "stringComment.restored"
+  | "suggestion.added"
+  | "suggestion.updated"
+  | "suggestion.deleted"
+  | "suggestion.approved"
+  | "suggestion.disapproved"
+  | "task.added"
+  | "task.statusChanged"
+  | "task.deleted";
+
+export interface CrowdinWebhook {
+  id: number;
+  projectId: number;
+  name: string;
+  url: string;
+  events: CrowdinWebhookEvent[];
+  headers: Record<string, string>;
+  payload: Record<string, unknown>;
+  isActive: boolean;
+  requestType: "POST" | "GET";
+  contentType: string;
+  batchingEnabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrowdinWebhookRequest {
+  name: string;
+  url: string;
+  events: CrowdinWebhookEvent[];
+  requestType: "POST";
+  contentType?: "application/json";
+  headers?: Record<string, string>;
+  payload?: Record<string, unknown>;
+  isActive?: boolean;
+  batchingEnabled?: boolean;
+}
+
+export type CrowdinPatchOperation = {
+  op: "replace" | "add" | "remove";
+  path: string;
+  value?: unknown;
+};
+
 export interface CrowdinTmConcordanceSearchRequest {
   sourceLanguageId: string;
   targetLanguageId: string;
@@ -989,6 +1050,34 @@ export class CrowdinApiClient {
     return this.listPaginated<CrowdinTranslationMemorySegment>(`/tms/${tmId}/segments`, options);
   }
 
+  async listWebhooks(projectId: number): Promise<CrowdinWebhook[]> {
+    return this.listPaginated<CrowdinWebhook>(`/projects/${projectId}/webhooks`);
+  }
+
+  async createWebhook(projectId: number, input: CrowdinWebhookRequest): Promise<CrowdinWebhook> {
+    const response = await this.post<CrowdinGetResponse<CrowdinWebhook>>(
+      `/projects/${projectId}/webhooks`,
+      input,
+    );
+    return response.data;
+  }
+
+  async updateWebhook(
+    projectId: number,
+    webhookId: number,
+    operations: CrowdinPatchOperation[],
+  ): Promise<CrowdinWebhook> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinWebhook>>(
+      `/projects/${projectId}/webhooks/${webhookId}`,
+      operations,
+    );
+    return response.data;
+  }
+
+  async deleteWebhook(projectId: number, webhookId: number): Promise<void> {
+    await this.delete(`/projects/${projectId}/webhooks/${webhookId}`);
+  }
+
   private async listPaginated<T>(
     path: string,
     options?: { shouldStop?: (items: T[]) => boolean },
@@ -1037,6 +1126,21 @@ export class CrowdinApiClient {
     });
   }
 
+  private async patch<T>(path: string, body: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method: "PATCH",
+      headers: this.authHeaders(),
+      body: JSON.stringify(body),
+    });
+  }
+
+  private async delete(path: string): Promise<void> {
+    await this.request<void>(path, {
+      method: "DELETE",
+      headers: this.authHeaders(),
+    });
+  }
+
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const response = await this.fetchFn(url, { ...init, redirect: "error" });
@@ -1054,6 +1158,10 @@ export class CrowdinApiClient {
         response.status,
         body,
       );
+    }
+
+    if (response.status === 204) {
+      return undefined as T;
     }
 
     return response.json() as Promise<T>;

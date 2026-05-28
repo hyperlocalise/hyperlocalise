@@ -565,12 +565,14 @@ describe("tmsWebhookRoutes", () => {
     expect(rows).toHaveLength(0);
   });
 
-  it("rejects echoed webhook secrets without a body signature", async () => {
+  it("accepts Crowdin webhook secret headers", async () => {
     const { subscription } = await createSubscriptionFixture();
+    let enqueueCount = 0;
     const app = createApp({
       providerWebhookReconciliationQueue: {
         async enqueue() {
-          throw new Error("unexpected enqueue");
+          enqueueCount += 1;
+          return { ids: [randomUUID()] };
         },
       },
     });
@@ -586,14 +588,18 @@ describe("tmsWebhookRoutes", () => {
       webhookSecretHeader: "webhook-signing-secret",
     });
 
-    expect(response.status).toBe(401);
-    await expect(response.json()).resolves.toEqual({ error: "invalid_signature" });
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      ignored: false,
+    });
+    expect(enqueueCount).toBe(1);
 
     const rows = await db
       .select()
       .from(schema.providerWebhookEvents)
       .where(eq(schema.providerWebhookEvents.subscriptionId, subscription.id));
-    expect(rows).toHaveLength(0);
+    expect(rows).toHaveLength(1);
   });
 
   it("rejects active subscriptions when the webhook secret is unavailable", async () => {

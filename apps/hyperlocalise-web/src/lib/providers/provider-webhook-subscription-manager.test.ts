@@ -3,7 +3,7 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { inArray } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
@@ -97,6 +97,104 @@ describe("provider webhook subscription manager", () => {
     return { organizationId, credential, projectId };
   }
 
+  function createCrowdinWebhookFetch(input: { status?: number; patchFails?: boolean } = {}) {
+    return vi.fn(async (_url, init) => {
+      if (input.status) {
+        return new Response(JSON.stringify({ error: "provider failure" }), {
+          status: input.status,
+        });
+      }
+
+      const method = init?.method ?? "GET";
+      const body =
+        typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+
+      if (method === "POST") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 77,
+              projectId: 12345,
+              name: body.name,
+              url: body.url,
+              events: body.events,
+              headers: body.headers ?? {},
+              payload: {},
+              isActive: true,
+              requestType: "POST",
+              contentType: "application/json",
+              batchingEnabled: false,
+              createdAt: "2026-05-28T00:00:00Z",
+              updatedAt: "2026-05-28T00:00:00Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (method === "PATCH") {
+        if (input.patchFails) {
+          return new Response(JSON.stringify({ error: "provider failure" }), {
+            status: 500,
+          });
+        }
+
+        const operations = Array.isArray(body) ? body : [];
+        const headers = operations.find((operation) => operation.path === "/headers")?.value as
+          | Record<string, string>
+          | undefined;
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 77,
+              projectId: 12345,
+              name: "Hyperlocalise sync",
+              url: "https://app.example.test/api/webhooks/tms/crowdin",
+              events: [
+                "file.added",
+                "file.updated",
+                "file.reverted",
+                "file.deleted",
+                "file.translated",
+                "file.approved",
+                "project.translated",
+                "project.approved",
+                "project.built",
+                "translation.updated",
+                "string.added",
+                "string.updated",
+                "string.deleted",
+                "stringComment.created",
+                "stringComment.updated",
+                "stringComment.deleted",
+                "stringComment.restored",
+                "suggestion.added",
+                "suggestion.updated",
+                "suggestion.deleted",
+                "suggestion.approved",
+                "suggestion.disapproved",
+                "task.added",
+                "task.statusChanged",
+                "task.deleted",
+              ],
+              headers: headers ?? {},
+              payload: {},
+              isActive: true,
+              requestType: "POST",
+              contentType: "application/json",
+              batchingEnabled: false,
+              createdAt: "2026-05-28T00:00:00Z",
+              updatedAt: "2026-05-28T00:00:00Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+  }
+
   beforeAll(async () => {
     await db.$client.query("select 1");
   });
@@ -144,8 +242,46 @@ describe("provider webhook subscription manager", () => {
     createdRecordsByTest.delete(testKey);
   });
 
-  it("creates a manual-required subscription until provider adapters are implemented", async () => {
+  it("resumes Crowdin webhook setup after header activation fails", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
+    const failingFetch = createCrowdinWebhookFetch({ patchFails: true });
+
+    const failed = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "12345",
+      fetchFn: failingFetch,
+    });
+
+    expect(failed.status).toBe("provider_error");
+    expect(failed.subscription.providerWebhookId).toBe("77");
+
+    const resumeFetch = createCrowdinWebhookFetch();
+    const resumed = await ensureProviderWebhookSubscription({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+      projectId,
+      externalProjectId: "12345",
+      fetchFn: resumeFetch,
+    });
+
+    expect(resumed.status).toBe("active");
+    expect(resumed.subscription.providerWebhookId).toBe("77");
+    expect(resumed.subscription.id).toBe(failed.subscription.id);
+    expect(failingFetch).toHaveBeenCalledTimes(2);
+    expect(resumeFetch).toHaveBeenCalledTimes(1);
+    expect(resumeFetch).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ method: "PATCH" }),
+    );
+  });
+
+  it("creates an automatic Crowdin webhook subscription", async () => {
+    const { organizationId, credential, projectId } = await createCrowdinCredential();
+    const fetchMock = createCrowdinWebhookFetch();
 
     const result = await ensureProviderWebhookSubscription({
       organizationId,
@@ -153,17 +289,22 @@ describe("provider webhook subscription manager", () => {
       providerCredentialId: credential.id,
       projectId,
       externalProjectId: "12345",
+      fetchFn: fetchMock,
     });
 
-    expect(result.status).toBe("manual_required");
-    expect(result.subscription.providerWebhookId).toMatch(/^pending-/);
-    expect(result.subscription.manualFallback?.webhookUrl).toContain("/api/webhooks/tms/crowdin");
-    expect(result.subscription.manualFallback?.subscribedEvents).toEqual([]);
-    expect(result.subscription.canRetry).toBe(true);
+    expect(result.status).toBe("active");
+    expect(result.subscription.providerWebhookId).toBe("77");
+    expect(result.subscription.manualFallback).toBeNull();
+    expect(result.subscription.endpointUrl).toBe(
+      "https://app.example.test/api/webhooks/tms/crowdin",
+    );
+    expect(result.subscription.subscribedEvents).toContain("file.updated");
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("reuses an existing manual subscription for the same credential and project", async () => {
+  it("reuses an existing active subscription for the same credential and project", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
+    const fetchMock = createCrowdinWebhookFetch();
 
     const first = await ensureProviderWebhookSubscription({
       organizationId,
@@ -171,6 +312,7 @@ describe("provider webhook subscription manager", () => {
       providerCredentialId: credential.id,
       projectId,
       externalProjectId: "12345",
+      fetchFn: fetchMock,
     });
 
     const second = await ensureProviderWebhookSubscription({
@@ -181,7 +323,7 @@ describe("provider webhook subscription manager", () => {
       externalProjectId: "12345",
     });
 
-    expect(second.status).toBe("manual_required");
+    expect(second.status).toBe("active");
     expect(second.subscription.id).toBe(first.subscription.id);
     expect(second.subscription.providerWebhookId).toBe(first.subscription.providerWebhookId);
   });
@@ -208,6 +350,7 @@ describe("provider webhook subscription manager", () => {
       organizationId,
       providerKind: "crowdin",
       providerCredentialId: credential.id,
+      fetchFn: createCrowdinWebhookFetch(),
     });
 
     expect(results).toHaveLength(1);
@@ -238,17 +381,19 @@ describe("provider webhook subscription manager", () => {
       providerCredentialId: credential.id,
       projectId,
       externalProjectId: "12345",
+      fetchFn: createCrowdinWebhookFetch(),
     });
 
     const disabled = await disableProviderWebhookSubscription({
       organizationId,
       subscriptionId: created.subscription.id,
+      fetchFn: createCrowdinWebhookFetch(),
     });
 
     expect(disabled.status).toBe("disabled");
   });
 
-  it("retries by refreshing the manual fallback subscription", async () => {
+  it("marks Crowdin permission failures without blocking manual sync", async () => {
     const { organizationId, credential, projectId } = await createCrowdinCredential();
 
     const first = await ensureProviderWebhookSubscription({
@@ -257,17 +402,20 @@ describe("provider webhook subscription manager", () => {
       providerCredentialId: credential.id,
       projectId,
       externalProjectId: "12345",
+      fetchFn: createCrowdinWebhookFetch({ status: 403 }),
     });
-    expect(first.status).toBe("manual_required");
+    expect(first.status).toBe("permission_error");
+    expect(first.subscription.manualFallback?.webhookUrl).toContain("/api/webhooks/tms/crowdin");
 
     const retried = await retryProviderWebhookSubscriptionSetup({
       organizationId,
       providerKind: "crowdin",
       providerCredentialId: credential.id,
       projectId,
+      fetchFn: createCrowdinWebhookFetch(),
     });
 
-    expect(retried.status).toBe("manual_required");
+    expect(retried.status).toBe("active");
     expect(retried.subscription.id).toBe(first.subscription.id);
   });
 

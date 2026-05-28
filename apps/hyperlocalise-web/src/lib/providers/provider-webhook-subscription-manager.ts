@@ -320,8 +320,11 @@ export async function ensureProviderWebhookSubscription(input: {
       fetchFn: input.fetchFn,
     };
 
+    const hasAllocatedRemoteWebhookId =
+      Boolean(existing?.providerWebhookId) && !existing!.providerWebhookId.startsWith("pending-");
+
     const remote =
-      existing && existing.status === "active"
+      existing && (existing.status === "active" || hasAllocatedRemoteWebhookId)
         ? await adapter.updateRemoteSubscription({
             ...adapterContext,
             providerWebhookId: existing.providerWebhookId,
@@ -357,6 +360,11 @@ export async function ensureProviderWebhookSubscription(input: {
           ? "manual_required"
           : "provider_error";
 
+    const partialProviderWebhookId =
+      error instanceof ProviderWebhookSubscriptionAdapterError
+        ? error.providerWebhookId
+        : undefined;
+
     const manualFallback = buildManualFallback({
       providerKind: input.providerKind,
       endpointUrl,
@@ -368,6 +376,7 @@ export async function ensureProviderWebhookSubscription(input: {
       subscriptionId: subscription.id,
       organizationId: input.organizationId,
       status,
+      ...(partialProviderWebhookId ? { providerWebhookId: partialProviderWebhookId } : {}),
       manualFallback,
       lastError: message,
       subscribedEvents,
