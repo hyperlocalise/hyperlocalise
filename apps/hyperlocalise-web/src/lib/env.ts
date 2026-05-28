@@ -111,6 +111,56 @@ export const env = createEnv({
      * When set, hosted deployments attempt automatic provider webhook registration.
      */
     HYPERLOCALISE_PUBLIC_APP_URL: z.url().optional(),
+
+    /** Enables scheduled TMS reconciliation cron ticks. */
+    TMS_SCHEDULED_RECONCILIATION_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+
+    /** Shared secret for scheduled TMS reconciliation cron requests. */
+    TMS_SCHEDULED_RECONCILIATION_CRON_SECRET: z.string().min(1).optional(),
+
+    /** Interval for lightweight file/job scans in minutes. */
+    TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(15),
+
+    /** Interval for TM/glossary import scans in minutes. */
+    TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(60),
+
+    /** Interval for full reconciliation in minutes. */
+    TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(24 * 60),
+
+    /** Interval for provider health and webhook audits in minutes. */
+    TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(24 * 60),
+
+    /** UTC hour for nightly full reconciliation. */
+    TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(3),
+
+    /** UTC hour for daily provider health and webhook audits. */
+    TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(4),
+
+    /** Maximum sync intents enqueued per cron tick. */
+    TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(500),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -181,6 +231,24 @@ export const env = createEnv({
       process.env.HYPERLOCALISE_PUBLIC_APP_URL ??
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
       (isTestEnv ? "https://app.example.test" : undefined),
+    TMS_SCHEDULED_RECONCILIATION_ENABLED: process.env.TMS_SCHEDULED_RECONCILIATION_ENABLED,
+    TMS_SCHEDULED_RECONCILIATION_CRON_SECRET:
+      process.env.TMS_SCHEDULED_RECONCILIATION_CRON_SECRET ??
+      (isTestEnv ? "test-tms-scheduled-reconciliation-secret" : undefined),
+    TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES:
+      process.env.TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES,
+    TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES:
+      process.env.TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES,
+    TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES:
+      process.env.TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES,
+    TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES:
+      process.env.TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES,
+    TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC:
+      process.env.TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC,
+    TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC:
+      process.env.TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC,
+    TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK:
+      process.env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),
