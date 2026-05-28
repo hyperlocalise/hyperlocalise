@@ -372,15 +372,20 @@ func runPackGrouped(path string, options packOptions) (map[string][]string, erro
 
 	packed := make(map[string][]string, len(values))
 	sourceByPackedID := make(map[string]string, len(values))
+	translationByPackedID := make(map[string]string, len(values))
 	for id, translation := range values {
 		packedID := id
 		if options.prefixID {
 			packedID = stripPackPrefixID(id, prefixIndex)
 		}
 		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
-			return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
+			if translation != translationByPackedID[packedID] {
+				return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
+			}
+			continue
 		}
 		sourceByPackedID[packedID] = id
+		translationByPackedID[packedID] = translation
 		packed[translation] = append(packed[translation], packedID)
 	}
 
@@ -393,10 +398,12 @@ func runPackGrouped(path string, options packOptions) (map[string][]string, erro
 }
 
 func packPrefixIDCollisionError(existingSourceID, sourceID, packedID string) error {
+	ids := []string{existingSourceID, sourceID}
+	slices.Sort(ids)
 	return fmt.Errorf(
 		"pack --prefix-id: ids %q and %q both strip to %q",
-		existingSourceID,
-		sourceID,
+		ids[0],
+		ids[1],
 		packedID,
 	)
 }

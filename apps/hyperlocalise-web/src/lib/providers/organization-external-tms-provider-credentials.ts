@@ -259,7 +259,10 @@ function normalizeExternalTmsCredentialBaseUrl(input: {
   return normalized;
 }
 
-function getExternalTmsDefaultBaseUrl(providerKind: ExternalTmsProviderKind, region: string | null) {
+function getExternalTmsDefaultBaseUrl(
+  providerKind: ExternalTmsProviderKind,
+  region: string | null,
+) {
   switch (providerKind) {
     case "crowdin":
       return "https://api.crowdin.com/api/v2";

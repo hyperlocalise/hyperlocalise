@@ -25,8 +25,10 @@ import (
 
 const hyperlocaliseManifestVersion = 1
 
-var hyperlocaliseJobPollInterval = 5 * time.Second
-var hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
+var (
+	hyperlocaliseJobPollInterval        = 5 * time.Second
+	hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
+)
 
 type hyperlocaliseSyncRuntime struct {
 	cfg          *config.I18NConfig

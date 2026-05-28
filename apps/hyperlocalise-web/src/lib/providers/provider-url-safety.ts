@@ -1,4 +1,7 @@
-export function normalizeProviderBaseUrl(baseUrl: string | null | undefined, defaultBaseUrl: string) {
+export function normalizeProviderBaseUrl(
+  baseUrl: string | null | undefined,
+  defaultBaseUrl: string,
+) {
   try {
     const url = new URL(baseUrl ?? defaultBaseUrl);
     if (!isSafeProviderUrl(url)) return null;

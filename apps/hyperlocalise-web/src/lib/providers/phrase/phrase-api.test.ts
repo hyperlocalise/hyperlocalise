@@ -52,9 +52,9 @@ describe("PhraseApiClient", () => {
       return new Response(JSON.stringify([]), { status: 200 });
     }) as unknown as typeof fetch;
 
-    expect(() =>
-      createClient(fetchMock, { baseUrl: "https://10.0.0.10/v2" }),
-    ).toThrow("Phrase provider base URL is invalid or unsafe.");
+    expect(() => createClient(fetchMock, { baseUrl: "https://10.0.0.10/v2" })).toThrow(
+      "Phrase provider base URL is invalid or unsafe.",
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
