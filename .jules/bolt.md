@@ -94,3 +94,7 @@
 ## 2026-07-20 - Fast-path and pre-allocation for mustache placeholder normalization
 **Learning:** In the ICU parser's fallback path, `normalizeMustachePlaceholders` was always allocating a `strings.Builder` and performing byte-by-byte iteration even when no mustache placeholders (`{{`) were present. A simple `strings.Contains` fast-path avoids these allocations entirely for the common case.
 **Action:** Implement `strings.Contains(s, "{{")` fast-path and use `strings.Builder.Grow` to minimize allocations in hot parsing paths.
+
+## 2026-07-25 - ASCII fast-paths for ICU identifier and selector parsing
+**Learning:** Message parsing and invariant extraction in the ICU parser are hot paths where `utf8.DecodeRuneInString` and `unicode` package checks (like `unicode.IsSpace` or `unicode.IsLetter`) add significant overhead when the input is predominantly ASCII.
+**Action:** Implement manual byte-loop fast-paths for ASCII characters in `readIdentifierLike`, `readSelector`, and `isPlaceholderName` to bypass rune decoding. Additionally, use a single-character lookahead (e.g., `sel[0] == 'o'`) to short-circuit expensive `strings.EqualFold` calls for fixed keywords like `offset:`.
