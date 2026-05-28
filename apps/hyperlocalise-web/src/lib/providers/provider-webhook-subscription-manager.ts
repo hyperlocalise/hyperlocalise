@@ -680,6 +680,7 @@ export async function ensureProviderWebhookSubscriptionsForCredential(input: {
         eq(schema.projects.organizationId, input.organizationId),
         eq(schema.projects.source, "external_tms"),
         eq(schema.projects.externalProviderKind, input.providerKind),
+        eq(schema.projects.externalProviderCredentialId, input.providerCredentialId),
         eq(schema.projects.isActive, true),
       ),
     );

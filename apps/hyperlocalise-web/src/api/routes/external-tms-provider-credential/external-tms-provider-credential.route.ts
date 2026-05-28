@@ -268,19 +268,6 @@ export function createExternalTmsProviderCredentialRoutes() {
           fetchProjects,
         });
 
-        const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
-          c.var.auth.organization.localOrganizationId,
-          providerKind.data,
-        );
-
-        if (providerCredentialSummary) {
-          void ensureProviderWebhookSubscriptionsForCredential({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            providerKind: providerKind.data,
-            providerCredentialId: providerCredentialSummary.id,
-          }).catch(() => undefined);
-        }
-
         return c.json({ externalTmsProjectSync: result }, 200);
       } catch (error) {
         if (error instanceof Error && error.message === "forbidden") {

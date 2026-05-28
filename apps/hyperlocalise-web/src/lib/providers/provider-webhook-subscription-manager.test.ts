@@ -11,6 +11,7 @@ import { upsertOrganizationExternalTmsProviderCredential } from "./organization-
 import {
   disableProviderWebhookSubscription,
   ensureProviderWebhookSubscription,
+  ensureProviderWebhookSubscriptionsForCredential,
   retryProviderWebhookSubscriptionSetup,
 } from "./provider-webhook-subscription-manager";
 
@@ -183,6 +184,49 @@ describe("provider webhook subscription manager", () => {
     expect(second.status).toBe("manual_required");
     expect(second.subscription.id).toBe(first.subscription.id);
     expect(second.subscription.providerWebhookId).toBe(first.subscription.providerWebhookId);
+  });
+
+  it("ensures credential-level subscriptions only for projects attached to that credential", async () => {
+    const { organizationId, credential, projectId } = await createCrowdinCredential();
+    const orphanedProjectId = `project_${randomUUID()}`;
+
+    await db.insert(schema.projects).values({
+      id: orphanedProjectId,
+      organizationId,
+      name: "Orphaned Crowdin project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderCredentialId: null,
+      externalProviderKind: "crowdin",
+      externalProjectId: "orphaned-12345",
+      targetLocales: ["de"],
+      isActive: true,
+    });
+
+    const results = await ensureProviderWebhookSubscriptionsForCredential({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(results[0]?.subscription.projectId).toBe(projectId);
+
+    const subscriptions = await db
+      .select({
+        projectId: schema.providerWebhookSubscriptions.projectId,
+        providerCredentialId: schema.providerWebhookSubscriptions.providerCredentialId,
+      })
+      .from(schema.providerWebhookSubscriptions)
+      .where(inArray(schema.providerWebhookSubscriptions.organizationId, [organizationId]));
+
+    expect(subscriptions).toEqual([
+      {
+        projectId,
+        providerCredentialId: credential.id,
+      },
+    ]);
   });
 
   it("disables subscriptions locally", async () => {
