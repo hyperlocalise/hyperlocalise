@@ -252,7 +252,7 @@ describe("tms provider webhook adapters", () => {
     };
     const body = JSON.stringify(payload);
     const eventId = "evt-smartling-1";
-    const eventTimestamp = "1710000000";
+    const eventTimestamp = String(Math.floor(Date.now() / 1000));
     const signedPayload = `${eventId}.${eventTimestamp}.${body}`;
     const signature = createHmac("sha256", "webhook-signing-secret")
       .update(signedPayload)
@@ -300,6 +300,39 @@ describe("tms provider webhook adapters", () => {
           payload,
           webhookSecret: "webhook-signing-secret",
           descriptor: descriptor!,
+        }),
+      ),
+    ).resolves.toBe(false);
+  });
+
+  it("rejects stale Smartling event timestamps before verifying signatures", async () => {
+    const payload = {
+      type: "file.published",
+      file: { fileUri: "/locales/en.json" },
+      project: { projectUid: "smartling-project-1" },
+    };
+    const body = JSON.stringify(payload);
+    const eventId = "evt-smartling-stale";
+    const eventTimestamp = String(Math.floor(Date.now() / 1000) - 301);
+    const signedPayload = `${eventId}.${eventTimestamp}.${body}`;
+    const signature = createHmac("sha256", "webhook-signing-secret")
+      .update(signedPayload)
+      .digest("hex");
+    const adapter = tmsProviderWebhookAdapters.smartling;
+
+    await expect(
+      Promise.resolve(
+        adapter.verify({
+          providerKind: "smartling",
+          headers: new Headers({
+            "event-id": eventId,
+            "event-timestamp": eventTimestamp,
+            "event-signature": signature,
+          }),
+          rawBody: body,
+          payload,
+          webhookSecret: "webhook-signing-secret",
+          descriptor: extract({ providerKind: "smartling", payload })!,
         }),
       ),
     ).resolves.toBe(false);

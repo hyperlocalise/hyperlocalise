@@ -136,6 +136,18 @@ function verifyHmacSha256(input: { rawBody: string; webhookSecret: string; signa
   }
 }
 
+const SMARTLING_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS = 300;
+
+function isSmartlingEventTimestampFresh(eventTimestamp: string) {
+  const requestTime = Number.parseInt(eventTimestamp, 10);
+  if (!Number.isFinite(requestTime)) {
+    return false;
+  }
+
+  const now = Math.floor(Date.now() / 1000);
+  return Math.abs(now - requestTime) <= SMARTLING_WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS;
+}
+
 function verifyHmacSha256Hex(input: { payload: string; webhookSecret: string; signature: string }) {
   const expected = createHmac("sha256", input.webhookSecret).update(input.payload).digest("hex");
 
@@ -173,6 +185,10 @@ export function verifySmartlingWebhook(input: TmsProviderWebhookVerificationInpu
   const eventSignature = input.headers.get("event-signature");
 
   if (eventId && eventTimestamp && eventSignature) {
+    if (!isSmartlingEventTimestampFresh(eventTimestamp)) {
+      return false;
+    }
+
     const signedPayload = `${eventId}.${eventTimestamp}.${input.rawBody}`;
     const signatures = eventSignature.trim().split(/\s+/);
 

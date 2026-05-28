@@ -230,21 +230,16 @@ export function createSmartlingWebhookSubscriptionAdapter(): ProviderWebhookSubs
     },
 
     async createRemoteSubscription(context) {
-      const accountUid = await resolveAccountUid(context);
-      const client = createSmartlingClient(context);
+      let providerWebhookId: string | undefined;
 
-      let created: SmartlingWebhookSubscription;
       try {
-        created = await client.createWebhookSubscription(
+        const accountUid = await resolveAccountUid(context);
+        const client = createSmartlingClient(context);
+        const created = await client.createWebhookSubscription(
           accountUid,
           buildSubscriptionRequest(context),
         );
-      } catch (error) {
-        throw mapSmartlingError(error);
-      }
-
-      const providerWebhookId = created.subscriptionUid;
-      try {
+        providerWebhookId = created.subscriptionUid;
         const updated = await client.updateWebhookSubscription(
           accountUid,
           providerWebhookId,
@@ -252,7 +247,7 @@ export function createSmartlingWebhookSubscriptionAdapter(): ProviderWebhookSubs
         );
         return mapSmartlingWebhook(updated);
       } catch (error) {
-        throw mapSmartlingError(error, { providerWebhookId });
+        throw mapSmartlingError(error, providerWebhookId ? { providerWebhookId } : undefined);
       }
     },
 

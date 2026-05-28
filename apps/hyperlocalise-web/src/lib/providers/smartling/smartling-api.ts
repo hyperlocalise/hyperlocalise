@@ -1122,8 +1122,7 @@ export function deriveServiceBaseUrl(
 ) {
   const normalized = normalizeServiceBaseUrl(authBaseUrl, authBaseUrl);
   if (normalized.includes("/auth-api/")) {
-    const version =
-      service === "jobs" || service === "glossary-v3" ? "v3" : service === "webhooks" ? "v2" : "v2";
+    const version = service === "jobs" || service === "glossary-v3" ? "v3" : "v2";
     const apiName =
       service === "glossary"
         ? "glossary"
