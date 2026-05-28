@@ -10,8 +10,6 @@
     "db:migrate": "drizzle-kit migrate",
     "db:backfill-project-teams": "node --import tsx src/lib/teams/run-backfill-project-teams.ts",
     "db:deprecate-local-org-workspaces": "node --import tsx src/lib/organizations/run-deprecate-local-org-workspaces.ts",
-    "db:prepare-provider-webhook-subscription-migration": "node --import tsx src/lib/providers/run-prepare-provider-webhook-subscription-migration.ts",
-    "db:audit-provider-webhook-subscriptions": "node --import tsx src/lib/providers/run-audit-provider-webhook-subscriptions.ts",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
