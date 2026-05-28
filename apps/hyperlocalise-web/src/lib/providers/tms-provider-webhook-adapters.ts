@@ -136,6 +136,20 @@ function verifyHmacSha256(input: { rawBody: string; webhookSecret: string; signa
   }
 }
 
+function verifyHmacSha256Hex(input: { payload: string; webhookSecret: string; signature: string }) {
+  const expected = createHmac("sha256", input.webhookSecret).update(input.payload).digest("hex");
+
+  if (input.signature.length !== expected.length) {
+    return false;
+  }
+
+  try {
+    return timingSafeEqual(Buffer.from(input.signature, "hex"), Buffer.from(expected, "hex"));
+  } catch {
+    return false;
+  }
+}
+
 function defaultVerify({ headers, rawBody, webhookSecret }: TmsProviderWebhookVerificationInput) {
   if (!webhookSecret) {
     return true;
@@ -147,6 +161,31 @@ function defaultVerify({ headers, rawBody, webhookSecret }: TmsProviderWebhookVe
   }
 
   return verifyHmacSha256({ rawBody, webhookSecret, signature });
+}
+
+export function verifySmartlingWebhook(input: TmsProviderWebhookVerificationInput) {
+  if (!input.webhookSecret) {
+    return true;
+  }
+
+  const eventId = input.headers.get("event-id");
+  const eventTimestamp = input.headers.get("event-timestamp");
+  const eventSignature = input.headers.get("event-signature");
+
+  if (eventId && eventTimestamp && eventSignature) {
+    const signedPayload = `${eventId}.${eventTimestamp}.${input.rawBody}`;
+    const signatures = eventSignature.trim().split(/\s+/);
+
+    return signatures.some((signature) =>
+      verifyHmacSha256Hex({
+        payload: signedPayload,
+        webhookSecret: input.webhookSecret!,
+        signature,
+      }),
+    );
+  }
+
+  return verifyCrowdinWebhook(input);
 }
 
 function verifyCrowdinWebhook(input: TmsProviderWebhookVerificationInput) {
@@ -206,7 +245,9 @@ function baseRedactedPayload(descriptor: TmsProviderWebhookDescriptor) {
 
 export type ProviderWebhookAdapterConfig = {
   subscriptionIdPaths?: readonly (readonly string[])[];
+  eventIdHeaders?: readonly string[];
   eventIdPaths?: readonly (readonly string[])[];
+  deliveryIdHeaders?: readonly string[];
   deliveryIdPaths?: readonly (readonly string[])[];
   eventTypePaths?: readonly (readonly string[])[];
   resourceTypePaths?: readonly (readonly string[])[];
@@ -249,6 +290,7 @@ export function createProviderWebhookAdapter(
     },
     extractProviderEventId({ headers, payload }) {
       return firstString(
+        ...(config.eventIdHeaders ?? []).map((headerName) => headers.get(headerName)),
         headers.get("x-hyperlocalise-provider-event-id"),
         headers.get("x-provider-event-id"),
         headers.get("x-webhook-event-id"),
@@ -300,6 +342,7 @@ export function createProviderWebhookAdapter(
       }
 
       const deliveryId = firstString(
+        ...(config.deliveryIdHeaders ?? []).map((headerName) => input.headers.get(headerName)),
         input.headers.get("x-hyperlocalise-delivery-id"),
         input.headers.get("x-provider-delivery-id"),
         input.headers.get("x-delivery-id"),
@@ -443,12 +486,37 @@ export const phraseWebhookAdapter = createProviderWebhookAdapter({
 });
 
 export const smartlingWebhookAdapter = createProviderWebhookAdapter({
-  eventTypePaths: [["eventType"], ["event_type"], ["event"], ["type"]],
+  subscriptionIdPaths: [["subscriptionUid"], ["subscription", "subscriptionUid"]],
+  eventIdHeaders: ["event-id"],
+  deliveryIdHeaders: ["event-id"],
+  eventTypePaths: [["type"], ["eventType"], ["event_type"], ["event"]],
   eventIdPaths: [["eventId"], ["event_id"], ["id"]],
-  resourceTypePaths: [["resource_type"], ["resourceType"], ["entityType"]],
-  resourceIdPaths: [["resource_id"], ["fileUri"], ["file", "uri"], ["jobUid"], ["job", "uid"]],
-  externalResourceIdPaths: [["external_resource_id"], ["projectId"], ["project", "id"]],
+  resourceTypePaths: [
+    ["resource_type"],
+    ["resourceType"],
+    ["entityType"],
+    ["file", "type"],
+    ["job", "type"],
+  ],
+  resourceIdPaths: [
+    ["resource_id"],
+    ["fileUri"],
+    ["file", "fileUri"],
+    ["file", "uri"],
+    ["translationJobUid"],
+    ["jobUid"],
+    ["job", "uid"],
+    ["job", "translationJobUid"],
+  ],
+  externalResourceIdPaths: [
+    ["external_resource_id"],
+    ["projectId"],
+    ["projectUid"],
+    ["project", "projectUid"],
+    ["project", "id"],
+  ],
   mapEvent: genericTmsEventMapping,
+  verify: verifySmartlingWebhook,
 });
 
 export const lokaliseWebhookAdapter = createProviderWebhookAdapter({

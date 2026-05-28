@@ -32,5 +32,25 @@ export function listDefaultWebhookEvents(providerKind: ExternalTmsProviderKind) 
     ];
   }
 
+  if (providerKind === "smartling") {
+    return [
+      "file.uploaded",
+      "file.published",
+      "file.deleted",
+      "file.translation.completed",
+      "job.created",
+      "job.completed",
+      "job.cancelled",
+      "translation.published",
+      "translation.updated",
+      "sourceIssue.created",
+      "sourceIssue.comment.created",
+      "glossary.entry.created",
+      "glossary.entry.updated",
+      "translationMemory.entry.created",
+      "translationMemory.entry.updated",
+    ];
+  }
+
   return [];
 }
