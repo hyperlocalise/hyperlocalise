@@ -161,9 +161,7 @@ describe("createSmartlingWebhookSubscriptionAdapter", () => {
     const putCall = fetchMock.mock.calls.find(([, init]) => init?.method === "PUT");
     expect(putCall).toBeDefined();
     const putInit = putCall?.[1];
-    const putBody = JSON.parse(
-      typeof putInit?.body === "string" ? putInit.body : "{}",
-    ) as {
+    const putBody = JSON.parse(typeof putInit?.body === "string" ? putInit.body : "{}") as {
       requestHeaders: Array<{ headerName: string; headerValue: string }>;
     };
     expect(putBody.requestHeaders).toEqual(
