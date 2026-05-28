@@ -1571,7 +1571,9 @@ export const usageEvents = pgTable(
     actorUserId: uuid("actor_user_id").references(() => users.id, { onDelete: "set null" }),
     apiKeyId: uuid("api_key_id").references(() => organizationApiKeys.id, { onDelete: "set null" }),
     jobId: text("job_id").references(() => jobs.id, { onDelete: "set null" }),
-    interactionId: uuid("interaction_id").references(() => interactions.id, { onDelete: "set null" }),
+    interactionId: uuid("interaction_id").references(() => interactions.id, {
+      onDelete: "set null",
+    }),
     autumnTrackedAt: timestamp("autumn_tracked_at", { withTimezone: true }),
     autumnTrackError: text("autumn_track_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),

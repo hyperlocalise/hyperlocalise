@@ -4,7 +4,10 @@ import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema
 import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
-import { markUsageEventSucceededByOperationKey, trackUsageEventInAutumnByOperationKey } from "@/lib/billing/usage-control";
+import {
+  markUsageEventSucceededByOperationKey,
+  trackUsageEventInAutumnByOperationKey,
+} from "@/lib/billing/usage-control";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
 import {
   createOpenAIStringTranslationGenerator,

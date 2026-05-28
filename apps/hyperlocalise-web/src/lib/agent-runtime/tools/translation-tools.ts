@@ -159,24 +159,26 @@ function queuedJobValues(
 }
 
 async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queuedJobValues>[1]) {
-  const [job] = await ctx.db.insert(schema.jobs).values(queuedJobValues(ctx, input)).returning();
+  return ctx.db.transaction(async (tx) => {
+    const [job] = await tx.insert(schema.jobs).values(queuedJobValues(ctx, input)).returning();
 
-  if (!job) {
-    throw new Error("Failed to create job: no row returned.");
-  }
+    if (!job) {
+      throw new Error("Failed to create job: no row returned.");
+    }
 
-  await reserveUsageEvent({
-    db: ctx.db,
-    organizationId: ctx.organizationId,
-    featureId: usageFeatureIds.translationJobs,
-    operationKey: `job:${job.id}:translation_jobs`,
-    source: "translation_job_create",
-    jobId: job.id,
-    interactionId: ctx.conversationId ?? undefined,
-    quantity: 1,
+    await reserveUsageEvent({
+      db: tx,
+      organizationId: ctx.organizationId,
+      featureId: usageFeatureIds.translationJobs,
+      operationKey: `job:${job.id}:translation_jobs`,
+      source: "translation_job_create",
+      jobId: job.id,
+      interactionId: ctx.conversationId ?? undefined,
+      quantity: 1,
+    });
+
+    return job;
   });
-
-  return job;
 }
 
 /**
@@ -345,6 +347,17 @@ export function createTranslationJobTool(ctx: ToolContext) {
           jobId: createdJob.id,
           type: input.type,
           sourceFileVersionId: sourceFileVersion?.id ?? null,
+        });
+
+        await reserveUsageEvent({
+          db: tx,
+          organizationId: ctx.organizationId,
+          featureId: usageFeatureIds.translationJobs,
+          operationKey: `job:${createdJob.id}:translation_jobs`,
+          source: "translation_job_create",
+          jobId: createdJob.id,
+          interactionId: ctx.conversationId ?? undefined,
+          quantity: 1,
         });
 
         return createdJob;
