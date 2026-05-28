@@ -27,6 +27,29 @@ import type { ToolContext } from "@/lib/tools/types";
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
 type JobKind = (typeof jobKinds)[number];
 
+function queuedJobUsageBilling(kind: JobKind) {
+  switch (kind) {
+    case "translation":
+      return {
+        featureId: usageFeatureIds.translationJobs,
+        source: "translation_job_create",
+        operationKeySuffix: "translation_jobs",
+      } as const;
+    case "research":
+      return {
+        featureId: usageFeatureIds.agentRuns,
+        source: "research_job_create",
+        operationKeySuffix: "research",
+      } as const;
+    default:
+      return {
+        featureId: usageFeatureIds.agentRuns,
+        source: `${kind}_job_create`,
+        operationKeySuffix: kind,
+      } as const;
+  }
+}
+
 const jobQueue = createTranslationJobEventQueue();
 
 export function createUnavailableJobKindTool(capability: string) {
@@ -166,12 +189,14 @@ async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queued
       throw new Error("Failed to create job: no row returned.");
     }
 
+    const billing = queuedJobUsageBilling(input.kind);
+
     await reserveUsageEvent({
       db: tx,
       organizationId: ctx.organizationId,
-      featureId: usageFeatureIds.translationJobs,
-      operationKey: `job:${job.id}:translation_jobs`,
-      source: "translation_job_create",
+      featureId: billing.featureId,
+      operationKey: `job:${job.id}:${billing.operationKeySuffix}`,
+      source: billing.source,
       jobId: job.id,
       interactionId: ctx.conversationId ?? undefined,
       quantity: 1,

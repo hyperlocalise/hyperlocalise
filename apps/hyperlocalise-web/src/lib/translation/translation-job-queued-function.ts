@@ -439,7 +439,15 @@ export async function completeTranslationJob(input: {
 
   const operationKey = `job:${input.jobId}:translation_jobs`;
   await markUsageEventSucceededByOperationKey({ operationKey });
-  await trackUsageEventInAutumnByOperationKey({ operationKey });
+  try {
+    await trackUsageEventInAutumnByOperationKey({ operationKey });
+  } catch (error) {
+    console.error("[translation-job] Autumn usage tracking failed after job succeeded", {
+      jobId: input.jobId,
+      operationKey,
+      error: error instanceof Error ? error.message : "autumn_tracking_failed",
+    });
+  }
 
   const succeededJob = await getStoredJob(input.jobId, input.projectId);
 
