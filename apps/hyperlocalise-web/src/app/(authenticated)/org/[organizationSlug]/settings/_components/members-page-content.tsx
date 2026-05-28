@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
@@ -317,21 +318,30 @@ export function MembersSettingsPageContent({
                       )}
 
                       {canRemoveMember ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon"
-                          className="border-foreground/10 bg-transparent text-foreground/52 hover:bg-destructive/10 hover:text-destructive"
-                          onClick={() => setRemovingMember(member)}
-                          disabled={removeMember.isPending}
-                          aria-label={
-                            isInvited
-                              ? `Cancel invitation for ${member.displayName}`
-                              : `Remove ${member.displayName}`
-                          }
-                        >
-                          <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} />
-                        </Button>
+                        <Tooltip>
+                          <TooltipTrigger
+                            render={
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                className="border-foreground/10 bg-transparent text-foreground/52 hover:bg-destructive/10 hover:text-destructive"
+                                onClick={() => setRemovingMember(member)}
+                                disabled={removeMember.isPending}
+                                aria-label={
+                                  isInvited
+                                    ? `Cancel invitation for ${member.displayName}`
+                                    : `Remove ${member.displayName}`
+                                }
+                              >
+                                <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} />
+                              </Button>
+                            }
+                          />
+                          <TooltipContent side="bottom" align="end">
+                            {isInvited ? "Cancel invitation" : "Remove member"}
+                          </TooltipContent>
+                        </Tooltip>
                       ) : null}
                     </div>
                   </div>

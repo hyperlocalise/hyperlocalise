@@ -223,12 +223,12 @@ export function ProjectsTable({
                               }}
                               disabled={isSavingProject}
                               className="text-foreground/54 hover:text-foreground"
-                            />
+                            >
+                              <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
+                              <span className="sr-only">Edit {project.name}</span>
+                            </Button>
                           }
-                        >
-                          <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
-                          <span className="sr-only">Edit {project.name}</span>
-                        </TooltipTrigger>
+                        />
                         <TooltipContent side="bottom" align="center">
                           Edit project
                         </TooltipContent>
@@ -245,12 +245,12 @@ export function ProjectsTable({
                               }}
                               disabled={isDeletingProject || isSavingProject}
                               className="text-foreground/54 hover:text-foreground"
-                            />
+                            >
+                              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                              <span className="sr-only">Delete {project.name}</span>
+                            </Button>
                           }
-                        >
-                          <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                          <span className="sr-only">Delete {project.name}</span>
-                        </TooltipTrigger>
+                        />
                         <TooltipContent side="bottom" align="center">
                           Delete project
                         </TooltipContent>
