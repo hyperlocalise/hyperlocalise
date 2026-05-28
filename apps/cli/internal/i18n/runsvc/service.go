@@ -300,6 +300,9 @@ type Service struct {
 	now        func() time.Time
 	numCPU     func() int
 
+	enforceProjectPaths bool
+	projectRoot         string
+
 	lockPersistBatchSize     int
 	lockPersistFlushInterval time.Duration
 }
@@ -452,11 +455,14 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 					if shouldIgnoreSourcePath(sourcePath, cfg.Locales.Targets) {
 						continue
 					}
+					if err := s.validateProjectPath(sourcePath); err != nil {
+						return nil, nil, fmt.Errorf("planning tasks: source path %q: %w", sourcePath, err)
+					}
 					if len(filteredSourcePaths) > 0 {
 						matchedSourcePaths[sourcePath] = struct{}{}
 					}
 					if isSupportedImagePath(sourcePath) {
-						sourceContent, err := s.readFile(sourcePath)
+						sourceContent, err := s.readProjectFile(sourcePath)
 						if err != nil {
 							if os.IsNotExist(err) {
 								return nil, nil, fmt.Errorf("planning tasks: source file %q does not exist", sourcePath)
@@ -472,6 +478,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 							targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
 							if err != nil {
 								return nil, nil, fmt.Errorf("planning tasks: resolve target path for source %q: %w", sourcePath, err)
+							}
+							if err := s.validateProjectPath(targetPath); err != nil {
+								return nil, nil, fmt.Errorf("planning tasks: target path %q: %w", targetPath, err)
 							}
 							outputFormat, err := imageOutputFormat(targetPath)
 							if err != nil {
@@ -524,6 +533,9 @@ func (s *Service) planTasks(cfg *config.I18NConfig, onlyBucket, onlyGroup string
 						targetPath, err := resolveTargetPath(sourcePattern, resolvedTargetPattern, sourcePath)
 						if err != nil {
 							return nil, nil, fmt.Errorf("planning tasks: resolve target path for source %q: %w", sourcePath, err)
+						}
+						if err := s.validateProjectPath(targetPath); err != nil {
+							return nil, nil, fmt.Errorf("planning tasks: target path %q: %w", targetPath, err)
 						}
 						for _, key := range keys {
 							sourceText := sourceEntries[key]
@@ -710,7 +722,7 @@ func resolvePromptVersion(profile config.LLMProfile) string {
 }
 
 func (s *Service) loadSourceEntries(parser *translationfileparser.Strategy, sourcePath string) (map[string]string, map[string]string, string, error) {
-	content, err := s.readFile(sourcePath)
+	content, err := s.readProjectFile(sourcePath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return nil, nil, "", fmt.Errorf("planning tasks: source file %q does not exist", sourcePath)

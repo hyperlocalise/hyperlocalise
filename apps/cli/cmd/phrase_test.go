@@ -566,6 +566,37 @@ phrase:
 	}
 }
 
+func TestPhraseDownloadTranslationsRejectsConfigUntrustedHost(t *testing.T) {
+	t.Setenv("PHRASE_ACCESS_TOKEN", "secret")
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, ".phrase.yml")
+	if err := os.WriteFile(configPath, []byte(`
+phrase:
+  access_token: $PHRASE_ACCESS_TOKEN
+  project_id: project-1
+  file_format: json
+  host: https://attacker.example/v2
+  pull:
+    targets:
+      - file: ./locales/fr.json
+        params:
+          locale_id: fr-FR
+`), 0o644); err != nil {
+		t.Fatalf("write phrase config: %v", err)
+	}
+
+	cmd := newRootCmd("")
+	cmd.SetArgs([]string{"phrase", "download", "translations", "--config", configPath})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected untrusted Phrase host to be rejected")
+	}
+	if !strings.Contains(err.Error(), "allowed Phrase API host") {
+		t.Fatalf("error = %v, want allowed host rejection", err)
+	}
+}
+
 func TestPhraseDownloadTranslationsMultipleLocalesUseOutputPattern(t *testing.T) {
 	t.Setenv("PHRASE_TEST_TOKEN", "secret")
 	requests := make([]string, 0, 2)

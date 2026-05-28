@@ -16,6 +16,12 @@ POST /api/v1/jobs requires a jobs:write API key, but the route has no per-key or
 
 Add route-local abuse controls: cap targetLocales and metadata size, enforce total token/payload budgets, rate-limit by API key and organization, and reject or defer requests when queue depth or spend quotas are exceeded.
 
+## Revalidation
+
+**Verdict:** true-positive
+
+The public route does require apiKeyAuthMiddleware and requireApiKeyPermission("jobs:write"), and it scopes project and source-file lookups to the API key's organization. The finding is partly outdated because this route has a 1MB bodyLimit and createPublicJobBodySchema now reuses the project job caps for targetLocales and metadata. Those controls prevent the originally described unbounded single-request fan-out. They do not address request volume: the POST path still inserts the job, reserves a usage event, and enqueues translation work without any per-key rate limit, per-organization quota check, queue-depth check, or spend guard. apiKeyAuthMiddleware only validates the key and updates lastUsedAt; reserveUsageEvent only records usage and does not deny over-quota work. A leaked jobs:write key can repeatedly submit valid capped string jobs and create unbounded AI-backed queue load. The quota-control portion of the finding remains real and exploitable.
+
 ## Recent committers (`git log`)
 
-- Minh Cung <cungminh2710@gmail.com> (2026-05-06)
+- Minh Cung <cungminh2710@gmail.com> (2026-05-28)

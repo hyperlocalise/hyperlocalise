@@ -15,8 +15,8 @@ var tagPattern = regexp.MustCompile(`</?[A-Za-z][^>]*?>`)
 // Mismatch reports whether the normalized HTML tag name sequences differ
 // between source and target (same semantics as check hasHTMLTagMismatch).
 func Mismatch(sourceValue, targetValue string) bool {
-	sourceTags := filterKnownHTMLTagNames(normalizeTagNames(tagPattern.FindAllString(sourceValue, -1)))
-	targetTags := filterKnownHTMLTagNames(normalizeTagNames(tagPattern.FindAllString(targetValue, -1)))
+	sourceTags := normalizedMarkupTagNames(tagPattern.FindAllString(sourceValue, -1))
+	targetTags := normalizedMarkupTagNames(tagPattern.FindAllString(targetValue, -1))
 	return !slices.Equal(sourceTags, targetTags)
 }
 
@@ -41,16 +41,55 @@ func normalizeTagNames(tags []string) []string {
 	return out
 }
 
-// filterKnownHTMLTagNames keeps only names that exist in golang.org/x/net/html/atom.
-// A leading "/" (closing tag) is stripped only for Lookup; the token passed through
-// preserves opening vs closing. Patterns such as <name> in documented paths are ignored.
-func filterKnownHTMLTagNames(names []string) []string {
+func normalizedMarkupTagNames(tags []string) []string {
+	names := normalizeTagNames(tags)
 	out := make([]string, 0, len(names))
-	for _, n := range names {
-		tag := strings.TrimPrefix(n, "/")
-		if atom.Lookup([]byte(tag)) != 0 {
-			out = append(out, n)
+	for i, name := range names {
+		if isLikelyMarkupTag(tags[i], name) {
+			out = append(out, name)
 		}
 	}
 	return out
+}
+
+func isLikelyMarkupTag(raw, normalized string) bool {
+	tag := strings.TrimPrefix(normalized, "/")
+	if tag == "" {
+		return false
+	}
+	if atom.Lookup([]byte(tag)) != 0 || strings.Contains(tag, "-") {
+		return true
+	}
+	rawName := rawTagName(raw)
+	if rawName == "" {
+		return false
+	}
+	if rawName[0] >= 'A' && rawName[0] <= 'Z' {
+		return true
+	}
+	return rawTagHasAttributes(raw, rawName)
+}
+
+func rawTagName(raw string) string {
+	inner := strings.TrimSpace(raw)
+	inner = strings.TrimPrefix(inner, "<")
+	inner = strings.TrimPrefix(inner, "/")
+	for i := 0; i < len(inner); i++ {
+		switch inner[i] {
+		case ' ', '\t', '\n', '\r', '/', '>':
+			return inner[:i]
+		}
+	}
+	return inner
+}
+
+func rawTagHasAttributes(raw, rawName string) bool {
+	inner := strings.TrimSpace(raw)
+	inner = strings.TrimPrefix(inner, "<")
+	inner = strings.TrimPrefix(inner, "/")
+	if !strings.HasPrefix(inner, rawName) {
+		return false
+	}
+	rest := strings.TrimSpace(inner[len(rawName):])
+	return rest != "" && rest != ">" && rest != "/>"
 }

@@ -52,6 +52,9 @@ func validateTranslatedOutputForKind(kind translationOutputKind, source, transla
 		if err := translationfileparser.ValidateMarkdownInternalPlaceholders(source, translated); err != nil {
 			return &postTranslateValidationError{msg: err.Error()}
 		}
+		if translationfileparser.IntroducesRawHTMLSyntax(source, translated) {
+			return &postTranslateValidationError{msg: "raw HTML syntax introduced in translated markdown"}
+		}
 		return nil
 	case translationOutputHTML:
 		if htmltagparity.Mismatch(source, translated) {
@@ -59,10 +62,16 @@ func validateTranslatedOutputForKind(kind translationOutputKind, source, transla
 				msg: fmt.Sprintf("html tag structure differs from source | %s", formatInvariantDebugContext(source, translated)),
 			}
 		}
+		if translationfileparser.IntroducesRawHTMLSyntax(source, translated) {
+			return &postTranslateValidationError{msg: "raw HTML syntax introduced in translated html"}
+		}
 		return validateTranslatedInvariant(source, translated)
 	case translationOutputLiquid:
 		if err := translationfileparser.ValidateLiquidInternalPlaceholders(source, translated); err != nil {
 			return &postTranslateValidationError{msg: err.Error()}
+		}
+		if translationfileparser.IntroducesRawHTMLSyntax(source, translated) {
+			return &postTranslateValidationError{msg: "raw HTML syntax introduced in translated liquid"}
 		}
 		return validateTranslatedInvariant(source, translated)
 	default:

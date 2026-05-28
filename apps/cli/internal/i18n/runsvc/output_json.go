@@ -76,14 +76,14 @@ func marshalJSONTarget(path string, template []byte, values map[string]string, p
 }
 
 func (s *Service) marshalJSONTargetWithFallback(path, sourcePath string, values map[string]string, pruneKeys map[string]struct{}) ([]byte, error) {
-	targetTemplate, err := s.readFile(path)
+	targetTemplate, err := s.readProjectFile(path)
 	if err == nil {
 		content, marshalErr := marshalJSONTarget(path, targetTemplate, values, pruneKeys)
 		if marshalErr == nil {
 			return content, nil
 		}
 
-		sourceTemplate, srcErr := s.readFile(sourcePath)
+		sourceTemplate, srcErr := s.readProjectFile(sourcePath)
 		if srcErr != nil {
 			return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, srcErr)
 		}
@@ -100,7 +100,7 @@ func (s *Service) marshalJSONTargetWithFallback(path, sourcePath string, values 
 		return nil, fmt.Errorf("flush outputs: read target file %q: %w", path, err)
 	}
 
-	sourceTemplate, srcErr := s.readFile(sourcePath)
+	sourceTemplate, srcErr := s.readProjectFile(sourcePath)
 	if srcErr != nil {
 		return nil, fmt.Errorf("flush outputs: read template source %q: %w", sourcePath, srcErr)
 	}

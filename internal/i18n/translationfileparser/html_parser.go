@@ -81,12 +81,34 @@ var htmlSkipElements = map[string]bool{
 // original unmodified bytes.
 var htmlTagPattern = regexp.MustCompile(`<(?:[^>"']*(?:"[^"]*"|'[^']*'))*[^>]*>`)
 
-func containsHTMLTag(s string) bool {
-	// BOLT OPTIMIZATION: Fast-path for strings without '<' to avoid regex overhead (~5x faster).
-	if !strings.Contains(s, "<") {
-		return false
+// IntroducesRawHTMLSyntax reports whether translated contains more raw
+// tag-shaped syntax starts than source. It catches incomplete tag openers that
+// complete-tag regexes intentionally cannot see.
+func IntroducesRawHTMLSyntax(source, translated string) bool {
+	return rawHTMLSyntaxStartCount(translated) > rawHTMLSyntaxStartCount(source)
+}
+
+func containsRawHTMLSyntax(s string) bool {
+	return rawHTMLSyntaxStartCount(s) > 0
+}
+
+func rawHTMLSyntaxStartCount(s string) int {
+	count := 0
+	for i := 0; i < len(s); i++ {
+		if s[i] != '<' || i+1 >= len(s) {
+			continue
+		}
+		next := s[i+1]
+		switch {
+		case next == '>':
+			count++
+		case next == '/' || next == '!' || next == '?':
+			count++
+		case (next >= 'A' && next <= 'Z') || (next >= 'a' && next <= 'z'):
+			count++
+		}
 	}
-	return htmlTagPattern.MatchString(s)
+	return count
 }
 
 // htmlStructuralElements are container tags that are always emitted as
@@ -427,7 +449,7 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 		rendered := preserveChunkBoundaryWhitespace(part.source, translated)
 		// Ensure every placeholder survived translation. A dropped placeholder
 		// means source markup was lost; fall back rather than emit incomplete HTML.
-		// We also check for any newly introduced HTML tags to prevent XSS.
+		// We also check for newly introduced raw HTML syntax to prevent XSS.
 		allPresent := true
 		for ph := range part.placeholders {
 			if !strings.Contains(rendered, ph) {
@@ -435,7 +457,7 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 				break
 			}
 		}
-		if !allPresent || containsHTMLTag(rendered) {
+		if !allPresent || containsRawHTMLSyntax(rendered) {
 			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 			b.WriteString(expandHTMLPlaceholders(part.source, part.placeholders))
 			continue

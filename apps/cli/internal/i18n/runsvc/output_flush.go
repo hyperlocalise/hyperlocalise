@@ -72,7 +72,7 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 		if len(output.binary) == 0 {
 			return nil, fmt.Errorf("flush outputs: image target %q has empty content", targetPath)
 		}
-		if err := s.writeFile(targetPath, output.binary); err != nil {
+		if err := s.writeProjectFile(targetPath, output.binary); err != nil {
 			return nil, fmt.Errorf("flush outputs: write %q: %w", targetPath, err)
 		}
 		return nil, nil
@@ -103,7 +103,7 @@ func (s *Service) flushOutputForTarget(targetPath string, output stagedOutput, k
 	if err != nil {
 		return nil, err
 	}
-	if err := s.writeFile(targetPath, content); err != nil {
+	if err := s.writeProjectFile(targetPath, content); err != nil {
 		return nil, fmt.Errorf("flush outputs: write %q: %w", targetPath, err)
 	}
 	return append(loadWarnings, warnings...), nil
@@ -115,7 +115,7 @@ func (s *Service) loadExistingTarget(path string) (map[string]string, error) {
 }
 
 func (s *Service) loadExistingTargetWithWarnings(path, targetLocale string) (map[string]string, []string, error) {
-	content, err := s.readFile(path)
+	content, err := s.readProjectFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return map[string]string{}, nil, nil

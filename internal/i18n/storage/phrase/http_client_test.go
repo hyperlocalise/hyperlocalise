@@ -713,6 +713,7 @@ func TestValidatePhraseBaseURLRejectsUnsafeURLs(t *testing.T) {
 		"https://user:pass@api.phrase.com/v2",
 		"https://api.phrase.com/v2?token=1",
 		"https://api.phrase.com/v2#fragment",
+		"https://attacker.example/v2",
 	}
 	for _, value := range tests {
 		t.Run(value, func(t *testing.T) {
@@ -726,7 +727,8 @@ func TestValidatePhraseBaseURLRejectsUnsafeURLs(t *testing.T) {
 func TestValidatePhraseBaseURLAllowsHTTPSAndLoopbackHTTP(t *testing.T) {
 	tests := []string{
 		"https://api.phrase.com/v2",
-		"https://phrase.example.test",
+		"https://api.us.app.phrase.com/v2",
+		"https://cloud.memsource.com/web/api2",
 		"http://127.0.0.1:8080",
 		"http://localhost:8080",
 	}

@@ -345,6 +345,41 @@ func TestFileAdapterDownloadTranslationsUsesLanguageIDForRequestAndLocaleForPath
 	}
 }
 
+func TestFileAdapterDownloadTranslationsRejectsSymlinkedOutputEscape(t *testing.T) {
+	base := t.TempDir()
+	writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Hello"}`)
+	outside := t.TempDir()
+	if err := os.Symlink(outside, filepath.Join(base, "download")); err != nil {
+		t.Skipf("symlink unavailable: %v", err)
+	}
+
+	client := &fakeFileClient{
+		locales:         []ResolvedLocale{{LanguageID: "fr", Locale: "fr"}},
+		directories:     map[string]int{"src": 1},
+		files:           map[string]int{"messages.json": 1},
+		failFindMissing: true,
+		downloadPayload: []byte("translated-fr"),
+	}
+	adapter := mustNewFileAdapterForTest(t, storage.FileWorkflowConfig{
+		ProjectID:         "123",
+		APIToken:          "token",
+		BasePath:          base,
+		PreserveHierarchy: true,
+		Files: []storage.FileGroupSpec{{
+			Source:      "/src/messages.json",
+			Translation: "/download/%locale%/%original_file_name%",
+		}},
+	}, client)
+
+	_, err := adapter.DownloadTranslations(context.Background(), storage.FileDownloadTranslationsRequest{})
+	if err == nil {
+		t.Fatalf("expected symlinked translation output to be rejected")
+	}
+	if !strings.Contains(err.Error(), "escapes root") {
+		t.Fatalf("error = %v, want root escape rejection", err)
+	}
+}
+
 func TestFileAdapterDownloadTranslationsCanIncludeSources(t *testing.T) {
 	base := t.TempDir()
 	sourcePath := writeJSONFixture(t, filepath.Join(base, "src", "messages.json"), `{"hello":"Local"}`)

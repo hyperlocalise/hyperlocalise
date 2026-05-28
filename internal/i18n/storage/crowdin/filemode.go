@@ -16,6 +16,7 @@ import (
 	"strings"
 
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
+	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
 )
 
 type FileClient interface {
@@ -81,6 +82,10 @@ func (a *FileAdapter) FileWorkflowCapabilities() storage.FileWorkflowCapabilitie
 
 func (a *FileAdapter) UploadSources(ctx context.Context, req storage.FileUploadSourcesRequest) (storage.FileOperationResult, error) {
 	config := a.effectiveConfig(req.Config)
+	baseRoot, err := canonicalCrowdinBasePath(config.BasePath)
+	if err != nil {
+		return storage.FileOperationResult{}, err
+	}
 	branchID, err := a.resolveBranchID(ctx, config)
 	if err != nil {
 		return storage.FileOperationResult{}, err
@@ -92,6 +97,9 @@ func (a *FileAdapter) UploadSources(ctx context.Context, req storage.FileUploadS
 			return storage.FileOperationResult{Processed: processed}, err
 		}
 		for _, sourcePath := range sourcePaths {
+			if err := validateCrowdinContainedPath(baseRoot, sourcePath); err != nil {
+				return storage.FileOperationResult{Processed: processed}, fmt.Errorf("source path %q: %w", sourcePath, err)
+			}
 			remotePath, err := sourceRemotePath(config, sourcePath)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed}, err
@@ -112,6 +120,10 @@ func (a *FileAdapter) UploadSources(ctx context.Context, req storage.FileUploadS
 
 func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUploadTranslationsRequest) (storage.FileOperationResult, error) {
 	config := a.effectiveConfig(req.Config)
+	baseRoot, err := canonicalCrowdinBasePath(config.BasePath)
+	if err != nil {
+		return storage.FileOperationResult{}, err
+	}
 	locales, err := a.client.ResolveLocales(ctx, config.ProjectID, req.Languages)
 	if err != nil {
 		return storage.FileOperationResult{}, err
@@ -131,6 +143,9 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 		}
 		excluded := makeStringSet(group.ExcludedTargetLanguages)
 		for _, sourcePath := range sourcePaths {
+			if err := validateCrowdinContainedPath(baseRoot, sourcePath); err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("source path %q: %w", sourcePath, err)
+			}
 			remotePath, err := sourceRemotePath(config, sourcePath)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
@@ -151,6 +166,9 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 				translationPath, err := renderCrowdinTranslationPath(config.BasePath, group.Translation, locale.Locale, sourcePath, group.LanguagesMapping)
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+				}
+				if err := validateCrowdinContainedPath(baseRoot, translationPath); err != nil {
+					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("translation path %q: %w", translationPath, err)
 				}
 				if _, statErr := os.Stat(translationPath); statErr != nil {
 					if os.IsNotExist(statErr) {
@@ -174,6 +192,10 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 
 func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.FileDownloadTranslationsRequest) (storage.FileOperationResult, error) {
 	config := a.effectiveConfig(req.Config)
+	baseRoot, err := canonicalCrowdinBasePath(config.BasePath)
+	if err != nil {
+		return storage.FileOperationResult{}, err
+	}
 	locales, err := a.client.ResolveLocales(ctx, config.ProjectID, req.Languages)
 	if err != nil {
 		return storage.FileOperationResult{}, err
@@ -193,6 +215,9 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 		}
 		excluded := makeStringSet(group.ExcludedTargetLanguages)
 		for _, sourcePath := range sourcePaths {
+			if err := validateCrowdinContainedPath(baseRoot, sourcePath); err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("source path %q: %w", sourcePath, err)
+			}
 			remotePath, err := sourceRemotePath(config, sourcePath)
 			if err != nil {
 				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
@@ -241,6 +266,9 @@ func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.File
 				targetPath, err := renderCrowdinTranslationPath(config.BasePath, group.Translation, locale.Locale, sourcePath, group.LanguagesMapping)
 				if err != nil {
 					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+				}
+				if err := validateCrowdinContainedPath(baseRoot, targetPath); err != nil {
+					return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("translation output path %q: %w", targetPath, err)
 				}
 				if req.MergeApproved {
 					payload, err = mergeApprovedJSONFile(sourcePath, targetPath, payload)
@@ -640,6 +668,25 @@ func renderCrowdinTranslationPath(basePath, pattern, locale, sourcePath string, 
 func crowdinLocalPath(basePath, pattern string) string {
 	trimmed := strings.TrimPrefix(filepath.ToSlash(pattern), "/")
 	return filepath.Clean(filepath.Join(basePath, filepath.FromSlash(trimmed)))
+}
+
+func canonicalCrowdinBasePath(basePath string) (string, error) {
+	if strings.TrimSpace(basePath) == "" {
+		basePath = "."
+	}
+	root, err := pathguard.CanonicalForContainment(basePath)
+	if err != nil {
+		return "", fmt.Errorf("resolve crowdin base path: %w", err)
+	}
+	return root, nil
+}
+
+func validateCrowdinContainedPath(baseRoot, path string) error {
+	candidate, err := pathguard.CanonicalForContainment(path)
+	if err != nil {
+		return fmt.Errorf("resolve path: %w", err)
+	}
+	return pathguard.EnsureCanonicalUnderRoot(baseRoot, candidate)
 }
 
 func resolveCrowdinSourcePaths(basePath, pattern string) ([]string, error) {

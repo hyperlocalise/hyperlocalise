@@ -79,13 +79,16 @@ func validatePhraseBaseURL(baseURL string) error {
 	if parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
 		return fmt.Errorf("phrase http client: base URL must not include userinfo, query, or fragment")
 	}
-	if parsed.Scheme == "https" {
-		return nil
-	}
 	if parsed.Scheme == "http" && isLoopbackHost(parsed.Hostname()) {
 		return nil
 	}
-	return fmt.Errorf("phrase http client: base URL must use https")
+	if parsed.Scheme != "https" {
+		return fmt.Errorf("phrase http client: base URL must use https")
+	}
+	if !isAllowedPhraseAPIHost(parsed.Hostname()) {
+		return fmt.Errorf("phrase http client: base URL host %q is not an allowed Phrase API host", parsed.Hostname())
+	}
+	return nil
 }
 
 func isLoopbackHost(host string) bool {
@@ -94,6 +97,18 @@ func isLoopbackHost(host string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+func isAllowedPhraseAPIHost(host string) bool {
+	host = strings.TrimSuffix(strings.ToLower(strings.TrimSpace(host)), ".")
+	switch {
+	case host == "phrase.com" || strings.HasSuffix(host, ".phrase.com"):
+		return true
+	case host == "memsource.com" || strings.HasSuffix(host, ".memsource.com"):
+		return true
+	default:
+		return false
+	}
 }
 
 func newHTTPClient(baseURL string, client *http.Client) *HTTPClient {

@@ -14,6 +14,11 @@ import (
 )
 
 func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) {
+	run := *s
+	return run.run(ctx, in)
+}
+
+func (s *Service) run(ctx context.Context, in Input) (report Report, err error) {
 	reportJSONDetail, detailErr := NormalizeReportJSONDetail(in.ReportJSONDetail)
 	if detailErr != nil {
 		return Report{}, detailErr
@@ -38,6 +43,10 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	if cfg.Cache.Enabled {
 		err = fmt.Errorf("remote cache client not yet implemented")
 		endRunSpan(planSpan, err, "cache_unsupported")
+		return Report{}, err
+	}
+	if err := s.configureProjectPathRoot(in.ConfigPath); err != nil {
+		endRunSpan(planSpan, err, "config_path_root")
 		return Report{}, err
 	}
 
@@ -69,7 +78,7 @@ func (s *Service) Run(ctx context.Context, in Input) (report Report, err error) 
 	initializeLockState(state)
 
 	activeRunID := ensureActiveRunID(state)
-	report, executable, checkpointStaged, lockMigrated, err := applyLockFilterWithReader(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readFile)
+	report, executable, checkpointStaged, lockMigrated, err := applyLockFilterWithReader(planned, state.RunCompleted, state.RunCheckpoint, activeRunID, in.Force, s.readProjectFile)
 	if err != nil {
 		endRunSpan(lockSpan, err, "lock_filter")
 		return Report{}, err

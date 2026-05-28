@@ -181,6 +181,7 @@ export interface AttachmentsContext {
 
 export interface TextInputContext {
   value: string;
+  getValue: () => string;
   setInput: (v: string) => void;
   clear: () => void;
 }
@@ -234,7 +235,13 @@ export const PromptInputProvider = ({
 }: PromptInputProviderProps) => {
   // ----- textInput state
   const [textInput, setTextInput] = useState(initialTextInput);
-  const clearInput = useCallback(() => setTextInput(""), []);
+  const textInputRef = useRef(initialTextInput);
+  const setInput = useCallback((value: string) => {
+    textInputRef.current = value;
+    setTextInput(value);
+  }, []);
+  const clearInput = useCallback(() => setInput(""), [setInput]);
+  const getInput = useCallback(() => textInputRef.current, []);
 
   // ----- attachments state (global when wrapped)
   const [attachmentFiles, setAttachmentFiles] = useState<(FileUIPart & { id: string })[]>([]);
@@ -330,11 +337,12 @@ export const PromptInputProvider = ({
       attachments,
       textInput: {
         clear: clearInput,
-        setInput: setTextInput,
+        getValue: getInput,
+        setInput,
         value: textInput,
       },
     }),
-    [textInput, clearInput, attachments, __registerFileInput],
+    [textInput, clearInput, getInput, setInput, attachments, __registerFileInput],
   );
 
   return (
@@ -803,7 +811,7 @@ export const PromptInput = ({
 
       const form = event.currentTarget;
       const text = usingProvider
-        ? controller.textInput.value
+        ? controller.textInput.getValue()
         : (() => {
             const formData = new FormData(form);
             return (formData.get("message") as string) || "";
@@ -838,7 +846,7 @@ export const PromptInput = ({
           try {
             await result;
             clear();
-            if (usingProvider && controller.textInput.value === text) {
+            if (usingProvider && controller.textInput.getValue() === text) {
               controller.textInput.clear();
             }
           } catch {
@@ -847,7 +855,7 @@ export const PromptInput = ({
         } else {
           // Sync function completed without throwing, clear inputs
           clear();
-          if (usingProvider && controller.textInput.value === text) {
+          if (usingProvider && controller.textInput.getValue() === text) {
             controller.textInput.clear();
           }
         }

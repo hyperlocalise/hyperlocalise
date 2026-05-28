@@ -67,6 +67,14 @@ func TestValidateTranslatedOutputMatrix(t *testing.T) {
 			wantErr:    false,
 		},
 		{
+			name:        "markdown_raw_html_fragment",
+			path:        "/en/a.md",
+			source:      "Hello.",
+			translated:  "Bonjour <img src=x onerror=alert(1)//",
+			wantErr:     true,
+			errContains: "raw HTML",
+		},
+		{
 			name:       "markdown_skips_icu_even_if_invalid_message_shape",
 			path:       "/en/a.md",
 			source:     "{not, valid icu",
@@ -87,6 +95,14 @@ func TestValidateTranslatedOutputMatrix(t *testing.T) {
 			translated:  "x",
 			wantErr:     true,
 			errContains: "html tag",
+		},
+		{
+			name:        "html_raw_html_fragment",
+			path:        "/en/a.html",
+			source:      "Hello",
+			translated:  "Bonjour <img src=x onerror=alert(1)//",
+			wantErr:     true,
+			errContains: "raw HTML",
 		},
 		{
 			name:        "html_tags_ok_icu_fails",
@@ -110,6 +126,14 @@ func TestValidateTranslatedOutputMatrix(t *testing.T) {
 			translated:  "Bonjour",
 			wantErr:     true,
 			errContains: "liquid internal placeholder",
+		},
+		{
+			name:        "liquid_raw_html_fragment",
+			path:        "/en/a.liquid",
+			source:      "Hello \x1eHLLQPH_ABCDEF123456_0\x1f",
+			translated:  "Bonjour \x1eHLLQPH_ABCDEF123456_0\x1f <img src=x onerror=alert(1)//",
+			wantErr:     true,
+			errContains: "raw HTML",
 		},
 		{
 			name:        "liquid_placeholders_ok_icu_fails",
