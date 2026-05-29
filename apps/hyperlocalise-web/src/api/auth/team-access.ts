@@ -149,25 +149,35 @@ export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Pr
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
 
-  if (accessibleProjectIds.length === 0) {
-    return and(organizationScope, isNull(schema.interactions.projectId))!;
-  }
+  const projectFilter =
+    accessibleProjectIds.length > 0
+      ? or(
+          isNull(schema.interactions.projectId),
+          inArray(schema.interactions.projectId, accessibleProjectIds),
+        )
+      : isNull(schema.interactions.projectId);
 
-  return and(
-    organizationScope,
-    or(
-      isNull(schema.interactions.projectId),
-      inArray(schema.interactions.projectId, accessibleProjectIds),
-    ),
-  )!;
+  return and(organizationScope, projectFilter)!;
 }
 
 export async function canAccessInteraction(auth: ApiAuthContext, interactionId: string) {
   const where = await buildAccessibleInteractionsWhere(auth);
 
   const [interaction] = await db
-    .select()
+    .select({
+      id: schema.interactions.id,
+      organizationId: schema.interactions.organizationId,
+      projectId: schema.interactions.projectId,
+      source: schema.interactions.source,
+      title: schema.interactions.title,
+      sourceThreadId: schema.interactions.sourceThreadId,
+      lastMessageAt: schema.interactions.lastMessageAt,
+      createdAt: schema.interactions.createdAt,
+      updatedAt: schema.interactions.updatedAt,
+      status: schema.inboxItems.status,
+    })
     .from(schema.interactions)
+    .innerJoin(schema.inboxItems, eq(schema.inboxItems.interactionId, schema.interactions.id))
     .where(and(eq(schema.interactions.id, interactionId), where))
     .limit(1);
 

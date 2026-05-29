@@ -163,21 +163,10 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
     .get("/:conversationId", validateConversationParams, async (c) => {
       const { conversationId } = c.req.valid("param");
 
-      const interaction = await canAccessInteraction(c.var.auth, conversationId);
-      if (!interaction) {
+      const conversation = await canAccessInteraction(c.var.auth, conversationId);
+      if (!conversation) {
         return notFoundResponse(c);
       }
-
-      const [inboxItem] = await db
-        .select({ status: schema.inboxItems.status })
-        .from(schema.inboxItems)
-        .where(eq(schema.inboxItems.interactionId, conversationId))
-        .limit(1);
-
-      const conversation = {
-        ...interaction,
-        status: inboxItem?.status ?? "active",
-      };
 
       const messages = await db
         .select()
