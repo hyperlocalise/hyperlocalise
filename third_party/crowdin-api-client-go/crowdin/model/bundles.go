@@ -53,9 +53,9 @@ type BundleAddRequest struct {
 	// Default: false.
 	IncludeProjectSourceLanguage *bool `json:"includeProjectSourceLanguage"`
 	// Label Identifiers.
-	LabelIDs []int `json:"labelIds"`
-	// Label Identifiers.
-	ExcludeLabelIDs []int `json:"excludeLabelIds"`
+	LabelIDs []int `json:"labelIds,omitempty"`
+	// Exclude Label Identifiers.
+	ExcludeLabelIDs []int `json:"excludeLabelIds,omitempty"`
 }
 
 // Validate checks if the request is valid.
