@@ -59,7 +59,6 @@ describe("supplemental-checks glossary matching", () => {
       },
     );
 
-    // This is expected to fail with current implementation because \b doesn't match after # if followed by space or end of string
     expect(findings.some((f) => f.checkType === "glossary_violation")).toBe(true);
   });
 
