@@ -109,7 +109,7 @@ describe("slackOAuthRoutes", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe(
-      `/org/${organizationSlug}/agent?slack_connected=1`,
+      `/org/${organizationSlug}/integrations?slack_connected=1`,
     );
     expect(mocks.initialize).toHaveBeenCalled();
     expect(mocks.handleOAuthCallback).toHaveBeenCalledWith(

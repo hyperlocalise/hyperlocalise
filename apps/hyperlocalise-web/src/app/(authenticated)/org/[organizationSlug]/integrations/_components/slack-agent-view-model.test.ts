@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { getSlackAgentViewModel, type SlackAgentState } from "./slack-agent-card";
+import { getSlackAgentViewModel, type SlackAgentState } from "./slack-agent-view-model";
 
 function createSlackAgent(overrides: Partial<SlackAgentState> = {}): SlackAgentState {
   return {

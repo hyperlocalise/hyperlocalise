@@ -7,10 +7,9 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { IntegrationRow } from "./integration-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createApiClient } from "@/lib/api-client";
 import { TypographyP } from "@/components/ui/typography";
@@ -21,7 +20,7 @@ const GITHUB_CONNECT_ERROR_MESSAGES: Record<string, string> = {
   missing_callback_params:
     "GitHub did not return installation_id on the Setup URL callback. Confirm the GitHub App Setup URL points to this app and try connecting again.",
   invalid_state:
-    "The GitHub install link expired or was already used. Click Connect GitHub again from this page.",
+    "The GitHub install link expired or was already used. Click Connect again from this page.",
   github_install_pending_approval:
     "GitHub is waiting for an org owner to approve this app install. Approve it on GitHub, then connect again.",
   github_app_not_configured: "GitHub App integration is not configured for this environment.",
@@ -36,8 +35,10 @@ const GITHUB_CONNECT_ERROR_MESSAGES: Record<string, string> = {
     'GitHub returned a user OAuth code instead of an installation ID. In GitHub App settings, turn off "Request user authorization (OAuth) during installation" and set the Setup URL to this app\'s /auth/github/callback.',
 };
 
-type GitHubAgentCardProps = {
+type GitHubIntegrationRowProps = {
   organizationSlug: string;
+  isLast?: boolean;
+  userCanManage: boolean;
 };
 
 type GitHubInstallation = {
@@ -196,7 +197,7 @@ function useDisconnectInstallation(organizationSlug: string) {
           queryKey: ["github-installation-repositories", organizationSlug],
         }),
       ]);
-      toast.success("GitHub agent disconnected");
+      toast.success("GitHub disconnected");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -204,9 +205,14 @@ function useDisconnectInstallation(organizationSlug: string) {
   });
 }
 
-export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
+export function GitHubIntegrationRow({
+  organizationSlug,
+  isLast = false,
+  userCanManage,
+}: GitHubIntegrationRowProps) {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
+  const [expanded, setExpanded] = useState(false);
   const {
     data: installation,
     isLoading,
@@ -252,14 +258,17 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
       await queryClient.invalidateQueries({
         queryKey: ["github-installation-repositories", organizationSlug],
       });
-      toast.success("GitHub App connected");
+      setExpanded(true);
+      toast.success("GitHub connected");
     })();
   }, [organizationSlug, queryClient, refetchInstallation, searchParams]);
+
   const { data: repositories = [], isLoading: isLoadingRepositories } = useGitHubRepositories(
     organizationSlug,
     Boolean(installation),
   );
-  const { refetch: getInstallUrl } = useInstallUrl(organizationSlug);
+  const { refetch: getInstallUrl, isFetching: isCreatingInstallUrl } =
+    useInstallUrl(organizationSlug);
   const syncRepositories = useSyncRepositories(organizationSlug);
   const updateRepositories = useUpdateRepositories(organizationSlug);
   const disconnect = useDisconnectInstallation(organizationSlug);
@@ -330,223 +339,180 @@ export function GitHubAgentCard({ organizationSlug }: GitHubAgentCardProps) {
         ? `https://github.com/settings/installations/${installation.githubInstallationId}`
         : null;
 
+  const connected = Boolean(installation);
+  const description = (() => {
+    if (!installation) {
+      return "Connect GitHub for pull request reviews, localization fixes, and repository context.";
+    }
+
+    const repoSummary = `${installation.enabledRepositoryCount ?? 0} of ${installation.repositoryCount ?? repositories.length} repositories enabled.`;
+
+    return installation.accountLogin
+      ? `Connected as ${installation.accountLogin}. ${repoSummary}`
+      : `Connected. ${repoSummary}`;
+  })();
+
+  const action = !userCanManage
+    ? connected
+      ? "view-only"
+      : "view-only"
+    : connected
+      ? "manage"
+      : "connect";
+
   return (
-    <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
-      <CardHeader className="gap-4 px-5 py-5 lg:px-6">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
-              <HugeiconsIcon icon={GithubIcon} strokeWidth={1.8} className="size-5" />
-            </div>
-            <div className="min-w-0">
-              <CardTitle className="text-lg font-medium text-foreground">GitHub agent</CardTitle>
-              <CardDescription className="mt-1 text-foreground/52">
-                Let Hyperlocalise watch pull request activity, review changed copy, and open
-                localization fix PRs.
-              </CardDescription>
-            </div>
-          </div>
-          <Badge
-            variant="outline"
-            className="shrink-0 rounded-full border-dew-500/25 bg-dew-500/10 text-dew-100"
-          >
-            Available
-          </Badge>
+    <IntegrationRow
+      name="GitHub"
+      description={description}
+      icon={<HugeiconsIcon icon={GithubIcon} strokeWidth={1.8} className="size-5" />}
+      action={action}
+      expanded={expanded}
+      onExpandedChange={setExpanded}
+      onConnect={() => void handleConnect()}
+      isConnecting={isCreatingInstallUrl}
+      isLast={isLast}
+    >
+      {isLoading ? (
+        <Skeleton className="h-24 rounded-lg" />
+      ) : isError ? (
+        <div className="flex flex-col gap-3">
+          <TypographyP className="text-sm text-destructive">
+            {error instanceof Error
+              ? error.message
+              : "Unable to load GitHub installation status right now."}
+          </TypographyP>
+          <Button variant="outline" size="sm" onClick={() => void refetchInstallation()}>
+            Retry
+          </Button>
         </div>
-      </CardHeader>
-      <Separator className="bg-foreground/8" />
-      <CardContent className="px-5 py-5 lg:px-6">
-        {isLoading ? (
-          <Skeleton className="h-10 bg-foreground/5" />
-        ) : isError ? (
-          <div className="flex flex-col gap-4">
-            <TypographyP className="text-sm text-red-300">
-              {error instanceof Error
-                ? error.message
-                : "Unable to load GitHub installation status right now."}
-            </TypographyP>
+      ) : connected ? (
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap gap-2">
+            {installationSettingsUrl ? (
+              <Button
+                variant="outline"
+                size="sm"
+                render={
+                  <a href={installationSettingsUrl} target="_blank" rel="noopener noreferrer" />
+                }
+              >
+                Manage access on GitHub
+              </Button>
+            ) : null}
             <Button
               variant="outline"
-              className="w-fit border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8"
-              onClick={() => void refetchInstallation()}
+              size="sm"
+              onClick={() => syncRepositories.mutate()}
+              disabled={syncRepositories.isPending}
             >
-              Retry
+              <HugeiconsIcon icon={Refresh01Icon} strokeWidth={1.8} className="size-4" />
+              {syncRepositories.isPending ? "Syncing..." : "Sync repositories"}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                disconnect.mutate(undefined, {
+                  onSuccess: () => setExpanded(false),
+                })
+              }
+              disabled={disconnect.isPending}
+            >
+              {disconnect.isPending ? "Disconnecting..." : "Disconnect"}
             </Button>
           </div>
-        ) : installation ? (
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <TypographyP className="text-sm font-medium text-foreground">Connected</TypographyP>
-                <TypographyP className="mt-1 text-sm text-foreground/52">
-                  {installation.accountLogin
-                    ? `Installed on ${
-                        installation.accountType === "Organization" ? "organization" : "account"
-                      } "${installation.accountLogin}"`
-                    : `Installation ID: ${installation.githubInstallationId}`}
-                </TypographyP>
-                <TypographyP className="mt-1 text-xs text-foreground/38">
-                  {installation.enabledRepositoryCount ?? 0} of{" "}
-                  {installation.repositoryCount ?? repositories.length} repositories enabled
-                </TypographyP>
+
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-2 md:flex-row">
+              <div className="relative min-w-0 flex-1">
+                <HugeiconsIcon
+                  icon={Search01Icon}
+                  strokeWidth={1.8}
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                />
+                <input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Search repositories"
+                  aria-label="Search repositories"
+                  className="h-9 w-full rounded-lg border border-border bg-background px-9 text-sm text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-[3px] focus:ring-ring/50"
+                />
               </div>
-              <div className="flex flex-wrap gap-2">
-                {installationSettingsUrl ? (
-                  <Button
-                    variant="outline"
-                    className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
-                    render={
-                      <a href={installationSettingsUrl} target="_blank" rel="noopener noreferrer" />
-                    }
-                  >
-                    Manage access
-                  </Button>
-                ) : null}
-                <Button
-                  variant="outline"
-                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
-                  onClick={() => syncRepositories.mutate()}
-                  disabled={syncRepositories.isPending}
-                >
-                  <HugeiconsIcon icon={Refresh01Icon} strokeWidth={1.8} className="size-4" />
-                  {syncRepositories.isPending ? "Syncing..." : "Sync"}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
-                  onClick={() => disconnect.mutate()}
-                  disabled={disconnect.isPending}
-                >
-                  {disconnect.isPending ? "Disconnecting..." : "Disconnect"}
-                </Button>
-              </div>
-            </div>
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col gap-2 md:flex-row">
-                <div className="relative min-w-0 flex-1">
-                  <HugeiconsIcon
-                    icon={Search01Icon}
-                    strokeWidth={1.8}
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/38"
-                  />
-                  <input
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    placeholder="Search repositories"
-                    aria-label="Search repositories"
-                    className="h-10 w-full rounded-lg border border-foreground/10 bg-foreground/3 px-9 text-sm text-foreground transition-all outline-none placeholder:text-foreground/32 focus:border-foreground/20 focus:ring-[3px] focus:ring-ring/50"
-                  />
-                </div>
-                <Button
-                  className="bg-foreground text-background hover:bg-foreground/90"
-                  onClick={handleEnableSelected}
-                  disabled={updateRepositories.isPending || repositories.length === 0}
-                >
-                  Enable {effectiveSelection.size}
-                </Button>
-                <Button
-                  variant="outline"
-                  className="border-foreground/10 bg-transparent text-foreground hover:bg-foreground/8 hover:text-foreground"
-                  onClick={handleEnableAll}
-                  disabled={updateRepositories.isPending || repositories.length === 0}
-                >
-                  Enable all
-                </Button>
-              </div>
-              <div className="overflow-hidden rounded-lg border border-foreground/10">
-                <div className="grid grid-cols-[48px_minmax(0,1fr)_140px] border-b border-foreground/10 bg-foreground/3 text-xs font-medium tracking-wide text-foreground/42 uppercase">
-                  <div className="px-4 py-3">
-                    <span className="sr-only">Enabled</span>
-                  </div>
-                  <div className="px-4 py-3">Repositories</div>
-                  <div className="px-4 py-3">Branch</div>
-                </div>
-                {isLoadingRepositories ? (
-                  <div className="p-4">
-                    <Skeleton className="h-10 bg-foreground/5" />
-                  </div>
-                ) : filteredRepositories.length > 0 ? (
-                  filteredRepositories.map((repository) => {
-                    const checked = effectiveSelection.has(repository.githubRepositoryId);
-                    return (
-                      <label
-                        key={repository.githubRepositoryId}
-                        className="grid min-h-14 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px] items-center border-b border-foreground/8 text-sm last:border-b-0 hover:bg-foreground/3"
-                      >
-                        <div className="px-4">
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleRepository(repository.githubRepositoryId)}
-                            className="size-4 accent-white"
-                            aria-label={`Enable ${repository.fullName}`}
-                          />
-                        </div>
-                        <div className="min-w-0 px-4">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <HugeiconsIcon
-                              icon={GithubIcon}
-                              strokeWidth={1.8}
-                              className="size-4 shrink-0 text-foreground/60"
-                            />
-                            <span className="truncate text-foreground/82">
-                              {repository.fullName}
-                            </span>
-                            {repository.private ? (
-                              <Badge
-                                variant="outline"
-                                className="border-foreground/10 bg-foreground/5 text-foreground/52"
-                              >
-                                Private
-                              </Badge>
-                            ) : null}
-                            {repository.archived ? (
-                              <Badge
-                                variant="outline"
-                                className="border-amber-500/20 bg-amber-500/10 text-amber-100"
-                              >
-                                Archived
-                              </Badge>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex min-w-0 items-center gap-2 px-4 text-foreground/52">
-                          <HugeiconsIcon
-                            icon={GitBranchIcon}
-                            strokeWidth={1.8}
-                            className="size-4 shrink-0"
-                          />
-                          <span className="truncate">{repository.defaultBranch ?? "default"}</span>
-                        </div>
-                      </label>
-                    );
-                  })
-                ) : (
-                  <div className="px-4 py-8 text-sm text-foreground/52">
-                    {repositories.length === 0
-                      ? "No repositories are available to this GitHub App installation."
-                      : "No repositories match this search."}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-4">
-            <TypographyP className="text-sm text-foreground/52">
-              No GitHub App installation is linked to this organization yet.
-            </TypographyP>
-            <div>
               <Button
-                className="bg-foreground text-background hover:bg-foreground/90"
-                onClick={handleConnect}
+                size="sm"
+                onClick={handleEnableSelected}
+                disabled={updateRepositories.isPending || repositories.length === 0}
               >
-                Connect GitHub
+                Enable {effectiveSelection.size}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEnableAll}
+                disabled={updateRepositories.isPending || repositories.length === 0}
+              >
+                Enable all
               </Button>
             </div>
+            <div className="overflow-hidden rounded-lg border border-border">
+              <div className="grid grid-cols-[48px_minmax(0,1fr)_140px] border-b border-border bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+                <div className="px-4 py-3">
+                  <span className="sr-only">Enabled</span>
+                </div>
+                <div className="px-4 py-3">Repositories</div>
+                <div className="px-4 py-3">Branch</div>
+              </div>
+              {isLoadingRepositories ? (
+                <div className="p-4">
+                  <Skeleton className="h-10 rounded-lg" />
+                </div>
+              ) : filteredRepositories.length > 0 ? (
+                filteredRepositories.map((repository) => {
+                  const checked = effectiveSelection.has(repository.githubRepositoryId);
+                  return (
+                    <label
+                      key={repository.githubRepositoryId}
+                      className="grid min-h-12 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px] items-center border-b border-border text-sm last:border-b-0 hover:bg-muted/30"
+                    >
+                      <div className="px-4">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleRepository(repository.githubRepositoryId)}
+                          className="size-4 accent-foreground"
+                          aria-label={`Enable ${repository.fullName}`}
+                        />
+                      </div>
+                      <div className="min-w-0 px-4">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <HugeiconsIcon
+                            icon={GithubIcon}
+                            strokeWidth={1.8}
+                            className="size-4 shrink-0 text-muted-foreground"
+                          />
+                          <span className="truncate">{repository.fullName}</span>
+                          {repository.private ? <Badge variant="outline">Private</Badge> : null}
+                          {repository.archived ? <Badge variant="outline">Archived</Badge> : null}
+                        </div>
+                      </div>
+                      <div className="flex min-w-0 items-center gap-2 px-4 text-muted-foreground">
+                        <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
+                        <span className="truncate">{repository.defaultBranch ?? "default"}</span>
+                      </div>
+                    </label>
+                  );
+                })
+              ) : (
+                <div className="px-4 py-6 text-sm text-muted-foreground">
+                  {repositories.length === 0
+                    ? "No repositories are available to this GitHub App installation."
+                    : "No repositories match this search."}
+                </div>
+              )}
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : null}
+    </IntegrationRow>
   );
 }

@@ -1,4 +1,5 @@
-import { requireAppCapability } from "@/lib/workos/app-auth";
+import { hasCapability } from "@/api/auth/policy";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { IntegrationsPageContent } from "./_components/integrations-page-content";
 
 export default async function IntegrationsPage({
@@ -7,12 +8,13 @@ export default async function IntegrationsPage({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  const auth = await requireAppCapability("integrations:read", { organizationSlug });
+  const auth = await requireAppAuthContext({ organizationSlug });
 
   return (
     <IntegrationsPageContent
       organizationSlug={organizationSlug}
       membershipRole={auth.membership.role}
+      canManageProviderIntegrations={hasCapability(auth.membership.role, "integrations:read")}
     />
   );
 }

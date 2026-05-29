@@ -67,7 +67,7 @@ function agentErrorRedirect(
   const query = new URLSearchParams({ error }).toString();
 
   if (org.slug) {
-    return { redirectTo: `/org/${org.slug}/agent?${query}` };
+    return { redirectTo: `/org/${org.slug}/integrations?${query}` };
   }
 
   return { redirectTo: `/dashboard?${query}` };
@@ -377,7 +377,7 @@ export async function handleGitHubInstallCallback(
   }
 
   const redirectPath = org.slug
-    ? `/org/${org.slug}/agent?github_connected=1`
+    ? `/org/${org.slug}/integrations?github_connected=1`
     : "/dashboard?github_connected=1";
 
   return finish(

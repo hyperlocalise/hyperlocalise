@@ -126,6 +126,6 @@ export function createSlackOAuthRoutes() {
       return c.redirect("/dashboard?error=slack_install_failed");
     }
 
-    return c.redirect(`/org/${verified.slug}/agent?slack_connected=1`);
+    return c.redirect(`/org/${verified.slug}/integrations?slack_connected=1`);
   });
 }

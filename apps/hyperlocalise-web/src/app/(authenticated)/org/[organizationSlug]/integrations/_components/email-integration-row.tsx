@@ -1,0 +1,205 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Copy01Icon, MailReceive01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+
+import { IntegrationRow } from "./integration-row";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { createApiClient } from "@/lib/api-client";
+import { TypographyP } from "@/components/ui/typography";
+
+const api = createApiClient();
+
+type EmailAgentState = {
+  enabled: boolean;
+  inboundEmailAddress: string | null;
+};
+
+type EmailIntegrationRowProps = {
+  organizationSlug: string;
+  isLast?: boolean;
+  userCanManage: boolean;
+};
+
+function useEmailAgentState(organizationSlug: string) {
+  return useQuery({
+    queryKey: ["email-agent", organizationSlug],
+    queryFn: async () => {
+      const res = await api.api.orgs[":organizationSlug"]["agent-email"].$get({
+        param: { organizationSlug },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to load email agent settings");
+      }
+
+      const data = await res.json();
+      return data.emailAgent as EmailAgentState;
+    },
+  });
+}
+
+function useUpdateEmailAgentState(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const res = await api.api.orgs[":organizationSlug"]["agent-email"].$patch({
+        param: { organizationSlug },
+        json: { enabled },
+      });
+
+      if (!res.ok) {
+        throw new Error("Failed to update email agent settings");
+      }
+
+      const data = await res.json();
+      return data.emailAgent as EmailAgentState;
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["email-agent", organizationSlug] });
+    },
+  });
+}
+
+export function EmailIntegrationRow({
+  organizationSlug,
+  isLast = false,
+  userCanManage,
+}: EmailIntegrationRowProps) {
+  const [expanded, setExpanded] = useState(false);
+  const { data: emailAgent, isLoading, isError } = useEmailAgentState(organizationSlug);
+  const updateEmailAgentState = useUpdateEmailAgentState(organizationSlug);
+
+  const emailAddress = useMemo(() => emailAgent?.inboundEmailAddress ?? "", [emailAgent]);
+  const [copied, setCopied] = useState(false);
+  const copyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const copyEmailAddress = async () => {
+    if (!emailAddress) {
+      return;
+    }
+
+    await navigator.clipboard.writeText(emailAddress);
+    setCopied(true);
+    toast.success("Inbound email copied");
+
+    if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    copyTimeoutRef.current = setTimeout(() => setCopied(false), 5000);
+  };
+
+  useEffect(
+    () => () => {
+      if (copyTimeoutRef.current) clearTimeout(copyTimeoutRef.current);
+    },
+    [],
+  );
+
+  const toggleEnabled = async (enabled: boolean) => {
+    try {
+      await updateEmailAgentState.mutateAsync(enabled);
+      toast.success(enabled ? "Email agent enabled" : "Email agent disabled");
+      if (enabled) {
+        setExpanded(true);
+      }
+    } catch {
+      toast.error("Unable to update email agent right now");
+    }
+  };
+
+  const hasAddress = Boolean(emailAgent?.inboundEmailAddress);
+  const description = hasAddress
+    ? `Inbound address ready. Send files or images with a target language to translate by email.`
+    : "Enable the email agent to receive a unique workspace address for translation requests.";
+
+  const action = !userCanManage
+    ? "view-only"
+    : hasAddress || emailAgent?.enabled
+      ? "manage"
+      : "connect";
+
+  return (
+    <IntegrationRow
+      name="Email"
+      description={description}
+      icon={<HugeiconsIcon icon={MailReceive01Icon} strokeWidth={1.8} className="size-5" />}
+      action={action}
+      expanded={expanded}
+      onExpandedChange={setExpanded}
+      onConnect={() => void toggleEnabled(true)}
+      isConnecting={updateEmailAgentState.isPending}
+      isLast={isLast}
+    >
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <TypographyP className="text-sm leading-6 text-muted-foreground">
+            Send documents, spreadsheets, JSON, text files, or images with a target language. Source
+            language is optional, and style notes apply to file translations.
+          </TypographyP>
+          <Switch
+            checked={emailAgent?.enabled ?? false}
+            onCheckedChange={toggleEnabled}
+            aria-label="Enable email agent"
+            disabled={isLoading || isError || updateEmailAgentState.isPending || !userCanManage}
+          />
+        </div>
+
+        {isError ? (
+          <TypographyP className="text-sm text-destructive">
+            Unable to load email agent settings right now.
+          </TypographyP>
+        ) : null}
+
+        <InputGroup className="h-10">
+          {isLoading ? (
+            <div className="flex h-full w-full items-center px-3">
+              <Skeleton className="h-4 w-full" />
+            </div>
+          ) : (
+            <InputGroupInput
+              readOnly
+              value={emailAddress}
+              aria-label="Email agent intake address"
+              className="truncate text-sm"
+              disabled={!emailAgent?.enabled}
+              placeholder={
+                isError
+                  ? "Email agent settings unavailable"
+                  : "Enable email agent to generate inbox address"
+              }
+            />
+          )}
+          <InputGroupAddon align="inline-end">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <InputGroupButton
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={copyEmailAddress}
+                    disabled={!emailAgent?.enabled || !emailAddress}
+                    aria-label={copied ? "Copied!" : "Copy email address"}
+                  >
+                    <HugeiconsIcon icon={copied ? Tick02Icon : Copy01Icon} strokeWidth={1.8} />
+                  </InputGroupButton>
+                }
+              />
+              <TooltipContent>{copied ? "Copied!" : "Copy email address"}</TooltipContent>
+            </Tooltip>
+          </InputGroupAddon>
+        </InputGroup>
+      </div>
+    </IntegrationRow>
+  );
+}

@@ -55,16 +55,23 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
+import { AgentIntegrationsSection } from "./agent-integrations-section";
+import { IntegrationCategoryLabel } from "./integration-row";
 
 const api = createApiClient();
 
 type IntegrationsPageContentProps = {
   organizationSlug: string;
   membershipRole: OrganizationMembershipRole;
+  canManageProviderIntegrations: boolean;
 };
 
 function canManageIntegrations(role: OrganizationMembershipRole) {
   return hasCapability(role, "integrations:write");
+}
+
+function canManageAgents(role: OrganizationMembershipRole) {
+  return hasCapability(role, "provider_credentials:write");
 }
 
 function tmsHealthTone(status: string): Parameters<typeof toneClass>[0] {
@@ -581,6 +588,7 @@ function useDeleteExternalTmsCredential(organizationSlug: string) {
 export function IntegrationsPageContent({
   organizationSlug,
   membershipRole,
+  canManageProviderIntegrations,
 }: IntegrationsPageContentProps) {
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
@@ -616,6 +624,7 @@ export function IntegrationsPageContent({
   const tmsRegionFieldId = useId();
   const tmsBaseUrlFieldId = useId();
   const userIsAdmin = canManageIntegrations(membershipRole);
+  const userCanManageAgents = canManageAgents(membershipRole);
 
   useEffect(() => {
     if (!credential || selectedProvider !== credential.provider) {
@@ -674,8 +683,8 @@ export function IntegrationsPageContent({
             Integrations
           </TypographyH1>
           <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Configure the model provider Hyperlocalise uses for translation runs and prepare TMS
-            handoffs for approved copy.
+            Connect source control, collaboration channels, translation systems, and model providers
+            for your workspace.
           </TypographyP>
         </div>
         <Badge variant="outline" className="rounded-full lg:self-start">
@@ -683,476 +692,498 @@ export function IntegrationsPageContent({
         </Badge>
       </div>
 
-      <section className="flex flex-col gap-4">
-        <div>
-          <TypographyH2 className="font-heading text-xl font-medium text-foreground md:text-xl">
-            Model Provider
-          </TypographyH2>
-          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Choose how Hyperlocalise runs translations: use our managed provider or bring your own
-            API keys.
-          </TypographyP>
-        </div>
+      <AgentIntegrationsSection
+        organizationSlug={organizationSlug}
+        userCanManage={userCanManageAgents}
+      />
 
-        {isLoading ? (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {modelProviderCards.map((provider) => (
-              <Skeleton key={provider.id} className="min-h-44 rounded-lg" />
-            ))}
-          </div>
-        ) : (
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            {modelProviderCards.map((provider) => {
-              const isManaged = provider.id === hyperlocaliseGoProvider.id;
-              const isByok = !isManaged;
-              const isConfigured = isByok && credential?.provider === provider.id;
-              const isActive = isManaged ? !credential : isConfigured;
+      {canManageProviderIntegrations ? (
+        <>
+          <section className="flex flex-col gap-3">
+            <div>
+              <IntegrationCategoryLabel>TMS</IntegrationCategoryLabel>
+              <TypographyH2 className="mt-2 font-heading text-xl font-medium text-foreground md:text-xl">
+                TMS
+              </TypographyH2>
+              <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Connect external translation management systems to sync projects, files, jobs,
+                glossaries, and translation memories into the unified workspace.
+              </TypographyP>
+            </div>
 
-              return (
-                <ModelProviderCard
-                  key={provider.id}
-                  provider={provider}
-                  isActive={isActive}
-                  isManaged={isManaged}
-                  footerLabel={
-                    isManaged ? (isActive ? undefined : "Switch to managed") : "Configure"
-                  }
-                  disabled={isManaged && isActive ? true : isManaged && deleteCredential.isPending}
-                  onSelect={() => {
-                    if (isManaged) {
-                      if (credential) {
-                        deleteCredential.mutate();
-                      }
-                      return;
-                    }
-
-                    const byokProvider = provider.id as LlmProvider;
-
-                    setSelectedProvider(byokProvider);
-                    setSelectedModel(
-                      isConfigured && credential
-                        ? credential.defaultModel
-                        : defaultModelByProvider[byokProvider],
-                    );
-                    setApiKey("");
-                    setDialogOpen(true);
-                  }}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Configure {selectedProviderLabel}</DialogTitle>
-            <DialogDescription>
-              Save one shared provider key for this workspace. Saving validates the key, encrypts it
-              at rest, and replaces the current provider.
-            </DialogDescription>
-          </DialogHeader>
-
-          {selectedByokProvider && selectedProviderConfig ? (
-            <form
-              className="flex flex-col gap-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                saveCredential.mutate(
-                  {
-                    provider: selectedByokProvider,
-                    defaultModel: selectedModel,
-                    apiKey,
-                  },
-                  {
-                    onSuccess: () => {
-                      setApiKey("");
-                      setShowApiKey(false);
-                      setDialogOpen(false);
-                    },
-                  },
-                );
-              }}
-            >
-              <Field className="gap-2">
-                <FieldLabel htmlFor={modelFieldId}>Default model</FieldLabel>
-                <Select
-                  value={selectedModel}
-                  onValueChange={(value) => setSelectedModel(value ?? "")}
-                >
-                  <SelectTrigger id={modelFieldId} className="h-9 w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {selectedProviderConfig.models.map((model) => (
-                      <SelectItem key={model} value={model}>
-                        {model}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Field>
-
-              <Field className="gap-2">
-                <FieldLabel htmlFor={apiKeyFieldId}>API key</FieldLabel>
-                <div className="relative">
-                  <HugeiconsIcon
-                    icon={Key01Icon}
-                    strokeWidth={1.8}
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                  />
-                  <Input
-                    id={apiKeyFieldId}
-                    type={showApiKey ? "text" : "password"}
-                    autoComplete="off"
-                    value={apiKey}
-                    onChange={(event) => setApiKey(event.target.value)}
-                    placeholder={`Enter ${selectedProviderLabel} API key`}
-                    className="ps-9 pe-9"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label={showApiKey ? "Hide API key" : "Show API key"}
+            {isLoadingExternalTms ? (
+              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+                {tmsIntegrations.map((integration, index) => (
+                  <div
+                    key={integration.name}
+                    className={cn("px-5 py-4", index > 0 && "border-t border-border")}
                   >
-                    {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                  </button>
-                </div>
-              </Field>
-
-              <DialogFooter>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => deleteCredential.mutate()}
-                  disabled={!credential || deleteCredential.isPending}
-                >
-                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                  {deleteCredential.isPending ? "Disconnecting..." : "Disconnect"}
-                </Button>
-                <Button type="submit" disabled={!apiKey.trim() || saveCredential.isPending}>
-                  <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-                  {saveCredential.isPending ? "Validating..." : "Save provider"}
-                </Button>
-              </DialogFooter>
-            </form>
-          ) : null}
-        </DialogContent>
-      </Dialog>
-
-      <section className="flex flex-col gap-4">
-        <div>
-          <TypographyH2 className="font-heading text-xl font-medium text-foreground md:text-xl">
-            TMS
-          </TypographyH2>
-          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Connect external translation management systems to sync projects, files, jobs,
-            glossaries, and translation memories into the unified workspace.
-          </TypographyP>
-        </div>
-
-        {isLoadingExternalTms ? (
-          <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-            {tmsIntegrations.map((integration, index) => (
-              <div
-                key={integration.name}
-                className={cn("px-5 py-4", index > 0 && "border-t border-border")}
-              >
-                <Skeleton className="h-14 rounded-lg" />
+                    <Skeleton className="h-14 rounded-lg" />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-            {tmsIntegrations.map((integration, index) => {
-              const credential = externalTmsCredentials?.find(
-                (item) => item.providerKind === integration.providerKind,
-              );
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+                {tmsIntegrations.map((integration, index) => {
+                  const tmsCredential = externalTmsCredentials?.find(
+                    (item) => item.providerKind === integration.providerKind,
+                  );
 
-              return (
-                <TmsIntegrationRow
-                  key={integration.name}
-                  integration={integration}
-                  credential={credential}
-                  userIsAdmin={userIsAdmin}
-                  isLast={index === tmsIntegrations.length - 1}
-                  onAction={() => openTmsProviderDialog(integration.providerKind, credential)}
-                />
-              );
-            })}
-          </div>
-        )}
-      </section>
+                  return (
+                    <TmsIntegrationRow
+                      key={integration.name}
+                      integration={integration}
+                      credential={tmsCredential}
+                      userIsAdmin={userIsAdmin}
+                      isLast={index === tmsIntegrations.length - 1}
+                      onAction={() =>
+                        openTmsProviderDialog(integration.providerKind, tmsCredential)
+                      }
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-      <Dialog open={tmsDialogOpen} onOpenChange={setTmsDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {selectedTmsProvider
-                ? `${tmsIntegrations.find((t) => t.providerKind === selectedTmsProvider)?.name} credentials`
-                : "TMS credentials"}
-            </DialogTitle>
-            <DialogDescription>
-              Save credentials to connect this provider. The secret is encrypted at rest and used to
-              sync projects, files, and jobs into the workspace.
-            </DialogDescription>
-          </DialogHeader>
+          <section className="flex flex-col gap-3">
+            <div>
+              <IntegrationCategoryLabel>Model provider</IntegrationCategoryLabel>
+              <TypographyH2 className="mt-2 font-heading text-xl font-medium text-foreground md:text-xl">
+                Model Provider
+              </TypographyH2>
+              <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
+                Choose how Hyperlocalise runs translations: use our managed provider or bring your
+                own API keys.
+              </TypographyP>
+            </div>
 
-          {selectedTmsProvider ? (
-            <form
-              className="flex flex-col gap-5"
-              onSubmit={(event) => {
-                event.preventDefault();
-                saveExternalTms.mutate(
-                  {
-                    providerKind: selectedTmsProvider,
-                    displayName: tmsDisplayName.trim(),
-                    secretMaterial: tmsSecret.trim(),
-                    ...(tmsRegion.trim() ? { region: tmsRegion.trim() } : {}),
-                    ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
-                  },
-                  {
-                    onSuccess: () => {
-                      setTmsDisplayName("");
-                      setTmsSecret("");
-                      setTmsRegion("");
-                      setTmsBaseUrl("");
-                      setShowTmsSecret(false);
-                      setTmsDialogOpen(false);
-                    },
-                  },
-                );
-              }}
-            >
-              <Field className="gap-2">
-                <FieldLabel htmlFor={tmsDisplayNameFieldId}>Display name</FieldLabel>
-                <Input
-                  id={tmsDisplayNameFieldId}
-                  value={tmsDisplayName}
-                  onChange={(event) => setTmsDisplayName(event.target.value)}
-                  placeholder="e.g. Crowdin Production"
-                />
-              </Field>
+            {isLoading ? (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {modelProviderCards.map((provider) => (
+                  <Skeleton key={provider.id} className="min-h-44 rounded-lg" />
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {modelProviderCards.map((provider) => {
+                  const isManaged = provider.id === hyperlocaliseGoProvider.id;
+                  const isByok = !isManaged;
+                  const isConfigured = isByok && credential?.provider === provider.id;
+                  const isActive = isManaged ? !credential : isConfigured;
 
-              <Field className="gap-2">
-                <FieldLabel htmlFor={tmsSecretFieldId}>API token / secret</FieldLabel>
-                <div className="relative">
-                  <HugeiconsIcon
-                    icon={Key01Icon}
-                    strokeWidth={1.8}
-                    className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                  />
-                  <Input
-                    id={tmsSecretFieldId}
-                    type={showTmsSecret ? "text" : "password"}
-                    autoComplete="off"
-                    value={tmsSecret}
-                    onChange={(event) => setTmsSecret(event.target.value)}
-                    placeholder="Enter provider API token"
-                    className="ps-9 pe-9"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowTmsSecret(!showTmsSecret)}
-                    className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                    aria-label={showTmsSecret ? "Hide secret" : "Show secret"}
-                  >
-                    {showTmsSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                  </button>
-                </div>
-              </Field>
+                  return (
+                    <ModelProviderCard
+                      key={provider.id}
+                      provider={provider}
+                      isActive={isActive}
+                      isManaged={isManaged}
+                      footerLabel={
+                        isManaged ? (isActive ? undefined : "Switch to managed") : "Configure"
+                      }
+                      disabled={
+                        isManaged && isActive ? true : isManaged && deleteCredential.isPending
+                      }
+                      onSelect={() => {
+                        if (isManaged) {
+                          if (credential) {
+                            deleteCredential.mutate();
+                          }
+                          return;
+                        }
 
-              <Field className="gap-2">
-                <FieldLabel htmlFor={tmsRegionFieldId}>Region (optional)</FieldLabel>
-                <Input
-                  id={tmsRegionFieldId}
-                  value={tmsRegion}
-                  onChange={(event) => setTmsRegion(event.target.value)}
-                  placeholder="e.g. us, eu"
-                />
-              </Field>
+                        const byokProvider = provider.id as LlmProvider;
 
-              <Field className="gap-2">
-                <FieldLabel htmlFor={tmsBaseUrlFieldId}>Base URL (optional)</FieldLabel>
-                <Input
-                  id={tmsBaseUrlFieldId}
-                  value={tmsBaseUrl}
-                  onChange={(event) => setTmsBaseUrl(event.target.value)}
-                  placeholder="https://api.example.com"
-                />
-              </Field>
+                        setSelectedProvider(byokProvider);
+                        setSelectedModel(
+                          isConfigured && credential
+                            ? credential.defaultModel
+                            : defaultModelByProvider[byokProvider],
+                        );
+                        setApiKey("");
+                        setDialogOpen(true);
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </section>
 
-              {selectedTmsCredential && selectedTmsCredential.webhookSubscriptions.length > 0 ? (
-                <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div>
-                      <p className="text-sm font-medium text-foreground">Webhook sync</p>
-                      <p className="mt-0.5 text-sm text-muted-foreground">
-                        Hyperlocalise registers inbound webhooks automatically when the provider API
-                        allows it.
-                      </p>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Configure {selectedProviderLabel}</DialogTitle>
+                <DialogDescription>
+                  Save one shared provider key for this workspace. Saving validates the key,
+                  encrypts it at rest, and replaces the current provider.
+                </DialogDescription>
+              </DialogHeader>
+
+              {selectedByokProvider && selectedProviderConfig ? (
+                <form
+                  className="flex flex-col gap-5"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    saveCredential.mutate(
+                      {
+                        provider: selectedByokProvider,
+                        defaultModel: selectedModel,
+                        apiKey,
+                      },
+                      {
+                        onSuccess: () => {
+                          setApiKey("");
+                          setShowApiKey(false);
+                          setDialogOpen(false);
+                        },
+                      },
+                    );
+                  }}
+                >
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={modelFieldId}>Default model</FieldLabel>
+                    <Select
+                      value={selectedModel}
+                      onValueChange={(value) => setSelectedModel(value ?? "")}
+                    >
+                      <SelectTrigger id={modelFieldId} className="h-9 w-full">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {selectedProviderConfig.models.map((model) => (
+                          <SelectItem key={model} value={model}>
+                            {model}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </Field>
+
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={apiKeyFieldId}>API key</FieldLabel>
+                    <div className="relative">
+                      <HugeiconsIcon
+                        icon={Key01Icon}
+                        strokeWidth={1.8}
+                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <Input
+                        id={apiKeyFieldId}
+                        type={showApiKey ? "text" : "password"}
+                        autoComplete="off"
+                        value={apiKey}
+                        onChange={(event) => setApiKey(event.target.value)}
+                        placeholder={`Enter ${selectedProviderLabel} API key`}
+                        className="ps-9 pe-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowApiKey(!showApiKey)}
+                        className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                      >
+                        {showApiKey ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                      </button>
                     </div>
-                    {userIsAdmin &&
-                    selectedTmsCredential.webhookSubscriptions.some((item) => item.canRetry) ? (
+                  </Field>
+
+                  <DialogFooter>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => deleteCredential.mutate()}
+                      disabled={!credential || deleteCredential.isPending}
+                    >
+                      <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                      {deleteCredential.isPending ? "Disconnecting..." : "Disconnect"}
+                    </Button>
+                    <Button type="submit" disabled={!apiKey.trim() || saveCredential.isPending}>
+                      <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                      {saveCredential.isPending ? "Validating..." : "Save provider"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={tmsDialogOpen} onOpenChange={setTmsDialogOpen}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>
+                  {selectedTmsProvider
+                    ? `${tmsIntegrations.find((t) => t.providerKind === selectedTmsProvider)?.name} credentials`
+                    : "TMS credentials"}
+                </DialogTitle>
+                <DialogDescription>
+                  Save credentials to connect this provider. The secret is encrypted at rest and
+                  used to sync projects, files, and jobs into the workspace.
+                </DialogDescription>
+              </DialogHeader>
+
+              {selectedTmsProvider ? (
+                <form
+                  className="flex flex-col gap-5"
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    saveExternalTms.mutate(
+                      {
+                        providerKind: selectedTmsProvider,
+                        displayName: tmsDisplayName.trim(),
+                        secretMaterial: tmsSecret.trim(),
+                        ...(tmsRegion.trim() ? { region: tmsRegion.trim() } : {}),
+                        ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                      },
+                      {
+                        onSuccess: () => {
+                          setTmsDisplayName("");
+                          setTmsSecret("");
+                          setTmsRegion("");
+                          setTmsBaseUrl("");
+                          setShowTmsSecret(false);
+                          setTmsDialogOpen(false);
+                        },
+                      },
+                    );
+                  }}
+                >
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={tmsDisplayNameFieldId}>Display name</FieldLabel>
+                    <Input
+                      id={tmsDisplayNameFieldId}
+                      value={tmsDisplayName}
+                      onChange={(event) => setTmsDisplayName(event.target.value)}
+                      placeholder="e.g. Crowdin Production"
+                    />
+                  </Field>
+
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={tmsSecretFieldId}>API token / secret</FieldLabel>
+                    <div className="relative">
+                      <HugeiconsIcon
+                        icon={Key01Icon}
+                        strokeWidth={1.8}
+                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                      />
+                      <Input
+                        id={tmsSecretFieldId}
+                        type={showTmsSecret ? "text" : "password"}
+                        autoComplete="off"
+                        value={tmsSecret}
+                        onChange={(event) => setTmsSecret(event.target.value)}
+                        placeholder="Enter provider API token"
+                        className="ps-9 pe-9"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowTmsSecret(!showTmsSecret)}
+                        className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+                        aria-label={showTmsSecret ? "Hide secret" : "Show secret"}
+                      >
+                        {showTmsSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+                      </button>
+                    </div>
+                  </Field>
+
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={tmsRegionFieldId}>Region (optional)</FieldLabel>
+                    <Input
+                      id={tmsRegionFieldId}
+                      value={tmsRegion}
+                      onChange={(event) => setTmsRegion(event.target.value)}
+                      placeholder="e.g. us, eu"
+                    />
+                  </Field>
+
+                  <Field className="gap-2">
+                    <FieldLabel htmlFor={tmsBaseUrlFieldId}>Base URL (optional)</FieldLabel>
+                    <Input
+                      id={tmsBaseUrlFieldId}
+                      value={tmsBaseUrl}
+                      onChange={(event) => setTmsBaseUrl(event.target.value)}
+                      placeholder="https://api.example.com"
+                    />
+                  </Field>
+
+                  {selectedTmsCredential &&
+                  selectedTmsCredential.webhookSubscriptions.length > 0 ? (
+                    <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-medium text-foreground">Webhook sync</p>
+                          <p className="mt-0.5 text-sm text-muted-foreground">
+                            Hyperlocalise registers inbound webhooks automatically when the provider
+                            API allows it.
+                          </p>
+                        </div>
+                        {userIsAdmin &&
+                        selectedTmsCredential.webhookSubscriptions.some((item) => item.canRetry) ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={retryWebhookSetup.isPending}
+                            onClick={() => {
+                              if (!selectedTmsProvider) {
+                                return;
+                              }
+
+                              retryWebhookSetup.mutate(selectedTmsProvider);
+                            }}
+                          >
+                            {retryWebhookSetup.isPending ? "Retrying..." : "Retry setup"}
+                          </Button>
+                        ) : null}
+                      </div>
+
+                      <div className="space-y-3">
+                        {selectedTmsCredential.webhookSubscriptions.map((subscription) => (
+                          <div
+                            key={subscription.id}
+                            className="space-y-2 rounded-md border border-border bg-card p-3"
+                          >
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Badge
+                                variant="outline"
+                                className={toneClass(webhookStatusTone(subscription.status))}
+                              >
+                                {webhookStatusLabel(subscription.status)}
+                              </Badge>
+                              {subscription.projectId ? (
+                                <span className="text-xs text-muted-foreground">
+                                  Project {subscription.projectId}
+                                </span>
+                              ) : null}
+                            </div>
+
+                            {subscription.manualFallback ? (
+                              <div className="space-y-2 text-sm text-muted-foreground">
+                                <p>
+                                  <span className="font-medium text-foreground">Webhook URL:</span>{" "}
+                                  <code className="break-all rounded bg-muted px-1 py-0.5 text-xs">
+                                    {subscription.manualFallback.webhookUrl}
+                                  </code>
+                                </p>
+                                {subscription.manualFallback.secretHeaderName ? (
+                                  <p>
+                                    <span className="font-medium text-foreground">
+                                      Secret header:
+                                    </span>{" "}
+                                    {subscription.manualFallback.secretHeaderName}
+                                  </p>
+                                ) : null}
+                                {subscription.manualFallback.secretInstructions ? (
+                                  <p>{subscription.manualFallback.secretInstructions}</p>
+                                ) : null}
+                                {subscription.manualFallback.subscribedEvents.length > 0 ? (
+                                  <p>
+                                    <span className="font-medium text-foreground">Events:</span>{" "}
+                                    {subscription.manualFallback.subscribedEvents.join(", ")}
+                                  </p>
+                                ) : null}
+                                {subscription.manualFallback.lastError ? (
+                                  <p className="text-destructive">
+                                    {subscription.manualFallback.lastError}
+                                  </p>
+                                ) : null}
+                              </div>
+                            ) : subscription.lastError ? (
+                              <p className="text-sm text-destructive">{subscription.lastError}</p>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : selectedTmsCredential ? (
+                    <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+                      Webhook subscriptions appear after projects are synced for this provider.
+                    </div>
+                  ) : null}
+
+                  <DialogFooter className="gap-2 sm:justify-between">
+                    {selectedTmsCredential && userIsAdmin ? (
                       <Button
                         type="button"
                         variant="outline"
-                        size="sm"
-                        disabled={retryWebhookSetup.isPending}
                         onClick={() => {
-                          if (!selectedTmsProvider) {
-                            return;
-                          }
-
-                          retryWebhookSetup.mutate(selectedTmsProvider);
+                          setTmsDialogOpen(false);
+                          setDisconnectingTmsProvider(selectedTmsProvider);
                         }}
+                        disabled={deleteExternalTms.isPending}
                       >
-                        {retryWebhookSetup.isPending ? "Retrying..." : "Retry setup"}
+                        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                        Disconnect
                       </Button>
-                    ) : null}
-                  </div>
-
-                  <div className="space-y-3">
-                    {selectedTmsCredential.webhookSubscriptions.map((subscription) => (
-                      <div
-                        key={subscription.id}
-                        className="space-y-2 rounded-md border border-border bg-card p-3"
+                    ) : (
+                      <div />
+                    )}
+                    <div className="flex gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setTmsDialogOpen(false)}
                       >
-                        <div className="flex flex-wrap items-center gap-2">
-                          <Badge
-                            variant="outline"
-                            className={toneClass(webhookStatusTone(subscription.status))}
-                          >
-                            {webhookStatusLabel(subscription.status)}
-                          </Badge>
-                          {subscription.projectId ? (
-                            <span className="text-xs text-muted-foreground">
-                              Project {subscription.projectId}
-                            </span>
-                          ) : null}
-                        </div>
-
-                        {subscription.manualFallback ? (
-                          <div className="space-y-2 text-sm text-muted-foreground">
-                            <p>
-                              <span className="font-medium text-foreground">Webhook URL:</span>{" "}
-                              <code className="break-all rounded bg-muted px-1 py-0.5 text-xs">
-                                {subscription.manualFallback.webhookUrl}
-                              </code>
-                            </p>
-                            {subscription.manualFallback.secretHeaderName ? (
-                              <p>
-                                <span className="font-medium text-foreground">Secret header:</span>{" "}
-                                {subscription.manualFallback.secretHeaderName}
-                              </p>
-                            ) : null}
-                            {subscription.manualFallback.secretInstructions ? (
-                              <p>{subscription.manualFallback.secretInstructions}</p>
-                            ) : null}
-                            {subscription.manualFallback.subscribedEvents.length > 0 ? (
-                              <p>
-                                <span className="font-medium text-foreground">Events:</span>{" "}
-                                {subscription.manualFallback.subscribedEvents.join(", ")}
-                              </p>
-                            ) : null}
-                            {subscription.manualFallback.lastError ? (
-                              <p className="text-destructive">
-                                {subscription.manualFallback.lastError}
-                              </p>
-                            ) : null}
-                          </div>
-                        ) : subscription.lastError ? (
-                          <p className="text-sm text-destructive">{subscription.lastError}</p>
-                        ) : null}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : selectedTmsCredential ? (
-                <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-                  Webhook subscriptions appear after projects are synced for this provider.
-                </div>
+                        Cancel
+                      </Button>
+                      <Button
+                        type="submit"
+                        disabled={
+                          !tmsDisplayName.trim() || !tmsSecret.trim() || saveExternalTms.isPending
+                        }
+                      >
+                        <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+                        {saveExternalTms.isPending ? "Saving..." : "Save provider"}
+                      </Button>
+                    </div>
+                  </DialogFooter>
+                </form>
               ) : null}
+            </DialogContent>
+          </Dialog>
 
-              <DialogFooter className="gap-2 sm:justify-between">
-                {selectedTmsCredential && userIsAdmin ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => {
-                      setTmsDialogOpen(false);
-                      setDisconnectingTmsProvider(selectedTmsProvider);
-                    }}
-                    disabled={deleteExternalTms.isPending}
-                  >
-                    <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                    Disconnect
-                  </Button>
-                ) : (
-                  <div />
-                )}
-                <div className="flex gap-2">
-                  <Button type="button" variant="outline" onClick={() => setTmsDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    disabled={
-                      !tmsDisplayName.trim() || !tmsSecret.trim() || saveExternalTms.isPending
+          <AlertDialog
+            open={disconnectingTmsProvider !== null}
+            onOpenChange={(open) => {
+              if (!deleteExternalTms.isPending) {
+                setDisconnectingTmsProvider(open ? disconnectingTmsProvider : null);
+              }
+            }}
+          >
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Disconnect {disconnectingTmsProviderName ?? "TMS provider"}?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  This removes the saved encrypted API credential. Reconnecting this provider will
+                  require entering the secret again.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleteExternalTms.isPending}>Cancel</AlertDialogCancel>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={!disconnectingTmsProvider || deleteExternalTms.isPending}
+                  onClick={() => {
+                    if (!disconnectingTmsProvider) {
+                      return;
                     }
-                  >
-                    <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-                    {saveExternalTms.isPending ? "Saving..." : "Save provider"}
-                  </Button>
-                </div>
-              </DialogFooter>
-            </form>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
-      <AlertDialog
-        open={disconnectingTmsProvider !== null}
-        onOpenChange={(open) => {
-          if (!deleteExternalTms.isPending) {
-            setDisconnectingTmsProvider(open ? disconnectingTmsProvider : null);
-          }
-        }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Disconnect {disconnectingTmsProviderName ?? "TMS provider"}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              This removes the saved encrypted API credential. Reconnecting this provider will
-              require entering the secret again.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleteExternalTms.isPending}>Cancel</AlertDialogCancel>
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={!disconnectingTmsProvider || deleteExternalTms.isPending}
-              onClick={() => {
-                if (!disconnectingTmsProvider) {
-                  return;
-                }
-
-                deleteExternalTms.mutate(disconnectingTmsProvider, {
-                  onSuccess: () => setDisconnectingTmsProvider(null),
-                });
-              }}
-            >
-              <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-              {deleteExternalTms.isPending ? "Disconnecting..." : "Disconnect"}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+                    deleteExternalTms.mutate(disconnectingTmsProvider, {
+                      onSuccess: () => setDisconnectingTmsProvider(null),
+                    });
+                  }}
+                >
+                  <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+                  {deleteExternalTms.isPending ? "Disconnecting..." : "Disconnect"}
+                </Button>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      ) : null}
     </main>
   );
 }

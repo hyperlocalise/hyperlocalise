@@ -143,7 +143,7 @@ describe("GitHubCallbackPage", () => {
     const { auth, nonce, slug, state } = await createCallbackState({ role: "admin" });
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/agent?github_connected=1`,
+      `redirect:/org/${slug}/integrations?github_connected=1`,
     );
 
     const [installation] = await db
@@ -209,7 +209,7 @@ describe("GitHubCallbackPage", () => {
     const { slug, state } = await createCallbackState({ dbExpired: true });
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/agent?error=invalid_state`,
+      `redirect:/org/${slug}/integrations?error=invalid_state`,
     );
     expect(getGitHubAppMock).not.toHaveBeenCalled();
   });
@@ -218,7 +218,7 @@ describe("GitHubCallbackPage", () => {
     const { slug, state } = await createCallbackState({ consumed: true });
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/agent?error=invalid_state`,
+      `redirect:/org/${slug}/integrations?error=invalid_state`,
     );
     expect(getGitHubAppMock).not.toHaveBeenCalled();
   });
@@ -236,7 +236,7 @@ describe("GitHubCallbackPage", () => {
     const { auth, slug, state } = await createCallbackState({ role: "admin" });
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/agent?error=github_installation_already_linked`,
+      `redirect:/org/${slug}/integrations?error=github_installation_already_linked`,
     );
 
     const [linkedInstallation] = await db
@@ -271,7 +271,7 @@ describe("GitHubCallbackPage", () => {
     await fixture.authHeadersFor(otherAdminIdentity);
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/agent?github_connected=1`,
+      `redirect:/org/${slug}/integrations?github_connected=1`,
     );
 
     const [installation] = await db
@@ -290,7 +290,7 @@ describe("GitHubCallbackPage", () => {
     globalThis.__testApiAuthContext = undefined;
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/agent?github_connected=1`,
+      `redirect:/org/${slug}/integrations?github_connected=1`,
     );
 
     const [installation] = await db
@@ -349,7 +349,7 @@ describe("GitHubCallbackPage", () => {
     });
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/agent?error=github_app_private_key_invalid`,
+      `redirect:/org/${slug}/integrations?error=github_app_private_key_invalid`,
     );
     expect(syncInstallationRepositoriesMock).not.toHaveBeenCalled();
   });

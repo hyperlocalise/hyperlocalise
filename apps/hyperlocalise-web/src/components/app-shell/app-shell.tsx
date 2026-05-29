@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import {
   BookOpenTextIcon,
-  BotIcon,
   BubbleChatTranslateIcon,
   DashboardSquare01Icon,
   DatabaseSyncIcon,
@@ -86,9 +85,9 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
       label: "Manage",
       items: [
         {
-          label: "Agent",
-          href: `/org/${activeOrganizationSlug}/agent`,
-          icon: BotIcon,
+          label: "Integrations",
+          href: `/org/${activeOrganizationSlug}/integrations`,
+          icon: LinkSquare02Icon,
         },
         {
           label: "Glossaries",
@@ -100,15 +99,6 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
           href: `/org/${activeOrganizationSlug}/translation-memories`,
           icon: DatabaseSyncIcon,
         },
-        ...(hasCapability(auth.membership.role, "integrations:read")
-          ? [
-              {
-                label: "Integrations",
-                href: `/org/${activeOrganizationSlug}/integrations`,
-                icon: LinkSquare02Icon,
-              },
-            ]
-          : []),
         {
           label: "Settings",
           href: `/org/${activeOrganizationSlug}/settings`,

@@ -1,6 +1,5 @@
 const ROUTE_TITLES = {
   account: "Account",
-  agent: "Agent",
   billing: "Billing",
   chat: "Chat",
   context: "Context",
