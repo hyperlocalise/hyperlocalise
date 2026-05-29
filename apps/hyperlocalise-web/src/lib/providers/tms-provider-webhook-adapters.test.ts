@@ -181,7 +181,7 @@ describe("tms provider webhook adapters", () => {
         deliveryId:
           providerKind === "smartling" && expected.providerEventId === "smartling-delivery-1"
             ? "smartling-delivery-1"
-            : providerKind === "phrase"
+            : providerKind === "phrase" || providerKind === "lokalise"
               ? expected.providerEventId
               : null,
         eventType: expected.eventType,

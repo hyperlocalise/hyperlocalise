@@ -3,6 +3,13 @@ import { bodyLimit } from "hono/body-limit";
 
 import { createLogger } from "@/lib/log";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
+import {
+  logIntentEnqueued,
+  logWebhookAccepted,
+  logWebhookDuplicate,
+  logWebhookIgnored,
+  logWebhookVerificationFailed,
+} from "@/lib/providers/provider-tms-sync-telemetry";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { enqueueProviderSyncIntentFromWebhookEvent } from "@/lib/providers/provider-sync-intent-worker";
 import {
@@ -112,17 +119,14 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
           ? "unsupported_provider_webhook_event"
           : "unrecognized_provider_webhook_event";
 
-      logger.warn(
-        {
-          providerKind: input.providerKind,
-          subscriptionId: input.subscriptionId,
-          providerWebhookEventId: input.providerWebhookEventId,
-          eventType: input.descriptor.eventType,
-          resourceType: input.descriptor.resourceType ?? null,
-          mappedIntentKinds: input.descriptor.mappedIntents.map((intent) => intent.kind),
-        },
-        "ignoring webhook: unsupported provider event",
-      );
+      logWebhookIgnored({
+        providerKind: input.providerKind,
+        organizationId: input.organizationId,
+        subscriptionId: input.subscriptionId,
+        providerWebhookEventId: input.providerWebhookEventId,
+        eventType: input.descriptor.eventType,
+        reason: errorMessage,
+      });
 
       await updateProviderWebhookEventProcessingStatus({
         eventId: input.providerWebhookEventId,
@@ -159,6 +163,15 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
           mappedIntent,
         });
         primaryProviderSyncIntentId ??= providerSyncIntentId;
+
+        logIntentEnqueued({
+          providerKind: input.providerKind,
+          organizationId: input.organizationId,
+          subscriptionId: input.subscriptionId,
+          providerWebhookEventId: input.providerWebhookEventId,
+          providerSyncIntentId,
+          syncKind: mappedIntent.kind,
+        });
 
         const record = { key, providerSyncIntentId };
         enqueuedMappedIntents.push(record);
@@ -295,7 +308,10 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         requestUrl: c.req.url,
       });
       if (!descriptor) {
-        logger.info({ providerKind: providerKindParam }, "ignoring webhook: missing identifiers");
+        logWebhookIgnored({
+          providerKind: providerKindParam,
+          reason: "missing_identifiers",
+        });
         return c.json({ ok: true, ignored: true }, 202);
       }
 
@@ -310,7 +326,12 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         providerWebhookId: descriptor.providerWebhookId,
       });
       if (!subscription) {
-        log.info("ignoring webhook: subscription not found");
+        logWebhookIgnored({
+          providerKind: providerKindParam,
+          providerEventId: descriptor.providerEventId,
+          deliveryId: descriptor.deliveryId,
+          reason: "subscription_not_found",
+        });
         return c.json({ ok: true, ignored: true }, 202);
       }
       if (!subscription.webhookSecretPlaintext) {
@@ -327,7 +348,13 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         descriptor,
       });
       if (!verified) {
-        log.warn({ subscriptionId: subscription.id }, "invalid webhook signature");
+        logWebhookVerificationFailed({
+          providerKind: providerKindParam,
+          organizationId: subscription.organizationId,
+          subscriptionId: subscription.id,
+          providerEventId: descriptor.providerEventId,
+          deliveryId: descriptor.deliveryId,
+        });
         return c.json({ error: "invalid_signature" }, 401);
       }
 
@@ -372,21 +399,40 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
             enqueuedMappedIntents: enqueuedMappedIntentRecords(stored.event.errorDetails),
           });
 
-          log.info(
-            {
+          if (providerSyncIntentId) {
+            logWebhookDuplicate({
+              providerKind: providerKindParam,
+              organizationId: subscription.organizationId,
               subscriptionId: subscription.id,
-              providerSyncIntentId,
               providerWebhookEventId: stored.event.id,
-            },
-            providerSyncIntentId
-              ? "webhook reconciliation requeued for pending duplicate"
-              : "webhook duplicate ignored for unrecognized provider event",
-          );
+              providerSyncIntentId,
+              providerEventId: descriptor.providerEventId,
+              deliveryId: descriptor.deliveryId,
+              reason: "requeued_pending_duplicate",
+            });
+          } else {
+            logWebhookIgnored({
+              providerKind: providerKindParam,
+              organizationId: subscription.organizationId,
+              subscriptionId: subscription.id,
+              providerWebhookEventId: stored.event.id,
+              providerEventId: descriptor.providerEventId,
+              deliveryId: descriptor.deliveryId,
+              reason: "duplicate_unrecognized_event",
+            });
+          }
 
           return c.json({ ok: true, ignored: providerSyncIntentId === null, duplicate: true }, 202);
         }
 
-        log.info({ subscriptionId: subscription.id }, "ignoring duplicate webhook delivery");
+        logWebhookDuplicate({
+          providerKind: providerKindParam,
+          organizationId: subscription.organizationId,
+          subscriptionId: subscription.id,
+          providerWebhookEventId: stored.event?.id,
+          providerEventId: descriptor.providerEventId,
+          deliveryId: descriptor.deliveryId,
+        });
         return c.json({ ok: true, ignored: true, duplicate: true }, 200);
       }
 
@@ -400,16 +446,29 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         descriptor,
       });
 
-      log.info(
-        {
+      if (providerSyncIntentId) {
+        logWebhookAccepted({
+          providerKind: providerKindParam,
+          organizationId: subscription.organizationId,
           subscriptionId: subscription.id,
-          providerSyncIntentId,
           providerWebhookEventId: stored.event.id,
-        },
-        providerSyncIntentId
-          ? "webhook accepted"
-          : "webhook ignored for unrecognized provider event",
-      );
+          providerSyncIntentId,
+          providerEventId: descriptor.providerEventId,
+          deliveryId: descriptor.deliveryId,
+          eventType: descriptor.eventType,
+        });
+      } else {
+        logWebhookIgnored({
+          providerKind: providerKindParam,
+          organizationId: subscription.organizationId,
+          subscriptionId: subscription.id,
+          providerWebhookEventId: stored.event.id,
+          providerEventId: descriptor.providerEventId,
+          deliveryId: descriptor.deliveryId,
+          eventType: descriptor.eventType,
+          reason: "unrecognized_provider_event",
+        });
+      }
 
       return c.json({ ok: true, ignored: providerSyncIntentId === null }, 202);
     },

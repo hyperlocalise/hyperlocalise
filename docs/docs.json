@@ -93,6 +93,7 @@
             "group": "TMS Adapters",
             "pages": [
               "storage/overview",
+              "storage/tms-webhook-sync",
               "storage/crowdin",
               "storage/lilt",
               "storage/lokalise",

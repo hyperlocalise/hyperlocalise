@@ -15,6 +15,10 @@ export const revealExternalTmsProviderCredentialBodySchema = z.object({
   confirmed: z.literal(true),
 });
 
+export const providerSyncObservabilityQuerySchema = z.object({
+  projectId: z.string().trim().min(1).optional(),
+});
+
 export const externalTmsProviderHealthResponseSchema = z.object({
   externalTmsProviderHealth: z.object({
     providerKind: externalTmsProviderKindSchema,

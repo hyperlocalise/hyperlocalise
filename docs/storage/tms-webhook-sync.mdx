@@ -1,0 +1,61 @@
+---
+title: "TMS webhook automatic sync"
+description: "How Hyperlocalise registers inbound TMS webhooks, reconciles remote changes, and falls back to manual setup."
+---
+
+## Overview
+
+Hyperlocalise can keep synced TMS projects up to date by receiving provider webhooks, enqueueing sync intents, and running provider sync runs in the background. Write-back to the source TMS remains approval-gated; webhooks and schedulers only confirm remote state after an approved write-back.
+
+## Hosted automatic setup
+
+When `HYPERLOCALISE_PUBLIC_APP_URL` is configured, Hyperlocalise registers a single inbound route per provider:
+
+`/api/webhooks/tms/{provider}`
+
+After you connect a TMS credential and sync projects, webhook subscriptions are created automatically when the provider API supports it.
+
+| Provider | Automatic API setup | Manual fallback |
+| --- | --- | --- |
+| Crowdin | Yes | Shown if API setup fails or automatic setup is disabled |
+| Phrase | Yes | Shown if API setup fails or automatic setup is disabled |
+| Lokalise | Yes | Shown if API setup fails or automatic setup is disabled |
+| Smartling | Yes | Shown if API setup fails or automatic setup is disabled |
+
+Use **Integrations → TMS provider → Retry setup** to re-run automatic registration without creating duplicate provider webhooks.
+
+## Manual fallback
+
+If automatic setup cannot complete, the integrations UI shows:
+
+- the webhook URL to paste into the provider console
+- the secret header name (when applicable)
+- subscribed event types
+- the last setup error
+
+Configure the provider webhook manually using those values. Hyperlocalise deduplicates deliveries by provider event ID, so retries and duplicate notifications do not create duplicate sync work.
+
+## Observability in the app
+
+For each webhook subscription, the TMS connection dialog shows:
+
+- whether automatic sync is active
+- the latest webhook event (processing status and internal event ID)
+- the latest sync intent (status, sync kind, internal intent ID)
+- the latest provider sync run (status and internal run ID)
+
+Admins can retry failed webhook setup and failed sync intents from the same dialog when it is safe to do so.
+
+## Support debugging
+
+Server logs emit stable telemetry event names without customer content:
+
+- `webhook_accepted`
+- `duplicate`
+- `ignored`
+- `verification_failed`
+- `intent_enqueued`
+- `reconciliation_succeeded`
+- `reconciliation_failed`
+
+Correlate support tickets using internal IDs surfaced in the UI (subscription, webhook event, sync intent, and sync run IDs).

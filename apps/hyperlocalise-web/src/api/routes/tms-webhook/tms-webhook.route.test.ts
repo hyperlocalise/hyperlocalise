@@ -654,6 +654,213 @@ describe("tmsWebhookRoutes", () => {
     expect(rows).toHaveLength(0);
   });
 
+  describe("Lokalise webhooks", () => {
+    async function createLokaliseSubscriptionFixture() {
+      const { organizationId, userId } = await createOrganizationUser();
+      const credential = await upsertOrganizationExternalTmsProviderCredential({
+        organizationId,
+        userId,
+        role: "owner",
+        providerKind: "lokalise",
+        displayName: "Lokalise",
+        secretMaterial: "secret-token",
+      });
+      const subscription = await insertProviderWebhookSubscription({
+        organizationId,
+        providerCredentialId: credential.id,
+        providerKind: "lokalise",
+        providerWebhookId: "lokalise-wh-1",
+        endpointUrl: "https://app.example.test/api/webhooks/tms/lokalise",
+        webhookSecretPlaintext: "webhook-signing-secret",
+      });
+
+      return { organizationId, subscription };
+    }
+
+    function postLokaliseWebhook(input: {
+      app: ReturnType<typeof createApp>;
+      body: string;
+      secret?: string | null;
+      webhookId?: string;
+    }) {
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        "webhook-id": input.webhookId ?? "lokalise-wh-1",
+      };
+
+      if (input.secret !== null) {
+        headers["x-secret"] = input.secret ?? "webhook-signing-secret";
+      }
+
+      return input.app.request("http://localhost/api/webhooks/tms/lokalise", {
+        method: "POST",
+        headers,
+        body: input.body,
+      });
+    }
+
+    it("accepts signed translation events and queues reconciliation", async () => {
+      const { organizationId, subscription } = await createLokaliseSubscriptionFixture();
+      const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+      const app = createApp({
+        providerWebhookReconciliationQueue: {
+          async enqueue(event) {
+            queuedEvents.push(event);
+            return { ids: [randomUUID()] };
+          },
+        },
+      });
+      const body = JSON.stringify({
+        uuid: "evt-lokalise-translation",
+        event: "project.translation.updated",
+        key: { id: 789 },
+        project: { id: "lokalise-project-1" },
+      });
+
+      const response = await postLokaliseWebhook({ app, body });
+
+      expect(response.status).toBe(202);
+      const [intent] = await db
+        .select()
+        .from(schema.providerSyncIntents)
+        .where(eq(schema.providerSyncIntents.organizationId, organizationId));
+      expect(intent).toMatchObject({
+        organizationId,
+        providerKind: "lokalise",
+        syncKind: "file_key_scan",
+        cause: "webhook",
+        status: "pending",
+      });
+      expect(queuedEvents).toHaveLength(1);
+      expect(queuedEvents[0]?.subscriptionId).toBe(subscription.id);
+    });
+
+    it("rejects Lokalise deliveries with invalid secrets", async () => {
+      await createLokaliseSubscriptionFixture();
+      const app = createApp();
+      const body = JSON.stringify({
+        uuid: "evt-lokalise-invalid",
+        event: "project.translation.updated",
+        key: { id: 1 },
+      });
+
+      const response = await postLokaliseWebhook({ app, body, secret: "wrong-secret" });
+
+      expect(response.status).toBe(401);
+      await expect(response.json()).resolves.toEqual({ error: "invalid_signature" });
+    });
+  });
+
+  describe("Smartling webhooks", () => {
+    async function createSmartlingSubscriptionFixture() {
+      const { organizationId, userId } = await createOrganizationUser();
+      const credential = await upsertOrganizationExternalTmsProviderCredential({
+        organizationId,
+        userId,
+        role: "owner",
+        providerKind: "smartling",
+        displayName: "Smartling",
+        secretMaterial: "secret-token",
+      });
+      const subscription = await insertProviderWebhookSubscription({
+        organizationId,
+        providerCredentialId: credential.id,
+        providerKind: "smartling",
+        providerWebhookId: "smartling-wh-1",
+        endpointUrl: "https://app.example.test/api/webhooks/tms/smartling",
+        webhookSecretPlaintext: "webhook-signing-secret",
+      });
+
+      return { organizationId, subscription };
+    }
+
+    function smartlingSignatureFor(body: string, eventId: string, eventTimestamp: string) {
+      const signedPayload = `${eventId}.${eventTimestamp}.${body}`;
+      return createHmac("sha256", "webhook-signing-secret").update(signedPayload).digest("hex");
+    }
+
+    function postSmartlingWebhook(input: {
+      app: ReturnType<typeof createApp>;
+      body: string;
+      eventId?: string;
+      eventTimestamp?: string;
+      signature?: string | null;
+    }) {
+      const eventId = input.eventId ?? "evt-smartling-1";
+      const eventTimestamp = input.eventTimestamp ?? String(Math.floor(Date.now() / 1000));
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        "event-id": eventId,
+        "event-timestamp": eventTimestamp,
+        "x-hyperlocalise-provider-webhook-id": "smartling-wh-1",
+      };
+
+      if (input.signature !== null) {
+        headers["event-signature"] =
+          input.signature ?? smartlingSignatureFor(input.body, eventId, eventTimestamp);
+      }
+
+      return input.app.request("http://localhost/api/webhooks/tms/smartling", {
+        method: "POST",
+        headers,
+        body: input.body,
+      });
+    }
+
+    it("accepts signed file events and queues reconciliation", async () => {
+      const { organizationId, subscription } = await createSmartlingSubscriptionFixture();
+      const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+      const app = createApp({
+        providerWebhookReconciliationQueue: {
+          async enqueue(event) {
+            queuedEvents.push(event);
+            return { ids: [randomUUID()] };
+          },
+        },
+      });
+      const body = JSON.stringify({
+        type: "file.published",
+        file: { fileUri: "/locales/en.json" },
+        project: { projectUid: "smartling-project-1" },
+      });
+
+      const response = await postSmartlingWebhook({ app, body, eventId: "evt-smartling-file" });
+
+      expect(response.status).toBe(202);
+      const [intent] = await db
+        .select()
+        .from(schema.providerSyncIntents)
+        .where(eq(schema.providerSyncIntents.organizationId, organizationId));
+      expect(intent).toMatchObject({
+        organizationId,
+        providerKind: "smartling",
+        syncKind: "file_key_scan",
+        cause: "webhook",
+        status: "pending",
+      });
+      expect(queuedEvents).toHaveLength(1);
+      expect(queuedEvents[0]?.subscriptionId).toBe(subscription.id);
+    });
+
+    it("rejects Smartling deliveries with invalid signatures", async () => {
+      await createSmartlingSubscriptionFixture();
+      const app = createApp();
+      const body = JSON.stringify({
+        type: "file.published",
+        file: { fileUri: "/locales/en.json" },
+      });
+
+      const response = await postSmartlingWebhook({
+        app,
+        body,
+        signature: "invalid-signature",
+      });
+
+      expect(response.status).toBe(401);
+      await expect(response.json()).resolves.toEqual({ error: "invalid_signature" });
+    });
+  });
+
   describe("Phrase webhooks", () => {
     function postPhraseWebhook(input: {
       app: ReturnType<typeof createApp>;

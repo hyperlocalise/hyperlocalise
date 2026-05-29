@@ -13,6 +13,7 @@ import {
   ProviderWebhookEventNotFoundError,
   updateProviderWebhookEventProcessingStatus,
 } from "./provider-webhook-storage";
+import { logReconciliationFailed, logReconciliationSucceeded } from "./provider-tms-sync-telemetry";
 import type { ProviderWebhookEventProcessingStatus } from "@/lib/database/types";
 
 type WebhookEventStatusUpdate = {
@@ -203,6 +204,15 @@ export async function processProviderSyncIntent(
         { requireAll: false },
       );
 
+      logReconciliationFailed({
+        providerKind: claimed.providerKind,
+        organizationId: input.organizationId,
+        providerSyncIntentId: claimed.id,
+        providerSyncRunId: dispatchResult.runId,
+        processingStatus: failedIntent.status,
+        reason: "provider_sync_run_failed",
+      });
+
       return {
         ok: false,
         intentId: claimed.id,
@@ -238,6 +248,14 @@ export async function processProviderSyncIntent(
       },
       { requireAll: false },
     );
+
+    logReconciliationSucceeded({
+      providerKind: claimed.providerKind,
+      organizationId: input.organizationId,
+      providerSyncIntentId: claimed.id,
+      providerSyncRunId: dispatchResult.runId,
+      syncKind: claimed.syncKind,
+    });
 
     return {
       ok: true,
@@ -280,6 +298,14 @@ export async function processProviderSyncIntent(
       },
       { requireAll: false },
     );
+
+    logReconciliationFailed({
+      providerKind: claimed.providerKind,
+      organizationId: input.organizationId,
+      providerSyncIntentId: claimed.id,
+      processingStatus: failedIntent.status,
+      reason: message,
+    });
 
     return {
       ok: false,
