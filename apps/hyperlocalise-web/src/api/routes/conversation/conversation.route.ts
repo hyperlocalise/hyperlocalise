@@ -85,12 +85,8 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
     .use("*", workosAuthMiddleware)
     .get("/", validateListQuery, async (c) => {
       const query = c.req.valid("query");
-      const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
-      const conditions = [
-        eq(schema.inboxItems.organizationId, orgId),
-        await buildAccessibleInteractionsWhere(c.var.auth),
-      ];
+      const conditions = [await buildAccessibleInteractionsWhere(c.var.auth)];
       if (query.status) {
         conditions.push(eq(schema.inboxItems.status, query.status));
       }

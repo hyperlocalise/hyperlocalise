@@ -149,13 +149,14 @@ export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Pr
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
 
-  const projectFilter =
-    accessibleProjectIds.length > 0
-      ? or(
-          isNull(schema.interactions.projectId),
-          inArray(schema.interactions.projectId, accessibleProjectIds),
-        )
-      : isNull(schema.interactions.projectId);
+  if (accessibleProjectIds.length === 0) {
+    return sql`false`;
+  }
+
+  const projectFilter = or(
+    isNull(schema.interactions.projectId),
+    inArray(schema.interactions.projectId, accessibleProjectIds),
+  );
 
   return and(organizationScope, projectFilter)!;
 }
