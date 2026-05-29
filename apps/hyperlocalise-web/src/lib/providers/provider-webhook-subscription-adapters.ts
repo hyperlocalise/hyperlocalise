@@ -1,6 +1,7 @@
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import { createCrowdinWebhookSubscriptionAdapter } from "./crowdin/crowdin-webhook-subscription-adapter";
 import { createLokaliseWebhookSubscriptionAdapter } from "./lokalise/lokalise-webhook-subscription-adapter";
+import { createPhraseWebhookSubscriptionAdapter } from "./phrase/phrase-webhook-subscription-adapter";
 import { createSmartlingWebhookSubscriptionAdapter } from "./smartling/smartling-webhook-subscription-adapter";
 import { createManualProviderWebhookSubscriptionAdapter } from "./manual-provider-webhook-subscription-adapter";
 import type { ProviderWebhookSubscriptionAdapter } from "./provider-webhook-subscription-types";
@@ -8,6 +9,7 @@ import type { ProviderWebhookSubscriptionAdapter } from "./provider-webhook-subs
 const crowdinAdapter = createCrowdinWebhookSubscriptionAdapter();
 const smartlingAdapter = createSmartlingWebhookSubscriptionAdapter();
 const lokaliseAdapter = createLokaliseWebhookSubscriptionAdapter();
+const phraseAdapter = createPhraseWebhookSubscriptionAdapter();
 const manualAdapter = createManualProviderWebhookSubscriptionAdapter();
 
 /**
@@ -27,6 +29,10 @@ export function getProviderWebhookSubscriptionAdapter(
 
   if (providerKind === "lokalise") {
     return lokaliseAdapter;
+  }
+
+  if (providerKind === "phrase") {
+    return phraseAdapter;
   }
 
   return manualAdapter;

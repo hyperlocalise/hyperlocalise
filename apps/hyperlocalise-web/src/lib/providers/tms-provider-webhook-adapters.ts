@@ -44,6 +44,7 @@ export type TmsProviderWebhookAdapterInput = {
   providerKind: ExternalTmsProviderKind;
   headers: Headers;
   payload: ProviderWebhookPayload;
+  requestUrl?: string | null;
 };
 
 export type TmsProviderWebhookVerificationInput = TmsProviderWebhookAdapterInput & {
@@ -202,6 +203,23 @@ export function verifySmartlingWebhook(input: TmsProviderWebhookVerificationInpu
   }
 
   return verifyCrowdinWebhook(input);
+}
+
+export function verifyPhraseWebhook(input: TmsProviderWebhookVerificationInput) {
+  if (!input.webhookSecret) {
+    return true;
+  }
+
+  const signature = input.headers.get("x-phraseapp-signature");
+  if (!signature) {
+    return false;
+  }
+
+  return verifyHmacSha256Hex({
+    payload: input.rawBody,
+    webhookSecret: input.webhookSecret,
+    signature,
+  });
 }
 
 export function verifyLokaliseWebhook(input: TmsProviderWebhookVerificationInput) {
@@ -495,6 +513,74 @@ function genericTmsEventMapping(input: {
   return [];
 }
 
+function mapPhraseUploadReconciliation(resourceId: string | null) {
+  return [fileKeyScan(resourceId), pullContent(resourceId)];
+}
+
+function mapPhraseEvent(input: {
+  eventType: string;
+  resourceType: string | null;
+  resourceId: string | null;
+}) {
+  const eventType = input.eventType.toLowerCase();
+  const resourceId = input.resourceId;
+
+  if (
+    eventType.startsWith("uploads:") ||
+    includesAny(eventType, ["imports:", "import:", "upload:"])
+  ) {
+    return mapPhraseUploadReconciliation(resourceId);
+  }
+
+  if (eventType.startsWith("keys:") || includesAny(eventType, [":keys:"])) {
+    return [fileKeyScan(resourceId)];
+  }
+
+  if (eventType.startsWith("translations:")) {
+    const intents: TmsWebhookMappedIntent[] = [fileKeyScan(resourceId)];
+    if (includesAny(eventType, ["review", "unverify", "verify", "approved"])) {
+      intents.push(pullContent(resourceId));
+    }
+    return intents;
+  }
+
+  if (
+    eventType.startsWith("jobs:") ||
+    includesAny(eventType, ["jobs:completed", "jobs:complete", "jobs:create"])
+  ) {
+    return [jobTaskScan(resourceId)];
+  }
+
+  if (eventType.startsWith("comments:")) {
+    return [fileKeyScan(resourceId)];
+  }
+
+  if (eventType.startsWith("locales:") || eventType.startsWith("branches:")) {
+    return [projectScan(resourceId)];
+  }
+
+  return genericTmsEventMapping(input);
+}
+
+function resolvePhraseProviderWebhookId(input: TmsProviderWebhookAdapterInput) {
+  if (input.requestUrl) {
+    try {
+      const fromQuery = new URL(input.requestUrl).searchParams.get("provider_webhook_id");
+      if (fromQuery) {
+        return fromQuery;
+      }
+    } catch {
+      // Ignore malformed request URLs in tests or misconfigured callbacks.
+    }
+  }
+
+  return firstString(
+    input.headers.get("x-hyperlocalise-provider-webhook-id"),
+    input.headers.get("x-provider-webhook-id"),
+    firstPathString(input.payload, [["webhook", "id"], ["webhook_id"]]),
+  );
+}
+
 function mapLokaliseEvent(input: {
   eventType: string;
   resourceType: string | null;
@@ -653,14 +739,72 @@ export const crowdinWebhookAdapter = createProviderWebhookAdapter({
   verify: verifyCrowdinWebhook,
 });
 
-export const phraseWebhookAdapter = createProviderWebhookAdapter({
+const basePhraseWebhookAdapter = createProviderWebhookAdapter({
   eventTypePaths: [["event"], ["event_type"], ["type"]],
   eventIdPaths: [["event_uid"], ["event_id"], ["id"], ["uuid"]],
+  deliveryIdPaths: [["sent_at"], ["event_uid"], ["event_id"]],
   resourceTypePaths: [["resource_type"], ["resource", "type"]],
-  resourceIdPaths: [["resource_id"], ["job", "uid"], ["job", "id"], ["key", "id"]],
+  resourceIdPaths: [
+    ["resource_id"],
+    ["job", "uid"],
+    ["job", "id"],
+    ["key", "id"],
+    ["key", "uid"],
+    ["translation", "id"],
+    ["upload", "id"],
+    ["comment", "id"],
+  ],
   externalResourceIdPaths: [["external_resource_id"], ["project", "uid"], ["project", "id"]],
-  mapEvent: genericTmsEventMapping,
+  mapEvent: mapPhraseEvent,
+  verify: verifyPhraseWebhook,
 });
+
+export const phraseWebhookAdapter: TmsProviderWebhookAdapter = {
+  ...basePhraseWebhookAdapter,
+  resolveSubscription(input) {
+    const providerWebhookId = resolvePhraseProviderWebhookId(input);
+    return providerWebhookId ? { providerWebhookId } : null;
+  },
+  extractEventType(input) {
+    return firstString(
+      input.headers.get("x-phraseapp-event"),
+      basePhraseWebhookAdapter.extractEventType(input),
+    );
+  },
+  extract(input) {
+    const subscription = phraseWebhookAdapter.resolveSubscription(input);
+    const providerEventId = phraseWebhookAdapter.extractProviderEventId(input);
+    const eventType = phraseWebhookAdapter.extractEventType(input);
+
+    if (!subscription || !providerEventId || !eventType) {
+      return null;
+    }
+
+    const deliveryId = firstString(
+      input.headers.get("x-phraseapp-delivery"),
+      input.headers.get("x-hyperlocalise-delivery-id"),
+      input.headers.get("x-provider-delivery-id"),
+      input.headers.get("x-delivery-id"),
+      firstPathString(input.payload, [["sent_at"], ["event_uid"], ["event_id"]]),
+    );
+    const resource = phraseWebhookAdapter.extractResource(input);
+    const descriptor: TmsProviderWebhookDescriptor = {
+      ...subscription,
+      providerEventId,
+      eventType,
+      dedupeKey: firstString(input.payload["dedupe_key"], providerEventId) ?? providerEventId,
+      deliveryId,
+      ...resource,
+      redactedPayload: {},
+      mappedIntents: [],
+    };
+
+    descriptor.mappedIntents = phraseWebhookAdapter.mapToIntents({ ...input, descriptor });
+    descriptor.redactedPayload = phraseWebhookAdapter.redact({ ...input, descriptor });
+
+    return descriptor;
+  },
+};
 
 export const smartlingWebhookAdapter = createProviderWebhookAdapter({
   subscriptionIdPaths: [["subscriptionUid"], ["subscription", "subscriptionUid"]],

@@ -116,6 +116,44 @@ export type PhraseListOptions = {
   perPage?: number;
 };
 
+export type PhraseWebhookEvent =
+  | "keys:create"
+  | "keys:update"
+  | "keys:delete"
+  | "translations:create"
+  | "translations:update"
+  | "translations:review"
+  | "translations:unverify"
+  | "jobs:create"
+  | "jobs:complete"
+  | "jobs:completed"
+  | "uploads:create"
+  | "comments:create"
+  | "locales:create"
+  | "locales:update"
+  | "branches:create"
+  | "branches:merge";
+
+export interface PhraseWebhook {
+  id: string;
+  callbackUrl: string;
+  description: string | null;
+  events: string[];
+  active: boolean;
+  includeBranches: boolean;
+}
+
+export type PhraseWebhookCreateRequest = {
+  callbackUrl: string;
+  secret?: string;
+  description?: string;
+  events: readonly string[];
+  active?: boolean;
+  includeBranches?: boolean;
+};
+
+export type PhraseWebhookUpdateRequest = PhraseWebhookCreateRequest;
+
 export class PhraseApiError extends Error {
   constructor(
     message: string,
@@ -143,6 +181,56 @@ export class PhraseApiClient {
 
   get resolvedBaseUrl() {
     return this.baseUrl;
+  }
+
+  async listWebhooks(projectId: string): Promise<PhraseWebhook[]> {
+    const records = await this.get<PhraseWebhookApiRecord[]>(
+      `/projects/${encodeURIComponent(projectId)}/webhooks`,
+    );
+    return records.map(normalizePhraseWebhook);
+  }
+
+  async createWebhook(
+    projectId: string,
+    input: PhraseWebhookCreateRequest,
+  ): Promise<PhraseWebhook> {
+    const record = await this.post<PhraseWebhookApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/webhooks`,
+      {
+        callback_url: input.callbackUrl,
+        secret: input.secret,
+        description: input.description,
+        events: input.events.join(","),
+        active: input.active ?? true,
+        include_branches: input.includeBranches ?? false,
+      },
+    );
+    return normalizePhraseWebhook(record);
+  }
+
+  async updateWebhook(
+    projectId: string,
+    webhookId: string,
+    input: PhraseWebhookUpdateRequest,
+  ): Promise<PhraseWebhook> {
+    const record = await this.patch<PhraseWebhookApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/webhooks/${encodeURIComponent(webhookId)}`,
+      {
+        callback_url: input.callbackUrl,
+        secret: input.secret,
+        description: input.description,
+        events: input.events.join(","),
+        active: input.active ?? true,
+        include_branches: input.includeBranches ?? false,
+      },
+    );
+    return normalizePhraseWebhook(record);
+  }
+
+  async deleteWebhook(projectId: string, webhookId: string): Promise<void> {
+    await this.delete(
+      `/projects/${encodeURIComponent(projectId)}/webhooks/${encodeURIComponent(webhookId)}`,
+    );
   }
 
   async listProjects(): Promise<PhraseProject[]> {
@@ -470,6 +558,13 @@ export class PhraseApiClient {
     });
   }
 
+  private async delete(path: string): Promise<void> {
+    await this.request<unknown>(path, {
+      method: "DELETE",
+      headers: this.authHeaders(),
+    });
+  }
+
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const response = await this.fetchFn(url, { ...init, redirect: "error" });
@@ -596,6 +691,15 @@ type PhraseKeyCommentApiRecord = {
   locales?: PhraseLocalePreviewApiRecord[];
 };
 
+type PhraseWebhookApiRecord = {
+  id: string;
+  callback_url: string;
+  description?: string | null;
+  events?: string[] | string;
+  active?: boolean;
+  include_branches?: boolean;
+};
+
 function normalizePhraseProject(project: PhraseProjectApiRecord): PhraseProject {
   return {
     id: project.id,
@@ -694,6 +798,37 @@ function normalizePhraseLocalePreview(locale: PhraseLocalePreviewApiRecord) {
     id: locale.id,
     name: locale.name,
     code: locale.code ?? null,
+  };
+}
+
+function normalizePhraseWebhookEvents(events: string[] | string | undefined): string[] {
+  if (Array.isArray(events)) {
+    return events.map((event) => event.trim()).filter(Boolean);
+  }
+
+  if (typeof events === "string") {
+    return events
+      .split(",")
+      .map((event) => event.trim())
+      .filter(Boolean);
+  }
+
+  return [];
+}
+
+function normalizePhraseWebhook(webhook: PhraseWebhookApiRecord): PhraseWebhook {
+  const webhookId = webhook.id?.trim() ?? "";
+  if (!webhookId) {
+    throw new PhraseApiError("Phrase webhook response is missing id", 502, webhook);
+  }
+
+  return {
+    id: webhookId,
+    callbackUrl: webhook.callback_url,
+    description: webhook.description ?? null,
+    events: normalizePhraseWebhookEvents(webhook.events),
+    active: webhook.active ?? true,
+    includeBranches: webhook.include_branches ?? false,
   };
 }
 

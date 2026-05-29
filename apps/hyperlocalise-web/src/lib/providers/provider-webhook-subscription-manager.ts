@@ -103,6 +103,17 @@ function buildManualFallback(input: {
     };
   }
 
+  if (input.providerKind === "phrase") {
+    return {
+      webhookUrl: input.endpointUrl,
+      secretHeaderName: "X-PhraseApp-Signature",
+      secretInstructions:
+        "Phrase signs webhook payloads with HMAC-SHA256 of the raw request body in the X-PhraseApp-Signature header. Configure the webhook secret in Phrase to match the generated signing secret. Append ?provider_webhook_id=<webhook id> to the callback URL so Hyperlocalise can route deliveries.",
+      subscribedEvents: input.subscribedEvents,
+      ...(input.lastError ? { lastError: input.lastError } : {}),
+    };
+  }
+
   return {
     webhookUrl: input.endpointUrl,
     secretHeaderName: "X-Hyperlocalise-Signature-256",
