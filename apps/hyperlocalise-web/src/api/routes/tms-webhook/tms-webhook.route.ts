@@ -352,8 +352,6 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
           providerKind: providerKindParam,
           organizationId: subscription.organizationId,
           subscriptionId: subscription.id,
-          providerEventId: descriptor.providerEventId,
-          deliveryId: descriptor.deliveryId,
         });
         return c.json({ error: "invalid_signature" }, 401);
       }

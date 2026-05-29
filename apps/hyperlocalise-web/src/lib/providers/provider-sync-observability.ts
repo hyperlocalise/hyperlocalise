@@ -82,35 +82,41 @@ function toRunSummary(
   };
 }
 
-async function latestWebhookEventForSubscription(input: {
-  organizationId: string;
-  subscriptionId: string;
-  projectId?: string | null;
-}) {
-  const filters = [
-    eq(schema.providerWebhookEvents.organizationId, input.organizationId),
-    eq(schema.providerWebhookEvents.subscriptionId, input.subscriptionId),
-  ];
-
-  if (input.projectId) {
-    filters.push(eq(schema.providerWebhookEvents.projectId, input.projectId));
-  }
-
-  const [row] = await db
-    .select()
-    .from(schema.providerWebhookEvents)
-    .where(and(...filters))
-    .orderBy(desc(schema.providerWebhookEvents.receivedAt))
-    .limit(1);
-
-  return row ? toWebhookEventSummary(row) : null;
+function projectScopeKey(projectId: string | null | undefined) {
+  return projectId ?? "__all_projects__";
 }
 
-async function latestSyncIntentForScope(input: {
+async function latestWebhookEventsForSubscriptions(input: {
+  organizationId: string;
+  subscriptionIds: string[];
+}) {
+  if (input.subscriptionIds.length === 0) {
+    return new Map<string, ProviderSyncObservabilityWebhookEventSummary>();
+  }
+
+  const rows = await db
+    .selectDistinctOn([schema.providerWebhookEvents.subscriptionId])
+    .from(schema.providerWebhookEvents)
+    .where(
+      and(
+        eq(schema.providerWebhookEvents.organizationId, input.organizationId),
+        inArray(schema.providerWebhookEvents.subscriptionId, input.subscriptionIds),
+      ),
+    )
+    .orderBy(
+      schema.providerWebhookEvents.subscriptionId,
+      desc(schema.providerWebhookEvents.receivedAt),
+    );
+
+  return new Map(rows.map((row) => [row.subscriptionId, toWebhookEventSummary(row)]));
+}
+
+async function latestSyncIntentsForScopes(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;
   providerCredentialId: string;
-  projectId?: string | null;
+  projectIds: string[];
+  includeGlobalScope: boolean;
 }) {
   const filters = [
     eq(schema.providerSyncIntents.organizationId, input.organizationId),
@@ -118,58 +124,98 @@ async function latestSyncIntentForScope(input: {
     eq(schema.providerSyncIntents.providerCredentialId, input.providerCredentialId),
   ];
 
-  if (input.projectId) {
-    filters.push(eq(schema.providerSyncIntents.projectId, input.projectId));
+  if (!input.includeGlobalScope) {
+    if (input.projectIds.length === 0) {
+      return new Map<string, ProviderSyncObservabilityIntentSummary>();
+    }
+
+    filters.push(inArray(schema.providerSyncIntents.projectId, input.projectIds));
   }
 
-  const [row] = await db
+  const rows = await db
     .select()
     .from(schema.providerSyncIntents)
     .where(and(...filters))
-    .orderBy(desc(schema.providerSyncIntents.createdAt))
-    .limit(1);
+    .orderBy(desc(schema.providerSyncIntents.createdAt));
 
-  return row ? toIntentSummary(row) : null;
-}
+  const latestByScope = new Map<string, ProviderSyncObservabilityIntentSummary>();
+  for (const row of rows) {
+    if (!latestByScope.has(projectScopeKey(null))) {
+      latestByScope.set(projectScopeKey(null), toIntentSummary(row));
+    }
 
-async function latestSyncRunForScope(input: {
-  organizationId: string;
-  providerKind: ExternalTmsProviderKind;
-  projectId?: string | null;
-  providerSyncRunId?: string | null;
-}) {
-  if (input.providerSyncRunId) {
-    const [row] = await db
-      .select()
-      .from(schema.providerSyncRuns)
-      .where(
-        and(
-          eq(schema.providerSyncRuns.id, input.providerSyncRunId),
-          eq(schema.providerSyncRuns.organizationId, input.organizationId),
-        ),
-      )
-      .limit(1);
-
-    return row ? toRunSummary(row) : null;
+    if (row.projectId && input.projectIds.includes(row.projectId)) {
+      const key = projectScopeKey(row.projectId);
+      if (!latestByScope.has(key)) {
+        latestByScope.set(key, toIntentSummary(row));
+      }
+    }
   }
 
-  const filters = [
+  return latestByScope;
+}
+
+async function latestSyncRunsForScopes(input: {
+  organizationId: string;
+  providerKind: ExternalTmsProviderKind;
+  projectIds: string[];
+  providerSyncRunIds: string[];
+  includeGlobalScope: boolean;
+}) {
+  if (
+    input.providerSyncRunIds.length === 0 &&
+    input.projectIds.length === 0 &&
+    !input.includeGlobalScope
+  ) {
+    return {
+      byId: new Map<string, ProviderSyncObservabilityRunSummary>(),
+      byScope: new Map<string, ProviderSyncObservabilityRunSummary>(),
+    };
+  }
+
+  const scopedRunFilters = [
     eq(schema.providerSyncRuns.organizationId, input.organizationId),
     eq(schema.providerSyncRuns.providerKind, input.providerKind),
   ];
-
-  if (input.projectId) {
-    filters.push(eq(schema.providerSyncRuns.projectId, input.projectId));
+  if (!input.includeGlobalScope) {
+    scopedRunFilters.push(inArray(schema.providerSyncRuns.projectId, input.projectIds));
   }
 
-  const [row] = await db
+  const rows = await db
     .select()
     .from(schema.providerSyncRuns)
-    .where(and(...filters))
-    .orderBy(desc(schema.providerSyncRuns.startedAt))
-    .limit(1);
+    .where(
+      and(
+        eq(schema.providerSyncRuns.organizationId, input.organizationId),
+        or(
+          input.providerSyncRunIds.length > 0
+            ? inArray(schema.providerSyncRuns.id, input.providerSyncRunIds)
+            : undefined,
+          and(...scopedRunFilters),
+        ),
+      ),
+    )
+    .orderBy(desc(schema.providerSyncRuns.startedAt));
 
-  return row ? toRunSummary(row) : null;
+  const byId = new Map<string, ProviderSyncObservabilityRunSummary>();
+  const byScope = new Map<string, ProviderSyncObservabilityRunSummary>();
+  for (const row of rows) {
+    const summary = toRunSummary(row);
+    byId.set(row.id, summary);
+
+    if (!byScope.has(projectScopeKey(null))) {
+      byScope.set(projectScopeKey(null), summary);
+    }
+
+    if (row.projectId && input.projectIds.includes(row.projectId)) {
+      const key = projectScopeKey(row.projectId);
+      if (!byScope.has(key)) {
+        byScope.set(key, summary);
+      }
+    }
+  }
+
+  return { byId, byScope };
 }
 
 function buildEntry(input: {
@@ -215,37 +261,67 @@ export async function getProviderSyncObservability(input: {
     return subscription.projectId === input.projectId;
   });
 
-  const entries = await Promise.all(
-    scopedSubscriptions.map(async (subscription) => {
-      const latestWebhookEvent = await latestWebhookEventForSubscription({
-        organizationId: input.organizationId,
-        subscriptionId: subscription.id,
-        projectId: subscription.projectId,
-      });
+  const subscriptionIds = scopedSubscriptions.map((subscription) => subscription.id);
+  const projectIds = [
+    ...new Set(
+      scopedSubscriptions
+        .map((subscription) => subscription.projectId)
+        .filter((projectId): projectId is string => Boolean(projectId)),
+    ),
+  ];
+  const includeGlobalScope = scopedSubscriptions.some((subscription) => !subscription.projectId);
 
-      const latestSyncIntent = await latestSyncIntentForScope({
-        organizationId: input.organizationId,
-        providerKind: input.providerKind,
-        providerCredentialId: input.providerCredentialId,
-        projectId: subscription.projectId,
-      });
+  const latestWebhookEvents = await latestWebhookEventsForSubscriptions({
+    organizationId: input.organizationId,
+    subscriptionIds,
+  });
 
-      const latestSyncRun = await latestSyncRunForScope({
-        organizationId: input.organizationId,
-        providerKind: input.providerKind,
-        projectId: subscription.projectId,
-        providerSyncRunId:
-          latestWebhookEvent?.providerSyncRunId ?? latestSyncIntent?.providerSyncRunId ?? null,
-      });
+  const latestSyncIntents = await latestSyncIntentsForScopes({
+    organizationId: input.organizationId,
+    providerKind: input.providerKind,
+    providerCredentialId: input.providerCredentialId,
+    projectIds,
+    includeGlobalScope,
+  });
 
-      return buildEntry({
-        subscription,
-        latestWebhookEvent,
-        latestSyncIntent,
-        latestSyncRun,
-      });
-    }),
-  );
+  const providerSyncRunIds = [
+    ...new Set(
+      scopedSubscriptions
+        .map((subscription) => {
+          const latestWebhookEvent = latestWebhookEvents.get(subscription.id) ?? null;
+          const latestSyncIntent =
+            latestSyncIntents.get(projectScopeKey(subscription.projectId)) ?? null;
+
+          return latestWebhookEvent?.providerSyncRunId ?? latestSyncIntent?.providerSyncRunId;
+        })
+        .filter((providerSyncRunId): providerSyncRunId is string => Boolean(providerSyncRunId)),
+    ),
+  ];
+
+  const latestSyncRuns = await latestSyncRunsForScopes({
+    organizationId: input.organizationId,
+    providerKind: input.providerKind,
+    projectIds,
+    providerSyncRunIds,
+    includeGlobalScope,
+  });
+
+  const entries = scopedSubscriptions.map((subscription) => {
+    const latestWebhookEvent = latestWebhookEvents.get(subscription.id) ?? null;
+    const latestSyncIntent = latestSyncIntents.get(projectScopeKey(subscription.projectId)) ?? null;
+    const providerSyncRunId =
+      latestWebhookEvent?.providerSyncRunId ?? latestSyncIntent?.providerSyncRunId ?? null;
+    const latestSyncRun = providerSyncRunId
+      ? (latestSyncRuns.byId.get(providerSyncRunId) ?? null)
+      : (latestSyncRuns.byScope.get(projectScopeKey(subscription.projectId)) ?? null);
+
+    return buildEntry({
+      subscription,
+      latestWebhookEvent,
+      latestSyncIntent,
+      latestSyncRun,
+    });
+  });
 
   return {
     providerKind: input.providerKind,
@@ -276,6 +352,26 @@ export async function retryProviderSyncIntent(input: {
     throw new ProviderSyncIntentNotRetryableError();
   }
 
+  const webhookEventId = intent.eventReferences[0];
+  if (!webhookEventId) {
+    throw new ProviderSyncIntentNotRetryableError();
+  }
+
+  const [webhookEvent] = await db
+    .select()
+    .from(schema.providerWebhookEvents)
+    .where(
+      and(
+        eq(schema.providerWebhookEvents.id, webhookEventId),
+        eq(schema.providerWebhookEvents.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!webhookEvent) {
+    throw new ProviderSyncIntentNotFoundError();
+  }
+
   const now = new Date();
   const [requeued] = await db
     .update(schema.providerSyncIntents)
@@ -304,26 +400,6 @@ export async function retryProviderSyncIntent(input: {
 
   if (!requeued) {
     throw new ProviderSyncIntentNotRetryableError();
-  }
-
-  const webhookEventId = requeued.eventReferences[0];
-  if (!webhookEventId) {
-    throw new ProviderSyncIntentNotRetryableError();
-  }
-
-  const [webhookEvent] = await db
-    .select()
-    .from(schema.providerWebhookEvents)
-    .where(
-      and(
-        eq(schema.providerWebhookEvents.id, webhookEventId),
-        eq(schema.providerWebhookEvents.organizationId, input.organizationId),
-      ),
-    )
-    .limit(1);
-
-  if (!webhookEvent) {
-    throw new ProviderSyncIntentNotFoundError();
   }
 
   await updateProviderWebhookEventProcessingStatus({

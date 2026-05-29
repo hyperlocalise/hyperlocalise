@@ -13,6 +13,7 @@ import type { ProviderWebhookReconciliationEventData } from "@/lib/workflow/type
 
 import {
   getProviderSyncObservability,
+  ProviderSyncIntentNotFoundError,
   ProviderSyncIntentNotRetryableError,
   retryProviderSyncIntent,
 } from "./provider-sync-observability";
@@ -305,5 +306,103 @@ describe("provider sync observability", () => {
         },
       }),
     ).rejects.toBeInstanceOf(ProviderSyncIntentNotRetryableError);
+  });
+
+  it("does not mutate a failed intent when retry event references are missing", async () => {
+    const { organizationId, userId } = await createOrganizationUser();
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "owner",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "secret-token",
+    });
+
+    const [intent] = await db
+      .insert(schema.providerSyncIntents)
+      .values({
+        organizationId,
+        providerCredentialId: credential.id,
+        providerKind: "crowdin",
+        syncKind: "file_key_scan",
+        cause: "webhook",
+        eventReferences: [],
+        leaseKey: `missing-event-${randomUUID()}`,
+        status: "failed",
+        lastError: "provider_sync_run_failed",
+      })
+      .returning();
+
+    await expect(
+      retryProviderSyncIntent({
+        organizationId,
+        providerKind: "crowdin",
+        intentId: intent!.id,
+        providerWebhookReconciliationQueue: {
+          async enqueue() {
+            return { ids: [randomUUID()] };
+          },
+        },
+      }),
+    ).rejects.toBeInstanceOf(ProviderSyncIntentNotRetryableError);
+
+    const [storedIntent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.id, intent!.id));
+    expect(storedIntent).toMatchObject({
+      status: "failed",
+      lastError: "provider_sync_run_failed",
+    });
+  });
+
+  it("does not mutate a failed intent when retry webhook event is missing", async () => {
+    const { organizationId, userId } = await createOrganizationUser();
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "owner",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "secret-token",
+    });
+
+    const [intent] = await db
+      .insert(schema.providerSyncIntents)
+      .values({
+        organizationId,
+        providerCredentialId: credential.id,
+        providerKind: "crowdin",
+        syncKind: "file_key_scan",
+        cause: "webhook",
+        eventReferences: [randomUUID()],
+        leaseKey: `deleted-event-${randomUUID()}`,
+        status: "failed",
+        lastError: "provider_sync_run_failed",
+      })
+      .returning();
+
+    await expect(
+      retryProviderSyncIntent({
+        organizationId,
+        providerKind: "crowdin",
+        intentId: intent!.id,
+        providerWebhookReconciliationQueue: {
+          async enqueue() {
+            return { ids: [randomUUID()] };
+          },
+        },
+      }),
+    ).rejects.toBeInstanceOf(ProviderSyncIntentNotFoundError);
+
+    const [storedIntent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.id, intent!.id));
+    expect(storedIntent).toMatchObject({
+      status: "failed",
+      lastError: "provider_sync_run_failed",
+    });
   });
 });
