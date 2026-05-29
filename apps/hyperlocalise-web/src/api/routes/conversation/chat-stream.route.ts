@@ -1,6 +1,6 @@
-import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 
+import { canAccessInteraction } from "@/api/auth/team-access";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import {
@@ -8,7 +8,7 @@ import {
   createConversationToolLoopAgent,
   loadInteractionModelMessages,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
-import { db, schema } from "@/lib/database";
+import { db } from "@/lib/database";
 import { addInteractionMessage, interactionHasTranslationAttachments } from "@/lib/interactions";
 
 import { conversationIdParamsSchema } from "./conversation.schema";
@@ -25,21 +25,7 @@ export function createChatStreamRoutes() {
       const { conversationId } = paramResult.data;
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
-      const [conversation] = await db
-        .select({
-          id: schema.interactions.id,
-          source: schema.interactions.source,
-          projectId: schema.interactions.projectId,
-        })
-        .from(schema.interactions)
-        .where(
-          and(
-            eq(schema.interactions.id, conversationId),
-            eq(schema.interactions.organizationId, orgId),
-          ),
-        )
-        .limit(1);
-
+      const conversation = await canAccessInteraction(c.var.auth, conversationId);
       if (!conversation) {
         return c.json({ error: "not_found" }, 404);
       }

@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -137,6 +137,41 @@ export async function buildProjectLinkedMemoryWhere(auth: ApiAuthContext): Promi
     .where(inArray(schema.projectMemories.projectId, accessibleProjectIds));
 
   return and(organizationScope, inArray(schema.memories.id, linkedMemoryIds))!;
+}
+
+export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Promise<SQL> {
+  const organizationId = auth.organization.localOrganizationId;
+  const organizationScope = eq(schema.interactions.organizationId, organizationId);
+
+  if (hasOrganizationWideProjectAccess(auth)) {
+    return organizationScope;
+  }
+
+  const accessibleProjectIds = await getAccessibleProjectIds(auth);
+
+  if (accessibleProjectIds.length === 0) {
+    return and(organizationScope, isNull(schema.interactions.projectId))!;
+  }
+
+  return and(
+    organizationScope,
+    or(
+      isNull(schema.interactions.projectId),
+      inArray(schema.interactions.projectId, accessibleProjectIds),
+    ),
+  )!;
+}
+
+export async function canAccessInteraction(auth: ApiAuthContext, interactionId: string) {
+  const where = await buildAccessibleInteractionsWhere(auth);
+
+  const [interaction] = await db
+    .select()
+    .from(schema.interactions)
+    .where(and(eq(schema.interactions.id, interactionId), where))
+    .limit(1);
+
+  return interaction ?? null;
 }
 
 export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string) {
