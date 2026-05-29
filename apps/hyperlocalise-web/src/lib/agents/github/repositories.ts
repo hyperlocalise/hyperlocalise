@@ -92,6 +92,20 @@ export async function upsertGitHubInstallationRepositories(input: {
     });
 }
 
+export async function deleteOrganizationGitHubInstallationRepositories(input: {
+  organizationId: string;
+  githubInstallationId: string;
+}) {
+  await db
+    .delete(schema.githubInstallationRepositories)
+    .where(
+      and(
+        eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
+        eq(schema.githubInstallationRepositories.githubInstallationId, input.githubInstallationId),
+      ),
+    );
+}
+
 export async function removeGitHubInstallationRepositories(input: {
   githubInstallationId: string;
   githubRepositoryIds: string[];
