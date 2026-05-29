@@ -114,10 +114,9 @@ export function createPhraseWebhookSubscriptionAdapter(): ProviderWebhookSubscri
     },
 
     async createRemoteSubscription(context) {
-      const projectId = parsePhraseProjectId(context.externalProjectId);
-      const client = createPhraseClient(context);
-
       try {
+        const projectId = parsePhraseProjectId(context.externalProjectId);
+        const client = createPhraseClient(context);
         const created = await client.createWebhook(projectId, buildCreateRequest(context));
         const callbackUrl = appendPhraseWebhookProviderId(context.endpointUrl, created.id);
         const updated =

@@ -9,7 +9,6 @@ import {
   findActiveProviderWebhookSubscription,
   insertProviderWebhookEventIdempotent,
   updateProviderWebhookEventProcessingStatus,
-  updateProviderWebhookEventSyncIntent,
 } from "@/lib/providers/provider-webhook-storage";
 import {
   getTmsProviderWebhookAdapter,
@@ -42,8 +41,44 @@ type CreateTmsWebhookRoutesOptions = {
   providerWebhookReconciliationQueue?: ProviderWebhookReconciliationQueue;
 };
 
+type EnqueuedMappedIntentRecord = {
+  key: string;
+  providerSyncIntentId: string;
+};
+
 function isExternalTmsProviderKind(value: string): value is ExternalTmsProviderKind {
   return providerKinds.has(value as ExternalTmsProviderKind);
+}
+
+function mappedIntentQueueKey(intent: TmsWebhookExecutableIntent) {
+  return JSON.stringify({
+    kind: intent.kind,
+    resourceId: intent.resourceId ?? null,
+    resourceIds: intent.resourceIds ?? [],
+  });
+}
+
+function enqueuedMappedIntentRecords(
+  errorDetails: Record<string, unknown>,
+): EnqueuedMappedIntentRecord[] {
+  const records = errorDetails.enqueuedMappedIntents;
+  if (!Array.isArray(records)) {
+    return [];
+  }
+
+  return records.filter(
+    (record): record is EnqueuedMappedIntentRecord =>
+      typeof record === "object" &&
+      record !== null &&
+      "key" in record &&
+      "providerSyncIntentId" in record &&
+      typeof record.key === "string" &&
+      typeof record.providerSyncIntentId === "string",
+  );
+}
+
+function errorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "provider_webhook_reconciliation_enqueue_failed";
 }
 
 export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = {}) {
@@ -66,6 +101,7 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
     providerCredentialId: string;
     projectId?: string | null;
     descriptor: TmsProviderWebhookDescriptor;
+    enqueuedMappedIntents?: EnqueuedMappedIntentRecord[];
   }) {
     const executableIntents = input.descriptor.mappedIntents.filter(
       isExecutableTmsWebhookMappedIntent,
@@ -103,22 +139,62 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
       return null;
     }
 
-    const [firstIntent, ...remainingIntents] = executableIntents;
-    const primaryProviderSyncIntentId = await enqueueMappedReconciliation({
-      ...input,
-      mappedIntent: firstIntent,
-    });
-    for (const mappedIntent of remainingIntents) {
-      await enqueueMappedReconciliation({
-        ...input,
-        mappedIntent,
+    const enqueuedMappedIntents = [...(input.enqueuedMappedIntents ?? [])];
+    const enqueuedIntentByKey = new Map(
+      enqueuedMappedIntents.map((record) => [record.key, record.providerSyncIntentId]),
+    );
+    let primaryProviderSyncIntentId: string | null = null;
+
+    try {
+      for (const mappedIntent of executableIntents) {
+        const key = mappedIntentQueueKey(mappedIntent);
+        const existingIntentId = enqueuedIntentByKey.get(key);
+        if (existingIntentId) {
+          primaryProviderSyncIntentId ??= existingIntentId;
+          continue;
+        }
+
+        const providerSyncIntentId = await enqueueMappedReconciliation({
+          ...input,
+          mappedIntent,
+        });
+        primaryProviderSyncIntentId ??= providerSyncIntentId;
+
+        const record = { key, providerSyncIntentId };
+        enqueuedMappedIntents.push(record);
+        enqueuedIntentByKey.set(key, providerSyncIntentId);
+
+        await updateProviderWebhookEventProcessingStatus({
+          eventId: input.providerWebhookEventId,
+          organizationId: input.organizationId,
+          processingStatus: "pending",
+          errorDetails: { enqueuedMappedIntents },
+        });
+      }
+    } catch (error) {
+      await updateProviderWebhookEventProcessingStatus({
+        eventId: input.providerWebhookEventId,
+        organizationId: input.organizationId,
+        processingStatus: "failed",
+        errorMessage: "provider_webhook_reconciliation_enqueue_failed",
+        errorDetails: {
+          message: errorMessage(error),
+          enqueuedMappedIntents,
+        },
       });
+      throw error;
     }
 
-    await updateProviderWebhookEventSyncIntent({
+    if (!primaryProviderSyncIntentId) {
+      throw new Error("provider_webhook_reconciliation_enqueue_failed");
+    }
+
+    await updateProviderWebhookEventProcessingStatus({
       eventId: input.providerWebhookEventId,
       organizationId: input.organizationId,
+      processingStatus: "pending",
       providerSyncIntentId: primaryProviderSyncIntentId,
+      errorDetails: {},
     });
 
     return primaryProviderSyncIntentId;
@@ -271,7 +347,8 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
 
       if (!stored.inserted || !stored.event) {
         if (
-          stored.event?.processingStatus === "pending" &&
+          (stored.event?.processingStatus === "pending" ||
+            stored.event?.processingStatus === "failed") &&
           stored.event.providerSyncIntentId === null
         ) {
           const providerSyncIntentId = await enqueueReconciliation({
@@ -292,6 +369,7 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
               resourceId: stored.event.resourceId,
               externalResourceId: stored.event.externalResourceId,
             }),
+            enqueuedMappedIntents: enqueuedMappedIntentRecords(stored.event.errorDetails),
           });
 
           log.info(

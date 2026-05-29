@@ -711,6 +711,63 @@ describe("tmsWebhookRoutes", () => {
       expect(queuedEvents.every((event) => event.subscriptionId === subscription.id)).toBe(true);
     });
 
+    it("requeues only missing Phrase upload intents after partial enqueue failure", async () => {
+      const { organizationId, subscription } = await createPhraseSubscriptionFixture();
+      const queuedEvents: ProviderWebhookReconciliationEventData[] = [];
+      let enqueueAttempts = 0;
+      const app = createApp({
+        providerWebhookReconciliationQueue: {
+          async enqueue(event) {
+            enqueueAttempts += 1;
+            if (enqueueAttempts === 2) {
+              throw new Error("queue unavailable");
+            }
+
+            queuedEvents.push(event);
+            return { ids: [randomUUID()] };
+          },
+        },
+      });
+      const body = JSON.stringify({
+        event_uid: "evt-phrase-upload-partial",
+        event: "uploads:create",
+        upload: { id: "upload-1" },
+      });
+
+      const first = await postPhraseWebhook({ app, body });
+      const retry = await postPhraseWebhook({ app, body });
+
+      expect(first.status).toBe(500);
+      expect(retry.status).toBe(202);
+      await expect(retry.json()).resolves.toEqual({
+        ok: true,
+        ignored: false,
+        duplicate: true,
+      });
+
+      const queuedIntentIds = queuedEvents.map((event) => event.providerSyncIntentId);
+      const intents = await db
+        .select()
+        .from(schema.providerSyncIntents)
+        .where(inArray(schema.providerSyncIntents.id, queuedIntentIds));
+      expect(intents.map((intent) => intent.syncKind).sort()).toEqual([
+        "file_key_scan",
+        "pull_content",
+      ]);
+      expect(queuedEvents).toHaveLength(2);
+      expect(queuedEvents.every((event) => event.subscriptionId === subscription.id)).toBe(true);
+
+      const [event] = await db
+        .select()
+        .from(schema.providerWebhookEvents)
+        .where(eq(schema.providerWebhookEvents.organizationId, organizationId));
+      expect(event).toMatchObject({
+        providerEventId: "evt-phrase-upload-partial",
+        providerSyncIntentId: expect.any(String),
+        processingStatus: "pending",
+      });
+    });
+
     it("rejects Phrase deliveries with invalid signatures", async () => {
       await createPhraseSubscriptionFixture();
       const app = createApp();
