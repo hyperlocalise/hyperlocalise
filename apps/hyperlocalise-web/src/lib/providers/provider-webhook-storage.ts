@@ -20,6 +20,13 @@ type ProviderWebhookSecretMetadata = {
   keyVersion?: number;
 };
 
+export class ProviderWebhookEventNotFoundError extends Error {
+  constructor() {
+    super("Provider webhook event not found");
+    this.name = "ProviderWebhookEventNotFoundError";
+  }
+}
+
 /**
  * Subscription row with decrypted secret material for the inbound webhook route.
  * Keep this type server-side only; API responses should use summaries instead.
@@ -491,7 +498,7 @@ export async function updateProviderWebhookEventProcessingStatus(input: {
     .returning();
 
   if (!event) {
-    throw new Error("Provider webhook event not found");
+    throw new ProviderWebhookEventNotFoundError();
   }
 
   return event;

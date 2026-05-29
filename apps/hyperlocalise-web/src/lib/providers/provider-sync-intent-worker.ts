@@ -9,7 +9,56 @@ import {
   failProviderSyncIntent,
   getProviderSyncIntentById,
 } from "./provider-sync-intents";
-import { updateProviderWebhookEventProcessingStatus } from "./provider-webhook-storage";
+import {
+  ProviderWebhookEventNotFoundError,
+  updateProviderWebhookEventProcessingStatus,
+} from "./provider-webhook-storage";
+import type { ProviderWebhookEventProcessingStatus } from "@/lib/database/types";
+
+type WebhookEventStatusUpdate = {
+  processingStatus: ProviderWebhookEventProcessingStatus;
+  errorMessage?: string | null;
+  errorDetails?: Record<string, unknown>;
+  providerSyncIntentId?: string | null;
+  providerSyncRunId?: string | null;
+  nextRetryAt?: Date | null;
+};
+
+type MarkWebhookEventStatusesResult = {
+  ok: boolean;
+  updatedEventIds: string[];
+};
+
+async function markWebhookEventStatuses(
+  organizationId: string,
+  eventIds: string[],
+  status: WebhookEventStatusUpdate,
+  options: { requireAll: boolean },
+): Promise<MarkWebhookEventStatusesResult> {
+  const updatedEventIds: string[] = [];
+
+  for (const eventId of eventIds) {
+    try {
+      await updateProviderWebhookEventProcessingStatus({
+        eventId,
+        organizationId,
+        ...status,
+      });
+      updatedEventIds.push(eventId);
+    } catch (error) {
+      if (error instanceof ProviderWebhookEventNotFoundError) {
+        if (options.requireAll) {
+          return { ok: false, updatedEventIds };
+        }
+        continue;
+      }
+
+      throw error;
+    }
+  }
+
+  return { ok: true, updatedEventIds };
+}
 
 export type ProcessProviderSyncIntentInput = {
   intentId: string;
@@ -73,12 +122,50 @@ export async function processProviderSyncIntent(
 
   const webhookEventIds = claimed.eventReferences;
 
-  for (const eventId of webhookEventIds) {
-    await updateProviderWebhookEventProcessingStatus({
-      eventId,
+  const markedProcessing = await markWebhookEventStatuses(
+    input.organizationId,
+    webhookEventIds,
+    { processingStatus: "processing" },
+    { requireAll: true },
+  );
+
+  if (!markedProcessing.ok) {
+    const errorMessage = "provider_webhook_event_not_found";
+    await markWebhookEventStatuses(
+      input.organizationId,
+      markedProcessing.updatedEventIds,
+      {
+        processingStatus: "failed",
+        errorMessage,
+        providerSyncIntentId: claimed.id,
+      },
+      { requireAll: false },
+    );
+
+    const failedIntent = await failProviderSyncIntent({
+      intentId: claimed.id,
       organizationId: input.organizationId,
-      processingStatus: "processing",
+      workerId: input.workerId,
+      errorMessage,
+      retryable: false,
     });
+
+    if (!failedIntent) {
+      return {
+        ok: false,
+        intentId: claimed.id,
+        status: "skipped",
+        reason: "intent_lease_lost",
+      };
+    }
+
+    return {
+      ok: false,
+      intentId: claimed.id,
+      status: "failed",
+      reason: errorMessage,
+      nextAttemptAt: failedIntent.nextAttemptAt,
+    };
   }
 
   try {
@@ -103,17 +190,18 @@ export async function processProviderSyncIntent(
         };
       }
 
-      for (const eventId of webhookEventIds) {
-        await updateProviderWebhookEventProcessingStatus({
-          eventId,
-          organizationId: input.organizationId,
+      await markWebhookEventStatuses(
+        input.organizationId,
+        webhookEventIds,
+        {
           processingStatus: "failed",
           errorMessage: "provider_sync_run_failed",
           providerSyncRunId: dispatchResult.runId,
           providerSyncIntentId: claimed.id,
           nextRetryAt: failedIntent.nextAttemptAt ?? null,
-        });
-      }
+        },
+        { requireAll: false },
+      );
 
       return {
         ok: false,
@@ -140,15 +228,16 @@ export async function processProviderSyncIntent(
       };
     }
 
-    for (const eventId of webhookEventIds) {
-      await updateProviderWebhookEventProcessingStatus({
-        eventId,
-        organizationId: input.organizationId,
+    await markWebhookEventStatuses(
+      input.organizationId,
+      webhookEventIds,
+      {
         processingStatus: "succeeded",
         providerSyncRunId: dispatchResult.runId,
         providerSyncIntentId: claimed.id,
-      });
-    }
+      },
+      { requireAll: false },
+    );
 
     return {
       ok: true,
@@ -180,16 +269,17 @@ export async function processProviderSyncIntent(
       };
     }
 
-    for (const eventId of webhookEventIds) {
-      await updateProviderWebhookEventProcessingStatus({
-        eventId,
-        organizationId: input.organizationId,
+    await markWebhookEventStatuses(
+      input.organizationId,
+      webhookEventIds,
+      {
         processingStatus: "failed",
         errorMessage: message,
         providerSyncIntentId: claimed.id,
         nextRetryAt: failedIntent.nextAttemptAt ?? null,
-      });
-    }
+      },
+      { requireAll: false },
+    );
 
     return {
       ok: false,
