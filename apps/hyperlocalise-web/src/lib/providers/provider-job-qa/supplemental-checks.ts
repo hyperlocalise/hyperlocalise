@@ -37,9 +37,10 @@ function escapeRegExp(value: string) {
 }
 
 function findGlossaryMatches(text: string, term: ProviderQaGlossaryTerm) {
-  const pattern = term.caseSensitive
-    ? new RegExp(`\\b${escapeRegExp(term.sourceTerm)}\\b`)
-    : new RegExp(`\\b${escapeRegExp(term.sourceTerm)}\\b`, "i");
+  // Use a more robust approach for word boundaries that handles non-word characters at the start or end of a term.
+  // Specifically, ensure that a match is only valid if it's not preceded or followed by a word character ([a-zA-Z0-9_]).
+  const patternStr = `(?<![a-zA-Z0-9_])${escapeRegExp(term.sourceTerm)}(?![a-zA-Z0-9_])`;
+  const pattern = term.caseSensitive ? new RegExp(patternStr) : new RegExp(patternStr, "i");
 
   return pattern.test(text);
 }
@@ -138,9 +139,8 @@ function checkGlossaryViolations(
       continue;
     }
 
-    const pattern = term.caseSensitive
-      ? new RegExp(`\\b${escapeRegExp(expected)}\\b`)
-      : new RegExp(`\\b${escapeRegExp(expected)}\\b`, "i");
+    const patternStr = `(?<![a-zA-Z0-9_])${escapeRegExp(expected)}(?![a-zA-Z0-9_])`;
+    const pattern = term.caseSensitive ? new RegExp(patternStr) : new RegExp(patternStr, "i");
 
     if (!pattern.test(targetText)) {
       findings.push(
