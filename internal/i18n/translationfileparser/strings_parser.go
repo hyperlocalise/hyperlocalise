@@ -159,7 +159,14 @@ func decodeAppleStringsQuoted(raw string) (string, error) {
 		return "", fmt.Errorf("expected quoted string")
 	}
 
+	// BOLT OPTIMIZATION: Fast-path for strings without escapes to avoid
+	// strings.Builder allocations and byte-by-byte iteration.
+	if !strings.Contains(raw, "\\") {
+		return raw[1 : len(raw)-1], nil
+	}
+
 	var b strings.Builder
+	b.Grow(len(raw))
 	for i := 1; i < len(raw)-1; i++ {
 		ch := raw[i]
 		if ch != '\\' {

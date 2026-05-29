@@ -279,11 +279,14 @@ func readPropertiesLogicalLine(text string, start int) (propertiesLogicalLine, i
 }
 
 func readPropertiesPhysicalLine(text string, start int) (int, int, int) {
-	i := start
-	for i < len(text) && text[i] != '\n' && text[i] != '\r' {
-		i++
+	// BOLT OPTIMIZATION: Use strings.IndexAny to skip ahead to the next newline
+	// instead of byte-by-byte iteration.
+	idx := strings.IndexAny(text[start:], "\n\r")
+	if idx < 0 {
+		return start, len(text), len(text)
 	}
-	end := i
+	end := start + idx
+	i := end
 	if i < len(text) {
 		if text[i] == '\r' && i+1 < len(text) && text[i+1] == '\n' {
 			i += 2
@@ -341,7 +344,14 @@ func isPropertiesWhitespace(ch byte) bool {
 }
 
 func decodeJavaPropertiesEscapes(raw string) (string, error) {
+	// BOLT OPTIMIZATION: Fast-path for strings without escapes to avoid
+	// strings.Builder allocations and byte-by-byte iteration.
+	if !strings.Contains(raw, "\\") {
+		return raw, nil
+	}
+
 	var b strings.Builder
+	b.Grow(len(raw))
 	for i := 0; i < len(raw); i++ {
 		ch := raw[i]
 		if ch != '\\' {
