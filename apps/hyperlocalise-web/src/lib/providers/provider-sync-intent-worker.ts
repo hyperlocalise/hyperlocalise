@@ -9,10 +9,11 @@ import {
   failProviderSyncIntent,
   getProviderSyncIntentById,
 } from "./provider-sync-intents";
-import { updateProviderWebhookEventProcessingStatus } from "./provider-webhook-storage";
+import {
+  ProviderWebhookEventNotFoundError,
+  updateProviderWebhookEventProcessingStatus,
+} from "./provider-webhook-storage";
 import type { ProviderWebhookEventProcessingStatus } from "@/lib/database/types";
-
-const PROVIDER_WEBHOOK_EVENT_NOT_FOUND = "Provider webhook event not found";
 
 type WebhookEventStatusUpdate = {
   processingStatus: ProviderWebhookEventProcessingStatus;
@@ -23,12 +24,19 @@ type WebhookEventStatusUpdate = {
   nextRetryAt?: Date | null;
 };
 
+type MarkWebhookEventStatusesResult = {
+  ok: boolean;
+  updatedEventIds: string[];
+};
+
 async function markWebhookEventStatuses(
   organizationId: string,
   eventIds: string[],
   status: WebhookEventStatusUpdate,
   options: { requireAll: boolean },
-): Promise<boolean> {
+): Promise<MarkWebhookEventStatusesResult> {
+  const updatedEventIds: string[] = [];
+
   for (const eventId of eventIds) {
     try {
       await updateProviderWebhookEventProcessingStatus({
@@ -36,13 +44,11 @@ async function markWebhookEventStatuses(
         organizationId,
         ...status,
       });
+      updatedEventIds.push(eventId);
     } catch (error) {
-      const isMissingEvent =
-        error instanceof Error && error.message === PROVIDER_WEBHOOK_EVENT_NOT_FOUND;
-
-      if (isMissingEvent) {
+      if (error instanceof ProviderWebhookEventNotFoundError) {
         if (options.requireAll) {
-          return false;
+          return { ok: false, updatedEventIds };
         }
         continue;
       }
@@ -51,7 +57,7 @@ async function markWebhookEventStatuses(
     }
   }
 
-  return true;
+  return { ok: true, updatedEventIds };
 }
 
 export type ProcessProviderSyncIntentInput = {
@@ -123,8 +129,19 @@ export async function processProviderSyncIntent(
     { requireAll: true },
   );
 
-  if (!markedProcessing) {
+  if (!markedProcessing.ok) {
     const errorMessage = "provider_webhook_event_not_found";
+    await markWebhookEventStatuses(
+      input.organizationId,
+      markedProcessing.updatedEventIds,
+      {
+        processingStatus: "failed",
+        errorMessage,
+        providerSyncIntentId: claimed.id,
+      },
+      { requireAll: false },
+    );
+
     const failedIntent = await failProviderSyncIntent({
       intentId: claimed.id,
       organizationId: input.organizationId,

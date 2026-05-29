@@ -17,6 +17,7 @@ import {
 import { processProviderSyncIntent } from "./provider-sync-intent-worker";
 import { startProviderSyncRun } from "./provider-sync-runs";
 import { completeAgentRun, createAgentRun, startAgentRun } from "./agent-runs";
+import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
 import { upsertExternalJob } from "./organization-external-tms-jobs";
 import {
   claimProviderSyncIntent,
@@ -26,6 +27,10 @@ import {
   PROVIDER_SYNC_INTENT_LEASE_MS,
   releaseExpiredProviderSyncIntentLeases,
 } from "./provider-sync-intents";
+import {
+  insertProviderWebhookEvent,
+  insertProviderWebhookSubscription,
+} from "./provider-webhook-storage";
 
 const projectFixture = createProjectTestFixture();
 
@@ -425,5 +430,77 @@ describe("provider sync intents", () => {
     expect(updated?.status).toBe("failed");
     expect(updated?.leasedUntil).toBeNull();
     expect(updated?.leasedBy).toBeNull();
+  });
+
+  it("marks already-processing webhook events as failed when a coalesced event is missing", async () => {
+    const { project, user } = await projectFixture.createStoredProjectFixture();
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: project.organizationId,
+      userId: user.id,
+      role: "owner",
+      providerKind: "lokalise",
+      displayName: "Lokalise",
+      secretMaterial: "secret-token",
+    });
+    const subscription = await insertProviderWebhookSubscription({
+      organizationId: project.organizationId,
+      providerCredentialId: credential.id,
+      providerKind: "lokalise",
+      providerWebhookId: "provider-webhook-1",
+      endpointUrl: "https://app.example.test/api/webhooks/tms/lokalise",
+      subscribedEvents: ["project.updated"],
+    });
+    const survivingEvent = await insertProviderWebhookEvent({
+      organizationId: project.organizationId,
+      subscriptionId: subscription.id,
+      providerKind: "lokalise",
+      providerEventId: "event-A",
+      eventType: "project.updated",
+      dedupeKey: "event-A",
+      projectId: project.id,
+    });
+    const missingEventId = randomUUID();
+    const dispatch = vi.fn<ProviderSyncIntentDispatcher["dispatch"]>(async () => ({
+      runId: randomUUID(),
+      status: "succeeded",
+      runner: "project_scan",
+    }));
+
+    expect(survivingEvent).not.toBeNull();
+    if (!survivingEvent) {
+      return;
+    }
+
+    const { intent } = await enqueueProviderSyncIntent({
+      organizationId: project.organizationId,
+      providerKind: "lokalise",
+      projectId: project.id,
+      syncKind: "project_scan",
+      cause: "webhook",
+      eventReferences: [survivingEvent.id, missingEventId],
+    });
+
+    const result = await processProviderSyncIntent({
+      intentId: intent.id,
+      organizationId: project.organizationId,
+      workerId: "test-worker",
+      dispatcher: { dispatch },
+    });
+
+    expect(result.ok).toBe(false);
+    if (result.ok) {
+      return;
+    }
+    expect(result.status).toBe("failed");
+    expect(result.reason).toBe("provider_webhook_event_not_found");
+    expect(dispatch).not.toHaveBeenCalled();
+
+    const [updatedEvent] = await db
+      .select()
+      .from(schema.providerWebhookEvents)
+      .where(eq(schema.providerWebhookEvents.id, survivingEvent.id));
+    expect(updatedEvent?.processingStatus).toBe("failed");
+    expect(updatedEvent?.errorMessage).toBe("provider_webhook_event_not_found");
+    expect(updatedEvent?.providerSyncIntentId).toBe(intent.id);
   });
 });
