@@ -107,3 +107,9 @@
 **Learning:** Crowdin API v2 Reports have evolved to include AI-specific matching in net rate schemes and more granular metadata in report status attributes. Specifically, `aiMatch` was missing from `ReportNetRateSchemes`, and `projectIds` was missing from `ReportStatusAttributes` for group/organization reports. Additionally, several new report names and the `status` filter in `GroupTaskUsageSchema` were absent.
 
 **Action:** Added `AIMatch` to `ReportNetRateSchemes`, `ProjectIDs` to `ReportStatusAttributes`, and `Status` to `GroupTaskUsageSchema` in `model/reports.go`. Added missing `ReportName` constants for project and group reports (including TM-specific and comprehensive summaries). Updated comprehensive contract tests in `reports_test.go` to verify correct parsing and serialization of these new fields.
+
+## 2026-08-15 - Optimize JoinSlice and improve Bundle model parity
+
+**Learning:** The `JoinSlice` utility in the Go SDK was using `fmt.Sprintf` for every element, causing unnecessary reflection and allocations in hot paths like query parameter encoding. Additionally, `BundleAddRequest` was missing `omitempty` tags for optional label fields, which could lead to sending empty arrays to the Crowdin API.
+
+**Action:** Optimized `model.JoinSlice` in `utils.go` by using `strings.Builder` and type switches for `int` and `string` to significantly reduce allocations. Added `omitempty` to `LabelIDs` and `ExcludeLabelIDs` in `BundleAddRequest` and corrected the documentation comment for `ExcludeLabelIDs`. Verified with focused unit tests and the full test suite.
