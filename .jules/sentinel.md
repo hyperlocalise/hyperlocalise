@@ -37,3 +37,8 @@
 **Vulnerability:** Several workspace-scoped job endpoints (agent-runs, provider-actions, QA, retry, mark-failed) only verified that a job belonged to the user's organization, but did not check if the user had access to the specific project containing that job. This allowed users to access or modify jobs in projects they were not members of within the same organization (BOLA).
 **Learning:** Checking for organization ownership is a baseline but often insufficient in multi-tenant apps with nested resource hierarchies (e.g., Teams/Projects). Direct lookups by ID must always incorporate the full accessibility context of the current user.
 **Prevention:** Centralize resource accessibility logic into shared helpers (like `buildAccessibleJobsWhere`) and ensure these are used in every endpoint that performs a direct object lookup or modification, even when a `jobId` is provided.
+
+## 2026-06-10 - [High] Broken Project Level Authorization in Interaction Routes
+**Vulnerability:** Conversation and chat-request routes only verified organization ownership, but did not check for project-level access. This allowed users to access or create interactions for projects they were not members of within the same organization (BOLA).
+**Learning:** Interactions linked to projects must inherit the same authorization constraints as the projects themselves. Any route that performs a lookup or mutation on a sub-resource must verify the user's path through the hierarchy.
+**Prevention:** Implement and enforce specialized accessibility helpers (like `buildAccessibleInteractionsWhere` and `canAccessInteraction`) that explicitly account for both project-less (organization-global) and project-scoped resources.

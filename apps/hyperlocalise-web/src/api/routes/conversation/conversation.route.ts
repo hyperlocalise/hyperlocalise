@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
+import { buildAccessibleInteractionsWhere, canAccessInteraction } from "@/api/auth/team-access";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
@@ -84,9 +85,8 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
     .use("*", workosAuthMiddleware)
     .get("/", validateListQuery, async (c) => {
       const query = c.req.valid("query");
-      const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
-      const conditions = [eq(schema.inboxItems.organizationId, orgId)];
+      const conditions = [await buildAccessibleInteractionsWhere(c.var.auth)];
       if (query.status) {
         conditions.push(eq(schema.inboxItems.status, query.status));
       }
@@ -158,31 +158,8 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
     })
     .get("/:conversationId", validateConversationParams, async (c) => {
       const { conversationId } = c.req.valid("param");
-      const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
-      const [conversation] = await db
-        .select({
-          id: schema.interactions.id,
-          organizationId: schema.interactions.organizationId,
-          projectId: schema.interactions.projectId,
-          source: schema.interactions.source,
-          title: schema.interactions.title,
-          sourceThreadId: schema.interactions.sourceThreadId,
-          lastMessageAt: schema.interactions.lastMessageAt,
-          createdAt: schema.interactions.createdAt,
-          updatedAt: schema.interactions.updatedAt,
-          status: schema.inboxItems.status,
-        })
-        .from(schema.interactions)
-        .innerJoin(schema.inboxItems, eq(schema.inboxItems.interactionId, schema.interactions.id))
-        .where(
-          and(
-            eq(schema.interactions.id, conversationId),
-            eq(schema.interactions.organizationId, orgId),
-          ),
-        )
-        .limit(1);
-
+      const conversation = await canAccessInteraction(c.var.auth, conversationId);
       if (!conversation) {
         return notFoundResponse(c);
       }
@@ -197,19 +174,8 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
     })
     .get("/:conversationId/messages", validateConversationParams, async (c) => {
       const { conversationId } = c.req.valid("param");
-      const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
-      const [conversation] = await db
-        .select({ id: schema.interactions.id })
-        .from(schema.interactions)
-        .where(
-          and(
-            eq(schema.interactions.id, conversationId),
-            eq(schema.interactions.organizationId, orgId),
-          ),
-        )
-        .limit(1);
-
+      const conversation = await canAccessInteraction(c.var.auth, conversationId);
       if (!conversation) {
         return notFoundResponse(c);
       }
@@ -234,6 +200,11 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const { conversationId } = c.req.valid("param");
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
+        const conversation = await canAccessInteraction(c.var.auth, conversationId);
+        if (!conversation) {
+          return notFoundResponse(c);
+        }
+
         const body = await c.req.parseBody({ all: true });
         const text = asString(body.text) ?? "";
         const files = asFiles(body.files);
@@ -244,25 +215,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
         if (files.length > maxMessageUploadFiles) {
           return tooManyFilesResponse(c);
-        }
-
-        const [conversation] = await db
-          .select({
-            id: schema.interactions.id,
-            source: schema.interactions.source,
-            projectId: schema.interactions.projectId,
-          })
-          .from(schema.interactions)
-          .where(
-            and(
-              eq(schema.interactions.id, conversationId),
-              eq(schema.interactions.organizationId, orgId),
-            ),
-          )
-          .limit(1);
-
-        if (!conversation) {
-          return notFoundResponse(c);
         }
 
         if (conversation.source !== "chat_ui") {
@@ -332,17 +284,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
       const { conversationId } = c.req.valid("param");
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
-      const [conversation] = await db
-        .select({ id: schema.interactions.id })
-        .from(schema.interactions)
-        .where(
-          and(
-            eq(schema.interactions.id, conversationId),
-            eq(schema.interactions.organizationId, orgId),
-          ),
-        )
-        .limit(1);
-
+      const conversation = await canAccessInteraction(c.var.auth, conversationId);
       if (!conversation) {
         return notFoundResponse(c);
       }

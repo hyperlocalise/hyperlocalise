@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { and, eq, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -137,6 +137,50 @@ export async function buildProjectLinkedMemoryWhere(auth: ApiAuthContext): Promi
     .where(inArray(schema.projectMemories.projectId, accessibleProjectIds));
 
   return and(organizationScope, inArray(schema.memories.id, linkedMemoryIds))!;
+}
+
+export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Promise<SQL> {
+  const organizationId = auth.organization.localOrganizationId;
+  const organizationScope = eq(schema.interactions.organizationId, organizationId);
+
+  if (hasOrganizationWideProjectAccess(auth)) {
+    return organizationScope;
+  }
+
+  const accessibleProjectIds = await getAccessibleProjectIds(auth);
+
+  const projectFilter = or(
+    isNull(schema.interactions.projectId),
+    accessibleProjectIds.length > 0
+      ? inArray(schema.interactions.projectId, accessibleProjectIds)
+      : sql`false`,
+  );
+
+  return and(organizationScope, projectFilter)!;
+}
+
+export async function canAccessInteraction(auth: ApiAuthContext, interactionId: string) {
+  const where = await buildAccessibleInteractionsWhere(auth);
+
+  const [interaction] = await db
+    .select({
+      id: schema.interactions.id,
+      organizationId: schema.interactions.organizationId,
+      projectId: schema.interactions.projectId,
+      source: schema.interactions.source,
+      title: schema.interactions.title,
+      sourceThreadId: schema.interactions.sourceThreadId,
+      lastMessageAt: schema.interactions.lastMessageAt,
+      createdAt: schema.interactions.createdAt,
+      updatedAt: schema.interactions.updatedAt,
+      status: schema.inboxItems.status,
+    })
+    .from(schema.interactions)
+    .innerJoin(schema.inboxItems, eq(schema.inboxItems.interactionId, schema.interactions.id))
+    .where(and(eq(schema.interactions.id, interactionId), where))
+    .limit(1);
+
+  return interaction ?? null;
 }
 
 export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string) {

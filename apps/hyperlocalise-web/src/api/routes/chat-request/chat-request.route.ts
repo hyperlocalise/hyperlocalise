@@ -1,10 +1,10 @@
-import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
+import { ownedProjectWhere } from "@/api/auth/team-access";
 import type { AuthVariables } from "@/api/auth/workos";
-import { workosAuthMiddleware } from "@/api/auth/workos";
+import { workosAuthMiddleware, type ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
@@ -56,10 +56,7 @@ function tooManyTranslationSourceFilesResponse(c: {
   return c.json({ error: "too_many_translation_source_files", maxFiles: maxChatUploadFiles }, 400);
 }
 
-async function validateProjectForOrganization(
-  projectId: string | undefined,
-  organizationId: string,
-) {
+async function validateProjectForOrganization(auth: ApiAuthContext, projectId: string | undefined) {
   if (!projectId) {
     return true;
   }
@@ -67,9 +64,7 @@ async function validateProjectForOrganization(
   const [project] = await db
     .select({ id: schema.projects.id })
     .from(schema.projects)
-    .where(
-      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
-    )
+    .where(await ownedProjectWhere(auth, projectId))
     .limit(1);
 
   return Boolean(project);
@@ -111,7 +106,10 @@ export function createChatRequestRoutes(options: CreateChatRequestRoutesOptions 
         }
 
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
-        const projectIsValid = await validateProjectForOrganization(parsed.data.projectId, orgId);
+        const projectIsValid = await validateProjectForOrganization(
+          c.var.auth,
+          parsed.data.projectId,
+        );
         if (!projectIsValid) {
           return invalidChatRequestResponse(c);
         }
@@ -171,7 +169,7 @@ export function createChatRequestRoutes(options: CreateChatRequestRoutesOptions 
     .post("/", validateChatRequestBody, async (c) => {
       const body = c.req.valid("json");
       const orgId = c.var.auth.activeOrganization.localOrganizationId;
-      const projectIsValid = await validateProjectForOrganization(body.projectId, orgId);
+      const projectIsValid = await validateProjectForOrganization(c.var.auth, body.projectId);
       if (!projectIsValid) {
         return invalidChatRequestResponse(c);
       }
