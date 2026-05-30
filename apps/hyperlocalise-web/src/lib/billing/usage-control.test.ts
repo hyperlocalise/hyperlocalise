@@ -7,6 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { isErr } from "@/lib/primitives/result/results";
 import {
   markUsageEventSucceededByOperationKey,
   reserveUsageEvent,
@@ -32,15 +33,18 @@ async function createOrganization() {
 
 async function reservedUsageEvent(operationKey = `usage_${randomUUID()}`) {
   const organization = await createOrganization();
-  const event = await reserveUsageEvent({
+  const eventResult = await reserveUsageEvent({
     organizationId: organization.id,
     featureId: usageFeatureIds.translationJobs,
     operationKey,
     source: "translation_job_create",
     quantity: 1,
   });
+  if (isErr(eventResult)) {
+    throw new Error(eventResult.error.code);
+  }
 
-  return { event, operationKey, organization };
+  return { event: eventResult.value, operationKey, organization };
 }
 
 async function getUsageEvent(operationKey: string) {
@@ -78,28 +82,44 @@ describe("usage-control", () => {
       .from(schema.usageEvents)
       .where(eq(schema.usageEvents.operationKey, operationKey));
 
-    expect(second.id).toBe(first.id);
+    if (isErr(first) || isErr(second)) {
+      throw new Error("Expected usage event reservations to succeed");
+    }
+
+    expect(second.value.id).toBe(first.value.id);
     expect(rows).toHaveLength(1);
   });
 
-  it("throws when marking a missing usage event succeeded", async () => {
-    await expect(
-      markUsageEventSucceededByOperationKey({ operationKey: `missing_${randomUUID()}` }),
-    ).rejects.toThrow("usage event not found");
+  it("returns an error when marking a missing usage event succeeded", async () => {
+    const operationKey = `missing_${randomUUID()}`;
+    const result = await markUsageEventSucceededByOperationKey({ operationKey });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: {
+        code: "usage_event_not_found",
+        operationKey,
+      },
+    });
   });
 
   it("posts succeeded usage events to Autumn before marking tracking succeeded", async () => {
     const { operationKey, organization } = await reservedUsageEvent();
-    await markUsageEventSucceededByOperationKey({ operationKey });
+    const markResult = await markUsageEventSucceededByOperationKey({ operationKey });
+    expect(isErr(markResult)).toBe(false);
 
     const fetchFn = vi.fn(
       async () => new Response("{}", { status: 200 }),
     ) as unknown as typeof fetch;
 
-    await trackUsageEventInAutumnByOperationKey({
+    const trackResult = await trackUsageEventInAutumnByOperationKey({
       operationKey,
       autumnApiKey: "am_sk_test",
       fetchFn,
+    });
+    expect(trackResult).toMatchObject({
+      ok: true,
+      value: { status: "tracking_succeeded" },
     });
 
     expect(fetchFn).toHaveBeenCalledOnce();
@@ -137,19 +157,28 @@ describe("usage-control", () => {
 
   it("marks tracking failed when Autumn rejects the usage event", async () => {
     const { operationKey } = await reservedUsageEvent();
-    await markUsageEventSucceededByOperationKey({ operationKey });
+    const markResult = await markUsageEventSucceededByOperationKey({ operationKey });
+    expect(isErr(markResult)).toBe(false);
 
     const fetchFn = vi.fn(
       async () => new Response("bad", { status: 500 }),
     ) as unknown as typeof fetch;
 
-    await expect(
-      trackUsageEventInAutumnByOperationKey({
+    const trackResult = await trackUsageEventInAutumnByOperationKey({
+      operationKey,
+      autumnApiKey: "am_sk_test",
+      fetchFn,
+    });
+
+    expect(trackResult).toMatchObject({
+      ok: false,
+      error: {
+        code: "autumn_usage_tracking_failed",
         operationKey,
-        autumnApiKey: "am_sk_test",
-        fetchFn,
-      }),
-    ).rejects.toThrow("Autumn usage tracking failed with HTTP 500");
+        message: "Autumn usage tracking failed with HTTP 500",
+        httpStatus: 500,
+      },
+    });
 
     await expect(getUsageEvent(operationKey)).resolves.toMatchObject({
       status: "tracking_failed",
@@ -163,13 +192,20 @@ describe("usage-control", () => {
       async () => new Response("{}", { status: 200 }),
     ) as unknown as typeof fetch;
 
-    await expect(
-      trackUsageEventInAutumnByOperationKey({
+    const trackResult = await trackUsageEventInAutumnByOperationKey({
+      operationKey,
+      autumnApiKey: "am_sk_test",
+      fetchFn,
+    });
+
+    expect(trackResult).toMatchObject({
+      ok: false,
+      error: {
+        code: "usage_event_not_trackable",
         operationKey,
-        autumnApiKey: "am_sk_test",
-        fetchFn,
-      }),
-    ).rejects.toThrow("must be succeeded before tracking");
+        status: "reserved",
+      },
+    });
 
     expect(fetchFn).not.toHaveBeenCalled();
   });

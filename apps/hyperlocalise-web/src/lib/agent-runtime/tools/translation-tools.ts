@@ -19,7 +19,12 @@ import {
   supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
-import { reserveUsageEvent, usageFeatureIds } from "@/lib/billing/usage-control";
+import {
+  formatUsageControlError,
+  reserveUsageEvent,
+  usageFeatureIds,
+} from "@/lib/billing/usage-control";
+import { isErr } from "@/lib/primitives/result/results";
 
 import { toolAccessibleJobsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";
@@ -192,7 +197,7 @@ async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queued
 
     const billing = queuedJobUsageBilling(input.kind);
 
-    await reserveUsageEvent({
+    const usageEventResult = await reserveUsageEvent({
       db: tx,
       organizationId: ctx.organizationId,
       featureId: billing.featureId,
@@ -202,6 +207,9 @@ async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queued
       interactionId: ctx.conversationId ?? undefined,
       quantity: 1,
     });
+    if (isErr(usageEventResult)) {
+      throw new Error(formatUsageControlError(usageEventResult.error));
+    }
 
     return job;
   });
@@ -375,7 +383,7 @@ export function createTranslationJobTool(ctx: ToolContext) {
           sourceFileVersionId: sourceFileVersion?.id ?? null,
         });
 
-        await reserveUsageEvent({
+        const usageEventResult = await reserveUsageEvent({
           db: tx,
           organizationId: ctx.organizationId,
           featureId: usageFeatureIds.translationJobs,
@@ -385,6 +393,9 @@ export function createTranslationJobTool(ctx: ToolContext) {
           interactionId: ctx.conversationId ?? undefined,
           quantity: 1,
         });
+        if (isErr(usageEventResult)) {
+          throw new Error(formatUsageControlError(usageEventResult.error));
+        }
 
         return createdJob;
       });

@@ -22,5 +22,11 @@ describe("formatAutumnBillingError", () => {
         message: "should not leak",
       }),
     ).toBe("Billing is not available for this workspace.");
+
+    expect(
+      formatAutumnBillingError({
+        code: "billing_customer_unavailable",
+      }),
+    ).toBe("Billing is not available for this workspace.");
   });
 });

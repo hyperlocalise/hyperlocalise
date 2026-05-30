@@ -1,6 +1,7 @@
 import type { ResolvedIdentity } from "autumn-js/backend";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 /** Synthetic WorkOS organization IDs for deprecated local-only workspaces. */
 export const LOCAL_ORG_WORKOS_ID_PREFIX = "local_org_";
@@ -18,16 +19,22 @@ export function isDeprecatedLocalOrgWorkosId(workosOrganizationId: string) {
   return workosOrganizationId.startsWith(LOCAL_ORG_WORKOS_ID_PREFIX);
 }
 
-export function resolveAutumnCustomerIdentity(auth: ApiAuthContext): ResolvedIdentity | null {
+export type ResolveAutumnCustomerIdentityError = {
+  code: "billing_customer_unavailable";
+};
+
+export function resolveAutumnCustomerIdentity(
+  auth: ApiAuthContext,
+): Result<ResolvedIdentity, ResolveAutumnCustomerIdentityError> {
   if (isDeprecatedLocalOrgWorkosId(auth.organization.workosOrganizationId)) {
-    return null;
+    return err({ code: "billing_customer_unavailable" });
   }
 
-  return {
+  return ok({
     customerId: auth.organization.localOrganizationId,
     customerData: {
       name: auth.organization.name,
       email: auth.user.email,
     },
-  };
+  });
 }

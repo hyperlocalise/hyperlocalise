@@ -17,9 +17,9 @@ export function formatAutumnBillingError(error: unknown): string {
     }
   }
 
-  if (error && typeof error === "object" && "error" in error) {
-    const apiError = error as { error?: string; message?: string };
-    switch (apiError.error) {
+  if (error && typeof error === "object" && ("error" in error || "code" in error)) {
+    const apiError = error as { error?: string; code?: string; message?: string };
+    switch (apiError.error ?? apiError.code) {
       case "billing_read_forbidden":
         return "You do not have permission to view billing for this workspace.";
       case "billing_write_forbidden":
