@@ -245,15 +245,15 @@ function nextWeeklyRunUtc(from: Date, timeZone: string, hourUtc: number, dayOfWe
   const zoned = getZonedDateTimeParts(from, timeZone);
   let { year, month, day } = zoned;
 
-  let daysUntil = (dayOfWeek - zoned.weekday + 7) % 7;
-  let candidate = new Date(Date.UTC(year, month - 1, day, hourUtc, 0, 0));
-
-  if (daysUntil === 0 && candidate.getTime() <= from.getTime()) {
-    daysUntil = 7;
-  }
-
+  const daysUntil = (dayOfWeek - zoned.weekday + 7) % 7;
   if (daysUntil > 0) {
     ({ year, month, day } = addDaysToLocalDate(year, month, day, daysUntil));
+  }
+
+  let candidate = new Date(Date.UTC(year, month - 1, day, hourUtc, 0, 0));
+
+  if (candidate.getTime() <= from.getTime()) {
+    ({ year, month, day } = addDaysToLocalDate(year, month, day, 7));
     candidate = new Date(Date.UTC(year, month - 1, day, hourUtc, 0, 0));
   }
 

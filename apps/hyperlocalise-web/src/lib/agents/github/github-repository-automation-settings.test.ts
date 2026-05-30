@@ -140,4 +140,21 @@ describe("github repository automation settings", () => {
 
     expect(next.toISOString()).toBe("2026-05-31T09:00:00.000Z");
   });
+
+  it("schedules weekly runs in the future when local weekday is behind UTC", () => {
+    const from = new Date("2026-01-05T02:00:00.000Z");
+    const next = computeNextScheduledRunAt(
+      {
+        mode: "scheduled",
+        cadence: "weekly",
+        hourUtc: 1,
+        timezone: "America/New_York",
+        dayOfWeek: 1,
+      },
+      from,
+    );
+
+    expect(next.getTime()).toBeGreaterThan(from.getTime());
+    expect(next.toISOString()).toBe("2026-01-12T01:00:00.000Z");
+  });
 });
