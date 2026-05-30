@@ -14,7 +14,7 @@ type AccessDeniedReason =
   | "callback";
 
 function shouldOfferWorkosMembershipSync(reason: AccessDeniedReason | undefined) {
-  return reason === "organization-access-denied" || reason === "workos-membership-lookup-failed";
+  return reason === "organization-access-denied";
 }
 
 function getAccessDeniedCopy(reason: AccessDeniedReason | undefined) {
@@ -31,7 +31,7 @@ function getAccessDeniedCopy(reason: AccessDeniedReason | undefined) {
         title: "Could not verify membership",
         description:
           "Your account is signed in, but we could not reach WorkOS to confirm your organization membership.",
-        body: "Try syncing again in a moment. If the problem continues, contact support or choose another organization.",
+        body: "Try again in a moment. If the problem continues, contact support or choose another organization.",
       };
     case "workspace-archived":
       return {

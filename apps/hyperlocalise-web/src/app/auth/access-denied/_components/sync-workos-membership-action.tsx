@@ -52,7 +52,7 @@ export function SyncWorkosMembershipAction() {
 
       if (response.status === 401) {
         router.replace(
-          "/auth/sign-in?returnTo=/auth/access-denied?reason=organization-access-denied",
+          `/auth/sign-in?returnTo=${encodeURIComponent("/auth/access-denied?reason=organization-access-denied")}`,
         );
         return null;
       }
