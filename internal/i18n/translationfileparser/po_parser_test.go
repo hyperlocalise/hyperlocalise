@@ -177,3 +177,34 @@ msgstr "Hello "
 		t.Errorf("expected indented cleared continuation lines, got:\n%s", content)
 	}
 }
+
+func TestPOParserPreservesSpacesInMsgID(t *testing.T) {
+	content := []byte(`msgid ""
+msgstr ""
+"Language: en-US\n"
+
+msgid " leading"
+msgstr "val1"
+
+msgid "trailing "
+msgstr "val2"
+
+msgid " "
+msgstr "val3"
+`)
+
+	got, err := (POFileParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	expected := map[string]string{
+		" leading":  "val1",
+		"trailing ": "val2",
+		" ":         "val3",
+	}
+
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("got %v, want %v", got, expected)
+	}
+}
