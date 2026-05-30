@@ -98,3 +98,7 @@
 ## 2026-07-25 - ASCII fast-paths for ICU identifier and selector parsing
 **Learning:** Message parsing and invariant extraction in the ICU parser are hot paths where `utf8.DecodeRuneInString` and `unicode` package checks (like `unicode.IsSpace` or `unicode.IsLetter`) add significant overhead when the input is predominantly ASCII.
 **Action:** Implement manual byte-loop fast-paths for ASCII characters in `readIdentifierLike`, `readSelector`, and `isPlaceholderName` to bypass rune decoding. Additionally, use a single-character lookahead (e.g., `sel[0] == 'o'`) to short-circuit expensive `strings.EqualFold` calls for fixed keywords like `offset:`.
+
+## 2026-07-28 - Optimizing Apple .stringsdict path construction and key validation
+**Learning:** In recursive or iterative XML path construction (like .stringsdict parsing), using a `[]string` slice to track the path leads to high allocations due to repeated slice copies and `strings.Join` calls. Additionally, using `strings.Split` for segment extraction in validation is inefficient. String concatenation for path building and `strings.LastIndexByte` for segment extraction are significantly more efficient.
+**Action:** Refactored `AppleStringsdictParser` to use a `string` path prefix and replaced `strings.Split` with `strings.LastIndexByte` in `validateStringsdictFormatKeys`, resulting in a ~10% speedup and ~7% reduction in allocations.

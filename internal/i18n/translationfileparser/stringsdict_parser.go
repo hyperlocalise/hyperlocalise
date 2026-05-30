@@ -86,7 +86,7 @@ func parseStringsdictDocument(content []byte) (stringsdictDocument, error) {
 
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	type dictFrame struct {
-		path       []string
+		pathPrefix string
 		pendingKey string
 	}
 	dictStack := []dictFrame{}
@@ -116,12 +116,15 @@ func parseStringsdictDocument(content []byte) (stringsdictDocument, error) {
 				captureKey = true
 				keyBuilder.Reset()
 			case "dict":
-				frame := dictFrame{path: []string{}}
+				frame := dictFrame{}
 				if len(dictStack) > 0 {
 					parent := &dictStack[len(dictStack)-1]
-					frame.path = append(frame.path, parent.path...)
+					frame.pathPrefix = parent.pathPrefix
 					if parent.pendingKey != "" {
-						frame.path = append(frame.path, parent.pendingKey)
+						if frame.pathPrefix != "" {
+							frame.pathPrefix += "."
+						}
+						frame.pathPrefix += parent.pendingKey
 						parent.pendingKey = ""
 					}
 				}
@@ -135,10 +138,15 @@ func parseStringsdictDocument(content []byte) (stringsdictDocument, error) {
 					continue
 				}
 
-				path := append([]string{}, frame.path...)
-				path = append(path, frame.pendingKey)
+				// BOLT OPTIMIZATION: Use string concatenation instead of []string and strings.Join
+				// to build the entry key. This avoids O(N^2) path construction overhead.
+				path := frame.pathPrefix
+				if path != "" {
+					path += "."
+				}
+				valuePath = path + frame.pendingKey
 				frame.pendingKey = ""
-				valuePath = strings.Join(path, ".")
+
 				inValueString = true
 				valueBuilder.Reset()
 				valueStart = -1
@@ -200,18 +208,28 @@ var stringsdictFormatTokenPattern = regexp.MustCompile(`%#@([^@]+)@`)
 func validateStringsdictFormatKeys(entries []stringsdictEntry) error {
 	childKeysByPrefix := map[string]map[string]struct{}{}
 	for _, entry := range entries {
-		parts := strings.Split(entry.key, ".")
-		if len(parts) < 3 {
+		// BOLT OPTIMIZATION: Use LastIndexByte to extract prefix and child key.
+		// A stringsdict key is at least prefix.substitutionKey.category (3 segments).
+		// This is much more efficient than strings.Split and strings.Join for deep keys.
+		lastDot := strings.LastIndexByte(entry.key, '.')
+		if lastDot < 0 {
 			continue
 		}
+		secondToLastDot := strings.LastIndexByte(entry.key[:lastDot], '.')
+		if secondToLastDot < 0 {
+			continue
+		}
+
 		if isStringsdictMetadataKey(entry.key) {
 			continue
 		}
-		prefix := strings.Join(parts[:len(parts)-2], ".")
-		childKey := parts[len(parts)-2]
+
+		prefix := entry.key[:secondToLastDot]
+		childKey := entry.key[secondToLastDot+1 : lastDot]
 		if childKey == "" {
 			continue
 		}
+
 		if _, ok := childKeysByPrefix[prefix]; !ok {
 			childKeysByPrefix[prefix] = map[string]struct{}{}
 		}
