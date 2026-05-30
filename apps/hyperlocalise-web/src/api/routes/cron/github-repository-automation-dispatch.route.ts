@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { env } from "@/lib/env";
 import { runGithubRepositoryAutomationScheduler } from "@/lib/agents/github/github-repository-automation-scheduler";
@@ -13,7 +13,7 @@ function readCronSecret(request: Request) {
   return request.headers.get("x-cron-secret")?.trim() ?? null;
 }
 
-const HMAC_KEY = Buffer.alloc(32);
+const HMAC_KEY = randomBytes(32);
 
 function secretsMatch(provided: string, expected: string) {
   const providedHmac = createHmac("sha256", HMAC_KEY).update(provided).digest();

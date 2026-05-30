@@ -259,6 +259,11 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
       }
 
       if (event === "push") {
+        if (!delivery) {
+          log.warn("push webhook missing delivery id");
+          return c.json({ error: "missing_github_delivery_id" }, 400);
+        }
+
         const [installationRepository] = await db
           .select({ id: schema.githubInstallationRepositories.id })
           .from(schema.githubInstallationRepositories)
@@ -289,7 +294,7 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
         }
 
         const pushResult = await handleGithubPushWebhook({
-          deliveryId: delivery ?? `missing-delivery-${Date.now()}`,
+          deliveryId: delivery,
           organizationId: installation.organizationId,
           githubInstallationId: installation.githubInstallationId,
           githubInstallationRepositoryId: installationRepository.id,

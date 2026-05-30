@@ -36,6 +36,16 @@ export async function runGithubRepositoryAutomationScheduler(input?: {
   for (const entry of dueSettings) {
     const scheduledRunAt = entry.row.nextRunAt;
     if (!scheduledRunAt) {
+      logger.warn(
+        { settingsRowId: entry.row.id },
+        "github repository automation scheduler row missing next_run_at; advancing",
+      );
+      await advanceGithubRepositoryAutomationNextRun({
+        settingsRowId: entry.row.id,
+        settings: entry.settings,
+        completedAt: now,
+      });
+      skipped += 1;
       continue;
     }
 
