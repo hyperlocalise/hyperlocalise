@@ -7,6 +7,7 @@ import type { ToolContext } from "@/lib/tools/types";
 
 type WriteI18nConfigToolOptions = {
   allowUpdate?: boolean;
+  allowJsoncConversion?: boolean;
 };
 
 async function runSandboxCommand(
@@ -30,6 +31,7 @@ export function createWriteI18nConfigTool(
   options: WriteI18nConfigToolOptions = {},
 ) {
   const allowUpdate = options.allowUpdate ?? false;
+  const allowJsoncConversion = options.allowJsoncConversion ?? false;
 
   return tool({
     description:
@@ -51,14 +53,15 @@ export function createWriteI18nConfigTool(
       }
 
       const jsoncExists = await runSandboxCommand(ctx.sandboxId, "test", ["-f", "i18n.jsonc"]);
-      if (jsoncExists.exitCode === 0) {
+      const ymlExists = await runSandboxCommand(ctx.sandboxId, "test", ["-f", "i18n.yml"]);
+
+      if (jsoncExists.exitCode === 0 && !allowJsoncConversion) {
         return {
           success: false,
-          error: "i18n.jsonc already exists. The wizard only writes i18n.yml.",
+          error: "i18n.jsonc already exists. Convert it to i18n.yml instead of blocking on it.",
         };
       }
 
-      const ymlExists = await runSandboxCommand(ctx.sandboxId, "test", ["-f", "i18n.yml"]);
       if (ymlExists.exitCode === 0 && !allowUpdate) {
         return {
           success: false,
@@ -91,6 +94,7 @@ export function createWriteI18nConfigTool(
         success: true,
         configPath: "i18n.yml",
         updated: allowUpdate && ymlExists.exitCode === 0,
+        convertedFromJsonc: allowJsoncConversion && jsoncExists.exitCode === 0,
       };
     },
   });

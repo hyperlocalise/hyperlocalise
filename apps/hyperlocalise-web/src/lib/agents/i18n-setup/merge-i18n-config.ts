@@ -1,5 +1,7 @@
 import { parse as parseYaml } from "yaml";
 
+import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
+
 import {
   buildI18nConfigDocumentFromDetection,
   serializeI18nConfigYaml,
@@ -7,6 +9,8 @@ import {
   type I18nConfigDocument,
 } from "./i18n-config-document";
 import type { LocaleDetectionResult } from "./locale-detection";
+
+export type I18nSetupMode = "create" | "update" | "convert";
 
 export type MergeI18nConfigResult = {
   config: I18nConfigDocument;
@@ -70,15 +74,7 @@ function readBuckets(value: unknown): Record<string, { files: I18nBucketFileMapp
   return buckets;
 }
 
-export function parseI18nConfigYaml(yaml: string): I18nConfigDocument | null {
-  let parsed: unknown;
-
-  try {
-    parsed = parseYaml(yaml);
-  } catch {
-    return null;
-  }
-
+export function parseI18nConfigObject(parsed: unknown): I18nConfigDocument | null {
   if (!isRecord(parsed) || !isRecord(parsed.locales)) {
     return null;
   }
@@ -135,6 +131,27 @@ export function parseI18nConfigYaml(yaml: string): I18nConfigDocument | null {
     storage: isRecord(parsed.storage) ? parsed.storage : undefined,
     cache: isRecord(parsed.cache) ? parsed.cache : undefined,
   };
+}
+
+export function parseI18nConfigJsonc(jsonc: string): I18nConfigDocument | null {
+  try {
+    const parsed = JSON.parse(normalizeJsonc(jsonc)) as unknown;
+    return parseI18nConfigObject(parsed);
+  } catch {
+    return null;
+  }
+}
+
+export function parseI18nConfigYaml(yaml: string): I18nConfigDocument | null {
+  let parsed: unknown;
+
+  try {
+    parsed = parseYaml(yaml);
+  } catch {
+    return null;
+  }
+
+  return parseI18nConfigObject(parsed);
 }
 
 function mappingKey(mapping: I18nBucketFileMapping): string {
@@ -251,5 +268,51 @@ export function buildSuggestedI18nConfigYaml(
     yaml: merged.yaml,
     mode: "update",
     hasChanges: merged.hasChanges,
+  };
+}
+
+export type I18nSetupSuggestion = {
+  yaml: string;
+  mode: I18nSetupMode;
+  hasChanges: boolean;
+  removeJsonc: boolean;
+};
+
+export function buildI18nSetupSuggestion(
+  detection: LocaleDetectionResult,
+  existingConfig:
+    | { kind: "none" }
+    | { kind: "yml"; content: string }
+    | { kind: "jsonc"; content: string },
+): I18nSetupSuggestion | { error: "i18n_jsonc_parse_failed" } {
+  if (existingConfig.kind === "jsonc") {
+    const existing = parseI18nConfigJsonc(existingConfig.content);
+    if (!existing) {
+      return { error: "i18n_jsonc_parse_failed" };
+    }
+
+    const merged = mergeI18nConfigWithDetection(existing, detection);
+    return {
+      yaml: serializeI18nConfigYaml(merged.config, {
+        headerComment: "Migrated from i18n.jsonc by Hyperlocalise i18n setup wizard.",
+      }),
+      mode: "convert",
+      hasChanges: true,
+      removeJsonc: true,
+    };
+  }
+
+  if (existingConfig.kind === "yml") {
+    const suggestion = buildSuggestedI18nConfigYaml(detection, existingConfig.content);
+    return {
+      ...suggestion,
+      removeJsonc: false,
+    };
+  }
+
+  const suggestion = buildSuggestedI18nConfigYaml(detection, null);
+  return {
+    ...suggestion,
+    removeJsonc: false,
   };
 }

@@ -86,7 +86,7 @@ export function buildI18nConfigDocumentFromDetection(
 }
 
 function yamlScalar(value: string): string {
-  if (/^[a-zA-Z0-9._/{}\-]+$/.test(value)) {
+  if (/^[a-zA-Z0-9._/{}-]+$/.test(value)) {
     return value;
   }
 

@@ -2,7 +2,10 @@ import { Sandbox } from "@vercel/sandbox";
 import { ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 import { getWorkflowMetadata } from "workflow";
 
-import { buildSuggestedI18nConfigYaml } from "@/lib/agents/i18n-setup/merge-i18n-config";
+import {
+  buildI18nSetupSuggestion,
+  type I18nSetupMode,
+} from "@/lib/agents/i18n-setup/merge-i18n-config";
 import {
   detectLocaleFiles,
   isIgnoredLocaleScanPath,
@@ -38,7 +41,10 @@ type InstallationAuth = {
 
 const translationExtensions = getLocaleScanExtensions();
 
-type ExistingConfigState = { kind: "none" } | { kind: "jsonc" } | { kind: "yml"; content: string };
+type ExistingConfigState =
+  | { kind: "none" }
+  | { kind: "jsonc"; content: string }
+  | { kind: "yml"; content: string };
 
 async function updateRunStatusStep(
   runId: string,
@@ -137,22 +143,80 @@ async function prepareSandbox(
 async function resolveExistingConfig(sandboxId: string): Promise<ExistingConfigState> {
   "use step";
 
+  const ymlResult = await runSandboxCommand(sandboxId, "test", ["-f", "i18n.yml"]);
+  if (ymlResult.exitCode === 0) {
+    const readResult = await runSandboxCommand(sandboxId, "cat", ["i18n.yml"]);
+    if (readResult.exitCode !== 0) {
+      throw new Error(`failed to read i18n.yml: ${readResult.output}`);
+    }
+
+    return { kind: "yml", content: readResult.output };
+  }
+
   const jsoncResult = await runSandboxCommand(sandboxId, "test", ["-f", "i18n.jsonc"]);
   if (jsoncResult.exitCode === 0) {
-    return { kind: "jsonc" };
+    const readResult = await runSandboxCommand(sandboxId, "cat", ["i18n.jsonc"]);
+    if (readResult.exitCode !== 0) {
+      throw new Error(`failed to read i18n.jsonc: ${readResult.output}`);
+    }
+
+    return { kind: "jsonc", content: readResult.output };
   }
 
-  const ymlResult = await runSandboxCommand(sandboxId, "test", ["-f", "i18n.yml"]);
-  if (ymlResult.exitCode !== 0) {
-    return { kind: "none" };
-  }
+  return { kind: "none" };
+}
 
-  const readResult = await runSandboxCommand(sandboxId, "cat", ["i18n.yml"]);
-  if (readResult.exitCode !== 0) {
-    throw new Error(`failed to read i18n.yml: ${readResult.output}`);
+function formatSamplePaths(paths: string[], limit = 12): string {
+  const sample = paths.slice(0, limit);
+  const lines = sample.map((path) => `- ${path}`);
+  if (paths.length > limit) {
+    lines.push(`- ... and ${paths.length - limit} more`);
   }
+  return lines.join("\n");
+}
 
-  return { kind: "yml", content: readResult.output };
+function buildI18nSetupAgentInstructions(input: {
+  mode: I18nSetupMode;
+  detectedLocaleCount: number;
+  suggestedConfig: string;
+  samplePaths: string[];
+}): string {
+  const goalByMode: Record<I18nSetupMode, string> = {
+    create: "create i18n.yml for this repository based on discovered locale files",
+    update: "update the existing i18n.yml with newly discovered locale files",
+    convert:
+      "migrate i18n.jsonc to i18n.yml and merge any newly discovered locale files into the config",
+  };
+
+  const configStepByMode: Record<I18nSetupMode, string> = {
+    create: "1. Use detectRepoConfig to confirm i18n.yml does not already exist.",
+    update: "1. Use detectRepoConfig and read i18n.yml to review the existing config.",
+    convert:
+      "1. Use detectRepoConfig and read i18n.jsonc to review the existing config before migration.",
+  };
+
+  return [
+    "You are running the Hyperlocalise i18n setup wizard.",
+    `Goal: ${goalByMode[input.mode]}.`,
+    `Detected ${input.detectedLocaleCount} candidate locale file(s) across supported formats (JSON, YAML, PO, XLIFF, ARB, .strings, .xcstrings, and more).`,
+    "Available repository tools: read, grep, glob, bash, detectRepoConfig, repoGitState, runHyperlocaliseCli.",
+    "Use read/grep/glob to inspect locale file paths and confirm bucket patterns before writing the config.",
+    "Steps:",
+    configStepByMode[input.mode],
+    "2. Use glob or grep to validate locale file naming patterns when the suggested config looks uncertain.",
+    "3. Use read to inspect representative locale files when needed.",
+    "4. Call writeI18nConfig exactly once with the final YAML content.",
+    input.mode === "convert"
+      ? "5. Do not keep i18n.jsonc. The workflow removes it after i18n.yml is written."
+      : null,
+    "Do not commit, push, or create pull requests yourself.",
+    "Sample discovered locale files:",
+    formatSamplePaths(input.samplePaths),
+    "Suggested starter config based on deterministic detection:",
+    input.suggestedConfig,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 }
 
 async function scanLocaleFilePaths(sandboxId: string): Promise<string[]> {
@@ -181,7 +245,8 @@ async function runSetupAgentStep(input: {
   sandboxId: string;
   suggestedConfig: string;
   detectedLocaleCount: number;
-  mode: "create" | "update";
+  mode: I18nSetupMode;
+  samplePaths: string[];
 }): Promise<{ wroteConfig: boolean; summary: string }> {
   "use step";
 
@@ -220,14 +285,10 @@ async function runSetupAgentStep(input: {
   const tools: ToolSet = {
     ...baseTools,
     writeI18nConfig: createWriteI18nConfigTool(toolContext, {
-      allowUpdate: input.mode === "update",
+      allowUpdate: input.mode === "update" || input.mode === "convert",
+      allowJsoncConversion: input.mode === "convert",
     }),
   };
-
-  const goal =
-    input.mode === "update"
-      ? "update the existing i18n.yml with newly discovered locale files"
-      : "create i18n.yml for this repository based on discovered locale files";
 
   const agent = new ToolLoopAgent({
     model: getHyperlocaliseAgentModel(),
@@ -236,20 +297,12 @@ async function runSetupAgentStep(input: {
     instructions: buildHyperlocaliseAgentInstructions({
       surface: "web",
       projectId: null,
-      additionalInstructions: [
-        "You are running the Hyperlocalise i18n setup wizard.",
-        `Goal: ${goal}.`,
-        `Detected ${input.detectedLocaleCount} candidate locale file(s) across supported formats (JSON, YAML, PO, XLIFF, ARB, .strings, .xcstrings, and more).`,
-        "Steps:",
-        input.mode === "update"
-          ? "1. Use detectRepoConfig and read to review the existing i18n.yml."
-          : "1. Use detectRepoConfig to confirm i18n.yml does not already exist.",
-        "2. Use glob/grep/read only if you need to validate locale file patterns.",
-        "3. Call writeI18nConfig exactly once with the final YAML content.",
-        "Do not commit, push, or create pull requests yourself.",
-        "Suggested starter config based on deterministic detection:",
-        input.suggestedConfig,
-      ].join("\n\n"),
+      additionalInstructions: buildI18nSetupAgentInstructions({
+        mode: input.mode,
+        detectedLocaleCount: input.detectedLocaleCount,
+        suggestedConfig: input.suggestedConfig,
+        samplePaths: input.samplePaths,
+      }),
     }),
     experimental_context: { sandboxId: input.sandboxId, i18nSetupRunId: input.event.runId },
   });
@@ -280,7 +333,8 @@ async function commitPushAndCreatePullRequest(input: {
   sandboxId: string;
   branchName: string;
   summary: string;
-  mode: "create" | "update";
+  mode: I18nSetupMode;
+  removeJsonc: boolean;
 }): Promise<{ pullRequestUrl: string; pullRequestNumber: number }> {
   "use step";
 
@@ -293,14 +347,35 @@ async function commitPushAndCreatePullRequest(input: {
     throw new Error(pushCheck.reason ?? "Cannot push to repository.");
   }
 
-  const commitMessage =
-    input.mode === "update"
-      ? "chore(i18n): update Hyperlocalise i18n.yml"
-      : "chore(i18n): add Hyperlocalise i18n.yml";
+  const commitMessageByMode: Record<I18nSetupMode, string> = {
+    create: "chore(i18n): add Hyperlocalise i18n.yml",
+    update: "chore(i18n): update Hyperlocalise i18n.yml",
+    convert: "chore(i18n): migrate i18n.jsonc to i18n.yml",
+  };
+  const commitMessage = commitMessageByMode[input.mode];
   const pullRequestTitle = commitMessage;
 
+  const checkoutResult = await runSandboxCommand(input.sandboxId, "git", [
+    "checkout",
+    "-b",
+    input.branchName,
+  ]);
+  if (checkoutResult.exitCode !== 0) {
+    throw new Error(`git command failed: ${checkoutResult.output}`);
+  }
+
+  if (input.removeJsonc) {
+    const removeJsoncResult = await runSandboxCommand(input.sandboxId, "git", [
+      "rm",
+      "-f",
+      "i18n.jsonc",
+    ]);
+    if (removeJsoncResult.exitCode !== 0) {
+      throw new Error(`git command failed: ${removeJsoncResult.output}`);
+    }
+  }
+
   for (const [command, args] of [
-    ["git", ["checkout", "-b", input.branchName]],
     ["git", ["add", "i18n.yml"]],
     ["git", ["commit", "-m", commitMessage]],
     ["git", ["push", "-u", "origin", input.branchName]],
@@ -312,10 +387,13 @@ async function commitPushAndCreatePullRequest(input: {
   }
 
   const octokit = await getInstallationOctokit(input.event.installationId);
-  const prBodyIntro =
-    input.mode === "update"
-      ? "This pull request updates `i18n.yml` with newly discovered locale files."
-      : "This pull request adds an `i18n.yml` generated by the Hyperlocalise i18n setup wizard.";
+  const prBodyIntroByMode: Record<I18nSetupMode, string> = {
+    create:
+      "This pull request adds an `i18n.yml` generated by the Hyperlocalise i18n setup wizard.",
+    update: "This pull request updates `i18n.yml` with newly discovered locale files.",
+    convert:
+      "This pull request migrates `i18n.jsonc` to `i18n.yml` and removes the legacy JSONC config.",
+  };
   const { data: pullRequest } = await octokit.rest.pulls.create({
     owner: input.event.repositoryOwner,
     repo: input.event.repositoryName,
@@ -325,7 +403,7 @@ async function commitPushAndCreatePullRequest(input: {
     body: [
       "## Hyperlocalise i18n setup",
       "",
-      prBodyIntro,
+      prBodyIntroByMode[input.mode],
       "",
       "Please review locale mappings and LLM provider settings before merging.",
       "",
@@ -361,23 +439,6 @@ export async function i18nSetupWorkflow(
     await prepareSandbox(sandboxId, event, token);
 
     const existingConfig = await resolveExistingConfig(sandboxId);
-    if (existingConfig.kind === "jsonc") {
-      const message =
-        "This repository uses i18n.jsonc. The setup wizard currently creates or updates i18n.yml only.";
-      await updateRunStatusStep(event.runId, {
-        status: "failed",
-        errorCode: "i18n_jsonc_not_supported",
-        errorMessage: message,
-        workflowRunId,
-      });
-      return {
-        ok: false,
-        runId: event.runId,
-        status: "failed",
-        errorCode: "i18n_jsonc_not_supported",
-        errorMessage: message,
-      };
-    }
 
     const scannedPaths = await scanLocaleFilePaths(sandboxId);
     const detection = detectLocaleFiles(scannedPaths);
@@ -400,10 +461,25 @@ export async function i18nSetupWorkflow(
       };
     }
 
-    const suggestion = buildSuggestedI18nConfigYaml(
-      detection,
-      existingConfig.kind === "yml" ? existingConfig.content : null,
-    );
+    const suggestionResult = buildI18nSetupSuggestion(detection, existingConfig);
+    if ("error" in suggestionResult) {
+      const message = "Could not parse i18n.jsonc. Fix the config syntax and try again.";
+      await updateRunStatusStep(event.runId, {
+        status: "failed",
+        errorCode: suggestionResult.error,
+        errorMessage: message,
+        workflowRunId,
+      });
+      return {
+        ok: false,
+        runId: event.runId,
+        status: "failed",
+        errorCode: suggestionResult.error,
+        errorMessage: message,
+      };
+    }
+
+    const suggestion = suggestionResult;
 
     if (suggestion.mode === "update" && !suggestion.hasChanges) {
       const message = "i18n.yml is already up to date with discovered locale files.";
@@ -428,6 +504,7 @@ export async function i18nSetupWorkflow(
       suggestedConfig: suggestion.yaml,
       detectedLocaleCount: detection.allFiles.length,
       mode: suggestion.mode,
+      samplePaths: scannedPaths,
     });
 
     if (!agentResult.wroteConfig) {
@@ -456,6 +533,7 @@ export async function i18nSetupWorkflow(
       branchName,
       summary: agentResult.summary,
       mode: suggestion.mode,
+      removeJsonc: suggestion.removeJsonc,
     });
 
     await updateRunStatusStep(event.runId, {

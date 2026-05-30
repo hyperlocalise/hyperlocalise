@@ -2,7 +2,12 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { detectLocaleFiles, extractLocaleFromPath } from "./locale-detection";
 import { generateI18nConfigYaml } from "./generate-i18n-config";
-import { mergeI18nConfigWithDetection, parseI18nConfigYaml } from "./merge-i18n-config";
+import {
+  buildI18nSetupSuggestion,
+  mergeI18nConfigWithDetection,
+  parseI18nConfigJsonc,
+  parseI18nConfigYaml,
+} from "./merge-i18n-config";
 
 describe("extractLocaleFromPath", () => {
   it("extracts locale from filename stem", () => {
@@ -151,5 +156,73 @@ llm:
     expect(merged.hasChanges).toBe(false);
     expect(merged.addedTargetLocales).toEqual([]);
     expect(merged.addedFileMappings).toEqual([]);
+  });
+});
+
+describe("parseI18nConfigJsonc", () => {
+  it("parses jsonc with comments and trailing commas", () => {
+    const jsonc = `{
+      // legacy config
+      "locales": {
+        "source": "en-US",
+        "targets": ["es-ES",],
+      },
+      "buckets": {
+        "ui": {
+          "files": [{ "from": "locales/{{source}}.json", "to": "locales/{{target}}.json" }],
+        },
+      },
+      "llm": {
+        "profiles": {
+          "default": { "provider": "openai", "model": "gpt-4.1" },
+        },
+      },
+    }`;
+
+    const parsed = parseI18nConfigJsonc(jsonc);
+
+    expect(parsed).toMatchObject({
+      locales: { source: "en-US", targets: ["es-ES"] },
+      buckets: {
+        ui: {
+          files: [{ from: "locales/{{source}}.json", to: "locales/{{target}}.json" }],
+        },
+      },
+    });
+  });
+});
+
+describe("buildI18nSetupSuggestion", () => {
+  it("converts jsonc to yaml and merges newly discovered locale files", () => {
+    const jsonc = `{
+      "locales": { "source": "en-US", "targets": ["es-ES"] },
+      "buckets": {
+        "ui": {
+          "files": [{ "from": "locales/{{source}}.json", "to": "locales/{{target}}.json" }]
+        }
+      },
+      "llm": { "profiles": { "default": { "provider": "openai", "model": "gpt-4.1" } } }
+    }`;
+    const detection = detectLocaleFiles([
+      "locales/en-US.json",
+      "locales/es-ES.json",
+      "locales/fr-FR.json",
+    ]);
+
+    expect(detection).not.toBeNull();
+
+    const suggestion = buildI18nSetupSuggestion(detection!, { kind: "jsonc", content: jsonc });
+
+    expect(suggestion).not.toHaveProperty("error");
+    if ("error" in suggestion) {
+      return;
+    }
+
+    expect(suggestion.mode).toBe("convert");
+    expect(suggestion.removeJsonc).toBe(true);
+    expect(suggestion.hasChanges).toBe(true);
+    expect(suggestion.yaml).toContain("source: en-US");
+    expect(suggestion.yaml).toContain("- fr-FR");
+    expect(suggestion.yaml).toContain("model: gpt-4.1");
   });
 });

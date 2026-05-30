@@ -25,8 +25,7 @@ type I18nSetupRun = {
 const I18N_SETUP_ERROR_MESSAGES: Record<string, string> = {
   locale_files_not_found:
     "Could not find locale translation files. Look for paths like locales/en-US.json, locales/fr.po, or messages/de.yaml.",
-  i18n_jsonc_not_supported:
-    "This repository uses i18n.jsonc. The wizard creates or updates i18n.yml only.",
+  i18n_jsonc_parse_failed: "Could not parse i18n.jsonc. Fix the config syntax and try again.",
   i18n_config_not_written: "The setup agent did not write i18n.yml.",
   i18n_setup_failed: "The i18n setup wizard failed.",
   i18n_setup_enqueue_failed: "Could not start the i18n setup wizard.",
