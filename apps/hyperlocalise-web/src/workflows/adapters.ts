@@ -8,6 +8,7 @@ import { providerAgentQaWorkflow } from "./provider-agent-qa";
 import { providerAgentTranslationWorkflow } from "./provider-agent-translation";
 import { providerAgentWritebackWorkflow } from "./provider-agent-writeback";
 import { providerWebhookReconciliationWorkflow } from "./provider-webhook-reconciliation";
+import { i18nSetupWorkflow } from "./i18n-setup";
 import { repositoryAgentWorkflow } from "./repository-agent";
 import { translationJobWorkflow } from "./translation-job";
 import type {
@@ -19,6 +20,7 @@ import type {
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
   ProviderWebhookReconciliationQueue,
+  I18nSetupQueue,
   RepositoryAgentTaskQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
@@ -44,6 +46,15 @@ export function createGitHubFixQueue(): GitHubFixQueue {
       return {
         ids: [run.runId],
       };
+    },
+  };
+}
+
+export function createI18nSetupQueue(): I18nSetupQueue {
+  return {
+    async enqueue(event) {
+      const run = await start(i18nSetupWorkflow, [event]);
+      return { ids: [run.runId] };
     },
   };
 }

@@ -1314,6 +1314,40 @@ export const githubAgentRequests = pgTable(
   ],
 );
 
+export const githubI18nSetupRuns = pgTable(
+  "github_i18n_setup_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    actorUserId: uuid("actor_user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    githubInstallationId: bigintText("github_installation_id").notNull(),
+    githubRepositoryId: bigintText("github_repository_id").notNull(),
+    repositoryFullName: text("repository_full_name").notNull(),
+    baseBranch: text("base_branch").notNull(),
+    status: text("status").notNull().default("queued"),
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+    pullRequestUrl: text("pull_request_url"),
+    pullRequestNumber: integer("pull_request_number"),
+    detectedLocaleCount: integer("detected_locale_count"),
+    workflowRunId: text("workflow_run_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_github_i18n_setup_runs_org_repo").on(table.organizationId, table.githubRepositoryId),
+    index("idx_github_i18n_setup_runs_status").on(table.status),
+    index("idx_github_i18n_setup_runs_created_at").on(table.createdAt),
+  ],
+);
+
 export const connectors = pgTable(
   "connectors",
   {
