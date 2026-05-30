@@ -5,7 +5,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { removeWorkosMembership } from "@/api/auth/workos-sync";
+import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
 import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -59,17 +59,6 @@ const validateMemberParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
-async function deleteMemberMcpSessions(organizationId: string, userId: string) {
-  await db
-    .delete(schema.mcpSessions)
-    .where(
-      and(
-        eq(schema.mcpSessions.userId, userId),
-        eq(schema.mcpSessions.organizationId, organizationId),
-      ),
-    );
-}
-
 function shouldSyncMembershipToWorkos(input: { workosMembershipId: string | null }) {
   const workos = getWorkosServerClient();
   return Boolean(input.workosMembershipId) && workos !== null;
@@ -113,7 +102,10 @@ async function inviteOrganizationMember(input: {
       return { error: "member_already_exists" as const };
     }
 
-    if (existingMembership.role !== input.role) {
+    const roleChanged = existingMembership.role !== input.role;
+    const previousRole = existingMembership.role;
+
+    if (roleChanged) {
       await db
         .update(schema.organizationMemberships)
         .set({ role: input.role })
@@ -122,6 +114,8 @@ async function inviteOrganizationMember(input: {
 
     return {
       resend: true as const,
+      roleChanged,
+      previousRole,
       membershipId: existingMembership.membershipId,
       localUserId: existingMembership.localUserId,
       isNewUser: false,
@@ -256,6 +250,7 @@ async function deliverWorkosInvitation(input: {
   email: string;
   inviterUserId: string;
   roleSlug: OrganizationMembershipRole;
+  replacePendingInvitation?: boolean;
 }) {
   const workos = getWorkosServerClient();
   if (!workos) {
@@ -267,7 +262,9 @@ async function deliverWorkosInvitation(input: {
     email: input.email,
   });
 
-  if (pendingInvitation) {
+  if (pendingInvitation && input.replacePendingInvitation) {
+    await workos.userManagement.revokeInvitation(pendingInvitation.id);
+  } else if (pendingInvitation) {
     await workos.userManagement.resendInvitation(pendingInvitation.id);
     return;
   }
@@ -374,6 +371,8 @@ export function createMemberRoutes() {
           email: normalizedEmail,
           inviterUserId: c.var.auth.user.workosUserId,
           roleSlug: payload.role,
+          replacePendingInvitation:
+            isResend && "roleChanged" in pendingInvite && pendingInvite.roleChanged,
         });
       } catch {
         if (!isResend) {
@@ -382,6 +381,15 @@ export function createMemberRoutes() {
             localUserId: pendingInvite.localUserId,
             isNewUser: pendingInvite.isNewUser,
           });
+        } else if (
+          "roleChanged" in pendingInvite &&
+          pendingInvite.roleChanged &&
+          "previousRole" in pendingInvite
+        ) {
+          await db
+            .update(schema.organizationMemberships)
+            .set({ role: pendingInvite.previousRole })
+            .where(eq(schema.organizationMemberships.id, pendingInvite.membershipId));
         }
 
         return internalErrorResponse(
@@ -510,29 +518,22 @@ export function createMemberRoutes() {
 
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
+      const isPendingInvite = isPendingOrganizationMembership(member.workosMembershipId);
 
-      const removeResult = await db.transaction(async (tx) => {
-        if (member.role === "owner") {
+      if (member.role === "owner") {
+        const ownerGuardResult = await db.transaction(async (tx) => {
           const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
           if (ownerCount <= 1) {
             return { error: "last_owner_protected" as const };
           }
-        }
 
-        await removeWorkosMembership(tx, {
-          workosMembershipId: member.workosMembershipId ?? undefined,
-          workosOrganizationId,
-          workosUserId: member.workosUserId,
+          return { ok: true as const };
         });
 
-        return { ok: true as const };
-      });
-
-      if ("error" in removeResult) {
-        return lastOwnerProtectedResponse(c);
+        if ("error" in ownerGuardResult) {
+          return lastOwnerProtectedResponse(c);
+        }
       }
-
-      const isPendingInvite = isPendingOrganizationMembership(member.workosMembershipId);
 
       if (
         shouldSyncMembershipToWorkos({
@@ -542,13 +543,6 @@ export function createMemberRoutes() {
         try {
           await workos!.userManagement.deleteOrganizationMembership(member.workosMembershipId!);
         } catch {
-          await db.insert(schema.organizationMemberships).values({
-            organizationId,
-            userId: member.localUserId,
-            role: member.role,
-            workosMembershipId: member.workosMembershipId,
-          });
-
           return internalErrorResponse(
             c,
             "member_sync_failed",
@@ -562,13 +556,6 @@ export function createMemberRoutes() {
             email: member.email,
           });
         } catch {
-          await db.insert(schema.organizationMemberships).values({
-            organizationId,
-            userId: member.localUserId,
-            role: member.role,
-            workosMembershipId: member.workosMembershipId,
-          });
-
           return internalErrorResponse(
             c,
             "member_sync_failed",
@@ -577,11 +564,30 @@ export function createMemberRoutes() {
         }
       }
 
+      const deletionResult = await db.transaction(async (tx) => {
+        if (member.role === "owner") {
+          const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
+          if (ownerCount <= 1) {
+            return { error: "last_owner_protected" as const };
+          }
+        }
+
+        await revokeOrganizationMembershipAccess(tx, {
+          workosMembershipId: member.workosMembershipId ?? undefined,
+          workosOrganizationId,
+          workosUserId: member.workosUserId,
+        });
+
+        return { ok: true as const };
+      });
+
+      if ("error" in deletionResult) {
+        return lastOwnerProtectedResponse(c);
+      }
+
       if (shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserId)) {
         await cleanupInvitedPlaceholderUser(member.localUserId);
       }
-
-      await deleteMemberMcpSessions(organizationId, member.localUserId);
 
       return c.body(null, 204);
     });

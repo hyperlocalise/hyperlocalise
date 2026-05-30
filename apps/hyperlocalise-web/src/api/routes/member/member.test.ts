@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -96,6 +96,10 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  sendInvitationMock.mockResolvedValue({ id: "invitation_mock" });
+  resendInvitationMock.mockResolvedValue({ id: "invitation_mock" });
+  revokeInvitationMock.mockResolvedValue(undefined);
+  listInvitationsMock.mockResolvedValue({ data: [] });
   await memberFixture.cleanup();
 });
 
@@ -203,6 +207,90 @@ describe("memberRoutes", () => {
     expect(remainingUser).toBeUndefined();
   });
 
+  it("removes organization-scoped team memberships and MCP sessions when removing a member", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    await authHeadersFor(memberIdentity);
+
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.organizations)
+      .where(
+        eq(
+          schema.organizations.workosOrganizationId,
+          ownerIdentity.organization.workosOrganizationId,
+        ),
+      )
+      .limit(1);
+    const [memberUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, memberIdentity.user.workosUserId))
+      .limit(1);
+
+    expect(organization).toBeDefined();
+    expect(memberUser).toBeDefined();
+
+    const [team] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: organization!.id,
+        slug: "member-removal-cleanup",
+        name: "Member removal cleanup",
+      })
+      .returning({ id: schema.teams.id });
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: team.id,
+      userId: memberUser!.id,
+      role: "member",
+    });
+
+    await db.insert(schema.mcpSessions).values({
+      userId: memberUser!.id,
+      organizationId: organization!.id,
+      scope: "mcp",
+      accessTokenHash: `access_${memberUser!.id}`,
+      refreshTokenHash: `refresh_${memberUser!.id}`,
+      expiresAt: new Date(Date.now() + 60_000),
+      refreshExpiresAt: new Date(Date.now() + 120_000),
+    });
+
+    const response = await removeMemberViaApi(
+      ownerIdentity,
+      memberIdentity.user.workosUserId,
+      headers,
+    );
+
+    expect(response.status).toBe(204);
+
+    const remainingTeamMemberships = await db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, team.id),
+          eq(schema.teamMemberships.userId, memberUser!.id),
+        ),
+      );
+    const remainingMcpSessions = await db
+      .select({ id: schema.mcpSessions.id })
+      .from(schema.mcpSessions)
+      .where(
+        and(
+          eq(schema.mcpSessions.organizationId, organization!.id),
+          eq(schema.mcpSessions.userId, memberUser!.id),
+        ),
+      );
+
+    expect(remainingTeamMemberships).toEqual([]);
+    expect(remainingMcpSessions).toEqual([]);
+  });
+
   it("returns 503 when WorkOS server client is unavailable for invite", async () => {
     getWorkosServerClientMock.mockReturnValueOnce(null);
     const ownerIdentity = createWorkosIdentity();
@@ -264,6 +352,97 @@ describe("memberRoutes", () => {
     ).toBe("member");
   });
 
+  it("preserves local membership and team data when WorkOS removal fails", async () => {
+    deleteOrganizationMembershipMock.mockRejectedValueOnce(new Error("boom"));
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    await authHeadersFor(memberIdentity);
+
+    const [organization] = await db
+      .select({ id: schema.organizations.id })
+      .from(schema.organizations)
+      .where(
+        eq(
+          schema.organizations.workosOrganizationId,
+          ownerIdentity.organization.workosOrganizationId,
+        ),
+      )
+      .limit(1);
+    const [memberUser] = await db
+      .select({ id: schema.users.id })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, memberIdentity.user.workosUserId))
+      .limit(1);
+
+    expect(organization).toBeDefined();
+    expect(memberUser).toBeDefined();
+
+    const [team] = await db
+      .insert(schema.teams)
+      .values({
+        organizationId: organization!.id,
+        slug: "workos-removal-rollback",
+        name: "WorkOS removal rollback",
+      })
+      .returning({ id: schema.teams.id });
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: team.id,
+      userId: memberUser!.id,
+      role: "member",
+    });
+
+    await db.insert(schema.mcpSessions).values({
+      userId: memberUser!.id,
+      organizationId: organization!.id,
+      scope: "mcp",
+      accessTokenHash: `access_${memberUser!.id}`,
+      refreshTokenHash: `refresh_${memberUser!.id}`,
+      expiresAt: new Date(Date.now() + 60_000),
+      refreshExpiresAt: new Date(Date.now() + 120_000),
+    });
+
+    const response = await removeMemberViaApi(
+      ownerIdentity,
+      memberIdentity.user.workosUserId,
+      headers,
+    );
+    expect(response.status).toBe(500);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    expect(
+      listBody.members.find((m) => m.workosUserId === memberIdentity.user.workosUserId)?.role,
+    ).toBe("member");
+
+    const remainingTeamMemberships = await db
+      .select({ id: schema.teamMemberships.id })
+      .from(schema.teamMemberships)
+      .where(
+        and(
+          eq(schema.teamMemberships.teamId, team.id),
+          eq(schema.teamMemberships.userId, memberUser!.id),
+        ),
+      );
+    const remainingMcpSessions = await db
+      .select({ id: schema.mcpSessions.id })
+      .from(schema.mcpSessions)
+      .where(
+        and(
+          eq(schema.mcpSessions.organizationId, organization!.id),
+          eq(schema.mcpSessions.userId, memberUser!.id),
+        ),
+      );
+
+    expect(remainingTeamMemberships).toHaveLength(1);
+    expect(remainingMcpSessions).toHaveLength(1);
+  });
+
   it("prevents admin from assigning owner role", async () => {
     const ownerIdentity = createWorkosIdentity();
     const adminIdentity = createWorkosIdentityForOrganization(ownerIdentity.organization, "admin");
@@ -308,6 +487,85 @@ describe("memberRoutes", () => {
     expect(
       listBody.members.filter((member) => member.email === "resend-me@example.com"),
     ).toHaveLength(1);
+  });
+
+  it("replaces a pending invitation when the role changes on resend", async () => {
+    listInvitationsMock
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [{ id: "invitation_mock", state: "pending" }] })
+      .mockResolvedValueOnce({ data: [{ id: "invitation_mock", state: "pending" }] });
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "role-change@example.com", role: "member" },
+      headers,
+    );
+
+    const resendResponse = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "role-change@example.com", role: "admin" },
+      headers,
+    );
+    expect(resendResponse.status).toBe(200);
+    expect(revokeInvitationMock).toHaveBeenCalledWith("invitation_mock");
+    expect(sendInvitationMock).toHaveBeenCalledTimes(2);
+    expect(resendInvitationMock).not.toHaveBeenCalled();
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    const member = listBody.members.find((row) => row.email === "role-change@example.com");
+    expect(member?.role).toBe("admin");
+  });
+
+  it("rolls back a role change when resend delivery fails", async () => {
+    sendInvitationMock.mockReset();
+    listInvitationsMock.mockReset();
+    revokeInvitationMock.mockReset();
+
+    let sendInvitationCalls = 0;
+    sendInvitationMock.mockImplementation(async () => {
+      sendInvitationCalls += 1;
+      if (sendInvitationCalls > 1) {
+        throw new Error("workos unavailable");
+      }
+      return { id: "invitation_mock" };
+    });
+
+    let listInvitationCalls = 0;
+    listInvitationsMock.mockImplementation(async () => {
+      listInvitationCalls += 1;
+      if (listInvitationCalls === 1) {
+        return { data: [] };
+      }
+      return { data: [{ id: "invitation_mock", state: "pending" }] };
+    });
+    revokeInvitationMock.mockResolvedValue(undefined);
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "rollback-role@example.com", role: "member" },
+      headers,
+    );
+
+    const failedResend = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "rollback-role@example.com", role: "admin" },
+      headers,
+    );
+    expect(failedResend.status).toBe(500);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    const member = listBody.members.find((row) => row.email === "rollback-role@example.com");
+    expect(member?.role).toBe("member");
   });
 
   it("shows existing users as invited until WorkOS confirms membership", async () => {

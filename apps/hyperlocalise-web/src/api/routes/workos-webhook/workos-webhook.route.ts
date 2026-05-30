@@ -1,21 +1,24 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
 import {
   promoteInvitedPlaceholderUser,
   removePendingOrganizationMembershipForInvite,
-  removeWorkosMembership,
+  revokeOrganizationMembershipAccess,
   syncWorkosIdentity,
   syncWorkosOrganization,
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
 import { env } from "@/lib/env";
+import { createLogger } from "@/lib/log";
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { type WorkosWebhookEvent, workosWebhookEventSchema } from "./workos-webhook.schema";
+
+const logger = createLogger("workos-webhook");
 
 type ParsedSignature = {
   timestamp: string;
@@ -108,6 +111,13 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
     const email = readString(data, "email");
 
     if (!workosOrganizationId || !email) {
+      logger.warn("invitation.revoked missing required fields", {
+        event: event.event,
+        missingFields: [
+          !workosOrganizationId ? "organization_id" : null,
+          !email ? "email" : null,
+        ].filter(Boolean),
+      });
       return;
     }
 
@@ -161,35 +171,13 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
     const workosOrganizationId = readString(data, "organization_id");
     const workosUserId = readString(data, "user_id");
 
-    await removeWorkosMembership(db, {
-      workosMembershipId: readString(data, "id", "membership_id"),
-      workosOrganizationId,
-      workosUserId,
-    });
-
-    if (workosOrganizationId && workosUserId) {
-      const [user] = await db
-        .select({ id: schema.users.id })
-        .from(schema.users)
-        .where(eq(schema.users.workosUserId, workosUserId))
-        .limit(1);
-      const [organization] = await db
-        .select({ id: schema.organizations.id })
-        .from(schema.organizations)
-        .where(eq(schema.organizations.workosOrganizationId, workosOrganizationId))
-        .limit(1);
-
-      if (user && organization) {
-        await db
-          .delete(schema.mcpSessions)
-          .where(
-            and(
-              eq(schema.mcpSessions.userId, user.id),
-              eq(schema.mcpSessions.organizationId, organization.id),
-            ),
-          );
-      }
-    }
+    await db.transaction((tx) =>
+      revokeOrganizationMembershipAccess(tx, {
+        workosMembershipId: readString(data, "id", "membership_id"),
+        workosOrganizationId,
+        workosUserId,
+      }),
+    );
 
     return;
   }

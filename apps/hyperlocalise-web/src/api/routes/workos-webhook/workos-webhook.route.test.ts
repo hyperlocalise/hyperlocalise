@@ -9,6 +9,7 @@ import { app } from "@/api/app";
 import {
   promoteInvitedPlaceholderUser,
   removePendingOrganizationMembershipForInvite,
+  revokeOrganizationMembershipAccess,
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
 import { env } from "@/lib/env";
@@ -27,8 +28,8 @@ vi.mock("@/api/auth/workos-sync", () => ({
   syncWorkosUser: vi.fn().mockResolvedValue(undefined),
   syncWorkosOrganization: vi.fn().mockResolvedValue(undefined),
   syncWorkosIdentity: vi.fn().mockResolvedValue(undefined),
-  removeWorkosMembership: vi.fn().mockResolvedValue(undefined),
   removePendingOrganizationMembershipForInvite: vi.fn().mockResolvedValue(1),
+  revokeOrganizationMembershipAccess: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/database", async (importOriginal) => {
@@ -131,6 +132,37 @@ describe("workosWebhookRoutes", () => {
     expect(removePendingOrganizationMembershipForInvite).toHaveBeenCalledWith(expect.anything(), {
       workosOrganizationId: "org_123",
       email: "revoked@example.com",
+    });
+  });
+
+  it("revokes local access for organization_membership.deleted", async () => {
+    const client = testClient(app);
+
+    const payload = JSON.stringify({
+      event: "organization_membership.deleted",
+      data: {
+        id: "membership_123",
+        organization_id: "org_123",
+        user_id: "user_123",
+      },
+    });
+
+    const response = await client.api.webhooks.workos.$post(
+      {
+        json: JSON.parse(payload) as unknown as never,
+      },
+      {
+        headers: {
+          "workos-signature": sign(payload),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(revokeOrganizationMembershipAccess).toHaveBeenCalledWith(expect.anything(), {
+      workosMembershipId: "membership_123",
+      workosOrganizationId: "org_123",
+      workosUserId: "user_123",
     });
   });
 });
