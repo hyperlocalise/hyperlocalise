@@ -1,5 +1,9 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
+import {
+  membershipRoleFromUnknownRoleField,
+  membershipRoleToWorkosRoleSlug,
+} from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 import { serializeWorkosErrorForLog } from "@/lib/workos/serialize-workos-error-for-log";
 
@@ -26,14 +30,6 @@ export type ProvisionWorkspaceInWorkosResult = {
   workosOrganizationId: string;
   members: ProvisionedWorkspaceMember[];
 };
-
-function membershipRoleToWorkosRoleSlug(role: OrganizationMembershipRole) {
-  if (role === "owner" || role === "admin") {
-    return role;
-  }
-
-  return "member";
-}
 
 export async function deleteProvisionedWorkosOrganization(workosOrganizationId: string) {
   const workos = getWorkosServerClient();
@@ -102,7 +98,7 @@ export async function promoteLocalOrganizationForWorkosUser(
       return {
         workosOrganizationId: organization.id,
         workosMembershipId: existingMembership.id,
-        role: input.role,
+        role: membershipRoleFromUnknownRoleField(existingMembership.role),
       };
     }
 
@@ -186,7 +182,7 @@ export async function provisionWorkspaceInWorkos(
         provisionedMembers.push({
           workosUserId: member.workosUserId,
           workosMembershipId: existing.id,
-          role: member.role,
+          role: membershipRoleFromUnknownRoleField(existing.role),
         });
         continue;
       }

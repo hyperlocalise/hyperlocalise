@@ -2,12 +2,12 @@ import { and, eq, inArray, like } from "drizzle-orm";
 
 import type { DatabaseClient } from "@/lib/database";
 import { schema } from "@/lib/database";
-import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { isDeprecatedLocalOrgWorkosId } from "@/lib/billing/autumn-customer";
 import { createLogger } from "@/lib/log";
 import { env } from "@/lib/env";
 import { isInvitedPlaceholderWorkosUserId } from "@/lib/workos/constants";
 import { promoteLocalOrganizationForWorkosUser } from "@/lib/workos/provision-workspace-in-workos";
+import type { PromoteLocalOrganizationForWorkosUserResult } from "@/lib/workos/provision-workspace-in-workos";
 import { serializeWorkosErrorForLog } from "@/lib/workos/serialize-workos-error-for-log";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
@@ -33,14 +33,6 @@ function isWorkosMigrationApiEnabled() {
   }
 
   return getWorkosServerClient() !== null;
-}
-
-function workosRoleSlugForMembershipRole(role: OrganizationMembershipRole) {
-  if (role === "owner" || role === "admin") {
-    return role;
-  }
-
-  return "member";
 }
 
 export async function migrateLocalOrgWorkspaceToWorkos(
@@ -74,7 +66,6 @@ export async function migrateLocalOrgWorkspaceToWorkos(
     .select({
       membershipId: schema.organizationMemberships.id,
       role: schema.organizationMemberships.role,
-      localWorkosUserId: schema.users.workosUserId,
     })
     .from(schema.organizationMemberships)
     .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
@@ -96,14 +87,20 @@ export async function migrateLocalOrgWorkspaceToWorkos(
     return { status: "skipped", reason: "no_members" };
   }
 
+  let promoted: PromoteLocalOrganizationForWorkosUserResult;
   try {
-    const promoted = await promoteLocalOrganizationForWorkosUser({
+    promoted = await promoteLocalOrganizationForWorkosUser({
       localWorkspaceId: organization.id,
       organizationName: organization.name,
       workosUserId: actingWorkosUserId,
       role: actingMembership.role,
     });
+  } catch {
+    // WorkOS failures are logged in promoteLocalOrganizationForWorkosUser.
+    return { status: "failed", organizationId };
+  }
 
+  try {
     await database.transaction(async (tx) => {
       await tx
         .update(schema.organizations)
@@ -123,23 +120,23 @@ export async function migrateLocalOrgWorkspaceToWorkos(
         })
         .where(eq(schema.organizationMemberships.id, actingMembership.membershipId));
     });
-
-    return {
-      status: "migrated",
-      workosOrganizationId: promoted.workosOrganizationId,
-      membershipsUpdated: 1,
-    };
   } catch (error) {
     logger.warn("local_org_workspace_migration_failed", {
       organizationId,
       actingWorkosUserId,
-      localWorkosUserId: actingMembership.localWorkosUserId,
-      roleSlug: workosRoleSlugForMembershipRole(actingMembership.role),
+      failurePhase: "database",
+      workosOrganizationId: promoted.workosOrganizationId,
       ...serializeWorkosErrorForLog(error),
     });
 
     return { status: "failed", organizationId };
   }
+
+  return {
+    status: "migrated",
+    workosOrganizationId: promoted.workosOrganizationId,
+    membershipsUpdated: 1,
+  };
 }
 
 /**
