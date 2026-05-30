@@ -1,5 +1,4 @@
 import {
-  assertResolvablePublicHost,
   isBlockedHost,
   isBlockedIpv4Address,
   isBlockedIpv6Address,
@@ -45,21 +44,7 @@ export function requireProviderBaseUrl(
   return normalized;
 }
 
-export async function assertProviderUrlResolvable(url: string): Promise<void> {
-  const parsed = new URL(url);
-  if (!isSafeProviderUrl(parsed)) {
-    throw new Error("Provider URL is invalid or unsafe.");
-  }
-
-  const hostname = normalizeHostname(parsed.hostname);
-  if (hostname.endsWith(".test")) {
-    return;
-  }
-
-  await assertResolvablePublicHost(hostname);
-}
-
-function isSafeProviderUrl(url: URL) {
+export function isSafeProviderUrl(url: URL) {
   if (url.protocol !== "https:") return false;
   if (url.username || url.password) return false;
 

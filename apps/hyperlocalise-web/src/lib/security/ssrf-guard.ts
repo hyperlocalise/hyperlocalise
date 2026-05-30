@@ -1,8 +1,3 @@
-import dns from "node:dns/promises";
-import net from "node:net";
-
-const dnsLookup = dns.lookup;
-
 export function normalizeHostname(hostname: string): string {
   const lowerHostname = hostname.toLowerCase();
   if (lowerHostname.startsWith("[") && lowerHostname.endsWith("]")) {
@@ -105,11 +100,11 @@ export function isBlockedHost(hostname: string): boolean {
     return true;
   }
 
-  if (net.isIP(normalized) === 4) {
+  if (parseIpv4Octets(normalized)) {
     return isBlockedIpv4Address(normalized);
   }
 
-  if (net.isIP(normalized) === 6) {
+  if (normalized.includes(":")) {
     return isBlockedIpv6Address(normalized);
   }
 
@@ -133,34 +128,4 @@ export function isPublicHttpUrl(value: string): boolean {
   }
 
   return !isBlockedHost(parsed.hostname);
-}
-
-export async function assertResolvablePublicHost(hostname: string): Promise<void> {
-  const normalized = normalizeHostname(hostname);
-  if (!normalized || isBlockedHost(normalized)) {
-    throw new Error("URL host is not allowed.");
-  }
-
-  if (net.isIP(normalized)) {
-    return;
-  }
-
-  const results = await dnsLookup(normalized, { all: true, verbatim: true });
-  if (!results.length) {
-    throw new Error("URL host could not be resolved.");
-  }
-
-  for (const result of results) {
-    if (isBlockedHost(result.address)) {
-      throw new Error("URL host resolves to a private or restricted address.");
-    }
-  }
-}
-
-export async function assertPublicHttpUrlResolvable(url: string): Promise<void> {
-  if (!isPublicHttpUrl(url)) {
-    throw new Error("URL is not an allowed public HTTP(S) endpoint.");
-  }
-
-  await assertResolvablePublicHost(new URL(url).hostname);
 }

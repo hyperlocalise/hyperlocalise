@@ -9,6 +9,7 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig",
     visibility = ["//visibility:public"],
     deps = [
+        "//pkg/hyperlocaliseapi",
         "@com_github_invopop_jsonschema//:jsonschema",
         "@com_github_tidwall_jsonc//:jsonc",
         "@in_gopkg_yaml_v3//:yaml_v3",

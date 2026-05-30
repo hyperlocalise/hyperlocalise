@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import { assertPublicHttpUrlResolvable, isPublicHttpUrl } from "@/lib/security/ssrf-guard";
+import { isPublicHttpUrl } from "@/lib/security/ssrf-guard";
 
 import { truncate, redact } from "./redact";
 
@@ -38,8 +38,6 @@ USAGE:
       const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       try {
-        await assertPublicHttpUrlResolvable(url);
-
         const response = await fetch(url, {
           method,
           redirect: "error",

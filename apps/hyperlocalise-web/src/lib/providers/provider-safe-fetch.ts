@@ -1,4 +1,4 @@
-import { assertPublicHttpUrlResolvable } from "@/lib/security/ssrf-guard";
+import { assertPublicHttpUrlResolvable } from "@/lib/security/ssrf-guard-dns";
 
 export async function providerSafeFetch(
   input: RequestInfo | URL,
