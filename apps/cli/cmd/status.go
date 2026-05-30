@@ -14,6 +14,7 @@ import (
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/syncsvc"
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 	"github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -567,12 +568,12 @@ func writeStatusCSV(w io.Writer, entries []storage.Entry, _ string) error {
 		for _, locale := range sortedLocales(byLocale) {
 			entry := byLocale[locale]
 			records = append(records, []string{
-				escapeCSVFormula(entry.Key),
-				escapeCSVFormula(entry.Namespace),
-				escapeCSVFormula(entry.Locale),
-				escapeCSVFormula(computeStatus(entry)),
-				escapeCSVFormula(entry.Provenance.Origin),
-				escapeCSVFormula(entry.Provenance.State),
+				csvsafe.EscapeFormula(entry.Key),
+				csvsafe.EscapeFormula(entry.Namespace),
+				csvsafe.EscapeFormula(entry.Locale),
+				csvsafe.EscapeFormula(computeStatus(entry)),
+				csvsafe.EscapeFormula(entry.Provenance.Origin),
+				csvsafe.EscapeFormula(entry.Provenance.State),
 			})
 		}
 	}
@@ -583,16 +584,4 @@ func writeStatusCSV(w io.Writer, entries []storage.Entry, _ string) error {
 	}
 
 	return nil
-}
-
-func escapeCSVFormula(value string) string {
-	if value == "" {
-		return value
-	}
-	switch value[0] {
-	case '=', '+', '-', '@', '\t', '\r':
-		return "'" + value
-	default:
-		return value
-	}
 }

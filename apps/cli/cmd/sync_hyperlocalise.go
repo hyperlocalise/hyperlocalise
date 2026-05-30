@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
+	"github.com/hyperlocalise/hyperlocalise/internal/pathguard"
 	"github.com/hyperlocalise/hyperlocalise/pkg/hyperlocaliseapi"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
@@ -34,6 +35,7 @@ var (
 type hyperlocaliseSyncRuntime struct {
 	cfg          *config.I18NConfig
 	configPath   string
+	configRoot   string
 	projectID    string
 	apiBaseURL   string
 	apiKey       string
@@ -197,9 +199,14 @@ func newHyperlocaliseSyncRuntime(configPath, manifestOverride string) (*hyperloc
 	if err := hyperlocaliseapi.ValidateAPIBaseURL(apiBaseURL); err != nil {
 		return nil, err
 	}
+	configRoot, err := config.ConfigDirectory(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("resolve hyperlocalise config directory: %w", err)
+	}
 	return &hyperlocaliseSyncRuntime{
 		cfg:          cfg,
 		configPath:   configPath,
+		configRoot:   configRoot,
 		projectID:    projectID,
 		apiBaseURL:   apiBaseURL,
 		apiKey:       apiKey,
@@ -290,6 +297,17 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	if manifest.ProjectID != "" && manifest.ProjectID != rt.projectID {
 		return hyperlocalisePullReport{}, fmt.Errorf("hyperlocalise manifest project %q does not match configured project %q", manifest.ProjectID, rt.projectID)
 	}
+	for _, manifestJob := range manifest.Jobs {
+		for locale, targetPath := range manifestJob.TargetPaths {
+			targetPath = strings.TrimSpace(targetPath)
+			if targetPath == "" {
+				continue
+			}
+			if err := rt.validateManifestTargetPath(targetPath); err != nil {
+				return hyperlocalisePullReport{}, fmt.Errorf("manifest job %q target path for locale %q: %w", manifestJob.JobID, locale, err)
+			}
+		}
+	}
 
 	if timeout <= 0 {
 		timeout = rt.timeout
@@ -325,6 +343,9 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				report.Skipped++
 				continue
 			}
+			if err := rt.validateManifestTargetPath(targetPath); err != nil {
+				return report, fmt.Errorf("manifest target path for locale %q: %w", outputFile.Locale, err)
+			}
 			if o.dryRun {
 				report.Downloaded++
 				continue
@@ -341,6 +362,13 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	}
 
 	return report, nil
+}
+
+func (rt *hyperlocaliseSyncRuntime) validateManifestTargetPath(targetPath string) error {
+	if strings.TrimSpace(rt.configRoot) == "" {
+		return fmt.Errorf("config root is not configured")
+	}
+	return pathguard.EnsureUnderRoot(rt.configRoot, targetPath)
 }
 
 type hyperlocaliseJobTimeoutError struct {

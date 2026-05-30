@@ -5,7 +5,10 @@ go_library(
     srcs = glob(["*.go"], exclude = ["*_test.go"]),
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/smartling",
     visibility = ["//visibility:public"],
-    deps = ["//internal/i18n/storage"],
+    deps = [
+        "//internal/csvsafe",
+        "//internal/i18n/storage",
+    ],
 )
 
 go_test(

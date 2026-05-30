@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 )
 
 // TranslationMemoryDownloadRequest identifies the Smartling translation memory to export.
@@ -117,7 +119,7 @@ func (c *HTTPClient) WriteTranslationMemoryCSV(ctx context.Context, req Translat
 		return TranslationMemoryDownloadResult{}, fmt.Errorf("write smartling tm csv header: %w", err)
 	}
 	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
+		if err := writer.Write(csvsafe.EscapeRow(row)); err != nil {
 			return TranslationMemoryDownloadResult{}, fmt.Errorf("write smartling tm csv row: %w", err)
 		}
 	}

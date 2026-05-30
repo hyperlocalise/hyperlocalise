@@ -164,6 +164,22 @@ func Load(path string) (*I18NConfig, error) {
 	return &cfg, nil
 }
 
+// ConfigDirectory returns the canonical directory containing the i18n config file.
+func ConfigDirectory(path string) (string, error) {
+	if strings.TrimSpace(path) == "" {
+		path = resolveDefaultPath()
+	}
+	dir := filepath.Dir(path)
+	if !filepath.IsAbs(dir) {
+		wd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("resolve config directory: %w", err)
+		}
+		dir = filepath.Join(wd, dir)
+	}
+	return canonicalPathForContainment(dir)
+}
+
 func resolveDefaultPath() string {
 	if _, err := os.Stat(defaultConfigYAMLPath); err == nil {
 		return defaultConfigYAMLPath

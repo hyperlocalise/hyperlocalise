@@ -137,6 +137,7 @@ func TestHyperlocalisePullUsesManifestJobWhenNewerSameFileJobExists(t *testing.T
 				},
 			},
 		},
+		configRoot:   dir,
 		projectID:    "project-1",
 		manifestPath: manifestPath,
 		client: &hyperlocaliseAPIClient{
@@ -238,6 +239,7 @@ func TestHyperlocalisePullPollsUntilManifestJobIsComplete(t *testing.T) {
 				},
 			},
 		},
+		configRoot:   dir,
 		projectID:    "project-1",
 		manifestPath: manifestPath,
 		timeout:      200 * time.Millisecond,
@@ -269,6 +271,48 @@ func TestHyperlocalisePullPollsUntilManifestJobIsComplete(t *testing.T) {
 	}
 	if string(content) != `{"hello":"Bonjour"}` {
 		t.Fatalf("target content = %q", string(content))
+	}
+}
+
+func TestHyperlocalisePullRejectsManifestTargetOutsideConfigRoot(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	manifestPath := filepath.Join(dir, "hyperlocalise-jobs.json")
+	outsideTarget := filepath.Join(outside, "fr.json")
+	if err := writeHyperlocaliseManifest(manifestPath, hyperlocaliseSyncManifest{
+		Version:     hyperlocaliseManifestVersion,
+		Complete:    true,
+		GeneratedAt: time.Now().UTC(),
+		ProjectID:   "project-1",
+		Jobs: []hyperlocaliseManifestJob{{
+			JobID:         "job-owned",
+			SourcePath:    "locales/en.json",
+			TargetLocales: []string{"fr"},
+			TargetPaths: map[string]string{
+				"fr": outsideTarget,
+			},
+		}},
+	}); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	rt := &hyperlocaliseSyncRuntime{
+		configRoot:   dir,
+		projectID:    "project-1",
+		manifestPath: manifestPath,
+		client: &hyperlocaliseAPIClient{
+			baseURL:    "http://example.invalid",
+			apiKey:     "test-key",
+			httpClient: &http.Client{Timeout: time.Second},
+		},
+	}
+
+	_, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{}, time.Second)
+	if err == nil {
+		t.Fatalf("expected manifest target path outside config root to be rejected")
+	}
+	if !strings.Contains(err.Error(), "escapes root") {
+		t.Fatalf("error = %v, want root escape rejection", err)
 	}
 }
 

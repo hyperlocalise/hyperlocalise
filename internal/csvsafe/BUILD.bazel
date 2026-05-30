@@ -1,0 +1,8 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "csvsafe",
+    srcs = glob(["*.go"], exclude = ["*_test.go"]),
+    importpath = "github.com/hyperlocalise/hyperlocalise/internal/csvsafe",
+    visibility = ["//visibility:public"],
+)
