@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  assertCapability,
   getCapabilitiesForRole,
   hasCapability,
   isAdminRole,
@@ -87,6 +88,16 @@ describe("organization capability policy", () => {
       for (const capability of ORGANIZATION_CAPABILITIES) {
         expect(hasCapability(unknownRole, capability)).toBe(false);
       }
+    });
+  });
+
+  describe("assertCapability", () => {
+    it("throws when the role lacks the requested capability", () => {
+      expect(() => assertCapability("member", "members:invite")).toThrow("forbidden");
+    });
+
+    it("does not throw when the role has the requested capability", () => {
+      expect(() => assertCapability("admin", "members:invite")).not.toThrow();
     });
   });
 });
