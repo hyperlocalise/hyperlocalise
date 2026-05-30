@@ -3,7 +3,6 @@ import {
   Activity01Icon,
   AiBrain01Icon,
   BookOpenTextIcon,
-  BubbleChatTranslateIcon,
   DashboardSquare01Icon,
   DatabaseSyncIcon,
   File01Icon,
@@ -30,10 +29,6 @@ export type NavigationItem = {
 export type NavigationGroup = {
   label?: string;
   items: readonly NavigationItem[];
-};
-
-export type KnowledgeNavigationItem = NavigationItem & {
-  id: string;
 };
 
 export function buildOrganizationPath(organizationSlug: string, section: string) {
@@ -83,6 +78,27 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
       label: "Workspace",
       items: [
         {
+          label: "Knowledge",
+          href: org("knowledge"),
+          icon: AiBrain01Icon,
+          description: "Workspace memory for agents and teams",
+        },
+        {
+          label: "Context Sources",
+          href: org("context"),
+          icon: File01Icon,
+        },
+        {
+          label: "Terminology",
+          href: org("glossaries"),
+          icon: BookOpenTextIcon,
+        },
+        {
+          label: "Translation Memories",
+          href: org("translation-memories"),
+          icon: DatabaseSyncIcon,
+        },
+        {
           label: "Integrations",
           href: org("integrations"),
           icon: LinkSquare02Icon,
@@ -98,45 +114,6 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           icon: Settings01Icon,
         },
       ],
-    },
-  ] as const;
-}
-
-export function buildKnowledgeNavigationItems(
-  organizationSlug: string,
-): readonly KnowledgeNavigationItem[] {
-  const org = (section: string) => buildOrganizationPath(organizationSlug, section);
-
-  return [
-    {
-      id: "context-sources",
-      label: "Context Sources",
-      href: org("context"),
-      icon: File01Icon,
-    },
-    {
-      id: "terminology",
-      label: "Terminology",
-      href: org("glossaries"),
-      icon: BookOpenTextIcon,
-    },
-    {
-      id: "translation-memories",
-      label: "Translation Memories",
-      href: org("translation-memories"),
-      icon: DatabaseSyncIcon,
-    },
-    {
-      id: "style-guides",
-      label: "Style Guides",
-      href: org("knowledge/style-guides"),
-      icon: BookOpenTextIcon,
-    },
-    {
-      id: "brand-voice",
-      label: "Brand Voice",
-      href: org("knowledge/brand-voice"),
-      icon: BubbleChatTranslateIcon,
     },
   ] as const;
 }
@@ -217,13 +194,3 @@ export function parseProjectRoute(pathname: string | null) {
   };
 }
 
-export function isKnowledgePath(pathname: string, organizationSlug: string) {
-  const prefix = `/org/${organizationSlug}/`;
-  return (
-    pathname === `${prefix}knowledge` ||
-    pathname.startsWith(`${prefix}knowledge/`) ||
-    pathname.startsWith(`${prefix}context`) ||
-    pathname.startsWith(`${prefix}glossaries`) ||
-    pathname.startsWith(`${prefix}translation-memories`)
-  );
-}

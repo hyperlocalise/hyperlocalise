@@ -18,7 +18,6 @@ describe("getAppShellTitle", () => {
     ["/org/acme/my-jobs", "My Work"],
     ["/org/acme/context", "Context Sources"],
     ["/org/acme/knowledge", "Knowledge"],
-    ["/org/acme/knowledge/style-guides", "Style Guides"],
     ["/org/acme/glossaries", "Terminology"],
     ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],

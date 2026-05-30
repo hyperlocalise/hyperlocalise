@@ -3,7 +3,6 @@ const ROUTE_TITLES = {
   activity: "Activity",
   "agent-runs": "Agent Runs",
   billing: "Billing",
-  "brand-voice": "Brand Voice",
   chat: "New Request",
   "command-center": "Command Center",
   context: "Context Sources",
@@ -24,7 +23,6 @@ const ROUTE_TITLES = {
   qa: "QA",
   reviews: "Reviews",
   settings: "Settings",
-  "style-guides": "Style Guides",
   "translation-memories": "Translation Memories",
 } as const;
 
@@ -74,10 +72,6 @@ export function getAppShellTitle(pathname: string | null): string {
       return ROUTE_TITLES.members;
     }
     return isRouteTitleKey(subsection) ? ROUTE_TITLES[subsection] : ROUTE_TITLES.settings;
-  }
-
-  if (section === "knowledge" && subsection && isRouteTitleKey(subsection)) {
-    return ROUTE_TITLES[subsection];
   }
 
   return section && isRouteTitleKey(section)

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ArrowDown01Icon, ArrowLeft01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -14,19 +14,14 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/utils";
 
 import {
-  buildKnowledgeNavigationItems,
   buildOrganizationPath,
   buildProjectNavigationItems,
-  isKnowledgePath,
   parseProjectRoute,
   type NavigationGroup,
   type NavigationItem,
@@ -65,20 +60,21 @@ function GlobalNavigation({
   groups: readonly NavigationGroup[];
   pathname: string;
 }) {
-  const knowledgeItems = buildKnowledgeNavigationItems(organizationSlug);
-  const knowledgeActive = isKnowledgePath(pathname, organizationSlug);
-
   return (
     <div className="flex flex-col gap-3">
       {groups.map((group, groupIndex) => {
+        const content = (
+          <NavigationGroupItems
+            group={group}
+            pathname={pathname}
+            organizationSlug={organizationSlug}
+          />
+        );
+
         if (!group.label) {
           return (
             <SidebarGroup key={`promoted-${groupIndex}`} className="p-0">
-              <NavigationGroupItems
-                group={group}
-                pathname={pathname}
-                organizationSlug={organizationSlug}
-              />
+              {content}
             </SidebarGroup>
           );
         }
@@ -94,67 +90,7 @@ function GlobalNavigation({
                   className="size-3.5 shrink-0 transition-transform group-data-panel-open/collapsible-trigger:rotate-180"
                 />
               </CollapsibleTrigger>
-              <CollapsibleContent hiddenUntilFound>
-                <SidebarGroupContent className="space-y-2">
-                  <Collapsible defaultOpen={knowledgeActive}>
-                    <SidebarMenu className="gap-1">
-                      <SidebarMenuItem>
-                        <CollapsibleTrigger
-                          render={
-                            <SidebarMenuButton
-                              isActive={knowledgeActive}
-                              tooltip="Knowledge"
-                              className={navigationButtonClass(knowledgeActive)}
-                            />
-                          }
-                        >
-                          <HugeiconsIcon
-                            icon={BookOpenTextIcon}
-                            strokeWidth={2}
-                            className="size-5"
-                          />
-                          <span className="min-w-0 flex-1 truncate text-left">Knowledge</span>
-                          <HugeiconsIcon
-                            icon={ArrowDown01Icon}
-                            strokeWidth={1.8}
-                            className="size-3.5 shrink-0 transition-transform group-data-panel-open/collapsible-trigger:rotate-180"
-                          />
-                        </CollapsibleTrigger>
-                        <CollapsibleContent hiddenUntilFound>
-                          <SidebarMenuSub className="mx-0 border-none px-0 py-0.5">
-                            {knowledgeItems.map((item) => {
-                              const isActive = isNavigationItemActive(pathname, item.href, {
-                                exact: item.href.includes("/knowledge/"),
-                              });
-
-                              return (
-                                <SidebarMenuSubItem key={item.id}>
-                                  <SidebarMenuSubButton
-                                    render={<Link href={item.href} />}
-                                    isActive={isActive}
-                                    className={cn(
-                                      "h-9 rounded-md px-3 text-[0.8125rem] text-sidebar-foreground/62 hover:text-sidebar-foreground",
-                                      isActive &&
-                                        "bg-sidebar-accent text-sidebar-accent-foreground",
-                                    )}
-                                  >
-                                    {item.label}
-                                  </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                              );
-                            })}
-                          </SidebarMenuSub>
-                        </CollapsibleContent>
-                      </SidebarMenuItem>
-                    </SidebarMenu>
-                  </Collapsible>
-                  <NavigationGroupItems
-                    group={group}
-                    pathname={pathname}
-                    organizationSlug={organizationSlug}
-                  />
-                </SidebarGroupContent>
-              </CollapsibleContent>
+              <CollapsibleContent hiddenUntilFound>{content}</CollapsibleContent>
             </SidebarGroup>
           </Collapsible>
         );
