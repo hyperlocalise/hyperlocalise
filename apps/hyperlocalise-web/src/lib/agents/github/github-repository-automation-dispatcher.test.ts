@@ -196,6 +196,7 @@ describe("github repository automation dispatch", () => {
       pushSource: true,
       pullTranslations: true,
       validation: false,
+      validationBlockOnFailure: true,
     });
   });
 
