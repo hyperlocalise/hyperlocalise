@@ -1,6 +1,6 @@
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 
 import { getInstallationOctokit } from "./app";
 
@@ -95,8 +95,11 @@ export async function upsertGitHubInstallationRepositories(input: {
 export async function deleteOrganizationGitHubInstallationRepositories(input: {
   organizationId: string;
   githubInstallationId: string;
+  db?: DatabaseClient;
 }) {
-  await db
+  const database = input.db ?? db;
+
+  await database
     .delete(schema.githubInstallationRepositories)
     .where(
       and(

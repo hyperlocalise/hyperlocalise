@@ -309,23 +309,26 @@ export async function handleGitHubInstallCallback(
 
   try {
     if (existing[0]) {
-      if (existing[0].githubInstallationId !== githubInstallationId) {
-        await deleteOrganizationGitHubInstallationRepositories({
-          organizationId: org.id,
-          githubInstallationId: existing[0].githubInstallationId,
-        });
-      }
+      await db.transaction(async (tx) => {
+        if (existing[0].githubInstallationId !== githubInstallationId) {
+          await deleteOrganizationGitHubInstallationRepositories({
+            organizationId: org.id,
+            githubInstallationId: existing[0].githubInstallationId,
+            db: tx,
+          });
+        }
 
-      await db
-        .update(schema.githubInstallations)
-        .set({
-          githubInstallationId,
-          githubAppId,
-          accountLogin,
-          accountType,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.githubInstallations.id, existing[0].id));
+        await tx
+          .update(schema.githubInstallations)
+          .set({
+            githubInstallationId,
+            githubAppId,
+            accountLogin,
+            accountType,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.githubInstallations.id, existing[0].id));
+      });
 
       logger.info(
         { ...orgContext, githubInstallationRowId: existing[0].id, action: "update" },
