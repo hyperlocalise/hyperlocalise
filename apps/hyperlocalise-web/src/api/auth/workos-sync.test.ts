@@ -14,6 +14,7 @@ import {
   syncWorkosIdentity,
 } from "@/api/auth/workos-sync";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import { clearReplacingWorkosMembershipSentinel } from "@/api/test-cleanup";
 import { db, schema } from "@/lib/database";
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
@@ -67,6 +68,7 @@ describe("removePendingOrganizationMembershipForInvite", () => {
       })
       .returning({ id: schema.organizationMemberships.id });
 
+    await clearReplacingWorkosMembershipSentinel(db);
     const marked = await markPendingMembershipReplacingInvitation(db, membership.id);
     expect(marked).toBe(true);
 

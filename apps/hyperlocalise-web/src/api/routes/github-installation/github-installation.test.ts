@@ -427,6 +427,166 @@ describe("githubInstallationRoutes", () => {
     expect(runResponse.status).toBe(403);
   });
 
+  it("returns default automation settings for a repository", async () => {
+    const { headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].repositories[
+      ":githubRepositoryId"
+    ]["automation-settings"].$get(
+      {
+        param: { organizationSlug, githubRepositoryId: "101" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      githubRepositoryAutomationSettings: {
+        githubRepositoryId: "101",
+        configVersion: 0,
+        nextRunAt: null,
+        settings: {
+          workflows: {
+            pushSource: { enabled: false },
+            pullTranslations: { enabled: false },
+            validation: { enabled: false },
+          },
+          trigger: null,
+        },
+      },
+    });
+  });
+
+  it("saves automation settings per repository without affecting other repos", async () => {
+    const { headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const saveResponse = await client.api.orgs[":organizationSlug"][
+      "github-installation"
+    ].repositories[":githubRepositoryId"]["automation-settings"].$put(
+      {
+        param: { organizationSlug, githubRepositoryId: "101" },
+        json: {
+          settings: {
+            workflows: {
+              pushSource: { enabled: true },
+              pullTranslations: { enabled: false },
+              validation: { enabled: false },
+            },
+            trigger: {
+              mode: "push",
+              branches: ["main", "release/*"],
+            },
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(saveResponse.status).toBe(200);
+    await expect(saveResponse.json()).resolves.toMatchObject({
+      githubRepositoryAutomationSettings: {
+        githubRepositoryId: "101",
+        configVersion: 1,
+        settings: {
+          workflows: {
+            pushSource: { enabled: true },
+          },
+          trigger: {
+            mode: "push",
+            branches: ["main", "release/*"],
+          },
+        },
+      },
+    });
+
+    const otherRepoResponse = await client.api.orgs[":organizationSlug"][
+      "github-installation"
+    ].repositories[":githubRepositoryId"]["automation-settings"].$get(
+      {
+        param: { organizationSlug, githubRepositoryId: "102" },
+      },
+      { headers },
+    );
+
+    expect(otherRepoResponse.status).toBe(200);
+    await expect(otherRepoResponse.json()).resolves.toMatchObject({
+      githubRepositoryAutomationSettings: {
+        githubRepositoryId: "102",
+        configVersion: 0,
+        settings: {
+          trigger: null,
+        },
+      },
+    });
+  });
+
+  it("rejects unusable automation settings without a trigger", async () => {
+    const { headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].repositories[
+      ":githubRepositoryId"
+    ]["automation-settings"].$put(
+      {
+        param: { organizationSlug, githubRepositoryId: "101" },
+        json: {
+          settings: {
+            workflows: {
+              validation: { enabled: true },
+            },
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "automation_trigger_required",
+    });
+  });
+
+  it("stores scheduled automation with next run metadata", async () => {
+    const { headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].repositories[
+      ":githubRepositoryId"
+    ]["automation-settings"].$put(
+      {
+        param: { organizationSlug, githubRepositoryId: "101" },
+        json: {
+          settings: {
+            workflows: {
+              pullTranslations: { enabled: true },
+            },
+            trigger: {
+              mode: "scheduled",
+              cadence: "daily",
+              hourUtc: 4,
+              timezone: "UTC",
+            },
+          },
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      githubRepositoryAutomationSettings: {
+        settings: {
+          trigger: {
+            mode: "scheduled",
+            cadence: "daily",
+            hourUtc: 4,
+            timezone: "UTC",
+          },
+        },
+        nextRunAt: expect.any(String),
+      },
+    });
+  });
+
   it("returns the latest i18n setup run for a repository", async () => {
     const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
 

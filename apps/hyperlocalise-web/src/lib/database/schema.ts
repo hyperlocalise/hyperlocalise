@@ -1323,6 +1323,37 @@ export const githubAgentRequests = pgTable(
   ],
 );
 
+export const githubRepositoryAutomationSettings = pgTable(
+  "github_repository_automation_settings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    githubInstallationRepositoryId: uuid("github_installation_repository_id")
+      .notNull()
+      .references(() => githubInstallationRepositories.id, { onDelete: "cascade" }),
+    settings: jsonb("settings")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    configVersion: integer("config_version").notNull().default(1),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("github_repository_automation_settings_repo_key").on(
+      table.githubInstallationRepositoryId,
+    ),
+    index("idx_github_repository_automation_settings_org").on(table.organizationId),
+    index("idx_github_repository_automation_settings_next_run").on(table.nextRunAt),
+  ],
+);
+
 export const githubI18nSetupRuns = pgTable(
   "github_i18n_setup_runs",
   {
