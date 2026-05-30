@@ -1007,6 +1007,7 @@ export const providerSyncIntents = pgTable(
     leaseKey: text("lease_key").notNull(),
     leasedUntil: timestamp("leased_until", { withTimezone: true }),
     leasedBy: text("leased_by"),
+    leaseToken: text("lease_token"),
     nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
     providerSyncRunId: uuid("provider_sync_run_id").references(() => providerSyncRuns.id, {
       onDelete: "set null",
@@ -1091,6 +1092,10 @@ export const providerWebhookSubscriptions = pgTable(
     index("idx_provider_webhook_subscriptions_org").on(table.organizationId),
     index("idx_provider_webhook_subscriptions_credential").on(table.providerCredentialId),
     index("idx_provider_webhook_subscriptions_credential_project").on(
+      table.providerCredentialId,
+      table.projectId,
+    ),
+    uniqueIndex("provider_webhook_subscriptions_credential_project_key").on(
       table.providerCredentialId,
       table.projectId,
     ),

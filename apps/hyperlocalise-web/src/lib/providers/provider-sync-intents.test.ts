@@ -190,15 +190,18 @@ describe("provider sync intents", () => {
       eventReferences: ["event-1"],
     });
 
+    const leaseToken = randomUUID();
+
     await db
       .update(schema.providerSyncIntents)
-      .set({ status: "running", attempts: 1, leasedBy: "worker-a" })
+      .set({ status: "running", attempts: 1, leasedBy: "worker-a", leaseToken })
       .where(eq(schema.providerSyncIntents.id, intent.id));
 
     const failed = await failProviderSyncIntent({
       intentId: intent.id,
       organizationId: project.organizationId,
       workerId: "worker-a",
+      leaseToken,
       errorMessage: "temporary provider outage",
       retryable: true,
     });
@@ -206,6 +209,35 @@ describe("provider sync intents", () => {
     expect(failed?.status).toBe("retryable");
     expect(failed?.eventReferences).toEqual(["event-1"]);
     expect(failed?.nextAttemptAt).toBeTruthy();
+  });
+
+  it("does not complete an intent when the lease token does not match", async () => {
+    const project = await createTestProject();
+
+    const { intent } = await enqueueProviderSyncIntent({
+      organizationId: project.organizationId,
+      providerKind: "phrase",
+      projectId: project.id,
+      syncKind: "project_scan",
+      cause: "manual",
+    });
+
+    const leaseToken = randomUUID();
+
+    await db
+      .update(schema.providerSyncIntents)
+      .set({ status: "running", attempts: 1, leasedBy: "worker-a", leaseToken })
+      .where(eq(schema.providerSyncIntents.id, intent.id));
+
+    const completed = await completeProviderSyncIntent({
+      intentId: intent.id,
+      organizationId: project.organizationId,
+      workerId: "worker-a",
+      leaseToken: randomUUID(),
+      providerSyncRunId: null,
+    });
+
+    expect(completed).toBeNull();
   });
 
   it("does not complete an intent after the worker loses its lease", async () => {
@@ -221,13 +253,14 @@ describe("provider sync intents", () => {
 
     await db
       .update(schema.providerSyncIntents)
-      .set({ status: "running", attempts: 2, leasedBy: "worker-b" })
+      .set({ status: "running", attempts: 2, leasedBy: "worker-b", leaseToken: randomUUID() })
       .where(eq(schema.providerSyncIntents.id, intent.id));
 
     const completed = await completeProviderSyncIntent({
       intentId: intent.id,
       organizationId: project.organizationId,
       workerId: "worker-a",
+      leaseToken: randomUUID(),
       providerSyncRunId: null,
     });
 
@@ -256,13 +289,14 @@ describe("provider sync intents", () => {
 
     await db
       .update(schema.providerSyncIntents)
-      .set({ status: "running", attempts: 2, leasedBy: "worker-b" })
+      .set({ status: "running", attempts: 2, leasedBy: "worker-b", leaseToken: randomUUID() })
       .where(eq(schema.providerSyncIntents.id, intent.id));
 
     const failed = await failProviderSyncIntent({
       intentId: intent.id,
       organizationId: project.organizationId,
       workerId: "worker-a",
+      leaseToken: randomUUID(),
       errorMessage: "late worker failure",
       retryable: true,
     });

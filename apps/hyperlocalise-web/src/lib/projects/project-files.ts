@@ -105,10 +105,12 @@ export async function listFilteredProjectFiles(input: {
   query: ProjectFilesQuery;
   resourceTypes?: ExternalTmsResourceType[];
 }) {
+  const fetchLimit = input.query.limit;
   const mergedFiles = await listProjectFilesForProject({
     organizationId: input.organizationId,
     projectId: input.projectId,
-    providerFetchLimit: input.query.limit,
+    providerFetchLimit: fetchLimit,
+    repositoryFetchLimit: fetchLimit,
     providerFilters: input.query,
     resourceTypes: input.resourceTypes,
   });
@@ -120,6 +122,7 @@ export async function listProjectFilesForProject(input: {
   organizationId: string;
   projectId: string;
   providerFetchLimit?: number;
+  repositoryFetchLimit?: number;
   providerFilters?: ProjectFileFilterQuery;
   resourceTypes?: ExternalTmsResourceType[];
 }) {
@@ -155,7 +158,7 @@ export async function listProjectFilesForProject(input: {
     )
     .as("versions_sq");
 
-  const versions = await db
+  const versionsBaseQuery = db
     .select({
       versionId: versionsSubquery.versionId,
       sourcePath: versionsSubquery.sourcePath,
@@ -169,7 +172,13 @@ export async function listProjectFilesForProject(input: {
       byteSize: versionsSubquery.byteSize,
     })
     .from(versionsSubquery)
-    .where(eq(versionsSubquery.rowNumber, 1));
+    .where(eq(versionsSubquery.rowNumber, 1))
+    .orderBy(versionsSubquery.sourcePath);
+
+  const versions =
+    input.repositoryFetchLimit != null
+      ? await versionsBaseQuery.limit(input.repositoryFetchLimit)
+      : await versionsBaseQuery;
 
   const versionIds = versions.map((v) => v.versionId);
   const providerFiles = await listExternalTmsFilesForProject({
@@ -327,6 +336,11 @@ export async function listWorkspaceFiles(input: {
       ? input.projects.filter((project) => project.projectId === input.query.projectId)
       : input.projects;
 
+  const perProjectFetchLimit = Math.max(
+    input.query.limit,
+    Math.ceil(input.query.limit / Math.max(projectIds.length, 1)) + 5,
+  );
+
   const fileGroups = await mapWithConcurrency(
     projectIds,
     workspaceFilesProjectConcurrency,
@@ -334,7 +348,8 @@ export async function listWorkspaceFiles(input: {
       const files = await listProjectFilesForProject({
         organizationId: input.organizationId,
         projectId: project.projectId,
-        providerFetchLimit: input.query.limit,
+        providerFetchLimit: perProjectFetchLimit,
+        repositoryFetchLimit: perProjectFetchLimit,
         providerFilters: input.query,
         resourceTypes,
       });

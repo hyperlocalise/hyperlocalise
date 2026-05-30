@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import { and, eq, getTableColumns, inArray, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
@@ -162,6 +164,7 @@ export async function releaseExpiredProviderSyncIntentLeases(input?: { now?: Dat
       status: "retryable",
       leasedUntil: null,
       leasedBy: null,
+      leaseToken: null,
       nextAttemptAt: now,
       updatedAt: now,
     })
@@ -189,12 +192,15 @@ export async function claimProviderSyncIntent(input: {
 
   await releaseExpiredProviderSyncIntentLeases({ now });
 
+  const leaseToken = randomUUID();
+
   const [intent] = await db
     .update(schema.providerSyncIntents)
     .set({
       status: "running",
       leasedUntil,
       leasedBy: input.workerId,
+      leaseToken,
       attempts: sql`${schema.providerSyncIntents.attempts} + 1`,
       updatedAt: now,
     })
@@ -231,6 +237,7 @@ export async function completeProviderSyncIntent(input: {
   intentId: string;
   organizationId: string;
   workerId: string;
+  leaseToken: string;
   providerSyncRunId?: string | null;
 }) {
   const now = new Date();
@@ -241,6 +248,7 @@ export async function completeProviderSyncIntent(input: {
       providerSyncRunId: input.providerSyncRunId ?? null,
       leasedUntil: null,
       leasedBy: null,
+      leaseToken: null,
       nextAttemptAt: null,
       completedAt: now,
       updatedAt: now,
@@ -249,7 +257,9 @@ export async function completeProviderSyncIntent(input: {
       and(
         eq(schema.providerSyncIntents.id, input.intentId),
         eq(schema.providerSyncIntents.organizationId, input.organizationId),
+        eq(schema.providerSyncIntents.status, "running"),
         eq(schema.providerSyncIntents.leasedBy, input.workerId),
+        eq(schema.providerSyncIntents.leaseToken, input.leaseToken),
       ),
     )
     .returning();
@@ -261,6 +271,7 @@ export async function failProviderSyncIntent(input: {
   intentId: string;
   organizationId: string;
   workerId: string;
+  leaseToken: string;
   errorMessage: string;
   errorDetails?: Record<string, unknown>;
   retryable?: boolean;
@@ -275,7 +286,9 @@ export async function failProviderSyncIntent(input: {
       and(
         eq(schema.providerSyncIntents.id, input.intentId),
         eq(schema.providerSyncIntents.organizationId, input.organizationId),
+        eq(schema.providerSyncIntents.status, "running"),
         eq(schema.providerSyncIntents.leasedBy, input.workerId),
+        eq(schema.providerSyncIntents.leaseToken, input.leaseToken),
       ),
     )
     .limit(1);
@@ -296,6 +309,7 @@ export async function failProviderSyncIntent(input: {
       providerSyncRunId: input.providerSyncRunId ?? null,
       leasedUntil: null,
       leasedBy: null,
+      leaseToken: null,
       nextAttemptAt: shouldRetry ? new Date(now.getTime() + retryDelayMs) : null,
       completedAt: shouldRetry ? null : now,
       updatedAt: now,
@@ -304,7 +318,9 @@ export async function failProviderSyncIntent(input: {
       and(
         eq(schema.providerSyncIntents.id, current.id),
         eq(schema.providerSyncIntents.organizationId, input.organizationId),
+        eq(schema.providerSyncIntents.status, "running"),
         eq(schema.providerSyncIntents.leasedBy, input.workerId),
+        eq(schema.providerSyncIntents.leaseToken, input.leaseToken),
       ),
     )
     .returning();

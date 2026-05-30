@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -166,15 +166,16 @@ async function inviteOrganizationMember(input: {
 }
 
 async function cleanupInvitedPlaceholderUser(localUserId: string) {
-  const remainingMemberships = await db
-    .select({ id: schema.organizationMemberships.id })
-    .from(schema.organizationMemberships)
-    .where(eq(schema.organizationMemberships.userId, localUserId))
-    .limit(1);
-
-  if (!remainingMemberships[0]) {
-    await db.delete(schema.users).where(eq(schema.users.id, localUserId));
-  }
+  await db.delete(schema.users).where(
+    and(
+      eq(schema.users.id, localUserId),
+      sql`not exists (
+        select 1
+        from ${schema.organizationMemberships}
+        where ${schema.organizationMemberships.userId} = ${schema.users.id}
+      )`,
+    ),
+  );
 }
 
 async function revokePendingWorkosInvitation(input: {

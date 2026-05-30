@@ -276,11 +276,13 @@ export class LokaliseApiClient {
       includeTranslations?: boolean;
       filterKeyIds?: number[];
       filterTranslationLangIds?: number[];
+      maxKeys?: number;
     },
   ): Promise<LokaliseKey[]> {
     const keys: LokaliseKey[] = [];
     let cursor = "";
     const limit = 500;
+    const maxKeys = options?.maxKeys;
     const includeTranslations = options?.includeTranslations ?? true;
     const filterKeyIds = options?.filterKeyIds?.length ? options.filterKeyIds.join(",") : null;
     const filterTranslationLangIds = options?.filterTranslationLangIds?.length
@@ -309,6 +311,10 @@ export class LokaliseApiClient {
       const pageItems = (body.keys ?? []).map(normalizeLokaliseKey);
       keys.push(...pageItems);
 
+      if (maxKeys != null && keys.length >= maxKeys) {
+        return keys.slice(0, maxKeys);
+      }
+
       if (!nextCursor) {
         break;
       }
@@ -316,7 +322,7 @@ export class LokaliseApiClient {
       cursor = nextCursor;
     }
 
-    return keys;
+    return maxKeys != null ? keys.slice(0, maxKeys) : keys;
   }
 
   async listTasks(projectId: string, options?: LokaliseListTasksOptions): Promise<LokaliseTask[]> {

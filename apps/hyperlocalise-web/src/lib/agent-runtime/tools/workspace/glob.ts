@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import { normalizeWorkspacePath } from "./path";
+import { normalizeWorkspacePath, toShellRelativePath } from "./path";
 import { DEFAULT_GLOB_LIMIT } from "./redact";
 import type { RepoToolContext } from "./types";
 
@@ -61,7 +61,7 @@ USAGE:
             : `${basePath}/${searchDirSuffix.join("/")}`;
 
       const hasRecursive = pattern.includes("**");
-      const findArgs = [searchDir];
+      const findArgs = [toShellRelativePath(searchDir)];
       if (!hasRecursive) {
         const dirWildcards = pattern
           .split("/")

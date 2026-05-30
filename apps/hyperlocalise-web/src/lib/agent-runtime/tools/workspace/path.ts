@@ -6,5 +6,16 @@ export function normalizeWorkspacePath(path: string): string | null {
   if (!normalized || normalized.startsWith("/") || normalized.split("/").includes("..")) {
     return null;
   }
+  if (normalized.split("/").some((segment) => segment.startsWith("-"))) {
+    return null;
+  }
   return normalized;
+}
+
+/** Prefix paths so shell tools like `find` treat them as relative paths, not flags. */
+export function toShellRelativePath(normalizedPath: string): string {
+  if (normalizedPath === ".") {
+    return ".";
+  }
+  return normalizedPath.startsWith("-") ? `./${normalizedPath}` : normalizedPath;
 }
