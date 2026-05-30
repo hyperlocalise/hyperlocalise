@@ -48,6 +48,93 @@ export async function deleteProvisionedWorkosOrganization(workosOrganizationId: 
   }
 }
 
+export type PromoteLocalOrganizationForWorkosUserInput = {
+  localWorkspaceId: string;
+  organizationName: string;
+  workosUserId: string;
+  role: OrganizationMembershipRole;
+};
+
+export type PromoteLocalOrganizationForWorkosUserResult = {
+  workosOrganizationId: string;
+  workosMembershipId: string;
+  role: OrganizationMembershipRole;
+};
+
+/**
+ * Promotes a legacy local workspace by creating a WorkOS organization and assigning
+ * an existing WorkOS user. Does not create users or touch other members.
+ */
+export async function promoteLocalOrganizationForWorkosUser(
+  input: PromoteLocalOrganizationForWorkosUserInput,
+): Promise<PromoteLocalOrganizationForWorkosUserResult> {
+  const workos = getWorkosServerClient();
+
+  if (!workos) {
+    throw new Error("workos_organization_required");
+  }
+
+  let workosOrganizationId: string | undefined;
+  let roleSlug: string | undefined;
+
+  try {
+    const organization = await workos.organizations.createOrganization(
+      {
+        name: input.organizationName,
+        externalId: input.localWorkspaceId,
+        metadata: {
+          hyperlocalise_local_organization_id: input.localWorkspaceId,
+        },
+      },
+      { idempotencyKey: `workspace:${input.localWorkspaceId}` },
+    );
+    workosOrganizationId = organization.id;
+
+    const existingMembershipsPage = await workos.userManagement.listOrganizationMemberships({
+      organizationId: organization.id,
+      userId: input.workosUserId,
+      statuses: ["active"],
+    });
+    const existingMemberships = await existingMembershipsPage.autoPagination();
+    const existingMembership = existingMemberships[0];
+
+    if (existingMembership) {
+      return {
+        workosOrganizationId: organization.id,
+        workosMembershipId: existingMembership.id,
+        role: input.role,
+      };
+    }
+
+    roleSlug = membershipRoleToWorkosRoleSlug(input.role);
+    const createdMembership = await workos.userManagement.createOrganizationMembership({
+      organizationId: organization.id,
+      userId: input.workosUserId,
+      roleSlug,
+    });
+
+    return {
+      workosOrganizationId: organization.id,
+      workosMembershipId: createdMembership.id,
+      role: input.role,
+    };
+  } catch (error) {
+    if (workosOrganizationId) {
+      await deleteProvisionedWorkosOrganization(workosOrganizationId);
+    }
+
+    logger.warn("workos_local_org_promotion_failed", {
+      localWorkspaceId: input.localWorkspaceId,
+      workosOrganizationId,
+      workosUserId: input.workosUserId,
+      roleSlug,
+      ...serializeWorkosErrorForLog(error),
+    });
+
+    throw error;
+  }
+}
+
 /**
  * Creates (or idempotently reuses) a WorkOS organization and active memberships.
  * Uses `externalId = localWorkspaceId` so legacy local workspaces can be promoted safely.

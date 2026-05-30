@@ -2,17 +2,14 @@ import { and, eq, inArray, like } from "drizzle-orm";
 
 import type { DatabaseClient } from "@/lib/database";
 import { schema } from "@/lib/database";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { isDeprecatedLocalOrgWorkosId } from "@/lib/billing/autumn-customer";
 import { createLogger } from "@/lib/log";
-import {
-  isInvitedPlaceholderWorkosUserId,
-  isReplacingWorkosMembership,
-} from "@/lib/workos/constants";
-import { provisionWorkspaceInWorkos } from "@/lib/workos/provision-workspace-in-workos";
+import { env } from "@/lib/env";
+import { isInvitedPlaceholderWorkosUserId } from "@/lib/workos/constants";
+import { promoteLocalOrganizationForWorkosUser } from "@/lib/workos/provision-workspace-in-workos";
 import { serializeWorkosErrorForLog } from "@/lib/workos/serialize-workos-error-for-log";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
-import { env } from "@/lib/env";
-import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 const logger = createLogger("migrate-local-org-to-workos");
 
@@ -24,37 +21,6 @@ export type LocalOrgWorkspaceSummary = {
   slug: string | null;
   lifecycleStatus: "active" | "archived" | "deprecated";
 };
-
-export async function listLocalOrgWorkspacesForUser(
-  database: DatabaseClient,
-  workosUserId: string,
-): Promise<LocalOrgWorkspaceSummary[]> {
-  if (isInvitedPlaceholderWorkosUserId(workosUserId)) {
-    return [];
-  }
-
-  return database
-    .select({
-      organizationId: schema.organizations.id,
-      name: schema.organizations.name,
-      slug: schema.organizations.slug,
-      lifecycleStatus: schema.organizations.lifecycleStatus,
-    })
-    .from(schema.organizationMemberships)
-    .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
-    .innerJoin(
-      schema.organizations,
-      eq(schema.organizationMemberships.organizationId, schema.organizations.id),
-    )
-    .where(
-      and(
-        eq(schema.users.workosUserId, workosUserId),
-        like(schema.organizations.workosOrganizationId, LOCAL_ORG_WORKOS_ID_PATTERN),
-        inArray(schema.organizations.lifecycleStatus, ["active", "deprecated"]),
-      ),
-    )
-    .orderBy(schema.organizations.name);
-}
 
 export type MigrateLocalOrgWorkspaceResult =
   | { status: "skipped"; reason: "not_local_org" | "workos_disabled" | "no_members" }
@@ -86,6 +52,10 @@ export async function migrateLocalOrgWorkspaceToWorkos(
     return { status: "skipped", reason: "workos_disabled" };
   }
 
+  if (isInvitedPlaceholderWorkosUserId(actingWorkosUserId)) {
+    return { status: "skipped", reason: "no_members" };
+  }
+
   const [organization] = await database
     .select({
       id: schema.organizations.id,
@@ -100,95 +70,71 @@ export async function migrateLocalOrgWorkspaceToWorkos(
     return { status: "skipped", reason: "not_local_org" };
   }
 
-  const localMembers = await database
+  const [actingMembership] = await database
     .select({
       membershipId: schema.organizationMemberships.id,
       role: schema.organizationMemberships.role,
-      workosMembershipId: schema.organizationMemberships.workosMembershipId,
-      workosUserId: schema.users.workosUserId,
+      localWorkosUserId: schema.users.workosUserId,
     })
     .from(schema.organizationMemberships)
     .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
-    .where(eq(schema.organizationMemberships.organizationId, organizationId));
+    .where(
+      and(
+        eq(schema.organizationMemberships.organizationId, organizationId),
+        eq(schema.users.workosUserId, actingWorkosUserId),
+      ),
+    )
+    .limit(1);
 
-  const eligibleMembers = localMembers.filter(
-    (member) =>
-      !isInvitedPlaceholderWorkosUserId(member.workosUserId) &&
-      !isReplacingWorkosMembership(member.workosMembershipId),
-  );
-
-  const actingMember = eligibleMembers.find((member) => member.workosUserId === actingWorkosUserId);
-
-  if (!actingMember) {
+  if (!actingMembership) {
     logger.warn("local_org_workspace_migration_skipped", {
       organizationId,
-      reason: "acting_user_not_eligible",
-      localMemberCount: localMembers.length,
-      eligibleMemberCount: eligibleMembers.length,
+      reason: "acting_user_not_member",
+      actingWorkosUserId,
     });
 
     return { status: "skipped", reason: "no_members" };
   }
 
-  const provisionMembers = [
-    {
-      workosUserId: actingMember.workosUserId,
-      role: actingMember.role,
-    },
-  ];
-  const deferredMemberCount = eligibleMembers.length - provisionMembers.length;
-
   try {
-    const provisioned = await provisionWorkspaceInWorkos({
+    const promoted = await promoteLocalOrganizationForWorkosUser({
       localWorkspaceId: organization.id,
       organizationName: organization.name,
-      members: provisionMembers,
+      workosUserId: actingWorkosUserId,
+      role: actingMembership.role,
     });
-
-    const membershipByUserId = new Map(
-      provisioned.members.map((member) => [member.workosUserId, member]),
-    );
 
     await database.transaction(async (tx) => {
       await tx
         .update(schema.organizations)
         .set({
-          workosOrganizationId: provisioned.workosOrganizationId,
+          workosOrganizationId: promoted.workosOrganizationId,
           lifecycleStatus: "active",
           updatedAt: new Date(),
         })
         .where(eq(schema.organizations.id, organizationId));
 
-      for (const member of localMembers) {
-        const remote = membershipByUserId.get(member.workosUserId);
-        if (!remote) {
-          continue;
-        }
-
-        await tx
-          .update(schema.organizationMemberships)
-          .set({
-            workosMembershipId: remote.workosMembershipId,
-            role: remote.role,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.organizationMemberships.id, member.membershipId));
-      }
+      await tx
+        .update(schema.organizationMemberships)
+        .set({
+          workosMembershipId: promoted.workosMembershipId,
+          role: promoted.role,
+          updatedAt: new Date(),
+        })
+        .where(eq(schema.organizationMemberships.id, actingMembership.membershipId));
     });
 
     return {
       status: "migrated",
-      workosOrganizationId: provisioned.workosOrganizationId,
-      membershipsUpdated: provisioned.members.length,
+      workosOrganizationId: promoted.workosOrganizationId,
+      membershipsUpdated: 1,
     };
   } catch (error) {
     logger.warn("local_org_workspace_migration_failed", {
       organizationId,
       actingWorkosUserId,
-      localMemberCount: localMembers.length,
-      eligibleMemberCount: eligibleMembers.length,
-      deferredMemberCount,
-      roleSlug: workosRoleSlugForMembershipRole(actingMember.role),
+      localWorkosUserId: actingMembership.localWorkosUserId,
+      roleSlug: workosRoleSlugForMembershipRole(actingMembership.role),
       ...serializeWorkosErrorForLog(error),
     });
 
@@ -230,4 +176,35 @@ export async function migrateLocalOrgWorkspacesForUser(
   }
 
   return { migrated, failed, skipped };
+}
+
+export async function listLocalOrgWorkspacesForUser(
+  database: DatabaseClient,
+  workosUserId: string,
+): Promise<LocalOrgWorkspaceSummary[]> {
+  if (isInvitedPlaceholderWorkosUserId(workosUserId)) {
+    return [];
+  }
+
+  return database
+    .select({
+      organizationId: schema.organizations.id,
+      name: schema.organizations.name,
+      slug: schema.organizations.slug,
+      lifecycleStatus: schema.organizations.lifecycleStatus,
+    })
+    .from(schema.organizationMemberships)
+    .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+    .innerJoin(
+      schema.organizations,
+      eq(schema.organizationMemberships.organizationId, schema.organizations.id),
+    )
+    .where(
+      and(
+        eq(schema.users.workosUserId, workosUserId),
+        like(schema.organizations.workosOrganizationId, LOCAL_ORG_WORKOS_ID_PATTERN),
+        inArray(schema.organizations.lifecycleStatus, ["active", "deprecated"]),
+      ),
+    )
+    .orderBy(schema.organizations.name);
 }
