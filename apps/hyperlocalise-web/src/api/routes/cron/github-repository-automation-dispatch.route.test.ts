@@ -8,10 +8,19 @@ const runGithubRepositoryAutomationSchedulerMock = vi.fn(async () => ({
   duplicates: 0,
 }));
 
+const runGithubRepositoryAutomationWorkerMock = vi.fn(async () => ({
+  processed: 1,
+  started: 1,
+  skipped: 0,
+}));
+
 async function createClient(input?: { enabled?: boolean; cronSecret?: string | null }) {
   vi.resetModules();
   vi.doMock("@/lib/agents/github/github-repository-automation-scheduler", () => ({
     runGithubRepositoryAutomationScheduler: runGithubRepositoryAutomationSchedulerMock,
+  }));
+  vi.doMock("@/lib/agents/github/github-repository-automation-worker", () => ({
+    runGithubRepositoryAutomationWorker: runGithubRepositoryAutomationWorkerMock,
   }));
   vi.doMock("@/lib/env", () => ({
     env: {
@@ -32,8 +41,10 @@ describe("github repository automation dispatch cron route", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/lib/agents/github/github-repository-automation-scheduler");
+    vi.doUnmock("@/lib/agents/github/github-repository-automation-worker");
     vi.doUnmock("@/lib/env");
     runGithubRepositoryAutomationSchedulerMock.mockClear();
+    runGithubRepositoryAutomationWorkerMock.mockClear();
   });
 
   it("rejects requests without the cron secret", async () => {
@@ -60,13 +71,21 @@ describe("github repository automation dispatch cron route", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       results: {
-        processed: 1,
-        enqueued: 1,
-        skipped: 0,
-        duplicates: 0,
+        scheduler: {
+          processed: 1,
+          enqueued: 1,
+          skipped: 0,
+          duplicates: 0,
+        },
+        worker: {
+          processed: 1,
+          started: 1,
+          skipped: 0,
+        },
       },
     });
     expect(runGithubRepositoryAutomationSchedulerMock).toHaveBeenCalledTimes(1);
+    expect(runGithubRepositoryAutomationWorkerMock).toHaveBeenCalledTimes(1);
   });
 
   it("returns disabled when github automation dispatch is turned off", async () => {

@@ -29,17 +29,24 @@ export const githubRepoAutomationTriggerSchema = z.discriminatedUnion("mode", [
   pushTriggerSchema,
 ]);
 
+export const githubRepoAutomationValidationWorkflowSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    blockOnFailure: z.boolean().default(true),
+  })
+  .default({ enabled: false, blockOnFailure: true });
+
 export const githubRepoAutomationWorkflowsSchema = z.object({
   pushSource: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
   pullTranslations: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
-  validation: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
+  validation: githubRepoAutomationValidationWorkflowSchema,
 });
 
 export const githubRepositoryAutomationSettingsSchema = z.object({
   workflows: githubRepoAutomationWorkflowsSchema.default({
     pushSource: { enabled: false },
     pullTranslations: { enabled: false },
-    validation: { enabled: false },
+    validation: { enabled: false, blockOnFailure: true },
   }),
   trigger: githubRepoAutomationTriggerSchema.nullable().default(null),
 });
@@ -51,7 +58,7 @@ export type GithubRepositoryAutomationSettingsPartial = {
   workflows?: {
     pushSource?: { enabled?: boolean };
     pullTranslations?: { enabled?: boolean };
-    validation?: { enabled?: boolean };
+    validation?: { enabled?: boolean; blockOnFailure?: boolean };
   };
   trigger?: z.infer<typeof githubRepoAutomationTriggerSchema> | null;
 };
@@ -64,7 +71,12 @@ const githubRepositoryAutomationSettingsPartialSchema = z.object({
     .object({
       pushSource: z.object({ enabled: z.boolean().optional() }).optional(),
       pullTranslations: z.object({ enabled: z.boolean().optional() }).optional(),
-      validation: z.object({ enabled: z.boolean().optional() }).optional(),
+      validation: z
+        .object({
+          enabled: z.boolean().optional(),
+          blockOnFailure: z.boolean().optional(),
+        })
+        .optional(),
     })
     .optional(),
   trigger: githubRepoAutomationTriggerSchema.nullable().optional(),
@@ -107,6 +119,9 @@ export function mergeGithubRepositoryAutomationSettings(
       },
       validation: {
         enabled: override.workflows?.validation?.enabled ?? base.workflows.validation.enabled,
+        blockOnFailure:
+          override.workflows?.validation?.blockOnFailure ??
+          base.workflows.validation.blockOnFailure,
       },
     },
     trigger,
@@ -359,6 +374,7 @@ export type GithubRepoAutomationDispatchPayload = {
     pushSource: boolean;
     pullTranslations: boolean;
     validation: boolean;
+    validationBlockOnFailure: boolean;
   };
   pushBranch?: string;
 };
@@ -400,6 +416,7 @@ export function buildGithubRepoAutomationDispatchPayload(input: {
       pushSource: input.settings.workflows.pushSource.enabled,
       pullTranslations: input.settings.workflows.pullTranslations.enabled,
       validation: input.settings.workflows.validation.enabled,
+      validationBlockOnFailure: input.settings.workflows.validation.blockOnFailure,
     },
     pushBranch: input.pushBranch,
   };

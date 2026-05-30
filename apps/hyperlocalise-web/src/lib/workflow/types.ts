@@ -143,3 +143,7 @@ export type ProviderWebhookReconciliationEventData = {
 };
 
 export type ProviderWebhookReconciliationQueue = JobQueue<ProviderWebhookReconciliationEventData>;
+
+export type GithubRepositoryAutomationQueue = JobQueue<{
+  jobId: string;
+}>;

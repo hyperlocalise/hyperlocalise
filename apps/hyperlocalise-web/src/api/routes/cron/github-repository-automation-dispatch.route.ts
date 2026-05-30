@@ -3,6 +3,7 @@ import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
 import { env } from "@/lib/env";
 import { runGithubRepositoryAutomationScheduler } from "@/lib/agents/github/github-repository-automation-scheduler";
+import { runGithubRepositoryAutomationWorker } from "@/lib/agents/github/github-repository-automation-worker";
 
 function readCronSecret(request: Request) {
   const authorization = request.headers.get("authorization");
@@ -37,10 +38,14 @@ export function createGithubRepositoryAutomationDispatchRoutes() {
       return c.json({ error: "unauthorized" }, 401);
     }
 
-    const results = await runGithubRepositoryAutomationScheduler({
+    const schedulerResults = await runGithubRepositoryAutomationScheduler({
       limit: env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     });
 
-    return c.json({ results }, 200);
+    const workerResults = await runGithubRepositoryAutomationWorker({
+      limit: env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
+    });
+
+    return c.json({ results: { scheduler: schedulerResults, worker: workerResults } }, 200);
   });
 }
