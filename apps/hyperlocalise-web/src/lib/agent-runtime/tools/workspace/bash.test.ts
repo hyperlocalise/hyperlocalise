@@ -27,6 +27,18 @@ describe("isAllowedBashCommand", () => {
   it("blocks find -exec", () => {
     expect(isAllowedBashCommand("find . -type f -exec bash -c 'env' {} +")).toBe(false);
   });
+
+  it("blocks find -delete", () => {
+    expect(isAllowedBashCommand("find . -type f -delete")).toBe(false);
+  });
+
+  it("blocks find -fprint", () => {
+    expect(isAllowedBashCommand("find . -type f -fprint output.txt")).toBe(false);
+  });
+
+  it("allows benign find without destructive flags", () => {
+    expect(isAllowedBashCommand("find . -type f")).toBe(true);
+  });
 });
 
 describe("createBashTool", () => {

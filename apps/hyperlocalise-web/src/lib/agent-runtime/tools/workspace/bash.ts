@@ -6,8 +6,9 @@ import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
 
 const DISALLOWED_SUBSTRINGS = [";", "&&", "||", "|", ">", "<", "`", "$(", "${", "-exec"];
+// \b does not work before hyphen-prefixed flags; anchor after whitespace/start instead.
 const DISALLOWED_FLAGS =
-  /\b(--no-index|-i\b|--in-place|-delete|-fprint|-fls|-exec|-execdir|-ok|-okdir)\b/i;
+  /(^|(?<=\s))(--no-index|--in-place|-delete|-fprint|-fls|-execdir|-okdir|-ok|-i)(?=\s|$)/i;
 
 const ALLOWED_COMMAND_PATTERNS = [
   /^git\s+(status|log|diff|rev-parse|show)\b/i,
