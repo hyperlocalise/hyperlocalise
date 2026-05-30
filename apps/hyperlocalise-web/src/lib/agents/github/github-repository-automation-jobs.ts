@@ -46,7 +46,7 @@ function serializeJob(row: JobRow): GithubRepositoryAutomationJobRecord {
     githubInstallationId: row.githubInstallationId,
     githubRepositoryId: row.githubRepositoryId,
     configVersion: row.configVersion,
-    triggerMode: row.triggerMode as "push" | "scheduled",
+    triggerMode: row.triggerMode,
     status: row.status as GithubRepositoryAutomationJobStatus,
     skipReason: row.skipReason,
     triggerBranch: row.triggerBranch,
@@ -153,7 +153,7 @@ export async function updateGithubRepositoryAutomationJobStatus(input: {
     .set({
       status: input.status,
       workflowRunId: input.workflowRunId,
-      lastError: input.lastError ?? null,
+      lastError: input.lastError,
       completedAt: isTerminal ? new Date() : null,
       updatedAt: new Date(),
     })

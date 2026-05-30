@@ -34,82 +34,93 @@ export async function runGithubRepositoryAutomationScheduler(input?: {
   let duplicates = 0;
 
   for (const entry of dueSettings) {
-    const scheduledRunAt = entry.row.nextRunAt;
-    if (!scheduledRunAt) {
-      logger.warn(
-        { settingsRowId: entry.row.id },
-        "github repository automation scheduler row missing next_run_at; advancing",
-      );
-      await advanceGithubRepositoryAutomationNextRun({
-        settingsRowId: entry.row.id,
-        settings: entry.settings,
-        completedAt: now,
-      });
-      skipped += 1;
-      continue;
-    }
-
-    if (!hasEnabledGithubRepoAutomationWorkflow(entry.settings)) {
-      await advanceGithubRepositoryAutomationNextRun({
-        settingsRowId: entry.row.id,
-        settings: entry.settings,
-        completedAt: now,
-      });
-      skipped += 1;
-      continue;
-    }
-
-    if (entry.settings.trigger?.mode !== "scheduled") {
-      await advanceGithubRepositoryAutomationNextRun({
-        settingsRowId: entry.row.id,
-        settings: entry.settings,
-        completedAt: now,
-      });
-      skipped += 1;
-      continue;
-    }
-
-    const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
-      configVersion: entry.row.configVersion,
-      githubInstallationRepositoryId: entry.repository.id,
-      organizationId: entry.row.organizationId,
-      githubRepositoryId: entry.repository.githubRepositoryId,
-      githubInstallationId: entry.repository.githubInstallationId,
-      settings: entry.settings,
-    });
-
-    if (!dispatchPayload) {
-      await advanceGithubRepositoryAutomationNextRun({
-        settingsRowId: entry.row.id,
-        settings: entry.settings,
-        completedAt: now,
-      });
-      skipped += 1;
-      continue;
-    }
-
-    const result = await dispatchGithubRepositoryAutomationForSchedule({
-      organizationId: entry.row.organizationId,
-      githubInstallationId: entry.repository.githubInstallationId,
-      githubInstallationRepositoryId: entry.repository.id,
-      githubRepositoryId: entry.repository.githubRepositoryId,
-      configVersion: entry.row.configVersion,
-      scheduledRunAt,
-      dispatchPayload,
-    });
-
-    await advanceGithubRepositoryAutomationNextRun({
-      settingsRowId: entry.row.id,
-      settings: entry.settings,
-      completedAt: now,
-    });
-
-    if (result.outcome === "enqueued") {
-      enqueued += 1;
-      if (!result.inserted) {
-        duplicates += 1;
+    try {
+      const scheduledRunAt = entry.row.nextRunAt;
+      if (!scheduledRunAt) {
+        logger.warn(
+          { settingsRowId: entry.row.id },
+          "github repository automation scheduler row missing next_run_at; advancing",
+        );
+        await advanceGithubRepositoryAutomationNextRun({
+          settingsRowId: entry.row.id,
+          settings: entry.settings,
+          completedAt: now,
+        });
+        skipped += 1;
+        continue;
       }
-    } else {
+
+      if (!hasEnabledGithubRepoAutomationWorkflow(entry.settings)) {
+        await advanceGithubRepositoryAutomationNextRun({
+          settingsRowId: entry.row.id,
+          settings: entry.settings,
+          completedAt: now,
+        });
+        skipped += 1;
+        continue;
+      }
+
+      if (entry.settings.trigger?.mode !== "scheduled") {
+        await advanceGithubRepositoryAutomationNextRun({
+          settingsRowId: entry.row.id,
+          settings: entry.settings,
+          completedAt: now,
+        });
+        skipped += 1;
+        continue;
+      }
+
+      const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
+        configVersion: entry.row.configVersion,
+        githubInstallationRepositoryId: entry.repository.id,
+        organizationId: entry.row.organizationId,
+        githubRepositoryId: entry.repository.githubRepositoryId,
+        githubInstallationId: entry.repository.githubInstallationId,
+        settings: entry.settings,
+      });
+
+      if (!dispatchPayload) {
+        await advanceGithubRepositoryAutomationNextRun({
+          settingsRowId: entry.row.id,
+          settings: entry.settings,
+          completedAt: now,
+        });
+        skipped += 1;
+        continue;
+      }
+
+      const result = await dispatchGithubRepositoryAutomationForSchedule({
+        organizationId: entry.row.organizationId,
+        githubInstallationId: entry.repository.githubInstallationId,
+        githubInstallationRepositoryId: entry.repository.id,
+        githubRepositoryId: entry.repository.githubRepositoryId,
+        configVersion: entry.row.configVersion,
+        scheduledRunAt,
+        dispatchPayload,
+      });
+
+      await advanceGithubRepositoryAutomationNextRun({
+        settingsRowId: entry.row.id,
+        settings: entry.settings,
+        completedAt: now,
+      });
+
+      if (result.outcome === "enqueued") {
+        enqueued += 1;
+        if (!result.inserted) {
+          duplicates += 1;
+        }
+      } else {
+        skipped += 1;
+      }
+    } catch (error) {
+      logger.error(
+        {
+          settingsRowId: entry.row.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "github repository automation scheduler entry failed",
+      );
       skipped += 1;
     }
   }

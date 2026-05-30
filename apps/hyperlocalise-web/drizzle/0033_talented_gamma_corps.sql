@@ -1,0 +1,2 @@
+CREATE TYPE "public"."github_repository_automation_job_trigger_mode" AS ENUM('push', 'scheduled');--> statement-breakpoint
+ALTER TABLE "github_repository_automation_jobs" ALTER COLUMN "trigger_mode" SET DATA TYPE "public"."github_repository_automation_job_trigger_mode" USING "trigger_mode"::"public"."github_repository_automation_job_trigger_mode";

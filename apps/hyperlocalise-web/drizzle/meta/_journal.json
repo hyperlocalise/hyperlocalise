@@ -232,6 +232,13 @@
       "when": 1780177289212,
       "tag": "0032_pink_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1780180284805,
+      "tag": "0033_talented_gamma_corps",
+      "breakpoints": true
     }
   ]
 }
