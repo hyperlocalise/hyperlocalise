@@ -61,7 +61,13 @@ export async function githubRepositoryAutomationWorkflow(
   const job = await loadJobStep(event.jobId);
 
   if (job.status === "queued") {
-    await claimJobStep({ jobId: event.jobId, workflowRunId });
+    const claimedJob = await claimJobStep({ jobId: event.jobId, workflowRunId });
+    if (claimedJob.workflowRunId !== workflowRunId) {
+      return {
+        skipped: true,
+        reason: "job_claimed_by_another_workflow",
+      };
+    }
   } else if (job.status === "running" && !job.workflowRunId) {
     await updateGithubRepositoryAutomationJobStatus({
       jobId: event.jobId,

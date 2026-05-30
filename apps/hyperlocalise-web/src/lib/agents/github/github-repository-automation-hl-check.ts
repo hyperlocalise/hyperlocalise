@@ -6,10 +6,7 @@ import {
 } from "@/lib/translation/sandbox-translation";
 import { isErr } from "@/lib/primitives/result/results";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
-
-function shellQuote(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
-}
+import { shellQuote } from "@/lib/primitives/shell-quote/shell-quote";
 
 const DEFAULT_REPORT_PATH = "/tmp/hl-automation-check-report.json";
 
