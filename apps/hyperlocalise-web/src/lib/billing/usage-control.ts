@@ -50,7 +50,7 @@ export type UsageControlError =
   | MarkUsageEventSucceededError
   | TrackUsageEventError;
 
-export function formatUsageControlError(error: UsageControlError) {
+export function formatUsageControlError(error: UsageControlError): string {
   switch (error.code) {
     case "usage_event_not_found":
       return `usage event not found for operation key ${error.operationKey}`;
