@@ -1,7 +1,7 @@
 import { tool } from "ai";
+import { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
 
-import { getVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import type { ToolContext } from "@/lib/tools/types";
 
@@ -14,9 +14,18 @@ async function runSandboxCommand(
   sandboxId: string,
   command: string,
   args: string[],
+  options?: { env?: Record<string, string> },
 ): Promise<{ exitCode: number; output: string }> {
-  const workspace = getVercelSandboxWorkspace(sandboxId);
-  return workspace.runCommand(command, args, { output: "both" });
+  const sandbox = await Sandbox.get({ name: sandboxId });
+  const result = await sandbox.runCommand({
+    cmd: command,
+    args,
+    env: options?.env,
+  });
+  return {
+    exitCode: result.exitCode,
+    output: await result.output("both"),
+  };
 }
 
 function shellQuote(value: string): string {
@@ -69,10 +78,12 @@ export function createWriteI18nConfigTool(
         };
       }
 
-      const writeResult = await runSandboxCommand(ctx.sandboxId, "bash", [
-        "-lc",
-        `cat > i18n.yml <<'EOF'\n${input.content.replaceAll("EOF", "EO_F")}\nEOF`,
-      ]);
+      const writeResult = await runSandboxCommand(
+        ctx.sandboxId,
+        "bash",
+        ["-lc", `printf '%s\\n' "$I18N_CONTENT" > i18n.yml`],
+        { env: { I18N_CONTENT: input.content } },
+      );
 
       if (writeResult.exitCode !== 0) {
         return { success: false, error: `Failed to write i18n.yml: ${writeResult.output}` };

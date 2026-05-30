@@ -84,7 +84,7 @@ async function updateRunStatusStep(
 
 async function createSetupSandbox(
   event: I18nSetupRequestedEventData,
-): Promise<{ sandboxId: string; token: string }> {
+): Promise<{ sandboxId: string }> {
   "use step";
 
   const octokit = await getInstallationOctokit(event.installationId);
@@ -101,7 +101,7 @@ async function createSetupSandbox(
     timeout: sandboxTimeoutMs,
   });
 
-  return { sandboxId: sandbox.name, token };
+  return { sandboxId: sandbox.name };
 }
 
 async function stopSetupSandbox(sandboxId: string): Promise<void> {
@@ -132,10 +132,11 @@ async function runSandboxCommand(
 async function prepareSandbox(
   sandboxId: string,
   event: I18nSetupRequestedEventData,
-  token: string,
 ): Promise<void> {
   "use step";
 
+  const octokit = await getInstallationOctokit(event.installationId);
+  const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
   const remote = `https://github.com/${event.repositoryFullName}.git`;
 
   for (const [command, args, options] of [
@@ -376,8 +377,9 @@ async function runSetupAgentStep(input: {
 }
 
 function buildBranchName(): string {
-  const suffix = Date.now().toString(36);
-  return `hyperlocalise/i18n-setup-${suffix}`;
+  const ts = Date.now().toString(36);
+  const rand = Math.random().toString(36).slice(2, 6);
+  return `hyperlocalise/i18n-setup-${ts}-${rand}`;
 }
 
 async function commitPushAndCreatePullRequest(input: {
@@ -485,10 +487,10 @@ export async function i18nSetupWorkflow(
       workflowRunId,
     });
 
-    const { sandboxId: createdSandboxId, token } = await createSetupSandbox(event);
+    const { sandboxId: createdSandboxId } = await createSetupSandbox(event);
     sandboxId = createdSandboxId;
 
-    await prepareSandbox(sandboxId, event, token);
+    await prepareSandbox(sandboxId, event);
 
     const existingConfig = await resolveExistingConfig(sandboxId);
 
