@@ -3,14 +3,39 @@ import "dotenv/config";
 import { createHash } from "node:crypto";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { createAuthorizationCode, hashMcpToken } from "@/api/auth/mcp";
+import {
+  createAuthorizationCode,
+  createMcpAuthorizationRequest,
+  createMcpConsentGrant,
+  hashMcpToken,
+  MCP_AUTH_REQUEST_COOKIE,
+  MCP_CONSENT_COOKIE,
+  parseMcpAuthorizationRequest,
+} from "@/api/auth/mcp";
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
 import { createProjectTestFixture } from "../project/project.fixture";
+
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+}));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
 
 const app = createApp();
 const fixture = createProjectTestFixture();
@@ -284,6 +309,111 @@ describe("mcpRoutes", () => {
 
     expect((await exchangeCode({ code, verifier })).status).toBe(200);
     expect((await exchangeCode({ code, verifier })).status).toBe(400);
+  });
+
+  it("redirects callback to consent when the user has not approved the client", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db.insert(schema.mcpOAuthClients).values({
+      clientId: "test-client",
+      redirectUris: ["http://localhost:8787/callback"],
+      grantTypes: ["authorization_code", "refresh_token"],
+      responseTypes: ["code"],
+      scope: "mcp",
+    });
+
+    const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    const challenge = pkceChallenge(verifier);
+    const authRequest = createMcpAuthorizationRequest({
+      clientId: "test-client",
+      redirectUri: "http://localhost:8787/callback",
+      codeChallenge: challenge,
+      codeChallengeMethod: "S256",
+      scope: "mcp",
+    });
+
+    const callbackUrl = new URL("http://localhost/api/mcp/callback");
+    callbackUrl.searchParams.set("response_type", "code");
+    callbackUrl.searchParams.set("client_id", "test-client");
+    callbackUrl.searchParams.set("redirect_uri", "http://localhost:8787/callback");
+    callbackUrl.searchParams.set("code_challenge", challenge);
+    callbackUrl.searchParams.set("code_challenge_method", "S256");
+
+    const response = await app.request(callbackUrl, {
+      headers: {
+        ...headers,
+        cookie: `${MCP_AUTH_REQUEST_COOKIE}=${authRequest}`,
+      },
+      redirect: "manual",
+    });
+
+    expect(response.status).toBe(302);
+    const location = response.headers.get("location");
+    expect(location).toContain("/api/mcp/consent");
+    expect(location).not.toContain("code=");
+  });
+
+  it("issues an authorization code after explicit consent", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const headers = await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    await db.insert(schema.mcpOAuthClients).values({
+      clientId: "test-client",
+      redirectUris: ["http://localhost:8787/callback"],
+      grantTypes: ["authorization_code", "refresh_token"],
+      responseTypes: ["code"],
+      scope: "mcp",
+    });
+
+    const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    const challenge = pkceChallenge(verifier);
+    const authRequestPayload = {
+      clientId: "test-client",
+      redirectUri: "http://localhost:8787/callback",
+      codeChallenge: challenge,
+      codeChallengeMethod: "S256" as const,
+      scope: "mcp",
+    };
+    const authRequest = createMcpAuthorizationRequest(authRequestPayload);
+    const parsedRequest = parseMcpAuthorizationRequest(authRequest);
+    if (!parsedRequest) {
+      throw new Error("expected parsed MCP authorization request");
+    }
+    const consentGrant = createMcpConsentGrant({
+      requestNonce: parsedRequest.nonce,
+      userId: auth.user.localUserId,
+      organizationId: auth.organization.localOrganizationId,
+    });
+
+    const callbackUrl = new URL("http://localhost/api/mcp/callback");
+    callbackUrl.searchParams.set("response_type", "code");
+    callbackUrl.searchParams.set("client_id", "test-client");
+    callbackUrl.searchParams.set("redirect_uri", "http://localhost:8787/callback");
+    callbackUrl.searchParams.set("code_challenge", challenge);
+    callbackUrl.searchParams.set("code_challenge_method", "S256");
+
+    const response = await app.request(callbackUrl, {
+      headers: {
+        ...headers,
+        cookie: `${MCP_AUTH_REQUEST_COOKIE}=${authRequest}; ${MCP_CONSENT_COOKIE}=${consentGrant}`,
+      },
+      redirect: "manual",
+    });
+
+    expect(response.status).toBe(302);
+    const location = response.headers.get("location");
+    expect(location).toMatch(/^http:\/\/localhost:8787\/callback\?code=/);
   });
 
   it("returns the persisted session scope when refreshing tokens", async () => {

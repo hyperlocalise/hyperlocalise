@@ -6,15 +6,19 @@ import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
 
 const DISALLOWED_SUBSTRINGS = [";", "&&", "||", "|", ">", "<", "`", "$(", "${", "-exec"];
+// \b does not work before hyphen-prefixed flags; anchor after whitespace/start instead.
+const DISALLOWED_FLAGS =
+  /(^|(?<=\s))(--no-index|--in-place|-delete|-fprint|-fls|-execdir|-okdir|-ok|-i)(?=\s|$)/i;
 
 const ALLOWED_COMMAND_PATTERNS = [
   /^git\s+(status|log|diff|rev-parse|show)\b/i,
   /^ls(\s+|$)/,
   /^find\s+.+\s+-type\s+f\b/i,
   /^hl\s+(check|status|extract)\b/i,
-  /^yq\s+/i,
-  /^jq\s+/i,
 ];
+
+const ABSOLUTE_PATH_PATTERN = /(^|\s)\/(?!\.)(?!\s|$)/;
+const PARENT_TRAVERSAL_PATTERN = /(^|\s)\.\.(\/|\s|$)/;
 
 export function isAllowedBashCommand(command: string): boolean {
   const trimmed = command.trim();
@@ -26,7 +30,15 @@ export function isAllowedBashCommand(command: string): boolean {
     return false;
   }
 
-  if (/\b(rm|curl|wget|chmod|chown|mv|cp|tee|dd|shred|mkfs)\b/i.test(trimmed)) {
+  if (DISALLOWED_FLAGS.test(trimmed)) {
+    return false;
+  }
+
+  if (/\b(rm|curl|wget|chmod|chown|mv|cp|tee|dd|shred|mkfs|jq|yq|env|printenv)\b/i.test(trimmed)) {
+    return false;
+  }
+
+  if (ABSOLUTE_PATH_PATTERN.test(trimmed) || PARENT_TRAVERSAL_PATTERN.test(trimmed)) {
     return false;
   }
 
@@ -34,7 +46,7 @@ export function isAllowedBashCommand(command: string): boolean {
 }
 
 const bashInputSchema = z.object({
-  command: z.string().describe("Allowlisted bash command (git, ls, find, hl, yq, jq)."),
+  command: z.string().describe("Allowlisted bash command (git, ls, find, hl)."),
   cwd: z.string().optional().describe("Workspace-relative working directory. Default: repo root."),
 });
 

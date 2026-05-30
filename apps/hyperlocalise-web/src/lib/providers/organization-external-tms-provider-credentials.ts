@@ -15,6 +15,7 @@ import {
 } from "@/lib/providers/tms-capabilities";
 import { listProviderWebhookSubscriptionSummaries } from "@/lib/providers/provider-webhook-subscription-manager";
 import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/provider-webhook-subscription-types";
+import { assertProviderUrlResolvable } from "@/lib/providers/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
 import { resolvePhraseBaseUrl } from "@/lib/providers/phrase/phrase-base-url";
 
@@ -194,7 +195,7 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
 
   const now = new Date();
   const encrypted = encryptProviderCredential(input.secretMaterial);
-  const baseUrl = normalizeExternalTmsCredentialBaseUrl({
+  const baseUrl = await normalizeExternalTmsCredentialBaseUrl({
     providerKind: input.providerKind,
     region: input.region ?? null,
     baseUrl: input.baseUrl ?? null,
@@ -244,7 +245,7 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
   return credential;
 }
 
-function normalizeExternalTmsCredentialBaseUrl(input: {
+async function normalizeExternalTmsCredentialBaseUrl(input: {
   providerKind: ExternalTmsProviderKind;
   region: string | null;
   baseUrl: string | null;
@@ -256,6 +257,8 @@ function normalizeExternalTmsCredentialBaseUrl(input: {
   if (!normalized) {
     throw new Error("provider_base_url_invalid");
   }
+
+  await assertProviderUrlResolvable(normalized);
   return normalized;
 }
 

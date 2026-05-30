@@ -676,7 +676,7 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 		rendered = yamlDoubleQuoteScalar(rendered)
 	}
 	rendered = normalizeMarkdownTableRowBoundaries(part, rendered)
-	if !trustedFallback && containsRawHTMLSyntax(rendered) {
+	if !trustedFallback && IntroducesRawHTMLSyntax(part.source, rendered) {
 		if diags != nil && part.key != "" {
 			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 		}

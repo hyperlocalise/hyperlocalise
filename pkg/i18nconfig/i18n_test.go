@@ -864,7 +864,7 @@ func TestLoadAllowsOptionalHyperlocaliseConfig(t *testing.T) {
 	  },
 	  "hyperlocalise": {
 	    "project_id": "project_123",
-	    "api_base_url": "https://api.example.test/api"
+	    "api_base_url": "https://api.hyperlocalise.com/api"
 	  },
 	  "storage": {
 	    "adapter": "poeditor",

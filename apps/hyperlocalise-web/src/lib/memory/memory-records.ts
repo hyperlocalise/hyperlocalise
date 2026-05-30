@@ -1,5 +1,6 @@
 import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
 import type { Memory } from "@/lib/database/types";
+import { sanitizeExternalUrl } from "@/lib/safe-external-url";
 
 export function toMemoryRecord(memory: Memory): MemoryRecord {
   return {
@@ -18,7 +19,7 @@ export function toMemoryRecord(memory: Memory): MemoryRecord {
     syncState: memory.syncState,
     capabilityMode: memory.capabilityMode,
     segmentCapabilities: memory.segmentCapabilities,
-    externalUrl: memory.externalUrl,
+    externalUrl: sanitizeExternalUrl(memory.externalUrl),
     lastSyncedAt: memory.lastSyncedAt?.toISOString() ?? null,
     lastSyncErrorAt: memory.lastSyncErrorAt?.toISOString() ?? null,
     lastSyncErrorMessage: memory.lastSyncErrorMessage,

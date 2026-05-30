@@ -1,5 +1,6 @@
-import type { Glossary } from "@/lib/database/types";
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
+import type { Glossary } from "@/lib/database/types";
+import { sanitizeExternalUrl } from "@/lib/safe-external-url";
 
 export function toGlossaryRecord(glossary: Glossary): GlossaryRecord {
   return {
@@ -20,7 +21,7 @@ export function toGlossaryRecord(glossary: Glossary): GlossaryRecord {
     termCount: glossary.termCount,
     syncState: glossary.syncState,
     termCapabilities: glossary.termCapabilities,
-    externalUrl: glossary.externalUrl,
+    externalUrl: sanitizeExternalUrl(glossary.externalUrl),
     lastSyncedAt: glossary.lastSyncedAt?.toISOString() ?? null,
     lastSyncErrorAt: glossary.lastSyncErrorAt?.toISOString() ?? null,
     lastSyncErrorMessage: glossary.lastSyncErrorMessage,

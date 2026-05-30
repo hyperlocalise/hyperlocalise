@@ -17,6 +17,7 @@ export type RawEmailMessage = {
   subject?: string;
   messageId?: string;
   to?: string[];
+  headers?: Record<string, string>;
   attachments?: Array<{ id: string; filename: string | null; contentType: string }>;
 };
 

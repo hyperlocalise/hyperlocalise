@@ -11,15 +11,22 @@ import { z } from "zod";
 
 import {
   createAuthorizationCode,
+  createMcpAuthorizationRequest,
+  createMcpConsentGrant,
   generateMcpToken,
   getMcpTokenExpiry,
   hashMcpToken,
   markAuthorizationCodeUsed,
   mcpBearerAuthMiddleware,
+  MCP_AUTH_REQUEST_COOKIE,
+  MCP_CONSENT_COOKIE,
   parseAuthorizationCode,
+  parseMcpAuthorizationRequest,
+  parseMcpConsentGrant,
   verifyPkceChallenge,
   type McpAuthVariables,
 } from "@/api/auth/mcp";
+import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -87,6 +94,107 @@ async function findRegisteredMcpClient(clientId: string, redirectUri: string) {
 
 function endpointOrigin(c: { req: { url: string } }) {
   return new URL(c.req.url).origin;
+}
+
+function secureCookieOptions(maxAgeSeconds: number) {
+  return {
+    httpOnly: true,
+    sameSite: "Lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: maxAgeSeconds,
+  };
+}
+
+function storeMcpAuthRequestCookie(c: Parameters<typeof setCookie>[0], token: string) {
+  setCookie(c, MCP_AUTH_REQUEST_COOKIE, token, secureCookieOptions(15 * 60));
+}
+
+function storeMcpConsentCookie(c: Parameters<typeof setCookie>[0], token: string) {
+  setCookie(c, MCP_CONSENT_COOKIE, token, secureCookieOptions(5 * 60));
+}
+
+function clearMcpOAuthCookies(c: Parameters<typeof deleteCookie>[0]) {
+  deleteCookie(c, MCP_AUTH_REQUEST_COOKIE, { path: "/" });
+  deleteCookie(c, MCP_CONSENT_COOKIE, { path: "/" });
+}
+
+function buildCallbackUrl(
+  apiBasePath: string,
+  origin: string,
+  query: z.infer<typeof authorizationQuerySchema>,
+) {
+  const callbackUrl = new URL(`${apiBasePath}/mcp/callback`, origin);
+  for (const [key, value] of Object.entries(query)) {
+    if (value !== undefined) {
+      callbackUrl.searchParams.set(key, String(value));
+    }
+  }
+  return callbackUrl;
+}
+
+function renderMcpConsentPage(input: {
+  clientName: string | null;
+  redirectUri: string;
+  organizationName: string;
+  scope: string;
+  approveAction: string;
+}) {
+  const clientLabel = input.clientName?.trim() || "Unnamed MCP client";
+  const escaped = (value: string) =>
+    value
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;");
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Authorize MCP access</title>
+  </head>
+  <body>
+    <main>
+      <h1>Authorize MCP access</h1>
+      <p><strong>${escaped(clientLabel)}</strong> is requesting access to your Hyperlocalise workspace.</p>
+      <ul>
+        <li>Organization: ${escaped(input.organizationName)}</li>
+        <li>Redirect URI: ${escaped(input.redirectUri)}</li>
+        <li>Scope: ${escaped(input.scope)}</li>
+      </ul>
+      <form method="post" action="${escaped(input.approveAction)}">
+        <button type="submit">Allow access</button>
+      </form>
+      <p><a href="/">Cancel</a></p>
+    </main>
+  </body>
+</html>`;
+}
+
+async function issueAuthorizationCodeRedirect(
+  c: { redirect: (location: string, status: 302) => Response },
+  query: z.infer<typeof authorizationQuerySchema>,
+  auth: NonNullable<Awaited<ReturnType<typeof resolveApiAuthContextFromSession>>>,
+) {
+  const code = createAuthorizationCode({
+    clientId: query.client_id,
+    redirectUri: query.redirect_uri,
+    codeChallenge: query.code_challenge,
+    codeChallengeMethod: query.code_challenge_method,
+    scope: query.scope,
+    state: query.state,
+    userId: auth.user.localUserId,
+    organizationId: auth.organization.localOrganizationId,
+  });
+
+  const redirectUrl = new URL(query.redirect_uri);
+  redirectUrl.searchParams.set("code", code);
+  if (query.state) {
+    redirectUrl.searchParams.set("state", query.state);
+  }
+
+  return c.redirect(redirectUrl.toString(), 302);
 }
 
 function getMcpBasePath(apiBasePath: string) {
@@ -374,6 +482,10 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
       }),
       validateRegisterBody,
       async (c) => {
+        if (!env.MCP_ALLOW_DYNAMIC_REGISTRATION) {
+          return c.json({ error: "registration_disabled" }, 403);
+        }
+
         const payload = c.req.valid("json");
         const unsupportedRedirectUri = payload.redirect_uris.find(
           (uri) => !isAllowedRedirectUri(uri),
@@ -424,28 +536,44 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         return c.json({ error: "invalid_client" }, 400);
       }
 
-      const callbackUrl = new URL(`${apiBasePath}/mcp/callback`, endpointOrigin(c));
-      for (const [key, value] of Object.entries(query)) {
-        if (value !== undefined) {
-          callbackUrl.searchParams.set(key, String(value));
-        }
-      }
+      const authRequest = createMcpAuthorizationRequest({
+        clientId: query.client_id,
+        redirectUri: query.redirect_uri,
+        codeChallenge: query.code_challenge,
+        codeChallengeMethod: query.code_challenge_method,
+        scope: query.scope,
+        state: query.state,
+        organizationSlug: query.organizationSlug,
+      });
+      storeMcpAuthRequestCookie(c, authRequest);
 
+      const callbackUrl = buildCallbackUrl(apiBasePath, endpointOrigin(c), query);
       const signInUrl = new URL("/auth/sign-in", endpointOrigin(c));
       signInUrl.searchParams.set("returnTo", `${callbackUrl.pathname}${callbackUrl.search}`);
 
       return c.redirect(signInUrl.toString(), 302);
     })
-    .get("/mcp/callback", validateAuthorizationQuery, async (c) => {
+    .get("/mcp/consent", validateAuthorizationQuery, async (c) => {
       const query = c.req.valid("query");
-      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
+      const authRequestToken = getCookie(c, MCP_AUTH_REQUEST_COOKIE);
+      const authRequest = authRequestToken ? parseMcpAuthorizationRequest(authRequestToken) : null;
 
+      if (
+        !authRequest ||
+        authRequest.clientId !== query.client_id ||
+        authRequest.redirectUri !== query.redirect_uri ||
+        authRequest.codeChallenge !== query.code_challenge
+      ) {
+        return c.json({ error: "invalid_request" }, 400);
+      }
+
+      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
       if (!client) {
         return c.json({ error: "invalid_client" }, 400);
       }
 
       const auth = await resolveApiAuthContextFromSession({
-        organizationSlug: query.organizationSlug,
+        organizationSlug: query.organizationSlug ?? authRequest.organizationSlug,
       });
 
       if (!auth) {
@@ -455,24 +583,118 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         return c.redirect(signInUrl.toString(), 302);
       }
 
-      const code = createAuthorizationCode({
-        clientId: query.client_id,
-        redirectUri: query.redirect_uri,
-        codeChallenge: query.code_challenge,
-        codeChallengeMethod: query.code_challenge_method,
-        scope: query.scope,
-        state: query.state,
+      const [registeredClient] = await db
+        .select({ clientName: schema.mcpOAuthClients.clientName })
+        .from(schema.mcpOAuthClients)
+        .where(eq(schema.mcpOAuthClients.clientId, query.client_id))
+        .limit(1);
+
+      const consentUrl = new URL(`${apiBasePath}/mcp/consent`, endpointOrigin(c));
+      for (const [key, value] of Object.entries(query)) {
+        if (value !== undefined) {
+          consentUrl.searchParams.set(key, String(value));
+        }
+      }
+
+      return c.html(
+        renderMcpConsentPage({
+          clientName: registeredClient?.clientName ?? null,
+          redirectUri: query.redirect_uri,
+          organizationName: auth.organization.name,
+          scope: query.scope,
+          approveAction: `${consentUrl.pathname}${consentUrl.search}`,
+        }),
+        200,
+      );
+    })
+    .post("/mcp/consent", validateAuthorizationQuery, async (c) => {
+      const query = c.req.valid("query");
+      const authRequestToken = getCookie(c, MCP_AUTH_REQUEST_COOKIE);
+      const authRequest = authRequestToken ? parseMcpAuthorizationRequest(authRequestToken) : null;
+
+      if (
+        !authRequest ||
+        authRequest.clientId !== query.client_id ||
+        authRequest.redirectUri !== query.redirect_uri ||
+        authRequest.codeChallenge !== query.code_challenge
+      ) {
+        return c.json({ error: "invalid_request" }, 400);
+      }
+
+      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
+      if (!client) {
+        return c.json({ error: "invalid_client" }, 400);
+      }
+
+      const auth = await resolveApiAuthContextFromSession({
+        organizationSlug: query.organizationSlug ?? authRequest.organizationSlug,
+      });
+
+      if (!auth) {
+        return c.json({ error: "access_denied" }, 403);
+      }
+
+      const consentGrant = createMcpConsentGrant({
+        requestNonce: authRequest.nonce,
         userId: auth.user.localUserId,
         organizationId: auth.organization.localOrganizationId,
       });
+      storeMcpConsentCookie(c, consentGrant);
 
-      const redirectUrl = new URL(query.redirect_uri);
-      redirectUrl.searchParams.set("code", code);
-      if (query.state) {
-        redirectUrl.searchParams.set("state", query.state);
+      const callbackUrl = buildCallbackUrl(apiBasePath, endpointOrigin(c), query);
+      return c.redirect(callbackUrl.toString(), 302);
+    })
+    .get("/mcp/callback", validateAuthorizationQuery, async (c) => {
+      const query = c.req.valid("query");
+      const client = await findRegisteredMcpClient(query.client_id, query.redirect_uri);
+
+      if (!client) {
+        return c.json({ error: "invalid_client" }, 400);
       }
 
-      return c.redirect(redirectUrl.toString(), 302);
+      const authRequestToken = getCookie(c, MCP_AUTH_REQUEST_COOKIE);
+      const authRequest = authRequestToken ? parseMcpAuthorizationRequest(authRequestToken) : null;
+
+      if (
+        !authRequest ||
+        authRequest.clientId !== query.client_id ||
+        authRequest.redirectUri !== query.redirect_uri ||
+        authRequest.codeChallenge !== query.code_challenge
+      ) {
+        return c.json({ error: "invalid_request" }, 400);
+      }
+
+      const auth = await resolveApiAuthContextFromSession({
+        organizationSlug: query.organizationSlug ?? authRequest.organizationSlug,
+      });
+
+      if (!auth) {
+        const requestUrl = new URL(c.req.url);
+        const signInUrl = new URL("/auth/sign-in", endpointOrigin(c));
+        signInUrl.searchParams.set("returnTo", `${requestUrl.pathname}${requestUrl.search}`);
+        return c.redirect(signInUrl.toString(), 302);
+      }
+
+      const consentToken = getCookie(c, MCP_CONSENT_COOKIE);
+      const consentGrant = consentToken ? parseMcpConsentGrant(consentToken) : null;
+      const hasValidConsent =
+        consentGrant &&
+        consentGrant.requestNonce === authRequest.nonce &&
+        consentGrant.userId === auth.user.localUserId &&
+        consentGrant.organizationId === auth.organization.localOrganizationId;
+
+      if (!hasValidConsent) {
+        const consentUrl = new URL(`${apiBasePath}/mcp/consent`, endpointOrigin(c));
+        for (const [key, value] of Object.entries(query)) {
+          if (value !== undefined) {
+            consentUrl.searchParams.set(key, String(value));
+          }
+        }
+        return c.redirect(consentUrl.toString(), 302);
+      }
+
+      clearMcpOAuthCookies(c);
+      return issueAuthorizationCodeRedirect(c, query, auth);
     })
     .post(
       "/mcp/token",

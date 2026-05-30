@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "hyperlocaliseapi",
+    srcs = ["url.go"],
+    importpath = "github.com/hyperlocalise/hyperlocalise/pkg/hyperlocaliseapi",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "hyperlocaliseapi_test",
+    srcs = ["url_test.go"],
+    embed = [":hyperlocaliseapi"],
+)
