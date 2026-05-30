@@ -30,9 +30,10 @@ function escapeRegex(value: string): string {
 }
 
 function spfPassedForDomain(headers: Record<string, string>, domain: string): boolean {
+  const domainPattern = new RegExp(`@${escapeRegex(domain)}(?![.\\w])`, "i");
   for (const value of headerValues(headers, "received-spf")) {
     const normalized = value.toLowerCase();
-    if (!normalized.includes(domain)) continue;
+    if (!domainPattern.test(normalized)) continue;
     if (/\bpass\b/.test(normalized)) {
       return true;
     }
@@ -42,14 +43,19 @@ function spfPassedForDomain(headers: Record<string, string>, domain: string): bo
 
 function authenticationResultsPass(headers: Record<string, string>, domain: string): boolean {
   const escapedDomain = escapeRegex(domain);
-  const dkimPassForDomain = new RegExp(`\\bdkim=pass\\b[^;]*header\\.d=${escapedDomain}\\b`);
+  const domainEnd = `(?![.\\w])`;
+  const dkimPassForDomain = new RegExp(
+    `\\bdkim=pass\\b[^;]*header\\.d=${escapedDomain}${domainEnd}`,
+  );
   const dmarcPassForDomain = new RegExp(
-    `\\bdmarc=pass\\b[^;]*header\\.from=(?:\\S+@)?${escapedDomain}\\b`,
+    `\\bdmarc=pass\\b[^;]*header\\.from=(?:\\S+@)?${escapedDomain}${domainEnd}`,
   );
   const spfPassForDomain = new RegExp(
-    `\\bspf=pass\\b[^;]*(?:smtp\\.)?mailfrom=(?:\\S+@)?${escapedDomain}\\b`,
+    `\\bspf=pass\\b[^;]*(?:smtp\\.)?mailfrom=(?:\\S+@)?${escapedDomain}${domainEnd}`,
   );
-  const spfPassForDomainComment = new RegExp(`\\bspf=pass\\b\\s*\\(\\s*${escapedDomain}:`);
+  const spfPassForDomainComment = new RegExp(
+    `\\bspf=pass\\b\\s*\\(\\s*${escapedDomain}${domainEnd}:`,
+  );
 
   for (const name of ["authentication-results", "arc-authentication-results"]) {
     for (const value of headerValues(headers, name)) {

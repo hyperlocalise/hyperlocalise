@@ -69,4 +69,28 @@ describe("isInboundSenderAuthenticated", () => {
       }),
     ).toBe(true);
   });
+
+  it("rejects Received-SPF pass for a parent-domain suffix attack", () => {
+    expect(
+      isInboundSenderAuthenticated({
+        claimedFromEmail: "user@example.com",
+        headers: {
+          "received-spf":
+            "pass (example.com.attacker.com: domain of bounce@example.com.attacker.com designates sending IP)",
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("rejects DKIM pass for a parent-domain suffix attack", () => {
+    expect(
+      isInboundSenderAuthenticated({
+        claimedFromEmail: "user@example.com",
+        headers: {
+          "authentication-results":
+            "mx.example.com; dkim=pass header.d=example.com.attacker.com; spf=none; dmarc=none",
+        },
+      }),
+    ).toBe(false);
+  });
 });
