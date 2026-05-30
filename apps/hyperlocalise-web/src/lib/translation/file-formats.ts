@@ -101,3 +101,16 @@ export function inferSupportedFileTranslationFileFormat(
 
   return format;
 }
+
+/** File extensions scanned by the i18n setup wizard (without leading dot). */
+export function getLocaleScanExtensions(): string[] {
+  const extensions = new Set<string>();
+
+  for (const [extension, format] of Object.entries(formatsByExtension)) {
+    if (isSupportedFileTranslationFileFormat(format)) {
+      extensions.add(extension.slice(1));
+    }
+  }
+
+  return [...extensions].toSorted();
+}

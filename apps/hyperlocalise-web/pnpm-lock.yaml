@@ -125,7 +125,7 @@ importers:
         version: 8.6.0(react@19.2.6)
       evlog:
         specifier: ^2.17.0
-        version: 2.18.1(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nuxt/kit@4.4.2)(ai@6.0.191(zod@4.4.3))(express@5.2.1)(hono@4.12.23)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))
+        version: 2.18.1(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nuxt/kit@4.4.2)(ai@6.0.191(zod@4.4.3))(express@5.2.1)(hono@4.12.23)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))
       hono:
         specifier: 4.12.23
         version: 4.12.23
@@ -216,6 +216,9 @@ importers:
       workos:
         specifier: 0.15.2
         version: 0.15.2(@types/react@19.2.15)
+      yaml:
+        specifier: ^2.9.0
+        version: 2.9.0
       zod:
         specifier: 4.4.3
         version: 4.4.3
@@ -252,10 +255,10 @@ importers:
         version: 6.0.3
       vite-plus:
         specifier: 0.1.22
-        version: 0.1.22(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+        version: 0.1.22(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))(yaml@2.9.0)
       vitest:
         specifier: npm:@voidzero-dev/vite-plus-test@^0.1.15
-        version: '@voidzero-dev/vite-plus-test@0.1.15(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)'
+        version: '@voidzero-dev/vite-plus-test@0.1.15(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))(yaml@2.9.0)'
 
 packages:
 
@@ -7542,6 +7545,11 @@ packages:
     engines: {node: '>= 14.6'}
     hasBin: true
 
+  yaml@2.9.0:
+    resolution: {integrity: sha512-2AvhNX3mb8zd6Zy7INTtSpl1F15HW6Wnqj0srWlkKLcpYl/gMIMJiyuGq2KeI2YFxUPjdlB+3Lc10seMLtL4cA==}
+    engines: {node: '>= 14.6'}
+    hasBin: true
+
   yargs-parser@21.1.1:
     resolution: {integrity: sha512-tVpsJW7DdjecAiFpbIB1e3qxIQsE6NoPc5/eTdrbbIC4h0LVsWhnoa3g+m2HclBIujHzsxZ4VJVA+GUuc2/LBw==}
     engines: {node: '>=12'}
@@ -10323,7 +10331,7 @@ snapshots:
       - bare-abort-controller
       - react-native-b4a
 
-  '@voidzero-dev/vite-plus-core@0.1.15(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.8.3)':
+  '@voidzero-dev/vite-plus-core@0.1.15(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0)':
     dependencies:
       '@oxc-project/runtime': 0.122.0
       '@oxc-project/types': 0.122.0
@@ -10336,9 +10344,9 @@ snapshots:
       jiti: 2.6.1
       tsx: 4.21.0
       typescript: 6.0.3
-      yaml: 2.8.3
+      yaml: 2.9.0
 
-  '@voidzero-dev/vite-plus-core@0.1.22(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.8.3)':
+  '@voidzero-dev/vite-plus-core@0.1.22(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0)':
     dependencies:
       '@oxc-project/runtime': 0.129.0
       '@oxc-project/types': 0.129.0
@@ -10351,7 +10359,7 @@ snapshots:
       jiti: 2.6.1
       tsx: 4.21.0
       typescript: 6.0.3
-      yaml: 2.8.3
+      yaml: 2.9.0
 
   '@voidzero-dev/vite-plus-darwin-arm64@0.1.22':
     optional: true
@@ -10371,11 +10379,11 @@ snapshots:
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.22':
     optional: true
 
-  '@voidzero-dev/vite-plus-test@0.1.15(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
+  '@voidzero-dev/vite-plus-test@0.1.15(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))(yaml@2.9.0)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.15(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-core': 0.1.15(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0)
       es-module-lexer: 1.7.0
       obug: 2.1.1
       pixelmatch: 7.1.0
@@ -10385,7 +10393,7 @@ snapshots:
       tinybench: 2.9.0
       tinyexec: 1.0.4
       tinyglobby: 0.2.15
-      vite: 8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)
       ws: 8.20.1
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
@@ -10411,11 +10419,11 @@ snapshots:
       - utf-8-validate
       - yaml
 
-  '@voidzero-dev/vite-plus-test@0.1.22(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)':
+  '@voidzero-dev/vite-plus-test@0.1.22(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))(yaml@2.9.0)':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.22(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-core': 0.1.22(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0)
       es-module-lexer: 1.7.0
       obug: 2.1.1
       pixelmatch: 7.1.0
@@ -10425,7 +10433,7 @@ snapshots:
       tinybench: 2.9.0
       tinyexec: 1.0.4
       tinyglobby: 0.2.16
-      vite: 8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)
       ws: 8.20.1
     optionalDependencies:
       '@opentelemetry/api': 1.9.1
@@ -11884,7 +11892,7 @@ snapshots:
     dependencies:
       eventsource-parser: 3.0.8
 
-  evlog@2.18.1(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nuxt/kit@4.4.2)(ai@6.0.191(zod@4.4.3))(express@5.2.1)(hono@4.12.23)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)):
+  evlog@2.18.1(@nestjs/common@11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nuxt/kit@4.4.2)(ai@6.0.191(zod@4.4.3))(express@5.2.1)(hono@4.12.23)(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react@19.2.6)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)):
     optionalDependencies:
       '@nestjs/common': 11.1.19(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nuxt/kit': 4.4.2
@@ -11893,7 +11901,7 @@ snapshots:
       hono: 4.12.23
       next: 16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
       react: 19.2.6
-      vite: 8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3)
+      vite: 8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0)
 
   execa@5.1.1:
     dependencies:
@@ -15045,12 +15053,12 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  vite-plus@0.1.22(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3):
+  vite-plus@0.1.22(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))(yaml@2.9.0):
     dependencies:
       '@oxc-project/types': 0.129.0
       '@oxlint/plugins': 1.61.0
-      '@voidzero-dev/vite-plus-core': 0.1.22(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.8.3)
-      '@voidzero-dev/vite-plus-test': 0.1.22(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3))(yaml@2.8.3)
+      '@voidzero-dev/vite-plus-core': 0.1.22(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0)
+      '@voidzero-dev/vite-plus-test': 0.1.22(@opentelemetry/api@1.9.1)(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0))(yaml@2.9.0)
       oxfmt: 0.48.0
       oxlint: 1.63.0(oxlint-tsgolint@0.22.1)
       oxlint-tsgolint: 0.22.1
@@ -15094,7 +15102,7 @@ snapshots:
       - vite
       - yaml
 
-  vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.8.3):
+  vite@8.0.14(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(yaml@2.9.0):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -15107,7 +15115,7 @@ snapshots:
       fsevents: 2.3.3
       jiti: 2.6.1
       tsx: 4.21.0
-      yaml: 2.8.3
+      yaml: 2.9.0
 
   watchpack@2.5.1:
     dependencies:
@@ -15262,6 +15270,8 @@ snapshots:
   yallist@3.1.1: {}
 
   yaml@2.8.3: {}
+
+  yaml@2.9.0: {}
 
   yargs-parser@21.1.1: {}
 

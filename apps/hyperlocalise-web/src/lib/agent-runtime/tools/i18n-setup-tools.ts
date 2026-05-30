@@ -5,6 +5,10 @@ import { getVercelSandboxWorkspace } from "@/lib/agent-runtime/workspaces/vercel
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
 import type { ToolContext } from "@/lib/tools/types";
 
+type WriteI18nConfigToolOptions = {
+  allowUpdate?: boolean;
+};
+
 async function runSandboxCommand(
   sandboxId: string,
   command: string,
@@ -21,7 +25,12 @@ function shellQuote(value: string): string {
 /**
  * Write i18n.yml in the repository sandbox during the i18n setup wizard.
  */
-export function createWriteI18nConfigTool(ctx: ToolContext) {
+export function createWriteI18nConfigTool(
+  ctx: ToolContext,
+  options: WriteI18nConfigToolOptions = {},
+) {
+  const allowUpdate = options.allowUpdate ?? false;
+
   return tool({
     description:
       "Write i18n.yml in the checked-out repository sandbox. Only allowed during the i18n setup wizard.",
@@ -41,14 +50,20 @@ export function createWriteI18nConfigTool(ctx: ToolContext) {
         };
       }
 
-      for (const candidate of ["i18n.yml", "i18n.jsonc"]) {
-        const exists = await runSandboxCommand(ctx.sandboxId, "test", ["-f", candidate]);
-        if (exists.exitCode === 0) {
-          return {
-            success: false,
-            error: `${candidate} already exists in the repository.`,
-          };
-        }
+      const jsoncExists = await runSandboxCommand(ctx.sandboxId, "test", ["-f", "i18n.jsonc"]);
+      if (jsoncExists.exitCode === 0) {
+        return {
+          success: false,
+          error: "i18n.jsonc already exists. The wizard only writes i18n.yml.",
+        };
+      }
+
+      const ymlExists = await runSandboxCommand(ctx.sandboxId, "test", ["-f", "i18n.yml"]);
+      if (ymlExists.exitCode === 0 && !allowUpdate) {
+        return {
+          success: false,
+          error: "i18n.yml already exists in the repository.",
+        };
       }
 
       const writeResult = await runSandboxCommand(ctx.sandboxId, "bash", [
@@ -72,7 +87,11 @@ export function createWriteI18nConfigTool(ctx: ToolContext) {
         };
       }
 
-      return { success: true, configPath: "i18n.yml" };
+      return {
+        success: true,
+        configPath: "i18n.yml",
+        updated: allowUpdate && ymlExists.exitCode === 0,
+      };
     },
   });
 }

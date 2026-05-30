@@ -2,7 +2,7 @@ import { Sandbox } from "@vercel/sandbox";
 import { ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 import { getWorkflowMetadata } from "workflow";
 
-import { generateI18nConfigYaml } from "@/lib/agents/i18n-setup/generate-i18n-config";
+import { buildSuggestedI18nConfigYaml } from "@/lib/agents/i18n-setup/merge-i18n-config";
 import {
   detectLocaleFiles,
   isIgnoredLocaleScanPath,
@@ -24,6 +24,7 @@ import { createWriteI18nConfigTool } from "@/lib/agent-runtime/tools/i18n-setup-
 import { getInstallationOctokit } from "@/lib/agents/github/app";
 import { canPushToGitHubRepository } from "@/lib/agents/repository-write-gate";
 import { db, schema } from "@/lib/database";
+import { getLocaleScanExtensions } from "@/lib/translation/file-formats";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { eq } from "drizzle-orm";
@@ -35,23 +36,9 @@ type InstallationAuth = {
   token: string;
 };
 
-const translationExtensions = [
-  "json",
-  "jsonc",
-  "yaml",
-  "yml",
-  "arb",
-  "po",
-  "xlf",
-  "xlif",
-  "xliff",
-  "html",
-  "md",
-  "mdx",
-  "strings",
-  "stringsdict",
-  "csv",
-];
+const translationExtensions = getLocaleScanExtensions();
+
+type ExistingConfigState = { kind: "none" } | { kind: "jsonc" } | { kind: "yml"; content: string };
 
 async function updateRunStatusStep(
   runId: string,
@@ -147,17 +134,25 @@ async function prepareSandbox(
   }
 }
 
-async function configExists(sandboxId: string): Promise<boolean> {
+async function resolveExistingConfig(sandboxId: string): Promise<ExistingConfigState> {
   "use step";
 
-  for (const candidate of ["i18n.yml", "i18n.jsonc"]) {
-    const result = await runSandboxCommand(sandboxId, "test", ["-f", candidate]);
-    if (result.exitCode === 0) {
-      return true;
-    }
+  const jsoncResult = await runSandboxCommand(sandboxId, "test", ["-f", "i18n.jsonc"]);
+  if (jsoncResult.exitCode === 0) {
+    return { kind: "jsonc" };
   }
 
-  return false;
+  const ymlResult = await runSandboxCommand(sandboxId, "test", ["-f", "i18n.yml"]);
+  if (ymlResult.exitCode !== 0) {
+    return { kind: "none" };
+  }
+
+  const readResult = await runSandboxCommand(sandboxId, "cat", ["i18n.yml"]);
+  if (readResult.exitCode !== 0) {
+    throw new Error(`failed to read i18n.yml: ${readResult.output}`);
+  }
+
+  return { kind: "yml", content: readResult.output };
 }
 
 async function scanLocaleFilePaths(sandboxId: string): Promise<string[]> {
@@ -186,6 +181,7 @@ async function runSetupAgentStep(input: {
   sandboxId: string;
   suggestedConfig: string;
   detectedLocaleCount: number;
+  mode: "create" | "update";
 }): Promise<{ wroteConfig: boolean; summary: string }> {
   "use step";
 
@@ -223,8 +219,15 @@ async function runSetupAgentStep(input: {
 
   const tools: ToolSet = {
     ...baseTools,
-    writeI18nConfig: createWriteI18nConfigTool(toolContext),
+    writeI18nConfig: createWriteI18nConfigTool(toolContext, {
+      allowUpdate: input.mode === "update",
+    }),
   };
+
+  const goal =
+    input.mode === "update"
+      ? "update the existing i18n.yml with newly discovered locale files"
+      : "create i18n.yml for this repository based on discovered locale files";
 
   const agent = new ToolLoopAgent({
     model: getHyperlocaliseAgentModel(),
@@ -235,10 +238,12 @@ async function runSetupAgentStep(input: {
       projectId: null,
       additionalInstructions: [
         "You are running the Hyperlocalise i18n setup wizard.",
-        "Goal: create i18n.yml for this repository based on discovered locale files.",
-        `Detected ${input.detectedLocaleCount} candidate locale file(s).`,
+        `Goal: ${goal}.`,
+        `Detected ${input.detectedLocaleCount} candidate locale file(s) across supported formats (JSON, YAML, PO, XLIFF, ARB, .strings, .xcstrings, and more).`,
         "Steps:",
-        "1. Use detectRepoConfig to confirm i18n.yml does not already exist.",
+        input.mode === "update"
+          ? "1. Use detectRepoConfig and read to review the existing i18n.yml."
+          : "1. Use detectRepoConfig to confirm i18n.yml does not already exist.",
         "2. Use glob/grep/read only if you need to validate locale file patterns.",
         "3. Call writeI18nConfig exactly once with the final YAML content.",
         "Do not commit, push, or create pull requests yourself.",
@@ -275,6 +280,7 @@ async function commitPushAndCreatePullRequest(input: {
   sandboxId: string;
   branchName: string;
   summary: string;
+  mode: "create" | "update";
 }): Promise<{ pullRequestUrl: string; pullRequestNumber: number }> {
   "use step";
 
@@ -287,10 +293,16 @@ async function commitPushAndCreatePullRequest(input: {
     throw new Error(pushCheck.reason ?? "Cannot push to repository.");
   }
 
+  const commitMessage =
+    input.mode === "update"
+      ? "chore(i18n): update Hyperlocalise i18n.yml"
+      : "chore(i18n): add Hyperlocalise i18n.yml";
+  const pullRequestTitle = commitMessage;
+
   for (const [command, args] of [
     ["git", ["checkout", "-b", input.branchName]],
     ["git", ["add", "i18n.yml"]],
-    ["git", ["commit", "-m", "chore(i18n): add Hyperlocalise i18n.yml"]],
+    ["git", ["commit", "-m", commitMessage]],
     ["git", ["push", "-u", "origin", input.branchName]],
   ] satisfies Array<[string, string[]]>) {
     const result = await runSandboxCommand(input.sandboxId, command, args);
@@ -300,16 +312,20 @@ async function commitPushAndCreatePullRequest(input: {
   }
 
   const octokit = await getInstallationOctokit(input.event.installationId);
+  const prBodyIntro =
+    input.mode === "update"
+      ? "This pull request updates `i18n.yml` with newly discovered locale files."
+      : "This pull request adds an `i18n.yml` generated by the Hyperlocalise i18n setup wizard.";
   const { data: pullRequest } = await octokit.rest.pulls.create({
     owner: input.event.repositoryOwner,
     repo: input.event.repositoryName,
-    title: "chore(i18n): add Hyperlocalise i18n.yml",
+    title: pullRequestTitle,
     head: input.branchName,
     base: input.event.baseBranch,
     body: [
       "## Hyperlocalise i18n setup",
       "",
-      "This pull request adds an `i18n.yml` generated by the Hyperlocalise i18n setup wizard.",
+      prBodyIntro,
       "",
       "Please review locale mappings and LLM provider settings before merging.",
       "",
@@ -344,11 +360,13 @@ export async function i18nSetupWorkflow(
 
     await prepareSandbox(sandboxId, event, token);
 
-    if (await configExists(sandboxId)) {
-      const message = "This repository already has i18n.yml or i18n.jsonc.";
+    const existingConfig = await resolveExistingConfig(sandboxId);
+    if (existingConfig.kind === "jsonc") {
+      const message =
+        "This repository uses i18n.jsonc. The setup wizard currently creates or updates i18n.yml only.";
       await updateRunStatusStep(event.runId, {
         status: "failed",
-        errorCode: "i18n_config_already_exists",
+        errorCode: "i18n_jsonc_not_supported",
         errorMessage: message,
         workflowRunId,
       });
@@ -356,7 +374,7 @@ export async function i18nSetupWorkflow(
         ok: false,
         runId: event.runId,
         status: "failed",
-        errorCode: "i18n_config_already_exists",
+        errorCode: "i18n_jsonc_not_supported",
         errorMessage: message,
       };
     }
@@ -366,7 +384,7 @@ export async function i18nSetupWorkflow(
 
     if (!detection) {
       const message =
-        "Could not find locale translation files in this repository. Look for paths like locales/en-US.json or messages/fr.json.";
+        "Could not find locale translation files in this repository. Look for paths like locales/en-US.json, locales/fr.po, or messages/de.yaml.";
       await updateRunStatusStep(event.runId, {
         status: "failed",
         errorCode: "locale_files_not_found",
@@ -382,12 +400,34 @@ export async function i18nSetupWorkflow(
       };
     }
 
-    const suggestedConfig = generateI18nConfigYaml(detection);
+    const suggestion = buildSuggestedI18nConfigYaml(
+      detection,
+      existingConfig.kind === "yml" ? existingConfig.content : null,
+    );
+
+    if (suggestion.mode === "update" && !suggestion.hasChanges) {
+      const message = "i18n.yml is already up to date with discovered locale files.";
+      await updateRunStatusStep(event.runId, {
+        status: "succeeded",
+        errorMessage: message,
+        detectedLocaleCount: detection.allFiles.length,
+        workflowRunId,
+      });
+      return {
+        ok: true,
+        runId: event.runId,
+        status: "succeeded",
+        detectedLocaleCount: detection.allFiles.length,
+        errorMessage: message,
+      };
+    }
+
     const agentResult = await runSetupAgentStep({
       event,
       sandboxId,
-      suggestedConfig,
+      suggestedConfig: suggestion.yaml,
       detectedLocaleCount: detection.allFiles.length,
+      mode: suggestion.mode,
     });
 
     if (!agentResult.wroteConfig) {
@@ -415,6 +455,7 @@ export async function i18nSetupWorkflow(
       sandboxId,
       branchName,
       summary: agentResult.summary,
+      mode: suggestion.mode,
     });
 
     await updateRunStatusStep(event.runId, {

@@ -81,6 +81,7 @@
     "use-stick-to-bottom": "^1.1.4",
     "workflow": "4.2.5",
     "workos": "0.15.2",
+    "yaml": "^2.9.0",
     "zod": "4.4.3"
   },
   "devDependencies": {

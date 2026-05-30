@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  getLocaleScanExtensions,
   inferSupportedFileTranslationFileFormat,
   inferSupportedTranslationFileFormat,
   isImageTranslationFileFormat,
@@ -43,5 +44,23 @@ describe("translation file formats", () => {
     expect(inferSupportedTranslationFileFormat("brief.pdf")).toBeNull();
     expect(inferSupportedTranslationFileFormat("spreadsheet.xlsx")).toBeNull();
     expect(inferSupportedTranslationFileFormat("no-extension")).toBeNull();
+  });
+
+  it("returns locale scan extensions for supported file formats", () => {
+    expect(getLocaleScanExtensions()).toEqual(
+      expect.arrayContaining([
+        "json",
+        "jsonc",
+        "yaml",
+        "yml",
+        "po",
+        "xlf",
+        "xliff",
+        "arb",
+        "xcstrings",
+        "strings",
+      ]),
+    );
+    expect(getLocaleScanExtensions()).not.toContain("png");
   });
 });

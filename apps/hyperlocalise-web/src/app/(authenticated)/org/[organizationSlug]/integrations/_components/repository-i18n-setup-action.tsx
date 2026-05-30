@@ -24,8 +24,9 @@ type I18nSetupRun = {
 
 const I18N_SETUP_ERROR_MESSAGES: Record<string, string> = {
   locale_files_not_found:
-    "Could not find locale translation files. Look for paths like locales/en-US.json.",
-  i18n_config_already_exists: "This repository already has i18n.yml or i18n.jsonc.",
+    "Could not find locale translation files. Look for paths like locales/en-US.json, locales/fr.po, or messages/de.yaml.",
+  i18n_jsonc_not_supported:
+    "This repository uses i18n.jsonc. The wizard creates or updates i18n.yml only.",
   i18n_config_not_written: "The setup agent did not write i18n.yml.",
   i18n_setup_failed: "The i18n setup wizard failed.",
   i18n_setup_enqueue_failed: "Could not start the i18n setup wizard.",
@@ -157,7 +158,13 @@ export function RepositoryI18nSetupAction({
     }
 
     if (run.status === "succeeded") {
-      toast.success("i18n.yml pull request created");
+      if (run.pullRequestUrl) {
+        toast.success("i18n.yml pull request created");
+      } else if (run.errorMessage) {
+        toast.success(run.errorMessage);
+      } else {
+        toast.success("i18n.yml setup completed");
+      }
       watchedRunIdRef.current = null;
       return;
     }
@@ -182,7 +189,7 @@ export function RepositoryI18nSetupAction({
         onClick={() => startSetup.mutate()}
         className="whitespace-nowrap"
       >
-        {startSetup.isPending || isActive ? "Setting up..." : "Create i18n.yml"}
+        {startSetup.isPending || isActive ? "Setting up..." : "Setup i18n.yml"}
       </Button>
       {run ? (
         <div className="max-w-[220px] text-right text-xs text-muted-foreground">
@@ -198,6 +205,9 @@ export function RepositoryI18nSetupAction({
             >
               View pull request
             </a>
+          ) : null}
+          {run.status === "succeeded" && !run.pullRequestUrl && run.errorMessage ? (
+            <span>{run.errorMessage}</span>
           ) : null}
           {run.status === "failed" ? (
             <span className="text-destructive">{getI18nSetupErrorMessage(run)}</span>
