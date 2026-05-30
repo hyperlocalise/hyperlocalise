@@ -9,8 +9,10 @@ import {
   isReplacingWorkosMembership,
 } from "@/lib/workos/constants";
 import { provisionWorkspaceInWorkos } from "@/lib/workos/provision-workspace-in-workos";
+import { serializeWorkosErrorForLog } from "@/lib/workos/serialize-workos-error-for-log";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 import { env } from "@/lib/env";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 const logger = createLogger("migrate-local-org-to-workos");
 
@@ -67,9 +69,18 @@ function isWorkosMigrationApiEnabled() {
   return getWorkosServerClient() !== null;
 }
 
+function workosRoleSlugForMembershipRole(role: OrganizationMembershipRole) {
+  if (role === "owner" || role === "admin") {
+    return role;
+  }
+
+  return "member";
+}
+
 export async function migrateLocalOrgWorkspaceToWorkos(
   database: DatabaseClient,
   organizationId: string,
+  actingWorkosUserId: string,
 ): Promise<MigrateLocalOrgWorkspaceResult> {
   if (!isWorkosMigrationApiEnabled()) {
     return { status: "skipped", reason: "workos_disabled" };
@@ -100,20 +111,32 @@ export async function migrateLocalOrgWorkspaceToWorkos(
     .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
     .where(eq(schema.organizationMemberships.organizationId, organizationId));
 
-  const provisionMembers = localMembers
-    .filter(
-      (member) =>
-        !isInvitedPlaceholderWorkosUserId(member.workosUserId) &&
-        !isReplacingWorkosMembership(member.workosMembershipId),
-    )
-    .map((member) => ({
-      workosUserId: member.workosUserId,
-      role: member.role,
-    }));
+  const eligibleMembers = localMembers.filter(
+    (member) =>
+      !isInvitedPlaceholderWorkosUserId(member.workosUserId) &&
+      !isReplacingWorkosMembership(member.workosMembershipId),
+  );
 
-  if (provisionMembers.length === 0) {
+  const actingMember = eligibleMembers.find((member) => member.workosUserId === actingWorkosUserId);
+
+  if (!actingMember) {
+    logger.warn("local_org_workspace_migration_skipped", {
+      organizationId,
+      reason: "acting_user_not_eligible",
+      localMemberCount: localMembers.length,
+      eligibleMemberCount: eligibleMembers.length,
+    });
+
     return { status: "skipped", reason: "no_members" };
   }
+
+  const provisionMembers = [
+    {
+      workosUserId: actingMember.workosUserId,
+      role: actingMember.role,
+    },
+  ];
+  const deferredMemberCount = eligibleMembers.length - provisionMembers.length;
 
   try {
     const provisioned = await provisionWorkspaceInWorkos({
@@ -161,7 +184,12 @@ export async function migrateLocalOrgWorkspaceToWorkos(
   } catch (error) {
     logger.warn("local_org_workspace_migration_failed", {
       organizationId,
-      errorName: error instanceof Error ? error.name : "unknown_error",
+      actingWorkosUserId,
+      localMemberCount: localMembers.length,
+      eligibleMemberCount: eligibleMembers.length,
+      deferredMemberCount,
+      roleSlug: workosRoleSlugForMembershipRole(actingMember.role),
+      ...serializeWorkosErrorForLog(error),
     });
 
     return { status: "failed", organizationId };
@@ -187,7 +215,7 @@ export async function migrateLocalOrgWorkspacesForUser(
   let skipped = 0;
 
   for (const { organizationId } of organizations) {
-    const result = await migrateLocalOrgWorkspaceToWorkos(database, organizationId);
+    const result = await migrateLocalOrgWorkspaceToWorkos(database, organizationId, workosUserId);
     if (result.status === "migrated") {
       migrated += 1;
       continue;

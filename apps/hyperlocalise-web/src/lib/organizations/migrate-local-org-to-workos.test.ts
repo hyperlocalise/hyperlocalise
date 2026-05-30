@@ -76,9 +76,23 @@ describe("migrateLocalOrgWorkspaceToWorkos", () => {
 
     const { migrateLocalOrgWorkspaceToWorkos } = await import("./migrate-local-org-to-workos");
 
-    const result = await migrateLocalOrgWorkspaceToWorkos(db, organization.id);
+    const result = await migrateLocalOrgWorkspaceToWorkos(
+      db,
+      organization.id,
+      identity.user.workosUserId,
+    );
 
     expect(provisionWorkspaceInWorkosMock).toHaveBeenCalledOnce();
+    expect(provisionWorkspaceInWorkosMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        members: [
+          {
+            workosUserId: identity.user.workosUserId,
+            role: identity.membership.role,
+          },
+        ],
+      }),
+    );
     expect(result).toEqual({
       status: "migrated",
       workosOrganizationId: promotedWorkosOrganizationId,
@@ -109,13 +123,78 @@ describe("migrateLocalOrgWorkspaceToWorkos", () => {
     expect(updatedMembership?.workosMembershipId).toBe(promotedWorkosMembershipId);
   });
 
+  it("provisions only the signed-in user when the workspace has other eligible members", async () => {
+    const identity = createWorkosIdentity();
+    const synced = await syncWorkosIdentity(db, identity);
+    const localOrgId = `${LOCAL_ORG_WORKOS_ID_PREFIX}${synced.organization.id}`;
+
+    await db
+      .update(schema.organizations)
+      .set({ workosOrganizationId: localOrgId, lifecycleStatus: "deprecated" })
+      .where(eq(schema.organizations.id, synced.organization.id));
+
+    const otherWorkosUserId = `user_other_${randomUUID()}`;
+    const [otherUser] = await db
+      .insert(schema.users)
+      .values({
+        workosUserId: otherWorkosUserId,
+        email: `other-${randomUUID()}@example.com`,
+      })
+      .returning({ id: schema.users.id });
+
+    await db.insert(schema.organizationMemberships).values({
+      organizationId: synced.organization.id,
+      userId: otherUser.id,
+      role: "admin",
+      workosMembershipId: `om_local_${randomUUID()}`,
+    });
+
+    const promotedWorkosOrganizationId = `org_workos_promoted_${randomUUID()}`;
+    const promotedWorkosMembershipId = `om_workos_promoted_${randomUUID()}`;
+
+    provisionWorkspaceInWorkosMock.mockResolvedValue({
+      workosOrganizationId: promotedWorkosOrganizationId,
+      members: [
+        {
+          workosUserId: identity.user.workosUserId,
+          workosMembershipId: promotedWorkosMembershipId,
+          role: identity.membership.role,
+        },
+      ],
+    });
+
+    const { migrateLocalOrgWorkspaceToWorkos } = await import("./migrate-local-org-to-workos");
+
+    const result = await migrateLocalOrgWorkspaceToWorkos(
+      db,
+      synced.organization.id,
+      identity.user.workosUserId,
+    );
+
+    expect(result.status).toBe("migrated");
+    expect(provisionWorkspaceInWorkosMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        members: [
+          {
+            workosUserId: identity.user.workosUserId,
+            role: identity.membership.role,
+          },
+        ],
+      }),
+    );
+  });
+
   it("skips organizations that already use real WorkOS ids", async () => {
     const identity = createWorkosIdentity();
     const synced = await syncWorkosIdentity(db, identity);
 
     const { migrateLocalOrgWorkspaceToWorkos } = await import("./migrate-local-org-to-workos");
 
-    const result = await migrateLocalOrgWorkspaceToWorkos(db, synced.organization.id);
+    const result = await migrateLocalOrgWorkspaceToWorkos(
+      db,
+      synced.organization.id,
+      identity.user.workosUserId,
+    );
 
     expect(result).toEqual({ status: "skipped", reason: "not_local_org" });
     expect(provisionWorkspaceInWorkosMock).not.toHaveBeenCalled();

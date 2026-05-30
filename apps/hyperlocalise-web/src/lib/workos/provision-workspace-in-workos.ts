@@ -1,5 +1,9 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { createLogger } from "@/lib/log";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
+import { serializeWorkosErrorForLog } from "@/lib/workos/serialize-workos-error-for-log";
+
+const logger = createLogger("provision-workspace-in-workos");
 
 export type ProvisionWorkspaceMember = {
   workosUserId: string;
@@ -58,6 +62,12 @@ export async function provisionWorkspaceInWorkos(
   }
 
   let workosOrganizationId: string | undefined;
+  let lastAttemptedMember:
+    | {
+        workosUserId: string;
+        roleSlug: string;
+      }
+    | undefined;
 
   try {
     const organization = await workos.organizations.createOrganization(
@@ -94,10 +104,16 @@ export async function provisionWorkspaceInWorkos(
         continue;
       }
 
+      const roleSlug = membershipRoleToWorkosRoleSlug(member.role);
+      lastAttemptedMember = {
+        workosUserId: member.workosUserId,
+        roleSlug,
+      };
+
       const created = await workos.userManagement.createOrganizationMembership({
         organizationId: organization.id,
         userId: member.workosUserId,
-        roleSlug: membershipRoleToWorkosRoleSlug(member.role),
+        roleSlug,
       });
 
       provisionedMembers.push({
@@ -115,6 +131,15 @@ export async function provisionWorkspaceInWorkos(
     if (workosOrganizationId) {
       await deleteProvisionedWorkosOrganization(workosOrganizationId);
     }
+
+    logger.warn("workos_workspace_provision_failed", {
+      localWorkspaceId: input.localWorkspaceId,
+      workosOrganizationId,
+      memberCount: input.members.length,
+      lastAttemptedWorkosUserId: lastAttemptedMember?.workosUserId,
+      lastAttemptedRoleSlug: lastAttemptedMember?.roleSlug,
+      ...serializeWorkosErrorForLog(error),
+    });
 
     throw error;
   }
