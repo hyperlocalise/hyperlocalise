@@ -88,10 +88,6 @@ func IntroducesRawHTMLSyntax(source, translated string) bool {
 	return rawHTMLSyntaxStartCount(translated) > rawHTMLSyntaxStartCount(source)
 }
 
-func containsRawHTMLSyntax(s string) bool {
-	return rawHTMLSyntaxStartCount(s) > 0
-}
-
 func rawHTMLSyntaxStartCount(s string) int {
 	count := 0
 	for i := 0; i < len(s); i++ {
@@ -457,7 +453,7 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 				break
 			}
 		}
-		if !allPresent || containsRawHTMLSyntax(rendered) {
+		if !allPresent || IntroducesRawHTMLSyntax(part.source, rendered) {
 			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 			b.WriteString(expandHTMLPlaceholders(part.source, part.placeholders))
 			continue
