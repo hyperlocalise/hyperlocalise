@@ -11,6 +11,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -41,7 +42,7 @@ export function NavUser({
     avatar: string;
   };
 }) {
-  const { isMobile } = useSidebar();
+  const { isMobile, state } = useSidebar();
   const initials =
     user.name
       .split(" ")
@@ -54,28 +55,39 @@ export function NavUser({
     <SidebarMenu>
       <SidebarMenuItem>
         <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <SidebarMenuButton
-                size="lg"
-                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-              />
-            }
-          >
-            <Avatar className="h-8 w-8 rounded-lg grayscale">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
-            </Avatar>
-            <div className="grid flex-1 text-left text-sm leading-tight">
-              <span className="truncate font-medium">{user.name}</span>
-              <span className="truncate text-xs text-muted-foreground">{organizationName}</span>
-            </div>
-            <HugeiconsIcon
-              icon={MoreVerticalCircle01Icon}
-              strokeWidth={2}
-              className="ml-auto size-4"
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DropdownMenuTrigger
+                  render={
+                    <SidebarMenuButton
+                      size="lg"
+                      className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                    />
+                  }
+                >
+                  <Avatar className="h-8 w-8 rounded-lg grayscale">
+                    <AvatarImage src={user.avatar} alt={user.name} />
+                    <AvatarFallback className="rounded-lg">{initials}</AvatarFallback>
+                  </Avatar>
+                  <div className="grid flex-1 text-left text-sm leading-tight group-data-[collapsible=icon]:hidden">
+                    <span className="truncate font-medium">{user.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {organizationName}
+                    </span>
+                  </div>
+                  <HugeiconsIcon
+                    icon={MoreVerticalCircle01Icon}
+                    strokeWidth={2}
+                    className="ml-auto size-4 group-data-[collapsible=icon]:hidden"
+                  />
+                </DropdownMenuTrigger>
+              }
             />
-          </DropdownMenuTrigger>
+            <TooltipContent side="right" align="center" hidden={state !== "collapsed" || isMobile}>
+              {user.name}
+            </TooltipContent>
+          </Tooltip>
           <DropdownMenuContent
             className="w-(--anchor-width) min-w-56 rounded-lg"
             side={isMobile ? "bottom" : "right"}

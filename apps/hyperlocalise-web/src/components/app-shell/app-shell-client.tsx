@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -7,12 +8,8 @@ import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { TeamSwitcher } from "@/components/team-switcher";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@/components/ui/input-group";
+import { Kbd } from "@/components/ui/kbd";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group";
 import {
   Sidebar,
   SidebarContent,
@@ -57,6 +54,24 @@ export function AppShellClient({
 }: AppShellClientProps) {
   const pathname = usePathname();
   const pageTitle = getAppShellTitle(pathname);
+  const searchInputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (
+        event.key === "f" &&
+        !["INPUT", "TEXTAREA"].includes((event.target as HTMLElement).tagName) &&
+        !event.metaKey &&
+        !event.ctrlKey
+      ) {
+        event.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
 
   return (
     <SidebarProvider
@@ -102,12 +117,13 @@ export function AppShellClient({
           <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
             <InputGroup className="h-9 rounded-xl border-sidebar-border bg-sidebar-accent text-sidebar-foreground">
               <InputGroupInput
+                ref={searchInputRef}
                 aria-label="Find"
                 placeholder="Find…"
                 className="text-sm text-sidebar-foreground placeholder:text-sidebar-foreground/28"
               />
               <InputGroupAddon align="inline-end">
-                <InputGroupText className="text-xs text-sidebar-foreground/50">F</InputGroupText>
+                <Kbd className="bg-sidebar-foreground/10 text-sidebar-foreground/50">F</Kbd>
               </InputGroupAddon>
             </InputGroup>
           </div>

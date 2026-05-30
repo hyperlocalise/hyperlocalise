@@ -14,6 +14,10 @@
 **Learning:** In , several components were found to have children (icons, accessible text) placed outside the component passed to the `render` prop of `TooltipTrigger`. This pattern can lead to empty interactive elements or broken event delegation. Consistently nesting all content within the rendered component ensures that accessibility properties (like ARIA labels or screen-reader text) are correctly associated with the interactive trigger.
 **Action:** When using `<TooltipTrigger render={<Component ... />} >`, always place the component's children inside `<Component>` rather than as children of `TooltipTrigger`.
 
+## 2026-05-26 - [Sidebar Navigation Accessibility & Keyboard Shortcuts]
+**Learning:** In `apps/hyperlocalise-web`, sidebar components that collapse into an icon-only view must provide a `Tooltip` for the trigger to maintain accessibility. Additionally, common utility components like `InputGroupInput` must support `React.forwardRef` to enable programmatic focus management, which is essential for implementing keyboard shortcuts (e.g., 'f' for search) that enhance power-user productivity.
+**Action:** Always wrap collapsed sidebar items in `Tooltip` and ensure input primitives in the design system forward refs to support focus-based interactions.
+
 ## 2026-05-25 - [TooltipTrigger Structural Consistency]
 **Learning:** In `apps/hyperlocalise-web`, several components were found to have children (icons, accessible text) placed outside the component passed to the `render` prop of `TooltipTrigger`. This pattern can lead to empty interactive elements or broken event delegation. Consistently nesting all content within the rendered component ensures that accessibility properties (like ARIA labels or screen-reader text) are correctly associated with the interactive trigger.
 **Action:** When using `<TooltipTrigger render={<Component ... />} >`, always place the component's children inside `<Component>` rather than as children of `TooltipTrigger`.
