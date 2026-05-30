@@ -162,10 +162,22 @@ func collectInvariantFromElement(el Element, inv *Invariant, pluralArg string) {
 		appendPlaceholder(inv, v.Value)
 	case NumberElement:
 		appendPlaceholder(inv, v.Value)
+		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
+			Arg:  v.Value,
+			Type: "number",
+		})
 	case DateElement:
 		appendPlaceholder(inv, v.Value)
+		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
+			Arg:  v.Value,
+			Type: "date",
+		})
 	case TimeElement:
 		appendPlaceholder(inv, v.Value)
+		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
+			Arg:  v.Value,
+			Type: "time",
+		})
 	case SelectElement:
 		appendSelectBlockInvariant(inv, v, pluralArg)
 	case PluralElement:

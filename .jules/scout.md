@@ -35,3 +35,7 @@
 ## 2025-05-30 - [Robust Glossary Boundary Matching]
 **Learning:** Standard regex word boundaries (`\b`) fail for glossary terms that start or end with non-word characters (e.g., "C#", ".NET", "Go!"). `\b` requires a transition between a word character (`\w`) and a non-word character or string boundary. If a term like "C#" is followed by a space, there is no `\b` after the "#" because both "#" and " " are non-word characters.
 **Action:** Use negative lookarounds `(?<![a-zA-Z0-9_])` and `(?![a-zA-Z0-9_])` to implement "word boundaries" that correctly handle terms containing symbols while still preventing partial matches within larger alphanumeric words.
+
+## 2025-06-05 - [Typed ICU Block Invariants]
+**Learning:** ICU elements for `number`, `date`, and `time` were previously excluded from `ICUBlocks` metadata, which is used for structural parity checks. While their arguments were extracted as placeholders, their specific types were missing from the structural signature. This could allow a translation to change the type (e.g., from `date` to `number`) without triggering a structural mismatch.
+**Action:** Ensure all "typed" ICU elements (`NumberElement`, `DateElement`, `TimeElement`) are appended to `ICUBlocks` during invariant collection to protect the structural integrity of complex messages.

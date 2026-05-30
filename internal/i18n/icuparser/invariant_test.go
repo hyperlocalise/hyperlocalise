@@ -374,3 +374,48 @@ func TestHasDuplicatePounds(t *testing.T) {
 		})
 	}
 }
+
+func TestParseInvariantIncludesTypedBlocks(t *testing.T) {
+	tests := []struct {
+		msg  string
+		want []BlockSignature
+	}{
+		{
+			msg: "{n, number}",
+			want: []BlockSignature{
+				{Arg: "n", Type: "number"},
+			},
+		},
+		{
+			msg: "{d, date}",
+			want: []BlockSignature{
+				{Arg: "d", Type: "date"},
+			},
+		},
+		{
+			msg: "{t, time}",
+			want: []BlockSignature{
+				{Arg: "t", Type: "time"},
+			},
+		},
+		{
+			msg: "{p, plural, other {{n, number}}}",
+			want: []BlockSignature{
+				{Arg: "n", Type: "number"},
+				{Arg: "p", Type: "plural", Options: []string{"other"}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.msg, func(t *testing.T) {
+			inv, err := ParseInvariant(tt.msg)
+			if err != nil {
+				t.Fatalf("ParseInvariant failed: %v", err)
+			}
+			if !SameICUBlocks(inv.ICUBlocks, tt.want) {
+				t.Errorf("ParseInvariant(%q) ICUBlocks = %s, want %s", tt.msg, FormatICUBlocks(inv.ICUBlocks), FormatICUBlocks(tt.want))
+			}
+		})
+	}
+}

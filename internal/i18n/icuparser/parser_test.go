@@ -22,6 +22,10 @@ func TestParserFeatureParitySubset(t *testing.T) {
 			name:             "simple formatter argument is preserved for parity",
 			msg:              "Date {ts, date, ::yyyyMMdd}",
 			wantPlaceholders: []string{"ts"},
+			wantICU: []BlockSignature{{
+				Arg:  "ts",
+				Type: "date",
+			}},
 		},
 		{
 			name:             "plural with selectors and nested placeholders",
