@@ -338,6 +338,8 @@ async function resolveRevocationTarget(
     if (membership) {
       return membership;
     }
+
+    return null;
   }
 
   if (!input.workosOrganizationId || !input.workosUserId) {
