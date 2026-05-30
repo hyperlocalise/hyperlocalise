@@ -1,4 +1,4 @@
-import { and, eq, like } from "drizzle-orm";
+import { and, eq, inArray, like } from "drizzle-orm";
 
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -232,6 +232,16 @@ export async function syncWorkosOrganization(
   return createdOrganization;
 }
 
+type RevocationTarget = {
+  organizationId: string;
+  userId: string;
+};
+
+export type RemoveWorkosMembershipResult = {
+  organizationMembershipsDeleted: number;
+  target: RevocationTarget | null;
+};
+
 export async function removeWorkosMembership(
   database: DatabaseClient,
   input: {
@@ -239,17 +249,28 @@ export async function removeWorkosMembership(
     workosOrganizationId?: string;
     workosUserId?: string;
   },
-): Promise<number> {
+): Promise<RemoveWorkosMembershipResult> {
   if (input.workosMembershipId) {
-    const result = await database
+    const deleted = await database
       .delete(schema.organizationMemberships)
-      .where(eq(schema.organizationMemberships.workosMembershipId, input.workosMembershipId));
+      .where(eq(schema.organizationMemberships.workosMembershipId, input.workosMembershipId))
+      .returning({
+        organizationId: schema.organizationMemberships.organizationId,
+        userId: schema.organizationMemberships.userId,
+      });
 
-    return Number(result.rowCount ?? 0);
+    if (!deleted[0]) {
+      return { organizationMembershipsDeleted: 0, target: null };
+    }
+
+    return {
+      organizationMembershipsDeleted: deleted.length,
+      target: deleted[0],
+    };
   }
 
   if (!input.workosOrganizationId || !input.workosUserId) {
-    return 0;
+    return { organizationMembershipsDeleted: 0, target: null };
   }
 
   const [organization] = await database
@@ -265,8 +286,13 @@ export async function removeWorkosMembership(
     .limit(1);
 
   if (!organization || !user) {
-    return 0;
+    return { organizationMembershipsDeleted: 0, target: null };
   }
+
+  const target: RevocationTarget = {
+    organizationId: organization.id,
+    userId: user.id,
+  };
 
   const result = await database
     .delete(schema.organizationMemberships)
@@ -277,5 +303,147 @@ export async function removeWorkosMembership(
       ),
     );
 
-  return Number(result.rowCount ?? 0);
+  const organizationMembershipsDeleted = Number(result.rowCount ?? 0);
+  if (organizationMembershipsDeleted === 0) {
+    return { organizationMembershipsDeleted: 0, target: null };
+  }
+
+  return { organizationMembershipsDeleted, target };
+}
+
+export type RevokeOrganizationMembershipAccessResult = {
+  organizationMembershipsDeleted: number;
+  teamMembershipsDeleted: number;
+  mcpSessionsDeleted: number;
+};
+
+async function resolveRevocationTarget(
+  database: DatabaseClient,
+  input: {
+    workosMembershipId?: string;
+    workosOrganizationId?: string;
+    workosUserId?: string;
+  },
+): Promise<{ organizationId: string; userId: string } | null> {
+  if (input.workosMembershipId) {
+    const [membership] = await database
+      .select({
+        organizationId: schema.organizationMemberships.organizationId,
+        userId: schema.organizationMemberships.userId,
+      })
+      .from(schema.organizationMemberships)
+      .where(eq(schema.organizationMemberships.workosMembershipId, input.workosMembershipId))
+      .limit(1);
+
+    if (membership) {
+      return membership;
+    }
+
+    return null;
+  }
+
+  if (!input.workosOrganizationId || !input.workosUserId) {
+    return null;
+  }
+
+  const [orgRow] = await database
+    .select({ id: schema.organizations.id })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.workosOrganizationId, input.workosOrganizationId))
+    .limit(1);
+
+  const [userRow] = await database
+    .select({ id: schema.users.id })
+    .from(schema.users)
+    .where(eq(schema.users.workosUserId, input.workosUserId))
+    .limit(1);
+
+  const organization = orgRow;
+  const user = userRow;
+
+  if (!organization || !user) {
+    return null;
+  }
+
+  return {
+    organizationId: organization.id,
+    userId: user.id,
+  };
+}
+
+async function deleteTeamMembershipsAndMcpSessions(
+  database: DatabaseClient,
+  target: RevocationTarget,
+): Promise<
+  Pick<RevokeOrganizationMembershipAccessResult, "teamMembershipsDeleted" | "mcpSessionsDeleted">
+> {
+  const teamIds = database
+    .select({ id: schema.teams.id })
+    .from(schema.teams)
+    .where(eq(schema.teams.organizationId, target.organizationId));
+
+  const teamMembershipsDeleted = await database
+    .delete(schema.teamMemberships)
+    .where(
+      and(
+        eq(schema.teamMemberships.userId, target.userId),
+        inArray(schema.teamMemberships.teamId, teamIds),
+      ),
+    );
+
+  const mcpSessionsDeleted = await database
+    .delete(schema.mcpSessions)
+    .where(
+      and(
+        eq(schema.mcpSessions.userId, target.userId),
+        eq(schema.mcpSessions.organizationId, target.organizationId),
+      ),
+    );
+
+  return {
+    teamMembershipsDeleted: Number(teamMembershipsDeleted.rowCount ?? 0),
+    mcpSessionsDeleted: Number(mcpSessionsDeleted.rowCount ?? 0),
+  };
+}
+
+async function revokeMembershipAccessForTarget(
+  database: DatabaseClient,
+  target: RevocationTarget,
+): Promise<RevokeOrganizationMembershipAccessResult> {
+  const organizationMembershipsDeleted = await database
+    .delete(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.organizationId, target.organizationId),
+        eq(schema.organizationMemberships.userId, target.userId),
+      ),
+    );
+
+  const dependentDeletes = await deleteTeamMembershipsAndMcpSessions(database, target);
+
+  return {
+    organizationMembershipsDeleted: Number(organizationMembershipsDeleted.rowCount ?? 0),
+    ...dependentDeletes,
+  };
+}
+
+export async function revokeOrganizationMembershipAccess(
+  database: DatabaseClient,
+  input: {
+    workosMembershipId?: string;
+    workosOrganizationId?: string;
+    workosUserId?: string;
+  },
+): Promise<RevokeOrganizationMembershipAccessResult> {
+  const target = await resolveRevocationTarget(database, input);
+
+  if (!target) {
+    return {
+      organizationMembershipsDeleted: 0,
+      teamMembershipsDeleted: 0,
+      mcpSessionsDeleted: 0,
+    };
+  }
+
+  return revokeMembershipAccessForTarget(database, target);
 }
