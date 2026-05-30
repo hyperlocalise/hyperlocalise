@@ -7,6 +7,7 @@ import type { DatabaseClient } from "@/lib/database";
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
+  REPLACING_WORKOS_MEMBERSHIP_ID,
 } from "@/lib/workos/constants";
 
 export type WorkosUserSync = {
@@ -244,6 +245,38 @@ export type RemoveWorkosMembershipResult = {
   organizationMembershipsDeleted: number;
   target: RevocationTarget | null;
 };
+
+export async function markPendingMembershipReplacingInvitation(
+  database: DatabaseClient,
+  membershipId: string,
+): Promise<boolean> {
+  const result = await database
+    .update(schema.organizationMemberships)
+    .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
+    .where(
+      and(
+        eq(schema.organizationMemberships.id, membershipId),
+        isNull(schema.organizationMemberships.workosMembershipId),
+      ),
+    );
+
+  return Number(result.rowCount ?? 0) > 0;
+}
+
+export async function clearPendingMembershipReplacingInvitation(
+  database: DatabaseClient,
+  membershipId: string,
+): Promise<void> {
+  await database
+    .update(schema.organizationMemberships)
+    .set({ workosMembershipId: null })
+    .where(
+      and(
+        eq(schema.organizationMemberships.id, membershipId),
+        eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+      ),
+    );
+}
 
 export async function removePendingOrganizationMembershipForInvite(
   database: DatabaseClient,

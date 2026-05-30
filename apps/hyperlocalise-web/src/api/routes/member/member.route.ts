@@ -5,7 +5,11 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
+import {
+  clearPendingMembershipReplacingInvitation,
+  markPendingMembershipReplacingInvitation,
+  revokeOrganizationMembershipAccess,
+} from "@/api/auth/workos-sync";
 import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -61,7 +65,7 @@ const validateMemberParams = validator("param", (value, c) => {
 
 function shouldSyncMembershipToWorkos(input: { workosMembershipId: string | null }) {
   const workos = getWorkosServerClient();
-  return Boolean(input.workosMembershipId) && workos !== null;
+  return isActiveOrganizationMembership(input.workosMembershipId) && workos !== null;
 }
 
 async function inviteOrganizationMember(input: {
@@ -283,6 +287,7 @@ async function deliverWorkosInvitation(input: {
   inviterUserId: string;
   roleSlug: OrganizationMembershipRole;
   replacePendingInvitation?: boolean;
+  localMembershipId?: string;
 }) {
   const workos = getWorkosServerClient();
   if (!workos) {
@@ -302,14 +307,24 @@ async function deliverWorkosInvitation(input: {
   };
 
   if (pendingInvitation && input.replacePendingInvitation) {
-    await workos.userManagement.revokeInvitation(pendingInvitation.id);
+    const markedReplacing = input.localMembershipId
+      ? await markPendingMembershipReplacingInvitation(db, input.localMembershipId)
+      : false;
+
     try {
-      await sendWorkosInvitation(workos, invitationPayload);
-    } catch {
+      await workos.userManagement.revokeInvitation(pendingInvitation.id);
       try {
         await sendWorkosInvitation(workos, invitationPayload);
       } catch {
-        throw new WorkosInvitationRevokedNotDeliveredError();
+        try {
+          await sendWorkosInvitation(workos, invitationPayload);
+        } catch {
+          throw new WorkosInvitationRevokedNotDeliveredError();
+        }
+      }
+    } finally {
+      if (markedReplacing && input.localMembershipId) {
+        await clearPendingMembershipReplacingInvitation(db, input.localMembershipId);
       }
     }
     return;
@@ -417,6 +432,7 @@ export function createMemberRoutes() {
           email: normalizedEmail,
           inviterUserId: c.var.auth.user.workosUserId,
           roleSlug: payload.role,
+          localMembershipId: pendingInvite.membershipId,
           replacePendingInvitation:
             !isResend || ("roleChanged" in pendingInvite && pendingInvite.roleChanged),
         });
@@ -555,6 +571,7 @@ export function createMemberRoutes() {
             email: member.email,
             inviterUserId: c.var.auth.user.workosUserId,
             roleSlug: payload.role,
+            localMembershipId: member.membershipId,
             replacePendingInvitation: true,
           });
         } catch (error) {
