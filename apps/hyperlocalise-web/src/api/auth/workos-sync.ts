@@ -436,24 +436,10 @@ export async function revokeOrganizationMembershipAccess(
   const target = await resolveRevocationTarget(database, input);
 
   if (!target) {
-    const { organizationMembershipsDeleted, target: deletedTarget } = await removeWorkosMembership(
-      database,
-      input,
-    );
-
-    if (!deletedTarget) {
-      return {
-        organizationMembershipsDeleted,
-        teamMembershipsDeleted: 0,
-        mcpSessionsDeleted: 0,
-      };
-    }
-
-    const dependentDeletes = await deleteTeamMembershipsAndMcpSessions(database, deletedTarget);
-
     return {
-      organizationMembershipsDeleted,
-      ...dependentDeletes,
+      organizationMembershipsDeleted: 0,
+      teamMembershipsDeleted: 0,
+      mcpSessionsDeleted: 0,
     };
   }
 
