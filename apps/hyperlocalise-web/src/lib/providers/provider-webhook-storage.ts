@@ -83,13 +83,29 @@ export async function insertProviderWebhookSubscription(input: {
       webhookSecretAuthTag: encrypted?.authTag ?? null,
       webhookSecretKeyVersion: encrypted?.keyVersion ?? null,
     })
+    .onConflictDoNothing({
+      target: [
+        schema.providerWebhookSubscriptions.providerCredentialId,
+        schema.providerWebhookSubscriptions.projectId,
+      ],
+    })
     .returning();
 
-  if (!subscription) {
+  if (subscription) {
+    return subscription;
+  }
+
+  const existing = await findProviderWebhookSubscriptionByCredentialProject({
+    organizationId: input.organizationId,
+    providerCredentialId: input.providerCredentialId,
+    projectId: input.projectId ?? null,
+  });
+
+  if (!existing) {
     throw new Error("Failed to insert provider webhook subscription");
   }
 
-  return subscription;
+  return existing;
 }
 
 /**

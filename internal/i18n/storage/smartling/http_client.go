@@ -23,13 +23,14 @@ import (
 )
 
 const (
-	authAPIBaseURL     = "https://api.smartling.com/auth-api/v2"
-	stringsAPIBaseURL  = "https://api.smartling.com/strings-api/v2"
-	filesAPIBaseURL    = "https://api.smartling.com/files-api/v2"
-	glossaryAPIBaseURL = "https://api.smartling.com/glossary-api/v2"
-	tmAPIBaseURL       = "https://api.smartling.com/translation-memory-api/v2"
-	translationsLimit  = 500
-	glossaryLimit      = 500
+	authAPIBaseURL           = "https://api.smartling.com/auth-api/v2"
+	stringsAPIBaseURL        = "https://api.smartling.com/strings-api/v2"
+	filesAPIBaseURL          = "https://api.smartling.com/files-api/v2"
+	glossaryAPIBaseURL       = "https://api.smartling.com/glossary-api/v2"
+	tmAPIBaseURL             = "https://api.smartling.com/translation-memory-api/v2"
+	translationsLimit        = 500
+	glossaryLimit            = 500
+	maxDownloadBytes   int64 = 50 * 1024 * 1024 // 50 MB
 )
 
 type HTTPClient struct {
@@ -543,7 +544,18 @@ func (c *HTTPClient) downloadFile(ctx context.Context, token string, projectID s
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("download file %s: status %d: %s", locale, resp.StatusCode, strings.TrimSpace(string(body)))
 	}
-	return io.ReadAll(resp.Body)
+	return readLimitedResponseBody(resp.Body, maxDownloadBytes)
+}
+
+func readLimitedResponseBody(body io.Reader, maxBytes int64) ([]byte, error) {
+	content, err := io.ReadAll(io.LimitReader(body, maxBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(content)) > maxBytes {
+		return nil, fmt.Errorf("response body exceeds maximum size of %d bytes", maxBytes)
+	}
+	return content, nil
 }
 
 func (c *HTTPClient) downloadSourceFile(ctx context.Context, token string, projectID string, fileURI string) ([]byte, error) {
@@ -572,7 +584,7 @@ func (c *HTTPClient) downloadSourceFile(ctx context.Context, token string, proje
 		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return nil, fmt.Errorf("download source file: status %d: %s", resp.StatusCode, strings.TrimSpace(string(body)))
 	}
-	return io.ReadAll(resp.Body)
+	return readLimitedResponseBody(resp.Body, maxDownloadBytes)
 }
 
 func (c *HTTPClient) uploadFile(ctx context.Context, token string, projectID string, fileURI string, fileType string, content []byte) error {

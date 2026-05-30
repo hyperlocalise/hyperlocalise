@@ -4,12 +4,14 @@ import { resolveSmartlingAccountUid, uniqueLocales } from "./smartling-account-c
 import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";
 
 export const fetchSmartlingGlossaries: ExternalTmsGlossaryFetcher = async ({
+  credential,
   secretMaterial,
   externalProjectId,
   project,
 }) => {
   const accountUid = await resolveSmartlingAccountUid({
     secretMaterial,
+    authBaseUrl: credential.baseUrl ?? undefined,
     externalProjectId,
     project,
   });
@@ -17,7 +19,10 @@ export const fetchSmartlingGlossaries: ExternalTmsGlossaryFetcher = async ({
     throw new Error("smartling_account_uid_required");
   }
 
-  const client = new SmartlingApiClient({ credentials: secretMaterial });
+  const client = new SmartlingApiClient({
+    credentials: secretMaterial,
+    authBaseUrl: credential.baseUrl ?? undefined,
+  });
 
   let glossaries;
   try {

@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import { sourceContainsTerm } from "@/lib/glossary/validate-glossary-terms-in-translation";
 import { buildGlossaryTsQuery } from "@/lib/translation/glossary-search-query";
 import {
   normalizeSyncedDatabaseGlossaryMatch,
@@ -61,22 +62,29 @@ export async function loadSyncedGlossaryMatchesForContext(input: {
     .orderBy(desc(sql`rank`))
     .limit(limit);
 
-  return dbMatches.map((entry) =>
-    normalizeSyncedDatabaseGlossaryMatch({
-      id: entry.id,
-      glossaryId: entry.glossaryId,
-      glossaryName: entry.glossaryName,
-      sourceTerm: entry.sourceTerm,
-      targetTerm: entry.targetTerm,
-      sourceLocale: entry.sourceLocale,
-      targetLocale: entry.targetLocale,
-      description: entry.description,
-      forbidden: entry.forbidden,
-      caseSensitive: entry.caseSensitive,
-      rank: Number(entry.rank) || 1,
-      providerKind: entry.externalProviderKind,
-      externalResourceId: entry.externalGlossaryId,
-      externalTermId: entry.externalKey,
-    }),
-  );
+  return dbMatches
+    .filter((entry) =>
+      sourceContainsTerm(input.sourceText, {
+        sourceTerm: entry.sourceTerm,
+        caseSensitive: entry.caseSensitive ?? false,
+      }),
+    )
+    .map((entry) =>
+      normalizeSyncedDatabaseGlossaryMatch({
+        id: entry.id,
+        glossaryId: entry.glossaryId,
+        glossaryName: entry.glossaryName,
+        sourceTerm: entry.sourceTerm,
+        targetTerm: entry.targetTerm,
+        sourceLocale: entry.sourceLocale,
+        targetLocale: entry.targetLocale,
+        description: entry.description,
+        forbidden: entry.forbidden,
+        caseSensitive: entry.caseSensitive,
+        rank: Number(entry.rank) || 1,
+        providerKind: entry.externalProviderKind,
+        externalResourceId: entry.externalGlossaryId,
+        externalTermId: entry.externalKey,
+      }),
+    );
 }

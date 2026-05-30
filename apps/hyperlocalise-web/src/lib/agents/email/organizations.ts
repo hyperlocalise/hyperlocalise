@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 
-import { and, eq } from "drizzle-orm";
+import { and, eq, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -92,37 +92,43 @@ export async function resolveInboundEmailOrganization(input: {
     .map(inboundAliasFromAddress)
     .filter((alias): alias is string => Boolean(alias));
 
-  for (const alias of aliases) {
-    const [connector] = await db
-      .select({
-        organizationId: schema.connectors.organizationId,
-        config: schema.connectors.config,
-        organizationSlug: schema.organizations.slug,
-      })
-      .from(schema.connectors)
-      .innerJoin(
-        schema.organizations,
-        eq(schema.organizations.id, schema.connectors.organizationId),
-      )
-      .innerJoin(
-        schema.organizationMemberships,
-        eq(schema.organizationMemberships.organizationId, schema.connectors.organizationId),
-      )
-      .where(
-        and(
-          eq(schema.connectors.kind, "email"),
-          eq(schema.connectors.enabled, true),
-          eq(schema.organizationMemberships.userId, input.senderUserId),
+  if (aliases.length === 0) {
+    return null;
+  }
+
+  const connectors = await db
+    .select({
+      organizationId: schema.connectors.organizationId,
+      config: schema.connectors.config,
+      organizationSlug: schema.organizations.slug,
+      inboundEmailAlias: sql<string>`${schema.connectors.config}->>'inboundEmailAlias'`,
+    })
+    .from(schema.connectors)
+    .innerJoin(schema.organizations, eq(schema.organizations.id, schema.connectors.organizationId))
+    .innerJoin(
+      schema.organizationMemberships,
+      eq(schema.organizationMemberships.organizationId, schema.connectors.organizationId),
+    )
+    .where(
+      and(
+        eq(schema.connectors.kind, "email"),
+        eq(schema.connectors.enabled, true),
+        eq(schema.organizationMemberships.userId, input.senderUserId),
+        or(
+          ...aliases.map(
+            (alias) => sql`${schema.connectors.config}->>'inboundEmailAlias' = ${alias}`,
+          ),
         ),
-      )
-      .limit(1);
+      ),
+    );
 
+  const connectorByAlias = new Map(
+    connectors.map((connector) => [connector.inboundEmailAlias, connector]),
+  );
+
+  for (const alias of aliases) {
+    const connector = connectorByAlias.get(alias);
     if (!connector) {
-      continue;
-    }
-
-    const config = connector.config as { inboundEmailAlias?: string };
-    if (config.inboundEmailAlias !== alias) {
       continue;
     }
 

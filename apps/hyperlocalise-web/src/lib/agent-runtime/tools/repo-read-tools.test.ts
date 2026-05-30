@@ -71,6 +71,14 @@ describe("createReadTool", () => {
     expect((result as { content: string }).content).toContain("2: line2");
   });
 
+  it("does not underflow endLine when the requested range is past EOF", async () => {
+    const ctx = createTestContext({ "/home/user/project/readme.md": "line1\nline2" });
+    const t = createReadTool(ctx);
+    const result = await t.execute!({ filePath: "readme.md", offset: 10, limit: 5 }, toolCallInfo);
+    expect(result).toMatchObject({ success: true, startLine: 10, endLine: 10 });
+    expect((result as { content: string }).content).toBe("");
+  });
+
   it("redacts secrets in file content", async () => {
     const ctx = createTestContext({
       "/home/user/project/.env": "OPENAI_API_KEY=sk-12345\ntoken=abcdefghijklmnopqrstuvwxyz12345",

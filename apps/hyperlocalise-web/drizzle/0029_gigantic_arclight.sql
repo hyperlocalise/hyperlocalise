@@ -1,0 +1,2 @@
+ALTER TABLE "provider_sync_intents" ADD COLUMN "lease_token" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "provider_webhook_subscriptions_credential_project_key" ON "provider_webhook_subscriptions" USING btree ("provider_credential_id","project_id");

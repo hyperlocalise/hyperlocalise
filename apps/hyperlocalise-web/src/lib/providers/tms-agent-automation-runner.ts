@@ -4,7 +4,11 @@ import type {
   ProviderAgentWritebackQueue,
 } from "@/lib/workflow/types";
 
-import { createAgentRun, failAgentRun } from "./agent-runs";
+import {
+  createAgentRun,
+  failAgentRun,
+  findActivePushApprovedWriteBackAgentRun,
+} from "./agent-runs";
 import { getJobProviderActionDefinition } from "./job-provider-actions";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import { resolveEffectiveTmsAgentAutomationSettings } from "./tms-agent-automation-settings-store";
@@ -158,6 +162,14 @@ export async function maybeEnqueueAutoWriteBackAfterProposalReview(input: {
   const actionDefinition = getJobProviderActionDefinition("push_approved_changes");
   if (!actionDefinition) {
     return { enqueued: false };
+  }
+
+  const existingWriteBackRun = await findActivePushApprovedWriteBackAgentRun({
+    organizationId: input.organizationId,
+    hyperlocaliseJobId: input.hyperlocaliseJobId,
+  });
+  if (existingWriteBackRun) {
+    return { enqueued: false, agentRunId: existingWriteBackRun.id, reused: true };
   }
 
   const agentRun = await createAgentRun({

@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
@@ -197,6 +197,28 @@ export async function updateAgentRun(input: {
   }
 
   return run;
+}
+
+export async function findActivePushApprovedWriteBackAgentRun(input: {
+  organizationId: string;
+  hyperlocaliseJobId: string;
+}) {
+  const [run] = await db
+    .select()
+    .from(schema.agentRuns)
+    .where(
+      and(
+        eq(schema.agentRuns.organizationId, input.organizationId),
+        eq(schema.agentRuns.hyperlocaliseJobId, input.hyperlocaliseJobId),
+        eq(schema.agentRuns.kind, "translate"),
+        inArray(schema.agentRuns.status, ["queued", "running"]),
+        sql`${schema.agentRuns.inputSnapshot}->>'action' = 'push_approved_changes'`,
+      ),
+    )
+    .orderBy(desc(schema.agentRuns.createdAt))
+    .limit(1);
+
+  return run ?? null;
 }
 
 export async function getAgentRun(input: { runId: string; organizationId: string }) {

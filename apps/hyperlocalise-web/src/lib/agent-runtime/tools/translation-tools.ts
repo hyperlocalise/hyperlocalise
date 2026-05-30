@@ -178,6 +178,7 @@ function queuedJobValues(
     status: "queued" as const,
     inputPayload: input.inputPayload,
     interactionId: ctx.conversationId,
+    createdByUserId: ctx.localUserId,
   };
 }
 

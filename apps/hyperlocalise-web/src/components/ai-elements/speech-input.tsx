@@ -104,6 +104,7 @@ export const SpeechInput = ({
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const isStartingMediaRecorderRef = useRef(false);
+  const mediaRecorderStartGenerationRef = useRef(0);
   const isMountedRef = useRef(false);
   const audioChunksRef = useRef<Blob[]>([]);
   const onTranscriptionChangeRef =
@@ -181,6 +182,7 @@ export const SpeechInput = ({
     return () => {
       isMountedRef.current = false;
       isStartingMediaRecorderRef.current = false;
+      mediaRecorderStartGenerationRef.current += 1;
       if (mediaRecorderRef.current?.state === "recording") {
         mediaRecorderRef.current.stop();
       }
@@ -198,11 +200,17 @@ export const SpeechInput = ({
     }
 
     isStartingMediaRecorderRef.current = true;
+    const startGeneration = mediaRecorderStartGenerationRef.current + 1;
+    mediaRecorderStartGenerationRef.current = startGeneration;
     let stream: MediaStream | null = null;
 
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      if (!isMountedRef.current || mediaRecorderRef.current?.state === "recording") {
+      if (
+        !isMountedRef.current ||
+        mediaRecorderStartGenerationRef.current !== startGeneration ||
+        mediaRecorderRef.current?.state === "recording"
+      ) {
         stopMediaStream(stream);
         return;
       }

@@ -16,7 +16,7 @@ import {
 import { buildRepositoryGitHubContextInstructions } from "@/lib/agents/repository-context";
 import {
   filterToolSetByNames,
-  repositoryWorkflowToolNames,
+  repositoryWorkspaceToolNames,
 } from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
 import { ensureAgentSession } from "@/lib/tools/types";
@@ -82,7 +82,7 @@ export async function repositoryAgentWorkflow(
 
     ensureAgentSession(toolContext);
     const tools = filterToolSetByNames(buildTools(toolContext), [
-      ...repositoryWorkflowToolNames,
+      ...repositoryWorkspaceToolNames,
     ]) as ToolSet;
     const agent = new ToolLoopAgent({
       model: getHyperlocaliseAgentModel(),

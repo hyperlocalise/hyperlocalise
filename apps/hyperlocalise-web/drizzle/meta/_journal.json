@@ -204,6 +204,13 @@
       "when": 1780127612951,
       "tag": "0028_clean_whirlwind",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1780134089692,
+      "tag": "0029_gigantic_arclight",
+      "breakpoints": true
     }
   ]
 }

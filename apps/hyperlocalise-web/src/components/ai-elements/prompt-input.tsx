@@ -805,6 +805,15 @@ export const PromptInput = ({
     [referencedSources, clearReferencedSources],
   );
 
+  const restoreCapturedTextIfIdle = useCallback(
+    (capturedText: string) => {
+      if (usingProvider && capturedText && controller.textInput.getValue() === "") {
+        controller.textInput.setInput(capturedText);
+      }
+    },
+    [usingProvider, controller],
+  );
+
   const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
     async (event) => {
       event.preventDefault();
@@ -817,9 +826,10 @@ export const PromptInput = ({
             return (formData.get("message") as string) || "";
           })();
 
-      // Reset form immediately after capturing text to avoid race condition
-      // where user input during async blob conversion would be lost
-      if (!usingProvider) {
+      // Reset immediately after capture so async work cannot clear a newer draft.
+      if (usingProvider) {
+        controller.textInput.clear();
+      } else {
         form.reset();
       }
 
@@ -846,24 +856,17 @@ export const PromptInput = ({
           try {
             await result;
             clear();
-            if (usingProvider && controller.textInput.getValue() === text) {
-              controller.textInput.clear();
-            }
           } catch {
-            // Don't clear on error - user may want to retry
+            restoreCapturedTextIfIdle(text);
           }
         } else {
-          // Sync function completed without throwing, clear inputs
           clear();
-          if (usingProvider && controller.textInput.getValue() === text) {
-            controller.textInput.clear();
-          }
         }
       } catch {
-        // Don't clear on error - user may want to retry
+        restoreCapturedTextIfIdle(text);
       }
     },
-    [usingProvider, controller, files, onSubmit, clear],
+    [usingProvider, controller, files, onSubmit, clear, restoreCapturedTextIfIdle],
   );
 
   // Render with or without local provider

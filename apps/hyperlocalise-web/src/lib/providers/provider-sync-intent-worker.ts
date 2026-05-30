@@ -147,6 +147,7 @@ export async function processProviderSyncIntent(
       intentId: claimed.id,
       organizationId: input.organizationId,
       workerId: input.workerId,
+      leaseToken: claimed.leaseToken!,
       errorMessage,
       retryable: false,
     });
@@ -177,6 +178,7 @@ export async function processProviderSyncIntent(
         intentId: claimed.id,
         organizationId: input.organizationId,
         workerId: input.workerId,
+        leaseToken: claimed.leaseToken!,
         errorMessage: "provider_sync_run_failed",
         providerSyncRunId: dispatchResult.runId,
         retryable: true,
@@ -226,6 +228,7 @@ export async function processProviderSyncIntent(
       intentId: claimed.id,
       organizationId: input.organizationId,
       workerId: input.workerId,
+      leaseToken: claimed.leaseToken!,
       providerSyncRunId: dispatchResult.runId,
     });
 
@@ -271,6 +274,7 @@ export async function processProviderSyncIntent(
       intentId: claimed.id,
       organizationId: input.organizationId,
       workerId: input.workerId,
+      leaseToken: claimed.leaseToken!,
       errorMessage: message,
       errorDetails: {
         name: error instanceof Error ? error.name : "UnknownError",

@@ -34,7 +34,10 @@ export const fetchLokaliseTranslationMemories: ExternalTmsTranslationMemoryFetch
   let languages;
   try {
     [keys, languages] = await Promise.all([
-      client.listKeys(projectId, { includeTranslations: true }),
+      client.listKeys(projectId, {
+        includeTranslations: true,
+        maxKeys: LOKALISE_TM_SYNC_MAX_KEYS,
+      }),
       client.listProjectLanguages(projectId),
     ]);
   } catch (error) {
@@ -62,9 +65,8 @@ export const fetchLokaliseTranslationMemories: ExternalTmsTranslationMemoryFetch
       : uniqueLocales(project.targetLocales ?? []);
 
   const entries = [];
-  const cappedKeys = keys.slice(0, LOKALISE_TM_SYNC_MAX_KEYS);
 
-  for (const key of cappedKeys) {
+  for (const key of keys) {
     const sourceTranslation = pickLokaliseKeyTranslation(key, sourceLocale);
     if (!sourceTranslation?.translation.trim()) {
       continue;
@@ -103,7 +105,7 @@ export const fetchLokaliseTranslationMemories: ExternalTmsTranslationMemoryFetch
       metadata: {
         lokaliseProjectId: projectId,
         lokaliseTranslationMemoryKind: "project_keys",
-        scannedKeyCount: cappedKeys.length,
+        scannedKeyCount: keys.length,
       },
       externalUrl: buildLokaliseProjectUrl(projectId),
       entries,

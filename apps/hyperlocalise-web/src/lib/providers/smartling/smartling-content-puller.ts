@@ -32,12 +32,14 @@ function isApprovedTranslation(translation: {
     return true;
   }
   const publishStatus = translation.publishStatus?.toLowerCase() ?? "";
-  return (
-    publishStatus === "published" ||
-    publishStatus === "authorized" ||
-    (publishStatus.includes("publish") && !publishStatus.startsWith("unpublish")) ||
-    (publishStatus.includes("author") && !publishStatus.startsWith("unauthor"))
-  );
+  const approvedStatuses = new Set([
+    "published",
+    "authorized",
+    "approved",
+    "completed",
+    "complete",
+  ]);
+  return approvedStatuses.has(publishStatus);
 }
 
 export const pullSmartlingTaskContent: ExternalTmsContentPuller = async ({

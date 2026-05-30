@@ -11,6 +11,7 @@ type SmartlingProjectLike = {
 
 export async function resolveSmartlingAccountUid(input: {
   secretMaterial: string;
+  authBaseUrl?: string;
   externalProjectId: string;
   project?: SmartlingProjectLike;
 }): Promise<string | null> {
@@ -29,7 +30,10 @@ export async function resolveSmartlingAccountUid(input: {
     return null;
   }
 
-  const client = new SmartlingApiClient({ credentials });
+  const client = new SmartlingApiClient({
+    credentials,
+    authBaseUrl: input.authBaseUrl,
+  });
   try {
     const details = await client.getProjectDetails(projectId);
     return details.accountUid?.trim() || null;
