@@ -12,6 +12,10 @@ import {
   removeGitHubInstallationRepositories,
   upsertGitHubInstallationRepositories,
 } from "@/lib/agents/github/repositories";
+import {
+  handleGithubPushWebhook,
+  type GitHubPushWebhookPayload,
+} from "@/lib/agents/github/github-push-webhook";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 import type { GitHubFixQueue } from "@/lib/workflow/types";
 import { createGitHubFixQueue } from "@/workflows/adapters";
@@ -252,6 +256,59 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
           "ignoring webhook: repository not enabled",
         );
         return c.json({ ok: true, ignored: true }, 200);
+      }
+
+      if (event === "push") {
+        const [installationRepository] = await db
+          .select({ id: schema.githubInstallationRepositories.id })
+          .from(schema.githubInstallationRepositories)
+          .where(
+            and(
+              eq(schema.githubInstallationRepositories.organizationId, installation.organizationId),
+              eq(
+                schema.githubInstallationRepositories.githubInstallationId,
+                installation.githubInstallationId,
+              ),
+              eq(
+                schema.githubInstallationRepositories.githubRepositoryId,
+                String(payload.repository.id),
+              ),
+            ),
+          )
+          .limit(1);
+
+        if (!installationRepository) {
+          log.info(
+            {
+              installationId: installation.githubInstallationId,
+              repositoryId: payload.repository.id,
+            },
+            "ignoring push webhook: installation repository not found",
+          );
+          return c.json({ ok: true, ignored: true }, 200);
+        }
+
+        const pushResult = await handleGithubPushWebhook({
+          deliveryId: delivery ?? `missing-delivery-${Date.now()}`,
+          organizationId: installation.organizationId,
+          githubInstallationId: installation.githubInstallationId,
+          githubInstallationRepositoryId: installationRepository.id,
+          githubRepositoryId: String(payload.repository.id),
+          payload: payload as GitHubPushWebhookPayload,
+        });
+
+        if (pushResult.ignored) {
+          return c.json({ ok: true, ignored: true }, 200);
+        }
+
+        return c.json(
+          {
+            ok: true,
+            ignored: false,
+            automation: pushResult.automation,
+          },
+          200,
+        );
       }
 
       const handler =
