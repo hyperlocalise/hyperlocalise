@@ -102,3 +102,7 @@
 ## 2026-07-28 - Optimizing Apple .stringsdict path construction and key validation
 **Learning:** In recursive or iterative XML path construction (like .stringsdict parsing), using a `[]string` slice to track the path leads to high allocations due to repeated slice copies and `strings.Join` calls. Additionally, using `strings.Split` for segment extraction in validation is inefficient. String concatenation for path building and `strings.LastIndexByte` for segment extraction are significantly more efficient.
 **Action:** Refactored `AppleStringsdictParser` to use a `string` path prefix and replaced `strings.Split` with `strings.LastIndexByte` in `validateStringsdictFormatKeys`, resulting in a ~10% speedup and ~7% reduction in allocations.
+
+## 2026-07-30 - Caching strings.Replacer for static string escaping
+**Learning:** `strings.NewReplacer` performs pre-computation (building a trie) on initialization. Rebuilding it inside a function called frequently (like `encodeAppleStringsQuoted`) introduces significant overhead. Moving it to a package-level variable allows the trie to be built once and reused.
+**Action:** Moved `strings.NewReplacer` to a package-level variable in `internal/i18n/translationfileparser/strings_parser.go`, resulting in a ~9x speedup for string escaping.
