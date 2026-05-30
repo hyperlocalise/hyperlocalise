@@ -167,6 +167,22 @@ export const env = createEnv({
       .int()
       .positive()
       .default(500),
+
+    /** Enables scheduled GitHub repository automation dispatch cron ticks. */
+    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+
+    /** Shared secret for GitHub repository automation dispatch cron requests. */
+    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_CRON_SECRET: z.string().min(1).optional(),
+
+    /** Maximum repositories processed per GitHub automation dispatch cron tick. */
+    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK: z.coerce
+      .number()
+      .int()
+      .positive()
+      .default(100),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -257,6 +273,13 @@ export const env = createEnv({
       process.env.TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC,
     TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK:
       process.env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
+    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_ENABLED:
+      process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_ENABLED,
+    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_CRON_SECRET:
+      process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_CRON_SECRET ??
+      (isTestEnv ? "test-github-repository-automation-dispatch-secret" : undefined),
+    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
+      process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),

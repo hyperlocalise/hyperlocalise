@@ -50,6 +50,7 @@ import { createTeamRoutes } from "./routes/team/team.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
+import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
 import { createTmsScheduledReconciliationRoutes } from "./routes/cron/tms-scheduled-reconciliation.route";
 import {
   createTranslationJobEventQueue,
@@ -124,6 +125,10 @@ function createInternalRoutes(options: CreateAppOptions = {}) {
       createTmsScheduledReconciliationRoutes({
         providerWebhookReconciliationQueue: options.providerWebhookReconciliationQueue,
       }),
+    )
+    .route(
+      "/cron/github-repository-automation-dispatch",
+      createGithubRepositoryAutomationDispatchRoutes(),
     );
 }
 
