@@ -1354,6 +1354,69 @@ export const githubRepositoryAutomationSettings = pgTable(
   ],
 );
 
+export const githubRepositoryAutomationJobStatusEnum = pgEnum(
+  "github_repository_automation_job_status",
+  ["queued", "running", "succeeded", "failed", "skipped"],
+);
+
+export const githubRepositoryAutomationJobTriggerModeEnum = pgEnum(
+  "github_repository_automation_job_trigger_mode",
+  ["push", "scheduled"],
+);
+
+export const githubRepositoryAutomationJobs = pgTable(
+  "github_repository_automation_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    idempotencyKey: text("idempotency_key").notNull(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    githubInstallationRepositoryId: uuid("github_installation_repository_id")
+      .notNull()
+      .references(() => githubInstallationRepositories.id, { onDelete: "cascade" }),
+    githubInstallationId: bigintText("github_installation_id").notNull(),
+    githubRepositoryId: bigintText("github_repository_id").notNull(),
+    configVersion: integer("config_version").notNull(),
+    triggerMode: githubRepositoryAutomationJobTriggerModeEnum("trigger_mode").notNull(),
+    status: githubRepositoryAutomationJobStatusEnum("status").notNull().default("queued"),
+    skipReason: text("skip_reason"),
+    triggerBranch: text("trigger_branch"),
+    commitBefore: text("commit_before"),
+    commitAfter: text("commit_after"),
+    workflows: jsonb("workflows")
+      .$type<{
+        pushSource: boolean;
+        pullTranslations: boolean;
+        validation: boolean;
+      }>()
+      .notNull()
+      .default(sql`'{"pushSource":false,"pullTranslations":false,"validation":false}'::jsonb`),
+    githubDeliveryId: text("github_delivery_id"),
+    scheduledRunAt: timestamp("scheduled_run_at", { withTimezone: true }),
+    workflowRunId: text("workflow_run_id"),
+    lastError: text("last_error"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (table) => [
+    uniqueIndex("github_repository_automation_jobs_idempotency_key").on(table.idempotencyKey),
+    index("idx_github_repository_automation_jobs_org_created").on(
+      table.organizationId,
+      table.createdAt,
+    ),
+    index("idx_github_repository_automation_jobs_repo_created").on(
+      table.githubInstallationRepositoryId,
+      table.createdAt,
+    ),
+    index("idx_github_repository_automation_jobs_status").on(table.status),
+  ],
+);
+
 export const githubI18nSetupRuns = pgTable(
   "github_i18n_setup_runs",
   {
