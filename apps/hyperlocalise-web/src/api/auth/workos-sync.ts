@@ -288,6 +288,7 @@ export async function removePendingOrganizationMembershipForInvite(
     await database.delete(schema.users).where(
       and(
         eq(schema.users.id, user.id),
+        like(schema.users.workosUserId, `${INVITED_WORKOS_USER_ID_PREFIX}%`),
         sql`not exists (
           select 1
           from ${schema.organizationMemberships}

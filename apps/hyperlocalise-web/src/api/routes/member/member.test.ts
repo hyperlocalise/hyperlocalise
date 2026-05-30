@@ -456,6 +456,28 @@ describe("memberRoutes", () => {
     expect(response.status).toBe(403);
   });
 
+  it("returns member_invite_revoked_not_delivered when replace revokes but send fails", async () => {
+    listInvitationsMock.mockResolvedValue({
+      data: [{ id: "stale_invitation", state: "pending" }],
+    });
+    sendInvitationMock.mockRejectedValue(new Error("workos unavailable"));
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const response = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "revoked-not-sent@example.com", role: "admin" },
+      headers,
+    );
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "member_invite_revoked_not_delivered",
+    });
+    expect(revokeInvitationMock).toHaveBeenCalledWith("stale_invitation");
+    expect(sendInvitationMock).toHaveBeenCalledTimes(2);
+  });
+
   it("replaces a stale WorkOS invitation when inviting with no local pending membership", async () => {
     listInvitationsMock.mockResolvedValue({
       data: [{ id: "stale_invitation", state: "pending" }],

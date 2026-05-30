@@ -245,6 +245,38 @@ async function revokePendingWorkosInvitation(input: {
   await workos.userManagement.revokeInvitation(pendingInvitation.id);
 }
 
+class WorkosInvitationRevokedNotDeliveredError extends Error {
+  readonly code = "member_invite_revoked_not_delivered" as const;
+
+  constructor() {
+    super("WorkOS invitation was revoked but a replacement could not be sent");
+    this.name = "WorkosInvitationRevokedNotDeliveredError";
+  }
+}
+
+function isWorkosInvitationRevokedNotDeliveredError(
+  error: unknown,
+): error is WorkosInvitationRevokedNotDeliveredError {
+  return error instanceof WorkosInvitationRevokedNotDeliveredError;
+}
+
+async function sendWorkosInvitation(
+  workos: NonNullable<ReturnType<typeof getWorkosServerClient>>,
+  input: {
+    workosOrganizationId: string;
+    email: string;
+    inviterUserId: string;
+    roleSlug: OrganizationMembershipRole;
+  },
+) {
+  await workos.userManagement.sendInvitation({
+    email: input.email.trim().toLowerCase(),
+    organizationId: input.workosOrganizationId,
+    inviterUserId: input.inviterUserId,
+    roleSlug: input.roleSlug,
+  });
+}
+
 async function deliverWorkosInvitation(input: {
   workosOrganizationId: string;
   email: string;
@@ -262,19 +294,33 @@ async function deliverWorkosInvitation(input: {
     email: input.email,
   });
 
+  const invitationPayload = {
+    workosOrganizationId: input.workosOrganizationId,
+    email: input.email,
+    inviterUserId: input.inviterUserId,
+    roleSlug: input.roleSlug,
+  };
+
   if (pendingInvitation && input.replacePendingInvitation) {
     await workos.userManagement.revokeInvitation(pendingInvitation.id);
-  } else if (pendingInvitation) {
+    try {
+      await sendWorkosInvitation(workos, invitationPayload);
+    } catch {
+      try {
+        await sendWorkosInvitation(workos, invitationPayload);
+      } catch {
+        throw new WorkosInvitationRevokedNotDeliveredError();
+      }
+    }
+    return;
+  }
+
+  if (pendingInvitation) {
     await workos.userManagement.resendInvitation(pendingInvitation.id);
     return;
   }
 
-  await workos.userManagement.sendInvitation({
-    email: input.email.trim().toLowerCase(),
-    organizationId: input.workosOrganizationId,
-    inviterUserId: input.inviterUserId,
-    roleSlug: input.roleSlug,
-  });
+  await sendWorkosInvitation(workos, invitationPayload);
 }
 
 async function rollbackPendingInvite(input: {
@@ -374,7 +420,7 @@ export function createMemberRoutes() {
           replacePendingInvitation:
             !isResend || ("roleChanged" in pendingInvite && pendingInvite.roleChanged),
         });
-      } catch {
+      } catch (error) {
         if (!isResend) {
           await rollbackPendingInvite({
             membershipId: pendingInvite.membershipId,
@@ -390,6 +436,14 @@ export function createMemberRoutes() {
             .update(schema.organizationMemberships)
             .set({ role: pendingInvite.previousRole })
             .where(eq(schema.organizationMemberships.id, pendingInvite.membershipId));
+        }
+
+        if (isWorkosInvitationRevokedNotDeliveredError(error)) {
+          return internalErrorResponse(
+            c,
+            error.code,
+            "The previous invitation was revoked but a new one could not be sent. Invite this member again.",
+          );
         }
 
         return internalErrorResponse(
@@ -503,11 +557,19 @@ export function createMemberRoutes() {
             roleSlug: payload.role,
             replacePendingInvitation: true,
           });
-        } catch {
+        } catch (error) {
           await db
             .update(schema.organizationMemberships)
             .set({ role: previousRole })
             .where(eq(schema.organizationMemberships.id, member.membershipId));
+
+          if (isWorkosInvitationRevokedNotDeliveredError(error)) {
+            return internalErrorResponse(
+              c,
+              error.code,
+              "The previous invitation was revoked but a new one could not be sent. Invite this member again.",
+            );
+          }
 
           return internalErrorResponse(
             c,
