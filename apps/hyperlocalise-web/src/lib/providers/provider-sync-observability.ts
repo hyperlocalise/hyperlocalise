@@ -37,6 +37,10 @@ function canRetrySyncIntent(intent: Pick<ProviderSyncIntent, "status">) {
   return intent.status === "failed" || intent.status === "retryable";
 }
 
+function retryErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "provider_webhook_reconciliation_enqueue_failed";
+}
+
 function toWebhookEventSummary(
   row: typeof schema.providerWebhookEvents.$inferSelect,
 ): ProviderSyncObservabilityWebhookEventSummary {
@@ -369,7 +373,7 @@ export async function retryProviderSyncIntent(input: {
     .limit(1);
 
   if (!webhookEvent) {
-    throw new ProviderSyncIntentNotFoundError();
+    throw new ProviderSyncIntentNotRetryableError();
   }
 
   const now = new Date();
@@ -402,26 +406,66 @@ export async function retryProviderSyncIntent(input: {
     throw new ProviderSyncIntentNotRetryableError();
   }
 
-  await updateProviderWebhookEventProcessingStatus({
-    eventId: webhookEvent.id,
-    organizationId: input.organizationId,
-    processingStatus: "pending",
-    providerSyncIntentId: requeued.id,
-    errorMessage: null,
-    errorDetails: {},
-    nextRetryAt: null,
-  });
-
   const queue =
     input.providerWebhookReconciliationQueue ?? createProviderWebhookReconciliationQueue();
 
-  await queue.enqueue({
-    providerWebhookEventId: webhookEvent.id,
-    providerSyncIntentId: requeued.id,
-    organizationId: input.organizationId,
-    subscriptionId: webhookEvent.subscriptionId,
-    providerKind: input.providerKind,
-  });
+  try {
+    await updateProviderWebhookEventProcessingStatus({
+      eventId: webhookEvent.id,
+      organizationId: input.organizationId,
+      processingStatus: "pending",
+      providerSyncIntentId: requeued.id,
+      errorMessage: null,
+      errorDetails: {},
+      nextRetryAt: null,
+    });
+
+    await queue.enqueue({
+      providerWebhookEventId: webhookEvent.id,
+      providerSyncIntentId: requeued.id,
+      organizationId: input.organizationId,
+      subscriptionId: webhookEvent.subscriptionId,
+      providerKind: input.providerKind,
+    });
+  } catch (error) {
+    const retryFailureMessage = retryErrorMessage(error);
+    const rollbackAt = new Date();
+
+    await db
+      .update(schema.providerSyncIntents)
+      .set({
+        status: "failed",
+        leasedUntil: null,
+        leasedBy: null,
+        nextAttemptAt: null,
+        completedAt: null,
+        lastError: retryFailureMessage,
+        errorDetails: { message: retryFailureMessage },
+        updatedAt: rollbackAt,
+      })
+      .where(
+        and(
+          eq(schema.providerSyncIntents.id, requeued.id),
+          eq(schema.providerSyncIntents.organizationId, input.organizationId),
+        ),
+      );
+
+    try {
+      await updateProviderWebhookEventProcessingStatus({
+        eventId: webhookEvent.id,
+        organizationId: input.organizationId,
+        processingStatus: "failed",
+        providerSyncIntentId: requeued.id,
+        errorMessage: retryFailureMessage,
+        errorDetails: { message: retryFailureMessage },
+        nextRetryAt: null,
+      });
+    } catch {
+      // Preserve the original enqueue/update failure after restoring retryability.
+    }
+
+    throw error;
+  }
 
   logIntentEnqueued({
     providerKind: input.providerKind,

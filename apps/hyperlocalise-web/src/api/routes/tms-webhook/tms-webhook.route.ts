@@ -328,8 +328,6 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
       if (!subscription) {
         logWebhookIgnored({
           providerKind: providerKindParam,
-          providerEventId: descriptor.providerEventId,
-          deliveryId: descriptor.deliveryId,
           reason: "subscription_not_found",
         });
         return c.json({ ok: true, ignored: true }, 202);
