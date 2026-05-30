@@ -122,7 +122,7 @@ IMPORTANT:
           path,
           totalLines,
           startLine,
-          endLine: startLine + selectedLines.length - 1,
+          endLine: linesReadEnd ?? startLine,
           content,
           truncated: outputTruncated,
         };

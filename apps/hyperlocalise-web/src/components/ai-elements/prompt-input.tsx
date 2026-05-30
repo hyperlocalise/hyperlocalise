@@ -805,6 +805,15 @@ export const PromptInput = ({
     [referencedSources, clearReferencedSources],
   );
 
+  const restoreCapturedTextIfIdle = useCallback(
+    (capturedText: string) => {
+      if (usingProvider && capturedText && controller.textInput.getValue() === "") {
+        controller.textInput.setInput(capturedText);
+      }
+    },
+    [usingProvider, controller],
+  );
+
   const handleSubmit: FormEventHandler<HTMLFormElement> = useCallback(
     async (event) => {
       event.preventDefault();
@@ -848,20 +857,16 @@ export const PromptInput = ({
             await result;
             clear();
           } catch {
-            if (usingProvider && text) {
-              controller.textInput.setInput(text);
-            }
+            restoreCapturedTextIfIdle(text);
           }
         } else {
           clear();
         }
       } catch {
-        if (usingProvider && text) {
-          controller.textInput.setInput(text);
-        }
+        restoreCapturedTextIfIdle(text);
       }
     },
-    [usingProvider, controller, files, onSubmit, clear],
+    [usingProvider, controller, files, onSubmit, clear, restoreCapturedTextIfIdle],
   );
 
   // Render with or without local provider
