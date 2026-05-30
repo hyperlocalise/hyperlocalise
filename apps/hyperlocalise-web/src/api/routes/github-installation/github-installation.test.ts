@@ -10,6 +10,9 @@ const { syncInstallationRepositoriesMock } = vi.hoisted(() => ({
 const { deleteInstallationMock } = vi.hoisted(() => ({
   deleteInstallationMock: vi.fn(async () => ({ status: 204 })),
 }));
+const { i18nSetupEnqueueMock } = vi.hoisted(() => ({
+  i18nSetupEnqueueMock: vi.fn(async () => ({ ids: ["workflow-run-test"] })),
+}));
 
 vi.mock("@/lib/agents/github/repositories", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/agents/github/repositories")>();
@@ -43,13 +46,19 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-import { app } from "@/api/app";
+import { createApp } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { verifyGitHubState } from "@/lib/agents/github/oauth-state";
 
-const client = testClient(app);
+const client = testClient(
+  createApp({
+    i18nSetupQueue: {
+      enqueue: i18nSetupEnqueueMock,
+    },
+  }),
+);
 const fixture = createProjectTestFixture(client);
 
 async function createInstallationFixture(role: "owner" | "admin" | "member" = "owner") {
@@ -335,5 +344,120 @@ describe("githubInstallationRoutes", () => {
       .from(schema.githubInstallations)
       .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
     expect(installation).toBeDefined();
+  });
+
+  it("starts i18n setup for an enabled repository", async () => {
+    const { headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].repositories[
+      ":githubRepositoryId"
+    ]["i18n-setup"].$post(
+      {
+        param: { organizationSlug, githubRepositoryId: "101" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({
+      i18nSetupRun: {
+        githubRepositoryId: "101",
+        status: "queued",
+        repositoryFullName: "hyperlocalise/hyperlocalise",
+      },
+    });
+    expect(i18nSetupEnqueueMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects i18n setup for disabled repositories", async () => {
+    const { headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].repositories[
+      ":githubRepositoryId"
+    ]["i18n-setup"].$post(
+      {
+        param: { organizationSlug, githubRepositoryId: "102" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "github_repository_not_enabled",
+    });
+    expect(i18nSetupEnqueueMock).not.toHaveBeenCalled();
+  });
+
+  it("blocks members from reading i18n setup runs", async () => {
+    const { auth, headers, organizationSlug } = await createInstallationFixture("member");
+
+    const [run] = await db
+      .insert(schema.githubI18nSetupRuns)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        actorUserId: auth.user.localUserId,
+        githubInstallationId: "987654",
+        githubRepositoryId: "101",
+        repositoryFullName: "hyperlocalise/hyperlocalise",
+        baseBranch: "main",
+        status: "failed",
+      })
+      .returning();
+
+    const latestResponse = await client.api.orgs[":organizationSlug"][
+      "github-installation"
+    ].repositories[":githubRepositoryId"]["i18n-setup-runs"].latest.$get(
+      {
+        param: { organizationSlug, githubRepositoryId: "101" },
+      },
+      { headers },
+    );
+
+    expect(latestResponse.status).toBe(403);
+
+    const runResponse = await client.api.orgs[":organizationSlug"]["github-installation"][
+      "i18n-setup-runs"
+    ][":runId"].$get(
+      {
+        param: { organizationSlug, runId: run.id },
+      },
+      { headers },
+    );
+
+    expect(runResponse.status).toBe(403);
+  });
+
+  it("returns the latest i18n setup run for a repository", async () => {
+    const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
+
+    await db.insert(schema.githubI18nSetupRuns).values({
+      organizationId: auth.organization.localOrganizationId,
+      actorUserId: auth.user.localUserId,
+      githubInstallationId: "987654",
+      githubRepositoryId: "101",
+      repositoryFullName: "hyperlocalise/hyperlocalise",
+      baseBranch: "main",
+      status: "failed",
+      errorCode: "locale_files_not_found",
+      errorMessage: "Could not find locale translation files in this repository.",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"].repositories[
+      ":githubRepositoryId"
+    ]["i18n-setup-runs"].latest.$get(
+      {
+        param: { organizationSlug, githubRepositoryId: "101" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      i18nSetupRun: {
+        githubRepositoryId: "101",
+        status: "failed",
+        errorCode: "locale_files_not_found",
+      },
+    });
   });
 });

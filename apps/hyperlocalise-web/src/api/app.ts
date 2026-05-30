@@ -6,6 +6,7 @@ import type { FileStorageAdapter } from "@/lib/file-storage";
 import type {
   EmailAgentTaskQueue,
   GitHubFixQueue,
+  I18nSetupQueue,
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
@@ -56,11 +57,13 @@ import {
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
+  createI18nSetupQueue,
 } from "@/workflows/adapters";
 
 type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubFixQueue?: GitHubFixQueue;
+  i18nSetupQueue?: I18nSetupQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   jobQueue?: JobQueue<TranslationJobEventData>;
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
@@ -81,6 +84,7 @@ export function createApp(options: CreateAppOptions = {}) {
     options.providerAgentCommentQueue ?? createProviderAgentCommentQueue();
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
+  const i18nSetupQueue = options.i18nSetupQueue ?? createI18nSetupQueue();
 
   return new Hono<EvlogVariables>()
     .use("*", secureHeaders())
@@ -100,6 +104,7 @@ export function createApp(options: CreateAppOptions = {}) {
         providerAgentQaQueue,
         providerAgentCommentQueue,
         providerAgentWritebackQueue,
+        i18nSetupQueue,
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
@@ -133,6 +138,7 @@ function createOrgScopedAppRoutes(
     providerAgentQaQueue: ProviderAgentQaQueue;
     providerAgentCommentQueue: ProviderAgentCommentQueue;
     providerAgentWritebackQueue: ProviderAgentWritebackQueue;
+    i18nSetupQueue: I18nSetupQueue;
   },
 ) {
   return new Hono()
@@ -163,7 +169,10 @@ function createOrgScopedAppRoutes(
       "/chat-requests",
       createChatRequestRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
-    .route("/github-installation", createGithubInstallationRoutes())
+    .route(
+      "/github-installation",
+      createGithubInstallationRoutes({ i18nSetupQueue: options.i18nSetupQueue }),
+    )
     .route("/api-keys", createApiKeyRoutes())
     .route("/members", createMemberRoutes())
     .route("/workspace", createWorkspaceRoutes());

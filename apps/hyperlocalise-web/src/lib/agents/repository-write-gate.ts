@@ -109,12 +109,11 @@ function checkGitHubWriteGate(
 }
 
 /**
- * Check whether the GitHub App installation can push to the PR branch.
+ * Check whether the GitHub App installation can push to a repository.
  */
-export async function canPushToGitHubBranch(input: {
+export async function canPushToGitHubRepository(input: {
   installationId: number;
   repositoryFullName: string;
-  branch: string;
 }): Promise<{ canPush: boolean; reason?: string }> {
   const { getInstallationOctokit } = await import("@/lib/agents/github/app");
 
@@ -136,6 +135,38 @@ export async function canPushToGitHubBranch(input: {
         canPush: false,
         reason: "The GitHub App installation does not have push access to this repository.",
       };
+    }
+
+    return { canPush: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return {
+      canPush: false,
+      reason: `Could not verify push permission: ${message}`,
+    };
+  }
+}
+
+/**
+ * Check whether the GitHub App installation can push to the PR branch.
+ */
+export async function canPushToGitHubBranch(input: {
+  installationId: number;
+  repositoryFullName: string;
+  branch: string;
+}): Promise<{ canPush: boolean; reason?: string }> {
+  const { getInstallationOctokit } = await import("@/lib/agents/github/app");
+
+  try {
+    const repositoryPush = await canPushToGitHubRepository(input);
+    if (!repositoryPush.canPush) {
+      return repositoryPush;
+    }
+
+    const octokit = await getInstallationOctokit(input.installationId);
+    const [owner, repo] = input.repositoryFullName.split("/");
+    if (!owner || !repo) {
+      return { canPush: false, reason: "Invalid repository full name." };
     }
 
     const { data: branch } = await octokit.rest.repos.getBranch({
