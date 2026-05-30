@@ -375,7 +375,6 @@ func TestHasDuplicatePounds(t *testing.T) {
 	}
 }
 
-
 func TestParseInvariantIncludesTypedBlocks(t *testing.T) {
 	tests := []struct {
 		msg  string
