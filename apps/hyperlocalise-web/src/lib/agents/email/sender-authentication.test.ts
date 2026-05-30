@@ -45,4 +45,28 @@ describe("isInboundSenderAuthenticated", () => {
       }),
     ).toBe(true);
   });
+
+  it("rejects uncorrelated DKIM pass when From claims a different domain", () => {
+    expect(
+      isInboundSenderAuthenticated({
+        claimedFromEmail: "user@example.com",
+        headers: {
+          "authentication-results":
+            "mx.example.com; dkim=pass header.d=attacker.com; spf=none; dmarc=fail header.from=example.com",
+        },
+      }),
+    ).toBe(false);
+  });
+
+  it("accepts authentication-results DMARC pass for the claimed From domain", () => {
+    expect(
+      isInboundSenderAuthenticated({
+        claimedFromEmail: "user@example.com",
+        headers: {
+          "authentication-results":
+            "mx.example.com; spf=none; dkim=none; dmarc=pass header.from=example.com",
+        },
+      }),
+    ).toBe(true);
+  });
 });

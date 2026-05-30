@@ -25,6 +25,10 @@ function domainFromEmail(email: string): string | null {
   return email.slice(at + 1).toLowerCase();
 }
 
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function spfPassedForDomain(headers: Record<string, string>, domain: string): boolean {
   for (const value of headerValues(headers, "received-spf")) {
     const normalized = value.toLowerCase();
@@ -37,14 +41,25 @@ function spfPassedForDomain(headers: Record<string, string>, domain: string): bo
 }
 
 function authenticationResultsPass(headers: Record<string, string>, domain: string): boolean {
+  const escapedDomain = escapeRegex(domain);
+  const dkimPassForDomain = new RegExp(`\\bdkim=pass\\b[^;]*header\\.d=${escapedDomain}\\b`);
+  const dmarcPassForDomain = new RegExp(
+    `\\bdmarc=pass\\b[^;]*header\\.from=(?:\\S+@)?${escapedDomain}\\b`,
+  );
+  const spfPassForDomain = new RegExp(
+    `\\bspf=pass\\b[^;]*(?:smtp\\.)?mailfrom=(?:\\S+@)?${escapedDomain}\\b`,
+  );
+  const spfPassForDomainComment = new RegExp(`\\bspf=pass\\b\\s*\\(\\s*${escapedDomain}:`);
+
   for (const name of ["authentication-results", "arc-authentication-results"]) {
     for (const value of headerValues(headers, name)) {
       const normalized = value.toLowerCase();
-      if (!normalized.includes(domain)) continue;
-      const spfPass = /\bspf=pass\b/.test(normalized);
-      const dkimPass = /\bdkim=pass\b/.test(normalized);
-      const dmarcPass = /\b dmarc=pass\b/.test(normalized) || /\bdmarc=pass\b/.test(normalized);
-      if (spfPass || dkimPass || dmarcPass) {
+      if (
+        dkimPassForDomain.test(normalized) ||
+        dmarcPassForDomain.test(normalized) ||
+        spfPassForDomain.test(normalized) ||
+        spfPassForDomainComment.test(normalized)
+      ) {
         return true;
       }
     }
