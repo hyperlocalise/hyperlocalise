@@ -218,6 +218,13 @@
       "when": 1780146889338,
       "tag": "0030_square_alice",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1780152113154,
+      "tag": "0031_normal_mauler",
+      "breakpoints": true
     }
   ]
 }

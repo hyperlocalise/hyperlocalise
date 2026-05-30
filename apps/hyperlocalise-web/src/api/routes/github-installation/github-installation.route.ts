@@ -27,11 +27,19 @@ import { createLogger } from "@/lib/log";
 import type { I18nSetupQueue } from "@/lib/workflow/types";
 import { createI18nSetupQueue } from "@/workflows/adapters";
 
+import { parseGithubRepositoryAutomationSettingsPartial } from "@/lib/agents/github/github-repository-automation-settings";
+import {
+  deleteGithubRepositoryAutomationSettings,
+  getGithubRepositoryAutomationSettings,
+  upsertGithubRepositoryAutomationSettings,
+} from "@/lib/agents/github/github-repository-automation-settings-store";
+
 import {
   githubRepositoryIdParamSchema,
   i18nSetupRunIdParamSchema,
   searchRepositoriesSchema,
   updateRepositoriesSchema,
+  upsertGithubRepositoryAutomationSettingsBodySchema,
 } from "./github-installation.schema";
 
 const logger = createLogger("github-installation");
@@ -49,6 +57,61 @@ const validateUpdateRepositories = validator("json", (value, c) => {
 
   return parsed.data;
 });
+
+const validateAutomationSettingsBody = validator("json", (value, c) => {
+  const parsed = upsertGithubRepositoryAutomationSettingsBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_github_repository_automation_settings_payload" as const }, 400);
+  }
+
+  return parsed.data;
+});
+
+async function getOwnedEnabledRepository(input: {
+  organizationId: string;
+  githubRepositoryId: string;
+}) {
+  const [repository] = await db
+    .select()
+    .from(schema.githubInstallationRepositories)
+    .where(
+      and(
+        eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
+        eq(schema.githubInstallationRepositories.githubRepositoryId, input.githubRepositoryId),
+      ),
+    )
+    .limit(1);
+
+  return repository ?? null;
+}
+
+function mapAutomationSettingsError(c: Parameters<typeof badRequestResponse>[0], error: unknown) {
+  if (error instanceof Error) {
+    if (error.message === "automation_trigger_required") {
+      return badRequestResponse(
+        c,
+        "automation_trigger_required",
+        "Enable at least one workflow and choose a trigger mode.",
+      );
+    }
+    if (error.message === "push_trigger_requires_branches") {
+      return badRequestResponse(
+        c,
+        "push_trigger_requires_branches",
+        "Push-triggered automation requires at least one branch pattern.",
+      );
+    }
+    if (error.message === "weekly_schedule_requires_day_of_week") {
+      return badRequestResponse(
+        c,
+        "weekly_schedule_requires_day_of_week",
+        "Weekly schedules require a day of week between 0 (Sunday) and 6 (Saturday).",
+      );
+    }
+  }
+
+  throw error;
+}
 
 type GithubInstallationRouteOptions = {
   i18nSetupQueue?: I18nSetupQueue;
@@ -330,6 +393,114 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       }
 
       return c.json({ i18nSetupRun: run }, 200);
+    })
+    .get("/repositories/:githubRepositoryId/automation-settings", async (c) => {
+      if (!isAdminRole(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const parsedParams = githubRepositoryIdParamSchema.safeParse(c.req.param());
+      if (!parsedParams.success) {
+        return badRequestResponse(c, "invalid_github_repository_id");
+      }
+
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const repository = await getOwnedEnabledRepository({
+        organizationId,
+        githubRepositoryId: parsedParams.data.githubRepositoryId,
+      });
+
+      if (!repository) {
+        return notFoundResponse(c, "github_repository_not_found");
+      }
+
+      const record = await getGithubRepositoryAutomationSettings({
+        githubInstallationRepositoryId: repository.id,
+        githubRepositoryId: repository.githubRepositoryId,
+      });
+
+      return c.json({ githubRepositoryAutomationSettings: record }, 200);
+    })
+    .put(
+      "/repositories/:githubRepositoryId/automation-settings",
+      validateAutomationSettingsBody,
+      async (c) => {
+        if (!isAdminRole(c.var.auth.membership.role)) {
+          return c.json({ error: "forbidden" }, 403);
+        }
+
+        const parsedParams = githubRepositoryIdParamSchema.safeParse(c.req.param());
+        if (!parsedParams.success) {
+          return badRequestResponse(c, "invalid_github_repository_id");
+        }
+
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const repository = await getOwnedEnabledRepository({
+          organizationId,
+          githubRepositoryId: parsedParams.data.githubRepositoryId,
+        });
+
+        if (!repository) {
+          return notFoundResponse(c, "github_repository_not_found");
+        }
+
+        if (!repository.enabled) {
+          return badRequestResponse(
+            c,
+            "github_repository_not_enabled",
+            "Enable this repository before configuring automation.",
+          );
+        }
+
+        if (repository.archived) {
+          return badRequestResponse(
+            c,
+            "github_repository_archived",
+            "Cannot configure automation for an archived repository.",
+          );
+        }
+
+        try {
+          const payload = c.req.valid("json");
+          const record = await upsertGithubRepositoryAutomationSettings({
+            organizationId,
+            githubInstallationRepositoryId: repository.id,
+            githubRepositoryId: repository.githubRepositoryId,
+            settings: parseGithubRepositoryAutomationSettingsPartial(payload.settings),
+          });
+
+          return c.json({ githubRepositoryAutomationSettings: record }, 200);
+        } catch (error) {
+          return mapAutomationSettingsError(c, error);
+        }
+      },
+    )
+    .delete("/repositories/:githubRepositoryId/automation-settings", async (c) => {
+      if (!isAdminRole(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const parsedParams = githubRepositoryIdParamSchema.safeParse(c.req.param());
+      if (!parsedParams.success) {
+        return badRequestResponse(c, "invalid_github_repository_id");
+      }
+
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const repository = await getOwnedEnabledRepository({
+        organizationId,
+        githubRepositoryId: parsedParams.data.githubRepositoryId,
+      });
+
+      if (!repository) {
+        return notFoundResponse(c, "github_repository_not_found");
+      }
+
+      const record = await deleteGithubRepositoryAutomationSettings({
+        githubInstallationRepositoryId: repository.id,
+        githubRepositoryId: repository.githubRepositoryId,
+      });
+
+      return c.json({ githubRepositoryAutomationSettings: record }, 200);
     })
     .patch("/repositories", validateUpdateRepositories, async (c) => {
       if (!isAdminRole(c.var.auth.membership.role)) {
