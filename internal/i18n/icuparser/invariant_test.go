@@ -375,32 +375,47 @@ func TestHasDuplicatePounds(t *testing.T) {
 	}
 }
 
+
 func TestParseInvariantIncludesTypedBlocks(t *testing.T) {
 	tests := []struct {
-		name string
 		msg  string
-		kind string
+		want []BlockSignature
 	}{
-		{"number", "{n, number}", "number"},
-		{"date", "{d, date}", "date"},
-		{"time", "{t, time}", "time"},
+		{
+			msg: "{n, number}",
+			want: []BlockSignature{
+				{Arg: "n", Type: "number"},
+			},
+		},
+		{
+			msg: "{d, date}",
+			want: []BlockSignature{
+				{Arg: "d", Type: "date"},
+			},
+		},
+		{
+			msg: "{t, time}",
+			want: []BlockSignature{
+				{Arg: "t", Type: "time"},
+			},
+		},
+		{
+			msg: "{p, plural, other {{n, number}}}",
+			want: []BlockSignature{
+				{Arg: "n", Type: "number"},
+				{Arg: "p", Type: "plural", Options: []string{"other"}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.msg, func(t *testing.T) {
 			inv, err := ParseInvariant(tt.msg)
 			if err != nil {
 				t.Fatalf("ParseInvariant failed: %v", err)
 			}
-			found := false
-			for _, b := range inv.ICUBlocks {
-				if b.Arg == tt.msg[1:2] && b.Type == tt.kind {
-					found = true
-					break
-				}
-			}
-			if !found {
-				t.Errorf("expected ICUBlock of type %q for message %q, but got none", tt.kind, tt.msg)
+			if !SameICUBlocks(inv.ICUBlocks, tt.want) {
+				t.Errorf("ParseInvariant(%q) ICUBlocks = %s, want %s", tt.msg, FormatICUBlocks(inv.ICUBlocks), FormatICUBlocks(tt.want))
 			}
 		})
 	}
