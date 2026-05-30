@@ -11,12 +11,22 @@ function parseRepositoryFullName(fullName: string): { owner: string; repo: strin
   return { owner, repo };
 }
 
-function buildDetailsUrl(jobId: string): string | undefined {
+export function buildGithubRepositoryAutomationJobDetailsUrl(input: {
+  organizationSlug: string | null;
+  githubRepositoryId: string;
+  jobId: string;
+}): string | undefined {
   const base = env.HYPERLOCALISE_PUBLIC_APP_URL;
-  if (!base) {
+  if (!base || !input.organizationSlug) {
     return undefined;
   }
-  return `${base.replace(/\/$/, "")}/api/cron/github-repository-automation?jobId=${encodeURIComponent(jobId)}`;
+
+  const params = new URLSearchParams({
+    githubRepositoryId: input.githubRepositoryId,
+    automationJobId: input.jobId,
+  });
+
+  return `${base.replace(/\/$/, "")}/org/${encodeURIComponent(input.organizationSlug)}/integrations?${params.toString()}`;
 }
 
 export async function createGithubRepositoryAutomationCheckRun(input: {
@@ -24,6 +34,8 @@ export async function createGithubRepositoryAutomationCheckRun(input: {
   repositoryFullName: string;
   headSha: string;
   jobId: string;
+  organizationSlug: string | null;
+  githubRepositoryId: string;
 }): Promise<string | null> {
   const octokit = await getInstallationOctokit(input.installationId);
   const { owner, repo } = parseRepositoryFullName(input.repositoryFullName);
@@ -34,7 +46,11 @@ export async function createGithubRepositoryAutomationCheckRun(input: {
     name: CHECK_RUN_NAME,
     head_sha: input.headSha,
     status: "in_progress",
-    details_url: buildDetailsUrl(input.jobId),
+    details_url: buildGithubRepositoryAutomationJobDetailsUrl({
+      organizationSlug: input.organizationSlug,
+      githubRepositoryId: input.githubRepositoryId,
+      jobId: input.jobId,
+    }),
     output: {
       title: "Validating localization commits",
       summary: "Running per-commit hl check and repository localization review.",
@@ -51,6 +67,8 @@ export async function completeGithubRepositoryAutomationCheckRun(input: {
   conclusion: "success" | "failure" | "neutral";
   summary: string;
   jobId: string;
+  organizationSlug: string | null;
+  githubRepositoryId: string;
 }): Promise<void> {
   const octokit = await getInstallationOctokit(input.installationId);
   const { owner, repo } = parseRepositoryFullName(input.repositoryFullName);
@@ -61,7 +79,11 @@ export async function completeGithubRepositoryAutomationCheckRun(input: {
     check_run_id: Number(input.checkRunId),
     status: "completed",
     conclusion: input.conclusion,
-    details_url: buildDetailsUrl(input.jobId),
+    details_url: buildGithubRepositoryAutomationJobDetailsUrl({
+      organizationSlug: input.organizationSlug,
+      githubRepositoryId: input.githubRepositoryId,
+      jobId: input.jobId,
+    }),
     output: {
       title: CHECK_RUN_NAME,
       summary: input.summary,

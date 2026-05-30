@@ -12,6 +12,8 @@ export type AutomationCommitRef = {
 
 const ZERO_SHA = "0000000000000000000000000000000000000000";
 
+export const GITHUB_REPOSITORY_AUTOMATION_COMMIT_LOG_LIMIT = 50;
+
 export function isZeroCommitSha(sha: string | null | undefined): boolean {
   return !sha || sha === ZERO_SHA;
 }
@@ -47,15 +49,24 @@ export function buildCommitRangeLogArgs(input: {
     return [];
   }
 
+  const limit = String(GITHUB_REPOSITORY_AUTOMATION_COMMIT_LOG_LIMIT);
+
   if (isZeroCommitSha(input.commitBefore)) {
-    return ["log", "--reverse", "--format=%H%x09%P", "-n", "50", input.commitAfter];
+    return ["log", "--reverse", "--format=%H%x09%P", "-n", limit, input.commitAfter];
   }
 
   if (!input.commitBefore) {
-    return ["log", "--reverse", "--format=%H%x09%P", "-n", "50", input.commitAfter];
+    return ["log", "--reverse", "--format=%H%x09%P", "-n", limit, input.commitAfter];
   }
 
-  return ["log", "--reverse", "--format=%H%x09%P", `${input.commitBefore}..${input.commitAfter}`];
+  return [
+    "log",
+    "--reverse",
+    "--format=%H%x09%P",
+    "-n",
+    limit,
+    `${input.commitBefore}..${input.commitAfter}`,
+  ];
 }
 
 export function parseNameOnlyDiffPaths(output: string): string[] {

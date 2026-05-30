@@ -125,6 +125,11 @@ export async function runGithubRepositoryAutomationValidation(input: {
 
   const blockOnFailure = workflows.validationBlockOnFailure ?? true;
   const { commitBefore, commitAfter } = await resolveCommitRange(job);
+  const checkRunDetails = {
+    organizationSlug: job.organizationSlug,
+    githubRepositoryId: job.githubRepositoryId,
+    jobId: job.id,
+  };
 
   let sandboxId: string | null = null;
   let checkRunId: string | null = job.githubCheckRunId;
@@ -142,7 +147,7 @@ export async function runGithubRepositoryAutomationValidation(input: {
         installationId: job.githubInstallationId,
         repositoryFullName: job.repositoryFullName,
         headSha: commitAfter,
-        jobId: job.id,
+        ...checkRunDetails,
       });
       if (checkRunId) {
         await updateGithubRepositoryAutomationJobStatus({
@@ -175,7 +180,7 @@ export async function runGithubRepositoryAutomationValidation(input: {
           checkRunId,
           conclusion: "neutral",
           summary: "No Hyperlocalise i18n config was found in the repository.",
-          jobId: job.id,
+          ...checkRunDetails,
         });
       }
 
@@ -334,7 +339,7 @@ export async function runGithubRepositoryAutomationValidation(input: {
         checkRunId,
         conclusion: finalStatus === "failed" ? "failure" : "success",
         summary: buildCheckRunSummary(summary),
-        jobId: job.id,
+        ...checkRunDetails,
       });
     }
 
@@ -357,7 +362,7 @@ export async function runGithubRepositoryAutomationValidation(input: {
         checkRunId,
         conclusion: "failure",
         summary: message,
-        jobId: job.id,
+        ...checkRunDetails,
       }).catch(() => undefined);
     }
 

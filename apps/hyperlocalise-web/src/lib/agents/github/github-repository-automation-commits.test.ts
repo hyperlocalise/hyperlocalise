@@ -38,7 +38,7 @@ describe("github repository automation commits", () => {
         commitBefore: "before123",
         commitAfter: "after456",
       }),
-    ).toEqual(["log", "--reverse", "--format=%H%x09%P", "before123..after456"]);
+    ).toEqual(["log", "--reverse", "--format=%H%x09%P", "-n", "50", "before123..after456"]);
   });
 
   it("parses name-only diff paths", () => {

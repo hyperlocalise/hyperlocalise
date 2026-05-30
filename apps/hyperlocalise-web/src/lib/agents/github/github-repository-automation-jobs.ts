@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -38,6 +38,7 @@ export type GithubRepositoryAutomationJobRecord = {
 };
 
 export type GithubRepositoryAutomationJobWithRepository = GithubRepositoryAutomationJobRecord & {
+  organizationSlug: string | null;
   repositoryFullName: string;
   defaultBranch: string | null;
 };
@@ -166,6 +167,7 @@ export async function getGithubRepositoryAutomationJobById(
     .select({
       job: schema.githubRepositoryAutomationJobs,
       repository: schema.githubInstallationRepositories,
+      organizationSlug: schema.organizations.slug,
     })
     .from(schema.githubRepositoryAutomationJobs)
     .innerJoin(
@@ -174,6 +176,10 @@ export async function getGithubRepositoryAutomationJobById(
         schema.githubRepositoryAutomationJobs.githubInstallationRepositoryId,
         schema.githubInstallationRepositories.id,
       ),
+    )
+    .innerJoin(
+      schema.organizations,
+      eq(schema.githubRepositoryAutomationJobs.organizationId, schema.organizations.id),
     )
     .where(eq(schema.githubRepositoryAutomationJobs.id, jobId))
     .limit(1);
@@ -184,6 +190,7 @@ export async function getGithubRepositoryAutomationJobById(
 
   return {
     ...serializeJob(row.job),
+    organizationSlug: row.organizationSlug,
     repositoryFullName: row.repository.fullName,
     defaultBranch: row.repository.defaultBranch,
   };
@@ -263,7 +270,8 @@ export async function findLatestSucceededCommitAfter(input: {
           schema.githubRepositoryAutomationJobs.githubInstallationRepositoryId,
           input.githubInstallationRepositoryId,
         ),
-        inArray(schema.githubRepositoryAutomationJobs.status, ["succeeded", "failed"]),
+        eq(schema.githubRepositoryAutomationJobs.status, "succeeded"),
+        isNotNull(schema.githubRepositoryAutomationJobs.commitAfter),
       ),
     )
     .orderBy(desc(schema.githubRepositoryAutomationJobs.createdAt))
