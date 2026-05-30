@@ -9,7 +9,7 @@ vi.mock("@/lib/env", () => ({
 }));
 
 vi.mock("@/lib/billing/usage-control", () => ({
-  reserveUsageEvent: vi.fn(async () => ({ id: "usage_123" })),
+  reserveUsageEvent: vi.fn(async () => ({ ok: true, value: { id: "usage_123" } })),
   usageFeatureIds: {
     translationJobs: "translation_jobs",
     agentRuns: "agent_runs",

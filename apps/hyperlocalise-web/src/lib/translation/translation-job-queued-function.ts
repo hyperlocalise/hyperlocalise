@@ -5,9 +5,11 @@ import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import {
+  formatUsageControlError,
   markUsageEventSucceededByOperationKey,
   trackUsageEventInAutumnByOperationKey,
 } from "@/lib/billing/usage-control";
+import { isErr } from "@/lib/primitives/result/results";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
 import {
   createOpenAIStringTranslationGenerator,
@@ -438,14 +440,17 @@ export async function completeTranslationJob(input: {
   }
 
   const operationKey = `job:${input.jobId}:translation_jobs`;
-  await markUsageEventSucceededByOperationKey({ operationKey });
-  try {
-    await trackUsageEventInAutumnByOperationKey({ operationKey });
-  } catch (error) {
+  const markUsageResult = await markUsageEventSucceededByOperationKey({ operationKey });
+  if (isErr(markUsageResult)) {
+    throw new Error(formatUsageControlError(markUsageResult.error));
+  }
+
+  const trackUsageResult = await trackUsageEventInAutumnByOperationKey({ operationKey });
+  if (isErr(trackUsageResult)) {
     console.error("[translation-job] Autumn usage tracking failed after job succeeded", {
       jobId: input.jobId,
       operationKey,
-      error: error instanceof Error ? error.message : "autumn_tracking_failed",
+      error: formatUsageControlError(trackUsageResult.error),
     });
   }
 

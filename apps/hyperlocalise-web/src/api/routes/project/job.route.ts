@@ -20,7 +20,12 @@ import {
   getStoredFileForJobScope,
 } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
-import { reserveUsageEvent, usageFeatureIds } from "@/lib/billing/usage-control";
+import {
+  formatUsageControlError,
+  reserveUsageEvent,
+  usageFeatureIds,
+} from "@/lib/billing/usage-control";
+import { isErr } from "@/lib/primitives/result/results";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -463,7 +468,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           })
           .returning();
 
-        await reserveUsageEvent({
+        const usageEventResult = await reserveUsageEvent({
           db: tx,
           organizationId: c.var.auth.organization.localOrganizationId,
           featureId: usageFeatureIds.translationJobs,
@@ -472,6 +477,9 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           jobId,
           quantity: 1,
         });
+        if (isErr(usageEventResult)) {
+          throw new Error(formatUsageControlError(usageEventResult.error));
+        }
 
         return [{ ...createdJob, type: details.type }];
       });

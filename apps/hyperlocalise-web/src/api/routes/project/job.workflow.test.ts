@@ -6,7 +6,12 @@ import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
-import { reserveUsageEvent, usageFeatureIds } from "@/lib/billing/usage-control";
+import {
+  formatUsageControlError,
+  reserveUsageEvent,
+  usageFeatureIds,
+} from "@/lib/billing/usage-control";
+import { isErr } from "@/lib/primitives/result/results";
 import { encryptProviderCredential } from "@/lib/security/provider-credential-crypto";
 import {
   claimTranslationJob,
@@ -85,7 +90,7 @@ async function insertJob(input: {
       })
       .returning();
 
-    await reserveUsageEvent({
+    const usageEventResult = await reserveUsageEvent({
       db: tx,
       organizationId: input.organizationId,
       featureId: usageFeatureIds.translationJobs,
@@ -94,6 +99,9 @@ async function insertJob(input: {
       jobId: job.id,
       quantity: 1,
     });
+    if (isErr(usageEventResult)) {
+      throw new Error(formatUsageControlError(usageEventResult.error));
+    }
 
     return { ...job, type: details.type };
   });

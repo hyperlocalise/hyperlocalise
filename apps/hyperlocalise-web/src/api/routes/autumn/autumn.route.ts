@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { createMiddleware } from "hono/factory";
+import type { ResolvedIdentity } from "autumn-js/backend";
 import { autumnHandler } from "autumn-js/hono";
 
 import { forbiddenResponse } from "@/api/errors";
@@ -15,6 +16,7 @@ import {
   AUTUMN_BILLING_WRITE_ROUTE_NAMES,
   getAutumnRouteNameFromPath,
 } from "@/lib/billing/autumn-route-access";
+import { isErr } from "@/lib/primitives/result/results";
 
 const requireBillingReadMiddleware = createMiddleware<{ Variables: AuthVariables }>(
   async (c, next) => {
@@ -34,7 +36,7 @@ const requireBillingReadMiddleware = createMiddleware<{ Variables: AuthVariables
 const requireBillingWriteForRouteMiddleware = createMiddleware<{ Variables: AuthVariables }>(
   async (c, next) => {
     const routeName = getAutumnRouteNameFromPath(new URL(c.req.url).pathname);
-    if (routeName && AUTUMN_BILLING_WRITE_ROUTE_NAMES.has(routeName)) {
+    if (!isErr(routeName) && AUTUMN_BILLING_WRITE_ROUTE_NAMES.has(routeName.value)) {
       const auth = c.get("auth");
       if (!hasCapability(auth.membership.role, "billing:write")) {
         return forbiddenResponse(
@@ -50,21 +52,21 @@ const requireBillingWriteForRouteMiddleware = createMiddleware<{ Variables: Auth
 );
 
 type AutumnVariables = AuthVariables & {
-  autumnCustomerIdentity: NonNullable<ReturnType<typeof resolveAutumnCustomerIdentity>>;
+  autumnCustomerIdentity: ResolvedIdentity;
 };
 
 const requireBillableWorkspaceMiddleware = createMiddleware<{ Variables: AutumnVariables }>(
   async (c, next) => {
     const identity = resolveAutumnCustomerIdentity(c.get("auth"));
-    if (!identity?.customerId) {
+    if (isErr(identity)) {
       return forbiddenResponse(
         c,
-        "billing_customer_unavailable",
+        identity.error.code,
         "Billing is not available for this workspace",
       );
     }
 
-    c.set("autumnCustomerIdentity", identity);
+    c.set("autumnCustomerIdentity", identity.value);
     await next();
   },
 );

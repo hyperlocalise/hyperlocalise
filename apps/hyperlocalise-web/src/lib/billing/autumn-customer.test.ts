@@ -6,6 +6,7 @@ import {
   LOCAL_ORG_WORKOS_ID_PREFIX,
   resolveAutumnCustomerIdentity,
 } from "@/lib/billing/autumn-customer";
+import { isErr } from "@/lib/primitives/result/results";
 
 function createAuthContext(
   overrides: Partial<ApiAuthContext["organization"]> = {},
@@ -51,8 +52,14 @@ function createAuthContext(
 describe("autumn customer identity", () => {
   it("maps organizations to stable Autumn customer IDs", () => {
     const auth = createAuthContext();
+    const identity = resolveAutumnCustomerIdentity(auth);
 
-    expect(resolveAutumnCustomerIdentity(auth)).toEqual({
+    expect(isErr(identity)).toBe(false);
+    if (isErr(identity)) {
+      throw new Error("Expected Autumn customer identity to resolve");
+    }
+
+    expect(identity.value).toEqual({
       customerId: "00000000-0000-4000-8000-000000000010",
       customerData: {
         name: "Example Workspace",
@@ -67,6 +74,9 @@ describe("autumn customer identity", () => {
     });
 
     expect(isDeprecatedLocalOrgWorkosId(auth.organization.workosOrganizationId)).toBe(true);
-    expect(resolveAutumnCustomerIdentity(auth)).toBeNull();
+    expect(resolveAutumnCustomerIdentity(auth)).toMatchObject({
+      ok: false,
+      error: { code: "billing_customer_unavailable" },
+    });
   });
 });

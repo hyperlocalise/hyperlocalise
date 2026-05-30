@@ -11,12 +11,17 @@ import {
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
 import { db, schema } from "@/lib/database";
-import { reserveUsageEvent, usageFeatureIds } from "@/lib/billing/usage-control";
+import {
+  formatUsageControlError,
+  reserveUsageEvent,
+  usageFeatureIds,
+} from "@/lib/billing/usage-control";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
+import { isErr } from "@/lib/primitives/result/results";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -197,7 +202,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
             })
             .returning();
 
-          await reserveUsageEvent({
+          const usageEventResult = await reserveUsageEvent({
             db: tx,
             organizationId,
             featureId: usageFeatureIds.translationJobs,
@@ -206,6 +211,9 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
             jobId,
             quantity: 1,
           });
+          if (isErr(usageEventResult)) {
+            throw new Error(formatUsageControlError(usageEventResult.error));
+          }
 
           return [{ ...createdJob, type: details.type }];
         });

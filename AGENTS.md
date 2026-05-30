@@ -75,3 +75,64 @@ Install `vp` via `curl -fsSL https://vite.plus | bash`, then run `vp env setup` 
 
 - Standard commands per `AGENTS.md`: `make bootstrap`, `make fmt`, `make lint`, `make test`.
 - Run the CLI with `go run ./apps/cli <command>`.
+
+### TypeScript Error Handling with Result
+
+For predictable error handling in the web app, prefer the Go-like `Result<T, E>` pattern for expected failures in shared business logic and provider integrations.
+
+```typescript
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+
+type ProviderCredentialError =
+    | { code: "unsupported_provider_model" }
+    | { code: "provider_validation_failed"; message: string };
+
+async function validateCredential(input: CredentialInput): Promise<Result<void, ProviderCredentialError>> {
+    if (!isSupportedModel(input.provider, input.model)) {
+        return err({ code: "unsupported_provider_model" });
+    }
+
+    const response = await validateWithProvider(input);
+    if (!response.ok) {
+        return err({ code: "provider_validation_failed", message: response.message });
+    }
+
+    return ok(undefined);
+}
+
+const result = await validateCredential(input);
+if (isErr(result)) {
+    return mapCredentialErrorToResponse(result.error);
+}
+```
+
+Use `Result` when the failure is expected and part of normal control flow:
+
+- Provider credential validation, provider API calls, billing/usage tracking, URL/SSRF validation, encryption/decryption checks, and other integration boundaries.
+- Domain rules that callers should branch on, such as unsupported models, missing provider credentials, rate limits, invalid external IDs, or unsafe URLs.
+- Shared library functions with multiple callers. Let routes, server actions, workers, or UI handlers decide how to present the error.
+- Parsing helpers. Use `safeJsonParse`, Zod `safeParse`, or `fromThrowable` wrappers instead of open-coded `try`/`catch` for recoverable parsing failures.
+
+Model errors as small discriminated unions with stable `code` values. Avoid string-matching `error.message` for known errors.
+
+Keep `throw`/`try`/`catch` where exceptions are the right contract:
+
+- Framework boundaries and control flow, such as Next.js `redirect()` and Hono/Next request handlers that catch unknown errors.
+- Drizzle transaction rollback paths, unless the transaction is explicitly aborted another way.
+- Best-effort cleanup and logging, where the original failure must still propagate.
+- Truly unexpected programmer errors or invariant violations.
+- Third-party APIs that throw before they reach a local adapter. Wrap them once at the adapter boundary and return `Result` from our code.
+
+At HTTP and server-action boundaries, convert `Result` errors into the existing response conventions. For Hono JSON routes, return the standard `{ error, message, details }` envelope from `apps/hyperlocalise-web/src/api/response.schema.ts`. For server actions, return action state with field or form errors. Re-throw unknown failures so global error handling still catches bugs.
+
+## Code Style & Conventions
+
+Use 4 spaces indentation
+
+### Naming Conventions
+
+- **Classes**: PascalCase
+- **Variables/Functions/Methods**: camelCase
+- **Files/Directories**: kebab-case
+- **Environment Variables**: UPPERCASE
+- **Constants**: UPPERCASE (avoid magic numbers)

@@ -1,15 +1,67 @@
 import { eq } from "drizzle-orm";
 
-import { env } from "@/lib/env";
+import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
 import type { DatabaseClient } from "@/lib/database";
 import { db, schema } from "@/lib/database";
+import { env } from "@/lib/env";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const AUTUMN_API_VERSION = "2.2.0";
 const AUTUMN_TRACK_USAGE_URL = "https://api.useautumn.com/v1/balances.track";
 
-import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
-
 export { usageFeatureIds, type UsageFeatureId };
+
+export type UsageEventReference = {
+  id: string;
+};
+
+export type UsageEventNotFoundError = {
+  code: "usage_event_not_found";
+  operationKey: string;
+};
+
+export type ReserveUsageEventError = {
+  code: "usage_event_reservation_failed";
+  operationKey: string;
+};
+
+export type MarkUsageEventSucceededError = UsageEventNotFoundError;
+
+export type TrackUsageEventError =
+  | UsageEventNotFoundError
+  | {
+      code: "usage_event_not_trackable";
+      operationKey: string;
+      status: (typeof schema.usageEvents.$inferSelect)["status"];
+    }
+  | {
+      code: "autumn_usage_tracking_failed";
+      operationKey: string;
+      message: string;
+      httpStatus?: number;
+    };
+
+export type TrackUsageEventResult = {
+  status: "already_tracked" | "tracking_pending" | "tracking_succeeded";
+};
+
+export type UsageControlError =
+  | ReserveUsageEventError
+  | MarkUsageEventSucceededError
+  | TrackUsageEventError;
+
+export function formatUsageControlError(error: UsageControlError): string {
+  switch (error.code) {
+    case "usage_event_not_found":
+      return `usage event not found for operation key ${error.operationKey}`;
+    case "usage_event_reservation_failed":
+      return `failed to reserve usage event for operation key ${error.operationKey}`;
+    case "usage_event_not_trackable":
+      return `usage event ${error.operationKey} must be succeeded before tracking, got ${error.status}`;
+    case "autumn_usage_tracking_failed":
+      return error.message;
+  }
+}
 
 export async function reserveUsageEvent(input: {
   db?: DatabaseClient;
@@ -20,7 +72,7 @@ export async function reserveUsageEvent(input: {
   quantity?: number;
   jobId?: string;
   interactionId?: string;
-}) {
+}): Promise<Result<UsageEventReference, ReserveUsageEventError>> {
   const database = input.db ?? db;
   const [event] = await database
     .insert(schema.usageEvents)
@@ -36,7 +88,7 @@ export async function reserveUsageEvent(input: {
     .onConflictDoNothing({ target: schema.usageEvents.operationKey })
     .returning({ id: schema.usageEvents.id });
 
-  if (event) return event;
+  if (event) return ok(event);
 
   const [existing] = await database
     .select({ id: schema.usageEvents.id })
@@ -44,14 +96,14 @@ export async function reserveUsageEvent(input: {
     .where(eq(schema.usageEvents.operationKey, input.operationKey))
     .limit(1);
 
-  if (existing) return existing;
-  throw new Error("failed to reserve usage event");
+  if (existing) return ok(existing);
+  return err({ code: "usage_event_reservation_failed", operationKey: input.operationKey });
 }
 
 export async function markUsageEventSucceededByOperationKey(input: {
   db?: DatabaseClient;
   operationKey: string;
-}) {
+}): Promise<Result<void, MarkUsageEventSucceededError>> {
   const database = input.db ?? db;
   const [event] = await database
     .update(schema.usageEvents)
@@ -60,8 +112,10 @@ export async function markUsageEventSucceededByOperationKey(input: {
     .returning({ id: schema.usageEvents.id });
 
   if (!event) {
-    throw new Error(`usage event not found for operation key ${input.operationKey}`);
+    return err({ code: "usage_event_not_found", operationKey: input.operationKey });
   }
+
+  return ok(undefined);
 }
 
 function canTrackUsageEventStatus(status: (typeof schema.usageEvents.$inferSelect)["status"]) {
@@ -77,30 +131,45 @@ async function trackUsageEventInAutumn(input: {
   event: typeof schema.usageEvents.$inferSelect;
   apiKey: string;
   fetchFn: typeof fetch;
-}) {
-  const response = await input.fetchFn(AUTUMN_TRACK_USAGE_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${input.apiKey}`,
-      "Content-Type": "application/json",
-      "x-api-version": AUTUMN_API_VERSION,
-    },
-    body: JSON.stringify({
-      customer_id: input.event.organizationId,
-      feature_id: input.event.featureId,
-      value: input.event.quantity,
-      idempotency_key: input.event.operationKey,
-      properties: {
-        operation_key: input.event.operationKey,
-        source: input.event.source,
-        job_id: input.event.jobId,
-        interaction_id: input.event.interactionId,
-      },
-    }),
-  });
+}): Promise<Result<void, Extract<TrackUsageEventError, { code: "autumn_usage_tracking_failed" }>>> {
+  let response: Response;
 
-  if (response.ok || response.status === 409) return;
-  throw new Error(`Autumn usage tracking failed with HTTP ${response.status}`);
+  try {
+    response = await input.fetchFn(AUTUMN_TRACK_USAGE_URL, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${input.apiKey}`,
+        "Content-Type": "application/json",
+        "x-api-version": AUTUMN_API_VERSION,
+      },
+      body: JSON.stringify({
+        customer_id: input.event.organizationId,
+        feature_id: input.event.featureId,
+        value: input.event.quantity,
+        idempotency_key: input.event.operationKey,
+        properties: {
+          operation_key: input.event.operationKey,
+          source: input.event.source,
+          job_id: input.event.jobId,
+          interaction_id: input.event.interactionId,
+        },
+      }),
+    });
+  } catch (error) {
+    return err({
+      code: "autumn_usage_tracking_failed",
+      operationKey: input.event.operationKey,
+      message: autumnTrackErrorMessage(error),
+    });
+  }
+
+  if (response.ok || response.status === 409) return ok(undefined);
+  return err({
+    code: "autumn_usage_tracking_failed",
+    operationKey: input.event.operationKey,
+    message: `Autumn usage tracking failed with HTTP ${response.status}`,
+    httpStatus: response.status,
+  });
 }
 
 export async function trackUsageEventInAutumnByOperationKey(input: {
@@ -108,7 +177,7 @@ export async function trackUsageEventInAutumnByOperationKey(input: {
   operationKey: string;
   autumnApiKey?: string;
   fetchFn?: typeof fetch;
-}) {
+}): Promise<Result<TrackUsageEventResult, TrackUsageEventError>> {
   const database = input.db ?? db;
   const [event] = await database
     .select()
@@ -117,15 +186,17 @@ export async function trackUsageEventInAutumnByOperationKey(input: {
     .limit(1);
 
   if (!event) {
-    throw new Error(`usage event not found for operation key ${input.operationKey}`);
+    return err({ code: "usage_event_not_found", operationKey: input.operationKey });
   }
 
-  if (event.status === "tracking_succeeded") return;
+  if (event.status === "tracking_succeeded") return ok({ status: "already_tracked" });
 
   if (!canTrackUsageEventStatus(event.status)) {
-    throw new Error(
-      `usage event ${input.operationKey} must be succeeded before tracking, got ${event.status}`,
-    );
+    return err({
+      code: "usage_event_not_trackable",
+      operationKey: input.operationKey,
+      status: event.status,
+    });
   }
 
   const autumnApiKey = input.autumnApiKey ?? env.AUTUMN_API_KEY;
@@ -137,9 +208,9 @@ export async function trackUsageEventInAutumnByOperationKey(input: {
       .returning({ id: schema.usageEvents.id });
 
     if (!updatedEvent) {
-      throw new Error(`usage event not found for operation key ${input.operationKey}`);
+      return err({ code: "usage_event_not_found", operationKey: input.operationKey });
     }
-    return;
+    return ok({ status: "tracking_pending" });
   }
 
   const [pendingEvent] = await database
@@ -149,26 +220,26 @@ export async function trackUsageEventInAutumnByOperationKey(input: {
     .returning({ id: schema.usageEvents.id });
 
   if (!pendingEvent) {
-    throw new Error(`usage event not found for operation key ${input.operationKey}`);
+    return err({ code: "usage_event_not_found", operationKey: input.operationKey });
   }
 
-  try {
-    await trackUsageEventInAutumn({
-      event,
-      apiKey: autumnApiKey,
-      fetchFn: input.fetchFn ?? fetch,
-    });
-  } catch (error) {
+  const trackingResult = await trackUsageEventInAutumn({
+    event,
+    apiKey: autumnApiKey,
+    fetchFn: input.fetchFn ?? fetch,
+  });
+
+  if (!trackingResult.ok) {
     const [failedEvent] = await database
       .update(schema.usageEvents)
-      .set({ status: "tracking_failed", autumnTrackError: autumnTrackErrorMessage(error) })
+      .set({ status: "tracking_failed", autumnTrackError: trackingResult.error.message })
       .where(eq(schema.usageEvents.id, event.id))
       .returning({ id: schema.usageEvents.id });
 
     if (!failedEvent) {
-      throw new Error(`usage event not found for operation key ${input.operationKey}`);
+      return err({ code: "usage_event_not_found", operationKey: input.operationKey });
     }
-    throw error;
+    return err(trackingResult.error);
   }
 
   const [trackedEvent] = await database
@@ -178,6 +249,8 @@ export async function trackUsageEventInAutumnByOperationKey(input: {
     .returning({ id: schema.usageEvents.id });
 
   if (!trackedEvent) {
-    throw new Error(`usage event not found for operation key ${input.operationKey}`);
+    return err({ code: "usage_event_not_found", operationKey: input.operationKey });
   }
+
+  return ok({ status: "tracking_succeeded" });
 }
