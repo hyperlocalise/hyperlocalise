@@ -19,6 +19,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage"
 )
 
@@ -823,7 +824,7 @@ func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, req GlossaryDownloadR
 		return GlossaryDownloadResult{}, fmt.Errorf("write smartling glossary csv header: %w", err)
 	}
 	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
+		if err := writer.Write(csvsafe.EscapeRow(row)); err != nil {
 			return GlossaryDownloadResult{}, fmt.Errorf("write smartling glossary csv row: %w", err)
 		}
 	}

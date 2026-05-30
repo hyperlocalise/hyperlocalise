@@ -137,6 +137,7 @@ func TestHyperlocalisePullUsesManifestJobWhenNewerSameFileJobExists(t *testing.T
 				},
 			},
 		},
+		configRoot:   dir,
 		projectID:    "project-1",
 		manifestPath: manifestPath,
 		client: &hyperlocaliseAPIClient{
@@ -238,6 +239,7 @@ func TestHyperlocalisePullPollsUntilManifestJobIsComplete(t *testing.T) {
 				},
 			},
 		},
+		configRoot:   dir,
 		projectID:    "project-1",
 		manifestPath: manifestPath,
 		timeout:      200 * time.Millisecond,
@@ -269,6 +271,125 @@ func TestHyperlocalisePullPollsUntilManifestJobIsComplete(t *testing.T) {
 	}
 	if string(content) != `{"hello":"Bonjour"}` {
 		t.Fatalf("target content = %q", string(content))
+	}
+}
+
+func TestHyperlocalisePullResolvesRelativeManifestTargetAgainstConfigRoot(t *testing.T) {
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("getwd: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = os.Chdir(wd)
+	})
+
+	projectDir := t.TempDir()
+	otherCWD := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(projectDir, "locales"), 0o755); err != nil {
+		t.Fatalf("mkdir locales: %v", err)
+	}
+	if err := os.Chdir(otherCWD); err != nil {
+		t.Fatalf("chdir away from project: %v", err)
+	}
+
+	relativeTarget := filepath.Join("locales", "fr.json")
+	manifestPath := filepath.Join(projectDir, "hyperlocalise-jobs.json")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/jobs/job-owned":
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job":{"id":"job-owned","status":"succeeded","outputFiles":[{"fileId":"file-fr","locale":"fr","filename":"fr.json"}]}}`))
+		case "/v1/files/file-fr/download":
+			_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+	if err := writeHyperlocaliseManifest(manifestPath, hyperlocaliseSyncManifest{
+		Version:     hyperlocaliseManifestVersion,
+		Complete:    true,
+		GeneratedAt: time.Now().UTC(),
+		ProjectID:   "project-1",
+		Jobs: []hyperlocaliseManifestJob{{
+			JobID:         "job-owned",
+			SourcePath:    "locales/en.json",
+			TargetLocales: []string{"fr"},
+			TargetPaths: map[string]string{
+				"fr": relativeTarget,
+			},
+		}},
+	}); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	rt := &hyperlocaliseSyncRuntime{
+		configRoot:   projectDir,
+		projectID:    "project-1",
+		manifestPath: manifestPath,
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{}, time.Second)
+	if err != nil {
+		t.Fatalf("pull with relative manifest target: %v", err)
+	}
+	if report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded file", report)
+	}
+	writtenPath := filepath.Join(projectDir, relativeTarget)
+	content, err := os.ReadFile(writtenPath)
+	if err != nil {
+		t.Fatalf("read resolved target: %v", err)
+	}
+	if string(content) != `{"hello":"Bonjour"}` {
+		t.Fatalf("target content = %q", string(content))
+	}
+}
+
+func TestHyperlocalisePullRejectsManifestTargetOutsideConfigRoot(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	manifestPath := filepath.Join(dir, "hyperlocalise-jobs.json")
+	outsideTarget := filepath.Join(outside, "fr.json")
+	if err := writeHyperlocaliseManifest(manifestPath, hyperlocaliseSyncManifest{
+		Version:     hyperlocaliseManifestVersion,
+		Complete:    true,
+		GeneratedAt: time.Now().UTC(),
+		ProjectID:   "project-1",
+		Jobs: []hyperlocaliseManifestJob{{
+			JobID:         "job-owned",
+			SourcePath:    "locales/en.json",
+			TargetLocales: []string{"fr"},
+			TargetPaths: map[string]string{
+				"fr": outsideTarget,
+			},
+		}},
+	}); err != nil {
+		t.Fatalf("write manifest: %v", err)
+	}
+
+	rt := &hyperlocaliseSyncRuntime{
+		configRoot:   dir,
+		projectID:    "project-1",
+		manifestPath: manifestPath,
+		client: &hyperlocaliseAPIClient{
+			baseURL:    "http://example.invalid",
+			apiKey:     "test-key",
+			httpClient: &http.Client{Timeout: time.Second},
+		},
+	}
+
+	_, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{}, time.Second)
+	if err == nil {
+		t.Fatalf("expected manifest target path outside config root to be rejected")
+	}
+	if !strings.Contains(err.Error(), "escapes root") {
+		t.Fatalf("error = %v, want root escape rejection", err)
 	}
 }
 

@@ -383,6 +383,35 @@ func TestHTTPClientWriteGlossaryCSVRejectsRepeatedCursor(t *testing.T) {
 	}
 }
 
+func TestHTTPClientWriteGlossaryCSVEscapesFormulaPrefixes(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/projects/proj-1/glossary-terms", func(w http.ResponseWriter, _ *http.Request) {
+		writeLokaliseJSON(t, w, map[string]any{
+			"items": []any{
+				map[string]any{
+					"id": 1, "term": "=cmd", "description": "+note", "case_sensitive": false,
+					"translatable": true, "forbidden": false, "tags": []any{"@tag"},
+					"translations": []any{},
+				},
+			},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client, err := NewHTTPClientWithBaseURL(Config{APIToken: "token"}, srv.URL, srv.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := bytes.NewBuffer(nil)
+	if _, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{ProjectID: "proj-1"}, out); err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	if !strings.Contains(out.String(), "'=cmd") || !strings.Contains(out.String(), "'+note") || !strings.Contains(out.String(), "'@tag") {
+		t.Fatalf("expected formula-prefixed cells to be escaped, got: %s", out.String())
+	}
+}
+
 func TestHTTPClientWriteGlossaryCSVHandlesEmptyGlossary(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/projects/proj-1/glossary-terms", func(w http.ResponseWriter, _ *http.Request) {

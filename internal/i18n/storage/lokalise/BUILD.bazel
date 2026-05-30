@@ -6,6 +6,7 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/lokalise",
     visibility = ["//visibility:public"],
     deps = [
+        "//internal/csvsafe",
         "//internal/i18n/locales",
         "//internal/i18n/storage",
         "@com_github_lokalise_go_lokalise_api_v5//:go-lokalise-api",
