@@ -1,22 +1,33 @@
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { eq } from "drizzle-orm";
-import { beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import {
   clearPendingMembershipReplacingInvitation,
   markPendingMembershipReplacingInvitation,
+  promoteInvitedPlaceholderUser,
   removePendingOrganizationMembershipForInvite,
+  revokeOrganizationMembershipAccess,
   syncWorkosIdentity,
 } from "@/api/auth/workos-sync";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import {
+  INVITED_WORKOS_USER_ID_PREFIX,
+  REPLACING_WORKOS_MEMBERSHIP_ID,
+} from "@/lib/workos/constants";
 
-const { createWorkosIdentity } = createAuthTestFixture();
+const { createWorkosIdentity, cleanup, trackWorkosUserId } = createAuthTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
+});
+
+afterEach(async () => {
+  await cleanup();
 });
 
 describe("removePendingOrganizationMembershipForInvite", () => {
@@ -77,5 +88,58 @@ describe("removePendingOrganizationMembershipForInvite", () => {
     await db
       .delete(schema.organizationMemberships)
       .where(eq(schema.organizationMemberships.id, membership.id));
+  });
+
+  it("removes pending invite rows for revoked invitations", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+
+    const pendingEmail = `revoked-${randomUUID()}@example.com`;
+    const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
+
+    trackWorkosUserId(placeholderUserId);
+
+    await syncWorkosIdentity(db, {
+      user: {
+        workosUserId: placeholderUserId,
+        email: pendingEmail,
+      },
+      organization: ownerIdentity.organization,
+      membership: {
+        role: "member",
+      },
+    });
+
+    const deleted = await removePendingOrganizationMembershipForInvite(db, {
+      workosOrganizationId: ownerIdentity.organization.workosOrganizationId,
+      email: pendingEmail,
+    });
+
+    expect(deleted).toBe(1);
+  });
+});
+
+describe("promoteInvitedPlaceholderUser", () => {
+  it("returns false when no placeholder user exists for the email", async () => {
+    const promoted = await promoteInvitedPlaceholderUser(db, {
+      email: "missing@example.com",
+      workosUserId: "user_real",
+    });
+
+    expect(promoted).toBe(false);
+  });
+});
+
+describe("revokeOrganizationMembershipAccess", () => {
+  it("is a no-op when the membership id is unknown", async () => {
+    const result = await revokeOrganizationMembershipAccess(db, {
+      workosMembershipId: "membership_missing",
+    });
+
+    expect(result).toEqual({
+      organizationMembershipsDeleted: 0,
+      teamMembershipsDeleted: 0,
+      mcpSessionsDeleted: 0,
+    });
   });
 });
