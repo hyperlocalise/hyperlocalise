@@ -7,6 +7,7 @@ import { db, schema } from "@/lib/database";
 import { eq } from "drizzle-orm";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
+import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 
 const { withAuthMock } = vi.hoisted(() => ({
   withAuthMock: vi.fn(),
@@ -205,6 +206,56 @@ describe("resolveApiAuthContextFromSession", () => {
         organizationSlug: "not-a-real-membership",
       }),
     ).rejects.toThrow("organization_access_denied");
+  });
+
+  it("does not grant access while invite replacement sentinel is set on membership", async () => {
+    const identity = fixture.createWorkosIdentity();
+    const synced = await syncWorkosIdentity(db, identity);
+
+    await db
+      .update(schema.organizationMemberships)
+      .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
+      .where(eq(schema.organizationMemberships.organizationId, synced.organization.id));
+
+    withAuthMock.mockResolvedValue({
+      user: { id: synced.user.workosUserId },
+      organizationId: null,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+
+    await expect(
+      resolveApiAuthContextFromSession({
+        organizationSlug: identity.organization.slug,
+      }),
+    ).rejects.toThrow("organization_access_denied");
+
+    await expect(resolveApiAuthContextFromSession()).resolves.toBeNull();
+  });
+
+  it("does not grant access for pending invitations without WorkOS membership confirmation", async () => {
+    const pendingOnlyIdentity = fixture.createWorkosIdentity();
+    const synced = await syncWorkosIdentity(db, pendingOnlyIdentity);
+
+    await db
+      .update(schema.organizationMemberships)
+      .set({ workosMembershipId: null })
+      .where(eq(schema.organizationMemberships.organizationId, synced.organization.id));
+
+    withAuthMock.mockResolvedValue({
+      user: { id: synced.user.workosUserId },
+      organizationId: null,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+
+    await expect(
+      resolveApiAuthContextFromSession({
+        organizationSlug: pendingOnlyIdentity.organization.slug,
+      }),
+    ).rejects.toThrow("organization_access_denied");
+
+    await expect(resolveApiAuthContextFromSession()).resolves.toBeNull();
   });
 
   it("uses the injected session without performing another withAuth lookup", async () => {

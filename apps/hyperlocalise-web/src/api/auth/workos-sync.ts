@@ -1,10 +1,14 @@
-import { and, eq, inArray, like } from "drizzle-orm";
+import { and, eq, inArray, isNull, like, sql } from "drizzle-orm";
 
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import type { DatabaseClient } from "@/lib/database";
-import { INVITED_WORKOS_USER_ID_PREFIX } from "@/lib/workos/constants";
+import {
+  INVITED_WORKOS_USER_ID_PREFIX,
+  isInvitedPlaceholderWorkosUserId,
+  REPLACING_WORKOS_MEMBERSHIP_ID,
+} from "@/lib/workos/constants";
 
 export type WorkosUserSync = {
   workosUserId: string;
@@ -241,6 +245,94 @@ export type RemoveWorkosMembershipResult = {
   organizationMembershipsDeleted: number;
   target: RevocationTarget | null;
 };
+
+export async function markPendingMembershipReplacingInvitation(
+  database: DatabaseClient,
+  membershipId: string,
+): Promise<boolean> {
+  const result = await database
+    .update(schema.organizationMemberships)
+    .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
+    .where(
+      and(
+        eq(schema.organizationMemberships.id, membershipId),
+        isNull(schema.organizationMemberships.workosMembershipId),
+      ),
+    );
+
+  return Number(result.rowCount ?? 0) > 0;
+}
+
+export async function clearPendingMembershipReplacingInvitation(
+  database: DatabaseClient,
+  membershipId: string,
+): Promise<void> {
+  await database
+    .update(schema.organizationMemberships)
+    .set({ workosMembershipId: null })
+    .where(
+      and(
+        eq(schema.organizationMemberships.id, membershipId),
+        eq(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+      ),
+    );
+}
+
+export async function removePendingOrganizationMembershipForInvite(
+  database: DatabaseClient,
+  input: { workosOrganizationId: string; email: string },
+): Promise<number> {
+  const normalizedEmail = input.email.trim().toLowerCase();
+
+  const [organization] = await database
+    .select({ id: schema.organizations.id })
+    .from(schema.organizations)
+    .where(eq(schema.organizations.workosOrganizationId, input.workosOrganizationId))
+    .limit(1);
+
+  if (!organization) {
+    return 0;
+  }
+
+  const [user] = await database
+    .select({
+      id: schema.users.id,
+      workosUserId: schema.users.workosUserId,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.email, normalizedEmail))
+    .limit(1);
+
+  if (!user) {
+    return 0;
+  }
+
+  const result = await database
+    .delete(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.organizationId, organization.id),
+        eq(schema.organizationMemberships.userId, user.id),
+        isNull(schema.organizationMemberships.workosMembershipId),
+      ),
+    );
+
+  if (isInvitedPlaceholderWorkosUserId(user.workosUserId) && Number(result.rowCount ?? 0) > 0) {
+    await database.delete(schema.users).where(
+      and(
+        eq(schema.users.id, user.id),
+        like(schema.users.workosUserId, `${INVITED_WORKOS_USER_ID_PREFIX}%`),
+        sql`not exists (
+          select 1
+          from ${schema.organizationMemberships}
+          where ${schema.organizationMemberships.userId} = ${schema.users.id}
+        )`,
+      ),
+    );
+  }
+
+  return Number(result.rowCount ?? 0);
+}
 
 export async function removeWorkosMembership(
   database: DatabaseClient,

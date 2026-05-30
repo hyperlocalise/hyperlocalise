@@ -1,10 +1,11 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, ne } from "drizzle-orm";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 
 type ResolveApiAuthContextOptions = {
   cookie?: string;
@@ -252,6 +253,8 @@ export async function resolveApiAuthContextFromSession(
       and(
         eq(schema.users.workosUserId, session.user.id),
         eq(schema.organizations.lifecycleStatus, "active"),
+        isNotNull(schema.organizationMemberships.workosMembershipId),
+        ne(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
       ),
     )
     .orderBy(schema.organizations.name);

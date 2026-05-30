@@ -6,15 +6,19 @@ import { bodyLimit } from "hono/body-limit";
 
 import {
   promoteInvitedPlaceholderUser,
+  removePendingOrganizationMembershipForInvite,
   revokeOrganizationMembershipAccess,
   syncWorkosIdentity,
   syncWorkosOrganization,
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
 import { env } from "@/lib/env";
+import { createLogger } from "@/lib/log";
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { type WorkosWebhookEvent, workosWebhookEventSchema } from "./workos-webhook.schema";
+
+const logger = createLogger("workos-webhook");
 
 type ParsedSignature = {
   timestamp: string;
@@ -101,6 +105,29 @@ function toMembershipRole(data: Record<string, unknown>): OrganizationMembership
 async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
   const { db } = await import("@/lib/database");
   const data = event.data;
+
+  if (event.event === "invitation.revoked") {
+    const workosOrganizationId = readString(data, "organization_id");
+    const email = readString(data, "email");
+
+    if (!workosOrganizationId || !email) {
+      logger.warn("invitation.revoked missing required fields", {
+        event: event.event,
+        missingFields: [
+          !workosOrganizationId ? "organization_id" : null,
+          !email ? "email" : null,
+        ].filter(Boolean),
+      });
+      return;
+    }
+
+    await removePendingOrganizationMembershipForInvite(db, {
+      workosOrganizationId,
+      email,
+    });
+
+    return;
+  }
 
   if (event.event === "user.created" || event.event === "user.updated") {
     const workosUserId = readString(data, "id", "user_id");
@@ -191,6 +218,10 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
     }
 
     if (!existingUser) {
+      return;
+    }
+
+    if (!workosMembershipId) {
       return;
     }
 

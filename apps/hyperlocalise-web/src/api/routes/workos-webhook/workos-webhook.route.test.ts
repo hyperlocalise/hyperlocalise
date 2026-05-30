@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test"
 import { app } from "@/api/app";
 import {
   promoteInvitedPlaceholderUser,
+  removePendingOrganizationMembershipForInvite,
   revokeOrganizationMembershipAccess,
   syncWorkosUser,
 } from "@/api/auth/workos-sync";
@@ -27,7 +28,7 @@ vi.mock("@/api/auth/workos-sync", () => ({
   syncWorkosUser: vi.fn().mockResolvedValue(undefined),
   syncWorkosOrganization: vi.fn().mockResolvedValue(undefined),
   syncWorkosIdentity: vi.fn().mockResolvedValue(undefined),
-  removeWorkosMembership: vi.fn().mockResolvedValue(undefined),
+  removePendingOrganizationMembershipForInvite: vi.fn().mockResolvedValue(1),
   revokeOrganizationMembershipAccess: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -103,6 +104,35 @@ describe("workosWebhookRoutes", () => {
       workosUserId: "user_123",
     });
     expect(syncWorkosUser).toHaveBeenCalled();
+  });
+
+  it("removes pending local membership when an invitation is revoked", async () => {
+    const client = testClient(app);
+
+    const payload = JSON.stringify({
+      event: "invitation.revoked",
+      data: {
+        organization_id: "org_123",
+        email: "revoked@example.com",
+      },
+    });
+
+    const response = await client.api.webhooks.workos.$post(
+      {
+        json: JSON.parse(payload) as unknown as never,
+      },
+      {
+        headers: {
+          "workos-signature": sign(payload),
+        },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(removePendingOrganizationMembershipForInvite).toHaveBeenCalledWith(expect.anything(), {
+      workosOrganizationId: "org_123",
+      email: "revoked@example.com",
+    });
   });
 
   it("revokes local access for organization_membership.deleted", async () => {

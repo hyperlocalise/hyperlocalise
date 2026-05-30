@@ -8,6 +8,7 @@ const {
   deleteOrganizationMembershipMock,
   getWorkosServerClientMock,
   listInvitationsMock,
+  resendInvitationMock,
   resolveApiAuthContextFromSessionMock,
   revokeInvitationMock,
   sendInvitationMock,
@@ -20,9 +21,8 @@ const {
       null,
   ),
   sendInvitationMock: vi.fn(async () => ({ id: "invitation_mock" })),
-  listInvitationsMock: vi.fn(async () => ({
-    data: [{ id: "invitation_mock", state: "pending" }],
-  })),
+  resendInvitationMock: vi.fn(async () => ({ id: "invitation_mock" })),
+  listInvitationsMock: vi.fn(async () => ({ data: [] as { id: string; state: string }[] })),
   revokeInvitationMock: vi.fn(async () => undefined),
   deleteOrganizationMembershipMock: vi.fn(async () => undefined),
   updateOrganizationMembershipMock: vi.fn(async () => undefined),
@@ -47,6 +47,7 @@ vi.mock("@/lib/workos/server-client", () => ({
     return {
       userManagement: {
         sendInvitation: sendInvitationMock,
+        resendInvitation: resendInvitationMock,
         listInvitations: listInvitationsMock,
         revokeInvitation: revokeInvitationMock,
         deleteOrganizationMembership: deleteOrganizationMembershipMock,
@@ -57,6 +58,7 @@ vi.mock("@/lib/workos/server-client", () => ({
 }));
 
 import { createApp } from "@/api/app";
+import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -94,6 +96,10 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+  sendInvitationMock.mockResolvedValue({ id: "invitation_mock" });
+  resendInvitationMock.mockResolvedValue({ id: "invitation_mock" });
+  revokeInvitationMock.mockResolvedValue(undefined);
+  listInvitationsMock.mockResolvedValue({ data: [] });
   await memberFixture.cleanup();
 });
 
@@ -302,6 +308,7 @@ describe("memberRoutes", () => {
   });
 
   it("rolls back pending invite when WorkOS invitation fails", async () => {
+    listInvitationsMock.mockResolvedValue({ data: [] });
     sendInvitationMock.mockRejectedValueOnce(new Error("boom"));
     const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
@@ -447,6 +454,278 @@ describe("memberRoutes", () => {
     );
 
     expect(response.status).toBe(403);
+  });
+
+  it("returns member_invite_revoked_not_delivered when replace revokes but send fails", async () => {
+    listInvitationsMock.mockResolvedValue({
+      data: [{ id: "stale_invitation", state: "pending" }],
+    });
+    sendInvitationMock.mockRejectedValue(new Error("workos unavailable"));
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const response = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "revoked-not-sent@example.com", role: "admin" },
+      headers,
+    );
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "member_invite_revoked_not_delivered",
+    });
+    expect(revokeInvitationMock).toHaveBeenCalledWith("stale_invitation");
+    expect(sendInvitationMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("replaces a stale WorkOS invitation when inviting with no local pending membership", async () => {
+    listInvitationsMock.mockResolvedValue({
+      data: [{ id: "stale_invitation", state: "pending" }],
+    });
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const response = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "stale-workos@example.com", role: "admin" },
+      headers,
+    );
+    expect(response.status).toBe(201);
+    expect(revokeInvitationMock).toHaveBeenCalledWith("stale_invitation");
+    expect(sendInvitationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: "stale-workos@example.com",
+        roleSlug: "admin",
+      }),
+    );
+    expect(resendInvitationMock).not.toHaveBeenCalled();
+  });
+
+  it("resends a pending invitation instead of creating a duplicate membership", async () => {
+    listInvitationsMock
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [{ id: "invitation_mock", state: "pending" }] });
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    const firstResponse = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "resend-me@example.com", role: "member" },
+      headers,
+    );
+    expect(firstResponse.status).toBe(201);
+    expect(sendInvitationMock).toHaveBeenCalledTimes(1);
+
+    const secondResponse = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "resend-me@example.com", role: "member" },
+      headers,
+    );
+    expect(secondResponse.status).toBe(200);
+    expect(sendInvitationMock).toHaveBeenCalledTimes(1);
+    expect(resendInvitationMock).toHaveBeenCalledTimes(1);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    expect(
+      listBody.members.filter((member) => member.email === "resend-me@example.com"),
+    ).toHaveLength(1);
+  });
+
+  it("replaces a pending invitation when the role changes on resend", async () => {
+    listInvitationsMock
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [{ id: "invitation_mock", state: "pending" }] })
+      .mockResolvedValueOnce({ data: [{ id: "invitation_mock", state: "pending" }] });
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "role-change@example.com", role: "member" },
+      headers,
+    );
+
+    const resendResponse = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "role-change@example.com", role: "admin" },
+      headers,
+    );
+    expect(resendResponse.status).toBe(200);
+    expect(revokeInvitationMock).toHaveBeenCalledWith("invitation_mock");
+    expect(sendInvitationMock).toHaveBeenCalledTimes(2);
+    expect(resendInvitationMock).not.toHaveBeenCalled();
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    const member = listBody.members.find((row) => row.email === "role-change@example.com");
+    expect(member?.role).toBe("admin");
+  });
+
+  it("rolls back a role change when resend delivery fails", async () => {
+    sendInvitationMock.mockReset();
+    listInvitationsMock.mockReset();
+    revokeInvitationMock.mockReset();
+
+    let sendInvitationCalls = 0;
+    sendInvitationMock.mockImplementation(async () => {
+      sendInvitationCalls += 1;
+      if (sendInvitationCalls > 1) {
+        throw new Error("workos unavailable");
+      }
+      return { id: "invitation_mock" };
+    });
+
+    let listInvitationCalls = 0;
+    listInvitationsMock.mockImplementation(async () => {
+      listInvitationCalls += 1;
+      if (listInvitationCalls === 1) {
+        return { data: [] };
+      }
+      return { data: [{ id: "invitation_mock", state: "pending" }] };
+    });
+    revokeInvitationMock.mockResolvedValue(undefined);
+
+    const ownerIdentity = createWorkosIdentity();
+    const headers = await authHeadersFor(ownerIdentity);
+
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "rollback-role@example.com", role: "member" },
+      headers,
+    );
+
+    const failedResend = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "rollback-role@example.com", role: "admin" },
+      headers,
+    );
+    expect(failedResend.status).toBe(500);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    const member = listBody.members.find((row) => row.email === "rollback-role@example.com");
+    expect(member?.role).toBe("member");
+  });
+
+  it("replaces a pending WorkOS invitation when PATCH changes an existing user's role", async () => {
+    listInvitationsMock.mockResolvedValue({
+      data: [{ id: "invitation_mock", state: "pending" }],
+    });
+
+    const ownerIdentity = createWorkosIdentity();
+    const existingUserIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, existingUserIdentity);
+
+    const headers = await authHeadersFor(ownerIdentity);
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: existingUserIdentity.user.email, role: "member" },
+      headers,
+    );
+
+    const updateResponse = await updateMemberRoleViaApi(
+      ownerIdentity,
+      existingUserIdentity.user.workosUserId,
+      "admin",
+      headers,
+    );
+    expect(updateResponse.status).toBe(200);
+    expect(revokeInvitationMock).toHaveBeenCalledWith("invitation_mock");
+    expect(sendInvitationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: existingUserIdentity.user.email,
+        roleSlug: "admin",
+      }),
+    );
+    expect(updateOrganizationMembershipMock).not.toHaveBeenCalled();
+  });
+
+  it("rolls back PATCH role changes for pending members when invitation sync fails", async () => {
+    listInvitationsMock
+      .mockResolvedValueOnce({ data: [] })
+      .mockResolvedValueOnce({ data: [{ id: "invitation_mock", state: "pending" }] });
+    revokeInvitationMock.mockRejectedValueOnce(new Error("workos unavailable"));
+
+    const ownerIdentity = createWorkosIdentity();
+    const existingUserIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, existingUserIdentity);
+
+    const headers = await authHeadersFor(ownerIdentity);
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: existingUserIdentity.user.email, role: "member" },
+      headers,
+    );
+
+    const updateResponse = await updateMemberRoleViaApi(
+      ownerIdentity,
+      existingUserIdentity.user.workosUserId,
+      "admin",
+      headers,
+    );
+    expect(updateResponse.status).toBe(500);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    expect(
+      listBody.members.find((row) => row.email === existingUserIdentity.user.email)?.role,
+    ).toBe("member");
+  });
+
+  it("shows existing users as invited until WorkOS confirms membership", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const existingUserIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, existingUserIdentity);
+
+    const headers = await authHeadersFor(ownerIdentity);
+    const response = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: existingUserIdentity.user.email, role: "member" },
+      headers,
+    );
+    expect(response.status).toBe(201);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    const invited = listBody.members.find(
+      (member) => member.email === existingUserIdentity.user.email,
+    );
+    expect(invited?.status).toBe("invited");
+    expect(invited?.workosUserId).toBe(existingUserIdentity.user.workosUserId);
+  });
+
+  it("revokes WorkOS invitations when removing a pending existing user", async () => {
+    listInvitationsMock.mockResolvedValue({
+      data: [{ id: "invitation_mock", state: "pending" }],
+    });
+
+    const ownerIdentity = createWorkosIdentity();
+    const existingUserIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, existingUserIdentity);
+
+    const headers = await authHeadersFor(ownerIdentity);
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: existingUserIdentity.user.email, role: "member" },
+      headers,
+    );
+
+    const deleteResponse = await removeMemberViaApi(
+      ownerIdentity,
+      existingUserIdentity.user.workosUserId,
+      headers,
+    );
+    expect(deleteResponse.status).toBe(204);
+    expect(revokeInvitationMock).toHaveBeenCalled();
   });
 
   it("returns 409 when removing the last owner", async () => {

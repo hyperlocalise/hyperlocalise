@@ -5,7 +5,11 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
+import {
+  clearPendingMembershipReplacingInvitation,
+  markPendingMembershipReplacingInvitation,
+  revokeOrganizationMembershipAccess,
+} from "@/api/auth/workos-sync";
 import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -23,8 +27,9 @@ import {
   getOrganizationMember,
   invalidMemberPayloadResponse,
   INVITED_WORKOS_USER_ID_PREFIX,
-  isInvitedPlaceholderWorkosUserId,
+  isActiveOrganizationMembership,
   isMemberListAllowed,
+  isPendingOrganizationMembership,
   shouldCleanupPlaceholderUserOnMemberRemoval,
   isMemberManageAllowed,
   lastOwnerProtectedResponse,
@@ -60,7 +65,7 @@ const validateMemberParams = validator("param", (value, c) => {
 
 function shouldSyncMembershipToWorkos(input: { workosMembershipId: string | null }) {
   const workos = getWorkosServerClient();
-  return Boolean(input.workosMembershipId) && workos !== null;
+  return isActiveOrganizationMembership(input.workosMembershipId) && workos !== null;
 }
 
 async function inviteOrganizationMember(input: {
@@ -71,8 +76,18 @@ async function inviteOrganizationMember(input: {
 }) {
   const normalizedEmail = input.email.trim().toLowerCase();
 
-  const existingMember = await db
-    .select({ id: schema.users.id })
+  const [existingMembership] = await db
+    .select({
+      membershipId: schema.organizationMemberships.id,
+      workosMembershipId: schema.organizationMemberships.workosMembershipId,
+      role: schema.organizationMemberships.role,
+      createdAt: schema.organizationMemberships.createdAt,
+      localUserId: schema.users.id,
+      workosUserId: schema.users.workosUserId,
+      email: schema.users.email,
+      firstName: schema.users.firstName,
+      lastName: schema.users.lastName,
+    })
     .from(schema.users)
     .innerJoin(
       schema.organizationMemberships,
@@ -86,8 +101,41 @@ async function inviteOrganizationMember(input: {
     )
     .limit(1);
 
-  if (existingMember[0]) {
-    return { error: "member_already_exists" as const };
+  if (existingMembership) {
+    if (isActiveOrganizationMembership(existingMembership.workosMembershipId)) {
+      return { error: "member_already_exists" as const };
+    }
+
+    const roleChanged = existingMembership.role !== input.role;
+    const previousRole = existingMembership.role;
+
+    if (roleChanged) {
+      await db
+        .update(schema.organizationMemberships)
+        .set({ role: input.role })
+        .where(eq(schema.organizationMemberships.id, existingMembership.membershipId));
+    }
+
+    return {
+      resend: true as const,
+      roleChanged,
+      previousRole,
+      membershipId: existingMembership.membershipId,
+      localUserId: existingMembership.localUserId,
+      isNewUser: false,
+      member: toMemberSummary(
+        {
+          workosUserId: existingMembership.workosUserId,
+          email: existingMembership.email,
+          firstName: existingMembership.firstName,
+          lastName: existingMembership.lastName,
+          role: input.role,
+          createdAt: existingMembership.createdAt,
+          workosMembershipId: existingMembership.workosMembershipId,
+        },
+        "",
+      ),
+    };
   }
 
   const [existingUser] = await db
@@ -148,6 +196,7 @@ async function inviteOrganizationMember(input: {
         lastName: user.lastName,
         role: membership.role,
         createdAt: membership.createdAt,
+        workosMembershipId: null,
       },
       "",
     ),
@@ -167,13 +216,10 @@ async function cleanupInvitedPlaceholderUser(localUserId: string) {
   );
 }
 
-async function revokePendingWorkosInvitation(input: {
-  workosOrganizationId: string;
-  email: string;
-}) {
+async function findPendingWorkosInvitation(input: { workosOrganizationId: string; email: string }) {
   const workos = getWorkosServerClient();
   if (!workos) {
-    return;
+    return null;
   }
 
   const normalizedEmail = input.email.trim().toLowerCase();
@@ -183,12 +229,113 @@ async function revokePendingWorkosInvitation(input: {
     limit: 10,
   });
 
-  const pendingInvitation = invitations.data.find((invitation) => invitation.state === "pending");
+  return invitations.data.find((invitation) => invitation.state === "pending") ?? null;
+}
+
+async function revokePendingWorkosInvitation(input: {
+  workosOrganizationId: string;
+  email: string;
+}) {
+  const pendingInvitation = await findPendingWorkosInvitation(input);
   if (!pendingInvitation) {
     return;
   }
 
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return;
+  }
+
   await workos.userManagement.revokeInvitation(pendingInvitation.id);
+}
+
+class WorkosInvitationRevokedNotDeliveredError extends Error {
+  readonly code = "member_invite_revoked_not_delivered" as const;
+
+  constructor() {
+    super("WorkOS invitation was revoked but a replacement could not be sent");
+    this.name = "WorkosInvitationRevokedNotDeliveredError";
+  }
+}
+
+function isWorkosInvitationRevokedNotDeliveredError(
+  error: unknown,
+): error is WorkosInvitationRevokedNotDeliveredError {
+  return error instanceof WorkosInvitationRevokedNotDeliveredError;
+}
+
+async function sendWorkosInvitation(
+  workos: NonNullable<ReturnType<typeof getWorkosServerClient>>,
+  input: {
+    workosOrganizationId: string;
+    email: string;
+    inviterUserId: string;
+    roleSlug: OrganizationMembershipRole;
+  },
+) {
+  await workos.userManagement.sendInvitation({
+    email: input.email.trim().toLowerCase(),
+    organizationId: input.workosOrganizationId,
+    inviterUserId: input.inviterUserId,
+    roleSlug: input.roleSlug,
+  });
+}
+
+async function deliverWorkosInvitation(input: {
+  workosOrganizationId: string;
+  email: string;
+  inviterUserId: string;
+  roleSlug: OrganizationMembershipRole;
+  replacePendingInvitation?: boolean;
+  localMembershipId?: string;
+}) {
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    throw new Error("workos_not_configured");
+  }
+
+  const pendingInvitation = await findPendingWorkosInvitation({
+    workosOrganizationId: input.workosOrganizationId,
+    email: input.email,
+  });
+
+  const invitationPayload = {
+    workosOrganizationId: input.workosOrganizationId,
+    email: input.email,
+    inviterUserId: input.inviterUserId,
+    roleSlug: input.roleSlug,
+  };
+
+  if (pendingInvitation && input.replacePendingInvitation) {
+    const markedReplacing = input.localMembershipId
+      ? await markPendingMembershipReplacingInvitation(db, input.localMembershipId)
+      : false;
+
+    try {
+      await workos.userManagement.revokeInvitation(pendingInvitation.id);
+      try {
+        await sendWorkosInvitation(workos, invitationPayload);
+      } catch {
+        try {
+          await sendWorkosInvitation(workos, invitationPayload);
+        } catch {
+          throw new WorkosInvitationRevokedNotDeliveredError();
+        }
+      }
+    } finally {
+      if (markedReplacing && input.localMembershipId) {
+        await clearPendingMembershipReplacingInvitation(db, input.localMembershipId);
+      }
+    }
+    return;
+  }
+
+  if (pendingInvitation) {
+    await workos.userManagement.resendInvitation(pendingInvitation.id);
+    return;
+  }
+
+  await sendWorkosInvitation(workos, invitationPayload);
 }
 
 async function rollbackPendingInvite(input: {
@@ -223,6 +370,7 @@ export function createMemberRoutes() {
           lastName: schema.users.lastName,
           role: schema.organizationMemberships.role,
           createdAt: schema.organizationMemberships.createdAt,
+          workosMembershipId: schema.organizationMemberships.workosMembershipId,
         })
         .from(schema.organizationMemberships)
         .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
@@ -276,19 +424,43 @@ export function createMemberRoutes() {
         return memberAlreadyExistsResponse(c);
       }
 
+      const isResend = "resend" in pendingInvite && pendingInvite.resend;
+
       try {
-        await workos.userManagement.sendInvitation({
+        await deliverWorkosInvitation({
+          workosOrganizationId,
           email: normalizedEmail,
-          organizationId: workosOrganizationId,
           inviterUserId: c.var.auth.user.workosUserId,
           roleSlug: payload.role,
+          localMembershipId: pendingInvite.membershipId,
+          replacePendingInvitation:
+            !isResend || ("roleChanged" in pendingInvite && pendingInvite.roleChanged),
         });
-      } catch {
-        await rollbackPendingInvite({
-          membershipId: pendingInvite.membershipId,
-          localUserId: pendingInvite.localUserId,
-          isNewUser: pendingInvite.isNewUser,
-        });
+      } catch (error) {
+        if (!isResend) {
+          await rollbackPendingInvite({
+            membershipId: pendingInvite.membershipId,
+            localUserId: pendingInvite.localUserId,
+            isNewUser: pendingInvite.isNewUser,
+          });
+        } else if (
+          "roleChanged" in pendingInvite &&
+          pendingInvite.roleChanged &&
+          "previousRole" in pendingInvite
+        ) {
+          await db
+            .update(schema.organizationMemberships)
+            .set({ role: pendingInvite.previousRole })
+            .where(eq(schema.organizationMemberships.id, pendingInvite.membershipId));
+        }
+
+        if (isWorkosInvitationRevokedNotDeliveredError(error)) {
+          return internalErrorResponse(
+            c,
+            error.code,
+            "The previous invitation was revoked but a new one could not be sent. Invite this member again.",
+          );
+        }
 
         return internalErrorResponse(
           c,
@@ -304,7 +476,7 @@ export function createMemberRoutes() {
             isCurrentUser: false,
           },
         },
-        201,
+        isResend ? 200 : 201,
       );
     })
     .patch("/:workosUserId", validateMemberParams, validateUpdateMemberBody, async (c) => {
@@ -354,6 +526,9 @@ export function createMemberRoutes() {
       }
 
       const { updated } = updateResult;
+      const roleChanged = previousRole !== payload.role;
+      const isPendingInvite = isPendingOrganizationMembership(member.workosMembershipId);
+      const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
 
       if (
         shouldSyncMembershipToWorkos({
@@ -376,6 +551,49 @@ export function createMemberRoutes() {
             "Failed to sync member role with identity provider",
           );
         }
+      } else if (isPendingInvite && roleChanged) {
+        if (!workos) {
+          await db
+            .update(schema.organizationMemberships)
+            .set({ role: previousRole })
+            .where(eq(schema.organizationMemberships.id, member.membershipId));
+
+          return serviceUnavailableResponse(
+            c,
+            "workos_server_not_configured",
+            "WorkOS server integration is not configured",
+          );
+        }
+
+        try {
+          await deliverWorkosInvitation({
+            workosOrganizationId,
+            email: member.email,
+            inviterUserId: c.var.auth.user.workosUserId,
+            roleSlug: payload.role,
+            localMembershipId: member.membershipId,
+            replacePendingInvitation: true,
+          });
+        } catch (error) {
+          await db
+            .update(schema.organizationMemberships)
+            .set({ role: previousRole })
+            .where(eq(schema.organizationMemberships.id, member.membershipId));
+
+          if (isWorkosInvitationRevokedNotDeliveredError(error)) {
+            return internalErrorResponse(
+              c,
+              error.code,
+              "The previous invitation was revoked but a new one could not be sent. Invite this member again.",
+            );
+          }
+
+          return internalErrorResponse(
+            c,
+            "member_sync_failed",
+            "Failed to sync member role with identity provider",
+          );
+        }
       }
 
       return c.json(
@@ -388,6 +606,7 @@ export function createMemberRoutes() {
               lastName: member.lastName,
               role: updated.role,
               createdAt: updated.createdAt,
+              workosMembershipId: member.workosMembershipId,
             },
             c.var.auth.user.workosUserId,
           ),
@@ -415,7 +634,7 @@ export function createMemberRoutes() {
 
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
-      const isPendingInvite = isInvitedPlaceholderWorkosUserId(member.workosUserId);
+      const isPendingInvite = isPendingOrganizationMembership(member.workosMembershipId);
 
       if (member.role === "owner") {
         const ownerGuardResult = await db.transaction(async (tx) => {
@@ -446,7 +665,7 @@ export function createMemberRoutes() {
             "Failed to sync member removal with identity provider",
           );
         }
-      } else if (isPendingInvite) {
+      } else if (isPendingInvite && workos) {
         try {
           await revokePendingWorkosInvitation({
             workosOrganizationId,
