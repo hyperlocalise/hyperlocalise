@@ -22,7 +22,7 @@ func (p POFileParser) Parse(content []byte) (map[string]string, error) {
 		if !seenMsgID || !seenMsgStr {
 			return
 		}
-		key := strings.TrimSpace(currentMsgID.String())
+		key := currentMsgID.String()
 		if key == "" {
 			return // skip header entry (msgid "")
 		}
