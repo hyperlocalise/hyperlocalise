@@ -31,7 +31,17 @@ export async function loadUpgradeWorkspaceContext(): Promise<UpgradeWorkspaceCon
   const workspaces = await listLocalOrgWorkspacesForUser(db, session.user.id);
 
   if (workspaces.length === 0) {
-    const auth = await resolveApiAuthContextFromSession({ session });
+    let auth;
+    try {
+      auth = await resolveApiAuthContextFromSession({ session });
+    } catch (error) {
+      if (error instanceof Error && error.message === "workos_membership_lookup_failed") {
+        redirect("/auth/access-denied?reason=workos-membership-lookup-failed");
+      }
+
+      throw error;
+    }
+
     if (auth?.activeOrganization.slug) {
       redirect(getDashboardPath(auth.activeOrganization.slug));
     }

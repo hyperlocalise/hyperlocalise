@@ -71,7 +71,22 @@ export async function executeLegacyWorkspaceUpgrade(
     force: true,
   });
 
-  const auth = await resolveApiAuthContextFromSession({ session: input.session });
+  let auth;
+  try {
+    auth = await resolveApiAuthContextFromSession({ session: input.session });
+  } catch (error) {
+    if (error instanceof Error && error.message === "workos_membership_lookup_failed") {
+      return {
+        status: "failed",
+        error: "workspace_upgrade_failed",
+        message:
+          "We could not verify your membership with the identity provider. Try again in a moment or contact support if this continues.",
+        migration,
+      };
+    }
+
+    throw error;
+  }
 
   if (!auth?.activeOrganization.slug) {
     if (migration.migrated > 0) {

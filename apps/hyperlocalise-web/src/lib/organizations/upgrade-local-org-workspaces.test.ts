@@ -82,6 +82,24 @@ describe("executeLegacyWorkspaceUpgrade", () => {
     );
   });
 
+  it("returns failed when membership lookup fails during auth resolution", async () => {
+    migrateLocalOrgWorkspacesForUserMock.mockResolvedValue({
+      migrated: 1,
+      failed: 0,
+      skipped: 0,
+    });
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new Error("workos_membership_lookup_failed"),
+    );
+
+    const result = await executeLegacyWorkspaceUpgrade({ session });
+
+    expect(result).toMatchObject({
+      status: "failed",
+      error: "workspace_upgrade_failed",
+    });
+  });
+
   it("returns onboarding redirect when nothing was migrated and auth is still empty", async () => {
     migrateLocalOrgWorkspacesForUserMock.mockResolvedValue({
       migrated: 0,
