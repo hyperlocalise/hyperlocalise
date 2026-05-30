@@ -740,4 +740,35 @@ describe("memberRoutes", () => {
 
     expect(response.status).toBe(409);
   });
+
+  it("forbids members from inviting or managing workspace membership", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    const memberHeaders = await authHeadersFor(memberIdentity);
+
+    const inviteResponse = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "blocked-by-member@example.com", role: "member" },
+      memberHeaders,
+    );
+    expect(inviteResponse.status).toBe(403);
+
+    const updateResponse = await updateMemberRoleViaApi(
+      ownerIdentity,
+      ownerIdentity.user.workosUserId,
+      "admin",
+      memberHeaders,
+    );
+    expect(updateResponse.status).toBe(403);
+
+    const deleteResponse = await removeMemberViaApi(
+      ownerIdentity,
+      ownerIdentity.user.workosUserId,
+      memberHeaders,
+    );
+    expect(deleteResponse.status).toBe(403);
+  });
 });

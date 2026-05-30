@@ -1,5 +1,12 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
+/**
+ * Organization capability matrix. Authorization runs only after WorkOS-
+ * authoritative membership is established in `workos-session.ts`.
+ *
+ * Security invariants for access gates, member mutations, and future role work:
+ * see `./AUTH_INVARIANTS.md`.
+ */
 const MEMBER_READ_CAPABILITIES = [
   "workspace:read",
   "projects:read",
