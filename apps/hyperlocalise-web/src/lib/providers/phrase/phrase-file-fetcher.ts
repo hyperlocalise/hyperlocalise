@@ -1,4 +1,5 @@
 import type { ExternalTmsFileKeyFetcher } from "@/lib/providers/external-tms-file-sync";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import {
   PhraseApiClient,
@@ -344,27 +345,4 @@ function mapPhraseFetcherError(error: unknown) {
   }
 
   return error instanceof Error ? error : new Error("phrase_fetch_failed");
-}
-
-async function mapWithConcurrency<T>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T) => Promise<void>,
-) {
-  let nextIndex = 0;
-
-  async function worker() {
-    while (true) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-      if (currentIndex >= items.length) {
-        return;
-      }
-
-      await mapper(items[currentIndex] as T);
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
-  await Promise.all(workers);
 }

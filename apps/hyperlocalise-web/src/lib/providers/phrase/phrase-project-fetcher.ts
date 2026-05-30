@@ -1,4 +1,5 @@
 import type { ExternalTmsProjectFetcher } from "@/lib/providers/external-tms-project-sync";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import { PhraseApiClient, PhraseApiError } from "./phrase-api";
 
@@ -99,29 +100,4 @@ function localeIdentifier(locale: { name: string; code: string | null } | undefi
 function buildPhraseProjectUrl(project: { slug: string; account: { slug: string } | null }) {
   if (!project.account?.slug) return null;
   return `https://app.phrase.com/accounts/${project.account.slug}/projects/${project.slug}`;
-}
-
-async function mapWithConcurrency<T, R>(
-  items: T[],
-  concurrency: number,
-  mapper: (item: T) => Promise<R>,
-) {
-  const results: R[] = Array.from({ length: items.length });
-  let nextIndex = 0;
-
-  async function worker() {
-    while (true) {
-      const currentIndex = nextIndex;
-      nextIndex += 1;
-      if (currentIndex >= items.length) {
-        return;
-      }
-
-      results[currentIndex] = await mapper(items[currentIndex] as T);
-    }
-  }
-
-  const workers = Array.from({ length: Math.min(concurrency, items.length) }, () => worker());
-  await Promise.all(workers);
-  return results;
 }

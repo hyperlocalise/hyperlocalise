@@ -24,13 +24,14 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
-import { isErr } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { toolAccessibleJobsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";
 
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
 type JobKind = (typeof jobKinds)[number];
+type JobRecord = typeof schema.jobs.$inferSelect;
 
 function queuedJobUsageBilling(kind: JobKind) {
   switch (kind) {
@@ -56,6 +57,67 @@ function queuedJobUsageBilling(kind: JobKind) {
 }
 
 const jobQueue = createTranslationJobEventQueue();
+
+type JobCreationError =
+  | { code: "job_insert_failed"; message: string }
+  | { code: "usage_event_reservation_failed"; message: string };
+
+type CreateTranslationJobToolError =
+  | { code: "translation_job_permission_denied"; message: string }
+  | { code: "translation_job_project_missing"; message: string }
+  | { code: "translation_job_project_inaccessible"; message: string }
+  | { code: "translation_job_invalid_input"; message: string }
+  | { code: "translation_job_source_file_missing"; message: string }
+  | { code: "translation_job_source_file_format_unsupported"; message: string }
+  | { code: "translation_job_queue_unavailable"; message: string }
+  | JobCreationError;
+
+class JobCreationRollbackError extends Error {
+  constructor(readonly jobError: JobCreationError) {
+    super(jobError.message);
+  }
+}
+
+function formatCreateTranslationJobToolError(error: CreateTranslationJobToolError): string {
+  return error.message;
+}
+
+function jobInsertFailedError(): JobCreationError {
+  return { code: "job_insert_failed", message: "Failed to create job: no row returned." };
+}
+
+function usageReservationFailedError(message: string): JobCreationError {
+  return { code: "usage_event_reservation_failed", message };
+}
+
+function rollbackJobCreation(error: JobCreationError): never {
+  throw new JobCreationRollbackError(error);
+}
+
+async function reserveQueuedJobUsage(input: {
+  db: Parameters<typeof reserveUsageEvent>[0]["db"];
+  ctx: ToolContext;
+  job: Pick<JobRecord, "id">;
+  kind: JobKind;
+}): Promise<Result<void, JobCreationError>> {
+  const billing = queuedJobUsageBilling(input.kind);
+  const usageEventResult = await reserveUsageEvent({
+    db: input.db,
+    organizationId: input.ctx.organizationId,
+    featureId: billing.featureId,
+    operationKey: `job:${input.job.id}:${billing.operationKeySuffix}`,
+    source: billing.source,
+    jobId: input.job.id,
+    interactionId: input.ctx.conversationId ?? undefined,
+    quantity: 1,
+  });
+
+  if (isErr(usageEventResult)) {
+    return err(usageReservationFailedError(formatUsageControlError(usageEventResult.error)));
+  }
+
+  return ok(undefined);
+}
 
 export function createUnavailableJobKindTool(capability: string) {
   return tool({
@@ -124,10 +186,10 @@ async function getJobDetails(ctx: ToolContext, jobId: string) {
     .limit(1);
 
   if (!job) {
-    return null;
+    return err({ code: "job_not_found" as const, jobId });
   }
 
-  return {
+  return ok({
     id: job.id,
     organizationId: job.organizationId,
     projectId: job.projectId,
@@ -164,7 +226,7 @@ async function getJobDetails(ctx: ToolContext, jobId: string) {
                   config: job.assetConfig,
                 }
               : null,
-  };
+  });
 }
 
 function queuedJobValues(
@@ -187,32 +249,288 @@ function queuedJobValues(
   };
 }
 
-async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queuedJobValues>[1]) {
-  return ctx.db.transaction(async (tx) => {
-    const [job] = await tx.insert(schema.jobs).values(queuedJobValues(ctx, input)).returning();
+async function createQueuedJob(
+  ctx: ToolContext,
+  input: Parameters<typeof queuedJobValues>[1],
+): Promise<Result<JobRecord, JobCreationError>> {
+  try {
+    const job = await ctx.db.transaction(async (tx) => {
+      const [createdJob] = await tx
+        .insert(schema.jobs)
+        .values(queuedJobValues(ctx, input))
+        .returning();
 
-    if (!job) {
-      throw new Error("Failed to create job: no row returned.");
-    }
+      if (!createdJob) {
+        rollbackJobCreation(jobInsertFailedError());
+      }
 
-    const billing = queuedJobUsageBilling(input.kind);
+      const usageResult = await reserveQueuedJobUsage({
+        db: tx,
+        ctx,
+        job: createdJob,
+        kind: input.kind,
+      });
+      if (isErr(usageResult)) {
+        rollbackJobCreation(usageResult.error);
+      }
 
-    const usageEventResult = await reserveUsageEvent({
-      db: tx,
-      organizationId: ctx.organizationId,
-      featureId: billing.featureId,
-      operationKey: `job:${job.id}:${billing.operationKeySuffix}`,
-      source: billing.source,
-      jobId: job.id,
-      interactionId: ctx.conversationId ?? undefined,
-      quantity: 1,
+      return createdJob;
     });
-    if (isErr(usageEventResult)) {
-      throw new Error(formatUsageControlError(usageEventResult.error));
+
+    return ok(job);
+  } catch (error) {
+    if (error instanceof JobCreationRollbackError) {
+      return err(error.jobError);
+    }
+    throw error;
+  }
+}
+
+const createTranslationJobInputSchema = z.object({
+  type: z.enum(["string", "file"]).describe("Translation job type."),
+  sourceText: z.string().optional().describe("Source text for string jobs."),
+  sourceFileId: z.string().optional().describe("Source file ID for file jobs."),
+  fileFormat: z
+    .enum(supportedFileTranslationFileFormats)
+    .optional()
+    .describe("File format for file jobs."),
+  sourceLocale: z
+    .string()
+    .describe('BCP-47 source locale tag, or "auto" when the source locale is unknown.'),
+  targetLocales: z
+    .array(z.string().trim().min(1).max(32))
+    .min(1)
+    .max(maxTranslationTargetLocales)
+    .describe("List of BCP-47 target locale tags."),
+  context: z.string().optional().describe("Optional job-level translation context."),
+  metadata: z
+    .record(z.string().max(100), z.string().max(1000))
+    .refine((metadata) => Object.keys(metadata).length <= maxTranslationMetadataEntries, {
+      message: `metadata must contain at most ${maxTranslationMetadataEntries} entries`,
+    })
+    .optional()
+    .describe("Optional key-value metadata."),
+  maxLength: z
+    .number()
+    .positive()
+    .optional()
+    .describe("Optional maximum string length for string jobs."),
+});
+
+type CreateTranslationJobInput = z.infer<typeof createTranslationJobInputSchema>;
+
+type PreparedTranslationJobInput = {
+  sourceFileId?: string;
+  inputPayload: unknown;
+};
+
+function translationJobInputError(message: string): CreateTranslationJobToolError {
+  return { code: "translation_job_invalid_input", message };
+}
+
+async function prepareTranslationJobInput(
+  ctx: ToolContext,
+  input: CreateTranslationJobInput,
+): Promise<Result<PreparedTranslationJobInput, CreateTranslationJobToolError>> {
+  if (!hasCapability(ctx.membershipRole, "projects:write")) {
+    return err({
+      code: "translation_job_permission_denied",
+      message:
+        "You do not have permission to create translation jobs. Only organization owners and admins can perform this action.",
+    });
+  }
+
+  if (!ctx.projectId) {
+    return err({
+      code: "translation_job_project_missing",
+      message:
+        "No project is attached to this conversation. Attach a project before creating a translation job.",
+    });
+  }
+
+  if (!(await toolCanAccessProject(ctx, ctx.projectId))) {
+    return err({
+      code: "translation_job_project_inaccessible",
+      message: "The attached project is not accessible in this workspace.",
+    });
+  }
+
+  if (input.type === "string" && !input.sourceText?.trim()) {
+    return err(translationJobInputError("sourceText is required for string translation jobs."));
+  }
+
+  const sourceFileId = input.type === "file" ? input.sourceFileId?.trim() : undefined;
+
+  if (input.type === "file") {
+    if (!sourceFileId) {
+      return err(translationJobInputError("sourceFileId is required for file translation jobs."));
     }
 
-    return job;
-  });
+    if (!input.fileFormat) {
+      return err(translationJobInputError("fileFormat is required for file translation jobs."));
+    }
+
+    const sourceFile = await getStoredFileForJobScope({
+      organizationId: ctx.organizationId,
+      projectId: ctx.projectId,
+      fileId: sourceFileId,
+    });
+
+    if (!sourceFile) {
+      return err({
+        code: "translation_job_source_file_missing",
+        message: "Source file was not found for this organization or project.",
+      });
+    }
+
+    const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
+    if (!inferredFileFormat) {
+      return err({
+        code: "translation_job_source_file_format_unsupported",
+        message: "Source file extension is not supported for translation jobs.",
+      });
+    }
+
+    if (inferredFileFormat !== input.fileFormat) {
+      return err(
+        translationJobInputError(
+          `fileFormat must match source file extension: expected ${inferredFileFormat}.`,
+        ),
+      );
+    }
+  }
+
+  const inputPayload =
+    input.type === "string"
+      ? {
+          sourceText: input.sourceText,
+          sourceLocale: input.sourceLocale,
+          targetLocales: input.targetLocales,
+          metadata: input.metadata,
+          context: input.context,
+          maxLength: input.maxLength,
+        }
+      : {
+          sourceFileId,
+          fileFormat: input.fileFormat,
+          sourceLocale: input.sourceLocale,
+          targetLocales: input.targetLocales,
+          metadata: input.metadata,
+        };
+
+  return ok(sourceFileId ? { sourceFileId, inputPayload } : { inputPayload });
+}
+
+async function createTranslationJobRecord(
+  ctx: ToolContext,
+  input: CreateTranslationJobInput,
+  preparedInput: PreparedTranslationJobInput,
+): Promise<Result<JobRecord, JobCreationError>> {
+  try {
+    const job = await ctx.db.transaction(async (tx) => {
+      const sourceFileVersion = preparedInput.sourceFileId
+        ? await ensureRepositorySourceFileVersionForStoredFile({
+            db: tx,
+            organizationId: ctx.organizationId,
+            projectId: ctx.projectId,
+            fileId: preparedInput.sourceFileId,
+          })
+        : null;
+
+      const [createdJob] = await tx
+        .insert(schema.jobs)
+        .values(
+          queuedJobValues(ctx, {
+            kind: "translation",
+            inputPayload: preparedInput.inputPayload,
+          }),
+        )
+        .returning();
+
+      if (!createdJob) {
+        rollbackJobCreation(jobInsertFailedError());
+      }
+
+      await tx.insert(schema.translationJobDetails).values({
+        jobId: createdJob.id,
+        type: input.type,
+        sourceFileVersionId: sourceFileVersion?.id ?? null,
+      });
+
+      const usageResult = await reserveQueuedJobUsage({
+        db: tx,
+        ctx,
+        job: createdJob,
+        kind: "translation",
+      });
+      if (isErr(usageResult)) {
+        rollbackJobCreation(usageResult.error);
+      }
+
+      return createdJob;
+    });
+
+    return ok(job);
+  } catch (error) {
+    if (error instanceof JobCreationRollbackError) {
+      return err(error.jobError);
+    }
+    throw error;
+  }
+}
+
+async function enqueueTranslationJob(input: {
+  ctx: ToolContext;
+  job: JobRecord;
+  type: CreateTranslationJobInput["type"];
+}): Promise<Result<{ workflowRunIds: string[] }, CreateTranslationJobToolError>> {
+  const projectId = input.job.projectId ?? input.ctx.projectId;
+  if (!projectId) {
+    return err({
+      code: "translation_job_project_missing",
+      message:
+        "No project is attached to this conversation. Attach a project before creating a translation job.",
+    });
+  }
+
+  try {
+    const result = await jobQueue.enqueue({
+      kind: "translation",
+      jobId: input.job.id,
+      projectId,
+      type: input.type,
+    });
+
+    await input.ctx.db
+      .update(schema.jobs)
+      .set({ workflowRunId: result.ids[0] ?? null })
+      .where(
+        and(
+          eq(schema.jobs.id, input.job.id),
+          eq(schema.jobs.organizationId, input.ctx.organizationId),
+        ),
+      );
+
+    return ok({ workflowRunIds: result.ids });
+  } catch (error) {
+    await input.ctx.db
+      .update(schema.jobs)
+      .set({
+        status: "failed",
+        lastError: error instanceof Error ? error.message : "translation job queue unavailable",
+      })
+      .where(
+        and(
+          eq(schema.jobs.id, input.job.id),
+          eq(schema.jobs.organizationId, input.ctx.organizationId),
+        ),
+      );
+
+    return err({
+      code: "translation_job_queue_unavailable",
+      message: "Translation job queue unavailable.",
+    });
+  }
 }
 
 /**
@@ -237,208 +555,41 @@ async function createQueuedJob(ctx: ToolContext, input: Parameters<typeof queued
 export function createTranslationJobTool(ctx: ToolContext) {
   return tool({
     description: "Create a durable translation job (string or file) and enqueue it for execution.",
-    inputSchema: z.object({
-      type: z.enum(["string", "file"]).describe("Translation job type."),
-      sourceText: z.string().optional().describe("Source text for string jobs."),
-      sourceFileId: z.string().optional().describe("Source file ID for file jobs."),
-      fileFormat: z
-        .enum(supportedFileTranslationFileFormats)
-        .optional()
-        .describe("File format for file jobs."),
-      sourceLocale: z
-        .string()
-        .describe('BCP-47 source locale tag, or "auto" when the source locale is unknown.'),
-      targetLocales: z
-        .array(z.string().trim().min(1).max(32))
-        .min(1)
-        .max(maxTranslationTargetLocales)
-        .describe("List of BCP-47 target locale tags."),
-      context: z.string().optional().describe("Optional job-level translation context."),
-      metadata: z
-        .record(z.string().max(100), z.string().max(1000))
-        .refine((metadata) => Object.keys(metadata).length <= maxTranslationMetadataEntries, {
-          message: `metadata must contain at most ${maxTranslationMetadataEntries} entries`,
-        })
-        .optional()
-        .describe("Optional key-value metadata."),
-      maxLength: z
-        .number()
-        .positive()
-        .optional()
-        .describe("Optional maximum string length for string jobs."),
-    }),
+    inputSchema: createTranslationJobInputSchema,
     execute: async (input) => {
-      if (!hasCapability(ctx.membershipRole, "projects:write")) {
+      const preparedInputResult = await prepareTranslationJobInput(ctx, input);
+      if (isErr(preparedInputResult)) {
         return {
           success: false,
-          error:
-            "You do not have permission to create translation jobs. Only organization owners and admins can perform this action.",
+          error: formatCreateTranslationJobToolError(preparedInputResult.error),
         };
       }
 
-      if (!ctx.projectId) {
+      const jobResult = await createTranslationJobRecord(ctx, input, preparedInputResult.value);
+      if (isErr(jobResult)) {
         return {
           success: false,
-          error:
-            "No project is attached to this conversation. Attach a project before creating a translation job.",
+          error: formatCreateTranslationJobToolError(jobResult.error),
         };
       }
 
-      if (!(await toolCanAccessProject(ctx, ctx.projectId))) {
-        return {
-          success: false,
-          error: "The attached project is not accessible in this workspace.",
-        };
-      }
-
-      if (input.type === "string" && !input.sourceText?.trim()) {
-        return { success: false, error: "sourceText is required for string translation jobs." };
-      }
-
-      const sourceFileId = input.type === "file" ? input.sourceFileId?.trim() : undefined;
-
-      if (input.type === "file") {
-        if (!sourceFileId) {
-          return { success: false, error: "sourceFileId is required for file translation jobs." };
-        }
-
-        if (!input.fileFormat) {
-          return { success: false, error: "fileFormat is required for file translation jobs." };
-        }
-
-        const sourceFile = await getStoredFileForJobScope({
-          organizationId: ctx.organizationId,
-          projectId: ctx.projectId,
-          fileId: sourceFileId,
-        });
-
-        if (!sourceFile) {
-          return {
-            success: false,
-            error: "Source file was not found for this organization or project.",
-          };
-        }
-
-        const inferredFileFormat = inferSupportedFileTranslationFileFormat(sourceFile.filename);
-        if (!inferredFileFormat) {
-          return {
-            success: false,
-            error: "Source file extension is not supported for translation jobs.",
-          };
-        }
-
-        if (inferredFileFormat !== input.fileFormat) {
-          return {
-            success: false,
-            error: `fileFormat must match source file extension: expected ${inferredFileFormat}.`,
-          };
-        }
-      }
-
-      const inputPayload =
-        input.type === "string"
-          ? {
-              sourceText: input.sourceText,
-              sourceLocale: input.sourceLocale,
-              targetLocales: input.targetLocales,
-              metadata: input.metadata,
-              context: input.context,
-              maxLength: input.maxLength,
-            }
-          : {
-              sourceFileId,
-              fileFormat: input.fileFormat,
-              sourceLocale: input.sourceLocale,
-              targetLocales: input.targetLocales,
-              metadata: input.metadata,
-            };
-
-      const job = await ctx.db.transaction(async (tx) => {
-        const sourceFileVersion = sourceFileId
-          ? await ensureRepositorySourceFileVersionForStoredFile({
-              db: tx,
-              organizationId: ctx.organizationId,
-              projectId: ctx.projectId,
-              fileId: sourceFileId,
-            })
-          : null;
-
-        const [createdJob] = await tx
-          .insert(schema.jobs)
-          .values(
-            queuedJobValues(ctx, {
-              kind: "translation",
-              inputPayload,
-            }),
-          )
-          .returning();
-
-        if (!createdJob) {
-          throw new Error("Failed to create job: no row returned.");
-        }
-
-        await tx.insert(schema.translationJobDetails).values({
-          jobId: createdJob.id,
-          type: input.type,
-          sourceFileVersionId: sourceFileVersion?.id ?? null,
-        });
-
-        const usageEventResult = await reserveUsageEvent({
-          db: tx,
-          organizationId: ctx.organizationId,
-          featureId: usageFeatureIds.translationJobs,
-          operationKey: `job:${createdJob.id}:translation_jobs`,
-          source: "translation_job_create",
-          jobId: createdJob.id,
-          interactionId: ctx.conversationId ?? undefined,
-          quantity: 1,
-        });
-        if (isErr(usageEventResult)) {
-          throw new Error(formatUsageControlError(usageEventResult.error));
-        }
-
-        return createdJob;
-      });
-
-      try {
-        const result = await jobQueue.enqueue({
-          kind: "translation",
-          jobId: job.id,
-          projectId: ctx.projectId,
-          type: input.type,
-        });
-
-        await ctx.db
-          .update(schema.jobs)
-          .set({ workflowRunId: result.ids[0] ?? null })
-          .where(
-            and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, ctx.organizationId)),
-          );
-
-        return {
-          success: true,
-          jobId: job.id,
-          status: "enqueued",
-          workflowRunIds: result.ids,
-        };
-      } catch (error) {
-        await ctx.db
-          .update(schema.jobs)
-          .set({
-            status: "failed",
-            lastError: error instanceof Error ? error.message : "translation job queue unavailable",
-          })
-          .where(
-            and(eq(schema.jobs.id, job.id), eq(schema.jobs.organizationId, ctx.organizationId)),
-          );
-
+      const job = jobResult.value;
+      const enqueueResult = await enqueueTranslationJob({ ctx, job, type: input.type });
+      if (isErr(enqueueResult)) {
         return {
           success: false,
           jobId: job.id,
           status: "failed",
-          error: "Translation job queue unavailable.",
+          error: formatCreateTranslationJobToolError(enqueueResult.error),
         };
       }
+
+      return {
+        success: true,
+        jobId: job.id,
+        status: "enqueued",
+        workflowRunIds: enqueueResult.value.workflowRunIds,
+      };
     },
   });
 }
@@ -457,6 +608,47 @@ export function createTranslationJobTool(ctx: ToolContext) {
  *
  * Example usage: user asks "Can you review the Japanese translations for tone and consistency?"
  */
+async function createReviewJobRecord(
+  ctx: ToolContext,
+  input: { criteria: string; targetLocale?: string; translationJobId?: string },
+): Promise<Result<JobRecord, JobCreationError>> {
+  try {
+    const job = await ctx.db.transaction(async (tx) => {
+      const [createdJob] = await tx
+        .insert(schema.jobs)
+        .values(
+          queuedJobValues(ctx, {
+            kind: "review",
+            inputPayload: input,
+          }),
+        )
+        .returning();
+
+      if (!createdJob) {
+        rollbackJobCreation(jobInsertFailedError());
+      }
+
+      await tx.insert(schema.reviewJobDetails).values({
+        jobId: createdJob.id,
+        criteria: input.criteria,
+        targetLocale: input.targetLocale,
+        config: {
+          translationJobId: input.translationJobId,
+        },
+      });
+
+      return createdJob;
+    });
+
+    return ok(job);
+  } catch (error) {
+    if (error instanceof JobCreationRollbackError) {
+      return err(error.jobError);
+    }
+    throw error;
+  }
+}
+
 export function createReviewJobTool(ctx: ToolContext) {
   return tool({
     description:
@@ -475,33 +667,15 @@ export function createReviewJobTool(ctx: ToolContext) {
         .describe("Optional linked translation job ID to review."),
     }),
     execute: async (input) => {
-      const job = await ctx.db.transaction(async (tx) => {
-        const [createdJob] = await tx
-          .insert(schema.jobs)
-          .values(
-            queuedJobValues(ctx, {
-              kind: "review",
-              inputPayload: input,
-            }),
-          )
-          .returning();
+      const jobResult = await createReviewJobRecord(ctx, input);
+      if (isErr(jobResult)) {
+        return {
+          success: false,
+          error: formatCreateTranslationJobToolError(jobResult.error),
+        };
+      }
 
-        if (!createdJob) {
-          throw new Error("Failed to create job: no row returned.");
-        }
-
-        await tx.insert(schema.reviewJobDetails).values({
-          jobId: createdJob.id,
-          criteria: input.criteria,
-          targetLocale: input.targetLocale,
-          config: {
-            translationJobId: input.translationJobId,
-          },
-        });
-
-        return createdJob;
-      });
-
+      const job = jobResult.value;
       return { success: true, jobId: job.id, status: job.status };
     },
   });
@@ -535,11 +709,18 @@ export function createResearchJobTool(ctx: ToolContext) {
       assetId: z.string().optional().describe("Optional localization asset ID to research."),
     }),
     execute: async (input) => {
-      const job = await createQueuedJob(ctx, {
+      const jobResult = await createQueuedJob(ctx, {
         kind: "research",
         inputPayload: input,
       });
+      if (isErr(jobResult)) {
+        return {
+          success: false,
+          error: formatCreateTranslationJobToolError(jobResult.error),
+        };
+      }
 
+      const job = jobResult.value;
       return { success: true, jobId: job.id, status: job.status };
     },
   });
@@ -559,6 +740,49 @@ export function createResearchJobTool(ctx: ToolContext) {
  *
  * Example usage: user asks "Sync the latest strings from our TMS project."
  */
+async function createSyncJobRecord(
+  ctx: ToolContext,
+  input: {
+    connectorKind: string;
+    direction: "pull" | "push";
+    externalIdentifiers: Record<string, unknown>;
+  },
+): Promise<Result<JobRecord, JobCreationError>> {
+  try {
+    const job = await ctx.db.transaction(async (tx) => {
+      const [createdJob] = await tx
+        .insert(schema.jobs)
+        .values(
+          queuedJobValues(ctx, {
+            kind: "sync",
+            inputPayload: input,
+          }),
+        )
+        .returning();
+
+      if (!createdJob) {
+        rollbackJobCreation(jobInsertFailedError());
+      }
+
+      await tx.insert(schema.syncJobDetails).values({
+        jobId: createdJob.id,
+        connectorKind: input.connectorKind,
+        direction: input.direction,
+        externalIdentifiers: input.externalIdentifiers,
+      });
+
+      return createdJob;
+    });
+
+    return ok(job);
+  } catch (error) {
+    if (error instanceof JobCreationRollbackError) {
+      return err(error.jobError);
+    }
+    throw error;
+  }
+}
+
 export function createSyncJobTool(ctx: ToolContext) {
   return tool({
     description:
@@ -573,31 +797,15 @@ export function createSyncJobTool(ctx: ToolContext) {
         ),
     }),
     execute: async (input) => {
-      const job = await ctx.db.transaction(async (tx) => {
-        const [createdJob] = await tx
-          .insert(schema.jobs)
-          .values(
-            queuedJobValues(ctx, {
-              kind: "sync",
-              inputPayload: input,
-            }),
-          )
-          .returning();
+      const jobResult = await createSyncJobRecord(ctx, input);
+      if (isErr(jobResult)) {
+        return {
+          success: false,
+          error: formatCreateTranslationJobToolError(jobResult.error),
+        };
+      }
 
-        if (!createdJob) {
-          throw new Error("Failed to create job: no row returned.");
-        }
-
-        await tx.insert(schema.syncJobDetails).values({
-          jobId: createdJob.id,
-          connectorKind: input.connectorKind,
-          direction: input.direction,
-          externalIdentifiers: input.externalIdentifiers,
-        });
-
-        return createdJob;
-      });
-
+      const job = jobResult.value;
       return { success: true, jobId: job.id, status: job.status };
     },
   });
@@ -618,6 +826,49 @@ export function createSyncJobTool(ctx: ToolContext) {
  *
  * Example usage: user asks "Import the approved translations into the project glossary."
  */
+async function createAssetManagementJobRecord(
+  ctx: ToolContext,
+  input: {
+    assetType: "tm" | "glossary" | "localisation_asset";
+    operation: "create" | "import" | "export" | "dedupe" | "update";
+    config?: Record<string, unknown>;
+  },
+): Promise<Result<JobRecord, JobCreationError>> {
+  try {
+    const job = await ctx.db.transaction(async (tx) => {
+      const [createdJob] = await tx
+        .insert(schema.jobs)
+        .values(
+          queuedJobValues(ctx, {
+            kind: "asset_management",
+            inputPayload: input,
+          }),
+        )
+        .returning();
+
+      if (!createdJob) {
+        rollbackJobCreation(jobInsertFailedError());
+      }
+
+      await tx.insert(schema.assetManagementJobDetails).values({
+        jobId: createdJob.id,
+        assetType: input.assetType,
+        operation: input.operation,
+        config: input.config ?? {},
+      });
+
+      return createdJob;
+    });
+
+    return ok(job);
+  } catch (error) {
+    if (error instanceof JobCreationRollbackError) {
+      return err(error.jobError);
+    }
+    throw error;
+  }
+}
+
 export function createAssetManagementJobTool(ctx: ToolContext) {
   return tool({
     description:
@@ -635,31 +886,15 @@ export function createAssetManagementJobTool(ctx: ToolContext) {
         .describe("Operation-specific configuration."),
     }),
     execute: async (input) => {
-      const job = await ctx.db.transaction(async (tx) => {
-        const [createdJob] = await tx
-          .insert(schema.jobs)
-          .values(
-            queuedJobValues(ctx, {
-              kind: "asset_management",
-              inputPayload: input,
-            }),
-          )
-          .returning();
+      const jobResult = await createAssetManagementJobRecord(ctx, input);
+      if (isErr(jobResult)) {
+        return {
+          success: false,
+          error: formatCreateTranslationJobToolError(jobResult.error),
+        };
+      }
 
-        if (!createdJob) {
-          throw new Error("Failed to create job: no row returned.");
-        }
-
-        await tx.insert(schema.assetManagementJobDetails).values({
-          jobId: createdJob.id,
-          assetType: input.assetType,
-          operation: input.operation,
-          config: input.config ?? {},
-        });
-
-        return createdJob;
-      });
-
+      const job = jobResult.value;
       return { success: true, jobId: job.id, status: job.status };
     },
   });
@@ -785,13 +1020,13 @@ export function createGetJobStatusTool(ctx: ToolContext) {
       jobId: z.string().describe("The job ID to look up."),
     }),
     execute: async ({ jobId }) => {
-      const job = await getJobDetails(ctx, jobId);
+      const jobResult = await getJobDetails(ctx, jobId);
 
-      if (!job) {
+      if (isErr(jobResult)) {
         return { job: null, error: `Job ${jobId} not found.` };
       }
 
-      return { job };
+      return { job: jobResult.value };
     },
   });
 }

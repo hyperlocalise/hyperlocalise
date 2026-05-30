@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate, type RepoToolContext } from "./workspace";
 import { normalizeJsonc } from "@/lib/i18n/parse-jsonc-config";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 export type { RepoToolContext } from "./workspace";
 export { redact, truncate, DEFAULT_MAX_OUTPUT_BYTES } from "./workspace";
@@ -184,8 +185,15 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
       boolFlags: z.array(z.string()).optional().describe("Boolean flags (--flag)."),
     }),
     execute: async ({ subcommand, args, flags, boolFlags }) => {
-      assertReadOnlyAction(subcommand, args);
-      const commandArgs = buildHlArgs({ subcommand, args, flags, boolFlags });
+      const commandArgsResult = buildHlArgs({ subcommand, args, flags, boolFlags });
+      if (isErr(commandArgsResult)) {
+        return {
+          success: false,
+          error: formatHyperlocaliseCliArgsError(commandArgsResult.error),
+        };
+      }
+
+      const commandArgs = commandArgsResult.value;
       const result = await ctx.bash.exec("hl", { args: commandArgs });
 
       const redactedStdout = redact(result.stdout);
@@ -230,51 +238,92 @@ export function createRunHyperlocaliseCliTool(ctx: RepoToolContext) {
   });
 }
 
+export type HyperlocaliseCliArgsError =
+  | { code: "invalid_subcommand"; subcommand: string; args?: string[] }
+  | { code: "positional_arg_looks_like_flag"; value: string }
+  | { code: "flag_not_allowed"; name: string }
+  | { code: "flag_contains_invalid_characters"; name: string }
+  | { code: "flag_value_contains_invalid_characters" };
+
+export function formatHyperlocaliseCliArgsError(error: HyperlocaliseCliArgsError): string {
+  switch (error.code) {
+    case "invalid_subcommand":
+      return `Only read-only TMS actions are allowed. Received "${error.subcommand} ${error.args?.join(" ") ?? ""}".`;
+    case "positional_arg_looks_like_flag":
+      return `Positional arg "${error.value}" looks like a flag`;
+    case "flag_not_allowed":
+      return `Flag "${error.name}" is not allowed`;
+    case "flag_contains_invalid_characters":
+      return `Flag "${error.name}" contains invalid characters`;
+    case "flag_value_contains_invalid_characters":
+      return "Flag value contains invalid characters";
+  }
+}
+
 export function buildHlArgs(input: {
   subcommand: string;
   args?: string[];
   flags?: Record<string, string> | undefined;
   boolFlags?: string[] | undefined;
-}): string[] {
+}): Result<string[], HyperlocaliseCliArgsError> {
+  const readOnlyActionResult = validateReadOnlyAction(input.subcommand, input.args);
+  if (isErr(readOnlyActionResult)) {
+    return err(readOnlyActionResult.error);
+  }
+
   const args: string[] = [input.subcommand];
 
   for (const a of input.args ?? []) {
     if (a.startsWith("-")) {
-      throw new Error(`Positional arg "${a}" looks like a flag`);
+      return err({ code: "positional_arg_looks_like_flag", value: a });
     }
-    validateValue(a);
+    const valueResult = validateValue(a);
+    if (isErr(valueResult)) {
+      return err(valueResult.error);
+    }
     args.push(a);
   }
 
   for (const f of input.boolFlags ?? []) {
-    validateFlag(f);
+    const flagResult = validateFlag(f);
+    if (isErr(flagResult)) {
+      return err(flagResult.error);
+    }
     args.push("--" + f);
   }
 
   const flagKeys = Object.keys(input.flags ?? {}).sort();
   for (const k of flagKeys) {
-    validateFlag(k);
+    const flagResult = validateFlag(k);
+    if (isErr(flagResult)) {
+      return err(flagResult.error);
+    }
     const v = input.flags![k];
-    validateValue(v);
+    const valueResult = validateValue(v);
+    if (isErr(valueResult)) {
+      return err(valueResult.error);
+    }
     args.push("--" + k + "=" + v);
   }
 
-  return args;
+  return ok(args);
 }
 
-function validateFlag(name: string): void {
+function validateFlag(name: string): Result<void, HyperlocaliseCliArgsError> {
   if (DANGEROUS_FLAGS.has(name)) {
-    throw new Error(`Flag "${name}" is not allowed`);
+    return err({ code: "flag_not_allowed", name });
   }
   if (name.includes("$") || name.includes("`")) {
-    throw new Error(`Flag "${name}" contains invalid characters`);
+    return err({ code: "flag_contains_invalid_characters", name });
   }
+  return ok(undefined);
 }
 
-function validateValue(value: string): void {
+function validateValue(value: string): Result<void, HyperlocaliseCliArgsError> {
   if (value.includes("$") || value.includes("`")) {
-    throw new Error(`Flag value contains invalid characters`);
+    return err({ code: "flag_value_contains_invalid_characters" });
   }
+  return ok(undefined);
 }
 
 function extractReport(subcommand: string, stdout: string): unknown {
@@ -300,12 +349,15 @@ function extractReport(subcommand: string, stdout: string): unknown {
   }
 }
 
-function assertReadOnlyAction(subcommand: string, args?: string[]): void {
-  if (subcommand === "check" || subcommand === "status" || subcommand === "extract") return;
+function validateReadOnlyAction(
+  subcommand: string,
+  args?: string[],
+): Result<void, HyperlocaliseCliArgsError> {
+  if (subcommand === "check" || subcommand === "status" || subcommand === "extract") {
+    return ok(undefined);
+  }
 
-  throw new Error(
-    `Only read-only TMS actions are allowed. Received "${subcommand} ${args?.join(" ") ?? ""}".`,
-  );
+  return err({ code: "invalid_subcommand", subcommand, args });
 }
 
 function summarizeArtifactHint(

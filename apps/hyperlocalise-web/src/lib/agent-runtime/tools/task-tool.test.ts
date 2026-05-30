@@ -146,6 +146,26 @@ describe("task tool", () => {
     });
   });
 
+  it("returns structured failure when request context is incomplete", async () => {
+    const taskTool = createTaskTool();
+    const result = await taskTool.execute!(
+      {
+        subagentType: "translation",
+        task: "Translate attached JSON",
+        instructions: "Target fr-FR.",
+      },
+      createToolExecutionOptions({}),
+    );
+
+    expect(runSubagentMock).not.toHaveBeenCalled();
+    expect(result).toMatchObject({
+      success: false,
+      subagentType: "translation",
+      summary: "Specialist cannot run without request context.",
+      error: "Hyperlocalise agent runtime context is incomplete.",
+    });
+  });
+
   it("adds localization-context handoff requirements for repository specialists", async () => {
     runSubagentMock.mockResolvedValueOnce({ text: "Found context in src/messages.ts:12." });
 

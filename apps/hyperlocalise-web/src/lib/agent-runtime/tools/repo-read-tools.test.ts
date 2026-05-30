@@ -2,6 +2,8 @@ import { describe, expect, it } from "vite-plus/test";
 import { Bash, defineCommand, InMemoryFs } from "just-bash";
 import { z } from "zod";
 
+import { isErr, isOk } from "@/lib/primitives/result/results";
+
 import { createGrepTool, createReadTool } from "./workspace";
 
 import {
@@ -394,55 +396,64 @@ describe("createRunHyperlocaliseCliTool", () => {
 
 describe("buildHlArgs", () => {
   it("builds correct args", () => {
-    expect(
-      buildHlArgs({
-        subcommand: "check",
-        args: ["bucket1"],
-        flags: { format: "json" },
-        boolFlags: ["quiet"],
-      }),
-    ).toEqual(["check", "bucket1", "--quiet", "--format=json"]);
+    const result = buildHlArgs({
+      subcommand: "check",
+      args: ["bucket1"],
+      flags: { format: "json" },
+      boolFlags: ["quiet"],
+    });
+
+    expect(isOk(result)).toBe(true);
+    if (isErr(result)) throw new Error("expected valid hl args");
+    expect(result.value).toEqual(["check", "bucket1", "--quiet", "--format=json"]);
   });
 
   it("rejects positional arg that looks like flag", () => {
-    expect(() => buildHlArgs({ subcommand: "check", args: ["--bad"] })).toThrow(
-      "looks like a flag",
-    );
+    expect(buildHlArgs({ subcommand: "check", args: ["--bad"] })).toMatchObject({
+      ok: false,
+      error: { code: "positional_arg_looks_like_flag" },
+    });
   });
 
   it("rejects $ in positional arg", () => {
-    expect(() => buildHlArgs({ subcommand: "check", args: ["$(cat /etc/passwd)"] })).toThrow(
-      "invalid characters",
-    );
+    expect(buildHlArgs({ subcommand: "check", args: ["$(cat /etc/passwd)"] })).toMatchObject({
+      ok: false,
+      error: { code: "flag_value_contains_invalid_characters" },
+    });
   });
 
   it("rejects backtick in positional arg", () => {
-    expect(() => buildHlArgs({ subcommand: "check", args: ["`id`"] })).toThrow(
-      "invalid characters",
-    );
+    expect(buildHlArgs({ subcommand: "check", args: ["`id`"] })).toMatchObject({
+      ok: false,
+      error: { code: "flag_value_contains_invalid_characters" },
+    });
   });
 
   it("rejects dangerous flag", () => {
-    expect(() => buildHlArgs({ subcommand: "check", flags: { token: "secret" } })).toThrow(
-      "not allowed",
-    );
+    expect(buildHlArgs({ subcommand: "check", flags: { token: "secret" } })).toMatchObject({
+      ok: false,
+      error: { code: "flag_not_allowed" },
+    });
   });
 
   it("rejects dangerous bool flag", () => {
-    expect(() => buildHlArgs({ subcommand: "check", boolFlags: ["api-token"] })).toThrow(
-      "not allowed",
-    );
+    expect(buildHlArgs({ subcommand: "check", boolFlags: ["api-token"] })).toMatchObject({
+      ok: false,
+      error: { code: "flag_not_allowed" },
+    });
   });
 
   it("rejects $ in flag value", () => {
-    expect(() => buildHlArgs({ subcommand: "check", flags: { format: "$json" } })).toThrow(
-      "invalid characters",
-    );
+    expect(buildHlArgs({ subcommand: "check", flags: { format: "$json" } })).toMatchObject({
+      ok: false,
+      error: { code: "flag_value_contains_invalid_characters" },
+    });
   });
 
   it("rejects backtick in flag value", () => {
-    expect(() => buildHlArgs({ subcommand: "check", flags: { format: "`json`" } })).toThrow(
-      "invalid characters",
-    );
+    expect(buildHlArgs({ subcommand: "check", flags: { format: "`json`" } })).toMatchObject({
+      ok: false,
+      error: { code: "flag_value_contains_invalid_characters" },
+    });
   });
 });

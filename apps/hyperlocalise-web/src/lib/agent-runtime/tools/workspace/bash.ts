@@ -1,6 +1,8 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+
 import { normalizeWorkspacePath } from "./path";
 import { DEFAULT_MAX_OUTPUT_BYTES, redact, truncate } from "./redact";
 import type { RepoToolContext } from "./types";
@@ -50,14 +52,23 @@ const bashInputSchema = z.object({
   cwd: z.string().optional().describe("Workspace-relative working directory. Default: repo root."),
 });
 
-function splitCommand(command: string): { bin: string; args: string[] } {
+type SplitCommandError = { code: "empty_command" };
+
+function formatSplitCommandError(error: SplitCommandError): string {
+  switch (error.code) {
+    case "empty_command":
+      return "Command is empty.";
+  }
+}
+
+function splitCommand(command: string): Result<{ bin: string; args: string[] }, SplitCommandError> {
   const tokens = command.trim().match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) ?? [];
   const unquote = (token: string) => token.replace(/^['"]|['"]$/g, "");
   const [bin, ...rest] = tokens.map(unquote);
   if (!bin) {
-    throw new Error("Command is empty.");
+    return err({ code: "empty_command" });
   }
-  return { bin, args: rest };
+  return ok({ bin, args: rest });
 }
 
 export function createBashTool(ctx: RepoToolContext) {
@@ -96,7 +107,15 @@ IMPORTANT:
       }
 
       try {
-        const { bin, args } = splitCommand(command);
+        const splitResult = splitCommand(command);
+        if (isErr(splitResult)) {
+          return {
+            success: false as const,
+            error: formatSplitCommandError(splitResult.error),
+          };
+        }
+
+        const { bin, args } = splitResult.value;
         let execArgs = args;
         if (workdir && workdir !== ".") {
           if (bin === "git") {
