@@ -7,6 +7,7 @@ const {
   withAuthMock,
   resolveApiAuthContextFromSessionMock,
   getStoredActiveOrganizationSlugMock,
+  listLocalOrgWorkspacesForUserMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
@@ -14,6 +15,7 @@ const {
   withAuthMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(),
   getStoredActiveOrganizationSlugMock: vi.fn(),
+  listLocalOrgWorkspacesForUserMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -34,6 +36,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 vi.mock("@/lib/workos/active-organization", () => ({
   getStoredActiveOrganizationSlug: getStoredActiveOrganizationSlugMock,
+}));
+
+vi.mock("@/lib/organizations/migrate-local-org-to-workos", () => ({
+  listLocalOrgWorkspacesForUser: listLocalOrgWorkspacesForUserMock,
 }));
 
 describe("requireAppAuthContext", () => {
@@ -85,6 +91,25 @@ describe("requireAppAuthContext", () => {
     });
   });
 
+  it("redirects to workspace upgrade when the user has legacy local org workspaces", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    withAuthMock.mockResolvedValue(session);
+    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
+    resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
+    listLocalOrgWorkspacesForUserMock.mockResolvedValue([
+      { organizationId: "org_1", name: "Legacy Workspace", slug: "legacy" },
+    ]);
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/upgrade-workspace");
+    expect(redirectMock).toHaveBeenCalledWith("/auth/upgrade-workspace");
+    expect(listLocalOrgWorkspacesForUserMock).toHaveBeenCalledWith(expect.anything(), "user_123");
+  });
+
   it("redirects to onboarding when the signed-in user has no memberships yet", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
@@ -93,6 +118,7 @@ describe("requireAppAuthContext", () => {
     withAuthMock.mockResolvedValue(session);
     getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
     resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
+    listLocalOrgWorkspacesForUserMock.mockResolvedValue([]);
 
     const { requireAppAuthContext } = await import("./app-auth");
 

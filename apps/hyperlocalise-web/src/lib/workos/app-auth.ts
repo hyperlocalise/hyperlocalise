@@ -9,6 +9,8 @@ import {
   resolveApiAuthContextFromSession,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
+import { db } from "@/lib/database";
+import { listLocalOrgWorkspacesForUser } from "@/lib/organizations/migrate-local-org-to-workos";
 import {
   getStoredActiveOrganizationSlug,
   setStoredActiveOrganizationSlug,
@@ -61,6 +63,11 @@ export async function requireAppAuthContext(
   }
 
   if (!auth) {
+    const pendingLocalOrgWorkspaces = await listLocalOrgWorkspacesForUser(db, session.user.id);
+    if (pendingLocalOrgWorkspaces.length > 0) {
+      redirect("/auth/upgrade-workspace");
+    }
+
     redirect("/auth/onboarding");
   }
 

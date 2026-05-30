@@ -31,6 +31,10 @@ Hyperlocalise treats WorkOS as the authoritative source for organization members
 
 `reconcileWorkosMembershipsForUser` lists active WorkOS memberships for a user, upserts local rows, and revokes local access when WorkOS no longer reports an active membership.
 
+Before listing WorkOS memberships, reconcile attempts a one-time promotion of legacy `local_org_*` workspaces the user belongs to. `migrateLocalOrgWorkspaceToWorkos` creates a real WorkOS organization (idempotent on `externalId = organizations.id`), creates active memberships for signed-in users, updates local `workos_organization_id` / `workos_membership_id`, and sets `lifecycle_status` back to `active`. This prevents losing access after WorkOS became authoritative.
+
+Users with only legacy workspaces are routed to `/auth/upgrade-workspace`, which explains the one-time connection step and runs the promotion before continuing. Do **not** run `db:deprecate-local-org-workspaces` on workspaces you intend to keep; deprecation hides them from session loading.
+
 It runs:
 
 1. During session bootstrap (`resolveApiAuthContextFromSession`) before loading active memberships

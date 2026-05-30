@@ -3,23 +3,37 @@ import "dotenv/config";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 const {
+  redirectMock,
   withAuthMock,
   getStoredOnboardingStateMock,
   clearStoredOnboardingStateMock,
   setStoredOnboardingStateMock,
   setStoredActiveOrganizationSlugMock,
   resolveApiAuthContextFromSessionMock,
+  listLocalOrgWorkspacesForUserMock,
 } = vi.hoisted(() => ({
+  redirectMock: vi.fn((location: string) => {
+    throw new Error(`redirect:${location}`);
+  }),
   withAuthMock: vi.fn(),
   getStoredOnboardingStateMock: vi.fn(),
   clearStoredOnboardingStateMock: vi.fn(),
   setStoredOnboardingStateMock: vi.fn(),
   setStoredActiveOrganizationSlugMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(),
+  listLocalOrgWorkspacesForUserMock: vi.fn(),
+}));
+
+vi.mock("next/navigation", () => ({
+  redirect: redirectMock,
 }));
 
 vi.mock("@workos-inc/authkit-nextjs", () => ({
   withAuth: withAuthMock,
+}));
+
+vi.mock("@/lib/organizations/migrate-local-org-to-workos", () => ({
+  listLocalOrgWorkspacesForUser: listLocalOrgWorkspacesForUserMock,
 }));
 
 vi.mock("@/lib/workos/onboarding-state", () => ({
@@ -43,6 +57,25 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 describe("loadOnboardingContext", () => {
   afterEach(() => {
     vi.clearAllMocks();
+    listLocalOrgWorkspacesForUserMock.mockResolvedValue([]);
+  });
+
+  it("redirects to workspace upgrade when auth is missing but legacy workspaces exist", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    withAuthMock.mockResolvedValue(session);
+    getStoredOnboardingStateMock.mockResolvedValue(null);
+    resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
+    listLocalOrgWorkspacesForUserMock.mockResolvedValue([
+      { organizationId: "org_1", name: "Legacy Workspace", slug: "legacy" },
+    ]);
+
+    const { loadOnboardingContext } = await import("./context");
+
+    await expect(loadOnboardingContext()).rejects.toThrow("redirect:/auth/upgrade-workspace");
+    expect(redirectMock).toHaveBeenCalledWith("/auth/upgrade-workspace");
   });
 
   it("clears stale onboarding state when the stored org is no longer accessible", async () => {
