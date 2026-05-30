@@ -4,17 +4,26 @@ import { getAppShellTitle } from "./app-shell-title";
 
 describe("getAppShellTitle", () => {
   it.each([
-    ["/org/acme/dashboard", "Analytics"],
+    ["/org/acme/command-center", "Command Center"],
+    ["/org/acme/dashboard", "Command Center"],
     ["/org/acme/inbox", "Inbox"],
-    ["/org/acme/chat", "Chat"],
+    ["/org/acme/new-request", "New Request"],
+    ["/org/acme/chat", "New Request"],
     ["/org/acme/projects", "Projects"],
-    ["/org/acme/jobs", "Jobs"],
-    ["/org/acme/my-jobs", "My Jobs"],
-    ["/org/acme/context", "Context"],
-    ["/org/acme/glossaries", "Glossaries"],
+    ["/org/acme/projects/proj_1", "Overview"],
+    ["/org/acme/projects/proj_1/files", "Files"],
+    ["/org/acme/projects/proj_1/jobs", "Jobs"],
+    ["/org/acme/projects/proj_1/agent-runs", "Agent Runs"],
+    ["/org/acme/my-work", "My Work"],
+    ["/org/acme/my-jobs", "My Work"],
+    ["/org/acme/context", "Context Sources"],
+    ["/org/acme/knowledge", "Knowledge"],
+    ["/org/acme/knowledge/style-guides", "Style Guides"],
+    ["/org/acme/glossaries", "Terminology"],
     ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],
     ["/org/acme/settings", "Settings"],
+    ["/org/acme/settings/members", "Team"],
     ["/org/acme/settings/account", "Account"],
     ["/org/acme/settings/billing", "Billing"],
     ["/org/acme/settings/notifications", "Notifications"],
@@ -22,8 +31,8 @@ describe("getAppShellTitle", () => {
     expect(getAppShellTitle(pathname)).toBe(title);
   });
 
-  it("falls back to dashboard for unknown or empty paths", () => {
-    expect(getAppShellTitle(null)).toBe("Analytics");
-    expect(getAppShellTitle("/org/acme/unknown")).toBe("Analytics");
+  it("falls back to command center for unknown or empty paths", () => {
+    expect(getAppShellTitle(null)).toBe("Command Center");
+    expect(getAppShellTitle("/org/acme/unknown")).toBe("Command Center");
   });
 });

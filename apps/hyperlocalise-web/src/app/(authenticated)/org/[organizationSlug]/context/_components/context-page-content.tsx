@@ -57,8 +57,9 @@ const contextEntries = [
     markdown: `# Product surface notes
 
 ## Navigation
-- Workspace pages use Analytics, Projects, Jobs, and Context.
-- Manage pages own Agent, Glossaries, Translation Memories, Integrations, and Settings.
+- Coordination lives in Command Center, Projects, Inbox, and My Work.
+- Shared intelligence lives in Knowledge — context, terminology, memories, and voice.
+- Project execution owns files, jobs, reviews, QA, and agent runs.
 
 ## Translation guidance
 - Preserve placeholders, ICU syntax, and markdown structure.
@@ -114,7 +115,7 @@ export function ContextPageContent({ organizationSlug }: { organizationSlug: str
       <PageHeader
         icon={File01Icon}
         label="Workspace"
-        title="Context"
+        title="Context Sources"
         description="Review workspace context that guides agent runs, translation decisions, and reviewer handoffs."
         statusLabel="Mock markdown"
       />

@@ -190,7 +190,7 @@ export function ProjectsTable({
             >
               <div className="flex items-start justify-between gap-4">
                 <Link
-                  href={`/org/${organizationSlug}/projects/${project.id}/files`}
+                  href={`/org/${organizationSlug}/projects/${project.id}`}
                   className="min-w-0 flex-1"
                 >
                   <div className="flex items-center gap-2">
