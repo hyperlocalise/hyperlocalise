@@ -64,7 +64,7 @@ function serializeJob(row: JobRow): GithubRepositoryAutomationJobRecord {
     githubInstallationId: row.githubInstallationId,
     githubRepositoryId: row.githubRepositoryId,
     configVersion: row.configVersion,
-    triggerMode: row.triggerMode as "push" | "scheduled",
+    triggerMode: row.triggerMode,
     status: row.status as GithubRepositoryAutomationJobStatus,
     skipReason: row.skipReason,
     triggerBranch: row.triggerBranch,

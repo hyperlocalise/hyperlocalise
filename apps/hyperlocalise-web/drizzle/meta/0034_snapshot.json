@@ -1,6 +1,6 @@
 {
-  "id": "356c0c9d-0b53-4d7c-8710-ce95b9ea496e",
-  "prevId": "a41b98de-b4e5-42b5-bb56-c016d0155601",
+  "id": "073a1ede-1215-470b-8903-f395de99375f",
+  "prevId": "356c0c9d-0b53-4d7c-8710-ce95b9ea496e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -2077,6 +2077,153 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.github_repository_automation_commit_results": {
+      "name": "github_repository_automation_commit_results",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "commit_sha": {
+          "name": "commit_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parent_commit_sha": {
+          "name": "parent_commit_sha",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "status": {
+          "name": "status",
+          "type": "github_repository_automation_commit_result_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "skip_reason": {
+          "name": "skip_reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "changed_paths": {
+          "name": "changed_paths",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
+        },
+        "hl_check_report": {
+          "name": "hl_check_report",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "agent_summary": {
+          "name": "agent_summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "suggested_fixes": {
+          "name": "suggested_fixes",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "log_url": {
+          "name": "log_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "github_repository_automation_commit_results_job_commit": {
+          "name": "github_repository_automation_commit_results_job_commit",
+          "columns": [
+            {
+              "expression": "job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "commit_sha",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_github_repository_automation_commit_results_job": {
+          "name": "idx_github_repository_automation_commit_results_job",
+          "columns": [
+            {
+              "expression": "job_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "github_repository_automation_commit_results_job_id_github_repository_automation_jobs_id_fk": {
+          "name": "github_repository_automation_commit_results_job_id_github_repository_automation_jobs_id_fk",
+          "tableFrom": "github_repository_automation_commit_results",
+          "tableTo": "github_repository_automation_jobs",
+          "columnsFrom": [
+            "job_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.github_repository_automation_jobs": {
       "name": "github_repository_automation_jobs",
       "schema": "",
@@ -2170,6 +2317,12 @@
           "notNull": true,
           "default": "'{\"pushSource\":false,\"pullTranslations\":false,\"validation\":false}'::jsonb"
         },
+        "result_summary": {
+          "name": "result_summary",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
         "github_delivery_id": {
           "name": "github_delivery_id",
           "type": "text",
@@ -2185,6 +2338,12 @@
         "workflow_run_id": {
           "name": "workflow_run_id",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "github_check_run_id": {
+          "name": "github_check_run_id",
+          "type": "bigint",
           "primaryKey": false,
           "notNull": false
         },
@@ -9633,6 +9792,17 @@
       "values": [
         "glossary",
         "term_base"
+      ]
+    },
+    "public.github_repository_automation_commit_result_status": {
+      "name": "github_repository_automation_commit_result_status",
+      "schema": "public",
+      "values": [
+        "skipped",
+        "passed",
+        "warning",
+        "failed",
+        "error"
       ]
     },
     "public.github_repository_automation_job_status": {

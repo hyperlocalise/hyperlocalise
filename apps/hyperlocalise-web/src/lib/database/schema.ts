@@ -1359,6 +1359,11 @@ export const githubRepositoryAutomationJobStatusEnum = pgEnum(
   ["queued", "running", "succeeded", "failed", "skipped"],
 );
 
+export const githubRepositoryAutomationJobTriggerModeEnum = pgEnum(
+  "github_repository_automation_job_trigger_mode",
+  ["push", "scheduled"],
+);
+
 export const githubRepositoryAutomationJobs = pgTable(
   "github_repository_automation_jobs",
   {
@@ -1373,7 +1378,7 @@ export const githubRepositoryAutomationJobs = pgTable(
     githubInstallationId: bigintText("github_installation_id").notNull(),
     githubRepositoryId: bigintText("github_repository_id").notNull(),
     configVersion: integer("config_version").notNull(),
-    triggerMode: text("trigger_mode").notNull(),
+    triggerMode: githubRepositoryAutomationJobTriggerModeEnum("trigger_mode").notNull(),
     status: githubRepositoryAutomationJobStatusEnum("status").notNull().default("queued"),
     skipReason: text("skip_reason"),
     triggerBranch: text("trigger_branch"),
