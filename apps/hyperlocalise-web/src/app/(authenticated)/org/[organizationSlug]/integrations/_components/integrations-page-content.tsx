@@ -12,6 +12,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { ArrowUpRightIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { SimpleIcon } from "simple-icons";
+import { siAnthropic, siCrowdin, siGooglegemini } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -57,6 +59,7 @@ import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typogra
 import { cn } from "@/lib/utils";
 import { AgentIntegrationsSection } from "./agent-integrations-section";
 import { IntegrationCategoryLabel } from "./integration-row";
+import { SimpleBrandIcon } from "./simple-brand-icon";
 
 const api = createApiClient();
 
@@ -197,18 +200,21 @@ const byokProviders = [
     label: "Anthropic",
     description: "Connect your Anthropic account",
     logo: "/images/claude.png",
+    icon: siAnthropic,
   },
   {
     id: "gemini",
     label: "Google Gemini",
     description: "Connect your Gemini account",
     logo: "/images/gemini.webp",
+    icon: siGooglegemini,
   },
 ] as const satisfies readonly {
   id: LlmProvider;
   label: string;
   description: string;
   logo: string;
+  icon?: SimpleIcon;
 }[];
 
 type ModelProviderCardConfig = {
@@ -216,6 +222,7 @@ type ModelProviderCardConfig = {
   label: string;
   description: string;
   logo: string;
+  icon?: SimpleIcon;
   managed?: boolean;
 };
 
@@ -241,6 +248,7 @@ const tmsIntegrations = [
     name: "Crowdin",
     providerKind: "crowdin" as const,
     logo: "/images/tms/crowdin.png",
+    icon: siCrowdin,
     detail: "Route reviewed output into Crowdin projects.",
   },
   {
@@ -397,14 +405,23 @@ function TmsIntegrationRow({
 
   return (
     <div className={cn("flex items-center gap-4 px-5 py-4", !isLast && "border-b border-border")}>
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2">
-        <Image
-          src={integration.logo}
-          alt=""
-          width={30}
-          height={30}
-          className="max-h-7 w-auto object-contain"
-        />
+      <div
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2",
+          !isConnected && "grayscale saturate-0",
+        )}
+      >
+        {"icon" in integration && integration.icon ? (
+          <SimpleBrandIcon icon={integration.icon} colored={isConnected} />
+        ) : (
+          <Image
+            src={integration.logo}
+            alt=""
+            width={30}
+            height={30}
+            className={cn("max-h-7 w-auto object-contain", !isConnected && "grayscale saturate-0")}
+          />
+        )}
       </div>
 
       <div className="min-w-0 flex-1">
@@ -494,14 +511,23 @@ function ModelProviderCard({
         </Badge>
       ) : null}
 
-      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2">
-        <Image
-          src={provider.logo}
-          alt=""
-          width={28}
-          height={28}
-          className="max-h-7 w-auto object-contain"
-        />
+      <div
+        className={cn(
+          "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2",
+          !isActive && "grayscale saturate-0",
+        )}
+      >
+        {provider.icon ? (
+          <SimpleBrandIcon icon={provider.icon} colored={isActive} />
+        ) : (
+          <Image
+            src={provider.logo}
+            alt=""
+            width={28}
+            height={28}
+            className={cn("max-h-7 w-auto object-contain", !isActive && "grayscale saturate-0")}
+          />
+        )}
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-2">

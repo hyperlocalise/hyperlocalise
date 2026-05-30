@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { GitBranchIcon, GithubIcon, Refresh01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import { GitBranchIcon, Refresh01Icon, Search01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { siGithub } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { IntegrationRow } from "./integration-row";
+import { SimpleBrandIcon } from "./simple-brand-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -340,6 +342,9 @@ export function GitHubIntegrationRow({
         : null;
 
   const connected = Boolean(installation);
+  const hasEnabledRepositories =
+    (installation?.enabledRepositoryCount ??
+      repositories.filter((repository) => repository.enabled).length) > 0;
   const description = (() => {
     if (!installation) {
       return "Connect GitHub for pull request reviews, localization fixes, and repository context.";
@@ -364,7 +369,8 @@ export function GitHubIntegrationRow({
     <IntegrationRow
       name="GitHub"
       description={description}
-      icon={<HugeiconsIcon icon={GithubIcon} strokeWidth={1.8} className="size-5" />}
+      icon={<SimpleBrandIcon icon={siGithub} colored={hasEnabledRepositories} />}
+      iconMuted={!hasEnabledRepositories}
       action={action}
       expanded={expanded}
       onExpandedChange={setExpanded}
@@ -485,10 +491,10 @@ export function GitHubIntegrationRow({
                       </div>
                       <div className="min-w-0 px-4">
                         <div className="flex min-w-0 items-center gap-2">
-                          <HugeiconsIcon
-                            icon={GithubIcon}
-                            strokeWidth={1.8}
-                            className="size-4 shrink-0 text-muted-foreground"
+                          <SimpleBrandIcon
+                            icon={siGithub}
+                            colored={repository.enabled}
+                            className="size-4 shrink-0"
                           />
                           <span className="truncate">{repository.fullName}</span>
                           {repository.private ? <Badge variant="outline">Private</Badge> : null}

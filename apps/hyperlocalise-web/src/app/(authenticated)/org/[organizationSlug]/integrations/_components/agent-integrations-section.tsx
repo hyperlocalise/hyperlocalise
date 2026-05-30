@@ -1,21 +1,14 @@
 "use client";
 
-import {
-  GoogleIcon,
-  MicrosoftIcon,
-  TelegramIcon,
-  WhatsappIcon,
-  WorkIcon,
-} from "@hugeicons/core-free-icons";
+import { MicrosoftIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import type { SimpleIcon } from "simple-icons";
+import { siGitlab, siGooglechat, siLinear, siTelegram, siWhatsapp } from "simple-icons";
 
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
-import {
-  IntegrationCategoryCard,
-  IntegrationCategoryLabel,
-  IntegrationRow,
-} from "./integration-row";
+import { IntegrationCategoryCard, IntegrationRow } from "./integration-row";
+import { SimpleBrandIcon } from "./simple-brand-icon";
 import { SlackIntegrationRow } from "./slack-integration-row";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
@@ -24,31 +17,38 @@ type AgentIntegrationsSectionProps = {
   userCanManage: boolean;
 };
 
-const comingSoonCollaborationAgents = [
+type ComingSoonAgent = {
+  name: string;
+  description: string;
+  icon?: SimpleIcon;
+  fallbackIcon?: typeof MicrosoftIcon;
+};
+
+const comingSoonCollaborationAgents: readonly ComingSoonAgent[] = [
   {
     name: "Microsoft Teams",
-    description: "Work with Cloud Agents from Microsoft Teams workspaces.",
-    icon: MicrosoftIcon,
+    description: "Coordinate localization reviews from Microsoft Teams workspaces.",
+    fallbackIcon: MicrosoftIcon,
   },
   {
     name: "Linear",
     description: "Create issues from translation blockers and keep launch tasks in sync.",
-    icon: WorkIcon,
+    icon: siLinear,
   },
   {
     name: "Google Chat",
     description: "Send review prompts and translation status to Google Chat spaces.",
-    icon: GoogleIcon,
+    icon: siGooglechat,
   },
   {
     name: "Telegram",
     description: "Receive lightweight release alerts and approve routine agent actions.",
-    icon: TelegramIcon,
+    icon: siTelegram,
   },
   {
     name: "WhatsApp",
     description: "Coordinate urgent localization approvals with WhatsApp notifications.",
-    icon: WhatsappIcon,
+    icon: siWhatsapp,
   },
 ] as const;
 
@@ -56,18 +56,27 @@ function ComingSoonIntegrationRow({
   name,
   description,
   icon,
+  fallbackIcon,
   isLast,
 }: {
   name: string;
   description: string;
-  icon: (typeof comingSoonCollaborationAgents)[number]["icon"];
+  icon?: SimpleIcon;
+  fallbackIcon?: typeof MicrosoftIcon;
   isLast?: boolean;
 }) {
   return (
     <IntegrationRow
       name={name}
       description={description}
-      icon={<HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-5" />}
+      icon={
+        icon ? (
+          <SimpleBrandIcon icon={icon} colored={false} />
+        ) : fallbackIcon ? (
+          <HugeiconsIcon icon={fallbackIcon} strokeWidth={1.8} className="size-5" />
+        ) : null
+      }
+      iconMuted
       action="coming-soon"
       isLast={isLast}
     />
@@ -82,21 +91,20 @@ export function AgentIntegrationsSection({
     <>
       <section className="flex flex-col gap-3">
         <div>
-          <IntegrationCategoryLabel>Source control</IntegrationCategoryLabel>
-          <TypographyH2 className="mt-2 font-heading text-xl font-medium text-foreground md:text-xl">
+          <TypographyH2 className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
             Source control
           </TypographyH2>
           <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Connect repositories so agents can review pull requests, open localization fixes, and
-            use codebase context.
+            Connect repositories so Hyperlocalise can inspect localized strings, review pull
+            requests, and open localization fixes.
           </TypographyP>
         </div>
         <IntegrationCategoryCard>
           <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
           <ComingSoonIntegrationRow
             name="GitLab"
-            description="Connect GitLab for Cloud Agents, Bugbot, and enhanced codebase context."
-            icon={WorkIcon}
+            description="Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes."
+            icon={siGitlab}
             isLast
           />
         </IntegrationCategoryCard>
@@ -104,8 +112,7 @@ export function AgentIntegrationsSection({
 
       <section className="flex flex-col gap-3">
         <div>
-          <IntegrationCategoryLabel>Collaboration</IntegrationCategoryLabel>
-          <TypographyH2 className="mt-2 font-heading text-xl font-medium text-foreground md:text-xl">
+          <TypographyH2 className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
             Collaboration
           </TypographyH2>
           <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -122,6 +129,7 @@ export function AgentIntegrationsSection({
               name={agent.name}
               description={agent.description}
               icon={agent.icon}
+              fallbackIcon={agent.fallbackIcon}
               isLast={index === comingSoonCollaborationAgents.length - 1}
             />
           ))}

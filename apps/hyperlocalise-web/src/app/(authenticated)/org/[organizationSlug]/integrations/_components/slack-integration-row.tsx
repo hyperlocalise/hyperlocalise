@@ -146,9 +146,10 @@ export function SlackIntegrationRow({
           ? "Unable to load Slack settings right now."
           : viewModel.connected
             ? viewModel.statusDescription
-            : "Work with Cloud Agents from Slack — mentions, DMs, and subscribed threads."
+            : "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads."
       }
       icon={<HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-5" />}
+      iconMuted={!viewModel.enabled}
       action={action}
       expanded={expanded}
       onExpandedChange={setExpanded}

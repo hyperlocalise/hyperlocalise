@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Copy01Icon, MailReceive01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
+import { Copy01Icon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { siGmail } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { IntegrationRow } from "./integration-row";
+import { SimpleBrandIcon } from "./simple-brand-icon";
 import {
   InputGroup,
   InputGroupAddon,
@@ -133,7 +135,8 @@ export function EmailIntegrationRow({
     <IntegrationRow
       name="Email"
       description={description}
-      icon={<HugeiconsIcon icon={MailReceive01Icon} strokeWidth={1.8} className="size-5" />}
+      icon={<SimpleBrandIcon icon={siGmail} colored={emailAgent?.enabled ?? false} />}
+      iconMuted={!emailAgent?.enabled}
       action={action}
       expanded={expanded}
       onExpandedChange={setExpanded}

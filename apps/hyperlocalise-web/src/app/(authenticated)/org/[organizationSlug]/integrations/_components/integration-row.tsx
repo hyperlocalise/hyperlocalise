@@ -13,6 +13,7 @@ type IntegrationRowProps = {
   name: string;
   description: string;
   icon?: ReactNode;
+  iconMuted?: boolean;
   action: IntegrationRowAction;
   expanded?: boolean;
   onExpandedChange?: (expanded: boolean) => void;
@@ -26,6 +27,7 @@ export function IntegrationRow({
   name,
   description,
   icon,
+  iconMuted = false,
   action,
   expanded = false,
   onExpandedChange,
@@ -43,7 +45,12 @@ export function IntegrationRow({
       className={cn(!isLast && "border-b border-border")}
     >
       <div className="flex items-center gap-4 px-5 py-4">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2">
+        <div
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2",
+            iconMuted && "grayscale saturate-0",
+          )}
+        >
           {icon}
         </div>
 
