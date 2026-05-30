@@ -240,7 +240,17 @@ function isNavigationItemActive(
     return true;
   }
 
+  if (itemPathname.endsWith("/projects")) {
+    return pathname === itemPathname;
+  }
+
   if (pathname.startsWith(`${itemPathname}/`)) {
+    if (itemPathname.endsWith("/settings")) {
+      const settingsSubpath = pathname.slice(itemPathname.length + 1);
+      if (settingsSubpath === "members" || settingsSubpath.startsWith("members/")) {
+        return false;
+      }
+    }
     return true;
   }
 
@@ -261,17 +271,6 @@ function isNavigationItemActive(
   if (
     itemPathname.endsWith("/new-request") &&
     pathname.startsWith(itemPathname.replace("new-request", "chat"))
-  ) {
-    return true;
-  }
-
-  if (itemPathname.endsWith("/projects") && pathname.includes("/projects/")) {
-    return false;
-  }
-
-  if (
-    itemPathname.endsWith("/projects") &&
-    (pathname === itemPathname || pathname.startsWith(`${itemPathname}/`))
   ) {
     return true;
   }

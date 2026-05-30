@@ -68,9 +68,6 @@ export function getAppShellTitle(pathname: string | null): string {
   }
 
   if (section === "settings" && subsection) {
-    if (subsection === "members") {
-      return ROUTE_TITLES.members;
-    }
     return isRouteTitleKey(subsection) ? ROUTE_TITLES[subsection] : ROUTE_TITLES.settings;
   }
 
