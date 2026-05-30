@@ -7,7 +7,7 @@ import { db, schema } from "@/lib/database";
 import { eq } from "drizzle-orm";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
-import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
 
 const { withAuthMock, reconcileWorkosMembershipsMock } = vi.hoisted(() => ({
   withAuthMock: vi.fn(),
@@ -223,10 +223,10 @@ describe("resolveApiAuthContextFromSession", () => {
     const identity = fixture.createWorkosIdentity();
     const synced = await syncWorkosIdentity(db, identity);
 
-    await db
-      .update(schema.organizationMemberships)
-      .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
-      .where(eq(schema.organizationMemberships.organizationId, synced.organization.id));
+    await setMembershipReplacingSentinelForTest(db, {
+      organizationId: synced.organization.id,
+      userId: synced.user.id,
+    });
 
     withAuthMock.mockResolvedValue({
       user: { id: synced.user.workosUserId },

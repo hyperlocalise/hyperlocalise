@@ -13,11 +13,9 @@ import {
   syncWorkosIdentity,
 } from "@/api/auth/workos-sync";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
 import { db, schema } from "@/lib/database";
-import {
-  INVITED_WORKOS_USER_ID_PREFIX,
-  REPLACING_WORKOS_MEMBERSHIP_ID,
-} from "@/lib/workos/constants";
+import { INVITED_WORKOS_USER_ID_PREFIX } from "@/lib/workos/constants";
 
 const { withAuthMock, listMembershipsMock, getOrganizationMock } = vi.hoisted(() => ({
   withAuthMock: vi.fn(),
@@ -204,10 +202,10 @@ describe("enterprise identity access regression", () => {
       const identity = createWorkosIdentity();
       const synced = await syncWorkosIdentity(db, identity);
 
-      await db
-        .update(schema.organizationMemberships)
-        .set({ workosMembershipId: REPLACING_WORKOS_MEMBERSHIP_ID })
-        .where(eq(schema.organizationMemberships.organizationId, synced.organization.id));
+      await setMembershipReplacingSentinelForTest(db, {
+        organizationId: synced.organization.id,
+        userId: synced.user.id,
+      });
 
       listMembershipsMock.mockResolvedValue({ autoPagination: async () => [] });
       mockWorkosSessionForIdentity(identity);
