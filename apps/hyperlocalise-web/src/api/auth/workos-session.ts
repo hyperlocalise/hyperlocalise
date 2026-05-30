@@ -3,9 +3,14 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
+import {
+  assertWorkosMembershipReconcileAllowsAccess,
+  reconcileWorkosMembershipsForUser,
+} from "@/api/auth/workos-membership-reconcile";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 type ResolveApiAuthContextOptions = {
   cookie?: string;
@@ -231,6 +236,16 @@ export async function resolveApiAuthContextFromSession(
     return null;
   }
 
+  const reconcileResult = await reconcileWorkosMembershipsForUser(db, {
+    workosUserId: session.user.id,
+    email: session.user.email,
+    firstName: session.user.firstName ?? undefined,
+    lastName: session.user.lastName ?? undefined,
+    avatarUrl: session.user.profilePictureUrl ?? undefined,
+  });
+
+  await assertWorkosMembershipReconcileAllowsAccess(db, session.user.id, reconcileResult);
+
   const memberships = await db
     .select({
       workosUserId: schema.users.workosUserId,
@@ -270,6 +285,7 @@ export async function resolveApiAuthContextFromSession(
           membership: {
             workosMembershipId: membership.workosMembershipId,
             role: membership.role,
+            accessSource: resolveOrganizationMembershipAccessSource(membership.workosMembershipId),
           },
         }));
 
@@ -307,6 +323,7 @@ export async function resolveApiAuthContextFromSession(
     membership: {
       workosMembershipId: activeOrganization.membership.workosMembershipId,
       role: activeOrganization.membership.role,
+      accessSource: activeOrganization.membership.accessSource,
     },
   };
 

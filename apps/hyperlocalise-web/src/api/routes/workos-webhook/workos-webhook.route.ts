@@ -15,7 +15,8 @@ import {
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import * as schema from "@/lib/database/schema";
-import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { membershipRoleFromUnknownRoleField } from "@/lib/workos/membership-role";
+import { getWorkosServerClient } from "@/lib/workos/server-client";
 import { type WorkosWebhookEvent, workosWebhookEventSchema } from "./workos-webhook.schema";
 
 const logger = createLogger("workos-webhook");
@@ -90,16 +91,18 @@ function readString(data: Record<string, unknown>, ...keys: string[]): string | 
   return undefined;
 }
 
-function toMembershipRole(data: Record<string, unknown>): OrganizationMembershipRole {
-  const roleField = data["role"];
-  const slug =
-    typeof roleField === "string"
-      ? roleField
-      : typeof roleField === "object" && roleField !== null && "slug" in roleField
-        ? String((roleField as { slug: unknown }).slug)
-        : undefined;
-  if (slug === "owner" || slug === "admin") return slug as OrganizationMembershipRole;
-  return "member";
+async function isAuthoritativeWorkosMembershipActive(workosMembershipId: string) {
+  const workos = getWorkosServerClient();
+  if (!workos) {
+    return true;
+  }
+
+  try {
+    const membership = await workos.userManagement.getOrganizationMembership(workosMembershipId);
+    return membership.status === "active";
+  } catch {
+    return false;
+  }
 }
 
 async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
@@ -225,6 +228,10 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       return;
     }
 
+    if (!(await isAuthoritativeWorkosMembershipActive(workosMembershipId))) {
+      return;
+    }
+
     const [existingOrg] = await db
       .select({ name: schema.organizations.name, slug: schema.organizations.slug })
       .from(schema.organizations)
@@ -250,7 +257,7 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       },
       membership: {
         workosMembershipId,
-        role: toMembershipRole(data),
+        role: membershipRoleFromUnknownRoleField(data["role"]),
       },
     });
   }

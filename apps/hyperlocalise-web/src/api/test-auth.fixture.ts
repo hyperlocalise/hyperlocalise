@@ -4,9 +4,11 @@ import { eq } from "drizzle-orm";
 import { expect } from "vite-plus/test";
 
 import type { ApiAuthContext, WorkosAuthIdentity } from "@/api/auth/workos";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
+import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 import { cleanupWorkosTestRecords } from "./test-cleanup";
 
 declare global {
@@ -32,6 +34,15 @@ function testSessionTokenFromCookie(cookie: string | undefined) {
     ?.slice("wos-session=".length);
 }
 
+function withMembershipAccessSource<
+  T extends { workosMembershipId: string | null; role: OrganizationMembershipRole },
+>(membership: T) {
+  return {
+    ...membership,
+    accessSource: resolveOrganizationMembershipAccessSource(membership.workosMembershipId),
+  };
+}
+
 function switchAuthContextOrganization(
   authContext: ApiAuthContext,
   organizationSlug: string | undefined,
@@ -52,10 +63,10 @@ function switchAuthContextOrganization(
     ...authContext,
     organization: activeOrganization,
     activeOrganization,
-    membership: {
-      workosMembershipId: activeOrganization.membership.workosMembershipId,
+    membership: withMembershipAccessSource({
+      workosMembershipId: activeOrganization.membership.workosMembershipId ?? null,
       role: activeOrganization.membership.role,
-    },
+    }),
   });
 }
 
@@ -165,10 +176,10 @@ export function createAuthTestFixture() {
       localOrganizationId: organization.id,
       name: organization.name,
       slug: organization.slug,
-      membership: {
+      membership: withMembershipAccessSource({
         workosMembershipId: membership.workosMembershipId,
         role: membership.role,
-      },
+      }),
     };
   }
 
@@ -185,10 +196,10 @@ export function createAuthTestFixture() {
       organizations: [activeOrganization],
       organization: activeOrganization,
       activeOrganization,
-      membership: {
+      membership: withMembershipAccessSource({
         workosMembershipId: membership.workosMembershipId,
         role: membership.role,
-      },
+      }),
       activeTeam: null,
     });
     const sessionToken = `test_${randomUUID()}`;
@@ -231,10 +242,10 @@ export function createAuthTestFixture() {
       organizations,
       organization: activeOrganization,
       activeOrganization,
-      membership: {
+      membership: withMembershipAccessSource({
         workosMembershipId: activeOrganization.membership.workosMembershipId,
         role: activeOrganization.membership.role,
-      },
+      }),
       activeTeam: null,
     });
     const sessionToken = `test_${randomUUID()}`;

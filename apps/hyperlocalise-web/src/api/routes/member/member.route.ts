@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { reconcileWorkosMembershipsForUser } from "@/api/auth/workos-membership-reconcile";
 import {
   clearPendingMembershipReplacingInvitation,
   markPendingMembershipReplacingInvitation,
@@ -66,6 +67,23 @@ const validateMemberParams = validator("param", (value, c) => {
 function shouldSyncMembershipToWorkos(input: { workosMembershipId: string | null }) {
   const workos = getWorkosServerClient();
   return isActiveOrganizationMembership(input.workosMembershipId) && workos !== null;
+}
+
+async function reconcileMemberMembershipFromWorkos(input: {
+  workosUserId: string;
+  email: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  workosOrganizationId: string;
+}) {
+  await reconcileWorkosMembershipsForUser(db, {
+    workosUserId: input.workosUserId,
+    email: input.email,
+    firstName: input.firstName ?? undefined,
+    lastName: input.lastName ?? undefined,
+    workosOrganizationId: input.workosOrganizationId,
+    force: true,
+  });
 }
 
 async function inviteOrganizationMember(input: {
@@ -595,6 +613,14 @@ export function createMemberRoutes() {
           );
         }
       }
+
+      await reconcileMemberMembershipFromWorkos({
+        workosUserId: member.workosUserId,
+        email: member.email,
+        firstName: member.firstName,
+        lastName: member.lastName,
+        workosOrganizationId,
+      });
 
       return c.json(
         {

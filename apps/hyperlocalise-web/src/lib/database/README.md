@@ -180,7 +180,8 @@ erDiagram
 
 ## Notes
 
-- `organization_memberships` is the authorization join table between users and organizations.
+- `organization_memberships` caches organization membership; WorkOS active memberships are authoritative for access (see `src/lib/workos/IDENTITY.md`).
+- `users.workos_memberships_reconciled_at` records the last successful WorkOS membership reconcile for session bootstrap safety.
 - `teams` are local app-level subgroups inside an organization; WorkOS does not manage them.
 - `team_memberships` controls collaboration inside an organization after org membership is established.
 - `translation_projects` and `translation_jobs` reference local UUIDs for users and organizations, not WorkOS IDs.

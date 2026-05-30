@@ -9,6 +9,8 @@ import {
   resolveApiAuthContextFromSession,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
+import { db } from "@/lib/database";
+import { listLocalOrgWorkspacesForUser } from "@/lib/organizations/migrate-local-org-to-workos";
 import {
   getStoredActiveOrganizationSlug,
   setStoredActiveOrganizationSlug,
@@ -53,10 +55,19 @@ export async function requireAppAuthContext(
       redirect("/auth/access-denied?reason=organization-access-denied");
     }
 
+    if (error instanceof Error && error.message === "workos_membership_lookup_failed") {
+      redirect("/auth/access-denied?reason=workos-membership-lookup-failed");
+    }
+
     throw error;
   }
 
   if (!auth) {
+    const pendingLocalOrgWorkspaces = await listLocalOrgWorkspacesForUser(db, session.user.id);
+    if (pendingLocalOrgWorkspaces.length > 0) {
+      redirect("/auth/upgrade-workspace");
+    }
+
     redirect("/auth/onboarding");
   }
 

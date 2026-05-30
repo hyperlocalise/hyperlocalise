@@ -9,13 +9,22 @@ import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 
-const { withAuthMock } = vi.hoisted(() => ({
+const { withAuthMock, reconcileWorkosMembershipsMock } = vi.hoisted(() => ({
   withAuthMock: vi.fn(),
+  reconcileWorkosMembershipsMock: vi.fn().mockResolvedValue({ status: "skipped" }),
 }));
 
 vi.mock("@workos-inc/authkit-nextjs", () => ({
   withAuth: withAuthMock,
 }));
+
+vi.mock("./workos-membership-reconcile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./workos-membership-reconcile")>();
+  return {
+    ...actual,
+    reconcileWorkosMembershipsForUser: reconcileWorkosMembershipsMock,
+  };
+});
 
 describe("resolveApiAuthContextFromSession", () => {
   const fixture = createProjectTestFixture();
@@ -26,6 +35,7 @@ describe("resolveApiAuthContextFromSession", () => {
 
   afterEach(async () => {
     vi.clearAllMocks();
+    reconcileWorkosMembershipsMock.mockResolvedValue({ status: "skipped" });
     await fixture.cleanup();
   });
 
@@ -44,6 +54,7 @@ describe("resolveApiAuthContextFromSession", () => {
     expect(auth?.organizations).toHaveLength(1);
     expect(auth?.activeOrganization.slug).toBe(identity.organization.slug);
     expect(auth?.activeOrganization.membership.role).toBe(identity.membership.role);
+    expect(auth?.membership.accessSource).toBe("workos_authoritative");
     expect(auth?.activeTeam).toBeNull();
   });
 
@@ -256,6 +267,33 @@ describe("resolveApiAuthContextFromSession", () => {
     ).rejects.toThrow("organization_access_denied");
 
     await expect(resolveApiAuthContextFromSession()).resolves.toBeNull();
+  });
+
+  it("rejects session bootstrap when WorkOS membership lookup fails without fresh reconcile", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    withAuthMock.mockResolvedValue({
+      user: {
+        id: identity.user.workosUserId,
+        email: identity.user.email,
+        firstName: null,
+        lastName: null,
+        profilePictureUrl: null,
+      },
+      organizationId: identity.organization.workosOrganizationId,
+    });
+
+    reconcileWorkosMembershipsMock.mockResolvedValueOnce({
+      status: "lookup_failed",
+      lastReconciledAt: null,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+
+    await expect(resolveApiAuthContextFromSession()).rejects.toThrow(
+      "workos_membership_lookup_failed",
+    );
   });
 
   it("uses the injected session without performing another withAuth lookup", async () => {

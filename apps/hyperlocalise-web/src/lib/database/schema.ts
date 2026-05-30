@@ -252,6 +252,10 @@ export const users = pgTable(
     firstName: text("first_name"),
     lastName: text("last_name"),
     avatarUrl: text("avatar_url"),
+    // Last successful WorkOS organization-membership reconciliation for this user.
+    workosMembershipsReconciledAt: timestamp("workos_memberships_reconciled_at", {
+      withTimezone: true,
+    }),
     // When the user record was first created.
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     // When user metadata was last changed.

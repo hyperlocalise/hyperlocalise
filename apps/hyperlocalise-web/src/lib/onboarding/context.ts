@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import {
@@ -5,6 +6,8 @@ import {
   resolveApiAuthContextFromSession,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
+import { db } from "@/lib/database";
+import { listLocalOrgWorkspacesForUser } from "@/lib/organizations/migrate-local-org-to-workos";
 import { setStoredActiveOrganizationSlug } from "@/lib/workos/active-organization";
 import {
   clearStoredOnboardingState,
@@ -67,6 +70,13 @@ export async function loadOnboardingContext() {
       auth = null;
     } else {
       throw error;
+    }
+  }
+
+  if (!auth && session.user) {
+    const pendingLocalOrgWorkspaces = await listLocalOrgWorkspacesForUser(db, session.user.id);
+    if (pendingLocalOrgWorkspaces.length > 0) {
+      redirect("/auth/upgrade-workspace");
     }
   }
 
