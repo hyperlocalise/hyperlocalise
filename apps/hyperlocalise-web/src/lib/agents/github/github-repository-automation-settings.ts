@@ -146,42 +146,181 @@ export function validateGithubRepositoryAutomationSettings(
     if (settings.trigger.cadence === "weekly" && settings.trigger.dayOfWeek === undefined) {
       return "weekly_schedule_requires_day_of_week";
     }
+    if (!isValidAutomationTimeZone(settings.trigger.timezone)) {
+      return "invalid_automation_timezone";
+    }
   }
 
   return null;
+}
+
+function isValidAutomationTimeZone(timeZone: string) {
+  try {
+    Intl.DateTimeFormat("en-US", { timeZone });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+type ZonedDateTimeParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+  weekday: number;
+};
+
+const WEEKDAY_TO_INDEX: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+function getZonedDateTimeParts(date: Date, timeZone: string): ZonedDateTimeParts {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+    weekday: "short",
+  });
+
+  const parts = formatter.formatToParts(date);
+  const read = (type: Intl.DateTimeFormatPartTypes) =>
+    Number(parts.find((part) => part.type === type)?.value);
+
+  const weekday = parts.find((part) => part.type === "weekday")?.value ?? "Sun";
+
+  return {
+    year: read("year"),
+    month: read("month"),
+    day: read("day"),
+    hour: read("hour"),
+    minute: read("minute"),
+    second: read("second"),
+    weekday: WEEKDAY_TO_INDEX[weekday] ?? 0,
+  };
+}
+
+function utcFromZonedLocal(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+  minute: number,
+  second: number,
+  timeZone: string,
+): Date {
+  let utcMs = Date.UTC(year, month - 1, day, hour, minute, second);
+
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const zoned = getZonedDateTimeParts(new Date(utcMs), timeZone);
+    const desiredMs = Date.UTC(year, month - 1, day, hour, minute, second);
+    const actualMs = Date.UTC(
+      zoned.year,
+      zoned.month - 1,
+      zoned.day,
+      zoned.hour,
+      zoned.minute,
+      zoned.second,
+    );
+    utcMs += desiredMs - actualMs;
+  }
+
+  return new Date(utcMs);
+}
+
+function addDaysToLocalDate(year: number, month: number, day: number, days: number) {
+  const date = new Date(Date.UTC(year, month - 1, day + days));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+}
+
+function nextTopOfHourInTimeZone(from: Date, timeZone: string): Date {
+  const zoned = getZonedDateTimeParts(from, timeZone);
+  let { year, month, day, hour } = zoned;
+
+  if (
+    zoned.minute > 0 ||
+    zoned.second > 0 ||
+    from.getTime() > utcFromZonedLocal(year, month, day, hour, 0, 0, timeZone).getTime()
+  ) {
+    hour += 1;
+    if (hour >= 24) {
+      hour = 0;
+      ({ year, month, day } = addDaysToLocalDate(year, month, day, 1));
+    }
+  }
+
+  return utcFromZonedLocal(year, month, day, hour, 0, 0, timeZone);
+}
+
+function nextDailyRunInTimeZone(from: Date, timeZone: string, localHour: number): Date {
+  const zoned = getZonedDateTimeParts(from, timeZone);
+  let { year, month, day } = zoned;
+
+  let candidate = utcFromZonedLocal(year, month, day, localHour, 0, 0, timeZone);
+  if (candidate.getTime() <= from.getTime()) {
+    ({ year, month, day } = addDaysToLocalDate(year, month, day, 1));
+    candidate = utcFromZonedLocal(year, month, day, localHour, 0, 0, timeZone);
+  }
+
+  return candidate;
+}
+
+function nextWeeklyRunInTimeZone(
+  from: Date,
+  timeZone: string,
+  localHour: number,
+  dayOfWeek: number,
+): Date {
+  const zoned = getZonedDateTimeParts(from, timeZone);
+  let { year, month, day } = zoned;
+
+  let daysUntil = (dayOfWeek - zoned.weekday + 7) % 7;
+  let candidate = utcFromZonedLocal(year, month, day, localHour, 0, 0, timeZone);
+  if (daysUntil === 0 && candidate.getTime() <= from.getTime()) {
+    daysUntil = 7;
+  }
+
+  if (daysUntil > 0) {
+    ({ year, month, day } = addDaysToLocalDate(year, month, day, daysUntil));
+    candidate = utcFromZonedLocal(year, month, day, localHour, 0, 0, timeZone);
+  }
+
+  return candidate;
 }
 
 export function computeNextScheduledRunAt(
   trigger: Extract<GithubRepositoryAutomationSettings["trigger"], { mode: "scheduled" }>,
   from: Date = new Date(),
 ): Date {
-  const next = new Date(from);
-  next.setUTCSeconds(0, 0);
+  const timeZone = trigger.timezone;
 
   if (trigger.cadence === "hourly") {
-    next.setUTCMinutes(0);
-    next.setUTCHours(next.getUTCHours() + 1);
-    return next;
+    return nextTopOfHourInTimeZone(from, timeZone);
   }
 
-  const hourUtc = trigger.hourUtc;
+  const localHour = trigger.hourUtc;
   if (trigger.cadence === "daily") {
-    next.setUTCHours(hourUtc, 0, 0, 0);
-    if (next.getTime() <= from.getTime()) {
-      next.setUTCDate(next.getUTCDate() + 1);
-    }
-    return next;
+    return nextDailyRunInTimeZone(from, timeZone, localHour);
   }
 
-  const dayOfWeek = trigger.dayOfWeek ?? 1;
-  next.setUTCHours(hourUtc, 0, 0, 0);
-  const currentDay = next.getUTCDay();
-  let daysUntil = (dayOfWeek - currentDay + 7) % 7;
-  if (daysUntil === 0 && next.getTime() <= from.getTime()) {
-    daysUntil = 7;
-  }
-  next.setUTCDate(next.getUTCDate() + daysUntil);
-  return next;
+  return nextWeeklyRunInTimeZone(from, timeZone, localHour, trigger.dayOfWeek ?? 1);
 }
 
 export function resolveNextRunAtForSettings(
@@ -200,8 +339,36 @@ export function resolveNextRunAtForSettings(
 }
 
 function globPatternToRegExp(pattern: string): RegExp {
-  const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&");
-  const regexSource = `^${escaped.replace(/\*/g, ".*").replace(/\?/g, ".")}$`;
+  let regexSource = "^";
+
+  for (let index = 0; index < pattern.length; index++) {
+    const character = pattern[index];
+
+    if (character === "*" && pattern[index + 1] === "*") {
+      regexSource += ".*";
+      index += 1;
+      continue;
+    }
+
+    if (character === "*") {
+      regexSource += "[^/]*";
+      continue;
+    }
+
+    if (character === "?") {
+      regexSource += "[^/]";
+      continue;
+    }
+
+    if (/[.+^${}()|[\]\\]/.test(character)) {
+      regexSource += `\\${character}`;
+      continue;
+    }
+
+    regexSource += character;
+  }
+
+  regexSource += "$";
   return new RegExp(regexSource);
 }
 

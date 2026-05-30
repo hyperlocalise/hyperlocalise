@@ -67,10 +67,7 @@ const validateAutomationSettingsBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-async function getOwnedEnabledRepository(input: {
-  organizationId: string;
-  githubRepositoryId: string;
-}) {
+async function getOwnedRepository(input: { organizationId: string; githubRepositoryId: string }) {
   const [repository] = await db
     .select()
     .from(schema.githubInstallationRepositories)
@@ -106,6 +103,13 @@ function mapAutomationSettingsError(c: Parameters<typeof badRequestResponse>[0],
         c,
         "weekly_schedule_requires_day_of_week",
         "Weekly schedules require a day of week between 0 (Sunday) and 6 (Saturday).",
+      );
+    }
+    if (error.message === "invalid_automation_timezone") {
+      return badRequestResponse(
+        c,
+        "invalid_automation_timezone",
+        "Scheduled automation requires a valid IANA timezone.",
       );
     }
   }
@@ -405,7 +409,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       }
 
       const organizationId = c.var.auth.organization.localOrganizationId;
-      const repository = await getOwnedEnabledRepository({
+      const repository = await getOwnedRepository({
         organizationId,
         githubRepositoryId: parsedParams.data.githubRepositoryId,
       });
@@ -435,7 +439,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
         }
 
         const organizationId = c.var.auth.organization.localOrganizationId;
-        const repository = await getOwnedEnabledRepository({
+        const repository = await getOwnedRepository({
           organizationId,
           githubRepositoryId: parsedParams.data.githubRepositoryId,
         });
@@ -486,7 +490,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       }
 
       const organizationId = c.var.auth.organization.localOrganizationId;
-      const repository = await getOwnedEnabledRepository({
+      const repository = await getOwnedRepository({
         organizationId,
         githubRepositoryId: parsedParams.data.githubRepositoryId,
       });

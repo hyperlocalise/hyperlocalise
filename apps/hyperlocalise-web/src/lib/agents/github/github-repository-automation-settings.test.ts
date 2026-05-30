@@ -49,9 +49,11 @@ describe("github repository automation settings", () => {
     ).toBe("push_trigger_requires_branches");
   });
 
-  it("matches branch glob patterns", () => {
+  it("matches branch glob patterns without crossing path separators", () => {
     expect(branchMatchesAutomationPatterns("main", ["main"])).toBe(true);
     expect(branchMatchesAutomationPatterns("release/1.2", ["release/*"])).toBe(true);
+    expect(branchMatchesAutomationPatterns("release/1.2/beta", ["release/*"])).toBe(false);
+    expect(branchMatchesAutomationPatterns("release/1.2/beta", ["release/**"])).toBe(true);
     expect(branchMatchesAutomationPatterns("feature/foo", ["release/*"])).toBe(false);
   });
 
@@ -122,5 +124,20 @@ describe("github repository automation settings", () => {
         from,
       )?.toISOString(),
     ).toBe("2026-05-30T11:00:00.000Z");
+  });
+
+  it("schedules daily runs using the configured timezone", () => {
+    const from = new Date("2026-05-30T14:00:00.000Z");
+    const next = computeNextScheduledRunAt(
+      {
+        mode: "scheduled",
+        cadence: "daily",
+        hourUtc: 9,
+        timezone: "America/New_York",
+      },
+      from,
+    );
+
+    expect(next.toISOString()).toBe("2026-05-31T13:00:00.000Z");
   });
 });

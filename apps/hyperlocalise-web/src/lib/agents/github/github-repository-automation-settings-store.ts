@@ -1,4 +1,4 @@
-import { and, eq, isNotNull, lte } from "drizzle-orm";
+import { and, eq, isNotNull, lte, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -134,7 +134,6 @@ export async function upsertGithubRepositoryAutomationSettings(input: {
     DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS,
   );
   const nextRunAt = resolveNextRunAtForSettings(mergedSettings);
-  const nextConfigVersion = (existing?.configVersion ?? 0) + 1;
 
   await db
     .insert(schema.githubRepositoryAutomationSettings)
@@ -142,14 +141,13 @@ export async function upsertGithubRepositoryAutomationSettings(input: {
       organizationId: input.organizationId,
       githubInstallationRepositoryId: input.githubInstallationRepositoryId,
       settings: storedSettings,
-      configVersion: nextConfigVersion,
       nextRunAt,
     })
     .onConflictDoUpdate({
       target: schema.githubRepositoryAutomationSettings.githubInstallationRepositoryId,
       set: {
         settings: storedSettings,
-        configVersion: nextConfigVersion,
+        configVersion: sql`${schema.githubRepositoryAutomationSettings.configVersion} + 1`,
         nextRunAt,
         updatedAt: new Date(),
       },
