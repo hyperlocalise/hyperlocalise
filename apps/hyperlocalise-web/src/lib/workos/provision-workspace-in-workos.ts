@@ -1,5 +1,13 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { createLogger } from "@/lib/log";
+import {
+  membershipRoleFromUnknownRoleField,
+  membershipRoleToWorkosRoleSlug,
+} from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
+import { serializeWorkosErrorForLog } from "@/lib/workos/serialize-workos-error-for-log";
+
+const logger = createLogger("provision-workspace-in-workos");
 
 export type ProvisionWorkspaceMember = {
   workosUserId: string;
@@ -23,14 +31,6 @@ export type ProvisionWorkspaceInWorkosResult = {
   members: ProvisionedWorkspaceMember[];
 };
 
-function membershipRoleToWorkosRoleSlug(role: OrganizationMembershipRole) {
-  if (role === "owner" || role === "admin") {
-    return role;
-  }
-
-  return "member";
-}
-
 export async function deleteProvisionedWorkosOrganization(workosOrganizationId: string) {
   const workos = getWorkosServerClient();
   if (!workos) {
@@ -41,6 +41,93 @@ export async function deleteProvisionedWorkosOrganization(workosOrganizationId: 
     await workos.organizations.deleteOrganization(workosOrganizationId);
   } catch {
     // Best-effort cleanup; preserve the original failure.
+  }
+}
+
+export type PromoteLocalOrganizationForWorkosUserInput = {
+  localWorkspaceId: string;
+  organizationName: string;
+  workosUserId: string;
+  role: OrganizationMembershipRole;
+};
+
+export type PromoteLocalOrganizationForWorkosUserResult = {
+  workosOrganizationId: string;
+  workosMembershipId: string;
+  role: OrganizationMembershipRole;
+};
+
+/**
+ * Promotes a legacy local workspace by creating a WorkOS organization and assigning
+ * an existing WorkOS user. Does not create users or touch other members.
+ */
+export async function promoteLocalOrganizationForWorkosUser(
+  input: PromoteLocalOrganizationForWorkosUserInput,
+): Promise<PromoteLocalOrganizationForWorkosUserResult> {
+  const workos = getWorkosServerClient();
+
+  if (!workos) {
+    throw new Error("workos_organization_required");
+  }
+
+  let workosOrganizationId: string | undefined;
+  let roleSlug: string | undefined;
+
+  try {
+    const organization = await workos.organizations.createOrganization(
+      {
+        name: input.organizationName,
+        externalId: input.localWorkspaceId,
+        metadata: {
+          hyperlocalise_local_organization_id: input.localWorkspaceId,
+        },
+      },
+      { idempotencyKey: `workspace:${input.localWorkspaceId}` },
+    );
+    workosOrganizationId = organization.id;
+
+    const existingMembershipsPage = await workos.userManagement.listOrganizationMemberships({
+      organizationId: organization.id,
+      userId: input.workosUserId,
+      statuses: ["active"],
+    });
+    const existingMemberships = await existingMembershipsPage.autoPagination();
+    const existingMembership = existingMemberships[0];
+
+    if (existingMembership) {
+      return {
+        workosOrganizationId: organization.id,
+        workosMembershipId: existingMembership.id,
+        role: membershipRoleFromUnknownRoleField(existingMembership.role),
+      };
+    }
+
+    roleSlug = membershipRoleToWorkosRoleSlug(input.role);
+    const createdMembership = await workos.userManagement.createOrganizationMembership({
+      organizationId: organization.id,
+      userId: input.workosUserId,
+      roleSlug,
+    });
+
+    return {
+      workosOrganizationId: organization.id,
+      workosMembershipId: createdMembership.id,
+      role: input.role,
+    };
+  } catch (error) {
+    if (workosOrganizationId) {
+      await deleteProvisionedWorkosOrganization(workosOrganizationId);
+    }
+
+    logger.warn("workos_local_org_promotion_failed", {
+      localWorkspaceId: input.localWorkspaceId,
+      workosOrganizationId,
+      workosUserId: input.workosUserId,
+      roleSlug,
+      ...serializeWorkosErrorForLog(error),
+    });
+
+    throw error;
   }
 }
 
@@ -58,6 +145,12 @@ export async function provisionWorkspaceInWorkos(
   }
 
   let workosOrganizationId: string | undefined;
+  let lastAttemptedMember:
+    | {
+        workosUserId: string;
+        roleSlug: string;
+      }
+    | undefined;
 
   try {
     const organization = await workos.organizations.createOrganization(
@@ -89,15 +182,21 @@ export async function provisionWorkspaceInWorkos(
         provisionedMembers.push({
           workosUserId: member.workosUserId,
           workosMembershipId: existing.id,
-          role: member.role,
+          role: membershipRoleFromUnknownRoleField(existing.role),
         });
         continue;
       }
 
+      const roleSlug = membershipRoleToWorkosRoleSlug(member.role);
+      lastAttemptedMember = {
+        workosUserId: member.workosUserId,
+        roleSlug,
+      };
+
       const created = await workos.userManagement.createOrganizationMembership({
         organizationId: organization.id,
         userId: member.workosUserId,
-        roleSlug: membershipRoleToWorkosRoleSlug(member.role),
+        roleSlug,
       });
 
       provisionedMembers.push({
@@ -115,6 +214,15 @@ export async function provisionWorkspaceInWorkos(
     if (workosOrganizationId) {
       await deleteProvisionedWorkosOrganization(workosOrganizationId);
     }
+
+    logger.warn("workos_workspace_provision_failed", {
+      localWorkspaceId: input.localWorkspaceId,
+      workosOrganizationId,
+      memberCount: input.members.length,
+      lastAttemptedWorkosUserId: lastAttemptedMember?.workosUserId,
+      lastAttemptedRoleSlug: lastAttemptedMember?.roleSlug,
+      ...serializeWorkosErrorForLog(error),
+    });
 
     throw error;
   }

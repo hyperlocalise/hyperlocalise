@@ -1,5 +1,13 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
+export function membershipRoleToWorkosRoleSlug(role: OrganizationMembershipRole) {
+  if (role === "owner" || role === "admin") {
+    return role;
+  }
+
+  return "member";
+}
+
 export function workosRoleSlugToMembershipRole(
   roleSlug: string | undefined,
 ): OrganizationMembershipRole {
