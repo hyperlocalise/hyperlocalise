@@ -313,6 +313,10 @@ export function createAuthTestFixture() {
     createdRecordsByTest.delete(testKey);
   }
 
+  function trackWorkosUserId(workosUserId: string) {
+    currentTestRecords().workosUserIds.add(workosUserId);
+  }
+
   return {
     authHeadersFor,
     authHeadersForOrganizations,
@@ -322,5 +326,6 @@ export function createAuthTestFixture() {
     createWorkosIdentityForOrganization,
     createWorkosIdentityWithRole,
     getLocalUserId,
+    trackWorkosUserId,
   };
 }

@@ -20,7 +20,7 @@ import {
   REPLACING_WORKOS_MEMBERSHIP_ID,
 } from "@/lib/workos/constants";
 
-const { createWorkosIdentity, cleanup } = createAuthTestFixture();
+const { createWorkosIdentity, cleanup, trackWorkosUserId } = createAuthTestFixture();
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -89,6 +89,34 @@ describe("removePendingOrganizationMembershipForInvite", () => {
       .delete(schema.organizationMemberships)
       .where(eq(schema.organizationMemberships.id, membership.id));
   });
+
+  it("removes pending invite rows for revoked invitations", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+
+    const pendingEmail = `revoked-${randomUUID()}@example.com`;
+    const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
+
+    trackWorkosUserId(placeholderUserId);
+
+    await syncWorkosIdentity(db, {
+      user: {
+        workosUserId: placeholderUserId,
+        email: pendingEmail,
+      },
+      organization: ownerIdentity.organization,
+      membership: {
+        role: "member",
+      },
+    });
+
+    const deleted = await removePendingOrganizationMembershipForInvite(db, {
+      workosOrganizationId: ownerIdentity.organization.workosOrganizationId,
+      email: pendingEmail,
+    });
+
+    expect(deleted).toBe(1);
+  });
 });
 
 describe("promoteInvitedPlaceholderUser", () => {
@@ -113,31 +141,5 @@ describe("revokeOrganizationMembershipAccess", () => {
       teamMembershipsDeleted: 0,
       mcpSessionsDeleted: 0,
     });
-  });
-
-  it("removes pending invite rows for revoked invitations", async () => {
-    const ownerIdentity = createWorkosIdentity();
-    await syncWorkosIdentity(db, ownerIdentity);
-
-    const pendingEmail = `revoked-${randomUUID()}@example.com`;
-    const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
-
-    await syncWorkosIdentity(db, {
-      user: {
-        workosUserId: placeholderUserId,
-        email: pendingEmail,
-      },
-      organization: ownerIdentity.organization,
-      membership: {
-        role: "member",
-      },
-    });
-
-    const deleted = await removePendingOrganizationMembershipForInvite(db, {
-      workosOrganizationId: ownerIdentity.organization.workosOrganizationId,
-      email: pendingEmail,
-    });
-
-    expect(deleted).toBe(1);
   });
 });

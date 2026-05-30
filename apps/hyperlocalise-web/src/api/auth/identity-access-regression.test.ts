@@ -55,7 +55,7 @@ vi.mock("@/lib/workos/server-client", () => ({
   }),
 }));
 
-const { createWorkosIdentity, cleanup } = createAuthTestFixture();
+const { createWorkosIdentity, cleanup, trackWorkosUserId } = createAuthTestFixture();
 const client = testClient(createApp());
 const sessionHeaders = { headers: { cookie: "wos-session=identity-regression" } };
 
@@ -131,6 +131,7 @@ describe("enterprise identity access regression", () => {
 
       const pendingEmail = `pending-${randomUUID()}@example.com`;
       const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
+      trackWorkosUserId(placeholderUserId);
       await syncWorkosIdentity(db, {
         user: {
           workosUserId: placeholderUserId,
@@ -348,6 +349,8 @@ describe("enterprise identity access regression", () => {
       const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
       const realWorkosUserId = `user_${randomUUID()}`;
 
+      trackWorkosUserId(placeholderUserId);
+
       await syncWorkosIdentity(db, {
         user: {
           workosUserId: placeholderUserId,
@@ -365,6 +368,7 @@ describe("enterprise identity access regression", () => {
       });
 
       expect(promoted).toBe(true);
+      trackWorkosUserId(realWorkosUserId);
 
       const [user] = await db
         .select({ workosUserId: schema.users.workosUserId })
