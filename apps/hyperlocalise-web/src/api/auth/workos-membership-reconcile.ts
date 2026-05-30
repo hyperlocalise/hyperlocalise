@@ -272,7 +272,9 @@ export async function reconcileWorkosMembershipsForUser(
     .limit(1);
 
   if (!localUser) {
-    await markMembershipsReconciled(database, input.workosUserId);
+    if (!input.workosOrganizationId) {
+      await markMembershipsReconciled(database, input.workosUserId);
+    }
     return { status: "reconciled", added, updated, revoked: 0 };
   }
 
@@ -319,7 +321,11 @@ export async function reconcileWorkosMembershipsForUser(
     }
   }
 
-  await markMembershipsReconciled(database, input.workosUserId);
+  // Scoped reconcile only checks one organization. Do not refresh the global TTL or
+  // session bootstrap may skip full membership revocation for other workspaces.
+  if (!input.workosOrganizationId) {
+    await markMembershipsReconciled(database, input.workosUserId);
+  }
 
   return {
     status: "reconciled",

@@ -169,6 +169,38 @@ describe("reconcileWorkosMembershipsForUser", () => {
     expect(membership?.role).toBe("admin");
   });
 
+  it("does not refresh global reconcile TTL for organization-scoped reconcile", async () => {
+    const identity = createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    listMembershipsMock.mockResolvedValue({
+      autoPagination: async () => [
+        {
+          id: identity.membership.workosMembershipId,
+          organizationId: identity.organization.workosOrganizationId,
+          status: "active",
+          role: { slug: "owner" },
+        },
+      ],
+    });
+
+    const { reconcileWorkosMembershipsForUser } = await import("./workos-membership-reconcile");
+    await reconcileWorkosMembershipsForUser(db, {
+      workosUserId: identity.user.workosUserId,
+      email: identity.user.email,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      force: true,
+    });
+
+    const [user] = await db
+      .select({ workosMembershipsReconciledAt: schema.users.workosMembershipsReconciledAt })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, identity.user.workosUserId))
+      .limit(1);
+
+    expect(user?.workosMembershipsReconciledAt).toBeNull();
+  });
+
   it("returns lookup_failed when WorkOS membership listing errors", async () => {
     const identity = createWorkosIdentity();
     await syncWorkosIdentity(db, identity);
