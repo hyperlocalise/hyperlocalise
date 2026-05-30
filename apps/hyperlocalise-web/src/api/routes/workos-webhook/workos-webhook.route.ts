@@ -6,6 +6,7 @@ import { bodyLimit } from "hono/body-limit";
 
 import {
   promoteInvitedPlaceholderUser,
+  removePendingOrganizationMembershipForInvite,
   removeWorkosMembership,
   syncWorkosIdentity,
   syncWorkosOrganization,
@@ -101,6 +102,22 @@ function toMembershipRole(data: Record<string, unknown>): OrganizationMembership
 async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
   const { db } = await import("@/lib/database");
   const data = event.data;
+
+  if (event.event === "invitation.revoked") {
+    const workosOrganizationId = readString(data, "organization_id");
+    const email = readString(data, "email");
+
+    if (!workosOrganizationId || !email) {
+      return;
+    }
+
+    await removePendingOrganizationMembershipForInvite(db, {
+      workosOrganizationId,
+      email,
+    });
+
+    return;
+  }
 
   if (event.event === "user.created" || event.event === "user.updated") {
     const workosUserId = readString(data, "id", "user_id");
@@ -213,6 +230,10 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
     }
 
     if (!existingUser) {
+      return;
+    }
+
+    if (!workosMembershipId) {
       return;
     }
 

@@ -207,6 +207,31 @@ describe("resolveApiAuthContextFromSession", () => {
     ).rejects.toThrow("organization_access_denied");
   });
 
+  it("does not grant access for pending invitations without WorkOS membership confirmation", async () => {
+    const pendingOnlyIdentity = fixture.createWorkosIdentity();
+    const synced = await syncWorkosIdentity(db, pendingOnlyIdentity);
+
+    await db
+      .update(schema.organizationMemberships)
+      .set({ workosMembershipId: null })
+      .where(eq(schema.organizationMemberships.organizationId, synced.organization.id));
+
+    withAuthMock.mockResolvedValue({
+      user: { id: synced.user.workosUserId },
+      organizationId: null,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+
+    await expect(
+      resolveApiAuthContextFromSession({
+        organizationSlug: pendingOnlyIdentity.organization.slug,
+      }),
+    ).rejects.toThrow("organization_access_denied");
+
+    await expect(resolveApiAuthContextFromSession()).resolves.toBeNull();
+  });
+
   it("uses the injected session without performing another withAuth lookup", async () => {
     const identity = fixture.createWorkosIdentity();
     await syncWorkosIdentity(db, identity);

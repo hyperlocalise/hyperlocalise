@@ -14,7 +14,9 @@ import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
+  isActiveOrganizationMembership,
   isInvitedPlaceholderWorkosUserId,
+  isPendingOrganizationMembership,
   shouldCleanupPlaceholderUserOnMemberRemoval,
 } from "@/lib/workos/constants";
 
@@ -22,12 +24,16 @@ import type { z } from "zod";
 
 export {
   INVITED_WORKOS_USER_ID_PREFIX,
+  isActiveOrganizationMembership,
   isInvitedPlaceholderWorkosUserId,
+  isPendingOrganizationMembership,
   shouldCleanupPlaceholderUserOnMemberRemoval,
 };
 
-export function resolveMemberStatus(workosUserId: string): "active" | "invited" {
-  return isInvitedPlaceholderWorkosUserId(workosUserId) ? "invited" : "active";
+export function resolveMemberStatus(input: {
+  workosMembershipId: string | null;
+}): "active" | "invited" {
+  return isPendingOrganizationMembership(input.workosMembershipId) ? "invited" : "active";
 }
 
 export function forbiddenResponse(c: JsonContext) {
@@ -155,6 +161,7 @@ export function toMemberSummary(
     lastName: string | null;
     role: OrganizationMembershipRole;
     createdAt: Date;
+    workosMembershipId: string | null;
   },
   currentWorkosUserId: string,
 ): {
@@ -177,6 +184,6 @@ export function toMemberSummary(
     role: row.role,
     isCurrentUser: row.workosUserId === currentWorkosUserId,
     createdAt: row.createdAt.toISOString(),
-    status: resolveMemberStatus(row.workosUserId),
+    status: resolveMemberStatus({ workosMembershipId: row.workosMembershipId }),
   };
 }

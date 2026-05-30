@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull } from "drizzle-orm";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
@@ -252,6 +252,7 @@ export async function resolveApiAuthContextFromSession(
       and(
         eq(schema.users.workosUserId, session.user.id),
         eq(schema.organizations.lifecycleStatus, "active"),
+        isNotNull(schema.organizationMemberships.workosMembershipId),
       ),
     )
     .orderBy(schema.organizations.name);
