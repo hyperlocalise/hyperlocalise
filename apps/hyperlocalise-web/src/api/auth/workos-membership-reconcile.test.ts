@@ -173,6 +173,12 @@ describe("reconcileWorkosMembershipsForUser", () => {
     const identity = createWorkosIdentity();
     await syncWorkosIdentity(db, identity);
 
+    const existingReconciledAt = new Date("2020-01-01T00:00:00.000Z");
+    await db
+      .update(schema.users)
+      .set({ workosMembershipsReconciledAt: existingReconciledAt })
+      .where(eq(schema.users.workosUserId, identity.user.workosUserId));
+
     listMembershipsMock.mockResolvedValue({
       autoPagination: async () => [
         {
@@ -198,7 +204,7 @@ describe("reconcileWorkosMembershipsForUser", () => {
       .where(eq(schema.users.workosUserId, identity.user.workosUserId))
       .limit(1);
 
-    expect(user?.workosMembershipsReconciledAt).toBeNull();
+    expect(user?.workosMembershipsReconciledAt).toEqual(existingReconciledAt);
   });
 
   it("returns lookup_failed when WorkOS membership listing errors", async () => {
