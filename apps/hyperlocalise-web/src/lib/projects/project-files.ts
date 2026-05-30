@@ -1,6 +1,6 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 
-import { mapWithConcurrency } from "@/lib/async/map-with-concurrency";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import type {
   ProjectFileRecord,
   ProjectFilesQuery,

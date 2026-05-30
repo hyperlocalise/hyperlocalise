@@ -125,6 +125,16 @@ Keep `throw`/`try`/`catch` where exceptions are the right contract:
 
 At HTTP and server-action boundaries, convert `Result` errors into the existing response conventions. For Hono JSON routes, return the standard `{ error, message, details }` envelope from `apps/hyperlocalise-web/src/api/response.schema.ts`. For server actions, return action state with field or form errors. Re-throw unknown failures so global error handling still catches bugs.
 
+### TypeScript Robustness Patterns
+
+Use these Go-inspired patterns in TypeScript when they make the code safer without adding heavy abstractions:
+
+- **Branded IDs**: do not pass important domain IDs as interchangeable strings across shared business logic. Define branded aliases such as `ProjectId`, `OrganizationId`, `JobId`, or `ProviderCredentialId` at module boundaries where mix-ups are likely. Parse and validate raw strings at HTTP/provider boundaries, then pass the branded type internally.
+- **AbortSignal convention**: long-running work, provider API calls, file operations, agent tools, and sync workflows should accept an optional `AbortSignal` and pass it to nested operations that can be cancelled. Prefer `{ signal?: AbortSignal }` in options objects over positional parameters.
+- **Exhaustive unions**: model domain states and expected errors as discriminated unions with stable `code`, `kind`, or `status` fields. When switching on the discriminator, cover every case and use `assertNever` from `apps/hyperlocalise-web/src/lib/primitives/assert-never/assert-never.ts` so TypeScript catches new cases during development.
+- **Bounded concurrency**: use `mapWithConcurrency` from `apps/hyperlocalise-web/src/lib/primitives/map-with-concurrency/map-with-concurrency.ts` when processing lists from users, providers, the database, or repositories. Reserve unbounded `Promise.all(items.map(...))` for small fixed-size lists.
+- **Go-style defer with `try`/`finally`**: use `try`/`finally` for cleanup that must run after acquiring resources such as locks, temporary files, timers, spans, subscriptions, or transaction-like handles. Keep the cleanup close to the acquisition, and let the original error continue to propagate unless the cleanup failure is more important.
+
 ## Code Style & Conventions
 
 Use 4 spaces indentation

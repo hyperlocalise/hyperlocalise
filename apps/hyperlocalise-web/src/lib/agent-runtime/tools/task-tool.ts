@@ -1,7 +1,10 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import { getAgentRuntimeContext } from "@/lib/agent-runtime/context";
+import {
+  formatAgentRuntimeContextError,
+  resolveAgentRuntimeContext,
+} from "@/lib/agent-runtime/context";
 import {
   buildSubagentSummaryLines,
   SUBAGENT_REGISTRY,
@@ -12,6 +15,7 @@ import {
   type HyperlocaliseSubagentType,
 } from "@/lib/agent-runtime/subagents/types";
 import { SUBAGENT_STEP_LIMIT } from "@/lib/agent-runtime/subagents/constants";
+import { fromThrowableAsync, isErr } from "@/lib/primitives/result/results";
 
 const subagentTypeSchema = z.enum(SUBAGENT_TYPES);
 
@@ -62,7 +66,17 @@ BEHAVIOR:
     inputSchema: taskInputSchema,
     outputSchema: taskOutputSchema,
     execute: async ({ subagentType, task, instructions }, { experimental_context }) => {
-      const runtime = getAgentRuntimeContext(experimental_context);
+      const runtimeResult = resolveAgentRuntimeContext(experimental_context);
+      if (isErr(runtimeResult)) {
+        return {
+          success: false,
+          subagentType,
+          summary: "Specialist cannot run without request context.",
+          error: formatAgentRuntimeContextError(runtimeResult.error),
+        };
+      }
+
+      const runtime = runtimeResult.value;
       const entry = SUBAGENT_REGISTRY[subagentType as HyperlocaliseSubagentType];
 
       if (!entry.isAvailable(runtime)) {
@@ -74,8 +88,8 @@ BEHAVIOR:
         };
       }
 
-      try {
-        const result = await runSubagent(subagentType, {
+      const subagentResult = await fromThrowableAsync(
+        runSubagent(subagentType, {
           toolContext: runtime.toolContext,
           task,
           instructions:
@@ -89,22 +103,28 @@ BEHAVIOR:
                   "- Do not ask for code changes, PR review, checks, or broad architecture analysis.",
                 ].join("\n")
               : instructions,
-        });
+        }),
+      );
 
+      if (!isErr(subagentResult)) {
+        const result = subagentResult.value;
         return {
           success: true,
           subagentType,
           summary: result.text.trim() || "Specialist completed the task.",
         };
-      } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        return {
-          success: false,
-          subagentType,
-          summary: "Specialist encountered an error.",
-          error: message,
-        };
       }
+
+      const message =
+        subagentResult.error instanceof Error
+          ? subagentResult.error.message
+          : String(subagentResult.error);
+      return {
+        success: false,
+        subagentType,
+        summary: "Specialist encountered an error.",
+        error: message,
+      };
     },
   });
 }
