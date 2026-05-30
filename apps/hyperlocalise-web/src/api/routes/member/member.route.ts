@@ -456,6 +456,9 @@ export function createMemberRoutes() {
       }
 
       const { updated } = updateResult;
+      const roleChanged = previousRole !== payload.role;
+      const isPendingInvite = isPendingOrganizationMembership(member.workosMembershipId);
+      const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
 
       if (
         shouldSyncMembershipToWorkos({
@@ -465,6 +468,40 @@ export function createMemberRoutes() {
         try {
           await workos!.userManagement.updateOrganizationMembership(member.workosMembershipId!, {
             roleSlug: payload.role,
+          });
+        } catch {
+          await db
+            .update(schema.organizationMemberships)
+            .set({ role: previousRole })
+            .where(eq(schema.organizationMemberships.id, member.membershipId));
+
+          return internalErrorResponse(
+            c,
+            "member_sync_failed",
+            "Failed to sync member role with identity provider",
+          );
+        }
+      } else if (isPendingInvite && roleChanged) {
+        if (!workos) {
+          await db
+            .update(schema.organizationMemberships)
+            .set({ role: previousRole })
+            .where(eq(schema.organizationMemberships.id, member.membershipId));
+
+          return serviceUnavailableResponse(
+            c,
+            "workos_server_not_configured",
+            "WorkOS server integration is not configured",
+          );
+        }
+
+        try {
+          await deliverWorkosInvitation({
+            workosOrganizationId,
+            email: member.email,
+            inviterUserId: c.var.auth.user.workosUserId,
+            roleSlug: payload.role,
+            replacePendingInvitation: true,
           });
         } catch {
           await db

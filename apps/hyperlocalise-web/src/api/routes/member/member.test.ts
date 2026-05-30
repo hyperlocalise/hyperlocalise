@@ -568,6 +568,72 @@ describe("memberRoutes", () => {
     expect(member?.role).toBe("member");
   });
 
+  it("replaces a pending WorkOS invitation when PATCH changes an existing user's role", async () => {
+    listInvitationsMock.mockResolvedValue({
+      data: [{ id: "invitation_mock", state: "pending" }],
+    });
+
+    const ownerIdentity = createWorkosIdentity();
+    const existingUserIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, existingUserIdentity);
+
+    const headers = await authHeadersFor(ownerIdentity);
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: existingUserIdentity.user.email, role: "member" },
+      headers,
+    );
+
+    const updateResponse = await updateMemberRoleViaApi(
+      ownerIdentity,
+      existingUserIdentity.user.workosUserId,
+      "admin",
+      headers,
+    );
+    expect(updateResponse.status).toBe(200);
+    expect(revokeInvitationMock).toHaveBeenCalledWith("invitation_mock");
+    expect(sendInvitationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: existingUserIdentity.user.email,
+        roleSlug: "admin",
+      }),
+    );
+    expect(updateOrganizationMembershipMock).not.toHaveBeenCalled();
+  });
+
+  it("rolls back PATCH role changes for pending members when invitation sync fails", async () => {
+    listInvitationsMock.mockResolvedValue({
+      data: [{ id: "invitation_mock", state: "pending" }],
+    });
+    revokeInvitationMock.mockRejectedValueOnce(new Error("workos unavailable"));
+
+    const ownerIdentity = createWorkosIdentity();
+    const existingUserIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, existingUserIdentity);
+
+    const headers = await authHeadersFor(ownerIdentity);
+    await inviteMemberViaApi(
+      ownerIdentity,
+      { email: existingUserIdentity.user.email, role: "member" },
+      headers,
+    );
+
+    const updateResponse = await updateMemberRoleViaApi(
+      ownerIdentity,
+      existingUserIdentity.user.workosUserId,
+      "admin",
+      headers,
+    );
+    expect(updateResponse.status).toBe(500);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    expect(
+      listBody.members.find((row) => row.email === existingUserIdentity.user.email)?.role,
+    ).toBe("member");
+  });
+
   it("shows existing users as invited until WorkOS confirms membership", async () => {
     const ownerIdentity = createWorkosIdentity();
     const existingUserIdentity = createWorkosIdentity();
