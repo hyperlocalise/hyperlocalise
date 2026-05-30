@@ -144,7 +144,7 @@ async function latestSyncIntentsForScopes(input: {
 
   const latestByScope = new Map<string, ProviderSyncObservabilityIntentSummary>();
   for (const row of rows) {
-    if (!latestByScope.has(projectScopeKey(null))) {
+    if (row.projectId === null && !latestByScope.has(projectScopeKey(null))) {
       latestByScope.set(projectScopeKey(null), toIntentSummary(row));
     }
 
@@ -207,7 +207,7 @@ async function latestSyncRunsForScopes(input: {
     const summary = toRunSummary(row);
     byId.set(row.id, summary);
 
-    if (!byScope.has(projectScopeKey(null))) {
+    if (row.projectId === null && !byScope.has(projectScopeKey(null))) {
       byScope.set(projectScopeKey(null), summary);
     }
 

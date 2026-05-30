@@ -175,6 +175,111 @@ describe("provider sync observability", () => {
     });
   });
 
+  it("keeps global observability scoped to global intents and runs", async () => {
+    const { organizationId, userId } = await createOrganizationUser();
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "owner",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "secret-token",
+    });
+
+    const projectId = `project_${randomUUID()}`;
+    await db.insert(schema.projects).values({
+      id: projectId,
+      organizationId,
+      name: "Crowdin project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderCredentialId: credential.id,
+      externalProviderKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      targetLocales: ["fr"],
+      isActive: true,
+    });
+
+    await insertProviderWebhookSubscription({
+      organizationId,
+      providerCredentialId: credential.id,
+      providerKind: "crowdin",
+      providerWebhookId: "webhook-global",
+      endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
+      webhookSecretPlaintext: "webhook-signing-secret",
+      status: "active",
+    });
+    await insertProviderWebhookSubscription({
+      organizationId,
+      providerCredentialId: credential.id,
+      providerKind: "crowdin",
+      providerWebhookId: "webhook-project",
+      endpointUrl: "https://app.example.test/api/webhooks/tms/crowdin",
+      webhookSecretPlaintext: "webhook-signing-secret",
+      status: "active",
+      projectId,
+    });
+
+    const [globalIntent] = await db
+      .insert(schema.providerSyncIntents)
+      .values({
+        organizationId,
+        providerCredentialId: credential.id,
+        providerKind: "crowdin",
+        syncKind: "file_key_scan",
+        cause: "webhook",
+        status: "succeeded",
+        leaseKey: `global-${randomUUID()}`,
+        createdAt: new Date("2026-01-01T00:00:00Z"),
+        updatedAt: new Date("2026-01-01T00:00:00Z"),
+      })
+      .returning();
+
+    const [projectRun] = await db
+      .insert(schema.providerSyncRuns)
+      .values({
+        organizationId,
+        providerKind: "crowdin",
+        kind: "file_key_scan",
+        status: "succeeded",
+        projectId,
+        startedAt: new Date("2026-01-02T00:00:00Z"),
+      })
+      .returning();
+
+    const [projectIntent] = await db
+      .insert(schema.providerSyncIntents)
+      .values({
+        organizationId,
+        providerCredentialId: credential.id,
+        providerKind: "crowdin",
+        projectId,
+        syncKind: "file_key_scan",
+        cause: "webhook",
+        status: "succeeded",
+        providerSyncRunId: projectRun!.id,
+        leaseKey: `project-${randomUUID()}`,
+        createdAt: new Date("2026-01-02T00:00:00Z"),
+        updatedAt: new Date("2026-01-02T00:00:00Z"),
+      })
+      .returning();
+
+    const observability = await getProviderSyncObservability({
+      organizationId,
+      providerKind: "crowdin",
+      providerCredentialId: credential.id,
+    });
+
+    const globalEntry = observability.entries.find((entry) => entry.projectId === null);
+    const projectEntry = observability.entries.find((entry) => entry.projectId === projectId);
+
+    expect(globalEntry?.latestSyncIntent?.id).toBe(globalIntent!.id);
+    expect(globalEntry?.latestSyncRun).toBeNull();
+    expect(projectEntry?.latestSyncIntent?.id).toBe(projectIntent!.id);
+    expect(projectEntry?.latestSyncRun?.id).toBe(projectRun!.id);
+  });
+
   it("requeues a failed intent without creating a duplicate intent row", async () => {
     const { organizationId, userId } = await createOrganizationUser();
     const credential = await upsertOrganizationExternalTmsProviderCredential({
