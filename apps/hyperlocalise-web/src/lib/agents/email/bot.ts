@@ -647,14 +647,11 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
     try {
       const user = await dependencies.lookupUserByEmail(senderEmail);
 
-      const inboundHeaders = raw.headers;
       if (
         user &&
-        inboundHeaders &&
-        Object.keys(inboundHeaders).length > 0 &&
         !isInboundSenderAuthenticated({
           claimedFromEmail: senderEmail,
-          headers: inboundHeaders,
+          headers: raw.headers,
         })
       ) {
         log.warn("inbound email failed sender authentication");

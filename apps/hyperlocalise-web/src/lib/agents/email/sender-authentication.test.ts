@@ -23,6 +23,17 @@ describe("isInboundSenderAuthenticated", () => {
     ).toBe(true);
   });
 
+  it("rejects SPF softfail for the claimed sender domain", () => {
+    expect(
+      isInboundSenderAuthenticated({
+        claimedFromEmail: "user@example.com",
+        headers: {
+          "received-spf": "softfail (example.com: domain of user@example.com is not authorized)",
+        },
+      }),
+    ).toBe(false);
+  });
+
   it("accepts authentication-results DKIM pass", () => {
     expect(
       isInboundSenderAuthenticated({

@@ -29,7 +29,7 @@ function spfPassedForDomain(headers: Record<string, string>, domain: string): bo
   for (const value of headerValues(headers, "received-spf")) {
     const normalized = value.toLowerCase();
     if (!normalized.includes(domain)) continue;
-    if (/\bpass\b/.test(normalized) || /\bsoftfail\b/.test(normalized)) {
+    if (/\bpass\b/.test(normalized)) {
       return true;
     }
   }
