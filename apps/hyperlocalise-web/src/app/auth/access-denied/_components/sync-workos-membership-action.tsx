@@ -79,7 +79,6 @@ export function SyncWorkosMembershipAction() {
       }
 
       router.replace(redirectTo);
-      router.refresh();
     },
     onError: (mutationError) => {
       setError(

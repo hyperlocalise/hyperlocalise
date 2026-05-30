@@ -89,6 +89,26 @@ describe("requireAppAuthContext", () => {
     expect(listLocalOrgWorkspacesForUserMock).toHaveBeenCalledWith(expect.anything(), "user_123");
   });
 
+  it("redirects to access denied when legacy workspace lookup fails", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    withAuthMock.mockResolvedValue(session);
+    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(new Error("organization_access_denied"));
+    listLocalOrgWorkspacesForUserMock.mockRejectedValue(new Error("database_unavailable"));
+
+    const { requireAppAuthContext } = await import("./app-auth");
+
+    await expect(requireAppAuthContext({ organizationSlug: "stale-slug" })).rejects.toThrow(
+      "redirect:/auth/access-denied?reason=organization-access-denied",
+    );
+    expect(redirectMock).toHaveBeenCalledWith(
+      "/auth/access-denied?reason=organization-access-denied",
+    );
+  });
+
   it("redirects to the org access-denied page when the requested org is not accessible", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
