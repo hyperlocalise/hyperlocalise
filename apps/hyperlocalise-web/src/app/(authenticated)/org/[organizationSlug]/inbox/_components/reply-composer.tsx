@@ -191,11 +191,12 @@ function ReplyComposerContent({
                       className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
                       size="icon-sm"
                       aria-label="Add translation context"
-                    />
+                      tooltip="Add translation context"
+                    >
+                      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
+                    </PromptInputButton>
                   }
-                >
-                  <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-                </DropdownMenuTrigger>
+                />
                 <DropdownMenuContent className="min-w-52" align="start">
                   <DropdownMenuGroup>
                     <DropdownMenuItem onClick={() => attachments.openFileDialog()}>
@@ -227,17 +228,25 @@ function ReplyComposerContent({
                     <PromptInputButton
                       className="inline-flex h-8 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
                       size="sm"
-                    />
+                    >
+                      <HugeiconsIcon
+                        icon={FolderLibraryIcon}
+                        strokeWidth={1.8}
+                        className="size-4"
+                      />
+                      {projectsQuery.isLoading ? (
+                        <Skeleton className="h-3.5 w-24 rounded-full bg-muted-foreground/20" />
+                      ) : (
+                        projectTriggerLabel
+                      )}
+                      <HugeiconsIcon
+                        icon={ArrowDown01Icon}
+                        strokeWidth={1.8}
+                        className="size-3.5"
+                      />
+                    </PromptInputButton>
                   }
-                >
-                  <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
-                  {projectsQuery.isLoading ? (
-                    <Skeleton className="h-3.5 w-24 rounded-full bg-muted-foreground/20" />
-                  ) : (
-                    projectTriggerLabel
-                  )}
-                  <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
-                </DropdownMenuTrigger>
+                />
                 <DropdownMenuContent className="min-w-56" align="end">
                   <DropdownMenuGroup>
                     <DropdownMenuLabel>Projects</DropdownMenuLabel>

@@ -126,11 +126,11 @@ export const SnippetCopyButton = ({
             onClick={copyToClipboard}
             size="icon-sm"
             {...props}
-          />
+          >
+            {children ?? <Icon className="size-3.5" size={14} />}
+          </InputGroupButton>
         }
-      >
-        {children ?? <Icon className="size-3.5" size={14} />}
-      </TooltipTrigger>
+      />
       <TooltipContent>{tooltipText}</TooltipContent>
     </Tooltip>
   );

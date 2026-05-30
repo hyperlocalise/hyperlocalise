@@ -134,11 +134,11 @@ export const TerminalCopyButton = ({
             size="icon"
             variant="ghost"
             {...props}
-          />
+          >
+            {children ?? <Icon size={14} />}
+          </Button>
         }
-      >
-        {children ?? <Icon size={14} />}
-      </TooltipTrigger>
+      />
       <TooltipContent>{tooltipText}</TooltipContent>
     </Tooltip>
   );
