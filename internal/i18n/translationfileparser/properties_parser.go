@@ -347,7 +347,7 @@ func decodeJavaPropertiesEscapes(raw string) (string, error) {
 	// BOLT OPTIMIZATION: Fast-path for strings without escapes to avoid
 	// strings.Builder allocations and byte-by-byte iteration.
 	if !strings.Contains(raw, "\\") {
-		return raw, nil
+		return strings.Clone(raw), nil
 	}
 
 	var b strings.Builder
