@@ -12,6 +12,7 @@ import {
 } from "@/api/auth/team-access";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
+import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 import type { ToolContext } from "@/lib/tools/types";
 
@@ -24,6 +25,7 @@ function organizationRecord(ctx: ToolContext) {
     membership: {
       workosMembershipId: null as string | null,
       role: ctx.membershipRole,
+      accessSource: resolveOrganizationMembershipAccessSource(null),
     },
   };
 }
@@ -41,10 +43,7 @@ export function apiAuthContextFromToolContext(ctx: ToolContext): ApiAuthContext 
     organizations: [],
     organization,
     activeOrganization: organization,
-    membership: {
-      workosMembershipId: null,
-      role: ctx.membershipRole,
-    },
+    membership: organization.membership,
     activeTeam: null,
     capabilities: [],
   };

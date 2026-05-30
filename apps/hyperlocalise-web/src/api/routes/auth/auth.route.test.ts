@@ -110,6 +110,7 @@ describe("authRoutes", () => {
       membership: {
         workosMembershipId: "membership_123",
         role: "owner" as const,
+        accessSource: "workos_authoritative" as const,
       },
     };
     const client = await createClient({
@@ -122,10 +123,7 @@ describe("authRoutes", () => {
         organizations: [activeOrganization],
         organization: activeOrganization,
         activeOrganization,
-        membership: {
-          workosMembershipId: "membership_123",
-          role: "owner",
-        },
+        membership: activeOrganization.membership,
         activeTeam: null,
       },
     });
@@ -155,6 +153,7 @@ describe("authRoutes", () => {
           membership: {
             workosMembershipId: "membership_123",
             role: "owner",
+            accessSource: "workos_authoritative",
           },
         },
         activeOrganization: {
@@ -165,6 +164,7 @@ describe("authRoutes", () => {
           membership: {
             workosMembershipId: "membership_123",
             role: "owner",
+            accessSource: "workos_authoritative",
           },
         },
         organizations: [
@@ -176,12 +176,14 @@ describe("authRoutes", () => {
             membership: {
               workosMembershipId: "membership_123",
               role: "owner",
+              accessSource: "workos_authoritative",
             },
           },
         ],
         membership: {
           workosMembershipId: "membership_123",
           role: "owner",
+          accessSource: "workos_authoritative",
         },
         activeTeam: null,
         capabilities: getCapabilitiesForRole("owner"),
@@ -198,6 +200,7 @@ describe("authRoutes", () => {
       membership: {
         workosMembershipId: "membership_123",
         role: "owner" as const,
+        accessSource: "workos_authoritative" as const,
       },
     };
 
@@ -210,10 +213,7 @@ describe("authRoutes", () => {
       organizations: [activeOrganization],
       organization: activeOrganization,
       activeOrganization,
-      membership: {
-        workosMembershipId: "membership_123",
-        role: "owner",
-      },
+      membership: activeOrganization.membership,
       activeTeam: null,
     });
 

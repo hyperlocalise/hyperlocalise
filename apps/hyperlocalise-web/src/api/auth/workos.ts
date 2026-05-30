@@ -4,6 +4,7 @@ import type { EvlogVariables } from "evlog/hono";
 import { apiErrorResponse, forbiddenResponse, unauthorizedResponse } from "@/api/errors";
 import { type OrganizationCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole, TeamMembershipRole } from "@/lib/database/types";
+import type { OrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 import {
   resolveApiAuthContextFromSession,
   OrganizationSlugUnresolvableError,
@@ -49,6 +50,7 @@ export type ApiAuthContext = {
     membership: {
       workosMembershipId?: string | null;
       role: OrganizationMembershipRole;
+      accessSource: OrganizationMembershipAccessSource;
     };
   }>;
   organization: {
@@ -59,6 +61,7 @@ export type ApiAuthContext = {
     membership: {
       workosMembershipId?: string | null;
       role: OrganizationMembershipRole;
+      accessSource: OrganizationMembershipAccessSource;
     };
   };
   activeOrganization: {
@@ -69,11 +72,13 @@ export type ApiAuthContext = {
     membership: {
       workosMembershipId?: string | null;
       role: OrganizationMembershipRole;
+      accessSource: OrganizationMembershipAccessSource;
     };
   };
   membership: {
     workosMembershipId?: string | null;
     role: OrganizationMembershipRole;
+    accessSource: OrganizationMembershipAccessSource;
   };
   activeTeam: {
     id: string;
@@ -160,6 +165,14 @@ export function createWorkosAuthMiddleware() {
 
       if (message === "organization_access_denied") {
         return forbiddenResponse(c, "organization_access_denied", "Organization access denied");
+      }
+
+      if (message === "workos_membership_lookup_failed") {
+        return forbiddenResponse(
+          c,
+          "workos_membership_lookup_failed",
+          "Organization membership could not be verified",
+        );
       }
 
       // Re-throw genuinely unexpected errors so the centralized onError

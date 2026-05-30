@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "workos_memberships_reconciled_at" timestamp with time zone;

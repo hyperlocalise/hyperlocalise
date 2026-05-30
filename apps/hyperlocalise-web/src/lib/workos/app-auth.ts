@@ -53,6 +53,10 @@ export async function requireAppAuthContext(
       redirect("/auth/access-denied?reason=organization-access-denied");
     }
 
+    if (error instanceof Error && error.message === "workos_membership_lookup_failed") {
+      redirect("/auth/access-denied?reason=workos-membership-lookup-failed");
+    }
+
     throw error;
   }
 

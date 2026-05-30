@@ -25,6 +25,7 @@ function createAuthContext(
       membership: {
         workosMembershipId: "membership_test",
         role: "owner",
+        accessSource: "workos_authoritative",
       },
       ...overrides,
     },
@@ -36,12 +37,14 @@ function createAuthContext(
       membership: {
         workosMembershipId: "membership_test",
         role: "owner",
+        accessSource: "workos_authoritative",
       },
       ...overrides,
     },
     membership: {
       workosMembershipId: "membership_test",
       role: "owner",
+      accessSource: "workos_authoritative",
     },
     activeTeam: null,
     capabilities: [],

@@ -211,6 +211,13 @@
       "when": 1780134089692,
       "tag": "0029_gigantic_arclight",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1780146889338,
+      "tag": "0030_square_alice",
+      "breakpoints": true
     }
   ]
 }
