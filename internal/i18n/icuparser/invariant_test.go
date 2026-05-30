@@ -374,3 +374,34 @@ func TestHasDuplicatePounds(t *testing.T) {
 		})
 	}
 }
+
+func TestParseInvariantIncludesTypedBlocks(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		kind string
+	}{
+		{"number", "{n, number}", "number"},
+		{"date", "{d, date}", "date"},
+		{"time", "{t, time}", "time"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv, err := ParseInvariant(tt.msg)
+			if err != nil {
+				t.Fatalf("ParseInvariant failed: %v", err)
+			}
+			found := false
+			for _, b := range inv.ICUBlocks {
+				if b.Arg == tt.msg[1:2] && b.Type == tt.kind {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("expected ICUBlock of type %q for message %q, but got none", tt.kind, tt.msg)
+			}
+		})
+	}
+}
