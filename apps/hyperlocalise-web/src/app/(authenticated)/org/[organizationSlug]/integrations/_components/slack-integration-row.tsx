@@ -148,7 +148,7 @@ export function SlackIntegrationRow({
             ? viewModel.statusDescription
             : "Coordinate localization reviews from Slack mentions, DMs, and subscribed threads."
       }
-      icon={<HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-5" />}
+      icon={<HugeiconsIcon icon={SlackIcon} strokeWidth={1.8} className="size-5 text-current" />}
       iconMuted={!viewModel.enabled}
       action={action}
       expanded={expanded}
@@ -161,7 +161,7 @@ export function SlackIntegrationRow({
         <Skeleton className="h-16 rounded-lg" />
       ) : (
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <TypographyP className="text-sm font-medium text-foreground">
                 {isError ? "Settings unavailable" : viewModel.statusTitle}

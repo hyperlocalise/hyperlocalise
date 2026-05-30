@@ -56,7 +56,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH1, TypographyH2, TypographyP } from "@/components/ui/typography";
+import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/utils";
 import { AgentIntegrationsSection } from "./agent-integrations-section";
 import { IntegrationCategoryLabel } from "./integration-row";
@@ -729,9 +729,6 @@ export function IntegrationsPageContent({
           <section className="flex flex-col gap-3">
             <div>
               <IntegrationCategoryLabel>TMS</IntegrationCategoryLabel>
-              <TypographyH2 className="mt-2 font-heading text-xl font-medium text-foreground md:text-xl">
-                TMS
-              </TypographyH2>
               <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
                 Connect external translation management systems to sync projects, files, jobs,
                 glossaries, and translation memories into the unified workspace.
@@ -776,9 +773,6 @@ export function IntegrationsPageContent({
           <section className="flex flex-col gap-3">
             <div>
               <IntegrationCategoryLabel>Model provider</IntegrationCategoryLabel>
-              <TypographyH2 className="mt-2 font-heading text-xl font-medium text-foreground md:text-xl">
-                Model Provider
-              </TypographyH2>
               <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
                 Choose how Hyperlocalise runs translations: use our managed provider or bring your
                 own API keys.

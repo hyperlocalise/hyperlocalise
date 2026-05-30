@@ -145,7 +145,7 @@ export function EmailIntegrationRow({
       isLast={isLast}
     >
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-lg border border-border bg-background/70 p-3 sm:flex-row sm:items-center sm:justify-between">
           <TypographyP className="text-sm leading-6 text-muted-foreground">
             Send documents, spreadsheets, JSON, text files, or images with a target language. Source
             language is optional, and style notes apply to file translations.
@@ -164,7 +164,7 @@ export function EmailIntegrationRow({
           </TypographyP>
         ) : null}
 
-        <InputGroup className="h-10">
+        <InputGroup className="h-10 bg-background focus-within:border-primary/40 focus-within:ring-primary/20">
           {isLoading ? (
             <div className="flex h-full w-full items-center px-3">
               <Skeleton className="h-4 w-full" />

@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createApiClient } from "@/lib/api-client";
+import { cn } from "@/lib/utils";
 import { TypographyP } from "@/components/ui/typography";
 
 const api = createApiClient();
@@ -434,20 +435,21 @@ export function GitHubIntegrationRow({
                 <HugeiconsIcon
                   icon={Search01Icon}
                   strokeWidth={1.8}
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-primary/70"
                 />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search repositories"
                   aria-label="Search repositories"
-                  className="h-9 w-full rounded-lg border border-border bg-background px-9 text-sm text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-[3px] focus:ring-ring/50"
+                  className="h-9 w-full rounded-lg border border-border bg-background px-9 text-sm text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-[3px] focus:ring-primary/20"
                 />
               </div>
               <Button
                 size="sm"
                 onClick={handleEnableSelected}
                 disabled={updateRepositories.isPending || repositories.length === 0}
+                className="bg-primary text-primary-foreground hover:bg-primary/80"
               >
                 Enable {effectiveSelection.size}
               </Button>
@@ -460,8 +462,8 @@ export function GitHubIntegrationRow({
                 Enable all
               </Button>
             </div>
-            <div className="overflow-hidden rounded-lg border border-border">
-              <div className="grid grid-cols-[48px_minmax(0,1fr)_140px] border-b border-border bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
+              <div className="grid grid-cols-[48px_minmax(0,1fr)_140px] border-b border-border bg-secondary/60 text-xs font-medium tracking-wide text-secondary-foreground uppercase">
                 <div className="px-4 py-3">
                   <span className="sr-only">Enabled</span>
                 </div>
@@ -478,14 +480,17 @@ export function GitHubIntegrationRow({
                   return (
                     <label
                       key={repository.githubRepositoryId}
-                      className="grid min-h-12 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px] items-center border-b border-border text-sm last:border-b-0 hover:bg-muted/30"
+                      className={cn(
+                        "grid min-h-12 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px] items-center border-b border-border text-sm transition-colors last:border-b-0 hover:bg-accent/50",
+                        checked && "bg-primary/5",
+                      )}
                     >
                       <div className="px-4">
                         <input
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleRepository(repository.githubRepositoryId)}
-                          className="size-4 accent-foreground"
+                          className="size-4 accent-primary"
                           aria-label={`Enable ${repository.fullName}`}
                         />
                       </div>
@@ -493,12 +498,26 @@ export function GitHubIntegrationRow({
                         <div className="flex min-w-0 items-center gap-2">
                           <SimpleBrandIcon
                             icon={siGithub}
-                            colored={repository.enabled}
+                            colored={checked}
                             className="size-4 shrink-0"
                           />
                           <span className="truncate">{repository.fullName}</span>
-                          {repository.private ? <Badge variant="outline">Private</Badge> : null}
-                          {repository.archived ? <Badge variant="outline">Archived</Badge> : null}
+                          {repository.private ? (
+                            <Badge
+                              variant="outline"
+                              className="border-border bg-secondary text-secondary-foreground"
+                            >
+                              Private
+                            </Badge>
+                          ) : null}
+                          {repository.archived ? (
+                            <Badge
+                              variant="outline"
+                              className="border-border bg-accent text-accent-foreground"
+                            >
+                              Archived
+                            </Badge>
+                          ) : null}
                         </div>
                       </div>
                       <div className="flex min-w-0 items-center gap-2 px-4 text-muted-foreground">

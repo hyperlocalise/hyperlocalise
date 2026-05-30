@@ -91,7 +91,7 @@ export function AgentIntegrationsSection({
     <>
       <section className="flex flex-col gap-3">
         <div>
-          <TypographyH2 className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+          <TypographyH2 className="text-xs md:text-sm font-medium tracking-[0.12em] text-muted-foreground uppercase">
             Source control
           </TypographyH2>
           <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
@@ -112,7 +112,7 @@ export function AgentIntegrationsSection({
 
       <section className="flex flex-col gap-3">
         <div>
-          <TypographyH2 className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+          <TypographyH2 className="text-xs md:text-sm font-medium tracking-[0.12em] text-muted-foreground uppercase">
             Collaboration
           </TypographyH2>
           <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">

@@ -6,6 +6,7 @@ import { ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
+import { TypographyH2 } from "@/components/ui/typography";
 
 export type IntegrationRowAction = "connect" | "manage" | "coming-soon" | "view-only";
 
@@ -23,6 +24,39 @@ type IntegrationRowProps = {
   children?: ReactNode;
 };
 
+const actionStyles: Record<
+  IntegrationRowAction,
+  {
+    icon: string;
+    row: string;
+    panel: string;
+    button?: string;
+  }
+> = {
+  "coming-soon": {
+    icon: "border-border bg-muted text-muted-foreground",
+    row: "hover:bg-muted/20",
+    panel: "border-border bg-muted/20",
+  },
+  "view-only": {
+    icon: "border-border bg-muted text-muted-foreground",
+    row: "hover:bg-muted/20",
+    panel: "border-border bg-muted/20",
+  },
+  connect: {
+    icon: "border-primary/30 bg-primary/10 text-primary",
+    row: "hover:bg-primary/5",
+    panel: "border-primary/20 bg-primary/5",
+    button: "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15",
+  },
+  manage: {
+    icon: "border-secondary bg-secondary text-secondary-foreground",
+    row: "hover:bg-secondary/60",
+    panel: "border-border bg-secondary/40",
+    button: "aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+  },
+};
+
 export function IntegrationRow({
   name,
   description,
@@ -37,6 +71,7 @@ export function IntegrationRow({
   children,
 }: IntegrationRowProps) {
   const showPanel = action === "manage" && children;
+  const activeStyle = iconMuted ? actionStyles["coming-soon"] : actionStyles[action];
 
   return (
     <Collapsible
@@ -44,10 +79,17 @@ export function IntegrationRow({
       onOpenChange={onExpandedChange}
       className={cn(!isLast && "border-b border-border")}
     >
-      <div className="flex items-center gap-4 px-5 py-4">
+      <div
+        className={cn(
+          "flex items-center gap-4 px-5 py-4 transition-colors",
+          activeStyle.row,
+          expanded && !iconMuted && activeStyle.panel,
+        )}
+      >
         <div
           className={cn(
-            "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2",
+            "flex size-10 shrink-0 items-center justify-center rounded-lg border p-2 transition-colors",
+            activeStyle.icon,
             iconMuted && "grayscale saturate-0",
           )}
         >
@@ -73,6 +115,7 @@ export function IntegrationRow({
               size="sm"
               onClick={onConnect}
               disabled={isConnecting}
+              className={activeStyle.button}
             >
               {isConnecting ? "Connecting..." : "Connect"}
               <ArrowUpRightIcon className="size-3.5" strokeWidth={2} />
@@ -80,7 +123,7 @@ export function IntegrationRow({
           ) : showPanel ? (
             <CollapsibleTrigger
               render={
-                <Button type="button" variant="outline" size="sm">
+                <Button type="button" variant="outline" size="sm" className={activeStyle.button}>
                   Manage
                   <ChevronDownIcon
                     className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
@@ -94,7 +137,7 @@ export function IntegrationRow({
       </div>
 
       {showPanel ? (
-        <CollapsibleContent className="border-t border-border bg-muted/20 px-5 py-5">
+        <CollapsibleContent className={cn("border-t px-5 py-5", activeStyle.panel)}>
           {children}
         </CollapsibleContent>
       ) : null}
@@ -104,9 +147,9 @@ export function IntegrationRow({
 
 export function IntegrationCategoryLabel({ children }: { children: ReactNode }) {
   return (
-    <p className="text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase">
+    <TypographyH2 className="text-xs md:text-sm font-medium tracking-[0.12em] text-muted-foreground uppercase">
       {children}
-    </p>
+    </TypographyH2>
   );
 }
 
