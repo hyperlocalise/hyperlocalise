@@ -303,7 +303,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 			if targetPath == "" {
 				continue
 			}
-			if err := rt.validateManifestTargetPath(targetPath); err != nil {
+			if _, err := rt.resolveManifestTargetPath(targetPath); err != nil {
 				return hyperlocalisePullReport{}, fmt.Errorf("manifest job %q target path for locale %q: %w", manifestJob.JobID, locale, err)
 			}
 		}
@@ -343,7 +343,8 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 				report.Skipped++
 				continue
 			}
-			if err := rt.validateManifestTargetPath(targetPath); err != nil {
+			resolvedTargetPath, err := rt.resolveManifestTargetPath(targetPath)
+			if err != nil {
 				return report, fmt.Errorf("manifest target path for locale %q: %w", outputFile.Locale, err)
 			}
 			if o.dryRun {
@@ -354,8 +355,8 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 			if err != nil {
 				return report, fmt.Errorf("download output file %s for job %s: %w", outputFile.FileID, manifestJob.JobID, err)
 			}
-			if err := writeFileAtomic(targetPath, content); err != nil {
-				return report, fmt.Errorf("write target file %q: %w", targetPath, err)
+			if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+				return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
 			}
 			report.Downloaded++
 		}
@@ -364,11 +365,23 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	return report, nil
 }
 
-func (rt *hyperlocaliseSyncRuntime) validateManifestTargetPath(targetPath string) error {
-	if strings.TrimSpace(rt.configRoot) == "" {
-		return fmt.Errorf("config root is not configured")
+func (rt *hyperlocaliseSyncRuntime) resolveManifestTargetPath(targetPath string) (string, error) {
+	trimmed := strings.TrimSpace(targetPath)
+	if trimmed == "" {
+		return "", fmt.Errorf("target path is empty")
 	}
-	return pathguard.EnsureUnderRoot(rt.configRoot, targetPath)
+	if strings.TrimSpace(rt.configRoot) == "" {
+		return "", fmt.Errorf("config root is not configured")
+	}
+
+	candidate := trimmed
+	if !filepath.IsAbs(candidate) {
+		candidate = filepath.Join(rt.configRoot, candidate)
+	}
+	if err := pathguard.EnsureUnderRoot(rt.configRoot, candidate); err != nil {
+		return "", err
+	}
+	return candidate, nil
 }
 
 type hyperlocaliseJobTimeoutError struct {
