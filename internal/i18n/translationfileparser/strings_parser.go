@@ -12,6 +12,14 @@ import (
 // AppleStringsParser parses Apple .strings localization files.
 type AppleStringsParser struct{}
 
+var appleStringsEscaper = strings.NewReplacer(
+	"\\", "\\\\",
+	"\n", "\\n",
+	"\r", "\\r",
+	"\t", "\\t",
+	"\"", "\\\"",
+)
+
 type stringsEntry struct {
 	key          string
 	sourceValue  string
@@ -231,14 +239,8 @@ func decodeAppleStringsQuoted(raw string) (string, error) {
 }
 
 func encodeAppleStringsQuoted(s string) string {
-	escaped := strings.NewReplacer(
-		"\\", "\\\\",
-		"\n", "\\n",
-		"\r", "\\r",
-		"\t", "\\t",
-		"\"", "\\\"",
-	).Replace(s)
-	return "\"" + escaped + "\""
+	// BOLT OPTIMIZATION: Use a package-level replacer to avoid rebuilding the trie on every call.
+	return "\"" + appleStringsEscaper.Replace(s) + "\""
 }
 
 func skipStringsTrivia(text string, start int) (int, error) {
