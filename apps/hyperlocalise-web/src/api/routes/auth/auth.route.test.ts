@@ -10,9 +10,12 @@ import { enrichAuthContextWithCapabilities, getCapabilitiesForRole } from "../..
 
 type SessionAuthContextInput = Omit<ApiAuthContext, "capabilities">;
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
-  resolveApiAuthContextFromSessionMock: vi.fn(),
-}));
+const { resolveApiAuthContextFromSessionMock, withAuthMock, executeLegacyWorkspaceUpgradeMock } =
+  vi.hoisted(() => ({
+    resolveApiAuthContextFromSessionMock: vi.fn(),
+    withAuthMock: vi.fn(),
+    executeLegacyWorkspaceUpgradeMock: vi.fn(),
+  }));
 
 async function createClient(
   options: {
@@ -58,6 +61,26 @@ async function createClient(
     };
   });
 
+  withAuthMock.mockResolvedValue({
+    user: {
+      id: "user_123",
+      email: "user@example.com",
+    },
+  });
+  executeLegacyWorkspaceUpgradeMock.mockResolvedValue({
+    status: "complete",
+    redirectTo: "/org/example-org/dashboard",
+    migration: { migrated: 1, failed: 0, skipped: 0 },
+  });
+
+  vi.doMock("@workos-inc/authkit-nextjs", () => ({
+    withAuth: withAuthMock,
+  }));
+
+  vi.doMock("@/lib/organizations/upgrade-local-org-workspaces", () => ({
+    executeLegacyWorkspaceUpgrade: executeLegacyWorkspaceUpgradeMock,
+  }));
+
   const { app } = await import("../../app");
 
   return testClient(app);
@@ -68,7 +91,42 @@ describe("authRoutes", () => {
     vi.resetModules();
     vi.doUnmock("../health");
     vi.doUnmock("../project/project.route");
+    vi.doUnmock("@workos-inc/authkit-nextjs");
+    vi.doUnmock("@/lib/organizations/upgrade-local-org-workspaces");
     resolveApiAuthContextFromSessionMock.mockClear();
+    withAuthMock.mockClear();
+    executeLegacyWorkspaceUpgradeMock.mockClear();
+  });
+
+  it("returns 401 for upgrade-workspace without a session cookie", async () => {
+    const client = await createClient();
+    const response = await client.api.auth["upgrade-workspace"].$post();
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "unauthorized",
+      message: expect.any(String),
+    });
+    expect(executeLegacyWorkspaceUpgradeMock).not.toHaveBeenCalled();
+  });
+
+  it("returns workspace upgrade payload for a signed-in session", async () => {
+    const client = await createClient();
+    const response = await client.api.auth["upgrade-workspace"].$post(
+      {},
+      { headers: { cookie: "wos-session=test" } },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      workspaceUpgrade: {
+        status: "complete",
+        redirectTo: "/org/example-org/dashboard",
+        migration: { migrated: 1, failed: 0, skipped: 0 },
+      },
+    });
+    expect(executeLegacyWorkspaceUpgradeMock).toHaveBeenCalled();
+    expect(response.headers.get("set-cookie")).toContain("hl_active_org_slug=example-org");
   });
 
   it("returns 401 when auth context is missing", async () => {

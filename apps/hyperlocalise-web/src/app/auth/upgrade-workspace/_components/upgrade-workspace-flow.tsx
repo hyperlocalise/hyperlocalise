@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useMutation } from "@tanstack/react-query";
 
 import type { LocalOrgWorkspaceSummary } from "@/lib/organizations/migrate-local-org-to-workos";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -11,18 +13,79 @@ import { Card, CardContent, CardDescription, CardHeader } from "@/components/ui/
 import { Progress, ProgressLabel } from "@/components/ui/progress";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-
-import { upgradeWorkspacesAction, type UpgradeWorkspacesActionState } from "../actions";
+import { apiClient } from "@/lib/api-client-instance";
 
 type UpgradeWorkspaceFlowProps = {
   workspaces: LocalOrgWorkspaceSummary[];
 };
 
-const initialState: UpgradeWorkspacesActionState = {};
+function readUpgradeErrorMessage(body: unknown, fallback: string) {
+  if (body && typeof body === "object" && "message" in body) {
+    const message = body.message;
+    if (typeof message === "string" && message.length > 0) {
+      return message;
+    }
+  }
+
+  return fallback;
+}
 
 export function UpgradeWorkspaceFlow({ workspaces }: UpgradeWorkspaceFlowProps) {
-  const [state, formAction, isPending] = useActionState(upgradeWorkspacesAction, initialState);
+  const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
   const startedRef = useRef(false);
+
+  const upgradeWorkspaces = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.auth["upgrade-workspace"].$post();
+      const body: unknown = await response.json().catch(() => null);
+
+      if (response.status === 401) {
+        router.replace("/auth/sign-in?returnTo=/auth/upgrade-workspace");
+        return null;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          readUpgradeErrorMessage(
+            body,
+            "We could not connect your workspace to secure sign-in. Try again in a moment or contact support if this continues.",
+          ),
+        );
+      }
+
+      if (
+        body &&
+        typeof body === "object" &&
+        "workspaceUpgrade" in body &&
+        body.workspaceUpgrade &&
+        typeof body.workspaceUpgrade === "object" &&
+        "redirectTo" in body.workspaceUpgrade &&
+        typeof body.workspaceUpgrade.redirectTo === "string"
+      ) {
+        return body.workspaceUpgrade.redirectTo;
+      }
+
+      throw new Error("Upgrade finished without a redirect destination.");
+    },
+    onSuccess: (redirectTo) => {
+      if (!redirectTo) {
+        return;
+      }
+
+      router.replace(redirectTo);
+      router.refresh();
+    },
+    onError: (mutationError) => {
+      setError(
+        mutationError instanceof Error
+          ? mutationError.message
+          : "We could not connect your workspace to secure sign-in. Try again in a moment or contact support if this continues.",
+      );
+    },
+  });
+
+  const runUpgrade = upgradeWorkspaces.mutate;
 
   useEffect(() => {
     if (startedRef.current) {
@@ -30,8 +93,11 @@ export function UpgradeWorkspaceFlow({ workspaces }: UpgradeWorkspaceFlowProps) 
     }
 
     startedRef.current = true;
-    formAction();
-  }, [formAction]);
+    setError(null);
+    runUpgrade();
+  }, [runUpgrade]);
+
+  const isPending = upgradeWorkspaces.isPending;
 
   const workspaceLabel =
     workspaces.length === 1
@@ -57,13 +123,13 @@ export function UpgradeWorkspaceFlow({ workspaces }: UpgradeWorkspaceFlowProps) 
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="space-y-2">
-            <Progress value={isPending ? 45 : state.error ? 100 : 85} className="h-2">
+            <Progress value={isPending ? 45 : error ? 100 : 85} className="h-2">
               <ProgressLabel className="sr-only">Workspace upgrade progress</ProgressLabel>
             </Progress>
             <TypographyP className="text-sm text-muted-foreground">
               {isPending
                 ? "Creating your WorkOS organization and memberships…"
-                : state.error
+                : error
                   ? "Upgrade could not be completed."
                   : "Finishing setup…"}
             </TypographyP>
@@ -78,18 +144,18 @@ export function UpgradeWorkspaceFlow({ workspaces }: UpgradeWorkspaceFlowProps) 
             </div>
           ) : null}
 
-          {state.error ? (
+          {error ? (
             <div className="flex flex-col gap-3">
               <Alert variant="destructive">
                 <AlertTitle>Could not finish the upgrade</AlertTitle>
-                <AlertDescription>{state.error}</AlertDescription>
+                <AlertDescription>{error}</AlertDescription>
               </Alert>
               <Button
                 type="button"
                 disabled={isPending}
                 onClick={() => {
-                  startedRef.current = true;
-                  formAction();
+                  setError(null);
+                  upgradeWorkspaces.mutate();
                 }}
               >
                 Try again
