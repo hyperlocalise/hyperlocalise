@@ -388,6 +388,45 @@ describe("githubInstallationRoutes", () => {
     expect(i18nSetupEnqueueMock).not.toHaveBeenCalled();
   });
 
+  it("blocks members from reading i18n setup runs", async () => {
+    const { auth, headers, organizationSlug } = await createInstallationFixture("member");
+
+    const [run] = await db
+      .insert(schema.githubI18nSetupRuns)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        actorUserId: auth.user.localUserId,
+        githubInstallationId: "987654",
+        githubRepositoryId: "101",
+        repositoryFullName: "hyperlocalise/hyperlocalise",
+        baseBranch: "main",
+        status: "failed",
+      })
+      .returning();
+
+    const latestResponse = await client.api.orgs[":organizationSlug"][
+      "github-installation"
+    ].repositories[":githubRepositoryId"]["i18n-setup-runs"].latest.$get(
+      {
+        param: { organizationSlug, githubRepositoryId: "101" },
+      },
+      { headers },
+    );
+
+    expect(latestResponse.status).toBe(403);
+
+    const runResponse = await client.api.orgs[":organizationSlug"]["github-installation"][
+      "i18n-setup-runs"
+    ][":runId"].$get(
+      {
+        param: { organizationSlug, runId: run.id },
+      },
+      { headers },
+    );
+
+    expect(runResponse.status).toBe(403);
+  });
+
   it("returns the latest i18n setup run for a repository", async () => {
     const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
 

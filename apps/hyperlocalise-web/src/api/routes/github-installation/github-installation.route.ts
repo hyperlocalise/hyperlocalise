@@ -293,6 +293,10 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       }
     })
     .get("/repositories/:githubRepositoryId/i18n-setup-runs/latest", async (c) => {
+      if (!isAdminRole(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
       const parsedParams = githubRepositoryIdParamSchema.safeParse(c.req.param());
       if (!parsedParams.success) {
         return badRequestResponse(c, "invalid_github_repository_id");
@@ -307,6 +311,10 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ i18nSetupRun: latestRun }, 200);
     })
     .get("/i18n-setup-runs/:runId", async (c) => {
+      if (!isAdminRole(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
       const parsedParams = i18nSetupRunIdParamSchema.safeParse(c.req.param());
       if (!parsedParams.success) {
         return badRequestResponse(c, "invalid_i18n_setup_run_id");

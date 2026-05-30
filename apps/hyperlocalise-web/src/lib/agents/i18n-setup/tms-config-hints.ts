@@ -315,13 +315,13 @@ export function parsePhraseConfigHints(configPath: string, content: string): Tms
     }
 
     const pullPath = convertPhraseFilePattern(target.file);
-    const pushPath = pushSources.find((source) => typeof source.file === "string")?.file;
+    const pushSource = pushSources.find((source) => typeof source.file === "string");
+    const pushPath = pushSource?.file;
     if (pushPath) {
-      const pushSource = pushSources.find((source) => typeof source.file === "string");
-      const localeId = readPhraseParam(pushSource?.params, "locale_id");
+      const pushSourceLocaleId = readPhraseParam(pushSource.params, "locale_id");
       const pathLocale = inferSourceLocaleFromPath(pushPath);
       const localeTokens = uniqueSorted(
-        [localeId, pathLocale].filter((value): value is string => Boolean(value)),
+        [pushSourceLocaleId, pathLocale].filter((value): value is string => Boolean(value)),
       );
       let from = normalizeTmsPath(pushPath);
       for (const token of localeTokens) {

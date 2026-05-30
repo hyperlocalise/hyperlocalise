@@ -115,9 +115,14 @@ async function runSandboxCommand(
   sandboxId: string,
   command: string,
   args: string[],
+  options?: { env?: Record<string, string> },
 ): Promise<{ exitCode: number; output: string }> {
   const sandbox = await Sandbox.get({ name: sandboxId });
-  const result = await sandbox.runCommand(command, args);
+  const result = await sandbox.runCommand({
+    cmd: command,
+    args,
+    env: options?.env,
+  });
   return {
     exitCode: result.exitCode,
     output: await result.output("both"),
@@ -133,14 +138,21 @@ async function prepareSandbox(
 
   const remote = `https://github.com/${event.repositoryFullName}.git`;
 
-  for (const [command, args] of [
+  for (const [command, args, options] of [
     ["git", ["config", "user.name", "hyperlocalise[bot]"]],
     ["git", ["config", "user.email", "hyperlocalise[bot]@users.noreply.github.com"]],
     ["git", ["config", "credential.helper", "store"]],
-    ["bash", ["-lc", `echo "https://x-access-token:${token}@github.com" > ~/.git-credentials`]],
+    [
+      "bash",
+      [
+        "-lc",
+        `printf '%s\\n' "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials`,
+      ],
+      { env: { GITHUB_TOKEN: token } },
+    ],
     ["git", ["remote", "set-url", "origin", remote]],
-  ] satisfies Array<[string, string[]]>) {
-    const result = await runSandboxCommand(sandboxId, command, args);
+  ] satisfies Array<[string, string[], { env?: Record<string, string> }?]>) {
+    const result = await runSandboxCommand(sandboxId, command, args, options);
     if (result.exitCode !== 0) {
       throw new Error(`sandbox setup failed: ${result.output}`);
     }

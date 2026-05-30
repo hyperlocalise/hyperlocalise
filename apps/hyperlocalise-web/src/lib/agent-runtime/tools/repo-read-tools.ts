@@ -73,7 +73,7 @@ async function extractConfigSummary(
     if (filename.endsWith(".jsonc")) {
       const result = await bash.exec("cat", { args: [filePath] });
       if (result.exitCode !== 0) return undefined;
-      jsonText = normalizeJsoncContent(result.stdout);
+      jsonText = normalizeJsonc(result.stdout);
     } else {
       const result = await bash.exec("yq", { args: ["-o", "json", ".", filePath] });
       if (result.exitCode !== 0) return undefined;
@@ -94,10 +94,6 @@ async function extractConfigSummary(
   } catch {
     return undefined;
   }
-}
-
-function normalizeJsoncContent(input: string): string {
-  return normalizeJsonc(input);
 }
 
 export type RepoGitStateOutput = {
