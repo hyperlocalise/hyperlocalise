@@ -10,6 +10,13 @@ import {
   detectLocaleFiles,
   isIgnoredLocaleScanPath,
 } from "@/lib/agents/i18n-setup/locale-detection";
+import {
+  buildDetectionFromTmsHints,
+  collectTmsHints,
+  formatTmsHintsSummary,
+  mergeTmsHintsIntoDetection,
+  TMS_CONFIG_CANDIDATE_PATHS,
+} from "@/lib/agents/i18n-setup/tms-config-hints";
 import type {
   I18nSetupRequestedEventData,
   I18nSetupWorkflowResult,
@@ -180,6 +187,7 @@ function buildI18nSetupAgentInstructions(input: {
   detectedLocaleCount: number;
   suggestedConfig: string;
   samplePaths: string[];
+  tmsHintsSummary?: string | null;
 }): string {
   const goalByMode: Record<I18nSetupMode, string> = {
     create: "create i18n.yml for this repository based on discovered locale files",
@@ -201,6 +209,9 @@ function buildI18nSetupAgentInstructions(input: {
     `Detected ${input.detectedLocaleCount} candidate locale file(s) across supported formats (JSON, YAML, PO, XLIFF, ARB, .strings, .xcstrings, and more).`,
     "Available repository tools: read, grep, glob, bash, detectRepoConfig, repoGitState, runHyperlocaliseCli.",
     "Use read/grep/glob to inspect locale file paths and confirm bucket patterns before writing the config.",
+    input.tmsHintsSummary
+      ? "When TMS config hints disagree with scanned locale files, prefer the TMS file mappings for bucket patterns and locale lists."
+      : null,
     "Steps:",
     configStepByMode[input.mode],
     "2. Use glob or grep to validate locale file naming patterns when the suggested config looks uncertain.",
@@ -212,11 +223,38 @@ function buildI18nSetupAgentInstructions(input: {
     "Do not commit, push, or create pull requests yourself.",
     "Sample discovered locale files:",
     formatSamplePaths(input.samplePaths),
+    input.tmsHintsSummary
+      ? ["Existing TMS configuration hints:", input.tmsHintsSummary].join("\n")
+      : null,
     "Suggested starter config based on deterministic detection:",
     input.suggestedConfig,
   ]
     .filter(Boolean)
     .join("\n\n");
+}
+
+async function scanTmsConfigFiles(
+  sandboxId: string,
+): Promise<Array<{ path: string; content: string }>> {
+  "use step";
+
+  const found: Array<{ path: string; content: string }> = [];
+
+  for (const path of TMS_CONFIG_CANDIDATE_PATHS) {
+    const existsResult = await runSandboxCommand(sandboxId, "test", ["-f", path]);
+    if (existsResult.exitCode !== 0) {
+      continue;
+    }
+
+    const readResult = await runSandboxCommand(sandboxId, "cat", [path]);
+    if (readResult.exitCode !== 0) {
+      throw new Error(`failed to read ${path}: ${readResult.output}`);
+    }
+
+    found.push({ path, content: readResult.output });
+  }
+
+  return found;
 }
 
 async function scanLocaleFilePaths(sandboxId: string): Promise<string[]> {
@@ -247,6 +285,7 @@ async function runSetupAgentStep(input: {
   detectedLocaleCount: number;
   mode: I18nSetupMode;
   samplePaths: string[];
+  tmsHintsSummary?: string | null;
 }): Promise<{ wroteConfig: boolean; summary: string }> {
   "use step";
 
@@ -302,6 +341,7 @@ async function runSetupAgentStep(input: {
         detectedLocaleCount: input.detectedLocaleCount,
         suggestedConfig: input.suggestedConfig,
         samplePaths: input.samplePaths,
+        tmsHintsSummary: input.tmsHintsSummary,
       }),
     }),
     experimental_context: { sandboxId: input.sandboxId, i18nSetupRunId: input.event.runId },
@@ -440,12 +480,24 @@ export async function i18nSetupWorkflow(
 
     const existingConfig = await resolveExistingConfig(sandboxId);
 
-    const scannedPaths = await scanLocaleFilePaths(sandboxId);
-    const detection = detectLocaleFiles(scannedPaths);
+    const [scannedPaths, tmsConfigFiles] = await Promise.all([
+      scanLocaleFilePaths(sandboxId),
+      scanTmsConfigFiles(sandboxId),
+    ]);
+    const tmsHints = collectTmsHints(tmsConfigFiles, existingConfig);
+
+    let detection = detectLocaleFiles(scannedPaths);
+    if (!detection && tmsHints.length > 0) {
+      detection = buildDetectionFromTmsHints(tmsHints);
+    }
+
+    if (detection && tmsHints.length > 0) {
+      detection = mergeTmsHintsIntoDetection(detection, tmsHints);
+    }
 
     if (!detection) {
       const message =
-        "Could not find locale translation files in this repository. Look for paths like locales/en-US.json, locales/fr.po, or messages/de.yaml.";
+        "Could not find locale translation files in this repository. Look for paths like locales/en-US.json, locales/fr.po, messages/de.yaml, or an existing crowdin.yml / .phrase.yml config.";
       await updateRunStatusStep(event.runId, {
         status: "failed",
         errorCode: "locale_files_not_found",
@@ -498,6 +550,8 @@ export async function i18nSetupWorkflow(
       };
     }
 
+    const tmsHintsSummary = formatTmsHintsSummary(tmsHints);
+
     const agentResult = await runSetupAgentStep({
       event,
       sandboxId,
@@ -505,6 +559,7 @@ export async function i18nSetupWorkflow(
       detectedLocaleCount: detection.allFiles.length,
       mode: suggestion.mode,
       samplePaths: scannedPaths,
+      tmsHintsSummary,
     });
 
     if (!agentResult.wroteConfig) {
