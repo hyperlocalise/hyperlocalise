@@ -52,6 +52,12 @@ export async function requireAppAuthContext(
     }
 
     if (error instanceof Error && error.message === "organization_access_denied") {
+      // Temporary: legacy local workspaces can exist while WorkOS membership is still empty.
+      const pendingLocalOrgWorkspaces = await listLocalOrgWorkspacesForUser(db, session.user.id);
+      if (pendingLocalOrgWorkspaces.length > 0) {
+        redirect("/auth/upgrade-workspace");
+      }
+
       redirect("/auth/access-denied?reason=organization-access-denied");
     }
 
