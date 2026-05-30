@@ -32,11 +32,29 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
   }
 
   async readFile(path: string): Promise<string> {
-    const result = await this.runCommand("cat", [path], { output: "stdout" });
-    if (result.exitCode !== 0) {
-      throw new Error(result.output || `Failed to read ${path}`);
+    const guard = await this.runCommand(
+      "bash",
+      [
+        "-lc",
+        `set -euo pipefail; target=${shellQuote(path)}; if [ -L "$target" ]; then exit 42; fi; resolved=$(readlink -f "$target" 2>/dev/null || true); if [ -z "$resolved" ] || [ ! -f "$resolved" ]; then exit 43; fi; case "$resolved" in /etc/*|/proc/*|/sys/*|/var/*|/root/*|/home/*/.ssh/*) exit 44;; esac; cat "$resolved"`,
+      ],
+      { output: "stdout" },
+    );
+
+    if (guard.exitCode === 42) {
+      throw new Error("Symlink reads are not allowed.");
     }
-    return result.output;
+    if (guard.exitCode === 43) {
+      throw new Error(`Failed to read ${path}`);
+    }
+    if (guard.exitCode === 44) {
+      throw new Error("Path resolves outside the workspace.");
+    }
+    if (guard.exitCode !== 0) {
+      throw new Error(guard.output || `Failed to read ${path}`);
+    }
+
+    return guard.output;
   }
 
   async writeFile(path: string, content: string | Buffer): Promise<void> {

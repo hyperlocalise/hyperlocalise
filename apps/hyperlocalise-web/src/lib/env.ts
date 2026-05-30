@@ -97,6 +97,12 @@ export const env = createEnv({
       .default("true")
       .transform((value) => value === "true"),
 
+    /** Allows public dynamic MCP OAuth client registration. Disable in production. */
+    MCP_ALLOW_DYNAMIC_REGISTRATION: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
+
     /** MCP opaque access token lifetime in minutes. */
     MCP_TOKEN_LIFETIME_MINUTES: z.coerce.number().int().positive().default(60),
 
@@ -222,6 +228,7 @@ export const env = createEnv({
     BLOB_READ_WRITE_TOKEN:
       process.env.BLOB_READ_WRITE_TOKEN ?? (isTestEnv ? "test-blob-read-write-token" : undefined),
     MCP_AUTH_ENABLED: process.env.MCP_AUTH_ENABLED ?? "true",
+    MCP_ALLOW_DYNAMIC_REGISTRATION: process.env.MCP_ALLOW_DYNAMIC_REGISTRATION ?? "true",
     MCP_TOKEN_LIFETIME_MINUTES: process.env.MCP_TOKEN_LIFETIME_MINUTES,
     MCP_REFRESH_TOKEN_LIFETIME_DAYS: process.env.MCP_REFRESH_TOKEN_LIFETIME_DAYS,
     MCP_ENCRYPTION_KEY:

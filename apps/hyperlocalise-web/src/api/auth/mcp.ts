@@ -108,6 +108,80 @@ export function createAuthorizationCode(
   return `${encodedPayload}.${sign(encodedPayload)}`;
 }
 
+export type McpAuthorizationRequestPayload = {
+  clientId: string;
+  redirectUri: string;
+  codeChallenge: string;
+  codeChallengeMethod: "S256";
+  scope: string;
+  state?: string;
+  organizationSlug?: string;
+  expiresAt: number;
+  nonce: string;
+};
+
+export type McpConsentGrantPayload = {
+  requestNonce: string;
+  userId: string;
+  organizationId: string;
+  expiresAt: number;
+};
+
+export const MCP_AUTH_REQUEST_COOKIE = "hl_mcp_auth_req";
+export const MCP_CONSENT_COOKIE = "hl_mcp_consent";
+
+function createSignedPayload<T extends object>(payload: T): string {
+  const encodedPayload = base64Url(JSON.stringify(payload));
+  return `${encodedPayload}.${sign(encodedPayload)}`;
+}
+
+function parseSignedPayload<T extends { expiresAt: number }>(token: string): T | null {
+  const [encodedPayload, signature] = token.split(".");
+  if (!encodedPayload || !signature || !constantTimeEqual(signature, sign(encodedPayload))) {
+    return null;
+  }
+
+  let payload: T;
+  try {
+    payload = JSON.parse(Buffer.from(encodedPayload, "base64url").toString("utf8"));
+  } catch {
+    return null;
+  }
+
+  if (payload.expiresAt < Date.now()) {
+    return null;
+  }
+
+  return payload;
+}
+
+export function createMcpAuthorizationRequest(
+  payload: Omit<McpAuthorizationRequestPayload, "expiresAt" | "nonce">,
+) {
+  const fullPayload: McpAuthorizationRequestPayload = {
+    ...payload,
+    expiresAt: Date.now() + 15 * 60 * 1000,
+    nonce: randomBytes(16).toString("base64url"),
+  };
+  return createSignedPayload(fullPayload);
+}
+
+export function parseMcpAuthorizationRequest(token: string): McpAuthorizationRequestPayload | null {
+  return parseSignedPayload<McpAuthorizationRequestPayload>(token);
+}
+
+export function createMcpConsentGrant(payload: Omit<McpConsentGrantPayload, "expiresAt">) {
+  const fullPayload: McpConsentGrantPayload = {
+    ...payload,
+    expiresAt: Date.now() + 5 * 60 * 1000,
+  };
+  return createSignedPayload(fullPayload);
+}
+
+export function parseMcpConsentGrant(token: string): McpConsentGrantPayload | null {
+  return parseSignedPayload<McpConsentGrantPayload>(token);
+}
+
 export function parseAuthorizationCode(code: string): AuthorizationCodePayload | null {
   const [encodedPayload, signature] = code.split(".");
   if (!encodedPayload || !signature || !constantTimeEqual(signature, sign(encodedPayload))) {

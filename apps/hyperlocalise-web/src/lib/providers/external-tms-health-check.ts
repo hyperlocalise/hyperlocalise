@@ -5,6 +5,7 @@ import { decryptProviderCredential } from "@/lib/security/provider-credential-cr
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import { resolvePhraseBaseUrl } from "./phrase/phrase-base-url";
+import { providerSafeFetch } from "./provider-safe-fetch";
 import { normalizeProviderBaseUrl } from "./provider-url-safety";
 import { parseSmartlingCredentials } from "./smartling/smartling-credentials";
 import { classifySmartlingHttpError } from "./smartling/smartling-api";
@@ -84,7 +85,7 @@ export async function checkExternalTmsProviderHealth(input: {
     secretMaterial,
     baseUrl: credential.baseUrl,
     region: credential.region,
-    fetchFn: input.fetchFn ?? fetch,
+    fetchFn: input.fetchFn ?? providerSafeFetch,
   });
 
   return {

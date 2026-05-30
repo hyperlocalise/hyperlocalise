@@ -63,6 +63,9 @@ function createMessage(input: {
     emailId: "email_123",
     messageId: "message_123",
     subject: "Translate from en to fr",
+    headers: {
+      "received-spf": "pass (example.com: domain of sender@example.com designates sending IP)",
+    },
     to: ["Example Org <example-org@inbox.hyperlocalise.com>"],
     attachments: [
       {

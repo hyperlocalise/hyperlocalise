@@ -1,3 +1,11 @@
+import {
+  assertResolvablePublicHost,
+  isBlockedHost,
+  isBlockedIpv4Address,
+  isBlockedIpv6Address,
+  normalizeHostname,
+} from "@/lib/security/ssrf-guard";
+
 export function normalizeProviderBaseUrl(
   baseUrl: string | null | undefined,
   defaultBaseUrl: string,
@@ -37,6 +45,20 @@ export function requireProviderBaseUrl(
   return normalized;
 }
 
+export async function assertProviderUrlResolvable(url: string): Promise<void> {
+  const parsed = new URL(url);
+  if (!isSafeProviderUrl(parsed)) {
+    throw new Error("Provider URL is invalid or unsafe.");
+  }
+
+  const hostname = normalizeHostname(parsed.hostname);
+  if (hostname.endsWith(".test")) {
+    return;
+  }
+
+  await assertResolvablePublicHost(hostname);
+}
+
 function isSafeProviderUrl(url: URL) {
   if (url.protocol !== "https:") return false;
   if (url.username || url.password) return false;
@@ -45,67 +67,9 @@ function isSafeProviderUrl(url: URL) {
   if (!hostname || hostname === "localhost" || hostname.endsWith(".localhost")) return false;
   if (!hostname.includes(".") && !hostname.includes(":")) return false;
 
-  if (isBlockedIpv4Address(hostname) || isBlockedIpv6Address(hostname)) return false;
-
-  return true;
-}
-
-function normalizeHostname(hostname: string) {
-  return hostname
-    .replace(/^\[|\]$/g, "")
-    .replace(/\.$/, "")
-    .toLowerCase();
-}
-
-function isBlockedIpv4Address(hostname: string) {
-  const octets = hostname.split(".");
-  if (octets.length !== 4) return false;
-
-  const bytes = octets.map((octet) => Number(octet));
-  if (
-    bytes.some(
-      (byte, index) => !Number.isInteger(byte) || byte < 0 || byte > 255 || octets[index] === "",
-    )
-  ) {
+  if (isBlockedIpv4Address(hostname) || isBlockedIpv6Address(hostname) || isBlockedHost(hostname)) {
     return false;
   }
 
-  const [first, second, third] = bytes as [number, number, number, number];
-  return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    first >= 224 ||
-    (first === 100 && second >= 64 && second <= 127) ||
-    (first === 169 && second === 254) ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 0) ||
-    (first === 192 && second === 168) ||
-    (first === 198 && (second === 18 || second === 19 || (second === 51 && third === 100))) ||
-    (first === 203 && second === 0 && third === 113)
-  );
-}
-
-function isBlockedIpv6Address(hostname: string) {
-  if (!hostname.includes(":")) return false;
-
-  if (
-    hostname === "::" ||
-    hostname === "::1" ||
-    hostname.startsWith("::ffff:") ||
-    hostname.startsWith("64:ff9b:") ||
-    hostname.startsWith("100:") ||
-    hostname.startsWith("2001:2:") ||
-    hostname.startsWith("2001:db8:") ||
-    hostname.startsWith("fc") ||
-    hostname.startsWith("fd") ||
-    hostname.startsWith("fe8") ||
-    hostname.startsWith("fe9") ||
-    hostname.startsWith("fea") ||
-    hostname.startsWith("feb")
-  ) {
-    return true;
-  }
-
-  return false;
+  return true;
 }

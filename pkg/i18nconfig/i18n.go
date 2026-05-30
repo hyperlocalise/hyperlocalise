@@ -11,6 +11,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/hyperlocalise/hyperlocalise/pkg/hyperlocaliseapi"
 	"github.com/tidwall/jsonc"
 	"gopkg.in/yaml.v3"
 )
@@ -790,6 +791,9 @@ func (c I18NConfig) validateHyperlocalise() error {
 
 	if strings.TrimSpace(c.Hyperlocalise.APIBaseURL) == "" {
 		return fmt.Errorf("hyperlocalise.api_base_url: must not be empty")
+	}
+	if err := hyperlocaliseapi.ValidateAPIBaseURL(c.Hyperlocalise.APIBaseURL); err != nil {
+		return err
 	}
 	if strings.TrimSpace(c.Hyperlocalise.APIKeyEnv) == "" {
 		return fmt.Errorf("hyperlocalise.api_key_env: must not be empty")

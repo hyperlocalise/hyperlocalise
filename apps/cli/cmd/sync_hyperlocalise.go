@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/pathresolver"
+	"github.com/hyperlocalise/hyperlocalise/pkg/hyperlocaliseapi"
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
@@ -193,6 +194,9 @@ func newHyperlocaliseSyncRuntime(configPath, manifestOverride string) (*hyperloc
 	}
 
 	apiBaseURL := strings.TrimRight(strings.TrimSpace(cfg.Hyperlocalise.APIBaseURL), "/")
+	if err := hyperlocaliseapi.ValidateAPIBaseURL(apiBaseURL); err != nil {
+		return nil, err
+	}
 	return &hyperlocaliseSyncRuntime{
 		cfg:          cfg,
 		configPath:   configPath,

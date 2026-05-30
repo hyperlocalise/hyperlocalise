@@ -1,94 +1,15 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { assertPublicHttpUrlResolvable, isPublicHttpUrl } from "@/lib/security/ssrf-guard";
+
 import { truncate, redact } from "./redact";
 
 const FETCH_TIMEOUT_MS = 30_000;
 const MAX_BODY_LENGTH = 10_000;
 
-function normalizeHostname(hostname: string): string {
-  const lowerHostname = hostname.toLowerCase();
-  if (lowerHostname.startsWith("[") && lowerHostname.endsWith("]")) {
-    return lowerHostname.slice(1, -1);
-  }
-  return lowerHostname;
-}
-
-function isPrivateIpv4Address(hostname: string): boolean {
-  const octets = hostname.split(".").map((part) => Number(part));
-  if (octets.length !== 4 || octets.some((value) => Number.isNaN(value))) {
-    return false;
-  }
-  const [first, second] = octets;
-  return (
-    first === 0 ||
-    first === 10 ||
-    first === 127 ||
-    (first === 169 && second === 254) ||
-    (first === 172 && second >= 16 && second <= 31) ||
-    (first === 192 && second === 168)
-  );
-}
-
-function ipv4FromIpv4MappedIpv6(hostname: string): string | null {
-  if (!/^::ffff:/i.test(hostname)) {
-    return null;
-  }
-
-  const rest = hostname.slice(7);
-  if (rest.includes(".")) {
-    return rest;
-  }
-
-  const [highPart, lowPart] = rest.split(":");
-  if (!highPart || !lowPart) {
-    return null;
-  }
-
-  const high = Number.parseInt(highPart, 16);
-  const low = Number.parseInt(lowPart, 16);
-  if (Number.isNaN(high) || Number.isNaN(low)) {
-    return null;
-  }
-
-  return `${(high >> 8) & 0xff}.${high & 0xff}.${(low >> 8) & 0xff}.${low & 0xff}`;
-}
-
-function isPrivateIpv6Address(hostname: string): boolean {
-  if (hostname === "::1") {
-    return true;
-  }
-
-  const mappedIpv4 = ipv4FromIpv4MappedIpv6(hostname);
-  if (mappedIpv4) {
-    return isPrivateIpv4Address(mappedIpv4);
-  }
-
-  return false;
-}
-
-function isPrivateHost(hostname: string): boolean {
-  const normalized = normalizeHostname(hostname);
-  return (
-    normalized === "localhost" ||
-    isPrivateIpv4Address(normalized) ||
-    isPrivateIpv6Address(normalized)
-  );
-}
-
 export function isAllowedWebUrl(value: string): boolean {
-  let parsed: URL;
-  try {
-    parsed = new URL(value);
-  } catch {
-    return false;
-  }
-
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return false;
-  }
-
-  return !isPrivateHost(parsed.hostname);
+  return isPublicHttpUrl(value);
 }
 
 const fetchInputSchema = z.object({
@@ -117,6 +38,8 @@ USAGE:
       const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       try {
+        await assertPublicHttpUrlResolvable(url);
+
         const response = await fetch(url, {
           method,
           redirect: "error",

@@ -27,6 +27,7 @@ import {
 } from "@/lib/interactions";
 import { resolveInboundEmailOrganization } from "./organizations";
 import type { EmailBotState, PendingEmailAgentTask, RawEmailMessage } from "./types";
+import { isInboundSenderAuthenticated } from "./sender-authentication";
 import { lookupUserByEmail } from "./users";
 
 export { interpretClarificationReply };
@@ -645,6 +646,29 @@ export function createEmailHandler(dependencies: EmailHandlerDependencies) {
 
     try {
       const user = await dependencies.lookupUserByEmail(senderEmail);
+
+      const inboundHeaders = raw.headers;
+      if (
+        user &&
+        inboundHeaders &&
+        Object.keys(inboundHeaders).length > 0 &&
+        !isInboundSenderAuthenticated({
+          claimedFromEmail: senderEmail,
+          headers: inboundHeaders,
+        })
+      ) {
+        log.warn("inbound email failed sender authentication");
+        await thread.post(
+          [
+            "We could not verify that this message was sent from your mailbox.",
+            "",
+            "Please send from an address that passes SPF, DKIM, or DMARC for your domain, or reply in an existing thread you started from your workspace email.",
+            "",
+            "—Hyperlocalise Agent",
+          ].join("\n"),
+        );
+        return;
+      }
 
       if (!user) {
         log.warn("unknown sender");

@@ -34,6 +34,7 @@ export type ResendRawMessage = {
   text: string;
   html?: string;
   messageId: string;
+  headers?: Record<string, string>;
   attachments: Array<{
     id: string;
     filename: string | null;
@@ -304,6 +305,14 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
         rawMessage.from = result.data.from || rawMessage.from;
         rawMessage.to = result.data.to.length > 0 ? result.data.to : rawMessage.to;
         rawMessage.messageId = result.data.message_id || rawMessage.messageId;
+        if (result.data.headers) {
+          rawMessage.headers = Object.fromEntries(
+            Object.entries(result.data.headers).map(([key, value]) => [
+              key.toLowerCase(),
+              String(value),
+            ]),
+          );
+        }
         if (rawMessage.attachments.length === 0 && result.data.attachments.length > 0) {
           rawMessage.attachments = result.data.attachments.map((att) => ({
             id: att.id,

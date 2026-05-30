@@ -14,6 +14,7 @@ import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { listExternalTmsFileVersionsForFile } from "@/lib/providers/organization-external-tms-file-versions";
 import { resolveProviderJobsForFile } from "@/lib/providers/job-provider-source-files";
 import { bufferFromStream } from "@/lib/streams";
+import { sanitizeExternalUrl } from "@/lib/safe-external-url";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 const maxInlineTextBytes = 512 * 1024;
@@ -110,7 +111,7 @@ function toProviderRecord(file: typeof schema.externalTmsFiles.$inferSelect) {
     resourceType: file.resourceType,
     externalProjectId: file.externalProjectId,
     externalResourceId: file.externalResourceId,
-    externalUrl: file.externalUrl,
+    externalUrl: sanitizeExternalUrl(file.externalUrl),
     syncState: file.syncState,
     sourceLocale: file.sourceLocale,
     targetLocales: file.targetLocales,
@@ -468,7 +469,7 @@ export async function getProjectFileDetail(input: {
     externalStatus: job.externalStatus,
     syncState: job.syncState,
     targetLocales: job.targetLocales,
-    externalUrl: job.externalUrl,
+    externalUrl: sanitizeExternalUrl(job.externalUrl),
     linkedJobId: job.linkedJobId,
     createdAt: job.createdAt.toISOString(),
     updatedAt: job.updatedAt.toISOString(),
