@@ -41,7 +41,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 
@@ -186,26 +185,18 @@ function ReplyComposerContent({
           <PromptInputFooter className="flex-wrap gap-3 border-t border-border bg-muted px-4 py-3 sm:px-5">
             <PromptInputTools className="flex-wrap gap-2 text-sm text-muted-foreground">
               <DropdownMenu>
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <DropdownMenuTrigger
-                        render={
-                          <PromptInputButton
-                            className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
-                            size="icon-sm"
-                            aria-label="Add translation context"
-                          >
-                            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-                          </PromptInputButton>
-                        }
-                      />
-                    }
-                  />
-                  <TooltipContent side="bottom" align="center">
-                    Add translation context
-                  </TooltipContent>
-                </Tooltip>
+                <DropdownMenuTrigger
+                  render={
+                    <PromptInputButton
+                      className="inline-flex size-8 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent/20 hover:text-foreground"
+                      size="icon-sm"
+                      aria-label="Add translation context"
+                      tooltip="Add translation context"
+                    >
+                      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
+                    </PromptInputButton>
+                  }
+                />
                 <DropdownMenuContent className="min-w-52" align="start">
                   <DropdownMenuGroup>
                     <DropdownMenuItem onClick={() => attachments.openFileDialog()}>
