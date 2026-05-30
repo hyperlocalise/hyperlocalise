@@ -19,7 +19,9 @@ export default function KnowledgePage() {
       </div>
 
       <section className="space-y-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-        <TypographyP className="text-sm font-medium text-foreground">What will live here</TypographyP>
+        <TypographyP className="text-sm font-medium text-foreground">
+          What will live here
+        </TypographyP>
         <ul className="list-disc space-y-2 ps-5 text-sm leading-6 text-foreground/58">
           <li>Product facts, release context, and decisions that should persist across projects</li>
           <li>Locale and market notes agents apply during translation and review</li>

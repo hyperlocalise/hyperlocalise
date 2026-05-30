@@ -193,4 +193,3 @@ export function parseProjectRoute(pathname: string | null) {
     section,
   };
 }
-
