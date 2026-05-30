@@ -107,8 +107,7 @@ IMPORTANT:
           DEFAULT_MAX_OUTPUT_BYTES,
         );
 
-        const linesReadEnd =
-          selectedLines.length > 0 ? startLine + selectedLines.length - 1 : null;
+        const linesReadEnd = selectedLines.length > 0 ? startLine + selectedLines.length - 1 : null;
         const totalLines =
           linesReadEnd === null
             ? Number.isFinite(wcLineCount)
