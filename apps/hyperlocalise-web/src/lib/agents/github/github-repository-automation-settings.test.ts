@@ -126,7 +126,7 @@ describe("github repository automation settings", () => {
     ).toBe("2026-05-30T11:00:00.000Z");
   });
 
-  it("schedules daily runs using the configured timezone", () => {
+  it("schedules daily runs at hourUtc in UTC", () => {
     const from = new Date("2026-05-30T14:00:00.000Z");
     const next = computeNextScheduledRunAt(
       {
@@ -138,6 +138,6 @@ describe("github repository automation settings", () => {
       from,
     );
 
-    expect(next.toISOString()).toBe("2026-05-31T13:00:00.000Z");
+    expect(next.toISOString()).toBe("2026-05-31T09:00:00.000Z");
   });
 });

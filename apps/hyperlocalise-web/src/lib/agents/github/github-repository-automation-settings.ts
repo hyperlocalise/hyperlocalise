@@ -213,34 +213,6 @@ function getZonedDateTimeParts(date: Date, timeZone: string): ZonedDateTimeParts
   };
 }
 
-function utcFromZonedLocal(
-  year: number,
-  month: number,
-  day: number,
-  hour: number,
-  minute: number,
-  second: number,
-  timeZone: string,
-): Date {
-  let utcMs = Date.UTC(year, month - 1, day, hour, minute, second);
-
-  for (let attempt = 0; attempt < 4; attempt++) {
-    const zoned = getZonedDateTimeParts(new Date(utcMs), timeZone);
-    const desiredMs = Date.UTC(year, month - 1, day, hour, minute, second);
-    const actualMs = Date.UTC(
-      zoned.year,
-      zoned.month - 1,
-      zoned.day,
-      zoned.hour,
-      zoned.minute,
-      zoned.second,
-    );
-    utcMs += desiredMs - actualMs;
-  }
-
-  return new Date(utcMs);
-}
-
 function addDaysToLocalDate(year: number, month: number, day: number, days: number) {
   const date = new Date(Date.UTC(year, month - 1, day + days));
   return {
@@ -250,56 +222,39 @@ function addDaysToLocalDate(year: number, month: number, day: number, days: numb
   };
 }
 
-function nextTopOfHourInTimeZone(from: Date, timeZone: string): Date {
-  const zoned = getZonedDateTimeParts(from, timeZone);
-  let { year, month, day, hour } = zoned;
-
-  if (
-    zoned.minute > 0 ||
-    zoned.second > 0 ||
-    from.getTime() > utcFromZonedLocal(year, month, day, hour, 0, 0, timeZone).getTime()
-  ) {
-    hour += 1;
-    if (hour >= 24) {
-      hour = 0;
-      ({ year, month, day } = addDaysToLocalDate(year, month, day, 1));
-    }
-  }
-
-  return utcFromZonedLocal(year, month, day, hour, 0, 0, timeZone);
+function nextTopOfHourUtc(from: Date): Date {
+  const next = new Date(from);
+  next.setUTCSeconds(0, 0);
+  next.setUTCMinutes(0);
+  next.setUTCHours(next.getUTCHours() + 1);
+  return next;
 }
 
-function nextDailyRunInTimeZone(from: Date, timeZone: string, localHour: number): Date {
-  const zoned = getZonedDateTimeParts(from, timeZone);
-  let { year, month, day } = zoned;
+function nextDailyRunUtc(from: Date, hourUtc: number): Date {
+  const next = new Date(from);
+  next.setUTCHours(hourUtc, 0, 0, 0);
 
-  let candidate = utcFromZonedLocal(year, month, day, localHour, 0, 0, timeZone);
-  if (candidate.getTime() <= from.getTime()) {
-    ({ year, month, day } = addDaysToLocalDate(year, month, day, 1));
-    candidate = utcFromZonedLocal(year, month, day, localHour, 0, 0, timeZone);
+  if (next.getTime() <= from.getTime()) {
+    next.setUTCDate(next.getUTCDate() + 1);
   }
 
-  return candidate;
+  return next;
 }
 
-function nextWeeklyRunInTimeZone(
-  from: Date,
-  timeZone: string,
-  localHour: number,
-  dayOfWeek: number,
-): Date {
+function nextWeeklyRunUtc(from: Date, timeZone: string, hourUtc: number, dayOfWeek: number): Date {
   const zoned = getZonedDateTimeParts(from, timeZone);
   let { year, month, day } = zoned;
 
   let daysUntil = (dayOfWeek - zoned.weekday + 7) % 7;
-  let candidate = utcFromZonedLocal(year, month, day, localHour, 0, 0, timeZone);
+  let candidate = new Date(Date.UTC(year, month - 1, day, hourUtc, 0, 0));
+
   if (daysUntil === 0 && candidate.getTime() <= from.getTime()) {
     daysUntil = 7;
   }
 
   if (daysUntil > 0) {
     ({ year, month, day } = addDaysToLocalDate(year, month, day, daysUntil));
-    candidate = utcFromZonedLocal(year, month, day, localHour, 0, 0, timeZone);
+    candidate = new Date(Date.UTC(year, month - 1, day, hourUtc, 0, 0));
   }
 
   return candidate;
@@ -309,18 +264,16 @@ export function computeNextScheduledRunAt(
   trigger: Extract<GithubRepositoryAutomationSettings["trigger"], { mode: "scheduled" }>,
   from: Date = new Date(),
 ): Date {
-  const timeZone = trigger.timezone;
-
   if (trigger.cadence === "hourly") {
-    return nextTopOfHourInTimeZone(from, timeZone);
+    return nextTopOfHourUtc(from);
   }
 
-  const localHour = trigger.hourUtc;
+  const hourUtc = trigger.hourUtc;
   if (trigger.cadence === "daily") {
-    return nextDailyRunInTimeZone(from, timeZone, localHour);
+    return nextDailyRunUtc(from, hourUtc);
   }
 
-  return nextWeeklyRunInTimeZone(from, timeZone, localHour, trigger.dayOfWeek ?? 1);
+  return nextWeeklyRunUtc(from, trigger.timezone, hourUtc, trigger.dayOfWeek ?? 1);
 }
 
 export function resolveNextRunAtForSettings(
