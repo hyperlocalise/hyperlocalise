@@ -1,6 +1,6 @@
 import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 
 import { getInstallationOctokit } from "./app";
 
@@ -90,6 +90,23 @@ export async function upsertGitHubInstallationRepositories(input: {
         updatedAt: now,
       },
     });
+}
+
+export async function deleteOrganizationGitHubInstallationRepositories(input: {
+  organizationId: string;
+  githubInstallationId: string;
+  db?: DatabaseClient;
+}) {
+  const database = input.db ?? db;
+
+  await database
+    .delete(schema.githubInstallationRepositories)
+    .where(
+      and(
+        eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
+        eq(schema.githubInstallationRepositories.githubInstallationId, input.githubInstallationId),
+      ),
+    );
 }
 
 export async function removeGitHubInstallationRepositories(input: {

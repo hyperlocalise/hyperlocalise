@@ -634,6 +634,19 @@ export const defaultRepositoryGitHubContextDependencies: RepositoryGitHubContext
         defaultBranch: schema.githubInstallationRepositories.defaultBranch,
       })
       .from(schema.githubInstallationRepositories)
+      .innerJoin(
+        schema.githubInstallations,
+        and(
+          eq(
+            schema.githubInstallationRepositories.organizationId,
+            schema.githubInstallations.organizationId,
+          ),
+          eq(
+            schema.githubInstallationRepositories.githubInstallationId,
+            schema.githubInstallations.githubInstallationId,
+          ),
+        ),
+      )
       .where(
         and(
           eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
@@ -666,6 +679,19 @@ export const defaultRepositoryGitHubContextDependencies: RepositoryGitHubContext
         defaultBranch: schema.githubInstallationRepositories.defaultBranch,
       })
       .from(schema.githubInstallationRepositories)
+      .innerJoin(
+        schema.githubInstallations,
+        and(
+          eq(
+            schema.githubInstallationRepositories.organizationId,
+            schema.githubInstallations.organizationId,
+          ),
+          eq(
+            schema.githubInstallationRepositories.githubInstallationId,
+            schema.githubInstallations.githubInstallationId,
+          ),
+        ),
+      )
       .where(
         and(
           eq(schema.githubInstallationRepositories.organizationId, input.organizationId),

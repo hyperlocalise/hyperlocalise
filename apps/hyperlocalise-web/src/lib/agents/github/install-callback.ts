@@ -6,7 +6,10 @@ import { createLogger } from "@/lib/log";
 import { getGitHubApp } from "@/lib/agents/github/app";
 import { isGitHubAppPrivateKeyDecoderError } from "@/lib/agents/github/private-key";
 import { getGitHubStateSecret, verifyGitHubState } from "@/lib/agents/github/oauth-state";
-import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
+import {
+  deleteOrganizationGitHubInstallationRepositories,
+  syncInstallationRepositories,
+} from "@/lib/agents/github/repositories";
 
 const logger = createLogger("github-install-callback");
 
@@ -306,16 +309,26 @@ export async function handleGitHubInstallCallback(
 
   try {
     if (existing[0]) {
-      await db
-        .update(schema.githubInstallations)
-        .set({
-          githubInstallationId,
-          githubAppId,
-          accountLogin,
-          accountType,
-          updatedAt: new Date(),
-        })
-        .where(eq(schema.githubInstallations.id, existing[0].id));
+      await db.transaction(async (tx) => {
+        if (existing[0].githubInstallationId !== githubInstallationId) {
+          await deleteOrganizationGitHubInstallationRepositories({
+            organizationId: org.id,
+            githubInstallationId: existing[0].githubInstallationId,
+            db: tx,
+          });
+        }
+
+        await tx
+          .update(schema.githubInstallations)
+          .set({
+            githubInstallationId,
+            githubAppId,
+            accountLogin,
+            accountType,
+            updatedAt: new Date(),
+          })
+          .where(eq(schema.githubInstallations.id, existing[0].id));
+      });
 
       logger.info(
         { ...orgContext, githubInstallationRowId: existing[0].id, action: "update" },
