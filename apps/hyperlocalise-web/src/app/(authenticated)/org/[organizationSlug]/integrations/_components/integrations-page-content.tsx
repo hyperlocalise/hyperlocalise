@@ -26,6 +26,7 @@ import { createApiClient } from "@/lib/api-client";
 import type { ExternalTmsProviderCredentialListItem } from "@/lib/providers/organization-external-tms-provider-credentials";
 import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/provider-webhook-subscription-types";
 import { toneClass } from "../../_components/workspace-resource-shared";
+import { TmsSyncObservabilityPanel } from "./tms-sync-observability-panel";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -1125,6 +1126,15 @@ export function IntegrationsPageContent({
                     <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
                       Webhook subscriptions appear after projects are synced for this provider.
                     </div>
+                  ) : null}
+
+                  {selectedTmsProvider ? (
+                    <TmsSyncObservabilityPanel
+                      organizationSlug={organizationSlug}
+                      providerKind={selectedTmsProvider}
+                      membershipRole={membershipRole}
+                      enabled={Boolean(selectedTmsCredential)}
+                    />
                   ) : null}
 
                   <DialogFooter className="gap-2 sm:justify-between">

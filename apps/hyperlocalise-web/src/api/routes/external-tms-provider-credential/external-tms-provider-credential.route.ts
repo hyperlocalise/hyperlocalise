@@ -3,7 +3,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
-import { notFoundResponse } from "@/api/response.schema";
+import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
 import { fetchCrowdinProjects } from "@/lib/providers/crowdin/crowdin-project-fetcher";
 import { fetchLokaliseProjects } from "@/lib/providers/lokalise/lokalise-project-fetcher";
 import { fetchPhraseProjects } from "@/lib/providers/phrase/phrase-project-fetcher";
@@ -29,9 +29,16 @@ import {
   ensureProviderWebhookSubscriptionsForCredential,
   listProviderWebhookSubscriptionSummaries,
 } from "@/lib/providers/provider-webhook-subscription-manager";
+import {
+  getProviderSyncObservability,
+  ProviderSyncIntentNotFoundError,
+  ProviderSyncIntentNotRetryableError,
+  retryProviderSyncIntent,
+} from "@/lib/providers/provider-sync-observability";
 
 import {
   externalTmsProviderKindSchema,
+  providerSyncObservabilityQuerySchema,
   revealExternalTmsProviderCredentialBodySchema,
   upsertExternalTmsProviderCredentialBodySchema,
 } from "./external-tms-provider-credential.schema";
@@ -211,6 +218,82 @@ export function createExternalTmsProviderCredentialRoutes() {
       });
 
       return c.json({ providerWebhookSubscriptions }, 200);
+    })
+    .get("/:providerKind/sync-observability", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
+      if (!providerKind.success) {
+        return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
+      }
+
+      const query = providerSyncObservabilityQuerySchema.safeParse({
+        projectId: c.req.query("projectId") || undefined,
+      });
+      if (!query.success) {
+        return badRequestResponse(c, "invalid_sync_observability_query");
+      }
+
+      const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
+        c.var.auth.organization.localOrganizationId,
+        providerKind.data,
+      );
+      if (!providerCredentialSummary) {
+        return c.json({ error: "provider_credential_not_found" }, 404);
+      }
+
+      const providerSyncObservability = await getProviderSyncObservability({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        providerKind: providerKind.data,
+        providerCredentialId: providerCredentialSummary.id,
+        projectId: query.data.projectId,
+      });
+
+      return c.json({ providerSyncObservability }, 200);
+    })
+    .post("/:providerKind/sync-intents/:intentId/retry", async (c) => {
+      try {
+        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
+
+        const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
+        if (!providerKind.success) {
+          return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
+        }
+
+        const intentId = c.req.param("intentId");
+        if (!intentId) {
+          return badRequestResponse(c, "invalid_provider_sync_intent_id");
+        }
+
+        const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
+          c.var.auth.organization.localOrganizationId,
+          providerKind.data,
+        );
+        if (!providerCredentialSummary) {
+          return c.json({ error: "provider_credential_not_found" }, 404);
+        }
+
+        const result = await retryProviderSyncIntent({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          providerKind: providerKind.data,
+          intentId,
+        });
+
+        return c.json(result, 200);
+      } catch (error) {
+        if (error instanceof Error && error.message === "forbidden") {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        if (error instanceof ProviderSyncIntentNotFoundError) {
+          return notFoundResponse(c, "provider_sync_intent_not_found");
+        }
+        if (error instanceof ProviderSyncIntentNotRetryableError) {
+          return badRequestResponse(c, "provider_sync_intent_not_retryable");
+        }
+        throw error;
+      }
     })
     .post("/:providerKind/webhook-subscriptions/retry", async (c) => {
       try {

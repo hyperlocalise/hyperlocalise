@@ -698,26 +698,56 @@ export const lokaliseWebhookAdapter: TmsProviderWebhookAdapter = {
     };
   },
   extract(input) {
-    if (!isLokalisePingPayload(input.payload)) {
-      return baseLokaliseWebhookAdapter.extract(input);
+    if (isLokalisePingPayload(input.payload)) {
+      const subscription = lokaliseWebhookAdapter.resolveSubscription(input);
+      if (!subscription) {
+        return null;
+      }
+
+      const providerEventId = `ping:${subscription.providerWebhookId}`;
+      const externalResourceId = firstString(input.headers.get("project-id"));
+      const descriptor: TmsProviderWebhookDescriptor = {
+        ...subscription,
+        providerEventId,
+        eventType: "ping",
+        dedupeKey: providerEventId,
+        deliveryId: null,
+        resourceType: null,
+        resourceId: null,
+        externalResourceId,
+        redactedPayload: {},
+        mappedIntents: [],
+      };
+
+      descriptor.mappedIntents = lokaliseWebhookAdapter.mapToIntents({ ...input, descriptor });
+      descriptor.redactedPayload = lokaliseWebhookAdapter.redact({ ...input, descriptor });
+
+      return descriptor;
     }
 
     const subscription = lokaliseWebhookAdapter.resolveSubscription(input);
-    if (!subscription) {
+    const providerEventId = lokaliseWebhookAdapter.extractProviderEventId(input);
+    const eventType = lokaliseWebhookAdapter.extractEventType(input);
+
+    if (!subscription || !providerEventId || !eventType) {
       return null;
     }
 
-    const providerEventId = `ping:${subscription.providerWebhookId}`;
-    const externalResourceId = firstString(input.headers.get("project-id"));
+    const deliveryId = firstString(
+      input.headers.get("x-event-id"),
+      input.headers.get("x-hyperlocalise-delivery-id"),
+      input.headers.get("x-provider-delivery-id"),
+      input.headers.get("x-delivery-id"),
+      firstPathString(input.payload, [["uuid"], ["event_id"], ["id"]]),
+    );
+    const resource = lokaliseWebhookAdapter.extractResource(input);
     const descriptor: TmsProviderWebhookDescriptor = {
       ...subscription,
       providerEventId,
-      eventType: "ping",
-      dedupeKey: providerEventId,
-      deliveryId: null,
-      resourceType: null,
-      resourceId: null,
-      externalResourceId,
+      eventType,
+      dedupeKey: firstString(input.payload["dedupe_key"], providerEventId) ?? providerEventId,
+      deliveryId,
+      ...resource,
       redactedPayload: {},
       mappedIntents: [],
     };
