@@ -372,7 +372,7 @@ export function createMemberRoutes() {
           inviterUserId: c.var.auth.user.workosUserId,
           roleSlug: payload.role,
           replacePendingInvitation:
-            isResend && "roleChanged" in pendingInvite && pendingInvite.roleChanged,
+            !isResend || ("roleChanged" in pendingInvite && pendingInvite.roleChanged),
         });
       } catch {
         if (!isResend) {
