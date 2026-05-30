@@ -294,9 +294,11 @@ function JobsList({
 export function JobsPageContent({
   organizationSlug,
   scope = "all",
+  projectId,
 }: {
   organizationSlug: string;
   scope?: JobsScope;
+  projectId?: string;
 }) {
   const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
@@ -313,8 +315,24 @@ export function JobsPageContent({
   const [agentReadyFilter, setAgentReadyFilter] = useState<"all" | "ready" | "not_ready">("all");
 
   const jobsQuery = useQuery({
-    queryKey: ["jobs", organizationSlug, scope, statusFilter],
+    queryKey: ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"],
     queryFn: async () => {
+      if (projectId) {
+        const response = await apiClient.api.orgs[":organizationSlug"].projects[
+          ":projectId"
+        ].jobs.$get({
+          param: { organizationSlug, projectId },
+          query: {
+            limit: "100",
+            mine: "false",
+            ...(statusFilter === "all" ? {} : { status: statusFilter }),
+          },
+        });
+        if (!response.ok) throw new Error(`Failed to load jobs (${response.status})`);
+        const body = (await response.json()) as { jobs: ApiJob[] };
+        return body.jobs.map((job) => ({ ...job, projectName: null }));
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
         param: { organizationSlug },
         query: {
@@ -362,9 +380,12 @@ export function JobsPageContent({
     });
   }, [jobs, search, statusFilter, sourceFilter, agentReadyFilter]);
 
-  const title = scope === "mine" ? "My Jobs" : "Jobs";
-  const emptyLabel =
-    scope === "mine" ? "No jobs found for your account." : "No jobs found for this workspace.";
+  const title = projectId ? "Jobs" : scope === "mine" ? "My Work" : "Jobs";
+  const emptyLabel = projectId
+    ? "No jobs found for this project."
+    : scope === "mine"
+      ? "No work items found for your account."
+      : "No jobs found for this workspace.";
 
   return (
     <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
@@ -373,7 +394,7 @@ export function JobsPageContent({
           {title}
         </TypographyH1>
       </div>
-      {scope === "all" ? <JobsStats jobs={jobs} /> : null}
+      {scope === "all" && !projectId ? <JobsStats jobs={jobs} /> : null}
       <section className="space-y-5">
         <div className="flex flex-col gap-3 lg:flex-row">
           <div className="relative min-w-0 flex-1">

@@ -334,7 +334,7 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
       <PageHeader
         icon={BookOpenTextIcon}
         label="Term library"
-        title="Glossaries"
+        title="Terminology"
         description="Browse native workspace glossaries and synced provider glossaries or term bases with locale coverage, term capabilities, and sync health in one place."
       />
 

@@ -1,23 +1,10 @@
 import type { ReactNode } from "react";
-import {
-  BookOpenTextIcon,
-  BubbleChatTranslateIcon,
-  DashboardSquare01Icon,
-  DatabaseSyncIcon,
-  File01Icon,
-  Folder01Icon,
-  FolderKanbanIcon,
-  InboxIcon,
-  LinkSquare02Icon,
-  Settings01Icon,
-  Task01Icon,
-  WorkHistoryIcon,
-} from "@hugeicons/core-free-icons";
 
 import { hasCapability } from "@/api/auth/policy";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
 import { AppShellNavigation } from "@/components/app-shell/app-shell-navigation";
+import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
 
 export type AppShellProps = {
   children: ReactNode;
@@ -31,82 +18,7 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
-  const navigationGroups = [
-    {
-      items: [
-        {
-          label: "New Chat",
-          href: `/org/${activeOrganizationSlug}/chat`,
-          icon: BubbleChatTranslateIcon,
-        },
-        {
-          label: "Inbox",
-          href: `/org/${activeOrganizationSlug}/inbox`,
-          icon: InboxIcon,
-        },
-        {
-          label: "My Jobs",
-          href: `/org/${activeOrganizationSlug}/my-jobs`,
-          icon: WorkHistoryIcon,
-        },
-      ],
-    },
-    {
-      label: "Workspace",
-      items: [
-        {
-          label: "Analytics",
-          href: `/org/${activeOrganizationSlug}/dashboard`,
-          icon: DashboardSquare01Icon,
-        },
-        {
-          label: "Projects",
-          href: `/org/${activeOrganizationSlug}/projects`,
-          icon: FolderKanbanIcon,
-        },
-        {
-          label: "Files",
-          href: `/org/${activeOrganizationSlug}/files`,
-          icon: Folder01Icon,
-        },
-        {
-          label: "Jobs",
-          href: `/org/${activeOrganizationSlug}/jobs`,
-          icon: Task01Icon,
-        },
-        {
-          label: "Context",
-          href: `/org/${activeOrganizationSlug}/context`,
-          icon: File01Icon,
-        },
-      ],
-    },
-    {
-      label: "Manage",
-      items: [
-        {
-          label: "Integrations",
-          href: `/org/${activeOrganizationSlug}/integrations`,
-          icon: LinkSquare02Icon,
-        },
-        {
-          label: "Glossaries",
-          href: `/org/${activeOrganizationSlug}/glossaries`,
-          icon: BookOpenTextIcon,
-        },
-        {
-          label: "Translation Memories",
-          href: `/org/${activeOrganizationSlug}/translation-memories`,
-          icon: DatabaseSyncIcon,
-        },
-        {
-          label: "Settings",
-          href: `/org/${activeOrganizationSlug}/settings`,
-          icon: Settings01Icon,
-        },
-      ],
-    },
-  ] as const;
+  const navigationGroups = buildGlobalNavigationGroups(activeOrganizationSlug);
 
   return (
     <AppShellClient
@@ -117,7 +29,9 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
         name: displayName,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,
       }}
-      navigation={<AppShellNavigation groups={navigationGroups} />}
+      navigation={
+        <AppShellNavigation organizationSlug={activeOrganizationSlug} groups={navigationGroups} />
+      }
     >
       {children}
     </AppShellClient>
