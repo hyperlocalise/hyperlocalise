@@ -99,6 +99,61 @@ export function buildCommitScopedDiffArgs(input: {
   return args;
 }
 
+export function buildCommitScopedNameStatusDiffArgs(input: {
+  parentSha: string | null;
+  commitSha: string;
+  paths: string[];
+}): string[] {
+  const range = input.parentSha ? `${input.parentSha}..${input.commitSha}` : input.commitSha;
+  const args = ["diff", "--name-status", range, "--"];
+
+  for (const path of input.paths) {
+    args.push(path);
+  }
+
+  return args;
+}
+
+/**
+ * Paths present at the commit tip that can be read for upload.
+ * Excludes deletions; renames and copies resolve to the post-change path.
+ */
+export function parseNameStatusDiffPathsForUpload(output: string): string[] {
+  const unique = new Set<string>();
+
+  for (const line of output.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const parts = trimmed.split("\t");
+    if (parts.length < 2) {
+      continue;
+    }
+
+    const status = parts[0] ?? "";
+    const statusCode = status.charAt(0);
+
+    if (statusCode === "D") {
+      continue;
+    }
+
+    const path =
+      statusCode === "R" || statusCode === "C" || statusCode === "T"
+        ? (parts.at(-1) ?? "")
+        : (parts[1] ?? "");
+
+    if (!path) {
+      continue;
+    }
+
+    unique.add(path.replaceAll("\\", "/"));
+  }
+
+  return [...unique].sort();
+}
+
 export function buildCommitScopedPatchArgs(input: {
   parentSha: string | null;
   commitSha: string;

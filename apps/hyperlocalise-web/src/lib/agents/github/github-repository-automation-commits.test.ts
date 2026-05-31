@@ -3,11 +3,13 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   buildCommitRangeLogArgs,
   buildCommitScopedDiffArgs,
+  buildCommitScopedNameStatusDiffArgs,
   buildCommitScopedPatchArgs,
   classifyHlCheckReport,
   isZeroCommitSha,
   parseCommitLogLines,
   parseNameOnlyDiffPaths,
+  parseNameStatusDiffPathsForUpload,
   shouldSkipCommitForPaths,
   shouldSkipCommitForSourcePaths,
 } from "./github-repository-automation-commits";
@@ -59,12 +61,37 @@ describe("github repository automation commits", () => {
     ).toEqual(["diff", "--name-only", "parent..child", "--", "locales/**"]);
 
     expect(
+      buildCommitScopedNameStatusDiffArgs({
+        parentSha: "parent",
+        commitSha: "child",
+        paths: ["locales/**"],
+      }),
+    ).toEqual(["diff", "--name-status", "parent..child", "--", "locales/**"]);
+
+    expect(
       buildCommitScopedPatchArgs({
         parentSha: null,
         commitSha: "root",
         paths: ["locales/en.json"],
       }),
     ).toEqual(["diff", "root", "--", "locales/en.json"]);
+  });
+
+  it("parses name-status diff paths for upload excluding deletions", () => {
+    const output = [
+      "M\tlocales/en.json",
+      "D\tlocales/removed.json",
+      "A\tlocales/new.json",
+      "R100\tlocales/old.json\tlocales/renamed.json",
+      "C100\tlocales/copy-src.json\tlocales/copy-dst.json",
+    ].join("\n");
+
+    expect(parseNameStatusDiffPathsForUpload(output)).toEqual([
+      "locales/copy-dst.json",
+      "locales/en.json",
+      "locales/new.json",
+      "locales/renamed.json",
+    ]);
   });
 
   it("skips commits without configured localisation path changes", () => {

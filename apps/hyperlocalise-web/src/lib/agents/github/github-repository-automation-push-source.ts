@@ -8,9 +8,9 @@ import {
 } from "./github-repository-automation-commit-range";
 import {
   buildCommitRangeLogArgs,
-  buildCommitScopedDiffArgs,
+  buildCommitScopedNameStatusDiffArgs,
   parseCommitLogLines,
-  parseNameOnlyDiffPaths,
+  parseNameStatusDiffPathsForUpload,
   shouldSkipCommitForSourcePaths,
 } from "./github-repository-automation-commits";
 import { discoverI18nConfigInSandbox } from "./github-repository-automation-i18n-config";
@@ -172,17 +172,17 @@ export async function runGithubRepositoryAutomationPushSource(input: {
     const pathsToUpload = new Set<string>();
 
     for (const commit of commits) {
-      const nameOnlyDiff = await runGitDiffInSandbox(
+      const nameStatusDiff = await runGitDiffInSandbox(
         sandboxId,
-        buildCommitScopedDiffArgs({
+        buildCommitScopedNameStatusDiffArgs({
           parentSha: commit.parentSha,
           commitSha: commit.sha,
           paths: i18nConfig.patterns.sourcePatterns,
         }),
       );
 
-      const changedPaths = parseNameOnlyDiffPaths(
-        nameOnlyDiff.exitCode === 0 ? nameOnlyDiff.output : "",
+      const changedPaths = parseNameStatusDiffPathsForUpload(
+        nameStatusDiff.exitCode === 0 ? nameStatusDiff.output : "",
       );
       const skipDecision = shouldSkipCommitForSourcePaths({
         changedPaths,
