@@ -248,7 +248,11 @@ export async function canAccessStoredFile(
   }
 
   const uploaderId = input.createdByUserId ?? null;
-  return uploaderId !== null && uploaderId === auth.user.localUserId;
+  if (uploaderId === null) {
+    return true;
+  }
+
+  return uploaderId === auth.user.localUserId;
 }
 
 export async function canAccessMemory(auth: ApiAuthContext, memoryId: string) {

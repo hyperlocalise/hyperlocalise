@@ -162,6 +162,37 @@ describe("file download route", () => {
     expect(response.status).toBe(404);
   });
 
+  it("streams an unattributed workspace file to an organization member", async () => {
+    const uploader = createWorkosIdentityWithRole("member");
+    const requester = createWorkosIdentityForOrganization(uploader.organization, "member");
+
+    await authHeadersFor(uploader);
+    const orgId = globalThis.__testApiAuthContext!.activeOrganization.localOrganizationId;
+    const fileContent = Buffer.from('{"scope":"workspace"}');
+
+    const workspaceFile = await createStoredFile({
+      organizationId: orgId,
+      createdByUserId: null,
+      role: "source",
+      sourceKind: "chat_upload",
+      filename: "workspace-system.json",
+      contentType: "application/json",
+      content: fileContent,
+      adapter: fileStorageAdapter,
+    });
+
+    const response = await app.request(
+      `/api/orgs/${uploader.organization.slug}/files/${workspaceFile.id}`,
+      {
+        method: "GET",
+        headers: await authHeadersFor(requester),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toBe(fileContent.toString());
+  });
+
   it("returns 404 when a member downloads a file from another team's project", async () => {
     const admin = createWorkosIdentityWithRole("admin");
     const member = createWorkosIdentityForOrganization(admin.organization, "member");
