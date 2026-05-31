@@ -108,7 +108,10 @@ export async function dispatchGithubRepositoryAutomationForPush(
     triggerBranch: input.branch,
     commitBefore: input.commitBefore,
     commitAfter: input.commitAfter,
-    workflows: dispatchPayload.workflows,
+    workflows: {
+      ...dispatchPayload.workflows,
+      statusCheck: dispatchPayload.statusCheck,
+    },
     githubDeliveryId: input.deliveryId,
   });
 
@@ -205,7 +208,10 @@ export async function dispatchGithubRepositoryAutomationForSchedule(
     githubRepositoryId: input.githubRepositoryId,
     configVersion: input.dispatchPayload.configVersion,
     triggerMode: "scheduled",
-    workflows: input.dispatchPayload.workflows,
+    workflows: {
+      ...input.dispatchPayload.workflows,
+      statusCheck: input.dispatchPayload.statusCheck,
+    },
     scheduledRunAt: input.scheduledRunAt,
   });
 

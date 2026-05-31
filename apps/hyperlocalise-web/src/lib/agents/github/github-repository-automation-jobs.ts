@@ -53,6 +53,12 @@ function normalizeJobWorkflows(
     pullTranslations: workflows.pullTranslations,
     validation: workflows.validation,
     validationBlockOnFailure: workflows.validationBlockOnFailure ?? true,
+    statusCheck: {
+      enabled: workflows.statusCheck?.enabled ?? workflows.validation,
+      mode:
+        workflows.statusCheck?.mode ??
+        ((workflows.validationBlockOnFailure ?? true) ? "blocking" : "advisory"),
+    },
   };
 }
 

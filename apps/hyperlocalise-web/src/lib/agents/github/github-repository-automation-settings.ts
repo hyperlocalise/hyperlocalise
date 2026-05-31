@@ -36,6 +36,13 @@ export const githubRepoAutomationValidationWorkflowSchema = z
   })
   .default({ enabled: false, blockOnFailure: true });
 
+export const githubRepoAutomationStatusCheckSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    mode: z.enum(["advisory", "blocking"]).default("blocking"),
+  })
+  .default({ enabled: false, mode: "blocking" });
+
 export const githubRepoAutomationWorkflowsSchema = z.object({
   pushSource: z
     .object({
@@ -54,6 +61,7 @@ export const githubRepositoryAutomationSettingsSchema = z.object({
     validation: { enabled: false, blockOnFailure: true },
   }),
   trigger: githubRepoAutomationTriggerSchema.nullable().default(null),
+  statusCheck: githubRepoAutomationStatusCheckSchema,
 });
 
 export type GithubRepositoryAutomationSettings = z.infer<
@@ -66,6 +74,7 @@ export type GithubRepositoryAutomationSettingsPartial = {
     validation?: { enabled?: boolean; blockOnFailure?: boolean };
   };
   trigger?: z.infer<typeof githubRepoAutomationTriggerSchema> | null;
+  statusCheck?: { enabled?: boolean; mode?: "advisory" | "blocking" };
 };
 
 export const DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS: GithubRepositoryAutomationSettings =
@@ -90,6 +99,12 @@ const githubRepositoryAutomationSettingsPartialSchema = z.object({
     })
     .optional(),
   trigger: githubRepoAutomationTriggerSchema.nullable().optional(),
+  statusCheck: z
+    .object({
+      enabled: z.boolean().optional(),
+      mode: z.enum(["advisory", "blocking"]).optional(),
+    })
+    .optional(),
 });
 
 export function parseGithubRepositoryAutomationSettingsPartial(
@@ -136,6 +151,10 @@ export function mergeGithubRepositoryAutomationSettings(
       },
     },
     trigger,
+    statusCheck: {
+      enabled: override.statusCheck?.enabled ?? base.statusCheck.enabled,
+      mode: override.statusCheck?.mode ?? base.statusCheck.mode,
+    },
   });
 }
 
@@ -381,11 +400,19 @@ export type GithubRepoAutomationDispatchPayload = {
   githubRepositoryId: string;
   githubInstallationId: string;
   triggerMode: "scheduled" | "push";
+  statusCheck: {
+    enabled: boolean;
+    mode: "advisory" | "blocking";
+  };
   workflows: {
     pushSource: boolean;
     pullTranslations: boolean;
     validation: boolean;
     validationBlockOnFailure: boolean;
+    statusCheck?: {
+      enabled: boolean;
+      mode: "advisory" | "blocking";
+    };
   };
   pushBranch?: string;
 };
@@ -423,11 +450,13 @@ export function buildGithubRepoAutomationDispatchPayload(input: {
     githubRepositoryId: input.githubRepositoryId,
     githubInstallationId: input.githubInstallationId,
     triggerMode: input.settings.trigger.mode,
+    statusCheck: input.settings.statusCheck,
     workflows: {
       pushSource: input.settings.workflows.pushSource.enabled,
       pullTranslations: input.settings.workflows.pullTranslations.enabled,
       validation: input.settings.workflows.validation.enabled,
       validationBlockOnFailure: input.settings.workflows.validation.blockOnFailure,
+      statusCheck: input.settings.statusCheck,
     },
     pushBranch: input.pushBranch,
   };

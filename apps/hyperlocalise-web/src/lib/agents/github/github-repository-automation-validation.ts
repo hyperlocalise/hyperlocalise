@@ -132,9 +132,10 @@ export async function runGithubRepositoryAutomationValidation(input: {
 
   let sandboxId: string | null = null;
   let checkRunId: string | null = job.githubCheckRunId;
+  const shouldPublishCheckRun = job.workflows.statusCheck?.enabled ?? false;
 
   try {
-    if (!checkRunId) {
+    if (shouldPublishCheckRun && !checkRunId) {
       checkRunId = await createGithubRepositoryAutomationCheckRun({
         installationId: job.githubInstallationId,
         repositoryFullName: job.repositoryFullName,

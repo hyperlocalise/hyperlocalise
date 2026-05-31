@@ -1390,6 +1390,10 @@ export const githubRepositoryAutomationJobs = pgTable(
         pullTranslations: boolean;
         validation: boolean;
         validationBlockOnFailure?: boolean;
+        statusCheck?: {
+          enabled?: boolean;
+          mode?: "advisory" | "blocking";
+        };
       }>()
       .notNull()
       .default(sql`'{"pushSource":false,"pullTranslations":false,"validation":false}'::jsonb`),

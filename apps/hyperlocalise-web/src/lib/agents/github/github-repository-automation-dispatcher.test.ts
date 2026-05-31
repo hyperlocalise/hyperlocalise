@@ -235,11 +235,13 @@ describe("github repository automation dispatch", () => {
       githubRepositoryId: repository.githubRepositoryId,
       githubInstallationId: "54321",
       triggerMode: "scheduled" as const,
+      statusCheck: { enabled: false, mode: "blocking" as const },
       workflows: {
         pushSource: false,
         pullTranslations: false,
         validation: true,
         validationBlockOnFailure: true,
+        statusCheck: { enabled: false, mode: "blocking" as const },
       },
     };
 

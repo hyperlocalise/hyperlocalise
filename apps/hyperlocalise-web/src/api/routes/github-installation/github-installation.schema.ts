@@ -28,7 +28,9 @@ const githubRepositoryAutomationSettingsPartialSchema = z.object({
         })
         .optional(),
       pullTranslations: z.object({ enabled: z.boolean().optional() }).optional(),
-      validation: z.object({ enabled: z.boolean().optional() }).optional(),
+      validation: z
+        .object({ enabled: z.boolean().optional(), blockOnFailure: z.boolean().optional() })
+        .optional(),
     })
     .optional(),
   trigger: z
@@ -56,6 +58,12 @@ const githubRepositoryAutomationSettingsPartialSchema = z.object({
       }),
     ])
     .nullable()
+    .optional(),
+  statusCheck: z
+    .object({
+      enabled: z.boolean().optional(),
+      mode: z.enum(["advisory", "blocking"]).optional(),
+    })
     .optional(),
 });
 
