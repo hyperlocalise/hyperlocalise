@@ -14,6 +14,9 @@ func TestEscapeFormula(t *testing.T) {
 		{"-sum", "'-sum"},
 		{"@evil", "'@evil"},
 		{"\tlead", "'\tlead"},
+		{"\rlead", "'\rlead"},
+		{" space", " space"},
+		{"=", "'="},
 	}
 	for _, tt := range tests {
 		if got := EscapeFormula(tt.in); got != tt.want {
