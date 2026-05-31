@@ -16,6 +16,7 @@ import {
   reserveUsageEvent,
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
+import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
@@ -114,7 +115,7 @@ function publicJobOutputFiles(input: {
 
 async function getProjectForOrganization(organizationId: string, projectId: string) {
   const [project] = await db
-    .select({ id: schema.projects.id })
+    .select()
     .from(schema.projects)
     .where(
       and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
@@ -146,6 +147,14 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         }
 
         const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+
+        const localeValidation = validateJobLocalesAgainstProject(project, {
+          sourceLocale: inputPayload.sourceLocale,
+          targetLocales: inputPayload.targetLocales,
+        });
+        if (!localeValidation.ok) {
+          return c.json({ error: localeValidation.code, message: localeValidation.message }, 400);
+        }
 
         if (payload.type === "file") {
           const sourceFile = await getStoredFileForJobScope({

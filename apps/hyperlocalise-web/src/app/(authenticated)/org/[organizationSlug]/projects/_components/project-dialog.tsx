@@ -18,17 +18,22 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 
+import { ProjectSourceLocalePicker, ProjectTargetLocalesPicker } from "./project-locale-picker";
 import {
   projectFormHasErrors,
+  projectFormRequiresLocales,
   validateProjectForm,
   type ProjectFormErrors,
   type ProjectFormValues,
 } from "./project-form";
+import type { ProjectListRow } from "./project-list";
 
 export function ProjectDialog({
   open,
   title,
   description,
+  mode,
+  projectSource = "native",
   initialValues,
   isSaving,
   onOpenChange,
@@ -37,6 +42,8 @@ export function ProjectDialog({
   open: boolean;
   title: string;
   description: string;
+  mode: "create" | "edit";
+  projectSource?: ProjectListRow["source"];
   initialValues: ProjectFormValues;
   isSaving: boolean;
   onOpenChange: (open: boolean) => void;
@@ -58,10 +65,12 @@ export function ProjectDialog({
     }
   }, [initialValues, open]);
 
+  const showLocaleFields = projectFormRequiresLocales(mode, projectSource);
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const nextErrors = validateProjectForm(values);
+    const nextErrors = validateProjectForm(values, { requireLocales: showLocaleFields });
     setErrors(nextErrors);
 
     if (projectFormHasErrors(nextErrors)) {
@@ -140,6 +149,28 @@ export function ProjectDialog({
                 </span>
               </div>
             </Field>
+
+            {showLocaleFields ? (
+              <>
+                <ProjectSourceLocalePicker
+                  value={values.sourceLocale}
+                  onChange={(sourceLocale) => {
+                    setValues((current) => ({ ...current, sourceLocale }));
+                  }}
+                  disabled={isSaving}
+                  error={errors.sourceLocale}
+                />
+                <ProjectTargetLocalesPicker
+                  value={values.targetLocales}
+                  sourceLocale={values.sourceLocale}
+                  onChange={(targetLocales) => {
+                    setValues((current) => ({ ...current, targetLocales }));
+                  }}
+                  disabled={isSaving}
+                  error={errors.targetLocales}
+                />
+              </>
+            ) : null}
 
             <Field className="gap-1.5">
               <FieldLabel htmlFor={contextId}>Translation context</FieldLabel>

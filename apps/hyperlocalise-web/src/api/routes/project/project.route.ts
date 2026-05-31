@@ -70,6 +70,7 @@ import {
   type UpdateProjectBody,
 } from "./project.schema";
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
+import { normalizeProjectLocales } from "@/lib/i18n/locales";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import {
@@ -166,6 +167,8 @@ const projectStore: ProjectStore = {
         description: payload.description ?? "",
         translationContext: payload.translationContext ?? "",
         source: "native",
+        sourceLocale: payload.sourceLocale,
+        targetLocales: payload.targetLocales,
       })
       .returning();
 
@@ -181,8 +184,17 @@ const projectStore: ProjectStore = {
     return project ?? null;
   },
   async update(auth, projectId, payload) {
-    const { teamId, ...updates } = payload;
-    const updateValues: typeof updates & { teamId?: string } = { ...updates };
+    const existing = await this.getById(auth, projectId);
+    if (!existing) {
+      return null;
+    }
+
+    const { teamId, sourceLocale, targetLocales, ...updates } = payload;
+    const updateValues: typeof updates & {
+      teamId?: string;
+      sourceLocale?: string;
+      targetLocales?: string[];
+    } = { ...updates };
 
     if (teamId !== undefined) {
       const resolvedTeamId = await resolveProjectTeamId(auth, teamId);
@@ -191,6 +203,27 @@ const projectStore: ProjectStore = {
       }
 
       updateValues.teamId = resolvedTeamId;
+    }
+
+    if (
+      existing.source === "external_tms" &&
+      (sourceLocale !== undefined || targetLocales !== undefined)
+    ) {
+      throw new Error("external_project_locales_readonly");
+    }
+
+    if (sourceLocale !== undefined || targetLocales !== undefined) {
+      const normalized = normalizeProjectLocales({
+        sourceLocale: sourceLocale ?? existing.sourceLocale ?? "",
+        targetLocales: targetLocales ?? existing.targetLocales ?? [],
+      });
+
+      if ("error" in normalized) {
+        throw new Error(normalized.error);
+      }
+
+      updateValues.sourceLocale = normalized.sourceLocale;
+      updateValues.targetLocales = normalized.targetLocales;
     }
 
     const [project] = await db
@@ -463,8 +496,19 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       try {
         project = await projectStore.update(c.var.auth, params.projectId, payload);
       } catch (error) {
-        if (error instanceof Error && error.message === "invalid_project_team") {
-          return invalidProjectPayloadResponse(c);
+        if (error instanceof Error) {
+          if (error.message === "invalid_project_team") {
+            return invalidProjectPayloadResponse(c);
+          }
+
+          if (
+            error.message === "external_project_locales_readonly" ||
+            error.message === "invalid_source_locale" ||
+            error.message === "invalid_target_locales" ||
+            error.message === "source_in_targets"
+          ) {
+            return invalidProjectPayloadResponse(c);
+          }
         }
 
         throw error;

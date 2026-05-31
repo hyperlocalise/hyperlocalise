@@ -44,3 +44,13 @@ export async function getOwnedProject(auth: ApiAuthContext, projectId: string) {
 
   return project ?? null;
 }
+
+export async function getOwnedProjectRecord(auth: ApiAuthContext, projectId: string) {
+  const [project] = await db
+    .select()
+    .from(schema.projects)
+    .where(await ownedProjectWhere(auth, projectId))
+    .limit(1);
+
+  return project ?? null;
+}

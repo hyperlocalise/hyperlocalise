@@ -11,6 +11,8 @@ type CreateProjectInput = Partial<{
   name: string;
   description: string;
   translationContext: string;
+  sourceLocale: string;
+  targetLocales: string[];
 }>;
 
 type Client = ReturnType<typeof testClient<AppType>>;
@@ -30,6 +32,8 @@ export function createProjectTestFixture(client?: Client) {
           name: input?.name ?? "Marketing Site",
           description: input?.description ?? "Primary website strings",
           translationContext: input?.translationContext ?? "Use a concise product-marketing tone.",
+          sourceLocale: input?.sourceLocale ?? "en-US",
+          targetLocales: input?.targetLocales ?? ["fr-FR", "de-DE"],
         },
       },
       {
@@ -52,6 +56,8 @@ export function createProjectTestFixture(client?: Client) {
         name: "Docs",
         description: "",
         translationContext: "",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
       })
       .returning();
 

@@ -42,7 +42,14 @@ import type {
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 
-import { forbiddenResponse, getOwnedProject, projectNotFoundResponse } from "./project.shared";
+import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
+
+import {
+  forbiddenResponse,
+  getOwnedProject,
+  getOwnedProjectRecord,
+  projectNotFoundResponse,
+} from "./project.shared";
 import {
   applyAgentRunProposalReviewUpdates,
   applyBulkAgentRunProposalReview,
@@ -396,13 +403,21 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
 
       const params = c.req.valid("param");
       const payload = c.req.valid("json");
-      const project = await getOwnedProject(c.var.auth, params.projectId);
+      const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
 
       if (!project) {
         return projectNotFoundResponse(c);
       }
 
       const inputPayload = payload.type === "string" ? payload.stringInput : payload.fileInput;
+
+      const localeValidation = validateJobLocalesAgainstProject(project, {
+        sourceLocale: inputPayload.sourceLocale,
+        targetLocales: inputPayload.targetLocales,
+      });
+      if (!localeValidation.ok) {
+        return badRequestResponse(c, localeValidation.code, localeValidation.message);
+      }
 
       if (payload.type === "file") {
         const sourceFile = await getStoredFileForJobScope({
