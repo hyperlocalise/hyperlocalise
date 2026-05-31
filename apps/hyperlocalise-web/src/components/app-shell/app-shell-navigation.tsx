@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import {
   buildOrganizationPath,

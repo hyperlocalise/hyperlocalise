@@ -89,7 +89,7 @@ vi.mock("@/lib/agent-runtime/tools/registry", () => ({
   buildTools: vi.fn(() => ({})),
 }));
 
-vi.mock("@/lib/image-generation", () => ({
+vi.mock("@/lib/agents/image-generation", () => ({
   regenerateImageFromAttachment: vi.fn(),
 }));
 
@@ -113,7 +113,7 @@ vi.mock("@/lib/agents/slack/helpers", () => ({
   lookupMembership: vi.fn(),
 }));
 
-vi.mock("@/lib/interactions", () => ({
+vi.mock("@/lib/conversations/interactions", () => ({
   addInteractionMessage: vi.fn(async () => ({ id: "msg-123" })),
   createInteraction: vi.fn(),
   findInteractionBySourceThreadId: vi.fn(),
@@ -173,13 +173,13 @@ vi.mock("@/lib/database", () => {
 import { generateText } from "ai";
 import { findSlackConnector, lookupMembership } from "@/lib/agents/slack/helpers";
 import { createStoredFile } from "@/lib/file-storage/records";
-import { regenerateImageFromAttachment } from "@/lib/image-generation";
+import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 import {
   addInteractionMessage,
   createInteraction,
   findInteractionBySourceThreadId,
   updateInteractionMessage,
-} from "@/lib/interactions";
+} from "@/lib/conversations/interactions";
 
 function createMessage(
   input: {

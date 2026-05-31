@@ -6,7 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
 export type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];

@@ -10,7 +10,7 @@ import {
   CommandShortcut,
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps, ReactNode } from "react";
 
 export type ModelSelectorProps = ComponentProps<typeof Dialog>;

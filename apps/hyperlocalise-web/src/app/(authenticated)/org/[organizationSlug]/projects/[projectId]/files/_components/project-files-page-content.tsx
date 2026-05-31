@@ -17,7 +17,7 @@ import { FileTree, FileTreeFile, FileTreeFolder } from "@/components/ai-elements
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import {
   collectLocaleOptions,

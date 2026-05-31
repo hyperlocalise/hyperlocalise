@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Progress, ProgressLabel } from "@/components/ui/progress";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import type { CreateWorkspaceActionState, SaveProviderActionState } from "../actions";
 import {

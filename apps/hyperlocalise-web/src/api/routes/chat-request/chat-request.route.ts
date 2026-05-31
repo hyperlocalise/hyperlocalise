@@ -8,7 +8,7 @@ import { workosAuthMiddleware, type ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
-import { addInteractionMessage, createInteraction } from "@/lib/interactions";
+import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { chatRequestBodySchema, multipartChatRequestSchema } from "./chat-request.schema";

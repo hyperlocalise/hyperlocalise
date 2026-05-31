@@ -1,7 +1,7 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import type { HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";

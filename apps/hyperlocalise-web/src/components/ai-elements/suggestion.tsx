@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
 

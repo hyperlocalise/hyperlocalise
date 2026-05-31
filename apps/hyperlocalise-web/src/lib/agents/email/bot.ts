@@ -24,7 +24,7 @@ import {
   createInteraction,
   findInteractionBySourceThreadId,
   linkJobToInteraction,
-} from "@/lib/interactions";
+} from "@/lib/conversations/interactions";
 import { resolveInboundEmailOrganization } from "./organizations";
 import type { EmailBotState, PendingEmailAgentTask, RawEmailMessage } from "./types";
 import { isInboundSenderAuthenticated } from "./sender-authentication";

@@ -1,5 +1,5 @@
 "use client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { motion, Transition } from "motion/react";
 
 export type BorderTrailProps = {

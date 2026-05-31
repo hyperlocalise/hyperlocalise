@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/command";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Spinner } from "@/components/ui/spinner";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import {
   CircleSmallIcon,
   MarsIcon,

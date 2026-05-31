@@ -4,7 +4,7 @@ import { memo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyMuted, TypographySmall } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import {
   formatRelativeTime,

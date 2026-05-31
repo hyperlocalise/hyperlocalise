@@ -22,7 +22,7 @@ import {
   FAILED_SYNC_RUNS_RECENCY_DAYS,
   type OrganizationTmsDashboardSummary,
 } from "@/lib/providers/organization-tms-dashboard-summary.types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { buildOrgWorkspaceHref } from "../../_components/workspace-filter-params";
 import { formatRelativeTimestamp, providerLabel } from "../../_components/workspace-files-shared";

@@ -28,7 +28,7 @@ import type {
   AgentRunProposalReviewState,
   AgentRunProposalWarningKind,
 } from "@/lib/providers/agent-runs/agent-run-proposals";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { toneClass, type Tone } from "../../../_components/workspace-resource-shared";
 

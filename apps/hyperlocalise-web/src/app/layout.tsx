@@ -5,7 +5,7 @@ import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import "./globals.css";
 
 const opensans = Open_Sans({ subsets: ["latin"], variable: "--font-sans" });

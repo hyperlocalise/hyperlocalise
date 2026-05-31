@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import Ansi from "ansi-to-react";
 import { CheckIcon, CopyIcon, TerminalIcon, Trash2Icon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";

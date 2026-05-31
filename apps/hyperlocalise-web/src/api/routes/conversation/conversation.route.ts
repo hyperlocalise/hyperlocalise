@@ -10,7 +10,7 @@ import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
-import { addInteractionMessage } from "@/lib/interactions";
+import { addInteractionMessage } from "@/lib/conversations/interactions";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
 import { conversationIdParamsSchema, listConversationsQuerySchema } from "./conversation.schema";

@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { Controls as ControlsPrimitive } from "@xyflow/react";
 import type { ComponentProps } from "react";
 

@@ -9,7 +9,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import type { ComponentProps, CSSProperties, HTMLAttributes } from "react";
 import {

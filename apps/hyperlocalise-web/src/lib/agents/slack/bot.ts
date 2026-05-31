@@ -29,7 +29,7 @@ import {
   createInteraction,
   findInteractionBySourceThreadId,
   updateInteractionMessage,
-} from "@/lib/interactions";
+} from "@/lib/conversations/interactions";
 
 import { findSlackConnector, lookupMembership } from "./helpers";
 import {

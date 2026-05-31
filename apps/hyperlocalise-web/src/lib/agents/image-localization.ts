@@ -1,6 +1,6 @@
 import type { Message } from "chat";
 
-import { regenerateImageFromAttachment } from "@/lib/image-generation";
+import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 
 export type ImageLocalizationAttachment = NonNullable<Message["attachments"]>[number];
 

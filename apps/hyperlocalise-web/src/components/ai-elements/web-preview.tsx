@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";

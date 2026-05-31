@@ -3,7 +3,7 @@
 import type { SVGProps } from "react";
 import type { SimpleIcon } from "simple-icons";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 type SimpleBrandIconProps = SVGProps<SVGSVGElement> & {
   icon: SimpleIcon;

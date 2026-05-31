@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { Thread } from "chat";
 
-vi.mock("@/lib/interactions", () => ({
+vi.mock("@/lib/conversations/interactions", () => ({
   addInteractionMessage: vi.fn(),
 }));
 

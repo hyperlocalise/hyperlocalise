@@ -1,7 +1,7 @@
 import { MessageUser01Icon, WorkflowSquare10Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { IntakeSourcesIllustration } from "./intake-sources-illustration";
 import { type MarketingChapter } from "./marketing-page-content";

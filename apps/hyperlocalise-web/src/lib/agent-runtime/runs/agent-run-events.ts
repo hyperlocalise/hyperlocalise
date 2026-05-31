@@ -1,6 +1,6 @@
 import type { Thread } from "chat";
 
-import { addInteractionMessage } from "@/lib/interactions";
+import { addInteractionMessage } from "@/lib/conversations/interactions";
 
 type AddAgentMessage = (input: {
   interactionId: string;

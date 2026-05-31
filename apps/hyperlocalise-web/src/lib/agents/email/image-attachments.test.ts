@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 import type { Message, Thread } from "chat";
 
-import { regenerateImageFromAttachment } from "@/lib/image-generation";
+import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 
 import { handleImageAttachment } from "./image-attachments";
 import type { EmailRequestIntent } from "./intent";
 import type { EmailBotState, RawEmailMessage } from "./types";
 
-vi.mock("@/lib/image-generation", () => ({
+vi.mock("@/lib/agents/image-generation", () => ({
   regenerateImageFromAttachment: vi.fn(),
 }));
 

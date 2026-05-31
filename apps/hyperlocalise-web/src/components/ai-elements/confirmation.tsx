@@ -2,7 +2,7 @@
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import type { ToolUIPart } from "ai";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useContext, useMemo } from "react";

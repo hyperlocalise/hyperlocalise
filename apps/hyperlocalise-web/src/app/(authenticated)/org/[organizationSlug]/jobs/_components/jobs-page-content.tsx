@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import {
   JOB_SOURCE_FILTERS,

@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 
 import { schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
-import { bufferFromStream } from "@/lib/streams";
+import { bufferFromStream } from "@/lib/primitives/streams";
 
 import { toolCanAccessStoredFileProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";

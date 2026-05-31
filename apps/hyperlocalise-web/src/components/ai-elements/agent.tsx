@@ -7,7 +7,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import type { Tool } from "ai";
 import { BotIcon } from "lucide-react";
 import type { ComponentProps } from "react";
