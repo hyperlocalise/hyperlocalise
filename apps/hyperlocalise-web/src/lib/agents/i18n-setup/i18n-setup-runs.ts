@@ -79,13 +79,17 @@ async function syncI18nSetupRunWithWorkflowStatus(run: I18nSetupRunRow): Promise
     const workflowRun = getRun<I18nSetupWorkflowResult>(run.workflowRunId);
     const workflowStatus = await workflowRun.status;
 
-    if (workflowStatus === "failed" || workflowStatus === "cancelled") {
+    if (workflowStatus === "cancelled") {
+      return markI18nSetupRunFailed(run, {
+        errorCode: "i18n_setup_cancelled",
+        errorMessage: "The i18n setup wizard was cancelled.",
+      });
+    }
+
+    if (workflowStatus === "failed") {
       return markI18nSetupRunFailed(run, {
         errorCode: "i18n_setup_runtime_failed",
-        errorMessage:
-          workflowStatus === "cancelled"
-            ? "The i18n setup workflow was cancelled."
-            : "The i18n setup workflow failed before it could report progress.",
+        errorMessage: "The i18n setup workflow failed before it could report progress.",
       });
     }
 
@@ -177,10 +181,25 @@ export async function cancelI18nSetupRun(input: {
       errorMessage: "The i18n setup wizard was cancelled.",
       updatedAt: new Date(),
     })
-    .where(eq(schema.githubI18nSetupRuns.id, run.id))
+    .where(
+      and(
+        eq(schema.githubI18nSetupRuns.id, run.id),
+        inArray(schema.githubI18nSetupRuns.status, ["queued", "running"]),
+      ),
+    )
     .returning();
 
-  return serializeI18nSetupRun(updatedRun ?? run);
+  if (updatedRun) {
+    return serializeI18nSetupRun(updatedRun);
+  }
+
+  const [currentRun] = await db
+    .select()
+    .from(schema.githubI18nSetupRuns)
+    .where(eq(schema.githubI18nSetupRuns.id, run.id))
+    .limit(1);
+
+  return serializeI18nSetupRun(currentRun ?? run);
 }
 
 export async function findActiveI18nSetupRun(input: {
