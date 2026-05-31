@@ -131,9 +131,13 @@ func normalizeXLIFFInternalMarkup(val []byte) []byte {
 		if err != nil {
 			break
 		}
-		_ = enc.EncodeToken(tok)
+		if err := enc.EncodeToken(tok); err != nil {
+			return val
+		}
 	}
-	_ = enc.Flush()
+	if err := enc.Flush(); err != nil {
+		return val
+	}
 	return out.Bytes()
 }
 
@@ -172,15 +176,6 @@ func MarshalXLIFF(template []byte, values map[string]string, sourceLocale, targe
 	var out bytes.Buffer
 	encoder := xml.NewEncoder(&out)
 
-	// Inject source and target locale into values map for marshalXLIFFUnit.
-	// We use internal keys that are unlikely to collide with actual translation keys.
-	marshalValues := make(map[string]string, len(values)+2)
-	for k, v := range values {
-		marshalValues[k] = v
-	}
-	marshalValues["_source_locale"] = sourceLocale
-	marshalValues["_target_locale"] = targetLocale
-
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
@@ -194,7 +189,7 @@ func MarshalXLIFF(template []byte, values map[string]string, sourceLocale, targe
 		case xml.StartElement:
 			t = rewriteXLIFFLocaleAttrs(t, sourceLocale, targetLocale)
 			if t.Name.Local == "trans-unit" || t.Name.Local == "unit" {
-				if err := marshalXLIFFUnit(encoder, decoder, t, marshalValues); err != nil {
+				if err := marshalXLIFFUnit(encoder, decoder, t, values); err != nil {
 					return nil, err
 				}
 				continue
@@ -253,7 +248,6 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, start xml.Star
 	for _, tok := range tokens {
 		switch t := tok.(type) {
 		case xml.StartElement:
-			t = rewriteXLIFFLocaleAttrs(t, values["_source_locale"], values["_target_locale"])
 			if textState != nil {
 				textState.depth++
 				if textState.replace {
