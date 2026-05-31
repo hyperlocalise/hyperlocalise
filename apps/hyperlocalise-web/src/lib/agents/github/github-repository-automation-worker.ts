@@ -5,6 +5,9 @@ import { listQueuedGithubRepositoryAutomationJobs } from "./github-repository-au
 
 const logger = createLogger("github-repo-automation-worker");
 
+/** Skip queued jobs younger than this — the dispatcher already enqueues them on create. */
+const WORKER_JOB_MIN_AGE_MS = 30_000;
+
 export async function enqueueGithubRepositoryAutomationValidationJob(input: {
   jobId: string;
 }): Promise<{ enqueued: boolean }> {
@@ -29,7 +32,11 @@ export async function runGithubRepositoryAutomationWorker(input?: {
   limit?: number;
 }): Promise<GithubRepositoryAutomationWorkerResult> {
   const queue = createGithubRepositoryAutomationQueue();
-  const jobs = await listQueuedGithubRepositoryAutomationJobs({ limit: input?.limit ?? 10 });
+  const now = Date.now();
+  const allJobs = await listQueuedGithubRepositoryAutomationJobs({ limit: input?.limit ?? 10 });
+  const jobs = allJobs.filter(
+    (job) => now - new Date(job.createdAt).getTime() >= WORKER_JOB_MIN_AGE_MS,
+  );
 
   let started = 0;
   let skipped = 0;

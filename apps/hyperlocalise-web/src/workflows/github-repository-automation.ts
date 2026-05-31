@@ -74,6 +74,11 @@ export async function githubRepositoryAutomationWorkflow(
       status: "running",
       workflowRunId,
     });
+  } else if (job.status === "running" && job.workflowRunId && job.workflowRunId !== workflowRunId) {
+    return {
+      skipped: true,
+      reason: "job_claimed_by_another_workflow",
+    };
   }
 
   return validateJobStep({ jobId: event.jobId, workflowRunId });
