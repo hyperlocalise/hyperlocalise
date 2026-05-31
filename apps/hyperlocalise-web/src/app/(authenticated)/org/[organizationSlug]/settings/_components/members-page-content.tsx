@@ -32,6 +32,9 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 
+import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { isOrganizationAdminRole, isWorkspaceOperatorRole } from "@/api/auth/policy";
+
 import { PageHeader } from "../../_components/workspace-resource-shared";
 
 type Member = {
@@ -40,7 +43,7 @@ type Member = {
   firstName: string | null;
   lastName: string | null;
   displayName: string;
-  role: "admin" | "member";
+  role: OrganizationMembershipRole;
   isCurrentUser: boolean;
   createdAt: string;
   status?: "active" | "invited";
@@ -48,17 +51,39 @@ type Member = {
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
 
-const roleLabels: Record<Member["role"], string> = {
+const roleLabels: Record<OrganizationMembershipRole, string> = {
   admin: "Admin",
+  localization_manager: "Localization manager",
+  developer: "Developer",
+  reviewer: "Reviewer",
+  translator: "Translator",
   member: "Member",
 };
 
-function assignableRolesForActor(actorRole: Member["role"]): Member["role"][] {
-  return actorRole === "admin" ? ["admin", "member"] : [];
+const NON_ADMIN_ASSIGNABLE_ROLES: OrganizationMembershipRole[] = [
+  "localization_manager",
+  "developer",
+  "reviewer",
+  "translator",
+  "member",
+];
+
+function assignableRolesForActor(
+  actorRole: OrganizationMembershipRole,
+): OrganizationMembershipRole[] {
+  if (isOrganizationAdminRole(actorRole)) {
+    return ["admin", ...NON_ADMIN_ASSIGNABLE_ROLES];
+  }
+
+  if (isWorkspaceOperatorRole(actorRole)) {
+    return NON_ADMIN_ASSIGNABLE_ROLES;
+  }
+
+  return [];
 }
 
-function canManageTargetMember(_targetRole: Member["role"], assignableRoles: Member["role"][]) {
-  return assignableRoles.length > 0;
+function canManageTargetMember(targetRole: Member["role"], assignableRoles: Member["role"][]) {
+  return assignableRoles.includes(targetRole);
 }
 
 function memberInitials(displayName: string) {
@@ -95,7 +120,7 @@ export function MembersSettingsPageContent({
 }: {
   organizationSlug: string;
   canManageMembers: boolean;
-  currentUserRole: Member["role"];
+  currentUserRole: OrganizationMembershipRole;
 }) {
   const queryClient = useQueryClient();
   const [isInviteOpen, setIsInviteOpen] = useState(false);

@@ -1,7 +1,7 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { Hono } from "hono";
 
-import { isAdminRole } from "@/api/auth/roles";
+import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { getSlackBot } from "@/lib/agents/slack/bot";
 import { getSlackStateSecret, verifySlackState } from "@/lib/agents/slack/oauth-state";
@@ -60,7 +60,7 @@ export function createSlackOAuthRoutes() {
       return c.redirect("/dashboard?error=unauthorized");
     }
 
-    if (!isAdminRole(authOrganization.membership.role)) {
+    if (!isWorkspaceOperatorRole(authOrganization.membership.role)) {
       return c.redirect("/dashboard?error=forbidden");
     }
 

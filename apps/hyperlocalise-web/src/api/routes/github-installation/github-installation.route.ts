@@ -4,7 +4,7 @@ import { and, count, eq, ilike, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
-import { isAdminRole } from "@/api/auth/roles";
+import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
@@ -177,7 +177,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       );
     })
     .get("/install-url", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -232,7 +232,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ repositories }, 200);
     })
     .post("/repositories/:githubRepositoryId/i18n-setup", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -361,7 +361,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       }
     })
     .get("/repositories/:githubRepositoryId/i18n-setup-runs/latest", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -379,7 +379,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ i18nSetupRun: latestRun }, 200);
     })
     .get("/i18n-setup-runs/:runId", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -400,7 +400,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ i18nSetupRun: run }, 200);
     })
     .post("/i18n-setup-runs/:runId/cancel", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -421,7 +421,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ i18nSetupRun: run }, 200);
     })
     .get("/repositories/:githubRepositoryId/automation-settings", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -451,7 +451,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       "/repositories/:githubRepositoryId/automation-settings",
       validateAutomationSettingsBody,
       async (c) => {
-        if (!isAdminRole(c.var.auth.membership.role)) {
+        if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
           return c.json({ error: "forbidden" }, 403);
         }
 
@@ -502,7 +502,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       },
     )
     .delete("/repositories/:githubRepositoryId/automation-settings", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -529,7 +529,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ githubRepositoryAutomationSettings: record }, 200);
     })
     .patch("/repositories", validateUpdateRepositories, async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -567,7 +567,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ repositories }, 200);
     })
     .post("/repositories/sync", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 
@@ -594,7 +594,7 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ syncedRepositoryCount: repositories.length }, 200);
     })
     .delete("/", async (c) => {
-      if (!isAdminRole(c.var.auth.membership.role)) {
+      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
         return c.json({ error: "forbidden" }, 403);
       }
 

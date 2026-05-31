@@ -34,10 +34,15 @@ export const translationJobOutcomeKindEnum = pgEnum("translation_job_outcome_kin
   "error",
 ]);
 /**
- * Defines workspace-level authorization roles for organization memberships. Admins can manage workspace resources while members have scoped access.
+ * Defines workspace-level authorization roles for organization memberships.
+ * Role slugs are mirrored 1:1 in WorkOS; capability checks use `api/auth/policy.ts`.
  */
 export const organizationMembershipRoleEnum = pgEnum("organization_membership_role", [
   "admin",
+  "localization_manager",
+  "developer",
+  "reviewer",
+  "translator",
   "member",
 ]);
 /**

@@ -95,10 +95,11 @@ export async function promoteLocalOrganizationForWorkosUser(
     const existingMembership = existingMemberships[0];
 
     if (existingMembership) {
+      const role = membershipRoleFromUnknownRoleField(existingMembership.role) ?? input.role;
       return {
         workosOrganizationId: organization.id,
         workosMembershipId: existingMembership.id,
-        role: membershipRoleFromUnknownRoleField(existingMembership.role),
+        role,
       };
     }
 
@@ -182,7 +183,7 @@ export async function provisionWorkspaceInWorkos(
         provisionedMembers.push({
           workosUserId: member.workosUserId,
           workosMembershipId: existing.id,
-          role: membershipRoleFromUnknownRoleField(existing.role),
+          role: membershipRoleFromUnknownRoleField(existing.role) ?? member.role,
         });
         continue;
       }
