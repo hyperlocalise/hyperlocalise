@@ -220,17 +220,24 @@ export const MessageBranchPrevious = ({ children, ...props }: MessageBranchPrevi
   const { goToPrevious, totalBranches } = useMessageBranch();
 
   return (
-    <Button
-      aria-label="Previous branch"
-      disabled={totalBranches <= 1}
-      onClick={goToPrevious}
-      size="icon-sm"
-      type="button"
-      variant="ghost"
-      {...props}
-    >
-      {children ?? <ChevronLeftIcon size={14} />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label="Previous branch"
+            disabled={totalBranches <= 1}
+            onClick={goToPrevious}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+            {...props}
+          >
+            {children ?? <ChevronLeftIcon size={14} />}
+          </Button>
+        }
+      />
+      <TooltipContent side="bottom">Previous branch</TooltipContent>
+    </Tooltip>
   );
 };
 
@@ -240,17 +247,24 @@ export const MessageBranchNext = ({ children, ...props }: MessageBranchNextProps
   const { goToNext, totalBranches } = useMessageBranch();
 
   return (
-    <Button
-      aria-label="Next branch"
-      disabled={totalBranches <= 1}
-      onClick={goToNext}
-      size="icon-sm"
-      type="button"
-      variant="ghost"
-      {...props}
-    >
-      {children ?? <ChevronRightIcon size={14} />}
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            aria-label="Next branch"
+            disabled={totalBranches <= 1}
+            onClick={goToNext}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+            {...props}
+          >
+            {children ?? <ChevronRightIcon size={14} />}
+          </Button>
+        }
+      />
+      <TooltipContent side="bottom">Next branch</TooltipContent>
+    </Tooltip>
   );
 };
 
