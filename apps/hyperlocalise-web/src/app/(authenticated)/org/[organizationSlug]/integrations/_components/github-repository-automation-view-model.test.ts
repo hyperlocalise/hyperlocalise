@@ -83,4 +83,17 @@ describe("github-repository-automation-view-model", () => {
     expect(first.branches).toEqual(["main"]);
     expect(duplicate.error).toMatch(/already listed/i);
   });
+
+  it("rejects invalid weekly day-of-week values", () => {
+    const errors = validateAutomationFormState({
+      ...createAutomationFormStateFromSettings(DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS),
+      pushSourceEnabled: true,
+      pushSourceProjectId: "project-1",
+      triggerMode: "scheduled",
+      scheduledCadence: "weekly",
+      scheduledDayOfWeek: 7,
+    });
+
+    expect(errors.scheduledDayOfWeek).toBeTruthy();
+  });
 });

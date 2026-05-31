@@ -223,7 +223,10 @@ export function validateAutomationFormState(
   }
 
   if (form.triggerMode === "scheduled") {
-    if (form.scheduledCadence === "weekly" && form.scheduledDayOfWeek === undefined) {
+    if (
+      form.scheduledCadence === "weekly" &&
+      (form.scheduledDayOfWeek < 0 || form.scheduledDayOfWeek > 6)
+    ) {
       errors.scheduledDayOfWeek =
         AUTOMATION_API_ERROR_MESSAGES.weekly_schedule_requires_day_of_week;
     }

@@ -202,15 +202,22 @@ export function RepositoryAutomationSettingsPanel({
       return;
     }
 
-    setForm(createAutomationFormStateFromSettings(settingsQuery.data.settings));
     setMetadata({
       configVersion: settingsQuery.data.configVersion,
       nextRunAt: settingsQuery.data.nextRunAt,
     });
+  }, [settingsQuery.data]);
+
+  useEffect(() => {
+    if (!settingsQuery.data || form !== null) {
+      return;
+    }
+
+    setForm(createAutomationFormStateFromSettings(settingsQuery.data.settings));
     setFieldErrors({});
     setBranchInput("");
     setBranchInputError(undefined);
-  }, [settingsQuery.data]);
+  }, [settingsQuery.data, form]);
 
   const saveSettings = useMutation({
     mutationFn: async (nextForm: GithubRepositoryAutomationFormState) => {
@@ -250,9 +257,10 @@ export function RepositoryAutomationSettingsPanel({
         nextRunAt: result.record.nextRunAt,
       });
       setFieldErrors({});
-      void queryClient.invalidateQueries({
-        queryKey: ["github-repository-automation-settings", organizationSlug, githubRepositoryId],
-      });
+      queryClient.setQueryData(
+        ["github-repository-automation-settings", organizationSlug, githubRepositoryId],
+        result.record,
+      );
       toast.success("Automation settings saved");
       onSaved?.();
     },
@@ -287,9 +295,10 @@ export function RepositoryAutomationSettingsPanel({
       });
       setFieldErrors({});
       setResetDialogOpen(false);
-      void queryClient.invalidateQueries({
-        queryKey: ["github-repository-automation-settings", organizationSlug, githubRepositoryId],
-      });
+      queryClient.setQueryData(
+        ["github-repository-automation-settings", organizationSlug, githubRepositoryId],
+        record,
+      );
       toast.success("Automation settings reset");
       onSaved?.();
     },
@@ -316,7 +325,13 @@ export function RepositoryAutomationSettingsPanel({
 
   function updateForm(patch: Partial<GithubRepositoryAutomationFormState>) {
     setForm((current) => (current ? { ...current, ...patch } : current));
-    setFieldErrors({});
+    setFieldErrors((current) => {
+      const next = { ...current };
+      for (const key of Object.keys(patch)) {
+        delete next[key as keyof GithubRepositoryAutomationFieldErrors];
+      }
+      return next;
+    });
   }
 
   function handleSave() {

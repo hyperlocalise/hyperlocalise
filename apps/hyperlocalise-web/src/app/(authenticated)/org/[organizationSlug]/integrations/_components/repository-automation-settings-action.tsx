@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 
 import { RepositoryAutomationSettingsPanel } from "./repository-automation-settings-panel";
 import { Button } from "@/components/ui/button";
@@ -32,7 +31,6 @@ export function RepositoryAutomationSettingsAction({
   userCanManage,
 }: RepositoryAutomationSettingsActionProps) {
   const [open, setOpen] = useState(false);
-  const automationPath = `/org/${organizationSlug}/integrations/github/repositories/${githubRepositoryId}/automation`;
 
   if (!userCanManage || !enabled || archived) {
     return null;
@@ -63,14 +61,6 @@ export function RepositoryAutomationSettingsAction({
             showFullPageLink
             onSaved={() => setOpen(false)}
           />
-          <div className="mt-4 border-t border-border pt-4">
-            <Link
-              href={automationPath}
-              className="text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
-            >
-              Open dedicated settings page
-            </Link>
-          </div>
         </div>
       </SheetContent>
     </Sheet>
