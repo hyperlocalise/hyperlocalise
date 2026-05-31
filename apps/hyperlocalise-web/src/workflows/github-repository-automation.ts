@@ -10,6 +10,8 @@ import {
   resolveGithubRepositoryAutomationCommitRange,
   type GithubRepositoryAutomationCommitRange,
 } from "@/lib/agents/github/github-repository-automation-commit-range";
+import { isErr } from "@/lib/primitives/result/results";
+
 import { runGithubRepositoryAutomationPushSource } from "@/lib/agents/github/github-repository-automation-push-source";
 import { runGithubRepositoryAutomationValidation } from "@/lib/agents/github/github-repository-automation-validation";
 
@@ -96,11 +98,20 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
   }
 
   if (job.workflows.pushSource) {
-    results.pushSource = await runGithubRepositoryAutomationPushSource({
+    const pushSourceResult = await runGithubRepositoryAutomationPushSource({
       job,
       workflowRunId: input.workflowRunId,
       commitRange,
     });
+
+    if (isErr(pushSourceResult)) {
+      results.pushSource = pushSourceResult.error;
+      if (pushSourceResult.error.code === "infrastructure") {
+        throw new Error(pushSourceResult.error.message);
+      }
+    } else {
+      results.pushSource = pushSourceResult.value;
+    }
   }
 
   if (job.workflows.validation) {

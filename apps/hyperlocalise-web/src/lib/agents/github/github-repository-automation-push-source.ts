@@ -1,5 +1,6 @@
 import { createLogger } from "@/lib/log";
 import { uploadRepositorySourceFilesFromSandbox } from "@/lib/file-storage/upload-repository-source-files";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
   resolveGithubRepositoryAutomationCommitRange,
@@ -15,6 +16,11 @@ import {
 import { discoverI18nConfigInSandbox } from "./github-repository-automation-i18n-config";
 import type { GithubRepositoryAutomationJobWithRepository } from "./github-repository-automation-jobs";
 import { updateGithubRepositoryAutomationJobStatus } from "./github-repository-automation-jobs";
+import {
+  type GithubRepositoryAutomationPushSourceError,
+  persistPushSourceFailedJob,
+  persistPushSourceSkippedJob,
+} from "./github-repository-automation-push-source.errors";
 import { resolveGithubRepositoryAutomationProjectId } from "./github-repository-automation-project";
 import { getGithubRepositoryAutomationSettings } from "./github-repository-automation-settings-store";
 import {
@@ -26,15 +32,9 @@ import {
 
 const logger = createLogger("github-repo-automation-push-source");
 
-export type GithubRepositoryAutomationPushSourceSummary = {
-  totalCommits: number;
-  counts: {
-    uploaded: number;
-    skipped: number;
-    failed: number;
-    unchanged: number;
-  };
-};
+export type { GithubRepositoryAutomationPushSourceError } from "./github-repository-automation-push-source.errors";
+export type { GithubRepositoryAutomationPushSourceSummary } from "./github-repository-automation-push-source.types";
+import type { GithubRepositoryAutomationPushSourceSummary } from "./github-repository-automation-push-source.types";
 
 function summarizePushSourceResults(
   fileResults: Awaited<ReturnType<typeof uploadRepositorySourceFilesFromSandbox>>,
@@ -78,20 +78,34 @@ function buildPushSourceSummary(input: {
   };
 }
 
+async function returnPushSourceSkipped(
+  jobId: string,
+  error: GithubRepositoryAutomationPushSourceError,
+): Promise<Result<never, GithubRepositoryAutomationPushSourceError>> {
+  await persistPushSourceSkippedJob({ jobId, error });
+  return err(error);
+}
+
+async function returnPushSourceFailed(
+  jobId: string,
+  error: GithubRepositoryAutomationPushSourceError,
+  lastError?: string | null,
+): Promise<Result<never, GithubRepositoryAutomationPushSourceError>> {
+  await persistPushSourceFailedJob({ jobId, error, lastError });
+  return err(error);
+}
+
 export async function runGithubRepositoryAutomationPushSource(input: {
   job: GithubRepositoryAutomationJobWithRepository;
   workflowRunId?: string | null;
   commitRange?: GithubRepositoryAutomationCommitRange;
-}): Promise<GithubRepositoryAutomationPushSourceSummary | { skipped: true; reason: string }> {
+}): Promise<
+  Result<GithubRepositoryAutomationPushSourceSummary, GithubRepositoryAutomationPushSourceError>
+> {
   const job = input.job;
 
   if (!job.workflows.pushSource) {
-    await updateGithubRepositoryAutomationJobStatus({
-      jobId: job.id,
-      status: "skipped",
-      skipReason: "push_source_workflow_disabled",
-    });
-    return { skipped: true, reason: "push_source_workflow_disabled" };
+    return returnPushSourceSkipped(job.id, { code: "push_source_workflow_disabled" });
   }
 
   const settingsRecord = await getGithubRepositoryAutomationSettings({
@@ -106,16 +120,19 @@ export async function runGithubRepositoryAutomationPushSource(input: {
   });
 
   if (!projectId) {
-    await updateGithubRepositoryAutomationJobStatus({
-      jobId: job.id,
-      status: "skipped",
-      skipReason: "project_not_linked",
-    });
-    return { skipped: true, reason: "project_not_linked" };
+    return returnPushSourceSkipped(job.id, { code: "project_not_linked" });
   }
 
-  const { commitBefore, commitAfter } =
-    input.commitRange ?? (await resolveGithubRepositoryAutomationCommitRange(job));
+  const commitRangeResult: Result<
+    GithubRepositoryAutomationCommitRange,
+    GithubRepositoryAutomationPushSourceError
+  > = input.commitRange ? ok(input.commitRange) : await resolveCommitRangeForPushSource(job);
+
+  if (isErr(commitRangeResult)) {
+    return returnPushSourceFailed(job.id, commitRangeResult.error);
+  }
+
+  const { commitBefore, commitAfter } = commitRangeResult.value;
 
   if (!input.commitRange && !job.commitAfter) {
     await updateGithubRepositoryAutomationJobStatus({
@@ -138,27 +155,17 @@ export async function runGithubRepositoryAutomationPushSource(input: {
 
     const i18nConfig = await discoverI18nConfigInSandbox(sandboxId);
     if (!i18nConfig) {
-      await updateGithubRepositoryAutomationJobStatus({
-        jobId: job.id,
-        status: "skipped",
-        skipReason: "i18n_config_not_found",
-      });
-      return { skipped: true, reason: "i18n_config_not_found" };
+      return returnPushSourceSkipped(job.id, { code: "i18n_config_not_found" });
     }
 
     if (i18nConfig.patterns.sourcePatterns.length === 0) {
-      await updateGithubRepositoryAutomationJobStatus({
-        jobId: job.id,
-        status: "skipped",
-        skipReason: "source_patterns_not_configured",
-      });
-      return { skipped: true, reason: "source_patterns_not_configured" };
+      return returnPushSourceSkipped(job.id, { code: "source_patterns_not_configured" });
     }
 
     const logArgs = buildCommitRangeLogArgs({ commitBefore, commitAfter });
     const logResult = await runGitLogInSandbox(sandboxId, logArgs);
     if (logResult.exitCode !== 0) {
-      throw new Error("failed_to_list_commits_for_push_source");
+      return returnPushSourceFailed(job.id, { code: "failed_to_list_commits" });
     }
 
     const commits = parseCommitLogLines(logResult.output);
@@ -197,14 +204,10 @@ export async function runGithubRepositoryAutomationPushSource(input: {
         fileResults: [],
       });
 
-      await updateGithubRepositoryAutomationJobStatus({
-        jobId: job.id,
-        status: "skipped",
-        skipReason: "no_relevant_source_file_changes",
-        resultSummary: summary,
+      return returnPushSourceSkipped(job.id, {
+        code: "no_relevant_source_file_changes",
+        summary,
       });
-
-      return { skipped: true, reason: "no_relevant_source_file_changes" };
     }
 
     const fileResults = await uploadRepositorySourceFilesFromSandbox({
@@ -222,13 +225,15 @@ export async function runGithubRepositoryAutomationPushSource(input: {
       fileResults,
     });
 
-    const finalStatus = summary.counts.failed > 0 ? "failed" : "succeeded";
+    if (summary.counts.failed > 0) {
+      return returnPushSourceFailed(job.id, { code: "push_source_failed", summary });
+    }
 
     await updateGithubRepositoryAutomationJobStatus({
       jobId: job.id,
-      status: finalStatus,
+      status: "succeeded",
       resultSummary: summary,
-      lastError: finalStatus === "failed" ? "push_source_failed" : null,
+      lastError: null,
     });
 
     logger.info(
@@ -239,20 +244,38 @@ export async function runGithubRepositoryAutomationPushSource(input: {
       "github repository automation push source completed",
     );
 
-    return summary;
+    return ok(summary);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "push source automation failed";
+    const message = error instanceof Error ? error.message : "push_source_automation_failed";
 
-    await updateGithubRepositoryAutomationJobStatus({
-      jobId: job.id,
-      status: "failed",
-      lastError: message,
-    });
+    logger.error(
+      {
+        jobId: job.id,
+        err: error,
+      },
+      "github repository automation push source failed",
+    );
 
-    throw error;
+    return returnPushSourceFailed(job.id, { code: "infrastructure", message }, message);
   } finally {
     if (sandboxId) {
       await stopGithubRepositoryAutomationSandbox(sandboxId).catch(() => undefined);
     }
+  }
+}
+
+async function resolveCommitRangeForPushSource(
+  job: GithubRepositoryAutomationJobWithRepository,
+): Promise<
+  Result<GithubRepositoryAutomationCommitRange, GithubRepositoryAutomationPushSourceError>
+> {
+  try {
+    const commitRange = await resolveGithubRepositoryAutomationCommitRange(job);
+    return ok(commitRange);
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "failed_to_resolve_commit_range_for_push_source";
+
+    return err({ code: "infrastructure", message });
   }
 }
