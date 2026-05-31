@@ -85,8 +85,8 @@ importers:
         specifier: 4.1.1
         version: 4.1.1(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
       '@workos-inc/node':
-        specifier: ^9.3.0
-        version: 9.3.1
+        specifier: ^10.0.0
+        version: 10.0.0
       '@xyflow/react':
         specifier: ^12.10.2
         version: 12.10.2(@types/react@19.2.15)(immer@11.1.4)(react-dom@19.2.6(react@19.2.6))(react@19.2.6)
@@ -3516,6 +3516,10 @@ packages:
       next: ^13.5.9 || ^14.2.26 || ^15.2.3 || ^16
       react: ^18.0 || ^19.0.0
       react-dom: ^18.0 || ^19.0.0
+
+  '@workos-inc/node@10.0.0':
+    resolution: {integrity: sha512-Vnqd/TAoNZSYTW7FSxR/f+BnWMyffK0ueX+KNBnoahMHOcLCMiF3Y5Rkt4VIdRdvvhQ+pR2JgcwCHIEcE1OXWw==}
+    engines: {node: '>=22.11.0'}
 
   '@workos-inc/node@8.13.0':
     resolution: {integrity: sha512-NgQKHpwh8AbT4KvAsW91Y+4f4jja2IvFPQ5atcy5NUxUMVRgXzRFEee3erawfXrTmiCVqJjd9PljHySKBXmHKQ==}
@@ -10735,6 +10739,10 @@ snapshots:
       valibot: 1.3.1(typescript@6.0.3)
     transitivePeerDependencies:
       - typescript
+
+  '@workos-inc/node@10.0.0':
+    dependencies:
+      eventemitter3: 5.0.4
 
   '@workos-inc/node@8.13.0':
     dependencies:

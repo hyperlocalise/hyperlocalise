@@ -35,7 +35,7 @@
     "@vercel/blob": "^2.3.3",
     "@vercel/sandbox": "2.0.1",
     "@workos-inc/authkit-nextjs": "4.1.1",
-    "@workos-inc/node": "^9.3.0",
+    "@workos-inc/node": "^10.0.0",
     "@xyflow/react": "^12.10.2",
     "ai": "6.0.191",
     "ansi-to-react": "^6.2.6",
