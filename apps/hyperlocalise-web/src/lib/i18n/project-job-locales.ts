@@ -1,4 +1,11 @@
+import { err, ok, type Result } from "@/lib/primitives/result/results";
+
 import { canonicalizeLocale } from "./locales";
+
+export type JobLocaleValidationError = {
+  code: string;
+  message: string;
+};
 
 type ProjectLocaleScope = {
   source: "native" | "external_tms";
@@ -53,14 +60,13 @@ function projectAllowsLocale(
 export function validateJobLocalesAgainstProject(
   project: ProjectLocaleScope,
   input: JobLocaleInput,
-): { ok: true } | { ok: false; code: string; message: string } {
+): Result<void, JobLocaleValidationError> {
   if (project.source === "external_tms") {
     if (project.sourceLocale && input.sourceLocale !== project.sourceLocale) {
-      return {
-        ok: false,
+      return err({
         code: "job_source_locale_not_in_project",
         message: "Source locale must match the synced TMS project source locale",
-      };
+      });
     }
 
     if (project.targetLocales.length > 0) {
@@ -68,63 +74,57 @@ export function validateJobLocalesAgainstProject(
         (locale) => !project.targetLocales.includes(locale),
       );
       if (invalidTargets.length > 0) {
-        return {
-          ok: false,
+        return err({
           code: "job_target_locale_not_in_project",
           message: `Target locales must be configured on the project: ${invalidTargets.join(", ")}`,
-        };
+        });
       }
     }
 
-    return { ok: true };
+    return ok(undefined);
   }
 
   const sourceLocale = canonicalizeLocale(input.sourceLocale);
   if (!sourceLocale) {
-    return {
-      ok: false,
+    return err({
       code: "invalid_job_source_locale",
       message: "Invalid source locale",
-    };
+    });
   }
 
   if (!projectAllowsLocale(project, sourceLocale, "source")) {
-    return {
-      ok: false,
+    return err({
       code: "job_source_locale_not_in_project",
       message: "Source locale must match the project source locale",
-    };
+    });
   }
 
   const normalizedTargets: string[] = [];
   for (const raw of input.targetLocales) {
     const canonical = canonicalizeLocale(raw);
     if (!canonical) {
-      return {
-        ok: false,
+      return err({
         code: "invalid_job_target_locale",
         message: `Invalid target locale: ${raw}`,
-      };
+      });
     }
 
     if (!projectAllowsLocale(project, canonical, "target")) {
-      return {
-        ok: false,
+      return err({
         code: "job_target_locale_not_in_project",
         message: `Target locale is not enabled on this project: ${canonical}`,
-      };
+      });
     }
 
     normalizedTargets.push(canonical);
   }
 
   if (normalizedTargets.some((locale) => localeKey(locale) === localeKey(sourceLocale))) {
-    return {
-      ok: false,
+    return err({
       code: "job_source_in_targets",
       message: "Source locale cannot appear in target locales",
-    };
+    });
   }
 
-  return { ok: true };
+  return ok(undefined);
 }

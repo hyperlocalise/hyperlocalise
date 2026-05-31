@@ -415,8 +415,8 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         sourceLocale: inputPayload.sourceLocale,
         targetLocales: inputPayload.targetLocales,
       });
-      if (!localeValidation.ok) {
-        return badRequestResponse(c, localeValidation.code, localeValidation.message);
+      if (isErr(localeValidation)) {
+        return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
       }
 
       if (payload.type === "file") {

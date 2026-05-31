@@ -165,6 +165,60 @@ describe("projectRoutes", () => {
     expect(response.status).toBe(400);
   });
 
+  it("allows partial locale patch on legacy native projects", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: null, targetLocales: [] })
+      .where(eq(schema.projects.id, project.id));
+
+    const targetsOnlyResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { targetLocales: ["fr-FR", "de-DE"] },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(targetsOnlyResponse.status).toBe(200);
+    const targetsOnlyBody = (await targetsOnlyResponse.json()) as ProjectResponse;
+    expect(targetsOnlyBody.project.sourceLocale).toBeNull();
+    expect(targetsOnlyBody.project.targetLocales).toEqual(["fr-FR", "de-DE"]);
+
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: null, targetLocales: [] })
+      .where(eq(schema.projects.id, project.id));
+
+    const sourceOnlyResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { sourceLocale: "en-GB" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(sourceOnlyResponse.status).toBe(200);
+    const sourceOnlyBody = (await sourceOnlyResponse.json()) as ProjectResponse;
+    expect(sourceOnlyBody.project.sourceLocale).toBe("en-GB");
+    expect(sourceOnlyBody.project.targetLocales).toEqual([]);
+  });
+
   it("updates native project locales", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createProjectViaApi(identity);

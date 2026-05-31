@@ -180,6 +180,73 @@ export function normalizeProjectLocales(input: {
   return { sourceLocale, targetLocales };
 }
 
+export type ProjectLocalePatchError =
+  | "invalid_source_locale"
+  | "invalid_target_locales"
+  | "source_in_targets";
+
+/**
+ * Normalizes a partial project locale PATCH without fabricating empty fallbacks.
+ * Cross-field checks run only when both source and targets are configured after merge.
+ */
+export function normalizeProjectLocalePatch(input: {
+  existingSourceLocale: string | null;
+  existingTargetLocales: string[];
+  sourceLocale?: string;
+  targetLocales?: string[];
+  maxTargets?: number;
+}): { sourceLocale?: string; targetLocales?: string[] } | { error: ProjectLocalePatchError } {
+  const patchingSource = input.sourceLocale !== undefined;
+  const patchingTargets = input.targetLocales !== undefined;
+
+  if (patchingSource && patchingTargets) {
+    const full = normalizeProjectLocales({
+      sourceLocale: input.sourceLocale!,
+      targetLocales: input.targetLocales!,
+      maxTargets: input.maxTargets,
+    });
+    if ("error" in full) {
+      return { error: full.error };
+    }
+    return {
+      sourceLocale: full.sourceLocale,
+      targetLocales: full.targetLocales,
+    };
+  }
+
+  let resolvedSource = input.existingSourceLocale;
+  let resolvedTargets = input.existingTargetLocales;
+  const updates: { sourceLocale?: string; targetLocales?: string[] } = {};
+
+  if (patchingSource) {
+    const canonical = canonicalizeLocale(input.sourceLocale!);
+    if (!canonical) {
+      return { error: "invalid_source_locale" };
+    }
+    resolvedSource = canonical;
+    updates.sourceLocale = canonical;
+  }
+
+  if (patchingTargets) {
+    const normalized = normalizeTargetLocales(input.targetLocales!, {
+      max: input.maxTargets ?? maxProjectTargetLocales,
+    });
+    if (!normalized || normalized.length === 0) {
+      return { error: "invalid_target_locales" };
+    }
+    resolvedTargets = normalized;
+    updates.targetLocales = normalized;
+  }
+
+  if (resolvedSource && resolvedTargets.length > 0) {
+    if (resolvedTargets.some((locale) => locale.toLowerCase() === resolvedSource!.toLowerCase())) {
+      return { error: "source_in_targets" };
+    }
+  }
+
+  return updates;
+}
+
 export const localeInputSchema = z
   .string()
   .trim()

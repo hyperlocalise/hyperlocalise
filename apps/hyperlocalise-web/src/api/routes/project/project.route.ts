@@ -70,7 +70,7 @@ import {
   type UpdateProjectBody,
 } from "./project.schema";
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
-import { normalizeProjectLocales } from "@/lib/i18n/locales";
+import { normalizeProjectLocalePatch } from "@/lib/i18n/locales";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import {
@@ -213,17 +213,23 @@ const projectStore: ProjectStore = {
     }
 
     if (sourceLocale !== undefined || targetLocales !== undefined) {
-      const normalized = normalizeProjectLocales({
-        sourceLocale: sourceLocale ?? existing.sourceLocale ?? "",
-        targetLocales: targetLocales ?? existing.targetLocales ?? [],
+      const normalized = normalizeProjectLocalePatch({
+        existingSourceLocale: existing.sourceLocale,
+        existingTargetLocales: existing.targetLocales,
+        sourceLocale,
+        targetLocales,
       });
 
       if ("error" in normalized) {
         throw new Error(normalized.error);
       }
 
-      updateValues.sourceLocale = normalized.sourceLocale;
-      updateValues.targetLocales = normalized.targetLocales;
+      if (normalized.sourceLocale !== undefined) {
+        updateValues.sourceLocale = normalized.sourceLocale;
+      }
+      if (normalized.targetLocales !== undefined) {
+        updateValues.targetLocales = normalized.targetLocales;
+      }
     }
 
     const [project] = await db

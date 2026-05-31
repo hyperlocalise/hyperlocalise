@@ -10,6 +10,7 @@ import {
   requireApiKeyPermission,
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
+import { badRequestResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import {
   formatUsageControlError,
@@ -152,8 +153,8 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           sourceLocale: inputPayload.sourceLocale,
           targetLocales: inputPayload.targetLocales,
         });
-        if (!localeValidation.ok) {
-          return c.json({ error: localeValidation.code, message: localeValidation.message }, 400);
+        if (isErr(localeValidation)) {
+          return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
         }
 
         if (payload.type === "file") {
