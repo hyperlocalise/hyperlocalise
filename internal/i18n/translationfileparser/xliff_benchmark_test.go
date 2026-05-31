@@ -21,6 +21,18 @@ func BenchmarkMarshalXLIFF(b *testing.B) {
 	}
 }
 
+func BenchmarkParseXLIFF(b *testing.B) {
+	n := 1000
+	template := generateLargeXLIFF(n)
+	parser := XLIFFParser{}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		_, _ = parser.Parse(template)
+	}
+}
+
 func generateLargeXLIFF(n int) []byte {
 	var sb strings.Builder
 	sb.WriteString(`<?xml version="1.0" encoding="UTF-8"?>

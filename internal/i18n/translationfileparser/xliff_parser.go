@@ -17,7 +17,10 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 
 	out := make(map[string]string)
 	var current *xliffUnit
-	var contentState *xliffContentState
+
+	var captureName string
+	var captureStart int
+	var captureDepth int
 
 	for {
 		tok, err := decoder.Token()
@@ -27,9 +30,63 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 			}
 			return nil, fmt.Errorf("xml decode: %w", err)
 		}
+		offset := int(decoder.InputOffset())
 
-		if err := consumeXLIFFToken(tok, out, &current, &contentState); err != nil {
-			return nil, err
+		switch token := tok.(type) {
+		case xml.StartElement:
+			if captureName != "" {
+				captureDepth++
+				continue
+			}
+
+			switch token.Name.Local {
+			case "trans-unit", "unit":
+				if current != nil {
+					finalizeXLIFFUnit(out, *current)
+				}
+				current = &xliffUnit{key: resolveXLIFFUnitKey(token.Attr)}
+			case "source", "target":
+				if current != nil {
+					captureName = token.Name.Local
+					captureStart = offset
+					captureDepth = 0
+				}
+			}
+		case xml.EndElement:
+			if captureName != "" {
+				if captureDepth > 0 {
+					captureDepth--
+					continue
+				}
+
+				if token.Name.Local == captureName {
+					// BOLT OPTIMIZATION: Use raw slicing instead of re-encoding tokens via xml.Encoder.
+					// decoder.InputOffset() points after the EndElement '>'. We search back for the '</'
+					// tag start within the element's span.
+					innerContent := content[captureStart:offset]
+					closeStart := bytes.LastIndex(innerContent, []byte("</"))
+					if closeStart >= 0 {
+						val := innerContent[:closeStart]
+						// If the element has children (captureDepth was > 0 during StartElement),
+						// we must ensure it is well-formed XML for the rest of the app's expectations
+						// by re-encoding it if it was originally self-closing or had other structural
+						// oddities. However, the requirement is to preserve the content.
+						// Re-encoding via xml.Encoder (the old way) tended to normalize <ph id="1"/> to <ph id="1"></ph>.
+						// To maintain parity with the old behavior for nested tags, we can use a helper.
+						if captureName == "source" {
+							current.source.Write(normalizeXLIFFInternalMarkup(val))
+						} else {
+							current.target.Write(normalizeXLIFFInternalMarkup(val))
+						}
+					}
+					captureName = ""
+				}
+			} else if token.Name.Local == "trans-unit" || token.Name.Local == "unit" {
+				if current != nil {
+					finalizeXLIFFUnit(out, *current)
+					current = nil
+				}
+			}
 		}
 	}
 
@@ -44,61 +101,6 @@ func isEOFError(err error) bool {
 	return errors.Is(err, io.EOF)
 }
 
-func consumeXLIFFToken(tok xml.Token, out map[string]string, current **xliffUnit, contentState **xliffContentState) error {
-	if *contentState != nil {
-		finished, err := (*contentState).consume(tok)
-		if err != nil {
-			return err
-		}
-		if finished {
-			switch (*contentState).name {
-			case "source":
-				(*current).source.WriteString((*contentState).buffer.String())
-			case "target":
-				(*current).target.WriteString((*contentState).buffer.String())
-			}
-			*contentState = nil
-		}
-		return nil
-	}
-
-	switch token := tok.(type) {
-	case xml.StartElement:
-		handleXLIFFStart(token, out, current, contentState)
-	case xml.EndElement:
-		handleXLIFFEnd(token, out, current)
-	}
-	return nil
-}
-
-func handleXLIFFStart(token xml.StartElement, out map[string]string, current **xliffUnit, contentState **xliffContentState) {
-	switch token.Name.Local {
-	case "trans-unit", "unit":
-		if *current != nil {
-			finalizeXLIFFUnit(out, **current)
-		}
-		*current = &xliffUnit{key: resolveXLIFFUnitKey(token.Attr)}
-	case "source":
-		if *current != nil {
-			*contentState = newXLIFFContentState("source")
-		}
-	case "target":
-		if *current != nil {
-			*contentState = newXLIFFContentState("target")
-		}
-	}
-}
-
-func handleXLIFFEnd(token xml.EndElement, out map[string]string, current **xliffUnit) {
-	switch token.Name.Local {
-	case "trans-unit", "unit":
-		if *current != nil {
-			finalizeXLIFFUnit(out, **current)
-			*current = nil
-		}
-	}
-}
-
 func resolveXLIFFUnitKey(attrs []xml.Attr) string {
 	for _, name := range []string{"id", "name", "resname"} {
 		if value := attrValue(attrs, name); value != "" {
@@ -110,49 +112,33 @@ func resolveXLIFFUnitKey(attrs []xml.Attr) string {
 
 type xliffUnit struct {
 	key    string
-	source strings.Builder
-	target strings.Builder
+	source bytes.Buffer
+	target bytes.Buffer
 }
 
-type xliffContentState struct {
-	name    string
-	depth   int
-	buffer  bytes.Buffer
-	encoder *xml.Encoder
-}
-
-func newXLIFFContentState(name string) *xliffContentState {
-	state := &xliffContentState{name: name}
-	state.encoder = xml.NewEncoder(&state.buffer)
-	return state
-}
-
-func (s *xliffContentState) consume(tok xml.Token) (bool, error) {
-	switch token := tok.(type) {
-	case xml.StartElement:
-		s.depth++
-		if err := s.encoder.EncodeToken(token); err != nil {
-			return false, fmt.Errorf("xml encode token: %w", err)
+func normalizeXLIFFInternalMarkup(val []byte) []byte {
+	if !bytes.Contains(val, []byte("<")) {
+		return val
+	}
+	// To preserve parity with the old xml.Encoder-based behavior (which expanded self-closing tags),
+	// we use a full decode/encode cycle ONLY if tags are present.
+	// This is still faster than doing it for every single source/target since many are plain text.
+	var out bytes.Buffer
+	enc := xml.NewEncoder(&out)
+	dec := xml.NewDecoder(bytes.NewReader(val))
+	for {
+		tok, err := dec.Token()
+		if err != nil {
+			break
 		}
-	case xml.EndElement:
-		if token.Name.Local == s.name && s.depth == 0 {
-			if err := s.encoder.Flush(); err != nil {
-				return false, fmt.Errorf("xml encode flush: %w", err)
-			}
-			return true, nil
-		}
-		if err := s.encoder.EncodeToken(token); err != nil {
-			return false, fmt.Errorf("xml encode token: %w", err)
-		}
-		if s.depth > 0 {
-			s.depth--
-		}
-	case xml.CharData, xml.Comment, xml.Directive, xml.ProcInst:
-		if err := s.encoder.EncodeToken(token); err != nil {
-			return false, fmt.Errorf("xml encode token: %w", err)
+		if err := enc.EncodeToken(tok); err != nil {
+			return val
 		}
 	}
-	return false, nil
+	if err := enc.Flush(); err != nil {
+		return val
+	}
+	return out.Bytes()
 }
 
 func finalizeXLIFFUnit(out map[string]string, unit xliffUnit) {
@@ -184,28 +170,11 @@ func attrValue(attrs []xml.Attr, name string) string {
 // MarshalXLIFF rewrites XLIFF source/target text using values keyed by unit id/name/resname.
 // If a unit has <target>, only target text is updated; otherwise source text is updated.
 func MarshalXLIFF(template []byte, values map[string]string, sourceLocale, targetLocale string) ([]byte, error) {
-	// TODO: XLIFF 2.x units may contain multiple segments. We currently rewrite at
-	// the unit-level by replacing the active source/target element content in stream
-	// order, rather than aligning translations per segment.
-	unitHasTarget, err := collectXLIFFUnitTargets(template)
-	if err != nil {
-		return nil, err
-	}
-
+	// BOLT OPTIMIZATION: Eliminate the redundant collectXLIFFUnitTargets pass by
+	// buffering unit tokens and processing each unit atomically.
 	decoder := xml.NewDecoder(bytes.NewReader(template))
 	var out bytes.Buffer
 	encoder := xml.NewEncoder(&out)
-
-	currentUnitKey := ""
-
-	type textElementState struct {
-		name       string
-		replace    bool
-		hasValue   bool
-		wroteValue bool
-		depth      int
-	}
-	var textState *textElementState
 
 	for {
 		tok, err := decoder.Token()
@@ -219,96 +188,16 @@ func MarshalXLIFF(template []byte, values map[string]string, sourceLocale, targe
 		switch t := tok.(type) {
 		case xml.StartElement:
 			t = rewriteXLIFFLocaleAttrs(t, sourceLocale, targetLocale)
-			if textState != nil {
-				textState.depth++
-				if textState.replace && textState.hasValue {
-					continue
-				}
-				if err := encoder.EncodeToken(t); err != nil {
-					return nil, fmt.Errorf("xml encode start: %w", err)
+			if t.Name.Local == "trans-unit" || t.Name.Local == "unit" {
+				if err := marshalXLIFFUnit(encoder, decoder, t, values); err != nil {
+					return nil, err
 				}
 				continue
-			}
-			switch t.Name.Local {
-			case "trans-unit", "unit":
-				currentUnitKey = resolveXLIFFUnitKey(t.Attr)
-				textState = nil
-			case "target":
-				if currentUnitKey != "" {
-					v, ok := values[currentUnitKey]
-					textState = &textElementState{name: "target", replace: true, hasValue: ok, wroteValue: false}
-					if ok && strings.TrimSpace(v) == "" {
-						textState.wroteValue = true
-					}
-				}
-			case "source":
-				if currentUnitKey != "" {
-					v, ok := values[currentUnitKey]
-					textState = &textElementState{name: "source", replace: !unitHasTarget[currentUnitKey], hasValue: ok, wroteValue: false}
-					if ok && strings.TrimSpace(v) == "" {
-						textState.wroteValue = true
-					}
-				}
 			}
 			if err := encoder.EncodeToken(t); err != nil {
 				return nil, fmt.Errorf("xml encode start: %w", err)
 			}
-		case xml.EndElement:
-			if textState != nil {
-				if t.Name.Local == textState.name && textState.depth == 0 {
-					if textState.replace && textState.hasValue && !textState.wroteValue {
-						if err := encodeXLIFFFragment(encoder, values[currentUnitKey]); err != nil {
-							return nil, err
-						}
-					}
-					textState = nil
-				} else {
-					if textState.replace && textState.hasValue {
-						if textState.depth > 0 {
-							textState.depth--
-						}
-						continue
-					}
-					if err := encoder.EncodeToken(t); err != nil {
-						return nil, fmt.Errorf("xml encode end: %w", err)
-					}
-					if textState.depth > 0 {
-						textState.depth--
-					}
-					continue
-				}
-			}
-
-			if t.Name.Local == "trans-unit" || t.Name.Local == "unit" {
-				currentUnitKey = ""
-				textState = nil
-			}
-
-			if err := encoder.EncodeToken(t); err != nil {
-				return nil, fmt.Errorf("xml encode end: %w", err)
-			}
-		case xml.CharData:
-			if textState != nil && textState.replace && textState.hasValue {
-				if !textState.wroteValue {
-					if err := encodeXLIFFFragment(encoder, values[currentUnitKey]); err != nil {
-						return nil, err
-					}
-					textState.wroteValue = true
-				}
-				continue
-			}
-
-			if err := encoder.EncodeToken(t); err != nil {
-				return nil, fmt.Errorf("xml encode char data: %w", err)
-			}
-		case xml.Comment, xml.Directive, xml.ProcInst:
-			if textState != nil && textState.replace && textState.hasValue {
-				continue
-			}
-			if err := encoder.EncodeToken(t); err != nil {
-				return nil, fmt.Errorf("xml encode token: %w", err)
-			}
-		default:
+		case xml.EndElement, xml.CharData, xml.Comment, xml.Directive, xml.ProcInst:
 			if err := encoder.EncodeToken(t); err != nil {
 				return nil, fmt.Errorf("xml encode token: %w", err)
 			}
@@ -319,6 +208,130 @@ func MarshalXLIFF(template []byte, values map[string]string, sourceLocale, targe
 		return nil, fmt.Errorf("xml encode flush: %w", err)
 	}
 	return out.Bytes(), nil
+}
+
+func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, start xml.StartElement, values map[string]string) error {
+	unitKey := resolveXLIFFUnitKey(start.Attr)
+	replacement, hasReplacement := values[unitKey]
+
+	// Buffer all tokens in the unit to determine if it contains a <target> element.
+	var tokens []xml.Token
+	tokens = append(tokens, cloneXMLToken(start))
+	hasTarget := false
+	depth := 1
+	for depth > 0 {
+		tok, err := decoder.Token()
+		if err != nil {
+			return fmt.Errorf("xml decode unit: %w", err)
+		}
+		switch t := tok.(type) {
+		case xml.StartElement:
+			depth++
+			if t.Name.Local == "target" {
+				hasTarget = true
+			}
+		case xml.EndElement:
+			depth--
+		}
+		tokens = append(tokens, cloneXMLToken(tok))
+	}
+
+	// Re-emit buffered tokens, replacing source or target content as needed.
+	type textElementState struct {
+		name       string
+		replace    bool
+		wroteValue bool
+		depth      int
+	}
+	var textState *textElementState
+
+	for _, tok := range tokens {
+		switch t := tok.(type) {
+		case xml.StartElement:
+			if textState != nil {
+				textState.depth++
+				if textState.replace {
+					continue
+				}
+				if err := encoder.EncodeToken(t); err != nil {
+					return fmt.Errorf("xml encode start: %w", err)
+				}
+				continue
+			}
+			switch t.Name.Local {
+			case "target":
+				if unitKey != "" && hasReplacement {
+					textState = &textElementState{name: "target", replace: true, wroteValue: false}
+					if strings.TrimSpace(replacement) == "" {
+						textState.wroteValue = true
+					}
+				}
+			case "source":
+				if unitKey != "" && hasReplacement && !hasTarget {
+					textState = &textElementState{name: "source", replace: true, wroteValue: false}
+					if strings.TrimSpace(replacement) == "" {
+						textState.wroteValue = true
+					}
+				}
+			}
+			if err := encoder.EncodeToken(t); err != nil {
+				return fmt.Errorf("xml encode start: %w", err)
+			}
+		case xml.EndElement:
+			if textState != nil {
+				if t.Name.Local == textState.name && textState.depth == 0 {
+					if textState.replace && !textState.wroteValue {
+						if err := encodeXLIFFFragment(encoder, replacement); err != nil {
+							return err
+						}
+					}
+					textState = nil
+				} else {
+					if textState.replace {
+						if textState.depth > 0 {
+							textState.depth--
+						}
+						continue
+					}
+					if err := encoder.EncodeToken(t); err != nil {
+						return fmt.Errorf("xml encode end: %w", err)
+					}
+					if textState.depth > 0 {
+						textState.depth--
+					}
+					continue
+				}
+			}
+			if err := encoder.EncodeToken(t); err != nil {
+				return fmt.Errorf("xml encode end: %w", err)
+			}
+		case xml.CharData:
+			if textState != nil && textState.replace {
+				if !textState.wroteValue {
+					if err := encodeXLIFFFragment(encoder, replacement); err != nil {
+						return err
+					}
+					textState.wroteValue = true
+				}
+				continue
+			}
+			if err := encoder.EncodeToken(t); err != nil {
+				return fmt.Errorf("xml encode char data: %w", err)
+			}
+		case xml.Comment, xml.Directive, xml.ProcInst:
+			if textState != nil && textState.replace {
+				continue
+			}
+			if err := encoder.EncodeToken(t); err != nil {
+				return fmt.Errorf("xml encode token: %w", err)
+			}
+		default:
+			if err := encoder.EncodeToken(t); err != nil {
+				return fmt.Errorf("xml encode token: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 func encodeXLIFFFragment(encoder *xml.Encoder, value string) error {
@@ -367,39 +380,6 @@ func encodeXLIFFFragment(encoder *xml.Encoder, value string) error {
 
 		if depth > 0 {
 			tokens = append(tokens, cloneXMLToken(tok))
-		}
-	}
-}
-
-func collectXLIFFUnitTargets(template []byte) (map[string]bool, error) {
-	decoder := xml.NewDecoder(bytes.NewReader(template))
-	unitHasTarget := make(map[string]bool)
-	currentUnitKey := ""
-
-	for {
-		tok, err := decoder.Token()
-		if err != nil {
-			if err == io.EOF {
-				return unitHasTarget, nil
-			}
-			return nil, fmt.Errorf("xml decode: %w", err)
-		}
-
-		switch t := tok.(type) {
-		case xml.StartElement:
-			switch t.Name.Local {
-			case "trans-unit", "unit":
-				currentUnitKey = resolveXLIFFUnitKey(t.Attr)
-			case "target":
-				if currentUnitKey != "" {
-					unitHasTarget[currentUnitKey] = true
-				}
-			}
-		case xml.EndElement:
-			switch t.Name.Local {
-			case "trans-unit", "unit":
-				currentUnitKey = ""
-			}
 		}
 	}
 }
