@@ -239,6 +239,13 @@
       "when": 1780180284805,
       "tag": "0033_talented_gamma_corps",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1780182581883,
+      "tag": "0034_superb_inhumans",
+      "breakpoints": true
     }
   ]
 }

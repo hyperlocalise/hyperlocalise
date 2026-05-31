@@ -1389,12 +1389,15 @@ export const githubRepositoryAutomationJobs = pgTable(
         pushSource: boolean;
         pullTranslations: boolean;
         validation: boolean;
+        validationBlockOnFailure?: boolean;
       }>()
       .notNull()
       .default(sql`'{"pushSource":false,"pullTranslations":false,"validation":false}'::jsonb`),
+    resultSummary: jsonb("result_summary").$type<Record<string, unknown>>(),
     githubDeliveryId: text("github_delivery_id"),
     scheduledRunAt: timestamp("scheduled_run_at", { withTimezone: true }),
     workflowRunId: text("workflow_run_id"),
+    githubCheckRunId: bigintText("github_check_run_id"),
     lastError: text("last_error"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -1414,6 +1417,45 @@ export const githubRepositoryAutomationJobs = pgTable(
       table.createdAt,
     ),
     index("idx_github_repository_automation_jobs_status").on(table.status),
+  ],
+);
+
+export const githubRepositoryAutomationCommitResultStatusEnum = pgEnum(
+  "github_repository_automation_commit_result_status",
+  ["skipped", "passed", "warning", "failed", "error"],
+);
+
+export const githubRepositoryAutomationCommitResults = pgTable(
+  "github_repository_automation_commit_results",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    jobId: uuid("job_id")
+      .notNull()
+      .references(() => githubRepositoryAutomationJobs.id, { onDelete: "cascade" }),
+    commitSha: text("commit_sha").notNull(),
+    parentCommitSha: text("parent_commit_sha"),
+    status: githubRepositoryAutomationCommitResultStatusEnum("status").notNull(),
+    skipReason: text("skip_reason"),
+    changedPaths: jsonb("changed_paths")
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
+    hlCheckReport: jsonb("hl_check_report").$type<Record<string, unknown>>(),
+    agentSummary: text("agent_summary"),
+    suggestedFixes: jsonb("suggested_fixes").$type<Record<string, unknown>[]>(),
+    logUrl: text("log_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("github_repository_automation_commit_results_job_commit").on(
+      table.jobId,
+      table.commitSha,
+    ),
+    index("idx_github_repository_automation_commit_results_job").on(table.jobId),
   ],
 );
 

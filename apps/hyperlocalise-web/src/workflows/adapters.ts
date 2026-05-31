@@ -10,6 +10,7 @@ import { providerAgentWritebackWorkflow } from "./provider-agent-writeback";
 import { providerWebhookReconciliationWorkflow } from "./provider-webhook-reconciliation";
 import { i18nSetupWorkflow } from "./i18n-setup";
 import { repositoryAgentWorkflow } from "./repository-agent";
+import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
 import { translationJobWorkflow } from "./translation-job";
 import type {
   EmailAgentTaskQueue,
@@ -67,6 +68,17 @@ export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
       return {
         ids: [run.runId],
       };
+    },
+  };
+}
+
+export function createGithubRepositoryAutomationQueue(): JobQueue<{
+  jobId: string;
+}> {
+  return {
+    async enqueue(event) {
+      const run = await start(githubRepositoryAutomationWorkflow, [event]);
+      return { ids: [run.runId] };
     },
   };
 }

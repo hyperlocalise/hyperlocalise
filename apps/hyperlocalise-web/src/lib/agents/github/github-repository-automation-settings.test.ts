@@ -17,7 +17,7 @@ describe("github repository automation settings", () => {
       workflows: {
         pushSource: { enabled: false },
         pullTranslations: { enabled: false },
-        validation: { enabled: false },
+        validation: { enabled: false, blockOnFailure: true },
       },
       trigger: null,
     });
@@ -29,7 +29,7 @@ describe("github repository automation settings", () => {
         workflows: {
           pushSource: { enabled: true },
           pullTranslations: { enabled: false },
-          validation: { enabled: false },
+          validation: { enabled: false, blockOnFailure: true },
         },
         trigger: null,
       }),
@@ -42,7 +42,7 @@ describe("github repository automation settings", () => {
         workflows: {
           pushSource: { enabled: true },
           pullTranslations: { enabled: false },
-          validation: { enabled: false },
+          validation: { enabled: false, blockOnFailure: true },
         },
         trigger: { mode: "push", branches: [] },
       }),
@@ -92,9 +92,34 @@ describe("github repository automation settings", () => {
         pushSource: true,
         pullTranslations: true,
         validation: false,
+        validationBlockOnFailure: true,
       },
       pushBranch: "release/2.0",
     });
+  });
+
+  it("includes validationBlockOnFailure when validation is enabled", () => {
+    const settings = mergeGithubRepositoryAutomationSettings(
+      DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS,
+      {
+        workflows: {
+          validation: { enabled: true, blockOnFailure: false },
+        },
+        trigger: { mode: "push", branches: ["main"] },
+      },
+    );
+
+    expect(
+      buildGithubRepoAutomationDispatchPayload({
+        configVersion: 1,
+        githubInstallationRepositoryId: "repo-row-id",
+        organizationId: "org-id",
+        githubRepositoryId: "101",
+        githubInstallationId: "987654",
+        settings,
+        pushBranch: "main",
+      })?.workflows.validationBlockOnFailure,
+    ).toBe(false);
   });
 
   it("computes the next scheduled run in the future", () => {

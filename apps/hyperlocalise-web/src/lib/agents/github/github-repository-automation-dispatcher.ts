@@ -16,6 +16,7 @@ import {
   claimGithubRepositoryAutomationJob,
   type GithubRepositoryAutomationJobRecord,
 } from "./github-repository-automation-jobs";
+import { enqueueGithubRepositoryAutomationValidationJob } from "./github-repository-automation-worker";
 
 const logger = createLogger("github-repo-automation-dispatch");
 
@@ -120,6 +121,10 @@ export async function dispatchGithubRepositoryAutomationForPush(
     "github repository automation job enqueued from push",
   );
 
+  if (dispatchPayload.workflows.validation && claim.job.status === "queued") {
+    await enqueueGithubRepositoryAutomationValidationJob({ jobId: claim.job.id });
+  }
+
   return {
     outcome: "enqueued",
     job: claim.job,
@@ -209,6 +214,10 @@ export async function dispatchGithubRepositoryAutomationForSchedule(
     },
     "github repository automation job enqueued from schedule",
   );
+
+  if (input.dispatchPayload.workflows.validation && claim.job.status === "queued") {
+    await enqueueGithubRepositoryAutomationValidationJob({ jobId: claim.job.id });
+  }
 
   return {
     outcome: "enqueued",

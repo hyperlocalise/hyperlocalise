@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -26,16 +26,35 @@ export type GithubRepositoryAutomationJobRecord = {
   commitBefore: string | null;
   commitAfter: string | null;
   workflows: GithubRepoAutomationDispatchPayload["workflows"];
+  resultSummary: Record<string, unknown> | null;
   githubDeliveryId: string | null;
   scheduledRunAt: string | null;
   workflowRunId: string | null;
+  githubCheckRunId: string | null;
   lastError: string | null;
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
 };
 
+export type GithubRepositoryAutomationJobWithRepository = GithubRepositoryAutomationJobRecord & {
+  organizationSlug: string | null;
+  repositoryFullName: string;
+  defaultBranch: string | null;
+};
+
 type JobRow = typeof schema.githubRepositoryAutomationJobs.$inferSelect;
+
+function normalizeJobWorkflows(
+  workflows: JobRow["workflows"],
+): GithubRepoAutomationDispatchPayload["workflows"] {
+  return {
+    pushSource: workflows.pushSource,
+    pullTranslations: workflows.pullTranslations,
+    validation: workflows.validation,
+    validationBlockOnFailure: workflows.validationBlockOnFailure ?? true,
+  };
+}
 
 function serializeJob(row: JobRow): GithubRepositoryAutomationJobRecord {
   return {
@@ -52,10 +71,12 @@ function serializeJob(row: JobRow): GithubRepositoryAutomationJobRecord {
     triggerBranch: row.triggerBranch,
     commitBefore: row.commitBefore,
     commitAfter: row.commitAfter,
-    workflows: row.workflows,
+    workflows: normalizeJobWorkflows(row.workflows),
+    resultSummary: (row.resultSummary as Record<string, unknown> | null) ?? null,
     githubDeliveryId: row.githubDeliveryId,
     scheduledRunAt: row.scheduledRunAt?.toISOString() ?? null,
     workflowRunId: row.workflowRunId,
+    githubCheckRunId: row.githubCheckRunId,
     lastError: row.lastError,
     createdAt: row.createdAt.toISOString(),
     updatedAt: row.updatedAt.toISOString(),
@@ -139,11 +160,87 @@ export async function claimGithubRepositoryAutomationJob(input: {
   return { inserted: false, job: serializeJob(existing) };
 }
 
+export async function getGithubRepositoryAutomationJobById(
+  jobId: string,
+): Promise<GithubRepositoryAutomationJobWithRepository | null> {
+  const [row] = await db
+    .select({
+      job: schema.githubRepositoryAutomationJobs,
+      repository: schema.githubInstallationRepositories,
+      organizationSlug: schema.organizations.slug,
+    })
+    .from(schema.githubRepositoryAutomationJobs)
+    .innerJoin(
+      schema.githubInstallationRepositories,
+      eq(
+        schema.githubRepositoryAutomationJobs.githubInstallationRepositoryId,
+        schema.githubInstallationRepositories.id,
+      ),
+    )
+    .innerJoin(
+      schema.organizations,
+      eq(schema.githubRepositoryAutomationJobs.organizationId, schema.organizations.id),
+    )
+    .where(eq(schema.githubRepositoryAutomationJobs.id, jobId))
+    .limit(1);
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    ...serializeJob(row.job),
+    organizationSlug: row.organizationSlug,
+    repositoryFullName: row.repository.fullName,
+    defaultBranch: row.repository.defaultBranch,
+  };
+}
+
+export async function listQueuedGithubRepositoryAutomationJobs(input: {
+  limit?: number;
+}): Promise<GithubRepositoryAutomationJobRecord[]> {
+  const rows = await db
+    .select()
+    .from(schema.githubRepositoryAutomationJobs)
+    .where(eq(schema.githubRepositoryAutomationJobs.status, "queued"))
+    .orderBy(asc(schema.githubRepositoryAutomationJobs.createdAt))
+    .limit(input.limit ?? 20);
+
+  return rows.map(serializeJob);
+}
+
+export async function claimGithubRepositoryAutomationJobForRunning(input: {
+  jobId: string;
+  workflowRunId?: string | null;
+}): Promise<GithubRepositoryAutomationJobRecord | null> {
+  const [row] = await db
+    .update(schema.githubRepositoryAutomationJobs)
+    .set({
+      status: "running",
+      workflowRunId: input.workflowRunId ?? null,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.githubRepositoryAutomationJobs.id, input.jobId),
+        eq(schema.githubRepositoryAutomationJobs.status, "queued"),
+      ),
+    )
+    .returning();
+
+  return row ? serializeJob(row) : null;
+}
+
 export async function updateGithubRepositoryAutomationJobStatus(input: {
   jobId: string;
   status: GithubRepositoryAutomationJobStatus;
   workflowRunId?: string | null;
+  skipReason?: string | null;
   lastError?: string | null;
+  resultSummary?: Record<string, unknown> | null;
+  githubCheckRunId?: string | null;
+  commitBefore?: string | null;
+  commitAfter?: string | null;
 }) {
   const isTerminal =
     input.status === "succeeded" || input.status === "failed" || input.status === "skipped";
@@ -153,9 +250,38 @@ export async function updateGithubRepositoryAutomationJobStatus(input: {
     .set({
       status: input.status,
       workflowRunId: input.workflowRunId,
-      lastError: input.lastError,
+      skipReason: input.skipReason,
+      lastError: input.lastError ?? null,
+      resultSummary: input.resultSummary ?? null,
+      githubCheckRunId: input.githubCheckRunId,
+      ...(input.commitBefore !== undefined ? { commitBefore: input.commitBefore } : {}),
+      ...(input.commitAfter !== undefined ? { commitAfter: input.commitAfter } : {}),
       completedAt: isTerminal ? new Date() : null,
       updatedAt: new Date(),
     })
     .where(eq(schema.githubRepositoryAutomationJobs.id, input.jobId));
+}
+
+export async function findLatestSucceededCommitAfter(input: {
+  githubInstallationRepositoryId: string;
+  triggerBranch: string;
+}): Promise<string | null> {
+  const [row] = await db
+    .select({ commitAfter: schema.githubRepositoryAutomationJobs.commitAfter })
+    .from(schema.githubRepositoryAutomationJobs)
+    .where(
+      and(
+        eq(
+          schema.githubRepositoryAutomationJobs.githubInstallationRepositoryId,
+          input.githubInstallationRepositoryId,
+        ),
+        eq(schema.githubRepositoryAutomationJobs.triggerBranch, input.triggerBranch),
+        eq(schema.githubRepositoryAutomationJobs.status, "succeeded"),
+        isNotNull(schema.githubRepositoryAutomationJobs.commitAfter),
+      ),
+    )
+    .orderBy(desc(schema.githubRepositoryAutomationJobs.createdAt))
+    .limit(1);
+
+  return row?.commitAfter ?? null;
 }
