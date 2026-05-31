@@ -11,7 +11,7 @@ describe("MessageBranch Navigation Tooltips", () => {
         <MessageBranch>
           <MessageBranchPrevious />
         </MessageBranch>
-      </TooltipProvider>
+      </TooltipProvider>,
     );
 
     expect(markup).toContain('data-slot="tooltip-trigger"');
@@ -28,7 +28,7 @@ describe("MessageBranch Navigation Tooltips", () => {
         <MessageBranch>
           <MessageBranchNext />
         </MessageBranch>
-      </TooltipProvider>
+      </TooltipProvider>,
     );
 
     expect(markup).toContain('data-slot="tooltip-trigger"');
