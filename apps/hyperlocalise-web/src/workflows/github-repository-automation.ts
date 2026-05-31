@@ -51,6 +51,24 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
     throw new Error("github_repository_automation_job_not_found");
   }
 
+  if (!job.workflows.pushSource && !job.workflows.validation && !job.workflows.pullTranslations) {
+    await updateGithubRepositoryAutomationJobStatus({
+      jobId: job.id,
+      status: "skipped",
+      skipReason: "no_runnable_workflows",
+    });
+    return { skipped: true, reason: "no_runnable_workflows" };
+  }
+
+  if (!job.workflows.pushSource && !job.workflows.validation) {
+    await updateGithubRepositoryAutomationJobStatus({
+      jobId: job.id,
+      status: "skipped",
+      skipReason: "pull_translations_not_implemented",
+    });
+    return { skipped: true, reason: "pull_translations_not_implemented" };
+  }
+
   const results: Record<string, unknown> = {};
   const needsCommitRange = job.workflows.pushSource || job.workflows.validation;
   let commitRange: GithubRepositoryAutomationCommitRange | undefined;
@@ -91,24 +109,6 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
       workflowRunId: input.workflowRunId,
       commitRange,
     });
-  }
-
-  if (!job.workflows.pushSource && !job.workflows.validation && !job.workflows.pullTranslations) {
-    await updateGithubRepositoryAutomationJobStatus({
-      jobId: job.id,
-      status: "skipped",
-      skipReason: "no_runnable_workflows",
-    });
-    return { skipped: true, reason: "no_runnable_workflows" };
-  }
-
-  if (!job.workflows.pushSource && !job.workflows.validation) {
-    await updateGithubRepositoryAutomationJobStatus({
-      jobId: job.id,
-      status: "skipped",
-      skipReason: "pull_translations_not_implemented",
-    });
-    return { skipped: true, reason: "pull_translations_not_implemented" };
   }
 
   return results;

@@ -18,7 +18,6 @@ import { updateGithubRepositoryAutomationJobStatus } from "./github-repository-a
 import { resolveGithubRepositoryAutomationProjectId } from "./github-repository-automation-project";
 import { getGithubRepositoryAutomationSettings } from "./github-repository-automation-settings-store";
 import {
-  checkoutCommitInSandbox,
   createGithubRepositoryAutomationSandbox,
   runGitDiffInSandbox,
   runGitLogInSandbox,
@@ -29,10 +28,6 @@ const logger = createLogger("github-repo-automation-push-source");
 
 export type GithubRepositoryAutomationPushSourceSummary = {
   totalCommits: number;
-  uploadedFiles: number;
-  skippedFiles: number;
-  failedFiles: number;
-  unchangedFiles: number;
   counts: {
     uploaded: number;
     skipped: number;
@@ -77,15 +72,9 @@ function buildPushSourceSummary(input: {
   totalCommits: number;
   fileResults: Awaited<ReturnType<typeof uploadRepositorySourceFilesFromSandbox>>;
 }): GithubRepositoryAutomationPushSourceSummary {
-  const counts = summarizePushSourceResults(input.fileResults);
-
   return {
     totalCommits: input.totalCommits,
-    uploadedFiles: counts.uploaded,
-    skippedFiles: counts.skipped,
-    failedFiles: counts.failed,
-    unchangedFiles: counts.unchanged,
-    counts,
+    counts: summarizePushSourceResults(input.fileResults),
   };
 }
 
@@ -218,8 +207,6 @@ export async function runGithubRepositoryAutomationPushSource(input: {
       return { skipped: true, reason: "no_relevant_source_file_changes" };
     }
 
-    await checkoutCommitInSandbox(sandboxId, commitAfter);
-
     const fileResults = await uploadRepositorySourceFilesFromSandbox({
       sandboxId,
       organizationId: job.organizationId,
@@ -235,7 +222,7 @@ export async function runGithubRepositoryAutomationPushSource(input: {
       fileResults,
     });
 
-    const finalStatus = summary.failedFiles > 0 ? "failed" : "succeeded";
+    const finalStatus = summary.counts.failed > 0 ? "failed" : "succeeded";
 
     await updateGithubRepositoryAutomationJobStatus({
       jobId: job.id,
@@ -247,9 +234,7 @@ export async function runGithubRepositoryAutomationPushSource(input: {
     logger.info(
       {
         jobId: job.id,
-        uploadedFiles: summary.uploadedFiles,
-        skippedFiles: summary.skippedFiles,
-        failedFiles: summary.failedFiles,
+        counts: summary.counts,
       },
       "github repository automation push source completed",
     );

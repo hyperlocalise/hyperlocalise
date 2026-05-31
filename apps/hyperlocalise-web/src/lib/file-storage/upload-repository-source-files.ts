@@ -1,5 +1,6 @@
 import { db } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
+import { createLogger } from "@/lib/log";
 import {
   createRepositorySourceFileVersion,
   createStoredFile,
@@ -10,6 +11,8 @@ import {
 import { sourceContentType, sourceFilename } from "@/lib/file-storage/source-file-metadata";
 import { runSandboxCommand } from "@/lib/translation/sandbox-translation";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
+
+const logger = createLogger("upload-repository-source-files");
 
 export type UploadRepositorySourceFileResult =
   | {
@@ -47,7 +50,7 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
     if (!inferSupportedFileTranslationFileFormat(normalizedPath)) {
       results.push({
         path: normalizedPath,
-        outcome: "failed",
+        outcome: "skipped",
         reason: "unsupported_source_file_format",
       });
       continue;
@@ -133,10 +136,20 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
         fileId: storedFile.id,
         sourceFileVersionId: version.id,
       });
-    } catch {
+    } catch (error) {
       if (uploadedStorageKey) {
         await adapter.delete({ keyOrUrl: uploadedStorageKey }).catch(() => undefined);
       }
+
+      logger.error(
+        {
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          reason: "failed_to_store_source_file",
+          err: error,
+        },
+        "failed to store repository source file",
+      );
 
       results.push({
         path: normalizedPath,
