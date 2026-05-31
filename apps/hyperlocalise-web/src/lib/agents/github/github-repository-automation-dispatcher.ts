@@ -16,7 +16,8 @@ import {
   claimGithubRepositoryAutomationJob,
   type GithubRepositoryAutomationJobRecord,
 } from "./github-repository-automation-jobs";
-import { enqueueGithubRepositoryAutomationValidationJob } from "./github-repository-automation-worker";
+import { enqueueGithubRepositoryAutomationJob } from "./github-repository-automation-worker";
+import { githubRepositoryAutomationJobHasRunnableWorkflow } from "./github-repository-automation-workflows";
 
 const logger = createLogger("github-repo-automation-dispatch");
 
@@ -121,8 +122,11 @@ export async function dispatchGithubRepositoryAutomationForPush(
     "github repository automation job enqueued from push",
   );
 
-  if (dispatchPayload.workflows.validation && claim.job.status === "queued") {
-    await enqueueGithubRepositoryAutomationValidationJob({ jobId: claim.job.id });
+  if (
+    githubRepositoryAutomationJobHasRunnableWorkflow(dispatchPayload.workflows) &&
+    claim.job.status === "queued"
+  ) {
+    await enqueueGithubRepositoryAutomationJob({ jobId: claim.job.id });
   }
 
   return {
@@ -215,8 +219,11 @@ export async function dispatchGithubRepositoryAutomationForSchedule(
     "github repository automation job enqueued from schedule",
   );
 
-  if (input.dispatchPayload.workflows.validation && claim.job.status === "queued") {
-    await enqueueGithubRepositoryAutomationValidationJob({ jobId: claim.job.id });
+  if (
+    githubRepositoryAutomationJobHasRunnableWorkflow(input.dispatchPayload.workflows) &&
+    claim.job.status === "queued"
+  ) {
+    await enqueueGithubRepositoryAutomationJob({ jobId: claim.job.id });
   }
 
   return {

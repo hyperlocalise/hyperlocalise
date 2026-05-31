@@ -151,6 +151,16 @@ export function pathMatchesLocalisationPatterns(
   );
 }
 
+export function filterPathsToSourceScope(
+  paths: string[],
+  patterns: I18nBucketFilePatterns,
+): string[] {
+  return filterPathsToLocalisationScope(paths, {
+    sourcePatterns: patterns.sourcePatterns,
+    targetPatterns: [],
+  });
+}
+
 export function filterPathsToLocalisationScope(
   paths: string[],
   patterns: I18nBucketFilePatterns,

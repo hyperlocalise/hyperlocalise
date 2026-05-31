@@ -21,7 +21,12 @@ export const i18nSetupRunIdParamSchema = z.object({
 const githubRepositoryAutomationSettingsPartialSchema = z.object({
   workflows: z
     .object({
-      pushSource: z.object({ enabled: z.boolean().optional() }).optional(),
+      pushSource: z
+        .object({
+          enabled: z.boolean().optional(),
+          projectId: z.string().trim().min(1).optional(),
+        })
+        .optional(),
       pullTranslations: z.object({ enabled: z.boolean().optional() }).optional(),
       validation: z.object({ enabled: z.boolean().optional() }).optional(),
     })

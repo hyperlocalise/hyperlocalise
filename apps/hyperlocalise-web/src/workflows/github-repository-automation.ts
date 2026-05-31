@@ -6,6 +6,7 @@ import {
   getGithubRepositoryAutomationJobById,
   updateGithubRepositoryAutomationJobStatus,
 } from "@/lib/agents/github/github-repository-automation-jobs";
+import { runGithubRepositoryAutomationPushSource } from "@/lib/agents/github/github-repository-automation-push-source";
 import { runGithubRepositoryAutomationValidation } from "@/lib/agents/github/github-repository-automation-validation";
 
 async function loadJobStep(jobId: string) {
@@ -38,7 +39,7 @@ async function claimJobStep(input: { jobId: string; workflowRunId: string }) {
   return claimed;
 }
 
-async function validateJobStep(input: { jobId: string; workflowRunId: string }) {
+async function runAutomationJobStep(input: { jobId: string; workflowRunId: string }) {
   "use step";
 
   const job = await getGithubRepositoryAutomationJobById(input.jobId);
@@ -46,10 +47,41 @@ async function validateJobStep(input: { jobId: string; workflowRunId: string }) 
     throw new Error("github_repository_automation_job_not_found");
   }
 
-  return runGithubRepositoryAutomationValidation({
-    job,
-    workflowRunId: input.workflowRunId,
-  });
+  const results: Record<string, unknown> = {};
+
+  if (job.workflows.pushSource) {
+    results.pushSource = await runGithubRepositoryAutomationPushSource({
+      job,
+      workflowRunId: input.workflowRunId,
+    });
+  }
+
+  if (job.workflows.validation) {
+    results.validation = await runGithubRepositoryAutomationValidation({
+      job,
+      workflowRunId: input.workflowRunId,
+    });
+  }
+
+  if (!job.workflows.pushSource && !job.workflows.validation && !job.workflows.pullTranslations) {
+    await updateGithubRepositoryAutomationJobStatus({
+      jobId: job.id,
+      status: "skipped",
+      skipReason: "no_runnable_workflows",
+    });
+    return { skipped: true, reason: "no_runnable_workflows" };
+  }
+
+  if (!job.workflows.pushSource && !job.workflows.validation) {
+    await updateGithubRepositoryAutomationJobStatus({
+      jobId: job.id,
+      status: "skipped",
+      skipReason: "pull_translations_not_implemented",
+    });
+    return { skipped: true, reason: "pull_translations_not_implemented" };
+  }
+
+  return results;
 }
 
 export async function githubRepositoryAutomationWorkflow(
@@ -86,5 +118,5 @@ export async function githubRepositoryAutomationWorkflow(
     };
   }
 
-  return validateJobStep({ jobId: event.jobId, workflowRunId });
+  return runAutomationJobStep({ jobId: event.jobId, workflowRunId });
 }

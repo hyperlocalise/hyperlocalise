@@ -37,7 +37,12 @@ export const githubRepoAutomationValidationWorkflowSchema = z
   .default({ enabled: false, blockOnFailure: true });
 
 export const githubRepoAutomationWorkflowsSchema = z.object({
-  pushSource: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
+  pushSource: z
+    .object({
+      enabled: z.boolean().default(false),
+      projectId: z.string().trim().min(1).optional(),
+    })
+    .default({ enabled: false }),
   pullTranslations: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
   validation: githubRepoAutomationValidationWorkflowSchema,
 });
@@ -56,7 +61,7 @@ export type GithubRepositoryAutomationSettings = z.infer<
 >;
 export type GithubRepositoryAutomationSettingsPartial = {
   workflows?: {
-    pushSource?: { enabled?: boolean };
+    pushSource?: { enabled?: boolean; projectId?: string };
     pullTranslations?: { enabled?: boolean };
     validation?: { enabled?: boolean; blockOnFailure?: boolean };
   };
@@ -69,7 +74,12 @@ export const DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS: GithubRepositoryAuto
 const githubRepositoryAutomationSettingsPartialSchema = z.object({
   workflows: z
     .object({
-      pushSource: z.object({ enabled: z.boolean().optional() }).optional(),
+      pushSource: z
+        .object({
+          enabled: z.boolean().optional(),
+          projectId: z.string().trim().min(1).optional(),
+        })
+        .optional(),
       pullTranslations: z.object({ enabled: z.boolean().optional() }).optional(),
       validation: z
         .object({
@@ -112,6 +122,7 @@ export function mergeGithubRepositoryAutomationSettings(
     workflows: {
       pushSource: {
         enabled: override.workflows?.pushSource?.enabled ?? base.workflows.pushSource.enabled,
+        projectId: override.workflows?.pushSource?.projectId ?? base.workflows.pushSource.projectId,
       },
       pullTranslations: {
         enabled:

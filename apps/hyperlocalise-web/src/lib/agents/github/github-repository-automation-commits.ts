@@ -2,6 +2,7 @@ import type { HlCheckReport } from "@/lib/providers/provider-job-qa/hl-check-typ
 
 import {
   filterPathsToLocalisationScope,
+  filterPathsToSourceScope,
   type I18nBucketFilePatterns,
 } from "./github-repository-automation-localisation-paths";
 
@@ -130,6 +131,21 @@ export function classifyHlCheckReport(report: HlCheckReport): "passed" | "warnin
   }
 
   return "passed";
+}
+
+export function shouldSkipCommitForSourcePaths(input: {
+  changedPaths: string[];
+  patterns: I18nBucketFilePatterns;
+}): { skipped: true; reason: string } | { skipped: false; paths: string[] } {
+  const scopedPaths = filterPathsToSourceScope(input.changedPaths, input.patterns);
+  if (scopedPaths.length === 0) {
+    return {
+      skipped: true,
+      reason: "no_configured_source_paths_changed",
+    };
+  }
+
+  return { skipped: false, paths: scopedPaths };
 }
 
 export function shouldSkipCommitForPaths(input: {

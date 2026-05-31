@@ -9,6 +9,7 @@ import {
   parseCommitLogLines,
   parseNameOnlyDiffPaths,
   shouldSkipCommitForPaths,
+  shouldSkipCommitForSourcePaths,
 } from "./github-repository-automation-commits";
 
 describe("github repository automation commits", () => {
@@ -85,6 +86,33 @@ describe("github repository automation commits", () => {
     expect(
       shouldSkipCommitForPaths({
         changedPaths: ["locales/en.json", "README.md"],
+        patterns,
+      }),
+    ).toEqual({
+      skipped: false,
+      paths: ["locales/en.json"],
+    });
+  });
+
+  it("skips commits without configured source path changes", () => {
+    const patterns = {
+      sourcePatterns: ["locales/en.json"],
+      targetPatterns: ["locales/{{locale}}.json"],
+    };
+
+    expect(
+      shouldSkipCommitForSourcePaths({
+        changedPaths: ["locales/fr.json"],
+        patterns,
+      }),
+    ).toEqual({
+      skipped: true,
+      reason: "no_configured_source_paths_changed",
+    });
+
+    expect(
+      shouldSkipCommitForSourcePaths({
+        changedPaths: ["locales/en.json"],
         patterns,
       }),
     ).toEqual({
