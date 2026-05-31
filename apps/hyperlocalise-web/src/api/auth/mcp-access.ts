@@ -1,4 +1,5 @@
 import type { McpAuthVariables } from "@/api/auth/mcp";
+import { enrichAuthContextWithCapabilities } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
@@ -18,7 +19,7 @@ export function apiAuthContextFromMcpAuth(mcpAuth: McpAuthVariables["mcpAuth"]):
     },
   };
 
-  return {
+  return enrichAuthContextWithCapabilities({
     user: {
       workosUserId: mcpAuth.user.workosUserId,
       localUserId: mcpAuth.user.localUserId,
@@ -29,6 +30,5 @@ export function apiAuthContextFromMcpAuth(mcpAuth: McpAuthVariables["mcpAuth"]):
     activeOrganization: organization,
     membership: organization.membership,
     activeTeam: null,
-    capabilities: [],
-  };
+  });
 }

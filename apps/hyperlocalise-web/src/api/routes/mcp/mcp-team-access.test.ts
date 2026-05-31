@@ -2,6 +2,7 @@ import "dotenv/config";
 
 import { createHash } from "node:crypto";
 
+import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthorizationCode } from "@/api/auth/mcp";
@@ -35,6 +36,8 @@ const app = createApp();
 const client = testClient(app);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
+
+let trackedMemberLocalUserId: string | null = null;
 
 function pkceChallenge(verifier: string) {
   return createHash("sha256").update(verifier).digest("base64url");
@@ -113,6 +116,15 @@ beforeAll(async () => {
 
 afterEach(async () => {
   vi.clearAllMocks();
+
+  if (trackedMemberLocalUserId) {
+    await db
+      .delete(schema.teamMemberships)
+      .where(eq(schema.teamMemberships.userId, trackedMemberLocalUserId));
+    await db.delete(schema.mcpSessions).where(eq(schema.mcpSessions.userId, trackedMemberLocalUserId));
+    trackedMemberLocalUserId = null;
+  }
+
   await projectFixture.cleanup();
   await db.delete(schema.usedAuthorizationCodes);
 });
@@ -134,9 +146,10 @@ describe("MCP team-scoped access", () => {
     const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "MCP Beta" });
     const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
 
+    trackedMemberLocalUserId = await projectFixture.getLocalUserId(member.user.workosUserId);
     await db.insert(schema.teamMemberships).values({
       teamId: teamAlphaBody.team.id,
-      userId: await projectFixture.getLocalUserId(member.user.workosUserId),
+      userId: trackedMemberLocalUserId,
       role: "member",
     });
 
