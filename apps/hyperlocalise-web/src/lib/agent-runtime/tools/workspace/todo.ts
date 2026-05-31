@@ -1,7 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
-import { ensureAgentSession, type AgentTodoItem } from "@/lib/tools/types";
+import { ensureAgentSession, type AgentTodoItem } from "@/lib/agent-contracts/tool-context";
 
 const todoItemSchema = z.object({
   id: z.string(),

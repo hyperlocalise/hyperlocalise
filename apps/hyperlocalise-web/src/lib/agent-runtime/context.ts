@@ -1,7 +1,7 @@
 import type { HyperlocaliseAgentSurface } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import type { HyperlocaliseConversationMode } from "@/lib/agent-runtime/loops/conversation-mode";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 /**
  * Request-scoped runtime state shared by the orchestrator and task tool.
