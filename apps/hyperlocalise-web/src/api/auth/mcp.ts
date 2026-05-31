@@ -13,6 +13,7 @@ import type { EvlogVariables } from "evlog/hono";
 
 import { forbiddenResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
+import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
 
 export type McpAuthVariables = EvlogVariables["Variables"] & {
@@ -27,6 +28,10 @@ export type McpAuthVariables = EvlogVariables["Variables"] & {
       workosOrganizationId: string;
       name: string;
       slug: string | null;
+    };
+    membership: {
+      workosMembershipId: string | null;
+      role: OrganizationMembershipRole;
     };
     session: {
       id: string;
@@ -291,6 +296,8 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
         organizationName: schema.organizations.name,
         organizationSlug: schema.organizations.slug,
         lifecycleStatus: schema.organizations.lifecycleStatus,
+        membershipRole: schema.organizationMemberships.role,
+        workosMembershipId: schema.organizationMemberships.workosMembershipId,
       })
       .from(schema.mcpSessions)
       .innerJoin(schema.users, eq(schema.mcpSessions.userId, schema.users.id))
@@ -333,6 +340,10 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
         workosOrganizationId: session.workosOrganizationId,
         name: session.organizationName,
         slug: session.organizationSlug,
+      },
+      membership: {
+        workosMembershipId: session.workosMembershipId,
+        role: session.membershipRole,
       },
       session: {
         id: session.id,

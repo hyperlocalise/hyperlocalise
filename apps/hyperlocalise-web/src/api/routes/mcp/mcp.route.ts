@@ -9,6 +9,13 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { z } from "zod";
 
+import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
+import {
+  buildAccessibleProjectsWhere,
+  buildProjectLinkedGlossaryWhere,
+  canAccessGlossary,
+  ownedProjectWhere,
+} from "@/api/auth/team-access";
 import {
   createAuthorizationCode,
   createMcpAuthorizationRequest,
@@ -262,6 +269,7 @@ const mcpAuthEnabledMiddleware = createMiddleware(async (c, next) => {
 });
 
 async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
+  const apiAuth = apiAuthContextFromMcpAuth(auth);
   const server = new McpServer({
     name: "hyperlocalise",
     version: "0.1.0",
@@ -286,7 +294,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           updatedAt: schema.projects.updatedAt,
         })
         .from(schema.projects)
-        .where(eq(schema.projects.organizationId, auth.organization.localOrganizationId))
+        .where(await buildAccessibleProjectsWhere(apiAuth))
         .orderBy(desc(schema.projects.createdAt))
         .limit(limit);
 
@@ -315,12 +323,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           updatedAt: schema.projects.updatedAt,
         })
         .from(schema.projects)
-        .where(
-          and(
-            eq(schema.projects.id, projectId),
-            eq(schema.projects.organizationId, auth.organization.localOrganizationId),
-          ),
-        )
+        .where(await ownedProjectWhere(apiAuth, projectId))
         .limit(1);
 
       return {
@@ -348,7 +351,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
           status: schema.glossaries.status,
         })
         .from(schema.glossaries)
-        .where(eq(schema.glossaries.organizationId, auth.organization.localOrganizationId))
+        .where(await buildProjectLinkedGlossaryWhere(apiAuth))
         .orderBy(desc(schema.glossaries.createdAt))
         .limit(limit);
 
@@ -368,16 +371,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
       }),
     },
     async ({ glossaryId, limit }) => {
-      const [glossary] = await db
-        .select({ id: schema.glossaries.id })
-        .from(schema.glossaries)
-        .where(
-          and(
-            eq(schema.glossaries.id, glossaryId),
-            eq(schema.glossaries.organizationId, auth.organization.localOrganizationId),
-          ),
-        )
-        .limit(1);
+      const glossary = await canAccessGlossary(apiAuth, glossaryId);
 
       if (!glossary) {
         return {
