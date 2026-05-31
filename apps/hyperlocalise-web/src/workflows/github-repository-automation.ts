@@ -16,7 +16,7 @@ import { isErr } from "@/lib/primitives/result/results";
 import {
   completeGithubRepositoryAutomationCheckRun,
   createGithubRepositoryAutomationCheckRun,
-  type GithubRepositoryAutomationCheckConclusion,
+  resolveGithubAutomationCheckConclusion as resolveGithubAutomationCheckConclusionFromMode,
 } from "@/lib/agents/github/github-repository-automation-check-run";
 import { runGithubRepositoryAutomationPullTranslations } from "@/lib/agents/github/github-repository-automation-pull-translations";
 import { runGithubRepositoryAutomationPushSource } from "@/lib/agents/github/github-repository-automation-push-source";
@@ -61,16 +61,11 @@ export function shouldPublishGithubAutomationCheckRun(
 export function resolveGithubAutomationCheckConclusion(input: {
   job: GithubRepositoryAutomationJobWithRepository;
   status: "succeeded" | "failed" | "skipped";
-}): GithubRepositoryAutomationCheckConclusion {
-  if (input.status === "succeeded") {
-    return "success";
-  }
-
-  if (input.status === "skipped") {
-    return "skipped";
-  }
-
-  return input.job.workflows.statusCheck.mode === "advisory" ? "neutral" : "failure";
+}) {
+  return resolveGithubAutomationCheckConclusionFromMode({
+    statusCheckMode: input.job.workflows.statusCheck.mode,
+    status: input.status,
+  });
 }
 
 function buildGithubAutomationCheckSummary(input: {
@@ -268,14 +263,12 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
     return results;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    if (!job.workflows.validation) {
-      await completeGithubAutomationCheckRunForJob({
-        jobId: job.id,
-        checkRunId,
-        terminalStatus: "failed",
-        lastError: message,
-      }).catch(() => undefined);
-    }
+    await completeGithubAutomationCheckRunForJob({
+      jobId: job.id,
+      checkRunId,
+      terminalStatus: "failed",
+      lastError: message,
+    }).catch(() => undefined);
     throw error;
   }
 }

@@ -10,6 +10,21 @@ export type GithubRepositoryAutomationCheckConclusion =
   | "neutral"
   | "skipped";
 
+export function resolveGithubAutomationCheckConclusion(input: {
+  statusCheckMode: "advisory" | "blocking";
+  status: "succeeded" | "failed" | "skipped";
+}): GithubRepositoryAutomationCheckConclusion {
+  if (input.status === "succeeded") {
+    return "success";
+  }
+
+  if (input.status === "skipped") {
+    return "skipped";
+  }
+
+  return input.statusCheckMode === "advisory" ? "neutral" : "failure";
+}
+
 function parseRepositoryFullName(fullName: string): { owner: string; repo: string } {
   const [owner, repo] = fullName.split("/");
   if (!owner || !repo) {

@@ -1,6 +1,35 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { buildGithubRepositoryAutomationJobDetailsUrl } from "./github-repository-automation-check-run";
+import {
+  buildGithubRepositoryAutomationJobDetailsUrl,
+  resolveGithubAutomationCheckConclusion,
+} from "./github-repository-automation-check-run";
+
+describe("github repository automation check run conclusions", () => {
+  it("fails blocking checks when automation fails", () => {
+    expect(
+      resolveGithubAutomationCheckConclusion({ statusCheckMode: "blocking", status: "failed" }),
+    ).toBe("failure");
+  });
+
+  it("keeps advisory checks neutral when automation fails", () => {
+    expect(
+      resolveGithubAutomationCheckConclusion({ statusCheckMode: "advisory", status: "failed" }),
+    ).toBe("neutral");
+  });
+
+  it("resolves successful automation explicitly", () => {
+    expect(
+      resolveGithubAutomationCheckConclusion({ statusCheckMode: "blocking", status: "succeeded" }),
+    ).toBe("success");
+  });
+
+  it("resolves skipped automation explicitly", () => {
+    expect(
+      resolveGithubAutomationCheckConclusion({ statusCheckMode: "blocking", status: "skipped" }),
+    ).toBe("skipped");
+  });
+});
 
 describe("github repository automation check runs", () => {
   it("returns the org integrations page with job context", async () => {
