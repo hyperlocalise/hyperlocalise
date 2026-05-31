@@ -97,9 +97,14 @@ describe("capability guards", () => {
     });
 
     it("requires AI execution for other provider actions", () => {
-      expect(isJobProviderActionAllowed("translator", "qa_check")).toBe(true);
-      expect(isJobProviderActionAllowed("member", "qa_check")).toBe(false);
+      expect(isJobProviderActionAllowed("translator", "run_qa_checks")).toBe(true);
+      expect(isJobProviderActionAllowed("member", "run_qa_checks")).toBe(false);
       expect(isJobProviderActionAllowed("reviewer", "review_with_agent")).toBe(true);
+    });
+
+    it("denies unrecognised provider action ids", () => {
+      expect(isJobProviderActionAllowed("translator", "qa_check")).toBe(false);
+      expect(isJobProviderActionAllowed("admin", "unknown_action")).toBe(false);
     });
   });
 });

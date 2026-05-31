@@ -146,6 +146,14 @@ export function getJobProviderActionAvailability(providerKind: string) {
   );
 }
 
+const jobProviderActionIds = new Set(
+  jobProviderActionDefinitions.map((definition) => definition.id),
+);
+
+export function isJobProviderActionId(value: string): value is JobProviderActionId {
+  return jobProviderActionIds.has(value as JobProviderActionId);
+}
+
 export function getJobProviderActionDefinition(actionId: JobProviderActionId) {
   return jobProviderActionDefinitions.find((action) => action.id === actionId) ?? null;
 }

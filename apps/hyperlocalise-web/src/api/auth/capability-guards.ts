@@ -1,5 +1,10 @@
 import { hasCapability, type OrganizationCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import {
+  isJobProviderActionId,
+  type JobProviderActionId,
+} from "@/lib/providers/job-provider-actions";
 
 export function roleHasCapability(
   role: OrganizationMembershipRole,
@@ -54,14 +59,32 @@ export function isProviderCredentialReadAllowed(role: OrganizationMembershipRole
   return hasCapability(role, "provider_credentials:read");
 }
 
+function isKnownJobProviderActionAllowed(
+  role: OrganizationMembershipRole,
+  action: JobProviderActionId,
+): boolean {
+  switch (action) {
+    case "push_approved_changes":
+      return isWriteBackApproveAllowed(role);
+    case "translate_with_agent":
+    case "review_with_agent":
+    case "run_qa_checks":
+    case "fix_qa_issues":
+    case "leave_provider_comment":
+      return isAiActionAllowed(role);
+    default:
+      return assertNever(action);
+  }
+}
+
 /** Provider job agent actions: write-back approval vs AI execution. */
 export function isJobProviderActionAllowed(
   role: OrganizationMembershipRole,
   action: string,
 ): boolean {
-  if (action === "push_approved_changes") {
-    return isWriteBackApproveAllowed(role);
+  if (!isJobProviderActionId(action)) {
+    return false;
   }
 
-  return isAiActionAllowed(role);
+  return isKnownJobProviderActionAllowed(role, action);
 }

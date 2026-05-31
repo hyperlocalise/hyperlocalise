@@ -30,6 +30,21 @@ async function main() {
         `Added ${permissionResult.rolePermissionsAdded.length} missing role permission assignments`,
       );
     }
+
+    if (
+      permissionResult.permissionsCreated.length === 0 &&
+      permissionResult.rolePermissionsAdded.length === 0
+    ) {
+      console.log(
+        `WorkOS permissions unchanged (${permissionResult.permissionsUnchanged.length}): ${permissionResult.permissionsUnchanged.join(", ")}`,
+      );
+    }
+
+    if (permissionResult.rolesSkipped.length > 0) {
+      console.log(
+        `Skipped WorkOS role permission sync for missing environment roles: ${permissionResult.rolesSkipped.join(", ")}`,
+      );
+    }
   }
 }
 

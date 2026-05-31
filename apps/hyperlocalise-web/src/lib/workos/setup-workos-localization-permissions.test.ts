@@ -56,6 +56,7 @@ describe("setupWorkosLocalizationPermissions", () => {
       permissionsCreated: [],
       permissionsUnchanged: [],
       rolePermissionsAdded: [],
+      rolesSkipped: [],
       skipped: true,
     });
 
@@ -126,8 +127,39 @@ describe("setupWorkosLocalizationPermissions", () => {
 
     expect(result.permissionsCreated).toEqual([]);
     expect(result.rolePermissionsAdded).toEqual([]);
+    expect(result.rolesSkipped).toEqual([]);
     expect(createPermissionMock).not.toHaveBeenCalled();
     expect(addEnvironmentRolePermissionMock).not.toHaveBeenCalled();
+  });
+
+  it("skips missing environment roles and continues syncing other roles", async () => {
+    vi.stubEnv("WORKOS_API_KEY", "sk_test_real");
+    getPermissionMock.mockResolvedValue({ slug: "workspace:read" });
+    getEnvironmentRoleMock.mockImplementation(async (slug: string) => {
+      if (slug === "translator") {
+        throw workosNotFound();
+      }
+
+      return { slug, permissions: ["workspace:read"] };
+    });
+    addEnvironmentRolePermissionMock.mockResolvedValue({});
+    getWorkosServerClientMock.mockReturnValue({
+      authorization: {
+        getPermission: getPermissionMock,
+        createPermission: createPermissionMock,
+        getEnvironmentRole: getEnvironmentRoleMock,
+        addEnvironmentRolePermission: addEnvironmentRolePermissionMock,
+      },
+    });
+
+    const result = await setupWorkosLocalizationPermissions();
+
+    expect(result.rolesSkipped).toEqual(["translator"]);
+    expect(addEnvironmentRolePermissionMock).not.toHaveBeenCalledWith(
+      "translator",
+      expect.anything(),
+    );
+    expect(addEnvironmentRolePermissionMock).toHaveBeenCalled();
   });
 
   it("treats create permission conflicts as unchanged", async () => {

@@ -13,6 +13,8 @@ export type SetupWorkosLocalizationPermissionsResult = {
   permissionsCreated: string[];
   permissionsUnchanged: string[];
   rolePermissionsAdded: Array<{ roleSlug: string; permissionSlug: string }>;
+  /** Environment roles missing in WorkOS; permission sync was skipped for these slugs. */
+  rolesSkipped: string[];
   skipped: boolean;
 };
 
@@ -70,11 +72,31 @@ async function ensurePermissions(workos: NonNullable<ReturnType<typeof getWorkos
   return { permissionsCreated, permissionsUnchanged };
 }
 
+async function environmentRoleExists(
+  workos: NonNullable<ReturnType<typeof getWorkosServerClient>>,
+  slug: string,
+) {
+  try {
+    await workos.authorization.getEnvironmentRole(slug);
+    return true;
+  } catch (error) {
+    if (error instanceof NotFoundException) {
+      return false;
+    }
+
+    throw error;
+  }
+}
+
 async function syncRolePermissions(
   workos: NonNullable<ReturnType<typeof getWorkosServerClient>>,
   role: OrganizationMembershipRole,
 ) {
   const roleSlug = WORKOS_ROLE_SLUG_BY_MEMBERSHIP_ROLE[role];
+  if (!(await environmentRoleExists(workos, roleSlug))) {
+    return { rolePermissionsAdded: [], roleSkipped: roleSlug };
+  }
+
   const environmentRole = await workos.authorization.getEnvironmentRole(roleSlug);
   const assigned = new Set(environmentRole.permissions ?? []);
   const expected = getWorkosPermissionSlugsForRole(role);
@@ -91,7 +113,7 @@ async function syncRolePermissions(
     rolePermissionsAdded.push({ roleSlug, permissionSlug });
   }
 
-  return rolePermissionsAdded;
+  return { rolePermissionsAdded, roleSkipped: null as string | null };
 }
 
 /**
@@ -107,22 +129,31 @@ export async function setupWorkosLocalizationPermissions(): Promise<SetupWorkosL
       permissionsCreated: [],
       permissionsUnchanged: [],
       rolePermissionsAdded: [],
+      rolesSkipped: [],
       skipped: true,
     };
   }
 
   const { permissionsCreated, permissionsUnchanged } = await ensurePermissions(workos);
   const rolePermissionsAdded: Array<{ roleSlug: string; permissionSlug: string }> = [];
+  const rolesSkipped: string[] = [];
 
   for (const definition of WORKOS_LOCALIZATION_ROLE_DEFINITIONS) {
-    const added = await syncRolePermissions(workos, definition.slug as OrganizationMembershipRole);
+    const { rolePermissionsAdded: added, roleSkipped } = await syncRolePermissions(
+      workos,
+      definition.slug as OrganizationMembershipRole,
+    );
     rolePermissionsAdded.push(...added);
+    if (roleSkipped) {
+      rolesSkipped.push(roleSkipped);
+    }
   }
 
   return {
     permissionsCreated,
     permissionsUnchanged,
     rolePermissionsAdded,
+    rolesSkipped,
     skipped: false,
   };
 }
