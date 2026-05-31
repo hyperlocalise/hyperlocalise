@@ -9,6 +9,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { IntegrationRow } from "./integration-row";
+import { RepositoryAutomationSettingsAction } from "./repository-automation-settings-action";
 import { RepositoryI18nSetupAction } from "./repository-i18n-setup-action";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { Badge } from "@/components/ui/badge";
@@ -140,7 +141,7 @@ function useSyncRepositories(organizationSlug: string) {
           queryKey: ["github-installation-repositories", organizationSlug],
         }),
       ]);
-      toast.success("GitHub repositories synced");
+      toast.success("GitHub repository list refreshed");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -412,9 +413,10 @@ export function GitHubIntegrationRow({
               size="sm"
               onClick={() => syncRepositories.mutate()}
               disabled={syncRepositories.isPending}
+              title="Refresh the repository list and metadata from GitHub. This does not push or pull translations."
             >
               <HugeiconsIcon icon={Refresh01Icon} strokeWidth={1.8} className="size-4" />
-              {syncRepositories.isPending ? "Syncing..." : "Sync repositories"}
+              {syncRepositories.isPending ? "Refreshing..." : "Refresh repo list"}
             </Button>
             <Button
               variant="outline"
@@ -464,12 +466,13 @@ export function GitHubIntegrationRow({
               </Button>
             </div>
             <div className="overflow-hidden rounded-lg border border-border bg-card">
-              <div className="grid grid-cols-[48px_minmax(0,1fr)_140px_180px] border-b border-border bg-secondary/60 text-xs font-medium tracking-wide text-secondary-foreground uppercase">
+              <div className="grid grid-cols-[48px_minmax(0,1fr)_120px_140px_140px] border-b border-border bg-secondary/60 text-xs font-medium tracking-wide text-secondary-foreground uppercase">
                 <div className="px-4 py-3">
                   <span className="sr-only">Enabled</span>
                 </div>
                 <div className="px-4 py-3">Repositories</div>
                 <div className="px-4 py-3">Branch</div>
+                <div className="px-4 py-3 text-right">Automation</div>
                 <div className="px-4 py-3 text-right">i18n setup</div>
               </div>
               {isLoadingRepositories ? (
@@ -483,7 +486,7 @@ export function GitHubIntegrationRow({
                     <label
                       key={repository.githubRepositoryId}
                       className={cn(
-                        "grid min-h-12 cursor-pointer grid-cols-[48px_minmax(0,1fr)_140px_180px] items-center border-b border-border text-sm transition-colors last:border-b-0 hover:bg-accent/50",
+                        "grid min-h-12 cursor-pointer grid-cols-[48px_minmax(0,1fr)_120px_140px_140px] items-center border-b border-border text-sm transition-colors last:border-b-0 hover:bg-accent/50",
                         checked && "bg-primary/5",
                       )}
                     >
@@ -525,6 +528,22 @@ export function GitHubIntegrationRow({
                       <div className="flex min-w-0 items-center gap-2 px-4 text-muted-foreground">
                         <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
                         <span className="truncate">{repository.defaultBranch ?? "default"}</span>
+                      </div>
+                      <div
+                        className="px-4"
+                        onClick={(event) => event.preventDefault()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <div className="flex flex-col items-end gap-1">
+                          <RepositoryAutomationSettingsAction
+                            organizationSlug={organizationSlug}
+                            githubRepositoryId={repository.githubRepositoryId}
+                            repositoryFullName={repository.fullName}
+                            enabled={checked}
+                            archived={repository.archived}
+                            userCanManage={userCanManage}
+                          />
+                        </div>
                       </div>
                       <div
                         className="px-4"
