@@ -60,27 +60,6 @@ export async function writePullTranslationCandidatesToSandbox(input: {
   return { written: input.candidates.length, skipped: 0 };
 }
 
-export async function listChangedRepositoryPaths(sandboxId: string): Promise<string[]> {
-  const status = await runSandboxCommand(sandboxId, "git", ["status", "--porcelain"]);
-  if (status.exitCode !== 0) {
-    throw new Error(`git status failed: ${status.output}`);
-  }
-
-  const paths = new Set<string>();
-  for (const line of status.output.split("\n")) {
-    const trimmed = line.trimEnd();
-    if (trimmed.length < 4) {
-      continue;
-    }
-    const path = trimmed.slice(3).trim();
-    if (path) {
-      paths.add(path.replaceAll("\\", "/"));
-    }
-  }
-
-  return [...paths].sort();
-}
-
 export async function commitPushAndCreatePullTranslationsPullRequest(input: {
   sandboxId: string;
   installationId: string;
@@ -112,16 +91,18 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
     per_page: 1,
   });
 
-  const checkoutArgs =
-    existingPull.data.length > 0
-      ? ["checkout", input.branchName]
-      : ["checkout", "-b", input.branchName];
+  const isUpdatingExistingPull = existingPull.data.length > 0;
+  const remoteBranchHeadSha = isUpdatingExistingPull ? existingPull.data[0]?.head.sha : undefined;
+
+  const checkoutArgs = isUpdatingExistingPull
+    ? ["checkout", "-f", input.branchName]
+    : ["checkout", "-b", input.branchName];
   const checkout = await runSandboxCommand(input.sandboxId, "git", checkoutArgs);
   if (checkout.exitCode !== 0) {
     throw new Error(`git checkout failed: ${checkout.output}`);
   }
 
-  if (existingPull.data.length > 0) {
+  if (isUpdatingExistingPull) {
     const reset = await runSandboxCommand(input.sandboxId, "git", [
       "reset",
       "--hard",
@@ -150,12 +131,17 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
     throw new Error(`git commit failed: ${commit.output}`);
   }
 
-  const push = await runSandboxCommand(input.sandboxId, "git", [
-    "push",
-    "-u",
-    "origin",
-    input.branchName,
-  ]);
+  const pushArgs =
+    isUpdatingExistingPull && remoteBranchHeadSha
+      ? [
+          "push",
+          "-u",
+          "origin",
+          input.branchName,
+          `--force-with-lease=refs/heads/${input.branchName}:${remoteBranchHeadSha}`,
+        ]
+      : ["push", "-u", "origin", input.branchName];
+  const push = await runSandboxCommand(input.sandboxId, "git", pushArgs);
   if (push.exitCode !== 0) {
     throw new Error(`git push failed: ${push.output}`);
   }
@@ -182,7 +168,7 @@ export async function commitPushAndCreatePullTranslationsPullRequest(input: {
     "Please review locale file changes before merging.",
   ].filter((line): line is string => line !== null);
 
-  if (existingPull.data.length > 0) {
+  if (isUpdatingExistingPull) {
     const pullRequest = existingPull.data[0];
     await octokit.rest.pulls.update({
       owner,
