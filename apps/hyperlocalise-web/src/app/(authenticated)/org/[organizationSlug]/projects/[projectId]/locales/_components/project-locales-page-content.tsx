@@ -4,7 +4,6 @@ import { TranslateIcon } from "@hugeicons/core-free-icons";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyP } from "@/components/ui/typography";
 import { getLocaleLabel, isRtlLocale } from "@/lib/i18n/locales";
 
 import type { ProjectListRow } from "../../../_components/project-list";

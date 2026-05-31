@@ -15,8 +15,8 @@ type ProjectSectionPlaceholderProps = {
 };
 
 export function ProjectSectionPlaceholder({
-  organizationSlug,
-  projectId,
+  organizationSlug: _organizationSlug,
+  projectId: _projectId,
   title,
   description,
   icon = Layers01Icon,

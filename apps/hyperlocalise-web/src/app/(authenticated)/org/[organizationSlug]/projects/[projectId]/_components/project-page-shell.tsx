@@ -55,12 +55,7 @@ export function ProjectSectionHeader({
 }: ProjectSectionHeaderProps) {
   return (
     <div className="space-y-3">
-      <PageHeader
-        icon={icon}
-        title={section}
-        description={description}
-        actions={actions}
-      />
+      <PageHeader icon={icon} title={section} description={description} actions={actions} />
       {meta}
     </div>
   );
