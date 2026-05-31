@@ -4,7 +4,9 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
+import { forbiddenResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
 
@@ -121,6 +123,10 @@ export function createAgentEmailRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const organizationId = c.var.auth.organization.localOrganizationId;
       let connector = await getEmailConnector(organizationId);
 

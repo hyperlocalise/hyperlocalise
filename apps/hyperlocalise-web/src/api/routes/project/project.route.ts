@@ -77,6 +77,7 @@ import {
   forbiddenResponse,
   getOwnedProject,
   invalidProjectPayloadResponse,
+  isProjectCreateAllowed,
   isProjectMutationAllowed,
   ownedProjectWhere,
   projectNotFoundResponse,
@@ -362,7 +363,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       return c.json({ projects: projectsWithJobCounts }, 200);
     })
     .post("/", validateCreateProjectBody, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+      if (!isProjectCreateAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 

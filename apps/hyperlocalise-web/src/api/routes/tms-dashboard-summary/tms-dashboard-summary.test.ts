@@ -86,4 +86,32 @@ describe("tmsDashboardSummaryRoutes", () => {
     expect(body.tmsDashboardSummary.providers).toHaveLength(1);
     expect(body.tmsDashboardSummary.providers[0]?.providerKind).toBe("crowdin");
   });
+
+  it("allows developers to read the TMS dashboard summary", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("developer");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-dashboard-summary"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+  });
+
+  it("blocks translators from reading the TMS dashboard summary", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-dashboard-summary"].$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+  });
 });

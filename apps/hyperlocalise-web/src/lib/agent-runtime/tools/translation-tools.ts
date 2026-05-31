@@ -5,7 +5,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import { hasCapability } from "@/api/auth/policy";
+import { isJobCreateAllowed } from "@/api/auth/capability-guards";
 import {
   ensureRepositorySourceFileVersionForStoredFile,
   getStoredFileForJobScope,
@@ -335,11 +335,10 @@ async function prepareTranslationJobInput(
   ctx: ToolContext,
   input: CreateTranslationJobInput,
 ): Promise<Result<PreparedTranslationJobInput, CreateTranslationJobToolError>> {
-  if (!hasCapability(ctx.membershipRole, "projects:write")) {
+  if (!isJobCreateAllowed(ctx.membershipRole)) {
     return err({
       code: "translation_job_permission_denied",
-      message:
-        "You do not have permission to create translation jobs. Only organization admins can perform this action.",
+      message: "You do not have permission to create translation jobs.",
     });
   }
 

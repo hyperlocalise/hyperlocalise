@@ -24,8 +24,9 @@ Hyperlocalise treats WorkOS as the authoritative source for organization members
 Role slugs and the product capability matrix:
 [`src/api/auth/LOCALIZATION_ROLES.md`](../../api/auth/LOCALIZATION_ROLES.md).
 
-Provision WorkOS environment roles (idempotent — creates missing slugs only; never
-updates name, description, or permissions on roles that already exist):
+Provision WorkOS environment roles and capability permissions (idempotent — creates
+missing slugs and permission assignments only; never removes or replaces existing
+WorkOS role configuration):
 
 ```bash
 bun run workos:setup

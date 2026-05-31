@@ -1,26 +1,35 @@
+import { setupWorkosLocalizationPermissions } from "@/lib/workos/setup-workos-localization-permissions";
 import { setupWorkosLocalizationRoles } from "@/lib/workos/setup-workos-localization-roles";
 
 async function main() {
-  const result = await setupWorkosLocalizationRoles();
+  const roleResult = await setupWorkosLocalizationRoles();
+  const permissionResult = await setupWorkosLocalizationPermissions();
 
-  if (result.skipped) {
+  if (roleResult.skipped && permissionResult.skipped) {
     console.log(
       "Skipped WorkOS setup: WORKOS_API_KEY is missing or set to the test placeholder. Configure a real API key in .env and retry.",
     );
     return;
   }
 
-  if (result.created.length === 0) {
+  if (roleResult.created.length > 0) {
+    console.log(`Created WorkOS environment roles: ${roleResult.created.join(", ")}`);
+  } else if (!roleResult.skipped) {
     console.log(
-      `WorkOS localization roles unchanged (${result.unchanged.length}): ${result.unchanged.join(", ")}`,
+      `WorkOS localization roles unchanged (${roleResult.unchanged.length}): ${roleResult.unchanged.join(", ")}`,
     );
-    return;
   }
 
-  console.log(`Created WorkOS environment roles: ${result.created.join(", ")}`);
+  if (!permissionResult.skipped) {
+    if (permissionResult.permissionsCreated.length > 0) {
+      console.log(`Created WorkOS permissions: ${permissionResult.permissionsCreated.join(", ")}`);
+    }
 
-  if (result.unchanged.length > 0) {
-    console.log(`Left unchanged: ${result.unchanged.join(", ")}`);
+    if (permissionResult.rolePermissionsAdded.length > 0) {
+      console.log(
+        `Added ${permissionResult.rolePermissionsAdded.length} missing role permission assignments`,
+      );
+    }
   }
 }
 

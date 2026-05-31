@@ -134,15 +134,25 @@ describe("checkRepositoryWriteGate", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("treats chat_ui like Slack for permission checks", () => {
-    const result = checkRepositoryWriteGate({
+  it("uses contributor capabilities for chat_ui instead of Slack admin checks", () => {
+    const denied = checkRepositoryWriteGate({
       workMode: "write",
       source: "chat_ui",
       actor: { sourceUserId: "user_1", role: "member" },
       action: "apply_fixes",
     });
 
-    expect(result.allowed).toBe(true);
+    expect(denied.allowed).toBe(false);
+    expect(deniedReason(denied)).toContain("job access");
+
+    const allowed = checkRepositoryWriteGate({
+      workMode: "write",
+      source: "chat_ui",
+      actor: { sourceUserId: "user_1", role: "translator" },
+      action: "apply_fixes",
+    });
+
+    expect(allowed.allowed).toBe(true);
   });
 });
 

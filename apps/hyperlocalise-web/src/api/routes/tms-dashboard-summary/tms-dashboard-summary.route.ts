@@ -1,13 +1,18 @@
 import { Hono } from "hono";
 
+import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { internalErrorResponse } from "@/api/response.schema";
+import { forbiddenResponse, internalErrorResponse } from "@/api/response.schema";
 import { getOrganizationTmsDashboardSummary } from "@/lib/providers/organization-tms-dashboard-summary";
 
 export function createTmsDashboardSummaryRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       try {
         const tmsDashboardSummary = await getOrganizationTmsDashboardSummary(
           c.var.auth.organization.localOrganizationId,
