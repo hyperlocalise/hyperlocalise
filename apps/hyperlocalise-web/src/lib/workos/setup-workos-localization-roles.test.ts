@@ -77,9 +77,8 @@ describe("setupWorkosLocalizationRoles", () => {
       "developer",
       "reviewer",
       "translator",
-      "contractor",
     ]);
-    expect(createEnvironmentRoleMock).toHaveBeenCalledTimes(5);
+    expect(createEnvironmentRoleMock).toHaveBeenCalledTimes(4);
     expect(createEnvironmentRoleMock).toHaveBeenCalledWith(
       expect.objectContaining({ slug: "developer", name: "Developer" }),
     );
@@ -105,7 +104,6 @@ describe("setupWorkosLocalizationRoles", () => {
         "developer",
         "reviewer",
         "translator",
-        "contractor",
         "member",
       ],
       skipped: false,
@@ -133,7 +131,6 @@ describe("setupWorkosLocalizationRoles", () => {
       "developer",
       "reviewer",
       "translator",
-      "contractor",
       "member",
     ]);
   });

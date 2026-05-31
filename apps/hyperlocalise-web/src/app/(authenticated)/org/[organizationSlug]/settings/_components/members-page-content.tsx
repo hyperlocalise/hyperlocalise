@@ -40,7 +40,6 @@ import {
   getRoleDescription,
   getRoleLabel,
   resolveMembersPageState,
-  shouldShowContractorNotice,
   type MembersListResponse,
 } from "./members-settings-view-model";
 
@@ -107,8 +106,7 @@ export function MembersSettingsPageContent({ organizationSlug }: { organizationS
   });
 
   const pageState = resolveMembersPageState(membersQuery.data);
-  const { members, assignableRoles, canInvite, manualAccessNotice, contractorAccessNotice } =
-    pageState;
+  const { members, assignableRoles, canInvite, manualAccessNotice } = pageState;
 
   const inviteMember = useMutation({
     mutationFn: async (input: { email: string; role: OrganizationMembershipRole }) => {
@@ -373,11 +371,6 @@ export function MembersSettingsPageContent({ organizationSlug }: { organizationS
                 </SelectContent>
               </Select>
               <FieldDescription>{getRoleDescription(inviteRole)}</FieldDescription>
-              {shouldShowContractorNotice(inviteRole) ? (
-                <FieldDescription className="text-dew-100/90">
-                  {contractorAccessNotice}
-                </FieldDescription>
-              ) : null}
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>

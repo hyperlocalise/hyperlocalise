@@ -41,12 +41,6 @@ export const WORKOS_LOCALIZATION_ROLE_DEFINITIONS: WorkosLocalizationRoleDefinit
       "Contribute to assigned jobs, run AI actions, and push draft translations. No approvals or org administration.",
   },
   {
-    slug: "contractor",
-    name: "Contractor",
-    description:
-      "External contributor with access limited to explicitly assigned projects and jobs. Cannot browse the full workspace or manage settings.",
-  },
-  {
     slug: "member",
     name: "Member",
     description: "Read workspace, project, team, glossary, memory, and job surfaces.",

@@ -231,11 +231,6 @@ describe("organization capability policy", () => {
       expect(resolveCapabilitiesFromWorkosRoleSlug(undefined)).toEqual([]);
     });
 
-    it("maps contractor slug to limited contributor capabilities", () => {
-      expect(resolveCapabilitiesFromWorkosRoleSlug("contractor").sort()).toEqual(
-        getCapabilitiesForRole("contractor").sort(),
-      );
-    });
   });
 
   describe("unrecognized local roles", () => {

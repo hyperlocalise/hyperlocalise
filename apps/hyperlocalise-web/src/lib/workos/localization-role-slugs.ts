@@ -10,7 +10,6 @@ export const WORKOS_LOCALIZATION_ROLE_SLUGS = [
   "developer",
   "reviewer",
   "translator",
-  "contractor",
   "member",
 ] as const;
 
@@ -25,7 +24,6 @@ export const WORKOS_ROLE_SLUG_BY_MEMBERSHIP_ROLE: Record<
   developer: "developer",
   reviewer: "reviewer",
   translator: "translator",
-  contractor: "contractor",
   member: "member",
 };
 
@@ -38,7 +36,6 @@ export const MEMBERSHIP_ROLE_BY_WORKOS_ROLE_SLUG: Record<
   developer: "developer",
   reviewer: "reviewer",
   translator: "translator",
-  contractor: "contractor",
   member: "member",
 };
 

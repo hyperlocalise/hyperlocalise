@@ -6,7 +6,6 @@ export const organizationMembershipRoleSchema = z.enum([
   "developer",
   "reviewer",
   "translator",
-  "contractor",
   "member",
 ]);
 

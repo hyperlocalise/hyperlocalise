@@ -43,7 +43,6 @@ export const organizationMembershipRoleEnum = pgEnum("organization_membership_ro
   "developer",
   "reviewer",
   "translator",
-  "contractor",
   "member",
 ]);
 /**

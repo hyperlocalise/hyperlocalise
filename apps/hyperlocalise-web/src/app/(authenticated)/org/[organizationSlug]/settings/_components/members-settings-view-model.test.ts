@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { resolveMembersPageState, shouldShowContractorNotice } from "./members-settings-view-model";
+import { resolveMembersPageState } from "./members-settings-view-model";
 
 describe("resolveMembersPageState", () => {
   it("uses server-provided member management capabilities", () => {
@@ -44,12 +44,5 @@ describe("resolveMembersPageState", () => {
 
     expect(state.canInvite).toBe(false);
     expect(state.assignableRoles).toEqual([]);
-  });
-});
-
-describe("shouldShowContractorNotice", () => {
-  it("shows contractor guidance only for contractor invites", () => {
-    expect(shouldShowContractorNotice("contractor")).toBe(true);
-    expect(shouldShowContractorNotice("translator")).toBe(false);
   });
 });

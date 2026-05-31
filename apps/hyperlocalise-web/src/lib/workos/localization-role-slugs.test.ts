@@ -13,7 +13,6 @@ describe("WORKOS_LOCALIZATION_ROLE_SLUGS", () => {
       "developer",
       "reviewer",
       "translator",
-      "contractor",
       "member",
     ]);
   });

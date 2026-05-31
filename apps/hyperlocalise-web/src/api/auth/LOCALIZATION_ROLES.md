@@ -80,8 +80,7 @@ Finer boundaries are layered separately:
 - **Team membership** (`team_memberships.role`: `manager` | `member`) limits
   which projects and resources appear in listings.
 - **Project / job / locale assignment** (future) further restricts translators
-  and contractors to assigned work even when org capabilities would allow broader
-  reads.
+  to assigned work even when org capabilities would allow broader reads.
 
 `bun run workos:setup` also syncs WorkOS environment permissions (additive) so
 role slugs in the WorkOS dashboard mirror the capability slugs below.

@@ -742,7 +742,7 @@ describe("memberRoutes", () => {
     ).json()) as MembersResponse;
     expect(listBody.memberManagement?.canInvite).toBe(true);
     expect(listBody.memberManagement?.assignableRoles).toContain("admin");
-    expect(listBody.memberManagement?.assignableRoles).toContain("contractor");
+    expect(listBody.memberManagement?.assignableRoles).toContain("translator");
 
     const memberRow = listBody.members.find(
       (row) => row.workosUserId === memberIdentity.user.workosUserId,

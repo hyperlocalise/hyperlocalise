@@ -1,1 +1,0 @@
-ALTER TYPE "public"."organization_membership_role" ADD VALUE 'contractor' BEFORE 'member';

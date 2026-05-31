@@ -13,7 +13,6 @@ describe("membershipRoleToWorkosRoleSlug", () => {
     expect(membershipRoleToWorkosRoleSlug("developer")).toBe("developer");
     expect(membershipRoleToWorkosRoleSlug("reviewer")).toBe("reviewer");
     expect(membershipRoleToWorkosRoleSlug("translator")).toBe("translator");
-    expect(membershipRoleToWorkosRoleSlug("contractor")).toBe("contractor");
     expect(membershipRoleToWorkosRoleSlug("member")).toBe("member");
   });
 });
@@ -25,7 +24,6 @@ describe("workosRoleSlugToMembershipRole", () => {
     expect(workosRoleSlugToMembershipRole("developer")).toBe("developer");
     expect(workosRoleSlugToMembershipRole("reviewer")).toBe("reviewer");
     expect(workosRoleSlugToMembershipRole("translator")).toBe("translator");
-    expect(workosRoleSlugToMembershipRole("contractor")).toBe("contractor");
     expect(workosRoleSlugToMembershipRole("member")).toBe("member");
   });
 

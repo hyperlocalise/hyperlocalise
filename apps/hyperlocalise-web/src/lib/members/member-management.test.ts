@@ -17,12 +17,12 @@ describe("member-management", () => {
 
   it("exposes localization role labels from WorkOS definitions", () => {
     expect(getRoleLabel("localization_manager")).toBe("Localization manager");
-    expect(getRoleLabel("contractor")).toBe("Contractor");
+    expect(getRoleLabel("translator")).toBe("Translator");
   });
 
   it("lets admins assign every role including admin", () => {
     expect(assignableRolesForActor("admin")).toContain("admin");
-    expect(canActorAssignRole("admin", "contractor")).toBe(true);
+    expect(canActorAssignRole("admin", "translator")).toBe(true);
     expect(canActorManageTarget("admin", "localization_manager", "reviewer")).toBe(true);
   });
 

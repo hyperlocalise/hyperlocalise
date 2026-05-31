@@ -1,6 +1,5 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
-  CONTRACTOR_ACCESS_NOTICE,
   getMembershipStatusLabel,
   getRoleDescription,
   getRoleLabel,
@@ -37,12 +36,7 @@ export function resolveMembersPageState(response: MembersListResponse | undefine
     assignableRoles,
     canInvite,
     manualAccessNotice: MANUAL_LOCALIZATION_ACCESS_NOTICE,
-    contractorAccessNotice: CONTRACTOR_ACCESS_NOTICE,
   };
-}
-
-export function shouldShowContractorNotice(role: OrganizationMembershipRole) {
-  return role === "contractor";
 }
 
 export { getMembershipStatusLabel, getRoleDescription, getRoleLabel };
