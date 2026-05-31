@@ -7,7 +7,7 @@ import { hasCapability } from "@/api/auth/policy";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import type { ProviderSyncObservabilityEntry } from "@/lib/providers/provider-sync-observability-types";
+import type { ProviderSyncObservabilityEntry } from "@/lib/providers/sync/provider-sync-observability-types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";

@@ -26,7 +26,10 @@ import {
 } from "@/lib/billing/usage-control";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
-import { toolAccessibleJobsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
+import {
+  toolAccessibleJobsWhere,
+  toolCanAccessProject,
+} from "@/lib/agent-runtime/tools/tool-access";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;

@@ -7,7 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db } from "@/lib/database";
-import { upsertOrganizationExternalTmsMemory } from "@/lib/providers/organization-external-tms-memories";
+import { upsertOrganizationExternalTmsMemory } from "@/lib/providers/sync/organization-external-tms-memories";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 
 import { createMemoryTestFixture } from "./memory.fixture";

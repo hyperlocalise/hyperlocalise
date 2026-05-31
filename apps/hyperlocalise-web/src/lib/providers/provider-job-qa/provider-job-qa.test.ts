@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import type { ExternalTmsTranslationUnit } from "@/lib/providers/external-tms-content-sync";
+import type { ExternalTmsTranslationUnit } from "@/lib/providers/sync/external-tms-content-sync";
 
 import type { HlCheckReport } from "./hl-check-types";
 import { collectSupplementalQaFindings } from "./supplemental-checks";

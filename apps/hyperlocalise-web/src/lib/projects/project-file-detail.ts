@@ -11,7 +11,7 @@ import type {
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
-import { listExternalTmsFileVersionsForFile } from "@/lib/providers/organization-external-tms-file-versions";
+import { listExternalTmsFileVersionsForFile } from "@/lib/providers/sync/organization-external-tms-file-versions";
 import { resolveProviderJobsForFile } from "@/lib/providers/job-provider-source-files";
 import { bufferFromStream } from "@/lib/streams";
 import { sanitizeExternalUrl } from "@/lib/safe-external-url";

@@ -1,35 +1,13 @@
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { searchCrowdinGlossaryMatches } from "@/lib/providers/crowdin/crowdin-glossary-matcher";
-import { searchLokaliseGlossaryMatches } from "@/lib/providers/lokalise/lokalise-glossary-matcher";
-import { searchSmartlingGlossaryMatches } from "@/lib/providers/smartling/smartling-glossary-matcher";
-import type { NormalizedGlossaryMatch } from "@/lib/translation/glossary-match";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import type {
+  ExternalTmsGlossaryMatcher,
+  ExternalTmsGlossaryMatcherInput,
+} from "@/lib/providers/contracts/glossary-matcher";
+import { searchCrowdinGlossaryMatches } from "@/lib/providers/adapters/crowdin/crowdin-glossary-matcher";
+import { searchLokaliseGlossaryMatches } from "@/lib/providers/adapters/lokalise/lokalise-glossary-matcher";
+import { searchSmartlingGlossaryMatches } from "@/lib/providers/adapters/smartling/smartling-glossary-matcher";
 
-type ExternalTmsCredential =
-  typeof import("@/lib/database/schema").organizationExternalTmsProviderCredentials.$inferSelect;
-
-export type ExternalTmsGlossaryMatcherInput = {
-  organizationId: string;
-  projectId: string;
-  providerKind: ExternalTmsProviderKind;
-  externalProjectId: string;
-  credential: ExternalTmsCredential;
-  secretMaterial: string;
-  glossaries: Array<{
-    id: string;
-    name: string;
-    externalGlossaryId: string | null;
-    targetLocale: string | null;
-    termCapabilities: Record<string, unknown>;
-  }>;
-  sourceLocale: string;
-  targetLocale: string;
-  sourceText: string;
-  limit: number;
-};
-
-export type ExternalTmsGlossaryMatcher = (
-  input: ExternalTmsGlossaryMatcherInput,
-) => Promise<NormalizedGlossaryMatch[]>;
+export type { ExternalTmsGlossaryMatcher, ExternalTmsGlossaryMatcherInput };
 
 export function getProviderGlossaryMatcher(
   providerKind: ExternalTmsProviderKind,

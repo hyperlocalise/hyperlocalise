@@ -8,7 +8,7 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { insertProviderWebhookSubscription } from "@/lib/providers/provider-webhook-storage";
+import { insertProviderWebhookSubscription } from "@/lib/providers/webhooks/provider-webhook-storage";
 import type { ProviderWebhookReconciliationEventData } from "@/lib/workflow/types";
 
 const createdOrganizationIds = new Set<string>();

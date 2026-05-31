@@ -11,7 +11,7 @@ import {
   pushExternalTmsTranslations,
   type ExternalTmsContentPuller,
   type ExternalTmsTranslationPusher,
-} from "./external-tms-content-sync";
+} from "./sync/external-tms-content-sync";
 import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
 
 const projectFixture = createProjectTestFixture();

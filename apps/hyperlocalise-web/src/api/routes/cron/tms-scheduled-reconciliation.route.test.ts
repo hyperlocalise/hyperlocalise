@@ -21,7 +21,7 @@ async function createClient(input?: { enabled?: boolean; cronSecret?: string | n
       enqueue: vi.fn(async () => ({ ids: ["workflow-1"] })),
     }),
   }));
-  vi.doMock("@/lib/providers/provider-scheduled-reconciliation", () => ({
+  vi.doMock("@/lib/providers/sync/provider-scheduled-reconciliation", () => ({
     runScheduledReconciliation: runScheduledReconciliationMock,
   }));
   vi.doMock("@/lib/env", () => ({
@@ -49,7 +49,7 @@ describe("tms scheduled reconciliation cron route", () => {
   afterEach(() => {
     vi.resetModules();
     vi.doUnmock("@/workflows/adapters");
-    vi.doUnmock("@/lib/providers/provider-scheduled-reconciliation");
+    vi.doUnmock("@/lib/providers/sync/provider-scheduled-reconciliation");
     vi.doUnmock("@/lib/env");
     runScheduledReconciliationMock.mockClear();
   });

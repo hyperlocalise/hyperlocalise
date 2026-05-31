@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import { agentRunHasReviewableProposals } from "@/lib/providers/agent-run-proposals";
+import { agentRunHasReviewableProposals } from "@/lib/providers/agent-runs/agent-run-proposals";
 import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
 import { cn } from "@/lib/utils";
 

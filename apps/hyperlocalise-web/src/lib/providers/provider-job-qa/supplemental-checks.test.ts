@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 import { collectSupplementalQaFindings } from "./supplemental-checks";
-import type { ExternalTmsTranslationUnit } from "@/lib/providers/external-tms-content-sync";
+import type { ExternalTmsTranslationUnit } from "@/lib/providers/sync/external-tms-content-sync";
 
 function unit(overrides: Partial<ExternalTmsTranslationUnit> = {}): ExternalTmsTranslationUnit {
   return {

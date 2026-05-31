@@ -1,8 +1,8 @@
-import { pushCrowdinTranslations } from "@/lib/providers/crowdin/crowdin-translation-pusher";
-import type { ExternalTmsTranslationPusher } from "@/lib/providers/external-tms-content-sync";
-import { pushLokaliseTranslations } from "@/lib/providers/lokalise/lokalise-translation-pusher";
-import { pushPhraseTranslations } from "@/lib/providers/phrase/phrase-translation-pusher";
-import { pushSmartlingTranslations } from "@/lib/providers/smartling/smartling-translation-pusher";
+import { pushCrowdinTranslations } from "@/lib/providers/adapters/crowdin/crowdin-translation-pusher";
+import type { ExternalTmsTranslationPusher } from "@/lib/providers/sync/external-tms-content-sync";
+import { pushLokaliseTranslations } from "@/lib/providers/adapters/lokalise/lokalise-translation-pusher";
+import { pushPhraseTranslations } from "@/lib/providers/adapters/phrase/phrase-translation-pusher";
+import { pushSmartlingTranslations } from "@/lib/providers/adapters/smartling/smartling-translation-pusher";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 

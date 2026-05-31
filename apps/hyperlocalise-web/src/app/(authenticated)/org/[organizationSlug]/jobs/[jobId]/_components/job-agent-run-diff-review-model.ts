@@ -2,12 +2,12 @@ import type {
   AgentRunProposalItem,
   AgentRunProposalReviewState,
   AgentRunProposalWarningKind,
-} from "@/lib/providers/agent-run-proposals";
+} from "@/lib/providers/agent-runs/agent-run-proposals";
 import {
   agentRunHasReviewableProposals,
   countAgentRunProposalReviewStates,
   parseAgentRunProposalItems,
-} from "@/lib/providers/agent-run-proposals";
+} from "@/lib/providers/agent-runs/agent-run-proposals";
 
 import type { AgentRunRecord } from "./job-provider-detail-section";
 

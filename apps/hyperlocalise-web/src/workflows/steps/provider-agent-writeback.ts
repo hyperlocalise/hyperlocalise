@@ -4,7 +4,7 @@ export async function executeProviderAgentWritebackStep(input: {
 }) {
   "use step";
   const { executeProviderAgentWriteback } =
-    await import("@/lib/providers/provider-agent-writeback");
+    await import("@/lib/providers/agent-runs/provider-agent-writeback");
   return executeProviderAgentWriteback(input);
 }
 
@@ -15,7 +15,7 @@ export async function failProviderAgentWritebackStep(input: {
   message: string;
 }) {
   "use step";
-  const { failAgentRun } = await import("@/lib/providers/agent-runs");
+  const { failAgentRun } = await import("@/lib/providers/agent-runs/agent-runs");
 
   await failAgentRun({
     runId: input.agentRunId,

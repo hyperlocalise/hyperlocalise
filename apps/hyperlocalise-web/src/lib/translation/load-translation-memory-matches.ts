@@ -6,16 +6,15 @@ import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { memorySupportsLiveSearch } from "@/lib/providers/lokalise/lokalise-tm-matcher";
-import { getProviderTranslationMemoryMatcher } from "@/lib/providers/provider-translation-memory-matchers";
-import { loadSyncedTranslationMemoryMatchesForContext } from "@/lib/translation/load-synced-translation-memory-matches";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
 import {
   mergeTranslationMemoryMatches,
   toAgentRunTranslationMemoryMatchUsage,
   type AgentRunTranslationMemoryMatchUsage,
   type NormalizedTranslationMemoryMatch,
-} from "@/lib/translation/translation-memory-match";
+} from "@/lib/providers/contracts/translation-memory-match";
+import { loadSyncedTranslationMemoryMatchesForContext } from "@/lib/translation/load-synced-translation-memory-matches";
 
 const logger = createLogger("translation-memory-matches");
 
@@ -113,8 +112,9 @@ async function searchLiveProviderMatches(input: {
   limit: number;
   externalJobUid?: string | null;
   projectMetadata?: Record<string, unknown>;
+  resolution: TranslationMemoryMatchResolution;
 }): Promise<NormalizedTranslationMemoryMatch[]> {
-  const matcher = getProviderTranslationMemoryMatcher(input.providerKind);
+  const matcher = input.resolution.getProviderTranslationMemoryMatcher(input.providerKind);
   if (!matcher) {
     return [];
   }
@@ -141,7 +141,7 @@ async function searchLiveProviderMatches(input: {
   const liveMatches: NormalizedTranslationMemoryMatch[] = [];
 
   for (const memory of input.memories) {
-    if (!memorySupportsLiveSearch(memory)) {
+    if (!input.resolution.memorySupportsLiveSearch(memory)) {
       continue;
     }
 
@@ -205,6 +205,7 @@ export async function loadTranslationMemoryMatchesForContext(input: {
   targetLocales: string[];
   sourceText: string;
   limit?: number;
+  translationMemoryMatchResolution?: TranslationMemoryMatchResolution;
 }): Promise<NormalizedTranslationMemoryMatch[]> {
   const limit = input.limit ?? 10;
   const projectContext =
@@ -239,16 +240,23 @@ export async function loadTranslationMemoryMatchesForContext(input: {
   const syncedCoveredKeys = new Set(
     syncedMatches.map((match) => syncedCoverageKey(match.memoryId, match.targetLocale)),
   );
+  const memoryResolution = input.translationMemoryMatchResolution;
   const liveSearchMemories = attachedMemories.filter(
     (memory) =>
-      memorySupportsLiveSearch(memory) &&
+      memoryResolution !== undefined &&
+      memoryResolution.memorySupportsLiveSearch(memory) &&
       memory.externalProviderKind &&
       input.targetLocales.some(
         (locale) => !syncedCoveredKeys.has(syncedCoverageKey(memory.id, locale)),
       ),
   );
 
-  if (liveSearchMemories.length === 0 || !organizationId || !providerKind) {
+  if (
+    liveSearchMemories.length === 0 ||
+    !organizationId ||
+    !providerKind ||
+    memoryResolution === undefined
+  ) {
     return mergeTranslationMemoryMatches(syncedMatches, limit);
   }
 
@@ -284,6 +292,7 @@ export async function loadTranslationMemoryMatchesForContext(input: {
       limit,
       externalJobUid: input.externalJobUid,
       projectMetadata: projectRecord?.providerMetadata ?? undefined,
+      resolution: memoryResolution,
     });
   } catch (error) {
     logger.error(
@@ -309,6 +318,7 @@ export async function collectTranslationMemoryUsageForUnits(input: {
   targetLocales: string[];
   units: Array<{ externalStringId: string; key: string; sourceText: string }>;
   maxUnits?: number;
+  translationMemoryMatchResolution?: TranslationMemoryMatchResolution;
 }) {
   const sample = input.units
     .filter((unit) => unit.sourceText.trim().length > 0)
@@ -328,6 +338,7 @@ export async function collectTranslationMemoryUsageForUnits(input: {
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
       sourceText: unit.sourceText,
+      translationMemoryMatchResolution: input.translationMemoryMatchResolution,
     });
 
     if (matches.length === 0) {

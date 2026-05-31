@@ -10,7 +10,7 @@ vi.mock("workflow", () => ({
   sleep: sleepMock,
 }));
 
-vi.mock("@/lib/providers/provider-sync-intent-worker", () => ({
+vi.mock("@/lib/providers/sync/provider-sync-intent-worker", () => ({
   processProviderSyncIntent: processProviderSyncIntentMock,
 }));
 

@@ -11,12 +11,12 @@ import {
   logWebhookVerificationFailed,
 } from "@/lib/providers/provider-tms-sync-telemetry";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { enqueueProviderSyncIntentFromWebhookEvent } from "@/lib/providers/provider-sync-intent-worker";
+import { enqueueProviderSyncIntentFromWebhookEvent } from "@/lib/providers/sync/provider-sync-intent-worker";
 import {
   findActiveProviderWebhookSubscription,
   insertProviderWebhookEventIdempotent,
   updateProviderWebhookEventProcessingStatus,
-} from "@/lib/providers/provider-webhook-storage";
+} from "@/lib/providers/webhooks/provider-webhook-storage";
 import {
   getTmsProviderWebhookAdapter,
   isExecutableTmsWebhookMappedIntent,
@@ -24,7 +24,7 @@ import {
   type TmsProviderWebhookAdapter,
   type TmsProviderWebhookDescriptor,
   type TmsWebhookExecutableIntent,
-} from "@/lib/providers/tms-provider-webhook-adapters";
+} from "@/lib/providers/webhooks/tms-provider-webhook-adapters";
 import type {
   ProviderWebhookReconciliationEventData,
   ProviderWebhookReconciliationQueue,

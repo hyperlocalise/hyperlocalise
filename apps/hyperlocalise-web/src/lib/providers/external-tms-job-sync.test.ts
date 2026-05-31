@@ -6,7 +6,10 @@ import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 import { db, schema } from "@/lib/database";
 
 import { createProjectTestFixture } from "../../api/routes/project/project.fixture";
-import { syncExternalTmsJobTasks, type ExternalTmsJobTaskFetcher } from "./external-tms-job-sync";
+import {
+  syncExternalTmsJobTasks,
+  type ExternalTmsJobTaskFetcher,
+} from "./sync/external-tms-job-sync";
 import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
 
 const projectFixture = createProjectTestFixture();

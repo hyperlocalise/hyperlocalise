@@ -10,7 +10,7 @@ import { db, schema } from "@/lib/database";
 import {
   listExternalTmsFilesForProject,
   type ExternalTmsResourceType,
-} from "@/lib/providers/organization-external-tms-files";
+} from "@/lib/providers/sync/organization-external-tms-files";
 
 export type ProjectFileListContext = {
   projectId: string;

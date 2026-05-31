@@ -3,7 +3,8 @@ export async function executeProviderAgentCommentStep(input: {
   organizationId: string;
 }) {
   "use step";
-  const { executeProviderAgentComment } = await import("@/lib/providers/provider-agent-comment");
+  const { executeProviderAgentComment } =
+    await import("@/lib/providers/agent-runs/provider-agent-comment");
   return executeProviderAgentComment(input);
 }
 
@@ -14,7 +15,7 @@ export async function failProviderAgentCommentStep(input: {
   message: string;
 }) {
   "use step";
-  const { failAgentRun } = await import("@/lib/providers/agent-runs");
+  const { failAgentRun } = await import("@/lib/providers/agent-runs/agent-runs");
 
   await failAgentRun({
     runId: input.agentRunId,

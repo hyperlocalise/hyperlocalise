@@ -6,15 +6,15 @@ import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { getProviderGlossaryMatcher } from "@/lib/providers/provider-glossary-matchers";
-import { loadSyncedGlossaryMatchesForContext } from "@/lib/translation/load-synced-glossary-matches";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
 import {
   mergeGlossaryMatches,
   toAgentRunGlossaryMatchUsage,
   type AgentRunGlossaryMatchUsage,
   type NormalizedGlossaryMatch,
-} from "@/lib/translation/glossary-match";
+} from "@/lib/providers/contracts/glossary-match";
+import { loadSyncedGlossaryMatchesForContext } from "@/lib/translation/load-synced-glossary-matches";
 
 const logger = createLogger("glossary-matches");
 
@@ -133,8 +133,9 @@ async function searchLiveProviderMatches(input: {
   targetLocales: string[];
   sourceText: string;
   limit: number;
+  resolution: GlossaryMatchResolution;
 }): Promise<NormalizedGlossaryMatch[]> {
-  const matcher = getProviderGlossaryMatcher(input.providerKind);
+  const matcher = input.resolution.getProviderGlossaryMatcher(input.providerKind);
   if (!matcher) {
     return [];
   }
@@ -220,6 +221,7 @@ export async function loadGlossaryMatchesForContext(input: {
   targetLocales: string[];
   sourceText: string;
   limit?: number;
+  glossaryMatchResolution?: GlossaryMatchResolution;
 }): Promise<NormalizedGlossaryMatch[]> {
   const limit = input.limit ?? 20;
   const projectContext =
@@ -249,15 +251,22 @@ export async function loadGlossaryMatchesForContext(input: {
     syncedMatches.map((match) => syncedCoverageKey(match.glossaryId, match.targetLocale)),
   );
 
+  const glossaryResolution = input.glossaryMatchResolution;
   const liveSearchGlossaries = attachedGlossaries.filter(
     (glossary) =>
+      glossaryResolution !== undefined &&
       supportsLiveGlossarySearch(glossary) &&
       input.targetLocales.some(
         (locale) => !syncedCoveredKeys.has(syncedCoverageKey(glossary.id, locale)),
       ),
   );
 
-  if (liveSearchGlossaries.length === 0 || !organizationId || !providerKind) {
+  if (
+    liveSearchGlossaries.length === 0 ||
+    !organizationId ||
+    !providerKind ||
+    glossaryResolution === undefined
+  ) {
     return mergeGlossaryMatches(syncedMatches, limit);
   }
 
@@ -290,6 +299,7 @@ export async function loadGlossaryMatchesForContext(input: {
       targetLocales: input.targetLocales,
       sourceText: input.sourceText,
       limit,
+      resolution: glossaryResolution,
     });
   } catch (error) {
     logger.error(
@@ -315,6 +325,7 @@ export async function collectGlossaryUsageForUnits(input: {
   targetLocales: string[];
   units: Array<{ externalStringId: string; key: string; sourceText: string }>;
   maxUnits?: number;
+  glossaryMatchResolution?: GlossaryMatchResolution;
 }) {
   const sample = input.units
     .filter((unit) => unit.sourceText.trim().length > 0)
@@ -334,6 +345,7 @@ export async function collectGlossaryUsageForUnits(input: {
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
       sourceText: unit.sourceText,
+      glossaryMatchResolution: input.glossaryMatchResolution,
     });
 
     if (matches.length === 0) {

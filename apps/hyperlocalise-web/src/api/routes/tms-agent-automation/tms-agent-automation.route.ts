@@ -11,7 +11,7 @@ import {
   deleteTmsAgentAutomationSettingsForScope,
   getTmsAgentAutomationSettingsForScope,
   upsertTmsAgentAutomationSettingsForScope,
-} from "@/lib/providers/tms-agent-automation-settings-store";
+} from "@/lib/providers/agent-runs/tms-agent-automation-settings-store";
 
 import { getOwnedProject, isProjectMutationAllowed } from "../project/project.shared";
 import {

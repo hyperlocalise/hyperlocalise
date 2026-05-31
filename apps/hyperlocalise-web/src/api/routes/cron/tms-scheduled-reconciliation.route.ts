@@ -2,8 +2,8 @@ import { Hono } from "hono";
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { env } from "@/lib/env";
-import type { ScheduledReconciliationSchedule } from "@/lib/providers/provider-scheduled-reconciliation-config";
-import { runScheduledReconciliation } from "@/lib/providers/provider-scheduled-reconciliation";
+import type { ScheduledReconciliationSchedule } from "@/lib/providers/sync/provider-scheduled-reconciliation-config";
+import { runScheduledReconciliation } from "@/lib/providers/sync/provider-scheduled-reconciliation";
 import type { ProviderWebhookReconciliationQueue } from "@/lib/workflow/types";
 import { createProviderWebhookReconciliationQueue } from "@/workflows/adapters";
 
