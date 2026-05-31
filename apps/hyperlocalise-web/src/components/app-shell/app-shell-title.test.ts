@@ -16,7 +16,6 @@ describe("getAppShellTitle", () => {
     ["/org/acme/projects/proj_1/agent-runs", "Agent Runs"],
     ["/org/acme/my-work", "My Work"],
     ["/org/acme/my-jobs", "My Work"],
-    ["/org/acme/context", "Context Sources"],
     ["/org/acme/knowledge", "Knowledge"],
     ["/org/acme/glossaries", "Terminology"],
     ["/org/acme/translation-memories", "Translation Memories"],

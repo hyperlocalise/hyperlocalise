@@ -84,11 +84,6 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           description: "Workspace memory for agents and teams",
         },
         {
-          label: "Context Sources",
-          href: org("context"),
-          icon: File01Icon,
-        },
-        {
           label: "Terminology",
           href: org("glossaries"),
           icon: BookOpenTextIcon,

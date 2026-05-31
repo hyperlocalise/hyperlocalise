@@ -25,11 +25,11 @@ export default function KnowledgePage() {
         <ul className="list-disc space-y-2 ps-5 text-sm leading-6 text-foreground/58">
           <li>Product facts, release context, and decisions that should persist across projects</li>
           <li>Locale and market notes agents apply during translation and review</li>
-          <li>Pointers to terminology, context sources, and translation memories</li>
+          <li>Pointers to terminology and translation memories</li>
         </ul>
         <TypographyP className="text-sm leading-6 text-foreground/48">
-          Context Sources, Terminology, and Translation Memories remain available in the sidebar
-          while Knowledge is being built.
+          Terminology and Translation Memories remain available in the sidebar while Knowledge is
+          being built.
         </TypographyP>
       </section>
     </div>
