@@ -5,7 +5,7 @@ import {
   repositoryWorkspaceToolNames,
 } from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 import type { HyperlocaliseSubagentType } from "./types";
 

@@ -13,7 +13,7 @@ import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/conte
 import { getHyperlocaliseAgentModel } from "./model";
 
 export { getHyperlocaliseAgentModel, hyperlocaliseAgentModelId } from "./model";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 import { classifyConversationMode } from "./conversation-mode";
 import {

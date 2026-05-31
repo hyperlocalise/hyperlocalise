@@ -1,5 +1,5 @@
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 import type { repositorySubagent } from "./repository";
 import type { translationSubagent } from "./translation";

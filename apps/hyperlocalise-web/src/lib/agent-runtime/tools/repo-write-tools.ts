@@ -12,8 +12,9 @@ import {
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
-import type { ToolContext } from "@/lib/tools/types";
-import { canPushToGitHubBranch, type WriteAction } from "@/lib/agents/repository-write-gate";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import type { WriteAction } from "@/lib/agent-contracts/write-gate";
+import { canPushToGitHubBranch } from "@/lib/agents/repository-write-gate";
 
 async function logMutation(
   ctx: ToolContext,

@@ -1,15 +1,15 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
-import {
-  checkRepositoryWriteGate,
-  type WriteAction,
-  type WriteGateResult,
-} from "@/lib/agents/repository-write-gate";
 import type {
   RepositoryAgentActor,
   RepositoryAgentTaskSource,
   RepositoryAgentWorkMode,
-} from "@/lib/agents/repository-agent-task";
-import type { ToolContext } from "@/lib/tools/types";
+} from "@/lib/agent-contracts/repository-task";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import {
+  checkRepositoryWriteGate,
+  type WriteAction,
+  type WriteGateResult,
+} from "@/lib/agent-contracts/write-gate";
 
 export type ToolPolicyEffect = "allow" | "deny" | "require_approval";
 

@@ -1,6 +1,6 @@
 import type { ToolSet } from "ai";
 
-import type { RepositoryAgentTaskSource } from "@/lib/agents/repository-agent-task";
+import type { RepositoryAgentTaskSource } from "@/lib/agent-contracts/repository-task";
 
 export type AgentToolSideEffect = "none" | "workspace_write" | "external_write";
 export type AgentToolDomain = "translation" | "repo" | "tms" | "project" | "session" | "web";

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { ensureAgentSession } from "@/lib/tools/types";
+import { ensureAgentSession } from "@/lib/agent-contracts/tool-context";
 
 import { createTodoWriteTool } from "./todo";
 

@@ -5,7 +5,7 @@ import {
 import {
   extractGitHubRepositoryFullNameReferences,
   githubPullRequestUrlPatternSource,
-} from "@/lib/agents/repository-context";
+} from "@/lib/agent-contracts/github-text-patterns";
 import { escapeRegExp } from "@/lib/primitives/escapeRegExp/escapeRegExp";
 
 /** Conversation routing modes — maps to focused tool loops, not a single translation default. */

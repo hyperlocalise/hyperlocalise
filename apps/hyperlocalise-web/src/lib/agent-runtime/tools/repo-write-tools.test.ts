@@ -15,8 +15,11 @@ const { checkRepositoryWriteGateMock, canPushToGitHubBranchMock } = vi.hoisted((
   canPushToGitHubBranchMock: vi.fn(),
 }));
 
-vi.mock("@/lib/agents/repository-write-gate", () => ({
+vi.mock("@/lib/agent-contracts/write-gate", () => ({
   checkRepositoryWriteGate: checkRepositoryWriteGateMock,
+}));
+
+vi.mock("@/lib/agents/repository-write-gate", () => ({
   canPushToGitHubBranch: canPushToGitHubBranchMock,
 }));
 
@@ -50,7 +53,7 @@ import {
   createUploadSourcesTool,
   getCommittableChangedPaths,
 } from "./repo-write-tools";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 function createBaseCtx(overrides: Partial<ToolContext> = {}): ToolContext {
   const db = {
