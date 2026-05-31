@@ -215,8 +215,16 @@ export async function hasDiffAgainstBase(input: {
     candidates: input.candidates,
   });
 
+  for (const path of input.paths) {
+    const add = await runSandboxCommand(input.sandboxId, "git", ["add", "--", path]);
+    if (add.exitCode !== 0) {
+      throw new Error(`git add failed for ${path}: ${add.output}`);
+    }
+  }
+
   const diff = await runGitDiffInSandbox(input.sandboxId, [
     "diff",
+    "--cached",
     "--quiet",
     input.baseSha,
     "--",
