@@ -113,3 +113,15 @@
 **Learning:** The `JoinSlice` utility in the Go SDK was using `fmt.Sprintf` for every element, causing unnecessary reflection and allocations in hot paths like query parameter encoding. Additionally, `BundleAddRequest` was missing `omitempty` tags for optional label fields, which could lead to sending empty arrays to the Crowdin API.
 
 **Action:** Optimized `model.JoinSlice` in `utils.go` by using `strings.Builder` and type switches for `int` and `string` to significantly reduce allocations. Added `omitempty` to `LabelIDs` and `ExcludeLabelIDs` in `BundleAddRequest` and corrected the documentation comment for `ExcludeLabelIDs`. Verified with focused unit tests and the full test suite.
+
+## 2026-08-22 - Improve Translations API parity for labels and soft match
+
+**Learning:** The Crowdin Translations API v2 supports several parameters that were missing from the Go SDK, specifically filtering by labels during project and directory builds, and the 'soft match' option for pre-translations. Additionally, uploading translations supports marking them as done immediately.
+
+**Action:** Added  (*bool) to  and . Added  ([]int) to , , and , and updated  to include them. Added  (*bool) to . Verified with comprehensive unit tests in  and .
+
+## 2026-08-22 - Improve Translations API parity for labels and soft match
+
+**Learning:** The Crowdin Translations API v2 supports several parameters that were missing from the Go SDK, specifically filtering by labels during project and directory builds, and the 'soft match' option for pre-translations. Additionally, uploading translations supports marking them as done immediately.
+
+**Action:** Added `TranslateWithSoftMatchOnly` (*bool) to `PreTranslationRequest` and `PreTranslationAttributes`. Added `LabelIDs` ([]int) to `BuildProjectRequest`, `BuildProjectDirectoryTranslationRequest`, and `BuildAttributes`, and updated `MarshalJSON` to include them. Added `MarkAddedAsDone` (*bool) to `UploadTranslationsRequest`. Verified with comprehensive unit tests in `translations_test.go` and `model/translations_test.go`.

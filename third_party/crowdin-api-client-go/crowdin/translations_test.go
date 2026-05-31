@@ -36,6 +36,7 @@ func TestTranslationsService_PreTranslationStatus(t *testing.T) {
 					"skipApprovedTranslations": true,
 					"translateUntranslatedOnly": true,
 					"translateWithPerfectMatchOnly": true,
+					"translateWithSoftMatchOnly": true,
 					"fallbackLanguages": {
 						"es": ["en"]
 					},
@@ -69,6 +70,7 @@ func TestTranslationsService_PreTranslationStatus(t *testing.T) {
 			SkipApprovedTranslations:      ToPtr(true),
 			TranslateUntranslatedOnly:     ToPtr(true),
 			TranslateWithPerfectMatchOnly: ToPtr(true),
+			TranslateWithSoftMatchOnly:    ToPtr(true),
 			FallbackLanguages: map[string][]string{
 				"es": {"en"},
 			},
@@ -353,6 +355,7 @@ func TestTranslationsService_ApplyPreTranslation(t *testing.T) {
 			"skipApprovedTranslations": true,
 			"translateUntranslatedOnly": false,
 			"translateWithPerfectMatchOnly": true,
+			"translateWithSoftMatchOnly": true,
 			"fallbackLanguages": {
 			  	"languageId": ["uk"]
 			},
@@ -377,6 +380,7 @@ func TestTranslationsService_ApplyPreTranslation(t *testing.T) {
 					"skipApprovedTranslations": true,
 					"translateUntranslatedOnly": false,
 					"translateWithPerfectMatchOnly": true,
+					"translateWithSoftMatchOnly": true,
 					"fallbackLanguages": {
 						"languageId": ["uk"]
 					},
@@ -401,6 +405,7 @@ func TestTranslationsService_ApplyPreTranslation(t *testing.T) {
 		SkipApprovedTranslations:      ToPtr(true),
 		TranslateUntranslatedOnly:     ToPtr(false),
 		TranslateWithPerfectMatchOnly: ToPtr(true),
+		TranslateWithSoftMatchOnly:    ToPtr(true),
 		FallbackLanguages: map[string][]string{
 			"languageId": {"uk"},
 		},
@@ -425,6 +430,7 @@ func TestTranslationsService_ApplyPreTranslation(t *testing.T) {
 			SkipApprovedTranslations:      ToPtr(true),
 			TranslateUntranslatedOnly:     ToPtr(false),
 			TranslateWithPerfectMatchOnly: ToPtr(true),
+			TranslateWithSoftMatchOnly:    ToPtr(true),
 			FallbackLanguages: map[string][]string{
 				"languageId": {"uk"},
 			},
@@ -470,9 +476,10 @@ func TestTranslationsService_BuildProjectDirectoryTranslation(t *testing.T) {
 			"targetLanguageIds": ["uk"],
 			"skipUntranslatedStrings": false,
 			"skipUntranslatedFiles": false,
+			"preserveFolderHierarchy": false,
+			"labelIds": [10],
 			"exportWithMinApprovalsCount": 0,
-			"exportStringsThatPassedWorkflow": true,
-			"preserveFolderHierarchy": false
+			"exportStringsThatPassedWorkflow": true
 		}`
 		testJSONBody(t, r, expectedReqBody)
 
@@ -498,6 +505,7 @@ func TestTranslationsService_BuildProjectDirectoryTranslation(t *testing.T) {
 		ExportWithMinApprovalsCount:     ToPtr(0),
 		ExportStringsThatPassedWorkflow: ToPtr(true),
 		PreserveFolderHierarchy:         ToPtr(false),
+		LabelIDs:                        []int{10},
 	}
 	buildTranslation, resp, err := client.Translations.BuildProjectDirectoryTranslation(context.Background(), 1, 2, req)
 	require.NoError(t, err)
@@ -636,7 +644,8 @@ func TestTranslationsService_ListProjectBuilds(t *testing.T) {
 								"skipUntranslatedStrings": false,
 								"skipUntranslatedFiles": false,
 								"exportWithMinApprovalsCount": 0,
-								"exportStringsThatPassedWorkflow": true
+								"exportStringsThatPassedWorkflow": true,
+								"labelIds": [30]
 							}
 						}
 					}
@@ -667,6 +676,7 @@ func TestTranslationsService_ListProjectBuilds(t *testing.T) {
 						SkipUntranslatedFiles:           ToPtr(false),
 						ExportWithMinApprovalsCount:     ToPtr(0),
 						ExportStringsThatPassedWorkflow: ToPtr(true),
+						LabelIDs:                        []int{30},
 					},
 				},
 			}
@@ -708,6 +718,7 @@ func TestTranslationsService_BuildProjectTranslation(t *testing.T) {
 				SkipUntranslatedStrings: ToPtr(true),
 				SkipUntranslatedFiles:   ToPtr(false),
 				ExportApprovedOnly:      ToPtr(true),
+				LabelIDs:                []int{20},
 
 				ExportStringsThatPassedWorkflow: ToPtr(false),
 			},
@@ -717,7 +728,8 @@ func TestTranslationsService_BuildProjectTranslation(t *testing.T) {
 				"skipUntranslatedStrings": true,
 				"skipUntranslatedFiles": false,
 				"exportWithMinApprovalsCount": 1,
-				"exportStringsThatPassedWorkflow": false
+				"exportStringsThatPassedWorkflow": false,
+				"labelIds": [20]
 			}`,
 		},
 		{
@@ -765,7 +777,8 @@ func TestTranslationsService_BuildProjectTranslation(t *testing.T) {
 							"skipUntranslatedStrings": false,
 							"skipUntranslatedFiles": false,
 							"exportWithMinApprovalsCount": 0,
-							"exportStringsThatPassedWorkflow": true
+							"exportStringsThatPassedWorkflow": true,
+							"labelIds": [30]
 						}
 					}
 				}`)
@@ -790,6 +803,7 @@ func TestTranslationsService_BuildProjectTranslation(t *testing.T) {
 					SkipUntranslatedFiles:           ToPtr(false),
 					ExportWithMinApprovalsCount:     ToPtr(0),
 					ExportStringsThatPassedWorkflow: ToPtr(true),
+					LabelIDs:                        []int{30},
 				},
 			}
 			assert.Equal(t, expected, build)
@@ -864,7 +878,8 @@ func TestTranslationsService_UploadTranslations(t *testing.T) {
 			"importEqSuggestions": true,
 			"autoApproveImported": false,
 			"translateHidden": false,
-			"addToTm": false
+			"addToTm": false,
+			"markAddedAsDone": true
 		}`)
 
 		fmt.Fprint(w, `{
@@ -884,6 +899,7 @@ func TestTranslationsService_UploadTranslations(t *testing.T) {
 		AutoApproveImported: ToPtr(false),
 		TranslateHidden:     ToPtr(false),
 		AddToTM:             ToPtr(false),
+		MarkAddedAsDone:     ToPtr(true),
 	}
 	uploadTranslations, resp, err := client.Translations.UploadTranslations(context.Background(), 1, "uk", req)
 	require.NoError(t, err)
@@ -950,7 +966,8 @@ func TestTranslationsService_CheckBuildStatus(t *testing.T) {
 					"skipUntranslatedStrings": false,
 					"skipUntranslatedFiles": false,
 					"exportWithMinApprovalsCount": 0,
-					"exportStringsThatPassedWorkflow": true
+					"exportStringsThatPassedWorkflow": true,
+					"labelIds": [30]
 				}
 			}
 		}`)
@@ -974,6 +991,7 @@ func TestTranslationsService_CheckBuildStatus(t *testing.T) {
 			SkipUntranslatedFiles:           ToPtr(false),
 			ExportWithMinApprovalsCount:     ToPtr(0),
 			ExportStringsThatPassedWorkflow: ToPtr(true),
+			LabelIDs:                        []int{30},
 		},
 	}
 	assert.Equal(t, expected, build)
