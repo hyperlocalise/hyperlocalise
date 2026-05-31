@@ -244,6 +244,11 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
 
     const role = membershipRoleFromUnknownRoleField(data["role"]);
     if (!role) {
+      logger.warn("workos_webhook_unknown_role_slug", {
+        workosUserId,
+        workosMembershipId,
+        workosOrganizationId,
+      });
       return;
     }
 

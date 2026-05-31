@@ -82,8 +82,8 @@ function assignableRolesForActor(
   return [];
 }
 
-function canManageTargetMember(_targetRole: Member["role"], assignableRoles: Member["role"][]) {
-  return assignableRoles.length > 0;
+function canManageTargetMember(targetRole: Member["role"], assignableRoles: Member["role"][]) {
+  return assignableRoles.includes(targetRole);
 }
 
 function memberInitials(displayName: string) {
