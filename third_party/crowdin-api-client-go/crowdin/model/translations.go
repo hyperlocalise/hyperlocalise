@@ -35,6 +35,7 @@ type (
 		SkipApprovedTranslations      *bool               `json:"skipApprovedTranslations,omitempty"`
 		TranslateUntranslatedOnly     *bool               `json:"translateUntranslatedOnly,omitempty"`
 		TranslateWithPerfectMatchOnly *bool               `json:"translateWithPerfectMatchOnly,omitempty"`
+		TranslateWithSoftMatchOnly    *bool               `json:"translateWithSoftMatchOnly,omitempty"`
 		FallbackLanguages             map[string][]string `json:"fallbackLanguages,omitempty"`
 		LabelIDs                      []int               `json:"labelIds,omitempty"`
 		ExcludeLabelIDs               []int               `json:"excludeLabelIds,omitempty"`
@@ -133,6 +134,9 @@ type PreTranslationRequest struct {
 	// (source text and contextual information are identical). Default is false.
 	// Note: Works only with TM pre-translation method.
 	TranslateWithPerfectMatchOnly *bool `json:"translateWithPerfectMatchOnly,omitempty"`
+	// Applies pre-translation only for the strings with soft match. Default is false.
+	// Note: Works only with TM pre-translation method.
+	TranslateWithSoftMatchOnly *bool `json:"translateWithSoftMatchOnly,omitempty"`
 	// Defines fallback languages mapping. The passed value should contain a map of
 	// languageID as a key and an array of fallback language IDs as a value.
 	//  - languageID – Crowdin ID for the specified language.
@@ -182,6 +186,8 @@ type BuildProjectDirectoryTranslationRequest struct {
 	ExportApprovedOnly *bool `json:"exportApprovedOnly,omitempty"`
 	// Preserve folder hierarchy. Default: false.
 	PreserveFolderHierarchy *bool `json:"preserveFolderHierarchy,omitempty"`
+	// Label Identifiers.
+	LabelIDs []int `json:"labelIds,omitempty"`
 
 	// Defines whether to export only approved strings.
 	// Note: value greater than 0 can't be used with `exportStringsThatPassedWorkflow=true`
@@ -200,6 +206,7 @@ func (r *BuildProjectDirectoryTranslationRequest) MarshalJSON() ([]byte, error) 
 		SkipUntranslatedStrings         *bool    `json:"skipUntranslatedStrings,omitempty"`
 		SkipUntranslatedFiles           *bool    `json:"skipUntranslatedFiles,omitempty"`
 		PreserveFolderHierarchy         *bool    `json:"preserveFolderHierarchy,omitempty"`
+		LabelIDs                        []int    `json:"labelIds,omitempty"`
 		ExportWithMinApprovalsCount     *int     `json:"exportWithMinApprovalsCount,omitempty"`
 		ExportStringsThatPassedWorkflow *bool    `json:"exportStringsThatPassedWorkflow,omitempty"`
 	}
@@ -215,6 +222,7 @@ func (r *BuildProjectDirectoryTranslationRequest) MarshalJSON() ([]byte, error) 
 		SkipUntranslatedStrings:         r.SkipUntranslatedStrings,
 		SkipUntranslatedFiles:           r.SkipUntranslatedFiles,
 		PreserveFolderHierarchy:         r.PreserveFolderHierarchy,
+		LabelIDs:                        r.LabelIDs,
 		ExportWithMinApprovalsCount:     exportWithMinApprovalsCount,
 		ExportStringsThatPassedWorkflow: r.ExportStringsThatPassedWorkflow,
 	})
@@ -366,6 +374,7 @@ type BuildAttributes struct {
 	ExportApprovedOnly              *bool    `json:"exportApprovedOnly,omitempty"`
 	ExportWithMinApprovalsCount     *int     `json:"exportWithMinApprovalsCount,omitempty"`
 	ExportStringsThatPassedWorkflow *bool    `json:"exportStringsThatPassedWorkflow,omitempty"`
+	LabelIDs                        []int    `json:"labelIds,omitempty"`
 
 	Pseudo               *bool   `json:"pseudo,omitempty"`
 	Prefix               *string `json:"prefix,omitempty"`
@@ -408,6 +417,8 @@ type (
 		SkipUntranslatedFiles *bool `json:"skipUntranslatedFiles,omitempty"`
 		// Defines whether to export only approved strings.
 		ExportApprovedOnly *bool `json:"exportApprovedOnly,omitempty"`
+		// Label Identifiers.
+		LabelIDs []int `json:"labelIds,omitempty"`
 
 		// Defines whether to export only approved strings.
 		// Note: value greater than 0 can't be used with `exportStringsThatPassedWorkflow=true`
@@ -452,6 +463,7 @@ func (r *BuildProjectRequest) MarshalJSON() ([]byte, error) {
 		TargetLanguageIDs               []string `json:"targetLanguageIds,omitempty"`
 		SkipUntranslatedStrings         *bool    `json:"skipUntranslatedStrings,omitempty"`
 		SkipUntranslatedFiles           *bool    `json:"skipUntranslatedFiles,omitempty"`
+		LabelIDs                        []int    `json:"labelIds,omitempty"`
 		ExportWithMinApprovalsCount     *int     `json:"exportWithMinApprovalsCount,omitempty"`
 		ExportStringsThatPassedWorkflow *bool    `json:"exportStringsThatPassedWorkflow,omitempty"`
 	}
@@ -467,6 +479,7 @@ func (r *BuildProjectRequest) MarshalJSON() ([]byte, error) {
 		TargetLanguageIDs:               r.TargetLanguageIDs,
 		SkipUntranslatedStrings:         r.SkipUntranslatedStrings,
 		SkipUntranslatedFiles:           r.SkipUntranslatedFiles,
+		LabelIDs:                        r.LabelIDs,
 		ExportWithMinApprovalsCount:     exportWithMinApprovalsCount,
 		ExportStringsThatPassedWorkflow: r.ExportStringsThatPassedWorkflow,
 	})
@@ -535,6 +548,8 @@ type UploadTranslationsRequest struct {
 	TranslateHidden *bool `json:"translateHidden,omitempty"`
 	// Defines whether to add translation to TM. Default: true.
 	AddToTM *bool `json:"addToTm,omitempty"`
+	// Mark added translations as done. Default: false.
+	MarkAddedAsDone *bool `json:"markAddedAsDone,omitempty"`
 }
 
 // Validate checks if the upload translations request is valid.

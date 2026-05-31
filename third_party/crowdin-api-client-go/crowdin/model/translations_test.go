@@ -33,6 +33,7 @@ func TestPreTranslationRequestValidate(t *testing.T) {
 			req: &PreTranslationRequest{
 				LanguageIDs: []string{"uk"}, FileIDs: []int{1, 2},
 				Method: "tm", EngineID: toPtr(1), AutoApproveOption: "all", DuplicateTranslations: toPtr(false),
+				TranslateWithSoftMatchOnly: toPtr(true),
 			},
 			valid: true,
 		},
@@ -135,6 +136,7 @@ func TestBuildProjectDirectoryTranslationRequestValidate(t *testing.T) {
 			req: &BuildProjectDirectoryTranslationRequest{
 				TargetLanguageIDs:       []string{"en"},
 				SkipUntranslatedStrings: toPtr(true), ExportApprovedOnly: toPtr(true),
+				LabelIDs: []int{1, 2},
 			},
 			valid: true,
 		},
@@ -271,7 +273,7 @@ func TestBuildProjectRequestValidate(t *testing.T) {
 			name: "valid request",
 			req: &BuildProjectRequest{
 				BranchID: 1, TargetLanguageIDs: []string{"en"}, SkipUntranslatedStrings: toPtr(true),
-				ExportApprovedOnly: toPtr(true),
+				ExportApprovedOnly: toPtr(true), LabelIDs: []int{1, 2},
 			},
 			valid: true,
 		},
@@ -358,7 +360,7 @@ func TestUploadTranslationsRequestValidate(t *testing.T) {
 			req: &UploadTranslationsRequest{
 				StorageID: 1, FileID: 2, BranchID: 0,
 				ImportEqSuggestions: toPtr(true), AutoApproveImported: toPtr(true), TranslateHidden: toPtr(true),
-				AddToTM: toPtr(false),
+				AddToTM: toPtr(false), MarkAddedAsDone: toPtr(true),
 			},
 			valid: true,
 		},
