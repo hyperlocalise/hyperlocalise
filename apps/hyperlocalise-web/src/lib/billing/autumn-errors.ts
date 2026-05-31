@@ -7,7 +7,7 @@ export function formatAutumnBillingError(error: unknown): string {
       case "billing_read_forbidden":
         return "You do not have permission to view billing for this workspace.";
       case "billing_write_forbidden":
-        return "Only workspace owners and admins can change plans or open the billing portal.";
+        return "Only workspace admins can change plans or open the billing portal.";
       case "billing_customer_unavailable":
         return "Billing is not available for this workspace.";
       case "unauthorized":
@@ -23,7 +23,7 @@ export function formatAutumnBillingError(error: unknown): string {
       case "billing_read_forbidden":
         return "You do not have permission to view billing for this workspace.";
       case "billing_write_forbidden":
-        return "Only workspace owners and admins can change plans or open the billing portal.";
+        return "Only workspace admins can change plans or open the billing portal.";
       case "billing_customer_unavailable":
         return "Billing is not available for this workspace.";
       case "unauthorized":

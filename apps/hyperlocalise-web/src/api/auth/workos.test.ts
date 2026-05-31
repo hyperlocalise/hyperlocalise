@@ -118,7 +118,7 @@ describe("workosAuthMiddleware", () => {
       slug: "example-org",
       membership: {
         workosMembershipId: "membership_123",
-        role: "owner" as const,
+        role: "admin" as const,
         accessSource: "workos_authoritative" as const,
       },
     };

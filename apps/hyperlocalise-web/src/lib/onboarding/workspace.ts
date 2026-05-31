@@ -80,10 +80,10 @@ export async function createWorkspaceForSessionUser(input: {
       const identity = await provisionWorkspaceInWorkos({
         localWorkspaceId,
         organizationName: input.organizationName.trim(),
-        members: [{ workosUserId: input.sessionUser.id, role: "owner" }],
+        members: [{ workosUserId: input.sessionUser.id, role: "admin" }],
       });
-      const ownerMembership = identity.members[0];
-      if (!ownerMembership) {
+      const adminMembership = identity.members[0];
+      if (!adminMembership) {
         throw new Error("workos_organization_required");
       }
       workosOrganizationId = identity.workosOrganizationId;
@@ -108,8 +108,8 @@ export async function createWorkspaceForSessionUser(input: {
         await tx.insert(schema.organizationMemberships).values({
           organizationId: organization.id,
           userId: user.id,
-          role: "owner",
-          workosMembershipId: ownerMembership.workosMembershipId,
+          role: "admin",
+          workosMembershipId: adminMembership.workosMembershipId,
         });
 
         return {

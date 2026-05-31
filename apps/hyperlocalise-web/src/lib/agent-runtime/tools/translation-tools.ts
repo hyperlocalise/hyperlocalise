@@ -336,7 +336,7 @@ async function prepareTranslationJobInput(
     return err({
       code: "translation_job_permission_denied",
       message:
-        "You do not have permission to create translation jobs. Only organization owners and admins can perform this action.",
+        "You do not have permission to create translation jobs. Only organization admins can perform this action.",
     });
   }
 

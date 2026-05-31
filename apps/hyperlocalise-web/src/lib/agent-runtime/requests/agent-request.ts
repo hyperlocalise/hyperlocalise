@@ -8,7 +8,7 @@ export const agentActorSchema = z.object({
   userId: z.string().optional(),
   email: z.string().optional(),
   displayName: z.string().optional(),
-  role: z.enum(["owner", "admin", "member"]).optional(),
+  role: z.enum(["admin", "member"]).optional(),
 });
 export type AgentActor = z.infer<typeof agentActorSchema>;
 

@@ -54,7 +54,6 @@ const ADMIN_CAPABILITIES = new Set<OrganizationCapability>([
 const MEMBER_CAPABILITIES = new Set<OrganizationCapability>(MEMBER_READ_CAPABILITIES);
 
 const ROLE_CAPABILITIES: Record<OrganizationMembershipRole, ReadonlySet<OrganizationCapability>> = {
-  owner: ADMIN_CAPABILITIES,
   admin: ADMIN_CAPABILITIES,
   member: MEMBER_CAPABILITIES,
 };

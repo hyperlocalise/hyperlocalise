@@ -72,7 +72,7 @@ export function createCreateGlossaryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to create glossaries. Only organization owners and admins can perform this action.",
+            "You do not have permission to create glossaries. Only organization admins can perform this action.",
         };
       }
 
@@ -122,7 +122,7 @@ export function createUpdateGlossaryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to update glossaries. Only organization owners and admins can perform this action.",
+            "You do not have permission to update glossaries. Only organization admins can perform this action.",
         };
       }
 
@@ -164,7 +164,7 @@ export function createDeleteGlossaryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to delete glossaries. Only organization owners and admins can perform this action.",
+            "You do not have permission to delete glossaries. Only organization admins can perform this action.",
         };
       }
 
@@ -245,7 +245,7 @@ export function createCreateGlossaryTermTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to create glossary terms. Only organization owners and admins can perform this action.",
+            "You do not have permission to create glossary terms. Only organization admins can perform this action.",
         };
       }
 
@@ -321,7 +321,7 @@ export function createUpdateGlossaryTermTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to update glossary terms. Only organization owners and admins can perform this action.",
+            "You do not have permission to update glossary terms. Only organization admins can perform this action.",
         };
       }
 
@@ -366,7 +366,7 @@ export function createDeleteGlossaryTermTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to delete glossary terms. Only organization owners and admins can perform this action.",
+            "You do not have permission to delete glossary terms. Only organization admins can perform this action.",
         };
       }
 

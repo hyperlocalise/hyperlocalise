@@ -32,7 +32,7 @@ async function createExternalTmsProject(input?: { validationStatus?: string; isA
   const credential = await upsertOrganizationExternalTmsProviderCredential({
     organizationId: organization.id,
     userId: user.id,
-    role: "owner",
+    role: "admin",
     providerKind: "phrase",
     displayName: "Phrase",
     secretMaterial: "secret-token",

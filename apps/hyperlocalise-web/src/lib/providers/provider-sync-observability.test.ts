@@ -41,7 +41,7 @@ async function createOrganizationUser() {
   await db.insert(schema.organizationMemberships).values({
     organizationId,
     userId,
-    role: "owner",
+    role: "admin",
   });
 
   return { organizationId, userId };
@@ -93,7 +93,7 @@ describe("provider sync observability", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "secret-token",
@@ -180,7 +180,7 @@ describe("provider sync observability", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "secret-token",
@@ -285,7 +285,7 @@ describe("provider sync observability", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "phrase",
       displayName: "Phrase",
       secretMaterial: "secret-token",
@@ -361,7 +361,7 @@ describe("provider sync observability", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "phrase",
       displayName: "Phrase",
       secretMaterial: "secret-token",
@@ -442,7 +442,7 @@ describe("provider sync observability", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "secret-token",
@@ -498,7 +498,7 @@ describe("provider sync observability", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "secret-token",
@@ -547,7 +547,7 @@ describe("provider sync observability", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "secret-token",

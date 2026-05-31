@@ -63,7 +63,7 @@ describe("organizationExternalTmsMemories", () => {
     await db.insert(schema.organizationMemberships).values({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
     });
 
     return { organizationId, userId };
@@ -116,7 +116,7 @@ describe("organizationExternalTmsMemories", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "smartling",
       displayName: "Smartling",
       secretMaterial: "smartling-token",
@@ -211,7 +211,7 @@ describe("organizationExternalTmsMemories", () => {
       const credential = await upsertOrganizationExternalTmsProviderCredential({
         organizationId,
         userId,
-        role: "owner",
+        role: "admin",
         providerKind: "phrase",
         displayName: "Phrase",
         secretMaterial: "phrase-token",

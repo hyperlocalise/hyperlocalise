@@ -116,8 +116,8 @@ describe("autumnRoutes", () => {
     expect(autumnRequestHandlerMock).not.toHaveBeenCalled();
   });
 
-  it("allows owners to reach Autumn write routes", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("owner");
+  it("allows admins to reach Autumn write routes", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
 
     const response = await postAutumnRoute("openCustomerPortal", {
@@ -155,12 +155,12 @@ describe("autumnRoutes", () => {
           name: "Secondary Workspace",
           slug: `secondary-${crypto.randomUUID()}`,
         },
-        "owner",
+        "admin",
       ),
       user: primaryIdentity.user,
       membership: {
         workosMembershipId: `${primaryIdentity.membership.workosMembershipId}-secondary`,
-        role: "owner",
+        role: "admin",
       },
     } satisfies WorkosAuthIdentity;
 

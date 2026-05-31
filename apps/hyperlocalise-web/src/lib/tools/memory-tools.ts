@@ -57,7 +57,7 @@ export function createCreateTranslationMemoryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to create translation memories. Only organization owners and admins can perform this action.",
+            "You do not have permission to create translation memories. Only organization admins can perform this action.",
         };
       }
 
@@ -89,7 +89,7 @@ export function createUpdateTranslationMemoryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to update translation memories. Only organization owners and admins can perform this action.",
+            "You do not have permission to update translation memories. Only organization admins can perform this action.",
         };
       }
 
@@ -131,7 +131,7 @@ export function createDeleteTranslationMemoryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to delete translation memories. Only organization owners and admins can perform this action.",
+            "You do not have permission to delete translation memories. Only organization admins can perform this action.",
         };
       }
 
@@ -240,7 +240,7 @@ export function createCreateMemoryEntryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to create translation memory entries. Only organization owners and admins can perform this action.",
+            "You do not have permission to create translation memory entries. Only organization admins can perform this action.",
         };
       }
 
@@ -338,7 +338,7 @@ export function createUpdateMemoryEntryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to update translation memory entries. Only organization owners and admins can perform this action.",
+            "You do not have permission to update translation memory entries. Only organization admins can perform this action.",
         };
       }
 
@@ -390,7 +390,7 @@ export function createDeleteMemoryEntryTool(ctx: ToolContext) {
         return {
           success: false,
           error:
-            "You do not have permission to delete translation memory entries. Only organization owners and admins can perform this action.",
+            "You do not have permission to delete translation memory entries. Only organization admins can perform this action.",
         };
       }
 

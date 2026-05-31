@@ -246,6 +246,13 @@
       "when": 1780182581883,
       "tag": "0034_superb_inhumans",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1780209503914,
+      "tag": "0035_perfect_pandemic",
+      "breakpoints": true
     }
   ]
 }

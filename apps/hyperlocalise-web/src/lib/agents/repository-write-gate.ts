@@ -23,7 +23,7 @@ function canApproveAgentWrite(role: OrganizationMembershipRole | null | undefine
  *
  * Rules:
  * - read_only: all writes are denied.
- * - slack: allow write actions for workspace admins/owners; regular members
+ * - slack: allow write actions for workspace admins; regular members
  *   should be enqueued in read_only mode and are denied if a task is malformed.
  * - write: allow GitHub requests that passed adapter-level permission checks.
  * - approval_required: keep GitHub admin-gated.
@@ -67,12 +67,12 @@ function checkSlackWriteGate(
   return {
     allowed: false,
     reason:
-      "Slack-triggered write actions require admin or owner privileges. Regular members run in read-only mode.",
+      "Slack-triggered write actions require admin privileges. Regular members run in read-only mode.",
   };
 }
 
 function checkVerifiedMemberWriteGate(actor: RepositoryAgentActor): WriteGateResult {
-  const isMember = actor.role === "owner" || actor.role === "admin" || actor.role === "member";
+  const isMember = actor.role === "admin" || actor.role === "member";
   if (isMember) {
     return { allowed: true };
   }
@@ -104,7 +104,7 @@ function checkGitHubWriteGate(
   return {
     allowed: false,
     reason:
-      "Write actions in this workflow require admin or owner privileges. Please contact a workspace admin.",
+      "Write actions in this workflow require admin privileges. Please contact a workspace admin.",
   };
 }
 
