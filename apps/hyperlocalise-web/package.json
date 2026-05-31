@@ -19,6 +19,7 @@
     "@chat-adapter/slack": "4.29.0",
     "@chat-adapter/state-memory": "4.29.0",
     "@chat-adapter/state-pg": "4.29.0",
+    "@chat-adapter/web": "4.29.0",
     "@hookform/resolvers": "5.4.0",
     "@hugeicons/core-free-icons": "4.1.4",
     "@hugeicons/react": "1.1.6",

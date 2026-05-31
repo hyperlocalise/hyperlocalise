@@ -31,10 +31,11 @@ export function useConversationStream({
   }, []);
 
   const startStreaming = useCallback(
-    async (conversationId: string, responseToMessageId: string) => {
+    async (input: { conversationId: string; responseToMessageId: string; text: string }) => {
       abortControllerRef.current?.abort();
 
       const controller = new AbortController();
+      const { conversationId, responseToMessageId, text } = input;
       const messageId = `stream-${responseToMessageId}`;
       abortControllerRef.current = controller;
       setIsStreaming(true);
@@ -50,19 +51,19 @@ export function useConversationStream({
       try {
         const transport = new DefaultChatTransport({
           api: `/api/orgs/${organizationSlug}/conversations/${conversationId}/chat`,
-          prepareSendMessagesRequest: ({ api, credentials, headers }) => ({
-            api,
-            credentials,
-            headers,
-            body: {},
-          }),
         });
 
         const chunkStream = await transport.sendMessages({
           abortSignal: controller.signal,
           chatId: conversationId,
           messageId: undefined,
-          messages: [],
+          messages: [
+            {
+              id: responseToMessageId,
+              role: "user",
+              parts: [{ type: "text", text }],
+            },
+          ],
           trigger: "submit-message",
         });
 

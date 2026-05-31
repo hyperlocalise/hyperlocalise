@@ -1,13 +1,10 @@
 "use client";
 
-import { BubbleChatNotificationIcon, MoreHorizontalIcon } from "@hugeicons/core-free-icons";
+import { BubbleChatNotificationIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
-import { cn } from "@/lib/primitives/cn";
 
 import { ConversationDetails } from "./conversation-details";
 import { ConversationMessageList } from "./conversation-message-list";
@@ -50,8 +47,8 @@ export function ConversationPanel({
 }) {
   if (!conversation) {
     return (
-      <section className="min-h-0 bg-background">
-        <div className="flex h-full items-center justify-center text-muted-foreground">
+      <section className="flex min-h-[50vh] flex-col bg-background lg:min-h-0">
+        <div className="flex flex-1 items-center justify-center text-muted-foreground">
           <TypographyMuted>Select a conversation to view details</TypographyMuted>
         </div>
       </section>
@@ -62,10 +59,10 @@ export function ConversationPanel({
   const composerDisabled = isSending || isStreaming;
 
   return (
-    <section className="flex min-h-0 flex-col bg-background">
+    <section className="flex min-h-[50vh] min-w-0 flex-1 flex-col bg-background lg:min-h-0">
       <ConversationHeader conversation={conversation} jobs={jobs} jobsIsLoading={jobsIsLoading} />
 
-      <div className="relative flex h-[calc(100svh-7.5rem)] min-h-0 flex-col">
+      <div className="relative flex min-h-0 flex-1 flex-col lg:h-[calc(100svh-7.5rem)]">
         <ConversationDetails
           conversation={conversation}
           jobs={jobs}
@@ -108,8 +105,8 @@ function ConversationHeader({
   jobsIsLoading: boolean;
 }) {
   return (
-    <header className="flex min-h-16 items-center justify-between gap-4 border-b border-border px-4 py-3 sm:px-6">
-      <div className="flex min-w-0 items-start gap-3">
+    <header className="flex min-h-16 items-center border-b border-border px-4 py-3 sm:px-6">
+      <div className="flex min-w-0 flex-1 items-start gap-3">
         <HugeiconsIcon
           icon={BubbleChatNotificationIcon}
           strokeWidth={1.8}
@@ -121,7 +118,7 @@ function ConversationHeader({
             <Badge variant="outline" className="border-border bg-muted text-foreground">
               {sourceLabel[conversation.source]}
             </Badge>
-            <Badge className={cn("ring-1", statusStyles[conversation.status])}>
+            <Badge variant="outline" className={statusStyles[conversation.status]}>
               {conversation.status}
             </Badge>
             <span>Created {formatRelativeTime(conversation.createdAt)}</span>
@@ -131,26 +128,6 @@ function ConversationHeader({
             ) : null}
           </div>
         </div>
-      </div>
-      <div className="flex items-center gap-1">
-        <Tooltip>
-          <TooltipTrigger
-            render={
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="text-muted-foreground hover:bg-accent hover:text-foreground"
-                aria-label="More actions"
-              >
-                <HugeiconsIcon icon={MoreHorizontalIcon} strokeWidth={1.8} className="size-4" />
-              </Button>
-            }
-          />
-          <TooltipContent side="bottom" align="end">
-            More actions
-          </TooltipContent>
-        </Tooltip>
       </div>
     </header>
   );

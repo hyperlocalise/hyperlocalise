@@ -2,12 +2,13 @@ const ROUTE_TITLES = {
   account: "Account",
   activity: "Activity",
   "agent-runs": "Agent Runs",
+  "api-keys": "API Keys",
   billing: "Billing",
   chat: "New Request",
-  "command-center": "Command Center",
-  dashboard: "Command Center",
+  "command-center": "Overview",
+  dashboard: "Overview",
   files: "Files",
-  glossaries: "Terminology",
+  glossaries: "Glossaries",
   inbox: "Inbox",
   integrations: "Integrations",
   jobs: "Jobs",
@@ -16,7 +17,6 @@ const ROUTE_TITLES = {
   members: "Team",
   "my-jobs": "My Work",
   "my-work": "My Work",
-  notifications: "Notifications",
   "new-request": "New Request",
   projects: "Projects",
   qa: "QA",
@@ -24,6 +24,11 @@ const ROUTE_TITLES = {
   settings: "Settings",
   "translation-memories": "Translation Memories",
 } as const;
+
+export type AppShellBreadcrumb = {
+  label: string;
+  href?: string;
+};
 
 const PROJECT_SECTION_TITLES = {
   activity: "Activity",
@@ -45,32 +50,89 @@ function isProjectSectionKey(value: string): value is keyof typeof PROJECT_SECTI
   return value in PROJECT_SECTION_TITLES;
 }
 
-export function getAppShellTitle(pathname: string | null): string {
+function parseOrgRoute(pathname: string | null) {
   if (!pathname) {
-    return ROUTE_TITLES["command-center"];
+    return null;
   }
 
   const segments = pathname.split("/").filter(Boolean);
   const organizationIndex = segments.indexOf("org");
-  const routeSegments = organizationIndex >= 0 ? segments.slice(organizationIndex + 2) : segments;
+  if (organizationIndex < 0) {
+    return null;
+  }
+
+  const organizationSlug = segments[organizationIndex + 1];
+  if (!organizationSlug) {
+    return null;
+  }
+
+  return {
+    organizationSlug,
+    routeSegments: segments.slice(organizationIndex + 2),
+  };
+}
+
+function buildOrgPath(organizationSlug: string, ...parts: string[]) {
+  return `/org/${organizationSlug}/${parts.join("/")}`;
+}
+
+function routeTitle(segment: string) {
+  return isRouteTitleKey(segment) ? ROUTE_TITLES[segment] : segment;
+}
+
+export function getAppShellBreadcrumbs(
+  pathname: string | null,
+  options?: { projectName?: string },
+): AppShellBreadcrumb[] {
+  const orgRoute = parseOrgRoute(pathname);
+  if (!orgRoute) {
+    return [{ label: ROUTE_TITLES["command-center"] }];
+  }
+
+  const { organizationSlug, routeSegments } = orgRoute;
   const [section, subsection, projectSection] = routeSegments;
 
-  if (section === "projects" && subsection && projectSection) {
-    if (isProjectSectionKey(projectSection)) {
-      return PROJECT_SECTION_TITLES[projectSection];
+  if (section === "settings") {
+    if (!subsection) {
+      return [{ label: ROUTE_TITLES.settings }];
     }
-    return "Overview";
+
+    return [
+      { label: ROUTE_TITLES.settings, href: buildOrgPath(organizationSlug, "settings") },
+      { label: routeTitle(subsection) },
+    ];
   }
 
   if (section === "projects" && subsection) {
-    return "Overview";
+    const projectName = options?.projectName?.trim() || (projectSection ? "Project" : "Overview");
+    const projectHref = buildOrgPath(organizationSlug, "projects", subsection);
+
+    if (projectSection && isProjectSectionKey(projectSection)) {
+      return [
+        { label: "Project", href: buildOrgPath(organizationSlug, "projects") },
+        { label: projectName, href: projectHref },
+        { label: PROJECT_SECTION_TITLES[projectSection] },
+      ];
+    }
+
+    return [
+      { label: "Project", href: buildOrgPath(organizationSlug, "projects") },
+      { label: projectName },
+    ];
   }
 
-  if (section === "settings" && subsection) {
-    return isRouteTitleKey(subsection) ? ROUTE_TITLES[subsection] : ROUTE_TITLES.settings;
+  if (section === "projects") {
+    return [{ label: ROUTE_TITLES.projects }];
   }
 
-  return section && isRouteTitleKey(section)
-    ? ROUTE_TITLES[section]
-    : ROUTE_TITLES["command-center"];
+  if (section && isRouteTitleKey(section)) {
+    return [{ label: ROUTE_TITLES[section] }];
+  }
+
+  return [{ label: ROUTE_TITLES["command-center"] }];
+}
+
+export function getAppShellTitle(pathname: string | null): string {
+  const breadcrumbs = getAppShellBreadcrumbs(pathname);
+  return breadcrumbs[breadcrumbs.length - 1]?.label ?? ROUTE_TITLES["command-center"];
 }

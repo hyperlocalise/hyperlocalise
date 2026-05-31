@@ -16,8 +16,9 @@ export function SimpleBrandIcon({ icon, colored, className, ...props }: SimpleBr
       aria-hidden="true"
       focusable="false"
       viewBox="0 0 24 24"
-      className={cn("size-5", !colored && "grayscale saturate-0", className)}
-      fill={`#${icon.hex}`}
+      className={cn("size-5", className)}
+      fill={colored ? `#${icon.hex}` : "currentColor"}
+      opacity={colored ? 1 : 0.72}
       {...props}
     >
       <path d={icon.path} />

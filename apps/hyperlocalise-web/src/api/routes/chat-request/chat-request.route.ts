@@ -150,6 +150,7 @@ export function createChatRequestRoutes(options: CreateChatRequestRoutesOptions 
         await addInteractionMessage({
           interactionId: conversation.id,
           senderType: "user",
+          senderEmail: c.var.auth.user.email,
           text: messageText,
           attachments: storedFiles.map((file) => ({
             id: file.id,
@@ -185,6 +186,7 @@ export function createChatRequestRoutes(options: CreateChatRequestRoutesOptions 
       await addInteractionMessage({
         interactionId: conversation.id,
         senderType: "user",
+        senderEmail: c.var.auth.user.email,
         text: body.text,
       });
 

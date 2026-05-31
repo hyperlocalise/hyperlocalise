@@ -110,7 +110,7 @@ export function WorkspaceSettingsForm({
 
   return (
     <form
-      className="grid gap-4 px-5 py-5 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
+      className="grid gap-4 sm:grid-cols-[1fr_1fr_auto] sm:items-end"
       onSubmit={(event) => {
         event.preventDefault();
         if (hasChanges) {
@@ -119,7 +119,7 @@ export function WorkspaceSettingsForm({
       }}
     >
       <div className="grid gap-2">
-        <Label htmlFor="workspace-name" className="text-xs font-medium text-foreground/48">
+        <Label htmlFor="workspace-name" className="text-xs font-medium text-muted-foreground">
           Organization name
         </Label>
         <Input
@@ -131,7 +131,7 @@ export function WorkspaceSettingsForm({
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="workspace-slug" className="text-xs font-medium text-foreground/48">
+        <Label htmlFor="workspace-slug" className="text-xs font-medium text-muted-foreground">
           Workspace slug
         </Label>
         <Input

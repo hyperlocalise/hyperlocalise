@@ -24,7 +24,9 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
     <AppShellClient
       activeOrganization={auth.activeOrganization}
       organizations={auth.organizations}
+      showApiKeysLink={hasCapability(auth.membership.role, "api_keys:read")}
       showBillingLink={hasCapability(auth.membership.role, "billing:read")}
+      showMembersLink={hasCapability(auth.membership.role, "workspace:read")}
       user={{
         name: displayName,
         avatarUrl: auth.sessionUser.profilePictureUrl ?? undefined,

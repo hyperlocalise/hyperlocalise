@@ -5,6 +5,8 @@ import {
   canActorAssignRole,
   canActorManageTarget,
   getMembershipStatusLabel,
+  getRoleBadgeClassName,
+  getRoleBadgeVariant,
   getRoleLabel,
   memberRowCapabilities,
 } from "./member-management";
@@ -18,6 +20,14 @@ describe("member-management", () => {
   it("exposes localization role labels from WorkOS definitions", () => {
     expect(getRoleLabel("localization_manager")).toBe("Localization manager");
     expect(getRoleLabel("translator")).toBe("Translator");
+  });
+
+  it("maps roles to member table badge variants", () => {
+    expect(getRoleBadgeVariant("admin")).toBe("outline");
+    expect(getRoleBadgeVariant("member")).toBe("outline");
+    expect(getRoleBadgeClassName("admin")).toContain("grove");
+    expect(getRoleBadgeClassName("localization_manager")).toContain("bg-muted");
+    expect(getRoleBadgeClassName("reviewer")).toContain("bg-transparent");
   });
 
   it("lets admins assign every role including admin", () => {

@@ -1,30 +1,21 @@
 import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import {
-  AiSecurity01Icon,
   AiUserIcon,
   ArrowRight01Icon,
-  BellDotIcon,
-  Building02Icon,
-  Calendar03Icon,
-  UserGroupIcon,
-  CheckmarkCircle01Icon,
-  CreditCardIcon,
   Key01Icon,
-  Mail01Icon,
-  Notification01Icon,
+  UserGroupIcon,
+  CreditCardIcon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { cn } from "@/lib/primitives/cn";
 
 import type { OrganizationCapability } from "@/api/auth/policy";
 import { WorkspaceSettingsForm } from "./workspace-settings-form";
@@ -42,28 +33,26 @@ type AccountPageProps = {
   userName: string;
 };
 
-type SettingsCardProps = {
+type SettingsRowProps = {
   description: string;
   href: string;
   icon: ComponentProps<typeof HugeiconsIcon>["icon"];
+  isLast: boolean;
   label: string;
-  status: string;
 };
 
-const settingsCards = [
+const settingsRows = [
   {
     label: "Account",
-    description: "Profile details, workspace identity, and access posture.",
+    description: "Profile details and workspace identity.",
     href: "account",
     icon: AiUserIcon,
-    status: "Configured",
   },
   {
     label: "Members",
     description: "Invite people to this workspace and manage their roles.",
     href: "members",
     icon: UserGroupIcon,
-    status: "Manage",
     requiredCapability: "workspace:read" as const,
   },
   {
@@ -71,7 +60,6 @@ const settingsCards = [
     description: "Manage API keys for programmatic access to translation jobs and workspace data.",
     href: "api-keys",
     icon: Key01Icon,
-    status: "Manage",
     requiredCapability: "api_keys:read" as const,
   },
   {
@@ -79,38 +67,7 @@ const settingsCards = [
     description: "Plan usage, payment method, invoices, and billing contacts.",
     href: "billing",
     icon: CreditCardIcon,
-    status: "Enterprise",
     requiredCapability: "billing:read" as const,
-  },
-  {
-    label: "Notifications",
-    description: "Release alerts, agent updates, and weekly localization digests.",
-    href: "notifications",
-    icon: Notification01Icon,
-    status: "4 active",
-  },
-] as const;
-
-const notificationRows = [
-  {
-    label: "Release risk alerts",
-    description: "Send an immediate alert when source changes may block a locale release.",
-    checked: true,
-  },
-  {
-    label: "Agent action summaries",
-    description: "Collect review comments, opened pull requests, and failed fixes into one update.",
-    checked: true,
-  },
-  {
-    label: "Weekly localization digest",
-    description: "Share throughput, review aging, and language coverage every Monday.",
-    checked: true,
-  },
-  {
-    label: "Billing and usage notices",
-    description: "Notify workspace owners before plan thresholds or renewal events.",
-    checked: false,
   },
 ] as const;
 
@@ -128,14 +85,14 @@ function SettingsHeader({
   return (
     <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
-        <div className="flex items-center gap-2 text-sm text-foreground/48">
-          <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4" />
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground antialiased">
+          <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4 shrink-0" />
           <span>{eyebrow}</span>
         </div>
         <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-foreground md:text-2xl">
           {title}
         </TypographyH1>
-        <TypographyP className="mt-2 text-sm leading-6 text-foreground/52">
+        <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
           {description}
         </TypographyP>
       </div>
@@ -146,54 +103,42 @@ function SettingsHeader({
 function SurfaceCard({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <Card
-      className={`rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0 ${className}`}
+      className={cn(
+        "rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0",
+        className,
+      )}
     >
       {children}
     </Card>
   );
 }
 
-function SettingsCard({ description, href, icon, label, status }: SettingsCardProps) {
+function SettingsRow({ description, href, icon, isLast, label }: SettingsRowProps) {
   return (
-    <SurfaceCard>
-      <CardHeader className="gap-4 px-5 py-5">
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
-            <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-5" />
-          </div>
-          <Badge
-            variant="outline"
-            className="rounded-full border-foreground/10 bg-foreground/4 text-foreground/52"
-          >
-            {status}
-          </Badge>
-        </div>
-        <div>
-          <CardTitle className="text-base font-medium text-foreground">{label}</CardTitle>
-          <CardDescription className="mt-2 text-sm leading-6 text-foreground/52">
-            {description}
-          </CardDescription>
-        </div>
-      </CardHeader>
-      <Separator className="bg-foreground/8" />
-      <CardContent className="px-5 py-4">
-        <Button
-          variant="outline"
-          className="border-foreground/10 bg-transparent text-foreground/72 hover:bg-foreground/8 hover:text-foreground"
-          render={<Link href={href} />}
-        >
+    <div className={cn("flex items-center gap-4 px-5 py-4", !isLast && "border-b border-border")}>
+      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted/50 p-2 text-muted-foreground">
+        <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-5" />
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-base font-medium text-foreground">{label}</p>
+        <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{description}</p>
+      </div>
+
+      <div className="shrink-0">
+        <Button variant="outline" size="sm" render={<Link href={href} />}>
           Open
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
         </Button>
-      </CardContent>
-    </SurfaceCard>
+      </div>
+    </div>
   );
 }
 
 function ReadonlyField({ label, value }: { label: string; value: string }) {
   return (
     <div className="grid gap-2">
-      <Label className="text-xs font-medium text-foreground/48">{label}</Label>
+      <Label className="text-xs font-medium text-muted-foreground">{label}</Label>
       <Input
         readOnly
         value={value}
@@ -205,8 +150,8 @@ function ReadonlyField({ label, value }: { label: string; value: string }) {
 
 export function SettingsPageContent({ organizationSlug, capabilities }: SettingsPageProps) {
   const baseHref = `/org/${organizationSlug}/settings`;
-  const visibleCards = settingsCards.filter(
-    (card) => !("requiredCapability" in card) || capabilities.includes(card.requiredCapability),
+  const visibleRows = settingsRows.filter(
+    (row) => !("requiredCapability" in row) || capabilities.includes(row.requiredCapability),
   );
 
   return (
@@ -218,37 +163,18 @@ export function SettingsPageContent({ organizationSlug, capabilities }: Settings
         description="Review the core controls for this workspace and jump into the area you need to update."
       />
 
-      <section className="grid gap-3 md:grid-cols-3">
-        {visibleCards.map((card) => (
-          <SettingsCard key={card.label} {...card} href={`${baseHref}/${card.href}`} />
-        ))}
+      <section>
+        <SurfaceCard className="gap-0 overflow-hidden">
+          {visibleRows.map((row, index) => (
+            <SettingsRow
+              key={row.label}
+              {...row}
+              href={`${baseHref}/${row.href}`}
+              isLast={index === visibleRows.length - 1}
+            />
+          ))}
+        </SurfaceCard>
       </section>
-
-      <SurfaceCard>
-        <CardContent className="grid gap-4 px-5 py-5 md:grid-cols-[1fr_16rem] md:items-center">
-          <div>
-            <TypographyP className="text-sm font-medium text-foreground">
-              Workspace readiness
-            </TypographyP>
-            <TypographyP className="mt-1 text-sm leading-6 text-foreground/48">
-              Account identity, billing ownership, and notification routing are ready for release
-              operations.
-            </TypographyP>
-          </div>
-          <div className="grid gap-2">
-            {["Account profile", "Plan usage", "Release alerts"].map((item) => (
-              <div key={item} className="flex items-center gap-2 text-sm text-foreground/62">
-                <HugeiconsIcon
-                  icon={CheckmarkCircle01Icon}
-                  strokeWidth={1.8}
-                  className="size-4 text-bud-300"
-                />
-                <span>{item}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </SurfaceCard>
     </main>
   );
 }
@@ -261,7 +187,7 @@ export function AccountSettingsPageContent({
   userName,
 }: AccountPageProps) {
   return (
-    <main className="space-y-5">
+    <main className="mx-auto w-full max-w-3xl space-y-8">
       <SettingsHeader
         eyebrow="Account settings"
         icon={AiUserIcon}
@@ -269,122 +195,32 @@ export function AccountSettingsPageContent({
         description="Keep the signed-in user and workspace identity easy to verify before agents act on releases."
       />
 
-      <section className="grid gap-3 lg:grid-cols-[1fr_20rem]">
-        <SurfaceCard>
-          <CardHeader className="px-5 py-5">
-            <CardTitle className="text-lg font-medium text-foreground">Profile</CardTitle>
-            <CardDescription className="text-foreground/52">
-              These details come from your WorkOS session.
-            </CardDescription>
-          </CardHeader>
-          <Separator className="bg-foreground/8" />
-          <CardContent className="grid gap-4 px-5 py-5 sm:grid-cols-2">
-            <ReadonlyField label="Name" value={userName} />
-            <ReadonlyField label="Email" value={userEmail} />
-          </CardContent>
-        </SurfaceCard>
-
-        <SurfaceCard>
-          <CardHeader className="px-5 py-5">
-            <div className="flex size-10 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
-              <HugeiconsIcon icon={AiSecurity01Icon} strokeWidth={1.8} className="size-5" />
-            </div>
-            <CardTitle className="text-base font-medium text-foreground">Access posture</CardTitle>
-            <CardDescription className="leading-6 text-foreground/52">
-              Authentication and organization access are enforced before every workspace page.
-            </CardDescription>
-          </CardHeader>
-        </SurfaceCard>
+      <section className="space-y-4">
+        <div>
+          <TypographyP className="text-sm font-medium text-foreground">Profile</TypographyP>
+          <TypographyP className="mt-1 text-sm text-muted-foreground">
+            These details come from your WorkOS session.
+          </TypographyP>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ReadonlyField label="Name" value={userName} />
+          <ReadonlyField label="Email" value={userEmail} />
+        </div>
       </section>
 
-      <SurfaceCard>
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Workspace</CardTitle>
-          <CardDescription className="text-foreground/52">
+      <section className="space-y-4 border-t border-border pt-8">
+        <div>
+          <TypographyP className="text-sm font-medium text-foreground">Workspace</TypographyP>
+          <TypographyP className="mt-1 text-sm text-muted-foreground">
             Public workspace identifiers used in app navigation.
-          </CardDescription>
-        </CardHeader>
-        <Separator className="bg-foreground/8" />
+          </TypographyP>
+        </div>
         <WorkspaceSettingsForm
           canUpdateWorkspace={canUpdateWorkspace}
           organizationName={organizationName}
           organizationSlug={organizationSlug}
         />
-      </SurfaceCard>
-    </main>
-  );
-}
-
-export function NotificationSettingsPageContent() {
-  return (
-    <main className="space-y-5">
-      <SettingsHeader
-        eyebrow="Notification settings"
-        icon={Notification01Icon}
-        title="Notifications"
-        description="Choose which operational updates reach the people responsible for release quality."
-      />
-
-      <section className="grid gap-3 md:grid-cols-3">
-        {[
-          { label: "Email", value: "Primary channel", icon: Mail01Icon },
-          { label: "Workspace", value: "Owner updates", icon: Building02Icon },
-          { label: "Digest", value: "Weekly summary", icon: Calendar03Icon },
-        ].map((channel) => (
-          <SurfaceCard key={channel.label}>
-            <CardHeader className="px-5 py-5">
-              <div className="flex size-10 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
-                <HugeiconsIcon icon={channel.icon} strokeWidth={1.8} className="size-5" />
-              </div>
-              <CardTitle className="text-base font-medium text-foreground">
-                {channel.label}
-              </CardTitle>
-              <CardDescription className="text-foreground/52">{channel.value}</CardDescription>
-            </CardHeader>
-          </SurfaceCard>
-        ))}
       </section>
-
-      <SurfaceCard>
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Alert preferences</CardTitle>
-          <CardDescription className="text-foreground/52">
-            Defaults are shown until notification persistence is connected.
-          </CardDescription>
-        </CardHeader>
-        <Separator className="bg-foreground/8" />
-        <CardContent className="divide-y divide-foreground/8 px-5 py-0">
-          {notificationRows.map((row) => (
-            <div key={row.label} className="flex items-start justify-between gap-4 py-4">
-              <div>
-                <TypographyP className="text-sm font-medium text-foreground">
-                  {row.label}
-                </TypographyP>
-                <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-foreground/48">
-                  {row.description}
-                </TypographyP>
-              </div>
-              <Switch checked={row.checked} disabled className="mt-1 data-checked:bg-bud-500" />
-            </div>
-          ))}
-        </CardContent>
-      </SurfaceCard>
-
-      <SurfaceCard>
-        <CardContent className="flex items-start gap-3 px-5 py-4">
-          <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-dew-500/10 text-dew-300">
-            <HugeiconsIcon icon={BellDotIcon} strokeWidth={1.8} className="size-4" />
-          </div>
-          <div>
-            <TypographyP className="text-sm font-medium text-foreground">
-              Notification delivery is scoped.
-            </TypographyP>
-            <TypographyP className="mt-1 text-sm leading-6 text-foreground/48">
-              Release alerts are intended for workspace owners and configured delivery channels.
-            </TypographyP>
-          </div>
-        </CardContent>
-      </SurfaceCard>
     </main>
   );
 }

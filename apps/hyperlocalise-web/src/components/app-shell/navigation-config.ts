@@ -3,6 +3,7 @@ import {
   Activity01Icon,
   AiBrain01Icon,
   BookOpenTextIcon,
+  Chat01Icon,
   DashboardSquare01Icon,
   DatabaseSyncIcon,
   File01Icon,
@@ -24,6 +25,7 @@ export type NavigationItem = {
   href: string;
   icon: NavigationIcon;
   description?: string;
+  badge?: string;
 };
 
 export type NavigationGroup = {
@@ -49,7 +51,7 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
         {
           label: "New Request",
           href: org("new-request"),
-          icon: SparklesIcon,
+          icon: Chat01Icon,
           description: "Ask the localisation agent to prepare work",
         },
         {
@@ -63,7 +65,7 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           icon: WorkHistoryIcon,
         },
         {
-          label: "Command Center",
+          label: "Overview",
           href: org("command-center"),
           icon: DashboardSquare01Icon,
         },
@@ -82,9 +84,10 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           href: org("knowledge"),
           icon: AiBrain01Icon,
           description: "Workspace memory for agents and teams",
+          badge: "Coming soon",
         },
         {
-          label: "Terminology",
+          label: "Glossaries",
           href: org("glossaries"),
           icon: BookOpenTextIcon,
         },

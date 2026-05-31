@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { BookOpenTextIcon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 
 import { Input } from "@/components/ui/input";
@@ -24,13 +22,12 @@ import {
   readWorkspaceFilterParam,
   TMS_PROVIDER_KINDS,
 } from "../../_components/workspace-filter-params";
-import { MetricsGrid, PageHeader } from "../../_components/workspace-resource-shared";
+import { PageHeader } from "../../_components/workspace-resource-shared";
 import {
   buildProjectIdByExternalKey,
   mapGlossaryToListRow,
   providerLabel,
   type ApiGlossary,
-  type GlossaryListRow,
 } from "./glossary-list";
 import { GlossariesEmptyAction, GlossariesTable } from "./glossaries-table";
 
@@ -150,59 +147,6 @@ function useGlossaryFilters(searchParams: URLSearchParams) {
     activeFilterCount,
     hasActiveFilters,
   };
-}
-
-function GlossariesMetrics({
-  glossaries,
-  total,
-}: {
-  glossaries: GlossaryListRow[];
-  total: number;
-}) {
-  const metrics = useMemo(() => {
-    const providerGlossaries = glossaries.filter((glossary) => glossary.source === "external_tms");
-    const syncedCount = providerGlossaries.filter(
-      (glossary) => glossary.syncState === "synced" && !glossary.lastSyncErrorAt,
-    ).length;
-    const errorCount = providerGlossaries.filter((glossary) => glossary.lastSyncErrorAt).length;
-    const localeCount = new Set(glossaries.flatMap((glossary) => glossary.localeCoverage)).size;
-    const termTotal = glossaries.reduce((sum, glossary) => sum + (glossary.termCount ?? 0), 0);
-    const termLabel =
-      termTotal >= 1_000_000
-        ? `${(termTotal / 1_000_000).toFixed(1)}M`
-        : termTotal >= 1_000
-          ? `${(termTotal / 1_000).toFixed(1)}k`
-          : `${termTotal}`;
-    const providerCountOnPage = providerGlossaries.length;
-    const providerNoun = providerCountOnPage === 1 ? "provider" : "providers";
-    const providerDetail =
-      total > glossaries.length
-        ? `${providerCountOnPage} ${providerNoun} on this page`
-        : `${providerCountOnPage} ${providerNoun}`;
-
-    return [
-      {
-        label: "Terminology resources",
-        value: `${total}`,
-        detail: providerDetail,
-        tone: "info" as const,
-      },
-      {
-        label: "Locales covered",
-        value: `${localeCount}`,
-        detail: `${termLabel} terms on page (this page)`,
-        tone: "safe" as const,
-      },
-      {
-        label: "Sync health",
-        value: `${syncedCount}`,
-        detail: errorCount > 0 ? `${errorCount} errors` : "healthy",
-        tone: errorCount > 0 ? ("watch" as const) : ("safe" as const),
-      },
-    ] as const;
-  }, [glossaries, total]);
-
-  return <MetricsGrid metrics={metrics} />;
 }
 
 export function GlossariesPageContent({ organizationSlug }: { organizationSlug: string }) {
@@ -327,20 +271,22 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
   const emptyTitle = hasConnectedProvider ? "No glossaries yet" : "Connect a TMS provider";
   const emptyDescription = hasConnectedProvider
     ? "Provider glossaries and term bases appear here after sync. Native workspace glossaries are listed alongside synced resources."
-    : "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync terminology into this workspace.";
+    : "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync glossaries into this workspace.";
+
+  const glossaryCountLabel =
+    glossariesQuery.isSuccess && glossaryTotal > 0
+      ? `${glossaryTotal} ${glossaryTotal === 1 ? "glossary" : "glossaries"}`
+      : undefined;
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
         icon={BookOpenTextIcon}
-        label="Term library"
-        title="Terminology"
-        description="Browse native workspace glossaries and synced provider glossaries or term bases with locale coverage, term capabilities, and sync health in one place."
+        label="Workspace"
+        title="Glossaries"
+        description="Workspace and synced TMS glossaries and term bases. Provider glossaries stay read-only—connect credentials in Integrations."
+        statusLabel={glossaryCountLabel}
       />
-
-      {glossariesQuery.isSuccess ? (
-        <GlossariesMetrics glossaries={glossaries} total={glossaryTotal} />
-      ) : null}
 
       {glossariesQuery.isSuccess && (glossaryTotal > 0 || hasActiveFilters) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -462,20 +408,6 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
           </button>
         </div>
       ) : null}
-
-      <div className="flex items-center gap-2 text-sm text-foreground/54">
-        <span>
-          Provider terminology stays read-only here. Connect or manage credentials from
-          Integrations.
-        </span>
-        <Link
-          href={`/org/${organizationSlug}/integrations`}
-          className="inline-flex items-center gap-1 hover:text-foreground"
-        >
-          <span>Integrations</span>
-          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
-        </Link>
-      </div>
 
       <GlossariesTable
         glossaries={glossaries}

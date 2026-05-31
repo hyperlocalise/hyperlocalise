@@ -1,16 +1,30 @@
 "use client";
 
 import type { ComponentProps, ReactNode } from "react";
+import { cn } from "@/lib/primitives/cn";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/primitives/cn";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 
 export type Icon = ComponentProps<typeof HugeiconsIcon>["icon"];
 export type Tone = "safe" | "watch" | "risk" | "info";
+
+export function WorkspacePageShell({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <main className={cn("mx-auto flex w-full max-w-6xl flex-col gap-6", className)}>
+      {children}
+    </main>
+  );
+}
 
 export function toneClass(tone: Tone) {
   switch (tone) {
@@ -30,35 +44,63 @@ export function PageHeader({
   label,
   title,
   description,
+  descriptionDetail,
   statusLabel,
+  actions,
 }: {
   icon: Icon;
-  label: string;
+  label?: string;
   title: string;
   description: string;
+  descriptionDetail?: string;
   statusLabel?: string;
+  actions?: ReactNode;
 }) {
   return (
     <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
-        <div className="flex items-center gap-2 text-sm text-foreground/48">
-          <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4" />
-          <span>{label}</span>
-        </div>
-        <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-foreground md:text-2xl">
-          {title}
+        {label ? (
+          <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground antialiased">
+            <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4 shrink-0" />
+            <span>{label}</span>
+          </div>
+        ) : null}
+        <TypographyH1
+          className={cn(
+            "font-heading text-2xl font-medium text-foreground md:text-2xl",
+            label ? "mt-2" : "flex items-center gap-2",
+          )}
+        >
+          {label ? (
+            title
+          ) : (
+            <>
+              <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-5 shrink-0" />
+              {title}
+            </>
+          )}
         </TypographyH1>
-        <TypographyP className="mt-2 text-sm leading-6 text-foreground/52">
+        <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
           {description}
         </TypographyP>
+        {descriptionDetail ? (
+          <TypographyP className="mt-1.5 text-pretty text-sm leading-6 text-muted-foreground">
+            {descriptionDetail}
+          </TypographyP>
+        ) : null}
       </div>
-      {statusLabel ? (
-        <Badge
-          variant="outline"
-          className="h-8 w-fit rounded-lg border-foreground/10 bg-foreground/4 text-foreground/64"
-        >
-          {statusLabel}
-        </Badge>
+      {statusLabel || actions ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {statusLabel ? (
+            <Badge
+              variant="outline"
+              className="h-8 w-fit rounded-lg border-foreground/10 bg-foreground/4 text-foreground/64"
+            >
+              {statusLabel}
+            </Badge>
+          ) : null}
+          {actions}
+        </div>
       ) : null}
     </section>
   );

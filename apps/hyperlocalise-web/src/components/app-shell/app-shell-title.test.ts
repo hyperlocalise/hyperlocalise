@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { getAppShellTitle } from "./app-shell-title";
+import { getAppShellBreadcrumbs, getAppShellTitle } from "./app-shell-title";
 
 describe("getAppShellTitle", () => {
   it.each([
-    ["/org/acme/command-center", "Command Center"],
-    ["/org/acme/dashboard", "Command Center"],
+    ["/org/acme/command-center", "Overview"],
+    ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
     ["/org/acme/new-request", "New Request"],
     ["/org/acme/chat", "New Request"],
@@ -17,20 +17,52 @@ describe("getAppShellTitle", () => {
     ["/org/acme/my-work", "My Work"],
     ["/org/acme/my-jobs", "My Work"],
     ["/org/acme/knowledge", "Knowledge"],
-    ["/org/acme/glossaries", "Terminology"],
+    ["/org/acme/glossaries", "Glossaries"],
     ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],
     ["/org/acme/settings", "Settings"],
     ["/org/acme/settings/members", "Team"],
     ["/org/acme/settings/account", "Account"],
     ["/org/acme/settings/billing", "Billing"],
-    ["/org/acme/settings/notifications", "Notifications"],
   ])("returns the route title for %s", (pathname, title) => {
     expect(getAppShellTitle(pathname)).toBe(title);
   });
 
-  it("falls back to command center for unknown or empty paths", () => {
-    expect(getAppShellTitle(null)).toBe("Command Center");
-    expect(getAppShellTitle("/org/acme/unknown")).toBe("Command Center");
+  it("falls back to overview for unknown or empty paths", () => {
+    expect(getAppShellTitle(null)).toBe("Overview");
+    expect(getAppShellTitle("/org/acme/unknown")).toBe("Overview");
+  });
+});
+
+describe("getAppShellBreadcrumbs", () => {
+  it("returns a single crumb for top-level routes", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/inbox")).toEqual([{ label: "Inbox" }]);
+  });
+
+  it("returns settings breadcrumbs for settings subpages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/settings/members")).toEqual([
+      { label: "Settings", href: "/org/acme/settings" },
+      { label: "Team" },
+    ]);
+  });
+
+  it("returns project breadcrumbs with the project name", () => {
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1/files", { projectName: "Checkout" }),
+    ).toEqual([
+      { label: "Project", href: "/org/acme/projects" },
+      { label: "Checkout", href: "/org/acme/projects/proj_1" },
+      { label: "Files" },
+    ]);
+  });
+
+  it("returns project overview breadcrumbs without a section crumb", () => {
+    expect(
+      getAppShellBreadcrumbs("/org/acme/projects/proj_1", { projectName: "Checkout" }),
+    ).toEqual([{ label: "Project", href: "/org/acme/projects" }, { label: "Checkout" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1")).toEqual([
+      { label: "Project", href: "/org/acme/projects" },
+      { label: "Overview" },
+    ]);
   });
 });

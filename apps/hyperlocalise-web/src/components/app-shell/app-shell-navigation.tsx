@@ -82,7 +82,7 @@ function GlobalNavigation({
         return (
           <Collapsible key={group.label} defaultOpen>
             <SidebarGroup className="p-0">
-              <CollapsibleTrigger className="group/collapsible-trigger flex h-7 w-full items-center gap-2 rounded-md px-3 text-left text-[0.68rem] tracking-[0.08em] text-sidebar-foreground/34 uppercase outline-hidden transition-[margin,opacity] duration-200 hover:text-sidebar-foreground/54 focus-visible:text-sidebar-foreground/64 group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0">
+              <CollapsibleTrigger className="group/collapsible-trigger flex h-7 w-full items-center gap-2 rounded-md px-3 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase outline-hidden transition-[margin,opacity,color] duration-200 hover:text-sidebar-foreground focus-visible:text-sidebar-foreground group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0">
                 <span className="min-w-0 flex-1 truncate">{group.label}</span>
                 <HugeiconsIcon
                   icon={ArrowDown01Icon}
@@ -134,7 +134,7 @@ function ProjectNavigation({
               <SidebarMenuButton
                 render={<Link href={projectsHref} />}
                 tooltip="All projects"
-                className="h-9 rounded-lg px-3 text-sm font-normal text-sidebar-foreground/54 hover:text-sidebar-foreground group-data-[collapsible=icon]:size-9!"
+                className="h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!"
               >
                 <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={2} className="size-4" />
                 <span>All projects</span>
@@ -145,7 +145,7 @@ function ProjectNavigation({
       </SidebarGroup>
 
       <SidebarGroup className="gap-1 p-0">
-        <SidebarGroupLabel className="h-auto px-3 py-1 text-[0.68rem] tracking-[0.08em] text-sidebar-foreground/34 uppercase group-data-[collapsible=icon]:hidden">
+        <SidebarGroupLabel className="h-auto px-3 py-1 text-xs font-medium tracking-wide text-muted-foreground uppercase group-data-[collapsible=icon]:hidden">
           Project
         </SidebarGroupLabel>
         <div className="px-3 pb-1 group-data-[collapsible=icon]:hidden">
@@ -193,11 +193,16 @@ function NavigationGroupItems({
               <SidebarMenuButton
                 render={<Link href={item.href} />}
                 isActive={isActive}
-                tooltip={item.label}
+                tooltip={item.badge ? `${item.label} · ${item.badge}` : item.label}
                 className={navigationButtonClass(isActive)}
               >
-                <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-5" />
-                <span>{item.label}</span>
+                <HugeiconsIcon icon={item.icon} strokeWidth={2} className="size-4" />
+                <span className="min-w-0 flex-1 truncate">{item.label}</span>
+                {item.badge ? (
+                  <span className="ms-auto inline-flex shrink-0 items-center rounded-full border border-sidebar-border bg-sidebar px-1.5 py-0.5 text-[0.625rem] leading-none font-medium tracking-normal text-muted-foreground group-data-[collapsible=icon]:hidden">
+                    {item.badge}
+                  </span>
+                ) : null}
               </SidebarMenuButton>
             </SidebarMenuItem>
           );
@@ -209,8 +214,8 @@ function NavigationGroupItems({
 
 function navigationButtonClass(isActive: boolean) {
   return cn(
-    "h-10 rounded-lg px-3 text-sm font-normal text-sidebar-foreground/68 hover:text-sidebar-foreground group-data-[collapsible=icon]:size-9!",
-    isActive && "bg-sidebar-accent text-sidebar-accent-foreground",
+    "h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!",
+    isActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground",
   );
 }
 

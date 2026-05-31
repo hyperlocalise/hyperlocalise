@@ -74,8 +74,8 @@ function SummaryMetricCard({
       href={href}
       className="group rounded-lg border border-foreground/8 bg-foreground/2.5 px-4 py-4 transition hover:border-foreground/16 hover:bg-foreground/4"
     >
-      <TypographyP className="text-sm text-foreground/52">{label}</TypographyP>
-      <TypographyP className="mt-2 font-heading text-3xl font-medium text-foreground">
+      <TypographyP className="text-sm text-muted-foreground">{label}</TypographyP>
+      <TypographyP className="mt-2 text-3xl font-semibold text-foreground tabular-nums">
         {value}
       </TypographyP>
       <div className="mt-2 flex items-center justify-between gap-2">
@@ -121,7 +121,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
           <div className="flex items-start justify-between gap-4">
             <div>
               <CardTitle className="text-xl text-foreground">TMS sync overview</CardTitle>
-              <CardDescription className="mt-1 text-foreground/48">
+              <CardDescription className="mt-1">
                 Live provider connectivity, sync health, and locale readiness from your workspace
                 database.
               </CardDescription>
@@ -135,7 +135,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
         </CardHeader>
         <CardContent className="px-5 pb-5">
           {isLoading ? (
-            <TypographyP className="py-4 text-sm text-foreground/52">
+            <TypographyP className="py-4 text-sm text-muted-foreground">
               Loading TMS sync summary…
             </TypographyP>
           ) : isError ? (
@@ -149,20 +149,20 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                 <TypographyP className="text-sm font-medium text-foreground">
                   Unable to load TMS summary
                 </TypographyP>
-                <TypographyP className="mt-1 text-sm text-foreground/52">
+                <TypographyP className="mt-1 text-sm text-muted-foreground">
                   Refresh the page or try again in a moment.
                 </TypographyP>
               </div>
             </div>
           ) : connectedProviders === 0 ? (
             <div className="py-2">
-              <TypographyP className="text-sm text-foreground/52">
-                No external TMS providers connected yet. Connect a provider to sync projects, files,
-                jobs, glossaries, and translation memories into this workspace.
+              <TypographyP className="text-sm text-muted-foreground">
+                No TMS connected yet. After you link a provider, this overview shows sync health and
+                locale readiness across your workspace.
               </TypographyP>
               <Link
                 href={buildOrgWorkspaceHref(organizationSlug, "integrations")}
-                className="mt-3 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
+                className="mt-3 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
               >
                 <span>Connect a provider in Integrations</span>
                 <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
@@ -241,7 +241,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
             <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
               <CardHeader className="px-5 pt-5">
                 <CardTitle className="text-xl text-foreground">Connected providers</CardTitle>
-                <CardDescription className="text-foreground/48">
+                <CardDescription>
                   Validation status, synced project counts, and last successful sync per provider.
                 </CardDescription>
               </CardHeader>
@@ -268,7 +268,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                               : "Unvalidated"}
                           </Badge>
                         </div>
-                        <TypographyP className="mt-1 text-xs text-foreground/42">
+                        <TypographyP className="mt-1 text-xs text-muted-foreground">
                           {providerLabel(credential.providerKind)} · {credential.projectCount}{" "}
                           projects
                           {credential.lastSuccessfulSyncAt
@@ -281,7 +281,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                           provider: credential.providerKind,
                           source: "external_tms",
                         })}
-                        className="shrink-0 text-sm text-foreground/54 hover:text-foreground"
+                        className="shrink-0 text-sm text-muted-foreground hover:text-foreground"
                       >
                         View projects
                       </Link>
@@ -294,7 +294,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                 <div className="px-5 pb-2">
                   <Link
                     href={buildOrgWorkspaceHref(organizationSlug, "integrations")}
-                    className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
+                    className="mt-2 inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
                   >
                     <span>Manage providers</span>
                     <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
@@ -306,7 +306,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
             <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
               <CardHeader className="px-5 pt-5">
                 <CardTitle className="text-xl text-foreground">Resource shortcuts</CardTitle>
-                <CardDescription className="text-foreground/48">
+                <CardDescription>
                   Jump to unified workspace pages with provider filters applied.
                 </CardDescription>
               </CardHeader>
@@ -364,7 +364,9 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                       />
                       <TypographyP className="text-sm text-foreground">{item.label}</TypographyP>
                     </div>
-                    <TypographyP className="text-xs text-foreground/48">{item.detail}</TypographyP>
+                    <TypographyP className="text-xs text-muted-foreground">
+                      {item.detail}
+                    </TypographyP>
                   </Link>
                 ))}
               </CardContent>
@@ -374,20 +376,20 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
           <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
             <CardHeader className="px-5 pt-5">
               <CardTitle className="text-xl text-foreground">Locale readiness</CardTitle>
-              <CardDescription className="text-foreground/48">
+              <CardDescription>
                 Aggregated translation readiness from synced provider files. Open Files to inspect
                 per-locale status.
               </CardDescription>
             </CardHeader>
             <CardContent className="px-0 pb-3">
               {data.localeReadiness.length === 0 ? (
-                <TypographyP className="px-5 py-4 text-sm text-foreground/52">
+                <TypographyP className="px-5 py-4 text-sm text-muted-foreground">
                   No locale readiness data yet. Sync provider files to populate readiness metrics.
                 </TypographyP>
               ) : (
                 <div className="overflow-x-auto">
                   <div className="min-w-xl">
-                    <div className="grid grid-cols-[minmax(8rem,1fr)_7rem_5rem_5rem_5rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-foreground/38 uppercase">
+                    <div className="grid grid-cols-[minmax(8rem,1fr)_7rem_5rem_5rem_5rem] gap-3 px-5 py-2 text-xs font-medium tracking-[0.08em] text-muted-foreground uppercase">
                       <span>Locale</span>
                       <span>Status</span>
                       <span>Ready</span>
@@ -416,13 +418,13 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                           >
                             {localeStatusLabel(row)}
                           </Badge>
-                          <TypographyP className="text-sm text-foreground/58">
+                          <TypographyP className="text-sm text-muted-foreground tabular-nums">
                             {row.ready}
                           </TypographyP>
-                          <TypographyP className="text-sm text-foreground/58">
+                          <TypographyP className="text-sm text-muted-foreground tabular-nums">
                             {row.missing}
                           </TypographyP>
-                          <TypographyP className="text-sm text-foreground/58">
+                          <TypographyP className="text-sm text-muted-foreground tabular-nums">
                             {row.changed}
                           </TypographyP>
                         </Link>
@@ -444,7 +446,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
             >
               <CardHeader className="px-5 pt-5">
                 <CardTitle className="text-xl text-foreground">Recent failed sync runs</CardTitle>
-                <CardDescription className="text-foreground/48">
+                <CardDescription>
                   Latest provider sync failures from the last {FAILED_SYNC_RUNS_RECENCY_DAYS} days.
                 </CardDescription>
               </CardHeader>
@@ -459,12 +461,12 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                         <TypographyP className="text-sm font-medium text-foreground">
                           {run.kind.replaceAll("_", " ")}
                         </TypographyP>
-                        <TypographyP className="text-xs text-foreground/42">
+                        <TypographyP className="text-xs text-muted-foreground">
                           {formatRelativeTimestamp(run.startedAt)}
                         </TypographyP>
                       </div>
                       {run.errorMessage ? (
-                        <TypographyP className="mt-2 text-xs text-foreground/52">
+                        <TypographyP className="mt-2 text-xs text-muted-foreground">
                           {run.errorMessage}
                         </TypographyP>
                       ) : null}

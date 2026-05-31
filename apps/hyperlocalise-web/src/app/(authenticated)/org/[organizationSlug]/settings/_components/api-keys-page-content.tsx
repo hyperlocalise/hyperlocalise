@@ -13,7 +13,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -24,7 +23,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { PageHeader } from "../../_components/workspace-resource-shared";
@@ -160,77 +158,89 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
   const activeKeys = apiKeys.filter((k) => !k.revokedAt);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <PageHeader
-          icon={Key01Icon}
-          label="Workspace settings"
-          title="API Keys"
-          description="Create and manage API keys for programmatic access to translation jobs and workspace resources."
-        />
-        <Button
-          type="button"
-          onClick={() => setIsCreateOpen(true)}
-          className="w-full md:w-fit"
-          disabled={createKey.isPending}
-        >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-          Create API key
-        </Button>
-      </div>
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+      <PageHeader
+        icon={Key01Icon}
+        label="Workspace settings"
+        title="API Keys"
+        description="Create and manage API keys for programmatic access to translation jobs and workspace resources. Keep keys secure and rotate them regularly."
+        actions={
+          <Button
+            type="button"
+            onClick={() => setIsCreateOpen(true)}
+            className="w-full sm:w-fit"
+            disabled={createKey.isPending}
+          >
+            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+            Create API key
+          </Button>
+        }
+      />
 
-      <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Active keys</CardTitle>
-          <CardDescription className="text-foreground/52">
-            Keys with access to the workspace API. Keep them secure and rotate them regularly.
-          </CardDescription>
-        </CardHeader>
-        <Separator className="bg-foreground/8" />
-        <CardContent className="px-5 py-0">
-          {apiKeysQuery.isLoading ? (
-            <div className="py-8 text-center text-sm text-foreground/48">Loading API keys...</div>
-          ) : activeKeys.length === 0 ? (
-            <div className="py-8 text-center text-sm text-foreground/48">
-              No API keys yet. Create one to get started.
-            </div>
-          ) : (
-            <div className="divide-y divide-foreground/8">
-              {activeKeys.map((key) => (
-                <div key={key.id} className="flex items-start justify-between gap-4 py-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <TypographyP className="text-sm font-medium text-foreground">
-                        {key.name}
-                      </TypographyP>
-                      <span className="rounded-full border border-foreground/10 bg-foreground/4 px-2 py-0.5 text-xs text-foreground/52">
-                        {key.keyPrefix}••••••••
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-foreground/42">
-                      <span>Permissions: {key.permissions.join(", ")}</span>
-                      <span>Created {formatDate(key.createdAt)}</span>
-                      <span>Last used {formatDate(key.lastUsedAt)}</span>
-                    </div>
+      <section
+        aria-label="API keys"
+        className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground"
+      >
+        {apiKeysQuery.isLoading ? (
+          <TypographyP className="px-5 py-8 text-sm text-muted-foreground">
+            Loading API keys...
+          </TypographyP>
+        ) : apiKeysQuery.isError ? (
+          <div className="px-5 py-8">
+            <TypographyP className="text-sm font-medium text-destructive">
+              API keys failed to load.
+            </TypographyP>
+            <TypographyP className="mt-1 text-sm text-muted-foreground">
+              {apiKeysQuery.error instanceof Error
+                ? apiKeysQuery.error.message
+                : "Refresh the page to try again."}
+            </TypographyP>
+          </div>
+        ) : activeKeys.length === 0 ? (
+          <div className="px-5 py-10">
+            <TypographyP className="text-sm font-medium text-foreground">
+              No API keys yet
+            </TypographyP>
+            <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">
+              Create a key to authenticate scripts, CI jobs, and integrations against this
+              workspace.
+            </TypographyP>
+          </div>
+        ) : (
+          <div className="divide-y divide-border">
+            {activeKeys.map((key) => (
+              <div key={key.id} className="flex items-start justify-between gap-4 px-5 py-4">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <TypographyP className="text-sm font-medium text-foreground">
+                      {key.name}
+                    </TypographyP>
+                    <span className="rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-xs text-muted-foreground">
+                      {key.keyPrefix}••••••••
+                    </span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="shrink-0 border-foreground/10 bg-transparent text-foreground/72 hover:bg-red-500/10 hover:text-red-400 hover:border-red-500/25"
-                    onClick={() => setRevokingKeyId(key.id)}
-                    disabled={revokeKey.isPending}
-                  >
-                    <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} className="size-4" />
-                    Revoke
-                  </Button>
+                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                    <span>Permissions: {key.permissions.join(", ")}</span>
+                    <span>Created {formatDate(key.createdAt)}</span>
+                    <span>Last used {formatDate(key.lastUsedAt)}</span>
+                  </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => setRevokingKeyId(key.id)}
+                  disabled={revokeKey.isPending}
+                >
+                  <HugeiconsIcon icon={Delete01Icon} strokeWidth={1.8} className="size-4" />
+                  Revoke
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
-      {/* Create Key Dialog */}
       <Dialog
         open={isCreateOpen}
         onOpenChange={(open) => {
@@ -238,12 +248,10 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           else setIsCreateOpen(true);
         }}
       >
-        <DialogContent className="border-foreground/8 bg-foreground/2.5 text-foreground sm:max-w-lg">
+        <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-lg font-medium text-foreground">
-              {createdKey ? "API key created" : "Create API key"}
-            </DialogTitle>
-            <DialogDescription className="text-foreground/52">
+            <DialogTitle>{createdKey ? "API key created" : "Create API key"}</DialogTitle>
+            <DialogDescription>
               {createdKey
                 ? "Copy this key now. You will not be able to see it again."
                 : "Give your key a name so you can identify it later."}
@@ -253,16 +261,12 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           {createdKey ? (
             <div className="grid gap-4">
               <div className="relative">
-                <Input
-                  readOnly
-                  value={createdKey}
-                  className="h-11 rounded-lg border-foreground/10 bg-foreground/4 pr-24 font-mono text-sm text-foreground"
-                />
+                <Input readOnly value={createdKey} className="pr-24 font-mono text-sm" />
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 border-foreground/10 bg-foreground/8 text-foreground/72 hover:bg-foreground/12"
+                  className="absolute top-1/2 right-2 -translate-y-1/2"
                   onClick={() => handleCopyKey(createdKey)}
                 >
                   {copied ? (
@@ -282,15 +286,12 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
           ) : (
             <form onSubmit={handleCreateSubmit} className="grid gap-4">
               <Field className="gap-2">
-                <FieldLabel htmlFor="key-name" className="text-sm text-foreground/72">
-                  Key name
-                </FieldLabel>
+                <FieldLabel htmlFor="key-name">Key name</FieldLabel>
                 <Input
                   id="key-name"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
                   placeholder="e.g. Production CI"
-                  className="h-10 rounded-lg border-foreground/10 bg-foreground/4 text-foreground"
                 />
               </Field>
             </form>
@@ -298,7 +299,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
 
           <DialogFooter>
             {createdKey ? (
-              <Button type="button" onClick={handleCloseCreateDialog} className="w-full md:w-fit">
+              <Button type="button" onClick={handleCloseCreateDialog} className="w-full sm:w-fit">
                 Done
               </Button>
             ) : (
@@ -307,7 +308,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   type="button"
                   variant="outline"
                   onClick={handleCloseCreateDialog}
-                  className="w-full border-foreground/10 bg-transparent text-foreground/72 hover:bg-foreground/8 md:w-fit"
+                  className="w-full sm:w-fit"
                 >
                   Cancel
                 </Button>
@@ -315,7 +316,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                   type="button"
                   onClick={handleCreateSubmit}
                   disabled={!newKeyName.trim() || createKey.isPending}
-                  className="w-full md:w-fit"
+                  className="w-full sm:w-fit"
                 >
                   {createKey.isPending ? "Creating..." : "Create key"}
                 </Button>
@@ -325,17 +326,14 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
         </DialogContent>
       </Dialog>
 
-      {/* Revoke Confirmation Dialog */}
       <Dialog
         open={revokingKeyId !== null}
         onOpenChange={(open) => !open && setRevokingKeyId(null)}
       >
-        <DialogContent className="border-foreground/8 bg-foreground/2.5 text-foreground sm:max-w-md">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-lg font-medium text-foreground">
-              Revoke API key
-            </DialogTitle>
-            <DialogDescription className="text-foreground/52">
+            <DialogTitle>Revoke API key</DialogTitle>
+            <DialogDescription>
               This key will immediately lose access to the workspace API. Any integrations using it
               will stop working.
             </DialogDescription>
@@ -345,7 +343,7 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
               type="button"
               variant="outline"
               onClick={() => setRevokingKeyId(null)}
-              className="w-full border-foreground/10 bg-transparent text-foreground/72 hover:bg-foreground/8 md:w-fit"
+              className="w-full sm:w-fit"
             >
               Cancel
             </Button>
@@ -356,13 +354,13 @@ export function ApiKeySettingsPageContent({ organizationSlug }: { organizationSl
                 if (revokingKeyId) revokeKey.mutate(revokingKeyId);
               }}
               disabled={revokeKey.isPending}
-              className="w-full md:w-fit"
+              className="w-full sm:w-fit"
             >
               {revokeKey.isPending ? "Revoking..." : "Revoke key"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </main>
   );
 }

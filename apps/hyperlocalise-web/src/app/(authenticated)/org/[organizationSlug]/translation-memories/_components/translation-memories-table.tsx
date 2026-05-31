@@ -2,12 +2,7 @@
 
 import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  Alert02Icon,
-  ArrowUpRight01Icon,
-  DatabaseSyncIcon,
-  LanguageSquareIcon,
-} from "@hugeicons/core-free-icons";
+import { Alert02Icon, ArrowUpRight01Icon, LanguageSquareIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
@@ -18,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TypographyP } from "@/components/ui/typography";
 
 import { ProviderKindBadge, SyncStateBadge } from "../../_components/workspace-files-shared";
-import { ResourceCard, toneClass } from "../../_components/workspace-resource-shared";
+import { toneClass } from "../../_components/workspace-resource-shared";
 import type { MemoryListRow } from "./memory-list";
 import { providerLabel } from "./memory-list";
 
@@ -182,17 +177,15 @@ export function TranslationMemoriesTable({
   emptyAction?: ReactNode;
 }) {
   return (
-    <ResourceCard
-      title="Memory stores"
-      description="Native workspace memories and synced provider translation memories in one list."
-      icon={DatabaseSyncIcon}
-    >
+    <section aria-label="Translation memories" className="min-w-0">
       {memoriesQuery.isLoading ? (
-        <div className="px-5 py-8 text-sm text-foreground/52">Loading translation memories...</div>
+        <TypographyP className="py-8 text-sm text-foreground/52">
+          Loading translation memories...
+        </TypographyP>
       ) : null}
 
       {memoriesQuery.isError ? (
-        <div className="px-5 py-8">
+        <div className="py-8">
           <TypographyP className="text-sm font-medium text-flame-100">
             Translation memories failed to load.
           </TypographyP>
@@ -205,22 +198,26 @@ export function TranslationMemoriesTable({
       ) : null}
 
       {memoriesQuery.isSuccess && memories.length === 0 ? (
-        <div className="space-y-3 px-5 py-8">
+        <div className="space-y-3 py-10">
           <TypographyP className="text-sm font-medium text-foreground">{emptyTitle}</TypographyP>
-          <TypographyP className="text-sm text-foreground/52">{emptyDescription}</TypographyP>
+          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+            {emptyDescription}
+          </TypographyP>
           {emptyAction}
         </div>
       ) : null}
 
-      {memoriesQuery.isSuccess && memories.length > 0
-        ? memories.map((memory, index) => (
+      {memoriesQuery.isSuccess && memories.length > 0 ? (
+        <div className="overflow-hidden rounded-lg border border-foreground/8">
+          {memories.map((memory, index) => (
             <div key={memory.id}>
               <MemoryRow memory={memory} organizationSlug={organizationSlug} />
               {index < memories.length - 1 ? <Separator className="bg-foreground/8" /> : null}
             </div>
-          ))
-        : null}
-    </ResourceCard>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 

@@ -6,7 +6,6 @@ import { ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/primitives/cn";
-import { TypographyH2 } from "@/components/ui/typography";
 
 export type IntegrationRowAction = "connect" | "manage" | "coming-soon" | "view-only";
 
@@ -44,16 +43,15 @@ const actionStyles: Record<
     panel: "border-border bg-muted/20",
   },
   connect: {
-    icon: "border-primary/30 bg-primary/10 text-primary",
-    row: "hover:bg-primary/5",
-    panel: "border-primary/20 bg-primary/5",
+    icon: "border-border bg-muted/50 text-muted-foreground",
+    row: "hover:bg-muted/20",
+    panel: "border-border bg-muted/20",
     button: "border-primary/30 bg-primary/10 text-primary hover:bg-primary/15",
   },
   manage: {
-    icon: "border-secondary bg-secondary text-secondary-foreground",
-    row: "hover:bg-secondary/60",
-    panel: "border-border bg-secondary/40",
-    button: "aria-expanded:bg-secondary aria-expanded:text-secondary-foreground",
+    icon: "border-border bg-muted text-foreground",
+    row: "hover:bg-muted/20",
+    panel: "border-border bg-muted/20",
   },
 };
 
@@ -71,7 +69,10 @@ export function IntegrationRow({
   children,
 }: IntegrationRowProps) {
   const showPanel = action === "manage" && children;
-  const activeStyle = iconMuted ? actionStyles["coming-soon"] : actionStyles[action];
+  const activeStyle = actionStyles[action];
+  const iconContainerClass = iconMuted
+    ? "border-border bg-background text-foreground"
+    : activeStyle.icon;
 
   return (
     <Collapsible
@@ -83,14 +84,13 @@ export function IntegrationRow({
         className={cn(
           "flex items-center gap-4 px-5 py-4 transition-colors",
           activeStyle.row,
-          expanded && !iconMuted && activeStyle.panel,
+          expanded && activeStyle.panel,
         )}
       >
         <div
           className={cn(
             "flex size-10 shrink-0 items-center justify-center rounded-lg border p-2 transition-colors",
-            activeStyle.icon,
-            iconMuted && "grayscale saturate-0",
+            iconContainerClass,
           )}
         >
           {icon}
@@ -123,7 +123,7 @@ export function IntegrationRow({
           ) : showPanel ? (
             <CollapsibleTrigger
               render={
-                <Button type="button" variant="outline" size="sm" className={activeStyle.button}>
+                <Button type="button" variant="outline" size="sm">
                   Manage
                   <ChevronDownIcon
                     className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
@@ -145,11 +145,24 @@ export function IntegrationRow({
   );
 }
 
-export function IntegrationCategoryLabel({ children }: { children: ReactNode }) {
+export const integrationConnectButtonClassName = actionStyles.connect.button!;
+
+export function IntegrationCategoryLabel({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
-    <TypographyH2 className="text-xs md:text-sm font-medium tracking-[0.12em] text-muted-foreground uppercase">
+    <h3
+      className={cn(
+        "text-xs font-medium tracking-[0.12em] text-muted-foreground uppercase md:text-sm",
+        className,
+      )}
+    >
       {children}
-    </TypographyH2>
+    </h3>
   );
 }
 

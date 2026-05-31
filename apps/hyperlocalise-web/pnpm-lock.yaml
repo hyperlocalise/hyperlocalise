@@ -33,6 +33,9 @@ importers:
       '@chat-adapter/state-pg':
         specifier: 4.29.0
         version: 4.29.0(ai@6.0.191(zod@4.4.3))(zod@4.4.3)
+      '@chat-adapter/web':
+        specifier: 4.29.0
+        version: 4.29.0(@ai-sdk/react@3.0.193(react@19.2.6)(zod@4.4.3))(ai@6.0.191(zod@4.4.3))(react@19.2.6)(zod@4.4.3)
       '@hookform/resolvers':
         specifier: 5.4.0
         version: 5.4.0(react-hook-form@7.76.1(react@19.2.6))
@@ -672,6 +675,31 @@ packages:
   '@chat-adapter/state-pg@4.29.0':
     resolution: {integrity: sha512-ocKWDly9my4kftWdVdfE/b9UczRBUFSPrxEHzQAPDNfkt1PjcIKFjDjWIADYSCeUL1MqLjSnu8pM3BE96kUJGQ==}
     engines: {node: '>=20'}
+
+  '@chat-adapter/web@4.29.0':
+    resolution: {integrity: sha512-6DD03N7mb9sa09oPyVV3EF5TQWieC4FhfW06pFcn/KwPkPlLAxCj53sIxMI41wBn9MImsjQ0Kvz59Ce7rzx4Gg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      '@ai-sdk/react': ^3
+      '@ai-sdk/svelte': ^4
+      '@ai-sdk/vue': ^3
+      ai: ^6
+      react: ^19
+      svelte: ^5
+      vue: ^3
+    peerDependenciesMeta:
+      '@ai-sdk/react':
+        optional: true
+      '@ai-sdk/svelte':
+        optional: true
+      '@ai-sdk/vue':
+        optional: true
+      react:
+        optional: true
+      svelte:
+        optional: true
+      vue:
+        optional: true
 
   '@chevrotain/types@11.1.2':
     resolution: {integrity: sha512-U+HFai5+zmJCkK86QsaJtoITlboZHBqrVketcO2ROv865xfCMSFpELQoz1GkX5GzME8pTa+3kbKrZHQtI0gdbw==}
@@ -8370,6 +8398,18 @@ snapshots:
     transitivePeerDependencies:
       - ai
       - pg-native
+      - supports-color
+      - zod
+
+  '@chat-adapter/web@4.29.0(@ai-sdk/react@3.0.193(react@19.2.6)(zod@4.4.3))(ai@6.0.191(zod@4.4.3))(react@19.2.6)(zod@4.4.3)':
+    dependencies:
+      '@chat-adapter/shared': 4.29.0(ai@6.0.191(zod@4.4.3))(zod@4.4.3)
+      ai: 6.0.191(zod@4.4.3)
+      chat: 4.29.0(ai@6.0.191(zod@4.4.3))(zod@4.4.3)
+    optionalDependencies:
+      '@ai-sdk/react': 3.0.193(react@19.2.6)(zod@4.4.3)
+      react: 19.2.6
+    transitivePeerDependencies:
       - supports-color
       - zod
 

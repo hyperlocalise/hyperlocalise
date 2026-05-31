@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, type ReactNode } from "react";
 import Image from "next/image";
 import {
   Alert02Icon,
@@ -10,7 +10,7 @@ import {
   Key01Icon,
   SaveIcon,
 } from "@hugeicons/core-free-icons";
-import { ArrowUpRightIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
 import { siAnthropic, siCrowdin, siGooglegemini } from "simple-icons";
@@ -38,6 +38,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Field, FieldLabel } from "@/components/ui/field";
 import {
   Select,
@@ -56,10 +57,10 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyH1 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 import { AgentIntegrationsSection } from "./agent-integrations-section";
-import { IntegrationCategoryLabel } from "./integration-row";
+import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 
 const api = createApiClient();
@@ -393,90 +394,351 @@ function TmsIntegrationRow({
   integration,
   credential,
   userIsAdmin,
-  onAction,
+  expanded,
+  onExpandedChange,
   isLast,
+  children,
 }: {
   integration: (typeof tmsIntegrations)[number];
   credential?: ExternalTmsProviderCredentialListItem;
   userIsAdmin: boolean;
-  onAction: () => void;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
   isLast: boolean;
+  children?: ReactNode;
 }) {
   const isConnected = !!credential;
+  const showPanel = userIsAdmin;
 
   return (
-    <div className={cn("flex items-center gap-4 px-5 py-4", !isLast && "border-b border-border")}>
+    <Collapsible
+      open={expanded}
+      onOpenChange={onExpandedChange}
+      className={cn(!isLast && "border-b border-border")}
+    >
       <div
         className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2",
-          !isConnected && "grayscale saturate-0",
+          "flex items-center gap-4 px-5 py-4 transition-colors",
+          "hover:bg-muted/20",
+          expanded && "bg-muted/20",
         )}
       >
-        {"icon" in integration && integration.icon ? (
-          <SimpleBrandIcon icon={integration.icon} colored={isConnected} />
-        ) : (
-          <Image
-            src={integration.logo}
-            alt=""
-            width={30}
-            height={30}
-            className={cn("max-h-7 w-auto object-contain", !isConnected && "grayscale saturate-0")}
-          />
-        )}
-      </div>
-
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-base font-medium text-foreground">{integration.name}</p>
-          {isConnected ? (
-            <>
-              <Badge
-                variant="outline"
-                className={toneClass(tmsHealthTone(credential.validationStatus))}
-              >
-                <HugeiconsIcon
-                  icon={
-                    credential.validationStatus === "connected"
-                      ? CheckmarkCircle02Icon
-                      : Alert02Icon
-                  }
-                  strokeWidth={1.8}
-                />
-                {tmsHealthLabel(credential.validationStatus)}
-              </Badge>
-              {(() => {
-                const webhookSummary = summarizeWebhookSubscriptions(
-                  credential.webhookSubscriptions,
-                );
-                if (!webhookSummary) {
-                  return null;
-                }
-
-                return (
-                  <Badge variant="outline" className={toneClass(webhookSummary.tone)}>
-                    {webhookSummary.label}
-                  </Badge>
-                );
-              })()}
-            </>
-          ) : null}
+        <div
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
+            isConnected
+              ? "border-border bg-muted text-foreground"
+              : "border-border bg-muted/50 text-muted-foreground",
+          )}
+        >
+          {"icon" in integration && integration.icon ? (
+            <SimpleBrandIcon icon={integration.icon} colored={isConnected} />
+          ) : (
+            <Image
+              src={integration.logo}
+              alt=""
+              width={30}
+              height={30}
+              className={cn("max-h-7 w-auto object-contain", !isConnected && "opacity-75")}
+            />
+          )}
         </div>
-        <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-base font-medium text-foreground">{integration.name}</p>
+            {isConnected ? (
+              <>
+                <Badge
+                  variant="outline"
+                  className={toneClass(tmsHealthTone(credential.validationStatus))}
+                >
+                  <HugeiconsIcon
+                    icon={
+                      credential.validationStatus === "connected"
+                        ? CheckmarkCircle02Icon
+                        : Alert02Icon
+                    }
+                    strokeWidth={1.8}
+                  />
+                  {tmsHealthLabel(credential.validationStatus)}
+                </Badge>
+                {(() => {
+                  const webhookSummary = summarizeWebhookSubscriptions(
+                    credential.webhookSubscriptions,
+                  );
+                  if (!webhookSummary) {
+                    return null;
+                  }
+
+                  return (
+                    <Badge variant="outline" className={toneClass(webhookSummary.tone)}>
+                      {webhookSummary.label}
+                    </Badge>
+                  );
+                })()}
+              </>
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
+        </div>
+
+        <div className="shrink-0">
+          {userIsAdmin && showPanel ? (
+            <CollapsibleTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={isConnected ? undefined : integrationConnectButtonClassName}
+                >
+                  {isConnected ? "Manage" : "Connect"}
+                  <ChevronDownIcon
+                    className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+                    strokeWidth={2}
+                  />
+                </Button>
+              }
+            />
+          ) : isConnected ? (
+            <Badge variant="outline">View only</Badge>
+          ) : (
+            <span className="text-sm text-muted-foreground">Admins can connect</span>
+          )}
+        </div>
       </div>
 
-      <div className="shrink-0">
-        {userIsAdmin ? (
-          <Button type="button" variant="outline" size="sm" onClick={onAction}>
-            {isConnected ? "Manage" : "Connect"}
-            <ArrowUpRightIcon className="size-3.5" strokeWidth={2} />
+      {showPanel ? (
+        <CollapsibleContent className={cn("border-t px-5 py-5", "border-border bg-muted/20")}>
+          {children}
+        </CollapsibleContent>
+      ) : null}
+    </Collapsible>
+  );
+}
+
+type TmsProviderCredentialPanelProps = {
+  providerKind: ExternalTmsProviderKind;
+  providerName: string;
+  credential?: ExternalTmsProviderCredentialListItem;
+  organizationSlug: string;
+  membershipRole: OrganizationMembershipRole;
+  userIsAdmin: boolean;
+  displayName: string;
+  onDisplayNameChange: (value: string) => void;
+  secret: string;
+  onSecretChange: (value: string) => void;
+  baseUrl: string;
+  onBaseUrlChange: (value: string) => void;
+  showSecret: boolean;
+  onToggleShowSecret: () => void;
+  onDisconnect: () => void;
+  onSave: () => void;
+  isSaving: boolean;
+  isDisconnecting: boolean;
+  onRetryWebhooks: () => void;
+  isRetryingWebhooks: boolean;
+  displayNameFieldId: string;
+  secretFieldId: string;
+  baseUrlFieldId: string;
+};
+
+function TmsProviderCredentialPanel({
+  providerKind,
+  providerName,
+  credential,
+  organizationSlug,
+  membershipRole,
+  userIsAdmin,
+  displayName,
+  onDisplayNameChange,
+  secret,
+  onSecretChange,
+  baseUrl,
+  onBaseUrlChange,
+  showSecret,
+  onToggleShowSecret,
+  onDisconnect,
+  onSave,
+  isSaving,
+  isDisconnecting,
+  onRetryWebhooks,
+  isRetryingWebhooks,
+  displayNameFieldId,
+  secretFieldId,
+  baseUrlFieldId,
+}: TmsProviderCredentialPanelProps) {
+  return (
+    <form
+      className="flex flex-col gap-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSave();
+      }}
+    >
+      <p className="text-sm leading-6 text-muted-foreground">
+        Save credentials to connect {providerName}. The secret is encrypted at rest and used to sync
+        projects, files, and jobs into the workspace.
+      </p>
+
+      <Field className="gap-2">
+        <FieldLabel htmlFor={displayNameFieldId}>Display name</FieldLabel>
+        <Input
+          id={displayNameFieldId}
+          value={displayName}
+          onChange={(event) => onDisplayNameChange(event.target.value)}
+          placeholder="e.g. Crowdin Production"
+        />
+      </Field>
+
+      <Field className="gap-2">
+        <FieldLabel htmlFor={secretFieldId}>API token / secret</FieldLabel>
+        <div className="relative">
+          <HugeiconsIcon
+            icon={Key01Icon}
+            strokeWidth={1.8}
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            id={secretFieldId}
+            type={showSecret ? "text" : "password"}
+            autoComplete="off"
+            value={secret}
+            onChange={(event) => onSecretChange(event.target.value)}
+            placeholder="Enter provider API token"
+            className="ps-9 pe-9"
+          />
+          <button
+            type="button"
+            onClick={onToggleShowSecret}
+            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+            aria-label={showSecret ? "Hide secret" : "Show secret"}
+          >
+            {showSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+          </button>
+        </div>
+      </Field>
+
+      <Field className="gap-2">
+        <FieldLabel htmlFor={baseUrlFieldId}>Base URL (optional)</FieldLabel>
+        <Input
+          id={baseUrlFieldId}
+          value={baseUrl}
+          onChange={(event) => onBaseUrlChange(event.target.value)}
+          placeholder="https://api.example.com"
+        />
+      </Field>
+
+      {credential && credential.webhookSubscriptions.length > 0 ? (
+        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-medium text-foreground">Webhook sync</p>
+              <p className="mt-0.5 text-sm text-muted-foreground">
+                Hyperlocalise registers inbound webhooks automatically when the provider API allows
+                it.
+              </p>
+            </div>
+            {userIsAdmin && credential.webhookSubscriptions.some((item) => item.canRetry) ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isRetryingWebhooks}
+                onClick={onRetryWebhooks}
+              >
+                {isRetryingWebhooks ? "Retrying..." : "Retry setup"}
+              </Button>
+            ) : null}
+          </div>
+
+          <div className="space-y-3">
+            {credential.webhookSubscriptions.map((subscription) => (
+              <div
+                key={subscription.id}
+                className="space-y-2 rounded-md border border-border bg-card p-3"
+              >
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className={toneClass(webhookStatusTone(subscription.status))}
+                  >
+                    {webhookStatusLabel(subscription.status)}
+                  </Badge>
+                  {subscription.projectId ? (
+                    <span className="text-xs text-muted-foreground">
+                      Project {subscription.projectId}
+                    </span>
+                  ) : null}
+                </div>
+
+                {subscription.manualFallback ? (
+                  <div className="space-y-2 text-sm text-muted-foreground">
+                    <p>
+                      <span className="font-medium text-foreground">Webhook URL:</span>{" "}
+                      <code className="break-all rounded bg-muted px-1 py-0.5 text-xs">
+                        {subscription.manualFallback.webhookUrl}
+                      </code>
+                    </p>
+                    {subscription.manualFallback.secretHeaderName ? (
+                      <p>
+                        <span className="font-medium text-foreground">Secret header:</span>{" "}
+                        {subscription.manualFallback.secretHeaderName}
+                      </p>
+                    ) : null}
+                    {subscription.manualFallback.secretInstructions ? (
+                      <p>{subscription.manualFallback.secretInstructions}</p>
+                    ) : null}
+                    {subscription.manualFallback.subscribedEvents.length > 0 ? (
+                      <p>
+                        <span className="font-medium text-foreground">Events:</span>{" "}
+                        {subscription.manualFallback.subscribedEvents.join(", ")}
+                      </p>
+                    ) : null}
+                    {subscription.manualFallback.lastError ? (
+                      <p className="text-destructive">{subscription.manualFallback.lastError}</p>
+                    ) : null}
+                  </div>
+                ) : subscription.lastError ? (
+                  <p className="text-sm text-destructive">{subscription.lastError}</p>
+                ) : null}
+              </div>
+            ))}
+          </div>
+        </div>
+      ) : credential ? (
+        <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
+          Webhook subscriptions appear after projects are synced for this provider.
+        </div>
+      ) : null}
+
+      <TmsSyncObservabilityPanel
+        organizationSlug={organizationSlug}
+        providerKind={providerKind}
+        membershipRole={membershipRole}
+        enabled={Boolean(credential)}
+      />
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {credential && userIsAdmin ? (
+          <Button type="button" variant="outline" onClick={onDisconnect} disabled={isDisconnecting}>
+            <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
+            Disconnect
           </Button>
-        ) : isConnected ? (
-          <Badge variant="outline">View only</Badge>
         ) : (
-          <span className="text-sm text-muted-foreground">Admins can connect</span>
+          <div />
         )}
+        <Button
+          type="submit"
+          disabled={!displayName.trim() || !secret.trim() || isSaving}
+          className="sm:ms-auto"
+        >
+          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+          {isSaving ? "Saving..." : "Save provider"}
+        </Button>
       </div>
-    </div>
+    </form>
   );
 }
 
@@ -507,15 +769,21 @@ function ModelProviderCard({
       )}
     >
       {isActive ? (
-        <Badge variant="outline" className="absolute top-4 right-4 text-[10px]">
+        <Badge
+          variant="outline"
+          className={cn(
+            "absolute top-4 right-4 text-[10px]",
+            "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
+          )}
+        >
           Active
         </Badge>
       ) : null}
 
       <div
         className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border bg-muted p-2",
-          !isActive && "grayscale saturate-0",
+          "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
+          isActive ? "bg-muted text-foreground" : "bg-background text-foreground",
         )}
       >
         {provider.icon ? (
@@ -526,7 +794,7 @@ function ModelProviderCard({
             alt=""
             width={28}
             height={28}
-            className={cn("max-h-7 w-auto object-contain", !isActive && "grayscale saturate-0")}
+            className={cn("max-h-7 w-auto object-contain", !isActive && "opacity-75")}
           />
         )}
       </div>
@@ -634,13 +902,11 @@ export function IntegrationsPageContent({
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
   const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
   const retryWebhookSetup = useRetryWebhookSubscriptions(organizationSlug);
-  const [selectedTmsProvider, setSelectedTmsProvider] = useState<ExternalTmsProviderKind | null>(
+  const [expandedTmsProvider, setExpandedTmsProvider] = useState<ExternalTmsProviderKind | null>(
     null,
   );
-  const [tmsDialogOpen, setTmsDialogOpen] = useState(false);
   const [tmsDisplayName, setTmsDisplayName] = useState("");
   const [tmsSecret, setTmsSecret] = useState("");
-  const [tmsRegion, setTmsRegion] = useState("");
   const [tmsBaseUrl, setTmsBaseUrl] = useState("");
   const [showTmsSecret, setShowTmsSecret] = useState(false);
   const [disconnectingTmsProvider, setDisconnectingTmsProvider] =
@@ -648,7 +914,6 @@ export function IntegrationsPageContent({
 
   const tmsDisplayNameFieldId = useId();
   const tmsSecretFieldId = useId();
-  const tmsRegionFieldId = useId();
   const tmsBaseUrlFieldId = useId();
   const userIsAdmin = canManageIntegrations(membershipRole);
   const userCanManageAgents = canManageAgents(membershipRole);
@@ -685,35 +950,37 @@ export function IntegrationsPageContent({
     ? tmsIntegrations.find((integration) => integration.providerKind === disconnectingTmsProvider)
         ?.name
     : null;
-  const selectedTmsCredential = selectedTmsProvider
-    ? externalTmsCredentials?.find((item) => item.providerKind === selectedTmsProvider)
-    : undefined;
-
-  function openTmsProviderDialog(
+  function loadTmsProviderForm(
     providerKind: ExternalTmsProviderKind,
     existingCredential?: ExternalTmsProviderCredentialListItem,
   ) {
-    setSelectedTmsProvider(providerKind);
     setTmsDisplayName(existingCredential?.displayName ?? "");
     setTmsSecret("");
-    setTmsRegion(existingCredential?.region ?? "");
     setTmsBaseUrl(existingCredential?.baseUrl ?? "");
     setShowTmsSecret(false);
-    setTmsDialogOpen(true);
+  }
+
+  function handleTmsExpandedChange(
+    providerKind: ExternalTmsProviderKind,
+    existingCredential: ExternalTmsProviderCredentialListItem | undefined,
+    expanded: boolean,
+  ) {
+    if (expanded) {
+      loadTmsProviderForm(providerKind, existingCredential);
+      setExpandedTmsProvider(providerKind);
+      return;
+    }
+
+    setExpandedTmsProvider(null);
+    setShowTmsSecret(false);
   }
 
   return (
     <main className="space-y-5">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
-            Integrations
-          </TypographyH1>
-          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Connect source control, collaboration channels, translation systems, and model providers
-            for your workspace.
-          </TypographyP>
-        </div>
+        <TypographyH1 className="font-heading text-2xl font-medium text-foreground md:text-2xl">
+          Integrations
+        </TypographyH1>
         <Badge variant="outline" className="rounded-full lg:self-start">
           Workspace level
         </Badge>
@@ -727,13 +994,7 @@ export function IntegrationsPageContent({
       {canManageProviderIntegrations ? (
         <>
           <section className="flex flex-col gap-3">
-            <div>
-              <IntegrationCategoryLabel>TMS</IntegrationCategoryLabel>
-              <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Connect external translation management systems to sync projects, files, jobs,
-                glossaries, and translation memories into the unified workspace.
-              </TypographyP>
-            </div>
+            <IntegrationCategoryLabel>Translation Management System</IntegrationCategoryLabel>
 
             {isLoadingExternalTms ? (
               <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
@@ -760,10 +1021,55 @@ export function IntegrationsPageContent({
                       credential={tmsCredential}
                       userIsAdmin={userIsAdmin}
                       isLast={index === tmsIntegrations.length - 1}
-                      onAction={() =>
-                        openTmsProviderDialog(integration.providerKind, tmsCredential)
+                      expanded={expandedTmsProvider === integration.providerKind}
+                      onExpandedChange={(expanded) =>
+                        handleTmsExpandedChange(integration.providerKind, tmsCredential, expanded)
                       }
-                    />
+                    >
+                      {userIsAdmin && expandedTmsProvider === integration.providerKind ? (
+                        <TmsProviderCredentialPanel
+                          providerKind={integration.providerKind}
+                          providerName={integration.name}
+                          credential={tmsCredential}
+                          organizationSlug={organizationSlug}
+                          membershipRole={membershipRole}
+                          userIsAdmin={userIsAdmin}
+                          displayName={tmsDisplayName}
+                          onDisplayNameChange={setTmsDisplayName}
+                          secret={tmsSecret}
+                          onSecretChange={setTmsSecret}
+                          baseUrl={tmsBaseUrl}
+                          onBaseUrlChange={setTmsBaseUrl}
+                          showSecret={showTmsSecret}
+                          onToggleShowSecret={() => setShowTmsSecret((current) => !current)}
+                          onDisconnect={() => setDisconnectingTmsProvider(integration.providerKind)}
+                          onSave={() => {
+                            saveExternalTms.mutate(
+                              {
+                                providerKind: integration.providerKind,
+                                displayName: tmsDisplayName.trim(),
+                                secretMaterial: tmsSecret.trim(),
+                                ...(tmsCredential?.region ? { region: tmsCredential.region } : {}),
+                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              },
+                              {
+                                onSuccess: () => {
+                                  setTmsSecret("");
+                                  setShowTmsSecret(false);
+                                },
+                              },
+                            );
+                          }}
+                          isSaving={saveExternalTms.isPending}
+                          isDisconnecting={deleteExternalTms.isPending}
+                          onRetryWebhooks={() => retryWebhookSetup.mutate(integration.providerKind)}
+                          isRetryingWebhooks={retryWebhookSetup.isPending}
+                          displayNameFieldId={tmsDisplayNameFieldId}
+                          secretFieldId={tmsSecretFieldId}
+                          baseUrlFieldId={tmsBaseUrlFieldId}
+                        />
+                      ) : null}
+                    </TmsIntegrationRow>
                   );
                 })}
               </div>
@@ -771,13 +1077,7 @@ export function IntegrationsPageContent({
           </section>
 
           <section className="flex flex-col gap-3">
-            <div>
-              <IntegrationCategoryLabel>Model provider</IntegrationCategoryLabel>
-              <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-                Choose how Hyperlocalise runs translations: use our managed provider or bring your
-                own API keys.
-              </TypographyP>
-            </div>
+            <IntegrationCategoryLabel>Model provider</IntegrationCategoryLabel>
 
             {isLoading ? (
               <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -929,249 +1229,6 @@ export function IntegrationsPageContent({
             </DialogContent>
           </Dialog>
 
-          <Dialog open={tmsDialogOpen} onOpenChange={setTmsDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>
-                  {selectedTmsProvider
-                    ? `${tmsIntegrations.find((t) => t.providerKind === selectedTmsProvider)?.name} credentials`
-                    : "TMS credentials"}
-                </DialogTitle>
-                <DialogDescription>
-                  Save credentials to connect this provider. The secret is encrypted at rest and
-                  used to sync projects, files, and jobs into the workspace.
-                </DialogDescription>
-              </DialogHeader>
-
-              {selectedTmsProvider ? (
-                <form
-                  className="flex flex-col gap-5"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    saveExternalTms.mutate(
-                      {
-                        providerKind: selectedTmsProvider,
-                        displayName: tmsDisplayName.trim(),
-                        secretMaterial: tmsSecret.trim(),
-                        ...(tmsRegion.trim() ? { region: tmsRegion.trim() } : {}),
-                        ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
-                      },
-                      {
-                        onSuccess: () => {
-                          setTmsDisplayName("");
-                          setTmsSecret("");
-                          setTmsRegion("");
-                          setTmsBaseUrl("");
-                          setShowTmsSecret(false);
-                          setTmsDialogOpen(false);
-                        },
-                      },
-                    );
-                  }}
-                >
-                  <Field className="gap-2">
-                    <FieldLabel htmlFor={tmsDisplayNameFieldId}>Display name</FieldLabel>
-                    <Input
-                      id={tmsDisplayNameFieldId}
-                      value={tmsDisplayName}
-                      onChange={(event) => setTmsDisplayName(event.target.value)}
-                      placeholder="e.g. Crowdin Production"
-                    />
-                  </Field>
-
-                  <Field className="gap-2">
-                    <FieldLabel htmlFor={tmsSecretFieldId}>API token / secret</FieldLabel>
-                    <div className="relative">
-                      <HugeiconsIcon
-                        icon={Key01Icon}
-                        strokeWidth={1.8}
-                        className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-                      />
-                      <Input
-                        id={tmsSecretFieldId}
-                        type={showTmsSecret ? "text" : "password"}
-                        autoComplete="off"
-                        value={tmsSecret}
-                        onChange={(event) => setTmsSecret(event.target.value)}
-                        placeholder="Enter provider API token"
-                        className="ps-9 pe-9"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowTmsSecret(!showTmsSecret)}
-                        className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                        aria-label={showTmsSecret ? "Hide secret" : "Show secret"}
-                      >
-                        {showTmsSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-                      </button>
-                    </div>
-                  </Field>
-
-                  <Field className="gap-2">
-                    <FieldLabel htmlFor={tmsRegionFieldId}>Region (optional)</FieldLabel>
-                    <Input
-                      id={tmsRegionFieldId}
-                      value={tmsRegion}
-                      onChange={(event) => setTmsRegion(event.target.value)}
-                      placeholder="e.g. us, eu"
-                    />
-                  </Field>
-
-                  <Field className="gap-2">
-                    <FieldLabel htmlFor={tmsBaseUrlFieldId}>Base URL (optional)</FieldLabel>
-                    <Input
-                      id={tmsBaseUrlFieldId}
-                      value={tmsBaseUrl}
-                      onChange={(event) => setTmsBaseUrl(event.target.value)}
-                      placeholder="https://api.example.com"
-                    />
-                  </Field>
-
-                  {selectedTmsCredential &&
-                  selectedTmsCredential.webhookSubscriptions.length > 0 ? (
-                    <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-medium text-foreground">Webhook sync</p>
-                          <p className="mt-0.5 text-sm text-muted-foreground">
-                            Hyperlocalise registers inbound webhooks automatically when the provider
-                            API allows it.
-                          </p>
-                        </div>
-                        {userIsAdmin &&
-                        selectedTmsCredential.webhookSubscriptions.some((item) => item.canRetry) ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            disabled={retryWebhookSetup.isPending}
-                            onClick={() => {
-                              if (!selectedTmsProvider) {
-                                return;
-                              }
-
-                              retryWebhookSetup.mutate(selectedTmsProvider);
-                            }}
-                          >
-                            {retryWebhookSetup.isPending ? "Retrying..." : "Retry setup"}
-                          </Button>
-                        ) : null}
-                      </div>
-
-                      <div className="space-y-3">
-                        {selectedTmsCredential.webhookSubscriptions.map((subscription) => (
-                          <div
-                            key={subscription.id}
-                            className="space-y-2 rounded-md border border-border bg-card p-3"
-                          >
-                            <div className="flex flex-wrap items-center gap-2">
-                              <Badge
-                                variant="outline"
-                                className={toneClass(webhookStatusTone(subscription.status))}
-                              >
-                                {webhookStatusLabel(subscription.status)}
-                              </Badge>
-                              {subscription.projectId ? (
-                                <span className="text-xs text-muted-foreground">
-                                  Project {subscription.projectId}
-                                </span>
-                              ) : null}
-                            </div>
-
-                            {subscription.manualFallback ? (
-                              <div className="space-y-2 text-sm text-muted-foreground">
-                                <p>
-                                  <span className="font-medium text-foreground">Webhook URL:</span>{" "}
-                                  <code className="break-all rounded bg-muted px-1 py-0.5 text-xs">
-                                    {subscription.manualFallback.webhookUrl}
-                                  </code>
-                                </p>
-                                {subscription.manualFallback.secretHeaderName ? (
-                                  <p>
-                                    <span className="font-medium text-foreground">
-                                      Secret header:
-                                    </span>{" "}
-                                    {subscription.manualFallback.secretHeaderName}
-                                  </p>
-                                ) : null}
-                                {subscription.manualFallback.secretInstructions ? (
-                                  <p>{subscription.manualFallback.secretInstructions}</p>
-                                ) : null}
-                                {subscription.manualFallback.subscribedEvents.length > 0 ? (
-                                  <p>
-                                    <span className="font-medium text-foreground">Events:</span>{" "}
-                                    {subscription.manualFallback.subscribedEvents.join(", ")}
-                                  </p>
-                                ) : null}
-                                {subscription.manualFallback.lastError ? (
-                                  <p className="text-destructive">
-                                    {subscription.manualFallback.lastError}
-                                  </p>
-                                ) : null}
-                              </div>
-                            ) : subscription.lastError ? (
-                              <p className="text-sm text-destructive">{subscription.lastError}</p>
-                            ) : null}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ) : selectedTmsCredential ? (
-                    <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-                      Webhook subscriptions appear after projects are synced for this provider.
-                    </div>
-                  ) : null}
-
-                  {selectedTmsProvider ? (
-                    <TmsSyncObservabilityPanel
-                      organizationSlug={organizationSlug}
-                      providerKind={selectedTmsProvider}
-                      membershipRole={membershipRole}
-                      enabled={Boolean(selectedTmsCredential)}
-                    />
-                  ) : null}
-
-                  <DialogFooter className="gap-2 sm:justify-between">
-                    {selectedTmsCredential && userIsAdmin ? (
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          setTmsDialogOpen(false);
-                          setDisconnectingTmsProvider(selectedTmsProvider);
-                        }}
-                        disabled={deleteExternalTms.isPending}
-                      >
-                        <HugeiconsIcon icon={Delete02Icon} strokeWidth={1.8} />
-                        Disconnect
-                      </Button>
-                    ) : (
-                      <div />
-                    )}
-                    <div className="flex gap-2">
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => setTmsDialogOpen(false)}
-                      >
-                        Cancel
-                      </Button>
-                      <Button
-                        type="submit"
-                        disabled={
-                          !tmsDisplayName.trim() || !tmsSecret.trim() || saveExternalTms.isPending
-                        }
-                      >
-                        <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-                        {saveExternalTms.isPending ? "Saving..." : "Save provider"}
-                      </Button>
-                    </div>
-                  </DialogFooter>
-                </form>
-              ) : null}
-            </DialogContent>
-          </Dialog>
-
           <AlertDialog
             open={disconnectingTmsProvider !== null}
             onOpenChange={(open) => {
@@ -1202,7 +1259,14 @@ export function IntegrationsPageContent({
                     }
 
                     deleteExternalTms.mutate(disconnectingTmsProvider, {
-                      onSuccess: () => setDisconnectingTmsProvider(null),
+                      onSuccess: () => {
+                        setDisconnectingTmsProvider(null);
+                        setExpandedTmsProvider(null);
+                        setTmsDisplayName("");
+                        setTmsSecret("");
+                        setTmsBaseUrl("");
+                        setShowTmsSecret(false);
+                      },
                     });
                   }}
                 >

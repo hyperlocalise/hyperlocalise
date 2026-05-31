@@ -13,7 +13,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TypographyP } from "@/components/ui/typography";
 
 import { ProviderKindBadge, SyncStateBadge } from "../../_components/workspace-files-shared";
-import { ResourceCard, toneClass } from "../../_components/workspace-resource-shared";
+import { toneClass } from "../../_components/workspace-resource-shared";
 import type { GlossaryListRow } from "./glossary-list";
 import { providerLabel } from "./glossary-list";
 
@@ -196,17 +196,13 @@ export function GlossariesTable({
   emptyAction?: ReactNode;
 }) {
   return (
-    <ResourceCard
-      title="Terminology resources"
-      description="Native workspace glossaries and synced provider glossaries or term bases in one list."
-      icon={BookOpenTextIcon}
-    >
+    <section aria-label="Glossaries" className="min-w-0">
       {glossariesQuery.isLoading ? (
-        <div className="px-5 py-8 text-sm text-foreground/52">Loading glossaries...</div>
+        <TypographyP className="py-8 text-sm text-foreground/52">Loading glossaries...</TypographyP>
       ) : null}
 
       {glossariesQuery.isError ? (
-        <div className="px-5 py-8">
+        <div className="py-8">
           <TypographyP className="text-sm font-medium text-flame-100">
             Glossaries failed to load.
           </TypographyP>
@@ -219,22 +215,26 @@ export function GlossariesTable({
       ) : null}
 
       {glossariesQuery.isSuccess && glossaries.length === 0 ? (
-        <div className="space-y-3 px-5 py-8">
+        <div className="space-y-3 py-10">
           <TypographyP className="text-sm font-medium text-foreground">{emptyTitle}</TypographyP>
-          <TypographyP className="text-sm text-foreground/52">{emptyDescription}</TypographyP>
+          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+            {emptyDescription}
+          </TypographyP>
           {emptyAction}
         </div>
       ) : null}
 
-      {glossariesQuery.isSuccess && glossaries.length > 0
-        ? glossaries.map((glossary, index) => (
+      {glossariesQuery.isSuccess && glossaries.length > 0 ? (
+        <div className="overflow-hidden rounded-lg border border-foreground/8">
+          {glossaries.map((glossary, index) => (
             <div key={glossary.id}>
               <GlossaryRow glossary={glossary} organizationSlug={organizationSlug} />
               {index < glossaries.length - 1 ? <Separator className="bg-foreground/8" /> : null}
             </div>
-          ))
-        : null}
-    </ResourceCard>
+          ))}
+        </div>
+      ) : null}
+    </section>
   );
 }
 

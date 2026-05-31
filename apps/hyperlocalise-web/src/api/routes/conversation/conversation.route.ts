@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, lt } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, lt } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
@@ -146,10 +146,36 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         }
       }
 
+      const firstUserMessages =
+        conversationIds.length > 0
+          ? await db
+              .selectDistinctOn([schema.interactionMessages.interactionId], {
+                interactionId: schema.interactionMessages.interactionId,
+                senderEmail: schema.interactionMessages.senderEmail,
+              })
+              .from(schema.interactionMessages)
+              .where(
+                and(
+                  inArray(schema.interactionMessages.interactionId, conversationIds),
+                  eq(schema.interactionMessages.senderType, "user"),
+                ),
+              )
+              .orderBy(
+                schema.interactionMessages.interactionId,
+                asc(schema.interactionMessages.createdAt),
+              )
+          : [];
+
+      const participantEmailMap = new Map<string, string | null>();
+      for (const msg of firstUserMessages) {
+        participantEmailMap.set(msg.interactionId, msg.senderEmail);
+      }
+
       return c.json(
         {
           conversations: conversations.map((conv) => ({
             ...conv,
+            participantEmail: participantEmailMap.get(conv.id) ?? null,
             lastMessage: lastMessageMap.get(conv.id) ?? null,
           })),
         },
@@ -260,6 +286,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           message = await addInteractionMessage({
             interactionId: conversationId,
             senderType: "user",
+            senderEmail: c.var.auth.user.email,
             text,
             attachments: storedFiles.map((file) => ({
               id: file.id,

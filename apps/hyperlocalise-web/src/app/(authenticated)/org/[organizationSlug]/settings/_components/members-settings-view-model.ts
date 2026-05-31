@@ -1,6 +1,9 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
   getMembershipStatusLabel,
+  getMembershipStatusDescription,
+  getRoleBadgeClassName,
+  getRoleBadgeVariant,
   getRoleDescription,
   getRoleLabel,
   MANUAL_LOCALIZATION_ACCESS_NOTICE,
@@ -39,4 +42,11 @@ export function resolveMembersPageState(response: MembersListResponse | undefine
   };
 }
 
-export { getMembershipStatusLabel, getRoleDescription, getRoleLabel };
+export {
+  getMembershipStatusDescription,
+  getMembershipStatusLabel,
+  getRoleBadgeClassName,
+  getRoleBadgeVariant,
+  getRoleDescription,
+  getRoleLabel,
+};

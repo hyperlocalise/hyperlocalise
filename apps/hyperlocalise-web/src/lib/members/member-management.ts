@@ -33,6 +33,22 @@ export function getRoleDescription(role: OrganizationMembershipRole): string {
   return roleDefinitionBySlug.get(role)?.description ?? "";
 }
 
+export function getRoleBadgeVariant(_role: OrganizationMembershipRole): "outline" {
+  return "outline";
+}
+
+export function getRoleBadgeClassName(role: OrganizationMembershipRole): string {
+  switch (role) {
+    case "admin":
+      return "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300";
+    case "localization_manager":
+    case "developer":
+      return "border-border bg-muted text-foreground";
+    default:
+      return "border-border bg-transparent text-foreground";
+  }
+}
+
 export function getMembershipStatusLabel(status: MemberApiStatus): string {
   if (status === "invited") {
     return "Pending";

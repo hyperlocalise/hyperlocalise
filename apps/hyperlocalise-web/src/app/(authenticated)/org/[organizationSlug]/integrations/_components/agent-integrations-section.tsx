@@ -7,10 +7,13 @@ import { siGitlab, siGooglechat, siLinear, siTelegram, siWhatsapp } from "simple
 
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
-import { IntegrationCategoryCard, IntegrationRow } from "./integration-row";
+import {
+  IntegrationCategoryCard,
+  IntegrationCategoryLabel,
+  IntegrationRow,
+} from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { SlackIntegrationRow } from "./slack-integration-row";
-import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
 type AgentIntegrationsSectionProps = {
   organizationSlug: string;
@@ -90,15 +93,7 @@ export function AgentIntegrationsSection({
   return (
     <>
       <section className="flex flex-col gap-3">
-        <div>
-          <TypographyH2 className="text-xs md:text-sm font-medium tracking-[0.12em] text-muted-foreground uppercase">
-            Source control
-          </TypographyH2>
-          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Connect repositories so Hyperlocalise can inspect localized strings, review pull
-            requests, and open localization fixes.
-          </TypographyP>
-        </div>
+        <IntegrationCategoryLabel>Source control</IntegrationCategoryLabel>
         <IntegrationCategoryCard>
           <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
           <ComingSoonIntegrationRow
@@ -111,15 +106,7 @@ export function AgentIntegrationsSection({
       </section>
 
       <section className="flex flex-col gap-3">
-        <div>
-          <TypographyH2 className="text-xs md:text-sm font-medium tracking-[0.12em] text-muted-foreground uppercase">
-            Collaboration
-          </TypographyH2>
-          <TypographyP className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">
-            Connect the channels your team already uses so Hyperlocalise agents can respond in
-            Slack, email, and more.
-          </TypographyP>
-        </div>
+        <IntegrationCategoryLabel>Collaboration</IntegrationCategoryLabel>
         <IntegrationCategoryCard>
           <SlackIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
           <EmailIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />

@@ -2,17 +2,9 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { TeamSwitcher } from "@/components/team-switcher";
-import {
-  InputGroup,
-  InputGroupAddon,
-  InputGroupInput,
-  InputGroupText,
-} from "@/components/ui/input-group";
 import {
   Sidebar,
   SidebarContent,
@@ -24,7 +16,8 @@ import {
   SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { getAppShellTitle } from "./app-shell-title";
+import ThemeToggle from "@/components/theme-toggle";
+import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
@@ -40,7 +33,9 @@ type AppShellClientProps = {
     name: string;
     slug?: string | null;
   }>;
+  showApiKeysLink?: boolean;
   showBillingLink?: boolean;
+  showMembersLink?: boolean;
   user: {
     name: string;
     avatarUrl?: string;
@@ -52,11 +47,12 @@ export function AppShellClient({
   navigation,
   activeOrganization,
   organizations,
+  showApiKeysLink = false,
   showBillingLink = false,
+  showMembersLink = false,
   user,
 }: AppShellClientProps) {
-  const pathname = usePathname();
-  const pageTitle = getAppShellTitle(pathname);
+  const organizationSlug = activeOrganization.slug ?? "";
 
   return (
     <SidebarProvider
@@ -73,43 +69,13 @@ export function AppShellClient({
               height={28}
               sizes="28px"
               alt="Hyperlocalise logo"
-              className="size-7 shrink-0 rounded-full"
+              className="size-7 shrink-0 rounded-lg"
             />
             <div className="min-w-0 group-data-[collapsible=icon]:hidden">
               <TypographyP className="truncate text-sm font-medium text-sidebar-foreground">
                 Hyperlocalise
               </TypographyP>
             </div>
-          </div>
-
-          <div className="group-data-[collapsible=icon]:hidden">
-            <TeamSwitcher
-              activeOrganization={{
-                name: activeOrganization.name,
-                slug: activeOrganization.slug ?? "",
-              }}
-              organizations={organizations
-                .filter((organization): organization is { name: string; slug: string } =>
-                  Boolean(organization.slug),
-                )
-                .map((organization) => ({
-                  name: organization.name,
-                  slug: organization.slug,
-                }))}
-            />
-          </div>
-
-          <div className="flex items-center gap-2 group-data-[collapsible=icon]:hidden">
-            <InputGroup className="h-9 rounded-xl border-sidebar-border bg-sidebar-accent text-sidebar-foreground">
-              <InputGroupInput
-                aria-label="Find"
-                placeholder="Find…"
-                className="text-sm text-sidebar-foreground placeholder:text-sidebar-foreground/28"
-              />
-              <InputGroupAddon align="inline-end">
-                <InputGroupText className="text-xs text-sidebar-foreground/50">F</InputGroupText>
-              </InputGroupAddon>
-            </InputGroup>
           </div>
         </SidebarHeader>
 
@@ -149,7 +115,10 @@ export function AppShellClient({
           <NavUser
             organizationName={activeOrganization.name}
             organizationSlug={activeOrganization.slug ?? ""}
+            organizations={organizations}
+            showApiKeysLink={showApiKeysLink}
             showBillingLink={showBillingLink}
+            showMembersLink={showMembersLink}
             user={{ name: user.name, avatar: user.avatarUrl ?? "" }}
           />
         </SidebarFooter>
@@ -158,15 +127,16 @@ export function AppShellClient({
 
       <SidebarInset className="min-h-svh bg-background">
         <div className="sticky top-0 z-20 border-b border-border bg-background/96 backdrop-blur">
-          <div className="flex h-14 items-center gap-3 px-4 sm:px-6 lg:px-8">
-            <SidebarTrigger className="-ms-1" />
-            <Separator
-              orientation="vertical"
-              className="me-2 data-vertical:h-4 data-vertical:self-auto"
-            />
-            <TypographyP className="font-heading text-base font-medium text-foreground">
-              {pageTitle}
-            </TypographyP>
+          <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+            <div className="flex min-w-0 items-center gap-3">
+              <SidebarTrigger className="-ms-1" />
+              <Separator
+                orientation="vertical"
+                className="me-2 data-vertical:h-4 data-vertical:self-auto"
+              />
+              <AppShellBreadcrumb organizationSlug={organizationSlug} />
+            </div>
+            <ThemeToggle />
           </div>
         </div>
 

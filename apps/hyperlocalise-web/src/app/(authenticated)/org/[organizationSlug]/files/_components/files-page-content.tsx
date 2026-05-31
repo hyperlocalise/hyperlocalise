@@ -34,7 +34,7 @@ import {
   readWorkspaceFilterParam,
   TMS_PROVIDER_KINDS,
 } from "../../_components/workspace-filter-params";
-import { PageHeader } from "../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
 
 function fileDetailHref(organizationSlug: string, file: WorkspaceFileRecord) {
@@ -140,7 +140,7 @@ export function FilesPageContent({ organizationSlug }: { organizationSlug: strin
   }, [files]);
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <WorkspacePageShell>
       <PageHeader
         icon={Folder01Icon}
         label="Workspace"
@@ -257,6 +257,6 @@ export function FilesPageContent({ organizationSlug }: { organizationSlug: strin
           ))}
         </div>
       )}
-    </div>
+    </WorkspacePageShell>
   );
 }

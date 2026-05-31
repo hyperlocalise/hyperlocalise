@@ -33,6 +33,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import {
   formatRelativeTime,
+  initialsFor,
   type ConversationMessage,
   type InboxCurrentUser,
   type StreamedAssistantMessage,
@@ -40,12 +41,6 @@ import {
 
 type SourcePart = SourceUrlUIPart | SourceDocumentUIPart;
 type ToolPart = ToolUIPart | DynamicToolUIPart;
-const agentAvatar = {
-  alt: "Hyperlocalise",
-  imageUrl: "/images/logo.png",
-  label: "H",
-};
-
 export function ConversationMessageList({
   conversationId,
   currentUser,
@@ -148,9 +143,9 @@ const PersistedMessage = memo(function PersistedMessage({
   return (
     <MessageFrame
       role={role}
-      avatarAlt={userAvatar?.alt ?? agentAvatar.alt}
-      avatarImageUrl={userAvatar?.imageUrl ?? agentAvatar.imageUrl}
-      avatarLabel={userAvatar?.label ?? agentAvatar.label}
+      avatarAlt={userAvatar?.alt}
+      avatarImageUrl={userAvatar?.imageUrl ?? null}
+      avatarLabel={userAvatar?.label}
       createdAt={message.createdAt}
     >
       {message.senderType === "user" ? (
@@ -172,13 +167,7 @@ function AssistantStreamMessage({
   message: UIMessage;
 }) {
   return (
-    <MessageFrame
-      role="assistant"
-      avatarAlt={agentAvatar.alt}
-      avatarImageUrl={agentAvatar.imageUrl}
-      avatarLabel={agentAvatar.label}
-      createdAt={createdAt}
-    >
+    <MessageFrame role="assistant" createdAt={createdAt}>
       <AssistantMessageParts message={message} isStreaming={isStreaming} />
     </MessageFrame>
   );
@@ -194,14 +183,31 @@ function MessageFrame({
 }: {
   avatarAlt?: string;
   avatarImageUrl?: string | null;
-  avatarLabel: string;
+  avatarLabel?: string;
   children: ReactNode;
   createdAt: string | null;
   role: "user" | "assistant";
 }) {
+  const timestamp = (
+    <TypographyMuted className="mt-1 text-xs">
+      {createdAt ? formatRelativeTime(createdAt) : "now"}
+    </TypographyMuted>
+  );
+
+  if (role === "assistant") {
+    return (
+      <Message from="assistant" className="w-full max-w-full">
+        <MessageContent className="w-full max-w-full leading-6">
+          {children}
+          {timestamp}
+        </MessageContent>
+      </Message>
+    );
+  }
+
   return (
-    <Message from={role} className={cn(role === "user" ? "max-w-[85%]" : "max-w-[95%]")}>
-      <div className={cn("flex items-start gap-3", role === "user" && "flex-row-reverse")}>
+    <Message from="user" className="max-w-[85%]">
+      <div className="flex flex-row-reverse items-start gap-3">
         <Avatar className="size-8 shrink-0 bg-muted">
           {avatarImageUrl ? (
             <AvatarImage src={avatarImageUrl} alt={avatarAlt ?? avatarLabel} />
@@ -210,16 +216,9 @@ function MessageFrame({
             {avatarLabel}
           </AvatarFallback>
         </Avatar>
-        <MessageContent
-          className={cn(
-            "leading-6",
-            role === "assistant" && "rounded-xl bg-grove-900/15 px-4 py-2.5",
-          )}
-        >
+        <MessageContent className="leading-6">
           {children}
-          <TypographyMuted className="mt-1 text-xs">
-            {createdAt ? formatRelativeTime(createdAt) : "now"}
-          </TypographyMuted>
+          {timestamp}
         </MessageContent>
       </div>
     </Message>
@@ -242,15 +241,6 @@ function getUserAvatar({
     imageUrl: isCurrentUser ? currentUser.avatarUrl : null,
     label,
   };
-}
-
-function initialsFor(value: string) {
-  const [first = "U", second = ""] = value
-    .replace(/@.*/, "")
-    .split(/[\s._-]+/)
-    .filter(Boolean);
-
-  return `${first[0] ?? "U"}${second[0] ?? ""}`.toUpperCase();
 }
 
 function AssistantMessageParts({

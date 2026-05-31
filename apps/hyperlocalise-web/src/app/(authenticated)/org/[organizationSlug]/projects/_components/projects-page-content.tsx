@@ -23,7 +23,7 @@ import {
   readWorkspaceFilterParam,
   TMS_PROVIDER_KINDS,
 } from "../../_components/workspace-filter-params";
-import { PageHeader } from "../../_components/workspace-resource-shared";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import {
   createEmptyProjectForm,
@@ -253,24 +253,24 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const hasExternalProjects = projects.some((p) => p.source === "external_tms");
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
-        <PageHeader
-          icon={FolderKanbanIcon}
-          label="Workspace projects"
-          title="Projects"
-          description="Track localization programs by release, source, owner, and market readiness before they move into translation jobs."
-        />
-        <Button
-          type="button"
-          onClick={openCreateProjectDialog}
-          className="w-full md:w-fit"
-          disabled={isSavingProject}
-        >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-          Create project
-        </Button>
-      </div>
+    <WorkspacePageShell>
+      <PageHeader
+        icon={FolderKanbanIcon}
+        label="Workspace"
+        title="Projects"
+        description="Track localization programs by release, source, owner, and market readiness before they move into translation jobs."
+        actions={
+          <Button
+            type="button"
+            onClick={openCreateProjectDialog}
+            className="w-full sm:w-fit"
+            disabled={isSavingProject}
+          >
+            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+            Create project
+          </Button>
+        }
+      />
 
       {projectsQuery.isSuccess && projects.length > 0 ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -381,7 +381,6 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           isSavingProject={isSavingProject}
           isDeletingProject={deleteProjectMutation.isPending}
           organizationSlug={organizationSlug}
-          onCreateProject={openCreateProjectDialog}
           onEditProject={openEditProjectDialog}
           onDeleteProject={setDeleteProject}
         />
@@ -407,6 +406,6 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         }}
         onDelete={deleteProjectMutation.mutate}
       />
-    </div>
+    </WorkspacePageShell>
   );
 }

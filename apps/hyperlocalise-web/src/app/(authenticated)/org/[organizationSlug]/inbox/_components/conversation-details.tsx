@@ -42,7 +42,7 @@ export const ConversationDetails = memo(function ConversationDetails({
   organizationSlug: string;
 }) {
   return (
-    <aside className="border-b border-border bg-background px-4 py-4 xl:absolute xl:right-5 xl:top-5 xl:z-10 xl:w-72 xl:rounded-xl xl:border xl:bg-card/95 xl:p-4 xl:shadow-2xl xl:shadow-background/40 xl:backdrop-blur">
+    <aside className="hidden border-border bg-background xl:absolute xl:right-5 xl:top-5 xl:z-10 xl:block xl:w-72 xl:rounded-xl xl:border xl:bg-card/95 xl:p-4 xl:shadow-2xl xl:shadow-background/40 xl:backdrop-blur">
       <section>
         <TypographyH4 className="text-sm">Conversation details</TypographyH4>
         <dl className="mt-4 flex flex-col gap-3 text-sm">
@@ -53,7 +53,7 @@ export const ConversationDetails = memo(function ConversationDetails({
           <div className="flex items-center justify-between gap-3">
             <dt className="text-muted-foreground">Status</dt>
             <dd>
-              <Badge className={cn("ring-1", statusStyles[conversation.status])}>
+              <Badge variant="outline" className={statusStyles[conversation.status]}>
                 {conversation.status}
               </Badge>
             </dd>
@@ -98,7 +98,10 @@ export const ConversationDetails = memo(function ConversationDetails({
               >
                 <div className="flex items-center justify-between gap-2">
                   <TypographySmall className="truncate text-foreground">{job.id}</TypographySmall>
-                  <Badge className={cn("text-[10px]", jobStatusStyles[job.status])}>
+                  <Badge
+                    variant="outline"
+                    className={cn("text-[10px]", jobStatusStyles[job.status])}
+                  >
                     {job.status}
                   </Badge>
                 </div>

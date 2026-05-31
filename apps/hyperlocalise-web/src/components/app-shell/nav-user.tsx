@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   AiUserIcon,
+  Building02Icon,
+  CheckmarkCircle01Icon,
   CreditCardIcon,
+  Key01Icon,
   Logout01Icon,
   MoreVerticalCircle01Icon,
-  Notification01Icon,
+  UserGroupIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -18,6 +22,9 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
@@ -26,22 +33,39 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
+import { buildOrganizationSwitchHref } from "@/components/team-switcher";
+
+type OrganizationOption = {
+  name: string;
+  slug?: string | null;
+};
 
 export function NavUser({
   organizationName,
   organizationSlug,
+  organizations,
+  showApiKeysLink = false,
   showBillingLink = false,
+  showMembersLink = false,
   user,
 }: {
   organizationName: string;
   organizationSlug: string;
+  organizations: OrganizationOption[];
+  showApiKeysLink?: boolean;
   showBillingLink?: boolean;
+  showMembersLink?: boolean;
   user: {
     name: string;
     avatar: string;
   };
 }) {
   const { isMobile } = useSidebar();
+  const pathname = usePathname();
+  const switchableOrganizations = organizations.filter(
+    (organization): organization is { name: string; slug: string } => Boolean(organization.slug),
+  );
+  const canSwitchWorkspace = organizationSlug && switchableOrganizations.length > 1;
   const initials =
     user.name
       .split(" ")
@@ -106,6 +130,22 @@ export function NavUser({
                 <HugeiconsIcon icon={AiUserIcon} strokeWidth={2} className="size-4" />
                 Account
               </DropdownMenuItem>
+              {showMembersLink ? (
+                <DropdownMenuItem
+                  render={<Link href={`/org/${organizationSlug}/settings/members`} />}
+                >
+                  <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} className="size-4" />
+                  Members
+                </DropdownMenuItem>
+              ) : null}
+              {showApiKeysLink ? (
+                <DropdownMenuItem
+                  render={<Link href={`/org/${organizationSlug}/settings/api-keys`} />}
+                >
+                  <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
+                  API Keys
+                </DropdownMenuItem>
+              ) : null}
               {showBillingLink ? (
                 <DropdownMenuItem
                   render={<Link href={`/org/${organizationSlug}/settings/billing`} />}
@@ -114,14 +154,56 @@ export function NavUser({
                   Billing
                 </DropdownMenuItem>
               ) : null}
-              <DropdownMenuItem
-                render={<Link href={`/org/${organizationSlug}/settings/notifications`} />}
-              >
-                <HugeiconsIcon icon={Notification01Icon} strokeWidth={2} className="size-4" />
-                Notifications
-              </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
+            {canSwitchWorkspace ? (
+              <>
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>
+                    <HugeiconsIcon icon={Building02Icon} strokeWidth={2} className="size-4" />
+                    Switch workspace
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="min-w-56">
+                    <DropdownMenuLabel className="text-xs text-muted-foreground">
+                      Workspaces
+                    </DropdownMenuLabel>
+                    {switchableOrganizations.map((organization) => {
+                      const isActive = organization.slug === organizationSlug;
+
+                      return (
+                        <DropdownMenuItem
+                          key={organization.slug}
+                          className="gap-2 p-2"
+                          render={
+                            <Link
+                              href={buildOrganizationSwitchHref(
+                                organization.slug,
+                                pathname,
+                                organizationSlug,
+                              )}
+                            />
+                          }
+                        >
+                          <span className="flex-1 truncate">{organization.name}</span>
+                          {isActive ? (
+                            <HugeiconsIcon
+                              icon={CheckmarkCircle01Icon}
+                              strokeWidth={1.8}
+                              className="size-4 text-bud-400"
+                            />
+                          ) : null}
+                        </DropdownMenuItem>
+                      );
+                    })}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem render={<Link href="/auth/select-organization" />}>
+                      View all workspaces
+                    </DropdownMenuItem>
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+                <DropdownMenuSeparator />
+              </>
+            ) : null}
             <DropdownMenuItem render={<Link href="/auth/sign-out?returnTo=/" prefetch={false} />}>
               <HugeiconsIcon icon={Logout01Icon} strokeWidth={2} className="size-4" />
               Log out

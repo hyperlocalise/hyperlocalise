@@ -135,8 +135,8 @@ export function EmailIntegrationRow({
     <IntegrationRow
       name="Email"
       description={description}
-      icon={<SimpleBrandIcon icon={siGmail} colored={emailAgent?.enabled ?? false} />}
-      iconMuted={!emailAgent?.enabled}
+      icon={<SimpleBrandIcon icon={siGmail} colored={hasAddress} />}
+      iconMuted={!hasAddress}
       action={action}
       expanded={expanded}
       onExpandedChange={setExpanded}

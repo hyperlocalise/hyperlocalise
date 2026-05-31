@@ -1,6 +1,5 @@
 import Link from "next/link";
 import {
-  Add01Icon,
   Delete02Icon,
   Edit02Icon,
   ArrowRight01Icon,
@@ -121,7 +120,6 @@ export function ProjectsTable({
   isSavingProject,
   isDeletingProject,
   organizationSlug,
-  onCreateProject,
   onEditProject,
   onDeleteProject,
 }: {
@@ -130,7 +128,6 @@ export function ProjectsTable({
   isSavingProject: boolean;
   isDeletingProject: boolean;
   organizationSlug: string;
-  onCreateProject: () => void;
   onEditProject: (project: ProjectListRow) => void;
   onDeleteProject: (project: ProjectListRow) => void;
 }) {
@@ -154,30 +151,21 @@ export function ProjectsTable({
         </div>
       ) : null}
       {projectsQuery.isSuccess && projects.length === 0 ? (
-        <div className="flex min-h-56 flex-col justify-between gap-8 border-t border-foreground/8 px-1 py-8 sm:flex-row sm:items-end sm:py-10">
-          <div className="max-w-xl">
-            <TypographyP className="text-sm font-medium text-foreground">
-              Create your first localization project
-            </TypographyP>
-            <TypographyP className="mt-2 text-sm leading-6 text-foreground/52">
-              Track source content, release ownership, and translation context before work moves
-              into translation jobs.
-            </TypographyP>
-            <Link
-              href={`/org/${organizationSlug}/integrations`}
-              className="mt-3 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
-            >
-              <span>Or connect a TMS provider to import existing projects</span>
-            </Link>
-          </div>
+        <div className="max-w-xl space-y-3 py-10">
+          <TypographyP className="text-sm font-medium text-foreground">
+            Create your first localization project
+          </TypographyP>
+          <TypographyP className="text-sm leading-6 text-foreground/52">
+            Track source content, release ownership, and translation context before work moves into
+            translation jobs. Or connect a TMS provider to import existing projects.
+          </TypographyP>
           <Button
-            type="button"
-            onClick={onCreateProject}
-            disabled={isSavingProject}
-            className="w-full sm:w-fit"
+            nativeButton={false}
+            render={<Link href={`/org/${organizationSlug}/integrations`} />}
+            variant="outline"
+            size="sm"
           >
-            <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-            Create project
+            Connect a provider
           </Button>
         </div>
       ) : null}

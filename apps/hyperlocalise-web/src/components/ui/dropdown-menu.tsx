@@ -224,6 +224,19 @@ function DropdownMenuSeparator({ className, ...props }: MenuPrimitive.Separator.
   );
 }
 
+function ComingSoonBadge({ className }: { className?: string }) {
+  return (
+    <span
+      className={cn(
+        "ms-auto inline-flex shrink-0 items-center rounded-full border border-foreground/10 bg-foreground/6 px-1.5 py-0.5 text-[0.625rem] leading-none font-medium text-muted-foreground",
+        className,
+      )}
+    >
+      Coming soon
+    </span>
+  );
+}
+
 function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<"span">) {
   return (
     <span
@@ -238,6 +251,7 @@ function DropdownMenuShortcut({ className, ...props }: React.ComponentProps<"spa
 }
 
 export {
+  ComingSoonBadge,
   DropdownMenu,
   DropdownMenuPortal,
   DropdownMenuTrigger,

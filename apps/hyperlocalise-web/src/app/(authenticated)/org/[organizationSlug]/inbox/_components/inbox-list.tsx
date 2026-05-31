@@ -1,91 +1,38 @@
 "use client";
 
 import { memo } from "react";
-import { FilterMailIcon, PreferenceHorizontalIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyMuted, TypographySmall } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
-import { formatRelativeTime, sourceLabel, type Conversation } from "./inbox-types";
+import {
+  formatRelativeTime,
+  getConversationParticipantAvatar,
+  sourceLabel,
+  type Conversation,
+  type InboxCurrentUser,
+} from "./inbox-types";
 
 // Memoized to prevent re-rendering the entire list during chat streaming
 export const InboxList = memo(function InboxList({
   conversations,
+  currentUser,
   isError,
   isLoading,
   onSelectConversation,
   selectedConversationId,
 }: {
   conversations: Conversation[];
+  currentUser: InboxCurrentUser;
   isError: boolean;
   isLoading: boolean;
   onSelectConversation: (conversationId: string) => void;
   selectedConversationId: string;
 }) {
-  const activeCount = conversations.filter(
-    (conversation) => conversation.status === "active",
-  ).length;
-
   return (
-    <section className="flex min-h-136 flex-col border-border lg:border-r">
-      <header className="flex h-12 shrink-0 items-center justify-between border-b border-border px-3">
-        <div className="flex items-center gap-3">
-          <div>
-            <TypographySmall className="text-foreground">
-              {conversations.length === 1
-                ? "1 conversation"
-                : `${conversations.length} conversations`}
-            </TypographySmall>
-            <TypographyMuted className="text-xs">
-              {activeCount === 1 ? "1 active" : `${activeCount} active`}
-            </TypographyMuted>
-          </div>
-        </div>
-        <div className="flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-muted-foreground hover:bg-accent hover:text-foreground"
-                  aria-label="Filter inbox"
-                >
-                  <HugeiconsIcon icon={FilterMailIcon} strokeWidth={1.8} className="size-4" />
-                </Button>
-              }
-            />
-            <TooltipContent side="bottom">Filter inbox</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-muted-foreground hover:bg-accent hover:text-foreground"
-                  aria-label="Inbox display settings"
-                >
-                  <HugeiconsIcon
-                    icon={PreferenceHorizontalIcon}
-                    strokeWidth={1.8}
-                    className="size-4"
-                  />
-                </Button>
-              }
-            />
-            <TooltipContent side="bottom">Inbox display settings</TooltipContent>
-          </Tooltip>
-        </div>
-      </header>
-
+    <section className="flex max-h-[40vh] shrink-0 flex-col overflow-hidden border-border lg:max-h-none lg:min-h-0 lg:h-full lg:shrink lg:border-r">
       <div className="min-h-0 flex-1 overflow-y-auto p-2">
         {isLoading ? (
           <ConversationListSkeleton />
@@ -99,6 +46,7 @@ export const InboxList = memo(function InboxList({
               <ConversationListItem
                 key={conversation.id}
                 conversation={conversation}
+                currentUser={currentUser}
                 isSelected={conversation.id === selectedConversationId}
                 onSelect={onSelectConversation}
               />
@@ -129,13 +77,20 @@ function ConversationListSkeleton() {
 // Memoized to prevent re-rendering every item in the list during chat streaming
 const ConversationListItem = memo(function ConversationListItem({
   conversation,
+  currentUser,
   isSelected,
   onSelect,
 }: {
   conversation: Conversation;
+  currentUser: InboxCurrentUser;
   isSelected: boolean;
   onSelect: (conversationId: string) => void;
 }) {
+  const participantAvatar = getConversationParticipantAvatar(
+    conversation.participantEmail,
+    currentUser,
+  );
+
   return (
     <button
       type="button"
@@ -149,9 +104,12 @@ const ConversationListItem = memo(function ConversationListItem({
           : "text-foreground hover:bg-muted hover:text-foreground",
       )}
     >
-      <Avatar className="bg-muted size-8">
+      <Avatar className="size-8 bg-muted">
+        {participantAvatar.imageUrl ? (
+          <AvatarImage src={participantAvatar.imageUrl} alt={participantAvatar.alt} />
+        ) : null}
         <AvatarFallback className="bg-muted text-xs font-medium text-foreground">
-          {sourceLabel[conversation.source]?.[0] ?? "?"}
+          {participantAvatar.label}
         </AvatarFallback>
       </Avatar>
       <div className="min-w-0">

@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { ArrowRight01Icon, DatabaseSyncIcon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { DatabaseSyncIcon } from "@hugeicons/core-free-icons";
 import { useQuery } from "@tanstack/react-query";
 
 import { Input } from "@/components/ui/input";
@@ -24,7 +22,7 @@ import {
   readWorkspaceFilterParam,
   TMS_PROVIDER_KINDS,
 } from "../../_components/workspace-filter-params";
-import { MetricsGrid, PageHeader } from "../../_components/workspace-resource-shared";
+import { PageHeader } from "../../_components/workspace-resource-shared";
 import {
   buildProjectIdByExternalKey,
   mapMemoryToListRow,
@@ -109,58 +107,6 @@ function useMemoryFilters(memories: MemoryListRow[], searchParams: URLSearchPara
     filteredMemories,
     activeFilterCount,
   };
-}
-
-function TranslationMemoriesMetrics({
-  memories,
-  total,
-}: {
-  memories: MemoryListRow[];
-  total: number;
-}) {
-  const metrics = useMemo(() => {
-    const providerMemories = memories.filter((memory) => memory.source === "external_tms");
-    const syncedCount = providerMemories.filter(
-      (memory) => memory.syncState === "synced" && !memory.lastSyncErrorAt,
-    ).length;
-    const errorCount = providerMemories.filter((memory) => memory.lastSyncErrorAt).length;
-    const localeCount = new Set(memories.flatMap((memory) => memory.localeCoverage)).size;
-    const segmentTotal = memories.reduce((sum, memory) => sum + (memory.segmentCount ?? 0), 0);
-    const segmentLabel =
-      segmentTotal >= 1_000_000
-        ? `${(segmentTotal / 1_000_000).toFixed(1)}M`
-        : segmentTotal >= 1_000
-          ? `${(segmentTotal / 1_000).toFixed(1)}k`
-          : `${segmentTotal}`;
-    const providerCountOnPage = providerMemories.length;
-    const providerDetail =
-      total > memories.length
-        ? `${providerCountOnPage} provider on this page`
-        : `${providerCountOnPage} provider`;
-
-    return [
-      {
-        label: "Memory stores",
-        value: `${total}`,
-        detail: providerDetail,
-        tone: "info" as const,
-      },
-      {
-        label: "Locales covered",
-        value: `${localeCount}`,
-        detail: `${segmentLabel} segments`,
-        tone: "safe" as const,
-      },
-      {
-        label: "Sync health",
-        value: `${syncedCount}`,
-        detail: errorCount > 0 ? `${errorCount} errors` : "healthy",
-        tone: errorCount > 0 ? ("watch" as const) : ("safe" as const),
-      },
-    ] as const;
-  }, [memories, total]);
-
-  return <MetricsGrid metrics={metrics} />;
 }
 
 export function TranslationMemoriesPageContent({ organizationSlug }: { organizationSlug: string }) {
@@ -287,18 +233,20 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
     ? "Provider translation memories appear here after sync. Native workspace memories can also be created from this page once creation is enabled."
     : "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync translation memories into this workspace.";
 
+  const memoryCountLabel =
+    memoriesQuery.isSuccess && memoryTotal > 0
+      ? `${memoryTotal} ${memoryTotal === 1 ? "memory" : "memories"}`
+      : undefined;
+
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
         icon={DatabaseSyncIcon}
-        label="Manage"
+        label="Workspace"
         title="Translation Memories"
-        description="Browse native workspace memories and synced provider translation memories with locale coverage, capabilities, and sync health in one place."
+        description="Workspace and synced TMS translation memories. Provider memories stay read-only—connect credentials in Integrations."
+        statusLabel={memoryCountLabel}
       />
-
-      {memoriesQuery.isSuccess ? (
-        <TranslationMemoriesMetrics memories={memories} total={memoryTotal} />
-      ) : null}
 
       {memoriesQuery.isSuccess && memories.length > 0 ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -401,19 +349,6 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
           </button>
         </div>
       ) : null}
-
-      <div className="flex items-center gap-2 text-sm text-foreground/54">
-        <span>
-          Provider memories stay read-only here. Connect or manage credentials from Integrations.
-        </span>
-        <Link
-          href={`/org/${organizationSlug}/integrations`}
-          className="inline-flex items-center gap-1 hover:text-foreground"
-        >
-          <span>Integrations</span>
-          <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
-        </Link>
-      </div>
 
       <TranslationMemoriesTable
         memories={filteredMemories}

@@ -21,6 +21,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { Button } from "@/components/ui/button";
 import {
+  ComingSoonBadge,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -195,7 +196,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               }
             }}
             className="min-h-36 w-full resize-none bg-transparent px-4 py-4 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:px-6 sm:py-5"
-            placeholder="Paste source text or ask Hyperlocalise to translate a file, string, or inbox request..."
+            placeholder="Paste text or describe what to translate..."
           />
           <input
             ref={fileInputRef}
@@ -290,7 +291,8 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                     {attachOptions.slice(1).map((option) => (
                       <DropdownMenuItem key={option.label} disabled>
                         <HugeiconsIcon icon={option.icon} strokeWidth={1.8} className="size-4" />
-                        {option.label} (soon)
+                        <span className="min-w-0 flex-1">{option.label}</span>
+                        <ComingSoonBadge />
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuGroup>

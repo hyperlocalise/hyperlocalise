@@ -90,7 +90,7 @@ function resourceTypeLabelFor(glossary: ApiGlossary) {
     return RESOURCE_TYPE_LABELS[glossary.externalResourceType];
   }
 
-  return "Terminology";
+  return "Glossary";
 }
 
 export function externalProjectLookupKey(

@@ -46,14 +46,14 @@ function BillingSettingsHeader() {
   return (
     <section className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
-        <div className="flex items-center gap-2 text-sm text-foreground/48">
-          <HugeiconsIcon icon={CreditCardIcon} strokeWidth={1.8} className="size-4" />
+        <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground antialiased">
+          <HugeiconsIcon icon={CreditCardIcon} strokeWidth={1.8} className="size-4 shrink-0" />
           <span>Billing settings</span>
         </div>
         <TypographyH1 className="mt-2 font-heading text-2xl font-medium text-foreground md:text-2xl">
           Billing
         </TypographyH1>
-        <TypographyP className="mt-2 text-sm leading-6 text-foreground/52">
+        <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
           View your workspace plan, metered usage balances, and manage subscription billing through
           Autumn.
         </TypographyP>

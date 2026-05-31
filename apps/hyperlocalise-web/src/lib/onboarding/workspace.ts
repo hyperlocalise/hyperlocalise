@@ -4,20 +4,11 @@ import { eq } from "drizzle-orm";
 
 import { syncWorkosUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
+import { slugifyOrganizationName } from "@/lib/onboarding/slugify-organization-name";
 import {
   deleteProvisionedWorkosOrganization,
   provisionWorkspaceInWorkos,
 } from "@/lib/workos/provision-workspace-in-workos";
-
-function slugifyOrganizationName(name: string) {
-  const normalized = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
-
-  return normalized || "workspace";
-}
 
 function isUniqueViolation(error: unknown) {
   if (!(error instanceof Error)) {

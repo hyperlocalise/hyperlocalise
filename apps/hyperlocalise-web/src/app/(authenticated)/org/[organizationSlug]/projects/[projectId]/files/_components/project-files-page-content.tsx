@@ -3,12 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  ArrowLeft01Icon,
-  Download01Icon,
-  File01Icon,
-  Folder01Icon,
-} from "@hugeicons/core-free-icons";
+import { Download01Icon, File01Icon, Folder01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { File as DiffFile, MultiFileDiff, type FileContents } from "@pierre/diffs/react";
 import { useQuery } from "@tanstack/react-query";
@@ -34,11 +29,8 @@ import {
   workspaceFileFiltersWithoutLocale,
   type WorkspaceFileFilters,
 } from "../../../../_components/workspace-files-shared";
-import {
-  PageHeader,
-  toneClass,
-  type Tone,
-} from "../../../../_components/workspace-resource-shared";
+import { toneClass, type Tone } from "../../../../_components/workspace-resource-shared";
+import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
 import type {
   ProjectFileDetailResponse,
@@ -461,20 +453,6 @@ export function ProjectFilesPageContent({
   const [baseVersionId, setBaseVersionId] = useState<string | undefined>();
   const [compareVersionId, setCompareVersionId] = useState<string | undefined>();
 
-  const projectQuery = useQuery({
-    queryKey: ["project", organizationSlug, projectId],
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
-        param: { organizationSlug, projectId },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load project (${response.status})`);
-      }
-      const body = await response.json();
-      return body.project;
-    },
-  });
-
   const filtersForLocaleOptions = useMemo(
     () => workspaceFileFiltersWithoutLocale(filters),
     [filters],
@@ -603,35 +581,13 @@ export function ProjectFilesPageContent({
     }
   }, [files, selectedPath, filesQuery.isLoading, filesQuery.isFetching]);
 
-  const stats = {
-    total: files.length,
-    provider: files.filter((f) => f.provider !== null).length,
-    withJobs: files.filter((f) => f.latestJob !== null).length,
-    latestUpload:
-      files.length > 0
-        ? new Date(
-            Math.max(...files.map((f) => new Date(f.uploadedAt).getTime())),
-          ).toLocaleDateString()
-        : "—",
-  };
-
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-      <div className="flex flex-col gap-4">
-        <Link
-          href={`/org/${organizationSlug}/projects`}
-          className="flex w-fit items-center gap-1 text-sm text-foreground/48 transition-colors hover:text-foreground"
-        >
-          <HugeiconsIcon icon={ArrowLeft01Icon} strokeWidth={1.8} className="size-4" />
-          Projects
-        </Link>
-        <PageHeader
-          icon={Folder01Icon}
-          label="Project files"
-          title={projectQuery.data?.name ?? "Project files"}
-          description="Browse repository source files, synced provider files, and translation keys for this project."
-        />
-      </div>
+    <ProjectPageShell>
+      <ProjectSectionHeader
+        icon={Folder01Icon}
+        section="Files"
+        description="Browse repository source files, synced provider files, and translation keys."
+      />
 
       <WorkspaceFilesFilterBar
         filters={filters}
@@ -640,33 +596,6 @@ export function ProjectFilesPageContent({
         projectOptions={[]}
         showProjectFilter={false}
       />
-
-      <div className="grid gap-3 md:grid-cols-4">
-        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          <TypographyP className="text-sm text-foreground/52">Matching files</TypographyP>
-          <TypographyP className="mt-2 font-heading text-3xl font-medium text-foreground">
-            {stats.total}
-          </TypographyP>
-        </div>
-        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          <TypographyP className="text-sm text-foreground/52">Provider-backed</TypographyP>
-          <TypographyP className="mt-2 font-heading text-3xl font-medium text-foreground">
-            {stats.provider}
-          </TypographyP>
-        </div>
-        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          <TypographyP className="text-sm text-foreground/52">With translation jobs</TypographyP>
-          <TypographyP className="mt-2 font-heading text-3xl font-medium text-foreground">
-            {stats.withJobs}
-          </TypographyP>
-        </div>
-        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          <TypographyP className="text-sm text-foreground/52">Latest upload</TypographyP>
-          <TypographyP className="mt-2 font-heading text-3xl font-medium text-foreground">
-            {stats.latestUpload}
-          </TypographyP>
-        </div>
-      </div>
 
       <div className="grid gap-5 lg:grid-cols-[1fr_min(32rem,42vw)]">
         <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
@@ -1001,6 +930,6 @@ export function ProjectFilesPageContent({
           )}
         </div>
       </div>
-    </div>
+    </ProjectPageShell>
   );
 }

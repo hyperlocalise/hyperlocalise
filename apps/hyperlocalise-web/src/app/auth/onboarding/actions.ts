@@ -64,12 +64,12 @@ export async function createWorkspaceAction(
 
   const { session, onboardingState, auth } = await loadOnboardingContext();
 
-  if (onboardingState?.organizationSlug) {
-    redirect("/auth/onboarding?step=provider");
-  }
-
-  if (auth?.activeOrganization.slug) {
-    redirect(getOrganizationDashboardPath(auth.activeOrganization.slug));
+  if (onboardingState?.organizationSlug || auth?.activeOrganization.slug) {
+    redirect(
+      getOrganizationDashboardPath(
+        auth?.activeOrganization.slug ?? onboardingState?.organizationSlug,
+      ),
+    );
   }
 
   if (!session.user) {
@@ -106,12 +106,9 @@ export async function createWorkspaceAction(
   }
 
   await setStoredActiveOrganizationSlug(organization.slug);
-  await setStoredOnboardingState({
-    organizationSlug: organization.slug,
-    providerSetupStatus: "pending",
-  });
+  await clearStoredOnboardingState();
 
-  redirect("/auth/onboarding?step=provider");
+  redirect(getOrganizationDashboardPath(organization.slug));
 }
 
 export async function saveProviderCredentialAction(

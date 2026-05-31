@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import {
-  FilterHorizontalIcon,
   MoreHorizontalCircle01Icon,
   SearchIcon,
+  Task01Icon,
+  WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -29,8 +30,17 @@ import {
   JOB_STATUS_FILTERS,
   readWorkspaceFilterParam,
 } from "../../_components/workspace-filter-params";
-import { MetricsGrid, toneClass, type Tone } from "../../_components/workspace-resource-shared";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import {
+  PageHeader,
+  WorkspacePageShell,
+  toneClass,
+  type Tone,
+} from "../../_components/workspace-resource-shared";
+import {
+  ProjectPageShell,
+  ProjectSectionHeader,
+} from "../../projects/[projectId]/_components/project-page-shell";
+import { TypographyP } from "@/components/ui/typography";
 
 type JobsScope = "all" | "mine";
 
@@ -78,6 +88,51 @@ const statusOptions = [
   "waiting_for_review",
   "cancelled",
 ] as const;
+
+const sourceFilterLabels = {
+  all: "All sources",
+  native: "Native",
+  provider: "Provider",
+} as const;
+
+const agentReadyFilterLabels = {
+  all: "Any agent state",
+  ready: "Agent-ready",
+  not_ready: "Not ready",
+} as const;
+
+const statusFilterLabels = {
+  all: "All status",
+  queued: "Queued",
+  running: "Running",
+  succeeded: "Succeeded",
+  failed: "Failed",
+  waiting_for_review: "Waiting for review",
+  cancelled: "Cancelled",
+} as const satisfies Record<(typeof statusOptions)[number], string>;
+
+const jobsFilterTriggerClassName =
+  "h-9 min-h-9 w-full border-foreground/14 bg-transparent px-3 text-sm text-foreground data-[size=default]:h-9";
+
+const jobsFilterSelectContentClassName =
+  "w-max min-w-[var(--anchor-width)] max-w-[min(16rem,calc(100vw-2rem))]";
+
+function JobsFilterField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("grid gap-1.5", className)}>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {children}
+    </div>
+  );
+}
 
 function jobTone(status: ApiJob["status"]): Tone {
   switch (status) {
@@ -162,37 +217,6 @@ function formatJobKind(job: ApiJob) {
   return job.kind.replace("_", " ");
 }
 
-function JobsStats({ jobs }: { jobs: JobRow[] }) {
-  const metrics = useMemo(() => {
-    const runningCount = jobs.filter((job) => job.status === "running").length;
-    const queuedCount = jobs.filter((job) => job.status === "queued").length;
-    const failedCount = jobs.filter((job) => job.status === "failed").length;
-
-    return [
-      {
-        label: "Running jobs",
-        value: `${runningCount}`,
-        detail: "active now",
-        tone: "info" as const,
-      },
-      {
-        label: "Queued jobs",
-        value: `${queuedCount}`,
-        detail: "waiting",
-        tone: "watch" as const,
-      },
-      {
-        label: "Failed jobs",
-        value: `${failedCount}`,
-        detail: "needs review",
-        tone: "risk" as const,
-      },
-    ] as const;
-  }, [jobs]);
-
-  return <MetricsGrid metrics={metrics} />;
-}
-
 function JobsList({
   emptyLabel,
   isLoading,
@@ -209,17 +233,7 @@ function JobsList({
       <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>
     );
   if (jobs.length === 0) {
-    return (
-      <div className="px-3 py-8">
-        <TypographyP className="text-sm text-foreground/58">{emptyLabel}</TypographyP>
-        <Link
-          href={`/org/${organizationSlug}/integrations`}
-          className="mt-2 inline-flex items-center gap-2 text-sm text-foreground/54 hover:text-foreground"
-        >
-          <span>Connect a TMS provider to import existing jobs</span>
-        </Link>
-      </div>
-    );
+    return <TypographyP className="px-3 py-8 text-sm text-foreground/58">{emptyLabel}</TypographyP>;
   }
 
   return (
@@ -301,6 +315,7 @@ export function JobsPageContent({
   projectId?: string;
 }) {
   const searchParams = useSearchParams();
+  const searchId = useId();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<(typeof statusOptions)[number]>(() => {
     const status = readWorkspaceFilterParam(searchParams, "status", JOB_STATUS_FILTERS);
@@ -380,91 +395,136 @@ export function JobsPageContent({
     });
   }, [jobs, search, statusFilter, sourceFilter, agentReadyFilter]);
 
-  const title = projectId ? "Jobs" : scope === "mine" ? "My Work" : "Jobs";
+  const isMyWork = scope === "mine";
   const emptyLabel = projectId
     ? "No jobs found for this project."
     : scope === "mine"
       ? "No work items found for your account."
       : "No jobs found for this workspace.";
 
-  return (
-    <div className="mx-auto flex w-full max-w-7xl flex-col gap-6">
-      <div>
-        <TypographyH1 className="font-heading text-4xl font-semibold text-foreground md:text-5xl">
-          {title}
-        </TypographyH1>
-      </div>
-      {scope === "all" && !projectId ? <JobsStats jobs={jobs} /> : null}
-      <section className="space-y-5">
-        <div className="flex flex-col gap-3 lg:flex-row">
-          <div className="relative min-w-0 flex-1">
+  const jobsSection = (
+    <section className="space-y-5">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
+        <JobsFilterField label="Search" className="min-w-0 flex-1">
+          <div className="relative">
             <HugeiconsIcon
               icon={SearchIcon}
               strokeWidth={2}
-              className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-foreground/42"
+              className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/42"
             />
             <Input
+              id={searchId}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search jobs, providers, locales, assignees..."
-              className="h-12 rounded-lg border-foreground/14 bg-transparent pl-12 text-base text-foreground placeholder:text-foreground/42"
+              placeholder="Jobs, providers, locales, assignees..."
+              className="h-9 border-foreground/14 bg-transparent pl-9 text-foreground placeholder:text-foreground/42"
             />
           </div>
+        </JobsFilterField>
+        <JobsFilterField label="Source" className="w-full lg:w-40">
           <Select
             value={sourceFilter}
-            onValueChange={(value) => setSourceFilter(value as typeof sourceFilter)}
+            onValueChange={(value) => setSourceFilter((value ?? "all") as typeof sourceFilter)}
           >
-            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
-              <SelectValue placeholder="Source" />
+            <SelectTrigger className={jobsFilterTriggerClassName}>
+              <SelectValue>{sourceFilterLabels[sourceFilter]}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All sources</SelectItem>
-              <SelectItem value="native">Native</SelectItem>
-              <SelectItem value="provider">Provider</SelectItem>
+            <SelectContent className={jobsFilterSelectContentClassName}>
+              <SelectItem value="all" label={sourceFilterLabels.all}>
+                {sourceFilterLabels.all}
+              </SelectItem>
+              <SelectItem value="native" label={sourceFilterLabels.native}>
+                {sourceFilterLabels.native}
+              </SelectItem>
+              <SelectItem value="provider" label={sourceFilterLabels.provider}>
+                {sourceFilterLabels.provider}
+              </SelectItem>
             </SelectContent>
           </Select>
+        </JobsFilterField>
+        <JobsFilterField label="Status" className="w-full lg:w-40">
           <Select
             value={statusFilter}
-            onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
+            onValueChange={(value) =>
+              setStatusFilter((value ?? "all") as (typeof statusOptions)[number])
+            }
           >
-            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
-              <HugeiconsIcon icon={FilterHorizontalIcon} strokeWidth={2} className="size-5" />
-              <SelectValue placeholder="Status" />
+            <SelectTrigger className={jobsFilterTriggerClassName}>
+              <SelectValue>{statusFilterLabels[statusFilter]}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
+            <SelectContent className={jobsFilterSelectContentClassName}>
               {statusOptions.map((status) => (
-                <SelectItem key={status} value={status}>
-                  {status === "all" ? "All status" : status}
+                <SelectItem key={status} value={status} label={statusFilterLabels[status]}>
+                  {statusFilterLabels[status]}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
+        </JobsFilterField>
+        <JobsFilterField label="Agent" className="w-full lg:w-40">
           <Select
             value={agentReadyFilter}
-            onValueChange={(value) => setAgentReadyFilter(value as typeof agentReadyFilter)}
+            onValueChange={(value) =>
+              setAgentReadyFilter((value ?? "all") as typeof agentReadyFilter)
+            }
           >
-            <SelectTrigger className="h-12 w-full rounded-lg border-foreground/14 bg-transparent px-4 text-base text-foreground lg:w-44">
-              <SelectValue placeholder="Agent" />
+            <SelectTrigger className={jobsFilterTriggerClassName}>
+              <SelectValue>{agentReadyFilterLabels[agentReadyFilter]}</SelectValue>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Any agent state</SelectItem>
-              <SelectItem value="ready">Agent-ready</SelectItem>
-              <SelectItem value="not_ready">Not ready</SelectItem>
+            <SelectContent className={jobsFilterSelectContentClassName}>
+              <SelectItem value="all" label={agentReadyFilterLabels.all}>
+                {agentReadyFilterLabels.all}
+              </SelectItem>
+              <SelectItem value="ready" label={agentReadyFilterLabels.ready}>
+                {agentReadyFilterLabels.ready}
+              </SelectItem>
+              <SelectItem value="not_ready" label={agentReadyFilterLabels.not_ready}>
+                {agentReadyFilterLabels.not_ready}
+              </SelectItem>
             </SelectContent>
           </Select>
-        </div>
-        {jobsQuery.error ? (
-          <TypographyP className="text-sm text-flame-100">
-            {jobsQuery.error instanceof Error ? jobsQuery.error.message : "Failed to load jobs."}
-          </TypographyP>
-        ) : null}
-        <JobsList
-          emptyLabel={emptyLabel}
-          isLoading={jobsQuery.isLoading}
-          jobs={visibleJobs}
-          organizationSlug={organizationSlug}
+        </JobsFilterField>
+      </div>
+      {jobsQuery.error ? (
+        <TypographyP className="text-sm text-flame-100">
+          {jobsQuery.error instanceof Error ? jobsQuery.error.message : "Failed to load jobs."}
+        </TypographyP>
+      ) : null}
+      <JobsList
+        emptyLabel={emptyLabel}
+        isLoading={jobsQuery.isLoading}
+        jobs={visibleJobs}
+        organizationSlug={organizationSlug}
+      />
+    </section>
+  );
+
+  if (projectId) {
+    return (
+      <ProjectPageShell>
+        <ProjectSectionHeader
+          icon={Task01Icon}
+          section="Jobs"
+          description="Translation, review, QA, and sync work."
         />
-      </section>
-    </div>
+        {jobsSection}
+      </ProjectPageShell>
+    );
+  }
+
+  return (
+    <WorkspacePageShell>
+      <PageHeader
+        icon={isMyWork ? WorkHistoryIcon : Task01Icon}
+        label="Workspace"
+        title={isMyWork ? "My Work" : "Jobs"}
+        description={
+          isMyWork
+            ? "Translation, review, and sync work assigned to you across projects."
+            : "Translation, review, QA, and sync work tracked across the workspace."
+        }
+      />
+      {jobsSection}
+    </WorkspacePageShell>
   );
 }

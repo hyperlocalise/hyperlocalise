@@ -33,6 +33,7 @@ import {
   Attachments,
 } from "@/components/ai-elements/attachments";
 import {
+  ComingSoonBadge,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -177,7 +178,7 @@ function ReplyComposerContent({
               placeholder={
                 isStreaming
                   ? "Agent is responding..."
-                  : "Paste source text or ask Hyperlocalise to translate a file, string, or inbox request..."
+                  : "Paste text or describe what to translate..."
               }
               rows={1}
             />
@@ -211,9 +212,10 @@ function ReplyComposerContent({
                   <DropdownMenuSeparator />
                   <DropdownMenuGroup>
                     {attachOptions.slice(1).map((option) => (
-                      <DropdownMenuItem key={option.label}>
+                      <DropdownMenuItem key={option.label} disabled>
                         <HugeiconsIcon icon={option.icon} strokeWidth={1.8} className="size-4" />
-                        {option.label}
+                        <span className="min-w-0 flex-1">{option.label}</span>
+                        <ComingSoonBadge />
                       </DropdownMenuItem>
                     ))}
                   </DropdownMenuGroup>

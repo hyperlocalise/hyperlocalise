@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -221,6 +221,69 @@ export function summarizeLocaleReadiness(localeReadiness: Record<string, unknown
   return parts.length > 0 ? parts.join(" · ") : `${entries.length} locales`;
 }
 
+const originFilterLabels = {
+  all: "All sources",
+  repository: "Repository",
+  provider: "Provider",
+} as const;
+
+const resourceTypeFilterLabels = {
+  all: "All types",
+  file: "Files",
+  key: "Keys",
+} as const;
+
+const providerKindFilterLabels = {
+  all: "All providers",
+  crowdin: "Crowdin",
+  smartling: "Smartling",
+  phrase: "Phrase",
+  lokalise: "Lokalise",
+} as const;
+
+const syncStateFilterLabels = {
+  all: "All sync states",
+  synced: "Synced",
+  pending: "Pending",
+  stale: "Stale",
+  changed: "Changed",
+} as const;
+
+const filesFilterTriggerClassName =
+  "h-9 min-h-9 w-full border-border bg-transparent px-3 text-sm text-foreground data-[size=default]:h-9";
+
+const filesFilterSelectContentClassName =
+  "w-max min-w-[var(--anchor-width)] max-w-[min(16rem,calc(100vw-2rem))]";
+
+function FilesFilterField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("grid min-w-0 gap-1.5", className)}>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+function projectFilterLabel(projectId: string, projectOptions: { id: string; name: string }[]) {
+  if (projectId === "all") {
+    return "All projects";
+  }
+
+  return projectOptions.find((project) => project.id === projectId)?.name ?? projectId;
+}
+
+function localeFilterLabel(locale: string) {
+  return locale === "all" ? "All locales" : locale;
+}
+
 export function WorkspaceFilesFilterBar({
   filters,
   onFiltersChange,
@@ -239,117 +302,165 @@ export function WorkspaceFilesFilterBar({
   };
 
   return (
-    <div className="flex flex-col gap-3 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-      <div className="relative">
-        <HugeiconsIcon
-          icon={SearchIcon}
-          strokeWidth={1.8}
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-foreground/34"
-        />
-        <Input
-          value={filters.search}
-          onChange={(event) => update({ search: event.target.value })}
-          placeholder="Search by path, name, or provider ID"
-          className="pl-9"
-        />
-      </div>
+    <div className="flex flex-col gap-3">
+      <FilesFilterField label="Search" className="min-w-0 flex-1">
+        <div className="relative">
+          <HugeiconsIcon
+            icon={SearchIcon}
+            strokeWidth={1.8}
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            value={filters.search}
+            onChange={(event) => update({ search: event.target.value })}
+            placeholder="Search by path, name, or provider ID"
+            className="h-9 pl-9"
+          />
+        </div>
+      </FilesFilterField>
 
-      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+      <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-end">
         {showProjectFilter ? (
+          <FilesFilterField label="Project" className="w-full lg:w-44">
+            <Select
+              value={filters.projectId}
+              onValueChange={(value) => update({ projectId: value ?? "all" })}
+            >
+              <SelectTrigger className={filesFilterTriggerClassName}>
+                <SelectValue>{projectFilterLabel(filters.projectId, projectOptions)}</SelectValue>
+              </SelectTrigger>
+              <SelectContent className={filesFilterSelectContentClassName}>
+                <SelectItem value="all" label="All projects">
+                  All projects
+                </SelectItem>
+                {projectOptions.map((project) => (
+                  <SelectItem key={project.id} value={project.id} label={project.name}>
+                    {project.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </FilesFilterField>
+        ) : null}
+
+        <FilesFilterField label="Source" className="w-full lg:w-36">
           <Select
-            value={filters.projectId}
-            onValueChange={(value) => update({ projectId: value ?? "all" })}
+            value={filters.origin}
+            onValueChange={(value) => update({ origin: value ?? "all" })}
           >
-            <SelectTrigger>
-              <SelectValue placeholder="Project" />
+            <SelectTrigger className={filesFilterTriggerClassName}>
+              <SelectValue>
+                {originFilterLabels[filters.origin as keyof typeof originFilterLabels] ??
+                  "All sources"}
+              </SelectValue>
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All projects</SelectItem>
-              {projectOptions.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
+            <SelectContent className={filesFilterSelectContentClassName}>
+              {(Object.keys(originFilterLabels) as Array<keyof typeof originFilterLabels>).map(
+                (option) => (
+                  <SelectItem key={option} value={option} label={originFilterLabels[option]}>
+                    {originFilterLabels[option]}
+                  </SelectItem>
+                ),
+              )}
+            </SelectContent>
+          </Select>
+        </FilesFilterField>
+
+        <FilesFilterField label="Type" className="w-full lg:w-32">
+          <Select
+            value={filters.resourceType}
+            onValueChange={(value) => update({ resourceType: value ?? "all" })}
+          >
+            <SelectTrigger className={filesFilterTriggerClassName}>
+              <SelectValue>
+                {resourceTypeFilterLabels[
+                  filters.resourceType as keyof typeof resourceTypeFilterLabels
+                ] ?? "All types"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className={filesFilterSelectContentClassName}>
+              {(
+                Object.keys(resourceTypeFilterLabels) as Array<
+                  keyof typeof resourceTypeFilterLabels
+                >
+              ).map((option) => (
+                <SelectItem key={option} value={option} label={resourceTypeFilterLabels[option]}>
+                  {resourceTypeFilterLabels[option]}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-        ) : null}
+        </FilesFilterField>
 
-        <Select
-          value={filters.origin}
-          onValueChange={(value) => update({ origin: value ?? "all" })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Source" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All sources</SelectItem>
-            <SelectItem value="repository">Repository</SelectItem>
-            <SelectItem value="provider">Provider</SelectItem>
-          </SelectContent>
-        </Select>
+        <FilesFilterField label="Provider" className="w-full lg:w-36">
+          <Select
+            value={filters.providerKind}
+            onValueChange={(value) => update({ providerKind: value ?? "all" })}
+          >
+            <SelectTrigger className={filesFilterTriggerClassName}>
+              <SelectValue>
+                {providerKindFilterLabels[
+                  filters.providerKind as keyof typeof providerKindFilterLabels
+                ] ?? "All providers"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className={filesFilterSelectContentClassName}>
+              {(
+                Object.keys(providerKindFilterLabels) as Array<
+                  keyof typeof providerKindFilterLabels
+                >
+              ).map((option) => (
+                <SelectItem key={option} value={option} label={providerKindFilterLabels[option]}>
+                  {providerKindFilterLabels[option]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilesFilterField>
 
-        <Select
-          value={filters.resourceType}
-          onValueChange={(value) => update({ resourceType: value ?? "all" })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All types</SelectItem>
-            <SelectItem value="file">Files</SelectItem>
-            <SelectItem value="key">Keys</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.providerKind}
-          onValueChange={(value) => update({ providerKind: value ?? "all" })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Provider" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All providers</SelectItem>
-            <SelectItem value="crowdin">Crowdin</SelectItem>
-            <SelectItem value="smartling">Smartling</SelectItem>
-            <SelectItem value="phrase">Phrase</SelectItem>
-            <SelectItem value="lokalise">Lokalise</SelectItem>
-          </SelectContent>
-        </Select>
-
-        <Select
-          value={filters.locale}
-          onValueChange={(value) => update({ locale: value ?? "all" })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Locale" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All locales</SelectItem>
-            {localeOptions.map((locale) => (
-              <SelectItem key={locale} value={locale}>
-                {locale}
+        <FilesFilterField label="Locale" className="w-full lg:w-32">
+          <Select
+            value={filters.locale}
+            onValueChange={(value) => update({ locale: value ?? "all" })}
+          >
+            <SelectTrigger className={filesFilterTriggerClassName}>
+              <SelectValue>{localeFilterLabel(filters.locale)}</SelectValue>
+            </SelectTrigger>
+            <SelectContent className={filesFilterSelectContentClassName}>
+              <SelectItem value="all" label="All locales">
+                All locales
               </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+              {localeOptions.map((locale) => (
+                <SelectItem key={locale} value={locale} label={locale}>
+                  {locale}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilesFilterField>
 
-        <Select
-          value={filters.syncState}
-          onValueChange={(value) => update({ syncState: value ?? "all" })}
-        >
-          <SelectTrigger>
-            <SelectValue placeholder="Sync state" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All sync states</SelectItem>
-            <SelectItem value="synced">Synced</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="stale">Stale</SelectItem>
-            <SelectItem value="changed">Changed</SelectItem>
-          </SelectContent>
-        </Select>
+        <FilesFilterField label="Sync" className="w-full lg:w-36">
+          <Select
+            value={filters.syncState}
+            onValueChange={(value) => update({ syncState: value ?? "all" })}
+          >
+            <SelectTrigger className={filesFilterTriggerClassName}>
+              <SelectValue>
+                {syncStateFilterLabels[filters.syncState as keyof typeof syncStateFilterLabels] ??
+                  "All sync states"}
+              </SelectValue>
+            </SelectTrigger>
+            <SelectContent className={filesFilterSelectContentClassName}>
+              {(
+                Object.keys(syncStateFilterLabels) as Array<keyof typeof syncStateFilterLabels>
+              ).map((option) => (
+                <SelectItem key={option} value={option} label={syncStateFilterLabels[option]}>
+                  {syncStateFilterLabels[option]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </FilesFilterField>
       </div>
     </div>
   );

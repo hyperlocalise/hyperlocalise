@@ -8,6 +8,7 @@ export type Conversation = {
   projectId: string | null;
   lastMessageAt: string;
   createdAt: string;
+  participantEmail: string | null;
   lastMessage: {
     text: string;
     senderType: "user" | "agent";
@@ -49,6 +50,29 @@ export type InboxCurrentUser = {
   name: string;
 };
 
+export function initialsFor(value: string) {
+  const [first = "U", second = ""] = value
+    .replace(/@.*/, "")
+    .split(/[\s._-]+/)
+    .filter(Boolean);
+
+  return `${first[0] ?? "U"}${second[0] ?? ""}`.toUpperCase();
+}
+
+export function getConversationParticipantAvatar(
+  participantEmail: string | null,
+  currentUser: InboxCurrentUser,
+) {
+  const isCurrentUser = !participantEmail || participantEmail === currentUser.email;
+  const displayName = isCurrentUser ? currentUser.name : participantEmail;
+
+  return {
+    alt: displayName ?? "User",
+    imageUrl: isCurrentUser ? currentUser.avatarUrl : null,
+    label: initialsFor(displayName ?? "User"),
+  };
+}
+
 export const sourceLabel: Record<Conversation["source"], string> = {
   chat_ui: "Chat",
   email_agent: "Email",
@@ -57,17 +81,22 @@ export const sourceLabel: Record<Conversation["source"], string> = {
 };
 
 export const statusStyles: Record<Conversation["status"], string> = {
-  active: "bg-beam-500/14 text-beam-100 ring-beam-500/24",
-  archived: "bg-grove-300/14 text-grove-100 ring-grove-300/24",
+  active:
+    "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
+  archived: "border-border bg-muted text-muted-foreground",
 };
 
 export const jobStatusStyles: Record<LinkedJob["status"], string> = {
-  queued: "bg-muted text-muted-foreground",
-  running: "bg-beam-500/14 text-beam-100",
-  succeeded: "bg-grove-300/14 text-grove-100",
-  failed: "bg-flame-500/14 text-flame-100",
-  waiting_for_review: "bg-bud-500/14 text-bud-100",
-  cancelled: "bg-muted text-muted-foreground",
+  queued: "border-border bg-muted text-muted-foreground",
+  running:
+    "border-beam-700/30 bg-beam-100 text-beam-900 dark:border-beam-500/25 dark:bg-beam-500/10 dark:text-beam-700",
+  succeeded:
+    "border-grove-500/35 bg-grove-100 text-grove-900 dark:border-grove-300/20 dark:bg-grove-300/10 dark:text-grove-300",
+  failed:
+    "border-flame-700/30 bg-flame-100 text-flame-900 dark:border-flame-500/25 dark:bg-flame-500/10 dark:text-flame-100",
+  waiting_for_review:
+    "border-bud-700/30 bg-bud-100 text-gray-900 dark:border-bud-500/25 dark:bg-bud-500/10 dark:text-bud-300",
+  cancelled: "border-border bg-muted text-muted-foreground",
 };
 
 /**

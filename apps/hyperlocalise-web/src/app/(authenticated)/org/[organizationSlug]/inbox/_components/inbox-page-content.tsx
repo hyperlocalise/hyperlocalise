@@ -142,12 +142,17 @@ export function InboxPageContent({
       autoTriggeredRef.current !== lastMessage.id
     ) {
       autoTriggeredRef.current = lastMessage.id;
-      void startStreaming(selectedConversationId, lastMessage.id);
+      void startStreaming({
+        conversationId: selectedConversationId,
+        responseToMessageId: lastMessage.id,
+        text: lastMessage.text,
+      });
     }
   }, [
     isStreaming,
     lastMessage?.id,
     lastMessage?.senderType,
+    lastMessage?.text,
     messagesQuery.isSuccess,
     selectedConversationId,
     startStreaming,
@@ -156,11 +161,11 @@ export function InboxPageContent({
   return (
     <main
       data-organization={organizationSlug}
-      className="-mx-4 -my-5 min-h-[calc(100svh-3.5rem)] overflow-hidden bg-background text-foreground sm:-mx-6 lg:-mx-8"
+      className="-mx-4 -my-5 bg-background text-foreground sm:-mx-6 lg:-mx-8 lg:min-h-[calc(100svh-3.5rem)] lg:overflow-hidden"
     >
       <div
         className={cn(
-          "grid min-h-[calc(100svh-3.5rem)] grid-cols-1",
+          "grid grid-cols-1 lg:min-h-[calc(100svh-3.5rem)]",
           isSparseInbox
             ? "lg:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)]"
             : "lg:grid-cols-[minmax(20rem,24rem)_minmax(0,1fr)] xl:grid-cols-[minmax(22rem,26rem)_minmax(0,1fr)]",
@@ -168,6 +173,7 @@ export function InboxPageContent({
       >
         <InboxList
           conversations={conversations}
+          currentUser={currentUser}
           isError={conversationsQuery.isError}
           isLoading={conversationsQuery.isLoading}
           onSelectConversation={onSelectConversation}
