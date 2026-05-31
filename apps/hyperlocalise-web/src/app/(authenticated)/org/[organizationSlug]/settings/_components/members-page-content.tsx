@@ -54,7 +54,7 @@ const roleLabels: Record<Member["role"], string> = {
 };
 
 function assignableRolesForActor(actorRole: Member["role"]): Member["role"][] {
-  return actorRole === "admin" ? ["admin", "member"] : ["member"];
+  return actorRole === "admin" ? ["admin", "member"] : [];
 }
 
 function canManageTargetMember(_targetRole: Member["role"], assignableRoles: Member["role"][]) {
@@ -222,7 +222,7 @@ export function MembersSettingsPageContent({
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Workspace members</CardTitle>
           <CardDescription className="text-foreground/52">
-            Owners and admins can invite people and change roles. Members can view this list.
+            Admins can invite people and change roles. Members can view this list.
           </CardDescription>
         </CardHeader>
         <Separator className="bg-foreground/8" />
