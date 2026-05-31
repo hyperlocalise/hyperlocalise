@@ -257,19 +257,25 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
         workflowRunId: input.workflowRunId,
         commitRange,
       });
+    } else {
+      await completeGithubAutomationCheckRunForJob({
+        jobId: job.id,
+        checkRunId,
+        terminalStatus: "succeeded",
+      });
     }
-
-    await completeGithubAutomationCheckRunForJob({ jobId: job.id, checkRunId });
 
     return results;
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    await completeGithubAutomationCheckRunForJob({
-      jobId: job.id,
-      checkRunId,
-      terminalStatus: "failed",
-      lastError: message,
-    }).catch(() => undefined);
+    if (!job.workflows.validation) {
+      await completeGithubAutomationCheckRunForJob({
+        jobId: job.id,
+        checkRunId,
+        terminalStatus: "failed",
+        lastError: message,
+      }).catch(() => undefined);
+    }
     throw error;
   }
 }
