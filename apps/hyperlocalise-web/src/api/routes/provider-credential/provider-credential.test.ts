@@ -91,6 +91,36 @@ describe("providerCredentialRoutes", () => {
     });
   });
 
+  it("allows localization managers to manage provider credentials", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ ok: true }), { status: 200 })),
+    );
+
+    const identity = fixture.createWorkosIdentityWithRole("localization_manager");
+    const response = await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "openai",
+      apiKey: "sk-manager-key",
+      defaultModel: "gpt-4.1-mini",
+    });
+
+    expect(response.status).toBe(200);
+  });
+
+  it("blocks translators from managing provider credentials", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const response = await fixture.upsertProviderCredentialViaApi(identity, {
+      provider: "openai",
+      apiKey: "sk-translator-key",
+      defaultModel: "gpt-4.1-mini",
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      error: "forbidden",
+    });
+  });
+
   it("blocks org members from reading provider credential summaries", async () => {
     const ownerIdentity = fixture.createWorkosIdentity();
     const memberIdentity = fixture.createWorkosIdentityForOrganization(

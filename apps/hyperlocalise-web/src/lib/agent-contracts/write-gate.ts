@@ -62,14 +62,16 @@ function checkSlackWriteGate(
 }
 
 function checkVerifiedMemberWriteGate(actor: RepositoryAgentActor): WriteGateResult {
-  const isMember = actor.role === "admin" || actor.role === "member";
-  if (isMember) {
+  if (
+    actor.role &&
+    (hasCapability(actor.role, "jobs:write") || hasCapability(actor.role, "write_back:translation"))
+  ) {
     return { allowed: true };
   }
 
   return {
     allowed: false,
-    reason: "Write actions require a verified workspace member.",
+    reason: "Write actions require a verified workspace member with job access.",
   };
 }
 

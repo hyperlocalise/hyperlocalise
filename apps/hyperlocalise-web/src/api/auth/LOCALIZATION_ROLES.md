@@ -27,9 +27,9 @@ environment roles in your WorkOS project (see `src/lib/workos/IDENTITY.md`).
 
 ## Capability map (organization-wide)
 
-Capabilities are checked after the WorkOS access gate. Resource-scoped checks
-(project, team, locale, assignment) are added in HL-427; this table is the
-org-wide ceiling.
+Capabilities are checked after the WorkOS access gate via `policy.ts` and route
+helpers in `capability-guards.ts`. This table is the org-wide ceiling; team
+membership further limits which projects appear in listings.
 
 | Capability                   | admin | localization_manager | developer | reviewer | translator | member |
 | ---------------------------- | ----- | -------------------- | --------- | -------- | ---------- | ------ |
@@ -75,13 +75,16 @@ with admins except billing write.
 These roles are **organization-wide** in WorkOS and in `organization_memberships`.
 They define the maximum access a user may have anywhere in the workspace.
 
-Finer boundaries are layered separately (HL-427+):
+Finer boundaries are layered separately:
 
 - **Team membership** (`team_memberships.role`: `manager` | `member`) limits
   which projects and resources appear in listings.
 - **Project / job / locale assignment** (future) further restricts translators
   and contractors to assigned work even when org capabilities would allow broader
   reads.
+
+`bun run workos:setup` also syncs WorkOS environment permissions (additive) so
+role slugs in the WorkOS dashboard mirror the capability slugs below.
 
 Authorization helpers should treat org capabilities as necessary but not
 sufficient where resource scope applies.

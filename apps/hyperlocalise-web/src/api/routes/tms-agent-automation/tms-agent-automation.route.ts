@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse } from "@/api/response.schema";
 import {
@@ -79,6 +80,10 @@ export function createTmsAgentAutomationRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/organization", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const record = await getTmsAgentAutomationSettingsForScope({
         organizationId: c.var.auth.organization.localOrganizationId,
         scope: "organization",

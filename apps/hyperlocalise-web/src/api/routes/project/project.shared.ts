@@ -8,7 +8,6 @@ import {
   validationErrorResponse,
   type JsonContext,
 } from "@/api/errors";
-import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 
@@ -26,9 +25,11 @@ export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
 }
 
-export function isProjectMutationAllowed(role: ApiAuthContext["membership"]["role"]) {
-  return hasCapability(role, "projects:write");
-}
+export {
+  isProjectCreateAllowed,
+  isProjectMutationAllowed,
+  isProjectWriteAllowed,
+} from "@/api/auth/capability-guards";
 
 export async function ownedProjectWhere(auth: ApiAuthContext, projectId: string) {
   return teamOwnedProjectWhere(auth, projectId);

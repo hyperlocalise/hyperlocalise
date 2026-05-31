@@ -4,6 +4,13 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import {
+  isAiActionAllowed,
+  isJobCreateAllowed,
+  isJobMutationAllowed,
+  isJobProviderActionAllowed,
+  isReviewApproveAllowed,
+} from "@/api/auth/capability-guards";
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import {
@@ -35,12 +42,7 @@ import type {
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 
-import {
-  forbiddenResponse,
-  getOwnedProject,
-  isProjectMutationAllowed,
-  projectNotFoundResponse,
-} from "./project.shared";
+import { forbiddenResponse, getOwnedProject, projectNotFoundResponse } from "./project.shared";
 import {
   applyAgentRunProposalReviewUpdates,
   applyBulkAgentRunProposalReview,
@@ -388,7 +390,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       return c.json({ jobs }, 200);
     })
     .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+      if (!isJobCreateAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
@@ -674,7 +676,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       validateWorkspaceAgentRunParams,
       validateUpdateAgentRunProposalReviewBody,
       async (c) => {
-        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        if (!isReviewApproveAllowed(c.var.auth.membership.role)) {
           return forbiddenResponse(c);
         }
 
@@ -849,12 +851,13 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       validateWorkspaceJobParams,
       validateCreateJobAgentRunBody,
       async (c) => {
-        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        const params = c.req.valid("param");
+        const payload = c.req.valid("json");
+
+        if (!isJobProviderActionAllowed(c.var.auth.membership.role, payload.action)) {
           return forbiddenResponse(c);
         }
 
-        const params = c.req.valid("param");
-        const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
 
         const [job] = await db
@@ -1012,7 +1015,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       },
     )
     .post("/:jobId/qa", validateWorkspaceJobParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+      if (!isAiActionAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
@@ -1098,7 +1101,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       }
     })
     .post("/:jobId/retry", validateWorkspaceJobParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 
@@ -1222,7 +1225,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       return c.json({ job: updatedJob }, 200);
     })
     .post("/:jobId/mark-failed", validateWorkspaceJobParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+      if (!isJobMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
       }
 

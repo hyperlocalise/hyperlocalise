@@ -159,6 +159,9 @@ describe("agentEmailRoutes", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
+    if ("error" in body) {
+      throw new Error(String(body.error));
+    }
     expect(body.emailAgent.enabled).toBe(true);
     expect(body.emailAgent.inboundEmailAddress).toMatch(
       /^example-org-[a-f0-9-]+-[a-f0-9]{32}@inbox\.hyperlocalise\.com$/,
@@ -223,6 +226,22 @@ describe("agentEmailRoutes", () => {
     expect((connector?.config as { inboundEmailAlias?: string })?.inboundEmailAlias).toMatch(
       /^example-org-[a-f0-9-]+-[a-f0-9]{32}$/,
     );
+  });
+
+  it("blocks translators from reading the email agent configuration", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("translator");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-email"].$get(
+      {
+        param: { organizationSlug },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it("blocks org members from updating the email agent", async () => {

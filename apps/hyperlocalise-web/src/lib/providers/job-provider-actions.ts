@@ -6,14 +6,10 @@ import {
   type TmsProviderCapabilityAction,
 } from "./tms-capabilities";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
+import type { JobProviderActionId } from "./job-provider-action-ids";
 
-export type JobProviderActionId =
-  | "translate_with_agent"
-  | "review_with_agent"
-  | "run_qa_checks"
-  | "fix_qa_issues"
-  | "leave_provider_comment"
-  | "push_approved_changes";
+export type { JobProviderActionId } from "./job-provider-action-ids";
+export { isJobProviderActionId } from "./job-provider-action-ids";
 
 export type JobProviderActionDefinition = {
   id: JobProviderActionId;
