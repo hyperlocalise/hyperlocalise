@@ -1,4 +1,4 @@
-import { and, eq, isNull, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, isNull, or, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -259,6 +259,34 @@ async function createRepositorySourceFileVersionWithDb(
   }
 
   return version;
+}
+
+export async function getLatestRepositorySourceFileVersion(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  db?: DbSelectClient;
+}) {
+  const dbClient = input.db ?? db;
+  const sourcePath = normalizeSourcePath(input.sourcePath);
+
+  const [version] = await dbClient
+    .select()
+    .from(schema.repositorySourceFileVersions)
+    .where(
+      and(
+        eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
+        eq(schema.repositorySourceFileVersions.projectId, input.projectId),
+        eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
+      ),
+    )
+    .orderBy(
+      desc(schema.repositorySourceFileVersions.createdAt),
+      desc(schema.repositorySourceFileVersions.id),
+    )
+    .limit(1);
+
+  return version ?? null;
 }
 
 export async function getRepositorySourceFileVersionForStoredFile(input: StoredFileScopeInput) {

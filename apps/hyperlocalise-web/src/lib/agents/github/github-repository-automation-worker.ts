@@ -2,13 +2,14 @@ import { createLogger } from "@/lib/log";
 import { createGithubRepositoryAutomationQueue } from "@/workflows/adapters";
 
 import { listQueuedGithubRepositoryAutomationJobs } from "./github-repository-automation-jobs";
+import { githubRepositoryAutomationJobHasRunnableWorkflow } from "./github-repository-automation-workflows";
 
 const logger = createLogger("github-repo-automation-worker");
 
 /** Skip queued jobs younger than this — the dispatcher already enqueues them on create. */
 const WORKER_JOB_MIN_AGE_MS = 30_000;
 
-export async function enqueueGithubRepositoryAutomationValidationJob(input: {
+export async function enqueueGithubRepositoryAutomationJob(input: {
   jobId: string;
 }): Promise<{ enqueued: boolean }> {
   const queue = createGithubRepositoryAutomationQueue();
@@ -42,7 +43,7 @@ export async function runGithubRepositoryAutomationWorker(input?: {
   let skipped = 0;
 
   for (const job of jobs) {
-    if (!job.workflows.validation) {
+    if (!githubRepositoryAutomationJobHasRunnableWorkflow(job.workflows)) {
       skipped += 1;
       continue;
     }

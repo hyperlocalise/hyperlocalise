@@ -6,6 +6,13 @@ import {
   getGithubRepositoryAutomationJobById,
   updateGithubRepositoryAutomationJobStatus,
 } from "@/lib/agents/github/github-repository-automation-jobs";
+import {
+  resolveGithubRepositoryAutomationCommitRange,
+  type GithubRepositoryAutomationCommitRange,
+} from "@/lib/agents/github/github-repository-automation-commit-range";
+import { isErr } from "@/lib/primitives/result/results";
+
+import { runGithubRepositoryAutomationPushSource } from "@/lib/agents/github/github-repository-automation-push-source";
 import { runGithubRepositoryAutomationValidation } from "@/lib/agents/github/github-repository-automation-validation";
 
 async function loadJobStep(jobId: string) {
@@ -38,18 +45,84 @@ async function claimJobStep(input: { jobId: string; workflowRunId: string }) {
   return claimed;
 }
 
-async function validateJobStep(input: { jobId: string; workflowRunId: string }) {
+async function runAutomationJobStep(input: { jobId: string; workflowRunId: string }) {
   "use step";
 
-  const job = await getGithubRepositoryAutomationJobById(input.jobId);
+  let job = await getGithubRepositoryAutomationJobById(input.jobId);
   if (!job) {
     throw new Error("github_repository_automation_job_not_found");
   }
 
-  return runGithubRepositoryAutomationValidation({
-    job,
-    workflowRunId: input.workflowRunId,
-  });
+  if (!job.workflows.pushSource && !job.workflows.validation && !job.workflows.pullTranslations) {
+    await updateGithubRepositoryAutomationJobStatus({
+      jobId: job.id,
+      status: "skipped",
+      skipReason: "no_runnable_workflows",
+    });
+    return { skipped: true, reason: "no_runnable_workflows" };
+  }
+
+  if (!job.workflows.pushSource && !job.workflows.validation) {
+    await updateGithubRepositoryAutomationJobStatus({
+      jobId: job.id,
+      status: "skipped",
+      skipReason: "pull_translations_not_implemented",
+    });
+    return { skipped: true, reason: "pull_translations_not_implemented" };
+  }
+
+  const results: Record<string, unknown> = {};
+  const needsCommitRange = job.workflows.pushSource || job.workflows.validation;
+  let commitRange: GithubRepositoryAutomationCommitRange | undefined;
+
+  if (needsCommitRange) {
+    if (job.commitAfter) {
+      commitRange = {
+        commitBefore: job.commitBefore,
+        commitAfter: job.commitAfter,
+      };
+    } else {
+      commitRange = await resolveGithubRepositoryAutomationCommitRange(job);
+      await updateGithubRepositoryAutomationJobStatus({
+        jobId: job.id,
+        status: "running",
+        commitBefore: commitRange.commitBefore,
+        commitAfter: commitRange.commitAfter,
+      });
+      job = {
+        ...job,
+        commitBefore: commitRange.commitBefore,
+        commitAfter: commitRange.commitAfter,
+      };
+    }
+  }
+
+  if (job.workflows.pushSource) {
+    const pushSourceResult = await runGithubRepositoryAutomationPushSource({
+      job,
+      workflowRunId: input.workflowRunId,
+      commitRange,
+    });
+
+    if (isErr(pushSourceResult)) {
+      results.pushSource = pushSourceResult.error;
+      if (pushSourceResult.error.code === "infrastructure") {
+        throw new Error(pushSourceResult.error.message);
+      }
+    } else {
+      results.pushSource = pushSourceResult.value;
+    }
+  }
+
+  if (job.workflows.validation) {
+    results.validation = await runGithubRepositoryAutomationValidation({
+      job,
+      workflowRunId: input.workflowRunId,
+      commitRange,
+    });
+  }
+
+  return results;
 }
 
 export async function githubRepositoryAutomationWorkflow(
@@ -86,5 +159,5 @@ export async function githubRepositoryAutomationWorkflow(
     };
   }
 
-  return validateJobStep({ jobId: event.jobId, workflowRunId });
+  return runAutomationJobStep({ jobId: event.jobId, workflowRunId });
 }

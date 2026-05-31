@@ -30,6 +30,7 @@ function parseStoredSettings(
 
   if (
     merged.workflows.pushSource.enabled !== defaults.workflows.pushSource.enabled ||
+    merged.workflows.pushSource.projectId !== defaults.workflows.pushSource.projectId ||
     merged.workflows.pullTranslations.enabled !== defaults.workflows.pullTranslations.enabled ||
     merged.workflows.validation.enabled !== defaults.workflows.validation.enabled
   ) {
