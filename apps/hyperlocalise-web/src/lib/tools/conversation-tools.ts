@@ -1,6 +1,6 @@
+import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
 import type { HyperlocaliseConversationMode } from "@/lib/agent-runtime/loops/conversation-mode";
-import { repositoryWorkspaceToolNames } from "@/lib/agent-runtime/tools/manifest";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 export const conversationFileTranslationToolNames = ["createTranslationJob"] as const;
 

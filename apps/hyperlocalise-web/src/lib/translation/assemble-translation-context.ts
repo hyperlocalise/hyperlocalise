@@ -2,7 +2,9 @@ import { eq } from "drizzle-orm";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import type { GlossaryMatchResolution } from "@/lib/providers/contracts/glossary-matcher";
+import type { TranslationMemoryMatchResolution } from "@/lib/providers/contracts/translation-memory-matcher";
 import {
   toContextGlossaryMatch,
   type ContextGlossaryMatch,
@@ -77,6 +79,8 @@ export async function assembleStringTranslationContextSnapshot(
     organizationId?: string;
     providerKind?: ExternalTmsProviderKind;
     externalJobUid?: string | null;
+    translationMemoryMatchResolution?: TranslationMemoryMatchResolution;
+    glossaryMatchResolution?: GlossaryMatchResolution;
   },
 ) {
   const project =
@@ -99,6 +103,7 @@ export async function assembleStringTranslationContextSnapshot(
       sourceLocale: jobInput.sourceLocale,
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
+      glossaryMatchResolution: options?.glossaryMatchResolution,
     }).then((matches) => matches.map(toContextGlossaryMatch)),
     loadTranslationMemoryMatchesForContext({
       projectId,
@@ -108,6 +113,7 @@ export async function assembleStringTranslationContextSnapshot(
       sourceLocale: jobInput.sourceLocale,
       targetLocales: jobInput.targetLocales,
       sourceText: jobInput.sourceText,
+      translationMemoryMatchResolution: options?.translationMemoryMatchResolution,
     }).then((matches) => matches.map(toContextTranslationMemoryMatch)),
   ]);
 

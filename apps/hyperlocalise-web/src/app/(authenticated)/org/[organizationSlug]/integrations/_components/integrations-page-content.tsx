@@ -24,7 +24,7 @@ import { defaultModelByProvider, llmProviderCatalog } from "@/lib/providers/cata
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createApiClient } from "@/lib/api-client";
 import type { ExternalTmsProviderCredentialListItem } from "@/lib/providers/organization-external-tms-provider-credentials";
-import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/provider-webhook-subscription-types";
+import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/webhooks/provider-webhook-subscription-types";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import { TmsSyncObservabilityPanel } from "./tms-sync-observability-panel";
 import {

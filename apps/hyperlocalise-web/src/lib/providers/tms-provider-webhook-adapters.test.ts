@@ -7,7 +7,7 @@ import {
   tmsProviderWebhookAdapters,
   type ProviderWebhookPayload,
   type TmsWebhookMappedIntentKind,
-} from "./tms-provider-webhook-adapters";
+} from "./webhooks/tms-provider-webhook-adapters";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
 function signatureFor(body: string, secret = "webhook-signing-secret") {

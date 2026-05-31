@@ -3,7 +3,7 @@ import path from "node:path";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
-} from "@/lib/providers/external-tms-content-sync";
+} from "@/lib/providers/sync/external-tms-content-sync";
 
 export type HlCheckKeyManifestEntry = {
   externalStringId: string;

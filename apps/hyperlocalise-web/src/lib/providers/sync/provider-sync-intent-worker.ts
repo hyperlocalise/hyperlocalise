@@ -13,7 +13,10 @@ import {
   ProviderWebhookEventNotFoundError,
   updateProviderWebhookEventProcessingStatus,
 } from "../webhooks/provider-webhook-storage";
-import { logReconciliationFailed, logReconciliationSucceeded } from "../provider-tms-sync-telemetry";
+import {
+  logReconciliationFailed,
+  logReconciliationSucceeded,
+} from "../provider-tms-sync-telemetry";
 import type { ProviderWebhookEventProcessingStatus } from "@/lib/database/types";
 
 type WebhookEventStatusUpdate = {
@@ -323,7 +326,7 @@ export async function processProviderSyncIntent(
 
 export async function enqueueProviderSyncIntentFromWebhookEvent(input: {
   organizationId: string;
-  providerKind: import("./organization-external-tms-provider-credentials").ExternalTmsProviderKind;
+  providerKind: import("../organization-external-tms-provider-credentials").ExternalTmsProviderKind;
   providerCredentialId: string;
   projectId?: string | null;
   syncKind: import("./provider-sync-intent-kinds").ProviderSyncIntentKind;

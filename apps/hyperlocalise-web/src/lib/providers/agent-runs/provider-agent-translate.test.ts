@@ -8,7 +8,12 @@ import type { ExternalTmsTaskContent } from "@/lib/providers/sync/external-tms-c
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
 import * as agentRuns from "../agent-runs/agent-runs";
-import { completeAgentRun, createAgentRun, getAgentRun, startAgentRun } from "../agent-runs/agent-runs";
+import {
+  completeAgentRun,
+  createAgentRun,
+  getAgentRun,
+  startAgentRun,
+} from "../agent-runs/agent-runs";
 import { executeProviderAgentTranslation } from "./provider-agent-translate";
 
 const projectFixture = createProjectTestFixture();
@@ -17,7 +22,7 @@ const loadOrganizationOpenAITranslationGeneratorMock = vi.fn();
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
-    providerKind: import("./organization-external-tms-provider-credentials").ExternalTmsProviderKind,
+    providerKind: import("../organization-external-tms-provider-credentials").ExternalTmsProviderKind,
   ) => import("@/lib/providers/sync/external-tms-content-sync").ExternalTmsContentPuller | null;
 
   const state: { actual: GetProviderContentPuller } = {
@@ -44,7 +49,8 @@ vi.mock("@/lib/providers/provider-content-pullers", async (importOriginal) => {
 });
 
 vi.mock("@/lib/providers/sync/external-tms-content-sync", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/sync/external-tms-content-sync")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/sync/external-tms-content-sync")>();
   return {
     ...actual,
     pullExternalTmsTaskContent: (...args: unknown[]) => pullExternalTmsTaskContentMock(...args),

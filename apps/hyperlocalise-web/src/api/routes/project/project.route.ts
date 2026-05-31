@@ -8,48 +8,48 @@ import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
-import { fetchCrowdinFileKeys } from "@/lib/providers/crowdin/crowdin-file-fetcher";
-import { fetchCrowdinGlossaries } from "@/lib/providers/crowdin/crowdin-glossary-fetcher";
-import { fetchCrowdinJobTasks } from "@/lib/providers/crowdin/crowdin-job-task-fetcher";
-import { fetchCrowdinTranslationMemories } from "@/lib/providers/crowdin/crowdin-tm-fetcher";
+import { fetchCrowdinFileKeys } from "@/lib/providers/adapters/crowdin/crowdin-file-fetcher";
+import { fetchCrowdinGlossaries } from "@/lib/providers/adapters/crowdin/crowdin-glossary-fetcher";
+import { fetchCrowdinJobTasks } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
+import { fetchCrowdinTranslationMemories } from "@/lib/providers/adapters/crowdin/crowdin-tm-fetcher";
 import {
   syncExternalTmsFileKeys,
   type ExternalTmsFileKeyFetcher,
-} from "@/lib/providers/external-tms-file-sync";
+} from "@/lib/providers/sync/external-tms-file-sync";
 import {
   syncExternalTmsGlossaries,
   type ExternalTmsGlossaryFetcher,
-} from "@/lib/providers/external-tms-glossary-sync";
+} from "@/lib/providers/sync/external-tms-glossary-sync";
 import {
   syncExternalTmsJobTasks,
   type ExternalTmsJobTaskFetcher,
-} from "@/lib/providers/external-tms-job-sync";
+} from "@/lib/providers/sync/external-tms-job-sync";
 import {
   syncExternalTmsTranslationMemories,
   type ExternalTmsTranslationMemoryFetcher,
-} from "@/lib/providers/external-tms-tm-sync";
+} from "@/lib/providers/sync/external-tms-tm-sync";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import { getProviderTranslationPusher } from "@/lib/providers/provider-translation-pushers";
-import { fetchLokaliseFileKeys } from "@/lib/providers/lokalise/lokalise-file-fetcher";
-import { fetchLokaliseGlossaries } from "@/lib/providers/lokalise/lokalise-glossary-fetcher";
-import { fetchLokaliseJobTasks } from "@/lib/providers/lokalise/lokalise-job-task-fetcher";
-import { fetchLokaliseTranslationMemories } from "@/lib/providers/lokalise/lokalise-translation-memory-fetcher";
-import { fetchPhraseGlossaries } from "@/lib/providers/phrase/phrase-glossary-fetcher";
-import { fetchPhraseFileKeys } from "@/lib/providers/phrase/phrase-file-fetcher";
-import { fetchPhraseJobTasks } from "@/lib/providers/phrase/phrase-job-task-fetcher";
-import { fetchPhraseTranslationMemories } from "@/lib/providers/phrase/phrase-translation-memory-fetcher";
-import { fetchSmartlingFileKeys } from "@/lib/providers/smartling/smartling-file-fetcher";
-import { fetchSmartlingGlossaries } from "@/lib/providers/smartling/smartling-glossary-fetcher";
-import { fetchSmartlingJobTasks } from "@/lib/providers/smartling/smartling-job-fetcher";
-import { fetchSmartlingTranslationMemories } from "@/lib/providers/smartling/smartling-translation-memory-fetcher";
+import { fetchLokaliseFileKeys } from "@/lib/providers/adapters/lokalise/lokalise-file-fetcher";
+import { fetchLokaliseGlossaries } from "@/lib/providers/adapters/lokalise/lokalise-glossary-fetcher";
+import { fetchLokaliseJobTasks } from "@/lib/providers/adapters/lokalise/lokalise-job-task-fetcher";
+import { fetchLokaliseTranslationMemories } from "@/lib/providers/adapters/lokalise/lokalise-translation-memory-fetcher";
+import { fetchPhraseGlossaries } from "@/lib/providers/adapters/phrase/phrase-glossary-fetcher";
+import { fetchPhraseFileKeys } from "@/lib/providers/adapters/phrase/phrase-file-fetcher";
+import { fetchPhraseJobTasks } from "@/lib/providers/adapters/phrase/phrase-job-task-fetcher";
+import { fetchPhraseTranslationMemories } from "@/lib/providers/adapters/phrase/phrase-translation-memory-fetcher";
+import { fetchSmartlingFileKeys } from "@/lib/providers/adapters/smartling/smartling-file-fetcher";
+import { fetchSmartlingGlossaries } from "@/lib/providers/adapters/smartling/smartling-glossary-fetcher";
+import { fetchSmartlingJobTasks } from "@/lib/providers/adapters/smartling/smartling-job-fetcher";
+import { fetchSmartlingTranslationMemories } from "@/lib/providers/adapters/smartling/smartling-translation-memory-fetcher";
 import {
   pullExternalTmsTaskContent,
   pushExternalTmsTranslations,
-} from "@/lib/providers/external-tms-content-sync";
+} from "@/lib/providers/sync/external-tms-content-sync";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
-import type { ExternalTmsResourceType } from "@/lib/providers/organization-external-tms-files";
+import type { ExternalTmsResourceType } from "@/lib/providers/sync/organization-external-tms-files";
 import type {
   JobQueue,
   ProviderAgentQaQueue,

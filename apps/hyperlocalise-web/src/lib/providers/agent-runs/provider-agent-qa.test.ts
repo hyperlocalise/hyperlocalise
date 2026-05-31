@@ -22,7 +22,7 @@ vi.mock("@/lib/providers/sync/sync-provider-review", () => ({
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
-    providerKind: import("./organization-external-tms-provider-credentials").ExternalTmsProviderKind,
+    providerKind: import("../organization-external-tms-provider-credentials").ExternalTmsProviderKind,
   ) => import("@/lib/providers/sync/external-tms-content-sync").ExternalTmsContentPuller | null;
 
   const state: { actual: GetProviderContentPuller } = {
@@ -53,7 +53,8 @@ vi.mock("@/lib/providers/provider-job-qa/run-hl-check", () => ({
 }));
 
 vi.mock("@/lib/providers/sync/external-tms-content-sync", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/sync/external-tms-content-sync")>();
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/sync/external-tms-content-sync")>();
   return {
     ...actual,
     pullExternalTmsTaskContent: (...args: unknown[]) => pullExternalTmsTaskContentMock(...args),

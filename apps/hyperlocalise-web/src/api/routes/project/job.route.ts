@@ -45,14 +45,14 @@ import {
   applyAgentRunProposalReviewUpdates,
   applyBulkAgentRunProposalReview,
   parseAgentRunProposalItems,
-} from "@/lib/providers/agent-run-proposals";
+} from "@/lib/providers/agent-runs/agent-run-proposals";
 import {
   createAgentRun,
   failAgentRun,
   getAgentRun,
   listAgentRuns,
   updateAgentRunChangedItems,
-} from "@/lib/providers/agent-runs";
+} from "@/lib/providers/agent-runs/agent-runs";
 import {
   getJobProviderActionAvailability,
   getJobProviderActionDefinition,
@@ -60,9 +60,9 @@ import {
 } from "@/lib/providers/job-provider-actions";
 import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
 import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
-import { runProviderJobQaForJob } from "@/lib/providers/provider-agent-qa";
+import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
-import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/tms-agent-automation-runner";
+import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
 
 import {
   createJobAgentRunBodySchema,

@@ -7,7 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db } from "@/lib/database";
-import { upsertOrganizationExternalTmsGlossary } from "@/lib/providers/organization-external-tms-glossaries";
+import { upsertOrganizationExternalTmsGlossary } from "@/lib/providers/sync/organization-external-tms-glossaries";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 
 import { createGlossaryTestFixture } from "./glossary.fixture";

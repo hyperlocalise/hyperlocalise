@@ -19,9 +19,13 @@ import type {
 import { createProjectTestFixture } from "./project.fixture";
 import type { JobRecord, WorkspaceJobRecord } from "./job.schema";
 import type { ProjectResponse } from "./project.schema";
-import { completeAgentRun, createAgentRun, startAgentRun } from "@/lib/providers/agent-runs";
-import { serializeAgentRunProposalItem } from "@/lib/providers/agent-run-proposals";
-import { upsertExternalJob } from "@/lib/providers/organization-external-tms-jobs";
+import {
+  completeAgentRun,
+  createAgentRun,
+  startAgentRun,
+} from "@/lib/providers/agent-runs/agent-runs";
+import { serializeAgentRunProposalItem } from "@/lib/providers/agent-runs/agent-run-proposals";
+import { upsertExternalJob } from "@/lib/providers/sync/organization-external-tms-jobs";
 
 const { resolveApiAuthContextFromSessionMock, runProviderJobQaForJobMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -41,8 +45,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
-vi.mock("@/lib/providers/provider-agent-qa", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/provider-agent-qa")>();
+vi.mock("@/lib/providers/agent-runs/provider-agent-qa", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/agent-runs/provider-agent-qa")>();
   return {
     ...actual,
     runProviderJobQaForJob: (...args: unknown[]) => runProviderJobQaForJobMock(...args),

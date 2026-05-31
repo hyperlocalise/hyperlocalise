@@ -36,7 +36,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/tools/tool-access", () => ({
+vi.mock("@/lib/agent-runtime/tools/tool-access", () => ({
   toolCanAccessProject: vi.fn(async () => ({ id: "project_123" })),
   toolCanAccessGlossary: vi.fn(async () => true),
   toolCanAccessMemory: vi.fn(async () => true),

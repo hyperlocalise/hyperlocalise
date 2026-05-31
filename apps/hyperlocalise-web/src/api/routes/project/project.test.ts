@@ -9,8 +9,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app, createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
-import { upsertExternalJob } from "@/lib/providers/organization-external-tms-jobs";
-import { upsertExternalTmsFile } from "@/lib/providers/organization-external-tms-files";
+import { upsertExternalJob } from "@/lib/providers/sync/organization-external-tms-jobs";
+import { upsertExternalTmsFile } from "@/lib/providers/sync/organization-external-tms-files";
 
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "./project.fixture";

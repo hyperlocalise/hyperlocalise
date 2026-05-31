@@ -1,8 +1,8 @@
-import { pullCrowdinProviderReview } from "@/lib/providers/crowdin/crowdin-review-puller";
-import type { ExternalTmsTaskContent } from "@/lib/providers/external-tms-content-sync";
-import { pullLokaliseProviderReview } from "@/lib/providers/lokalise/lokalise-review-puller";
+import { pullCrowdinProviderReview } from "@/lib/providers/adapters/crowdin/crowdin-review-puller";
+import type { ExternalTmsTaskContent } from "@/lib/providers/sync/external-tms-content-sync";
+import { pullLokaliseProviderReview } from "@/lib/providers/adapters/lokalise/lokalise-review-puller";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
-import { pullPhraseProviderReview } from "@/lib/providers/phrase/phrase-review-puller";
+import { pullPhraseProviderReview } from "@/lib/providers/adapters/phrase/phrase-review-puller";
 
 import { schema } from "@/lib/database";
 

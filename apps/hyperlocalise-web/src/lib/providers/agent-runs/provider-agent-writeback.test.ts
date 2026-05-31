@@ -13,8 +13,8 @@ import { executeProviderAgentWriteback } from "./provider-agent-writeback";
 
 const pushExternalTmsTranslationsMock = vi.hoisted(() => vi.fn());
 
-vi.mock("./external-tms-content-sync", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./external-tms-content-sync")>();
+vi.mock("../sync/external-tms-content-sync", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../sync/external-tms-content-sync")>();
   return {
     ...actual,
     pushExternalTmsTranslations: (...args: unknown[]) => pushExternalTmsTranslationsMock(...args),

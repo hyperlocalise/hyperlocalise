@@ -4,14 +4,14 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
-import { fetchCrowdinProjects } from "@/lib/providers/crowdin/crowdin-project-fetcher";
-import { fetchLokaliseProjects } from "@/lib/providers/lokalise/lokalise-project-fetcher";
-import { fetchPhraseProjects } from "@/lib/providers/phrase/phrase-project-fetcher";
-import { fetchSmartlingProjects } from "@/lib/providers/smartling/smartling-project-fetcher";
+import { fetchCrowdinProjects } from "@/lib/providers/adapters/crowdin/crowdin-project-fetcher";
+import { fetchLokaliseProjects } from "@/lib/providers/adapters/lokalise/lokalise-project-fetcher";
+import { fetchPhraseProjects } from "@/lib/providers/adapters/phrase/phrase-project-fetcher";
+import { fetchSmartlingProjects } from "@/lib/providers/adapters/smartling/smartling-project-fetcher";
 import {
   syncExternalTmsProjects,
   type ExternalTmsProjectFetcher,
-} from "@/lib/providers/external-tms-project-sync";
+} from "@/lib/providers/sync/external-tms-project-sync";
 import {
   assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
@@ -23,18 +23,18 @@ import {
 import {
   checkExternalTmsProviderHealth,
   persistExternalTmsProviderHealth,
-} from "@/lib/providers/external-tms-health-check";
-import { recordProviderSyncRun } from "@/lib/providers/provider-sync-runs";
+} from "@/lib/providers/sync/external-tms-health-check";
+import { recordProviderSyncRun } from "@/lib/providers/sync/provider-sync-runs";
 import {
   ensureProviderWebhookSubscriptionsForCredential,
   listProviderWebhookSubscriptionSummaries,
-} from "@/lib/providers/provider-webhook-subscription-manager";
+} from "@/lib/providers/webhooks/provider-webhook-subscription-manager";
 import {
   getProviderSyncObservability,
   ProviderSyncIntentNotFoundError,
   ProviderSyncIntentNotRetryableError,
   retryProviderSyncIntent,
-} from "@/lib/providers/provider-sync-observability";
+} from "@/lib/providers/sync/provider-sync-observability";
 
 import {
   externalTmsProviderKindSchema,

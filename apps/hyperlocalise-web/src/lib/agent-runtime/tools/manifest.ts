@@ -1,6 +1,12 @@
 import type { ToolSet } from "ai";
 
+import {
+  repositoryWorkflowToolNames,
+  repositoryWorkspaceToolNames,
+} from "@/lib/agent-contracts/repository-workspace-tools";
 import type { RepositoryAgentTaskSource } from "@/lib/agent-contracts/repository-task";
+
+export { repositoryWorkflowToolNames, repositoryWorkspaceToolNames };
 
 export type AgentToolSideEffect = "none" | "workspace_write" | "external_write";
 export type AgentToolDomain = "translation" | "repo" | "tms" | "project" | "session" | "web";
@@ -63,23 +69,6 @@ export const toolManifests = [
 ] satisfies ToolManifest[];
 
 export type ToolManifestName = (typeof toolManifests)[number]["name"];
-
-/** Workspace primitives for repository specialists and workflows. */
-export const repositoryWorkspaceToolNames = [
-  "grep",
-  "read",
-  "glob",
-  "detectRepoConfig",
-  "todoWrite",
-] as const;
-
-/** Extended toolkit for long-running repository workflows. */
-export const repositoryWorkflowToolNames = [
-  ...repositoryWorkspaceToolNames,
-  "bash",
-  "repoGitState",
-  "runHyperlocaliseCli",
-] as const;
 
 export function filterToolSetByNames(tools: ToolSet, names: string[]): ToolSet {
   const allowed = new Set(names);

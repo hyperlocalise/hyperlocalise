@@ -14,13 +14,14 @@ import {
   type TmsProviderCapability,
   type TmsProviderCapabilityAction,
 } from "@/lib/providers/tms-capabilities";
-import { listProviderWebhookSubscriptionSummaries } from "@/lib/providers/provider-webhook-subscription-manager";
-import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/provider-webhook-subscription-types";
+import { listProviderWebhookSubscriptionSummaries } from "@/lib/providers/webhooks/provider-webhook-subscription-manager";
+import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/webhooks/provider-webhook-subscription-types";
 import { assertProviderUrlResolvable } from "@/lib/providers/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
-import { resolvePhraseBaseUrl } from "@/lib/providers/phrase/phrase-base-url";
+import { resolvePhraseBaseUrl } from "@/lib/providers/adapters/phrase/phrase-base-url";
 
-export type ExternalTmsProviderKind = "crowdin" | "smartling" | "phrase" | "lokalise";
+export type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 
 export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRole) {
   assertCapability(role, "provider_credentials:write");

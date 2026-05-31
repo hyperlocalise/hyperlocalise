@@ -13,6 +13,10 @@ import {
   trackUsageEventInAutumnByOperationKey,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
+import {
+  defaultGlossaryMatchResolution,
+  defaultTranslationMemoryMatchResolution,
+} from "@/lib/providers/match-resolution";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
 import {
   createOpenAIStringTranslationGenerator,
@@ -348,6 +352,11 @@ export async function executeClaimedTranslationJob(
   const contextSnapshot = await assembleStringTranslationContextSnapshot(
     claimedJob.projectId,
     parsedInput.data,
+    undefined,
+    {
+      translationMemoryMatchResolution: defaultTranslationMemoryMatchResolution,
+      glossaryMatchResolution: defaultGlossaryMatchResolution,
+    },
   );
   if (!contextSnapshot.ok) {
     return {

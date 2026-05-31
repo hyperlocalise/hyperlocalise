@@ -10,7 +10,7 @@ import { db, schema } from "@/lib/database";
 import {
   syncExternalTmsProjects,
   type ExternalTmsProjectFetcher,
-} from "./external-tms-project-sync";
+} from "./sync/external-tms-project-sync";
 import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
 
 describe("syncExternalTmsProjects", () => {
