@@ -1,6 +1,6 @@
 import { schema } from "@/lib/database";
-import type { ToolContext } from "@/lib/tools/types";
-import type { WriteAction } from "@/lib/agents/repository-write-gate";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import type { WriteAction } from "@/lib/agent-contracts/write-gate";
 
 export async function auditRepositoryMutation(
   ctx: ToolContext,

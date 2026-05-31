@@ -3,7 +3,7 @@ import { Sandbox } from "@vercel/sandbox";
 import { z } from "zod";
 
 import { assertRepositoryWriteAllowed } from "@/lib/agent-runtime/tools/policy";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 type WriteI18nConfigToolOptions = {
   allowUpdate?: boolean;

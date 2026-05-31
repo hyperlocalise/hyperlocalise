@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { buildTools } from "./registry";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 function createToolContext(overrides: Partial<ToolContext> = {}): ToolContext {
   return {

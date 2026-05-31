@@ -2,8 +2,7 @@ import type { ToolSet } from "ai";
 import type { Bash } from "just-bash";
 
 import { createSandboxRepoBash } from "@/lib/agent-runtime/workspaces/sandbox-repo-bash";
-import { ensureAgentSession } from "@/lib/tools/types";
-import type { ToolContext } from "@/lib/tools/types";
+import { ensureAgentSession, type ToolContext } from "@/lib/agent-contracts/tool-context";
 
 import {
   createDetectRepoConfigTool,

@@ -2,8 +2,7 @@ import {
   createVercelSandboxWorkspace,
   stopWorkspace,
 } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
-import { getInstallationOctokit } from "@/lib/agents/github/app";
-import type { RepositoryAgentGitHubContext } from "@/lib/agents/repository-agent-task";
+import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 
 type ResolvedRepositoryGitHubContext = Extract<RepositoryAgentGitHubContext, { resolved: true }>;
@@ -23,6 +22,7 @@ export async function createRepositorySandbox(
     commitSha: githubContext.commitSha ?? null,
   });
   log.info("minting github installation token for repository sandbox");
+  const { getInstallationOctokit } = await import("@/lib/agents/github/app");
   const octokit = await getInstallationOctokit(githubContext.installationId);
   const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
   const revision = githubContext.commitSha ?? githubContext.branch ?? "HEAD";

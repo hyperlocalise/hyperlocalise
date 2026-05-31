@@ -27,7 +27,7 @@ import {
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { toolAccessibleJobsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
-import type { ToolContext } from "@/lib/tools/types";
+import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 const jobKinds = ["translation", "research", "review", "sync", "asset_management"] as const;
 type JobKind = (typeof jobKinds)[number];
