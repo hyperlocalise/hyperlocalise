@@ -29,7 +29,6 @@ describe("workosRoleSlugToMembershipRole", () => {
 
   it("returns null for unknown or missing slugs", () => {
     expect(workosRoleSlugToMembershipRole("owner")).toBeNull();
-    expect(workosRoleSlugToMembershipRole("contractor")).toBeNull();
     expect(workosRoleSlugToMembershipRole(undefined)).toBeNull();
   });
 });

@@ -73,7 +73,7 @@ full WorkOS identity model.
 
 ## Future extension points
 
-When adding team-scoped roles or contractor access:
+When adding team-scoped roles or external contributor access:
 
 - Keep the access gate in `workos-session.ts` — team policy in `team-access.ts`
   runs only after WorkOS-authoritative membership is established.

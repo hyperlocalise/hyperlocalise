@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Separator } from "@/components/ui/separator";
 import {
   Select,
@@ -31,60 +31,19 @@ import {
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-
 import type { OrganizationMembershipRole } from "@/lib/database/types";
-import { isOrganizationAdminRole, isWorkspaceOperatorRole } from "@/api/auth/policy";
 
 import { PageHeader } from "../../_components/workspace-resource-shared";
 
-type Member = {
-  workosUserId: string;
-  email: string;
-  firstName: string | null;
-  lastName: string | null;
-  displayName: string;
-  role: OrganizationMembershipRole;
-  isCurrentUser: boolean;
-  createdAt: string;
-  status?: "active" | "invited";
-};
+import {
+  getMembershipStatusLabel,
+  getRoleDescription,
+  getRoleLabel,
+  resolveMembersPageState,
+  type MembersListResponse,
+} from "./members-settings-view-model";
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
-
-const roleLabels: Record<OrganizationMembershipRole, string> = {
-  admin: "Admin",
-  localization_manager: "Localization manager",
-  developer: "Developer",
-  reviewer: "Reviewer",
-  translator: "Translator",
-  member: "Member",
-};
-
-const NON_ADMIN_ASSIGNABLE_ROLES: OrganizationMembershipRole[] = [
-  "localization_manager",
-  "developer",
-  "reviewer",
-  "translator",
-  "member",
-];
-
-function assignableRolesForActor(
-  actorRole: OrganizationMembershipRole,
-): OrganizationMembershipRole[] {
-  if (isOrganizationAdminRole(actorRole)) {
-    return ["admin", ...NON_ADMIN_ASSIGNABLE_ROLES];
-  }
-
-  if (isWorkspaceOperatorRole(actorRole)) {
-    return NON_ADMIN_ASSIGNABLE_ROLES;
-  }
-
-  return [];
-}
-
-function canManageTargetMember(targetRole: Member["role"], assignableRoles: Member["role"][]) {
-  return assignableRoles.includes(targetRole);
-}
 
 function memberInitials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
@@ -113,20 +72,25 @@ async function readMemberError(response: Response, fallback: string) {
   return fallback;
 }
 
-export function MembersSettingsPageContent({
-  organizationSlug,
-  canManageMembers,
-  currentUserRole,
-}: {
-  organizationSlug: string;
-  canManageMembers: boolean;
-  currentUserRole: OrganizationMembershipRole;
-}) {
+function RoleSelectItem({ role }: { role: OrganizationMembershipRole }) {
+  return (
+    <SelectItem value={role} className="items-start py-2">
+      <div className="flex flex-col gap-0.5 text-left">
+        <span className="font-medium">{getRoleLabel(role)}</span>
+        <span className="text-xs text-foreground/52">{getRoleDescription(role)}</span>
+      </div>
+    </SelectItem>
+  );
+}
+
+export function MembersSettingsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const queryClient = useQueryClient();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteRole, setInviteRole] = useState<Member["role"]>("member");
-  const [removingMember, setRemovingMember] = useState<Member | null>(null);
+  const [inviteRole, setInviteRole] = useState<OrganizationMembershipRole>("member");
+  const [removingMember, setRemovingMember] = useState<
+    MembersListResponse["members"][number] | null
+  >(null);
 
   const membersQuery = useQuery({
     queryKey: membersQueryKey(organizationSlug),
@@ -137,13 +101,15 @@ export function MembersSettingsPageContent({
       if (!response.ok) {
         throw new Error(await readMemberError(response, "Failed to load members"));
       }
-      const body = await response.json();
-      return (body.members ?? []) as Member[];
+      return (await response.json()) as MembersListResponse;
     },
   });
 
+  const pageState = resolveMembersPageState(membersQuery.data);
+  const { members, assignableRoles, canInvite, manualAccessNotice } = pageState;
+
   const inviteMember = useMutation({
-    mutationFn: async (input: { email: string; role: Member["role"] }) => {
+    mutationFn: async (input: { email: string; role: OrganizationMembershipRole }) => {
       const response = await apiClient.api.orgs[":organizationSlug"].members.$post({
         param: { organizationSlug },
         json: input,
@@ -166,7 +132,7 @@ export function MembersSettingsPageContent({
   });
 
   const updateRole = useMutation({
-    mutationFn: async (input: { workosUserId: string; role: Member["role"] }) => {
+    mutationFn: async (input: { workosUserId: string; role: OrganizationMembershipRole }) => {
       const response = await apiClient.api.orgs[":organizationSlug"].members[
         ":workosUserId"
       ].$patch({
@@ -202,7 +168,7 @@ export function MembersSettingsPageContent({
       const wasInvited = removingMember?.status === "invited";
       setRemovingMember(null);
       await queryClient.invalidateQueries({ queryKey: membersQueryKey(organizationSlug) });
-      toast.success(wasInvited ? "Invitation cancelled" : "Member removed");
+      toast.success(wasInvited ? "Invitation revoked" : "Member removed");
     },
     onError: (error) => {
       toast.error(error.message);
@@ -218,9 +184,6 @@ export function MembersSettingsPageContent({
     inviteMember.mutate({ email: inviteEmail.trim(), role: inviteRole });
   }
 
-  const members = membersQuery.data ?? [];
-  const assignableRoles = assignableRolesForActor(currentUserRole);
-
   return (
     <div className="mx-auto flex w-full max-w-6xl flex-col gap-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -228,9 +191,9 @@ export function MembersSettingsPageContent({
           icon={UserGroupIcon}
           label="Workspace settings"
           title="Members"
-          description="People who can access this workspace. Invite teammates and manage their roles."
+          description="Manage workspace access and localization roles. Membership status reflects your identity provider; roles are assigned here."
         />
-        {canManageMembers ? (
+        {canInvite ? (
           <Button
             type="button"
             onClick={() => setIsInviteOpen(true)}
@@ -246,9 +209,7 @@ export function MembersSettingsPageContent({
       <Card className="rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0">
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Workspace members</CardTitle>
-          <CardDescription className="text-foreground/52">
-            Admins can invite people and change roles. Members can view this list.
-          </CardDescription>
+          <CardDescription className="text-foreground/52">{manualAccessNotice}</CardDescription>
         </CardHeader>
         <Separator className="bg-foreground/8" />
         <CardContent className="px-5 py-0">
@@ -261,13 +222,8 @@ export function MembersSettingsPageContent({
           ) : (
             <div className="divide-y divide-foreground/8">
               {members.map((member) => {
-                const isInvited = member.status === "invited";
-                const canManageTarget =
-                  canManageMembers &&
-                  !member.isCurrentUser &&
-                  canManageTargetMember(member.role, assignableRoles);
-                const canChangeRole = canManageTarget && !isInvited;
-                const canRemoveMember = canManageTarget;
+                const statusLabel = getMembershipStatusLabel(member.status ?? "active");
+                const isPending = member.status === "invited";
 
                 return (
                   <div key={member.email} className="flex items-start justify-between gap-4 py-4">
@@ -290,23 +246,28 @@ export function MembersSettingsPageContent({
                               You
                             </Badge>
                           ) : null}
-                          {isInvited ? (
-                            <Badge
-                              variant="outline"
-                              className="rounded-full border-dew-500/25 bg-dew-500/10 text-dew-100"
-                            >
-                              Invited
-                            </Badge>
-                          ) : null}
+                          <Badge
+                            variant="outline"
+                            className={
+                              isPending
+                                ? "rounded-full border-dew-500/25 bg-dew-500/10 text-dew-100"
+                                : "rounded-full border-foreground/10 bg-foreground/4 text-foreground/62"
+                            }
+                          >
+                            {statusLabel}
+                          </Badge>
                         </div>
                         <TypographyP className="truncate text-sm text-foreground/48">
                           {member.email}
+                        </TypographyP>
+                        <TypographyP className="mt-1 text-xs text-foreground/40">
+                          {getRoleLabel(member.role)} — {getRoleDescription(member.role)}
                         </TypographyP>
                       </div>
                     </div>
 
                     <div className="flex shrink-0 items-center gap-2">
-                      {canChangeRole ? (
+                      {member.canUpdateRole ? (
                         <Select
                           value={member.role}
                           onValueChange={(value) => {
@@ -316,32 +277,30 @@ export function MembersSettingsPageContent({
 
                             updateRole.mutate({
                               workosUserId: member.workosUserId,
-                              role: value as Member["role"],
+                              role: value as OrganizationMembershipRole,
                             });
                           }}
                           disabled={updateRole.isPending}
                         >
-                          <SelectTrigger className="h-9 w-[7.5rem] border-foreground/10 bg-foreground/4">
+                          <SelectTrigger className="h-9 w-[9.5rem] border-foreground/10 bg-foreground/4">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="max-w-sm">
                             {assignableRoles.map((role) => (
-                              <SelectItem key={role} value={role}>
-                                {roleLabels[role]}
-                              </SelectItem>
+                              <RoleSelectItem key={role} role={role} />
                             ))}
                           </SelectContent>
                         </Select>
                       ) : (
                         <Badge
                           variant="outline"
-                          className="rounded-full border-foreground/10 bg-foreground/4 px-3 py-1 text-foreground/62"
+                          className="max-w-[9.5rem] truncate rounded-full border-foreground/10 bg-foreground/4 px-3 py-1 text-foreground/62"
                         >
-                          {roleLabels[member.role]}
+                          {getRoleLabel(member.role)}
                         </Badge>
                       )}
 
-                      {canRemoveMember ? (
+                      {member.canRemove ? (
                         <Tooltip>
                           <TooltipTrigger
                             render={
@@ -353,8 +312,8 @@ export function MembersSettingsPageContent({
                                 onClick={() => setRemovingMember(member)}
                                 disabled={removeMember.isPending}
                                 aria-label={
-                                  isInvited
-                                    ? `Cancel invitation for ${member.displayName}`
+                                  isPending
+                                    ? `Revoke invitation for ${member.displayName}`
                                     : `Remove ${member.displayName}`
                                 }
                               >
@@ -363,7 +322,7 @@ export function MembersSettingsPageContent({
                             }
                           />
                           <TooltipContent side="bottom" align="end">
-                            {isInvited ? "Cancel invitation" : "Remove member"}
+                            {isPending ? "Revoke invitation" : "Remove member"}
                           </TooltipContent>
                         </Tooltip>
                       ) : null}
@@ -381,7 +340,7 @@ export function MembersSettingsPageContent({
           <DialogHeader>
             <DialogTitle>Invite member</DialogTitle>
             <DialogDescription>
-              Send an invitation by email. They will join this workspace after accepting.
+              Send an invitation by email. They join after accepting through your identity provider.
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleInviteSubmit} className="grid gap-4">
@@ -397,22 +356,21 @@ export function MembersSettingsPageContent({
               />
             </Field>
             <Field>
-              <FieldLabel>Role</FieldLabel>
+              <FieldLabel>Localization role</FieldLabel>
               <Select
                 value={inviteRole}
-                onValueChange={(value) => setInviteRole(value as Member["role"])}
+                onValueChange={(value) => setInviteRole(value as OrganizationMembershipRole)}
               >
                 <SelectTrigger className="border-foreground/10 bg-foreground/4">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-w-sm">
                   {assignableRoles.map((role) => (
-                    <SelectItem key={role} value={role}>
-                      {roleLabels[role]}
-                    </SelectItem>
+                    <RoleSelectItem key={role} role={role} />
                   ))}
                 </SelectContent>
               </Select>
+              <FieldDescription>{getRoleDescription(inviteRole)}</FieldDescription>
             </Field>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)}>
@@ -433,12 +391,12 @@ export function MembersSettingsPageContent({
         <DialogContent className="border-foreground/10 bg-background text-foreground sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {removingMember?.status === "invited" ? "Cancel invitation" : "Remove member"}
+              {removingMember?.status === "invited" ? "Revoke invitation" : "Remove member"}
             </DialogTitle>
             <DialogDescription>
               {removingMember
                 ? removingMember.status === "invited"
-                  ? `${removingMember.email} will no longer be able to join this workspace with their pending invitation.`
+                  ? `${removingMember.email} will no longer be able to accept this workspace invitation.`
                   : `${removingMember.displayName} will lose access to this workspace.`
                 : ""}
             </DialogDescription>
@@ -457,7 +415,7 @@ export function MembersSettingsPageContent({
                 }
               }}
             >
-              {removingMember?.status === "invited" ? "Cancel invitation" : "Remove member"}
+              {removingMember?.status === "invited" ? "Revoke invitation" : "Remove member"}
             </Button>
           </DialogFooter>
         </DialogContent>
