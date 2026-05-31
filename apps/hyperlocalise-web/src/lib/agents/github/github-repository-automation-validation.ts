@@ -66,18 +66,18 @@ async function resolveCommitRange(job: GithubRepositoryAutomationJobWithReposito
     };
   }
 
+  const branch = job.triggerBranch ?? job.defaultBranch;
+  if (!branch) {
+    throw new Error("github_repository_automation_branch_not_resolved");
+  }
+
   const { owner, repo } = parseRepositoryOwnerRepo(job.repositoryFullName);
   const head = await resolveDefaultBranchHeadSha({
     installationId: job.githubInstallationId,
     owner,
     repo,
-    branch: job.triggerBranch ?? job.defaultBranch,
+    branch,
   });
-
-  const branch = job.triggerBranch ?? job.defaultBranch;
-  if (!branch) {
-    throw new Error("github_repository_automation_branch_not_resolved");
-  }
 
   const previousCommit = await findLatestSucceededCommitAfter({
     githubInstallationRepositoryId: job.githubInstallationRepositoryId,
@@ -155,6 +155,16 @@ export async function runGithubRepositoryAutomationValidation(input: {
 
   const blockOnFailure = workflows.validationBlockOnFailure ?? true;
   const { commitBefore, commitAfter } = await resolveCommitRange(job);
+
+  if (!job.commitAfter) {
+    await updateGithubRepositoryAutomationJobStatus({
+      jobId: job.id,
+      status: "running",
+      commitBefore,
+      commitAfter,
+    });
+  }
+
   const checkRunDetails = {
     organizationSlug: job.organizationSlug,
     githubRepositoryId: job.githubRepositoryId,

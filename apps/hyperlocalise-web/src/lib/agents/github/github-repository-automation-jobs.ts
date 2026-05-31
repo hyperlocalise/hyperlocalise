@@ -239,6 +239,8 @@ export async function updateGithubRepositoryAutomationJobStatus(input: {
   lastError?: string | null;
   resultSummary?: Record<string, unknown> | null;
   githubCheckRunId?: string | null;
+  commitBefore?: string | null;
+  commitAfter?: string | null;
 }) {
   const isTerminal =
     input.status === "succeeded" || input.status === "failed" || input.status === "skipped";
@@ -252,6 +254,8 @@ export async function updateGithubRepositoryAutomationJobStatus(input: {
       lastError: input.lastError ?? null,
       resultSummary: input.resultSummary ?? null,
       githubCheckRunId: input.githubCheckRunId,
+      ...(input.commitBefore !== undefined ? { commitBefore: input.commitBefore } : {}),
+      ...(input.commitAfter !== undefined ? { commitAfter: input.commitAfter } : {}),
       completedAt: isTerminal ? new Date() : null,
       updatedAt: new Date(),
     })
