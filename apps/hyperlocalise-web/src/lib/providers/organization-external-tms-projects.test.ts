@@ -62,7 +62,7 @@ describe("organizationExternalTmsProjects", () => {
     await db.insert(schema.organizationMemberships).values({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
     });
 
     return { organizationId, userId };
@@ -116,7 +116,7 @@ describe("organizationExternalTmsProjects", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "phrase",
       displayName: "Phrase",
       secretMaterial: "secret-token",
@@ -175,7 +175,7 @@ describe("organizationExternalTmsProjects", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "secret-token",

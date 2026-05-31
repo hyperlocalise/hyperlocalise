@@ -471,7 +471,7 @@ describe("provider sync intents", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId: project.organizationId,
       userId: user.id,
-      role: "owner",
+      role: "admin",
       providerKind: "lokalise",
       displayName: "Lokalise",
       secretMaterial: "secret-token",

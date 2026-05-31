@@ -148,7 +148,7 @@ describe("authRoutes", () => {
           "x-hyperlocalise-auth": JSON.stringify({
             user: { workosUserId: "user_123", email: "user@example.com" },
             organization: { workosOrganizationId: "org_123", name: "Example Org" },
-            membership: { role: "owner" },
+            membership: { role: "admin" },
           }),
         },
       },
@@ -167,7 +167,7 @@ describe("authRoutes", () => {
       slug: "example-org",
       membership: {
         workosMembershipId: "membership_123",
-        role: "owner" as const,
+        role: "admin" as const,
         accessSource: "workos_authoritative" as const,
       },
     };
@@ -210,7 +210,7 @@ describe("authRoutes", () => {
           slug: "example-org",
           membership: {
             workosMembershipId: "membership_123",
-            role: "owner",
+            role: "admin",
             accessSource: "workos_authoritative",
           },
         },
@@ -221,7 +221,7 @@ describe("authRoutes", () => {
           slug: "example-org",
           membership: {
             workosMembershipId: "membership_123",
-            role: "owner",
+            role: "admin",
             accessSource: "workos_authoritative",
           },
         },
@@ -233,18 +233,18 @@ describe("authRoutes", () => {
             slug: "example-org",
             membership: {
               workosMembershipId: "membership_123",
-              role: "owner",
+              role: "admin",
               accessSource: "workos_authoritative",
             },
           },
         ],
         membership: {
           workosMembershipId: "membership_123",
-          role: "owner",
+          role: "admin",
           accessSource: "workos_authoritative",
         },
         activeTeam: null,
-        capabilities: getCapabilitiesForRole("owner"),
+        capabilities: getCapabilitiesForRole("admin"),
       },
     });
   });
@@ -257,7 +257,7 @@ describe("authRoutes", () => {
       slug: "example-org",
       membership: {
         workosMembershipId: "membership_123",
-        role: "owner" as const,
+        role: "admin" as const,
         accessSource: "workos_authoritative" as const,
       },
     };
@@ -314,7 +314,7 @@ describe("authRoutes", () => {
       slug: "example-org",
       membership: {
         workosMembershipId: "membership_123",
-        role: "owner" as const,
+        role: "admin" as const,
       },
     };
     vi.resetModules();
@@ -330,7 +330,7 @@ describe("authRoutes", () => {
         activeOrganization,
         membership: {
           workosMembershipId: "membership_123",
-          role: "owner",
+          role: "admin",
         },
         activeTeam: null,
       }),

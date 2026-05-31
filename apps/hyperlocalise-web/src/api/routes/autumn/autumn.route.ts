@@ -25,7 +25,7 @@ const requireBillingReadMiddleware = createMiddleware<{ Variables: AuthVariables
       return forbiddenResponse(
         c,
         "billing_read_forbidden",
-        "Billing settings require workspace owner or admin access",
+        "Billing settings require workspace admin access",
       );
     }
 
@@ -42,7 +42,7 @@ const requireBillingWriteForRouteMiddleware = createMiddleware<{ Variables: Auth
         return forbiddenResponse(
           c,
           "billing_write_forbidden",
-          "Only workspace owners and admins can change plans or open the billing portal",
+          "Only workspace admins can change plans or open the billing portal",
         );
       }
     }

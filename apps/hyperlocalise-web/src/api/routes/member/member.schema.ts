@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-export const organizationMembershipRoleSchema = z.enum(["owner", "admin", "member"]);
+export const organizationMembershipRoleSchema = z.enum(["admin", "member"]);
 
 export const memberWorkosUserIdParamsSchema = z.object({
   workosUserId: z.string().trim().min(1).max(256),

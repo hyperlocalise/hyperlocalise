@@ -132,7 +132,7 @@ export async function runGithubRepositoryAutomationValidation(input: {
 
   let sandboxId: string | null = null;
   let checkRunId: string | null = job.githubCheckRunId;
-  const shouldPublishCheckRun = job.workflows.statusCheck?.enabled ?? false;
+  const shouldPublishCheckRun = job.workflows.statusCheck.enabled;
 
   try {
     if (shouldPublishCheckRun && !checkRunId) {

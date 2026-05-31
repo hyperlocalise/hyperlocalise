@@ -64,7 +64,7 @@ describe("organizationExternalTmsGlossaries", () => {
     await db.insert(schema.organizationMemberships).values({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
     });
 
     return { organizationId, userId };
@@ -117,7 +117,7 @@ describe("organizationExternalTmsGlossaries", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "crowdin-token",

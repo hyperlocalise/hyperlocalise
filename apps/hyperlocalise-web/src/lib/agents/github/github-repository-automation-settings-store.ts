@@ -32,6 +32,7 @@ function parseStoredSettings(
     merged.workflows.pushSource.enabled !== defaults.workflows.pushSource.enabled ||
     merged.workflows.pushSource.projectId !== defaults.workflows.pushSource.projectId ||
     merged.workflows.pullTranslations.enabled !== defaults.workflows.pullTranslations.enabled ||
+    merged.workflows.pullTranslations.projectId !== defaults.workflows.pullTranslations.projectId ||
     merged.workflows.validation.enabled !== defaults.workflows.validation.enabled
   ) {
     stored.workflows = merged.workflows;

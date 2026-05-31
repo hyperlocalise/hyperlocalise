@@ -29,7 +29,7 @@ async function createExternalTmsProject() {
   const credential = await upsertOrganizationExternalTmsProviderCredential({
     organizationId: organization.id,
     userId: user.id,
-    role: "owner",
+    role: "admin",
     providerKind: "crowdin",
     displayName: "crowdin",
     secretMaterial: "secret-token",

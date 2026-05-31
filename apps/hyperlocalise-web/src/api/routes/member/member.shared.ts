@@ -52,11 +52,11 @@ export function memberAlreadyExistsResponse(c: JsonContext) {
   return conflictResponse(c, "member_already_exists", "This user is already a workspace member");
 }
 
-export function lastOwnerProtectedResponse(c: JsonContext) {
-  return conflictResponse(c, "last_owner_protected", "The workspace must have at least one owner");
+export function lastAdminProtectedResponse(c: JsonContext) {
+  return conflictResponse(c, "last_admin_protected", "The workspace must have at least one admin");
 }
 
-export function cannotManageOwnerResponse(c: JsonContext) {
+export function cannotManageMemberResponse(c: JsonContext) {
   return forbiddenResponse(c);
 }
 
@@ -79,27 +79,13 @@ export function formatMemberDisplayName(input: {
 
 export function canActorManageTarget(
   actorRole: OrganizationMembershipRole,
-  targetRole: OrganizationMembershipRole,
-  nextRole?: OrganizationMembershipRole,
+  _targetRole: OrganizationMembershipRole,
+  _nextRole?: OrganizationMembershipRole,
 ) {
-  if (!isMemberManageAllowed(actorRole)) {
-    return false;
-  }
-
-  if (actorRole === "admin") {
-    if (targetRole === "owner") {
-      return false;
-    }
-
-    if (nextRole === "owner") {
-      return false;
-    }
-  }
-
-  return true;
+  return isMemberManageAllowed(actorRole);
 }
 
-export async function countOrganizationOwners(
+export async function countOrganizationAdmins(
   organizationId: string,
   database: DatabaseClient = db,
 ) {
@@ -109,22 +95,22 @@ export async function countOrganizationOwners(
     .where(
       and(
         eq(schema.organizationMemberships.organizationId, organizationId),
-        eq(schema.organizationMemberships.role, "owner"),
+        eq(schema.organizationMemberships.role, "admin"),
       ),
     );
 
   return result?.count ?? 0;
 }
 
-export async function lockOrganizationOwnersAndCount(
+export async function lockOrganizationAdminsAndCount(
   database: DatabaseClient,
   organizationId: string,
 ) {
   await database.execute(
-    sql`SELECT id FROM organization_memberships WHERE organization_id = ${organizationId} AND role = 'owner' FOR UPDATE`,
+    sql`SELECT id FROM organization_memberships WHERE organization_id = ${organizationId} AND role = 'admin' FOR UPDATE`,
   );
 
-  return countOrganizationOwners(organizationId, database);
+  return countOrganizationAdmins(organizationId, database);
 }
 
 export async function getOrganizationMember(organizationId: string, workosUserId: string) {

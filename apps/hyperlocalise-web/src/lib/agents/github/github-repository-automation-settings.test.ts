@@ -91,7 +91,6 @@ describe("github repository automation settings", () => {
       githubRepositoryId: "101",
       githubInstallationId: "987654",
       triggerMode: "push",
-      statusCheck: { enabled: false, mode: "blocking" },
       workflows: {
         pushSource: true,
         pullTranslations: true,
@@ -126,7 +125,6 @@ describe("github repository automation settings", () => {
     });
 
     expect(payload?.workflows.validationBlockOnFailure).toBe(false);
-    expect(payload?.statusCheck).toEqual({ enabled: true, mode: "advisory" });
     expect(payload?.workflows.statusCheck).toEqual({ enabled: true, mode: "advisory" });
   });
 

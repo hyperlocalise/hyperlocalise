@@ -56,7 +56,7 @@ const fixture = createProjectTestFixture();
 async function createCallbackState(options?: {
   consumed?: boolean;
   dbExpired?: boolean;
-  role?: "owner" | "admin" | "member";
+  role?: "admin" | "member";
 }) {
   const identity = fixture.createWorkosIdentityWithRole(options?.role ?? "admin");
   const organizationSlug = identity.organization.slug ?? "missing-slug";

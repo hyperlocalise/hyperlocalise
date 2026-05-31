@@ -62,7 +62,7 @@ describe("provider webhook subscription manager", () => {
     await db.insert(schema.organizationMemberships).values({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
     });
 
     return { organizationId, userId };
@@ -73,7 +73,7 @@ describe("provider webhook subscription manager", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "secret-token",
@@ -424,7 +424,7 @@ describe("provider webhook subscription manager", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "smartling",
       displayName: "Smartling",
       secretMaterial: "user-1:secret-1:acct-smartling-1",
@@ -609,7 +609,7 @@ describe("provider webhook subscription manager", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "phrase",
       displayName: "Phrase",
       secretMaterial: "secret-token",
@@ -674,7 +674,7 @@ describe("provider webhook subscription manager", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "phrase",
       displayName: "Phrase",
       secretMaterial: "secret-token",

@@ -1,7 +1,8 @@
 import { getInstallationOctokit } from "@/lib/agents/github/app";
 import { env } from "@/lib/env";
 
-const CHECK_RUN_NAME = "Hyperlocalise localization automation";
+// Stable GitHub check context for branch protection rules.
+const CHECK_RUN_NAME = "Hyperlocalise localization validation";
 
 export type GithubRepositoryAutomationCheckConclusion =
   | "success"

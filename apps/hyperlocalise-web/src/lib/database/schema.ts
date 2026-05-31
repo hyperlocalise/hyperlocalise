@@ -68,7 +68,6 @@ export const translationJobOutcomeKindEnum = pgEnum("translation_job_outcome_kin
   "error",
 ]);
 export const organizationMembershipRoleEnum = pgEnum("organization_membership_role", [
-  "owner",
   "admin",
   "member",
 ]);

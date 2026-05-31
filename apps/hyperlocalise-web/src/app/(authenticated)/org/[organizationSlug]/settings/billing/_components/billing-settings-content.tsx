@@ -294,7 +294,7 @@ function BillingSettingsPanel({
             </Button>
             {!canManageBilling ? (
               <TypographyP className="mt-3 text-xs text-foreground/42">
-                Only workspace owners and admins can open the billing portal.
+                Only workspace admins can open the billing portal.
               </TypographyP>
             ) : null}
           </CardContent>

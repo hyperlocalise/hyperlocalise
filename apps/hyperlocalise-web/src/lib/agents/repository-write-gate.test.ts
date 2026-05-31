@@ -23,7 +23,7 @@ describe("checkRepositoryWriteGate", () => {
     const result = checkRepositoryWriteGate({
       workMode: "read_only",
       source: "slack",
-      actor: { sourceUserId: "U1", role: "owner" },
+      actor: { sourceUserId: "U1", role: "admin" },
       action: "apply_fixes",
     });
 
@@ -42,11 +42,11 @@ describe("checkRepositoryWriteGate", () => {
     expect(result.allowed).toBe(true);
   });
 
-  it("allows Slack write for owner role in write mode", () => {
+  it("allows Slack write for admin role in write mode", () => {
     const result = checkRepositoryWriteGate({
       workMode: "write",
       source: "slack",
-      actor: { sourceUserId: "U1", role: "owner" },
+      actor: { sourceUserId: "U1", role: "admin" },
       action: "push_to_branch",
     });
 
@@ -62,7 +62,7 @@ describe("checkRepositoryWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("admin or owner privileges");
+    expect(deniedReason(result)).toContain("admin privileges");
   });
 
   it("denies Slack write when role is missing in write mode", () => {
@@ -74,7 +74,7 @@ describe("checkRepositoryWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("admin or owner privileges");
+    expect(deniedReason(result)).toContain("admin privileges");
   });
 
   it("allows Slack approval_required for admin role", () => {
@@ -97,7 +97,7 @@ describe("checkRepositoryWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("admin or owner privileges");
+    expect(deniedReason(result)).toContain("admin privileges");
   });
 
   it("allows GitHub write mode for any role", () => {
@@ -120,7 +120,7 @@ describe("checkRepositoryWriteGate", () => {
     });
 
     expect(result.allowed).toBe(false);
-    expect(deniedReason(result)).toContain("admin or owner privileges");
+    expect(deniedReason(result)).toContain("admin privileges");
   });
 
   it("allows GitHub approval_required for admin role (auto-approve)", () => {

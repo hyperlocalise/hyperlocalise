@@ -25,7 +25,7 @@ function createAuthContext(
       slug: "example-workspace",
       membership: {
         workosMembershipId: "membership_test",
-        role: "owner",
+        role: "admin",
         accessSource: "workos_authoritative",
       },
       ...overrides,
@@ -37,14 +37,14 @@ function createAuthContext(
       slug: "example-workspace",
       membership: {
         workosMembershipId: "membership_test",
-        role: "owner",
+        role: "admin",
         accessSource: "workos_authoritative",
       },
       ...overrides,
     },
     membership: {
       workosMembershipId: "membership_test",
-      role: "owner",
+      role: "admin",
       accessSource: "workos_authoritative",
     },
     activeTeam: null,

@@ -18,6 +18,7 @@ import {
   createGithubRepositoryAutomationCheckRun,
   type GithubRepositoryAutomationCheckConclusion,
 } from "@/lib/agents/github/github-repository-automation-check-run";
+import { runGithubRepositoryAutomationPullTranslations } from "@/lib/agents/github/github-repository-automation-pull-translations";
 import { runGithubRepositoryAutomationPushSource } from "@/lib/agents/github/github-repository-automation-push-source";
 import { runGithubRepositoryAutomationValidation } from "@/lib/agents/github/github-repository-automation-validation";
 
@@ -54,7 +55,7 @@ async function claimJobStep(input: { jobId: string; workflowRunId: string }) {
 export function shouldPublishGithubAutomationCheckRun(
   job: GithubRepositoryAutomationJobWithRepository,
 ): boolean {
-  return job.workflows.statusCheck?.enabled ?? false;
+  return job.workflows.statusCheck.enabled;
 }
 
 export function resolveGithubAutomationCheckConclusion(input: {
@@ -69,7 +70,7 @@ export function resolveGithubAutomationCheckConclusion(input: {
     return "skipped";
   }
 
-  return input.job.workflows.statusCheck?.mode === "advisory" ? "neutral" : "failure";
+  return input.job.workflows.statusCheck.mode === "advisory" ? "neutral" : "failure";
 }
 
 function buildGithubAutomationCheckSummary(input: {
@@ -127,6 +128,8 @@ async function ensureGithubAutomationCheckRun(input: {
 async function completeGithubAutomationCheckRunForJob(input: {
   jobId: string;
   checkRunId: string | null;
+  terminalStatus?: "succeeded" | "failed" | "skipped";
+  lastError?: string | null;
 }): Promise<void> {
   if (!input.checkRunId) {
     return;
@@ -137,7 +140,8 @@ async function completeGithubAutomationCheckRunForJob(input: {
     return;
   }
 
-  if (job.status !== "succeeded" && job.status !== "failed" && job.status !== "skipped") {
+  const status = input.terminalStatus ?? job.status;
+  if (status !== "succeeded" && status !== "failed" && status !== "skipped") {
     return;
   }
 
@@ -145,11 +149,11 @@ async function completeGithubAutomationCheckRunForJob(input: {
     installationId: job.githubInstallationId,
     repositoryFullName: job.repositoryFullName,
     checkRunId: input.checkRunId,
-    conclusion: resolveGithubAutomationCheckConclusion({ job, status: job.status }),
+    conclusion: resolveGithubAutomationCheckConclusion({ job, status }),
     summary: buildGithubAutomationCheckSummary({
-      status: job.status,
+      status,
       skipReason: job.skipReason,
-      lastError: job.lastError,
+      lastError: input.lastError ?? job.lastError,
       resultSummary: job.resultSummary,
     }),
     organizationSlug: job.organizationSlug,
@@ -179,21 +183,9 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
     return { skipped: true, reason: "no_runnable_workflows" };
   }
 
-  if (!job.workflows.pushSource && !job.workflows.validation) {
-    const checkRunId = job.commitAfter
-      ? await ensureGithubAutomationCheckRun({ job, headSha: job.commitAfter })
-      : null;
-    await updateGithubRepositoryAutomationJobStatus({
-      jobId: job.id,
-      status: "skipped",
-      skipReason: "pull_translations_not_implemented",
-    });
-    await completeGithubAutomationCheckRunForJob({ jobId: job.id, checkRunId });
-    return { skipped: true, reason: "pull_translations_not_implemented" };
-  }
-
   const results: Record<string, unknown> = {};
-  const needsCommitRange = job.workflows.pushSource || job.workflows.validation;
+  const needsCommitRange =
+    job.workflows.pushSource || job.workflows.validation || job.workflows.pullTranslations;
   let commitRange: GithubRepositoryAutomationCommitRange | undefined;
 
   let checkRunId: string | null = job.githubCheckRunId;
@@ -243,6 +235,22 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
       }
     }
 
+    if (job.workflows.pullTranslations) {
+      const pullTranslationsResult = await runGithubRepositoryAutomationPullTranslations({
+        job,
+        commitRange,
+      });
+
+      if (isErr(pullTranslationsResult)) {
+        results.pullTranslations = pullTranslationsResult.error;
+        if (pullTranslationsResult.error.code === "infrastructure") {
+          throw new Error(pullTranslationsResult.error.message);
+        }
+      } else {
+        results.pullTranslations = pullTranslationsResult.value;
+      }
+    }
+
     if (job.workflows.validation) {
       results.validation = await runGithubRepositoryAutomationValidation({
         job,
@@ -255,9 +263,13 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
 
     return results;
   } catch (error) {
-    await completeGithubAutomationCheckRunForJob({ jobId: job.id, checkRunId }).catch(
-      () => undefined,
-    );
+    const message = error instanceof Error ? error.message : String(error);
+    await completeGithubAutomationCheckRunForJob({
+      jobId: job.id,
+      checkRunId,
+      terminalStatus: "failed",
+      lastError: message,
+    }).catch(() => undefined);
     throw error;
   }
 }

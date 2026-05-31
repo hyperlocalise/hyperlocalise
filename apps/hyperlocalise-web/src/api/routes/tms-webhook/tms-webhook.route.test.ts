@@ -35,7 +35,7 @@ async function createOrganizationUser() {
   await db.insert(schema.organizationMemberships).values({
     organizationId,
     userId,
-    role: "owner",
+    role: "admin",
   });
 
   return { organizationId, userId };
@@ -46,7 +46,7 @@ async function createSubscriptionFixture(input: { webhookSecretPlaintext?: strin
   const credential = await upsertOrganizationExternalTmsProviderCredential({
     organizationId,
     userId,
-    role: "owner",
+    role: "admin",
     providerKind: "crowdin",
     displayName: "Crowdin",
     secretMaterial: "secret-token",
@@ -71,7 +71,7 @@ async function createPhraseSubscriptionFixture() {
   const credential = await upsertOrganizationExternalTmsProviderCredential({
     organizationId,
     userId,
-    role: "owner",
+    role: "admin",
     providerKind: "phrase",
     displayName: "Phrase",
     secretMaterial: "secret-token",
@@ -660,7 +660,7 @@ describe("tmsWebhookRoutes", () => {
       const credential = await upsertOrganizationExternalTmsProviderCredential({
         organizationId,
         userId,
-        role: "owner",
+        role: "admin",
         providerKind: "lokalise",
         displayName: "Lokalise",
         secretMaterial: "secret-token",
@@ -757,7 +757,7 @@ describe("tmsWebhookRoutes", () => {
       const credential = await upsertOrganizationExternalTmsProviderCredential({
         organizationId,
         userId,
-        role: "owner",
+        role: "admin",
         providerKind: "smartling",
         displayName: "Smartling",
         secretMaterial: "secret-token",

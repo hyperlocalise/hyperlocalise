@@ -14,7 +14,7 @@ describe("formatAutumnBillingError", () => {
           statusCode: 403,
         }),
       ),
-    ).toBe("Only workspace owners and admins can change plans or open the billing portal.");
+    ).toBe("Only workspace admins can change plans or open the billing portal.");
 
     expect(
       formatAutumnBillingError({

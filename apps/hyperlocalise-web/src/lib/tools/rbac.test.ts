@@ -65,7 +65,7 @@ import {
 import type { ToolContext } from "@/lib/tools/types";
 
 describe("Agent Tools RBAC", () => {
-  const mockCtx = (role: "owner" | "admin" | "member"): ToolContext => ({
+  const mockCtx = (role: "admin" | "member"): ToolContext => ({
     conversationId: "conv_123",
     organizationId: "org_123",
     localUserId: "user_123",
@@ -160,8 +160,8 @@ describe("Agent Tools RBAC", () => {
       expect(result.error).toContain("permission");
     });
 
-    it("allows create access to owners", async () => {
-      const tool = createCreateGlossaryTool(mockCtx("owner"));
+    it("allows create access to admins", async () => {
+      const tool = createCreateGlossaryTool(mockCtx("admin"));
       const result = await executeTool(tool, {
         name: "Test",
         sourceLocale: "en",

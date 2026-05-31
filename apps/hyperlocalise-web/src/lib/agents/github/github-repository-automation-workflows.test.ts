@@ -10,6 +10,7 @@ describe("githubRepositoryAutomationJobHasRunnableWorkflow", () => {
         pullTranslations: false,
         validation: false,
         validationBlockOnFailure: true,
+        statusCheck: { enabled: false, mode: "blocking" },
       }),
     ).toBe(true);
 
@@ -19,6 +20,7 @@ describe("githubRepositoryAutomationJobHasRunnableWorkflow", () => {
         pullTranslations: true,
         validation: false,
         validationBlockOnFailure: true,
+        statusCheck: { enabled: false, mode: "blocking" },
       }),
     ).toBe(true);
 
@@ -28,6 +30,7 @@ describe("githubRepositoryAutomationJobHasRunnableWorkflow", () => {
         pullTranslations: false,
         validation: true,
         validationBlockOnFailure: true,
+        statusCheck: { enabled: false, mode: "blocking" },
       }),
     ).toBe(true);
   });
@@ -39,6 +42,7 @@ describe("githubRepositoryAutomationJobHasRunnableWorkflow", () => {
         pullTranslations: false,
         validation: false,
         validationBlockOnFailure: true,
+        statusCheck: { enabled: false, mode: "blocking" },
       }),
     ).toBe(false);
   });

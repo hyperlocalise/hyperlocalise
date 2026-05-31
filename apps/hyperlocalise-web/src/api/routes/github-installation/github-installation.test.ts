@@ -61,7 +61,7 @@ const client = testClient(
 );
 const fixture = createProjectTestFixture(client);
 
-async function createInstallationFixture(role: "owner" | "admin" | "member" = "owner") {
+async function createInstallationFixture(role: "admin" | "member" = "admin") {
   const identity = fixture.createWorkosIdentityWithRole(role);
   const headers = await fixture.authHeadersFor(identity);
   const auth = globalThis.__testApiAuthContext;

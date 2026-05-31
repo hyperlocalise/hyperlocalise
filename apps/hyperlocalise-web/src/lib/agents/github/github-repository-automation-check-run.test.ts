@@ -65,7 +65,7 @@ describe("check run constants", () => {
 
     expect(checksCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        name: "Hyperlocalise localization automation",
+        name: "Hyperlocalise localization validation",
         head_sha: "abc123",
         status: "in_progress",
         external_id: "job-uuid",

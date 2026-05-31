@@ -91,7 +91,7 @@ describe("memoryRoutes", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "crowdin-token",
@@ -187,7 +187,7 @@ describe("memoryRoutes", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "owner",
+      role: "admin",
       providerKind: "lokalise",
       displayName: "Lokalise",
       secretMaterial: "lokalise-token",
