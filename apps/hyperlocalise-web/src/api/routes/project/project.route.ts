@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
+import { badRequestResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
@@ -70,7 +71,8 @@ import {
   type UpdateProjectBody,
 } from "./project.schema";
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
-import { normalizeProjectLocalePatch } from "@/lib/i18n/locales";
+import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib/i18n/locales";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import {
@@ -85,6 +87,28 @@ import {
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
 
+type ProjectUpdateErrorCode =
+  | "invalid_project_team"
+  | "external_project_locales_readonly"
+  | ProjectLocalePatchError;
+
+type ProjectUpdateError = {
+  code: ProjectUpdateErrorCode;
+  message?: string;
+};
+
+type ProjectUpdateResult = Result<Project | null, ProjectUpdateError>;
+
+const projectLocalePatchErrorMessages: Record<
+  Exclude<ProjectUpdateErrorCode, "invalid_project_team">,
+  string
+> = {
+  external_project_locales_readonly: "External TMS project locales are read-only",
+  invalid_source_locale: "Invalid source locale",
+  invalid_target_locales: "Invalid target locales",
+  source_in_targets: "Source locale cannot also be a target locale",
+};
+
 type ProjectStore = {
   list(auth: ApiAuthContext): Promise<Project[]>;
   create(auth: ApiAuthContext, payload: CreateProjectBody): Promise<Project>;
@@ -93,7 +117,7 @@ type ProjectStore = {
     auth: ApiAuthContext,
     projectId: string,
     payload: UpdateProjectBody,
-  ): Promise<Project | null>;
+  ): Promise<ProjectUpdateResult>;
   delete(auth: ApiAuthContext, projectId: string): Promise<boolean>;
 };
 
@@ -183,10 +207,10 @@ const projectStore: ProjectStore = {
 
     return project ?? null;
   },
-  async update(auth, projectId, payload) {
+  async update(auth, projectId, payload): Promise<ProjectUpdateResult> {
     const existing = await this.getById(auth, projectId);
     if (!existing) {
-      return null;
+      return ok(null);
     }
 
     const { teamId, sourceLocale, targetLocales, ...updates } = payload;
@@ -199,7 +223,7 @@ const projectStore: ProjectStore = {
     if (teamId !== undefined) {
       const resolvedTeamId = await resolveProjectTeamId(auth, teamId);
       if (!resolvedTeamId) {
-        throw new Error("invalid_project_team");
+        return err({ code: "invalid_project_team" });
       }
 
       updateValues.teamId = resolvedTeamId;
@@ -209,7 +233,10 @@ const projectStore: ProjectStore = {
       existing.source === "external_tms" &&
       (sourceLocale !== undefined || targetLocales !== undefined)
     ) {
-      throw new Error("external_project_locales_readonly");
+      return err({
+        code: "external_project_locales_readonly",
+        message: projectLocalePatchErrorMessages.external_project_locales_readonly,
+      });
     }
 
     if (sourceLocale !== undefined || targetLocales !== undefined) {
@@ -221,7 +248,10 @@ const projectStore: ProjectStore = {
       });
 
       if ("error" in normalized) {
-        throw new Error(normalized.error);
+        return err({
+          code: normalized.error,
+          message: projectLocalePatchErrorMessages[normalized.error],
+        });
       }
 
       if (normalized.sourceLocale !== undefined) {
@@ -238,7 +268,7 @@ const projectStore: ProjectStore = {
       .where(await ownedProjectWhere(auth, projectId))
       .returning();
 
-    return project ?? null;
+    return ok(project ?? null);
   },
   async delete(auth, projectId) {
     const deletedProjects = await db
@@ -498,28 +528,16 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       const params = c.req.valid("param");
       const payload = c.req.valid("json");
-      let project;
-      try {
-        project = await projectStore.update(c.var.auth, params.projectId, payload);
-      } catch (error) {
-        if (error instanceof Error) {
-          if (error.message === "invalid_project_team") {
-            return invalidProjectPayloadResponse(c);
-          }
-
-          if (
-            error.message === "external_project_locales_readonly" ||
-            error.message === "invalid_source_locale" ||
-            error.message === "invalid_target_locales" ||
-            error.message === "source_in_targets"
-          ) {
-            return invalidProjectPayloadResponse(c);
-          }
+      const updateResult = await projectStore.update(c.var.auth, params.projectId, payload);
+      if (isErr(updateResult)) {
+        if (updateResult.error.code === "invalid_project_team") {
+          return invalidProjectPayloadResponse(c);
         }
 
-        throw error;
+        return badRequestResponse(c, updateResult.error.code, updateResult.error.message);
       }
 
+      const project = updateResult.value;
       if (!project) {
         return projectNotFoundResponse(c);
       }

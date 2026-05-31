@@ -246,6 +246,57 @@ describe("projectRoutes", () => {
     expect(body.project.targetLocales).toEqual(["es-ES", "it-IT"]);
   });
 
+  it("returns a specific error when patching external TMS project locales", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+
+    await db
+      .update(schema.projects)
+      .set({ source: "external_tms" })
+      .where(eq(schema.projects.id, project.id));
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { sourceLocale: "en-GB" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "external_project_locales_readonly",
+      message: expect.any(String),
+    });
+  });
+
+  it("returns a specific error when a partial locale patch puts source in targets", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { sourceLocale: "fr-FR" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "source_in_targets",
+      message: expect.any(String),
+    });
+  });
+
   it("returns 400 for invalid create payloads", async () => {
     const identity = createWorkosIdentity();
     const response = await client.api.orgs[":organizationSlug"].projects.$post(
