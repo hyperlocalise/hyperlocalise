@@ -112,25 +112,27 @@ For predictable error handling, prefer the Go-like `Result<T, E>` pattern for ex
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 type ProviderCredentialError =
-    | { code: "unsupported_provider_model" }
-    | { code: "provider_validation_failed"; message: string };
+  | { code: "unsupported_provider_model" }
+  | { code: "provider_validation_failed"; message: string };
 
-async function validateCredential(input: CredentialInput): Promise<Result<void, ProviderCredentialError>> {
-    if (!isSupportedModel(input.provider, input.model)) {
-        return err({ code: "unsupported_provider_model" });
-    }
+async function validateCredential(
+  input: CredentialInput,
+): Promise<Result<void, ProviderCredentialError>> {
+  if (!isSupportedModel(input.provider, input.model)) {
+    return err({ code: "unsupported_provider_model" });
+  }
 
-    const response = await validateWithProvider(input);
-    if (!response.ok) {
-        return err({ code: "provider_validation_failed", message: response.message });
-    }
+  const response = await validateWithProvider(input);
+  if (!response.ok) {
+    return err({ code: "provider_validation_failed", message: response.message });
+  }
 
-    return ok(undefined);
+  return ok(undefined);
 }
 
 const result = await validateCredential(input);
 if (isErr(result)) {
-    return mapCredentialErrorToResponse(result.error);
+  return mapCredentialErrorToResponse(result.error);
 }
 ```
 
