@@ -5,7 +5,6 @@ const ROUTE_TITLES = {
   billing: "Billing",
   chat: "New Request",
   "command-center": "Command Center",
-  context: "Context Sources",
   dashboard: "Command Center",
   files: "Files",
   glossaries: "Terminology",

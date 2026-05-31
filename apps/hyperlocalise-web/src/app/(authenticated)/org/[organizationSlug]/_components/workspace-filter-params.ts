@@ -49,14 +49,7 @@ export function buildWorkspaceHref(
 
 export function buildOrgWorkspaceHref(
   organizationSlug: string,
-  section:
-    | "projects"
-    | "files"
-    | "jobs"
-    | "glossaries"
-    | "translation-memories"
-    | "context"
-    | "integrations",
+  section: "projects" | "files" | "jobs" | "glossaries" | "translation-memories" | "integrations",
   params?: Record<string, string | undefined | null>,
 ) {
   return buildWorkspaceHref(`/org/${organizationSlug}/${section}`, params ?? {});
