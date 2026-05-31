@@ -10,12 +10,14 @@ function parseRepositoryOwnerRepo(fullName: string): { owner: string; repo: stri
   return { owner, repo };
 }
 
-export async function resolveGithubRepositoryAutomationCommitRange(
-  job: GithubRepositoryAutomationJobWithRepository,
-): Promise<{
+export type GithubRepositoryAutomationCommitRange = {
   commitBefore: string | null;
   commitAfter: string;
-}> {
+};
+
+export async function resolveGithubRepositoryAutomationCommitRange(
+  job: GithubRepositoryAutomationJobWithRepository,
+): Promise<GithubRepositoryAutomationCommitRange> {
   if (job.commitAfter) {
     return {
       commitBefore: job.commitBefore,

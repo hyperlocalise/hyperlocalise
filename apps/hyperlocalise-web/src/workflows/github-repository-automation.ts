@@ -6,6 +6,10 @@ import {
   getGithubRepositoryAutomationJobById,
   updateGithubRepositoryAutomationJobStatus,
 } from "@/lib/agents/github/github-repository-automation-jobs";
+import {
+  resolveGithubRepositoryAutomationCommitRange,
+  type GithubRepositoryAutomationCommitRange,
+} from "@/lib/agents/github/github-repository-automation-commit-range";
 import { runGithubRepositoryAutomationPushSource } from "@/lib/agents/github/github-repository-automation-push-source";
 import { runGithubRepositoryAutomationValidation } from "@/lib/agents/github/github-repository-automation-validation";
 
@@ -42,17 +46,42 @@ async function claimJobStep(input: { jobId: string; workflowRunId: string }) {
 async function runAutomationJobStep(input: { jobId: string; workflowRunId: string }) {
   "use step";
 
-  const job = await getGithubRepositoryAutomationJobById(input.jobId);
+  let job = await getGithubRepositoryAutomationJobById(input.jobId);
   if (!job) {
     throw new Error("github_repository_automation_job_not_found");
   }
 
   const results: Record<string, unknown> = {};
+  const needsCommitRange = job.workflows.pushSource || job.workflows.validation;
+  let commitRange: GithubRepositoryAutomationCommitRange | undefined;
+
+  if (needsCommitRange) {
+    if (job.commitAfter) {
+      commitRange = {
+        commitBefore: job.commitBefore,
+        commitAfter: job.commitAfter,
+      };
+    } else {
+      commitRange = await resolveGithubRepositoryAutomationCommitRange(job);
+      await updateGithubRepositoryAutomationJobStatus({
+        jobId: job.id,
+        status: "running",
+        commitBefore: commitRange.commitBefore,
+        commitAfter: commitRange.commitAfter,
+      });
+      job = {
+        ...job,
+        commitBefore: commitRange.commitBefore,
+        commitAfter: commitRange.commitAfter,
+      };
+    }
+  }
 
   if (job.workflows.pushSource) {
     results.pushSource = await runGithubRepositoryAutomationPushSource({
       job,
       workflowRunId: input.workflowRunId,
+      commitRange,
     });
   }
 
@@ -60,6 +89,7 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
     results.validation = await runGithubRepositoryAutomationValidation({
       job,
       workflowRunId: input.workflowRunId,
+      commitRange,
     });
   }
 

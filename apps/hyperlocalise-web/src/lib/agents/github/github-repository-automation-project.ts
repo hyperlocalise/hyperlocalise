@@ -2,6 +2,9 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
+/** Slack connector stores project→repository mappings under `repository.github`. */
+const GITHUB_REPOSITORY_PROJECT_CONNECTOR_KIND = "slack" as const;
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }
@@ -40,42 +43,43 @@ function findProjectIdsForRepository(
   return matches;
 }
 
-async function findProjectIdFromConnectorConfigs(input: {
+async function findProjectIdFromConnectorConfig(input: {
   organizationId: string;
   repositoryFullName: string;
 }): Promise<string | null> {
-  const connectors = await db
+  const [connector] = await db
     .select({ config: schema.connectors.config })
     .from(schema.connectors)
-    .where(eq(schema.connectors.organizationId, input.organizationId));
+    .where(
+      and(
+        eq(schema.connectors.organizationId, input.organizationId),
+        eq(schema.connectors.kind, GITHUB_REPOSITORY_PROJECT_CONNECTOR_KIND),
+      ),
+    )
+    .limit(1);
 
-  const matches = new Set<string>();
-
-  for (const connector of connectors) {
-    const root = isRecord(connector.config) ? connector.config : null;
-    const repository = root ? (isRecord(root.repository) ? root.repository : null) : null;
-    const github = repository
-      ? isRecord(repository.github)
-        ? repository.github
-        : null
-      : isRecord(root?.github)
-        ? root.github
-        : null;
-
-    if (!github) {
-      continue;
-    }
-
-    for (const projectId of findProjectIdsForRepository(
-      github.projectRepositories,
-      input.repositoryFullName,
-    )) {
-      matches.add(projectId);
-    }
+  if (!connector) {
+    return null;
   }
 
-  if (matches.size === 1) {
-    return [...matches][0] ?? null;
+  const root = isRecord(connector.config) ? connector.config : null;
+  const repository = root ? (isRecord(root.repository) ? root.repository : null) : null;
+  const github = repository
+    ? isRecord(repository.github)
+      ? repository.github
+      : null
+    : isRecord(root?.github)
+      ? root.github
+      : null;
+
+  if (!github) {
+    return null;
+  }
+
+  const matches = findProjectIdsForRepository(github.projectRepositories, input.repositoryFullName);
+
+  if (matches.length === 1) {
+    return matches[0] ?? null;
   }
 
   return null;
@@ -101,7 +105,7 @@ export async function resolveGithubRepositoryAutomationProjectId(input: {
     return project?.id ?? null;
   }
 
-  return findProjectIdFromConnectorConfigs({
+  return findProjectIdFromConnectorConfig({
     organizationId: input.organizationId,
     repositoryFullName: input.repositoryFullName,
   });

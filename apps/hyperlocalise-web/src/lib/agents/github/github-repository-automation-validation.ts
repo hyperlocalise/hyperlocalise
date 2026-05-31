@@ -23,7 +23,10 @@ import {
 import { discoverI18nConfigInSandbox } from "./github-repository-automation-i18n-config";
 import { runHlCheckDiffInSandbox } from "./github-repository-automation-hl-check";
 import type { GithubRepositoryAutomationJobWithRepository } from "./github-repository-automation-jobs";
-import { resolveGithubRepositoryAutomationCommitRange } from "./github-repository-automation-commit-range";
+import {
+  resolveGithubRepositoryAutomationCommitRange,
+  type GithubRepositoryAutomationCommitRange,
+} from "./github-repository-automation-commit-range";
 import { updateGithubRepositoryAutomationJobStatus } from "./github-repository-automation-jobs";
 import {
   checkoutCommitInSandbox,
@@ -94,6 +97,7 @@ function resolveCheckRunConclusion(input: {
 export async function runGithubRepositoryAutomationValidation(input: {
   job: GithubRepositoryAutomationJobWithRepository;
   workflowRunId?: string | null;
+  commitRange?: GithubRepositoryAutomationCommitRange;
 }): Promise<Record<string, unknown>> {
   const job = input.job;
   const workflows = job.workflows;
@@ -108,9 +112,10 @@ export async function runGithubRepositoryAutomationValidation(input: {
   }
 
   const blockOnFailure = workflows.validationBlockOnFailure ?? true;
-  const { commitBefore, commitAfter } = await resolveGithubRepositoryAutomationCommitRange(job);
+  const { commitBefore, commitAfter } =
+    input.commitRange ?? (await resolveGithubRepositoryAutomationCommitRange(job));
 
-  if (!job.commitAfter) {
+  if (!input.commitRange && !job.commitAfter) {
     await updateGithubRepositoryAutomationJobStatus({
       jobId: job.id,
       status: "running",

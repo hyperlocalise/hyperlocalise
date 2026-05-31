@@ -1,7 +1,10 @@
 import { createLogger } from "@/lib/log";
 import { uploadRepositorySourceFilesFromSandbox } from "@/lib/file-storage/upload-repository-source-files";
 
-import { resolveGithubRepositoryAutomationCommitRange } from "./github-repository-automation-commit-range";
+import {
+  resolveGithubRepositoryAutomationCommitRange,
+  type GithubRepositoryAutomationCommitRange,
+} from "./github-repository-automation-commit-range";
 import {
   buildCommitRangeLogArgs,
   buildCommitScopedDiffArgs,
@@ -89,6 +92,7 @@ function buildPushSourceSummary(input: {
 export async function runGithubRepositoryAutomationPushSource(input: {
   job: GithubRepositoryAutomationJobWithRepository;
   workflowRunId?: string | null;
+  commitRange?: GithubRepositoryAutomationCommitRange;
 }): Promise<GithubRepositoryAutomationPushSourceSummary | { skipped: true; reason: string }> {
   const job = input.job;
 
@@ -121,9 +125,10 @@ export async function runGithubRepositoryAutomationPushSource(input: {
     return { skipped: true, reason: "project_not_linked" };
   }
 
-  const { commitBefore, commitAfter } = await resolveGithubRepositoryAutomationCommitRange(job);
+  const { commitBefore, commitAfter } =
+    input.commitRange ?? (await resolveGithubRepositoryAutomationCommitRange(job));
 
-  if (!job.commitAfter) {
+  if (!input.commitRange && !job.commitAfter) {
     await updateGithubRepositoryAutomationJobStatus({
       jobId: job.id,
       status: "running",
