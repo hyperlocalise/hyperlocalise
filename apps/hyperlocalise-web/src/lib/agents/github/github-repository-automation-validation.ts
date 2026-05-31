@@ -175,13 +175,6 @@ export async function runGithubRepositoryAutomationValidation(input: {
   let checkRunId: string | null = job.githubCheckRunId;
 
   try {
-    sandboxId = await createGithubRepositoryAutomationSandbox({
-      installationId: job.githubInstallationId,
-      repositoryFullName: job.repositoryFullName,
-      revision: commitAfter,
-      cloneDepth: 50,
-    });
-
     if (!checkRunId) {
       checkRunId = await createGithubRepositoryAutomationCheckRun({
         installationId: job.githubInstallationId,
@@ -197,6 +190,13 @@ export async function runGithubRepositoryAutomationValidation(input: {
         });
       }
     }
+
+    sandboxId = await createGithubRepositoryAutomationSandbox({
+      installationId: job.githubInstallationId,
+      repositoryFullName: job.repositoryFullName,
+      revision: commitAfter,
+      cloneDepth: 50,
+    });
 
     const i18nConfig = await discoverI18nConfigInSandbox(sandboxId);
     if (!i18nConfig) {

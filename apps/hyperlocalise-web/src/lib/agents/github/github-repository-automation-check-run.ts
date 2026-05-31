@@ -76,7 +76,7 @@ export async function completeGithubRepositoryAutomationCheckRun(input: {
   await octokit.rest.checks.update({
     owner,
     repo,
-    check_run_id: Number(input.checkRunId),
+    check_run_id: Number.parseInt(input.checkRunId, 10),
     status: "completed",
     conclusion: input.conclusion,
     details_url: buildGithubRepositoryAutomationJobDetailsUrl({
