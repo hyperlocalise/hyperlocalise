@@ -227,8 +227,14 @@ describe("organization capability policy", () => {
     });
 
     it("returns no capabilities for unknown slugs", () => {
-      expect(resolveCapabilitiesFromWorkosRoleSlug("contractor")).toEqual([]);
+      expect(resolveCapabilitiesFromWorkosRoleSlug("owner")).toEqual([]);
       expect(resolveCapabilitiesFromWorkosRoleSlug(undefined)).toEqual([]);
+    });
+
+    it("maps contractor slug to limited contributor capabilities", () => {
+      expect(resolveCapabilitiesFromWorkosRoleSlug("contractor").sort()).toEqual(
+        getCapabilitiesForRole("contractor").sort(),
+      );
     });
   });
 

@@ -3,6 +3,20 @@ import { and, eq, sql } from "drizzle-orm";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import {
+  canActorManageTarget as canActorManageTargetMember,
+  memberRowCapabilities,
+} from "@/lib/members/member-management";
+
+export {
+  assignableRolesForActor,
+  buildMemberManagementContext,
+  canActorAssignRole,
+  getMembershipStatusDescription,
+  getMembershipStatusLabel,
+  getRoleDescription,
+  getRoleLabel,
+} from "@/lib/members/member-management";
+import {
   conflictResponse,
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
@@ -79,10 +93,10 @@ export function formatMemberDisplayName(input: {
 
 export function canActorManageTarget(
   actorRole: OrganizationMembershipRole,
-  _targetRole: OrganizationMembershipRole,
-  _nextRole?: OrganizationMembershipRole,
+  targetRole: OrganizationMembershipRole,
+  nextRole?: OrganizationMembershipRole,
 ) {
-  return isMemberManageAllowed(actorRole);
+  return canActorManageTargetMember(actorRole, targetRole, nextRole);
 }
 
 export async function countOrganizationAdmins(
@@ -150,6 +164,7 @@ export function toMemberSummary(
     workosMembershipId: string | null;
   },
   currentWorkosUserId: string,
+  actorRole?: OrganizationMembershipRole,
 ): {
   workosUserId: string;
   email: string;
@@ -160,7 +175,19 @@ export function toMemberSummary(
   isCurrentUser: boolean;
   createdAt: string;
   status: "active" | "invited";
+  canUpdateRole?: boolean;
+  canRemove?: boolean;
 } {
+  const isCurrentUser = row.workosUserId === currentWorkosUserId;
+  const capabilities =
+    actorRole === undefined
+      ? undefined
+      : memberRowCapabilities({
+          actorRole,
+          targetRole: row.role,
+          isCurrentUser,
+        });
+
   return {
     workosUserId: row.workosUserId,
     email: row.email,
@@ -168,8 +195,14 @@ export function toMemberSummary(
     lastName: row.lastName,
     displayName: formatMemberDisplayName(row),
     role: row.role,
-    isCurrentUser: row.workosUserId === currentWorkosUserId,
+    isCurrentUser,
     createdAt: row.createdAt.toISOString(),
     status: resolveMemberStatus({ workosMembershipId: row.workosMembershipId }),
+    ...(capabilities
+      ? {
+          canUpdateRole: capabilities.canUpdateRole,
+          canRemove: capabilities.canRemove,
+        }
+      : {}),
   };
 }

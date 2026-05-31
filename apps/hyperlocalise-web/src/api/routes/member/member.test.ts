@@ -728,6 +728,64 @@ describe("memberRoutes", () => {
     expect(response.status).toBe(409);
   });
 
+  it("returns member management capabilities and row affordances for admins", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const memberIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "member",
+    );
+    const headers = await authHeadersFor(ownerIdentity);
+    await authHeadersFor(memberIdentity);
+
+    const listBody = (await (
+      await listMembersViaApi(ownerIdentity, headers)
+    ).json()) as MembersResponse;
+    expect(listBody.memberManagement?.canInvite).toBe(true);
+    expect(listBody.memberManagement?.assignableRoles).toContain("admin");
+    expect(listBody.memberManagement?.assignableRoles).toContain("contractor");
+
+    const memberRow = listBody.members.find(
+      (row) => row.workosUserId === memberIdentity.user.workosUserId,
+    );
+    expect(memberRow?.canUpdateRole).toBe(true);
+    expect(memberRow?.canRemove).toBe(true);
+
+    const selfRow = listBody.members.find(
+      (row) => row.workosUserId === ownerIdentity.user.workosUserId,
+    );
+    expect(selfRow?.canUpdateRole).toBe(false);
+    expect(selfRow?.canRemove).toBe(false);
+  });
+
+  it("forbids localization managers from promoting members to admin", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    const managerIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "localization_manager",
+    );
+    const targetIdentity = createWorkosIdentityForOrganization(
+      ownerIdentity.organization,
+      "reviewer",
+    );
+    const managerHeaders = await authHeadersFor(managerIdentity);
+    await authHeadersFor(targetIdentity);
+
+    const inviteResponse = await inviteMemberViaApi(
+      ownerIdentity,
+      { email: "manager-blocked-admin@example.com", role: "admin" },
+      managerHeaders,
+    );
+    expect(inviteResponse.status).toBe(403);
+
+    const updateResponse = await updateMemberRoleViaApi(
+      ownerIdentity,
+      targetIdentity.user.workosUserId,
+      "admin",
+      managerHeaders,
+    );
+    expect(updateResponse.status).toBe(403);
+  });
+
   it("forbids members from inviting or managing workspace membership", async () => {
     const ownerIdentity = createWorkosIdentity();
     const memberIdentity = createWorkosIdentityForOrganization(

@@ -260,6 +260,13 @@
       "when": 1780219333919,
       "tag": "0036_melted_ultimatum",
       "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1780226122358,
+      "tag": "0037_plain_the_stranger",
+      "breakpoints": true
     }
   ]
 }

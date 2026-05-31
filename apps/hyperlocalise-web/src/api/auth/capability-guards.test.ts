@@ -21,6 +21,7 @@ const LOCALIZATION_ROLES = [
   "developer",
   "reviewer",
   "translator",
+  "contractor",
   "member",
 ] as const satisfies readonly OrganizationMembershipRole[];
 
@@ -60,6 +61,7 @@ describe("capability guards", () => {
       "developer",
       "reviewer",
       "translator",
+      "contractor",
     ]);
   });
 

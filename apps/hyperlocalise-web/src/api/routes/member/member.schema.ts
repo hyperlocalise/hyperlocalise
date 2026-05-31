@@ -6,6 +6,7 @@ export const organizationMembershipRoleSchema = z.enum([
   "developer",
   "reviewer",
   "translator",
+  "contractor",
   "member",
 ]);
 
@@ -32,10 +33,18 @@ export const memberSummarySchema = z.object({
   isCurrentUser: z.boolean(),
   createdAt: z.string(),
   status: z.enum(["active", "invited"]),
+  canUpdateRole: z.boolean().optional(),
+  canRemove: z.boolean().optional(),
+});
+
+export const memberManagementSchema = z.object({
+  canInvite: z.boolean(),
+  assignableRoles: z.array(organizationMembershipRoleSchema),
 });
 
 export const membersResponseSchema = z.object({
   members: z.array(memberSummarySchema),
+  memberManagement: memberManagementSchema.optional(),
 });
 
 export const memberResponseSchema = z.object({

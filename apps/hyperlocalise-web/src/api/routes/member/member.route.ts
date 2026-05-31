@@ -23,6 +23,8 @@ import {
   updateMemberBodySchema,
 } from "./member.schema";
 import {
+  buildMemberManagementContext,
+  canActorAssignRole,
   canActorManageTarget,
   cannotManageMemberResponse,
   forbiddenResponse,
@@ -401,9 +403,12 @@ export function createMemberRoutes() {
         )
         .orderBy(schema.organizationMemberships.createdAt);
 
+      const actorRole = c.var.auth.membership.role;
+
       return c.json(
         {
-          members: rows.map((row) => toMemberSummary(row, c.var.auth.user.workosUserId)),
+          members: rows.map((row) => toMemberSummary(row, c.var.auth.user.workosUserId, actorRole)),
+          memberManagement: buildMemberManagementContext(actorRole),
         },
         200,
       );
@@ -414,6 +419,11 @@ export function createMemberRoutes() {
       }
 
       const payload = c.req.valid("json");
+      const actorRole = c.var.auth.membership.role;
+
+      if (!canActorAssignRole(actorRole, payload.role)) {
+        return cannotManageMemberResponse(c);
+      }
 
       const organizationId = c.var.auth.organization.localOrganizationId;
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;

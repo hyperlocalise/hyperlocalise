@@ -75,6 +75,13 @@ const TRANSLATOR_CAPABILITIES = new Set<OrganizationCapability>([
   ...WRITE_BACK_TRANSLATION_CAPABILITIES,
 ]);
 
+/** External contributors: job work on assigned scope only; no AI actions or org administration. */
+const CONTRACTOR_CAPABILITIES = new Set<OrganizationCapability>([
+  ...MEMBER_READ_CAPABILITIES,
+  "jobs:write",
+  ...WRITE_BACK_TRANSLATION_CAPABILITIES,
+]);
+
 const DEVELOPER_CAPABILITY_SET = new Set<OrganizationCapability>(DEVELOPER_CAPABILITIES);
 
 const REVIEWER_CAPABILITIES = new Set<OrganizationCapability>([
@@ -96,6 +103,7 @@ const ROLE_CAPABILITIES: Record<OrganizationMembershipRole, ReadonlySet<Organiza
   developer: DEVELOPER_CAPABILITY_SET,
   reviewer: REVIEWER_CAPABILITIES,
   translator: TRANSLATOR_CAPABILITIES,
+  contractor: CONTRACTOR_CAPABILITIES,
   member: MEMBER_CAPABILITIES,
 };
 
