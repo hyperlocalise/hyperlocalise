@@ -79,6 +79,11 @@ export async function githubRepositoryAutomationWorkflow(
       skipped: true,
       reason: "job_claimed_by_another_workflow",
     };
+  } else if (job.status === "succeeded" || job.status === "failed" || job.status === "skipped") {
+    return {
+      skipped: true,
+      reason: "job_already_completed",
+    };
   }
 
   return validateJobStep({ jobId: event.jobId, workflowRunId });

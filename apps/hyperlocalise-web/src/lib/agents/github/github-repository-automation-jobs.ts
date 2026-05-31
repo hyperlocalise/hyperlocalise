@@ -260,6 +260,7 @@ export async function updateGithubRepositoryAutomationJobStatus(input: {
 
 export async function findLatestSucceededCommitAfter(input: {
   githubInstallationRepositoryId: string;
+  triggerBranch: string;
 }): Promise<string | null> {
   const [row] = await db
     .select({ commitAfter: schema.githubRepositoryAutomationJobs.commitAfter })
@@ -270,6 +271,7 @@ export async function findLatestSucceededCommitAfter(input: {
           schema.githubRepositoryAutomationJobs.githubInstallationRepositoryId,
           input.githubInstallationRepositoryId,
         ),
+        eq(schema.githubRepositoryAutomationJobs.triggerBranch, input.triggerBranch),
         eq(schema.githubRepositoryAutomationJobs.status, "succeeded"),
         isNotNull(schema.githubRepositoryAutomationJobs.commitAfter),
       ),

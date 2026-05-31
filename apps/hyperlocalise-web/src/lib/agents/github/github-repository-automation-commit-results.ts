@@ -125,12 +125,14 @@ export function summarizeCommitResults(
     counts[result.status] += 1;
   }
 
+  const hasBlockingFailures = results.some((result) => result.status === "failed");
+  const hasInfrastructureErrors = results.some((result) => result.status === "error");
+
   return {
     totalCommits: results.length,
     counts,
-    hasBlockingFailures: results.some(
-      (result) => result.status === "failed" || result.status === "error",
-    ),
+    hasBlockingFailures,
+    hasInfrastructureErrors,
     hasWarnings: results.some((result) => result.status === "warning"),
   };
 }

@@ -74,8 +74,14 @@ async function resolveCommitRange(job: GithubRepositoryAutomationJobWithReposito
     branch: job.triggerBranch ?? job.defaultBranch,
   });
 
+  const branch = job.triggerBranch ?? job.defaultBranch;
+  if (!branch) {
+    throw new Error("github_repository_automation_branch_not_resolved");
+  }
+
   const previousCommit = await findLatestSucceededCommitAfter({
     githubInstallationRepositoryId: job.githubInstallationRepositoryId,
+    triggerBranch: branch,
   });
 
   return {
@@ -98,13 +104,37 @@ function resolveJobFinalStatus(input: {
 function buildCheckRunSummary(summary: ReturnType<typeof summarizeCommitResults>): string {
   const counts = summary.counts as Record<string, number>;
   const totalCommits = typeof summary.totalCommits === "number" ? summary.totalCommits : 0;
-  return [
+  const lines = [
     `Validated ${totalCommits} commit(s).`,
     `Passed: ${counts.passed ?? 0}, warnings: ${counts.warning ?? 0}, failed: ${counts.failed ?? 0}, skipped: ${counts.skipped ?? 0}, errors: ${counts.error ?? 0}.`,
-    summary.hasBlockingFailures
-      ? "Blocking localization findings were detected."
-      : "No blocking localization findings were detected.",
-  ].join(" ");
+  ];
+
+  if (summary.hasBlockingFailures) {
+    lines.push("Blocking localization findings were detected.");
+  } else if (summary.hasInfrastructureErrors) {
+    lines.push(
+      "Infrastructure errors occurred during validation; localization findings were not blocking.",
+    );
+  } else {
+    lines.push("No blocking localization findings were detected.");
+  }
+
+  return lines.join(" ");
+}
+
+function resolveCheckRunConclusion(input: {
+  finalStatus: "succeeded" | "failed";
+  summary: ReturnType<typeof summarizeCommitResults>;
+}): "success" | "failure" | "neutral" {
+  if (input.finalStatus === "failed") {
+    return "failure";
+  }
+
+  if (input.summary.hasInfrastructureErrors) {
+    return "neutral";
+  }
+
+  return "success";
 }
 
 export async function runGithubRepositoryAutomationValidation(input: {
@@ -337,7 +367,7 @@ export async function runGithubRepositoryAutomationValidation(input: {
         installationId: job.githubInstallationId,
         repositoryFullName: job.repositoryFullName,
         checkRunId,
-        conclusion: finalStatus === "failed" ? "failure" : "success",
+        conclusion: resolveCheckRunConclusion({ finalStatus, summary }),
         summary: buildCheckRunSummary(summary),
         ...checkRunDetails,
       });
