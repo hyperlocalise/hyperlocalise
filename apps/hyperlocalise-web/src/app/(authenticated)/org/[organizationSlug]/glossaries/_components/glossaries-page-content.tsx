@@ -22,7 +22,11 @@ import {
   readWorkspaceFilterParam,
   TMS_PROVIDER_KINDS,
 } from "../../_components/workspace-filter-params";
-import { PageHeader } from "../../_components/workspace-resource-shared";
+import {
+  PageHeader,
+  WorkspaceFilterField,
+  workspaceFilterTriggerClassName,
+} from "../../_components/workspace-resource-shared";
 import {
   buildProjectIdByExternalKey,
   mapGlossaryToListRow,
@@ -32,6 +36,26 @@ import {
 import { GlossariesEmptyAction, GlossariesTable } from "./glossaries-table";
 
 const GLOSSARIES_PAGE_SIZE = 100;
+
+const sourceFilterLabels = {
+  all: "All sources",
+  native: "Workspace",
+  external_tms: "Provider",
+} as const;
+
+const resourceTypeFilterLabels = {
+  all: "All resource types",
+  glossary: "Glossary",
+  term_base: "Term base",
+} as const;
+
+const syncFilterLabels = {
+  all: "All sync states",
+  synced: "Synced",
+  stale: "Stale",
+  syncing: "Syncing",
+  error: "Sync error",
+} as const;
 
 type GlossaryListFilters = {
   searchQuery: string;
@@ -289,16 +313,16 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
       />
 
       {glossariesQuery.isSuccess && (glossaryTotal > 0 || hasActiveFilters) ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
+          <WorkspaceFilterField label="Search" className="w-full sm:max-w-xs">
             <Input
-              placeholder="Search by name, project, or external ID..."
+              placeholder="Name, project, or external ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:max-w-xs"
+              className="w-full"
             />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+          </WorkspaceFilterField>
+          <WorkspaceFilterField label="Source" className="w-full sm:w-40">
             <Select
               value={sourceFilter}
               onValueChange={(value) => {
@@ -310,83 +334,126 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
                 }
               }}
             >
-              <SelectTrigger className="w-fit min-w-[8rem]">
-                <SelectValue placeholder="Source" />
+              <SelectTrigger className={workspaceFilterTriggerClassName}>
+                <SelectValue>
+                  {sourceFilterLabels[sourceFilter as keyof typeof sourceFilterLabels] ??
+                    sourceFilter}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All sources</SelectItem>
-                <SelectItem value="native">Workspace</SelectItem>
-                <SelectItem value="external_tms">Provider</SelectItem>
+                <SelectItem value="all" label={sourceFilterLabels.all}>
+                  {sourceFilterLabels.all}
+                </SelectItem>
+                <SelectItem value="native" label={sourceFilterLabels.native}>
+                  {sourceFilterLabels.native}
+                </SelectItem>
+                <SelectItem value="external_tms" label={sourceFilterLabels.external_tms}>
+                  {sourceFilterLabels.external_tms}
+                </SelectItem>
               </SelectContent>
             </Select>
+          </WorkspaceFilterField>
 
-            {hasExternalGlossaries && sourceFilter !== "native" ? (
+          {hasExternalGlossaries && sourceFilter !== "native" ? (
+            <WorkspaceFilterField label="Provider" className="w-full sm:w-40">
               <Select
                 value={providerFilter}
                 onValueChange={(value) => setProviderFilter(value ?? "all")}
               >
-                <SelectTrigger className="w-fit min-w-[8rem]">
-                  <SelectValue placeholder="Provider" />
+                <SelectTrigger className={workspaceFilterTriggerClassName}>
+                  <SelectValue>
+                    {providerFilter === "all"
+                      ? "All providers"
+                      : providerLabel(providerFilter as (typeof TMS_PROVIDER_KINDS)[number])}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All providers</SelectItem>
+                  <SelectItem value="all" label="All providers">
+                    All providers
+                  </SelectItem>
                   {providerKinds.map((kind) => (
-                    <SelectItem key={kind} value={kind}>
+                    <SelectItem key={kind} value={kind} label={providerLabel(kind)}>
                       {providerLabel(kind)}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-            ) : null}
+            </WorkspaceFilterField>
+          ) : null}
 
-            {hasResourceTypes && sourceFilter !== "native" ? (
+          {hasResourceTypes && sourceFilter !== "native" ? (
+            <WorkspaceFilterField label="Resource" className="w-full sm:w-44">
               <Select
                 value={resourceTypeFilter}
                 onValueChange={(value) => setResourceTypeFilter(value ?? "all")}
               >
-                <SelectTrigger className="w-fit min-w-[8rem]">
-                  <SelectValue placeholder="Resource" />
+                <SelectTrigger className={workspaceFilterTriggerClassName}>
+                  <SelectValue>
+                    {resourceTypeFilterLabels[
+                      resourceTypeFilter as keyof typeof resourceTypeFilterLabels
+                    ] ?? resourceTypeFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All resource types</SelectItem>
-                  <SelectItem value="glossary">Glossary</SelectItem>
-                  <SelectItem value="term_base">Term base</SelectItem>
+                  <SelectItem value="all" label={resourceTypeFilterLabels.all}>
+                    {resourceTypeFilterLabels.all}
+                  </SelectItem>
+                  <SelectItem value="glossary" label={resourceTypeFilterLabels.glossary}>
+                    {resourceTypeFilterLabels.glossary}
+                  </SelectItem>
+                  <SelectItem value="term_base" label={resourceTypeFilterLabels.term_base}>
+                    {resourceTypeFilterLabels.term_base}
+                  </SelectItem>
                 </SelectContent>
               </Select>
-            ) : null}
+            </WorkspaceFilterField>
+          ) : null}
 
-            {hasExternalGlossaries && sourceFilter !== "native" ? (
+          {hasExternalGlossaries && sourceFilter !== "native" ? (
+            <WorkspaceFilterField label="Sync" className="w-full sm:w-40">
               <Select value={syncFilter} onValueChange={(value) => setSyncFilter(value ?? "all")}>
-                <SelectTrigger className="w-fit min-w-[8rem]">
-                  <SelectValue placeholder="Sync" />
+                <SelectTrigger className={workspaceFilterTriggerClassName}>
+                  <SelectValue>
+                    {syncFilterLabels[syncFilter as keyof typeof syncFilterLabels] ?? syncFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All sync states</SelectItem>
-                  <SelectItem value="synced">Synced</SelectItem>
-                  <SelectItem value="stale">Stale</SelectItem>
-                  <SelectItem value="syncing">Syncing</SelectItem>
-                  <SelectItem value="error">Sync error</SelectItem>
+                  <SelectItem value="all" label={syncFilterLabels.all}>
+                    {syncFilterLabels.all}
+                  </SelectItem>
+                  <SelectItem value="synced" label={syncFilterLabels.synced}>
+                    {syncFilterLabels.synced}
+                  </SelectItem>
+                  <SelectItem value="stale" label={syncFilterLabels.stale}>
+                    {syncFilterLabels.stale}
+                  </SelectItem>
+                  <SelectItem value="syncing" label={syncFilterLabels.syncing}>
+                    {syncFilterLabels.syncing}
+                  </SelectItem>
+                  <SelectItem value="error" label={syncFilterLabels.error}>
+                    {syncFilterLabels.error}
+                  </SelectItem>
                 </SelectContent>
               </Select>
-            ) : null}
+            </WorkspaceFilterField>
+          ) : null}
 
-            {activeFilterCount > 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSourceFilter("all");
-                  setProviderFilter("all");
-                  setResourceTypeFilter("all");
-                  setSyncFilter("all");
-                }}
-              >
-                Clear filters
-              </Button>
-            ) : null}
-          </div>
+          {activeFilterCount > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("");
+                setSourceFilter("all");
+                setProviderFilter("all");
+                setResourceTypeFilter("all");
+                setSyncFilter("all");
+              }}
+            >
+              Clear filters
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

@@ -8,12 +8,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarInset,
   SidebarProvider,
   SidebarRail,
-  SidebarSeparator,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import ThemeToggle from "@/components/theme-toggle";
@@ -109,19 +107,6 @@ export function AppShellClient({
           ) : null}
         </SidebarContent>
 
-        <SidebarSeparator className="bg-sidebar-border" />
-
-        <SidebarFooter className="gap-3 px-3 py-3">
-          <NavUser
-            organizationName={activeOrganization.name}
-            organizationSlug={activeOrganization.slug ?? ""}
-            organizations={organizations}
-            showApiKeysLink={showApiKeysLink}
-            showBillingLink={showBillingLink}
-            showMembersLink={showMembersLink}
-            user={{ name: user.name, avatar: user.avatarUrl ?? "" }}
-          />
-        </SidebarFooter>
         <SidebarRail />
       </Sidebar>
 
@@ -136,7 +121,18 @@ export function AppShellClient({
               />
               <AppShellBreadcrumb organizationSlug={organizationSlug} />
             </div>
-            <ThemeToggle />
+            <div className="flex shrink-0 items-center gap-2">
+              <ThemeToggle />
+              <NavUser
+                organizationName={activeOrganization.name}
+                organizationSlug={activeOrganization.slug ?? ""}
+                organizations={organizations}
+                showApiKeysLink={showApiKeysLink}
+                showBillingLink={showBillingLink}
+                showMembersLink={showMembersLink}
+                user={{ name: user.name, avatar: user.avatarUrl ?? "" }}
+              />
+            </div>
           </div>
         </div>
 

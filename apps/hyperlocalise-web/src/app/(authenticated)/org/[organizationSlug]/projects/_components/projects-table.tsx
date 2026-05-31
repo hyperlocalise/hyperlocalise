@@ -275,18 +275,6 @@ export function ProjectsTable({
               </div>
 
               <dl className="mt-6 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Created
-                  </dt>
-                  <dd className="mt-1 truncate text-sm text-foreground/54">{project.created}</dd>
-                </div>
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Updated
-                  </dt>
-                  <dd className="mt-1 truncate text-sm text-foreground/54">{project.updated}</dd>
-                </div>
                 {project.source === "external_tms" ? (
                   <div className="min-w-0">
                     <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">

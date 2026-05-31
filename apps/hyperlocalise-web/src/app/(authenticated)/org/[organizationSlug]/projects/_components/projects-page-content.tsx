@@ -23,7 +23,12 @@ import {
   readWorkspaceFilterParam,
   TMS_PROVIDER_KINDS,
 } from "../../_components/workspace-filter-params";
-import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import {
+  PageHeader,
+  WorkspaceFilterField,
+  WorkspacePageShell,
+  workspaceFilterTriggerClassName,
+} from "../../_components/workspace-resource-shared";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import {
   createEmptyProjectForm,
@@ -36,6 +41,26 @@ import { mapProjectToListRow, type ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
 
 const projectQueryKey = (organizationSlug: string) => ["translation-projects", organizationSlug];
+
+const sourceFilterLabels = {
+  all: "All sources",
+  native: "Native",
+  external_tms: "External TMS",
+} as const;
+
+const providerFilterLabels = {
+  all: "All providers",
+  phrase: "Phrase",
+  crowdin: "Crowdin",
+  smartling: "Smartling",
+  lokalise: "Lokalise",
+} as const;
+
+const statusFilterLabels = {
+  all: "All statuses",
+  active: "Active",
+  inactive: "Inactive",
+} as const;
 
 async function readProjectError(response: Response, fallback: string) {
   const body = await response.json().catch(() => null);
@@ -273,16 +298,16 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       />
 
       {projectsQuery.isSuccess && projects.length > 0 ? (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex-1">
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
+          <WorkspaceFilterField label="Search" className="w-full sm:max-w-xs">
             <Input
-              placeholder="Search by name or ID..."
+              placeholder="Name or ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full sm:max-w-xs"
+              className="w-full"
             />
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
+          </WorkspaceFilterField>
+          <WorkspaceFilterField label="Source" className="w-full sm:w-40">
             <Select
               value={sourceFilter}
               onValueChange={(value) => {
@@ -293,66 +318,101 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
                 }
               }}
             >
-              <SelectTrigger className="w-fit min-w-[8rem]">
-                <SelectValue placeholder="Source" />
+              <SelectTrigger className={workspaceFilterTriggerClassName}>
+                <SelectValue>
+                  {sourceFilterLabels[sourceFilter as keyof typeof sourceFilterLabels] ??
+                    sourceFilter}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All sources</SelectItem>
-                <SelectItem value="native">Native</SelectItem>
-                <SelectItem value="external_tms">External TMS</SelectItem>
+                <SelectItem value="all" label={sourceFilterLabels.all}>
+                  {sourceFilterLabels.all}
+                </SelectItem>
+                <SelectItem value="native" label={sourceFilterLabels.native}>
+                  {sourceFilterLabels.native}
+                </SelectItem>
+                <SelectItem value="external_tms" label={sourceFilterLabels.external_tms}>
+                  {sourceFilterLabels.external_tms}
+                </SelectItem>
               </SelectContent>
             </Select>
+          </WorkspaceFilterField>
 
-            {hasExternalProjects && sourceFilter !== "native" ? (
+          {hasExternalProjects && sourceFilter !== "native" ? (
+            <WorkspaceFilterField label="Provider" className="w-full sm:w-40">
               <Select
                 value={providerFilter}
                 onValueChange={(value) => setProviderFilter(value ?? "all")}
               >
-                <SelectTrigger className="w-fit min-w-[8rem]">
-                  <SelectValue placeholder="Provider" />
+                <SelectTrigger className={workspaceFilterTriggerClassName}>
+                  <SelectValue>
+                    {providerFilterLabels[providerFilter as keyof typeof providerFilterLabels] ??
+                      providerFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All providers</SelectItem>
-                  <SelectItem value="phrase">Phrase</SelectItem>
-                  <SelectItem value="crowdin">Crowdin</SelectItem>
-                  <SelectItem value="smartling">Smartling</SelectItem>
-                  <SelectItem value="lokalise">Lokalise</SelectItem>
+                  <SelectItem value="all" label={providerFilterLabels.all}>
+                    {providerFilterLabels.all}
+                  </SelectItem>
+                  <SelectItem value="phrase" label={providerFilterLabels.phrase}>
+                    {providerFilterLabels.phrase}
+                  </SelectItem>
+                  <SelectItem value="crowdin" label={providerFilterLabels.crowdin}>
+                    {providerFilterLabels.crowdin}
+                  </SelectItem>
+                  <SelectItem value="smartling" label={providerFilterLabels.smartling}>
+                    {providerFilterLabels.smartling}
+                  </SelectItem>
+                  <SelectItem value="lokalise" label={providerFilterLabels.lokalise}>
+                    {providerFilterLabels.lokalise}
+                  </SelectItem>
                 </SelectContent>
               </Select>
-            ) : null}
+            </WorkspaceFilterField>
+          ) : null}
 
-            {hasExternalProjects && sourceFilter !== "native" ? (
+          {hasExternalProjects && sourceFilter !== "native" ? (
+            <WorkspaceFilterField label="Status" className="w-full sm:w-40">
               <Select
                 value={statusFilter}
                 onValueChange={(value) => setStatusFilter(value ?? "all")}
               >
-                <SelectTrigger className="w-fit min-w-[8rem]">
-                  <SelectValue placeholder="Status" />
+                <SelectTrigger className={workspaceFilterTriggerClassName}>
+                  <SelectValue>
+                    {statusFilterLabels[statusFilter as keyof typeof statusFilterLabels] ??
+                      statusFilter}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">All statuses</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="all" label={statusFilterLabels.all}>
+                    {statusFilterLabels.all}
+                  </SelectItem>
+                  <SelectItem value="active" label={statusFilterLabels.active}>
+                    {statusFilterLabels.active}
+                  </SelectItem>
+                  <SelectItem value="inactive" label={statusFilterLabels.inactive}>
+                    {statusFilterLabels.inactive}
+                  </SelectItem>
                 </SelectContent>
               </Select>
-            ) : null}
+            </WorkspaceFilterField>
+          ) : null}
 
-            {activeFilterCount > 0 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  setSearchQuery("");
-                  setSourceFilter("all");
-                  setProviderFilter("all");
-                  setStatusFilter("all");
-                }}
-              >
-                Clear filters
-              </Button>
-            ) : null}
-          </div>
+          {activeFilterCount > 0 ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setSearchQuery("");
+                setSourceFilter("all");
+                setProviderFilter("all");
+                setStatusFilter("all");
+              }}
+            >
+              Clear filters
+            </Button>
+          ) : null}
         </div>
       ) : null}
 

@@ -26,6 +26,26 @@ export function WorkspacePageShell({
   );
 }
 
+export function WorkspaceFilterField({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className={cn("grid min-w-0 gap-1.5", className)}>
+      <span className="text-xs font-medium text-muted-foreground">{label}</span>
+      {children}
+    </div>
+  );
+}
+
+export const workspaceFilterTriggerClassName =
+  "h-9 min-h-9 w-full border-foreground/14 bg-transparent px-3 text-sm data-[size=default]:h-9";
+
 export function toneClass(tone: Tone) {
   switch (tone) {
     case "safe":
@@ -67,7 +87,7 @@ export function PageHeader({
         ) : null}
         <TypographyH1
           className={cn(
-            "font-heading text-2xl font-medium text-foreground md:text-2xl",
+            "font-sans text-2xl font-medium text-foreground md:text-2xl",
             label ? "mt-2" : "flex items-center gap-2",
           )}
         >
