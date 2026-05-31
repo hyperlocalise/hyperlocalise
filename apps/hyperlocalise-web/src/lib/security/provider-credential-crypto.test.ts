@@ -1,6 +1,8 @@
 import "dotenv/config";
 
 import { describe, expect, it } from "vite-plus/test";
+import { isErr } from "@/lib/primitives/result/results";
+
 import {
   decryptProviderCredential,
   encryptProviderCredential,
@@ -27,64 +29,110 @@ describe("provider-credential-crypto", () => {
   describe("encryption/decryption round-trip", () => {
     it("successfully decrypts an encrypted credential", () => {
       const plaintext = "sk-proj-test-secret-key-12345";
-      const encrypted = encryptProviderCredential(plaintext);
+      const encryptedResult = encryptProviderCredential(plaintext);
+      expect(encryptedResult.ok).toBe(true);
+      if (isErr(encryptedResult)) {
+        throw new Error("expected encryption to succeed");
+      }
 
+      const encrypted = encryptedResult.value;
       expect(encrypted.ciphertext).not.toBe(plaintext);
       expect(encrypted.algorithm).toBe("aes-256-gcm");
 
-      const decrypted = decryptProviderCredential(encrypted);
-      expect(decrypted).toBe(plaintext);
+      const decryptedResult = decryptProviderCredential(encrypted);
+      expect(decryptedResult.ok).toBe(true);
+      if (isErr(decryptedResult)) {
+        throw new Error("expected decryption to succeed");
+      }
+      expect(decryptedResult.value).toBe(plaintext);
     });
 
     it("produces different ciphertexts for the same plaintext (random IV)", () => {
       const plaintext = "sk-proj-test-secret-key-12345";
-      const encrypted1 = encryptProviderCredential(plaintext);
-      const encrypted2 = encryptProviderCredential(plaintext);
+      const encrypted1Result = encryptProviderCredential(plaintext);
+      const encrypted2Result = encryptProviderCredential(plaintext);
+      if (isErr(encrypted1Result) || isErr(encrypted2Result)) {
+        throw new Error("expected encryption to succeed");
+      }
 
-      expect(encrypted1.ciphertext).not.toBe(encrypted2.ciphertext);
-      expect(encrypted1.iv).not.toBe(encrypted2.iv);
+      expect(encrypted1Result.value.ciphertext).not.toBe(encrypted2Result.value.ciphertext);
+      expect(encrypted1Result.value.iv).not.toBe(encrypted2Result.value.iv);
 
-      expect(decryptProviderCredential(encrypted1)).toBe(plaintext);
-      expect(decryptProviderCredential(encrypted2)).toBe(plaintext);
+      const decrypted1 = decryptProviderCredential(encrypted1Result.value);
+      const decrypted2 = decryptProviderCredential(encrypted2Result.value);
+      if (isErr(decrypted1) || isErr(decrypted2)) {
+        throw new Error("expected decryption to succeed");
+      }
+      expect(decrypted1.value).toBe(plaintext);
+      expect(decrypted2.value).toBe(plaintext);
     });
 
-    it("throws an error for unsupported algorithm", () => {
-      const encrypted = encryptProviderCredential("test");
-      const invalidEncrypted = { ...encrypted, algorithm: "unsupported-algo" };
+    it("returns an error for unsupported algorithm", () => {
+      const encryptedResult = encryptProviderCredential("test");
+      if (isErr(encryptedResult)) {
+        throw new Error("expected encryption to succeed");
+      }
+      const invalidEncrypted = { ...encryptedResult.value, algorithm: "unsupported-algo" };
 
-      expect(() => decryptProviderCredential(invalidEncrypted)).toThrow(
-        "unsupported_provider_credential_algorithm",
+      const decryptedResult = decryptProviderCredential(invalidEncrypted);
+      expect(decryptedResult.ok).toBe(false);
+      if (!isErr(decryptedResult)) {
+        throw new Error("expected decryption to fail");
+      }
+      expect(decryptedResult.error.code).toBe("unsupported_provider_credential_algorithm");
+    });
+
+    it("returns an error for unsupported key version", () => {
+      const encryptedResult = encryptProviderCredential("test");
+      if (isErr(encryptedResult)) {
+        throw new Error("expected encryption to succeed");
+      }
+      const invalidEncrypted = { ...encryptedResult.value, keyVersion: 999 };
+
+      const decryptedResult = decryptProviderCredential(invalidEncrypted);
+      expect(decryptedResult.ok).toBe(false);
+      if (!isErr(decryptedResult)) {
+        throw new Error("expected decryption to fail");
+      }
+      expect(decryptedResult.error.code).toBe("unsupported_provider_credential_key_version");
+    });
+
+    it("returns an error when ciphertext is tampered with", () => {
+      const encryptedResult = encryptProviderCredential("sensitive-data");
+      if (isErr(encryptedResult)) {
+        throw new Error("expected encryption to succeed");
+      }
+
+      const tamperedCiphertext = encryptedResult.value.ciphertext.replace(/./, (c) =>
+        c === "A" ? "B" : "A",
       );
+      const tamperedEncrypted = { ...encryptedResult.value, ciphertext: tamperedCiphertext };
+
+      const decryptedResult = decryptProviderCredential(tamperedEncrypted);
+      expect(decryptedResult.ok).toBe(false);
+      if (!isErr(decryptedResult)) {
+        throw new Error("expected decryption to fail");
+      }
+      expect(decryptedResult.error.code).toBe("provider_credential_decryption_failed");
     });
 
-    it("throws an error for unsupported key version", () => {
-      const encrypted = encryptProviderCredential("test");
-      const invalidEncrypted = { ...encrypted, keyVersion: 999 };
+    it("returns an error when auth tag is tampered with", () => {
+      const encryptedResult = encryptProviderCredential("sensitive-data");
+      if (isErr(encryptedResult)) {
+        throw new Error("expected encryption to succeed");
+      }
 
-      expect(() => decryptProviderCredential(invalidEncrypted)).toThrow(
-        "unsupported_provider_credential_key_version",
+      const tamperedAuthTag = encryptedResult.value.authTag.replace(/./, (c) =>
+        c === "A" ? "B" : "A",
       );
-    });
+      const tamperedEncrypted = { ...encryptedResult.value, authTag: tamperedAuthTag };
 
-    it("throws an error when ciphertext is tampered with", () => {
-      const encrypted = encryptProviderCredential("sensitive-data");
-
-      // Corrupt the ciphertext by changing characters in the base64 string
-      // We use a regex that matches any character to ensure we actually change something
-      const tamperedCiphertext = encrypted.ciphertext.replace(/./, (c) => (c === "A" ? "B" : "A"));
-      const tamperedEncrypted = { ...encrypted, ciphertext: tamperedCiphertext };
-
-      // AES-GCM should detect tampering via the auth tag
-      expect(() => decryptProviderCredential(tamperedEncrypted)).toThrow();
-    });
-
-    it("throws an error when auth tag is tampered with", () => {
-      const encrypted = encryptProviderCredential("sensitive-data");
-
-      const tamperedAuthTag = encrypted.authTag.replace(/./, (c) => (c === "A" ? "B" : "A"));
-      const tamperedEncrypted = { ...encrypted, authTag: tamperedAuthTag };
-
-      expect(() => decryptProviderCredential(tamperedEncrypted)).toThrow();
+      const decryptedResult = decryptProviderCredential(tamperedEncrypted);
+      expect(decryptedResult.ok).toBe(false);
+      if (!isErr(decryptedResult)) {
+        throw new Error("expected decryption to fail");
+      }
+      expect(decryptedResult.error.code).toBe("provider_credential_decryption_failed");
     });
   });
 });

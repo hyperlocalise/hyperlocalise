@@ -2,7 +2,10 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import {
@@ -155,13 +158,15 @@ export async function pullExternalTmsTaskContent(input: {
   });
 
   try {
-    const secretMaterial = decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    });
+    const secretMaterial = unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credential.encryptionAlgorithm,
+        keyVersion: credential.keyVersion,
+        ciphertext: credential.ciphertext,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }),
+    );
 
     const content = await input.pullContent({
       organizationId: input.organizationId,
@@ -269,13 +274,15 @@ export async function pushExternalTmsTranslations(input: {
   const failures: ExternalTmsContentSyncFailure[] = [];
 
   try {
-    const secretMaterial = decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    });
+    const secretMaterial = unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credential.encryptionAlgorithm,
+        keyVersion: credential.keyVersion,
+        ciphertext: credential.ciphertext,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }),
+    );
 
     const pushResult = await input.pushTranslations({
       organizationId: input.organizationId,

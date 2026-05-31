@@ -1,7 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import { createOpenAIStringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
 export async function loadOrganizationOpenAITranslationGenerator(projectId: string) {
@@ -87,13 +90,15 @@ export async function loadOrganizationOpenAITranslationGenerator(projectId: stri
     } as const;
   }
 
-  const apiKey = decryptProviderCredential({
-    algorithm: project.encryptionAlgorithm,
-    keyVersion: project.keyVersion,
-    ciphertext: project.ciphertext,
-    iv: project.iv,
-    authTag: project.authTag,
-  });
+  const apiKey = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: project.encryptionAlgorithm,
+      keyVersion: project.keyVersion,
+      ciphertext: project.ciphertext,
+      iv: project.iv,
+      authTag: project.authTag,
+    }),
+  );
 
   return {
     ok: true,

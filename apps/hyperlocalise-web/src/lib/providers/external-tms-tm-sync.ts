@@ -2,7 +2,10 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 
 import {
   upsertOrganizationExternalTmsMemory,
@@ -114,13 +117,15 @@ export async function syncExternalTmsTranslationMemories(input: {
   const failures: ExternalTmsTranslationMemorySyncFailure[] = [];
 
   try {
-    const secretMaterial = decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    });
+    const secretMaterial = unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credential.encryptionAlgorithm,
+        keyVersion: credential.keyVersion,
+        ciphertext: credential.ciphertext,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }),
+    );
 
     const memories = await input.fetchTranslationMemories({
       organizationId: input.organizationId,

@@ -2,7 +2,10 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getProviderGlossaryMatcher } from "@/lib/providers/provider-glossary-matchers";
 import { loadSyncedGlossaryMatchesForContext } from "@/lib/translation/load-synced-glossary-matches";
@@ -145,13 +148,15 @@ async function searchLiveProviderMatches(input: {
     return [];
   }
 
-  const secretMaterial = decryptProviderCredential({
-    algorithm: credential.encryptionAlgorithm,
-    keyVersion: credential.keyVersion,
-    ciphertext: credential.ciphertext,
-    iv: credential.iv,
-    authTag: credential.authTag,
-  });
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+    }),
+  );
 
   const searchableGlossaries = input.glossaries.filter(supportsLiveGlossarySearch);
   if (searchableGlossaries.length === 0) {

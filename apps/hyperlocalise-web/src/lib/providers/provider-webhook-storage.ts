@@ -7,9 +7,11 @@ import type {
   ProviderWebhookEventProcessingStatus,
   ProviderWebhookSubscriptionStatus,
 } from "@/lib/database/types";
+import { isErr } from "@/lib/primitives/result/results";
 import {
   decryptProviderCredential,
   encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
@@ -54,7 +56,7 @@ export async function insertProviderWebhookSubscription(input: {
 }) {
   const encrypted =
     input.webhookSecretPlaintext != null && input.webhookSecretPlaintext.length > 0
-      ? encryptProviderCredential(input.webhookSecretPlaintext)
+      ? unwrapProviderCredentialCrypto(encryptProviderCredential(input.webhookSecretPlaintext))
       : null;
   const secretMetadata: ProviderWebhookSecretMetadata = {
     ...input.secretMetadata,
@@ -129,7 +131,7 @@ export async function updateProviderWebhookSubscription(input: {
   const now = new Date();
   const encrypted =
     input.webhookSecretPlaintext != null && input.webhookSecretPlaintext.length > 0
-      ? encryptProviderCredential(input.webhookSecretPlaintext)
+      ? unwrapProviderCredentialCrypto(encryptProviderCredential(input.webhookSecretPlaintext))
       : null;
 
   const [subscription] = await db
@@ -275,17 +277,18 @@ export function decryptWebhookSecret(subscription: ProviderWebhookSubscription):
     return null;
   }
 
-  try {
-    return decryptProviderCredential({
-      algorithm: subscription.secretMetadata.encryptionAlgorithm ?? "aes-256-gcm",
-      keyVersion: subscription.webhookSecretKeyVersion,
-      ciphertext: subscription.webhookSecretCiphertext,
-      iv: subscription.webhookSecretIv,
-      authTag: subscription.webhookSecretAuthTag,
-    });
-  } catch {
+  const decrypted = decryptProviderCredential({
+    algorithm: subscription.secretMetadata.encryptionAlgorithm ?? "aes-256-gcm",
+    keyVersion: subscription.webhookSecretKeyVersion,
+    ciphertext: subscription.webhookSecretCiphertext,
+    iv: subscription.webhookSecretIv,
+    authTag: subscription.webhookSecretAuthTag,
+  });
+  if (isErr(decrypted)) {
     return null;
   }
+
+  return decrypted.value;
 }
 
 /**

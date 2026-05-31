@@ -12,7 +12,10 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
-import { encryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import {
   claimTranslationJob,
   completeTranslationJob,
@@ -32,7 +35,9 @@ async function insertProviderCredential(input: {
   provider: "openai" | "anthropic" | "gemini" | "groq" | "mistral";
   defaultModel: string;
 }) {
-  const encrypted = encryptProviderCredential("test-provider-api-key");
+  const encrypted = unwrapProviderCredentialCrypto(
+    encryptProviderCredential("test-provider-api-key"),
+  );
 
   await db.insert(schema.organizationLlmProviderCredentials).values({
     organizationId: input.organizationId,

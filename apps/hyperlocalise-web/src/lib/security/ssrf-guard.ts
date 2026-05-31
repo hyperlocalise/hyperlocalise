@@ -1,3 +1,36 @@
+import { assertNever } from "@/lib/primitives/assert-never/assert-never";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
+
+export type SsrfGuardError =
+  | { code: "invalid_url" }
+  | { code: "unsupported_protocol" }
+  | { code: "credentials_in_url" }
+  | { code: "blocked_host" }
+  | { code: "host_not_allowed" }
+  | { code: "host_unresolvable" }
+  | { code: "host_resolves_to_restricted_address" };
+
+export function formatSsrfGuardError(error: SsrfGuardError): string {
+  switch (error.code) {
+    case "invalid_url":
+      return "URL is invalid.";
+    case "unsupported_protocol":
+      return "URL must use http or https.";
+    case "credentials_in_url":
+      return "URL must not include credentials.";
+    case "blocked_host":
+      return "URL host is not allowed.";
+    case "host_not_allowed":
+      return "URL host is not allowed.";
+    case "host_unresolvable":
+      return "URL host could not be resolved.";
+    case "host_resolves_to_restricted_address":
+      return "URL host resolves to a private or restricted address.";
+    default:
+      return assertNever(error);
+  }
+}
+
 export function normalizeHostname(hostname: string): string {
   const lowerHostname = hostname.toLowerCase();
   if (lowerHostname.startsWith("[") && lowerHostname.endsWith("]")) {
@@ -111,21 +144,29 @@ export function isBlockedHost(hostname: string): boolean {
   return false;
 }
 
-export function isPublicHttpUrl(value: string): boolean {
+export function validatePublicHttpUrl(value: string): Result<URL, SsrfGuardError> {
   let parsed: URL;
   try {
     parsed = new URL(value);
   } catch {
-    return false;
+    return err({ code: "invalid_url" });
   }
 
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    return false;
+    return err({ code: "unsupported_protocol" });
   }
 
   if (parsed.username || parsed.password) {
-    return false;
+    return err({ code: "credentials_in_url" });
   }
 
-  return !isBlockedHost(parsed.hostname);
+  if (isBlockedHost(parsed.hostname)) {
+    return err({ code: "blocked_host" });
+  }
+
+  return ok(parsed);
+}
+
+export function isPublicHttpUrl(value: string): boolean {
+  return validatePublicHttpUrl(value).ok;
 }

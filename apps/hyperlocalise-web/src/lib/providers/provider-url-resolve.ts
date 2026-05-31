@@ -1,5 +1,6 @@
-import { normalizeHostname } from "@/lib/security/ssrf-guard";
-import { assertResolvablePublicHost } from "@/lib/security/ssrf-guard-dns";
+import { isErr } from "@/lib/primitives/result/results";
+import { formatSsrfGuardError, normalizeHostname } from "@/lib/security/ssrf-guard";
+import { resolveResolvablePublicHost } from "@/lib/security/ssrf-guard-dns";
 
 import { isSafeProviderUrl } from "./provider-url-safety";
 
@@ -14,5 +15,8 @@ export async function assertProviderUrlResolvable(url: string): Promise<void> {
     return;
   }
 
-  await assertResolvablePublicHost(hostname);
+  const hostResult = await resolveResolvablePublicHost(hostname);
+  if (isErr(hostResult)) {
+    throw new Error(formatSsrfGuardError(hostResult.error));
+  }
 }

@@ -7,6 +7,7 @@ import type { ProviderWebhookSubscription } from "@/lib/database/types";
 import {
   decryptProviderCredential,
   maskProviderCredentialSuffix,
+  unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 import { providerSupportsTmsAction } from "@/lib/providers/tms-capabilities";
 
@@ -156,13 +157,15 @@ async function loadCredentialContext(input: {
 
   return {
     credential,
-    secretMaterial: decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    }),
+    secretMaterial: unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credential.encryptionAlgorithm,
+        keyVersion: credential.keyVersion,
+        ciphertext: credential.ciphertext,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }),
+    ),
   };
 }
 
@@ -564,13 +567,15 @@ export async function auditProviderWebhookSubscriptions(input: {
       continue;
     }
 
-    const secretMaterial = decryptProviderCredential({
-      algorithm: credentialRow.encryptionAlgorithm,
-      keyVersion: credentialRow.keyVersion,
-      ciphertext: credentialRow.ciphertext,
-      iv: credentialRow.iv,
-      authTag: credentialRow.authTag,
-    });
+    const secretMaterial = unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credentialRow.encryptionAlgorithm,
+        keyVersion: credentialRow.keyVersion,
+        ciphertext: credentialRow.ciphertext,
+        iv: credentialRow.iv,
+        authTag: credentialRow.authTag,
+      }),
+    );
     const webhookSecret = decryptWebhookSecret(subscription) ?? "";
 
     let remoteWebhooks: Awaited<ReturnType<typeof adapter.listRemoteSubscriptions>> = [];

@@ -1,7 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 
 import {
   completeAgentRun,
@@ -366,13 +369,15 @@ export async function executeProviderAgentComment(input: {
   }));
 
   try {
-    const secretMaterial = decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    });
+    const secretMaterial = unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credential.encryptionAlgorithm,
+        keyVersion: credential.keyVersion,
+        ciphertext: credential.ciphertext,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }),
+    );
 
     const pushResult = await pushComments({
       organizationId: input.organizationId,
