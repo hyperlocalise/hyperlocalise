@@ -43,7 +43,12 @@ export const githubRepoAutomationWorkflowsSchema = z.object({
       projectId: z.string().trim().min(1).optional(),
     })
     .default({ enabled: false }),
-  pullTranslations: z.object({ enabled: z.boolean().default(false) }).default({ enabled: false }),
+  pullTranslations: z
+    .object({
+      enabled: z.boolean().default(false),
+      projectId: z.string().trim().min(1).optional(),
+    })
+    .default({ enabled: false }),
   validation: githubRepoAutomationValidationWorkflowSchema,
 });
 
@@ -62,7 +67,7 @@ export type GithubRepositoryAutomationSettings = z.infer<
 export type GithubRepositoryAutomationSettingsPartial = {
   workflows?: {
     pushSource?: { enabled?: boolean; projectId?: string };
-    pullTranslations?: { enabled?: boolean };
+    pullTranslations?: { enabled?: boolean; projectId?: string };
     validation?: { enabled?: boolean; blockOnFailure?: boolean };
   };
   trigger?: z.infer<typeof githubRepoAutomationTriggerSchema> | null;
@@ -80,7 +85,12 @@ const githubRepositoryAutomationSettingsPartialSchema = z.object({
           projectId: z.string().trim().min(1).optional(),
         })
         .optional(),
-      pullTranslations: z.object({ enabled: z.boolean().optional() }).optional(),
+      pullTranslations: z
+        .object({
+          enabled: z.boolean().optional(),
+          projectId: z.string().trim().min(1).optional(),
+        })
+        .optional(),
       validation: z
         .object({
           enabled: z.boolean().optional(),
@@ -127,6 +137,9 @@ export function mergeGithubRepositoryAutomationSettings(
       pullTranslations: {
         enabled:
           override.workflows?.pullTranslations?.enabled ?? base.workflows.pullTranslations.enabled,
+        projectId:
+          override.workflows?.pullTranslations?.projectId ??
+          base.workflows.pullTranslations.projectId,
       },
       validation: {
         enabled: override.workflows?.validation?.enabled ?? base.workflows.validation.enabled,

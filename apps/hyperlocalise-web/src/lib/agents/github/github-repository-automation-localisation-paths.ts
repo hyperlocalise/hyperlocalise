@@ -111,7 +111,7 @@ function globPatternToRegExp(pattern: string): RegExp {
   return new RegExp(regexSource);
 }
 
-function pathMatchesPattern(path: string, pattern: string): boolean {
+export function pathMatchesPattern(path: string, pattern: string): boolean {
   const normalizedPath = path.replaceAll("\\", "/");
   const normalizedPattern = pattern.replaceAll("\\", "/");
   return globPatternToRegExp(normalizedPattern).test(normalizedPath);

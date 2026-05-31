@@ -12,6 +12,7 @@ import {
 } from "@/lib/agents/github/github-repository-automation-commit-range";
 import { isErr } from "@/lib/primitives/result/results";
 
+import { runGithubRepositoryAutomationPullTranslations } from "@/lib/agents/github/github-repository-automation-pull-translations";
 import { runGithubRepositoryAutomationPushSource } from "@/lib/agents/github/github-repository-automation-push-source";
 import { runGithubRepositoryAutomationValidation } from "@/lib/agents/github/github-repository-automation-validation";
 
@@ -62,17 +63,9 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
     return { skipped: true, reason: "no_runnable_workflows" };
   }
 
-  if (!job.workflows.pushSource && !job.workflows.validation) {
-    await updateGithubRepositoryAutomationJobStatus({
-      jobId: job.id,
-      status: "skipped",
-      skipReason: "pull_translations_not_implemented",
-    });
-    return { skipped: true, reason: "pull_translations_not_implemented" };
-  }
-
   const results: Record<string, unknown> = {};
-  const needsCommitRange = job.workflows.pushSource || job.workflows.validation;
+  const needsCommitRange =
+    job.workflows.pushSource || job.workflows.validation || job.workflows.pullTranslations;
   let commitRange: GithubRepositoryAutomationCommitRange | undefined;
 
   if (needsCommitRange) {
@@ -120,6 +113,22 @@ async function runAutomationJobStep(input: { jobId: string; workflowRunId: strin
       workflowRunId: input.workflowRunId,
       commitRange,
     });
+  }
+
+  if (job.workflows.pullTranslations) {
+    const pullTranslationsResult = await runGithubRepositoryAutomationPullTranslations({
+      job,
+      commitRange,
+    });
+
+    if (isErr(pullTranslationsResult)) {
+      results.pullTranslations = pullTranslationsResult.error;
+      if (pullTranslationsResult.error.code === "infrastructure") {
+        throw new Error(pullTranslationsResult.error.message);
+      }
+    } else {
+      results.pullTranslations = pullTranslationsResult.value;
+    }
   }
 
   return results;
