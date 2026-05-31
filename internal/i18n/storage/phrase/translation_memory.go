@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/locales"
 )
 
@@ -113,7 +114,7 @@ func (c *HTTPClient) WriteTranslationMemoryCSV(ctx context.Context, in Translati
 		return TranslationMemoryDownloadResult{}, fmt.Errorf("write phrase translation memory csv header: %w", err)
 	}
 	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
+		if err := writer.Write(csvsafe.EscapeRow(row)); err != nil {
 			return TranslationMemoryDownloadResult{}, fmt.Errorf("write phrase translation memory csv row: %w", err)
 		}
 	}

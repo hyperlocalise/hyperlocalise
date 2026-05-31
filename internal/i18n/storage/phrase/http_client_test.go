@@ -239,6 +239,64 @@ func TestHTTPClientDownloadSourceFileAPIError(t *testing.T) {
 	}
 }
 
+func TestWriteGlossaryCSVEscapesFormulaPrefixes(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/accounts/acc-1/glossaries/glo-1/terms", func(w http.ResponseWriter, _ *http.Request) {
+		writePhraseJSON(t, w, []any{
+			map[string]any{
+				"id": "term-1", "term": "=cmd", "description": "+note",
+				"translations": []any{},
+			},
+		})
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := newHTTPClient(srv.URL, srv.Client())
+	out := bytes.NewBuffer(nil)
+	if _, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadInput{
+		AccountID: "acc-1", GlossaryID: "glo-1", APIToken: "token",
+	}, out); err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+	if !strings.Contains(out.String(), "'=cmd") || !strings.Contains(out.String(), "'+note") {
+		t.Fatalf("expected formula-prefixed cells to be escaped, got: %s", out.String())
+	}
+}
+
+func TestWriteTranslationMemoryCSVEscapesFormulaPrefixes(t *testing.T) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v2/transMemories/tm-1/export", func(w http.ResponseWriter, _ *http.Request) {
+		writePhraseJSON(t, w, map[string]any{"asyncRequest": map[string]any{"id": "async-1"}})
+	})
+	mux.HandleFunc("/v1/transMemories/downloadExport/async-1", func(w http.ResponseWriter, _ *http.Request) {
+		tmx := `<?xml version="1.0" encoding="UTF-8"?>
+<tmx version="1.4">
+  <body>
+    <tu tuid="1">
+      <tuv lang="en"><seg>Checkout</seg></tuv>
+      <tuv lang="fr"><seg>=cmd</seg></tuv>
+    </tu>
+  </body>
+</tmx>`
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(tmx))
+	})
+	srv := httptest.NewServer(mux)
+	defer srv.Close()
+
+	client := newHTTPClient(srv.URL, srv.Client())
+	out := bytes.NewBuffer(nil)
+	if _, err := client.WriteTranslationMemoryCSV(context.Background(), TranslationMemoryDownloadInput{
+		TranslationMemoryID: "tm-1", APIToken: "token", SourceLanguage: "en", TargetLanguages: []string{"fr"},
+	}, out); err != nil {
+		t.Fatalf("write translation memory csv: %v", err)
+	}
+	if !strings.Contains(out.String(), "'=cmd") {
+		t.Fatalf("expected formula-prefixed cells to be escaped, got: %s", out.String())
+	}
+}
+
 func TestHTTPClientDownloadTranslationFile(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/projects/p/locales/fr/download", func(w http.ResponseWriter, r *http.Request) {
@@ -305,6 +363,14 @@ func TestRetryDelayUsesExponentialBackoff(t *testing.T) {
 	d2 := retryDelay(1, nil)
 	if d2 <= d1 || d1 < 200*time.Millisecond {
 		t.Fatalf("unexpected delays: %s %s", d1, d2)
+	}
+}
+
+func writePhraseJSON(t *testing.T, w http.ResponseWriter, value any) {
+	t.Helper()
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(value); err != nil {
+		t.Fatalf("write json: %v", err)
 	}
 }
 

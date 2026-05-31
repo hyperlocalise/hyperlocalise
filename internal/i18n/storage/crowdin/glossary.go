@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/crowdin/crowdin-api-client-go/crowdin/model"
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 )
 
 const glossaryCSVPageLimit = 500
@@ -85,7 +86,7 @@ func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, req GlossaryDownloadR
 		return GlossaryDownloadResult{}, fmt.Errorf("write glossary csv header: %w", err)
 	}
 	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
+		if err := writer.Write(csvsafe.EscapeRow(row)); err != nil {
 			return GlossaryDownloadResult{}, fmt.Errorf("write glossary csv row: %w", err)
 		}
 	}

@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/crowdin/crowdin-api-client-go/crowdin/model"
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 )
 
 const translationMemoryCSVPageLimit = 500
@@ -81,7 +82,7 @@ func (c *HTTPClient) WriteTranslationMemoryCSV(ctx context.Context, req Translat
 		return TranslationMemoryDownloadResult{}, fmt.Errorf("write translation memory csv header: %w", err)
 	}
 	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
+		if err := writer.Write(csvsafe.EscapeRow(row)); err != nil {
 			return TranslationMemoryDownloadResult{}, fmt.Errorf("write translation memory csv row: %w", err)
 		}
 	}

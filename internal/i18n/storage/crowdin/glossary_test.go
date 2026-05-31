@@ -122,6 +122,41 @@ func TestWriteGlossaryCSVWritesStableRows(t *testing.T) {
 	}
 }
 
+func TestWriteGlossaryCSVEscapesFormulaPrefixes(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/glossaries/77", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{"data": map[string]any{"id": 77, "languageId": "en"}})
+	})
+	mux.HandleFunc("/api/v2/glossaries/77/concepts", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{
+			"data": []any{
+				map[string]any{"data": map[string]any{"id": 9, "subject": "=subject"}},
+			},
+			"pagination": map[string]any{"offset": 0, "limit": 500},
+		})
+	})
+	mux.HandleFunc("/api/v2/glossaries/77/terms", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{
+			"data": []any{
+				map[string]any{"data": map[string]any{"id": 3, "languageId": "en", "text": "Checkout", "conceptId": 9}},
+				map[string]any{"data": map[string]any{"id": 4, "languageId": "fr", "text": "=cmd", "conceptId": 9}},
+			},
+			"pagination": map[string]any{"offset": 0, "limit": 500},
+		})
+	})
+
+	var out bytes.Buffer
+	if _, err := client.WriteGlossaryCSV(context.Background(), GlossaryDownloadRequest{GlossaryID: 77}, &out); err != nil {
+		t.Fatalf("write glossary csv: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "'=cmd") || !strings.Contains(out.String(), "'=subject") {
+		t.Fatalf("expected formula-prefixed cells to be escaped, got: %s", out.String())
+	}
+}
+
 func TestWriteGlossaryCSVPaginatesTerms(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()
