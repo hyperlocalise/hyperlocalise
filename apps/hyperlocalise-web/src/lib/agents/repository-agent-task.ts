@@ -36,7 +36,7 @@ export const repositoryAgentActorSchema = z.object({
   /** Human-readable display name from the source. */
   displayName: z.string().optional(),
   /** Organization membership role when the actor is a known member. */
-  role: z.enum(["owner", "admin", "member"]).optional(),
+  role: z.enum(["admin", "member"]).optional(),
 });
 
 export type RepositoryAgentActor = z.infer<typeof repositoryAgentActorSchema>;

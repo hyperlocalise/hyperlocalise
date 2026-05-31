@@ -140,7 +140,7 @@ export function createAuthTestFixture() {
   }
 
   function createWorkosIdentity(): WorkosAuthIdentity {
-    return createWorkosIdentityWithRole("owner");
+    return createWorkosIdentityWithRole("admin");
   }
 
   function createWorkosIdentityForOrganization(

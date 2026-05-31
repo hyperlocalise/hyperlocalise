@@ -85,7 +85,7 @@ describe("reconcileWorkosMembershipsForUser", () => {
           id: primary.membership.workosMembershipId,
           organizationId: primary.organization.workosOrganizationId,
           status: "active",
-          role: { slug: "owner" },
+          role: { slug: "admin" },
         },
       ],
     });
@@ -185,7 +185,7 @@ describe("reconcileWorkosMembershipsForUser", () => {
           id: identity.membership.workosMembershipId,
           organizationId: identity.organization.workosOrganizationId,
           status: "active",
-          role: { slug: "owner" },
+          role: { slug: "admin" },
         },
       ],
     });

@@ -128,7 +128,7 @@ describe("memberRoutes", () => {
     expect(body.members.length).toBeGreaterThanOrEqual(2);
     expect(body.members).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({ email: ownerIdentity.user.email, role: "owner" }),
+        expect.objectContaining({ email: ownerIdentity.user.email, role: "admin" }),
         expect.objectContaining({ email: "teammate@example.com", role: "member" }),
       ]),
     );
@@ -443,19 +443,6 @@ describe("memberRoutes", () => {
     expect(remainingMcpSessions).toHaveLength(1);
   });
 
-  it("prevents admin from assigning owner role", async () => {
-    const ownerIdentity = createWorkosIdentity();
-    const adminIdentity = createWorkosIdentityForOrganization(ownerIdentity.organization, "admin");
-
-    const response = await inviteMemberViaApi(
-      ownerIdentity,
-      { email: "blocked-owner@example.com", role: "owner" },
-      await authHeadersFor(adminIdentity),
-    );
-
-    expect(response.status).toBe(403);
-  });
-
   it("returns member_invite_revoked_not_delivered when replace revokes but send fails", async () => {
     listInvitationsMock.mockResolvedValue({
       data: [{ id: "stale_invitation", state: "pending" }],
@@ -728,7 +715,7 @@ describe("memberRoutes", () => {
     expect(revokeInvitationMock).toHaveBeenCalled();
   });
 
-  it("returns 409 when removing the last owner", async () => {
+  it("returns 409 when removing the last admin", async () => {
     const ownerIdentity = createWorkosIdentity();
     const headers = await authHeadersFor(ownerIdentity);
 

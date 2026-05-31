@@ -44,7 +44,7 @@ describe("organization capability policy", () => {
     );
   });
 
-  describe.each(["owner", "admin"] as const)("%s role", (role) => {
+  describe.each(["admin"] as const)("%s role", (role) => {
     it("grants every defined capability", () => {
       for (const capability of ORGANIZATION_CAPABILITIES) {
         expect(hasCapability(role, capability)).toBe(true);

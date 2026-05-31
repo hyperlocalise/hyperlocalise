@@ -74,9 +74,9 @@ async function createCallbackState(options?: {
   consumed?: boolean;
   dbExpired?: boolean;
   nullSlug?: boolean;
-  role?: "owner" | "admin" | "member";
+  role?: "admin" | "member";
 }) {
-  const identity = fixture.createWorkosIdentityWithRole(options?.role ?? "owner");
+  const identity = fixture.createWorkosIdentityWithRole(options?.role ?? "admin");
   if (options?.nullSlug) {
     delete identity.organization.slug;
   }
@@ -258,7 +258,7 @@ describe("GitHubCallbackPage", () => {
   });
 
   it("allows another org admin to complete an installation started by someone else", async () => {
-    const { auth, state, slug } = await createCallbackState({ role: "owner" });
+    const { auth, state, slug } = await createCallbackState({ role: "admin" });
     const organization = globalThis.__testApiAuthContext?.organization;
     const otherAdminIdentity = fixture.createWorkosIdentityForOrganization(
       {

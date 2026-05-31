@@ -14,6 +14,7 @@ import {
 import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { membershipRoleToWorkosRoleSlug } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
 import {
@@ -23,7 +24,7 @@ import {
 } from "./member.schema";
 import {
   canActorManageTarget,
-  cannotManageOwnerResponse,
+  cannotManageMemberResponse,
   forbiddenResponse,
   getOrganizationMember,
   invalidMemberPayloadResponse,
@@ -33,8 +34,8 @@ import {
   isPendingOrganizationMembership,
   shouldCleanupPlaceholderUserOnMemberRemoval,
   isMemberManageAllowed,
-  lastOwnerProtectedResponse,
-  lockOrganizationOwnersAndCount,
+  lastAdminProtectedResponse,
+  lockOrganizationAdminsAndCount,
   memberAlreadyExistsResponse,
   memberNotFoundResponse,
   toMemberSummary,
@@ -295,7 +296,7 @@ async function sendWorkosInvitation(
     email: input.email.trim().toLowerCase(),
     organizationId: input.workosOrganizationId,
     inviterUserId: input.inviterUserId,
-    roleSlug: input.roleSlug,
+    roleSlug: membershipRoleToWorkosRoleSlug(input.roleSlug),
   });
 }
 
@@ -413,11 +414,6 @@ export function createMemberRoutes() {
       }
 
       const payload = c.req.valid("json");
-      const actorRole = c.var.auth.membership.role;
-
-      if (payload.role === "owner" && !canActorManageTarget(actorRole, "member", "owner")) {
-        return cannotManageOwnerResponse(c);
-      }
 
       const organizationId = c.var.auth.organization.localOrganizationId;
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
@@ -513,17 +509,17 @@ export function createMemberRoutes() {
       }
 
       if (!canActorManageTarget(actorRole, member.role, payload.role)) {
-        return cannotManageOwnerResponse(c);
+        return cannotManageMemberResponse(c);
       }
 
       const workos = getWorkosServerClient();
       const previousRole = member.role;
 
       const updateResult = await db.transaction(async (tx) => {
-        if (member.role === "owner" && payload.role !== "owner") {
-          const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
-          if (ownerCount <= 1) {
-            return { error: "last_owner_protected" as const };
+        if (member.role === "admin" && payload.role !== "admin") {
+          const adminCount = await lockOrganizationAdminsAndCount(tx, organizationId);
+          if (adminCount <= 1) {
+            return { error: "last_admin_protected" as const };
           }
         }
 
@@ -540,7 +536,7 @@ export function createMemberRoutes() {
       });
 
       if ("error" in updateResult) {
-        return lastOwnerProtectedResponse(c);
+        return lastAdminProtectedResponse(c);
       }
 
       const { updated } = updateResult;
@@ -555,7 +551,7 @@ export function createMemberRoutes() {
       ) {
         try {
           await workos!.userManagement.updateOrganizationMembership(member.workosMembershipId!, {
-            roleSlug: payload.role,
+            roleSlug: membershipRoleToWorkosRoleSlug(payload.role),
           });
         } catch {
           await db
@@ -655,25 +651,25 @@ export function createMemberRoutes() {
       }
 
       if (!canActorManageTarget(actorRole, member.role)) {
-        return cannotManageOwnerResponse(c);
+        return cannotManageMemberResponse(c);
       }
 
       const workosOrganizationId = c.var.auth.organization.workosOrganizationId;
       const workos = getWorkosServerClient();
       const isPendingInvite = isPendingOrganizationMembership(member.workosMembershipId);
 
-      if (member.role === "owner") {
-        const ownerGuardResult = await db.transaction(async (tx) => {
-          const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
-          if (ownerCount <= 1) {
-            return { error: "last_owner_protected" as const };
+      if (member.role === "admin") {
+        const adminGuardResult = await db.transaction(async (tx) => {
+          const adminCount = await lockOrganizationAdminsAndCount(tx, organizationId);
+          if (adminCount <= 1) {
+            return { error: "last_admin_protected" as const };
           }
 
           return { ok: true as const };
         });
 
-        if ("error" in ownerGuardResult) {
-          return lastOwnerProtectedResponse(c);
+        if ("error" in adminGuardResult) {
+          return lastAdminProtectedResponse(c);
         }
       }
 
@@ -707,10 +703,10 @@ export function createMemberRoutes() {
       }
 
       const deletionResult = await db.transaction(async (tx) => {
-        if (member.role === "owner") {
-          const ownerCount = await lockOrganizationOwnersAndCount(tx, organizationId);
-          if (ownerCount <= 1) {
-            return { error: "last_owner_protected" as const };
+        if (member.role === "admin") {
+          const adminCount = await lockOrganizationAdminsAndCount(tx, organizationId);
+          if (adminCount <= 1) {
+            return { error: "last_admin_protected" as const };
           }
         }
 
@@ -724,7 +720,7 @@ export function createMemberRoutes() {
       });
 
       if ("error" in deletionResult) {
-        return lastOwnerProtectedResponse(c);
+        return lastAdminProtectedResponse(c);
       }
 
       if (shouldCleanupPlaceholderUserOnMemberRemoval(member.workosUserId)) {

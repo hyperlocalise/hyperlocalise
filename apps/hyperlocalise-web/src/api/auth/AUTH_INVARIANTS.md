@@ -56,10 +56,8 @@ full WorkOS identity model.
     and placeholder users remain non-authoritative until WorkOS confirms
     membership; admin PATCH/POST must not set a real `workos_membership_id`
     without a corresponding WorkOS membership.
-14. **Admin cannot elevate to or manage owners.** Capability and hierarchy
-    checks in `member.shared.ts` enforce owner protection.
-15. **At least one owner required.** Owner demotion/removal is blocked when
-    the locked owner count would drop below one.
+14. **At least one admin required.** Admin demotion/removal is blocked when
+    the locked admin count would drop below one.
 
 ## Capability layer (`policy.ts`)
 
@@ -68,7 +66,7 @@ full WorkOS identity model.
     capability checks.
 17. **Member role is read-only for admin capabilities.** Members receive
     baseline read capabilities only; `members:invite` and other admin writes
-    require owner/admin roles.
+    require admin roles.
 
 ## Future extension points
 

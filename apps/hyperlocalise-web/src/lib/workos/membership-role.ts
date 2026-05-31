@@ -1,8 +1,8 @@
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
 export function membershipRoleToWorkosRoleSlug(role: OrganizationMembershipRole) {
-  if (role === "owner" || role === "admin") {
-    return role;
+  if (role === "admin") {
+    return "admin";
   }
 
   return "member";
@@ -11,8 +11,8 @@ export function membershipRoleToWorkosRoleSlug(role: OrganizationMembershipRole)
 export function workosRoleSlugToMembershipRole(
   roleSlug: string | undefined,
 ): OrganizationMembershipRole {
-  if (roleSlug === "owner" || roleSlug === "admin") {
-    return roleSlug;
+  if (roleSlug === "admin") {
+    return "admin";
   }
 
   return "member";

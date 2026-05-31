@@ -557,7 +557,7 @@ describe("glossaryRoutes", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId,
       userId,
-      role: "owner",
+      role: "admin",
       providerKind: "phrase",
       displayName: "Phrase",
       secretMaterial: "phrase-token",
@@ -615,7 +615,7 @@ describe("glossaryRoutes", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "crowdin-token",
@@ -672,7 +672,7 @@ describe("glossaryRoutes", () => {
     const credential = await upsertOrganizationExternalTmsProviderCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "owner",
+      role: "admin",
       providerKind: "crowdin",
       displayName: "Crowdin",
       secretMaterial: "crowdin-token",

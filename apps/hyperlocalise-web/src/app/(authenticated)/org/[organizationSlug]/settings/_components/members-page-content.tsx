@@ -40,7 +40,7 @@ type Member = {
   firstName: string | null;
   lastName: string | null;
   displayName: string;
-  role: "owner" | "admin" | "member";
+  role: "admin" | "member";
   isCurrentUser: boolean;
   createdAt: string;
   status?: "active" | "invited";
@@ -49,17 +49,16 @@ type Member = {
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
 
 const roleLabels: Record<Member["role"], string> = {
-  owner: "Owner",
   admin: "Admin",
   member: "Member",
 };
 
 function assignableRolesForActor(actorRole: Member["role"]): Member["role"][] {
-  return actorRole === "owner" ? ["owner", "admin", "member"] : ["admin", "member"];
+  return actorRole === "admin" ? ["admin", "member"] : ["member"];
 }
 
-function canManageTargetMember(targetRole: Member["role"], assignableRoles: Member["role"][]) {
-  return assignableRoles.includes("owner") || targetRole !== "owner";
+function canManageTargetMember(_targetRole: Member["role"], assignableRoles: Member["role"][]) {
+  return assignableRoles.length > 0;
 }
 
 function memberInitials(displayName: string) {
