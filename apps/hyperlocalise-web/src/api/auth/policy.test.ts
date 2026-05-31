@@ -230,7 +230,6 @@ describe("organization capability policy", () => {
       expect(resolveCapabilitiesFromWorkosRoleSlug("owner")).toEqual([]);
       expect(resolveCapabilitiesFromWorkosRoleSlug(undefined)).toEqual([]);
     });
-
   });
 
   describe("unrecognized local roles", () => {
