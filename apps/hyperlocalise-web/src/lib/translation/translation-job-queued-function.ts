@@ -3,7 +3,10 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import {
   formatUsageControlError,
   markUsageEventSucceededByOperationKey,
@@ -295,13 +298,15 @@ async function loadOrganizationOpenAITranslationGenerator(projectId: string) {
     } as const;
   }
 
-  const apiKey = decryptProviderCredential({
-    algorithm: project.encryptionAlgorithm,
-    keyVersion: project.keyVersion,
-    ciphertext: project.ciphertext,
-    iv: project.iv,
-    authTag: project.authTag,
-  });
+  const apiKey = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: project.encryptionAlgorithm,
+      keyVersion: project.keyVersion,
+      ciphertext: project.ciphertext,
+      iv: project.iv,
+      authTag: project.authTag,
+    }),
+  );
 
   return {
     ok: true,

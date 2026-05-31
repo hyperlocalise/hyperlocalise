@@ -7,6 +7,7 @@ import {
   decryptProviderCredential,
   encryptProviderCredential,
   maskProviderCredentialSuffix,
+  unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 import {
   getTmsProviderCapability,
@@ -194,7 +195,7 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
   assertExternalTmsCredentialAdmin(input.role);
 
   const now = new Date();
-  const encrypted = encryptProviderCredential(input.secretMaterial);
+  const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.secretMaterial));
   const baseUrl = await normalizeExternalTmsCredentialBaseUrl({
     providerKind: input.providerKind,
     region: input.region ?? null,
@@ -300,13 +301,15 @@ export async function revealOrganizationExternalTmsProviderCredential(input: {
 
   return {
     summary: credential,
-    secretMaterial: decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    }),
+    secretMaterial: unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credential.encryptionAlgorithm,
+        keyVersion: credential.keyVersion,
+        ciphertext: credential.ciphertext,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }),
+    ),
   };
 }
 

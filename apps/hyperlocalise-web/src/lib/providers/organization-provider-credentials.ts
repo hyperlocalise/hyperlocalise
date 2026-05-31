@@ -13,6 +13,7 @@ import {
   decryptProviderCredential,
   encryptProviderCredential,
   maskProviderCredentialSuffix,
+  unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
 export type OrganizationProviderCredentialSummary = {
@@ -83,7 +84,7 @@ export async function upsertOrganizationProviderCredential(input: {
   });
 
   const now = new Date();
-  const encrypted = encryptProviderCredential(input.apiKey);
+  const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.apiKey));
   const [credential] = await db
     .insert(schema.organizationLlmProviderCredentials)
     .values({
@@ -137,13 +138,15 @@ export async function revealOrganizationProviderCredential(input: {
 
   return {
     summary: summarizeCredential(credential),
-    apiKey: decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    }),
+    apiKey: unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credential.encryptionAlgorithm,
+        keyVersion: credential.keyVersion,
+        ciphertext: credential.ciphertext,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }),
+    ),
   };
 }
 

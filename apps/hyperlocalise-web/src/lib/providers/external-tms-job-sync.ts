@@ -2,7 +2,10 @@ import { and, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { JobKind, ProviderSyncRunStatus } from "@/lib/database/types";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import { upsertExternalJob } from "./organization-external-tms-jobs";
@@ -107,13 +110,15 @@ export async function syncExternalTmsJobTasks(input: {
   const failures: ExternalTmsJobTaskSyncFailure[] = [];
 
   try {
-    const secretMaterial = decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    });
+    const secretMaterial = unwrapProviderCredentialCrypto(
+      decryptProviderCredential({
+        algorithm: credential.encryptionAlgorithm,
+        keyVersion: credential.keyVersion,
+        ciphertext: credential.ciphertext,
+        iv: credential.iv,
+        authTag: credential.authTag,
+      }),
+    );
     const jobTasks = await input.fetchJobTasks({
       organizationId: input.organizationId,
       projectId: project.id,

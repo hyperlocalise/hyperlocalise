@@ -1,6 +1,13 @@
 import dns from "node:dns/promises";
 
-import { isBlockedHost, isPublicHttpUrl, normalizeHostname } from "./ssrf-guard";
+import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
+
+import {
+  isBlockedHost,
+  normalizeHostname,
+  type SsrfGuardError,
+  validatePublicHttpUrl,
+} from "./ssrf-guard";
 
 export type PinnedHttpConnectTarget = {
   requestUrl: string;
@@ -13,35 +20,43 @@ export type PinnedHttpConnectTarget = {
 
 export async function resolvePinnedHttpConnectTarget(
   url: string,
-): Promise<PinnedHttpConnectTarget> {
-  if (!isPublicHttpUrl(url)) {
-    throw new Error("URL is not an allowed public HTTP(S) endpoint.");
+): Promise<Result<PinnedHttpConnectTarget, SsrfGuardError>> {
+  const urlResult = validatePublicHttpUrl(url);
+  if (isErr(urlResult)) {
+    return urlResult;
   }
 
-  const parsed = new URL(url);
+  const parsed = urlResult.value;
   const hostname = normalizeHostname(parsed.hostname);
   const port = parsed.port ? Number(parsed.port) : parsed.protocol === "https:" ? 443 : 80;
   const servername = parsed.protocol === "https:" ? hostname : undefined;
 
   if (looksLikeIpAddress(hostname)) {
     if (isBlockedHost(hostname)) {
-      throw new Error("URL host is not allowed.");
+      return err({ code: "host_not_allowed" });
     }
 
-    return {
+    return ok({
       requestUrl: parsed.toString(),
       connect: { host: hostname, port, servername },
-    };
+    });
   }
 
-  const results = await dns.lookup(hostname, { all: true, verbatim: true });
+  const lookupResult = await fromThrowableAsync(
+    dns.lookup(hostname, { all: true, verbatim: true }),
+  );
+  if (isErr(lookupResult)) {
+    return err({ code: "host_unresolvable" });
+  }
+
+  const results = lookupResult.value;
   if (!results.length) {
-    throw new Error("URL host could not be resolved.");
+    return err({ code: "host_unresolvable" });
   }
 
   for (const result of results) {
     if (isBlockedHost(result.address)) {
-      throw new Error("URL host resolves to a private or restricted address.");
+      return err({ code: "host_resolves_to_restricted_address" });
     }
   }
 
@@ -50,40 +65,53 @@ export async function resolvePinnedHttpConnectTarget(
     results.find((result) => result.family === 6) ??
     results[0];
 
-  return {
+  return ok({
     requestUrl: parsed.toString(),
     connect: {
       host: preferred.address,
       port,
       servername,
     },
-  };
+  });
 }
 
-export async function assertResolvablePublicHost(hostname: string): Promise<void> {
+export async function resolveResolvablePublicHost(
+  hostname: string,
+): Promise<Result<void, SsrfGuardError>> {
   const normalized = normalizeHostname(hostname);
   if (!normalized || isBlockedHost(normalized)) {
-    throw new Error("URL host is not allowed.");
+    return err({ code: "host_not_allowed" });
   }
 
   if (looksLikeIpAddress(normalized)) {
-    return;
+    return ok(undefined);
   }
 
-  const results = await dns.lookup(normalized, { all: true, verbatim: true });
+  const lookupResult = await fromThrowableAsync(
+    dns.lookup(normalized, { all: true, verbatim: true }),
+  );
+  if (isErr(lookupResult)) {
+    return err({ code: "host_unresolvable" });
+  }
+
+  const results = lookupResult.value;
   if (!results.length) {
-    throw new Error("URL host could not be resolved.");
+    return err({ code: "host_unresolvable" });
   }
 
   for (const result of results) {
     if (isBlockedHost(result.address)) {
-      throw new Error("URL host resolves to a private or restricted address.");
+      return err({ code: "host_resolves_to_restricted_address" });
     }
   }
+
+  return ok(undefined);
 }
 
-export async function assertPublicHttpUrlResolvable(url: string): Promise<void> {
-  await resolvePinnedHttpConnectTarget(url);
+export async function resolvePublicHttpUrl(
+  url: string,
+): Promise<Result<PinnedHttpConnectTarget, SsrfGuardError>> {
+  return resolvePinnedHttpConnectTarget(url);
 }
 
 function looksLikeIpAddress(hostname: string): boolean {

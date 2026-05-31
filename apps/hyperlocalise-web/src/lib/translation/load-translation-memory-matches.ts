@@ -2,7 +2,10 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { memorySupportsLiveSearch } from "@/lib/providers/lokalise/lokalise-tm-matcher";
 import { getProviderTranslationMemoryMatcher } from "@/lib/providers/provider-translation-memory-matchers";
@@ -125,13 +128,15 @@ async function searchLiveProviderMatches(input: {
     return [];
   }
 
-  const secretMaterial = decryptProviderCredential({
-    algorithm: credential.encryptionAlgorithm,
-    keyVersion: credential.keyVersion,
-    ciphertext: credential.ciphertext,
-    iv: credential.iv,
-    authTag: credential.authTag,
-  });
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+    }),
+  );
 
   const liveMatches: NormalizedTranslationMemoryMatch[] = [];
 

@@ -1,7 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import { decryptProviderCredential } from "@/lib/security/provider-credential-crypto";
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 
 import type { ExternalTmsTaskContent } from "./external-tms-content-sync";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
@@ -62,13 +65,15 @@ export async function pullProviderReviewForJob(input: {
     throw new Error("provider_credential_not_found");
   }
 
-  const secretMaterial = decryptProviderCredential({
-    algorithm: credential.encryptionAlgorithm,
-    keyVersion: credential.keyVersion,
-    ciphertext: credential.ciphertext,
-    iv: credential.iv,
-    authTag: credential.authTag,
-  });
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+    }),
+  );
 
   const incoming = await pullReview({
     organizationId: input.organizationId,
