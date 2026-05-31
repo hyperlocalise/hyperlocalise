@@ -1,0 +1,291 @@
+import "dotenv/config";
+
+import { randomUUID } from "node:crypto";
+
+import { and, eq, inArray } from "drizzle-orm";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+
+import { db, schema } from "@/lib/database";
+
+import {
+  listExternalTmsFilesForProject,
+  upsertExternalTmsFile,
+} from "./organization-external-tms-files";
+
+describe("organizationExternalTmsFiles", () => {
+  const createdRecordsByTest = new Map<
+    string,
+    { organizationIds: Set<string>; projectIds: Set<string> }
+  >();
+
+  function currentTestKey() {
+    return expect.getState().currentTestName ?? "__organization_external_tms_files_default__";
+  }
+
+  function currentTestRecords() {
+    const testKey = currentTestKey();
+    const existing = createdRecordsByTest.get(testKey);
+
+    if (existing) {
+      return existing;
+    }
+
+    const records = {
+      organizationIds: new Set<string>(),
+      projectIds: new Set<string>(),
+    };
+    createdRecordsByTest.set(testKey, records);
+
+    return records;
+  }
+
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+  });
+
+  afterEach(async () => {
+    const testKey = currentTestKey();
+    const records = createdRecordsByTest.get(testKey);
+
+    if (!records) {
+      return;
+    }
+
+    const organizationIds = [...records.organizationIds];
+    const projectIds = [...records.projectIds];
+
+    if (organizationIds.length > 0) {
+      await db
+        .delete(schema.externalTmsFiles)
+        .where(inArray(schema.externalTmsFiles.organizationId, organizationIds));
+    }
+
+    if (projectIds.length > 0) {
+      await db.delete(schema.projects).where(inArray(schema.projects.id, projectIds));
+    }
+
+    if (organizationIds.length > 0) {
+      await db
+        .delete(schema.organizations)
+        .where(inArray(schema.organizations.id, organizationIds));
+    }
+
+    createdRecordsByTest.delete(testKey);
+  });
+
+  async function createProject() {
+    const organizationId = randomUUID();
+    const projectId = `project_${randomUUID()}`;
+    const records = currentTestRecords();
+
+    records.organizationIds.add(organizationId);
+    records.projectIds.add(projectId);
+
+    await db.insert(schema.organizations).values({
+      id: organizationId,
+      workosOrganizationId: `org_${randomUUID()}`,
+      slug: `org-${randomUUID().slice(0, 8)}`,
+      name: "Acme",
+    });
+    await db.insert(schema.projects).values({
+      id: projectId,
+      organizationId,
+      name: "Marketing Website",
+      source: "external_tms",
+      externalProviderKind: "phrase",
+      externalProjectId: "phrase-project-1",
+    });
+
+    return { organizationId, projectId };
+  }
+
+  it("upserts provider file records without duplication", async () => {
+    const { organizationId, projectId } = await createProject();
+
+    const created = await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath: "./locales//en.json",
+      displayName: "en.json",
+      format: "json",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      sourceHash: "sha256:one",
+      providerPayload: { id: "file-1", revision: 1 },
+    });
+
+    expect(created.syncState).toBe("pending");
+
+    const updated = await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath: "locales/en.json",
+      displayName: "English source",
+      format: "json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr", "de"],
+      sourceHash: "sha256:two",
+      revision: "2",
+      syncState: "stale",
+      localeReadiness: { fr: "ready", de: "missing" },
+      providerPayload: { id: "file-1", revision: 2 },
+    });
+
+    expect(updated.id).toBe(created.id);
+    expect(updated.displayName).toBe("English source");
+    expect(updated.sourcePath).toBe("locales/en.json");
+    expect(updated.targetLocales).toEqual(["fr", "de"]);
+    expect(updated.sourceHash).toBe("sha256:two");
+    expect(updated.syncState).toBe("stale");
+
+    const reset = await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath: "locales/en.json",
+      displayName: "English source",
+      format: "json",
+      sourceLocale: "en-US",
+      targetLocales: ["fr", "de"],
+      sourceHash: "sha256:three",
+      revision: "3",
+      providerPayload: { id: "file-1", revision: 3 },
+    });
+
+    expect(reset.id).toBe(created.id);
+    expect(reset.syncState).toBe("pending");
+
+    const rows = await db
+      .select()
+      .from(schema.externalTmsFiles)
+      .where(
+        and(
+          eq(schema.externalTmsFiles.organizationId, organizationId),
+          eq(schema.externalTmsFiles.providerKind, "phrase"),
+          eq(schema.externalTmsFiles.externalProjectId, "phrase-project-1"),
+          eq(schema.externalTmsFiles.resourceType, "file"),
+          eq(schema.externalTmsFiles.externalResourceId, "file-1"),
+        ),
+      );
+
+    expect(rows).toHaveLength(1);
+  });
+
+  it("stores key records alongside file records for unified project browsing", async () => {
+    const { organizationId, projectId } = await createProject();
+
+    await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      resourceType: "file",
+      externalResourceId: "file-1",
+      sourcePath: "docs/intro.md",
+      targetLocales: ["ja"],
+    });
+    await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      resourceType: "key",
+      externalResourceId: "key-1",
+      sourcePath: "keys/nav.docs",
+      displayName: "nav.docs",
+      targetLocales: ["ja"],
+    });
+
+    const files = await listExternalTmsFilesForProject({ organizationId, projectId });
+    expect(files.map((file) => [file.resourceType, file.sourcePath])).toEqual([
+      ["file", "docs/intro.md"],
+      ["key", "keys/nav.docs"],
+    ]);
+  });
+
+  it("limits provider file listings", async () => {
+    const { organizationId, projectId } = await createProject();
+
+    for (const sourcePath of ["keys/one", "keys/two", "keys/three"]) {
+      await upsertExternalTmsFile({
+        organizationId,
+        projectId,
+        providerKind: "crowdin",
+        externalProjectId: "crowdin-project-1",
+        resourceType: "key",
+        externalResourceId: sourcePath,
+        sourcePath,
+      });
+    }
+
+    const files = await listExternalTmsFilesForProject({ organizationId, projectId, limit: 2 });
+
+    expect(files.map((file) => file.sourcePath)).toEqual(["keys/one", "keys/three"]);
+  });
+
+  it("applies provider filters before limiting rows", async () => {
+    const { organizationId, projectId } = await createProject();
+
+    await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "key",
+      externalResourceId: "early-key",
+      sourcePath: "keys/aaa",
+      sourceLocale: "en",
+      targetLocales: ["de"],
+      syncState: "synced",
+    });
+    await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      resourceType: "key",
+      externalResourceId: "middle-key",
+      sourcePath: "keys/bbb",
+      sourceLocale: "en",
+      targetLocales: ["es"],
+      syncState: "synced",
+    });
+    await upsertExternalTmsFile({
+      organizationId,
+      projectId,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project-1",
+      resourceType: "key",
+      externalResourceId: "needle-key",
+      sourcePath: "keys/zzz",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      syncState: "changed",
+    });
+
+    const files = await listExternalTmsFilesForProject({
+      organizationId,
+      projectId,
+      limit: 1,
+      filters: {
+        providerKind: "crowdin",
+        locale: "fr",
+        syncState: "changed",
+        search: "needle",
+      },
+    });
+
+    expect(files.map((file) => file.externalResourceId)).toEqual(["needle-key"]);
+  });
+});
