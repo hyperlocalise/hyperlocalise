@@ -4,7 +4,7 @@ import { assertNever } from "@/lib/primitives/assert-never/assert-never";
 import {
   isJobProviderActionId,
   type JobProviderActionId,
-} from "@/lib/providers/job-provider-actions";
+} from "@/lib/providers/job-provider-action-ids";
 
 export function roleHasCapability(
   role: OrganizationMembershipRole,
