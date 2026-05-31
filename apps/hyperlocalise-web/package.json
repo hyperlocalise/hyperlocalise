@@ -8,7 +8,8 @@
     "start": "next start",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "workos:setup": "bun --env-file=.env src/lib/workos/run-workos-setup.ts"
   },
   "dependencies": {
     "@ai-sdk/openai": "3.0.66",
@@ -90,6 +91,7 @@
     "@types/react": "19.2.15",
     "@types/react-dom": "19.2.3",
     "babel-plugin-react-compiler": "1.0.0",
+    "bun": "^1.3.14",
     "drizzle-kit": "0.31.10",
     "schema-dts": "2.0.0",
     "tailwindcss": "4.3.0",

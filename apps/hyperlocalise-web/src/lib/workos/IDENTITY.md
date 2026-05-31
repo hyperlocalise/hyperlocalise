@@ -16,10 +16,26 @@ Hyperlocalise treats WorkOS as the authoritative source for organization members
 | Data                                                    | Source of truth                                       | Used for                                  |
 | ------------------------------------------------------- | ----------------------------------------------------- | ----------------------------------------- |
 | Organization membership (active)                        | WorkOS `organization_membership` with `status=active` | API/app authorization                     |
-| Membership role                                         | WorkOS membership role slug                           | Capability checks after reconcile/webhook |
+| Membership role                                         | WorkOS membership role slug (1:1)                     | Capability checks after reconcile/webhook |
 | User email, name, avatar                                | WorkOS user profile (cached in `users`)               | Display and audit only                    |
 | Pending invite rows (`workos_membership_id IS NULL`)    | Local workflow state                                  | Member list UI, not access                |
 | Replacing sentinel (`workos_membership_id = replacing`) | Local workflow state                                  | In-flight invite replacement, not access  |
+
+Role slugs and the product capability matrix:
+[`src/api/auth/LOCALIZATION_ROLES.md`](../../api/auth/LOCALIZATION_ROLES.md).
+
+Provision WorkOS environment roles (idempotent — creates missing slugs only; never
+updates name, description, or permissions on roles that already exist):
+
+```bash
+bun run workos:setup
+```
+
+Requires [Bun](https://bun.sh) on your `PATH` (the script loads `.env` via `--env-file`).
+`pnpm run workos:setup` works the same way.
+
+Requires a real `WORKOS_API_KEY` in `.env` (skips when unset, `test-workos-api-key`, or
+contains `placeholder`).
 
 `ApiAuthContext.membership.accessSource` distinguishes these states:
 

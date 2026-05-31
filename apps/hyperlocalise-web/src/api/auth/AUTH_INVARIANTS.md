@@ -67,6 +67,9 @@ full WorkOS identity model.
 17. **Member role is read-only for admin capabilities.** Members receive
     baseline read capabilities only; `members:invite` and other admin writes
     require admin roles.
+18. **Unknown WorkOS role slugs default deny.** Unrecognized slugs do not map to
+    a membership role, are skipped during reconcile/webhook sync, and resolve to
+    no capabilities. See [`LOCALIZATION_ROLES.md`](./LOCALIZATION_ROLES.md).
 
 ## Future extension points
 

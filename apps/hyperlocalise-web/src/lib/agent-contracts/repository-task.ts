@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
 import { z } from "zod";
 
+import { organizationMembershipRoleEnum } from "@/lib/database/schema/enums";
+
 /**
  * The mode of operation for a repository agent task.
  *
@@ -36,7 +38,7 @@ export const repositoryAgentActorSchema = z.object({
   /** Human-readable display name from the source. */
   displayName: z.string().optional(),
   /** Organization membership role when the actor is a known member. */
-  role: z.enum(["admin", "member"]).optional(),
+  role: z.enum(organizationMembershipRoleEnum.enumValues).optional(),
 });
 
 export type RepositoryAgentActor = z.infer<typeof repositoryAgentActorSchema>;

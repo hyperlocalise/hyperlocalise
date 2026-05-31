@@ -202,6 +202,16 @@ export async function reconcileWorkosMembershipsForUser(
       continue;
     }
 
+    const role = membershipRoleFromUnknownRoleField(remoteMembership.role);
+    if (!role) {
+      logger.warn("workos_membership_unknown_role_slug", {
+        workosUserId: input.workosUserId,
+        workosMembershipId: remoteMembership.id,
+        workosOrganizationId: remoteMembership.organizationId,
+      });
+      continue;
+    }
+
     authoritativeMembershipIds.add(remoteMembership.id);
 
     const organization = await ensureLocalOrganizationForWorkosMembership(
@@ -230,8 +240,6 @@ export async function reconcileWorkosMembershipsForUser(
         ),
       )
       .limit(1);
-
-    const role = membershipRoleFromUnknownRoleField(remoteMembership.role);
 
     await syncWorkosIdentity(database, {
       user: {
