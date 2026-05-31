@@ -27,7 +27,12 @@ const githubRepositoryAutomationSettingsPartialSchema = z.object({
           projectId: z.string().trim().min(1).optional(),
         })
         .optional(),
-      pullTranslations: z.object({ enabled: z.boolean().optional() }).optional(),
+      pullTranslations: z
+        .object({
+          enabled: z.boolean().optional(),
+          projectId: z.string().trim().min(1).optional(),
+        })
+        .optional(),
       validation: z.object({ enabled: z.boolean().optional() }).optional(),
     })
     .optional(),

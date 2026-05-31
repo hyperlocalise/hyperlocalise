@@ -61,6 +61,36 @@ export async function runGitDiffInSandbox(
   return runSandboxCommand(sandboxId, "git", args, { output: "stdout" });
 }
 
+export async function prepareGithubRepositoryAutomationSandboxForPush(input: {
+  sandboxId: string;
+  installationId: string;
+  repositoryFullName: string;
+}): Promise<void> {
+  const octokit = await getInstallationOctokit(input.installationId);
+  const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
+  const remote = `https://github.com/${input.repositoryFullName}.git`;
+
+  for (const [command, args, options] of [
+    ["git", ["config", "user.name", "hyperlocalise[bot]"]],
+    ["git", ["config", "user.email", "hyperlocalise[bot]@users.noreply.github.com"]],
+    ["git", ["config", "credential.helper", "store"]],
+    [
+      "bash",
+      [
+        "-lc",
+        `printf '%s\\n' "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials`,
+      ],
+      { env: { GITHUB_TOKEN: token } },
+    ],
+    ["git", ["remote", "set-url", "origin", remote]],
+  ] satisfies Array<[string, string[], { env?: Record<string, string> }?]>) {
+    const result = await runSandboxCommand(input.sandboxId, command, args, options);
+    if (result.exitCode !== 0) {
+      throw new Error(`sandbox git setup failed: ${result.output}`);
+    }
+  }
+}
+
 export async function resolveDefaultBranchHeadSha(input: {
   installationId: string;
   owner: string;
