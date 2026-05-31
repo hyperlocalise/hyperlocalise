@@ -79,6 +79,8 @@ describe("team-scoped project access", () => {
         json: {
           name: "Alpha Project",
           teamId: teamAlphaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
         },
       },
       { headers: await authHeadersFor(admin) },
@@ -92,6 +94,8 @@ describe("team-scoped project access", () => {
         json: {
           name: "Beta Project",
           teamId: teamBetaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["de-DE"],
         },
       },
       { headers: await authHeadersFor(admin) },
@@ -137,6 +141,8 @@ describe("team-scoped project access", () => {
         json: {
           name: "Ops Project",
           teamId: teamBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
         },
       },
       { headers: await authHeadersFor(admin) },

@@ -147,6 +147,8 @@ describe("file download route", () => {
         json: {
           name: "Beta Project",
           teamId: teamBetaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
         },
       },
       { headers: await authHeadersFor(admin) },
@@ -210,6 +212,8 @@ describe("file download route", () => {
         json: {
           name: "Team Files Project",
           teamId: teamBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
         },
       },
       { headers: await authHeadersFor(admin) },

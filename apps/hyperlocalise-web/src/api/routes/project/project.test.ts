@@ -112,6 +112,8 @@ describe("projectRoutes", () => {
       name: "Docs",
       description: "Documentation content",
       translationContext: "Keep terminology consistent.",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR", "de-DE"],
     });
 
     expect(response.status).toBe(201);
@@ -121,15 +123,38 @@ describe("projectRoutes", () => {
     expect(body.project.name).toBe("Docs");
     expect(body.project.description).toBe("Documentation content");
     expect(body.project.translationContext).toBe("Keep terminology consistent.");
+    expect(body.project.sourceLocale).toBe("en-US");
+    expect(body.project.targetLocales).toEqual(["fr-FR", "de-DE"]);
   });
 
-  it("fills default values for optional create fields", async () => {
+  it("returns 400 when create payload omits locales", async () => {
     const identity = createWorkosIdentity();
     const response = await client.api.orgs[":organizationSlug"].projects.$post(
       {
         param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "Docs",
+        } as Parameters<
+          (typeof client.api.orgs)[":organizationSlug"]["projects"]["$post"]
+        >[0]["json"],
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("returns 400 when source locale appears in target locales", async () => {
+    const identity = createWorkosIdentity();
+    const response = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        json: {
+          name: "Docs",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR", "en-us"],
         },
       },
       {
@@ -137,12 +162,139 @@ describe("projectRoutes", () => {
       },
     );
 
-    expect(response.status).toBe(201);
+    expect(response.status).toBe(400);
+  });
 
+  it("allows partial locale patch on legacy native projects", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: null, targetLocales: [] })
+      .where(eq(schema.projects.id, project.id));
+
+    const targetsOnlyResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { targetLocales: ["fr-FR", "de-DE"] },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(targetsOnlyResponse.status).toBe(200);
+    const targetsOnlyBody = (await targetsOnlyResponse.json()) as ProjectResponse;
+    expect(targetsOnlyBody.project.sourceLocale).toBeNull();
+    expect(targetsOnlyBody.project.targetLocales).toEqual(["fr-FR", "de-DE"]);
+
+    await db
+      .update(schema.projects)
+      .set({ sourceLocale: null, targetLocales: [] })
+      .where(eq(schema.projects.id, project.id));
+
+    const sourceOnlyResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { sourceLocale: "en-GB" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(sourceOnlyResponse.status).toBe(200);
+    const sourceOnlyBody = (await sourceOnlyResponse.json()) as ProjectResponse;
+    expect(sourceOnlyBody.project.sourceLocale).toBe("en-GB");
+    expect(sourceOnlyBody.project.targetLocales).toEqual([]);
+  });
+
+  it("updates native project locales", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: createdBody.project.id,
+        },
+        json: {
+          sourceLocale: "en-GB",
+          targetLocales: ["es-ES", "it-IT"],
+        },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectResponse;
-    expect(body.project.name).toBe("Docs");
-    expect(body.project.description).toBe("");
-    expect(body.project.translationContext).toBe("");
+    expect(body.project.sourceLocale).toBe("en-GB");
+    expect(body.project.targetLocales).toEqual(["es-ES", "it-IT"]);
+  });
+
+  it("returns a specific error when patching external TMS project locales", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+
+    await db
+      .update(schema.projects)
+      .set({ source: "external_tms" })
+      .where(eq(schema.projects.id, project.id));
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { sourceLocale: "en-GB" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "external_project_locales_readonly",
+      message: expect.any(String),
+    });
+  });
+
+  it("returns a specific error when a partial locale patch puts source in targets", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: { sourceLocale: "fr-FR" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "source_in_targets",
+      message: expect.any(String),
+    });
   });
 
   it("returns 400 for invalid create payloads", async () => {
@@ -152,7 +304,9 @@ describe("projectRoutes", () => {
         param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
         json: {
           name: "   ",
-        },
+        } as Parameters<
+          (typeof client.api.orgs)[":organizationSlug"]["projects"]["$post"]
+        >[0]["json"],
       },
       {
         headers: await authHeadersFor(identity),
@@ -176,6 +330,8 @@ describe("projectRoutes", () => {
           name: "Docs",
           description: "Documentation content",
           translationContext: "Keep terminology consistent.",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
         },
       },
       {

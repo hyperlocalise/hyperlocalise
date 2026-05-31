@@ -1,4 +1,4 @@
-import { ProjectSectionPlaceholder } from "../_components/project-section-placeholder";
+import { ProjectLocalesPageContent } from "./_components/project-locales-page-content";
 
 export default async function ProjectLocalesPage({
   params,
@@ -7,12 +7,5 @@ export default async function ProjectLocalesPage({
 }) {
   const { organizationSlug, projectId } = await params;
 
-  return (
-    <ProjectSectionPlaceholder
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      title="Locales"
-      description="Track language and market readiness for this project — coverage, blockers, and launch status by locale."
-    />
-  );
+  return <ProjectLocalesPageContent organizationSlug={organizationSlug} projectId={projectId} />;
 }

@@ -460,6 +460,8 @@ describe("teamRoutes", () => {
         json: {
           name: "Scoped Project",
           teamId: projectTeamBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
         },
       },
       {

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-const localePattern = /^[a-z]{2,3}(-[A-Z]{2,3})?$/;
+import { localeInputSchema } from "@/lib/i18n/locales";
 
 export const glossaryIdParamsSchema = z.object({
   glossaryId: z.string().trim().min(1).max(128),
@@ -21,38 +21,16 @@ export const listGlossaryQuerySchema = z
 export const createGlossaryBodySchema = z.object({
   name: z.string().trim().min(1).max(200),
   description: z.string().max(10_000).optional(),
-  sourceLocale: z
-    .string()
-    .trim()
-    .min(1)
-    .max(50)
-    .regex(localePattern, "invalid locale format (e.g., en, en-US, fr-FR)"),
-  targetLocale: z
-    .string()
-    .trim()
-    .min(1)
-    .max(50)
-    .regex(localePattern, "invalid locale format (e.g., en, en-US, fr-FR)"),
+  sourceLocale: localeInputSchema,
+  targetLocale: localeInputSchema,
 });
 
 export const updateGlossaryBodySchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
     description: z.string().max(10_000).optional(),
-    sourceLocale: z
-      .string()
-      .trim()
-      .min(1)
-      .max(50)
-      .regex(localePattern, "invalid locale format (e.g., en, en-US, fr-FR)")
-      .optional(),
-    targetLocale: z
-      .string()
-      .trim()
-      .min(1)
-      .max(50)
-      .regex(localePattern, "invalid locale format (e.g., en, en-US, fr-FR)")
-      .optional(),
+    sourceLocale: localeInputSchema.optional(),
+    targetLocale: localeInputSchema.optional(),
   })
   .refine(
     (value) =>

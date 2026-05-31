@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+import {
+  localeInputSchema,
+  maxProjectTargetLocales,
+  projectTargetLocalesSchema,
+} from "@/lib/i18n/locales";
+
 export const projectIdParamsSchema = z.object({
   projectId: z.string().trim().min(1).max(128),
 });
@@ -31,12 +37,25 @@ export const externalTmsTranslationPushBodySchema = z.object({
     .max(1000),
 });
 
-export const createProjectBodySchema = z.object({
-  name: z.string().trim().min(1).max(200),
-  description: z.string().max(10_000).optional(),
-  translationContext: z.string().max(20_000).optional(),
-  teamId: z.string().uuid().optional(),
-});
+export const createProjectBodySchema = z
+  .object({
+    name: z.string().trim().min(1).max(200),
+    description: z.string().max(10_000).optional(),
+    translationContext: z.string().max(20_000).optional(),
+    teamId: z.string().uuid().optional(),
+    sourceLocale: localeInputSchema,
+    targetLocales: projectTargetLocalesSchema,
+  })
+  .superRefine((value, ctx) => {
+    const sourceKey = value.sourceLocale.toLowerCase();
+    if (value.targetLocales.some((locale) => locale.toLowerCase() === sourceKey)) {
+      ctx.addIssue({
+        code: "custom",
+        message: "source locale cannot appear in target locales",
+        path: ["targetLocales"],
+      });
+    }
+  });
 
 export const updateProjectBodySchema = z
   .object({
@@ -44,17 +63,40 @@ export const updateProjectBodySchema = z
     description: z.string().max(10_000).optional(),
     translationContext: z.string().max(20_000).optional(),
     teamId: z.string().uuid().optional(),
+    sourceLocale: localeInputSchema.optional(),
+    targetLocales: projectTargetLocalesSchema.optional(),
   })
   .refine(
     (value) =>
       value.name !== undefined ||
       value.description !== undefined ||
       value.translationContext !== undefined ||
-      value.teamId !== undefined,
+      value.teamId !== undefined ||
+      value.sourceLocale !== undefined ||
+      value.targetLocales !== undefined,
     {
       message: "at least one field must be provided",
     },
-  );
+  )
+  .superRefine((value, ctx) => {
+    if (value.sourceLocale === undefined || value.targetLocales === undefined) {
+      return;
+    }
+
+    if (
+      value.targetLocales.some(
+        (locale) => locale.toLowerCase() === value.sourceLocale!.toLowerCase(),
+      )
+    ) {
+      ctx.addIssue({
+        code: "custom",
+        message: "source locale cannot appear in target locales",
+        path: ["targetLocales"],
+      });
+    }
+  });
+
+export { maxProjectTargetLocales };
 
 export const projectRecordSchema = z.object({
   id: z.string(),

@@ -370,6 +370,39 @@ describe("jobRoutes", () => {
     });
   });
 
+  it("rejects job target locales outside the project scope", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity, {
+      targetLocales: ["fr-FR"],
+    });
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "string",
+          stringInput: {
+            sourceText: "Hello world",
+            sourceLocale: "en-US",
+            targetLocales: ["ja-JP"],
+          },
+        },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "job_target_locale_not_in_project",
+    });
+  });
+
   it("lists project jobs and applies type and status filters", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
@@ -1131,6 +1164,8 @@ describe("jobRoutes", () => {
           name: "Marketing Site",
           description: "Primary website strings",
           translationContext: "Use a concise product-marketing tone.",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR", "de-DE"],
         },
       },
       {

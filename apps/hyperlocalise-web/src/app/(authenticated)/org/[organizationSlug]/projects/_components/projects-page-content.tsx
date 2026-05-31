@@ -128,7 +128,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     mutationFn: async (values: ProjectFormValues) => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$post({
         param: { organizationSlug },
-        json: toProjectPayload(values),
+        json: toProjectPayload(values, { mode: "create" }),
       });
 
       if (!response.ok) {
@@ -150,7 +150,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     mutationFn: async ({ projectId, values }: { projectId: string; values: ProjectFormValues }) => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$patch({
         param: { organizationSlug, projectId },
-        json: toProjectPayload(values),
+        json: toProjectPayload(values, {
+          mode: "edit",
+          includeLocales: editingProject?.source === "native",
+        }),
       });
 
       if (!response.ok) {
@@ -387,6 +390,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         open={projectDialogMode !== null}
         title={projectDialogTitle}
         description={projectDialogDescription}
+        mode={projectDialogMode === "edit" ? "edit" : "create"}
+        projectSource={editingProject?.source ?? "native"}
         initialValues={initialProjectValues}
         isSaving={isSavingProject}
         onOpenChange={closeProjectDialog}
