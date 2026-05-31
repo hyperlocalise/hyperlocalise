@@ -197,6 +197,7 @@ describe("github repository automation dispatch", () => {
       pullTranslations: true,
       validation: false,
       validationBlockOnFailure: true,
+      statusCheck: { enabled: false, mode: "blocking" },
     });
   });
 
@@ -240,6 +241,7 @@ describe("github repository automation dispatch", () => {
         pullTranslations: false,
         validation: true,
         validationBlockOnFailure: true,
+        statusCheck: { enabled: false, mode: "blocking" as const },
       },
     };
 

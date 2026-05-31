@@ -452,6 +452,7 @@ describe("githubInstallationRoutes", () => {
             validation: { enabled: false },
           },
           trigger: null,
+          statusCheck: { enabled: false, mode: "blocking" },
         },
       },
     });
@@ -472,6 +473,7 @@ describe("githubInstallationRoutes", () => {
               pullTranslations: { enabled: false },
               validation: { enabled: false },
             },
+            statusCheck: { enabled: true, mode: "blocking" },
             trigger: {
               mode: "push",
               branches: ["main", "release/*"],
@@ -491,6 +493,7 @@ describe("githubInstallationRoutes", () => {
           workflows: {
             pushSource: { enabled: true },
           },
+          statusCheck: { enabled: true, mode: "blocking" },
           trigger: {
             mode: "push",
             branches: ["main", "release/*"],

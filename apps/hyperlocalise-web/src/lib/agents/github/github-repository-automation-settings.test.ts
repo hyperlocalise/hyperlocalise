@@ -20,6 +20,7 @@ describe("github repository automation settings", () => {
         validation: { enabled: false, blockOnFailure: true },
       },
       trigger: null,
+      statusCheck: { enabled: false, mode: "blocking" },
     });
   });
 
@@ -32,6 +33,7 @@ describe("github repository automation settings", () => {
           validation: { enabled: false, blockOnFailure: true },
         },
         trigger: null,
+        statusCheck: { enabled: false, mode: "blocking" },
       }),
     ).toBe("automation_trigger_required");
   });
@@ -45,6 +47,7 @@ describe("github repository automation settings", () => {
           validation: { enabled: false, blockOnFailure: true },
         },
         trigger: { mode: "push", branches: [] },
+        statusCheck: { enabled: false, mode: "blocking" },
       }),
     ).toBe("push_trigger_requires_branches");
   });
@@ -93,33 +96,36 @@ describe("github repository automation settings", () => {
         pullTranslations: true,
         validation: false,
         validationBlockOnFailure: true,
+        statusCheck: { enabled: false, mode: "blocking" },
       },
       pushBranch: "release/2.0",
     });
   });
 
-  it("includes validationBlockOnFailure when validation is enabled", () => {
+  it("includes validation and status check behavior when enabled", () => {
     const settings = mergeGithubRepositoryAutomationSettings(
       DEFAULT_GITHUB_REPOSITORY_AUTOMATION_SETTINGS,
       {
         workflows: {
           validation: { enabled: true, blockOnFailure: false },
         },
+        statusCheck: { enabled: true, mode: "advisory" },
         trigger: { mode: "push", branches: ["main"] },
       },
     );
 
-    expect(
-      buildGithubRepoAutomationDispatchPayload({
-        configVersion: 1,
-        githubInstallationRepositoryId: "repo-row-id",
-        organizationId: "org-id",
-        githubRepositoryId: "101",
-        githubInstallationId: "987654",
-        settings,
-        pushBranch: "main",
-      })?.workflows.validationBlockOnFailure,
-    ).toBe(false);
+    const payload = buildGithubRepoAutomationDispatchPayload({
+      configVersion: 1,
+      githubInstallationRepositoryId: "repo-row-id",
+      organizationId: "org-id",
+      githubRepositoryId: "101",
+      githubInstallationId: "987654",
+      settings,
+      pushBranch: "main",
+    });
+
+    expect(payload?.workflows.validationBlockOnFailure).toBe(false);
+    expect(payload?.workflows.statusCheck).toEqual({ enabled: true, mode: "advisory" });
   });
 
   it("computes the next scheduled run in the future", () => {

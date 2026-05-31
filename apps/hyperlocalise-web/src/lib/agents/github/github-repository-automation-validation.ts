@@ -19,6 +19,8 @@ import {
 import {
   completeGithubRepositoryAutomationCheckRun,
   createGithubRepositoryAutomationCheckRun,
+  resolveGithubAutomationCheckConclusion,
+  type GithubRepositoryAutomationCheckConclusion,
 } from "./github-repository-automation-check-run";
 import { discoverI18nConfigInSandbox } from "./github-repository-automation-i18n-config";
 import { runHlCheckDiffInSandbox } from "./github-repository-automation-hl-check";
@@ -80,11 +82,15 @@ function buildCheckRunSummary(summary: ReturnType<typeof summarizeCommitResults>
 }
 
 function resolveCheckRunConclusion(input: {
+  statusCheckMode: "advisory" | "blocking";
   finalStatus: "succeeded" | "failed";
   summary: ReturnType<typeof summarizeCommitResults>;
-}): "success" | "failure" | "neutral" {
+}): GithubRepositoryAutomationCheckConclusion {
   if (input.finalStatus === "failed") {
-    return "failure";
+    return resolveGithubAutomationCheckConclusion({
+      statusCheckMode: input.statusCheckMode,
+      status: "failed",
+    });
   }
 
   if (input.summary.hasInfrastructureErrors) {
@@ -132,9 +138,10 @@ export async function runGithubRepositoryAutomationValidation(input: {
 
   let sandboxId: string | null = null;
   let checkRunId: string | null = job.githubCheckRunId;
+  const shouldPublishCheckRun = job.workflows.statusCheck.enabled;
 
   try {
-    if (!checkRunId) {
+    if (shouldPublishCheckRun && !checkRunId) {
       checkRunId = await createGithubRepositoryAutomationCheckRun({
         installationId: job.githubInstallationId,
         repositoryFullName: job.repositoryFullName,
@@ -336,7 +343,11 @@ export async function runGithubRepositoryAutomationValidation(input: {
         installationId: job.githubInstallationId,
         repositoryFullName: job.repositoryFullName,
         checkRunId,
-        conclusion: resolveCheckRunConclusion({ finalStatus, summary }),
+        conclusion: resolveCheckRunConclusion({
+          statusCheckMode: job.workflows.statusCheck.mode,
+          finalStatus,
+          summary,
+        }),
         summary: buildCheckRunSummary(summary),
         ...checkRunDetails,
       });
@@ -359,7 +370,10 @@ export async function runGithubRepositoryAutomationValidation(input: {
         installationId: job.githubInstallationId,
         repositoryFullName: job.repositoryFullName,
         checkRunId,
-        conclusion: "failure",
+        conclusion: resolveGithubAutomationCheckConclusion({
+          statusCheckMode: job.workflows.statusCheck.mode,
+          status: "failed",
+        }),
         summary: message,
         ...checkRunDetails,
       }).catch(() => undefined);
