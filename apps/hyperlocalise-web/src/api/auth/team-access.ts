@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, sql, type SQL } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -148,11 +148,28 @@ export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Pr
   }
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
+  const ownedWorkspaceChatFilter = and(
+    isNull(schema.interactions.projectId),
+    eq(schema.interactions.source, "chat_ui"),
+    exists(
+      db
+        .select({ id: schema.interactionMessages.id })
+        .from(schema.interactionMessages)
+        .where(
+          and(
+            eq(schema.interactionMessages.interactionId, schema.interactions.id),
+            eq(schema.interactionMessages.senderType, "user"),
+            eq(schema.interactionMessages.senderEmail, auth.user.email),
+          ),
+        )
+        .limit(1),
+    ),
+  )!;
 
   const projectFilter =
     accessibleProjectIds.length > 0
-      ? inArray(schema.interactions.projectId, accessibleProjectIds)
-      : sql`false`;
+      ? or(inArray(schema.interactions.projectId, accessibleProjectIds), ownedWorkspaceChatFilter)
+      : ownedWorkspaceChatFilter;
 
   return and(organizationScope, projectFilter)!;
 }
