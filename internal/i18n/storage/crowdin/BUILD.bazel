@@ -6,6 +6,7 @@ go_library(
     importpath = "github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/crowdin",
     visibility = ["//visibility:public"],
     deps = [
+        "//internal/csvsafe",
         "//internal/pathguard",
         "//internal/i18n/storage",
         "@com_github_crowdin_crowdin_api_client_go//crowdin",

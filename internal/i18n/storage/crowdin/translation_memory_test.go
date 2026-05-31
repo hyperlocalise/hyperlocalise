@@ -64,6 +64,39 @@ func TestWriteTranslationMemoryCSVWritesStableRows(t *testing.T) {
 	}
 }
 
+func TestWriteTranslationMemoryCSVEscapesFormulaPrefixes(t *testing.T) {
+	client, mux, teardown := newCrowdinHTTPClientForTest(t)
+	defer teardown()
+
+	mux.HandleFunc("/api/v2/tms/77/segments", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, map[string]any{
+			"data": []any{
+				map[string]any{"data": map[string]any{
+					"id": 9,
+					"records": []any{
+						map[string]any{"id": 1, "languageId": "en", "text": "Checkout"},
+						map[string]any{"id": 2, "languageId": "fr", "text": "=cmd"},
+					},
+				}},
+			},
+			"pagination": map[string]any{"offset": 0, "limit": 500},
+		})
+	})
+
+	var out bytes.Buffer
+	if _, err := client.WriteTranslationMemoryCSV(context.Background(), TranslationMemoryDownloadRequest{
+		TranslationMemoryID: 77,
+		SourceLanguage:      "en",
+		TargetLanguages:     []string{"fr"},
+	}, &out); err != nil {
+		t.Fatalf("write translation memory csv: %v", err)
+	}
+
+	if !strings.Contains(out.String(), "'=cmd") {
+		t.Fatalf("expected formula-prefixed cells to be escaped, got: %s", out.String())
+	}
+}
+
 func TestWriteTranslationMemoryCSVPaginatesSegments(t *testing.T) {
 	client, mux, teardown := newCrowdinHTTPClientForTest(t)
 	defer teardown()

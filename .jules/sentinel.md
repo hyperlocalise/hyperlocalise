@@ -42,3 +42,8 @@
 **Vulnerability:** Conversation and chat-request routes only verified organization ownership, but did not check for project-level access. This allowed users to access or create interactions for projects they were not members of within the same organization (BOLA).
 **Learning:** Interactions linked to projects must inherit the same authorization constraints as the projects themselves. Any route that performs a lookup or mutation on a sub-resource must verify the user's path through the hierarchy.
 **Prevention:** Implement and enforce specialized accessibility helpers (like `buildAccessibleInteractionsWhere` and `canAccessInteraction`) that explicitly account for both project-less (organization-global) and project-scoped resources.
+
+## 2026-05-31 - [Enhancement] Preventing CSV Formula Injection in Exports
+**Vulnerability:** Glossary and translation memory CSV exports were vulnerable to formula injection. If a translation string started with characters like '=', '+', '-', or '@', spreadsheet applications could execute them as formulas.
+**Learning:** Even though the application uses a local-first CLI and trusted TMS providers, the exported data is ultimately user-controlled and can be opened in insecure environments like Excel.
+**Prevention:** Use a centralized helper like `csvsafe.EscapeRow` to sanitize all CSV exports. This ensures consistent protection across all storage adapters.

@@ -10,6 +10,8 @@ import (
 	"net/url"
 	"slices"
 	"strings"
+
+	"github.com/hyperlocalise/hyperlocalise/internal/csvsafe"
 )
 
 var glossaryCSVHeader = []string{
@@ -88,7 +90,7 @@ func (c *HTTPClient) WriteGlossaryCSV(ctx context.Context, in GlossaryDownloadIn
 		return GlossaryDownloadResult{}, fmt.Errorf("write phrase glossary csv header: %w", err)
 	}
 	for _, row := range rows {
-		if err := writer.Write(row); err != nil {
+		if err := writer.Write(csvsafe.EscapeRow(row)); err != nil {
 			return GlossaryDownloadResult{}, fmt.Errorf("write phrase glossary csv row: %w", err)
 		}
 	}
