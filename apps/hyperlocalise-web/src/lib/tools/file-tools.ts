@@ -32,6 +32,7 @@ export function createReadStoredFileTool(ctx: ToolContext) {
           id: schema.storedFiles.id,
           organizationId: schema.storedFiles.organizationId,
           projectId: schema.storedFiles.projectId,
+          createdByUserId: schema.storedFiles.createdByUserId,
           storageKey: schema.storedFiles.storageKey,
           filename: schema.storedFiles.filename,
           contentType: schema.storedFiles.contentType,
@@ -59,7 +60,7 @@ export function createReadStoredFileTool(ctx: ToolContext) {
         };
       }
 
-      if (!(await toolCanAccessStoredFileProject(ctx, file.projectId))) {
+      if (!(await toolCanAccessStoredFileProject(ctx, file.projectId, file.createdByUserId))) {
         return {
           success: false,
           error: "File not found for this organization.",

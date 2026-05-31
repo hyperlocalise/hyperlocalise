@@ -118,9 +118,14 @@ export function toolMemoryOrgMutationWhere(ctx: ToolContext, memoryId: string) {
   );
 }
 
-export async function toolCanAccessStoredFileProject(ctx: ToolContext, projectId: string | null) {
+export async function toolCanAccessStoredFileProject(
+  ctx: ToolContext,
+  projectId: string | null,
+  createdByUserId?: string | null,
+) {
   return canAccessStoredFile(apiAuthContextFromToolContext(ctx), {
     organizationId: ctx.organizationId,
     projectId,
+    createdByUserId,
   });
 }

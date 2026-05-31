@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 describe("tool stored file access", () => {
-  it("allows members to access organization-scoped stored files", async () => {
+  it("allows members to access their own organization-scoped stored files", async () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
     await fixture.authHeadersFor(identity);
     const auth = globalThis.__testApiAuthContext!;
@@ -33,6 +33,34 @@ describe("tool stored file access", () => {
       db,
     };
 
-    await expect(toolCanAccessStoredFileProject(ctx, null)).resolves.toBe(true);
+    await expect(toolCanAccessStoredFileProject(ctx, null, auth.user.localUserId)).resolves.toBe(
+      true,
+    );
+  });
+
+  it("denies members access to another user's organization-scoped stored files", async () => {
+    const uploader = fixture.createWorkosIdentityWithRole("member");
+    await fixture.authHeadersFor(uploader);
+    const uploaderAuth = globalThis.__testApiAuthContext!;
+
+    const otherMember = fixture.createWorkosIdentityForOrganization(
+      uploader.organization,
+      "member",
+    );
+    await fixture.authHeadersFor(otherMember);
+    const otherAuth = globalThis.__testApiAuthContext!;
+
+    const ctx: ToolContext = {
+      conversationId: "conv_test",
+      organizationId: otherAuth.activeOrganization.localOrganizationId,
+      localUserId: otherAuth.user.localUserId,
+      membershipRole: "member",
+      projectId: null,
+      db,
+    };
+
+    await expect(
+      toolCanAccessStoredFileProject(ctx, null, uploaderAuth.user.localUserId),
+    ).resolves.toBe(false);
   });
 });

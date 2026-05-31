@@ -62,6 +62,7 @@ function queuedJobUsageBilling(kind: JobKind) {
 const jobQueue = createTranslationJobEventQueue();
 
 type JobCreationError =
+  | { code: "job_permission_denied"; message: string }
   | { code: "job_insert_failed"; message: string }
   | { code: "usage_event_reservation_failed"; message: string };
 
@@ -87,6 +88,21 @@ function formatCreateTranslationJobToolError(error: CreateTranslationJobToolErro
 
 function jobInsertFailedError(): JobCreationError {
   return { code: "job_insert_failed", message: "Failed to create job: no row returned." };
+}
+
+function jobCreatePermissionDeniedError(): JobCreationError {
+  return {
+    code: "job_permission_denied",
+    message: "You do not have permission to create jobs.",
+  };
+}
+
+function assertAgentJobCreateAllowed(ctx: ToolContext): Result<void, JobCreationError> {
+  if (!isJobCreateAllowed(ctx.membershipRole)) {
+    return err(jobCreatePermissionDeniedError());
+  }
+
+  return ok(undefined);
 }
 
 function usageReservationFailedError(message: string): JobCreationError {
@@ -256,6 +272,11 @@ async function createQueuedJob(
   ctx: ToolContext,
   input: Parameters<typeof queuedJobValues>[1],
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const permissionResult = assertAgentJobCreateAllowed(ctx);
+  if (isErr(permissionResult)) {
+    return permissionResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx
@@ -614,6 +635,11 @@ async function createReviewJobRecord(
   ctx: ToolContext,
   input: { criteria: string; targetLocale?: string; translationJobId?: string },
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const permissionResult = assertAgentJobCreateAllowed(ctx);
+  if (isErr(permissionResult)) {
+    return permissionResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx
@@ -750,6 +776,11 @@ async function createSyncJobRecord(
     externalIdentifiers: Record<string, unknown>;
   },
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const permissionResult = assertAgentJobCreateAllowed(ctx);
+  if (isErr(permissionResult)) {
+    return permissionResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx
@@ -836,6 +867,11 @@ async function createAssetManagementJobRecord(
     config?: Record<string, unknown>;
   },
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const permissionResult = assertAgentJobCreateAllowed(ctx);
+  if (isErr(permissionResult)) {
+    return permissionResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx

@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, or, type SQL } from "drizzle-orm";
+import { and, desc, eq, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
@@ -163,13 +163,7 @@ export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
   ];
 
   if (input.projectId) {
-    const projectScope = or(
-      eq(schema.storedFiles.projectId, input.projectId),
-      isNull(schema.storedFiles.projectId),
-    );
-    if (projectScope) {
-      filters.push(projectScope);
-    }
+    filters.push(eq(schema.storedFiles.projectId, input.projectId));
   }
 
   const [file] = await dbClient
