@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { ConversationPanel } from "./conversation-panel";
 import { InboxList } from "./inbox-list";

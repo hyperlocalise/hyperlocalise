@@ -7,7 +7,7 @@ import {
   formatGlossaryResourceLabel,
   formatGlossaryTermStatusLabel,
 } from "@/lib/translation/agent-run-glossary";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
 

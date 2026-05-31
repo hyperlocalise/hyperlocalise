@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { toneClass, type Tone } from "./workspace-resource-shared";
 

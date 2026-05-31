@@ -3,7 +3,7 @@
 import Image from "next/image";
 
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 type ProviderCard = {
   id: string;

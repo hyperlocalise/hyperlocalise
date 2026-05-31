@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH4, TypographyMuted } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { ConversationDetails } from "./conversation-details";
 import { ConversationMessageList } from "./conversation-message-list";

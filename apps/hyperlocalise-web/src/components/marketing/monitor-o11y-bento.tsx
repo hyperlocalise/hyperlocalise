@@ -18,7 +18,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { TypographyH4, TypographyMuted, TypographySmall } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 const readinessColumns = [
   { key: "quality", label: "Quality" },

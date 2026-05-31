@@ -9,7 +9,10 @@ import {
   loadInteractionModelMessages,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { db } from "@/lib/database";
-import { addInteractionMessage, interactionHasTranslationAttachments } from "@/lib/interactions";
+import {
+  addInteractionMessage,
+  interactionHasTranslationAttachments,
+} from "@/lib/conversations/interactions";
 
 import { conversationIdParamsSchema } from "./conversation.schema";
 

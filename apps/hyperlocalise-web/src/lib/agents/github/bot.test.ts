@@ -97,7 +97,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/interactions", () => ({
+vi.mock("@/lib/conversations/interactions", () => ({
   addInteractionMessage: addInteractionMessageMock,
   createInteraction: createInteractionMock,
   findInteractionBySourceThreadId: findInteractionBySourceThreadIdMock,

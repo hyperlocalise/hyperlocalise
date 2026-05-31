@@ -29,7 +29,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyMuted, TypographyP, TypographySmall } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import {
   formatRelativeTime,

@@ -22,7 +22,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { TypographyP } from "@/components/ui/typography";
 
 import { TmsDashboardSummarySection } from "./tms-dashboard-summary-section";

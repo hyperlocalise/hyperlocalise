@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { createApiClient } from "@/lib/api-client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 const api = createApiClient();
 

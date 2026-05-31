@@ -13,8 +13,8 @@ import type { FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { listExternalTmsFileVersionsForFile } from "@/lib/providers/sync/organization-external-tms-file-versions";
 import { resolveProviderJobsForFile } from "@/lib/providers/job-provider-source-files";
-import { bufferFromStream } from "@/lib/streams";
-import { sanitizeExternalUrl } from "@/lib/safe-external-url";
+import { bufferFromStream } from "@/lib/primitives/streams";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 const maxInlineTextBytes = 512 * 1024;

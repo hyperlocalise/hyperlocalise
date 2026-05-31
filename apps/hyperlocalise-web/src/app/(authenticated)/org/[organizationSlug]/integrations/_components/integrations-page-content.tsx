@@ -57,7 +57,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { AgentIntegrationsSection } from "./agent-integrations-section";
 import { IntegrationCategoryLabel } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";

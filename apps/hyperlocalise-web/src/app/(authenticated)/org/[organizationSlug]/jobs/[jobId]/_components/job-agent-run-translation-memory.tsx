@@ -6,7 +6,7 @@ import {
   formatTranslationMemoryMatchSourceLabel,
   formatTranslationMemoryResourceLabel,
 } from "@/lib/translation/agent-run-translation-memory";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
 

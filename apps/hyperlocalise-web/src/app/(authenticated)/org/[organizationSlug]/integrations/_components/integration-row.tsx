@@ -5,7 +5,7 @@ import { ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { TypographyH2 } from "@/components/ui/typography";
 
 export type IntegrationRowAction = "connect" | "manage" | "coming-soon" | "view-only";

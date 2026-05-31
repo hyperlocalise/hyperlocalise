@@ -1,6 +1,6 @@
 import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
 import type { Memory } from "@/lib/database/types";
-import { sanitizeExternalUrl } from "@/lib/safe-external-url";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 export function toMemoryRecord(memory: Memory): MemoryRecord {
   return {

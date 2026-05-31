@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { NodeToolbar, Position } from "@xyflow/react";
 import type { ComponentProps } from "react";
 

@@ -4,7 +4,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
-import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/api-keys";
+import { generateApiKey, getApiKeyPrefix, hashApiKey } from "@/lib/security/api-keys";
 
 import {
   apiKeyIdParamsSchema,

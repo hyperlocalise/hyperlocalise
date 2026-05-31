@@ -1,6 +1,6 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import type { RiveParameters } from "@rive-app/react-webgl2";
 import {
   useRive,

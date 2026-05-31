@@ -1,6 +1,6 @@
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
 import type { Glossary } from "@/lib/database/types";
-import { sanitizeExternalUrl } from "@/lib/safe-external-url";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 export function toGlossaryRecord(glossary: Glossary): GlossaryRecord {
   return {

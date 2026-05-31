@@ -1,4 +1,4 @@
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
 
 import { changelog } from "./marketing-page-content";

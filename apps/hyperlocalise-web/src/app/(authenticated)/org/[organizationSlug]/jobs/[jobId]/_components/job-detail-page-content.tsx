@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import { cn } from "@/lib/utils";
+import { cn } from "@/lib/primitives/cn";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
 

@@ -18,7 +18,7 @@ import {
   addInteractionMessage,
   createInteraction,
   findInteractionBySourceThreadId,
-} from "@/lib/interactions";
+} from "@/lib/conversations/interactions";
 import { db, schema } from "@/lib/database";
 import { eq } from "drizzle-orm";
 import type {
