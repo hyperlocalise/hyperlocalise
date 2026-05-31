@@ -121,7 +121,9 @@ afterEach(async () => {
     await db
       .delete(schema.teamMemberships)
       .where(eq(schema.teamMemberships.userId, trackedMemberLocalUserId));
-    await db.delete(schema.mcpSessions).where(eq(schema.mcpSessions.userId, trackedMemberLocalUserId));
+    await db
+      .delete(schema.mcpSessions)
+      .where(eq(schema.mcpSessions.userId, trackedMemberLocalUserId));
     trackedMemberLocalUserId = null;
   }
 
