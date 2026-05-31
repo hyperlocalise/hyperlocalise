@@ -42,6 +42,13 @@ function parseStoredSettings(
     stored.trigger = merged.trigger;
   }
 
+  if (
+    merged.statusCheck.enabled !== defaults.statusCheck.enabled ||
+    merged.statusCheck.mode !== defaults.statusCheck.mode
+  ) {
+    stored.statusCheck = merged.statusCheck;
+  }
+
   return stored;
 }
 
