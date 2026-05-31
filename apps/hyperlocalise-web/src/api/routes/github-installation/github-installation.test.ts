@@ -51,6 +51,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { verifyGitHubState } from "@/lib/agents/github/oauth-state";
+import { findActiveI18nSetupRun } from "@/lib/agents/i18n-setup/i18n-setup-runs";
 
 const client = testClient(
   createApp({
@@ -425,6 +426,75 @@ describe("githubInstallationRoutes", () => {
     );
 
     expect(runResponse.status).toBe(403);
+  });
+
+  it("allows admins to cancel active i18n setup runs", async () => {
+    const { auth, headers, organizationSlug } = await createInstallationFixture("admin");
+
+    const [run] = await db
+      .insert(schema.githubI18nSetupRuns)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        actorUserId: auth.user.localUserId,
+        githubInstallationId: "987654",
+        githubRepositoryId: "101",
+        repositoryFullName: "hyperlocalise/hyperlocalise",
+        baseBranch: "main",
+        status: "running",
+      })
+      .returning();
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"][
+      "i18n-setup-runs"
+    ][":runId"].cancel.$post(
+      {
+        param: { organizationSlug, runId: run.id },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      i18nSetupRun: {
+        id: run.id,
+        status: "failed",
+        errorCode: "i18n_setup_cancelled",
+      },
+    });
+
+    const activeRun = await findActiveI18nSetupRun({
+      organizationId: auth.organization.localOrganizationId,
+      githubRepositoryId: "101",
+    });
+    expect(activeRun).toBeNull();
+  });
+
+  it("blocks members from cancelling i18n setup runs", async () => {
+    const { auth, headers, organizationSlug } = await createInstallationFixture("member");
+
+    const [run] = await db
+      .insert(schema.githubI18nSetupRuns)
+      .values({
+        organizationId: auth.organization.localOrganizationId,
+        actorUserId: auth.user.localUserId,
+        githubInstallationId: "987654",
+        githubRepositoryId: "101",
+        repositoryFullName: "hyperlocalise/hyperlocalise",
+        baseBranch: "main",
+        status: "running",
+      })
+      .returning();
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"][
+      "i18n-setup-runs"
+    ][":runId"].cancel.$post(
+      {
+        param: { organizationSlug, runId: run.id },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it("returns default automation settings for a repository", async () => {

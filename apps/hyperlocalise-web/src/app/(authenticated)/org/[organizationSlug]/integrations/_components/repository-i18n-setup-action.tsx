@@ -29,6 +29,8 @@ const I18N_SETUP_ERROR_MESSAGES: Record<string, string> = {
   i18n_config_not_written: "The setup agent did not write i18n.yml.",
   i18n_setup_failed: "The i18n setup wizard failed.",
   i18n_setup_enqueue_failed: "Could not start the i18n setup wizard.",
+  i18n_setup_runtime_failed: "The i18n setup workflow failed before it could report progress.",
+  i18n_setup_cancelled: "The i18n setup wizard was cancelled.",
 };
 
 function getI18nSetupErrorMessage(run: I18nSetupRun): string {
@@ -147,9 +149,50 @@ export function RepositoryI18nSetupAction({
     },
   });
 
+  const cancelSetup = useMutation({
+    mutationFn: async (runId: string) => {
+      const res = await api.api.orgs[":organizationSlug"]["github-installation"]["i18n-setup-runs"][
+        ":runId"
+      ].cancel.$post({
+        param: { organizationSlug, runId },
+      });
+
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "i18n_setup_cancel_failed" }));
+        const message =
+          "message" in error && typeof error.message === "string"
+            ? error.message
+            : "error" in error
+              ? String(error.error)
+              : "Failed to cancel i18n setup";
+        throw new Error(message);
+      }
+
+      const data = await res.json();
+      return data.i18nSetupRun as I18nSetupRun;
+    },
+    onSuccess: async (cancelledRun) => {
+      setActiveRunId(null);
+      watchedRunIdRef.current = null;
+      queryClient.setQueryData(
+        ["github-i18n-setup-latest", organizationSlug, githubRepositoryId],
+        cancelledRun,
+      );
+      await queryClient.invalidateQueries({
+        queryKey: ["github-i18n-setup-latest", organizationSlug, githubRepositoryId],
+      });
+      toast.success("i18n setup wizard cancelled");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+
   const run = activeRunQuery.data ?? latestRunQuery.data;
   const isActive = run?.status === "queued" || run?.status === "running";
-  const canStart = enabled && userCanManage && !isActive && !startSetup.isPending;
+  const isCancellingActiveRun = cancelSetup.isPending && cancelSetup.variables === run?.id;
+  const canStart =
+    enabled && userCanManage && !isActive && !startSetup.isPending && !cancelSetup.isPending;
 
   useEffect(() => {
     if (!run || run.id !== watchedRunIdRef.current) {
@@ -193,7 +236,17 @@ export function RepositoryI18nSetupAction({
       {run ? (
         <div className="max-w-[220px] text-right text-xs text-muted-foreground">
           {run.status === "queued" || run.status === "running" ? (
-            <span>Analyzing locale files…</span>
+            <div className="flex flex-col items-end gap-1">
+              <span>Analyzing locale files...</span>
+              <button
+                type="button"
+                className="text-destructive underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={isCancellingActiveRun}
+                onClick={() => cancelSetup.mutate(run.id)}
+              >
+                {isCancellingActiveRun ? "Cancelling..." : "Cancel setup"}
+              </button>
+            </div>
           ) : null}
           {run.status === "succeeded" && run.pullRequestUrl ? (
             <a

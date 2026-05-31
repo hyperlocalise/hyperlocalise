@@ -10,6 +10,7 @@ import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import {
+  cancelI18nSetupRun,
   findActiveI18nSetupRun,
   getI18nSetupRun,
   getLatestI18nSetupRun,
@@ -388,6 +389,27 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       }
 
       const run = await getI18nSetupRun({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        runId: parsedParams.data.runId,
+      });
+
+      if (!run) {
+        return notFoundResponse(c, "i18n_setup_run_not_found");
+      }
+
+      return c.json({ i18nSetupRun: run }, 200);
+    })
+    .post("/i18n-setup-runs/:runId/cancel", async (c) => {
+      if (!isAdminRole(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const parsedParams = i18nSetupRunIdParamSchema.safeParse(c.req.param());
+      if (!parsedParams.success) {
+        return badRequestResponse(c, "invalid_i18n_setup_run_id");
+      }
+
+      const run = await cancelI18nSetupRun({
         organizationId: c.var.auth.organization.localOrganizationId,
         runId: parsedParams.data.runId,
       });
