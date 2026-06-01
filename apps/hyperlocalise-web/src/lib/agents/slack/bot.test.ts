@@ -47,6 +47,21 @@ const { enqueueRepositoryTaskMock } = vi.hoisted(() => ({
   enqueueRepositoryTaskMock: vi.fn(async () => ({ ids: ["run-123"] })),
 }));
 
+const { chatLoggerMock, loggerChildMock } = vi.hoisted(() => ({
+  chatLoggerMock: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+  loggerChildMock: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
+
 vi.mock("@/workflows/adapters", () => ({
   createRepositoryAgentTaskQueue: vi.fn(() => ({ enqueue: enqueueRepositoryTaskMock })),
 }));
@@ -153,19 +168,9 @@ vi.mock("@/lib/agents/runtime/state", () => ({
 }));
 
 vi.mock("@/lib/log", () => ({
-  createChatLogger: vi.fn(() => ({
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  })),
+  createChatLogger: vi.fn(() => chatLoggerMock),
   createLogger: vi.fn(() => ({
-    child: vi.fn(() => ({
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    })),
+    child: vi.fn(() => loggerChildMock),
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
@@ -403,6 +408,7 @@ describe("handleNewConversation", () => {
     agentGenerateMock.mockResolvedValue({ text: "AI response" });
     loadMessagesMock.mockResolvedValue([]);
     interactionHasTranslationAttachmentsMock.mockResolvedValue(false);
+    loggerChildMock.info.mockClear();
     resolveSlackRepositoryGitHubContextMock.mockResolvedValue({ status: "not_applicable" });
     classifyConversationMock.mockImplementation(async () => createMockClassification());
   });
@@ -622,6 +628,13 @@ describe("handleNewConversation", () => {
     await handleSubscribedMessage(thread, message);
 
     expect(resolveSlackRepositoryGitHubContextMock).not.toHaveBeenCalled();
+    const reuseLog = loggerChildMock.info.mock.calls.find(
+      ([, message]) => message === "reusing stored slack thread repository context",
+    );
+    expect(reuseLog?.[0]).toEqual({
+      installationId: 12345,
+      hasPullRequestNumber: false,
+    });
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         toolContext: expect.objectContaining({
@@ -1110,6 +1123,7 @@ describe("handleSubscribedMessage", () => {
       role: "admin",
       localUserId: "user-123",
     } as never);
+    interactionHasTranslationAttachmentsMock.mockResolvedValueOnce(true);
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
       id: "interaction-123",
       title: "Existing",
@@ -1154,6 +1168,15 @@ describe("handleSubscribedMessage", () => {
         },
       ],
     });
+    expect(interactionHasTranslationAttachmentsMock).toHaveBeenCalledWith("interaction-123");
+    expect(vi.mocked(updateInteractionMessage).mock.invocationCallOrder[0]).toBeLessThan(
+      interactionHasTranslationAttachmentsMock.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(classifyConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hasFileAttachments: true,
+      }),
+    );
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         additionalInstructions: expect.stringContaining('Use sourceLocale "auto"'),

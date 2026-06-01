@@ -319,7 +319,8 @@ async function processSlackMessage(
           buildResolvedRepositoryContextInstructions(resolvedRepositoryContext);
         log.info(
           {
-            repositoryFullName: resolvedRepositoryContext.repositoryFullName,
+            installationId: resolvedRepositoryContext.installationId,
+            hasPullRequestNumber: resolvedRepositoryContext.pullRequestNumber !== undefined,
           },
           "reusing stored slack thread repository context",
         );

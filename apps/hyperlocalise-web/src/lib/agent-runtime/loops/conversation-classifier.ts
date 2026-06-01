@@ -84,7 +84,7 @@ function buildConversationClassificationPrompt(input: ClassifyConversationInput)
 }
 
 export function normalizeConversationIntents(
-  intents: HyperlocaliseConversationIntent[],
+  intents: readonly HyperlocaliseConversationIntent[],
 ): HyperlocaliseConversationIntent[] {
   const unique = [...new Set(intents)];
   const specific = unique.filter((intent) => intent !== "general");
@@ -120,7 +120,7 @@ export function classificationHasIntent(
 }
 
 export function getPrimarySuggestedMode(
-  intents: HyperlocaliseConversationIntent[],
+  intents: readonly HyperlocaliseConversationIntent[],
 ): HyperlocaliseConversationMode {
   const normalized = normalizeConversationIntents(intents);
 
@@ -156,6 +156,24 @@ export function createConversationClassifier({ model }: CreateConversationClassi
   };
 }
 
+export function fallbackConversationClassification(
+  input: Pick<ClassifyConversationInput, "hasFileAttachments" | "hasStoredRepositoryContext">,
+): ConversationClassification {
+  const intents: HyperlocaliseConversationIntent[] = input.hasFileAttachments
+    ? ["translation"]
+    : ["general"];
+
+  return {
+    intents,
+    needsRepositoryTools: false,
+    requiresPullRequest: false,
+    shouldAskForRepositoryClarification: false,
+    continuesRepositoryThread: input.hasStoredRepositoryContext,
+    currentMessageSpecifiesRepository: false,
+    confidence: 0,
+  };
+}
+
 export async function classifyConversation(
   input: ClassifyConversationInput,
 ): Promise<ConversationClassification> {
@@ -163,7 +181,11 @@ export async function classifyConversation(
     model: getHyperlocaliseAgentModel(),
   });
 
-  return classify(input);
+  try {
+    return await classify(input);
+  } catch {
+    return fallbackConversationClassification(input);
+  }
 }
 
 export function getRecentUserConversationText(
@@ -203,10 +225,7 @@ export function shouldAttemptRepositoryContextResolution(input: {
     return false;
   }
 
-  return (
-    input.classification.continuesRepositoryThread ||
-    classificationHasIntent(input.classification, "repository")
-  );
+  return input.classification.continuesRepositoryThread;
 }
 
 export function shouldRequireRepositoryContextClarification(

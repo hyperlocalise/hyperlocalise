@@ -20,6 +20,7 @@ vi.mock("@/lib/agent-runtime/loops/model", () => ({
 import {
   classifyConversation,
   classificationHasIntent,
+  fallbackConversationClassification,
   getPrimarySuggestedMode,
   getRecentUserConversationText,
   normalizeConversationIntents,
@@ -57,6 +58,12 @@ describe("conversation classifier routing", () => {
 
   it("uses general orchestrator mode when translation and repository are both active", () => {
     expect(getPrimarySuggestedMode(["translation", "repository"])).toBe("general");
+  });
+
+  it("accepts readonly intent arrays when normalizing", () => {
+    const intents = ["translation", "repository"] as const;
+
+    expect(normalizeConversationIntents(intents)).toEqual(["translation", "repository"]);
   });
 
   it("enables repository resolution when repository is among intents", () => {
@@ -133,5 +140,38 @@ describe("conversation classifier routing", () => {
     );
 
     expect(generateTextMock).toHaveBeenCalledOnce();
+  });
+
+  it("falls back when AI classification fails", async () => {
+    generateTextMock.mockRejectedValueOnce(new Error("model unavailable"));
+
+    await expect(
+      classifyConversation({
+        currentMessage: "Hello",
+        conversationText: "Hello",
+        hasFileAttachments: false,
+        hasStoredRepositoryContext: false,
+        surface: "web",
+      }),
+    ).resolves.toEqual(
+      fallbackConversationClassification({
+        hasFileAttachments: false,
+        hasStoredRepositoryContext: false,
+      }),
+    );
+  });
+
+  it("falls back to translation intent when attachments are present", () => {
+    expect(
+      fallbackConversationClassification({
+        hasFileAttachments: true,
+        hasStoredRepositoryContext: false,
+      }),
+    ).toEqual(
+      expect.objectContaining({
+        intents: ["translation"],
+        confidence: 0,
+      }),
+    );
   });
 });
