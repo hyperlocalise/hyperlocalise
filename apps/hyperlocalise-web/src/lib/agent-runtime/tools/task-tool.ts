@@ -32,11 +32,11 @@ export function createTaskTool() {
   const subagentSummaryLines = buildSubagentSummaryLines();
   const taskInputSchema = z.object({
     subagentType: subagentTypeSchema.describe(
-      `Specialist to run. Available options:\n${subagentSummaryLines}`,
+      `Agent to run. Available options:\n${subagentSummaryLines}`,
     ),
     task: z.string().describe("Short description of the work (shown to operators)"),
     instructions: z.string().describe(
-      `Detailed instructions for the specialist. Include:
+      `Detailed instructions for the agent. Include:
 - Goal and deliverables
 - Constraints (locales, file IDs, quoted strings to search)
 - How to verify success`,
@@ -44,25 +44,25 @@ export function createTaskTool() {
   });
 
   return tool({
-    description: `Delegate work to a Hyperlocalise specialist subagent.
+    description: `Delegate work to a Hyperlocalise subagent.
 
-AVAILABLE SPECIALISTS:
+AVAILABLE AGENTS:
 ${subagentSummaryLines}
 
 WHEN TO USE:
 - Translation requests with attached files → \`translation\`
 - Finding localization context for source strings, messages, keys, or uploaded-file segments in GitHub → \`repository\`
-- Any work that matches a specialist description above
+- Any work that matches an agent description above
 
 WHEN NOT TO USE:
 - Simple questions you can answer without tools
-- Requests that need a specialist that is unavailable (explain what is missing instead)
-- General repository architecture summaries, PR fixes, code review, or checks unless a specialist explicitly supports them
+- Requests that need an agent that is unavailable (explain what is missing instead)
+- General repository architecture summaries, PR fixes, code review, or checks unless an agent explicitly supports them
 
 BEHAVIOR:
-- Specialists run autonomously for up to ${SUBAGENT_STEP_LIMIT} tool steps
+- Agents run autonomously for up to ${SUBAGENT_STEP_LIMIT} tool steps
 - They return only a summary — relay that summary to the user
-- Be explicit in instructions; specialists cannot ask clarifying questions`,
+- Be explicit in instructions; agents cannot ask clarifying questions`,
     inputSchema: taskInputSchema,
     outputSchema: taskOutputSchema,
     execute: async ({ subagentType, task, instructions }, { experimental_context }) => {
@@ -71,7 +71,7 @@ BEHAVIOR:
         return {
           success: false,
           subagentType,
-          summary: "Specialist cannot run without request context.",
+          summary: "Agent cannot run without request context.",
           error: formatAgentRuntimeContextError(runtimeResult.error),
         };
       }
@@ -97,7 +97,7 @@ BEHAVIOR:
               ? [
                   instructions,
                   "",
-                  "Repository specialist handoff requirements:",
+                  "Repository agent handoff requirements:",
                   "- Include the exact source text, key, file path, surrounding text, source locale, target locale, and repo hint when known.",
                   "- Return localization context only: product surface, user intent, tone/register, placeholders, nearby copy, existing translations, and ambiguities.",
                   "- Do not ask for code changes, PR review, checks, or broad architecture analysis.",
@@ -111,7 +111,7 @@ BEHAVIOR:
         return {
           success: true,
           subagentType,
-          summary: result.text.trim() || "Specialist completed the task.",
+          summary: result.text.trim() || "Agent completed the task.",
         };
       }
 
@@ -122,7 +122,7 @@ BEHAVIOR:
       return {
         success: false,
         subagentType,
-        summary: "Specialist encountered an error.",
+        summary: "Agent encountered an error.",
         error: message,
       };
     },

@@ -11,6 +11,7 @@ type AddAgentMessage = (input: {
 type TrackedPostState = {
   addMessage: AddAgentMessage;
   interactionId: string;
+  originalPost: Thread<unknown>["post"];
 };
 
 const trackedThreadPosts = new WeakMap<object, TrackedPostState>();
@@ -50,10 +51,10 @@ export function wrapThreadPostForInteraction<TState>(
     return;
   }
 
-  const trackedState: TrackedPostState = { interactionId, addMessage };
+  const originalPost = thread.post.bind(thread);
+  const trackedState: TrackedPostState = { interactionId, addMessage, originalPost };
   trackedThreadPosts.set(thread, trackedState);
 
-  const originalPost = thread.post.bind(thread);
   thread.post = async (...args: Parameters<typeof originalPost>) => {
     const result = await originalPost(...args);
 
@@ -72,4 +73,17 @@ export function wrapThreadPostForInteraction<TState>(
 
     return result;
   };
+}
+
+/** Posts to Slack (or other chat surfaces) without persisting to the interaction message store. */
+export async function postThreadMessageWithoutTracking<TState>(
+  thread: Thread<TState>,
+  ...args: Parameters<Thread<TState>["post"]>
+) {
+  const tracked = trackedThreadPosts.get(thread);
+  if (tracked) {
+    return tracked.originalPost(...args);
+  }
+
+  return thread.post(...args);
 }

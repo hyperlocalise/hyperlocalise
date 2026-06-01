@@ -11,7 +11,7 @@ import {
 } from "./constants";
 import type { SubagentCallOptions } from "./types";
 
-const TRANSLATION_SYSTEM_PROMPT = `You are the Hyperlocalise translation specialist.
+const TRANSLATION_SYSTEM_PROMPT = `You are the Hyperlocalise translation agent.
 
 ## Role
 Create and queue file translation jobs from source files already attached to the conversation.

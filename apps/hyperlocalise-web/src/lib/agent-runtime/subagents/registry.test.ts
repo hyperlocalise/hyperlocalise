@@ -4,6 +4,7 @@ import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/conte
 
 import {
   listAvailableSubagentTypes,
+  resolvePreferredSubagentOrder,
   resolveSubagentTypeForMode,
   SUBAGENT_REGISTRY,
 } from "./registry";
@@ -13,6 +14,7 @@ function createRuntime(
 ): HyperlocaliseAgentRuntimeContext {
   return {
     surface: "slack",
+    suggestedIntents: ["general"],
     suggestedMode: "general",
     hasFileAttachments: false,
     toolContext: {
@@ -29,13 +31,18 @@ function createRuntime(
 
 describe("subagent registry", () => {
   it("lists translation when files are attached", () => {
-    const runtime = createRuntime({ hasFileAttachments: true, suggestedMode: "translation" });
+    const runtime = createRuntime({
+      hasFileAttachments: true,
+      suggestedIntents: ["translation"],
+      suggestedMode: "translation",
+    });
     expect(listAvailableSubagentTypes(runtime)).toContain("translation");
     expect(SUBAGENT_REGISTRY.translation.isAvailable(runtime)).toBe(true);
   });
 
   it("lists repository when a sandbox is available", () => {
     const runtime = createRuntime({
+      suggestedIntents: ["repository"],
       suggestedMode: "repository",
       toolContext: {
         ...createRuntime().toolContext,
@@ -46,15 +53,30 @@ describe("subagent registry", () => {
     expect(resolveSubagentTypeForMode(runtime)).toBe("repository");
   });
 
-  it("prefers translation mode when both specialists are available", () => {
+  it("returns no preferred subagents for general intent even when agents are available", () => {
     const runtime = createRuntime({
-      suggestedMode: "translation",
       hasFileAttachments: true,
       toolContext: {
         ...createRuntime().toolContext,
         sandboxId: "sbx_1",
       },
     });
-    expect(resolveSubagentTypeForMode(runtime)).toBe("translation");
+    expect(listAvailableSubagentTypes(runtime)).toEqual(["translation", "repository"]);
+    expect(resolvePreferredSubagentOrder(runtime)).toEqual([]);
+    expect(resolveSubagentTypeForMode(runtime)).toBeNull();
+  });
+
+  it("orders repository before translation when both intents are active", () => {
+    const runtime = createRuntime({
+      suggestedIntents: ["translation", "repository"],
+      suggestedMode: "general",
+      hasFileAttachments: true,
+      toolContext: {
+        ...createRuntime().toolContext,
+        sandboxId: "sbx_1",
+      },
+    });
+    expect(resolvePreferredSubagentOrder(runtime)).toEqual(["repository", "translation"]);
+    expect(resolveSubagentTypeForMode(runtime)).toBe("repository");
   });
 });

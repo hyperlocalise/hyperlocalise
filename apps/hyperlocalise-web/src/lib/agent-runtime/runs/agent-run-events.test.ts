@@ -5,7 +5,7 @@ vi.mock("@/lib/conversations/interactions", () => ({
   addInteractionMessage: vi.fn(),
 }));
 
-import { wrapThreadPostForInteraction } from "./agent-run-events";
+import { postThreadMessageWithoutTracking, wrapThreadPostForInteraction } from "./agent-run-events";
 
 function createThread() {
   const posts: unknown[] = [];
@@ -74,6 +74,16 @@ describe("wrapThreadPostForInteraction", () => {
       senderType: "agent",
       text: "Agent reply",
     });
+  });
+
+  it("posts without persisting when tracking is enabled", async () => {
+    const addMessage = vi.fn(async () => ({ id: "msg_123" }));
+    const { thread } = createThread();
+
+    wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
+    await postThreadMessageWithoutTracking(thread, { markdown: "Processing ack" });
+
+    expect(addMessage).not.toHaveBeenCalled();
   });
 
   it("updates the tracked interaction without double wrapping", async () => {

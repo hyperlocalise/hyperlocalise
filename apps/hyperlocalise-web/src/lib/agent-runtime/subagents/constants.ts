@@ -1,5 +1,5 @@
-/** Tool steps allowed inside a specialist subagent loop. */
-export const SUBAGENT_STEP_LIMIT = 5;
+/** Tool steps allowed inside a subagent loop. */
+export const SUBAGENT_STEP_LIMIT = 10;
 
 /** Steps for the parent orchestrator (delegate + synthesize). */
 export const ORCHESTRATOR_STEP_LIMIT = 3;

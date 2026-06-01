@@ -117,7 +117,7 @@ describe("hyperlocalise agent core", () => {
         model: "mock-model",
         tools,
         activeTools: ["example"],
-        stopWhen: { stepLimit: 5 },
+        stopWhen: { stepLimit: hyperlocaliseAgentStepLimit },
       }),
     );
   });
@@ -125,6 +125,7 @@ describe("hyperlocalise agent core", () => {
   it("creates an orchestrator runtime for translation mode", () => {
     createConversationToolLoopAgent({
       surface: "web",
+      suggestedIntents: ["translation"],
       toolContext: {
         conversationId: "conv_123",
         organizationId: "org_123",
@@ -134,7 +135,6 @@ describe("hyperlocalise agent core", () => {
         db: {} as never,
       },
       hasFileAttachments: true,
-      userMessageText: "Translate this file to French",
     });
 
     expect(createConversationOrchestratorAgent).toHaveBeenCalledWith(
@@ -150,6 +150,7 @@ describe("hyperlocalise agent core", () => {
   it("creates an orchestrator runtime for repository mode", () => {
     createConversationToolLoopAgent({
       surface: "slack",
+      suggestedIntents: ["repository"],
       toolContext: {
         conversationId: "conv_123",
         organizationId: "org_123",
@@ -159,7 +160,6 @@ describe("hyperlocalise agent core", () => {
         db: {} as never,
         sandboxId: "sbx_123",
       },
-      userMessageText: "Find 'Email agent' in our GitHub repo",
     });
 
     expect(createConversationOrchestratorAgent).toHaveBeenCalledWith(

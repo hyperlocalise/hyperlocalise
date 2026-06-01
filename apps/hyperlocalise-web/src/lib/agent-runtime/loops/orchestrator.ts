@@ -1,10 +1,12 @@
 import { stepCountIs, ToolLoopAgent, type ToolLoopAgentSettings } from "ai";
 import type { HyperlocaliseAgentRuntimeContext } from "@/lib/agent-runtime/context";
+import type { HyperlocaliseConversationIntent } from "@/lib/agent-runtime/loops/conversation-mode";
 import {
   buildSubagentSummaryLines,
   listAvailableSubagentTypes,
-  resolveSubagentTypeForMode,
+  resolvePreferredSubagentOrder,
 } from "@/lib/agent-runtime/subagents/registry";
+import type { HyperlocaliseSubagentType } from "@/lib/agent-runtime/subagents/definitions";
 import { createTaskTool } from "@/lib/agent-runtime/tools/task-tool";
 import { ORCHESTRATOR_STEP_LIMIT } from "@/lib/agent-runtime/subagents/constants";
 
@@ -26,9 +28,10 @@ export type ConversationOrchestratorOnFinish = ToolLoopAgentSettings<
 export function buildOrchestratorInstructions(input: {
   surface: HyperlocaliseAgentSurface;
   projectId: string | null;
+  suggestedIntents: HyperlocaliseConversationIntent[];
   suggestedMode: HyperlocaliseConversationMode;
   availableSubagents: string[];
-  preferredSubagent: string | null;
+  preferredSubagents: HyperlocaliseSubagentType[];
   additionalInstructions?: string;
 }) {
   const base = buildHyperlocaliseAgentInstructions({
@@ -41,33 +44,43 @@ export function buildOrchestratorInstructions(input: {
     base,
     "",
     "## Orchestration",
-    "You coordinate specialists via the `task` tool. Do not call translation or repository tools directly.",
-    "Your job is to choose the right specialist, provide a precise handoff, then synthesize the result for the user.",
+    "You coordinate agents via the `task` tool. Do not call translation or repository tools directly.",
+    "Your job is to choose the right agent, provide a precise handoff, then synthesize the result for the user.",
     "",
-    "Available specialists:",
+    "Available agents:",
     buildSubagentSummaryLines(),
   ];
 
   if (input.availableSubagents.length === 0) {
     lines.push(
       "",
-      "No specialists are available for this request. Explain what the user should provide (file attachment or GitHub repo access).",
+      "No agents are available for this request. Explain what the user should provide (file attachment or GitHub repo access).",
     );
   } else {
     lines.push(
       "",
-      `Specialists available now: ${input.availableSubagents.map((name) => `\`${name}\``).join(", ")}.`,
+      `Agents available now: ${input.availableSubagents.map((name) => `\`${name}\``).join(", ")}.`,
     );
   }
 
-  if (input.preferredSubagent) {
+  lines.push(
+    "",
+    `Active intents for this message: ${input.suggestedIntents.map((intent) => `\`${intent}\``).join(", ")}.`,
+  );
+
+  if (input.preferredSubagents.length === 1) {
     lines.push(
-      `Suggested specialist for this message: \`${input.preferredSubagent}\` (mode: ${input.suggestedMode}).`,
-      "Delegate to that specialist unless the user clearly needs a different one.",
+      `Delegate to \`${input.preferredSubagents[0]}\` for this turn unless the user clearly needs a different agent.`,
+    );
+  } else if (input.preferredSubagents.length > 1) {
+    lines.push(
+      `Delegate to each required agent in order: ${input.preferredSubagents.map((name) => `\`${name}\``).join(" → ")}.`,
+      "Run every agent that matches an active intent before sending the final reply.",
+      "Pass repository findings into the translation task when both intents apply.",
     );
   } else if (input.suggestedMode !== "general") {
     lines.push(
-      `Conversation mode hint: ${input.suggestedMode}. Pick the matching specialist when available.`,
+      `Conversation mode hint: ${input.suggestedMode}. Pick the matching agent when available.`,
     );
   }
 
@@ -82,9 +95,9 @@ export function buildOrchestratorInstructions(input: {
     "",
     "Translation handoff:",
     "- Use `translation` for uploaded-file translation jobs when sourceFileId values and locales are available.",
-    "- If repository context is needed for a translation and the repository specialist is available, collect that context first, then pass the relevant summary into the translation task.",
+    "- When both repository and translation intents are active, complete repository context collection before translation jobs.",
     "",
-    "After a specialist returns, synthesize a clear user-facing reply from their summary.",
+    "After each agent returns, synthesize one clear user-facing reply that covers every intent addressed.",
   );
 
   return lines.join("\n");
@@ -95,7 +108,7 @@ export function createConversationOrchestratorAgent(
   onFinish?: ConversationOrchestratorOnFinish,
 ) {
   const available = listAvailableSubagentTypes(runtime);
-  const preferredSubagent = resolveSubagentTypeForMode(runtime);
+  const preferredSubagents = resolvePreferredSubagentOrder(runtime);
   const taskTool = createTaskTool();
 
   return new ToolLoopAgent<never, { task: typeof taskTool }>({
@@ -103,9 +116,10 @@ export function createConversationOrchestratorAgent(
     instructions: buildOrchestratorInstructions({
       surface: runtime.surface,
       projectId: runtime.toolContext.projectId,
+      suggestedIntents: runtime.suggestedIntents,
       suggestedMode: runtime.suggestedMode,
       availableSubagents: available,
-      preferredSubagent,
+      preferredSubagents,
       additionalInstructions: runtime.additionalInstructions,
     }),
     tools: {

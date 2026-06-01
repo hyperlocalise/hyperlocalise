@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { emoji } from "chat";
 import type { Message, Thread } from "chat";
 
+import type { ConversationClassification } from "@/lib/agent-runtime/loops/conversation-classifier";
+
 import {
   extractTeamId,
   getOrCreateInteraction,
@@ -9,13 +11,31 @@ import {
   handleSubscribedMessage,
   wrapThreadPost,
 } from "./bot";
+
+function createMockClassification(
+  overrides: Partial<ConversationClassification> = {},
+): ConversationClassification {
+  return {
+    intents: ["general"],
+    needsRepositoryTools: false,
+    requiresPullRequest: false,
+    shouldAskForRepositoryClarification: false,
+    continuesRepositoryThread: false,
+    currentMessageSpecifiesRepository: false,
+    confidence: 0.9,
+    ...overrides,
+  };
+}
+
 const {
   agentGenerateMock,
+  classifyConversationMock,
   createConversationToolLoopAgentMock,
   loadMessagesMock,
   resolveSlackRepositoryGitHubContextMock,
 } = vi.hoisted(() => ({
   agentGenerateMock: vi.fn(),
+  classifyConversationMock: vi.fn(async () => createMockClassification()),
   createConversationToolLoopAgentMock: vi.fn(() => ({
     generate: agentGenerateMock,
   })),
@@ -25,6 +45,21 @@ const {
 
 const { enqueueRepositoryTaskMock } = vi.hoisted(() => ({
   enqueueRepositoryTaskMock: vi.fn(async () => ({ ids: ["run-123"] })),
+}));
+
+const { chatLoggerMock, loggerChildMock } = vi.hoisted(() => ({
+  chatLoggerMock: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+  loggerChildMock: {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
 }));
 
 vi.mock("@/workflows/adapters", () => ({
@@ -45,6 +80,7 @@ vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => {
     )
     .then((actual) => ({
       ...actual,
+      classifyConversation: classifyConversationMock,
       createConversationToolLoopAgent: createConversationToolLoopAgentMock,
       loadInteractionModelMessages: loadMessagesMock,
       replaceLastUserMessage: (
@@ -113,31 +149,28 @@ vi.mock("@/lib/agents/slack/helpers", () => ({
   lookupMembership: vi.fn(),
 }));
 
+const interactionHasTranslationAttachmentsMock = vi.hoisted(() => vi.fn(async () => false));
+
 vi.mock("@/lib/conversations/interactions", () => ({
   addInteractionMessage: vi.fn(async () => ({ id: "msg-123" })),
   createInteraction: vi.fn(),
   findInteractionBySourceThreadId: vi.fn(),
+  interactionHasTranslationAttachments: interactionHasTranslationAttachmentsMock,
   updateInteractionMessage: vi.fn(),
 }));
+
+const SLACK_PROCESSING_ACK_POST = {
+  markdown: "On it — I'll reply here shortly.",
+};
 
 vi.mock("@/lib/agents/runtime/state", () => ({
   createChatStateAdapter: vi.fn(),
 }));
 
 vi.mock("@/lib/log", () => ({
-  createChatLogger: vi.fn(() => ({
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  })),
+  createChatLogger: vi.fn(() => chatLoggerMock),
   createLogger: vi.fn(() => ({
-    child: vi.fn(() => ({
-      debug: vi.fn(),
-      info: vi.fn(),
-      warn: vi.fn(),
-      error: vi.fn(),
-    })),
+    child: vi.fn(() => loggerChildMock),
     debug: vi.fn(),
     info: vi.fn(),
     warn: vi.fn(),
@@ -374,7 +407,10 @@ describe("handleNewConversation", () => {
     vi.clearAllMocks();
     agentGenerateMock.mockResolvedValue({ text: "AI response" });
     loadMessagesMock.mockResolvedValue([]);
+    interactionHasTranslationAttachmentsMock.mockResolvedValue(false);
+    loggerChildMock.info.mockClear();
     resolveSlackRepositoryGitHubContextMock.mockResolvedValue({ status: "not_applicable" });
+    classifyConversationMock.mockImplementation(async () => createMockClassification());
   });
 
   it("ignores bot messages", async () => {
@@ -452,7 +488,13 @@ describe("handleNewConversation", () => {
     expect(getSubscribed()).toBe(true);
     expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
     expect(agentGenerateMock).toHaveBeenCalled();
-    expect(posts).toEqual([{ markdown: "AI response" }]);
+    expect(posts).toEqual([SLACK_PROCESSING_ACK_POST, { markdown: "AI response" }]);
+    expect(addInteractionMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        senderType: "agent",
+        text: "On it — I'll reply here shortly.",
+      }),
+    );
   });
 
   it("skips GitHub context discovery for ordinary chat without attachments", async () => {
@@ -488,6 +530,14 @@ describe("handleNewConversation", () => {
       raw: { team_id: "T123", channel: "C123" },
     });
 
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        currentMessageSpecifiesRepository: true,
+        confidence: 0.95,
+      }),
+    );
     resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
       status: "resolved",
       source: "slack_pr_url",
@@ -539,7 +589,70 @@ describe("handleNewConversation", () => {
     expect(posts).toEqual([{ markdown: "AI response" }]);
   });
 
-  it("resolves GitHub context from the current Slack message only", async () => {
+  it("reuses stored repository context for thread follow-ups without re-resolving", async () => {
+    const { thread, posts } = createThread({
+      repositoryGitHubContext: {
+        resolved: true,
+        installationId: 12345,
+        repositoryFullName: "acme/web",
+      },
+    });
+    const message = createMessage({
+      text: "What are the words nearby?",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        continuesRepositoryThread: true,
+        confidence: 0.95,
+      }),
+    );
+    loadMessagesMock.mockResolvedValueOnce([
+      { role: "user", content: "what's the context of Providers" },
+      { role: "assistant", content: "Providers is on the landing page." },
+    ] as never);
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: {},
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(resolveSlackRepositoryGitHubContextMock).not.toHaveBeenCalled();
+    const reuseLog = loggerChildMock.info.mock.calls.find(
+      ([, message]) => message === "reusing stored slack thread repository context",
+    );
+    expect(reuseLog?.[0]).toEqual({
+      installationId: 12345,
+      hasPullRequestNumber: false,
+    });
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolContext: expect.objectContaining({
+          sandboxId: "sbx_test",
+          githubContext: expect.objectContaining({ repositoryFullName: "acme/web" }),
+        }),
+      }),
+    );
+    expect(posts).toEqual([{ markdown: "AI response" }]);
+  });
+
+  it("resolves GitHub context using recent conversation text", async () => {
     const { thread } = createThread();
     const message = createMessage({
       text: "Find 'Email agent' in org/new-repo",
@@ -550,6 +663,14 @@ describe("handleNewConversation", () => {
       { role: "user", content: "Find 'Email agent' in org/old-repo" },
       { role: "assistant", content: "I searched org/old-repo." },
     ] as never);
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        currentMessageSpecifiesRepository: true,
+        confidence: 0.95,
+      }),
+    );
     resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
       status: "resolved",
       source: "slack_repo_reference",
@@ -580,7 +701,7 @@ describe("handleNewConversation", () => {
 
     expect(resolveSlackRepositoryGitHubContextMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        text: "Find 'Email agent' in org/new-repo",
+        text: expect.stringContaining("org/new-repo"),
         requirePullRequest: false,
       }),
     );
@@ -603,6 +724,15 @@ describe("handleNewConversation", () => {
       raw: { team_id: "T123", channel: "C123" },
     });
 
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        requiresPullRequest: true,
+        currentMessageSpecifiesRepository: true,
+        confidence: 0.95,
+      }),
+    );
     vi.mocked(findSlackConnector).mockResolvedValue({
       id: "connector-123",
       organizationId: "org-123",
@@ -640,6 +770,14 @@ describe("handleNewConversation", () => {
       raw: { team_id: "T123", channel: "C123" },
     });
 
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        shouldAskForRepositoryClarification: true,
+        confidence: 0.95,
+      }),
+    );
     resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
       status: "unresolved",
       context: {
@@ -677,6 +815,14 @@ describe("handleNewConversation", () => {
       raw: { team_id: "T123", channel: "C123" },
     });
 
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        shouldAskForRepositoryClarification: true,
+        confidence: 0.95,
+      }),
+    );
     resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
       status: "unresolved",
       context: {
@@ -749,7 +895,7 @@ describe("handleNewConversation", () => {
     expect(getSubscribed()).toBe(false);
     expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
     expect(agentGenerateMock).toHaveBeenCalled();
-    expect(posts).toEqual([{ markdown: "AI response" }]);
+    expect(posts).toEqual([SLACK_PROCESSING_ACK_POST, { markdown: "AI response" }]);
   });
 
   it("adds an eyes reaction while processing a message and removes it on reply", async () => {
@@ -842,6 +988,9 @@ describe("handleSubscribedMessage", () => {
     vi.clearAllMocks();
     agentGenerateMock.mockResolvedValue({ text: "AI response" });
     loadMessagesMock.mockResolvedValue([]);
+    interactionHasTranslationAttachmentsMock.mockResolvedValue(false);
+    resolveSlackRepositoryGitHubContextMock.mockResolvedValue({ status: "not_applicable" });
+    classifyConversationMock.mockImplementation(async () => createMockClassification());
   });
 
   it("ignores bot messages", async () => {
@@ -893,7 +1042,7 @@ describe("handleSubscribedMessage", () => {
     });
     expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
     expect(agentGenerateMock).toHaveBeenCalled();
-    expect(posts).toEqual([{ markdown: "AI response" }]);
+    expect(posts).toEqual([SLACK_PROCESSING_ACK_POST, { markdown: "AI response" }]);
 
     // Agent reply should also be persisted
     expect(addInteractionMessage).toHaveBeenLastCalledWith({
@@ -901,6 +1050,58 @@ describe("handleSubscribedMessage", () => {
       senderType: "agent",
       text: "AI response",
     });
+  });
+
+  it("treats prior thread file uploads as attachments on follow-up messages", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({ text: "Translate to French" });
+
+    interactionHasTranslationAttachmentsMock.mockResolvedValue(true);
+    loadMessagesMock.mockResolvedValueOnce([
+      {
+        role: "user",
+        content:
+          "Please translate the attached source file.\n\nAttached translation source files are already stored and ready for file translation jobs:\n- en-US.json: sourceFileId=file_123, fileFormat=json, contentType=application/json",
+      },
+      { role: "assistant", content: "Which locales should I use?" },
+    ] as never);
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        intents: ["translation"],
+        confidence: 0.95,
+      }),
+    );
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: "project-123",
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-456" } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(interactionHasTranslationAttachmentsMock).toHaveBeenCalledWith("interaction-123");
+    expect(classifyConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hasFileAttachments: true,
+      }),
+    );
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hasFileAttachments: true,
+      }),
+    );
+    expect(posts[0]).toEqual(SLACK_PROCESSING_ACK_POST);
   });
 
   it("stores supported Slack file attachments for file translation jobs", async () => {
@@ -928,6 +1129,7 @@ describe("handleSubscribedMessage", () => {
       role: "admin",
       localUserId: "user-123",
     } as never);
+    interactionHasTranslationAttachmentsMock.mockResolvedValueOnce(true);
     vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
       id: "interaction-123",
       title: "Existing",
@@ -972,6 +1174,15 @@ describe("handleSubscribedMessage", () => {
         },
       ],
     });
+    expect(interactionHasTranslationAttachmentsMock).toHaveBeenCalledWith("interaction-123");
+    expect(vi.mocked(updateInteractionMessage).mock.invocationCallOrder[0]).toBeLessThan(
+      interactionHasTranslationAttachmentsMock.mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(classifyConversationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        hasFileAttachments: true,
+      }),
+    );
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         additionalInstructions: expect.stringContaining('Use sourceLocale "auto"'),
@@ -986,7 +1197,7 @@ describe("handleSubscribedMessage", () => {
       ],
     });
     expect(agentGenerateMock.mock.calls[0]?.[0]?.messages[0]?.content).toContain("fileFormat=json");
-    expect(posts).toEqual([{ markdown: "AI response" }]);
+    expect(posts).toEqual([SLACK_PROCESSING_ACK_POST, { markdown: "AI response" }]);
   });
 
   it("localizes images and creates file translation jobs when both are attached", async () => {
@@ -1068,6 +1279,7 @@ describe("handleSubscribedMessage", () => {
       ],
     });
     expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
       {
         raw: expect.stringContaining("localized version of banner.png for fr"),
         files: [
@@ -1179,6 +1391,7 @@ describe("handleSubscribedMessage", () => {
     expect(agentGenerateMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
       { markdown: expect.stringContaining("brief.pdf") },
+      SLACK_PROCESSING_ACK_POST,
       {
         raw: expect.stringContaining("localized version of banner.png for fr"),
         files: [
@@ -1258,6 +1471,7 @@ describe("handleSubscribedMessage", () => {
       expect.stringContaining("User instructions: Use refined campaign copy."),
     );
     expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
       {
         raw: expect.stringContaining("localized version of banner.png for fr"),
         files: [
@@ -1318,7 +1532,10 @@ describe("handleSubscribedMessage", () => {
 
     expect(generateText).toHaveBeenCalledOnce();
     expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
-    expect(posts).toEqual([expect.stringContaining("I need the target language")]);
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      expect.stringContaining("I need the target language"),
+    ]);
   });
 
   it("logs image localization failures while posting the fallback message", async () => {
@@ -1371,6 +1588,7 @@ describe("handleSubscribedMessage", () => {
         targetLocale: "fr",
       });
       expect(posts).toEqual([
+        SLACK_PROCESSING_ACK_POST,
         "Sorry, I couldn't localize banner.png right now. Please try again with the image and target language.",
       ]);
     } finally {
