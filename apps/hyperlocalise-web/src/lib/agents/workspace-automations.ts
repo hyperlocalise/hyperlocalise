@@ -454,7 +454,7 @@ export async function updateWorkspaceAutomation(input: {
     triggerConfig: config.triggerConfig,
     repositoryTarget: config.repositoryTarget,
     toolConfig: config.toolConfig,
-    configVersion: configChanged ? existing.configVersion : existing.configVersion,
+    configVersion: configChanged ? existing.configVersion + 1 : existing.configVersion,
   };
   const resolvedNextRunAt =
     input.nextRunAt !== undefined

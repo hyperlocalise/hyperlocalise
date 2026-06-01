@@ -5,20 +5,28 @@ import { env } from "@/lib/env";
 
 type SlackChat = Chat<{ slack: Adapter<unknown, unknown> }>;
 
-let slackChat: SlackChat | null = null;
+let slackChatPromise: Promise<SlackChat> | null = null;
 
 async function getSlackChat(): Promise<SlackChat> {
-  if (slackChat) {
-    return slackChat;
+  if (slackChatPromise) {
+    return slackChatPromise;
   }
 
+  slackChatPromise = initializeSlackChat().catch((error: unknown) => {
+    slackChatPromise = null;
+    throw error;
+  });
+  return slackChatPromise;
+}
+
+async function initializeSlackChat(): Promise<SlackChat> {
   if (!env.SLACK_CLIENT_ID || !env.SLACK_CLIENT_SECRET || !env.SLACK_SIGNING_SECRET) {
     throw new Error("missing Slack bot configuration");
   }
 
   const { createSlackAdapter } = await import("@chat-adapter/slack");
 
-  slackChat = new Chat({
+  const slackChat = new Chat({
     adapters: {
       slack: createSlackAdapter({
         clientId: env.SLACK_CLIENT_ID,
