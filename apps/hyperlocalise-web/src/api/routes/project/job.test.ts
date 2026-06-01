@@ -202,16 +202,18 @@ async function insertResearchJob(params: {
 }
 
 async function insertStoredSourceFile(params: {
-  projectId: string;
+  projectId: string | null;
   filename?: string;
   contentType?: string;
   organizationId?: string;
 }) {
-  const [project] = await db
-    .select({ organizationId: schema.projects.organizationId })
-    .from(schema.projects)
-    .where(eq(schema.projects.id, params.projectId))
-    .limit(1);
+  const [project] = params.projectId
+    ? await db
+        .select({ organizationId: schema.projects.organizationId })
+        .from(schema.projects)
+        .where(eq(schema.projects.id, params.projectId))
+        .limit(1)
+    : [];
 
   if (!project && !params.organizationId) {
     throw new Error(`project ${params.projectId} not found`);
@@ -1034,6 +1036,53 @@ describe("jobRoutes", () => {
     const sourceFile = await insertStoredSourceFile({
       projectId: project.id,
       filename: "source.xliff",
+      contentType: "application/xliff+xml",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].jobs.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          type: "file",
+          fileInput: {
+            sourceFileId: sourceFile.id,
+            fileFormat: "xliff",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      job: {
+        type: "file",
+        status: "queued",
+        inputPayload: {
+          sourceFileId: sourceFile.id,
+          fileFormat: "xliff",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+    });
+  });
+
+  it("creates project file jobs from workspace-uploaded source files", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const sourceFile = await insertStoredSourceFile({
+      organizationId: project.organizationId,
+      projectId: null,
+      filename: "workspace-source.xliff",
       contentType: "application/xliff+xml",
     });
 

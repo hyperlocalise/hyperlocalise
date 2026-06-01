@@ -3,7 +3,9 @@ import { createWebAdapter } from "@chat-adapter/web";
 import { createMemoryState } from "@chat-adapter/state-memory";
 import { Chat, type Thread } from "chat";
 
+import { isAiActionAllowed } from "@/api/auth/capability-guards";
 import { canAccessInteraction } from "@/api/auth/team-access";
+import { forbiddenResponse } from "@/api/response.schema";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
@@ -55,6 +57,10 @@ export function createChatStreamRoutes() {
       const conversation = await canAccessInteraction(c.var.auth, conversationId);
       if (!conversation) {
         return c.json({ error: "not_found" }, 404);
+      }
+
+      if (!isAiActionAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
       }
 
       if (conversation.source !== "chat_ui") {

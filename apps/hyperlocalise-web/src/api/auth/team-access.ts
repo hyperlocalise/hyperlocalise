@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -148,13 +148,28 @@ export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Pr
   }
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
-
-  const projectFilter = or(
+  const ownedWorkspaceChatFilter = and(
     isNull(schema.interactions.projectId),
+    eq(schema.interactions.source, "chat_ui"),
+    exists(
+      db
+        .select({ id: schema.interactionMessages.id })
+        .from(schema.interactionMessages)
+        .where(
+          and(
+            eq(schema.interactionMessages.interactionId, schema.interactions.id),
+            eq(schema.interactionMessages.senderType, "user"),
+            eq(schema.interactionMessages.senderEmail, auth.user.email),
+          ),
+        )
+        .limit(1),
+    ),
+  )!;
+
+  const projectFilter =
     accessibleProjectIds.length > 0
-      ? inArray(schema.interactions.projectId, accessibleProjectIds)
-      : sql`false`,
-  );
+      ? or(inArray(schema.interactions.projectId, accessibleProjectIds), ownedWorkspaceChatFilter)
+      : ownedWorkspaceChatFilter;
 
   return and(organizationScope, projectFilter)!;
 }
@@ -225,7 +240,11 @@ export async function canAccessGlossary(auth: ApiAuthContext, glossaryId: string
 
 export async function canAccessStoredFile(
   auth: ApiAuthContext,
-  input: { organizationId: string; projectId: string | null },
+  input: {
+    organizationId: string;
+    projectId: string | null;
+    createdByUserId?: string | null;
+  },
 ) {
   if (input.organizationId !== auth.organization.localOrganizationId) {
     return false;
@@ -241,7 +260,16 @@ export async function canAccessStoredFile(
     return Boolean(project);
   }
 
-  return true;
+  if (hasOrganizationWideProjectAccess(auth)) {
+    return true;
+  }
+
+  const uploaderId = input.createdByUserId ?? null;
+  if (uploaderId === null) {
+    return true;
+  }
+
+  return uploaderId === auth.user.localUserId;
 }
 
 export async function canAccessMemory(auth: ApiAuthContext, memoryId: string) {

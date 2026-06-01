@@ -8,6 +8,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -223,6 +224,57 @@ describe("team-scoped project access", () => {
       memberFilesBody.files.map((file: { projectId: string }) => file.projectId),
     );
     expect(memberProjectIds.has(betaProjectId)).toBe(false);
+  });
+
+  it("allows members to access their own workspace chat conversations", async () => {
+    const owner = createWorkosIdentityWithRole("member");
+    const teammate = createWorkosIdentityForOrganization(owner.organization, "member");
+
+    await authHeadersFor(owner);
+    const orgId = globalThis.__testApiAuthContext!.activeOrganization.localOrganizationId;
+
+    const ownedConversation = await createInteraction({
+      organizationId: orgId,
+      source: "chat_ui",
+      title: "Workspace chat",
+    });
+    await addInteractionMessage({
+      interactionId: ownedConversation.id,
+      senderType: "user",
+      senderEmail: owner.user.email,
+      text: "Translate this workspace upload",
+    });
+
+    const teammateConversation = await createInteraction({
+      organizationId: orgId,
+      source: "chat_ui",
+      title: "Teammate workspace chat",
+    });
+    await addInteractionMessage({
+      interactionId: teammateConversation.id,
+      senderType: "user",
+      senderEmail: teammate.user.email,
+      text: "Keep this private",
+    });
+
+    const ownerHeaders = await authHeadersFor(owner);
+    const ownedResponse = await app.request(
+      `/api/orgs/${owner.organization.slug}/conversations/${ownedConversation.id}`,
+      {
+        method: "GET",
+        headers: ownerHeaders,
+      },
+    );
+    expect(ownedResponse.status).toBe(200);
+
+    const teammateResponse = await app.request(
+      `/api/orgs/${owner.organization.slug}/conversations/${teammateConversation.id}`,
+      {
+        method: "GET",
+        headers: ownerHeaders,
+      },
+    );
+    expect(teammateResponse.status).toBe(404);
   });
 
   it("backfills legacy projects onto the default workspace team", async () => {

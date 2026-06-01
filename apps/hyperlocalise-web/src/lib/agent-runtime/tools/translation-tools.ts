@@ -28,6 +28,7 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
   toolAccessibleJobsWhere,
+  toolCanAccessStoredFileProject,
   toolCanAccessProject,
 } from "@/lib/agent-runtime/tools/tool-access";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
@@ -62,6 +63,7 @@ function queuedJobUsageBilling(kind: JobKind) {
 const jobQueue = createTranslationJobEventQueue();
 
 type JobCreationError =
+  | { code: "job_permission_denied"; message: string }
   | { code: "job_insert_failed"; message: string }
   | { code: "usage_event_reservation_failed"; message: string };
 
@@ -87,6 +89,21 @@ function formatCreateTranslationJobToolError(error: CreateTranslationJobToolErro
 
 function jobInsertFailedError(): JobCreationError {
   return { code: "job_insert_failed", message: "Failed to create job: no row returned." };
+}
+
+function jobCreatePermissionDeniedError(): JobCreationError {
+  return {
+    code: "job_permission_denied",
+    message: "You do not have permission to create jobs.",
+  };
+}
+
+function assertAgentJobCreateAllowed(ctx: ToolContext): Result<void, JobCreationError> {
+  if (!isJobCreateAllowed(ctx.membershipRole)) {
+    return err(jobCreatePermissionDeniedError());
+  }
+
+  return ok(undefined);
 }
 
 function usageReservationFailedError(message: string): JobCreationError {
@@ -256,6 +273,11 @@ async function createQueuedJob(
   ctx: ToolContext,
   input: Parameters<typeof queuedJobValues>[1],
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const permissionResult = assertAgentJobCreateAllowed(ctx);
+  if (isErr(permissionResult)) {
+    return permissionResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx
@@ -379,6 +401,15 @@ async function prepareTranslationJobInput(
     });
 
     if (!sourceFile) {
+      return err({
+        code: "translation_job_source_file_missing",
+        message: "Source file was not found for this organization or project.",
+      });
+    }
+
+    if (
+      !(await toolCanAccessStoredFileProject(ctx, sourceFile.projectId, sourceFile.createdByUserId))
+    ) {
       return err({
         code: "translation_job_source_file_missing",
         message: "Source file was not found for this organization or project.",
@@ -614,6 +645,11 @@ async function createReviewJobRecord(
   ctx: ToolContext,
   input: { criteria: string; targetLocale?: string; translationJobId?: string },
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const permissionResult = assertAgentJobCreateAllowed(ctx);
+  if (isErr(permissionResult)) {
+    return permissionResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx
@@ -750,6 +786,11 @@ async function createSyncJobRecord(
     externalIdentifiers: Record<string, unknown>;
   },
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const permissionResult = assertAgentJobCreateAllowed(ctx);
+  if (isErr(permissionResult)) {
+    return permissionResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx
@@ -836,6 +877,11 @@ async function createAssetManagementJobRecord(
     config?: Record<string, unknown>;
   },
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const permissionResult = assertAgentJobCreateAllowed(ctx);
+  if (isErr(permissionResult)) {
+    return permissionResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx

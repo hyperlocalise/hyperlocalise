@@ -31,6 +31,7 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
           id: schema.storedFiles.id,
           organizationId: schema.storedFiles.organizationId,
           projectId: schema.storedFiles.projectId,
+          createdByUserId: schema.storedFiles.createdByUserId,
           storageProvider: schema.storedFiles.storageProvider,
           storageKey: schema.storedFiles.storageKey,
           storageUrl: schema.storedFiles.storageUrl,
@@ -46,6 +47,7 @@ export function createFileRoutes(options: CreateFileRoutesOptions = {}) {
         !(await canAccessStoredFile(c.var.auth, {
           organizationId: file.organizationId,
           projectId: file.projectId,
+          createdByUserId: file.createdByUserId,
         }))
       ) {
         return fileNotFoundResponse(c);

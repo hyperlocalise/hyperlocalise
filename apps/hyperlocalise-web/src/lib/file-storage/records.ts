@@ -163,13 +163,9 @@ export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
   ];
 
   if (input.projectId) {
-    const projectScope = or(
-      eq(schema.storedFiles.projectId, input.projectId),
-      isNull(schema.storedFiles.projectId),
+    filters.push(
+      or(eq(schema.storedFiles.projectId, input.projectId), isNull(schema.storedFiles.projectId))!,
     );
-    if (projectScope) {
-      filters.push(projectScope);
-    }
   }
 
   const [file] = await dbClient

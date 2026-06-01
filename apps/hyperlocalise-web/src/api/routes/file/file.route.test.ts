@@ -57,11 +57,13 @@ describe("file download route", () => {
   it("streams a stored file when the user belongs to the organization", async () => {
     const identity = createWorkosIdentityWithRole("member");
     const headers = await authHeadersFor(identity);
-    const orgId = globalThis.__testApiAuthContext!.activeOrganization.localOrganizationId;
+    const auth = globalThis.__testApiAuthContext!;
+    const orgId = auth.activeOrganization.localOrganizationId;
     const fileContent = Buffer.from(JSON.stringify({ hello: "world" }));
 
     const file = await createStoredFile({
       organizationId: orgId,
+      createdByUserId: auth.user.localUserId,
       role: "source",
       sourceKind: "chat_upload",
       filename: "source.json",
@@ -128,6 +130,67 @@ describe("file download route", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+
+  it("returns 404 when a member downloads another user's workspace file", async () => {
+    const uploader = createWorkosIdentityWithRole("member");
+    const requester = createWorkosIdentityForOrganization(uploader.organization, "member");
+
+    await authHeadersFor(uploader);
+    const orgId = globalThis.__testApiAuthContext!.activeOrganization.localOrganizationId;
+    const uploaderUserId = globalThis.__testApiAuthContext!.user.localUserId;
+
+    const workspaceFile = await createStoredFile({
+      organizationId: orgId,
+      createdByUserId: uploaderUserId,
+      role: "source",
+      sourceKind: "chat_upload",
+      filename: "workspace-secret.json",
+      contentType: "application/json",
+      content: Buffer.from('{"scope":"workspace"}'),
+      adapter: fileStorageAdapter,
+    });
+
+    const response = await app.request(
+      `/api/orgs/${uploader.organization.slug}/files/${workspaceFile.id}`,
+      {
+        method: "GET",
+        headers: await authHeadersFor(requester),
+      },
+    );
+
+    expect(response.status).toBe(404);
+  });
+
+  it("streams an unattributed workspace file to an organization member", async () => {
+    const uploader = createWorkosIdentityWithRole("member");
+    const requester = createWorkosIdentityForOrganization(uploader.organization, "member");
+
+    await authHeadersFor(uploader);
+    const orgId = globalThis.__testApiAuthContext!.activeOrganization.localOrganizationId;
+    const fileContent = Buffer.from('{"scope":"workspace"}');
+
+    const workspaceFile = await createStoredFile({
+      organizationId: orgId,
+      createdByUserId: null,
+      role: "source",
+      sourceKind: "chat_upload",
+      filename: "workspace-system.json",
+      contentType: "application/json",
+      content: fileContent,
+      adapter: fileStorageAdapter,
+    });
+
+    const response = await app.request(
+      `/api/orgs/${uploader.organization.slug}/files/${workspaceFile.id}`,
+      {
+        method: "GET",
+        headers: await authHeadersFor(requester),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.text()).resolves.toBe(fileContent.toString());
   });
 
   it("returns 404 when a member downloads a file from another team's project", async () => {
