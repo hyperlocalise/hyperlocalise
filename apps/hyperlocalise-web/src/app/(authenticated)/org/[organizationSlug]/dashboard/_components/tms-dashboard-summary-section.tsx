@@ -157,8 +157,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
           ) : connectedProviders === 0 ? (
             <div className="py-2">
               <TypographyP className="text-sm text-muted-foreground">
-                No TMS connected yet. After you link a provider, this overview shows sync health and
-                locale readiness across your workspace.
+                No TMS connected yet.
               </TypographyP>
               <Link
                 href={buildOrgWorkspaceHref(organizationSlug, "integrations")}

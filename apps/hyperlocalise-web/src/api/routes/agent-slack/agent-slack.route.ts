@@ -6,6 +6,7 @@ import { validator } from "hono/validator";
 
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth/slack-oauth.route";
+import { getSlackBot } from "@/lib/agents/slack/bot";
 import {
   createSlackState,
   getSlackStateSecret,
@@ -16,6 +17,16 @@ import { env } from "@/lib/env";
 import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
 
 import { updateSlackAgentBodySchema } from "./agent-slack.schema";
+
+type SlackConnectorConfig = { teamId?: string; teamName?: string };
+type SlackInstallation = { botToken: string };
+type SlackChannel = { id?: string; name?: string; is_private?: boolean; is_archived?: boolean };
+type SlackConversationsListResponse = {
+  ok?: boolean;
+  error?: string;
+  channels?: SlackChannel[];
+  response_metadata?: { next_cursor?: string };
+};
 
 const validateUpdateSlackAgentBody = validator("json", (value, c) => {
   const parsed = updateSlackAgentBodySchema.safeParse(value);
@@ -41,6 +52,58 @@ async function getSlackConnector(organizationId: string) {
   return connector ?? null;
 }
 
+async function getSlackInstallation(teamId: string): Promise<SlackInstallation | null> {
+  const bot = await getSlackBot();
+  await bot.initialize();
+  const adapter = bot.getAdapter("slack") as {
+    getInstallation: (teamId: string) => Promise<SlackInstallation | null>;
+  };
+
+  return adapter.getInstallation(teamId);
+}
+
+async function listSlackChannels(botToken: string) {
+  const channels: Array<{ id: string; name: string; private: boolean }> = [];
+  let cursor = "";
+
+  do {
+    const url = new URL("https://slack.com/api/conversations.list");
+    url.searchParams.set("exclude_archived", "true");
+    url.searchParams.set("limit", "1000");
+    url.searchParams.set("types", "public_channel,private_channel");
+    if (cursor) {
+      url.searchParams.set("cursor", cursor);
+    }
+
+    const response = await fetch(url, {
+      headers: { authorization: `Bearer ${botToken}` },
+    });
+    if (!response.ok) {
+      throw new Error("Slack channel list request failed");
+    }
+
+    const body = (await response.json()) as SlackConversationsListResponse;
+    if (!body.ok) {
+      throw new Error(body.error ?? "Slack channel list request failed");
+    }
+
+    for (const channel of body.channels ?? []) {
+      if (!channel.id || !channel.name || channel.is_archived) {
+        continue;
+      }
+      channels.push({
+        id: channel.id,
+        name: channel.name,
+        private: Boolean(channel.is_private),
+      });
+    }
+
+    cursor = body.response_metadata?.next_cursor ?? "";
+  } while (cursor);
+
+  return channels.sort((left, right) => left.name.localeCompare(right.name));
+}
+
 export function createAgentSlackRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -48,7 +111,7 @@ export function createAgentSlackRoutes() {
       const connector = await getSlackConnector(c.var.auth.organization.localOrganizationId);
 
       const enabled = connector?.enabled ?? false;
-      const config = (connector?.config ?? {}) as { teamId?: string; teamName?: string };
+      const config = (connector?.config ?? {}) as SlackConnectorConfig;
 
       return c.json(
         {
@@ -60,6 +123,25 @@ export function createAgentSlackRoutes() {
         },
         200,
       );
+    })
+    .get("/channels", async (c) => {
+      const connector = await getSlackConnector(c.var.auth.organization.localOrganizationId);
+      const config = (connector?.config ?? {}) as SlackConnectorConfig;
+      if (!connector?.enabled || !config.teamId) {
+        return c.json({ channels: [] }, 200);
+      }
+
+      try {
+        const installation = await getSlackInstallation(config.teamId);
+        if (!installation?.botToken) {
+          return c.json({ error: "slack_installation_not_found" as const }, 404);
+        }
+
+        const channels = await listSlackChannels(installation.botToken);
+        return c.json({ channels }, 200);
+      } catch {
+        return c.json({ error: "slack_channels_unavailable" as const }, 502);
+      }
     })
     .get("/install-url", async (c) => {
       try {
@@ -148,7 +230,7 @@ export function createAgentSlackRoutes() {
         return c.json({ error: "organization_not_found" as const }, 404);
       }
 
-      const config = (connector.config ?? {}) as { teamId?: string; teamName?: string };
+      const config = (connector.config ?? {}) as SlackConnectorConfig;
 
       return c.json(
         {

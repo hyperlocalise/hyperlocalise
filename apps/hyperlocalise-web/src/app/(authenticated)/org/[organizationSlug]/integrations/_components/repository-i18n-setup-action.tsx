@@ -222,7 +222,7 @@ export function RepositoryI18nSetupAction({
   }
 
   return (
-    <div className="flex flex-col items-end gap-1">
+    <div className="flex min-w-0 flex-col items-end gap-1">
       <Button
         type="button"
         variant="outline"
@@ -234,7 +234,7 @@ export function RepositoryI18nSetupAction({
         {startSetup.isPending || isActive ? "Setting up..." : "Setup i18n.yml"}
       </Button>
       {run ? (
-        <div className="max-w-[220px] text-right text-xs text-muted-foreground">
+        <div className="max-w-full text-right text-xs text-muted-foreground">
           {run.status === "queued" || run.status === "running" ? (
             <div className="flex flex-col items-end gap-1">
               <span>Analyzing locale files...</span>
@@ -262,7 +262,9 @@ export function RepositoryI18nSetupAction({
             <span>{run.errorMessage}</span>
           ) : null}
           {run.status === "failed" ? (
-            <span className="text-destructive">{getI18nSetupErrorMessage(run)}</span>
+            <span className="inline-flex max-w-60 rounded-md border border-destructive/20 bg-destructive/10 px-2 py-1 text-left leading-snug text-destructive">
+              {getI18nSetupErrorMessage(run)}
+            </span>
           ) : null}
         </div>
       ) : null}
