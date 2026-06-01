@@ -199,9 +199,7 @@ describe("commitPushAndCreateI18nSetupPullRequestStep", () => {
 
       const expectedCommands = [
         ["sandbox_123", "git", ["checkout", "-b", "hyperlocalise/i18n-setup-123"]],
-        ...(removeJsonc
-          ? [["sandbox_123", "git", ["rm", "-f", "i18n.jsonc"]]]
-          : []),
+        ...(removeJsonc ? [["sandbox_123", "git", ["rm", "-f", "i18n.jsonc"]]] : []),
         ["sandbox_123", "git", ["add", "i18n.yml"]],
         ["sandbox_123", "git", ["commit", "-m", commitMessage]],
         ["sandbox_123", "git", ["push", "-u", "origin", "hyperlocalise/i18n-setup-123"]],
@@ -259,9 +257,7 @@ describe("commitPushAndCreateI18nSetupPullRequestStep", () => {
         mode: "create",
         removeJsonc: false,
       }),
-    ).rejects.toThrow(
-      "The GitHub App installation does not have push access to this repository.",
-    );
+    ).rejects.toThrow("The GitHub App installation does not have push access to this repository.");
 
     expect(runSandboxCommandMock).not.toHaveBeenCalled();
     expect(pullsCreateMock).not.toHaveBeenCalled();
