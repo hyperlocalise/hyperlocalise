@@ -15,21 +15,28 @@ import { getHyperlocaliseAgentModel } from "./model";
 export { getHyperlocaliseAgentModel, hyperlocaliseAgentModelId } from "./model";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
-import { classifyConversationMode } from "./conversation-mode";
+import type { HyperlocaliseConversationIntent } from "./conversation-mode";
+import { getPrimarySuggestedMode, normalizeConversationIntents } from "./conversation-classifier";
 import {
   createConversationOrchestratorAgent,
   type ConversationOrchestratorOnFinish,
 } from "./orchestrator";
 
 export type { HyperlocaliseConversationMode } from "./conversation-mode";
+export { buildConversationModeInstructions } from "./conversation-mode";
 export {
-  buildConversationModeInstructions,
-  classifyConversationMode,
-  conversationModeRequiresPullRequestContext,
-  isRepositoryConversationRequest,
-} from "./conversation-mode";
+  classifyConversation,
+  createConversationClassifier,
+  getPrimarySuggestedMode,
+  getRecentUserConversationText,
+  normalizeConversationIntents,
+  shouldAttemptRepositoryContextResolution,
+  shouldRequireRepositoryContextClarification,
+  type ConversationClassification,
+} from "./conversation-classifier";
+export type { HyperlocaliseConversationIntent } from "./conversation-mode";
 
-export const hyperlocaliseAgentStepLimit = 5;
+export const hyperlocaliseAgentStepLimit = 40;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
 
 export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
@@ -54,6 +61,7 @@ type CreateHyperlocaliseAgentInput<TOOLS extends ToolSet> = {
 type CreateConversationAgentInput = {
   surface: HyperlocaliseAgentSurface;
   toolContext: ToolContext;
+  suggestedIntents: HyperlocaliseConversationIntent[];
   additionalInstructions?: string;
   onFinish?: ConversationOrchestratorOnFinish;
 };
@@ -180,19 +188,19 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
 export function createConversationToolLoopAgent({
   surface,
   toolContext,
+  suggestedIntents,
   additionalInstructions,
   onFinish,
   hasFileAttachments = false,
-  userMessageText = "",
-}: Omit<CreateConversationAgentInput, "intent"> & {
+}: CreateConversationAgentInput & {
   hasFileAttachments?: boolean;
-  userMessageText?: string;
 }) {
-  const suggestedMode = classifyConversationMode(userMessageText);
+  const normalizedIntents = normalizeConversationIntents(suggestedIntents);
   const runtime: HyperlocaliseAgentRuntimeContext = {
     surface,
     toolContext,
-    suggestedMode,
+    suggestedIntents: normalizedIntents,
+    suggestedMode: getPrimarySuggestedMode(normalizedIntents),
     hasFileAttachments,
     additionalInstructions: additionalInstructions?.trim() || undefined,
   };

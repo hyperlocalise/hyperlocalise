@@ -11,7 +11,9 @@ import { workosAuthMiddleware } from "@/api/auth/workos";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import {
   buildTranslationAttachmentRequiredMessage,
+  classifyConversation,
   createConversationToolLoopAgent,
+  getRecentUserConversationText,
   loadInteractionModelMessages,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { db } from "@/lib/database";
@@ -114,8 +116,17 @@ export function createChatStreamRoutes() {
         }
 
         const chatMessages = await loadInteractionModelMessages(conversationId);
+        const conversationText = getRecentUserConversationText(chatMessages, message.text);
+        const classification = await classifyConversation({
+          currentMessage: message.text,
+          conversationText,
+          hasFileAttachments: hasTranslationAttachments,
+          hasStoredRepositoryContext: false,
+          surface: "web",
+        });
         const agent = createConversationToolLoopAgent({
           surface: "web",
+          suggestedIntents: classification.intents,
           toolContext: {
             conversationId,
             organizationId: orgId,
@@ -125,7 +136,6 @@ export function createChatStreamRoutes() {
             db,
           },
           hasFileAttachments: hasTranslationAttachments,
-          userMessageText: message.text,
         });
 
         const result = await agent.stream({ messages: chatMessages });

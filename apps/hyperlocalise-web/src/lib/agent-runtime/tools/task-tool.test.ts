@@ -57,6 +57,7 @@ describe("task tool", () => {
       },
       createToolExecutionOptions({
         surface: "web",
+        suggestedIntents: ["translation"],
         suggestedMode: "translation",
         hasFileAttachments: true,
         toolContext: {
@@ -95,6 +96,7 @@ describe("task tool", () => {
       },
       createToolExecutionOptions({
         surface: "web",
+        suggestedIntents: ["translation"],
         suggestedMode: "translation",
         hasFileAttachments: true,
         toolContext: {
@@ -111,7 +113,7 @@ describe("task tool", () => {
     expect(result).toMatchObject({
       success: false,
       subagentType: "translation",
-      summary: "Specialist encountered an error.",
+      summary: "Agent encountered an error.",
       error: "rate limit exceeded",
     });
   });
@@ -126,6 +128,7 @@ describe("task tool", () => {
       },
       createToolExecutionOptions({
         surface: "slack",
+        suggestedIntents: ["repository"],
         suggestedMode: "repository",
         hasFileAttachments: false,
         toolContext: {
@@ -161,12 +164,12 @@ describe("task tool", () => {
     expect(result).toMatchObject({
       success: false,
       subagentType: "translation",
-      summary: "Specialist cannot run without request context.",
+      summary: "Agent cannot run without request context.",
       error: "Hyperlocalise agent runtime context is incomplete.",
     });
   });
 
-  it("adds localization-context handoff requirements for repository specialists", async () => {
+  it("adds localization-context handoff requirements for the repository agent", async () => {
     runSubagentMock.mockResolvedValueOnce({ text: "Found context in src/messages.ts:12." });
 
     const taskTool = createTaskTool();
@@ -178,6 +181,7 @@ describe("task tool", () => {
       },
       createToolExecutionOptions({
         surface: "slack",
+        suggestedIntents: ["repository"],
         suggestedMode: "repository",
         hasFileAttachments: false,
         toolContext: {

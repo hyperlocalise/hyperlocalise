@@ -20,24 +20,30 @@ export function listAvailableSubagentTypes(
   return SUBAGENT_TYPES.filter((type) => SUBAGENT_REGISTRY[type].isAvailable(runtime));
 }
 
+/** Preferred delegation order when multiple intents are active (repository context before translation). */
+export function resolvePreferredSubagentOrder(
+  runtime: HyperlocaliseAgentRuntimeContext,
+): HyperlocaliseSubagentType[] {
+  const available = new Set(listAvailableSubagentTypes(runtime));
+  const order: HyperlocaliseSubagentType[] = [];
+
+  if (runtime.suggestedIntents.includes("repository") && available.has("repository")) {
+    order.push("repository");
+  }
+
+  if (runtime.suggestedIntents.includes("translation") && available.has("translation")) {
+    order.push("translation");
+  }
+
+  if (order.length > 0) {
+    return order;
+  }
+
+  return listAvailableSubagentTypes(runtime);
+}
+
 export function resolveSubagentTypeForMode(
   runtime: HyperlocaliseAgentRuntimeContext,
 ): HyperlocaliseSubagentType | null {
-  if (
-    runtime.suggestedMode === "translation" &&
-    SUBAGENT_REGISTRY.translation.isAvailable(runtime)
-  ) {
-    return "translation";
-  }
-
-  if (runtime.suggestedMode === "repository" && SUBAGENT_REGISTRY.repository.isAvailable(runtime)) {
-    return "repository";
-  }
-
-  const available = listAvailableSubagentTypes(runtime);
-  if (available.length === 1) {
-    return available[0]!;
-  }
-
-  return null;
+  return resolvePreferredSubagentOrder(runtime)[0] ?? null;
 }

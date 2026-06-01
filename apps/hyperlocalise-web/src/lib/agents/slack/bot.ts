@@ -3,11 +3,13 @@ import { createSlackAdapter } from "@chat-adapter/slack";
 import type { Message, Thread, UserInfo } from "chat";
 
 import {
-  classifyConversationMode,
-  conversationModeRequiresPullRequestContext,
+  classifyConversation,
   createConversationToolLoopAgent,
+  getRecentUserConversationText,
   loadInteractionModelMessages,
   replaceLastUserMessage,
+  shouldAttemptRepositoryContextResolution,
+  shouldRequireRepositoryContextClarification,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import {
   buildRepositoryGitHubContextInstructions,
@@ -28,6 +30,7 @@ import {
   addInteractionMessage,
   createInteraction,
   findInteractionBySourceThreadId,
+  interactionHasTranslationAttachments,
   updateInteractionMessage,
 } from "@/lib/conversations/interactions";
 
@@ -40,10 +43,13 @@ import {
   storeSlackFileAttachments,
 } from "./file-attachments";
 import { getSlackImageAttachments, handleSlackImageAttachments } from "./image-attachments";
+import { type SlackBotThreadState } from "./repository-session";
 
-type SlackBotState = Record<string, unknown>;
+type SlackBotState = SlackBotThreadState;
 
 const logger = createLogger("slack-bot");
+
+const SLACK_PROCESSING_ACK_MESSAGE = "On it — I'll reply here shortly.";
 
 let botInstance: Chat<{ slack: ReturnType<typeof createSlackAdapter> }, SlackBotState> | null =
   null;
@@ -99,31 +105,6 @@ function buildSlackFileTranslationInstructions() {
   return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
 
-function buildSlackRepositoryInstructions(
-  messages: Awaited<ReturnType<typeof loadInteractionModelMessages>>,
-  latestText: string,
-): string {
-  const userLines = messages.flatMap((chatMessage) => {
-    if (chatMessage.role !== "user" || typeof chatMessage.content !== "string") {
-      return [];
-    }
-
-    const text = chatMessage.content.trim();
-    return text ? [text] : [];
-  });
-
-  const trimmedLatest = latestText.trim();
-  if (trimmedLatest && userLines.at(-1) !== trimmedLatest) {
-    userLines.push(trimmedLatest);
-  }
-
-  if (userLines.length === 0) {
-    return trimmedLatest;
-  }
-
-  return userLines.slice(-5).join("\n");
-}
-
 function getSlackChannelId(thread: Thread<SlackBotState>, message: Message): string | null {
   const channelId = thread.channelId;
   if (typeof channelId === "string" && channelId.length > 0) {
@@ -132,44 +113,6 @@ function getSlackChannelId(thread: Thread<SlackBotState>, message: Message): str
 
   const raw = message.raw as { channel?: string } | undefined;
   return raw?.channel ?? null;
-}
-
-const githubReferencePattern =
-  /https?:\/\/(?:www\.)?github\.com\/[^\s]+|\b(?:github|repo|repository)\b|(?:^|[\s(<])[\w.-]+\/[\w.-]+(?=[\s>|)\].,;:!?]|$)/i;
-const repositoryContextQuestionPattern =
-  /\b(?:context|search|find(?:ing)?|locate|lookup|where|usage|surrounding|nearby)\b/i;
-const repositoryStringSubjectPattern =
-  /\b(?:locali[sz]ed|translated|message|messages|string|strings|copy|text)\b/i;
-
-function shouldAttemptRepositoryContextResolution(input: {
-  text: string;
-  hasStoredFileAttachments: boolean;
-  mode: ReturnType<typeof classifyConversationMode>;
-}) {
-  if (input.mode === "repository") {
-    return true;
-  }
-
-  if (githubReferencePattern.test(input.text)) {
-    return true;
-  }
-
-  if (
-    repositoryContextQuestionPattern.test(input.text) &&
-    (repositoryStringSubjectPattern.test(input.text) || /["'`][^"'`]+["'`]/.test(input.text))
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-function shouldRequireRepositoryContextClarification(text: string) {
-  return (
-    githubReferencePattern.test(text) ||
-    (repositoryContextQuestionPattern.test(text) &&
-      (repositoryStringSubjectPattern.test(text) || /["'`][^"'`]+["'`]/.test(text)))
-  );
 }
 
 function buildMissingRepositoryContextInstructions(followUp: string) {
@@ -196,6 +139,15 @@ async function removeEyesReaction(thread: Thread<SlackBotState>, message: Messag
   });
 }
 
+type ProcessSlackMessageOptions = {
+  isNewInteraction?: boolean;
+};
+
+async function postSlackProcessingAck(thread: Thread<SlackBotState>, interactionId: string) {
+  wrapThreadPost(thread, interactionId);
+  await thread.post({ markdown: SLACK_PROCESSING_ACK_MESSAGE });
+}
+
 async function processSlackMessage(
   thread: Thread<SlackBotState>,
   message: Message,
@@ -203,6 +155,7 @@ async function processSlackMessage(
   organizationId: string,
   projectId: string | null,
   connectorConfig: Record<string, unknown> | null,
+  options: ProcessSlackMessageOptions = {},
 ) {
   const channelId = getSlackChannelId(thread, message);
   const log = logger.child({
@@ -316,79 +269,123 @@ async function processSlackMessage(
       }
     }
 
-    const conversationMode = classifyConversationMode(message.text);
+    const hasTranslationAttachments = await interactionHasTranslationAttachments(interactionId);
+    const shouldPostProcessingAck =
+      options.isNewInteraction === true ||
+      storedFileAttachments.length > 0 ||
+      imageAttachments.length > 0 ||
+      hasTranslationAttachments;
+
+    if (shouldPostProcessingAck) {
+      await postSlackProcessingAck(thread, interactionId);
+    }
+
+    const loadedMessages = await loadInteractionModelMessages(interactionId);
+    const conversationText = getRecentUserConversationText(loadedMessages, persistedUserText);
+    const threadState = (await thread.state) as SlackBotThreadState | null;
+    const storedRepositoryContext = threadState?.repositoryGitHubContext ?? null;
+    const classification = await classifyConversation({
+      currentMessage: message.text,
+      conversationText,
+      hasFileAttachments: hasTranslationAttachments,
+      hasStoredRepositoryContext: Boolean(storedRepositoryContext),
+      surface: "slack",
+    });
     const shouldResolveRepositoryContext = shouldAttemptRepositoryContextResolution({
-      text: message.text,
-      hasStoredFileAttachments: storedFileAttachments.length > 0,
-      mode: conversationMode,
+      classification,
+      storedRepositoryContext,
     });
     log.info(
       {
-        conversationMode,
+        conversationIntents: classification.intents,
         shouldResolveRepositoryContext,
+        needsRepositoryTools: classification.needsRepositoryTools,
+        continuesRepositoryThread: classification.continuesRepositoryThread,
+        hasStoredRepositoryContext: Boolean(storedRepositoryContext),
         hasConnectorConfig: Boolean(connectorConfig),
       },
-      "slack agent conversation mode classified",
+      "slack agent conversation classified",
     );
 
     let resolvedRepositoryContext: RepositoryAgentGitHubContext | null = null;
     let repositoryContextInstructions: string | null = null;
     if (shouldResolveRepositoryContext) {
-      const githubContextResolution = await resolveSlackRepositoryGitHubContext({
-        organizationId,
-        text: message.text,
-        connectorConfig,
-        projectId,
-        channelId,
-        requirePullRequest: conversationModeRequiresPullRequestContext(
-          message.text,
-          conversationMode,
-        ),
-      });
-      log.info(
-        {
-          status: githubContextResolution.status,
-          source:
-            githubContextResolution.status === "resolved" ? githubContextResolution.source : null,
-          repositoryFullName:
-            githubContextResolution.status === "resolved"
-              ? githubContextResolution.context.repositoryFullName
-              : null,
-          installationId:
-            githubContextResolution.status === "resolved"
-              ? githubContextResolution.context.installationId
-              : null,
-          unresolvedReason:
-            githubContextResolution.status === "unresolved"
-              ? githubContextResolution.context.reason
-              : null,
-        },
-        "slack agent repository context resolved",
-      );
+      const canReuseStoredRepositoryContext =
+        storedRepositoryContext !== null && !classification.currentMessageSpecifiesRepository;
 
-      if (githubContextResolution.status === "resolved") {
-        resolvedRepositoryContext = githubContextResolution.context;
+      if (canReuseStoredRepositoryContext) {
+        resolvedRepositoryContext = storedRepositoryContext;
         repositoryContextInstructions =
           buildResolvedRepositoryContextInstructions(resolvedRepositoryContext);
-      } else if (githubContextResolution.status === "unresolved") {
-        repositoryContextInstructions = buildMissingRepositoryContextInstructions(
-          githubContextResolution.followUp,
+        log.info(
+          {
+            repositoryFullName: resolvedRepositoryContext.repositoryFullName,
+          },
+          "reusing stored slack thread repository context",
+        );
+      } else {
+        const githubContextResolution = await resolveSlackRepositoryGitHubContext({
+          organizationId,
+          text: conversationText,
+          connectorConfig,
+          projectId,
+          channelId,
+          requirePullRequest: classification.requiresPullRequest,
+        });
+        log.info(
+          {
+            status: githubContextResolution.status,
+            source:
+              githubContextResolution.status === "resolved" ? githubContextResolution.source : null,
+            repositoryFullName:
+              githubContextResolution.status === "resolved"
+                ? githubContextResolution.context.repositoryFullName
+                : null,
+            installationId:
+              githubContextResolution.status === "resolved"
+                ? githubContextResolution.context.installationId
+                : null,
+            unresolvedReason:
+              githubContextResolution.status === "unresolved"
+                ? githubContextResolution.context.reason
+                : null,
+          },
+          "slack agent repository context resolved",
         );
 
-        if (shouldRequireRepositoryContextClarification(message.text)) {
-          await removeEyesReaction(thread, message);
-          wrapThreadPost(thread, interactionId);
-          await thread.post({ markdown: githubContextResolution.followUp });
-          return;
+        if (githubContextResolution.status === "resolved") {
+          resolvedRepositoryContext = githubContextResolution.context;
+          repositoryContextInstructions =
+            buildResolvedRepositoryContextInstructions(resolvedRepositoryContext);
+          await thread.setState({
+            ...threadState,
+            repositoryGitHubContext: resolvedRepositoryContext,
+          });
+        } else if (githubContextResolution.status === "unresolved") {
+          if (storedRepositoryContext && !classification.currentMessageSpecifiesRepository) {
+            resolvedRepositoryContext = storedRepositoryContext;
+            repositoryContextInstructions =
+              buildResolvedRepositoryContextInstructions(resolvedRepositoryContext);
+          } else {
+            repositoryContextInstructions = buildMissingRepositoryContextInstructions(
+              githubContextResolution.followUp,
+            );
+
+            if (shouldRequireRepositoryContextClarification(classification)) {
+              await removeEyesReaction(thread, message);
+              wrapThreadPost(thread, interactionId);
+              await thread.post({ markdown: githubContextResolution.followUp });
+              return;
+            }
+          }
         }
       }
     }
 
-    const loadedMessages = await loadInteractionModelMessages(interactionId);
     const chatMessages = replaceLastUserMessage(
       loadedMessages,
       resolvedRepositoryContext
-        ? buildSlackRepositoryInstructions(loadedMessages, persistedUserText)
+        ? getRecentUserConversationText(loadedMessages, persistedUserText)
         : persistedUserText,
     );
 
@@ -436,7 +433,7 @@ async function processSlackMessage(
 
       const agent = createConversationToolLoopAgent({
         surface: "slack",
-        userMessageText: persistedUserText,
+        suggestedIntents: classification.intents,
         toolContext: {
           conversationId: interactionId,
           organizationId,
@@ -458,7 +455,7 @@ async function processSlackMessage(
               }
             : {}),
         },
-        hasFileAttachments: storedFileAttachments.length > 0,
+        hasFileAttachments: hasTranslationAttachments,
         additionalInstructions: [
           buildSlackFileTranslationInstructions(),
           repositoryContextInstructions,
@@ -470,7 +467,7 @@ async function processSlackMessage(
         {
           hasRepositoryContext: Boolean(resolvedRepositoryContext),
           hasSandbox: Boolean(sandboxId),
-          hasFileAttachments: storedFileAttachments.length > 0,
+          hasFileAttachments: hasTranslationAttachments,
         },
         "running slack conversation agent",
       );
@@ -539,6 +536,7 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     connector.organizationId,
     interaction.projectId,
     (connector.config ?? null) as Record<string, unknown> | null,
+    { isNewInteraction: isNew },
   );
 }
 
@@ -570,6 +568,7 @@ export async function handleSubscribedMessage(thread: Thread<SlackBotState>, mes
     connector.organizationId,
     interaction.projectId,
     (connector.config ?? null) as Record<string, unknown> | null,
+    { isNewInteraction: false },
   );
 }
 

@@ -16,7 +16,7 @@ export const SUBAGENT_REGISTRY = {
       "Translate uploaded localization files and queue translation jobs when sourceFileId values are available",
     agent: translationSubagent,
     isAvailable: (runtime: HyperlocaliseAgentRuntimeContext) =>
-      runtime.hasFileAttachments || runtime.suggestedMode === "translation",
+      runtime.hasFileAttachments || runtime.suggestedIntents.includes("translation"),
     unavailableMessage: (_runtime) =>
       "Translation requires an attached localization file with a target language.",
   },
