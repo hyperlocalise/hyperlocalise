@@ -104,6 +104,12 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			want: false,
 		},
 		{
+			name: "namespaced tags are treated as markup",
+			src:  "Hello <ui:button>world</ui:button>",
+			tgt:  "Bonjour world",
+			want: true,
+		},
+		{
 			name: "ignores path-like tokens that are known atoms",
 			src:  "Path <id> and <name>",
 			tgt:  "Path <id> and <name>",
