@@ -186,6 +186,32 @@ export const agentRunStatusEnum = pgEnum("agent_run_status", [
   "cancelled",
 ]);
 /**
+ * Tracks persisted workspace automation definitions from active scheduling through user-paused and archived states.
+ */
+export const workspaceAutomationStatusEnum = pgEnum("workspace_automation_status", [
+  "active",
+  "paused",
+  "archived",
+]);
+/**
+ * Records why a persisted workspace automation run was created.
+ */
+export const workspaceAutomationRunTriggerSourceEnum = pgEnum(
+  "workspace_automation_run_trigger_source",
+  ["manual", "scheduled", "github"],
+);
+/**
+ * Tracks persisted workspace automation run execution from queueing through active work and terminal outcomes.
+ */
+export const workspaceAutomationRunStatusEnum = pgEnum("workspace_automation_run_status", [
+  "queued",
+  "running",
+  "succeeded",
+  "failed",
+  "cancelled",
+  "skipped",
+]);
+/**
  * Defines where automated TMS agent settings apply: organization-wide, project-specific, or provider-credential-specific.
  */
 export const tmsAgentAutomationScopeEnum = pgEnum("tms_agent_automation_scope", [
