@@ -437,4 +437,51 @@ describe("memoryRoutes", () => {
       projects: [expect.objectContaining({ projectId: project.id, projectName: "Website" })],
     });
   });
+
+  it("clamps CSV import match scores into the database range", async () => {
+    const { identity, memory } = await memoryFixture.createStoredMemoryFixture();
+    const headers = await authHeadersFor(identity);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      memoryId: memory.id,
+    };
+
+    const importResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries["import"].$post(
+      {
+        param,
+        json: {
+          format: "csv",
+          content:
+            "sourceLocale,targetLocale,sourceText,targetText,score\nen,fr,Upgrade,Mettre à niveau,150\nen,fr,Downgrade,Rétrograder,-5\nen,fr,Default,Défaut,not-a-number",
+        },
+      },
+      { headers },
+    );
+
+    expect(importResponse.status).toBe(201);
+    await expect(importResponse.json()).resolves.toMatchObject({ imported: 3, skipped: 0 });
+
+    const entriesResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$get(
+      {
+        param,
+        query: { limit: "50", offset: "0" },
+      },
+      { headers },
+    );
+
+    expect(entriesResponse.status).toBe(200);
+    const entriesBody = await entriesResponse.json();
+    if ("error" in entriesBody) throw new Error(String(entriesBody.error));
+    expect(entriesBody.memoryEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sourceText: "Upgrade", matchScore: 100 }),
+        expect.objectContaining({ sourceText: "Downgrade", matchScore: 0 }),
+        expect.objectContaining({ sourceText: "Default", matchScore: 100 }),
+      ]),
+    );
+  });
 });

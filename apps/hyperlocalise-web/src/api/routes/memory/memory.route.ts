@@ -6,6 +6,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { conflictResponse } from "@/api/errors";
+import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
 import { toMemoryRecord } from "@/lib/memory/memory-records";
@@ -152,46 +153,6 @@ function toMemoryEntryRecord(entry: MemoryEntry): MemoryEntryRecord {
   };
 }
 
-function parseCsvRows(content: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let quoted = false;
-
-  for (let index = 0; index < content.length; index++) {
-    const char = content[index];
-    const next = content[index + 1];
-
-    if (char === '"' && quoted && next === '"') {
-      cell += '"';
-      index++;
-      continue;
-    }
-    if (char === '"') {
-      quoted = !quoted;
-      continue;
-    }
-    if (char === "," && !quoted) {
-      row.push(cell.trim());
-      cell = "";
-      continue;
-    }
-    if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && next === "\n") index++;
-      row.push(cell.trim());
-      if (row.some(Boolean)) rows.push(row);
-      row = [];
-      cell = "";
-      continue;
-    }
-    cell += char;
-  }
-
-  row.push(cell.trim());
-  if (row.some(Boolean)) rows.push(row);
-  return rows;
-}
-
 function parseMemoryImport(payload: ImportMemoryEntriesBody): CreateMemoryEntryBody[] {
   if (payload.format === "csv") {
     const rows = parseCsvRows(payload.content);
@@ -201,7 +162,8 @@ function parseMemoryImport(payload: ImportMemoryEntriesBody): CreateMemoryEntryB
 
     return dataRows.flatMap((row) => {
       const [sourceLocale, targetLocale, sourceText, targetText, score] = row;
-      const matchScore = score ? Number.parseInt(score, 10) : 100;
+      const rawScore = score ? Number.parseInt(score, 10) : 100;
+      const matchScore = Number.isFinite(rawScore) ? Math.min(100, Math.max(0, rawScore)) : 100;
       return sourceLocale && targetLocale && sourceText && targetText
         ? [
             {
@@ -209,7 +171,7 @@ function parseMemoryImport(payload: ImportMemoryEntriesBody): CreateMemoryEntryB
               targetLocale,
               sourceText,
               targetText,
-              matchScore: Number.isFinite(matchScore) ? matchScore : 100,
+              matchScore,
             },
           ]
         : [];

@@ -4,8 +4,10 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { conflictResponse } from "@/api/errors";
+import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Glossary } from "@/lib/database/types";
+import { createGlossaryTermDuplicateTracker } from "@/lib/glossary/glossary-term-dedupe";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
 
@@ -156,46 +158,6 @@ function toGlossaryTermRecord(term: GlossaryTerm, glossary: Glossary): GlossaryT
   };
 }
 
-function parseCsvRows(content: string): string[][] {
-  const rows: string[][] = [];
-  let row: string[] = [];
-  let cell = "";
-  let quoted = false;
-
-  for (let index = 0; index < content.length; index++) {
-    const char = content[index];
-    const next = content[index + 1];
-
-    if (char === '"' && quoted && next === '"') {
-      cell += '"';
-      index++;
-      continue;
-    }
-    if (char === '"') {
-      quoted = !quoted;
-      continue;
-    }
-    if (char === "," && !quoted) {
-      row.push(cell.trim());
-      cell = "";
-      continue;
-    }
-    if ((char === "\n" || char === "\r") && !quoted) {
-      if (char === "\r" && next === "\n") index++;
-      row.push(cell.trim());
-      if (row.some(Boolean)) rows.push(row);
-      row = [];
-      cell = "";
-      continue;
-    }
-    cell += char;
-  }
-
-  row.push(cell.trim());
-  if (row.some(Boolean)) rows.push(row);
-  return rows;
-}
-
 function parseGlossaryImport(payload: ImportGlossaryTermsBody): CreateGlossaryTermBody[] {
   if (payload.format === "csv") {
     const rows = parseCsvRows(payload.content);
@@ -290,17 +252,13 @@ async function createGlossaryTerms(
     })
     .from(schema.glossaryTerms)
     .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
-  const seenSourceTerms = new Set(existing.map((term) => term.sourceTerm.toLowerCase()));
+  const duplicateTracker = createGlossaryTermDuplicateTracker(existing);
   const values: (typeof schema.glossaryTerms.$inferInsert)[] = [];
 
   for (const payload of payloads) {
-    const sourceTermKey = payload.caseSensitive
-      ? payload.sourceTerm
-      : payload.sourceTerm.toLowerCase();
-    if (seenSourceTerms.has(sourceTermKey)) {
+    if (duplicateTracker.hasDuplicateAndTrack(payload)) {
       continue;
     }
-    seenSourceTerms.add(sourceTermKey);
     values.push({
       glossaryId: glossary.id,
       sourceTerm: payload.sourceTerm,
