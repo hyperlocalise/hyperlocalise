@@ -37,69 +37,70 @@ export async function syncWorkspaceAutomationRunsForGithubJob(input: {
   skipReason?: string | null;
   completedAt?: Date | null;
 }) {
-  const [runRow] = await db
-    .select()
-    .from(schema.workspaceAutomationRuns)
-    .where(eq(schema.workspaceAutomationRuns.githubRepositoryAutomationJobId, input.jobId))
-    .limit(1);
-
-  if (!runRow) {
-    return;
-  }
-
   const mappedStatus = mapGithubJobStatusToRunStatus(input.status);
   if (!mappedStatus) {
     return;
   }
 
-  const outputSummary = {
-    ...(runRow.outputSummary as Record<string, unknown>),
-    ...input.resultSummary,
-    ...(input.skipReason ? { skipReason: input.skipReason } : {}),
-  };
+  const runRows = await db
+    .select()
+    .from(schema.workspaceAutomationRuns)
+    .where(eq(schema.workspaceAutomationRuns.githubRepositoryAutomationJobId, input.jobId));
 
-  const updatedRun = await updateWorkspaceAutomationRun({
-    runId: runRow.id,
-    organizationId: runRow.organizationId,
-    status: mappedStatus,
-    outputSummary,
-    error: input.lastError ? { message: input.lastError } : null,
-    completedAt:
-      input.completedAt ??
-      (mappedStatus === "succeeded" || mappedStatus === "failed" || mappedStatus === "skipped"
-        ? new Date()
-        : null),
-    startedAt:
-      mappedStatus === "running" && !runRow.startedAt
-        ? new Date()
-        : (runRow.startedAt ?? undefined),
-  });
-
-  if (!updatedRun) {
+  if (runRows.length === 0) {
     return;
   }
 
-  const automation = await getWorkspaceAutomationById({
-    automationId: runRow.automationId,
-    organizationId: runRow.organizationId,
-  });
-  if (!automation) {
-    return;
-  }
+  for (const runRow of runRows) {
+    const outputSummary = {
+      ...(runRow.outputSummary as Record<string, unknown>),
+      ...input.resultSummary,
+      ...(input.skipReason ? { skipReason: input.skipReason } : {}),
+    };
 
-  const notificationSummary = await notifyWorkspaceAutomationTerminalRun({
-    automation,
-    run: updatedRun,
-  });
-
-  if (Object.keys(notificationSummary).length > 0) {
-    await updateWorkspaceAutomationRun({
-      runId: updatedRun.id,
-      organizationId: updatedRun.organizationId,
-      outputSummary: {
-        ...updatedRun.outputSummary,
-        ...notificationSummary,
-      },
+    const updatedRun = await updateWorkspaceAutomationRun({
+      runId: runRow.id,
+      organizationId: runRow.organizationId,
+      status: mappedStatus,
+      outputSummary,
+      error: input.lastError ? { message: input.lastError } : null,
+      completedAt:
+        input.completedAt ??
+        (mappedStatus === "succeeded" || mappedStatus === "failed" || mappedStatus === "skipped"
+          ? new Date()
+          : null),
+      startedAt:
+        mappedStatus === "running" && !runRow.startedAt
+          ? new Date()
+          : (runRow.startedAt ?? undefined),
     });
+
+    if (!updatedRun) {
+      continue;
+    }
+
+    const automation = await getWorkspaceAutomationById({
+      automationId: runRow.automationId,
+      organizationId: runRow.organizationId,
+    });
+    if (!automation) {
+      continue;
+    }
+
+    const notificationSummary = await notifyWorkspaceAutomationTerminalRun({
+      automation,
+      run: updatedRun,
+    });
+
+    if (Object.keys(notificationSummary).length > 0) {
+      await updateWorkspaceAutomationRun({
+        runId: updatedRun.id,
+        organizationId: updatedRun.organizationId,
+        outputSummary: {
+          ...updatedRun.outputSummary,
+          ...notificationSummary,
+        },
+      });
+    }
   }
 }
