@@ -17,13 +17,14 @@ import (
 )
 
 type packOptions struct {
-	groupByValue bool
-	outFile      string
-	prefixID     bool
-	configPath   string
-	group        string
-	bucket       string
-	outSuffix    string
+	groupByValue      bool
+	outFile           string
+	prefixID          bool
+	ignoreDuplicateID bool
+	configPath        string
+	group             string
+	bucket            string
+	outSuffix         string
 }
 
 func newPackCmd() *cobra.Command {
@@ -86,6 +87,7 @@ files from your i18n config (i18n.yml or i18n.jsonc by default).`,
 	cmd.Flags().BoolVar(&o.groupByValue, "group-by-value", false, "group ids by shared translation string instead of preserving id-keyed output")
 	cmd.Flags().StringVar(&o.outFile, "out-file", "", "write packed translations to a JSON file")
 	cmd.Flags().BoolVar(&o.prefixID, "prefix-id", false, "strip extract --prefix-id filename prefixes from packed ids")
+	cmd.Flags().BoolVar(&o.ignoreDuplicateID, "ignore-duplicate-id", false, "ignore duplicate packed ids and keep the first value")
 	cmd.Flags().StringVar(&o.configPath, "config", "", "path to i18n config (default: i18n.yml or i18n.jsonc in the working directory)")
 	cmd.Flags().StringVar(&o.group, "group", "", "filter config discovery by group name")
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "filter config discovery by bucket name")
@@ -308,6 +310,9 @@ func buildPackCatalog(payload map[string]any, options packOptions) (map[string]e
 			packedID = stripPackPrefixID(key, prefixIndex)
 		}
 		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			if options.ignoreDuplicateID {
+				continue
+			}
 			return nil, packPrefixIDCollisionError(existingSourceID, key, packedID)
 		}
 		sourceByPackedID[packedID] = key
@@ -340,6 +345,9 @@ func buildPackFlat(values map[string]string, options packOptions) (map[string]st
 			packedID = stripPackPrefixID(id, prefixIndex)
 		}
 		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			if options.ignoreDuplicateID {
+				continue
+			}
 			return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
 		}
 		sourceByPackedID[packedID] = id
@@ -373,12 +381,22 @@ func runPackGrouped(path string, options packOptions) (map[string][]string, erro
 	packed := make(map[string][]string, len(values))
 	sourceByPackedID := make(map[string]string, len(values))
 	translationByPackedID := make(map[string]string, len(values))
-	for id, translation := range values {
+	ids := make([]string, 0, len(values))
+	for id := range values {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+
+	for _, id := range ids {
+		translation := values[id]
 		packedID := id
 		if options.prefixID {
 			packedID = stripPackPrefixID(id, prefixIndex)
 		}
 		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			if options.ignoreDuplicateID {
+				continue
+			}
 			if translation != translationByPackedID[packedID] {
 				return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
 			}

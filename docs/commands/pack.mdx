@@ -56,6 +56,7 @@ Batch discovery writes the packed output back to each input file in place by def
 - `--group-by-value`: group ids by shared translation string instead of preserving id-keyed output. Use with a single input file only.
 - `--out-file <path>`: write the packed JSON to a file instead of stdout. Use with a single input file only.
 - `--prefix-id`: strip `extract --prefix-id` filename prefixes from ids. For example, `src.components.app-header.title` becomes `title`.
+- `--ignore-duplicate-id`: ignore duplicate packed ids and keep the first value. This is useful when `--prefix-id` causes multiple source ids to strip to the same packed id.
 - `--config <path>`: optional path to i18n config when discovering locale files (default: `i18n.yml` or `i18n.jsonc`).
 - `--group <name>`: filter config discovery by group name.
 - `--bucket <name>`: filter config discovery by bucket name.
@@ -97,4 +98,10 @@ Strip prefixed ids while grouping:
 
 ```bash
 hyperlocalise pack lang/en.json --group-by-value --prefix-id --out-file lang/packed.json
+```
+
+Strip prefixed ids and keep the first value when duplicates collapse to the same id:
+
+```bash
+hyperlocalise pack lang/en.json --prefix-id --ignore-duplicate-id --out-file lang/packed.json
 ```

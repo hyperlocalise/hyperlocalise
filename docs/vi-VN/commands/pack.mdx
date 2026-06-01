@@ -56,6 +56,7 @@ Theo mặc định, Batch discovery ghi đầu ra đã đóng gói trở lại t
 - `--group-by-value`: nhóm các id theo chuỗi dịch dùng chung thay vì giữ đầu ra được khóa theo id. Chỉ sử dụng với một tệp đầu vào duy nhất.
 - `--out-file <path>`: ghi JSON đã đóng gói vào một tệp thay vì stdout. Chỉ dùng với một tệp đầu vào duy nhất.
 - `--prefix-id`: loại bỏ tiền tố tên tệp `extract --prefix-id` khỏi các id. Ví dụ, `src.components.app-header.title` sẽ trở thành `title`.
+- `--ignore-duplicate-id`: bỏ qua các id đã đóng gói bị trùng và giữ giá trị đầu tiên. Cờ này hữu ích khi `--prefix-id` khiến nhiều id nguồn sau khi bỏ tiền tố trở thành cùng một id đã đóng gói.
 - `--config <path>`: đường dẫn tùy chọn đến cấu hình i18n khi phát hiện các tệp ngôn ngữ (mặc định: `i18n.yml` hoặc `i18n.jsonc`).
 - `--group <name>`: khám phá cấu hình bộ lọc theo tên nhóm.
 - `--bucket <name>`: phát hiện cấu hình bộ lọc theo tên bucket.
@@ -97,4 +98,10 @@ Loại bỏ các id có tiền tố khi nhóm:
 
 ```bash
 hyperlocalise pack lang/en.json --group-by-value --prefix-id --out-file lang/packed.json
+```
+
+Loại bỏ các id có tiền tố và giữ giá trị đầu tiên khi các mục trùng được rút gọn về cùng một id:
+
+```bash
+hyperlocalise pack lang/en.json --prefix-id --ignore-duplicate-id --out-file lang/packed.json
 ```
