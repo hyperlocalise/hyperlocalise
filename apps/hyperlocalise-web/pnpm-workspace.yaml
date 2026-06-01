@@ -2,7 +2,7 @@ allowBuilds:
   '@mongodb-js/zstd': false
   '@nestjs/core': false
   '@swc/core': false
-  bun: false
+  bun: true
   cbor-extract: false
   esbuild: false
   msw: false
