@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Add01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,7 +9,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import {
@@ -56,15 +55,7 @@ function AutomationToolsSummary({ automation }: { automation: WorkspaceAutomatio
   );
 }
 
-export function AutomationsPageContent({
-  organizationSlug,
-  currentUserId,
-}: {
-  organizationSlug: string;
-  currentUserId: string;
-}) {
-  const [scope, setScope] = useState<"mine" | "team">("mine");
-
+export function AutomationsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const automationsQuery = useQuery({
     queryKey: ["workspace-automations", organizationSlug],
     queryFn: async () => {
@@ -81,14 +72,10 @@ export function AutomationsPageContent({
   });
 
   const automations = automationsQuery.data ?? [];
-  const visibleAutomations = useMemo(() => {
-    const activeAutomations = automations.filter((automation) => automation.status !== "archived");
-    if (scope === "team") {
-      return activeAutomations;
-    }
-
-    return activeAutomations.filter((automation) => automation.authorUserId === currentUserId);
-  }, [automations, currentUserId, scope]);
+  const visibleAutomations = useMemo(
+    () => automations.filter((automation) => automation.status !== "archived"),
+    [automations],
+  );
 
   const stats = useMemo(() => {
     const active = visibleAutomations.filter((automation) => automation.status === "active").length;
@@ -122,7 +109,10 @@ export function AutomationsPageContent({
         title="Automations"
         description="Automate repetitive tasks with always-on workflows that respond to schedules and GitHub pushes."
         actions={
-          <Button render={<Link href={`/org/${organizationSlug}/automations/new`} />}>
+          <Button
+            nativeButton={false}
+            render={<Link href={`/org/${organizationSlug}/automations/new`} />}
+          >
             <HugeiconsIcon icon={Add01Icon} strokeWidth={2} />
             New Automation
           </Button>
@@ -151,15 +141,6 @@ export function AutomationsPageContent({
       </section>
 
       <section className="flex flex-col gap-4">
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-          <Tabs value={scope} onValueChange={(value) => setScope(value as "mine" | "team")}>
-            <TabsList>
-              <TabsTrigger value="mine">Mine</TabsTrigger>
-              <TabsTrigger value="team">Team</TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
-
         <div className="overflow-hidden rounded-xl border border-foreground/10">
           <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] gap-4 border-b border-foreground/10 px-4 py-3 text-xs font-medium text-muted-foreground">
             <span>Automation</span>
@@ -229,6 +210,7 @@ export function AutomationsPageContent({
                   <Button
                     size="sm"
                     className="rounded-full"
+                    nativeButton={false}
                     render={
                       <Link
                         href={`/org/${organizationSlug}/automations/new?template=${template.id}`}

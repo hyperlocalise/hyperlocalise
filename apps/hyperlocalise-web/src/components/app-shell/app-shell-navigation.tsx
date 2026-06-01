@@ -273,12 +273,5 @@ function isNavigationItemActive(
     return true;
   }
 
-  if (
-    itemPathname.endsWith("/new-request") &&
-    pathname.startsWith(itemPathname.replace("new-request", "chat"))
-  ) {
-    return true;
-  }
-
   return false;
 }

@@ -90,6 +90,7 @@ export function AutomationsNewPageContent({
           <>
             <Button
               variant="outline"
+              nativeButton={false}
               render={<Link href={`/org/${organizationSlug}/automations`} />}
             >
               Cancel

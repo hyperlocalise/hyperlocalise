@@ -52,6 +52,7 @@ export default async function GithubRepositoryAutomationPage({
           variant="outline"
           size="sm"
           className="w-fit"
+          nativeButton={false}
           render={<Link href={integrationsHref} />}
         >
           Back to integrations

@@ -1,4 +1,8 @@
-import { ProjectSectionPlaceholder } from "../_components/project-section-placeholder";
+import { Suspense } from "react";
+
+import { TypographyP } from "@/components/ui/typography";
+
+import { ProjectSettingsPageContent } from "./_components/project-settings-page-content";
 
 export default async function ProjectSettingsPage({
   params,
@@ -8,11 +12,12 @@ export default async function ProjectSettingsPage({
   const { organizationSlug, projectId } = await params;
 
   return (
-    <ProjectSectionPlaceholder
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      title="Settings"
-      description="Project-specific configuration — locales, providers, reviewers, automation rules, and notifications."
-    />
+    <Suspense
+      fallback={
+        <TypographyP className="text-sm text-foreground/52">Loading settings...</TypographyP>
+      }
+    >
+      <ProjectSettingsPageContent organizationSlug={organizationSlug} projectId={projectId} />
+    </Suspense>
   );
 }

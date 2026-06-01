@@ -28,6 +28,7 @@ export const memberSummarySchema = z.object({
   firstName: z.string().nullable(),
   lastName: z.string().nullable(),
   displayName: z.string(),
+  avatarUrl: z.string().nullable(),
   role: organizationMembershipRoleSchema,
   isCurrentUser: z.boolean(),
   createdAt: z.string(),

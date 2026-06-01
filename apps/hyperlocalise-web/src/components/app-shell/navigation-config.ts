@@ -60,7 +60,7 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           icon: InboxIcon,
         },
         {
-          label: "My Work",
+          label: "My Jobs",
           href: org("my-work"),
           icon: WorkHistoryIcon,
         },

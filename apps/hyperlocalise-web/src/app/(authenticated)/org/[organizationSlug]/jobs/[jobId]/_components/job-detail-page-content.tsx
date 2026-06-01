@@ -253,6 +253,7 @@ export function JobDetailPageContent({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <Button
+            nativeButton={false}
             render={<Link href={`/org/${organizationSlug}/jobs`} />}
             variant="ghost"
             className="-ml-2 mb-2 text-foreground/54 hover:bg-foreground/6 hover:text-foreground"

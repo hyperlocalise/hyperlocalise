@@ -517,7 +517,7 @@ export function JobsPageContent({
       <PageHeader
         icon={isMyWork ? WorkHistoryIcon : Task01Icon}
         label="Workspace"
-        title={isMyWork ? "My Work" : "Jobs"}
+        title={isMyWork ? "My Jobs" : "Jobs"}
         description={
           isMyWork
             ? "Translation, review, and sync work assigned to you across projects."

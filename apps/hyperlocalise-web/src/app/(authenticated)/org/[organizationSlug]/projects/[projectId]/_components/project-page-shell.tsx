@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { cn } from "@/lib/primitives/cn";
 import { apiClient } from "@/lib/api-client-instance";
 
 import {
@@ -59,4 +60,15 @@ export function ProjectSectionHeader({
       {meta}
     </div>
   );
+}
+
+/** In-card section label — not TypographyH3 (avoids responsive display-heading scale). */
+export function ProjectSectionTitle({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return <h3 className={cn("text-sm font-medium text-foreground", className)}>{children}</h3>;
 }

@@ -126,7 +126,7 @@ function SettingsRow({ description, href, icon, isLast, label }: SettingsRowProp
       </div>
 
       <div className="shrink-0">
-        <Button variant="outline" size="sm" render={<Link href={href} />}>
+        <Button variant="outline" size="sm" nativeButton={false} render={<Link href={href} />}>
           Open
           <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-4" />
         </Button>
