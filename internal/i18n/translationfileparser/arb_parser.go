@@ -29,13 +29,12 @@ func (p ARBParser) ParseWithContext(content []byte) (map[string]string, map[stri
 		return map[string]string{}, nil, nil
 	}
 
-	// BOLT OPTIMIZATION: Hint map capacity to payload size to reduce re-allocations.
-	// Approximate message count is at most payload size.
-	out := make(map[string]string, len(payload))
+	// ARB payloads commonly pair message keys with metadata keys, so this keeps
+	// the capacity hint closer to the expected message count.
+	out := make(map[string]string, len(payload)/2+1)
 	var descriptions map[string]string
 
-	// BOLT OPTIMIZATION: Use a single pass instead of sortedMapKeys(payload)
-	// which avoids (N \log N)$ sorting and extra allocations.
+	// Single-pass parsing avoids O(N log N) sorting of all keys and extra allocations.
 	for key, val := range payload {
 		if isARBMetadataKey(key) {
 			continue
@@ -47,8 +46,7 @@ func (p ARBParser) ParseWithContext(content []byte) (map[string]string, map[stri
 		}
 		out[key] = value
 
-		// BOLT OPTIMIZATION: Inline description extraction to avoid redundant
-		// strings.HasPrefix and concatenation in parseARBDescription.
+		// Inline description extraction avoids redundant prefix checks and key concatenation.
 		if metaRaw, ok := payload["@"+key]; ok {
 			if meta, ok := metaRaw.(map[string]any); ok {
 				if descRaw, ok := meta["description"]; ok {
@@ -317,7 +315,7 @@ func arbMessageMetadataFields(content []byte) (map[string]json.RawMessage, error
 }
 
 func isARBMetadataKey(key string) bool {
-	// BOLT OPTIMIZATION: Use direct byte access instead of strings.HasPrefix.
+	// Direct byte access is enough for ARB metadata keys.
 	return len(key) > 0 && key[0] == '@'
 }
 
