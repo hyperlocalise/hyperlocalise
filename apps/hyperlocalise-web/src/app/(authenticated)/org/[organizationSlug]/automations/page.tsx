@@ -10,14 +10,11 @@ export default async function AutomationsPage({
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
+  await requireAppAuthContext({ organizationSlug });
 
   return (
     <Suspense fallback={null}>
-      <AutomationsPageContent
-        organizationSlug={organizationSlug}
-        currentUserId={auth.user.localUserId}
-      />
+      <AutomationsPageContent organizationSlug={organizationSlug} />
     </Suspense>
   );
 }

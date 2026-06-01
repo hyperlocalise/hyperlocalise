@@ -138,6 +138,7 @@ export async function getOrganizationMember(organizationId: string, workosUserId
       email: schema.users.email,
       firstName: schema.users.firstName,
       lastName: schema.users.lastName,
+      avatarUrl: schema.users.avatarUrl,
       localUserId: schema.users.id,
     })
     .from(schema.organizationMemberships)
@@ -159,6 +160,7 @@ export function toMemberSummary(
     email: string;
     firstName: string | null;
     lastName: string | null;
+    avatarUrl?: string | null;
     role: OrganizationMembershipRole;
     createdAt: Date;
     workosMembershipId: string | null;
@@ -171,6 +173,7 @@ export function toMemberSummary(
   firstName: string | null;
   lastName: string | null;
   displayName: string;
+  avatarUrl: string | null;
   role: OrganizationMembershipRole;
   isCurrentUser: boolean;
   createdAt: string;
@@ -194,6 +197,7 @@ export function toMemberSummary(
     firstName: row.firstName,
     lastName: row.lastName,
     displayName: formatMemberDisplayName(row),
+    avatarUrl: row.avatarUrl ?? null,
     role: row.role,
     isCurrentUser,
     createdAt: row.createdAt.toISOString(),

@@ -1,440 +1,96 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Download01Icon, File01Icon, Folder01Icon } from "@hugeicons/core-free-icons";
+import { useCallback, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { File as DiffFile, MultiFileDiff, type FileContents } from "@pierre/diffs/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
-import { FileTree, FileTreeFile, FileTreeFolder } from "@/components/ai-elements/file-tree";
+import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { apiClient } from "@/lib/api-client-instance";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
+import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import {
-  collectLocaleOptions,
-  defaultWorkspaceFileFilters,
-  formatRelativeTimestamp,
-  ProviderKindBadge,
-  ResourceTypeBadge,
-  SourceOriginBadge,
-  summarizeLocaleReadiness,
-  SyncStateBadge,
-  toProjectFilesApiQuery,
-  useStaleLocaleFilterReset,
-  WorkspaceFilesFilterBar,
-  workspaceFileFiltersWithoutLocale,
-  type WorkspaceFileFilters,
-} from "../../../../_components/workspace-files-shared";
-import { toneClass, type Tone } from "../../../../_components/workspace-resource-shared";
-import { ProjectPageShell, ProjectSectionHeader } from "../../_components/project-page-shell";
-import { TypographyH3, TypographyP } from "@/components/ui/typography";
-import type {
-  ProjectFileDetailResponse,
-  ProjectFileJobRecord,
-  ProjectFileProviderJobRecord,
-  ProjectFileRecord,
-  ProjectFileVersionRecord,
-} from "@/api/routes/project/project.schema";
+  ProjectPageShell,
+  ProjectSectionHeader,
+  ProjectSectionTitle,
+} from "../../_components/project-page-shell";
+import { ProjectFileDetailPanel } from "./project-file-detail-panel";
 
-type TreeNode = {
-  name: string;
-  path: string;
-  children: TreeNode[];
-  file?: ProjectFileRecord;
-};
+const FILE_ACCEPT =
+  ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
+const MAX_UPLOAD_FILES = 10;
 
-function jobTone(status: NonNullable<ProjectFileRecord["latestJob"]>["status"]): Tone {
-  switch (status) {
-    case "succeeded":
-      return "safe";
-    case "failed":
-      return "risk";
-    case "queued":
-    case "waiting_for_review":
-      return "watch";
-    default:
-      return "info";
-  }
+const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function projectFilesQueryKey(organizationSlug: string, projectId: string) {
+  return ["project-files", organizationSlug, projectId] as const;
 }
 
-function buildTree(files: ProjectFileRecord[]): TreeNode {
-  const root: TreeNode = { name: "", path: "", children: [] };
-  const nodeMap = new Map<string, TreeNode>([["", root]]);
+function apiPath(organizationSlug: string, projectId: string) {
+  return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
+}
 
-  for (const file of files) {
-    const parts = file.sourcePath.split("/").filter(Boolean);
-    let parentPath = "";
+async function readActionError(response: Response, fallback: string) {
+  const body = await response.json().catch(() => null);
 
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i];
-      const path = parentPath ? `${parentPath}/${part}` : part;
-      let node = nodeMap.get(path);
-
-      if (!node) {
-        node = {
-          name: part,
-          path,
-          children: [],
-          file: i === parts.length - 1 ? file : undefined,
-        };
-        nodeMap.set(path, node);
-        nodeMap.get(parentPath)!.children.push(node);
-      } else if (i === parts.length - 1) {
-        if (!node.file) {
-          node.file = file;
-        } else {
-          if (file.provider && !node.file.provider) {
-            node.file = { ...node.file, provider: file.provider };
-          }
-          if (file.latestJob && !node.file.latestJob) {
-            node.file = { ...node.file, latestJob: file.latestJob };
-          }
-        }
-      }
-
-      parentPath = path;
+  if (body && typeof body === "object") {
+    if ("message" in body && typeof body.message === "string") {
+      return body.message;
+    }
+    if ("error" in body && typeof body.error === "string") {
+      return body.error;
     }
   }
 
-  // Sort: folders first, then files, both alphabetically
-  function sortChildren(node: TreeNode) {
-    node.children.sort((a, b) => {
-      const aIsFolder = a.children.length > 0 || a.file === undefined;
-      const bIsFolder = b.children.length > 0 || b.file === undefined;
-      if (aIsFolder && !bIsFolder) return -1;
-      if (!aIsFolder && bIsFolder) return 1;
-      return a.name.localeCompare(b.name);
-    });
-    node.children.forEach(sortChildren);
-  }
-
-  sortChildren(root);
-  return root;
+  return fallback;
 }
 
-function formatBytes(bytes: number): string {
+function formatBytes(bytes: number | null) {
+  if (bytes === null) return "Unknown size";
   if (bytes === 0) return "0 B";
-  const k = 1024;
-  const sizes = ["B", "KB", "MB", "GB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / k ** i).toFixed(1))} ${sizes[i]}`;
+
+  const units = ["B", "KB", "MB", "GB"];
+  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
+  return `${Number((bytes / 1024 ** unitIndex).toFixed(1))} ${units[unitIndex]}`;
 }
 
-function formatMaybeBytes(bytes: number | null): string {
-  return typeof bytes === "number" ? formatBytes(bytes) : "—";
+function sourcePathForFile(file: File) {
+  const fileWithPath = file as File & { webkitRelativePath?: string };
+  return fileWithPath.webkitRelativePath || file.name;
 }
 
-function shortSha(value: string | null) {
-  return value ? value.slice(0, 10) : "—";
+function fileKey(file: File) {
+  return `${sourcePathForFile(file)}:${file.size}:${file.lastModified}`;
 }
 
-function versionLabel(version: ProjectFileVersionRecord, index: number, total: number) {
-  const date = new Date(version.uploadedAt).toLocaleString();
-  const originLabel = version.origin === "provider" ? "provider" : "repo";
-  const revisionLabel = version.revision ? ` · rev ${version.revision}` : "";
-  return `${originLabel} v${total - index} · ${date}${revisionLabel} · ${shortSha(version.sourceHash)}`;
-}
-
-function toDiffFile(version: ProjectFileVersionRecord): FileContents | null {
-  if (!version.content) {
-    return null;
-  }
-
-  return {
-    name: version.filename,
-    contents: version.content.text,
-    cacheKey: `${version.id}:${version.sha256}`,
-  };
-}
-
-function DetailRow({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div>
-      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-        {label}
-      </TypographyP>
-      <TypographyP className="mt-1 truncate font-mono text-sm text-foreground/72">
-        {value ?? "—"}
-      </TypographyP>
-    </div>
+function sortFilesByPath(files: ProjectFileRecord[]) {
+  return [...files].toSorted((a, b) =>
+    a.sourcePath.localeCompare(b.sourcePath, undefined, { sensitivity: "base" }),
   );
 }
 
-function SourceViewer({ version }: { version: ProjectFileVersionRecord }) {
-  const file = toDiffFile(version);
-
-  if (!file) {
+function StatusBadge({ file }: { file: ProjectFileRecord }) {
+  if (file.latestJob) {
     return (
-      <TypographyP className="rounded-md border border-foreground/8 bg-background/40 p-3 text-sm text-foreground/52">
-        Inline preview is unavailable for this file.
-      </TypographyP>
+      <Badge variant="outline" className="shrink-0 rounded-full text-[10px]">
+        {file.latestJob.status}
+      </Badge>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">
-      <DiffFile
-        file={file}
-        disableWorkerPool
-        options={{ disableFileHeader: true, overflow: "scroll", themeType: "system" }}
-      />
-    </div>
-  );
-}
-
-function VersionDiff({
-  before,
-  after,
-}: {
-  before: ProjectFileVersionRecord | undefined;
-  after: ProjectFileVersionRecord | undefined;
-}) {
-  const beforeFile = before ? toDiffFile(before) : null;
-  const afterFile = after ? toDiffFile(after) : null;
-
-  if (!beforeFile || !afterFile) {
-    return (
-      <TypographyP className="rounded-md border border-foreground/8 bg-background/40 p-3 text-sm text-foreground/52">
-        Select two previewable text versions to render a diff.
-      </TypographyP>
-    );
-  }
-
-  return (
-    <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">
-      <MultiFileDiff
-        oldFile={beforeFile}
-        newFile={afterFile}
-        disableWorkerPool
-        options={{
-          diffStyle: "unified",
-          diffIndicators: "classic",
-          hunkSeparators: "metadata",
-          overflow: "scroll",
-          themeType: "system",
-        }}
-      />
-    </div>
-  );
-}
-
-function LocaleReadinessTable({ localeReadiness }: { localeReadiness: Record<string, unknown> }) {
-  const entries = Object.entries(localeReadiness);
-  if (entries.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="overflow-hidden rounded-md border border-foreground/8">
-      <table className="w-full text-left text-xs">
-        <thead className="bg-foreground/4 text-foreground/42">
-          <tr>
-            <th className="px-3 py-2 font-medium">Locale</th>
-            <th className="px-3 py-2 font-medium">Readiness</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map(([locale, value]) => (
-            <tr key={locale} className="border-t border-foreground/8">
-              <td className="px-3 py-2 font-mono text-foreground/72">{locale}</td>
-              <td className="px-3 py-2 text-foreground/72">{String(value)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function ProviderJobGroup({
-  organizationSlug,
-  locale,
-  jobs,
-}: {
-  organizationSlug: string;
-  locale: string;
-  jobs: ProjectFileProviderJobRecord[];
-}) {
-  return (
-    <div className="rounded-md border border-foreground/8 bg-background/40 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <TypographyP className="font-medium text-foreground">{locale}</TypographyP>
-        <TypographyP className="text-xs text-foreground/42">
-          {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
-        </TypographyP>
-      </div>
-
-      <div className="mt-3 flex flex-col gap-3">
-        {jobs.map((job) => (
-          <div
-            key={job.id}
-            className="border-t border-foreground/8 pt-3 first:border-t-0 first:pt-0"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <ProviderKindBadge kind={job.providerKind} />
-              <Badge variant="outline" className="rounded-full">
-                {job.externalStatus}
-              </Badge>
-              <SyncStateBadge syncState={job.syncState} />
-            </div>
-            <TypographyP className="mt-1 text-sm font-medium text-foreground">
-              {job.title}
-            </TypographyP>
-            <TypographyP className="mt-1 font-mono text-xs text-foreground/52">
-              {job.id}
-            </TypographyP>
-            <div className="mt-2 flex flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="xs"
-                render={<Link href={`/org/${organizationSlug}/jobs/${job.id}`} />}
-              >
-                View job
-              </Button>
-              {job.externalUrl ? (
-                <Button
-                  variant="outline"
-                  size="xs"
-                  render={<a href={job.externalUrl} target="_blank" />}
-                >
-                  Open in provider
-                </Button>
-              ) : null}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function JobGroup({ locale, jobs }: { locale: string; jobs: ProjectFileJobRecord[] }) {
-  return (
-    <div className="rounded-md border border-foreground/8 bg-background/40 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <TypographyP className="font-medium text-foreground">{locale}</TypographyP>
-        <TypographyP className="text-xs text-foreground/42">
-          {jobs.length} {jobs.length === 1 ? "job" : "jobs"}
-        </TypographyP>
-      </div>
-
-      <div className="mt-3 flex flex-col gap-3">
-        {jobs.map((job) => (
-          <div
-            key={job.id}
-            className="border-t border-foreground/8 pt-3 first:border-t-0 first:pt-0"
-          >
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge
-                variant="outline"
-                className={cn("rounded-full", toneClass(jobTone(job.status)))}
-              >
-                {job.status}
-              </Badge>
-              <TypographyP className="font-mono text-xs text-foreground/52">{job.id}</TypographyP>
-            </div>
-            <TypographyP className="mt-1 text-xs text-foreground/42">
-              Created {new Date(job.createdAt).toLocaleString()}
-            </TypographyP>
-
-            {job.outputs.length > 0 ? (
-              <div className="mt-3 flex flex-col gap-3">
-                {job.outputs
-                  .filter((output) => output.locale === locale)
-                  .map((output) => (
-                    <div
-                      key={`${job.id}:${output.fileId}`}
-                      className="rounded-md bg-foreground/3 p-3"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <div className="min-w-0">
-                          <TypographyP className="truncate text-sm font-medium text-foreground">
-                            {output.filename}
-                          </TypographyP>
-                          <TypographyP className="mt-1 font-mono text-xs text-foreground/42">
-                            {output.fileId}
-                          </TypographyP>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="xs"
-                          render={<a href={output.downloadPath} />}
-                        >
-                          <HugeiconsIcon
-                            icon={Download01Icon}
-                            strokeWidth={1.8}
-                            className="size-3"
-                          />
-                          Download
-                        </Button>
-                      </div>
-                      <TypographyP className="mt-2 text-xs text-foreground/42">
-                        {output.byteSize !== null ? formatBytes(output.byteSize) : "Unknown size"}
-                        {output.sha256 ? ` · ${shortSha(output.sha256)}` : ""}
-                      </TypographyP>
-                      {output.content ? (
-                        <pre className="mt-3 max-h-64 overflow-auto rounded-md border border-foreground/8 bg-background p-3 text-xs leading-5 text-foreground/72">
-                          {output.content.text}
-                        </pre>
-                      ) : null}
-                    </div>
-                  ))}
-              </div>
-            ) : (
-              <TypographyP className="mt-2 text-xs text-foreground/42">
-                No output files recorded for this job.
-              </TypographyP>
-            )}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function FileTreeNode({ node }: { node: TreeNode }) {
-  if (node.file) {
-    return (
-      <FileTreeFile path={node.path} name={node.name}>
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <span className="size-4 shrink-0" />
-          <span className="truncate">{node.name}</span>
-          <SourceOriginBadge origin={node.file.origin} />
-          {node.file.provider ? (
-            <>
-              <ProviderKindBadge kind={node.file.provider.kind} />
-              <ResourceTypeBadge resourceType={node.file.provider.resourceType} />
-              <SyncStateBadge syncState={node.file.provider.syncState} />
-            </>
-          ) : null}
-          {node.file.latestJob ? (
-            <Badge
-              variant="outline"
-              className={cn(
-                node.file.provider
-                  ? "shrink-0 rounded-full text-xs"
-                  : "ml-auto shrink-0 rounded-full text-xs",
-                toneClass(jobTone(node.file.latestJob.status)),
-              )}
-            >
-              {node.file.latestJob.status}
-            </Badge>
-          ) : null}
-        </div>
-      </FileTreeFile>
-    );
-  }
-
-  return (
-    <FileTreeFolder path={node.path} name={node.name}>
-      {node.children.map((child) => (
-        <FileTreeNode key={child.path} node={child} />
-      ))}
-    </FileTreeFolder>
+    <Badge variant="outline" className="shrink-0 rounded-full text-[10px]">
+      Uploaded
+    </Badge>
   );
 }
 
@@ -445,491 +101,258 @@ export function ProjectFilesPageContent({
   organizationSlug: string;
   projectId: string;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const initialSourcePath = searchParams.get("sourcePath") ?? undefined;
-  const [filters, setFilters] = useState<WorkspaceFileFilters>(defaultWorkspaceFileFilters);
-  const [selectedPath, setSelectedPath] = useState<string | undefined>(initialSourcePath);
-  const [selectedVersionId, setSelectedVersionId] = useState<string | undefined>();
-  const [baseVersionId, setBaseVersionId] = useState<string | undefined>();
-  const [compareVersionId, setCompareVersionId] = useState<string | undefined>();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
-  const filtersForLocaleOptions = useMemo(
-    () => workspaceFileFiltersWithoutLocale(filters),
-    [filters],
+  const selectedSourcePath = searchParams.get("sourcePath");
+  const highlightLocale = searchParams.get("locale");
+
+  const setSelectedSourcePath = useCallback(
+    (sourcePath: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (sourcePath) {
+        params.set("sourcePath", sourcePath);
+      } else {
+        params.delete("sourcePath");
+      }
+      const query = params.toString();
+      router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams],
   );
 
   const filesQuery = useQuery({
-    queryKey: ["project-files", organizationSlug, projectId, filters],
+    queryKey: projectFilesQueryKey(organizationSlug, projectId),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.$get({
-        param: { organizationSlug, projectId },
-        query: toProjectFilesApiQuery(filters),
+      const response = await fetch(`${apiPath(organizationSlug, projectId)}?limit=500`, {
+        method: "GET",
       });
+
       if (!response.ok) {
-        throw new Error(`Failed to load files (${response.status})`);
+        throw new Error(await readActionError(response, "Failed to load project files"));
       }
-      const body = await response.json();
-      return body.files as ProjectFileRecord[];
+
+      const body = (await response.json()) as { files: ProjectFileRecord[] };
+      return body.files;
     },
   });
 
-  const localeDiscoveryQuery = useQuery({
-    queryKey: ["project-files-locales", organizationSlug, projectId, filtersForLocaleOptions],
-    placeholderData: (previousData) => previousData,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.$get({
-        param: { organizationSlug, projectId },
-        query: toProjectFilesApiQuery(filtersForLocaleOptions),
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load locale options (${response.status})`);
+  const uploadFiles = useMutation({
+    mutationFn: async (files: File[]) => {
+      for (const file of files) {
+        const formData = new FormData();
+        formData.set("file", file);
+        formData.set("sourcePath", sourcePathForFile(file));
+
+        const response = await fetch(apiPath(organizationSlug, projectId), {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(
+            await readActionError(response, `Failed to upload ${sourcePathForFile(file)}`),
+          );
+        }
       }
-      const body = await response.json();
-      return body.files as ProjectFileRecord[];
+    },
+    onSuccess: async (_, files) => {
+      const lastUploadedPath = files.at(-1) ? sourcePathForFile(files.at(-1) as File) : null;
+      setSelectedFiles([]);
+      await queryClient.invalidateQueries({
+        queryKey: projectFilesQueryKey(organizationSlug, projectId),
+      });
+      if (lastUploadedPath) {
+        setSelectedSourcePath(lastUploadedPath);
+      }
+      toast.success(files.length === 1 ? "File uploaded" : `${files.length} files uploaded`);
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to upload files");
     },
   });
 
-  const fileDetailQuery = useQuery({
-    queryKey: ["project-file-detail", organizationSlug, projectId, selectedPath],
-    enabled: Boolean(selectedPath),
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.detail.$get({
-        param: { organizationSlug, projectId },
-        query: { sourcePath: selectedPath ?? "" },
-      });
-      if (!response.ok) {
-        throw new Error(`Failed to load file detail (${response.status})`);
-      }
-      return (await response.json()) as ProjectFileDetailResponse;
-    },
-  });
-
-  const files = filesQuery.data ?? [];
-  const localeOptions = useMemo(
-    () => collectLocaleOptions(localeDiscoveryQuery.data ?? []),
-    [localeDiscoveryQuery.data],
+  const files = useMemo(() => sortFilesByPath(filesQuery.data ?? []), [filesQuery.data]);
+  const selectedFile = useMemo(
+    () => files.find((file) => file.sourcePath === selectedSourcePath) ?? null,
+    [files, selectedSourcePath],
   );
-
-  useStaleLocaleFilterReset(filters, setFilters, localeOptions);
-  const tree = buildTree(files);
-  const selectedFile = files.find((f) => f.sourcePath === selectedPath);
-  const providerOnlyFilterActive =
-    filters.origin === "all" && (filters.locale !== "all" || filters.syncState !== "all");
-  const fileDetail = fileDetailQuery.data?.file;
-  const versions = useMemo(() => fileDetail?.versions ?? [], [fileDetail?.versions]);
-  const selectedVersion =
-    versions.find((version) => version.id === selectedVersionId) ?? versions[0];
-  const baseVersion = versions.find((version) => version.id === baseVersionId) ?? versions.at(1);
-  const compareVersion =
-    versions.find((version) => version.id === compareVersionId) ?? selectedVersion ?? versions[0];
-  const selectedVersionJobs = useMemo(() => {
-    if (!fileDetail || !selectedVersion || selectedVersion.origin === "provider") {
-      return [];
-    }
-
-    return fileDetail.jobsByLocale
-      .map((group) => ({
-        locale: group.locale,
-        jobs: group.jobs.filter((job) => job.sourceFileVersionId === selectedVersion.id),
-      }))
-      .filter((group) => group.jobs.length > 0);
-  }, [fileDetail, selectedVersion]);
-
-  const providerJobsByLocale = fileDetail?.providerJobsByLocale ?? [];
-
-  useEffect(() => {
-    if (versions.length === 0) {
-      setSelectedVersionId(undefined);
-      setBaseVersionId(undefined);
-      setCompareVersionId(undefined);
-      return;
-    }
-
-    setSelectedVersionId((current) =>
-      current && versions.some((version) => version.id === current) ? current : versions[0]?.id,
-    );
-    setCompareVersionId((current) =>
-      current && versions.some((version) => version.id === current) ? current : versions[0]?.id,
-    );
-    setBaseVersionId((current) =>
-      current && versions.some((version) => version.id === current) ? current : versions[1]?.id,
-    );
-  }, [versions]);
-
-  useEffect(() => {
-    if (filesQuery.isLoading || filesQuery.isFetching) {
-      return;
-    }
-
-    if (files.length === 0) {
-      return;
-    }
-
-    if (!selectedPath) {
-      setSelectedPath(files[0].sourcePath);
-      return;
-    }
-
-    if (!files.some((file) => file.sourcePath === selectedPath)) {
-      setSelectedPath(files[0].sourcePath);
-    }
-  }, [files, selectedPath, filesQuery.isLoading, filesQuery.isFetching]);
+  const isUploading = uploadFiles.isPending;
 
   return (
-    <ProjectPageShell>
+    <ProjectPageShell className="gap-8">
       <ProjectSectionHeader
-        icon={Folder01Icon}
+        icon={File01Icon}
         section="Files"
-        description="Browse repository source files, synced provider files, and translation keys."
+        description="Upload source files, then select one to inspect content and related translation jobs."
+        actions={
+          <Button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            disabled={isUploading}
+            className="w-full sm:w-fit"
+          >
+            <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+            Add files
+          </Button>
+        }
       />
 
-      <WorkspaceFilesFilterBar
-        filters={filters}
-        onFiltersChange={setFilters}
-        localeOptions={localeOptions}
-        projectOptions={[]}
-        showProjectFilter={false}
+      <input
+        ref={inputRef}
+        type="file"
+        multiple
+        accept={FILE_ACCEPT}
+        className="sr-only"
+        onChange={(event) => {
+          const nextFiles = Array.from(event.target.files ?? []);
+          setSelectedFiles((currentFiles) => {
+            const existing = new Set(currentFiles.map(fileKey));
+            return [
+              ...currentFiles,
+              ...nextFiles.filter((file) => !existing.has(fileKey(file))),
+            ].slice(0, MAX_UPLOAD_FILES);
+          });
+          event.currentTarget.value = "";
+        }}
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_min(32rem,42vw)]">
-        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          {filesQuery.isLoading ? (
-            <TypographyP className="text-sm text-foreground/52">Loading files…</TypographyP>
-          ) : filesQuery.isError ? (
-            <TypographyP className="text-sm text-flame-100">Failed to load files.</TypographyP>
-          ) : files.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 py-12">
-              <HugeiconsIcon
-                icon={File01Icon}
-                strokeWidth={1.8}
-                className="size-8 text-foreground/24"
-              />
-              <TypographyP className="text-sm text-foreground/52">
-                {providerOnlyFilterActive
-                  ? "No provider-backed files match these filters. Locale and sync-state filters do not include repository files."
-                  : "No source files found for this project."}
+      {selectedFiles.length > 0 ? (
+        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <ProjectSectionTitle>Ready to upload</ProjectSectionTitle>
+              <TypographyP className="mt-1 text-sm text-foreground/52">
+                {selectedFiles.length} file{selectedFiles.length === 1 ? "" : "s"} selected (max{" "}
+                {MAX_UPLOAD_FILES}).
               </TypographyP>
             </div>
-          ) : (
-            <FileTree
-              selectedPath={selectedPath}
-              onSelect={(path) => setSelectedPath(path)}
-              defaultExpanded={new Set(tree.children.map((c) => c.path))}
+            <Button
+              type="button"
+              disabled={isUploading}
+              onClick={() => uploadFiles.mutate(selectedFiles)}
+              className="w-full sm:w-fit"
             >
-              {tree.children.map((child) => (
-                <FileTreeNode key={child.path} node={child} />
-              ))}
-            </FileTree>
-          )}
-        </div>
+              {isUploading ? <Spinner /> : <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />}
+              {isUploading ? "Uploading…" : "Upload"}
+            </Button>
+          </div>
+          <ul className="mt-3 divide-y divide-foreground/8 rounded-md border border-foreground/8 bg-background">
+            {selectedFiles.map((file) => (
+              <li key={fileKey(file)} className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="min-w-0">
+                  <TypographyP className="truncate font-mono text-sm text-foreground">
+                    {sourcePathForFile(file)}
+                  </TypographyP>
+                  <TypographyP className="text-xs text-foreground/42">
+                    {formatBytes(file.size)}
+                  </TypographyP>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isUploading}
+                  onClick={() =>
+                    setSelectedFiles((currentFiles) => currentFiles.filter((item) => item !== file))
+                  }
+                >
+                  Remove
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
-        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          {selectedFile ? (
-            <div className="flex flex-col gap-4">
-              <div>
-                <TypographyH3 className="text-base font-medium text-foreground">
-                  {selectedFile.filename}
-                </TypographyH3>
-                <TypographyP className="mt-1 text-xs text-foreground/42">
-                  {selectedFile.sourcePath}
+      <section className="flex min-h-[min(28rem,70vh)] flex-col overflow-hidden rounded-lg border border-foreground/8 bg-foreground/2.5">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3">
+          <div>
+            <ProjectSectionTitle>Project files</ProjectSectionTitle>
+            <TypographyP className="mt-0.5 text-sm text-foreground/52">
+              {filesQuery.isLoading
+                ? "Loading…"
+                : filesQuery.isError
+                  ? "Could not load files"
+                  : `${files.length} file${files.length === 1 ? "" : "s"}`}
+            </TypographyP>
+          </div>
+          {filesQuery.isFetching && !filesQuery.isLoading ? <Spinner /> : null}
+        </header>
+
+        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
+          <aside className="flex min-h-0 flex-col border-foreground/8 lg:border-e">
+            {filesQuery.isLoading ? (
+              <TypographyP className="p-4 text-sm text-foreground/52">Loading files…</TypographyP>
+            ) : filesQuery.isError ? (
+              <TypographyP className="p-4 text-sm text-flame-100">
+                {filesQuery.error instanceof Error
+                  ? filesQuery.error.message
+                  : "Failed to load files."}
+              </TypographyP>
+            ) : files.length === 0 ? (
+              <div className="flex flex-col gap-2 p-4">
+                <TypographyP className="text-sm font-medium text-foreground">
+                  No files yet
+                </TypographyP>
+                <TypographyP className="text-sm text-foreground/52">
+                  Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats.
                 </TypographyP>
               </div>
+            ) : (
+              <ScrollArea className="min-h-0 flex-1">
+                <ul className="p-2" role="listbox" aria-label="Project files">
+                  {files.map((file) => {
+                    const isSelected = file.sourcePath === selectedSourcePath;
 
-              <div className="grid gap-3">
-                <div>
-                  <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Stored file
-                  </TypographyP>
-                  <TypographyP className="mt-1 text-sm text-foreground/72">
-                    {selectedFile.storedFileId ?? "—"}
-                  </TypographyP>
-                </div>
-                <div>
-                  <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Size
-                  </TypographyP>
-                  <TypographyP className="mt-1 text-sm text-foreground/72">
-                    {formatMaybeBytes(selectedFile.byteSize)}
-                  </TypographyP>
-                </div>
-                {selectedFile.provider ? (
-                  <>
-                    <div>
-                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                        Provider
-                      </TypographyP>
-                      <div className="mt-1 flex flex-wrap items-center gap-2">
-                        <ProviderKindBadge kind={selectedFile.provider.kind} />
-                        <ResourceTypeBadge resourceType={selectedFile.provider.resourceType} />
-                        <SyncStateBadge syncState={selectedFile.provider.syncState} />
-                        <SourceOriginBadge origin={selectedFile.origin} />
-                      </div>
-                    </div>
-                    <DetailRow
-                      label="Last synced"
-                      value={
-                        selectedFile.provider.lastSyncedAt
-                          ? formatRelativeTimestamp(selectedFile.provider.lastSyncedAt)
-                          : null
-                      }
-                    />
-                    <DetailRow
-                      label="External ID"
-                      value={selectedFile.provider.externalResourceId}
-                    />
-                    <DetailRow label="Format" value={selectedFile.provider.format} />
-                    <DetailRow label="Revision" value={selectedFile.provider.revision} />
-                    <DetailRow label="Source locale" value={selectedFile.provider.sourceLocale} />
-                    <DetailRow
-                      label="Target locales"
-                      value={
-                        selectedFile.provider.targetLocales.length > 0
-                          ? selectedFile.provider.targetLocales.join(", ")
-                          : null
-                      }
-                    />
-                    <div>
-                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                        Locale readiness
-                      </TypographyP>
-                      <div className="mt-2">
-                        <LocaleReadinessTable
-                          localeReadiness={selectedFile.provider.localeReadiness}
-                        />
-                        {Object.keys(selectedFile.provider.localeReadiness).length === 0 ? (
-                          <TypographyP className="text-sm text-foreground/52">
-                            {summarizeLocaleReadiness(selectedFile.provider.localeReadiness) ??
-                              "No locale readiness data yet."}
+                    return (
+                      <li key={`${file.sourcePath}:${file.uploadedAt}`}>
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onClick={() => setSelectedSourcePath(file.sourcePath)}
+                          className={cn(
+                            "flex w-full flex-col gap-1 rounded-md px-3 py-2.5 text-start transition-colors",
+                            isSelected
+                              ? "bg-primary/12 text-foreground"
+                              : "text-foreground/82 hover:bg-foreground/5",
+                          )}
+                        >
+                          <div className="flex min-w-0 items-start justify-between gap-2">
+                            <TypographyP className="line-clamp-2 font-mono text-xs leading-snug font-medium">
+                              {file.sourcePath}
+                            </TypographyP>
+                            <StatusBadge file={file} />
+                          </div>
+                          <TypographyP className="text-[11px] text-foreground/42">
+                            {formatBytes(file.byteSize)} ·{" "}
+                            {DATE_FORMATTER.format(new Date(file.uploadedAt))}
                           </TypographyP>
-                        ) : null}
-                      </div>
-                    </div>
-                    {selectedFile.provider.externalUrl ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-fit"
-                        render={<a href={selectedFile.provider.externalUrl} target="_blank" />}
-                      >
-                        Open in provider
-                      </Button>
-                    ) : null}
-                  </>
-                ) : null}
-                <div>
-                  <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Source hash
-                  </TypographyP>
-                  <TypographyP className="mt-1 truncate font-mono text-sm text-foreground/72">
-                    {selectedFile.sourceHash ?? "—"}
-                  </TypographyP>
-                </div>
-                {selectedFile.commitSha ? (
-                  <div>
-                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Commit
-                    </TypographyP>
-                    <TypographyP className="mt-1 truncate font-mono text-sm text-foreground/72">
-                      {selectedFile.commitSha}
-                    </TypographyP>
-                  </div>
-                ) : null}
-                {selectedFile.workflowRunId ? (
-                  <div>
-                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Workflow run
-                    </TypographyP>
-                    <TypographyP className="mt-1 truncate font-mono text-sm text-foreground/72">
-                      {selectedFile.workflowRunId}
-                    </TypographyP>
-                  </div>
-                ) : null}
-                <div>
-                  <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Uploaded
-                  </TypographyP>
-                  <TypographyP className="mt-1 text-sm text-foreground/72">
-                    {new Date(selectedFile.uploadedAt).toLocaleString()}
-                  </TypographyP>
-                </div>
-              </div>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </ScrollArea>
+            )}
+          </aside>
 
-              {fileDetailQuery.isLoading ? (
-                <div className="border-t border-foreground/8 pt-4">
-                  <TypographyP className="text-sm text-foreground/52">
-                    Loading file detail…
-                  </TypographyP>
-                </div>
-              ) : fileDetailQuery.isError ? (
-                <div className="border-t border-foreground/8 pt-4">
-                  <TypographyP className="text-sm text-flame-100">
-                    Failed to load file detail.
-                  </TypographyP>
-                </div>
-              ) : fileDetail && versions.length > 0 && selectedVersion ? (
-                <div className="flex flex-col gap-5 border-t border-foreground/8 pt-4">
-                  <div className="flex flex-col gap-2">
-                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Source versions
-                    </TypographyP>
-                    <select
-                      value={selectedVersion.id}
-                      onChange={(event) => setSelectedVersionId(event.target.value)}
-                      className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
-                    >
-                      {versions.map((version, index) => (
-                        <option key={version.id} value={version.id}>
-                          {versionLabel(version, index, versions.length)}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid gap-3">
-                    <DetailRow label="Version ID" value={selectedVersion.id} />
-                    <DetailRow
-                      label="Origin"
-                      value={selectedVersion.origin === "provider" ? "Provider" : "Repository"}
-                    />
-                    <DetailRow label="Source hash" value={selectedVersion.sourceHash} />
-                    {selectedVersion.revision ? (
-                      <DetailRow label="Revision" value={selectedVersion.revision} />
-                    ) : null}
-                    {selectedVersion.origin === "repository" ? (
-                      <>
-                        <DetailRow label="Commit" value={selectedVersion.commitSha} />
-                        <DetailRow label="Workflow run" value={selectedVersion.workflowRunId} />
-                      </>
-                    ) : null}
-                    <DetailRow
-                      label="Captured"
-                      value={new Date(selectedVersion.uploadedAt).toLocaleString()}
-                    />
-                  </div>
-
-                  <div className="flex flex-col gap-2">
-                    <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Source preview
-                    </TypographyP>
-                    <SourceViewer version={selectedVersion} />
-                  </div>
-
-                  {versions.length > 1 ? (
-                    <div className="flex flex-col gap-3">
-                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                        Diff
-                      </TypographyP>
-                      <div className="grid gap-2 md:grid-cols-2">
-                        <select
-                          value={baseVersion?.id ?? ""}
-                          onChange={(event) => setBaseVersionId(event.target.value)}
-                          className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
-                        >
-                          {versions.map((version, index) => (
-                            <option key={version.id} value={version.id}>
-                              Base {versionLabel(version, index, versions.length)}
-                            </option>
-                          ))}
-                        </select>
-                        <select
-                          value={compareVersion?.id ?? ""}
-                          onChange={(event) => setCompareVersionId(event.target.value)}
-                          className="h-9 rounded-md border border-foreground/8 bg-background px-3 text-sm text-foreground outline-none"
-                        >
-                          {versions.map((version, index) => (
-                            <option key={version.id} value={version.id}>
-                              Compare {versionLabel(version, index, versions.length)}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <VersionDiff before={baseVersion} after={compareVersion} />
-                    </div>
-                  ) : null}
-
-                  {selectedVersion.origin === "repository" ? (
-                    <div className="flex flex-col gap-3">
-                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                        Translation jobs
-                      </TypographyP>
-                      {selectedVersionJobs.length > 0 ? (
-                        selectedVersionJobs.map((group) => (
-                          <JobGroup key={group.locale} locale={group.locale} jobs={group.jobs} />
-                        ))
-                      ) : (
-                        <TypographyP className="rounded-md border border-foreground/8 bg-background/40 p-3 text-sm text-foreground/52">
-                          No translation jobs for this source version yet.
-                        </TypographyP>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {providerJobsByLocale.length > 0 ? (
-                    <div className="flex flex-col gap-3">
-                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                        Provider jobs
-                      </TypographyP>
-                      {providerJobsByLocale.map((group) => (
-                        <ProviderJobGroup
-                          key={group.locale}
-                          organizationSlug={organizationSlug}
-                          locale={group.locale}
-                          jobs={group.jobs}
-                        />
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : fileDetail ? (
-                <div className="border-t border-foreground/8 pt-4">
-                  <TypographyP className="text-xs text-foreground/42">
-                    No stored source versions yet. Sync provider content or upload a repository file
-                    to enable preview and diff.
-                  </TypographyP>
-                  {providerJobsByLocale.length > 0 ? (
-                    <div className="mt-4 flex flex-col gap-3">
-                      <TypographyP className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                        Provider jobs
-                      </TypographyP>
-                      {providerJobsByLocale.map((group) => (
-                        <ProviderJobGroup
-                          key={group.locale}
-                          organizationSlug={organizationSlug}
-                          locale={group.locale}
-                          jobs={group.jobs}
-                        />
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="border-t border-foreground/8 pt-4">
-                  <TypographyP className="text-xs text-foreground/42">
-                    No version detail found for this file.
-                  </TypographyP>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center gap-2 py-12">
-              <HugeiconsIcon
-                icon={File01Icon}
-                strokeWidth={1.8}
-                className="size-8 text-foreground/24"
-              />
-              <TypographyP className="text-sm text-foreground/52">
-                Select a file to view details.
-              </TypographyP>
-            </div>
-          )}
+          <main className="min-h-0 overflow-y-auto bg-background/40">
+            <ProjectFileDetailPanel
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              file={selectedFile}
+              requestedSourcePath={selectedSourcePath}
+              highlightLocale={highlightLocale}
+            />
+          </main>
         </div>
-      </div>
+      </section>
     </ProjectPageShell>
   );
 }

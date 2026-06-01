@@ -389,6 +389,7 @@ export function createMemberRoutes() {
           email: schema.users.email,
           firstName: schema.users.firstName,
           lastName: schema.users.lastName,
+          avatarUrl: schema.users.avatarUrl,
           role: schema.organizationMemberships.role,
           createdAt: schema.organizationMemberships.createdAt,
           workosMembershipId: schema.organizationMemberships.workosMembershipId,

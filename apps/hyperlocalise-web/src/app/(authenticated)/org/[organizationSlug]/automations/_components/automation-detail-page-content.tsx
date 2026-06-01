@@ -162,7 +162,11 @@ export function AutomationDetailPageContent({
       />
 
       <div className="pt-4">
-        <Button variant="outline" render={<Link href={`/org/${organizationSlug}/automations`} />}>
+        <Button
+          variant="outline"
+          nativeButton={false}
+          render={<Link href={`/org/${organizationSlug}/automations`} />}
+        >
           Back to automations
         </Button>
       </div>

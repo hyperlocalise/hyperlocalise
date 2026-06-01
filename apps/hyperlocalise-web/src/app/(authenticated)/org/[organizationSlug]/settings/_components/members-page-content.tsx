@@ -26,7 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
@@ -45,6 +45,23 @@ import {
 } from "./members-settings-view-model";
 
 const membersQueryKey = (organizationSlug: string) => ["workspace-members", organizationSlug];
+
+function MemberAvatar({
+  displayName,
+  avatarUrl,
+}: {
+  displayName: string;
+  avatarUrl: string | null | undefined;
+}) {
+  return (
+    <Avatar className="size-11 border border-foreground/10 bg-background/60">
+      {avatarUrl ? <AvatarImage src={avatarUrl} alt={displayName} /> : null}
+      <AvatarFallback className="bg-foreground/8 text-xs font-medium text-foreground/72">
+        {memberInitials(displayName)}
+      </AvatarFallback>
+    </Avatar>
+  );
+}
 
 function memberInitials(displayName: string) {
   const parts = displayName.trim().split(/\s+/).filter(Boolean);
@@ -285,11 +302,7 @@ export function MembersSettingsPageContent({ organizationSlug }: { organizationS
                   className="grid gap-4 border-t border-foreground/8 px-1 py-4 md:grid-cols-[minmax(0,1.5fr)_9rem_minmax(12rem,1fr)_2.5rem] md:items-center"
                 >
                   <div role="cell" className="flex min-w-0 items-start gap-3">
-                    <Avatar className="size-11 border border-foreground/10 bg-background/60">
-                      <AvatarFallback className="bg-foreground/8 text-xs font-medium text-foreground/72">
-                        {memberInitials(member.displayName)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <MemberAvatar displayName={member.displayName} avatarUrl={member.avatarUrl} />
                     <div className="min-w-0">
                       <div className="flex min-w-0 flex-wrap items-center gap-2">
                         <TypographyP className="truncate text-sm font-medium text-foreground">

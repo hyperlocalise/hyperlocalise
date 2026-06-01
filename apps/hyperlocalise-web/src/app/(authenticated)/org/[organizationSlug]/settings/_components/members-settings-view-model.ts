@@ -13,6 +13,7 @@ export type MembersListMember = {
   workosUserId: string;
   email: string;
   displayName: string;
+  avatarUrl: string | null;
   role: OrganizationMembershipRole;
   isCurrentUser: boolean;
   status?: "active" | "invited";

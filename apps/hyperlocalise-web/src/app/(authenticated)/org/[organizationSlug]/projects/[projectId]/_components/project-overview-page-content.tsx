@@ -9,13 +9,9 @@ import { cn } from "@/lib/primitives/cn";
 import { ProjectPageShell, ProjectSectionHeader } from "./project-page-shell";
 
 const executionLinks = [
-  { label: "Files", section: "files", detail: "Source files and assets" },
-  { label: "Locales", section: "locales", detail: "Language and market readiness" },
-  { label: "Jobs", section: "jobs", detail: "Translation, review, QA, and sync" },
-  { label: "Reviews", section: "reviews", detail: "Human decisions and approvals" },
-  { label: "Context", section: "context", detail: "PRs, docs, tickets, and product notes" },
-  { label: "QA", section: "qa", detail: "ICU, glossary, tone, and layout checks" },
-  { label: "Agent Runs", section: "agent-runs", detail: "Automation history and confidence" },
+  { label: "Files", section: "files", detail: "Upload source files for translation" },
+  { label: "Jobs", section: "jobs", detail: "Translation and provider sync work" },
+  { label: "Settings", section: "settings", detail: "Project metadata and translation guidance" },
 ] as const;
 
 export function ProjectOverviewPageContent({
@@ -30,7 +26,7 @@ export function ProjectOverviewPageContent({
       <ProjectSectionHeader
         icon={DashboardSquare01Icon}
         section="Overview"
-        description="Execution hub for localization work. Agents prepare work, gather context, and route decisions; your team ships in the sections below."
+        description="Project hub for localization work. Upload source files, track jobs, and manage project settings from the sections below."
       />
 
       <section className="grid gap-3 sm:grid-cols-2">

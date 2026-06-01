@@ -25,6 +25,10 @@ function sortLocales(locales: string[]) {
   return [...locales].toSorted((a, b) => getLocaleLabel(a).localeCompare(getLocaleLabel(b)));
 }
 
+function sortLocaleCodes(locales: string[]) {
+  return [...locales].toSorted((a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }));
+}
+
 export function ProjectSourceLocalePicker({
   value,
   onChange,
@@ -37,9 +41,6 @@ export function ProjectSourceLocalePicker({
   error?: string;
 }) {
   const fieldId = useId();
-  const customId = useId();
-  const [customLocale, setCustomLocale] = useState("");
-  const [customError, setCustomError] = useState<string | undefined>();
 
   const options = useMemo(() => {
     const merged = new Set<string>(COMMON_LOCALES);
@@ -49,79 +50,38 @@ export function ProjectSourceLocalePicker({
     return sortLocales([...merged]);
   }, [value]);
 
-  function applyCustomLocale() {
-    if (!isValidLocaleInput(customLocale)) {
-      setCustomError("Enter a valid BCP-47 locale (e.g. en-US, zh-Hant-TW).");
-      return;
-    }
-
-    onChange(canonicalizeLocale(customLocale) as string);
-    setCustomLocale("");
-    setCustomError(undefined);
-  }
-
   return (
     <Field className="gap-1">
       <FieldLabel htmlFor={fieldId}>Source locale</FieldLabel>
-      <div className="flex gap-2">
-        <Select
-          value={value || undefined}
-          onValueChange={(next) => {
-            if (next) {
-              onChange(next);
-            }
-          }}
-          disabled={disabled}
+      <Select
+        value={value || undefined}
+        onValueChange={(next) => {
+          if (next) {
+            onChange(next);
+          }
+        }}
+        disabled={disabled}
+      >
+        <SelectTrigger
+          id={fieldId}
+          className="w-full border-foreground/10 bg-foreground/6 text-foreground"
         >
-          <SelectTrigger
-            id={fieldId}
-            className="w-[7.5rem] shrink-0 border-foreground/10 bg-foreground/6 text-foreground"
-          >
-            <SelectValue placeholder="Locale" />
-          </SelectTrigger>
-          <SelectContent
-            align="start"
-            alignItemWithTrigger={false}
-            className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
-          >
-            {options.map((locale) => (
-              <SelectItem key={locale} value={locale}>
-                <span className="truncate">{getLocaleLabel(locale)}</span>
-                <span className="text-muted-foreground">({locale})</span>
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Input
-          id={customId}
-          value={customLocale}
-          onChange={(event) => {
-            setCustomLocale(event.target.value);
-            setCustomError(undefined);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              applyCustomLocale();
-            }
-          }}
-          disabled={disabled}
-          placeholder="Other, e.g. en-GB"
-          className="min-w-0 flex-1 border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
-        />
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="shrink-0"
-          disabled={disabled}
-          onClick={applyCustomLocale}
+          <SelectValue placeholder="Select locale" />
+        </SelectTrigger>
+        <SelectContent
+          align="start"
+          alignItemWithTrigger={false}
+          className="w-max min-w-[17rem] max-w-[min(22rem,calc(100vw-2rem))]"
         >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-          Use
-        </Button>
-      </div>
-      <FieldError errors={error || customError ? [{ message: error ?? customError }] : undefined} />
+          {options.map((locale) => (
+            <SelectItem key={locale} value={locale}>
+              <span className="truncate">{getLocaleLabel(locale)}</span>
+              <span className="text-muted-foreground">({locale})</span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FieldError errors={error ? [{ message: error }] : undefined} />
     </Field>
   );
 }
@@ -141,8 +101,15 @@ export function ProjectTargetLocalesPicker({
 }) {
   const fieldId = useId();
   const customId = useId();
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const [customLocale, setCustomLocale] = useState("");
   const [customError, setCustomError] = useState<string | undefined>();
+
+  useEffect(() => {
+    if (showCustomInput) {
+      document.getElementById(customId)?.focus();
+    }
+  }, [customId, showCustomInput]);
 
   const selected = useMemo(() => new Set(value.map((locale) => locale.toLowerCase())), [value]);
   const sourceKey = sourceLocale.trim().toLowerCase();
@@ -150,8 +117,12 @@ export function ProjectTargetLocalesPicker({
     () => new Set(COMMON_LOCALES.map((locale) => locale.toLowerCase())),
     [],
   );
+  const commonLocales = useMemo(
+    () => sortLocaleCodes(COMMON_LOCALES.filter((locale) => locale.toLowerCase() !== sourceKey)),
+    [sourceKey],
+  );
   const extraSelectedLocales = useMemo(
-    () => sortLocales(value.filter((locale) => !commonLocaleKeys.has(locale.toLowerCase()))),
+    () => sortLocaleCodes(value.filter((locale) => !commonLocaleKeys.has(locale.toLowerCase()))),
     [commonLocaleKeys, value],
   );
 
@@ -177,7 +148,7 @@ export function ProjectTargetLocalesPicker({
       return;
     }
 
-    onChange(sortLocales([...value, locale]));
+    onChange(sortLocaleCodes([...value, locale]));
   }
 
   function applyCustomLocale() {
@@ -195,13 +166,14 @@ export function ProjectTargetLocalesPicker({
     toggleLocale(canonical);
     setCustomLocale("");
     setCustomError(undefined);
+    setShowCustomInput(false);
   }
 
   return (
     <Field className="gap-1.5">
       <FieldLabel id={fieldId}>Target locales</FieldLabel>
       <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={fieldId}>
-        {COMMON_LOCALES.filter((locale) => locale.toLowerCase() !== sourceKey).map((locale) => {
+        {commonLocales.map((locale) => {
           const isSelected = selected.has(locale.toLowerCase());
 
           return (
@@ -234,36 +206,54 @@ export function ProjectTargetLocalesPicker({
             </Button>
           ))}
       </div>
-      <div className="flex gap-2">
-        <Input
-          id={customId}
-          value={customLocale}
-          onChange={(event) => {
-            setCustomLocale(event.target.value);
-            setCustomError(undefined);
-          }}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              event.preventDefault();
-              applyCustomLocale();
-            }
-          }}
-          disabled={disabled}
-          placeholder="Other target locale"
-          className="min-w-0 flex-1 border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
-        />
+      {showCustomInput ? (
+        <div className="flex gap-2">
+          <Input
+            id={customId}
+            value={customLocale}
+            onChange={(event) => {
+              setCustomLocale(event.target.value);
+              setCustomError(undefined);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                applyCustomLocale();
+              }
+              if (event.key === "Escape") {
+                setShowCustomInput(false);
+                setCustomLocale("");
+                setCustomError(undefined);
+              }
+            }}
+            disabled={disabled}
+            placeholder="Other target locale"
+            className="min-w-0 flex-1 border-foreground/10 bg-foreground/6 text-foreground placeholder:text-foreground/32"
+          />
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="shrink-0"
+            disabled={disabled}
+            onClick={applyCustomLocale}
+          >
+            Add
+          </Button>
+        </div>
+      ) : (
         <Button
           type="button"
           variant="outline"
           size="sm"
-          className="shrink-0"
+          className="h-7 w-7 shrink-0 px-0"
           disabled={disabled}
-          onClick={applyCustomLocale}
+          aria-label="Add other target locale"
+          onClick={() => setShowCustomInput(true)}
         >
           <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-          Add
         </Button>
-      </div>
+      )}
       <FieldError errors={error || customError ? [{ message: error ?? customError }] : undefined} />
     </Field>
   );
