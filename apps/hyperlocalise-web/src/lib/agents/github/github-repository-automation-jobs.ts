@@ -268,9 +268,9 @@ export async function updateGithubRepositoryAutomationJobStatus(input: {
     .where(eq(schema.githubRepositoryAutomationJobs.id, input.jobId));
 
   if (isTerminal || input.status === "running") {
-    const { syncWorkspaceAutomationRunsForGithubJobStep } =
-      await import("@/workflows/steps/workspace-automation-run-sync");
-    await syncWorkspaceAutomationRunsForGithubJobStep({
+    const { syncWorkspaceAutomationRunsForGithubJob } =
+      await import("@/lib/agents/workspace-automation-run-sync");
+    await syncWorkspaceAutomationRunsForGithubJob({
       jobId: input.jobId,
       status: input.status,
       resultSummary: input.resultSummary,

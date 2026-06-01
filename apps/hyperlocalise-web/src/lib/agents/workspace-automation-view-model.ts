@@ -54,6 +54,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_project_required: "Choose a Hyperlocalise project for GitHub workflows.",
   github_trigger_required: "Choose a schedule or GitHub push trigger for GitHub workflows.",
   github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
+  scheduled_github_workflow_required: "Scheduled automations require at least one GitHub workflow.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
   email_not_connected: "Enable the email agent in Integrations before using email notifications.",
@@ -296,6 +297,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "project_not_found":
       return { githubProjectId: message };
     case "github_trigger_required":
+    case "scheduled_github_workflow_required":
       return { trigger: message };
     case "github_push_branches_required":
       return { pushBranches: message };

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db, schema } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
+import { hasWorkspaceAutomationGithubWorkflow } from "./workspace-automation-github-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
 
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
@@ -108,6 +109,10 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "github_push_branches_required";
       message: "GitHub push triggers require at least one branch pattern.";
+    }
+  | {
+      code: "scheduled_github_workflow_required";
+      message: "Scheduled automations require at least one GitHub workflow.";
     }
   | {
       code: "slack_not_connected";
@@ -216,6 +221,16 @@ function validateWorkspaceAutomationConfig(input: {
         message: "GitHub push triggers require at least one branch pattern.",
       });
     }
+  }
+
+  if (
+    input.triggerConfig.mode === "scheduled" &&
+    !hasWorkspaceAutomationGithubWorkflow(input.toolConfig)
+  ) {
+    return err({
+      code: "scheduled_github_workflow_required",
+      message: "Scheduled automations require at least one GitHub workflow.",
+    });
   }
 
   const slackTools = input.toolConfig.slack;

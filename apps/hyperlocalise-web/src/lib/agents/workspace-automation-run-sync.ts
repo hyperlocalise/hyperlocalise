@@ -29,6 +29,12 @@ function mapGithubJobStatusToRunStatus(
   }
 }
 
+function isTerminalRunStatus(status: WorkspaceAutomationRunStatus) {
+  return (
+    status === "succeeded" || status === "failed" || status === "cancelled" || status === "skipped"
+  );
+}
+
 export async function syncWorkspaceAutomationRunsForGithubJob(input: {
   jobId: string;
   status: GithubRepositoryAutomationJobStatus;
@@ -52,6 +58,8 @@ export async function syncWorkspaceAutomationRunsForGithubJob(input: {
   }
 
   for (const runRow of runRows) {
+    const shouldNotifyTerminalRun =
+      isTerminalRunStatus(mappedStatus) && !isTerminalRunStatus(runRow.status);
     const outputSummary = {
       ...(runRow.outputSummary as Record<string, unknown>),
       ...input.resultSummary,
@@ -76,6 +84,10 @@ export async function syncWorkspaceAutomationRunsForGithubJob(input: {
     });
 
     if (!updatedRun) {
+      continue;
+    }
+
+    if (!shouldNotifyTerminalRun) {
       continue;
     }
 

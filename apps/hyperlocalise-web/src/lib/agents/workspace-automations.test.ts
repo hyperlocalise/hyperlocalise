@@ -185,6 +185,68 @@ describe("workspace automations", () => {
     expect(missingProject.error.code).toBe("github_project_required");
   });
 
+  it("rejects scheduled automations without a GitHub workflow", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const triggerConfig = {
+      mode: "scheduled" as const,
+      schedule: {
+        cadence: "daily" as const,
+        hourUtc: 8,
+        timezone: "UTC",
+      },
+    };
+
+    await db.insert(schema.connectors).values({
+      organizationId: scope.organizationId,
+      kind: "slack",
+      enabled: true,
+    });
+
+    const notificationOnlySchedule = await createWorkspaceAutomation({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Notification-only schedule",
+      instructions: "Send a daily reminder.",
+      triggerConfig,
+      toolConfig: {
+        slack: {
+          enabled: true,
+          channelId: "C123",
+        },
+      },
+    });
+    expect(notificationOnlySchedule.ok).toBe(false);
+    if (notificationOnlySchedule.ok) {
+      throw new Error("expected validation error");
+    }
+    expect(notificationOnlySchedule.error.code).toBe("scheduled_github_workflow_required");
+
+    const manualNotification = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Manual notification",
+        instructions: "Send a reminder manually.",
+        toolConfig: {
+          slack: {
+            enabled: true,
+            channelId: "C123",
+          },
+        },
+      }),
+    );
+    const scheduledUpdate = await updateWorkspaceAutomation({
+      automationId: manualNotification.id,
+      organizationId: scope.organizationId,
+      triggerConfig,
+    });
+    expect(scheduledUpdate.ok).toBe(false);
+    if (scheduledUpdate.ok) {
+      throw new Error("expected validation error");
+    }
+    expect(scheduledUpdate.error.code).toBe("scheduled_github_workflow_required");
+  });
+
   it("only versions config-changing automation updates", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const automation = expectOk(
