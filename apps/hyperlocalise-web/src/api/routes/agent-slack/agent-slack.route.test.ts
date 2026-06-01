@@ -10,20 +10,33 @@ import { verifySlackState } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const mocks = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
       globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
       globalThis.__testApiAuthContext ??
       null,
   ),
+  getSlackBotMock: vi.fn(),
+  initializeMock: vi.fn().mockResolvedValue(undefined),
+  getAdapterMock: vi.fn(),
+  getInstallationMock: vi.fn().mockResolvedValue({ botToken: "xoxb-token" }),
+}));
+
+vi.mock("@/lib/agents/slack/bot", () => ({
+  getSlackBot: mocks.getSlackBotMock.mockResolvedValue({
+    initialize: mocks.initializeMock,
+    getAdapter: mocks.getAdapterMock.mockReturnValue({
+      getInstallation: mocks.getInstallationMock,
+    }),
+  }),
 }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
   return {
     ...actual,
-    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+    resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
   };
 });
 
@@ -122,6 +135,78 @@ describe("agentSlackRoutes", () => {
         teamName: "My Team",
       },
     });
+  });
+
+  it("lists Slack channels for an enabled connector", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const headers = await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+    if (!auth) {
+      throw new Error("missing auth context");
+    }
+
+    await createStoredSlackConnector({
+      organizationId: auth.organization.localOrganizationId,
+      enabled: true,
+      teamId: "T123",
+      teamName: "My Team",
+    });
+
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        ok: true,
+        channels: [
+          { id: "C_PRIVATE", name: "team-l10n", is_private: true },
+          { id: "C_PUBLIC", name: "localization", is_private: false },
+          { id: "C_ARCHIVED", name: "old", is_archived: true },
+        ],
+        response_metadata: {},
+      }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+      {
+        param: { organizationSlug },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      channels: [
+        { id: "C_PUBLIC", name: "localization", private: false },
+        { id: "C_PRIVATE", name: "team-l10n", private: true },
+      ],
+    });
+    expect(mocks.getInstallationMock).toHaveBeenCalledWith("T123");
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pathname: "/api/conversations.list",
+      }),
+      expect.objectContaining({
+        headers: { authorization: "Bearer xoxb-token" },
+      }),
+    );
+  });
+
+  it("returns an empty channel list when Slack is disconnected", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+      {
+        param: { organizationSlug },
+      },
+      {
+        headers: await fixture.authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ channels: [] });
   });
 
   it("returns an org-scoped slack install url for admins", async () => {

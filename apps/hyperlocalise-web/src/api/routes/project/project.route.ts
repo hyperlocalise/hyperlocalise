@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
@@ -9,6 +10,8 @@ import { badRequestResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
+import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
+import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { fetchCrowdinFileKeys } from "@/lib/providers/adapters/crowdin/crowdin-file-fetcher";
 import { fetchCrowdinGlossaries } from "@/lib/providers/adapters/crowdin/crowdin-glossary-fetcher";
 import { fetchCrowdinJobTasks } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
@@ -63,7 +66,9 @@ import {
   createProjectBodySchema,
   externalTmsContentSyncBodySchema,
   externalTmsTranslationPushBodySchema,
+  maxProjectFileUploadBytes,
   projectFileDetailQuerySchema,
+  projectFileUploadBodySchema,
   projectFilesQuerySchema,
   projectIdParamsSchema,
   updateProjectBodySchema,
@@ -84,8 +89,10 @@ import {
   isProjectMutationAllowed,
   ownedProjectWhere,
   projectNotFoundResponse,
+  unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 type ProjectUpdateErrorCode =
   | "invalid_project_team"
@@ -300,6 +307,15 @@ const validateProjectFileDetailQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+function asString(value: unknown) {
+  return typeof value === "string" ? value : undefined;
+}
+
+function asFile(value: unknown) {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+  return values.find((item): item is File => item instanceof File && item.size > 0) ?? null;
+}
+
 const validateProjectFilesQuery = validator("query", (value, c) => {
   const parsed = projectFilesQuerySchema.safeParse(value);
 
@@ -510,6 +526,106 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       return c.json({ files }, 200);
     })
+    .post(
+      "/:projectId/files",
+      validateProjectParams,
+      bodyLimit({
+        maxSize: maxProjectFileUploadBytes,
+        onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
+      }),
+      async (c) => {
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const body = await c.req.parseBody({ all: true });
+        const parsed = projectFileUploadBodySchema.safeParse({
+          sourcePath: asString(body.sourcePath),
+          sourceHash: asString(body.sourceHash),
+          commitSha: asString(body.commitSha),
+          workflowRunId: asString(body.workflowRunId),
+        });
+
+        if (!parsed.success) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        const file = asFile(body.file);
+        if (!file) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+          return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
+        }
+
+        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+        let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
+
+        const { storedFile, version } = await db
+          .transaction(async (tx) => {
+            uploadedFile = await createStoredFile({
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              createdByUserId: c.var.auth.user.localUserId,
+              role: "source",
+              sourceKind: "repository_file",
+              filename: file.name,
+              contentType: file.type || sourceContentType(parsed.data.sourcePath),
+              content: await file.arrayBuffer(),
+              metadata: {
+                sourcePath: parsed.data.sourcePath,
+                sourceHash: parsed.data.sourceHash ?? null,
+                commitSha: parsed.data.commitSha ?? null,
+                workflowRunId: parsed.data.workflowRunId ?? null,
+                uploadSurface: "files_page",
+              },
+              adapter,
+              db: tx,
+            });
+
+            const version = await createRepositorySourceFileVersion({
+              storedFile: uploadedFile,
+              sourcePath: parsed.data.sourcePath,
+              sourceHash: parsed.data.sourceHash,
+              commitSha: parsed.data.commitSha,
+              workflowRunId: parsed.data.workflowRunId,
+              uploadedByUserId: c.var.auth.user.localUserId,
+              uploadSurface: "files_page",
+              db: tx,
+            });
+
+            return { storedFile: uploadedFile, version };
+          })
+          .catch(async (error) => {
+            if (uploadedFile) {
+              await adapter.delete({ keyOrUrl: uploadedFile.storageKey }).catch(() => undefined);
+            }
+            throw error;
+          });
+
+        return c.json(
+          {
+            file: {
+              id: storedFile.id,
+              sourceFileVersionId: version.id,
+              filename: storedFile.filename,
+              contentType: storedFile.contentType,
+              byteSize: storedFile.byteSize,
+              sha256: storedFile.sha256,
+            },
+          },
+          201,
+        );
+      },
+    )
     .get("/:projectId", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
       const project = await projectStore.getById(c.var.auth, params.projectId);

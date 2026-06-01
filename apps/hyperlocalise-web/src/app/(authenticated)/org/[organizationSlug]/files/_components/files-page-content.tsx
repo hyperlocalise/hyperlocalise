@@ -1,17 +1,34 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ArrowRight01Icon, File01Icon, Folder01Icon } from "@hugeicons/core-free-icons";
+import {
+  ArrowRight01Icon,
+  File01Icon,
+  Folder01Icon,
+  Upload01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
   WorkspaceFileRecord,
   WorkspaceFilesResponse,
 } from "@/api/routes/project/project.schema";
 import { apiClient } from "@/lib/api-client-instance";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 import {
   collectLocaleOptions,
@@ -37,9 +54,153 @@ import {
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
 
+type ProjectOption = { id: string; name: string };
+
 function fileDetailHref(organizationSlug: string, file: WorkspaceFileRecord) {
   const params = new URLSearchParams({ sourcePath: file.sourcePath });
   return `/org/${organizationSlug}/projects/${file.projectId}/files?${params.toString()}`;
+}
+
+function UploadFileDialog({
+  organizationSlug,
+  projects,
+}: {
+  organizationSlug: string;
+  projects: ProjectOption[];
+}) {
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [projectId, setProjectId] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [sourcePath, setSourcePath] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  const uploadMutation = useMutation({
+    mutationFn: async () => {
+      if (!projectId || !file || !sourcePath.trim()) {
+        throw new Error("Select a project, choose a file, and set a source path.");
+      }
+
+      const formData = new FormData();
+      formData.set("sourcePath", sourcePath.trim());
+      formData.set("file", file);
+
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(
+          projectId,
+        )}/files`,
+        {
+          method: "POST",
+          body: formData,
+        },
+      );
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        throw new Error(body?.message ?? `Upload failed (${response.status})`);
+      }
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["workspace-files", organizationSlug] });
+      await queryClient.invalidateQueries({
+        queryKey: ["workspace-files-locales", organizationSlug],
+      });
+      setOpen(false);
+      setFile(null);
+      setSourcePath("");
+      setError(null);
+    },
+    onError: (uploadError) => {
+      setError(uploadError instanceof Error ? uploadError.message : "Upload failed.");
+    },
+  });
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError(null);
+    uploadMutation.mutate();
+  }
+
+  function handleFileChange(nextFile: File | null) {
+    setFile(nextFile);
+    if (nextFile && sourcePath.trim() === "") {
+      setSourcePath(nextFile.webkitRelativePath || nextFile.name);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button />}>
+        <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} data-icon="inline-start" />
+        Upload file
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg">
+        <form onSubmit={handleSubmit} className="grid gap-5">
+          <DialogHeader>
+            <DialogTitle>Upload repository file</DialogTitle>
+            <DialogDescription>
+              Add a source file to a project so it appears in Files and can be used for file
+              translation jobs.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="grid gap-4">
+            <div className="grid gap-2">
+              <Label htmlFor="upload-project">Project</Label>
+              <select
+                id="upload-project"
+                value={projectId}
+                onChange={(event) => setProjectId(event.target.value)}
+                className="h-9 rounded-md border border-border bg-background px-3 text-sm text-foreground outline-none"
+                required
+              >
+                <option value="" disabled>
+                  Select a project
+                </option>
+                {projects.map((project) => (
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="upload-file">File</Label>
+              <Input
+                id="upload-file"
+                type="file"
+                onChange={(event) => handleFileChange(event.target.files?.[0] ?? null)}
+                required
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <Label htmlFor="upload-source-path">Source path</Label>
+              <Input
+                id="upload-source-path"
+                value={sourcePath}
+                onChange={(event) => setSourcePath(event.target.value)}
+                placeholder="locales/en/messages.json"
+                required
+              />
+            </div>
+          </div>
+
+          {error ? <TypographyP className="text-sm text-flame-100">{error}</TypographyP> : null}
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={uploadMutation.isPending || projects.length === 0}>
+              {uploadMutation.isPending ? "Uploading…" : "Upload"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function FilesPageContent({ organizationSlug }: { organizationSlug: string }) {
@@ -146,6 +307,7 @@ export function FilesPageContent({ organizationSlug }: { organizationSlug: strin
         label="Workspace"
         title="Files"
         description="Browse repository source files and synced TMS provider files and keys across projects."
+        actions={<UploadFileDialog organizationSlug={organizationSlug} projects={projectOptions} />}
       />
 
       <WorkspaceFilesFilterBar

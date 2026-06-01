@@ -208,6 +208,15 @@ export const projectFileDetailQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
 });
 
+export const maxProjectFileUploadBytes = 25 * 1024 * 1024;
+
+export const projectFileUploadBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  sourceHash: z.string().trim().min(1).max(256).optional(),
+  commitSha: z.string().trim().min(1).max(256).optional(),
+  workflowRunId: z.string().trim().min(1).max(256).optional(),
+});
+
 export const projectFileContentSchema = z.object({
   text: z.string(),
 });

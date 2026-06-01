@@ -291,6 +291,14 @@ export function GitHubIntegrationRow({
         .map((repository) => repository.githubRepositoryId),
     );
   }, [repositories, selectedRepositoryIds]);
+  const selectionChanged = useMemo(
+    () =>
+      repositories.some(
+        (repository) =>
+          effectiveSelection.has(repository.githubRepositoryId) !== repository.enabled,
+      ),
+    [effectiveSelection, repositories],
+  );
 
   const filteredRepositories = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
@@ -438,42 +446,47 @@ export function GitHubIntegrationRow({
                 <HugeiconsIcon
                   icon={Search01Icon}
                   strokeWidth={1.8}
-                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-primary/70"
+                  className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
                 />
                 <input
                   value={query}
                   onChange={(event) => setQuery(event.target.value)}
                   placeholder="Search repositories"
                   aria-label="Search repositories"
-                  className="h-9 w-full rounded-lg border border-border bg-background px-9 text-sm text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-primary/40 focus:ring-[3px] focus:ring-primary/20"
+                  className="h-9 w-full rounded-lg border border-border bg-background px-9 text-sm text-foreground transition-all outline-none placeholder:text-muted-foreground focus:border-foreground/30 focus:ring-[3px] focus:ring-foreground/10"
                 />
               </div>
-              <Button
-                size="sm"
-                onClick={handleEnableSelected}
-                disabled={updateRepositories.isPending || repositories.length === 0}
-                className="bg-primary text-primary-foreground hover:bg-primary/80"
-              >
-                Enable {effectiveSelection.size}
-              </Button>
+              {selectionChanged ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleEnableSelected}
+                  disabled={updateRepositories.isPending || repositories.length === 0}
+                >
+                  Enable {effectiveSelection.size}
+                </Button>
+              ) : null}
               <Button
                 variant="outline"
                 size="sm"
                 onClick={handleEnableAll}
-                disabled={updateRepositories.isPending || repositories.length === 0}
+                disabled={
+                  updateRepositories.isPending ||
+                  repositories.length === 0 ||
+                  effectiveSelection.size === repositories.length
+                }
               >
                 Enable all
               </Button>
             </div>
             <div className="overflow-hidden rounded-lg border border-border bg-card">
-              <div className="grid grid-cols-[48px_minmax(0,1fr)_120px_140px_140px] border-b border-border bg-secondary/60 text-xs font-medium tracking-wide text-secondary-foreground uppercase">
+              <div className="grid grid-cols-[48px_minmax(0,1fr)_120px_260px] border-b border-border bg-muted/40 text-xs font-medium tracking-wide text-muted-foreground uppercase">
                 <div className="px-4 py-3">
                   <span className="sr-only">Enabled</span>
                 </div>
                 <div className="px-4 py-3">Repositories</div>
                 <div className="px-4 py-3">Branch</div>
-                <div className="px-4 py-3 text-right">Automation</div>
-                <div className="px-4 py-3 text-right">i18n setup</div>
+                <div className="px-4 py-3 text-right">Action</div>
               </div>
               {isLoadingRepositories ? (
                 <div className="p-4">
@@ -486,8 +499,8 @@ export function GitHubIntegrationRow({
                     <label
                       key={repository.githubRepositoryId}
                       className={cn(
-                        "grid min-h-12 cursor-pointer grid-cols-[48px_minmax(0,1fr)_120px_140px_140px] items-center border-b border-border text-sm transition-colors last:border-b-0 hover:bg-accent/50",
-                        checked && "bg-primary/5",
+                        "grid min-h-12 cursor-pointer grid-cols-[48px_minmax(0,1fr)_120px_260px] items-center border-b border-border text-sm transition-colors last:border-b-0 hover:bg-accent/50",
+                        checked && "bg-muted/30",
                       )}
                     >
                       <div className="px-4">
@@ -495,7 +508,7 @@ export function GitHubIntegrationRow({
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleRepository(repository.githubRepositoryId)}
-                          className="size-4 accent-primary"
+                          className="size-4 rounded border-foreground/20 accent-foreground"
                           aria-label={`Enable ${repository.fullName}`}
                         />
                       </div>
@@ -534,7 +547,7 @@ export function GitHubIntegrationRow({
                         onClick={(event) => event.preventDefault()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
-                        <div className="flex flex-col items-end gap-1">
+                        <div className="flex flex-wrap items-center justify-end gap-2">
                           <RepositoryAutomationSettingsAction
                             organizationSlug={organizationSlug}
                             githubRepositoryId={repository.githubRepositoryId}
@@ -543,19 +556,13 @@ export function GitHubIntegrationRow({
                             archived={repository.archived}
                             userCanManage={userCanManage}
                           />
+                          <RepositoryI18nSetupAction
+                            organizationSlug={organizationSlug}
+                            githubRepositoryId={repository.githubRepositoryId}
+                            enabled={checked}
+                            userCanManage={userCanManage}
+                          />
                         </div>
-                      </div>
-                      <div
-                        className="px-4"
-                        onClick={(event) => event.preventDefault()}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      >
-                        <RepositoryI18nSetupAction
-                          organizationSlug={organizationSlug}
-                          githubRepositoryId={repository.githubRepositoryId}
-                          enabled={checked}
-                          userCanManage={userCanManage}
-                        />
                       </div>
                     </label>
                   );

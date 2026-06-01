@@ -41,7 +41,8 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 const client = testClient(app);
 const appClient = client;
 const fileStorageAdapter = createMemoryFileStorageAdapter();
-const fileDetailClient = testClient(createApp({ fileStorageAdapter }));
+const fileDetailApp = createApp({ fileStorageAdapter });
+const fileDetailClient = testClient(fileDetailApp);
 const projectFixture = createProjectTestFixture(client);
 const { authHeadersFor, createProjectViaApi, createWorkosIdentity, createWorkosIdentityWithRole } =
   projectFixture;
@@ -994,6 +995,57 @@ describe("projectRoutes", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectFilesResponse;
     expect(body.files.map((file) => file.sourcePath)).toEqual(["keys/alpha"]);
+  });
+
+  it("uploads repository source files from the authenticated project route", async () => {
+    const identity = createWorkosIdentity();
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = createdBody.project.id;
+
+    const form = new FormData();
+    form.set("sourcePath", "locales/en/home.json");
+    form.set("file", new File(['{"hello":"Hello"}'], "home.json", { type: "application/json" }));
+
+    const response = await fileDetailApp.request(
+      `/api/orgs/${identity.organization.slug ?? "missing-slug"}/projects/${projectId}/files`,
+      {
+        method: "POST",
+        headers: await authHeadersFor(identity),
+        body: form,
+      },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as {
+      file: { id: string; sourceFileVersionId: string; sha256: string };
+    };
+    expect(body.file.id).toMatch(/^file_/);
+    expect(body.file.sourceFileVersionId).toEqual(expect.any(String));
+
+    const filesResponse = await fileDetailClient.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug", projectId },
+        query: { limit: "500" },
+      },
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(filesResponse.status).toBe(200);
+    const filesBody = (await filesResponse.json()) as ProjectFilesResponse;
+    expect(filesBody.files).toEqual([
+      expect.objectContaining({
+        origin: "repository",
+        sourcePath: "locales/en/home.json",
+        filename: "home.json",
+        sourceHash: body.file.sha256,
+        storedFileId: body.file.id,
+      }),
+    ]);
   });
 
   it("returns 404 when another organization fetches project files", async () => {

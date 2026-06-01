@@ -3,6 +3,7 @@ import {
   ownedProjectWhere as teamOwnedProjectWhere,
 } from "@/api/auth/team-access";
 import {
+  badRequestResponse,
   forbiddenResponse as sharedForbiddenResponse,
   notFoundResponse,
   validationErrorResponse,
@@ -19,6 +20,12 @@ export function invalidProjectPayloadResponse(c: { json: JsonContext["json"] }) 
 
 export function projectNotFoundResponse(c: { json: JsonContext["json"] }) {
   return notFoundResponse(c, "project_not_found", "Project not found");
+}
+
+export function unsupportedProjectFileResponse(c: { json: JsonContext["json"] }, filename: string) {
+  return badRequestResponse(c, "unsupported_translation_source_file", "Unsupported source file", {
+    filename,
+  });
 }
 
 export function forbiddenResponse(c: { json: JsonContext["json"] }) {

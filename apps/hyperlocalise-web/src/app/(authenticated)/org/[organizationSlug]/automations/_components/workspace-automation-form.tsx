@@ -58,6 +58,7 @@ type GithubRepositoryOption = {
   archived: boolean;
   defaultBranch: string | null;
 };
+type SlackChannelOption = { id: string; name: string; private: boolean };
 
 type AutomationEditorTab = "settings" | "history";
 
@@ -193,6 +194,34 @@ function triggerSummary(
 
 function toolCount(form: WorkspaceAutomationFormState) {
   return Number(form.githubEnabled) + Number(form.slackEnabled) + Number(form.emailEnabled);
+}
+
+function formatRepositoryOptionLabel(repository: GithubRepositoryOption) {
+  return `${repository.fullName}${repository.enabled ? "" : " (disabled)"}`;
+}
+
+function selectedRepositoryLabel(
+  repositoryId: string,
+  repositories: GithubRepositoryOption[],
+  placeholder = "Select repository",
+) {
+  if (!repositoryId) {
+    return placeholder;
+  }
+
+  return (
+    repositories.find((repository) => repository.id === repositoryId)?.fullName ??
+    "Unknown repository"
+  );
+}
+
+function selectedSlackChannelLabel(channelId: string, channels: SlackChannelOption[]) {
+  if (!channelId) {
+    return "Select channel";
+  }
+
+  const channel = channels.find((entry) => entry.id === channelId);
+  return channel ? `#${channel.name}` : channelId;
 }
 
 function HeaderProjectSelector({
@@ -604,13 +633,18 @@ function TriggerSettings({
                   disabled={disabled}
                 >
                   <SelectTrigger className="h-8 w-full rounded-lg md:min-w-44 md:max-w-xs">
-                    <SelectValue placeholder="Repository" />
+                    <span className="truncate">
+                      {selectedRepositoryLabel(
+                        form.githubInstallationRepositoryId,
+                        repositories,
+                        "Repository",
+                      )}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {repositories.map((repository) => (
                       <SelectItem key={repository.id} value={repository.id}>
-                        {repository.fullName}
-                        {!repository.enabled ? " (disabled)" : ""}
+                        {formatRepositoryOptionLabel(repository)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -745,6 +779,8 @@ function ToolsSettings({
   onChange,
   organizationSlug,
   repositories,
+  slackChannels,
+  slackChannelsLoading,
   slackConnected,
 }: {
   disabled?: boolean;
@@ -755,6 +791,8 @@ function ToolsSettings({
   onChange: (next: WorkspaceAutomationFormState) => void;
   organizationSlug: string;
   repositories: GithubRepositoryOption[];
+  slackChannels: SlackChannelOption[];
+  slackChannelsLoading: boolean;
   slackConnected: boolean;
 }) {
   return (
@@ -799,13 +837,14 @@ function ToolsSettings({
                   disabled={disabled}
                 >
                   <SelectTrigger className="h-8 w-full rounded-lg">
-                    <SelectValue placeholder="Select repository" />
+                    <span className="truncate">
+                      {selectedRepositoryLabel(form.githubInstallationRepositoryId, repositories)}
+                    </span>
                   </SelectTrigger>
                   <SelectContent>
                     {repositories.map((repository) => (
                       <SelectItem key={repository.id} value={repository.id}>
-                        {repository.fullName}
-                        {!repository.enabled ? " (disabled)" : ""}
+                        {formatRepositoryOptionLabel(repository)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -881,17 +920,38 @@ function ToolsSettings({
             }
           >
             <div className="grid gap-1.5">
-              <Label htmlFor="slack-channel" className="text-xs text-muted-foreground">
-                Channel ID
-              </Label>
-              <Input
-                id="slack-channel"
-                value={form.slackChannelId}
-                disabled={disabled || !slackConnected}
-                placeholder="C0123456789"
-                className="h-8 rounded-lg"
-                onChange={(event) => onChange({ ...form, slackChannelId: event.target.value })}
-              />
+              <Label className="text-xs text-muted-foreground">Channel</Label>
+              <Select
+                value={form.slackChannelId || undefined}
+                onValueChange={(value) => {
+                  if (!value) {
+                    return;
+                  }
+                  onChange({ ...form, slackChannelId: value });
+                }}
+                disabled={disabled || !slackConnected || slackChannelsLoading}
+              >
+                <SelectTrigger className="h-8 w-full rounded-lg">
+                  <span className="truncate">
+                    {slackChannelsLoading
+                      ? "Loading channels..."
+                      : selectedSlackChannelLabel(form.slackChannelId, slackChannels)}
+                  </span>
+                </SelectTrigger>
+                <SelectContent>
+                  {!slackChannelsLoading && slackChannels.length === 0 ? (
+                    <SelectItem value="__no_slack_channels" disabled>
+                      No channels found
+                    </SelectItem>
+                  ) : null}
+                  {slackChannels.map((channel) => (
+                    <SelectItem key={channel.id} value={channel.id}>
+                      #{channel.name}
+                      {channel.private ? " (private)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FieldError message={errors.slackChannelId} />
             </div>
           </EditorRow>
@@ -1086,6 +1146,21 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const slackChannelsQuery = useQuery({
+    queryKey: ["slack-agent-channels", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["agent-slack"].channels.$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Slack channels");
+      }
+      const body = await response.json();
+      return body.channels as SlackChannelOption[];
+    },
+    enabled: Boolean(slackQuery.data?.enabled),
+  });
+
   const emailQuery = useQuery({
     queryKey: ["email-agent", organizationSlug],
     queryFn: async () => {
@@ -1218,6 +1293,8 @@ export function WorkspaceAutomationEditor({
             onChange={onChange}
             organizationSlug={organizationSlug}
             repositories={repositories}
+            slackChannels={slackChannelsQuery.data ?? []}
+            slackChannelsLoading={slackChannelsQuery.isLoading}
             slackConnected={slackConnected}
           />
         </TabsContent>
