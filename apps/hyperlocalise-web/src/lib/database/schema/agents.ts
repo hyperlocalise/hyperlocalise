@@ -1,5 +1,14 @@
 import { sql } from "drizzle-orm";
-import { index, jsonb, pgTable, text, timestamp, uniqueIndex, uuid } from "drizzle-orm/pg-core";
+import {
+  index,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import {
   agentRunKindEnum,
@@ -8,10 +17,108 @@ import {
   inboxStatusEnum,
   interactionSourceEnum,
   messageSenderTypeEnum,
+  workspaceAutomationRunStatusEnum,
+  workspaceAutomationRunTriggerSourceEnum,
+  workspaceAutomationStatusEnum,
 } from "./enums";
+import {
+  githubInstallationRepositories,
+  githubRepositoryAutomationJobs,
+} from "./github";
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 import { jobs } from "./jobs";
+
+/**
+ * Stores persisted workspace automation definitions, including the user-authored guidance, trigger settings, repository target, enabled tools, and scheduling state.
+ */
+export const workspaceAutomations = pgTable(
+  "workspace_automations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    authorUserId: uuid("author_user_id").references(() => users.id, { onDelete: "set null" }),
+    status: workspaceAutomationStatusEnum("status").notNull().default("active"),
+    name: text("name").notNull(),
+    instructions: text("instructions").notNull(),
+    triggerConfig: jsonb("trigger_config")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    githubInstallationRepositoryId: uuid("github_installation_repository_id").references(
+      () => githubInstallationRepositories.id,
+      { onDelete: "set null" },
+    ),
+    repositoryTarget: jsonb("repository_target")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    toolConfig: jsonb("tool_config")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    configVersion: integer("config_version").notNull().default(1),
+    nextRunAt: timestamp("next_run_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_workspace_automations_org_status").on(table.organizationId, table.status),
+    index("idx_workspace_automations_org_next_run").on(table.organizationId, table.nextRunAt),
+    index("idx_workspace_automations_github_repo").on(table.githubInstallationRepositoryId),
+  ],
+);
+
+/**
+ * Stores concrete workspace automation run history, including trigger context, input/output snapshots, errors, and optional linkage to deterministic GitHub repository automation jobs.
+ */
+export const workspaceAutomationRuns = pgTable(
+  "workspace_automation_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    automationId: uuid("automation_id")
+      .notNull()
+      .references(() => workspaceAutomations.id, { onDelete: "cascade" }),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    triggerSource: workspaceAutomationRunTriggerSourceEnum("trigger_source").notNull(),
+    status: workspaceAutomationRunStatusEnum("status").notNull().default("queued"),
+    inputSnapshot: jsonb("input_snapshot")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    outputSummary: jsonb("output_summary")
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+    error: jsonb("error").$type<Record<string, unknown>>(),
+    githubRepositoryAutomationJobId: uuid("github_repository_automation_job_id").references(
+      () => githubRepositoryAutomationJobs.id,
+      { onDelete: "set null" },
+    ),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    index("idx_workspace_automation_runs_automation_created").on(
+      table.automationId,
+      table.createdAt,
+    ),
+    index("idx_workspace_automation_runs_org_status").on(table.organizationId, table.status),
+    index("idx_workspace_automation_runs_github_job").on(table.githubRepositoryAutomationJobId),
+  ],
+);
 
 /**
  * Stores provider-facing agent executions, including target provider job or task, run kind, actor, input snapshot, output summary, changed items, warnings, status, and linked job.
