@@ -223,7 +223,7 @@ function parseGlossaryImport(payload: ImportGlossaryTermsBody): CreateGlossaryTe
   const entries = [...payload.content.matchAll(/<termEntry\b[\s\S]*?<\/termEntry>/gi)];
   return entries.flatMap((entry) => {
     const terms = [...entry[0].matchAll(/<term\b[^>]*>([\s\S]*?)<\/term>/gi)].map((match) =>
-      match[1]?.replace(/<[^>]*>/g, "").trim(),
+      match[1]?.replace(/[<>]/g, "").trim(),
     );
     const [sourceTerm, targetTerm] = terms.filter(Boolean) as string[];
     return sourceTerm && targetTerm
