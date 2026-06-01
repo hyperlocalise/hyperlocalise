@@ -90,6 +90,8 @@ func (d fluentDocument) render(values map[string]string) ([]byte, error) {
 		templateKeys[messageID] = struct{}{}
 	}
 	var b strings.Builder
+	// BOLT OPTIMIZATION: Pre-grow the builder to avoid repeated re-allocations.
+	b.Grow(len(d.template))
 	hasRendered := false
 	renderedTrailingNewlines := 0
 	writeRenderedString := func(value string) {
@@ -276,7 +278,8 @@ func fluentValueSpan(lines []fluentLine, index, valueStart int) (int, int) {
 }
 
 func scanFluentLines(text string) []fluentLine {
-	lines := []fluentLine{}
+	// BOLT OPTIMIZATION: Pre-allocate lines slice based on newline count.
+	lines := make([]fluentLine, 0, strings.Count(text, "\n")+1)
 	for start := 0; start < len(text); {
 		next := strings.IndexByte(text[start:], '\n')
 		lineEnd := len(text)
@@ -409,16 +412,36 @@ func fluentCommentText(trimmed string) string {
 }
 
 func formatFluentComments(comments []string) string {
-	parts := make([]string, 0, len(comments))
-	for _, comment := range comments {
-		if clean := strings.TrimSpace(comment); clean != "" {
-			parts = append(parts, clean)
-		}
+	// BOLT OPTIMIZATION: Use strings.Builder to avoid intermediate slice and Join.
+	var b strings.Builder
+	// BOLT OPTIMIZATION: Pre-calculate total length to avoid re-allocations.
+	totalLen := 0
+	for _, c := range comments {
+		totalLen += len(c) + 1
 	}
-	return strings.Join(parts, "\n")
+	b.Grow(totalLen)
+
+	first := true
+	for _, comment := range comments {
+		clean := strings.TrimSpace(comment)
+		if clean == "" {
+			continue
+		}
+		if !first {
+			b.WriteByte('\n')
+		}
+		b.WriteString(clean)
+		first = false
+	}
+	return b.String()
 }
 
 func normalizeFluentValue(raw string) string {
+	// BOLT OPTIMIZATION: Fast-path for single-line values.
+	if !strings.ContainsAny(raw, "\n\r") {
+		return strings.TrimRight(raw, " \t")
+	}
+
 	raw = strings.ReplaceAll(raw, "\r\n", "\n")
 	raw = strings.ReplaceAll(raw, "\r", "\n")
 	lines := strings.Split(raw, "\n")
@@ -488,23 +511,66 @@ func fluentValueReferencesTerm(value string) bool {
 }
 
 func encodeFluentValue(value, continuationIndent string, blockValue bool) string {
-	value = strings.ReplaceAll(value, "\r\n", "\n")
-	value = strings.ReplaceAll(value, "\r", "\n")
-	value = strings.TrimRight(value, "\n")
+	// BOLT OPTIMIZATION: Use strings.Builder to avoid multiple ReplaceAll, TrimRight,
+	// Split, and Join allocations.
 	if continuationIndent == "" {
 		continuationIndent = "    "
 	}
-	if value == "" {
-		return ""
+
+	// BOLT OPTIMIZATION: Match original behavior of trimming trailing newlines.
+	value = strings.TrimRight(value, "\n\r")
+
+	// Fast-path for single-line values.
+	if !strings.ContainsAny(value, "\n\r") {
+		if value == "" {
+			return ""
+		}
+		if blockValue {
+			return "\n" + continuationIndent + value
+		}
+		return value
 	}
-	lines := strings.Split(value, "\n")
+
+	var b strings.Builder
+	b.Grow(len(value) + (strings.Count(value, "\n")+1)*len(continuationIndent) + 1)
+
 	if blockValue {
-		return "\n" + continuationIndent + strings.Join(lines, "\n"+continuationIndent)
+		b.WriteByte('\n')
+		b.WriteString(continuationIndent)
 	}
-	if len(lines) == 1 {
-		return lines[0]
+
+	first := true
+	s := value
+	for {
+		var line string
+		idx := strings.IndexAny(s, "\n\r")
+		if idx < 0 {
+			line = s
+		} else {
+			line = s[:idx]
+		}
+
+		if !first {
+			b.WriteByte('\n')
+			b.WriteString(continuationIndent)
+		}
+		b.WriteString(line)
+		first = false
+
+		if idx < 0 {
+			break
+		}
+		if s[idx] == '\r' && idx+1 < len(s) && s[idx+1] == '\n' {
+			s = s[idx+2:]
+		} else {
+			s = s[idx+1:]
+		}
+		if s == "" {
+			break
+		}
 	}
-	return lines[0] + "\n" + continuationIndent + strings.Join(lines[1:], "\n"+continuationIndent)
+
+	return b.String()
 }
 
 func appendMissingFluentEntries(b *strings.Builder, values map[string]string, templateKeys map[string]struct{}, hasRendered bool, trailingNewlines int) error {
