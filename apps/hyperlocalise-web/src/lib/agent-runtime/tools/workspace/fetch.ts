@@ -1,6 +1,7 @@
 import { tool } from "ai";
 import { z } from "zod";
 
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { isPublicHttpUrl } from "@/lib/security/ssrf-guard";
 
 import { truncate, redact } from "./redact";
@@ -38,7 +39,7 @@ USAGE:
       const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       try {
-        const response = await fetch(url, {
+        const response = await providerSafeFetch(url, {
           method,
           redirect: "error",
           signal: controller.signal,
