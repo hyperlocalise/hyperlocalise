@@ -267,6 +267,13 @@
       "when": 1780273825227,
       "tag": "0037_rainy_juggernaut",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1780274566314,
+      "tag": "0038_icy_spiral",
+      "breakpoints": true
     }
   ]
 }

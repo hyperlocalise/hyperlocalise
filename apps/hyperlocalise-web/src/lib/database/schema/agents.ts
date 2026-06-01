@@ -86,6 +86,7 @@ export const workspaceAutomationRuns = pgTable(
       .references(() => organizations.id, { onDelete: "cascade" }),
     triggerSource: workspaceAutomationRunTriggerSourceEnum("trigger_source").notNull(),
     status: workspaceAutomationRunStatusEnum("status").notNull().default("queued"),
+    idempotencyKey: text("idempotency_key"),
     inputSnapshot: jsonb("input_snapshot")
       .$type<Record<string, unknown>>()
       .notNull()
@@ -113,6 +114,9 @@ export const workspaceAutomationRuns = pgTable(
       table.createdAt,
     ),
     index("idx_workspace_automation_runs_org_status").on(table.organizationId, table.status),
+    uniqueIndex("idx_workspace_automation_runs_idempotency_key")
+      .on(table.idempotencyKey)
+      .where(sql`${table.idempotencyKey} IS NOT NULL`),
     uniqueIndex("idx_workspace_automation_runs_github_job")
       .on(table.githubRepositoryAutomationJobId)
       .where(sql`${table.githubRepositoryAutomationJobId} IS NOT NULL`),

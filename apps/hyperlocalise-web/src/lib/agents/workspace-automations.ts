@@ -91,6 +91,7 @@ export type WorkspaceAutomationRunRecord = {
   organizationId: string;
   triggerSource: WorkspaceAutomationRunTriggerSource;
   status: WorkspaceAutomationRunStatus;
+  idempotencyKey: string | null;
   inputSnapshot: Record<string, unknown>;
   outputSummary: Record<string, unknown>;
   error: Record<string, unknown> | null;
@@ -161,6 +162,7 @@ function serializeAutomationRun(row: AutomationRunRow): WorkspaceAutomationRunRe
     organizationId: row.organizationId,
     triggerSource: row.triggerSource,
     status: row.status,
+    idempotencyKey: row.idempotencyKey,
     inputSnapshot: row.inputSnapshot,
     outputSummary: row.outputSummary,
     error: row.error ?? null,
@@ -354,6 +356,7 @@ export async function createWorkspaceAutomationRun(input: {
   organizationId: string;
   triggerSource: WorkspaceAutomationRunTriggerSource;
   status?: WorkspaceAutomationRunStatus;
+  idempotencyKey?: string | null;
   inputSnapshot?: Record<string, unknown>;
   outputSummary?: Record<string, unknown>;
   error?: Record<string, unknown> | null;
@@ -369,6 +372,16 @@ export async function createWorkspaceAutomationRun(input: {
     throw new Error("workspace_automation_not_found");
   }
 
+  if (input.idempotencyKey) {
+    const existing = await getWorkspaceAutomationRunByIdempotencyKey({
+      organizationId: input.organizationId,
+      idempotencyKey: input.idempotencyKey,
+    });
+    if (existing) {
+      return existing;
+    }
+  }
+
   const [row] = await db
     .insert(schema.workspaceAutomationRuns)
     .values({
@@ -376,6 +389,7 @@ export async function createWorkspaceAutomationRun(input: {
       organizationId: input.organizationId,
       triggerSource: input.triggerSource,
       status: input.status ?? "queued",
+      idempotencyKey: input.idempotencyKey ?? null,
       inputSnapshot: input.inputSnapshot ?? {},
       outputSummary: input.outputSummary ?? {},
       error: input.error ?? null,
@@ -383,7 +397,21 @@ export async function createWorkspaceAutomationRun(input: {
       startedAt: input.startedAt ?? null,
       completedAt: input.completedAt ?? null,
     })
+    .onConflictDoNothing({
+      target: schema.workspaceAutomationRuns.idempotencyKey,
+      where: sql`${schema.workspaceAutomationRuns.idempotencyKey} IS NOT NULL`,
+    })
     .returning();
+
+  if (!row && input.idempotencyKey) {
+    const existing = await getWorkspaceAutomationRunByIdempotencyKey({
+      organizationId: input.organizationId,
+      idempotencyKey: input.idempotencyKey,
+    });
+    if (existing) {
+      return existing;
+    }
+  }
 
   if (!row) {
     throw new Error("failed_to_create_workspace_automation_run");
@@ -422,6 +450,24 @@ export async function updateWorkspaceAutomationRun(input: {
       ),
     )
     .returning();
+
+  return row ? serializeAutomationRun(row) : null;
+}
+
+export async function getWorkspaceAutomationRunByIdempotencyKey(input: {
+  organizationId: string;
+  idempotencyKey: string;
+}): Promise<WorkspaceAutomationRunRecord | null> {
+  const [row] = await db
+    .select()
+    .from(schema.workspaceAutomationRuns)
+    .where(
+      and(
+        eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        eq(schema.workspaceAutomationRuns.idempotencyKey, input.idempotencyKey),
+      ),
+    )
+    .limit(1);
 
   return row ? serializeAutomationRun(row) : null;
 }
