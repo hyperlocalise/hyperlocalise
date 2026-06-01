@@ -78,7 +78,9 @@ describe("createFetchTool", () => {
 
     expect(result).toMatchObject({
       success: false,
-      error: expect.stringMatching(/URL host could not be resolved|resolves to a private or restricted address/),
+      error: expect.stringMatching(
+        /URL host could not be resolved|resolves to a private or restricted address/,
+      ),
     });
   });
 });
