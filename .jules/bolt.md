@@ -110,3 +110,5 @@
 ## 2026-05-31 - Safe XLIFF token buffering and raw slicing
 **Learning:** Go's `xml.Decoder` reuses internal buffers for tokens (like attributes). Storing tokens in a slice for later processing (e.g., to eliminate a second pass in `MarshalXLIFF`) requires deep cloning via a `cloneXMLToken` helper to avoid data corruption. Additionally, `xml.Encoder` by default expands self-closing tags (e.g., `<ph/>` to `<ph></ph>`), so raw slicing in `Parse` requires a normalization step for elements with nested markup to maintain functional parity with previous behavior.
 **Action:** Implemented `cloneXMLToken` for safe buffering and used a conditional normalization helper in `XLIFFParser.Parse` to balance speed and correctness.
+
+## 2026-06-01 - Optimizing ARB parsing via single-pass and map hinting

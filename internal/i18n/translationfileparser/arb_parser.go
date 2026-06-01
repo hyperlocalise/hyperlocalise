@@ -29,46 +29,44 @@ func (p ARBParser) ParseWithContext(content []byte) (map[string]string, map[stri
 		return map[string]string{}, nil, nil
 	}
 
-	out := map[string]string{}
-	descriptions := map[string]string{}
-	for _, key := range sortedMapKeys(payload) {
+	// ARB payloads commonly pair message keys with metadata keys, so this keeps
+	// the capacity hint closer to the expected message count.
+	out := make(map[string]string, len(payload)/2+1)
+	var descriptions map[string]string
+
+	// Single-pass parsing avoids O(N log N) sorting of all keys and extra allocations.
+	for key, val := range payload {
 		if isARBMetadataKey(key) {
 			continue
 		}
 
-		value, ok := payload[key].(string)
+		value, ok := val.(string)
 		if !ok {
-			return nil, nil, fmt.Errorf("arb key %q must be string, got %T", key, payload[key])
+			return nil, nil, fmt.Errorf("arb key %q must be string, got %T", key, val)
 		}
 		out[key] = value
-		if description := parseARBDescription(payload, key); description != "" {
-			descriptions[key] = description
+
+		// Inline description extraction avoids redundant prefix checks and key concatenation.
+		if metaRaw, ok := payload["@"+key]; ok {
+			if meta, ok := metaRaw.(map[string]any); ok {
+				if descRaw, ok := meta["description"]; ok {
+					if description, ok := descRaw.(string); ok {
+						if trimmed := strings.TrimSpace(description); trimmed != "" {
+							if descriptions == nil {
+								descriptions = make(map[string]string)
+							}
+							descriptions[key] = trimmed
+						}
+					}
+				}
+			}
 		}
 	}
+
 	if len(descriptions) == 0 {
 		return out, nil, nil
 	}
 	return out, descriptions, nil
-}
-
-func parseARBDescription(payload map[string]any, key string) string {
-	raw, ok := payload["@"+key]
-	if !ok {
-		return ""
-	}
-	meta, ok := raw.(map[string]any)
-	if !ok {
-		return ""
-	}
-	descRaw, ok := meta["description"]
-	if !ok {
-		return ""
-	}
-	description, ok := descRaw.(string)
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(description)
 }
 
 // MarshalARB preserves target-template metadata and ordering while carrying
@@ -280,7 +278,7 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 }
 
 func arbMessageMetadataKey(metaKey string, templateMessageKeys map[string]struct{}) (string, bool) {
-	if !strings.HasPrefix(metaKey, "@") || strings.HasPrefix(metaKey, "@@") {
+	if !isARBMetadataKey(metaKey) || strings.HasPrefix(metaKey, "@@") {
 		return "", false
 	}
 
@@ -317,7 +315,8 @@ func arbMessageMetadataFields(content []byte) (map[string]json.RawMessage, error
 }
 
 func isARBMetadataKey(key string) bool {
-	return strings.HasPrefix(key, "@")
+	// Direct byte access is enough for ARB metadata keys.
+	return len(key) > 0 && key[0] == '@'
 }
 
 func sortedMapKeys[V any](m map[string]V) []string {
