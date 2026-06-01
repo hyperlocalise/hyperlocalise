@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { SparklesIcon } from "@hugeicons/core-free-icons";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   createDefaultWorkspaceAutomationFormState,
@@ -17,8 +15,8 @@ import {
   mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
-import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
-import { WorkspaceAutomationForm } from "./workspace-automation-form";
+import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationsNewPageContent({
   organizationSlug,
@@ -81,36 +79,27 @@ export function AutomationsNewPageContent({
   });
 
   return (
-    <WorkspacePageShell>
-      <PageHeader
-        icon={SparklesIcon}
-        title="New automation"
-        description="Configure triggers, deterministic GitHub workflows, and terminal notifications."
-      />
-      <div className="mb-4">
-        <TypographyH1 className="text-2xl">Create automation</TypographyH1>
-        <TypographyP className="text-muted-foreground">
-          {templateId
-            ? "Template defaults are prefilled below. Review repository, project, and notification settings before saving."
-            : "Start from scratch or return to the templates gallery."}
-        </TypographyP>
-      </div>
-
-      <WorkspaceAutomationForm
+    <WorkspacePageShell className="max-w-5xl">
+      <WorkspaceAutomationEditor
+        mode="create"
         organizationSlug={organizationSlug}
         form={form}
         errors={errors}
         onChange={setForm}
+        actions={
+          <>
+            <Button
+              variant="outline"
+              render={<Link href={`/org/${organizationSlug}/automations`} />}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
+              {createMutation.isPending ? "Creating..." : "Create automation"}
+            </Button>
+          </>
+        }
       />
-
-      <div className="flex items-center justify-end gap-3 border-t border-foreground/10 pt-6">
-        <Button variant="outline" render={<Link href={`/org/${organizationSlug}/automations`} />}>
-          Cancel
-        </Button>
-        <Button onClick={() => createMutation.mutate()} disabled={createMutation.isPending}>
-          {createMutation.isPending ? "Creating..." : "Create automation"}
-        </Button>
-      </div>
     </WorkspacePageShell>
   );
 }

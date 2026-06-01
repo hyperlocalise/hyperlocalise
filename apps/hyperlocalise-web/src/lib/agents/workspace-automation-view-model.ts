@@ -140,7 +140,7 @@ export function createWorkspaceAutomationFormStateFromTemplate(
   templateId: string,
 ): WorkspaceAutomationFormState | null {
   const template = getWorkspaceAutomationTemplate(templateId);
-  if (!template) {
+  if (!template?.activatable) {
     return null;
   }
 

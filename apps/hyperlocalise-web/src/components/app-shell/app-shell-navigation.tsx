@@ -80,7 +80,7 @@ function GlobalNavigation({
         }
 
         return (
-          <Collapsible key={group.label} defaultOpen>
+          <Collapsible key={group.label} defaultOpen className={cn(groupIndex > 0 && "mt-2")}>
             <SidebarGroup className="p-0">
               <CollapsibleTrigger className="group/collapsible-trigger flex h-7 w-full items-center gap-2 rounded-md px-3 text-left text-xs font-medium tracking-wide text-muted-foreground uppercase outline-hidden transition-[margin,opacity,color] duration-200 hover:text-sidebar-foreground focus-visible:text-sidebar-foreground group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0">
                 <span className="min-w-0 flex-1 truncate">{group.label}</span>

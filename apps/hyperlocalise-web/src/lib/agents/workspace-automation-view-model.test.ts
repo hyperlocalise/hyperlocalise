@@ -10,18 +10,28 @@ import {
 
 describe("workspace automation view model", () => {
   it("prefills the form from a template", () => {
-    const template = getWorkspaceAutomationTemplate("find-critical-bugs");
+    const template = getWorkspaceAutomationTemplate("validate-localisation-on-push");
     expect(template).not.toBeNull();
 
-    const form = createWorkspaceAutomationFormStateFromTemplate("find-critical-bugs");
+    const form = createWorkspaceAutomationFormStateFromTemplate("validate-localisation-on-push");
     expect(form).toMatchObject({
-      name: "Find critical bugs",
-      triggerMode: "scheduled",
+      name: "Validate localisation on push",
+      triggerMode: "github",
+      pushBranches: ["main"],
       githubEnabled: true,
       validationEnabled: true,
       slackEnabled: true,
     });
-    expect(form?.instructions).toContain("deep bug-finding automation");
+    expect(form?.instructions).toContain("localisation quality automation");
+  });
+
+  it("does not prefill coming-soon templates", () => {
+    expect(getWorkspaceAutomationTemplate("create-localisation-job-brief")?.activatable).toBe(
+      false,
+    );
+    expect(createWorkspaceAutomationFormStateFromTemplate("create-localisation-job-brief")).toBe(
+      null,
+    );
   });
 
   it("maps form state to API payload", () => {

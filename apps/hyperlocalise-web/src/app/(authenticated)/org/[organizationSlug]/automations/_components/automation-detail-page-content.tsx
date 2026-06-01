@@ -2,23 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SparklesIcon } from "@hugeicons/core-free-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { apiClient } from "@/lib/api-client-instance";
-import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 import {
   createWorkspaceAutomationFormStateFromRecord,
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
-import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
-import { WorkspaceAutomationForm } from "./workspace-automation-form";
+import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationDetailPageContent({
   organizationSlug,
@@ -28,7 +24,6 @@ export function AutomationDetailPageContent({
   automationId: string;
 }) {
   const queryClient = useQueryClient();
-  const [activeTab, setActiveTab] = useState<"settings" | "history">("settings");
 
   const automationQuery = useQuery({
     queryKey: ["workspace-automation", organizationSlug, automationId],
@@ -142,12 +137,14 @@ export function AutomationDetailPageContent({
   }
 
   return (
-    <WorkspacePageShell>
-      <PageHeader
-        icon={SparklesIcon}
-        title={automation.name}
-        description="Configure deterministic workflows, notifications, and inspect run history."
-        statusLabel={automation.status}
+    <WorkspacePageShell className="max-w-5xl">
+      <WorkspaceAutomationEditor
+        mode="detail"
+        organizationSlug={organizationSlug}
+        form={form}
+        errors={errors}
+        onChange={setForm}
+        runHistory={recentRuns}
         actions={
           <div className="flex gap-2">
             <Button
@@ -164,61 +161,11 @@ export function AutomationDetailPageContent({
         }
       />
 
-      <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
-        <TabsList>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="history">Run history</TabsTrigger>
-        </TabsList>
-        <TabsContent value="settings" className="mt-6">
-          <WorkspaceAutomationForm
-            organizationSlug={organizationSlug}
-            form={form}
-            errors={errors}
-            onChange={setForm}
-          />
-        </TabsContent>
-        <TabsContent value="history" className="mt-6">
-          <RunHistoryTable runs={recentRuns} />
-        </TabsContent>
-      </Tabs>
-
       <div className="pt-4">
         <Button variant="outline" render={<Link href={`/org/${organizationSlug}/automations`} />}>
           Back to automations
         </Button>
       </div>
     </WorkspacePageShell>
-  );
-}
-
-function RunHistoryTable({ runs }: { runs: WorkspaceAutomationRunRecord[] }) {
-  if (runs.length === 0) {
-    return <p className="text-sm text-muted-foreground">No runs yet.</p>;
-  }
-
-  return (
-    <div className="overflow-hidden rounded-xl border border-foreground/10">
-      <div className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-foreground/10 px-4 py-3 text-xs font-medium text-muted-foreground">
-        <span>Status</span>
-        <span>Trigger</span>
-        <span>Summary</span>
-        <span>Completed</span>
-      </div>
-      {runs.map((run) => (
-        <div
-          key={run.id}
-          className="grid grid-cols-[minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,1fr)_minmax(0,0.8fr)] gap-4 border-b border-foreground/10 px-4 py-4 text-sm last:border-b-0"
-        >
-          <Badge variant="outline">{run.status}</Badge>
-          <span>{run.triggerSource}</span>
-          <span className="truncate text-muted-foreground">
-            {Object.keys(run.outputSummary).length > 0 ? JSON.stringify(run.outputSummary) : "—"}
-          </span>
-          <span className="text-muted-foreground">
-            {run.completedAt ? new Date(run.completedAt).toLocaleString() : "—"}
-          </span>
-        </div>
-      ))}
-    </div>
   );
 }

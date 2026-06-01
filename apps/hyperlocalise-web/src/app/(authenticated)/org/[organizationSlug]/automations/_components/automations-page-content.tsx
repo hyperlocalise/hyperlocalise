@@ -8,16 +8,18 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES,
+  getWorkspaceAutomationTemplateCategoryLabel,
   listWorkspaceAutomationTemplates,
 } from "@/lib/agents/workspace-automation-templates";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
+import { AutomationTemplateFlow } from "./automation-template-flow";
 
 function formatRelativeTimestamp(value: string) {
   const date = new Date(value);
@@ -62,9 +64,6 @@ export function AutomationsPageContent({
   currentUserId: string;
 }) {
   const [scope, setScope] = useState<"mine" | "team">("mine");
-  const [templateCategory, setTemplateCategory] = useState(
-    WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES[0]?.id ?? "popular",
-  );
 
   const automationsQuery = useQuery({
     queryKey: ["workspace-automations", organizationSlug],
@@ -101,7 +100,19 @@ export function AutomationsPageContent({
     };
   }, [visibleAutomations]);
 
-  const templates = listWorkspaceAutomationTemplates(templateCategory);
+  const templates = useMemo(() => {
+    const categoryOrder = WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.map((category) => category.id);
+
+    return listWorkspaceAutomationTemplates().toSorted((left, right) => {
+      const leftIndex = categoryOrder.indexOf(left.category);
+      const rightIndex = categoryOrder.indexOf(right.category);
+      if (leftIndex !== rightIndex) {
+        return leftIndex - rightIndex;
+      }
+
+      return left.name.localeCompare(right.name);
+    });
+  }, []);
 
   return (
     <WorkspacePageShell>
@@ -192,41 +203,32 @@ export function AutomationsPageContent({
 
       <section className="flex flex-col gap-4">
         <div>
-          <TypographyH1 className="text-xl">Templates</TypographyH1>
+          <h2 className="font-sans text-base font-medium text-balance text-foreground">
+            Templates
+          </h2>
           <TypographyP className="text-muted-foreground">
             Start from a curated workflow. Templates prefill the creation form with instructions,
             triggers, and tools.
           </TypographyP>
         </div>
-        <Tabs
-          value={templateCategory}
-          onValueChange={(value) => setTemplateCategory(value as typeof templateCategory)}
-        >
-          <TabsList className="flex h-auto flex-wrap justify-start gap-2 bg-transparent p-0">
-            {WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.map((category) => (
-              <TabsTrigger key={category.id} value={category.id} className="rounded-full">
-                {category.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {templates.map((template) => (
-            <Card key={template.id} className="flex flex-col">
-              <CardHeader>
-                <CardTitle className="text-base">{template.name}</CardTitle>
-                <CardDescription>{template.description}</CardDescription>
-              </CardHeader>
-              <CardContent className="mt-auto flex items-center justify-between gap-3">
-                {!template.activatable ? (
-                  <Badge variant="secondary">Coming soon</Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">Deterministic V1</span>
-                )}
+            <Card key={template.id} size="sm" className="gap-4 px-5 py-5">
+              <div className="flex items-start justify-between gap-2">
+                <AutomationTemplateFlow template={template} />
+                <Badge variant="outline" className="shrink-0 rounded-full text-[10px]">
+                  {getWorkspaceAutomationTemplateCategoryLabel(template.category)}
+                </Badge>
+              </div>
+              <div className="space-y-1.5">
+                <h3 className="text-sm font-medium text-foreground">{template.name}</h3>
+                <p className="text-sm text-pretty text-muted-foreground">{template.description}</p>
+              </div>
+              <div className="mt-auto flex items-center gap-2">
                 {template.activatable ? (
                   <Button
                     size="sm"
-                    variant="outline"
+                    className="rounded-full"
                     render={
                       <Link
                         href={`/org/${organizationSlug}/automations/new?template=${template.id}`}
@@ -236,11 +238,11 @@ export function AutomationsPageContent({
                     Add
                   </Button>
                 ) : (
-                  <Button size="sm" variant="outline" disabled>
-                    Add
+                  <Button size="sm" variant="outline" className="rounded-full" disabled>
+                    Coming soon
                   </Button>
                 )}
-              </CardContent>
+              </div>
             </Card>
           ))}
         </div>
