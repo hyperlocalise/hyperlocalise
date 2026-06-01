@@ -215,11 +215,8 @@ describe("commitPushAndCreateI18nSetupPullRequestStep", () => {
         base: "main",
         body: [
           "## Hyperlocalise i18n setup",
-          "",
           bodyIntro,
-          "",
           "Please review locale mappings and LLM provider settings before merging.",
-          "",
           "Agent summary:\n\nDetected en and fr locale files.",
         ].join("\n"),
       });
