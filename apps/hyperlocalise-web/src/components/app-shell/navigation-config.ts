@@ -1,6 +1,5 @@
 import type { ComponentProps } from "react";
 import {
-  Activity01Icon,
   AiBrain01Icon,
   BookOpenTextIcon,
   Chat01Icon,
@@ -11,7 +10,6 @@ import {
   InboxIcon,
   LinkSquare02Icon,
   Settings01Icon,
-  SparklesIcon,
   Task01Icon,
   UserGroupIcon,
   WorkHistoryIcon,
@@ -50,7 +48,7 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
       items: [
         {
           label: "New Request",
-          href: org("new-request"),
+          href: org("chat"),
           icon: Chat01Icon,
           description: "Ask the localisation agent to prepare work",
         },
@@ -141,39 +139,9 @@ export function buildProjectNavigationItems(
       icon: File01Icon,
     },
     {
-      label: "Locales",
-      href: project("locales"),
-      icon: BookOpenTextIcon,
-    },
-    {
       label: "Jobs",
       href: project("jobs"),
       icon: Task01Icon,
-    },
-    {
-      label: "Reviews",
-      href: project("reviews"),
-      icon: InboxIcon,
-    },
-    {
-      label: "Context",
-      href: project("context"),
-      icon: File01Icon,
-    },
-    {
-      label: "QA",
-      href: project("qa"),
-      icon: AiBrain01Icon,
-    },
-    {
-      label: "Agent Runs",
-      href: project("agent-runs"),
-      icon: SparklesIcon,
-    },
-    {
-      label: "Activity",
-      href: project("activity"),
-      icon: Activity01Icon,
     },
     {
       label: "Settings",
