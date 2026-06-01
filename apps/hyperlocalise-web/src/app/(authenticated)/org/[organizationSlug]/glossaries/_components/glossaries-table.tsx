@@ -110,9 +110,12 @@ function GlossaryRow({
             strokeWidth={1.7}
             className="size-4 shrink-0 text-foreground/42"
           />
-          <TypographyP className="truncate text-sm font-medium text-foreground">
+          <Link
+            href={`/org/${organizationSlug}/glossaries/${glossary.id}`}
+            className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
+          >
             {glossary.name}
-          </TypographyP>
+          </Link>
           <SourceLabel glossary={glossary} />
           <ResourceTypeBadge glossary={glossary} />
         </div>

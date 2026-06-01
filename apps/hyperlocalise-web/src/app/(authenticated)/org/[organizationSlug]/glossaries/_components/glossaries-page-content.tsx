@@ -1,11 +1,23 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { useSearchParams } from "next/navigation";
-import { BookOpenTextIcon } from "@hugeicons/core-free-icons";
-import { useQuery } from "@tanstack/react-query";
+import { Add01Icon, BookOpenTextIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Select,
   SelectContent,
@@ -14,6 +26,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
 import { apiClient } from "@/lib/api-client-instance";
 
 import {
@@ -34,6 +48,10 @@ import {
   type ApiGlossary,
 } from "./glossary-list";
 import { GlossariesEmptyAction, GlossariesTable } from "./glossaries-table";
+import {
+  ProjectSourceLocalePicker,
+  ProjectTargetLocalesPicker,
+} from "../../projects/_components/project-locale-picker";
 
 const GLOSSARIES_PAGE_SIZE = 100;
 
@@ -120,6 +138,35 @@ const credentialsQueryKey = (organizationSlug: string) => [
   organizationSlug,
 ];
 
+type GlossaryCreateForm = {
+  name: string;
+  description: string;
+  sourceLocale: string;
+  targetLocales: string[];
+};
+
+function createEmptyGlossaryForm(): GlossaryCreateForm {
+  return {
+    name: "",
+    description: "",
+    sourceLocale: "en-US",
+    targetLocales: ["fr-FR"],
+  };
+}
+
+function readApiError(response: Response, fallback: string) {
+  return response
+    .json()
+    .then((body) =>
+      body && typeof body === "object" && "message" in body
+        ? String(body.message)
+        : body && typeof body === "object" && "error" in body
+          ? String(body.error)
+          : fallback,
+    )
+    .catch(() => fallback);
+}
+
 function useGlossaryFilters(searchParams: URLSearchParams) {
   const [searchQuery, setSearchQuery] = useState("");
   const [sourceFilter, setSourceFilter] = useState(() =>
@@ -173,9 +220,20 @@ function useGlossaryFilters(searchParams: URLSearchParams) {
   };
 }
 
-export function GlossariesPageContent({ organizationSlug }: { organizationSlug: string }) {
+export function GlossariesPageContent({
+  organizationSlug,
+  canCreateGlossaries,
+}: {
+  organizationSlug: string;
+  canCreateGlossaries: boolean;
+}) {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<GlossaryCreateForm>(() => createEmptyGlossaryForm());
+  const [createErrors, setCreateErrors] = useState<{ name?: string; targetLocales?: string }>({});
   const {
     filters,
     searchQuery,
@@ -245,6 +303,35 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
       };
     },
   });
+  const createGlossary = useMutation({
+    mutationFn: async (values: GlossaryCreateForm) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].glossaries.$post({
+        param: { organizationSlug },
+        json: {
+          name: values.name.trim(),
+          description: values.description.trim(),
+          sourceLocale: values.sourceLocale,
+          targetLocale: values.targetLocales[0] ?? "",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Unable to create glossary"));
+      }
+
+      return response.json();
+    },
+    onSuccess: async (body) => {
+      await queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] });
+      setCreateDialogOpen(false);
+      setCreateForm(createEmptyGlossaryForm());
+      toast.success("Glossary created");
+      router.push(`/org/${organizationSlug}/glossaries/${body.glossary.id}`);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
 
   const projectIdByExternalKey = useMemo(
     () => buildProjectIdByExternalKey(projectsQuery.data ?? []),
@@ -294,7 +381,7 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
 
   const emptyTitle = hasConnectedProvider ? "No glossaries yet" : "Connect a TMS provider";
   const emptyDescription = hasConnectedProvider
-    ? "Provider glossaries and term bases appear here after sync. Native workspace glossaries are listed alongside synced resources."
+    ? "Provider glossaries and term bases appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one."
     : "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync glossaries into this workspace.";
 
   const glossaryCountLabel =
@@ -302,14 +389,41 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
       ? `${glossaryTotal} ${glossaryTotal === 1 ? "glossary" : "glossaries"}`
       : undefined;
 
+  function submitCreateGlossary() {
+    const errors: { name?: string; targetLocales?: string } = {};
+    if (!createForm.name.trim()) {
+      errors.name = "Glossary name is required.";
+    }
+    if (createForm.targetLocales.length === 0) {
+      errors.targetLocales = "Select one target locale.";
+    }
+    setCreateErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+    createGlossary.mutate(createForm);
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
         icon={BookOpenTextIcon}
         label="Workspace"
         title="Glossaries"
-        description="Workspace and synced TMS glossaries and term bases. Provider glossaries stay read-only—connect credentials in Integrations."
+        description="Create first-party workspace glossaries or sync provider term bases. Provider glossaries stay read-only."
         statusLabel={glossaryCountLabel}
+        actions={
+          canCreateGlossaries ? (
+            <Button
+              type="button"
+              onClick={() => setCreateDialogOpen(true)}
+              className="w-full sm:w-fit"
+            >
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              Create glossary
+            </Button>
+          ) : null
+        }
       />
 
       {glossariesQuery.isSuccess && (glossaryTotal > 0 || hasActiveFilters) ? (
@@ -480,9 +594,21 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
         glossaries={glossaries}
         glossariesQuery={glossariesQuery}
         organizationSlug={organizationSlug}
-        emptyTitle={emptyTitle}
-        emptyDescription={emptyDescription}
-        emptyAction={<GlossariesEmptyAction organizationSlug={organizationSlug} />}
+        emptyTitle={canCreateGlossaries ? "No glossaries yet" : emptyTitle}
+        emptyDescription={
+          canCreateGlossaries
+            ? "Create a workspace glossary, import terms, then assign it to the projects that should use it."
+            : emptyDescription
+        }
+        emptyAction={
+          canCreateGlossaries ? (
+            <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
+              Create glossary
+            </Button>
+          ) : (
+            <GlossariesEmptyAction organizationSlug={organizationSlug} />
+          )
+        }
       />
 
       {glossariesQuery.isSuccess && glossaryTotal > GLOSSARIES_PAGE_SIZE ? (
@@ -515,6 +641,75 @@ export function GlossariesPageContent({ organizationSlug }: { organizationSlug: 
           </div>
         </div>
       ) : null}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="max-h-[min(85dvh,42rem)] overflow-y-auto sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create glossary</DialogTitle>
+            <DialogDescription>
+              Add a first-party terminology library. You can import and edit terms after creation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <Field className="gap-1.5">
+              <FieldLabel>Name</FieldLabel>
+              <Input
+                value={createForm.name}
+                onChange={(event) =>
+                  setCreateForm((current) => ({ ...current, name: event.target.value }))
+                }
+                disabled={createGlossary.isPending}
+                placeholder="Product terminology"
+              />
+              <FieldError
+                errors={createErrors.name ? [{ message: createErrors.name }] : undefined}
+              />
+            </Field>
+            <ProjectSourceLocalePicker
+              value={createForm.sourceLocale}
+              onChange={(sourceLocale) =>
+                setCreateForm((current) => ({ ...current, sourceLocale }))
+              }
+              disabled={createGlossary.isPending}
+            />
+            <ProjectTargetLocalesPicker
+              value={createForm.targetLocales}
+              sourceLocale={createForm.sourceLocale}
+              onChange={(targetLocales) =>
+                setCreateForm((current) => ({
+                  ...current,
+                  targetLocales: targetLocales.slice(0, 1),
+                }))
+              }
+              disabled={createGlossary.isPending}
+              error={createErrors.targetLocales}
+            />
+            <Field className="gap-1.5">
+              <FieldLabel>Description</FieldLabel>
+              <Textarea
+                value={createForm.description}
+                onChange={(event) =>
+                  setCreateForm((current) => ({ ...current, description: event.target.value }))
+                }
+                disabled={createGlossary.isPending}
+                placeholder="Where this glossary should be used"
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+              disabled={createGlossary.isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={submitCreateGlossary} disabled={createGlossary.isPending}>
+              {createGlossary.isPending ? <Spinner /> : null}
+              Create glossary
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

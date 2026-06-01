@@ -6,7 +6,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 import { upsertOrganizationExternalTmsMemory } from "@/lib/providers/sync/organization-external-tms-memories";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 
@@ -245,5 +245,102 @@ describe("memoryRoutes", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
+
+  it("manages native memory entries and project assignment", async () => {
+    const { identity, organization, user, memory } =
+      await memoryFixture.createStoredMemoryFixture();
+    const headers = await authHeadersFor(identity);
+
+    const createEntryResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: {
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Start free trial",
+          targetText: "Commencer l'essai gratuit",
+          matchScore: 100,
+        },
+      },
+      { headers },
+    );
+    expect(createEntryResponse.status).toBe(201);
+    const createEntryBody = await createEntryResponse.json();
+    if ("error" in createEntryBody) throw new Error(String(createEntryBody.error));
+    expect(createEntryBody.memoryEntry).toMatchObject({
+      sourceText: "Start free trial",
+      targetText: "Commencer l'essai gratuit",
+    });
+
+    const updateEntryResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+          entryId: createEntryBody.memoryEntry.id,
+        },
+        json: { targetText: "Démarrer l'essai gratuit" },
+      },
+      { headers },
+    );
+    expect(updateEntryResponse.status).toBe(200);
+    await expect(updateEntryResponse.json()).resolves.toMatchObject({
+      memoryEntry: expect.objectContaining({ targetText: "Démarrer l'essai gratuit" }),
+    });
+
+    const importResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries["import"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: {
+          format: "csv",
+          content: "sourceLocale,targetLocale,sourceText,targetText\nen,fr,Hello,Bonjour",
+        },
+      },
+      { headers },
+    );
+    expect(importResponse.status).toBe(201);
+    await expect(importResponse.json()).resolves.toMatchObject({ imported: 1 });
+
+    const [project] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${randomUUID()}`,
+        organizationId: organization.id,
+        createdByUserId: user.id,
+        name: "Website",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      })
+      .returning();
+
+    const attachResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].projects.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: { projectId: project.id, priority: 0 },
+      },
+      { headers },
+    );
+    expect(attachResponse.status).toBe(200);
+    await expect(attachResponse.json()).resolves.toMatchObject({
+      projects: [expect.objectContaining({ projectId: project.id, projectName: "Website" })],
+    });
   });
 });
