@@ -100,9 +100,12 @@ function MemoryRow({
             strokeWidth={1.7}
             className="size-4 shrink-0 text-foreground/42"
           />
-          <TypographyP className="truncate text-sm font-medium text-foreground">
+          <Link
+            href={`/org/${organizationSlug}/translation-memories/${memory.id}`}
+            className="truncate text-sm font-medium text-foreground underline-offset-2 hover:underline"
+          >
             {memory.name}
-          </TypographyP>
+          </Link>
           <SourceLabel memory={memory} />
         </div>
         <TypographyP className="mt-1 text-xs text-foreground/42">{sourceDetail}</TypographyP>

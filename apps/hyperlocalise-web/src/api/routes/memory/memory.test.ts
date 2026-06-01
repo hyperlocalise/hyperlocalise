@@ -6,7 +6,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 import { upsertOrganizationExternalTmsMemory } from "@/lib/providers/sync/organization-external-tms-memories";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 
@@ -245,5 +245,243 @@ describe("memoryRoutes", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
+  });
+
+  it("returns 409 when updating a memory entry to duplicate another entry", async () => {
+    const { identity, memory } = await memoryFixture.createStoredMemoryFixture();
+    const headers = await authHeadersFor(identity);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      memoryId: memory.id,
+    };
+
+    const firstResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$post(
+      {
+        param,
+        json: {
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Start free trial",
+          targetText: "Commencer l'essai gratuit",
+          matchScore: 100,
+        },
+      },
+      { headers },
+    );
+    expect(firstResponse.status).toBe(201);
+
+    const secondResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$post(
+      {
+        param,
+        json: {
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Create account",
+          targetText: "Créer un compte",
+          matchScore: 100,
+        },
+      },
+      { headers },
+    );
+    expect(secondResponse.status).toBe(201);
+    const secondBody = await secondResponse.json();
+    if ("error" in secondBody) throw new Error(String(secondBody.error));
+
+    const duplicateResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$patch(
+      {
+        param: { ...param, entryId: secondBody.memoryEntry.id },
+        json: { sourceText: "start free trial" },
+      },
+      { headers },
+    );
+
+    expect(duplicateResponse.status).toBe(409);
+    await expect(duplicateResponse.json()).resolves.toMatchObject({
+      error: "duplicate_memory_entry",
+    });
+  });
+
+  it("returns project_not_found when assigning an unknown project to a memory", async () => {
+    const { identity, memory } = await memoryFixture.createStoredMemoryFixture();
+    const headers = await authHeadersFor(identity);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      memoryId: memory.id,
+    };
+    const projectId = `project_${randomUUID()}`;
+
+    const attachResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].projects.$post(
+      {
+        param,
+        json: { projectId, priority: 0 },
+      },
+      { headers },
+    );
+    expect(attachResponse.status).toBe(404);
+    await expect(attachResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
+
+    const detachResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].projects[":projectId"].$delete(
+      {
+        param: { ...param, projectId },
+      },
+      { headers },
+    );
+    expect(detachResponse.status).toBe(404);
+    await expect(detachResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
+  });
+
+  it("manages native memory entries and project assignment", async () => {
+    const { identity, organization, user, memory } =
+      await memoryFixture.createStoredMemoryFixture();
+    const headers = await authHeadersFor(identity);
+
+    const createEntryResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: {
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Start free trial",
+          targetText: "Commencer l'essai gratuit",
+          matchScore: 100,
+        },
+      },
+      { headers },
+    );
+    expect(createEntryResponse.status).toBe(201);
+    const createEntryBody = await createEntryResponse.json();
+    if ("error" in createEntryBody) throw new Error(String(createEntryBody.error));
+    expect(createEntryBody.memoryEntry).toMatchObject({
+      sourceText: "Start free trial",
+      targetText: "Commencer l'essai gratuit",
+    });
+
+    const updateEntryResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+          entryId: createEntryBody.memoryEntry.id,
+        },
+        json: { targetText: "Démarrer l'essai gratuit" },
+      },
+      { headers },
+    );
+    expect(updateEntryResponse.status).toBe(200);
+    await expect(updateEntryResponse.json()).resolves.toMatchObject({
+      memoryEntry: expect.objectContaining({ targetText: "Démarrer l'essai gratuit" }),
+    });
+
+    const importResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries["import"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: {
+          format: "csv",
+          content:
+            "sourceLocale,targetLocale,sourceText,targetText\nen,fr,Hello,Bonjour\nen,fr,hello,Salut",
+        },
+      },
+      { headers },
+    );
+    expect(importResponse.status).toBe(201);
+    await expect(importResponse.json()).resolves.toMatchObject({ imported: 1, skipped: 1 });
+
+    const [project] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${randomUUID()}`,
+        organizationId: organization.id,
+        createdByUserId: user.id,
+        name: "Website",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      })
+      .returning();
+
+    const attachResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].projects.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          memoryId: memory.id,
+        },
+        json: { projectId: project.id, priority: 0 },
+      },
+      { headers },
+    );
+    expect(attachResponse.status).toBe(200);
+    await expect(attachResponse.json()).resolves.toMatchObject({
+      projects: [expect.objectContaining({ projectId: project.id, projectName: "Website" })],
+    });
+  });
+
+  it("clamps CSV import match scores into the database range", async () => {
+    const { identity, memory } = await memoryFixture.createStoredMemoryFixture();
+    const headers = await authHeadersFor(identity);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      memoryId: memory.id,
+    };
+
+    const importResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries["import"].$post(
+      {
+        param,
+        json: {
+          format: "csv",
+          content:
+            "sourceLocale,targetLocale,sourceText,targetText,score\nen,fr,Upgrade,Mettre à niveau,150\nen,fr,Downgrade,Rétrograder,-5\nen,fr,Default,Défaut,not-a-number",
+        },
+      },
+      { headers },
+    );
+
+    expect(importResponse.status).toBe(201);
+    await expect(importResponse.json()).resolves.toMatchObject({ imported: 3, skipped: 0 });
+
+    const entriesResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$get(
+      {
+        param,
+        query: { limit: "50", offset: "0" },
+      },
+      { headers },
+    );
+
+    expect(entriesResponse.status).toBe(200);
+    const entriesBody = await entriesResponse.json();
+    if ("error" in entriesBody) throw new Error(String(entriesBody.error));
+    expect(entriesBody.memoryEntries).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ sourceText: "Upgrade", matchScore: 100 }),
+        expect.objectContaining({ sourceText: "Downgrade", matchScore: 0 }),
+        expect.objectContaining({ sourceText: "Default", matchScore: 100 }),
+      ]),
+    );
   });
 });

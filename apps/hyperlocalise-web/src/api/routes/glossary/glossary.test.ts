@@ -6,7 +6,7 @@ import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 import { upsertOrganizationExternalTmsGlossary } from "@/lib/providers/sync/organization-external-tms-glossaries";
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 
@@ -723,6 +723,137 @@ describe("glossaryRoutes", () => {
     expect(deleteResponse.status).toBe(403);
     await expect(deleteResponse.json()).resolves.toMatchObject({
       error: "external_tms_glossary_immutable",
+    });
+  });
+
+  it("returns project_not_found when assigning an unknown project to a glossary", async () => {
+    const { identity, glossary } = await glossaryFixture.createStoredGlossaryFixture();
+    const headers = await authHeadersFor(identity);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      glossaryId: glossary.id,
+    };
+    const projectId = `project_${randomUUID()}`;
+
+    const attachResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects.$post(
+      {
+        param,
+        json: { projectId, priority: 0 },
+      },
+      { headers },
+    );
+    expect(attachResponse.status).toBe(404);
+    await expect(attachResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
+
+    const detachResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects[":projectId"].$delete(
+      {
+        param: { ...param, projectId },
+      },
+      { headers },
+    );
+    expect(detachResponse.status).toBe(404);
+    await expect(detachResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
+  });
+
+  it("manages native glossary terms and project assignment", async () => {
+    const { identity, organization, user, glossary } =
+      await glossaryFixture.createStoredGlossaryFixture();
+    const headers = await authHeadersFor(identity);
+
+    const createTermResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].terms.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: glossary.id,
+        },
+        json: {
+          sourceTerm: "checkout",
+          targetTerm: "paiement",
+          description: "Commerce funnel term",
+          partOfSpeech: "noun",
+          caseSensitive: false,
+          forbidden: false,
+        },
+      },
+      { headers },
+    );
+    expect(createTermResponse.status).toBe(201);
+    const createTermBody = await createTermResponse.json();
+    if ("error" in createTermBody) throw new Error(String(createTermBody.error));
+    expect(createTermBody.glossaryTerm).toMatchObject({
+      sourceTerm: "checkout",
+      targetTerm: "paiement",
+    });
+
+    const updateTermResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].terms[":termId"].$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: glossary.id,
+          termId: createTermBody.glossaryTerm.id,
+        },
+        json: { targetTerm: "caisse" },
+      },
+      { headers },
+    );
+    expect(updateTermResponse.status).toBe(200);
+    await expect(updateTermResponse.json()).resolves.toMatchObject({
+      glossaryTerm: expect.objectContaining({ targetTerm: "caisse" }),
+    });
+
+    const importResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].terms["import"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: glossary.id,
+        },
+        json: {
+          format: "csv",
+          content: "sourceTerm,targetTerm\ncart,panier\nCart,chariot",
+        },
+      },
+      { headers },
+    );
+    expect(importResponse.status).toBe(201);
+    await expect(importResponse.json()).resolves.toMatchObject({ imported: 1, skipped: 1 });
+
+    const [project] = await db
+      .insert(schema.projects)
+      .values({
+        id: `project_${randomUUID()}`,
+        organizationId: organization.id,
+        createdByUserId: user.id,
+        name: "Website",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      })
+      .returning();
+
+    const attachResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          glossaryId: glossary.id,
+        },
+        json: { projectId: project.id, priority: 0 },
+      },
+      { headers },
+    );
+    expect(attachResponse.status).toBe(200);
+    await expect(attachResponse.json()).resolves.toMatchObject({
+      projects: [expect.objectContaining({ projectId: project.id, projectName: "Website" })],
     });
   });
 });

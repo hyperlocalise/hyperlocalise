@@ -1,10 +1,21 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "next/navigation";
-import { DatabaseSyncIcon } from "@hugeicons/core-free-icons";
-import { useQuery } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Add01Icon, DatabaseSyncIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Field, FieldError, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -14,6 +25,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { Textarea } from "@/components/ui/textarea";
+import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import {
@@ -68,6 +82,15 @@ const credentialsQueryKey = (organizationSlug: string) => [
   "translation-memory-credentials",
   organizationSlug,
 ];
+
+type MemoryCreateForm = {
+  name: string;
+  description: string;
+};
+
+function createEmptyMemoryForm(): MemoryCreateForm {
+  return { name: "", description: "" };
+}
 
 function useMemoryFilters(memories: MemoryListRow[], searchParams: URLSearchParams) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -127,9 +150,20 @@ function useMemoryFilters(memories: MemoryListRow[], searchParams: URLSearchPara
   };
 }
 
-export function TranslationMemoriesPageContent({ organizationSlug }: { organizationSlug: string }) {
+export function TranslationMemoriesPageContent({
+  organizationSlug,
+  canCreateMemories,
+}: {
+  organizationSlug: string;
+  canCreateMemories: boolean;
+}) {
+  const router = useRouter();
   const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(1);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
+  const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
     queryFn: async () => {
@@ -184,6 +218,33 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
         memories: body.memories as ApiMemory[],
         total: body.total as number,
       };
+    },
+  });
+  const createMemory = useMutation({
+    mutationFn: async (values: MemoryCreateForm) => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$post({
+        param: { organizationSlug },
+        json: {
+          name: values.name.trim(),
+          description: values.description.trim(),
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Unable to create translation memory"));
+      }
+
+      return response.json();
+    },
+    onSuccess: async (body) => {
+      await queryClient.invalidateQueries({ queryKey: ["translation-memories", organizationSlug] });
+      setCreateDialogOpen(false);
+      setCreateForm(createEmptyMemoryForm());
+      toast.success("Translation memory created");
+      router.push(`/org/${organizationSlug}/translation-memories/${body.memory.id}`);
+    },
+    onError: (error) => {
+      toast.error(error.message);
     },
   });
 
@@ -248,7 +309,7 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
     ? "No translation memories yet"
     : "Connect a TMS provider";
   const emptyDescription = hasConnectedProvider
-    ? "Provider translation memories appear here after sync. Native workspace memories can also be created from this page once creation is enabled."
+    ? "Provider translation memories appear here after sync. Connect or resync a TMS provider from Integrations if you expected to see one."
     : "Connect Crowdin, Phrase, Smartling, or Lokalise from Integrations to sync translation memories into this workspace.";
 
   const memoryCountLabel =
@@ -256,14 +317,38 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
       ? `${memoryTotal} ${memoryTotal === 1 ? "memory" : "memories"}`
       : undefined;
 
+  function submitCreateMemory() {
+    const errors: { name?: string } = {};
+    if (!createForm.name.trim()) {
+      errors.name = "Translation memory name is required.";
+    }
+    setCreateErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      return;
+    }
+    createMemory.mutate(createForm);
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
       <PageHeader
         icon={DatabaseSyncIcon}
         label="Workspace"
         title="Translation Memories"
-        description="Workspace and synced TMS translation memories. Provider memories stay read-only—connect credentials in Integrations."
+        description="Create first-party workspace memories or sync provider translation memories. Provider memories stay read-only."
         statusLabel={memoryCountLabel}
+        actions={
+          canCreateMemories ? (
+            <Button
+              type="button"
+              onClick={() => setCreateDialogOpen(true)}
+              className="w-full sm:w-fit"
+            >
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+              Create memory
+            </Button>
+          ) : null
+        }
       />
 
       {memoriesQuery.isSuccess && memories.length > 0 ? (
@@ -403,9 +488,21 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
         memories={filteredMemories}
         memoriesQuery={memoriesQuery}
         organizationSlug={organizationSlug}
-        emptyTitle={emptyTitle}
-        emptyDescription={emptyDescription}
-        emptyAction={<TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />}
+        emptyTitle={canCreateMemories ? "No translation memories yet" : emptyTitle}
+        emptyDescription={
+          canCreateMemories
+            ? "Create a workspace memory, import entries, then assign it to the projects that should use it."
+            : emptyDescription
+        }
+        emptyAction={
+          canCreateMemories ? (
+            <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
+              Create memory
+            </Button>
+          ) : (
+            <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
+          )
+        }
       />
 
       {memoriesQuery.isSuccess && memoryTotal > MEMORIES_PAGE_SIZE ? (
@@ -438,6 +535,56 @@ export function TranslationMemoriesPageContent({ organizationSlug }: { organizat
           </div>
         </div>
       ) : null}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Create translation memory</DialogTitle>
+            <DialogDescription>
+              Add a first-party memory library. You can import and edit entries after creation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4">
+            <Field className="gap-1.5">
+              <FieldLabel>Name</FieldLabel>
+              <Input
+                value={createForm.name}
+                onChange={(event) =>
+                  setCreateForm((current) => ({ ...current, name: event.target.value }))
+                }
+                disabled={createMemory.isPending}
+                placeholder="Marketing launch memory"
+              />
+              <FieldError
+                errors={createErrors.name ? [{ message: createErrors.name }] : undefined}
+              />
+            </Field>
+            <Field className="gap-1.5">
+              <FieldLabel>Description</FieldLabel>
+              <Textarea
+                value={createForm.description}
+                onChange={(event) =>
+                  setCreateForm((current) => ({ ...current, description: event.target.value }))
+                }
+                disabled={createMemory.isPending}
+                placeholder="When this memory should be used"
+              />
+            </Field>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCreateDialogOpen(false)}
+              disabled={createMemory.isPending}
+            >
+              Cancel
+            </Button>
+            <Button onClick={submitCreateMemory} disabled={createMemory.isPending}>
+              {createMemory.isPending ? <Spinner /> : null}
+              Create memory
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }
