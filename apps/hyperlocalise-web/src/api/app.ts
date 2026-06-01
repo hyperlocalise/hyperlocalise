@@ -38,6 +38,7 @@ import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
 import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
 import { createFileRoutes } from "./routes/file/file.route";
 import { createWorkspaceFilesRoutes } from "./routes/workspace-files/workspace-files.route";
+import { createWorkspaceAutomationRoutes } from "./routes/workspace-automation/workspace-automation.route";
 import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms-provider-credential/external-tms-provider-credential.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
@@ -169,6 +170,7 @@ function createOrgScopedAppRoutes(
     .route("/teams", createTeamRoutes())
     .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/workspace-files", createWorkspaceFilesRoutes())
+    .route("/automations", createWorkspaceAutomationRoutes())
     .route("/conversations", createConversationRoutes())
     .route(
       "/chat-requests",
