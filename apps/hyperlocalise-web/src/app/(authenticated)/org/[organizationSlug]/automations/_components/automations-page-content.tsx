@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Add01Icon, SparklesIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
@@ -9,16 +9,20 @@ import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES,
-  getWorkspaceAutomationTemplateCategoryLabel,
   listWorkspaceAutomationTemplates,
+  type WorkspaceAutomationTemplateCategory,
 } from "@/lib/agents/workspace-automation-templates";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { AutomationTemplateFlow } from "./automation-template-flow";
+
+const TEMPLATE_FILTER_TABS_CLASS =
+  "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-foreground/10 data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-foreground/10";
 
 function formatRelativeTimestamp(value: string) {
   const date = new Date(value);
@@ -56,6 +60,9 @@ function AutomationToolsSummary({ automation }: { automation: WorkspaceAutomatio
 }
 
 export function AutomationsPageContent({ organizationSlug }: { organizationSlug: string }) {
+  const [templateCategoryFilter, setTemplateCategoryFilter] =
+    useState<WorkspaceAutomationTemplateCategory>("popular");
+
   const automationsQuery = useQuery({
     queryKey: ["workspace-automations", organizationSlug],
     queryFn: async () => {
@@ -100,6 +107,20 @@ export function AutomationsPageContent({ organizationSlug }: { organizationSlug:
       return left.name.localeCompare(right.name);
     });
   }, []);
+
+  const templateCategoryTabs = useMemo(() => {
+    const counts = new Map<WorkspaceAutomationTemplateCategory, number>();
+    for (const template of templates) {
+      counts.set(template.category, (counts.get(template.category) ?? 0) + 1);
+    }
+
+    return WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.filter((category) => counts.has(category.id));
+  }, [templates]);
+
+  const filteredTemplates = useMemo(
+    () => templates.filter((template) => template.category === templateCategoryFilter),
+    [templateCategoryFilter, templates],
+  );
 
   return (
     <WorkspacePageShell>
@@ -192,42 +213,61 @@ export function AutomationsPageContent({ organizationSlug }: { organizationSlug:
             triggers, and tools.
           </TypographyP>
         </div>
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-          {templates.map((template) => (
-            <Card key={template.id} size="sm" className="gap-4 px-5 py-5">
-              <div className="flex items-start justify-between gap-2">
+        <Tabs
+          value={templateCategoryFilter}
+          onValueChange={(value) =>
+            setTemplateCategoryFilter(value as WorkspaceAutomationTemplateCategory)
+          }
+          className="gap-5"
+        >
+          <TabsList
+            variant="line"
+            className="h-auto w-full flex-wrap justify-start gap-1 bg-transparent p-0"
+          >
+            {templateCategoryTabs.map((category) => (
+              <TabsTrigger
+                key={category.id}
+                value={category.id}
+                className={TEMPLATE_FILTER_TABS_CLASS}
+              >
+                {category.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            {filteredTemplates.map((template) => (
+              <Card key={template.id} size="sm" className="gap-4 px-5 py-5">
                 <AutomationTemplateFlow template={template} />
-                <Badge variant="outline" className="shrink-0 rounded-full text-[10px]">
-                  {getWorkspaceAutomationTemplateCategoryLabel(template.category)}
-                </Badge>
-              </div>
-              <div className="space-y-1.5">
-                <h3 className="text-sm font-medium text-foreground">{template.name}</h3>
-                <p className="text-sm text-pretty text-muted-foreground">{template.description}</p>
-              </div>
-              <div className="mt-auto flex items-center gap-2">
-                {template.activatable ? (
-                  <Button
-                    size="sm"
-                    className="rounded-full"
-                    nativeButton={false}
-                    render={
-                      <Link
-                        href={`/org/${organizationSlug}/automations/new?template=${template.id}`}
-                      />
-                    }
-                  >
-                    Add
-                  </Button>
-                ) : (
-                  <Button size="sm" variant="outline" className="rounded-full" disabled>
-                    Coming soon
-                  </Button>
-                )}
-              </div>
-            </Card>
-          ))}
-        </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-sm font-medium text-foreground">{template.name}</h3>
+                  <p className="text-sm text-pretty text-muted-foreground">
+                    {template.description}
+                  </p>
+                </div>
+                <div className="mt-auto flex items-center gap-2">
+                  {template.activatable ? (
+                    <Button
+                      size="sm"
+                      className="rounded-full"
+                      nativeButton={false}
+                      render={
+                        <Link
+                          href={`/org/${organizationSlug}/automations/new?template=${template.id}`}
+                        />
+                      }
+                    >
+                      Add
+                    </Button>
+                  ) : (
+                    <Button size="sm" variant="outline" className="rounded-full" disabled>
+                      Coming soon
+                    </Button>
+                  )}
+                </div>
+              </Card>
+            ))}
+          </div>
+        </Tabs>
       </section>
     </WorkspacePageShell>
   );

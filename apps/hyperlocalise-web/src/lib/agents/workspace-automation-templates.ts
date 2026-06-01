@@ -3,6 +3,7 @@ import type { WorkspaceAutomationFormState } from "./workspace-automation-view-m
 export type WorkspaceAutomationTemplateCategory =
   | "popular"
   | "source-content"
+  | "marketing"
   | "translation-delivery"
   | "quality"
   | "release";
@@ -23,6 +24,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES: Array<{
 }> = [
   { id: "popular", label: "Popular" },
   { id: "source-content", label: "Source Content" },
+  { id: "marketing", label: "Marketing" },
   { id: "translation-delivery", label: "Translation Delivery" },
   { id: "quality", label: "Quality" },
   { id: "release", label: "Release Readiness" },
@@ -416,6 +418,71 @@ export const WORKSPACE_AUTOMATION_TEMPLATES: WorkspaceAutomationTemplate[] = [
     activatable: false,
     defaultForm: {
       name: "Create localisation job brief",
+      triggerMode: "manual",
+      githubEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "market-messaging-brief",
+    category: "marketing",
+    name: "Market messaging brief",
+    description:
+      "Build a market adaptation brief before translation when campaign or landing page copy is sent to a new market.",
+    instructions: [
+      "You are a market messaging analyst for localisation teams.",
+      "",
+      "Trigger: run when a campaign, landing page, or marketing asset is sent for localisation into a new market.",
+      "",
+      "Goal: produce a short market adaptation brief before translation starts.",
+      "",
+      "Analyse:",
+      "- The source message, brand tone, and proof points.",
+      "- Local competitors, ads, SERPs, and category language in the target market.",
+      "- What positioning, claims, objections, and tone work in that market.",
+      "",
+      "Deliverable:",
+      "- A concise brief covering recommended positioning, claims, proof, objections, tone, and translation guardrails.",
+      "- Open questions or risks that could block high-quality localisation.",
+      "",
+      "Tools: Semrush, Ahrefs, Google SERP API, Meta Ads Library, Google Ads Transparency Center, Similarweb, brand docs, TMS glossary, Slack, Notion, and Linear.",
+    ].join("\n"),
+    activatable: false,
+    defaultForm: {
+      name: "Market messaging brief",
+      triggerMode: "manual",
+      githubEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "local-search-intent-brief",
+    category: "marketing",
+    name: "Local search intent brief",
+    description:
+      "Decide whether to translate, adapt, rewrite, or split SEO pages for local organic and paid search before localisation.",
+    instructions: [
+      "You are an SEO localisation strategist.",
+      "",
+      "Trigger: run when an SEO page, landing page, blog, or campaign page is being localised for organic or paid search.",
+      "",
+      "Goal: decide whether the page should be translated, adapted, rewritten, or split for the target market.",
+      "",
+      "Analyse:",
+      "- The source page, local keywords, search volume, SERP intent, and ranking competitors.",
+      "- Existing Google Search Console and analytics performance where available.",
+      "- Gaps between source intent and what searchers expect in the target locale.",
+      "",
+      "Deliverable:",
+      "- A recommendation: translate, adapt, rewrite, or split the page.",
+      "- Priority keywords, intent notes, competitor patterns, and content changes for translators.",
+      "- Risks to ranking, paid efficiency, or conversion if the page is translated literally.",
+      "",
+      "Tools: Semrush, Ahrefs, DataForSEO, Google Search Console, GA4, Google Trends, SERP API, CMS, TMS glossary, and translation memory.",
+    ].join("\n"),
+    activatable: false,
+    defaultForm: {
+      name: "Local search intent brief",
       triggerMode: "manual",
       githubEnabled: true,
       slackEnabled: true,
