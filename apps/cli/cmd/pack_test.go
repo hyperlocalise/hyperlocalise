@@ -389,6 +389,84 @@ func TestPackCommandRejectsPrefixIDCollisionsInGroupedOutput(t *testing.T) {
 	assertPackPrefixIDCollisionError(t, err, "src.bar.button.label", "src.foo.button.label", "label")
 }
 
+func TestPackCommandIgnoresDuplicateIDInPlainJSONFlatOutput(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.foo.button.label": "Save settings",
+  "src.bar.button.label": "Start trial"
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id", "--ignore-duplicate-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackFlatOutput(t, out.Bytes())
+	want := map[string]string{
+		"label": "Start trial",
+	}
+	assertPackFlatOutput(t, got, want)
+}
+
+func TestPackCommandIgnoresDuplicateIDInFormatJSCatalog(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.foo.button.label": {
+    "defaultMessage": "Save settings"
+  },
+  "src.bar.button.label": {
+    "defaultMessage": "Start trial"
+  }
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id", "--ignore-duplicate-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackCatalogOutput(t, out.Bytes())
+	want := map[string]extractCatalogMessage{
+		"label": {
+			DefaultMessage: "Start trial",
+		},
+	}
+	assertPackCatalogOutput(t, got, want)
+}
+
+func TestPackCommandIgnoresDuplicateIDInGroupedOutput(t *testing.T) {
+	dir := t.TempDir()
+	inputPath := filepath.Join(dir, "messages.json")
+	writePackTestFile(t, inputPath, `{
+  "src.foo.button.label": "Save settings",
+  "src.bar.button.label": "Start trial"
+}`)
+
+	cmd := newPackCmd()
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{inputPath, "--prefix-id", "--group-by-value", "--ignore-duplicate-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute pack command: %v", err)
+	}
+
+	got := decodePackGroupedOutput(t, out.Bytes())
+	want := map[string][]string{
+		"Start trial": {"label"},
+	}
+	assertPackGroupedOutput(t, got, want)
+}
+
 func TestPackCommandSupportsPlainJSONTranslations(t *testing.T) {
 	dir := t.TempDir()
 	inputPath := filepath.Join(dir, "messages.json")
