@@ -1,8 +1,11 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, schema } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+
+import { hasWorkspaceAutomationGithubWorkflow } from "./workspace-automation-github-mapping";
+import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
 
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
 export const workspaceAutomationRunStatusSchema = z.enum([
@@ -15,6 +18,13 @@ export const workspaceAutomationRunStatusSchema = z.enum([
 ]);
 export const workspaceAutomationRunTriggerSourceSchema = z.enum(["manual", "scheduled", "github"]);
 
+const branchPatternSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .max(255)
+  .regex(/^[A-Za-z0-9._\-/*?]+$/, "invalid_branch_pattern");
+
 const triggerConfigSchema = z
   .object({
     mode: z.enum(["manual", "scheduled", "github"]).default("manual"),
@@ -26,6 +36,7 @@ const triggerConfigSchema = z
         timezone: z.string().trim().min(1).max(64).default("UTC"),
       })
       .optional(),
+    branches: z.array(branchPatternSchema).min(1).max(32).optional(),
   })
   .default({ mode: "manual" });
 
@@ -46,9 +57,25 @@ const githubToolConfigSchema = z
   })
   .default({ enabled: false, pushSource: false, pullTranslations: false, validation: false });
 
+const slackToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    channelId: z.string().trim().min(1).max(64).optional(),
+  })
+  .default({ enabled: false });
+
+const emailToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    recipients: z.array(z.string().email()).min(1).max(10).optional(),
+  })
+  .default({ enabled: false });
+
 const toolConfigSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
+    slack: slackToolConfigSchema.optional(),
+    email: emailToolConfigSchema.optional(),
   })
   .default({});
 
@@ -65,6 +92,8 @@ export type WorkspaceAutomationRunTriggerSource = z.infer<
 >;
 export type WorkspaceAutomationTriggerConfig = z.infer<typeof triggerConfigSchema>;
 export type WorkspaceAutomationRepositoryTarget = z.infer<typeof repositoryTargetSchema>;
+export type WorkspaceAutomationSlackToolConfig = z.infer<typeof slackToolConfigSchema>;
+export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
@@ -72,7 +101,35 @@ export type WorkspaceAutomationConfigValidationError =
       code: "github_repository_target_required";
       message: "Enabled GitHub tools require a GitHub repository target.";
     }
-  | { code: "github_project_required"; message: "Enabled GitHub tools require a project." };
+  | { code: "github_project_required"; message: "Enabled GitHub tools require a project." }
+  | {
+      code: "github_trigger_required";
+      message: "Enabled GitHub tools require a scheduled or GitHub push trigger.";
+    }
+  | {
+      code: "github_push_branches_required";
+      message: "GitHub push triggers require at least one branch pattern.";
+    }
+  | {
+      code: "scheduled_github_workflow_required";
+      message: "Scheduled automations require at least one GitHub workflow.";
+    }
+  | {
+      code: "slack_not_connected";
+      message: "Enable the Slack integration before using Slack notifications.";
+    }
+  | {
+      code: "slack_channel_required";
+      message: "Choose a Slack channel for automation notifications.";
+    }
+  | {
+      code: "email_not_connected";
+      message: "Enable the email agent before using email notifications.";
+    }
+  | {
+      code: "email_recipients_required";
+      message: "Add at least one email recipient for automation notifications.";
+    };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
 type AutomationRunRow = typeof schema.workspaceAutomationRuns.$inferSelect;
@@ -125,29 +182,118 @@ function normalizeToolConfig(value: Record<string, unknown>): WorkspaceAutomatio
 }
 
 function validateWorkspaceAutomationConfig(input: {
+  triggerConfig: WorkspaceAutomationTriggerConfig;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
 }): Result<void, WorkspaceAutomationConfigValidationError> {
   const githubTools = input.toolConfig.github;
-  if (!githubTools?.enabled) {
-    return ok(undefined);
+  if (githubTools?.enabled) {
+    if (
+      input.repositoryTarget.kind !== "github" ||
+      !input.repositoryTarget.githubInstallationRepositoryId
+    ) {
+      return err({
+        code: "github_repository_target_required",
+        message: "Enabled GitHub tools require a GitHub repository target.",
+      });
+    }
+
+    if (!githubTools.projectId) {
+      return err({
+        code: "github_project_required",
+        message: "Enabled GitHub tools require a project.",
+      });
+    }
+
+    if (input.triggerConfig.mode === "manual") {
+      return err({
+        code: "github_trigger_required",
+        message: "Enabled GitHub tools require a scheduled or GitHub push trigger.",
+      });
+    }
+
+    if (
+      input.triggerConfig.mode === "github" &&
+      (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
+    ) {
+      return err({
+        code: "github_push_branches_required",
+        message: "GitHub push triggers require at least one branch pattern.",
+      });
+    }
   }
 
   if (
-    input.repositoryTarget.kind !== "github" ||
-    !input.repositoryTarget.githubInstallationRepositoryId
+    input.triggerConfig.mode === "scheduled" &&
+    !hasWorkspaceAutomationGithubWorkflow(input.toolConfig)
   ) {
     return err({
-      code: "github_repository_target_required",
-      message: "Enabled GitHub tools require a GitHub repository target.",
+      code: "scheduled_github_workflow_required",
+      message: "Scheduled automations require at least one GitHub workflow.",
     });
   }
 
-  if (!githubTools.projectId) {
+  const slackTools = input.toolConfig.slack;
+  if (slackTools?.enabled && !slackTools.channelId) {
     return err({
-      code: "github_project_required",
-      message: "Enabled GitHub tools require a project.",
+      code: "slack_channel_required",
+      message: "Choose a Slack channel for automation notifications.",
     });
+  }
+
+  const emailTools = input.toolConfig.email;
+  if (emailTools?.enabled && (!emailTools.recipients || emailTools.recipients.length === 0)) {
+    return err({
+      code: "email_recipients_required",
+      message: "Add at least one email recipient for automation notifications.",
+    });
+  }
+
+  return ok(undefined);
+}
+
+export async function validateWorkspaceAutomationIntegrations(input: {
+  organizationId: string;
+  toolConfig: WorkspaceAutomationToolConfig;
+}): Promise<Result<void, WorkspaceAutomationConfigValidationError>> {
+  if (input.toolConfig.slack?.enabled) {
+    const [connector] = await db
+      .select({ enabled: schema.connectors.enabled })
+      .from(schema.connectors)
+      .where(
+        and(
+          eq(schema.connectors.organizationId, input.organizationId),
+          eq(schema.connectors.kind, "slack"),
+        ),
+      )
+      .limit(1);
+
+    if (!connector?.enabled) {
+      return err({
+        code: "slack_not_connected",
+        message: "Enable the Slack integration before using Slack notifications.",
+      });
+    }
+  }
+
+  if (input.toolConfig.email?.enabled) {
+    const [connector] = await db
+      .select({ enabled: schema.connectors.enabled })
+      .from(schema.connectors)
+      .where(
+        and(
+          eq(schema.connectors.organizationId, input.organizationId),
+          eq(schema.connectors.kind, "email"),
+        ),
+      )
+      .limit(1);
+
+    if (!connector?.enabled) {
+      return err({
+        code: "email_not_connected",
+        message: "Enable the email agent before using email notifications.",
+      });
+    }
   }
 
   return ok(undefined);
@@ -206,10 +352,42 @@ export async function createWorkspaceAutomation(input: {
     repositoryTarget: input.repositoryTarget ?? {},
     toolConfig: input.toolConfig ?? {},
   });
-  const validation = validateWorkspaceAutomationConfig(config);
+  const validation = validateWorkspaceAutomationConfig({
+    triggerConfig: config.triggerConfig,
+    repositoryTarget: config.repositoryTarget,
+    toolConfig: config.toolConfig,
+  });
   if (isErr(validation)) {
     return err(validation.error);
   }
+
+  const integrationValidation = await validateWorkspaceAutomationIntegrations({
+    organizationId: input.organizationId,
+    toolConfig: config.toolConfig,
+  });
+  if (isErr(integrationValidation)) {
+    return err(integrationValidation.error);
+  }
+
+  const draftAutomation: WorkspaceAutomationRecord = {
+    id: crypto.randomUUID(),
+    organizationId: input.organizationId,
+    authorUserId: input.authorUserId ?? null,
+    status: input.status ?? "active",
+    name: input.name,
+    instructions: input.instructions,
+    triggerConfig: config.triggerConfig,
+    repositoryTarget: config.repositoryTarget,
+    toolConfig: config.toolConfig,
+    configVersion: 1,
+    nextRunAt: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  };
+  const resolvedNextRunAt =
+    input.nextRunAt !== undefined
+      ? input.nextRunAt
+      : resolveNextRunAtForWorkspaceAutomation(draftAutomation);
 
   const [row] = await db
     .insert(schema.workspaceAutomations)
@@ -226,7 +404,7 @@ export async function createWorkspaceAutomation(input: {
           : null,
       repositoryTarget: config.repositoryTarget,
       toolConfig: config.toolConfig,
-      nextRunAt: input.nextRunAt ?? null,
+      nextRunAt: resolvedNextRunAt,
     })
     .returning();
 
@@ -266,10 +444,44 @@ export async function updateWorkspaceAutomation(input: {
     repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
     toolConfig: input.toolConfig ?? existing.toolConfig,
   });
-  const validation = validateWorkspaceAutomationConfig(config);
+  const validation = validateWorkspaceAutomationConfig({
+    triggerConfig: config.triggerConfig,
+    repositoryTarget: config.repositoryTarget,
+    toolConfig: config.toolConfig,
+  });
   if (isErr(validation)) {
     return err(validation.error);
   }
+
+  const integrationValidation = await validateWorkspaceAutomationIntegrations({
+    organizationId: input.organizationId,
+    toolConfig: config.toolConfig,
+  });
+  if (isErr(integrationValidation)) {
+    return err(integrationValidation.error);
+  }
+
+  const mergedAutomation: WorkspaceAutomationRecord = {
+    ...existing,
+    status: input.status ?? existing.status,
+    name: input.name ?? existing.name,
+    instructions: input.instructions ?? existing.instructions,
+    triggerConfig: config.triggerConfig,
+    repositoryTarget: config.repositoryTarget,
+    toolConfig: config.toolConfig,
+    configVersion: configChanged ? existing.configVersion + 1 : existing.configVersion,
+  };
+  const resolvedNextRunAt =
+    input.nextRunAt !== undefined
+      ? input.nextRunAt
+      : configChanged || input.status !== undefined
+        ? resolveNextRunAtForWorkspaceAutomation({
+            ...mergedAutomation,
+            status: input.status ?? existing.status,
+          })
+        : existing.nextRunAt
+          ? new Date(existing.nextRunAt)
+          : null;
 
   const updateConditions = [
     eq(schema.workspaceAutomations.id, input.automationId),
@@ -296,7 +508,9 @@ export async function updateWorkspaceAutomation(input: {
           }
         : {}),
       ...(input.toolConfig !== undefined ? { toolConfig: config.toolConfig } : {}),
-      ...(input.nextRunAt !== undefined ? { nextRunAt: input.nextRunAt } : {}),
+      ...(input.nextRunAt !== undefined || configChanged || input.status !== undefined
+        ? { nextRunAt: resolvedNextRunAt }
+        : {}),
       ...(configChanged
         ? { configVersion: sql`${schema.workspaceAutomations.configVersion} + 1` }
         : {}),
@@ -371,6 +585,81 @@ export async function listWorkspaceAutomations(input: {
     .offset(input.offset ?? 0);
 
   return rows.map(serializeAutomation);
+}
+
+export type DueWorkspaceAutomation = {
+  automation: WorkspaceAutomationRecord;
+  repository: typeof schema.githubInstallationRepositories.$inferSelect;
+};
+
+export async function listDueWorkspaceAutomations(input: {
+  now?: Date;
+  limit?: number;
+}): Promise<DueWorkspaceAutomation[]> {
+  const now = input.now ?? new Date();
+  const limit = input.limit ?? 100;
+
+  const rows = await db
+    .select({
+      automation: schema.workspaceAutomations,
+      repository: schema.githubInstallationRepositories,
+    })
+    .from(schema.workspaceAutomations)
+    .innerJoin(
+      schema.githubInstallationRepositories,
+      eq(
+        schema.workspaceAutomations.githubInstallationRepositoryId,
+        schema.githubInstallationRepositories.id,
+      ),
+    )
+    .where(
+      and(
+        eq(schema.workspaceAutomations.status, "active"),
+        isNotNull(schema.workspaceAutomations.nextRunAt),
+        lte(schema.workspaceAutomations.nextRunAt, now),
+        eq(schema.githubInstallationRepositories.enabled, true),
+        eq(schema.githubInstallationRepositories.archived, false),
+      ),
+    )
+    .orderBy(schema.workspaceAutomations.nextRunAt)
+    .limit(limit);
+
+  return rows.map(({ automation, repository }) => ({
+    automation: serializeAutomation(automation),
+    repository,
+  }));
+}
+
+export async function advanceWorkspaceAutomationNextRun(input: {
+  automationId: string;
+  organizationId: string;
+  completedAt?: Date;
+}) {
+  const automation = await getWorkspaceAutomationById({
+    automationId: input.automationId,
+    organizationId: input.organizationId,
+  });
+  if (!automation) {
+    return;
+  }
+
+  const nextRunAt = resolveNextRunAtForWorkspaceAutomation(
+    automation,
+    input.completedAt ?? new Date(),
+  );
+
+  await db
+    .update(schema.workspaceAutomations)
+    .set({
+      nextRunAt,
+      updatedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(schema.workspaceAutomations.id, input.automationId),
+        eq(schema.workspaceAutomations.organizationId, input.organizationId),
+      ),
+    );
 }
 
 export async function createWorkspaceAutomationRun(input: {

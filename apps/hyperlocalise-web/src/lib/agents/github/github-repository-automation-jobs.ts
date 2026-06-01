@@ -266,6 +266,19 @@ export async function updateGithubRepositoryAutomationJobStatus(input: {
       updatedAt: new Date(),
     })
     .where(eq(schema.githubRepositoryAutomationJobs.id, input.jobId));
+
+  if (isTerminal || input.status === "running") {
+    const { syncWorkspaceAutomationRunsForGithubJob } =
+      await import("@/lib/agents/workspace-automation-run-sync");
+    await syncWorkspaceAutomationRunsForGithubJob({
+      jobId: input.jobId,
+      status: input.status,
+      resultSummary: input.resultSummary,
+      lastError: input.lastError,
+      skipReason: input.skipReason,
+      completedAt: isTerminal ? new Date() : null,
+    });
+  }
 }
 
 export async function findLatestSucceededCommitAfter(input: {

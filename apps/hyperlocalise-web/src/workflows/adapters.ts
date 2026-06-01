@@ -1,17 +1,15 @@
 import { start } from "workflow/api";
 
 import { emailTranslationWorkflow } from "./email-translation";
-import { fileTranslationJobWorkflow } from "./file-translation-job";
 import { githubFixWorkflow } from "./github-fix";
+import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
+import { i18nSetupWorkflow } from "./i18n-setup";
 import { providerAgentCommentWorkflow } from "./provider-agent-comment";
 import { providerAgentQaWorkflow } from "./provider-agent-qa";
 import { providerAgentTranslationWorkflow } from "./provider-agent-translation";
 import { providerAgentWritebackWorkflow } from "./provider-agent-writeback";
 import { providerWebhookReconciliationWorkflow } from "./provider-webhook-reconciliation";
-import { i18nSetupWorkflow } from "./i18n-setup";
 import { repositoryAgentWorkflow } from "./repository-agent";
-import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
-import { translationJobWorkflow } from "./translation-job";
 import type {
   EmailAgentTaskQueue,
   GitHubFixQueue,
@@ -23,21 +21,9 @@ import type {
   ProviderWebhookReconciliationQueue,
   I18nSetupQueue,
   RepositoryAgentTaskQueue,
-  TranslationJobEventData,
 } from "@/lib/workflow/types";
 
-export function createTranslationJobEventQueue(): JobQueue<TranslationJobEventData> {
-  return {
-    async enqueue(event) {
-      const workflow = event.type === "file" ? fileTranslationJobWorkflow : translationJobWorkflow;
-      const run = await start(workflow, [event]);
-
-      return {
-        ids: [run.runId],
-      };
-    },
-  };
-}
+export { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 
 export function createGitHubFixQueue(): GitHubFixQueue {
   return {

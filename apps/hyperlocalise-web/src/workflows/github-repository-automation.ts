@@ -18,9 +18,6 @@ import {
   createGithubRepositoryAutomationCheckRun,
   resolveGithubAutomationCheckConclusion as resolveGithubAutomationCheckConclusionFromMode,
 } from "@/lib/agents/github/github-repository-automation-check-run";
-import { runGithubRepositoryAutomationPullTranslations } from "@/lib/agents/github/github-repository-automation-pull-translations";
-import { runGithubRepositoryAutomationPushSource } from "@/lib/agents/github/github-repository-automation-push-source";
-import { runGithubRepositoryAutomationValidation } from "@/lib/agents/github/github-repository-automation-validation";
 
 async function loadJobStep(jobId: string) {
   "use step";
@@ -159,6 +156,13 @@ async function completeGithubAutomationCheckRunForJob(input: {
 
 async function runAutomationJobStep(input: { jobId: string; workflowRunId: string }) {
   "use step";
+
+  const { runGithubRepositoryAutomationPullTranslations } =
+    await import("@/lib/agents/github/github-repository-automation-pull-translations");
+  const { runGithubRepositoryAutomationPushSource } =
+    await import("@/lib/agents/github/github-repository-automation-push-source");
+  const { runGithubRepositoryAutomationValidation } =
+    await import("@/lib/agents/github/github-repository-automation-validation");
 
   let job = await getGithubRepositoryAutomationJobById(input.jobId);
   if (!job) {

@@ -102,6 +102,12 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           icon: LinkSquare02Icon,
         },
         {
+          label: "Automations",
+          href: org("automations"),
+          icon: Task01Icon,
+          description: "Scheduled and GitHub-triggered deterministic workflows",
+        },
+        {
           label: "Team",
           href: org("settings/members"),
           icon: UserGroupIcon,
