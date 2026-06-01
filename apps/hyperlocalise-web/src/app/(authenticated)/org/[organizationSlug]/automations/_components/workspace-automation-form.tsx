@@ -11,11 +11,22 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
-import { ClockIcon, MailIcon, Trash2Icon } from "lucide-react";
+import { ClockIcon, MailIcon, SearchIcon, Trash2Icon } from "lucide-react";
+import type { SimpleIcon } from "simple-icons";
+import {
+  siGoogle,
+  siGoogleads,
+  siGoogleanalytics,
+  siLinear,
+  siMeta,
+  siSemrush,
+} from "simple-icons";
 
+import { SimpleBrandIcon } from "@/app/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  ComingSoonBadge,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -23,6 +34,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -61,6 +75,35 @@ type GithubRepositoryOption = {
 type SlackChannelOption = { id: string; name: string; private: boolean };
 
 type AutomationEditorTab = "settings" | "history";
+
+type ComingSoonAutomationTool = {
+  id: string;
+  name: string;
+  icon?: SimpleIcon;
+};
+
+const COMING_SOON_SERP_TOOLS: readonly ComingSoonAutomationTool[] = [
+  { id: "semrush", name: "Semrush", icon: siSemrush },
+  { id: "ahrefs", name: "Ahrefs" },
+  { id: "meta-ads-library", name: "Meta Ads Library", icon: siMeta },
+  { id: "similarweb", name: "Similarweb" },
+] as const;
+
+const COMING_SOON_GOOGLE_TOOLS: readonly ComingSoonAutomationTool[] = [
+  { id: "google-serp-api", name: "SERP API" },
+  { id: "google-ads-transparency", name: "Ads Transparency Center", icon: siGoogleads },
+  { id: "google-search-console", name: "Search Console" },
+  { id: "ga4", name: "GA4", icon: siGoogleanalytics },
+  { id: "google-trends", name: "Trends" },
+] as const;
+
+function AutomationToolMenuIcon({ icon }: { icon?: SimpleIcon }) {
+  if (icon) {
+    return <SimpleBrandIcon icon={icon} colored={false} className="size-4" />;
+  }
+
+  return <SearchIcon className="size-4" />;
+}
 
 function FieldError({ message }: { message?: string }) {
   if (!message) {
@@ -714,7 +757,11 @@ function AddToolMenu({
           <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
           Add Tool
         </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-80" align="start" sideOffset={2}>
+        <DropdownMenuContent
+          className="max-h-(--available-height) w-80 overflow-y-auto"
+          align="start"
+          sideOffset={2}
+        >
           <DropdownMenuGroup>
             <DropdownMenuLabel>Supported tools</DropdownMenuLabel>
             <DropdownMenuItem
@@ -762,6 +809,37 @@ function AddToolMenu({
               ) : !emailConnected ? (
                 <DropdownMenuShortcut>Enable first</DropdownMenuShortcut>
               ) : null}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Coming soon</DropdownMenuLabel>
+            {COMING_SOON_SERP_TOOLS.map((tool) => (
+              <DropdownMenuItem key={tool.id} disabled>
+                <AutomationToolMenuIcon icon={tool.icon} />
+                {tool.name}
+                <ComingSoonBadge />
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <AutomationToolMenuIcon icon={siGoogle} />
+                <span className="min-w-0 flex-1">Google</span>
+                <ComingSoonBadge className="ms-0" />
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="min-w-56">
+                {COMING_SOON_GOOGLE_TOOLS.map((tool) => (
+                  <DropdownMenuItem key={tool.id} disabled>
+                    <AutomationToolMenuIcon icon={tool.icon ?? siGoogle} />
+                    {tool.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            <DropdownMenuItem disabled>
+              <AutomationToolMenuIcon icon={siLinear} />
+              Linear
+              <ComingSoonBadge />
             </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
