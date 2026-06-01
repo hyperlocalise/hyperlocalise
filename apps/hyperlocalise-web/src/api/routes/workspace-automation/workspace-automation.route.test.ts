@@ -199,7 +199,7 @@ describe("workspace automation routes", () => {
     const listResponse = await client.api.orgs[":organizationSlug"].automations.$get(
       {
         param: { organizationSlug },
-        query: { status: "invalid_value", limit: "50", offset: "0" },
+        query: { status: "invalid_value", limit: "50", offset: "0" } as never,
       },
       { headers },
     );

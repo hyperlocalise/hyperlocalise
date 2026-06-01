@@ -397,6 +397,7 @@ export async function createWorkspaceAutomationRun(input: {
   if (input.idempotencyKey) {
     const existing = await getWorkspaceAutomationRunByIdempotencyKey({
       organizationId: input.organizationId,
+      automationId: input.automationId,
       idempotencyKey: input.idempotencyKey,
     });
     if (existing) {
@@ -431,6 +432,7 @@ export async function createWorkspaceAutomationRun(input: {
   if (!row && input.idempotencyKey) {
     const existing = await getWorkspaceAutomationRunByIdempotencyKey({
       organizationId: input.organizationId,
+      automationId: input.automationId,
       idempotencyKey: input.idempotencyKey,
     });
     if (existing) {
@@ -481,6 +483,7 @@ export async function updateWorkspaceAutomationRun(input: {
 
 export async function getWorkspaceAutomationRunByIdempotencyKey(input: {
   organizationId: string;
+  automationId: string;
   idempotencyKey: string;
 }): Promise<WorkspaceAutomationRunRecord | null> {
   const [row] = await db
@@ -489,6 +492,7 @@ export async function getWorkspaceAutomationRunByIdempotencyKey(input: {
     .where(
       and(
         eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        eq(schema.workspaceAutomationRuns.automationId, input.automationId),
         eq(schema.workspaceAutomationRuns.idempotencyKey, input.idempotencyKey),
       ),
     )

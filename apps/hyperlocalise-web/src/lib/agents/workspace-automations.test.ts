@@ -113,11 +113,11 @@ describe("workspace automations", () => {
 
     const automation = expectOk(
       await createWorkspaceAutomation({
-      organizationId: scope.organizationId,
-      authorUserId: scope.userId,
-      name: "Refresh repository translations",
-      instructions: "Pull the latest source strings and prepare translation updates.",
-      nextRunAt,
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Refresh repository translations",
+        instructions: "Pull the latest source strings and prepare translation updates.",
+        nextRunAt,
       }),
     );
 
