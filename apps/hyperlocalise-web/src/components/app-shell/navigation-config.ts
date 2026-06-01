@@ -70,15 +70,22 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           icon: DashboardSquare01Icon,
         },
         {
-          label: "Projects",
-          href: org("projects"),
-          icon: FolderKanbanIcon,
+          label: "Automations",
+          href: org("automations"),
+          icon: Task01Icon,
+          description: "Scheduled and GitHub-triggered deterministic workflows",
+          badge: "Beta",
         },
       ],
     },
     {
       label: "Workspace",
       items: [
+        {
+          label: "Projects",
+          href: org("projects"),
+          icon: FolderKanbanIcon,
+        },
         {
           label: "Knowledge",
           href: org("knowledge"),
@@ -100,12 +107,6 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           label: "Integrations",
           href: org("integrations"),
           icon: LinkSquare02Icon,
-        },
-        {
-          label: "Automations",
-          href: org("automations"),
-          icon: Task01Icon,
-          description: "Scheduled and GitHub-triggered deterministic workflows",
         },
         {
           label: "Team",

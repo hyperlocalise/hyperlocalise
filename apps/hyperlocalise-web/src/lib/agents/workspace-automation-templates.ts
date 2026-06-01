@@ -2,10 +2,10 @@ import type { WorkspaceAutomationFormState } from "./workspace-automation-view-m
 
 export type WorkspaceAutomationTemplateCategory =
   | "popular"
-  | "code-review"
-  | "security"
-  | "incidents"
-  | "data";
+  | "source-content"
+  | "translation-delivery"
+  | "quality"
+  | "release";
 
 export type WorkspaceAutomationTemplate = {
   id: string;
@@ -22,158 +22,160 @@ export const WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES: Array<{
   label: string;
 }> = [
   { id: "popular", label: "Popular" },
-  { id: "code-review", label: "Code Review" },
-  { id: "security", label: "Security" },
-  { id: "incidents", label: "Incidents & Triage" },
-  { id: "data", label: "Data & Research" },
+  { id: "source-content", label: "Source Content" },
+  { id: "translation-delivery", label: "Translation Delivery" },
+  { id: "quality", label: "Quality" },
+  { id: "release", label: "Release Readiness" },
 ];
 
 export const WORKSPACE_AUTOMATION_TEMPLATES: WorkspaceAutomationTemplate[] = [
   {
-    id: "find-critical-bugs",
+    id: "validate-localisation-on-push",
     category: "popular",
-    name: "Find critical bugs",
+    name: "Validate localisation on push",
     description:
-      "Inspect recent commits for high-severity behavioral regressions and open a pull request when a fix is ready.",
+      "Check localisation changes on every push and notify the team when blockers are found.",
     instructions: [
-      "You are a deep bug-finding automation.",
+      "You are a localisation quality automation.",
       "",
-      "Goal: inspect recent commits for critical bugs before they reach production.",
+      "Goal: validate source string and translation changes before they reach production.",
       "",
-      "Investigation strategy:",
-      "- Focus on behavioral changes, data corruption, auth regressions, and race conditions.",
-      "- Ignore style-only diffs and low-risk refactors.",
+      "Review strategy:",
+      "- Check changed source strings for missing context, unstable copy, and accidental key churn.",
+      "- Flag missing translations, broken ICU syntax, mismatched placeholders, and unsafe HTML.",
+      "- Treat locale coverage regressions and release-blocking translation issues as blocking findings.",
+      "- Ignore style-only code changes that do not affect localisation files or user-facing strings.",
     ].join("\n"),
     activatable: true,
     defaultForm: {
-      name: "Find critical bugs",
-      triggerMode: "scheduled",
-      scheduledCadence: "daily",
-      scheduledHourUtc: 22,
-      scheduledTimezone: "UTC",
+      name: "Validate localisation on push",
+      triggerMode: "github",
+      pushBranches: ["main"],
       githubEnabled: true,
       validationEnabled: true,
       slackEnabled: true,
     },
   },
   {
-    id: "summarize-changes-daily",
+    id: "full-localisation-sync",
     category: "popular",
-    name: "Summarize changes daily",
-    description: "Post a concise summary of repository changes to Slack every day.",
-    instructions:
-      "Summarize the most important repository changes from the last day, grouped by risk and user impact. Keep the update concise and actionable.",
+    name: "Full localisation sync",
+    description: "Run a daily source push, translation pull, and validation pass for the project.",
+    instructions: [
+      "Run the full localisation sync loop for this repository.",
+      "",
+      "Expected outcome:",
+      "- Push new or changed source strings to the translation system.",
+      "- Pull completed translations back into the repository.",
+      "- Validate locale coverage, placeholders, ICU syntax, and release-blocking translation issues.",
+      "- Notify the configured channel with a concise summary of completed sync work and blockers.",
+    ].join("\n"),
     activatable: true,
     defaultForm: {
-      name: "Summarize changes daily",
+      name: "Full localisation sync",
       triggerMode: "scheduled",
       scheduledCadence: "daily",
       scheduledHourUtc: 22,
       scheduledTimezone: "UTC",
       githubEnabled: true,
+      pushSourceEnabled: true,
+      pullTranslationsEnabled: true,
       validationEnabled: true,
       slackEnabled: true,
     },
   },
   {
-    id: "add-test-coverage",
-    category: "code-review",
-    name: "Add test coverage",
-    description: "Review recent changes and propose tests for under-covered critical paths.",
-    instructions:
-      "Review recent changes and identify critical paths missing automated tests. Open a pull request only when tests are clearly justified.",
-    activatable: true,
-    defaultForm: {
-      name: "Add test coverage",
-      triggerMode: "scheduled",
-      scheduledCadence: "weekly",
-      scheduledDayOfWeek: 1,
-      scheduledHourUtc: 22,
-      scheduledTimezone: "UTC",
-      githubEnabled: true,
-      validationEnabled: true,
-    },
-  },
-  {
-    id: "assign-pr-reviewers",
-    category: "code-review",
-    name: "Assign PR reviewers",
-    description: "Assign reviewers based on touched areas and auto-approve low-risk pull requests.",
-    instructions:
-      "Review open pull requests, assign reviewers based on code ownership, and auto-approve only low-risk changes.",
-    activatable: false,
-    defaultForm: {
-      name: "Assign PR reviewers",
-      triggerMode: "github",
-      pushBranches: ["main"],
-      instructions:
-        "Review open pull requests, assign reviewers based on code ownership, and auto-approve only low-risk changes.",
-    },
-  },
-  {
-    id: "find-vulnerabilities",
-    category: "security",
-    name: "Find vulnerabilities",
+    id: "push-source-strings",
+    category: "source-content",
+    name: "Push source strings",
     description:
-      "Review pull requests for exploitable security issues and flag only validated findings before merge.",
-    instructions:
-      "Review pull requests for exploitable security issues. Flag only validated findings with clear reproduction steps.",
+      "Send changed source strings to the translation system whenever localisation files change.",
+    instructions: [
+      "Push changed source strings from the repository to the translation system.",
+      "",
+      "Focus on source content hygiene:",
+      "- Include new and updated user-facing strings.",
+      "- Preserve stable translation keys where possible.",
+      "- Highlight source strings that lack product context or contain hard-coded locale assumptions.",
+      "- Avoid changing translated files unless the push workflow requires it.",
+    ].join("\n"),
     activatable: true,
     defaultForm: {
-      name: "Find vulnerabilities",
+      name: "Push source strings",
       triggerMode: "github",
       pushBranches: ["main"],
       githubEnabled: true,
-      validationEnabled: true,
-      slackEnabled: true,
+      pushSourceEnabled: true,
     },
   },
   {
-    id: "scan-codebase-vulnerabilities",
-    category: "security",
-    name: "Scan codebase for vulnerabilities",
-    description:
-      "Run a scheduled security scan across the default branch and report validated findings.",
-    instructions:
-      "Scan the repository for high-confidence security issues. Report only validated findings with remediation guidance.",
+    id: "pull-translations-daily",
+    category: "translation-delivery",
+    name: "Pull translations daily",
+    description: "Bring completed translations back into the repository on a daily schedule.",
+    instructions: [
+      "Pull completed translations from the translation system into the repository.",
+      "",
+      "Delivery criteria:",
+      "- Keep generated translation changes scoped to locale resources.",
+      "- Preserve formatting, placeholders, ICU syntax, and file ordering conventions.",
+      "- Summarize newly completed locales and any languages still below release coverage.",
+      "- Avoid broad rewrites that make translation diffs hard to review.",
+    ].join("\n"),
     activatable: true,
     defaultForm: {
-      name: "Scan codebase for vulnerabilities",
+      name: "Pull translations daily",
       triggerMode: "scheduled",
       scheduledCadence: "daily",
       scheduledHourUtc: 22,
       scheduledTimezone: "UTC",
       githubEnabled: true,
+      pullTranslationsEnabled: true,
+    },
+  },
+  {
+    id: "release-localisation-check",
+    category: "release",
+    name: "Release localisation check",
+    description:
+      "Validate release branches for localisation coverage, placeholder safety, and blocking translation gaps.",
+    instructions: [
+      "Review release-bound localisation changes for blocking issues.",
+      "",
+      "Release criteria:",
+      "- Confirm required locales meet coverage expectations.",
+      "- Flag missing translations in release-critical user journeys.",
+      "- Verify placeholders, ICU syntax, punctuation, and embedded markup remain safe.",
+      "- Notify the team with clear release blockers and non-blocking follow-ups.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Release localisation check",
+      triggerMode: "github",
+      pushBranches: ["main", "release/*"],
+      githubEnabled: true,
       validationEnabled: true,
       slackEnabled: true,
     },
   },
   {
-    id: "fix-slack-bugs",
-    category: "incidents",
-    name: "Fix bugs reported in Slack",
+    id: "weekly-localisation-summary",
+    category: "release",
+    name: "Weekly localisation summary",
     description:
-      "Monitor a Slack channel for bug reports, investigate the codebase, and fix with a pull request.",
-    instructions:
-      "Monitor the configured Slack channel for bug reports, investigate the repository, and open a pull request when a fix is clear.",
-    activatable: false,
-    defaultForm: {
-      name: "Fix bugs reported in Slack",
-      triggerMode: "manual",
-      slackEnabled: true,
-    },
-  },
-  {
-    id: "generate-docs",
-    category: "data",
-    name: "Generate docs",
-    description:
-      "Create and update developer documentation for recently changed or under-documented code.",
-    instructions:
-      "Create or update developer documentation for recently changed or under-documented code. Prefer concise, accurate docs over broad rewrites.",
+      "Post a weekly summary of localisation progress, outstanding gaps, and release risks.",
+    instructions: [
+      "Summarize localisation progress for the week.",
+      "",
+      "Include:",
+      "- Source strings changed and translations pulled.",
+      "- Locales that are complete, in progress, or blocked.",
+      "- Placeholder, ICU, or formatting issues that need attention.",
+      "- Release risks and the next recommended action for each blocker.",
+    ].join("\n"),
     activatable: true,
     defaultForm: {
-      name: "Generate docs",
+      name: "Weekly localisation summary",
       triggerMode: "scheduled",
       scheduledCadence: "weekly",
       scheduledDayOfWeek: 1,
@@ -181,12 +183,418 @@ export const WORKSPACE_AUTOMATION_TEMPLATES: WorkspaceAutomationTemplate[] = [
       scheduledTimezone: "UTC",
       githubEnabled: true,
       pullTranslationsEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "icu-placeholder-audit",
+    category: "quality",
+    name: "ICU and placeholder audit",
+    description: "Flag ICU syntax errors and unsafe placeholders on every push to main.",
+    instructions: [
+      "Audit localisation changes for ICU and placeholder safety.",
+      "",
+      "Focus on:",
+      "- Broken ICU plural/select syntax and invalid message format strings.",
+      "- Placeholder name mismatches between source and translated strings.",
+      "- Unsafe HTML or markup embedded in translated copy.",
+      "- Notify the team only when findings are release-blocking.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "ICU and placeholder audit",
+      triggerMode: "github",
+      pushBranches: ["main"],
+      githubEnabled: true,
+      validationEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "missing-translation-gate",
+    category: "quality",
+    name: "Missing translation gate",
+    description: "Block merges when required locales drop below coverage on protected branches.",
+    instructions: [
+      "Treat missing translations in required locales as release blockers.",
+      "",
+      "Check for:",
+      "- Locale coverage regressions on user-facing keys.",
+      "- New source strings without completed translations in required languages.",
+      "- Stale or empty values in locale resource files.",
+      "- Summarize blockers with locale, file, and key context for fast fixes.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Missing translation gate",
+      triggerMode: "github",
+      pushBranches: ["main", "release/*"],
+      githubEnabled: true,
+      validationEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "locale-coverage-daily",
+    category: "quality",
+    name: "Daily locale coverage check",
+    description: "Run a daily validation pass and post coverage gaps to Slack.",
+    instructions: [
+      "Report daily locale coverage and translation health for the project.",
+      "",
+      "Include:",
+      "- Locales below required coverage thresholds.",
+      "- Keys added in the last day without translations.",
+      "- Non-blocking formatting issues worth fixing before release.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Daily locale coverage check",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      scheduledHourUtc: 8,
+      scheduledTimezone: "UTC",
+      githubEnabled: true,
+      validationEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "push-source-on-feature-branches",
+    category: "source-content",
+    name: "Push source on feature branches",
+    description: "Send updated source strings when feature branches change localisation files.",
+    instructions: [
+      "Push source string changes from feature branches to the translation system.",
+      "",
+      "Prioritize:",
+      "- New user-facing copy introduced on active feature work.",
+      "- Stable keys and clear product context for translators.",
+      "- Skipping translated locale files unless the workflow requires updates.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Push source on feature branches",
+      triggerMode: "github",
+      pushBranches: ["feature/*", "main"],
+      githubEnabled: true,
+      pushSourceEnabled: true,
+    },
+  },
+  {
+    id: "pull-translations-on-merge",
+    category: "translation-delivery",
+    name: "Pull translations on merge",
+    description: "Pull completed translations when changes land on main.",
+    instructions: [
+      "Pull completed translations into the repository after merges to main.",
+      "",
+      "Delivery rules:",
+      "- Limit diffs to locale resource files.",
+      "- Preserve placeholders, ICU syntax, and repository formatting conventions.",
+      "- Summarize locales updated and languages still pending review.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Pull translations on merge",
+      triggerMode: "github",
+      pushBranches: ["main"],
+      githubEnabled: true,
+      pullTranslationsEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "hourly-translation-pull",
+    category: "translation-delivery",
+    name: "Hourly translation pull",
+    description: "Keep the repository in sync with completed translations throughout the day.",
+    instructions: [
+      "Pull newly completed translations from the translation system on an hourly cadence.",
+      "",
+      "Keep updates small and reviewable:",
+      "- Prefer incremental locale file updates over large batch rewrites.",
+      "- Flag conflicts between in-flight repo edits and pulled translations.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Hourly translation pull",
+      triggerMode: "scheduled",
+      scheduledCadence: "hourly",
+      scheduledTimezone: "UTC",
+      githubEnabled: true,
+      pullTranslationsEnabled: true,
+    },
+  },
+  {
+    id: "email-release-digest",
+    category: "translation-delivery",
+    name: "Email release digest",
+    description: "Email a weekly digest of translation delivery status to stakeholders.",
+    instructions: [
+      "Send a weekly email digest of translation delivery progress.",
+      "",
+      "Cover:",
+      "- Locales completed since the last digest.",
+      "- Languages still below release coverage.",
+      "- Pull requests or branches waiting on translations.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Email release digest",
+      triggerMode: "scheduled",
+      scheduledCadence: "weekly",
+      scheduledDayOfWeek: 5,
+      scheduledHourUtc: 16,
+      scheduledTimezone: "UTC",
+      githubEnabled: true,
+      pullTranslationsEnabled: true,
+      emailEnabled: true,
+    },
+  },
+  {
+    id: "pre-release-validation",
+    category: "release",
+    name: "Pre-release validation",
+    description: "Validate release branches every hour during release week.",
+    instructions: [
+      "Run pre-release localisation validation on active release branches.",
+      "",
+      "Escalate:",
+      "- Missing translations in release-critical flows.",
+      "- Placeholder or ICU regressions introduced during stabilization.",
+      "- Locale files that drift from approved source copy.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Pre-release validation",
+      triggerMode: "scheduled",
+      scheduledCadence: "hourly",
+      scheduledTimezone: "UTC",
+      githubEnabled: true,
+      validationEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "notify-on-push-blockers",
+    category: "popular",
+    name: "Notify on push blockers",
+    description: "Validate every push and ping Slack when localisation blockers are found.",
+    instructions: [
+      "Validate localisation changes on push and notify the team about blockers.",
+      "",
+      "Notify when:",
+      "- Required locales lose coverage.",
+      "- Placeholders, ICU syntax, or unsafe markup fail validation.",
+      "- Skip notifications for clean runs unless configured otherwise.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Notify on push blockers",
+      triggerMode: "github",
+      pushBranches: ["main"],
+      githubEnabled: true,
+      validationEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "create-localisation-job-brief",
+    category: "source-content",
+    name: "Create localisation job brief",
+    description:
+      "Generate a translator-ready brief from PRs, tickets, assets, or TMS jobs with context, screenshots, glossary terms, tone, priority, and deadlines.",
+    instructions: [
+      "Create a translator-ready localisation job brief from linked work items.",
+      "",
+      "Include:",
+      "- Product context from PRs, tickets, and linked assets.",
+      "- Screenshots, glossary terms, tone guidance, priority, and deadlines.",
+      "- Open questions or risks that could block translation quality.",
+    ].join("\n"),
+    activatable: false,
+    defaultForm: {
+      name: "Create localisation job brief",
+      triggerMode: "manual",
+      githubEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "add-context-to-tms-strings",
+    category: "source-content",
+    name: "Add context to TMS strings",
+    description:
+      "Attach PRs, tickets, screenshots, Figma frames, and usage notes to new source strings before translation starts.",
+    instructions: [
+      "Enrich new TMS source strings with product and design context before translation starts.",
+      "",
+      "Attach:",
+      "- Linked PRs, tickets, screenshots, and Figma frames.",
+      "- Usage notes, glossary references, and locale-sensitive constraints.",
+      "- Flags when context is missing or likely to cause rework.",
+    ].join("\n"),
+    activatable: false,
+    defaultForm: {
+      name: "Add context to TMS strings",
+      triggerMode: "github",
+      pushBranches: ["main"],
+      githubEnabled: true,
+      pushSourceEnabled: true,
+    },
+  },
+  {
+    id: "review-tms-translations",
+    category: "quality",
+    name: "Review TMS translations",
+    description:
+      "Check pending translations against glossary, placeholders, formatting, brand tone, and market-specific style rules.",
+    instructions: [
+      "Review pending TMS translations before they are approved for delivery.",
+      "",
+      "Check:",
+      "- Glossary adherence, placeholders, ICU syntax, and formatting.",
+      "- Brand tone and market-specific style rules.",
+      "- Non-blocking suggestions versus release-blocking issues.",
+    ].join("\n"),
+    activatable: false,
+    defaultForm: {
+      name: "Review TMS translations",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      scheduledHourUtc: 9,
+      scheduledTimezone: "UTC",
+      githubEnabled: true,
+      validationEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "hyperlocalise-campaign-assets",
+    category: "translation-delivery",
+    name: "Hyperlocalise campaign assets",
+    description:
+      "Adapt campaign copy, CTA, tone, and visual direction for each market, then route approved copy into the TMS.",
+    instructions: [
+      "Hyperlocalise campaign assets for each target market.",
+      "",
+      "Adapt:",
+      "- Campaign copy, CTAs, tone, and visual direction per locale.",
+      "- Market-specific constraints from glossary and brand guidelines.",
+      "- Route approved copy into the TMS for translation and delivery.",
+    ].join("\n"),
+    activatable: false,
+    defaultForm: {
+      name: "Hyperlocalise campaign assets",
+      triggerMode: "manual",
+      githubEnabled: true,
+      pushSourceEnabled: true,
+      slackEnabled: true,
+    },
+  },
+  {
+    id: "publish-approved-translations",
+    category: "translation-delivery",
+    name: "Publish approved translations",
+    description:
+      "Pull reviewed translations from the TMS and deliver them into GitHub, CMS, app store metadata, or release workflows.",
+    instructions: [
+      "Publish approved translations from the TMS into downstream delivery targets.",
+      "",
+      "Deliver to:",
+      "- GitHub locale files, CMS content, app store metadata, or release workflows.",
+      "- Preserve placeholders, ICU syntax, and repository formatting conventions.",
+      "- Summarize locales published and any delivery blockers.",
+    ].join("\n"),
+    activatable: false,
+    defaultForm: {
+      name: "Publish approved translations",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      scheduledHourUtc: 22,
+      scheduledTimezone: "UTC",
+      githubEnabled: true,
+      pullTranslationsEnabled: true,
+      slackEnabled: true,
     },
   },
 ];
 
+export type WorkspaceAutomationTemplateFlowNode = {
+  id: string;
+  label: string;
+};
+
+export type WorkspaceAutomationTemplateFlow = {
+  trigger: WorkspaceAutomationTemplateFlowNode;
+  tools: WorkspaceAutomationTemplateFlowNode[];
+};
+
+function scheduledTriggerLabel(form: Partial<WorkspaceAutomationFormState>) {
+  if (form.scheduledCadence === "hourly") {
+    return "Hourly";
+  }
+
+  if (form.scheduledCadence === "weekly") {
+    return "Weekly";
+  }
+
+  return "Daily";
+}
+
+export function getWorkspaceAutomationTemplateFlow(
+  template: WorkspaceAutomationTemplate,
+): WorkspaceAutomationTemplateFlow {
+  const form = template.defaultForm;
+  const triggerMode = form.triggerMode ?? "manual";
+
+  const trigger: WorkspaceAutomationTemplateFlowNode =
+    triggerMode === "github"
+      ? { id: "github-push", label: "GitHub push" }
+      : triggerMode === "scheduled"
+        ? { id: "scheduled", label: scheduledTriggerLabel(form) }
+        : { id: "manual", label: "Manual" };
+
+  const tools: WorkspaceAutomationTemplateFlowNode[] = [];
+
+  if (form.githubEnabled) {
+    if (form.pushSourceEnabled) {
+      tools.push({ id: "push-source", label: "Push source" });
+    }
+    if (form.pullTranslationsEnabled) {
+      tools.push({ id: "pull-translations", label: "Pull translations" });
+    }
+    if (form.validationEnabled) {
+      tools.push({ id: "validation", label: "Validation" });
+    }
+    if (!form.pushSourceEnabled && !form.pullTranslationsEnabled && !form.validationEnabled) {
+      tools.push({ id: "github", label: "GitHub" });
+    }
+  }
+
+  if (form.slackEnabled) {
+    tools.push({ id: "slack", label: "Slack" });
+  }
+
+  if (form.emailEnabled) {
+    tools.push({ id: "email", label: "Email" });
+  }
+
+  return { trigger, tools };
+}
+
 export function getWorkspaceAutomationTemplate(templateId: string) {
   return WORKSPACE_AUTOMATION_TEMPLATES.find((template) => template.id === templateId) ?? null;
+}
+
+export function getWorkspaceAutomationTemplateCategoryLabel(
+  category: WorkspaceAutomationTemplateCategory,
+) {
+  return (
+    WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.find((entry) => entry.id === category)?.label ??
+    category
+  );
 }
 
 export function listWorkspaceAutomationTemplates(category?: WorkspaceAutomationTemplateCategory) {
