@@ -489,6 +489,12 @@ describe("handleNewConversation", () => {
     expect(createConversationToolLoopAgentMock).toHaveBeenCalled();
     expect(agentGenerateMock).toHaveBeenCalled();
     expect(posts).toEqual([SLACK_PROCESSING_ACK_POST, { markdown: "AI response" }]);
+    expect(addInteractionMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        senderType: "agent",
+        text: "On it — I'll reply here shortly.",
+      }),
+    );
   });
 
   it("skips GitHub context discovery for ordinary chat without attachments", async () => {

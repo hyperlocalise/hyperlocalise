@@ -39,7 +39,7 @@ export function resolvePreferredSubagentOrder(
     return order;
   }
 
-  return listAvailableSubagentTypes(runtime);
+  return [];
 }
 
 export function resolveSubagentTypeForMode(

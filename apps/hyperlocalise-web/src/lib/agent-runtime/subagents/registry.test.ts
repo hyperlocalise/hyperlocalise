@@ -53,6 +53,19 @@ describe("subagent registry", () => {
     expect(resolveSubagentTypeForMode(runtime)).toBe("repository");
   });
 
+  it("returns no preferred subagents for general intent even when agents are available", () => {
+    const runtime = createRuntime({
+      hasFileAttachments: true,
+      toolContext: {
+        ...createRuntime().toolContext,
+        sandboxId: "sbx_1",
+      },
+    });
+    expect(listAvailableSubagentTypes(runtime)).toEqual(["translation", "repository"]);
+    expect(resolvePreferredSubagentOrder(runtime)).toEqual([]);
+    expect(resolveSubagentTypeForMode(runtime)).toBeNull();
+  });
+
   it("orders repository before translation when both intents are active", () => {
     const runtime = createRuntime({
       suggestedIntents: ["translation", "repository"],

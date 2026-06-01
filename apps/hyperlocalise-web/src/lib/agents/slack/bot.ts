@@ -21,7 +21,10 @@ import {
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { type RepositoryAgentGitHubContext } from "@/lib/agents/repository-agent-task";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
-import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
+import {
+  postThreadMessageWithoutTracking,
+  wrapThreadPostForInteraction,
+} from "@/lib/agent-runtime/runs/agent-run-events";
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger, serializeErrorForLog } from "@/lib/log";
@@ -143,9 +146,10 @@ type ProcessSlackMessageOptions = {
   isNewInteraction?: boolean;
 };
 
-async function postSlackProcessingAck(thread: Thread<SlackBotState>, interactionId: string) {
-  wrapThreadPost(thread, interactionId);
-  await thread.post({ markdown: SLACK_PROCESSING_ACK_MESSAGE });
+async function postSlackProcessingAck(thread: Thread<SlackBotState>) {
+  await postThreadMessageWithoutTracking(thread, {
+    markdown: SLACK_PROCESSING_ACK_MESSAGE,
+  });
 }
 
 async function processSlackMessage(
@@ -277,7 +281,7 @@ async function processSlackMessage(
       hasTranslationAttachments;
 
     if (shouldPostProcessingAck) {
-      await postSlackProcessingAck(thread, interactionId);
+      await postSlackProcessingAck(thread);
     }
 
     const loadedMessages = await loadInteractionModelMessages(interactionId);
@@ -421,7 +425,6 @@ async function processSlackMessage(
       if (resolvedRepositoryContext) {
         log.info(
           {
-            repositoryFullName: resolvedRepositoryContext.repositoryFullName,
             installationId: resolvedRepositoryContext.installationId,
             branch: resolvedRepositoryContext.branch ?? null,
             commitSha: resolvedRepositoryContext.commitSha ?? null,
