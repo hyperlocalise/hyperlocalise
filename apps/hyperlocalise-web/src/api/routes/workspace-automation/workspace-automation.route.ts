@@ -12,6 +12,7 @@ import {
   listWorkspaceAutomationRuns,
   listWorkspaceAutomations,
   updateWorkspaceAutomation,
+  validateWorkspaceAutomationIntegrations,
   type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
@@ -249,6 +250,14 @@ export function createWorkspaceAutomationRoutes() {
         return mapReferenceError(c, referenceError);
       }
 
+      const integrationValidation = await validateWorkspaceAutomationIntegrations({
+        organizationId,
+        toolConfig: payload.toolConfig,
+      });
+      if (isErr(integrationValidation)) {
+        return mapAutomationConfigValidationError(c, integrationValidation.error);
+      }
+
       try {
         const result = await createWorkspaceAutomation({
           organizationId,
@@ -310,6 +319,14 @@ export function createWorkspaceAutomationRoutes() {
       });
       if (referenceError !== "ok") {
         return mapReferenceError(c, referenceError);
+      }
+
+      const integrationValidation = await validateWorkspaceAutomationIntegrations({
+        organizationId,
+        toolConfig: payload.toolConfig ?? existing.toolConfig,
+      });
+      if (isErr(integrationValidation)) {
+        return mapAutomationConfigValidationError(c, integrationValidation.error);
       }
 
       try {

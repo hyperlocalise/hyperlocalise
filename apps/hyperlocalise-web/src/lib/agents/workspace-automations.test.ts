@@ -197,6 +197,14 @@ describe("workspace automations", () => {
           kind: "github",
           githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
         },
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 12,
+            timezone: "UTC",
+          },
+        },
         toolConfig: {
           github: {
             enabled: true,

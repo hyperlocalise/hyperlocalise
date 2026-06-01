@@ -80,6 +80,19 @@ export async function handleGithubPushWebhook(
     commitAfter,
   });
 
+  const { dispatchWorkspaceAutomationsForGithubPush } =
+    await import("../workspace-automation-dispatcher");
+  await dispatchWorkspaceAutomationsForGithubPush({
+    deliveryId: input.deliveryId,
+    organizationId: input.organizationId,
+    githubInstallationId: input.githubInstallationId,
+    githubInstallationRepositoryId: input.githubInstallationRepositoryId,
+    githubRepositoryId: input.githubRepositoryId,
+    branch,
+    commitBefore,
+    commitAfter,
+  });
+
   if (dispatchResult.outcome === "skipped") {
     return {
       ignored: false,
