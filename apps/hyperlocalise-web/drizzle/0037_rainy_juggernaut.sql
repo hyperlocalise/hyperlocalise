@@ -42,7 +42,7 @@ ALTER TABLE "workspace_automations" ADD CONSTRAINT "workspace_automations_author
 ALTER TABLE "workspace_automations" ADD CONSTRAINT "workspace_automations_github_installation_repository_id_github_installation_repositories_id_fk" FOREIGN KEY ("github_installation_repository_id") REFERENCES "public"."github_installation_repositories"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "idx_workspace_automation_runs_automation_created" ON "workspace_automation_runs" USING btree ("automation_id","created_at");--> statement-breakpoint
 CREATE INDEX "idx_workspace_automation_runs_org_status" ON "workspace_automation_runs" USING btree ("organization_id","status");--> statement-breakpoint
-CREATE INDEX "idx_workspace_automation_runs_github_job" ON "workspace_automation_runs" USING btree ("github_repository_automation_job_id");--> statement-breakpoint
+CREATE UNIQUE INDEX "idx_workspace_automation_runs_github_job" ON "workspace_automation_runs" USING btree ("github_repository_automation_job_id") WHERE "workspace_automation_runs"."github_repository_automation_job_id" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "idx_workspace_automations_org_status" ON "workspace_automations" USING btree ("organization_id","status");--> statement-breakpoint
 CREATE INDEX "idx_workspace_automations_org_next_run" ON "workspace_automations" USING btree ("organization_id","next_run_at");--> statement-breakpoint
 CREATE INDEX "idx_workspace_automations_github_repo" ON "workspace_automations" USING btree ("github_installation_repository_id");

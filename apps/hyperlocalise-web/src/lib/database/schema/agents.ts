@@ -113,7 +113,9 @@ export const workspaceAutomationRuns = pgTable(
       table.createdAt,
     ),
     index("idx_workspace_automation_runs_org_status").on(table.organizationId, table.status),
-    index("idx_workspace_automation_runs_github_job").on(table.githubRepositoryAutomationJobId),
+    uniqueIndex("idx_workspace_automation_runs_github_job")
+      .on(table.githubRepositoryAutomationJobId)
+      .where(sql`${table.githubRepositoryAutomationJobId} IS NOT NULL`),
   ],
 );
 

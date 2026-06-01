@@ -288,6 +288,17 @@ export async function pauseWorkspaceAutomation(input: {
   automationId: string;
   organizationId: string;
 }): Promise<WorkspaceAutomationRecord | null> {
+  const existing = await getWorkspaceAutomationById({
+    automationId: input.automationId,
+    organizationId: input.organizationId,
+  });
+  if (!existing) {
+    return null;
+  }
+  if (existing.status === "archived") {
+    return existing;
+  }
+
   return updateWorkspaceAutomation({
     automationId: input.automationId,
     organizationId: input.organizationId,
@@ -350,6 +361,14 @@ export async function createWorkspaceAutomationRun(input: {
   startedAt?: Date | null;
   completedAt?: Date | null;
 }): Promise<WorkspaceAutomationRunRecord> {
+  const automation = await getWorkspaceAutomationById({
+    automationId: input.automationId,
+    organizationId: input.organizationId,
+  });
+  if (!automation) {
+    throw new Error("workspace_automation_not_found");
+  }
+
   const [row] = await db
     .insert(schema.workspaceAutomationRuns)
     .values({

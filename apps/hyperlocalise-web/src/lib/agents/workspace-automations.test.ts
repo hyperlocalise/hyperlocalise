@@ -217,6 +217,26 @@ describe("workspace automations", () => {
     expect(paused?.nextRunAt).toBeNull();
   });
 
+  it("does not pause archived automations", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const archived = await createWorkspaceAutomation({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      status: "archived",
+      name: "Archived automation",
+      instructions: "Do not run this automation.",
+      nextRunAt: new Date("2026-06-01T12:00:00.000Z"),
+    });
+
+    const paused = await pauseWorkspaceAutomation({
+      automationId: archived.id,
+      organizationId: scope.organizationId,
+    });
+
+    expect(paused?.status).toBe("archived");
+    expect(paused?.nextRunAt).toBe("2026-06-01T12:00:00.000Z");
+  });
+
   it("paginates workspace automation lists with offset", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const automations = await Promise.all(
@@ -308,6 +328,61 @@ describe("workspace automations", () => {
       organizationId: scope.organizationId,
     });
     expect(listedRun?.id).toBe(run.id);
+  });
+
+  it("rejects run creation when automation belongs to another organization", async () => {
+    const ownerScope = await seedWorkspaceAutomationScope();
+    const callerScope = await seedWorkspaceAutomationScope();
+    const automation = await createWorkspaceAutomation({
+      organizationId: ownerScope.organizationId,
+      authorUserId: ownerScope.userId,
+      name: "Owner automation",
+      instructions: "Run only for the owning organization.",
+    });
+
+    await expect(
+      createWorkspaceAutomationRun({
+        automationId: automation.id,
+        organizationId: callerScope.organizationId,
+        triggerSource: "manual",
+      }),
+    ).rejects.toThrow("workspace_automation_not_found");
+  });
+
+  it("rejects duplicate GitHub job links across automation runs", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = await createWorkspaceAutomation({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Repository automation",
+      instructions: "Run repository automation.",
+    });
+    const { job } = await claimGithubRepositoryAutomationJob({
+      idempotencyKey: `workspace-automation:${crypto.randomUUID()}`,
+      organizationId: scope.organizationId,
+      githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+      githubInstallationId: scope.githubInstallationId,
+      githubRepositoryId: scope.githubRepositoryId,
+      configVersion: 1,
+      triggerMode: "scheduled",
+      scheduledRunAt: new Date("2026-06-01T12:00:00.000Z"),
+    });
+
+    await createWorkspaceAutomationRun({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+      triggerSource: "scheduled",
+      githubRepositoryAutomationJobId: job.id,
+    });
+
+    await expect(
+      createWorkspaceAutomationRun({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        triggerSource: "scheduled",
+        githubRepositoryAutomationJobId: job.id,
+      }),
+    ).rejects.toThrow();
   });
 
   it("paginates workspace automation runs with offset", async () => {

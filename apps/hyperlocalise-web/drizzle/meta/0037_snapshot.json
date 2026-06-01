@@ -1,5 +1,5 @@
 {
-  "id": "b8f00e47-0d94-497a-a3e7-39ec7c747827",
+  "id": "d197ecd0-6631-40ce-859e-a9a1fc7ad1e8",
   "prevId": "cfcd08fa-8211-421d-b5d8-812daccb5de1",
   "version": "7",
   "dialect": "postgresql",
@@ -8448,7 +8448,8 @@
               "nulls": "last"
             }
           ],
-          "isUnique": false,
+          "isUnique": true,
+          "where": "\"workspace_automation_runs\".\"github_repository_automation_job_id\" IS NOT NULL",
           "concurrently": false,
           "method": "btree",
           "with": {}
