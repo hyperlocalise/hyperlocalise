@@ -228,11 +228,11 @@ function parseMemoryImport(payload: ImportMemoryEntriesBody): CreateMemoryEntryB
     const [source, target] = variants;
     const sourceText = source[2]
       ?.match(/<seg\b[^>]*>([\s\S]*?)<\/seg>/i)?.[1]
-      ?.replace(/<[^>]*>/g, "")
+      ?.replace(/[<>]/g, "")
       .trim();
     const targetText = target[2]
       ?.match(/<seg\b[^>]*>([\s\S]*?)<\/seg>/i)?.[1]
-      ?.replace(/<[^>]*>/g, "")
+      ?.replace(/[<>]/g, "")
       .trim();
 
     return source[1] && target[1] && sourceText && targetText
