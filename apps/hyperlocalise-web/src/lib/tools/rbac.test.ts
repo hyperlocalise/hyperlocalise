@@ -16,6 +16,11 @@ vi.mock("@/lib/billing/usage-control", () => ({
   },
 }));
 
+vi.mock("@/lib/file-storage/records", () => ({
+  ensureRepositorySourceFileVersionForStoredFile: vi.fn(),
+  getStoredFileForJobScope: vi.fn(),
+}));
+
 vi.mock("@/lib/database", () => ({
   db: {
     transaction: vi.fn(),
@@ -52,6 +57,8 @@ vi.mock("@/lib/agent-runtime/tools/tool-access", () => ({
 }));
 
 import { createTranslationJobTool } from "@/lib/agent-runtime/tools/translation-tools";
+import { getStoredFileForJobScope } from "@/lib/file-storage/records";
+import { toolCanAccessStoredFileProject } from "@/lib/agent-runtime/tools/tool-access";
 import {
   createCreateGlossaryTool,
   createUpdateGlossaryTool,
@@ -145,6 +152,34 @@ describe("Agent Tools RBAC", () => {
       });
       // It fails later because of enqueuing/db, but we check that it didn't fail at the RBAC check
       expect(result.error).not.toContain("permission");
+    });
+
+    it("denies file translation jobs for inaccessible workspace source files", async () => {
+      vi.mocked(getStoredFileForJobScope).mockResolvedValueOnce({
+        id: "file_private",
+        organizationId: "org_123",
+        projectId: null,
+        createdByUserId: "user_other",
+        filename: "private.json",
+      } as any);
+      vi.mocked(toolCanAccessStoredFileProject).mockResolvedValueOnce(false);
+
+      const tool = createTranslationJobTool(mockCtx("admin"));
+      const result = await executeTool(tool, {
+        type: "file",
+        sourceFileId: "file_private",
+        fileFormat: "json",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      });
+
+      expect(toolCanAccessStoredFileProject).toHaveBeenCalledWith(
+        expect.objectContaining({ localUserId: "user_123" }),
+        null,
+        "user_other",
+      );
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Source file was not found");
     });
   });
 

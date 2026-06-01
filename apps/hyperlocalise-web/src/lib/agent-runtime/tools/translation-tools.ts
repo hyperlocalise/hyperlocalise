@@ -28,6 +28,7 @@ import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
   toolAccessibleJobsWhere,
+  toolCanAccessStoredFileProject,
   toolCanAccessProject,
 } from "@/lib/agent-runtime/tools/tool-access";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
@@ -400,6 +401,15 @@ async function prepareTranslationJobInput(
     });
 
     if (!sourceFile) {
+      return err({
+        code: "translation_job_source_file_missing",
+        message: "Source file was not found for this organization or project.",
+      });
+    }
+
+    if (
+      !(await toolCanAccessStoredFileProject(ctx, sourceFile.projectId, sourceFile.createdByUserId))
+    ) {
       return err({
         code: "translation_job_source_file_missing",
         message: "Source file was not found for this organization or project.",
