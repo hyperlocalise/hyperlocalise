@@ -38,11 +38,12 @@ USAGE:
       const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
       try {
-        const response = await fetch(url, {
+        const { providerSafeFetch } = await import("@/lib/providers/provider-safe-fetch");
+        const response = await providerSafeFetch(url, {
           method,
           redirect: "error",
           signal: controller.signal,
-        });
+        } as RequestInit);
 
         if (response.status >= 300 && response.status < 400) {
           return {

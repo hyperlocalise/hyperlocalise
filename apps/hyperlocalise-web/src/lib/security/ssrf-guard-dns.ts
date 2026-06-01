@@ -1,5 +1,3 @@
-import dns from "node:dns/promises";
-
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
@@ -42,6 +40,7 @@ export async function resolvePinnedHttpConnectTarget(
     });
   }
 
+  const dns = await import("node:dns/promises");
   const lookupResult = await fromThrowableAsync(
     dns.lookup(hostname, { all: true, verbatim: true }),
   );
@@ -87,6 +86,7 @@ export async function resolveResolvablePublicHost(
     return ok(undefined);
   }
 
+  const dns = await import("node:dns/promises");
   const lookupResult = await fromThrowableAsync(
     dns.lookup(normalized, { all: true, verbatim: true }),
   );

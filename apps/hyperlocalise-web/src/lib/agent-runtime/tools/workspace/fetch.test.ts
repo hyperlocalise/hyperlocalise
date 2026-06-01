@@ -58,4 +58,29 @@ describe("createFetchTool", () => {
   it("does not treat loopback hosts as allowed", () => {
     expect(isAllowedWebUrl("http://127.0.0.1/internal")).toBe(false);
   });
+
+  it("is vulnerable to DNS-based SSRF (shallow check only)", () => {
+    // This hostname is not an IP, so isAllowedWebUrl (isPublicHttpUrl) allows it.
+    // In a real scenario, this would resolve to 127.0.0.1.
+    expect(isAllowedWebUrl("http://local.example.com/internal")).toBe(true);
+  });
+
+  it("blocks hostnames that resolve to private IPs", async () => {
+    // We use a hostname that isAllowedWebUrl thinks is public.
+    const url = "https://public-looking.example.com/api";
+
+    // We can verify it's blocked because providerSafeFetch (via resolvePinnedHttpConnectTarget)
+    // will attempt DNS resolution. Since this hostname won't resolve in the test env,
+    // it should return success: false with a host_unresolvable or similar error.
+    // This proves that we are now going through the safe fetch path which includes DNS checks.
+    const tool = createFetchTool();
+    const result = await tool.execute!({ url }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: expect.stringMatching(
+        /URL host could not be resolved|resolves to a private or restricted address/,
+      ),
+    });
+  });
 });

@@ -47,3 +47,8 @@
 **Vulnerability:** Glossary and translation memory CSV exports were vulnerable to formula injection. If a translation string started with characters like '=', '+', '-', or '@', spreadsheet applications could execute them as formulas.
 **Learning:** Even though the application uses a local-first CLI and trusted TMS providers, the exported data is ultimately user-controlled and can be opened in insecure environments like Excel.
 **Prevention:** Use a centralized helper like `csvsafe.EscapeRow` to sanitize all CSV exports. This ensures consistent protection across all storage adapters.
+
+## 2026-06-15 - [High] DNS-Based SSRF in AI Agent Fetch Tool
+**Vulnerability:** The AI agent's `fetch` tool relied on a shallow hostname-based SSRF check (`isPublicHttpUrl`) which did not perform DNS resolution. This allowed bypassing the check using hostnames that resolve to private or restricted IP addresses (e.g., DNS rebinding or `127.0.0.1.nip.io`).
+**Learning:** Hostname-based security checks are insufficient for SSRF protection because they can be subverted at the DNS level. True SSRF protection requires resolving the hostname to an IP address and validating that address before making the connection.
+**Prevention:** Use a security-hardened fetch utility like `providerSafeFetch` that enforces DNS-level validation and IP blocklisting for all external requests triggered by user-supplied or AI-generated input.
