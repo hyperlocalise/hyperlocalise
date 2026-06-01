@@ -169,7 +169,7 @@ describe("workspace automations", () => {
     ).rejects.toThrow("github_project_required");
   });
 
-  it("updates, versions, and pauses automations", async () => {
+  it("only versions config-changing automation updates", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const automation = await createWorkspaceAutomation({
       organizationId: scope.organizationId,
@@ -198,16 +198,57 @@ describe("workspace automations", () => {
       name: "Updated repository automation",
       nextRunAt: new Date("2026-06-02T12:00:00.000Z"),
     });
+    const configUpdated = await updateWorkspaceAutomation({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+      instructions: "Run repository automation with updated guidance.",
+    });
     const paused = await pauseWorkspaceAutomation({
       automationId: automation.id,
       organizationId: scope.organizationId,
     });
 
-    expect(updated?.configVersion).toBe(2);
+    expect(updated?.configVersion).toBe(1);
     expect(updated?.name).toBe("Updated repository automation");
+    expect(configUpdated?.configVersion).toBe(2);
+    expect(configUpdated?.instructions).toBe("Run repository automation with updated guidance.");
     expect(paused?.status).toBe("paused");
-    expect(paused?.configVersion).toBe(3);
+    expect(paused?.configVersion).toBe(2);
     expect(paused?.nextRunAt).toBeNull();
+  });
+
+  it("paginates workspace automation lists with offset", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automations = await Promise.all(
+      [1, 2, 3].map((index) =>
+        createWorkspaceAutomation({
+          organizationId: scope.organizationId,
+          authorUserId: scope.userId,
+          name: `Automation ${index}`,
+          instructions: `Run automation ${index}.`,
+        }),
+      ),
+    );
+
+    for (const [index, automation] of automations.entries()) {
+      await db
+        .update(schema.workspaceAutomations)
+        .set({ createdAt: new Date(`2026-06-0${index + 1}T12:00:00.000Z`) })
+        .where(eq(schema.workspaceAutomations.id, automation.id));
+    }
+
+    const firstPage = await listWorkspaceAutomations({
+      organizationId: scope.organizationId,
+      limit: 2,
+    });
+    const secondPage = await listWorkspaceAutomations({
+      organizationId: scope.organizationId,
+      limit: 2,
+      offset: 2,
+    });
+
+    expect(firstPage.map((item) => item.name)).toEqual(["Automation 3", "Automation 2"]);
+    expect(secondPage.map((item) => item.name)).toEqual(["Automation 1"]);
   });
 
   it("creates and serializes run history with optional GitHub job links", async () => {
@@ -267,5 +308,47 @@ describe("workspace automations", () => {
       organizationId: scope.organizationId,
     });
     expect(listedRun?.id).toBe(run.id);
+  });
+
+  it("paginates workspace automation runs with offset", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = await createWorkspaceAutomation({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Repository automation",
+      instructions: "Run repository automation.",
+    });
+    const runs = await Promise.all(
+      [1, 2, 3].map((index) =>
+        createWorkspaceAutomationRun({
+          automationId: automation.id,
+          organizationId: scope.organizationId,
+          triggerSource: "manual",
+          inputSnapshot: { index },
+        }),
+      ),
+    );
+
+    for (const [index, run] of runs.entries()) {
+      await db
+        .update(schema.workspaceAutomationRuns)
+        .set({ createdAt: new Date(`2026-06-0${index + 1}T12:00:00.000Z`) })
+        .where(eq(schema.workspaceAutomationRuns.id, run.id));
+    }
+
+    const firstPage = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+      limit: 2,
+    });
+    const secondPage = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+      limit: 2,
+      offset: 2,
+    });
+
+    expect(firstPage.map((item) => item.inputSnapshot)).toEqual([{ index: 3 }, { index: 2 }]);
+    expect(secondPage.map((item) => item.inputSnapshot)).toEqual([{ index: 1 }]);
   });
 });

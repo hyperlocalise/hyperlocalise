@@ -235,6 +235,11 @@ export async function updateWorkspaceAutomation(input: {
     return null;
   }
 
+  const configChanged =
+    input.instructions !== undefined ||
+    input.triggerConfig !== undefined ||
+    input.repositoryTarget !== undefined ||
+    input.toolConfig !== undefined;
   const config = workspaceAutomationConfigSchema.parse({
     triggerConfig: input.triggerConfig ?? existing.triggerConfig,
     repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
@@ -242,29 +247,38 @@ export async function updateWorkspaceAutomation(input: {
   });
   validateWorkspaceAutomationConfig(config);
 
+  const updateConditions = [
+    eq(schema.workspaceAutomations.id, input.automationId),
+    eq(schema.workspaceAutomations.organizationId, input.organizationId),
+  ];
+  if (configChanged) {
+    updateConditions.push(eq(schema.workspaceAutomations.configVersion, existing.configVersion));
+  }
+
   const [row] = await db
     .update(schema.workspaceAutomations)
     .set({
       ...(input.status !== undefined ? { status: input.status } : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.instructions !== undefined ? { instructions: input.instructions } : {}),
-      triggerConfig: config.triggerConfig,
-      githubInstallationRepositoryId:
-        config.repositoryTarget.kind === "github"
-          ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
-          : null,
-      repositoryTarget: config.repositoryTarget,
-      toolConfig: config.toolConfig,
+      ...(input.triggerConfig !== undefined ? { triggerConfig: config.triggerConfig } : {}),
+      ...(input.repositoryTarget !== undefined
+        ? {
+            githubInstallationRepositoryId:
+              config.repositoryTarget.kind === "github"
+                ? (config.repositoryTarget.githubInstallationRepositoryId ?? null)
+                : null,
+            repositoryTarget: config.repositoryTarget,
+          }
+        : {}),
+      ...(input.toolConfig !== undefined ? { toolConfig: config.toolConfig } : {}),
       ...(input.nextRunAt !== undefined ? { nextRunAt: input.nextRunAt } : {}),
-      configVersion: sql`${schema.workspaceAutomations.configVersion} + 1`,
+      ...(configChanged
+        ? { configVersion: sql`${schema.workspaceAutomations.configVersion} + 1` }
+        : {}),
       updatedAt: new Date(),
     })
-    .where(
-      and(
-        eq(schema.workspaceAutomations.id, input.automationId),
-        eq(schema.workspaceAutomations.organizationId, input.organizationId),
-      ),
-    )
+    .where(and(...updateConditions))
     .returning();
 
   return row ? serializeAutomation(row) : null;
@@ -304,6 +318,7 @@ export async function listWorkspaceAutomations(input: {
   organizationId: string;
   status?: WorkspaceAutomationStatus;
   limit?: number;
+  offset?: number;
 }): Promise<WorkspaceAutomationRecord[]> {
   const rows = await db
     .select()
@@ -317,7 +332,8 @@ export async function listWorkspaceAutomations(input: {
         : eq(schema.workspaceAutomations.organizationId, input.organizationId),
     )
     .orderBy(desc(schema.workspaceAutomations.createdAt))
-    .limit(input.limit ?? 50);
+    .limit(input.limit ?? 50)
+    .offset(input.offset ?? 0);
 
   return rows.map(serializeAutomation);
 }
@@ -395,6 +411,7 @@ export async function listWorkspaceAutomationRuns(input: {
   automationId: string;
   organizationId: string;
   limit?: number;
+  offset?: number;
 }): Promise<WorkspaceAutomationRunRecord[]> {
   const rows = await db
     .select()
@@ -406,7 +423,8 @@ export async function listWorkspaceAutomationRuns(input: {
       ),
     )
     .orderBy(desc(schema.workspaceAutomationRuns.createdAt))
-    .limit(input.limit ?? 50);
+    .limit(input.limit ?? 50)
+    .offset(input.offset ?? 0);
 
   return rows.map(serializeAutomationRun);
 }
