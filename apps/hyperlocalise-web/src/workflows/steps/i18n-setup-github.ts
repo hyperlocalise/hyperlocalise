@@ -1,7 +1,9 @@
 import { Sandbox } from "@vercel/sandbox";
 
+import { canPushToGitHubRepository } from "@/lib/agents/repository-write-gate";
 import type { I18nSetupMode } from "@/lib/agents/i18n-setup/merge-i18n-config";
 import type { I18nSetupRequestedEventData } from "@/lib/agents/i18n-setup/i18n-setup-task";
+import { runSandboxCommand } from "@/workflows/steps/sandbox-utils";
 
 type InstallationAuth = {
   token: string;
@@ -10,24 +12,6 @@ type InstallationAuth = {
 async function getInstallationOctokitForStep(installationId: number) {
   const { getInstallationOctokit } = await import("@/lib/agents/github/app");
   return getInstallationOctokit(installationId);
-}
-
-async function runSandboxCommand(
-  sandboxId: string,
-  command: string,
-  args: string[],
-  options?: { env?: Record<string, string> },
-): Promise<{ exitCode: number; output: string }> {
-  const sandbox = await Sandbox.get({ name: sandboxId });
-  const result = await sandbox.runCommand({
-    cmd: command,
-    args,
-    env: options?.env,
-  });
-  return {
-    exitCode: result.exitCode,
-    output: await result.output("both"),
-  };
 }
 
 export async function createI18nSetupSandboxStep(input: {
@@ -95,13 +79,15 @@ export async function commitPushAndCreateI18nSetupPullRequestStep(input: {
   "use step";
 
   const octokit = await getInstallationOctokitForStep(input.event.installationId);
-  const { data: repository } = await octokit.rest.repos.get({
-    owner: input.event.repositoryOwner,
-    repo: input.event.repositoryName,
+  const repositoryPush = await canPushToGitHubRepository({
+    installationId: input.event.installationId,
+    repositoryFullName: input.event.repositoryFullName,
   });
-
-  if (repository.permissions?.push !== true) {
-    throw new Error("The GitHub App installation does not have push access to this repository.");
+  if (!repositoryPush.canPush) {
+    throw new Error(
+      repositoryPush.reason ??
+        "The GitHub App installation does not have push access to this repository.",
+    );
   }
 
   const commitMessageByMode: Record<I18nSetupMode, string> = {

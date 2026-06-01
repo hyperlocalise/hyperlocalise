@@ -40,6 +40,7 @@ import {
   createI18nSetupSandboxStep,
   prepareI18nSetupSandboxStep,
 } from "@/workflows/steps/i18n-setup-github";
+import { runSandboxCommand } from "@/workflows/steps/sandbox-utils";
 import { eq } from "drizzle-orm";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
@@ -86,24 +87,6 @@ async function stopSetupSandbox(sandboxId: string): Promise<void> {
 
   const sandbox = await Sandbox.get({ name: sandboxId });
   await sandbox.stop();
-}
-
-async function runSandboxCommand(
-  sandboxId: string,
-  command: string,
-  args: string[],
-  options?: { env?: Record<string, string> },
-): Promise<{ exitCode: number; output: string }> {
-  const sandbox = await Sandbox.get({ name: sandboxId });
-  const result = await sandbox.runCommand({
-    cmd: command,
-    args,
-    env: options?.env,
-  });
-  return {
-    exitCode: result.exitCode,
-    output: await result.output("both"),
-  };
 }
 
 async function resolveExistingConfig(sandboxId: string): Promise<ExistingConfigState> {
