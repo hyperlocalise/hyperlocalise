@@ -6,10 +6,6 @@ import type {
   RepositoryAgentTask,
 } from "@/lib/agents/repository-agent-task";
 import {
-  createRepositorySandbox as createRepositorySandboxImpl,
-  stopRepositorySandbox as stopRepositorySandboxImpl,
-} from "@/lib/agent-runtime/workspaces/repository-sandbox";
-import {
   buildHyperlocaliseAgentInstructions,
   getHyperlocaliseAgentModel,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
@@ -41,12 +37,16 @@ async function createRepositorySandboxStep(
   githubContext: ResolvedRepositoryGitHubContext,
 ): Promise<string> {
   "use step";
-  return createRepositorySandboxImpl(githubContext);
+  const { createRepositorySandbox } =
+    await import("@/lib/agent-runtime/workspaces/repository-sandbox");
+  return createRepositorySandbox(githubContext);
 }
 
 async function stopRepositorySandboxStep(sandboxId: string): Promise<void> {
   "use step";
-  return stopRepositorySandboxImpl(sandboxId);
+  const { stopRepositorySandbox } =
+    await import("@/lib/agent-runtime/workspaces/repository-sandbox");
+  return stopRepositorySandbox(sandboxId);
 }
 
 export async function repositoryAgentWorkflow(

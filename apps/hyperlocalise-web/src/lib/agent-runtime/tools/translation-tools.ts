@@ -18,7 +18,7 @@ import {
   inferSupportedFileTranslationFileFormat,
   supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
-import { createTranslationJobEventQueue } from "@/workflows/adapters";
+import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 import {
   formatUsageControlError,
   reserveUsageEvent,
