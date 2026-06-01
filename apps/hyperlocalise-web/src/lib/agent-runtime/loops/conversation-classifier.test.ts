@@ -25,20 +25,14 @@ import {
   normalizeConversationIntents,
   shouldAttemptRepositoryContextResolution,
   shouldRequireRepositoryContextClarification,
+  type ConversationClassification,
 } from "./conversation-classifier";
 
 function repositoryClassification(
-  overrides: Partial<{
-    intents: Array<"translation" | "repository" | "general">;
-    needsRepositoryTools: boolean;
-    continuesRepositoryThread: boolean;
-    currentMessageSpecifiesRepository: boolean;
-    shouldAskForRepositoryClarification: boolean;
-    requiresPullRequest: boolean;
-  }> = {},
-) {
+  overrides: Partial<ConversationClassification> = {},
+): ConversationClassification {
   return {
-    intents: ["repository"] as const,
+    intents: ["repository"],
     needsRepositoryTools: true,
     requiresPullRequest: false,
     shouldAskForRepositoryClarification: false,
