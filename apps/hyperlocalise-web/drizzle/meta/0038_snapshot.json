@@ -1,5 +1,5 @@
 {
-  "id": "2339026e-3a4f-4409-b5cb-a179324e716d",
+  "id": "4efaf162-2b0a-49ce-922d-aa3fd68e4c1d",
   "prevId": "d197ecd0-6631-40ce-859e-a9a1fc7ad1e8",
   "version": "7",
   "dialect": "postgresql",
@@ -8447,6 +8447,12 @@
         "idx_workspace_automation_runs_idempotency_key": {
           "name": "idx_workspace_automation_runs_idempotency_key",
           "columns": [
+            {
+              "expression": "organization_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
             {
               "expression": "idempotency_key",
               "isExpression": false,

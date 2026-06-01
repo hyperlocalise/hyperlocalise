@@ -115,7 +115,7 @@ export const workspaceAutomationRuns = pgTable(
     ),
     index("idx_workspace_automation_runs_org_status").on(table.organizationId, table.status),
     uniqueIndex("idx_workspace_automation_runs_idempotency_key")
-      .on(table.idempotencyKey)
+      .on(table.organizationId, table.idempotencyKey)
       .where(sql`${table.idempotencyKey} IS NOT NULL`),
     uniqueIndex("idx_workspace_automation_runs_github_job")
       .on(table.githubRepositoryAutomationJobId)

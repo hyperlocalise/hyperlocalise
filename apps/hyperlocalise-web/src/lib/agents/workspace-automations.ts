@@ -2,6 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, schema } from "@/lib/database";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
 export const workspaceAutomationRunStatusSchema = z.enum([
@@ -66,6 +67,13 @@ export type WorkspaceAutomationTriggerConfig = z.infer<typeof triggerConfigSchem
 export type WorkspaceAutomationRepositoryTarget = z.infer<typeof repositoryTargetSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
 
+export type WorkspaceAutomationConfigValidationError =
+  | {
+      code: "github_repository_target_required";
+      message: "Enabled GitHub tools require a GitHub repository target.";
+    }
+  | { code: "github_project_required"; message: "Enabled GitHub tools require a project." };
+
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
 type AutomationRunRow = typeof schema.workspaceAutomationRuns.$inferSelect;
 
@@ -119,22 +127,30 @@ function normalizeToolConfig(value: Record<string, unknown>): WorkspaceAutomatio
 function validateWorkspaceAutomationConfig(input: {
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
   toolConfig: WorkspaceAutomationToolConfig;
-}): void {
+}): Result<void, WorkspaceAutomationConfigValidationError> {
   const githubTools = input.toolConfig.github;
   if (!githubTools?.enabled) {
-    return;
+    return ok(undefined);
   }
 
   if (
     input.repositoryTarget.kind !== "github" ||
     !input.repositoryTarget.githubInstallationRepositoryId
   ) {
-    throw new Error("github_repository_target_required");
+    return err({
+      code: "github_repository_target_required",
+      message: "Enabled GitHub tools require a GitHub repository target.",
+    });
   }
 
   if (!githubTools.projectId) {
-    throw new Error("github_project_required");
+    return err({
+      code: "github_project_required",
+      message: "Enabled GitHub tools require a project.",
+    });
   }
+
+  return ok(undefined);
 }
 
 function serializeAutomation(row: AutomationRow): WorkspaceAutomationRecord {
@@ -184,13 +200,16 @@ export async function createWorkspaceAutomation(input: {
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
   nextRunAt?: Date | null;
-}): Promise<WorkspaceAutomationRecord> {
+}): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> {
   const config = workspaceAutomationConfigSchema.parse({
     triggerConfig: input.triggerConfig ?? {},
     repositoryTarget: input.repositoryTarget ?? {},
     toolConfig: input.toolConfig ?? {},
   });
-  validateWorkspaceAutomationConfig(config);
+  const validation = validateWorkspaceAutomationConfig(config);
+  if (isErr(validation)) {
+    return err(validation.error);
+  }
 
   const [row] = await db
     .insert(schema.workspaceAutomations)
@@ -215,7 +234,7 @@ export async function createWorkspaceAutomation(input: {
     throw new Error("failed_to_create_workspace_automation");
   }
 
-  return serializeAutomation(row);
+  return ok(serializeAutomation(row));
 }
 
 export async function updateWorkspaceAutomation(input: {
@@ -228,13 +247,13 @@ export async function updateWorkspaceAutomation(input: {
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
   nextRunAt?: Date | null;
-}): Promise<WorkspaceAutomationRecord | null> {
+}): Promise<Result<WorkspaceAutomationRecord | null, WorkspaceAutomationConfigValidationError>> {
   const existing = await getWorkspaceAutomationById({
     automationId: input.automationId,
     organizationId: input.organizationId,
   });
   if (!existing) {
-    return null;
+    return ok(null);
   }
 
   const configChanged =
@@ -247,7 +266,10 @@ export async function updateWorkspaceAutomation(input: {
     repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
     toolConfig: input.toolConfig ?? existing.toolConfig,
   });
-  validateWorkspaceAutomationConfig(config);
+  const validation = validateWorkspaceAutomationConfig(config);
+  if (isErr(validation)) {
+    return err(validation.error);
+  }
 
   const updateConditions = [
     eq(schema.workspaceAutomations.id, input.automationId),
@@ -283,22 +305,22 @@ export async function updateWorkspaceAutomation(input: {
     .where(and(...updateConditions))
     .returning();
 
-  return row ? serializeAutomation(row) : null;
+  return ok(row ? serializeAutomation(row) : null);
 }
 
 export async function pauseWorkspaceAutomation(input: {
   automationId: string;
   organizationId: string;
-}): Promise<WorkspaceAutomationRecord | null> {
+}): Promise<Result<WorkspaceAutomationRecord | null, WorkspaceAutomationConfigValidationError>> {
   const existing = await getWorkspaceAutomationById({
     automationId: input.automationId,
     organizationId: input.organizationId,
   });
   if (!existing) {
-    return null;
+    return ok(null);
   }
   if (existing.status === "archived") {
-    return existing;
+    return ok(existing);
   }
 
   return updateWorkspaceAutomation({
@@ -398,7 +420,10 @@ export async function createWorkspaceAutomationRun(input: {
       completedAt: input.completedAt ?? null,
     })
     .onConflictDoNothing({
-      target: schema.workspaceAutomationRuns.idempotencyKey,
+      target: [
+        schema.workspaceAutomationRuns.organizationId,
+        schema.workspaceAutomationRuns.idempotencyKey,
+      ],
       where: sql`${schema.workspaceAutomationRuns.idempotencyKey} IS NOT NULL`,
     })
     .returning();

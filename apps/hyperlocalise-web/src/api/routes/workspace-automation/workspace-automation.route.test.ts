@@ -137,10 +137,8 @@ describe("workspace automation routes", () => {
       { param: { organizationSlug, automationId: createdBody.automation.id } },
       { headers },
     );
-    expect(deletedResponse.status).toBe(200);
-    await expect(deletedResponse.json()).resolves.toMatchObject({
-      automation: { id: createdBody.automation.id, status: "archived", nextRunAt: null },
-    });
+    expect(deletedResponse.status).toBe(204);
+    await expect(deletedResponse.text()).resolves.toBe("");
   });
 
   it("denies automation management for non-operators", async () => {
@@ -190,6 +188,40 @@ describe("workspace automation routes", () => {
     expect(missingResponse.status).toBe(404);
     await expect(missingResponse.json()).resolves.toMatchObject({
       error: "workspace_automation_not_found",
+    });
+  });
+
+  it("returns stable errors for invalid automation list query params", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const listResponse = await client.api.orgs[":organizationSlug"].automations.$get(
+      {
+        param: { organizationSlug },
+        query: { status: "invalid_value", limit: "50", offset: "0" },
+      },
+      { headers },
+    );
+
+    expect(listResponse.status).toBe(400);
+    await expect(listResponse.json()).resolves.toMatchObject({
+      error: "invalid_query_params",
+    });
+
+    const runsResponse = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].runs.$get(
+      {
+        param: { organizationSlug, automationId: crypto.randomUUID() },
+        query: { limit: "invalid", offset: "0" },
+      },
+      { headers },
+    );
+
+    expect(runsResponse.status).toBe(400);
+    await expect(runsResponse.json()).resolves.toMatchObject({
+      error: "invalid_query_params",
     });
   });
 

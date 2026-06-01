@@ -1,2 +1,0 @@
-ALTER TABLE "workspace_automation_runs" ADD COLUMN "idempotency_key" text;--> statement-breakpoint
-CREATE UNIQUE INDEX "idx_workspace_automation_runs_idempotency_key" ON "workspace_automation_runs" USING btree ("idempotency_key") WHERE "workspace_automation_runs"."idempotency_key" IS NOT NULL;

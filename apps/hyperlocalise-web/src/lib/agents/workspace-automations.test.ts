@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
+import { type Result } from "@/lib/primitives/result/results";
 
 import { claimGithubRepositoryAutomationJob } from "./github/github-repository-automation-jobs";
 import {
@@ -17,6 +18,13 @@ import {
 } from "./workspace-automations";
 
 const organizationIds: string[] = [];
+
+function expectOk<T, E>(result: Result<T, E>): T {
+  if (!result.ok) {
+    throw new Error("expected ok result");
+  }
+  return result.value;
+}
 
 async function seedWorkspaceAutomationScope() {
   const organizationId = crypto.randomUUID();
@@ -103,13 +111,15 @@ describe("workspace automations", () => {
     const scope = await seedWorkspaceAutomationScope();
     const nextRunAt = new Date("2026-06-01T12:00:00.000Z");
 
-    const automation = await createWorkspaceAutomation({
+    const automation = expectOk(
+      await createWorkspaceAutomation({
       organizationId: scope.organizationId,
       authorUserId: scope.userId,
       name: "Refresh repository translations",
       instructions: "Pull the latest source strings and prepare translation updates.",
       nextRunAt,
-    });
+      }),
+    );
 
     expect(automation).toMatchObject({
       organizationId: scope.organizationId,
@@ -130,52 +140,31 @@ describe("workspace automations", () => {
   it("rejects enabled GitHub tools without project and repository config", async () => {
     const scope = await seedWorkspaceAutomationScope();
 
-    await expect(
-      createWorkspaceAutomation({
-        organizationId: scope.organizationId,
-        authorUserId: scope.userId,
-        name: "Broken GitHub automation",
-        instructions: "Run GitHub automation.",
-        toolConfig: {
-          github: {
-            enabled: true,
-            pushSource: true,
-            pullTranslations: false,
-            validation: false,
-          },
-        },
-      }),
-    ).rejects.toThrow("github_repository_target_required");
-
-    await expect(
-      createWorkspaceAutomation({
-        organizationId: scope.organizationId,
-        authorUserId: scope.userId,
-        name: "Broken GitHub automation",
-        instructions: "Run GitHub automation.",
-        repositoryTarget: {
-          kind: "github",
-          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
-        },
-        toolConfig: {
-          github: {
-            enabled: true,
-            pushSource: true,
-            pullTranslations: false,
-            validation: false,
-          },
-        },
-      }),
-    ).rejects.toThrow("github_project_required");
-  });
-
-  it("only versions config-changing automation updates", async () => {
-    const scope = await seedWorkspaceAutomationScope();
-    const automation = await createWorkspaceAutomation({
+    const missingRepositoryTarget = await createWorkspaceAutomation({
       organizationId: scope.organizationId,
       authorUserId: scope.userId,
-      name: "Repository automation",
-      instructions: "Run repository automation.",
+      name: "Broken GitHub automation",
+      instructions: "Run GitHub automation.",
+      toolConfig: {
+        github: {
+          enabled: true,
+          pushSource: true,
+          pullTranslations: false,
+          validation: false,
+        },
+      },
+    });
+    expect(missingRepositoryTarget.ok).toBe(false);
+    if (missingRepositoryTarget.ok) {
+      throw new Error("expected validation error");
+    }
+    expect(missingRepositoryTarget.error.code).toBe("github_repository_target_required");
+
+    const missingProject = await createWorkspaceAutomation({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Broken GitHub automation",
+      instructions: "Run GitHub automation.",
       repositoryTarget: {
         kind: "github",
         githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
@@ -183,30 +172,65 @@ describe("workspace automations", () => {
       toolConfig: {
         github: {
           enabled: true,
-          projectId: scope.projectId,
           pushSource: true,
           pullTranslations: false,
-          validation: true,
+          validation: false,
         },
       },
-      nextRunAt: new Date("2026-06-01T12:00:00.000Z"),
     });
+    expect(missingProject.ok).toBe(false);
+    if (missingProject.ok) {
+      throw new Error("expected validation error");
+    }
+    expect(missingProject.error.code).toBe("github_project_required");
+  });
 
-    const updated = await updateWorkspaceAutomation({
-      automationId: automation.id,
-      organizationId: scope.organizationId,
-      name: "Updated repository automation",
-      nextRunAt: new Date("2026-06-02T12:00:00.000Z"),
-    });
-    const configUpdated = await updateWorkspaceAutomation({
-      automationId: automation.id,
-      organizationId: scope.organizationId,
-      instructions: "Run repository automation with updated guidance.",
-    });
-    const paused = await pauseWorkspaceAutomation({
-      automationId: automation.id,
-      organizationId: scope.organizationId,
-    });
+  it("only versions config-changing automation updates", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Repository automation",
+        instructions: "Run repository automation.",
+        repositoryTarget: {
+          kind: "github",
+          githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+        },
+        toolConfig: {
+          github: {
+            enabled: true,
+            projectId: scope.projectId,
+            pushSource: true,
+            pullTranslations: false,
+            validation: true,
+          },
+        },
+        nextRunAt: new Date("2026-06-01T12:00:00.000Z"),
+      }),
+    );
+
+    const updated = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        name: "Updated repository automation",
+        nextRunAt: new Date("2026-06-02T12:00:00.000Z"),
+      }),
+    );
+    const configUpdated = expectOk(
+      await updateWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+        instructions: "Run repository automation with updated guidance.",
+      }),
+    );
+    const paused = expectOk(
+      await pauseWorkspaceAutomation({
+        automationId: automation.id,
+        organizationId: scope.organizationId,
+      }),
+    );
 
     expect(updated?.configVersion).toBe(1);
     expect(updated?.name).toBe("Updated repository automation");
@@ -219,19 +243,23 @@ describe("workspace automations", () => {
 
   it("does not pause archived automations", async () => {
     const scope = await seedWorkspaceAutomationScope();
-    const archived = await createWorkspaceAutomation({
-      organizationId: scope.organizationId,
-      authorUserId: scope.userId,
-      status: "archived",
-      name: "Archived automation",
-      instructions: "Do not run this automation.",
-      nextRunAt: new Date("2026-06-01T12:00:00.000Z"),
-    });
+    const archived = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        status: "archived",
+        name: "Archived automation",
+        instructions: "Do not run this automation.",
+        nextRunAt: new Date("2026-06-01T12:00:00.000Z"),
+      }),
+    );
 
-    const paused = await pauseWorkspaceAutomation({
-      automationId: archived.id,
-      organizationId: scope.organizationId,
-    });
+    const paused = expectOk(
+      await pauseWorkspaceAutomation({
+        automationId: archived.id,
+        organizationId: scope.organizationId,
+      }),
+    );
 
     expect(paused?.status).toBe("archived");
     expect(paused?.nextRunAt).toBe("2026-06-01T12:00:00.000Z");
@@ -239,16 +267,18 @@ describe("workspace automations", () => {
 
   it("paginates workspace automation lists with offset", async () => {
     const scope = await seedWorkspaceAutomationScope();
-    const automations = await Promise.all(
-      [1, 2, 3].map((index) =>
-        createWorkspaceAutomation({
-          organizationId: scope.organizationId,
-          authorUserId: scope.userId,
-          name: `Automation ${index}`,
-          instructions: `Run automation ${index}.`,
-        }),
-      ),
-    );
+    const automations = (
+      await Promise.all(
+        [1, 2, 3].map((index) =>
+          createWorkspaceAutomation({
+            organizationId: scope.organizationId,
+            authorUserId: scope.userId,
+            name: `Automation ${index}`,
+            instructions: `Run automation ${index}.`,
+          }),
+        ),
+      )
+    ).map(expectOk);
 
     for (const [index, automation] of automations.entries()) {
       await db
@@ -273,12 +303,14 @@ describe("workspace automations", () => {
 
   it("creates and serializes run history with optional GitHub job links", async () => {
     const scope = await seedWorkspaceAutomationScope();
-    const automation = await createWorkspaceAutomation({
-      organizationId: scope.organizationId,
-      authorUserId: scope.userId,
-      name: "Repository automation",
-      instructions: "Run repository automation.",
-    });
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Repository automation",
+        instructions: "Run repository automation.",
+      }),
+    );
     const { job } = await claimGithubRepositoryAutomationJob({
       idempotencyKey: `workspace-automation:${crypto.randomUUID()}`,
       organizationId: scope.organizationId,
@@ -333,12 +365,14 @@ describe("workspace automations", () => {
   it("rejects run creation when automation belongs to another organization", async () => {
     const ownerScope = await seedWorkspaceAutomationScope();
     const callerScope = await seedWorkspaceAutomationScope();
-    const automation = await createWorkspaceAutomation({
-      organizationId: ownerScope.organizationId,
-      authorUserId: ownerScope.userId,
-      name: "Owner automation",
-      instructions: "Run only for the owning organization.",
-    });
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: ownerScope.organizationId,
+        authorUserId: ownerScope.userId,
+        name: "Owner automation",
+        instructions: "Run only for the owning organization.",
+      }),
+    );
 
     await expect(
       createWorkspaceAutomationRun({
@@ -351,12 +385,14 @@ describe("workspace automations", () => {
 
   it("rejects duplicate GitHub job links across automation runs", async () => {
     const scope = await seedWorkspaceAutomationScope();
-    const automation = await createWorkspaceAutomation({
-      organizationId: scope.organizationId,
-      authorUserId: scope.userId,
-      name: "Repository automation",
-      instructions: "Run repository automation.",
-    });
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Repository automation",
+        instructions: "Run repository automation.",
+      }),
+    );
     const { job } = await claimGithubRepositoryAutomationJob({
       idempotencyKey: `workspace-automation:${crypto.randomUUID()}`,
       organizationId: scope.organizationId,
@@ -387,12 +423,14 @@ describe("workspace automations", () => {
 
   it("paginates workspace automation runs with offset", async () => {
     const scope = await seedWorkspaceAutomationScope();
-    const automation = await createWorkspaceAutomation({
-      organizationId: scope.organizationId,
-      authorUserId: scope.userId,
-      name: "Repository automation",
-      instructions: "Run repository automation.",
-    });
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Repository automation",
+        instructions: "Run repository automation.",
+      }),
+    );
     const runs = await Promise.all(
       [1, 2, 3].map((index) =>
         createWorkspaceAutomationRun({

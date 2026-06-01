@@ -12,10 +12,12 @@ import {
   listWorkspaceAutomationRuns,
   listWorkspaceAutomations,
   updateWorkspaceAutomation,
+  type WorkspaceAutomationConfigValidationError,
   type WorkspaceAutomationRepositoryTarget,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automations";
 import { db, schema } from "@/lib/database";
+import { isErr } from "@/lib/primitives/result/results";
 
 import {
   createWorkspaceAutomationBodySchema,
@@ -26,9 +28,17 @@ import {
   workspaceAutomationIdParamSchema,
 } from "./workspace-automation.schema";
 
-const validateListQuery = validator("query", (value) => {
+const validateListQuery = validator("query", (value, c) => {
   const parsed = listWorkspaceAutomationsQuerySchema.safeParse(value);
-  return parsed.success ? parsed.data : { limit: 50, offset: 0 };
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_query_params",
+      "Query parameters are invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
 });
 
 const validateAutomationParams = validator("param", (value, c) => {
@@ -65,9 +75,17 @@ const validateUpdateBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateRunsQuery = validator("query", (value) => {
+const validateRunsQuery = validator("query", (value, c) => {
   const parsed = listWorkspaceAutomationRunsQuerySchema.safeParse(value);
-  return parsed.success ? parsed.data : { limit: 25, offset: 0 };
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_query_params",
+      "Query parameters are invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
 });
 
 const validateRunBody = validator("json", (value, c) => {
@@ -164,26 +182,19 @@ function parseNextRunAt(value: string | null | undefined) {
 
 function mapAutomationError(c: Parameters<typeof badRequestResponse>[0], error: unknown) {
   if (error instanceof Error) {
-    if (error.message === "github_repository_target_required") {
-      return badRequestResponse(
-        c,
-        "github_repository_target_required",
-        "Enabled GitHub tools require a GitHub repository target.",
-      );
-    }
-    if (error.message === "github_project_required") {
-      return badRequestResponse(
-        c,
-        "github_project_required",
-        "Enabled GitHub tools require a project.",
-      );
-    }
     if (error.message === "workspace_automation_not_found") {
       return notFoundResponse(c, "workspace_automation_not_found");
     }
   }
 
   throw error;
+}
+
+function mapAutomationConfigValidationError(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: WorkspaceAutomationConfigValidationError,
+) {
+  return badRequestResponse(c, error.code, error.message);
 }
 
 function mapReferenceError(
@@ -239,7 +250,7 @@ export function createWorkspaceAutomationRoutes() {
       }
 
       try {
-        const automation = await createWorkspaceAutomation({
+        const result = await createWorkspaceAutomation({
           organizationId,
           authorUserId: c.var.auth.user.localUserId,
           status: payload.status,
@@ -250,8 +261,11 @@ export function createWorkspaceAutomationRoutes() {
           toolConfig: payload.toolConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
         });
+        if (isErr(result)) {
+          return mapAutomationConfigValidationError(c, result.error);
+        }
 
-        return c.json({ automation, recentRuns: [] }, 201);
+        return c.json({ automation: result.value, recentRuns: [] }, 201);
       } catch (error) {
         return mapAutomationError(c, error);
       }
@@ -299,7 +313,7 @@ export function createWorkspaceAutomationRoutes() {
       }
 
       try {
-        const automation = await updateWorkspaceAutomation({
+        const result = await updateWorkspaceAutomation({
           automationId: params.automationId,
           organizationId,
           status: payload.status,
@@ -310,18 +324,21 @@ export function createWorkspaceAutomationRoutes() {
           toolConfig: payload.toolConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
         });
+        if (isErr(result)) {
+          return mapAutomationConfigValidationError(c, result.error);
+        }
 
-        if (!automation) {
+        if (!result.value) {
           return notFoundResponse(c, "workspace_automation_not_found");
         }
 
         const recentRuns = await listWorkspaceAutomationRuns({
-          automationId: automation.id,
+          automationId: result.value.id,
           organizationId,
           limit: 10,
         });
 
-        return c.json({ automation, recentRuns }, 200);
+        return c.json({ automation: result.value, recentRuns }, 200);
       } catch (error) {
         return mapAutomationError(c, error);
       }
@@ -329,18 +346,22 @@ export function createWorkspaceAutomationRoutes() {
     .delete("/:automationId", validateAutomationParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;
-      const automation = await updateWorkspaceAutomation({
+      const result = await updateWorkspaceAutomation({
         automationId: params.automationId,
         organizationId,
         status: "archived",
         nextRunAt: null,
       });
 
-      if (!automation) {
+      if (isErr(result)) {
+        return mapAutomationConfigValidationError(c, result.error);
+      }
+
+      if (!result.value) {
         return notFoundResponse(c, "workspace_automation_not_found");
       }
 
-      return c.json({ automation }, 200);
+      return c.body(null, 204);
     })
     .get("/:automationId/runs", validateAutomationParams, validateRunsQuery, async (c) => {
       const params = c.req.valid("param");
