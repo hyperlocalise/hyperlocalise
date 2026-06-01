@@ -17,3 +17,7 @@
 ## 2026-05-25 - [TooltipTrigger Structural Consistency]
 **Learning:** In `apps/hyperlocalise-web`, several components were found to have children (icons, accessible text) placed outside the component passed to the `render` prop of `TooltipTrigger`. This pattern can lead to empty interactive elements or broken event delegation. Consistently nesting all content within the rendered component ensures that accessibility properties (like ARIA labels or screen-reader text) are correctly associated with the interactive trigger.
 **Action:** When using `<TooltipTrigger render={<Component ... />} >`, always place the component's children inside `<Component>` rather than as children of `TooltipTrigger`.
+
+## 2026-06-01 - [Dynamic Sidebar Labels & Structural Consistency]
+**Learning:** In `apps/hyperlocalise-web`, toggle controls like `SidebarTrigger` should use dynamic ARIA labels and tooltips (e.g., 'Expand Sidebar' / 'Collapse Sidebar') to reflect the interface state. Additionally, when using `@base-ui/react` primitives with a `render` prop, nesting children inside the rendered component is necessary for correct accessibility prop forwarding and event delegation.
+**Action:** Always synchronize toggle labels with state and ensure children of `render` prop components are nested within those components.

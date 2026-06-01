@@ -17,7 +17,7 @@ describe("SidebarTrigger Accessibility", () => {
     // Check that the button is present
     expect(markup).toContain("<button");
     // Check that the icon and sr-only text are present
-    expect(markup).toContain("Toggle Sidebar");
+    expect(markup).toMatch(/Collapse Sidebar|Expand Sidebar/);
 
     // The key part: verify no nested buttons and that the content is inside the button
     const buttonCount = (markup.match(/<button/g) || []).length;
