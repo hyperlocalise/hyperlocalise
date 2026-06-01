@@ -12,11 +12,7 @@ export const workspaceAutomationRunStatusSchema = z.enum([
   "cancelled",
   "skipped",
 ]);
-export const workspaceAutomationRunTriggerSourceSchema = z.enum([
-  "manual",
-  "scheduled",
-  "github",
-]);
+export const workspaceAutomationRunTriggerSourceSchema = z.enum(["manual", "scheduled", "github"]);
 
 const triggerConfigSchema = z
   .object({

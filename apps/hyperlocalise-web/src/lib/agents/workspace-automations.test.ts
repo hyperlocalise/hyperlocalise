@@ -136,7 +136,14 @@ describe("workspace automations", () => {
         authorUserId: scope.userId,
         name: "Broken GitHub automation",
         instructions: "Run GitHub automation.",
-        toolConfig: { github: { enabled: true, pushSource: true } },
+        toolConfig: {
+          github: {
+            enabled: true,
+            pushSource: true,
+            pullTranslations: false,
+            validation: false,
+          },
+        },
       }),
     ).rejects.toThrow("github_repository_target_required");
 
@@ -150,7 +157,14 @@ describe("workspace automations", () => {
           kind: "github",
           githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
         },
-        toolConfig: { github: { enabled: true, pushSource: true } },
+        toolConfig: {
+          github: {
+            enabled: true,
+            pushSource: true,
+            pullTranslations: false,
+            validation: false,
+          },
+        },
       }),
     ).rejects.toThrow("github_project_required");
   });

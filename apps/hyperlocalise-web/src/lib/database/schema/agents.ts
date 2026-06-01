@@ -21,10 +21,7 @@ import {
   workspaceAutomationRunTriggerSourceEnum,
   workspaceAutomationStatusEnum,
 } from "./enums";
-import {
-  githubInstallationRepositories,
-  githubRepositoryAutomationJobs,
-} from "./github";
+import { githubInstallationRepositories, githubRepositoryAutomationJobs } from "./github";
 import { organizations, users } from "./organizations";
 import { projects } from "./projects";
 import { jobs } from "./jobs";
