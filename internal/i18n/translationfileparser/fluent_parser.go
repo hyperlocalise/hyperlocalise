@@ -414,6 +414,13 @@ func fluentCommentText(trimmed string) string {
 func formatFluentComments(comments []string) string {
 	// BOLT OPTIMIZATION: Use strings.Builder to avoid intermediate slice and Join.
 	var b strings.Builder
+	// BOLT OPTIMIZATION: Pre-calculate total length to avoid re-allocations.
+	totalLen := 0
+	for _, c := range comments {
+		totalLen += len(c) + 1
+	}
+	b.Grow(totalLen)
+
 	first := true
 	for _, comment := range comments {
 		clean := strings.TrimSpace(comment)
