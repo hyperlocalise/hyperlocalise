@@ -1,13 +1,29 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import type { I18nSetupMode } from "@/lib/agents/i18n-setup/merge-i18n-config";
 import type { I18nSetupRequestedEventData } from "@/lib/agents/i18n-setup/i18n-setup-task";
 
-const { canPushToGitHubRepositoryMock, getInstallationOctokitMock, runSandboxCommandMock } =
-  vi.hoisted(() => ({
-    canPushToGitHubRepositoryMock: vi.fn(),
-    getInstallationOctokitMock: vi.fn(),
-    runSandboxCommandMock: vi.fn(),
-  }));
+const {
+  authMock,
+  canPushToGitHubRepositoryMock,
+  getInstallationOctokitMock,
+  pullsCreateMock,
+  runSandboxCommandMock,
+  sandboxCreateMock,
+} = vi.hoisted(() => ({
+  authMock: vi.fn(),
+  canPushToGitHubRepositoryMock: vi.fn(),
+  getInstallationOctokitMock: vi.fn(),
+  pullsCreateMock: vi.fn(),
+  runSandboxCommandMock: vi.fn(),
+  sandboxCreateMock: vi.fn(),
+}));
+
+vi.mock("@vercel/sandbox", () => ({
+  Sandbox: {
+    create: sandboxCreateMock,
+  },
+}));
 
 vi.mock("@/lib/agents/github/app", () => ({
   getInstallationOctokit: getInstallationOctokitMock,
@@ -21,7 +37,11 @@ vi.mock("@/workflows/steps/sandbox-utils", () => ({
   runSandboxCommand: runSandboxCommandMock,
 }));
 
-import { commitPushAndCreateI18nSetupPullRequestStep } from "@/workflows/steps/i18n-setup-github";
+import {
+  commitPushAndCreateI18nSetupPullRequestStep,
+  createI18nSetupSandboxStep,
+  prepareI18nSetupSandboxStep,
+} from "@/workflows/steps/i18n-setup-github";
 
 const event: I18nSetupRequestedEventData = {
   runId: "00000000-0000-4000-8000-000000000001",
@@ -35,19 +55,176 @@ const event: I18nSetupRequestedEventData = {
   baseBranch: "main",
 };
 
-describe("commitPushAndCreateI18nSetupPullRequestStep", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-    getInstallationOctokitMock.mockResolvedValue({
-      rest: {
-        pulls: {
-          create: vi.fn(),
-        },
-      },
-    });
-    canPushToGitHubRepositoryMock.mockResolvedValue({ canPush: true });
-    runSandboxCommandMock.mockResolvedValue({ exitCode: 0, output: "" });
+beforeEach(() => {
+  vi.clearAllMocks();
+  authMock.mockResolvedValue({ token: "installation_token" });
+  pullsCreateMock.mockResolvedValue({
+    data: {
+      html_url: "https://github.com/acme/app/pull/7",
+      number: 7,
+    },
   });
+  getInstallationOctokitMock.mockResolvedValue({
+    auth: authMock,
+    rest: {
+      pulls: {
+        create: pullsCreateMock,
+      },
+    },
+  });
+  canPushToGitHubRepositoryMock.mockResolvedValue({ canPush: true });
+  runSandboxCommandMock.mockResolvedValue({ exitCode: 0, output: "" });
+  sandboxCreateMock.mockResolvedValue({ name: "sandbox_created" });
+});
+
+describe("createI18nSetupSandboxStep", () => {
+  it("clones the requested repository revision with an installation token", async () => {
+    await expect(
+      createI18nSetupSandboxStep({
+        event,
+        timeoutMs: 600_000,
+      }),
+    ).resolves.toEqual({ sandboxId: "sandbox_created" });
+
+    expect(getInstallationOctokitMock).toHaveBeenCalledWith(123);
+    expect(authMock).toHaveBeenCalledWith({ type: "installation" });
+    expect(sandboxCreateMock).toHaveBeenCalledWith({
+      source: {
+        depth: 1,
+        password: "installation_token",
+        revision: "main",
+        type: "git",
+        url: "https://github.com/acme/app.git",
+        username: "x-access-token",
+      },
+      timeout: 600_000,
+    });
+  });
+});
+
+describe("prepareI18nSetupSandboxStep", () => {
+  it("configures git identity, credentials, and the authenticated remote", async () => {
+    await prepareI18nSetupSandboxStep({
+      event,
+      sandboxId: "sandbox_123",
+    });
+
+    expect(runSandboxCommandMock.mock.calls).toEqual([
+      ["sandbox_123", "git", ["config", "user.name", "hyperlocalise[bot]"], undefined],
+      [
+        "sandbox_123",
+        "git",
+        ["config", "user.email", "hyperlocalise[bot]@users.noreply.github.com"],
+        undefined,
+      ],
+      ["sandbox_123", "git", ["config", "credential.helper", "store"], undefined],
+      [
+        "sandbox_123",
+        "bash",
+        [
+          "-lc",
+          `printf '%s\\n' "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials`,
+        ],
+        { env: { GITHUB_TOKEN: "installation_token" } },
+      ],
+      [
+        "sandbox_123",
+        "git",
+        ["remote", "set-url", "origin", "https://github.com/acme/app.git"],
+        undefined,
+      ],
+    ]);
+  });
+
+  it("stops setup when a sandbox command fails", async () => {
+    runSandboxCommandMock.mockResolvedValueOnce({
+      exitCode: 128,
+      output: "config failed",
+    });
+
+    await expect(
+      prepareI18nSetupSandboxStep({
+        event,
+        sandboxId: "sandbox_123",
+      }),
+    ).rejects.toThrow("sandbox setup failed: config failed");
+
+    expect(runSandboxCommandMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("commitPushAndCreateI18nSetupPullRequestStep", () => {
+  it.each([
+    {
+      bodyIntro:
+        "This pull request adds an `i18n.yml` generated by the Hyperlocalise i18n setup wizard.",
+      commitMessage: "chore(i18n): add Hyperlocalise i18n.yml",
+      mode: "create",
+      removeJsonc: false,
+    },
+    {
+      bodyIntro: "This pull request updates `i18n.yml` with newly discovered locale files.",
+      commitMessage: "chore(i18n): update Hyperlocalise i18n.yml",
+      mode: "update",
+      removeJsonc: false,
+    },
+    {
+      bodyIntro:
+        "This pull request migrates `i18n.jsonc` to `i18n.yml` and removes the legacy JSONC config.",
+      commitMessage: "chore(i18n): migrate i18n.jsonc to i18n.yml",
+      mode: "convert",
+      removeJsonc: true,
+    },
+  ] satisfies Array<{
+    bodyIntro: string;
+    commitMessage: string;
+    mode: I18nSetupMode;
+    removeJsonc: boolean;
+  }>)(
+    "pushes sandbox changes and creates a $mode pull request",
+    async ({ bodyIntro, commitMessage, mode, removeJsonc }) => {
+      await expect(
+        commitPushAndCreateI18nSetupPullRequestStep({
+          event,
+          sandboxId: "sandbox_123",
+          branchName: "hyperlocalise/i18n-setup-123",
+          summary: "Detected en and fr locale files.",
+          mode,
+          removeJsonc,
+        }),
+      ).resolves.toEqual({
+        pullRequestNumber: 7,
+        pullRequestUrl: "https://github.com/acme/app/pull/7",
+      });
+
+      const expectedCommands = [
+        ["sandbox_123", "git", ["checkout", "-b", "hyperlocalise/i18n-setup-123"]],
+        ...(removeJsonc
+          ? [["sandbox_123", "git", ["rm", "-f", "i18n.jsonc"]]]
+          : []),
+        ["sandbox_123", "git", ["add", "i18n.yml"]],
+        ["sandbox_123", "git", ["commit", "-m", commitMessage]],
+        ["sandbox_123", "git", ["push", "-u", "origin", "hyperlocalise/i18n-setup-123"]],
+      ];
+      expect(runSandboxCommandMock.mock.calls).toEqual(expectedCommands);
+      expect(pullsCreateMock).toHaveBeenCalledWith({
+        owner: "acme",
+        repo: "app",
+        title: commitMessage,
+        head: "hyperlocalise/i18n-setup-123",
+        base: "main",
+        body: [
+          "## Hyperlocalise i18n setup",
+          "",
+          bodyIntro,
+          "",
+          "Please review locale mappings and LLM provider settings before merging.",
+          "",
+          "Agent summary:\n\nDetected en and fr locale files.",
+        ].join("\n"),
+      });
+    },
+  );
 
   it("throws the controlled write-gate reason when GitHub permission verification fails", async () => {
     canPushToGitHubRepositoryMock.mockResolvedValue({
@@ -71,5 +248,52 @@ describe("commitPushAndCreateI18nSetupPullRequestStep", () => {
       repositoryFullName: "acme/app",
     });
     expect(runSandboxCommandMock).not.toHaveBeenCalled();
+  });
+
+  it("throws the default write-gate reason when GitHub permission verification has no detail", async () => {
+    canPushToGitHubRepositoryMock.mockResolvedValue({ canPush: false });
+
+    await expect(
+      commitPushAndCreateI18nSetupPullRequestStep({
+        event,
+        sandboxId: "sandbox_123",
+        branchName: "hyperlocalise/i18n-setup-123",
+        summary: "",
+        mode: "create",
+        removeJsonc: false,
+      }),
+    ).rejects.toThrow(
+      "The GitHub App installation does not have push access to this repository.",
+    );
+
+    expect(runSandboxCommandMock).not.toHaveBeenCalled();
+    expect(pullsCreateMock).not.toHaveBeenCalled();
+  });
+
+  it("does not create a pull request when a git command fails", async () => {
+    runSandboxCommandMock.mockResolvedValueOnce({ exitCode: 0, output: "" });
+    runSandboxCommandMock.mockResolvedValueOnce({ exitCode: 0, output: "" });
+    runSandboxCommandMock.mockResolvedValueOnce({
+      exitCode: 128,
+      output: "nothing to commit",
+    });
+
+    await expect(
+      commitPushAndCreateI18nSetupPullRequestStep({
+        event,
+        sandboxId: "sandbox_123",
+        branchName: "hyperlocalise/i18n-setup-123",
+        summary: "",
+        mode: "create",
+        removeJsonc: false,
+      }),
+    ).rejects.toThrow("git command failed: nothing to commit");
+
+    expect(runSandboxCommandMock.mock.calls).toEqual([
+      ["sandbox_123", "git", ["checkout", "-b", "hyperlocalise/i18n-setup-123"]],
+      ["sandbox_123", "git", ["add", "i18n.yml"]],
+      ["sandbox_123", "git", ["commit", "-m", "chore(i18n): add Hyperlocalise i18n.yml"]],
+    ]);
+    expect(pullsCreateMock).not.toHaveBeenCalled();
   });
 });
