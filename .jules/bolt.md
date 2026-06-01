@@ -112,3 +112,7 @@
 **Action:** Implemented `cloneXMLToken` for safe buffering and used a conditional normalization helper in `XLIFFParser.Parse` to balance speed and correctness.
 
 ## 2026-06-01 - Optimizing ARB parsing via single-pass and map hinting
+
+## 2026-08-05 - Optimizing Fluent parsing and marshaling
+**Learning:** High-level string operations like `strings.Split`, `strings.Join`, and `strings.ReplaceAll` in recursive or iterative document processing (like Fluent parsing) accumulate significant allocation overhead. Replacing them with single-pass loops using `strings.Builder` and pre-allocating slices using `strings.Count` for line counting yields substantial performance gains.
+**Action:** Optimized `scanFluentLines`, `encodeFluentValue`, `normalizeFluentValue`, `formatFluentComments`, and `render` in `internal/i18n/translationfileparser/fluent_parser.go`.
