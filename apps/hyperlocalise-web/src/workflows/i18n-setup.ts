@@ -31,19 +31,19 @@ import {
 } from "@/lib/agent-runtime/tools/manifest";
 import { buildTools } from "@/lib/agent-runtime/tools/registry";
 import { createWriteI18nConfigTool } from "@/lib/agent-runtime/tools/i18n-setup-tools";
-import { canPushToGitHubRepository } from "@/lib/agents/repository-write-gate";
 import { db, schema } from "@/lib/database";
 import { getLocaleScanExtensions } from "@/lib/translation/file-formats";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
+import {
+  commitPushAndCreateI18nSetupPullRequestStep,
+  createI18nSetupSandboxStep,
+  prepareI18nSetupSandboxStep,
+} from "@/workflows/steps/i18n-setup-github";
 import { eq } from "drizzle-orm";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
 const agentStepLimit = 20;
-
-type InstallationAuth = {
-  token: string;
-};
 
 const translationExtensions = getLocaleScanExtensions();
 
@@ -51,11 +51,6 @@ type ExistingConfigState =
   | { kind: "none" }
   | { kind: "jsonc"; content: string }
   | { kind: "yml"; content: string };
-
-async function getInstallationOctokitForStep(installationId: number) {
-  const { getInstallationOctokit } = await import("@/lib/agents/github/app");
-  return getInstallationOctokit(installationId);
-}
 
 async function updateRunStatusStep(
   runId: string,
@@ -86,28 +81,6 @@ async function updateRunStatusStep(
     .where(eq(schema.githubI18nSetupRuns.id, runId));
 }
 
-async function createSetupSandbox(
-  event: I18nSetupRequestedEventData,
-): Promise<{ sandboxId: string }> {
-  "use step";
-
-  const octokit = await getInstallationOctokitForStep(event.installationId);
-  const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
-  const sandbox = await Sandbox.create({
-    source: {
-      depth: 1,
-      password: token,
-      revision: event.baseBranch,
-      type: "git",
-      url: `https://github.com/${event.repositoryFullName}.git`,
-      username: "x-access-token",
-    },
-    timeout: sandboxTimeoutMs,
-  });
-
-  return { sandboxId: sandbox.name };
-}
-
 async function stopSetupSandbox(sandboxId: string): Promise<void> {
   "use step";
 
@@ -131,37 +104,6 @@ async function runSandboxCommand(
     exitCode: result.exitCode,
     output: await result.output("both"),
   };
-}
-
-async function prepareSandbox(
-  sandboxId: string,
-  event: I18nSetupRequestedEventData,
-): Promise<void> {
-  "use step";
-
-  const octokit = await getInstallationOctokitForStep(event.installationId);
-  const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
-  const remote = `https://github.com/${event.repositoryFullName}.git`;
-
-  for (const [command, args, options] of [
-    ["git", ["config", "user.name", "hyperlocalise[bot]"]],
-    ["git", ["config", "user.email", "hyperlocalise[bot]@users.noreply.github.com"]],
-    ["git", ["config", "credential.helper", "store"]],
-    [
-      "bash",
-      [
-        "-lc",
-        `printf '%s\\n' "https://x-access-token:$GITHUB_TOKEN@github.com" > ~/.git-credentials`,
-      ],
-      { env: { GITHUB_TOKEN: token } },
-    ],
-    ["git", ["remote", "set-url", "origin", remote]],
-  ] satisfies Array<[string, string[], { env?: Record<string, string> }?]>) {
-    const result = await runSandboxCommand(sandboxId, command, args, options);
-    if (result.exitCode !== 0) {
-      throw new Error(`sandbox setup failed: ${result.output}`);
-    }
-  }
 }
 
 async function resolveExistingConfig(sandboxId: string): Promise<ExistingConfigState> {
@@ -386,97 +328,6 @@ function buildBranchName(): string {
   return `hyperlocalise/i18n-setup-${ts}-${rand}`;
 }
 
-async function commitPushAndCreatePullRequest(input: {
-  event: I18nSetupRequestedEventData;
-  sandboxId: string;
-  branchName: string;
-  summary: string;
-  mode: I18nSetupMode;
-  removeJsonc: boolean;
-}): Promise<{ pullRequestUrl: string; pullRequestNumber: number }> {
-  "use step";
-
-  const pushCheck = await canPushToGitHubRepository({
-    installationId: input.event.installationId,
-    repositoryFullName: input.event.repositoryFullName,
-  });
-
-  if (!pushCheck.canPush) {
-    throw new Error(pushCheck.reason ?? "Cannot push to repository.");
-  }
-
-  const commitMessageByMode: Record<I18nSetupMode, string> = {
-    create: "chore(i18n): add Hyperlocalise i18n.yml",
-    update: "chore(i18n): update Hyperlocalise i18n.yml",
-    convert: "chore(i18n): migrate i18n.jsonc to i18n.yml",
-  };
-  const commitMessage = commitMessageByMode[input.mode];
-  const pullRequestTitle = commitMessage;
-
-  const checkoutResult = await runSandboxCommand(input.sandboxId, "git", [
-    "checkout",
-    "-b",
-    input.branchName,
-  ]);
-  if (checkoutResult.exitCode !== 0) {
-    throw new Error(`git command failed: ${checkoutResult.output}`);
-  }
-
-  if (input.removeJsonc) {
-    const removeJsoncResult = await runSandboxCommand(input.sandboxId, "git", [
-      "rm",
-      "-f",
-      "i18n.jsonc",
-    ]);
-    if (removeJsoncResult.exitCode !== 0) {
-      throw new Error(`git command failed: ${removeJsoncResult.output}`);
-    }
-  }
-
-  for (const [command, args] of [
-    ["git", ["add", "i18n.yml"]],
-    ["git", ["commit", "-m", commitMessage]],
-    ["git", ["push", "-u", "origin", input.branchName]],
-  ] satisfies Array<[string, string[]]>) {
-    const result = await runSandboxCommand(input.sandboxId, command, args);
-    if (result.exitCode !== 0) {
-      throw new Error(`git command failed: ${result.output}`);
-    }
-  }
-
-  const octokit = await getInstallationOctokitForStep(input.event.installationId);
-  const prBodyIntroByMode: Record<I18nSetupMode, string> = {
-    create:
-      "This pull request adds an `i18n.yml` generated by the Hyperlocalise i18n setup wizard.",
-    update: "This pull request updates `i18n.yml` with newly discovered locale files.",
-    convert:
-      "This pull request migrates `i18n.jsonc` to `i18n.yml` and removes the legacy JSONC config.",
-  };
-  const { data: pullRequest } = await octokit.rest.pulls.create({
-    owner: input.event.repositoryOwner,
-    repo: input.event.repositoryName,
-    title: pullRequestTitle,
-    head: input.branchName,
-    base: input.event.baseBranch,
-    body: [
-      "## Hyperlocalise i18n setup",
-      "",
-      prBodyIntroByMode[input.mode],
-      "",
-      "Please review locale mappings and LLM provider settings before merging.",
-      "",
-      input.summary ? `Agent summary:\n\n${input.summary}` : "",
-    ]
-      .filter(Boolean)
-      .join("\n"),
-  });
-
-  return {
-    pullRequestUrl: pullRequest.html_url,
-    pullRequestNumber: pullRequest.number,
-  };
-}
-
 export async function i18nSetupWorkflow(
   event: I18nSetupRequestedEventData,
 ): Promise<I18nSetupWorkflowResult> {
@@ -491,10 +342,13 @@ export async function i18nSetupWorkflow(
       workflowRunId,
     });
 
-    const { sandboxId: createdSandboxId } = await createSetupSandbox(event);
+    const { sandboxId: createdSandboxId } = await createI18nSetupSandboxStep({
+      event,
+      timeoutMs: sandboxTimeoutMs,
+    });
     sandboxId = createdSandboxId;
 
-    await prepareSandbox(sandboxId, event);
+    await prepareI18nSetupSandboxStep({ event, sandboxId });
 
     const existingConfig = await resolveExistingConfig(sandboxId);
 
@@ -600,7 +454,7 @@ export async function i18nSetupWorkflow(
     }
 
     const branchName = buildBranchName();
-    const pullRequest = await commitPushAndCreatePullRequest({
+    const pullRequest = await commitPushAndCreateI18nSetupPullRequestStep({
       event,
       sandboxId,
       branchName,
