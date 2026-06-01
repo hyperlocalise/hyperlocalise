@@ -1,4 +1,4 @@
-import { and, count, desc, eq } from "drizzle-orm";
+import { and, count, desc, eq, ne } from "drizzle-orm";
 
 import { buildProjectLinkedMemoryWhere } from "@/api/auth/team-access";
 import { Hono } from "hono";
@@ -11,7 +11,7 @@ import type { Memory } from "@/lib/database/types";
 import { toMemoryRecord } from "@/lib/memory/memory-records";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
-import { getOwnedProject } from "../project/project.shared";
+import { getOwnedProject, projectNotFoundResponse } from "../project/project.shared";
 import {
   attachMemoryProjectBodySchema,
   createMemoryEntryBodySchema,
@@ -313,6 +313,32 @@ async function createMemoryEntry(
   return entry ?? null;
 }
 
+async function createMemoryEntries(
+  memory: Memory,
+  payloads: CreateMemoryEntryBody[],
+): Promise<MemoryEntry[]> {
+  if (payloads.length === 0) {
+    return [];
+  }
+
+  return db
+    .insert(schema.memoryEntries)
+    .values(
+      payloads.map((payload) => ({
+        memoryId: memory.id,
+        sourceLocale: payload.sourceLocale,
+        targetLocale: payload.targetLocale,
+        sourceText: payload.sourceText,
+        normalizedSourceText: normalizeTranslationMemorySourceText(payload.sourceText),
+        targetText: payload.targetText,
+        matchScore: payload.matchScore,
+        provenance: "manual",
+      })),
+    )
+    .onConflictDoNothing()
+    .returning();
+}
+
 async function listMemoryProjects(
   auth: ApiAuthContext,
   memoryId: string,
@@ -533,19 +559,14 @@ export function createMemoryRoutes() {
         }
 
         const entries = parseMemoryImport(payload);
-        const created: MemoryEntryRecord[] = [];
-        let skipped = 0;
+        const limitedEntries = entries.slice(0, 5_000);
+        const created = await createMemoryEntries(memory, limitedEntries);
+        const skipped = limitedEntries.length - created.length;
 
-        for (const entryPayload of entries.slice(0, 5_000)) {
-          const entry = await createMemoryEntry(memory, entryPayload);
-          if (entry) {
-            created.push(toMemoryEntryRecord(entry));
-          } else {
-            skipped++;
-          }
-        }
-
-        return c.json({ memoryEntries: created, imported: created.length, skipped }, 201);
+        return c.json(
+          { memoryEntries: created.map(toMemoryEntryRecord), imported: created.length, skipped },
+          201,
+        );
       },
     )
     .patch(
@@ -568,9 +589,60 @@ export function createMemoryRoutes() {
           return externalTmsMemoryImmutableResponse(c);
         }
 
+        const [existingEntry] = await db
+          .select()
+          .from(schema.memoryEntries)
+          .where(
+            and(
+              eq(schema.memoryEntries.id, params.entryId),
+              eq(schema.memoryEntries.memoryId, memory.id),
+            ),
+          )
+          .limit(1);
+
+        if (!existingEntry) {
+          return memoryNotFoundResponse(c);
+        }
+
         const updates: Partial<typeof schema.memoryEntries.$inferInsert> = { ...payload };
         if (payload.sourceText !== undefined) {
           updates.normalizedSourceText = normalizeTranslationMemorySourceText(payload.sourceText);
+        }
+
+        if (
+          payload.sourceText !== undefined ||
+          payload.sourceLocale !== undefined ||
+          payload.targetLocale !== undefined
+        ) {
+          const normalizedSourceText =
+            updates.normalizedSourceText ?? existingEntry.normalizedSourceText;
+          const duplicate = await db
+            .select({ id: schema.memoryEntries.id })
+            .from(schema.memoryEntries)
+            .where(
+              and(
+                eq(schema.memoryEntries.memoryId, memory.id),
+                eq(
+                  schema.memoryEntries.sourceLocale,
+                  payload.sourceLocale ?? existingEntry.sourceLocale,
+                ),
+                eq(
+                  schema.memoryEntries.targetLocale,
+                  payload.targetLocale ?? existingEntry.targetLocale,
+                ),
+                eq(schema.memoryEntries.normalizedSourceText, normalizedSourceText),
+                ne(schema.memoryEntries.id, params.entryId),
+              ),
+            )
+            .limit(1);
+
+          if (duplicate.length > 0) {
+            return conflictResponse(
+              c,
+              "duplicate_memory_entry",
+              "An entry with this source text and locale pair already exists",
+            );
+          }
         }
 
         const [entry] = await db
@@ -652,7 +724,7 @@ export function createMemoryRoutes() {
           return memoryNotFoundResponse(c);
         }
         if (!project) {
-          return memoryNotFoundResponse(c);
+          return projectNotFoundResponse(c);
         }
 
         await db
@@ -686,7 +758,7 @@ export function createMemoryRoutes() {
         return memoryNotFoundResponse(c);
       }
       if (!project) {
-        return memoryNotFoundResponse(c);
+        return projectNotFoundResponse(c);
       }
 
       await db

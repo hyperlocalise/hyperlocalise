@@ -247,6 +247,99 @@ describe("memoryRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({ error: "forbidden" });
   });
 
+  it("returns 409 when updating a memory entry to duplicate another entry", async () => {
+    const { identity, memory } = await memoryFixture.createStoredMemoryFixture();
+    const headers = await authHeadersFor(identity);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      memoryId: memory.id,
+    };
+
+    const firstResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$post(
+      {
+        param,
+        json: {
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Start free trial",
+          targetText: "Commencer l'essai gratuit",
+          matchScore: 100,
+        },
+      },
+      { headers },
+    );
+    expect(firstResponse.status).toBe(201);
+
+    const secondResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries.$post(
+      {
+        param,
+        json: {
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Create account",
+          targetText: "Créer un compte",
+          matchScore: 100,
+        },
+      },
+      { headers },
+    );
+    expect(secondResponse.status).toBe(201);
+    const secondBody = await secondResponse.json();
+    if ("error" in secondBody) throw new Error(String(secondBody.error));
+
+    const duplicateResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].entries[":entryId"].$patch(
+      {
+        param: { ...param, entryId: secondBody.memoryEntry.id },
+        json: { sourceText: "start free trial" },
+      },
+      { headers },
+    );
+
+    expect(duplicateResponse.status).toBe(409);
+    await expect(duplicateResponse.json()).resolves.toMatchObject({
+      error: "duplicate_memory_entry",
+    });
+  });
+
+  it("returns project_not_found when assigning an unknown project to a memory", async () => {
+    const { identity, memory } = await memoryFixture.createStoredMemoryFixture();
+    const headers = await authHeadersFor(identity);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      memoryId: memory.id,
+    };
+    const projectId = `project_${randomUUID()}`;
+
+    const attachResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].projects.$post(
+      {
+        param,
+        json: { projectId, priority: 0 },
+      },
+      { headers },
+    );
+    expect(attachResponse.status).toBe(404);
+    await expect(attachResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
+
+    const detachResponse = await client.api.orgs[":organizationSlug"]["translation-memories"][
+      ":memoryId"
+    ].projects[":projectId"].$delete(
+      {
+        param: { ...param, projectId },
+      },
+      { headers },
+    );
+    expect(detachResponse.status).toBe(404);
+    await expect(detachResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
+  });
+
   it("manages native memory entries and project assignment", async () => {
     const { identity, organization, user, memory } =
       await memoryFixture.createStoredMemoryFixture();
@@ -306,13 +399,14 @@ describe("memoryRoutes", () => {
         },
         json: {
           format: "csv",
-          content: "sourceLocale,targetLocale,sourceText,targetText\nen,fr,Hello,Bonjour",
+          content:
+            "sourceLocale,targetLocale,sourceText,targetText\nen,fr,Hello,Bonjour\nen,fr,hello,Salut",
         },
       },
       { headers },
     );
     expect(importResponse.status).toBe(201);
-    await expect(importResponse.json()).resolves.toMatchObject({ imported: 1 });
+    await expect(importResponse.json()).resolves.toMatchObject({ imported: 1, skipped: 1 });
 
     const [project] = await db
       .insert(schema.projects)

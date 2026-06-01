@@ -726,6 +726,39 @@ describe("glossaryRoutes", () => {
     });
   });
 
+  it("returns project_not_found when assigning an unknown project to a glossary", async () => {
+    const { identity, glossary } = await glossaryFixture.createStoredGlossaryFixture();
+    const headers = await authHeadersFor(identity);
+    const param = {
+      organizationSlug: identity.organization.slug ?? "missing-slug",
+      glossaryId: glossary.id,
+    };
+    const projectId = `project_${randomUUID()}`;
+
+    const attachResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects.$post(
+      {
+        param,
+        json: { projectId, priority: 0 },
+      },
+      { headers },
+    );
+    expect(attachResponse.status).toBe(404);
+    await expect(attachResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
+
+    const detachResponse = await client.api.orgs[":organizationSlug"].glossaries[
+      ":glossaryId"
+    ].projects[":projectId"].$delete(
+      {
+        param: { ...param, projectId },
+      },
+      { headers },
+    );
+    expect(detachResponse.status).toBe(404);
+    await expect(detachResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
+  });
+
   it("manages native glossary terms and project assignment", async () => {
     const { identity, organization, user, glossary } =
       await glossaryFixture.createStoredGlossaryFixture();
@@ -786,13 +819,13 @@ describe("glossaryRoutes", () => {
         },
         json: {
           format: "csv",
-          content: "sourceTerm,targetTerm\ncart,panier",
+          content: "sourceTerm,targetTerm\ncart,panier\nCart,chariot",
         },
       },
       { headers },
     );
     expect(importResponse.status).toBe(201);
-    await expect(importResponse.json()).resolves.toMatchObject({ imported: 1 });
+    await expect(importResponse.json()).resolves.toMatchObject({ imported: 1, skipped: 1 });
 
     const [project] = await db
       .insert(schema.projects)

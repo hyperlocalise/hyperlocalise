@@ -9,7 +9,7 @@ import type { Glossary } from "@/lib/database/types";
 import { toGlossaryRecord } from "@/lib/glossary/glossary-records";
 import { listGlossaryTermsByGlossaryId } from "@/lib/glossary/query-glossary-terms";
 
-import { getOwnedProject } from "../project/project.shared";
+import { getOwnedProject, projectNotFoundResponse } from "../project/project.shared";
 import { buildGlossaryListWhere } from "./glossary-list-filters";
 import {
   attachGlossaryProjectBodySchema,
@@ -276,6 +276,49 @@ async function createGlossaryTerm(
   return term ?? null;
 }
 
+async function createGlossaryTerms(
+  glossary: Glossary,
+  payloads: CreateGlossaryTermBody[],
+): Promise<GlossaryTerm[]> {
+  if (payloads.length === 0) {
+    return [];
+  }
+
+  const existing = await db
+    .select({
+      sourceTerm: schema.glossaryTerms.sourceTerm,
+    })
+    .from(schema.glossaryTerms)
+    .where(eq(schema.glossaryTerms.glossaryId, glossary.id));
+  const seenSourceTerms = new Set(existing.map((term) => term.sourceTerm.toLowerCase()));
+  const values: (typeof schema.glossaryTerms.$inferInsert)[] = [];
+
+  for (const payload of payloads) {
+    const sourceTermKey = payload.caseSensitive
+      ? payload.sourceTerm
+      : payload.sourceTerm.toLowerCase();
+    if (seenSourceTerms.has(sourceTermKey)) {
+      continue;
+    }
+    seenSourceTerms.add(sourceTermKey);
+    values.push({
+      glossaryId: glossary.id,
+      sourceTerm: payload.sourceTerm,
+      targetTerm: payload.targetTerm,
+      description: payload.description ?? "",
+      partOfSpeech: payload.partOfSpeech ?? "",
+      caseSensitive: payload.caseSensitive,
+      forbidden: payload.forbidden,
+    });
+  }
+
+  if (values.length === 0) {
+    return [];
+  }
+
+  return db.insert(schema.glossaryTerms).values(values).onConflictDoNothing().returning();
+}
+
 async function listGlossaryProjects(
   auth: ApiAuthContext,
   glossaryId: string,
@@ -494,19 +537,18 @@ export function createGlossaryRoutes() {
         }
 
         const terms = parseGlossaryImport(payload);
-        const created: GlossaryTermRecord[] = [];
-        let skipped = 0;
+        const limitedTerms = terms.slice(0, 2_000);
+        const created = await createGlossaryTerms(glossary, limitedTerms);
+        const skipped = limitedTerms.length - created.length;
 
-        for (const termPayload of terms.slice(0, 2_000)) {
-          const term = await createGlossaryTerm(glossary, termPayload);
-          if (term) {
-            created.push(toGlossaryTermRecord(term, glossary));
-          } else {
-            skipped++;
-          }
-        }
-
-        return c.json({ glossaryTerms: created, imported: created.length, skipped }, 201);
+        return c.json(
+          {
+            glossaryTerms: created.map((term) => toGlossaryTermRecord(term, glossary)),
+            imported: created.length,
+            skipped,
+          },
+          201,
+        );
       },
     )
     .patch(
@@ -633,7 +675,7 @@ export function createGlossaryRoutes() {
           return glossaryNotFoundResponse(c);
         }
         if (!project) {
-          return glossaryNotFoundResponse(c);
+          return projectNotFoundResponse(c);
         }
 
         await db
@@ -667,7 +709,7 @@ export function createGlossaryRoutes() {
         return glossaryNotFoundResponse(c);
       }
       if (!project) {
-        return glossaryNotFoundResponse(c);
+        return projectNotFoundResponse(c);
       }
 
       await db

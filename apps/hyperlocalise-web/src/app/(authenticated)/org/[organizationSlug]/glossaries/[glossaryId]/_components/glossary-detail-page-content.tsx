@@ -25,20 +25,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-
-function readApiError(response: Response, fallback: string) {
-  return response
-    .json()
-    .then((body) =>
-      body && typeof body === "object" && "message" in body
-        ? String(body.message)
-        : body && typeof body === "object" && "error" in body
-          ? String(body.error)
-          : fallback,
-    )
-    .catch(() => fallback);
-}
 
 type TermForm = {
   sourceTerm: string;

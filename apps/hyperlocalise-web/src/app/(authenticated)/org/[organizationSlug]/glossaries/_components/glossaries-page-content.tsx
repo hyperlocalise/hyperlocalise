@@ -28,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import {
@@ -152,19 +153,6 @@ function createEmptyGlossaryForm(): GlossaryCreateForm {
     sourceLocale: "en-US",
     targetLocales: ["fr-FR"],
   };
-}
-
-function readApiError(response: Response, fallback: string) {
-  return response
-    .json()
-    .then((body) =>
-      body && typeof body === "object" && "message" in body
-        ? String(body.message)
-        : body && typeof body === "object" && "error" in body
-          ? String(body.error)
-          : fallback,
-    )
-    .catch(() => fallback);
 }
 
 function useGlossaryFilters(searchParams: URLSearchParams) {
