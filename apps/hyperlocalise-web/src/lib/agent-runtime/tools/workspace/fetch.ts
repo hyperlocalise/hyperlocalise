@@ -43,7 +43,7 @@ USAGE:
           method,
           redirect: "error",
           signal: controller.signal,
-        });
+        } as RequestInit);
 
         if (response.status >= 300 && response.status < 400) {
           return {

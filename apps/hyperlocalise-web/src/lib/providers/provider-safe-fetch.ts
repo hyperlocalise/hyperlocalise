@@ -1,5 +1,3 @@
-import { Agent, fetch as undiciFetch, type RequestInit as UndiciRequestInit } from "undici";
-
 import { isErr } from "@/lib/primitives/result/results";
 import { formatSsrfGuardError } from "@/lib/security/ssrf-guard";
 import { resolvePinnedHttpConnectTarget } from "@/lib/security/ssrf-guard-dns";
@@ -22,10 +20,11 @@ export async function providerSafeFetch(
   }
 
   const { requestUrl, connect } = pinnedTargetResult.value;
+  const { Agent, fetch: undiciFetch } = await import("undici");
   const dispatcher = new Agent({ connect });
 
   const response = await undiciFetch(requestUrl, {
-    ...(init as UndiciRequestInit | undefined),
+    ...(init as any),
     redirect: "error",
     dispatcher,
   });
