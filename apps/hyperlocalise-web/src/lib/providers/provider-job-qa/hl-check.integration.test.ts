@@ -38,8 +38,8 @@ vi.mock("@/lib/translation/sandbox-translation", async (importOriginal) => {
   return {
     ...actual,
     createTranslationSandbox: vi.fn(async () => ({ sandboxId: "sandbox_qa_1" })),
+    deleteTranslationSandbox: vi.fn(async () => undefined),
     prepareSandbox: vi.fn(async () => undefined),
-    stopTranslationSandbox: vi.fn(async () => undefined),
     runSandboxCommand: vi.fn(async (_sandboxId: string, command: string, args: string[]) => {
       if (command === "bash" && args[0] === "-lc" && args[1]?.includes("hl check")) {
         return { exitCode: 0, output: "" };
@@ -107,7 +107,7 @@ describe("hl check sandbox integration", () => {
     });
 
     expect(findings.some((finding) => finding.checkType === "placeholder_mismatch")).toBe(true);
-    const { stopTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
-    expect(stopTranslationSandbox).toHaveBeenCalledWith("sandbox_qa_1");
+    const { deleteTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
+    expect(deleteTranslationSandbox).toHaveBeenCalledWith("sandbox_qa_1");
   });
 });

@@ -1,6 +1,6 @@
 import {
   createVercelSandboxWorkspace,
-  stopWorkspace,
+  deleteWorkspace,
 } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { getInstallationOctokit } from "@/lib/agents/github/app";
 import { prepareSandbox, runSandboxCommand } from "@/lib/translation/sandbox-translation";
@@ -35,8 +35,8 @@ export async function createGithubRepositoryAutomationSandbox(input: {
   return workspace.id;
 }
 
-export async function stopGithubRepositoryAutomationSandbox(sandboxId: string): Promise<void> {
-  await stopWorkspace(sandboxId);
+export async function deleteGithubRepositoryAutomationSandbox(sandboxId: string): Promise<void> {
+  await deleteWorkspace(sandboxId);
 }
 
 export async function checkoutCommitInSandbox(sandboxId: string, commitSha: string): Promise<void> {

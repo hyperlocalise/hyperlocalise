@@ -1,6 +1,6 @@
 import {
   createVercelSandboxWorkspace,
-  stopWorkspace,
+  deleteWorkspace,
 } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
@@ -47,6 +47,6 @@ export async function createRepositorySandbox(
   return workspace.id;
 }
 
-export async function stopRepositorySandbox(sandboxId: string): Promise<void> {
-  await stopWorkspace(sandboxId);
+export async function deleteRepositorySandbox(sandboxId: string): Promise<void> {
+  await deleteWorkspace(sandboxId);
 }

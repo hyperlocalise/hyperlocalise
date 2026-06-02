@@ -1,6 +1,7 @@
 import { createLogger } from "@/lib/log";
 import { uploadRepositorySourceFilesFromSandbox } from "@/lib/file-storage/upload-repository-source-files";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { runDisposableWorkspaceCleanup } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 
 import {
   resolveGithubRepositoryAutomationCommitRange,
@@ -27,7 +28,7 @@ import {
   createGithubRepositoryAutomationSandbox,
   runGitDiffInSandbox,
   runGitLogInSandbox,
-  stopGithubRepositoryAutomationSandbox,
+  deleteGithubRepositoryAutomationSandbox,
 } from "./github-repository-automation-sandbox";
 
 const logger = createLogger("github-repo-automation-push-source");
@@ -144,6 +145,7 @@ export async function runGithubRepositoryAutomationPushSource(input: {
   }
 
   let sandboxId: string | null = null;
+  let primaryError: unknown = null;
 
   try {
     sandboxId = await createGithubRepositoryAutomationSandbox({
@@ -246,6 +248,7 @@ export async function runGithubRepositoryAutomationPushSource(input: {
 
     return ok(summary);
   } catch (error) {
+    primaryError = error;
     const message = error instanceof Error ? error.message : "push_source_automation_failed";
 
     logger.error(
@@ -259,7 +262,11 @@ export async function runGithubRepositoryAutomationPushSource(input: {
     return returnPushSourceFailed(job.id, { code: "infrastructure", message }, message);
   } finally {
     if (sandboxId) {
-      await stopGithubRepositoryAutomationSandbox(sandboxId).catch(() => undefined);
+      const sandboxIdToDelete = sandboxId;
+      await runDisposableWorkspaceCleanup({
+        cleanup: () => deleteGithubRepositoryAutomationSandbox(sandboxIdToDelete),
+        primaryError,
+      });
     }
   }
 }

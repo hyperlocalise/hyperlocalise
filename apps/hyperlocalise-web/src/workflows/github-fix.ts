@@ -1,5 +1,9 @@
 import { Sandbox } from "@vercel/sandbox";
 
+import {
+  deleteWorkspace,
+  runDisposableWorkspaceCleanup,
+} from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { getInstallationOctokit } from "@/lib/agents/github/app";
 import { requesterCanRunFix } from "@/lib/agents/github/permissions";
 import { deleteGitHubAgentRequestForEvent } from "@/lib/agents/github/request-idempotency";
@@ -120,11 +124,10 @@ async function createFixSandbox(
   return { sandboxId: sandbox.name, token };
 }
 
-async function stopFixSandbox(sandboxId: string): Promise<void> {
+async function deleteFixSandbox(sandboxId: string): Promise<void> {
   "use step";
 
-  const sandbox = await Sandbox.get({ name: sandboxId });
-  await sandbox.stop();
+  await deleteWorkspace(sandboxId);
 }
 
 async function runSandboxCommand(
@@ -406,6 +409,7 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
     }
 
     const { sandboxId, token } = await createFixSandbox(event, pr.headSha);
+    let primaryError: unknown = null;
     try {
       await prepareSandbox(sandboxId, event, token);
       const fix = await runFixCommand(sandboxId, event);
@@ -440,11 +444,15 @@ export async function githubFixWorkflow(event: GitHubFixRequestedEventData) {
         }),
       );
     } catch (error) {
+      primaryError = error;
       const message = error instanceof Error ? error.message : String(error);
       await postPullRequestComment(event, `## Hyperlocalise fix failed\n\n${message}`);
       throw error;
     } finally {
-      await stopFixSandbox(sandboxId);
+      await runDisposableWorkspaceCleanup({
+        cleanup: () => deleteFixSandbox(sandboxId),
+        primaryError,
+      });
     }
   } finally {
     await deleteGitHubAgentRequestForEvent(event);

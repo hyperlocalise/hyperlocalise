@@ -9,15 +9,18 @@ const {
   buildHyperlocaliseAgentInstructionsMock,
   buildToolsMock,
   createMock,
+  deleteSandboxMock,
   generateMock,
   getInstallationOctokitMock,
   getMock,
   stopMock,
   toolLoopAgentCtor,
+  vercelCtor,
 } = vi.hoisted(() => {
   const authMock = vi.fn(async () => ({ token: "installation-token" }));
   const buildHyperlocaliseAgentInstructionsMock = vi.fn(() => "sys");
   const buildToolsMock = vi.fn(() => ({}));
+  const deleteSandboxMock = vi.fn();
   const stopMock = vi.fn();
   const createMock = vi.fn(async () => ({ name: "sbx_1" }));
   const getMock = vi.fn(async () => ({ stop: stopMock }));
@@ -26,21 +29,27 @@ const {
   const toolLoopAgentCtor = vi.fn(function ToolLoopAgent(_options: unknown) {
     return { generate: generateMock };
   });
+  const vercelCtor = vi.fn(function Vercel(_options: unknown) {
+    return { sandboxes: { deleteSandbox: deleteSandboxMock } };
+  });
 
   return {
     authMock,
     buildHyperlocaliseAgentInstructionsMock,
     buildToolsMock,
     createMock,
+    deleteSandboxMock,
     generateMock,
     getInstallationOctokitMock,
     getMock,
     stopMock,
     toolLoopAgentCtor,
+    vercelCtor,
   };
 });
 
 vi.mock("@vercel/sandbox", () => ({ Sandbox: { create: createMock, get: getMock } }));
+vi.mock("@vercel/sdk", () => ({ Vercel: vercelCtor }));
 
 vi.mock("ai", () => ({ ToolLoopAgent: toolLoopAgentCtor }));
 
@@ -75,6 +84,7 @@ describe("repositoryAgentWorkflow", () => {
     vi.clearAllMocks();
     authMock.mockResolvedValue({ token: "installation-token" });
     createMock.mockResolvedValue({ name: "sbx_1" });
+    deleteSandboxMock.mockResolvedValue({ sandbox: { name: "sbx_1" } });
     generateMock.mockResolvedValue({ text: "done" });
     getInstallationOctokitMock.mockResolvedValue({ auth: authMock });
     getMock.mockResolvedValue({ stop: stopMock });
@@ -117,7 +127,9 @@ describe("repositoryAgentWorkflow", () => {
         }),
       }),
     );
-    expect(stopMock).toHaveBeenCalledTimes(1);
+    expect(vercelCtor).toHaveBeenCalledWith({ bearerToken: "test-vercel-sandbox-api-token" });
+    expect(deleteSandboxMock).toHaveBeenCalledWith({ name: "sbx_1", teamId: "team_test" });
+    expect(stopMock).not.toHaveBeenCalled();
   });
 
   it("allows a larger repo task tool-call budget", async () => {
@@ -215,7 +227,7 @@ describe("repositoryAgentWorkflow", () => {
       githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
     } as never);
 
-    expect(stopMock).toHaveBeenCalledTimes(1);
+    expect(deleteSandboxMock).toHaveBeenCalledWith({ name: "sbx_1", teamId: "team_test" });
   });
 
   it("passes repository context fields to tools when github context is resolved", async () => {
@@ -253,8 +265,22 @@ describe("repositoryAgentWorkflow", () => {
     );
   });
 
-  it("preserves the structured result when cleanup fails", async () => {
-    stopMock.mockRejectedValueOnce(new Error("cleanup failed"));
+  it("throws cleanup failures after successful sandbox runs", async () => {
+    deleteSandboxMock.mockRejectedValueOnce(new Error("cleanup failed"));
+
+    await expect(
+      repositoryAgentWorkflow({
+        ...baseTask,
+        githubContext: { resolved: true, installationId: 1, repositoryFullName: "acme/repo" },
+      } as never),
+    ).rejects.toThrow("cleanup failed");
+
+    expect(deleteSandboxMock).toHaveBeenCalledWith({ name: "sbx_1", teamId: "team_test" });
+  });
+
+  it("preserves the structured result when task execution and cleanup fail", async () => {
+    generateMock.mockRejectedValueOnce(new Error("tool failed"));
+    deleteSandboxMock.mockRejectedValueOnce(new Error("cleanup failed"));
 
     const result = await repositoryAgentWorkflow({
       ...baseTask,
@@ -262,11 +288,12 @@ describe("repositoryAgentWorkflow", () => {
     } as never);
 
     expect(result).toEqual({
-      ok: true,
+      ok: false,
       workflowRunId: "run_123",
       sourceReplyTarget: { source: "github", threadId: "thread_1" },
-      summary: "done",
+      summary: "Repository workflow failed.",
+      error: "tool failed",
     });
-    expect(stopMock).toHaveBeenCalledTimes(1);
+    expect(deleteSandboxMock).toHaveBeenCalledWith({ name: "sbx_1", teamId: "team_test" });
   });
 });

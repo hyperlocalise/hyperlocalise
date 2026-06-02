@@ -1,5 +1,8 @@
 import { Sandbox } from "@vercel/sandbox";
+import { Vercel } from "@vercel/sdk";
 
+import { env } from "@/lib/env";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
 import type {
   GitWorkspaceSource,
   WorkspaceCommandResult,
@@ -10,9 +13,76 @@ import type {
 } from "./types";
 
 const defaultSandboxTimeoutMs = 10 * 60 * 1000;
+const logger = createLogger("vercel-sandbox-runtime");
+
+type VercelSandboxDeleteConfig = {
+  VERCEL_SANDBOX_API_TOKEN?: string;
+  VERCEL_SANDBOX_TEAM_ID?: string;
+  VERCEL_SANDBOX_TEAM_SLUG?: string;
+};
+
+export class SandboxDeleteConfigurationError extends Error {
+  readonly code = "sandbox_delete_not_configured";
+
+  constructor(message: string) {
+    super(message);
+    this.name = "SandboxDeleteConfigurationError";
+  }
+}
 
 function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
+}
+
+export function resolveVercelSandboxDeleteRequest(
+  name: string,
+  config: VercelSandboxDeleteConfig = env,
+): {
+  bearerToken: string;
+  request: { name: string; teamId?: string; slug?: string };
+} {
+  const bearerToken = config.VERCEL_SANDBOX_API_TOKEN?.trim();
+  const teamId = config.VERCEL_SANDBOX_TEAM_ID?.trim();
+  const slug = config.VERCEL_SANDBOX_TEAM_SLUG?.trim();
+
+  if (!bearerToken) {
+    throw new SandboxDeleteConfigurationError("VERCEL_SANDBOX_API_TOKEN is required");
+  }
+  if (!teamId && !slug) {
+    throw new SandboxDeleteConfigurationError(
+      "VERCEL_SANDBOX_TEAM_ID or VERCEL_SANDBOX_TEAM_SLUG is required",
+    );
+  }
+
+  return {
+    bearerToken,
+    request: {
+      name,
+      ...(teamId ? { teamId } : { slug: slug as string }),
+    },
+  };
+}
+
+export async function deleteVercelSandbox(name: string): Promise<void> {
+  try {
+    const { bearerToken, request } = resolveVercelSandboxDeleteRequest(name);
+    const vercel = new Vercel({ bearerToken });
+    await vercel.sandboxes.deleteSandbox(request);
+    logger.info({ sandboxId: name, action: "delete", lifecycle: "disposable" }, "deleted sandbox");
+  } catch (error) {
+    const logPayload = {
+      sandboxId: name,
+      action: "delete",
+      lifecycle: "disposable",
+      err: serializeErrorForLog(error),
+    };
+    if (error instanceof SandboxDeleteConfigurationError) {
+      logger.error(logPayload, "sandbox_delete_not_configured");
+    } else {
+      logger.error(logPayload, "sandbox delete failed");
+    }
+    throw error;
+  }
 }
 
 export class VercelSandboxRuntime implements WorkspaceRuntime {
@@ -134,4 +204,21 @@ export function getVercelSandboxWorkspace(sandboxId: string): WorkspaceRuntime {
 
 export async function stopWorkspace(workspaceId: string): Promise<void> {
   await getVercelSandboxWorkspace(workspaceId).stop();
+}
+
+export async function deleteWorkspace(workspaceId: string): Promise<void> {
+  await deleteVercelSandbox(workspaceId);
+}
+
+export async function runDisposableWorkspaceCleanup(input: {
+  cleanup: () => Promise<void>;
+  primaryError: unknown;
+}): Promise<void> {
+  try {
+    await input.cleanup();
+  } catch (cleanupError) {
+    if (!input.primaryError) {
+      throw cleanupError;
+    }
+  }
 }

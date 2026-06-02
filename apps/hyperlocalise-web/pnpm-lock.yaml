@@ -89,6 +89,9 @@ importers:
       '@vercel/sandbox':
         specifier: 2.0.1
         version: 2.0.1
+      '@vercel/sdk':
+        specifier: ^1.21.8
+        version: 1.21.8
       '@workos-inc/authkit-nextjs':
         specifier: 4.1.1
         version: 4.1.1(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
@@ -3297,6 +3300,10 @@ packages:
 
   '@vercel/sandbox@2.0.1':
     resolution: {integrity: sha512-Q1PZVcTORgEMWAK63ga5h3Yfb5EIGpZAn25nJBw0bwA6Gu8rp7em58/OnpjduXsT408hhY6QP63ACWPM3acYPg==}
+
+  '@vercel/sdk@1.21.8':
+    resolution: {integrity: sha512-6qWQdWk/DaC24m2krcHUtdqCKn5/6mEgW5vVsHPxQj5MPNh9lftw5VnwlAgmKO+6kh2Tazd9JnqDqbZM/X5jkg==}
+    hasBin: true
 
   '@voidzero-dev/vite-plus-core@0.1.15':
     resolution: {integrity: sha512-0qAbqwcvQwiC8xGKSSuFtsjJUEM4LZzpXF7dffRazghGEQ8HH8NAvVryp/PiMSFwreJlV3rujwL4amKjnwCHpg==}
@@ -10531,6 +10538,14 @@ snapshots:
     transitivePeerDependencies:
       - bare-abort-controller
       - react-native-b4a
+
+  '@vercel/sdk@1.21.8':
+    dependencies:
+      '@modelcontextprotocol/sdk': 1.29.0(zod@4.4.3)
+      zod: 4.4.3
+    transitivePeerDependencies:
+      - '@cfworker/json-schema'
+      - supports-color
 
   '@voidzero-dev/vite-plus-core@0.1.15(@types/node@24.12.4)(esbuild@0.27.7)(jiti@2.6.1)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.9.0)':
     dependencies:

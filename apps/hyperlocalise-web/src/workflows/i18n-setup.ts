@@ -1,7 +1,10 @@
-import { Sandbox } from "@vercel/sandbox";
 import { ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 import { getWorkflowMetadata } from "workflow";
 
+import {
+  deleteWorkspace,
+  runDisposableWorkspaceCleanup,
+} from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import {
   buildI18nSetupSuggestion,
   type I18nSetupMode,
@@ -82,11 +85,10 @@ async function updateRunStatusStep(
     .where(eq(schema.githubI18nSetupRuns.id, runId));
 }
 
-async function stopSetupSandbox(sandboxId: string): Promise<void> {
+async function deleteSetupSandbox(sandboxId: string): Promise<void> {
   "use step";
 
-  const sandbox = await Sandbox.get({ name: sandboxId });
-  await sandbox.stop();
+  await deleteWorkspace(sandboxId);
 }
 
 async function resolveExistingConfig(sandboxId: string): Promise<ExistingConfigState> {
@@ -318,6 +320,7 @@ export async function i18nSetupWorkflow(
 
   const { workflowRunId } = getWorkflowMetadata();
   let sandboxId: string | null = null;
+  let primaryError: unknown = null;
 
   try {
     await updateRunStatusStep(event.runId, {
@@ -463,6 +466,7 @@ export async function i18nSetupWorkflow(
       detectedLocaleCount: detection.allFiles.length,
     };
   } catch (error) {
+    primaryError = error;
     const message = error instanceof Error ? error.message : String(error);
     await updateRunStatusStep(event.runId, {
       status: "failed",
@@ -479,11 +483,11 @@ export async function i18nSetupWorkflow(
     };
   } finally {
     if (sandboxId) {
-      try {
-        await stopSetupSandbox(sandboxId);
-      } catch {
-        // Best-effort cleanup.
-      }
+      const sandboxIdToDelete = sandboxId;
+      await runDisposableWorkspaceCleanup({
+        cleanup: () => deleteSetupSandbox(sandboxIdToDelete),
+        primaryError,
+      });
     }
   }
 }

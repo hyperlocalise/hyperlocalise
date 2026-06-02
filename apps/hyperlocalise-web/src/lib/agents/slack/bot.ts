@@ -17,7 +17,7 @@ import {
 } from "@/lib/agents/repository-context";
 import {
   createRepositorySandbox,
-  stopRepositorySandbox,
+  deleteRepositorySandbox,
 } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { type RepositoryAgentGitHubContext } from "@/lib/agents/repository-agent-task";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
@@ -491,7 +491,7 @@ async function processSlackMessage(
       }
     } finally {
       if (sandboxId) {
-        await stopRepositorySandbox(sandboxId).catch((error: unknown) => {
+        await deleteRepositorySandbox(sandboxId).catch((error: unknown) => {
           log.warn({ err: serializeErrorForLog(error) }, "repository sandbox cleanup failed");
         });
       }
