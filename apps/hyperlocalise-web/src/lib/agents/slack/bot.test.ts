@@ -526,7 +526,7 @@ describe("handleNewConversation", () => {
   it("exposes repository read tools when GitHub context resolves", async () => {
     const { thread, posts } = createThread();
     const message = createMessage({
-      text: "Can you find context for 'Email agent'?",
+      text: "do you know the context of Knowledge?",
       raw: { team_id: "T123", channel: "C123" },
     });
 
@@ -534,7 +534,7 @@ describe("handleNewConversation", () => {
       createMockClassification({
         intents: ["repository"],
         needsRepositoryTools: true,
-        currentMessageSpecifiesRepository: true,
+        shouldAskForRepositoryClarification: true,
         confidence: 0.95,
       }),
     );
@@ -569,7 +569,7 @@ describe("handleNewConversation", () => {
 
     expect(resolveSlackRepositoryGitHubContextMock).toHaveBeenCalledWith({
       organizationId: "org-123",
-      text: "Can you find context for 'Email agent'?",
+      text: "do you know the context of Knowledge?",
       connectorConfig: { repository: { github: { defaultRepositoryFullName: "acme/web" } } },
       projectId: "project-123",
       channelId: "C123",

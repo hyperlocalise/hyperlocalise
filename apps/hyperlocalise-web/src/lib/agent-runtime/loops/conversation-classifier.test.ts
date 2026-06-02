@@ -142,6 +142,75 @@ describe("conversation classifier routing", () => {
     expect(generateTextMock).toHaveBeenCalledOnce();
   });
 
+  it("includes a repository lookup example for context-of string questions", async () => {
+    generateTextMock.mockResolvedValueOnce({
+      output: repositoryClassification({
+        shouldAskForRepositoryClarification: true,
+      }),
+    });
+
+    await expect(
+      classifyConversation({
+        currentMessage: "do you know the context of Knowledge?",
+        conversationText: "do you know the context of Knowledge?",
+        hasFileAttachments: false,
+        hasStoredRepositoryContext: false,
+        surface: "slack",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        shouldAskForRepositoryClarification: true,
+        currentMessageSpecifiesRepository: false,
+      }),
+    );
+
+    expect(generateTextMock).toHaveBeenCalledOnce();
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          'Latest user message: "do you know the context of Knowledge?"',
+        ),
+      }),
+    );
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        prompt: expect.stringContaining(
+          "they usually mean context in the connected GitHub repository",
+        ),
+      }),
+    );
+  });
+
+  it("keeps using model classification for stored repository context follow-ups", async () => {
+    generateTextMock.mockResolvedValueOnce({
+      output: repositoryClassification({
+        shouldAskForRepositoryClarification: false,
+        continuesRepositoryThread: true,
+      }),
+    });
+
+    await expect(
+      classifyConversation({
+        currentMessage: 'What is the context of "Knowledge"?',
+        conversationText: 'What is the context of "Knowledge"?',
+        hasFileAttachments: false,
+        hasStoredRepositoryContext: true,
+        surface: "slack",
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        shouldAskForRepositoryClarification: false,
+        continuesRepositoryThread: true,
+      }),
+    );
+
+    expect(generateTextMock).toHaveBeenCalledOnce();
+  });
+
   it("falls back when AI classification fails", async () => {
     generateTextMock.mockRejectedValueOnce(new Error("model unavailable"));
 
