@@ -1,6 +1,9 @@
 import { isErr } from "@/lib/primitives/result/results";
 import { formatSsrfGuardError } from "@/lib/security/ssrf-guard";
-import { resolvePinnedHttpConnectTarget } from "@/lib/security/ssrf-guard-dns";
+import {
+  resolvePinnedHttpConnectTarget,
+  type PinnedHttpConnectTarget,
+} from "@/lib/security/ssrf-guard-dns";
 
 const isTestEnv = process.env.VITEST === "true" || process.env.NODE_ENV === "test";
 
@@ -15,19 +18,55 @@ export async function providerSafeFetch(
   }
 
   // Vitest stubs global.fetch; use it in tests so provider health-check route tests can mock responses.
+  const { requestUrl, connect } = pinnedTargetResult.value;
+  const requestInit = buildPinnedRequestInit(input, init, pinnedTargetResult.value);
+
   if (isTestEnv) {
-    return fetch(input, { ...init, redirect: "error" });
+    return fetch(requestUrl, requestInit);
   }
 
-  const { requestUrl, connect } = pinnedTargetResult.value;
   const { Agent, fetch: undiciFetch } = await import("undici");
   const dispatcher = new Agent({ connect });
 
   const response = await undiciFetch(requestUrl, {
-    ...(init as any),
-    redirect: "error",
+    ...(requestInit as any),
     dispatcher,
   });
 
   return response as unknown as Response;
+}
+
+export function buildPinnedRequestInit(
+  input: RequestInfo | URL,
+  init: RequestInit | undefined,
+  pinnedTarget: PinnedHttpConnectTarget,
+): RequestInit {
+  const headers = buildPinnedHeaders(input, init?.headers, pinnedTarget.hostHeader);
+
+  return {
+    ...init,
+    headers,
+    redirect: "error",
+  };
+}
+
+function buildPinnedHeaders(
+  input: RequestInfo | URL,
+  initHeaders: HeadersInit | undefined,
+  hostHeader: string | undefined,
+): HeadersInit | undefined {
+  if (!hostHeader) {
+    return initHeaders;
+  }
+
+  const requestHeaders =
+    typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined;
+  const headers = new Headers(requestHeaders);
+
+  if (initHeaders) {
+    new Headers(initHeaders).forEach((value, key) => headers.set(key, value));
+  }
+
+  headers.set("Host", hostHeader);
+  return headers;
 }

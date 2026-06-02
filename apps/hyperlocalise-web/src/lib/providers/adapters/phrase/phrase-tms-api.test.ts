@@ -69,6 +69,7 @@ describe("PhraseTmsApiClient", () => {
     const client = new PhraseTmsApiClient({
       token: "secret",
       baseUrl: "https://cloud.memsource.com/web",
+      fetchFn: fetchMock,
     });
 
     const jobs = await client.listAllJobParts("project-1", 2);
@@ -107,6 +108,7 @@ describe("PhraseTmsApiClient", () => {
     const client = new PhraseTmsApiClient({
       token: "secret",
       baseUrl: "https://cloud.memsource.com/web",
+      fetchFn: fetchMock,
     });
 
     const jobs = await client.listAllJobParts("project-1", 15);
@@ -144,6 +146,7 @@ describe("PhraseTmsApiClient", () => {
     const client = new PhraseTmsApiClient({
       token: "secret",
       baseUrl: "https://cloud.memsource.com/web",
+      fetchFn: fetchMock,
     });
 
     const translationMemories = await client.getProjectTranslationMemories({

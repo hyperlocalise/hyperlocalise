@@ -2,6 +2,8 @@
  * Phrase TMS (Memsource) API client for job and resource sync.
  */
 
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
+
 import { resolvePhraseTmsBaseUrl } from "./phrase-tms-base-url";
 
 export interface PhraseTmsApiClientOptions {
@@ -108,7 +110,7 @@ export class PhraseTmsApiClient {
   constructor(options: PhraseTmsApiClientOptions) {
     this.token = options.token;
     this.baseUrl = resolvePhraseTmsBaseUrl({ baseUrl: options.baseUrl });
-    this.fetchFn = options.fetchFn ?? fetch;
+    this.fetchFn = options.fetchFn ?? providerSafeFetch;
   }
 
   get resolvedBaseUrl() {
