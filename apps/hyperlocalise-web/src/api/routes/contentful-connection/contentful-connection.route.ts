@@ -199,6 +199,10 @@ export function createContentfulConnectionRoutes() {
         return notFoundResponse(c, "contentful_connection_not_found");
       }
 
-      return c.json({ contentfulConnectionValidation: result }, result.ok ? 200 : 400);
+      if (!result.ok) {
+        return badRequestResponse(c, "contentful_connection_validation_failed", result.message);
+      }
+
+      return c.json({ contentfulConnectionValidation: result }, 200);
     });
 }

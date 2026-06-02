@@ -94,9 +94,61 @@ describe("contentful field detector", () => {
     expect(
       formatTranslatedValueForContentful({
         sourceValue: ["one", "two"],
-        translatedText: "un, deux",
+        translatedText: JSON.stringify(["un", "deux"]),
         valueKind: "array",
       }),
     ).toEqual(["un", "deux"]);
+  });
+
+  it("does not split translated array items on commas", () => {
+    expect(
+      formatTranslatedValueForContentful({
+        sourceValue: ["Machine learning type I"],
+        translatedText: JSON.stringify(["Maschinelles Lernen, Typ I"]),
+        valueKind: "array",
+      }),
+    ).toEqual(["Maschinelles Lernen, Typ I"]);
+  });
+
+  it("formats rich text translations across existing text nodes", () => {
+    const sourceValue = {
+      nodeType: "document",
+      data: {},
+      content: [
+        {
+          nodeType: "paragraph",
+          data: {},
+          content: [{ nodeType: "text", value: "First paragraph.", marks: [], data: {} }],
+        },
+        {
+          nodeType: "paragraph",
+          data: {},
+          content: [{ nodeType: "text", value: "Second paragraph.", marks: [], data: {} }],
+        },
+        {
+          nodeType: "paragraph",
+          data: {},
+          content: [{ nodeType: "text", value: "Third paragraph.", marks: [], data: {} }],
+        },
+      ],
+    };
+
+    const formatted = formatTranslatedValueForContentful({
+      sourceValue,
+      translatedText: JSON.stringify([
+        "Premier paragraphe.",
+        "Deuxième paragraphe.",
+        "Troisième paragraphe.",
+      ]),
+      valueKind: "rich_text",
+    });
+
+    expect(formatted).toMatchObject({
+      content: [
+        { content: [{ value: "Premier paragraphe." }] },
+        { content: [{ value: "Deuxième paragraphe." }] },
+        { content: [{ value: "Troisième paragraphe." }] },
+      ],
+    });
   });
 });

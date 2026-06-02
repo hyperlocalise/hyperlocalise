@@ -35,6 +35,39 @@ function fieldNameLooksTextual(field: ContentfulFieldDefinition) {
   return TEXTUAL_FIELD_NAME_HINTS.some((hint) => haystack.includes(hint));
 }
 
+function collectRichTextTextValues(value: unknown): string[] {
+  const values: string[] = [];
+
+  function visit(node: unknown) {
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        visit(item);
+      }
+      return;
+    }
+
+    if (!isRecord(node)) {
+      return;
+    }
+
+    if (node.nodeType === "text" && typeof node.value === "string") {
+      values.push(node.value);
+      return;
+    }
+
+    if (Array.isArray(node.content)) {
+      visit(node.content);
+    }
+  }
+
+  visit(value);
+  return values;
+}
+
+function stringValuesToSourceText(values: string[]) {
+  return values.length > 0 ? JSON.stringify(values) : "";
+}
+
 function shouldTranslateField(input: {
   field: ContentfulFieldDefinition;
   contentTypeId: string;
@@ -61,7 +94,12 @@ function valueToSourceText(value: unknown): string {
     return value;
   }
   if (Array.isArray(value)) {
-    return value.filter((item): item is string => typeof item === "string").join(", ");
+    return stringValuesToSourceText(
+      value.filter((item): item is string => typeof item === "string"),
+    );
+  }
+  if (isRecord(value) && value.nodeType === "document") {
+    return stringValuesToSourceText(collectRichTextTextValues(value));
   }
   if (isRecord(value)) {
     return JSON.stringify(value);
@@ -82,8 +120,40 @@ function detectValueKind(value: unknown): ContentfulTranslatableUnit["contentful
   return "json";
 }
 
+function parseTranslatedStringArray(value: string): string[] | null {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    if (Array.isArray(parsed) && parsed.every((item) => typeof item === "string")) {
+      return parsed;
+    }
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function fallbackTranslatedSegments(value: string): string[] {
+  const paragraphSegments = value
+    .split(/\r?\n\s*\r?\n/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  if (paragraphSegments.length > 1) {
+    return paragraphSegments;
+  }
+
+  const lineSegments = value
+    .split(/\r?\n/)
+    .map((segment) => segment.trim())
+    .filter(Boolean);
+  return lineSegments.length > 1 ? lineSegments : [value.trim()].filter(Boolean);
+}
+
 function replaceRichTextTextNodes(value: unknown, translatedText: string): unknown {
-  let wroteTranslation = false;
+  const translatedSegments =
+    parseTranslatedStringArray(translatedText) ?? fallbackTranslatedSegments(translatedText);
+  const textNodeCount = collectRichTextTextValues(value).length;
+  let textNodeIndex = 0;
 
   function visit(node: unknown): unknown {
     if (Array.isArray(node)) {
@@ -95,14 +165,21 @@ function replaceRichTextTextNodes(value: unknown, translatedText: string): unkno
     }
 
     if (node.nodeType === "text" && typeof node.value === "string") {
-      if (!wroteTranslation) {
-        wroteTranslation = true;
-        return { ...node, value: translatedText };
+      const translatedSegment = translatedSegments[textNodeIndex];
+      const isLastTextNode = textNodeIndex === textNodeCount - 1;
+      const remainingSegments = translatedSegments.slice(textNodeIndex);
+      textNodeIndex += 1;
+
+      if (isLastTextNode && remainingSegments.length > 1) {
+        return { ...node, value: remainingSegments.join("\n\n") };
       }
-      return { ...node, value: "" };
+      return { ...node, value: translatedSegment ?? node.value };
     }
 
-    return Object.fromEntries(Object.entries(node).map(([key, nested]) => [key, visit(nested)]));
+    if (Array.isArray(node.content)) {
+      return { ...node, content: visit(node.content) };
+    }
+    return node;
   }
 
   return visit(value);
@@ -185,10 +262,10 @@ export function formatTranslatedValueForContentful(input: {
   valueKind: ContentfulTranslatableUnit["contentfulValueKind"];
 }) {
   if (input.valueKind === "array") {
-    return input.translatedText
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    return (
+      parseTranslatedStringArray(input.translatedText) ??
+      fallbackTranslatedSegments(input.translatedText)
+    );
   }
 
   if (input.valueKind === "string") {

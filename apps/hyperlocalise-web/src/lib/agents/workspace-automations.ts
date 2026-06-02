@@ -81,6 +81,7 @@ const contentfulToolConfigSchema = z
     enabled: z.boolean().default(false),
     connectionId: z.string().uuid().optional(),
     projectId: z.string().trim().min(1).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
     entryId: z.string().trim().min(1).max(256).optional(),
     contentTypeIds: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
     targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
@@ -91,6 +92,7 @@ const contentfulToolConfigSchema = z
   })
   .default({
     enabled: false,
+    sourceLocale: "en",
     contentTypeIds: [],
     targetLocales: [],
     fieldMode: "auto",

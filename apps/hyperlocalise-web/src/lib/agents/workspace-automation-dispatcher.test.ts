@@ -226,6 +226,7 @@ describe("workspace automation dispatcher", () => {
             enabled: true,
             connectionId: contentfulConnection.connection.id,
             projectId: scope.projectId,
+            sourceLocale: "de-DE",
             targetLocales: ["fr-FR"],
             contentTypeIds: ["helpCenterArticle"],
             fieldMode: "auto",
@@ -283,5 +284,6 @@ describe("workspace automation dispatcher", () => {
       .where(eq(schema.contentfulTranslationRuns.organizationId, scope.organizationId));
     expect(translationRuns).toHaveLength(1);
     expect(translationRuns[0]?.entryId).toBe("entry-1");
+    expect(translationRuns[0]?.sourceLocale).toBe("de-DE");
   });
 });

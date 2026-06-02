@@ -129,7 +129,7 @@ async function enqueueWorkspaceContentfulAutomation(input: {
   }
 
   const targetLocales = input.automation.toolConfig.contentful?.targetLocales ?? [];
-  const sourceLocale = "en";
+  const sourceLocale = input.automation.toolConfig.contentful?.sourceLocale ?? "en";
   const translationRun = await createContentfulTranslationRun({
     organizationId: input.organizationId,
     connectionId: input.connectionId,

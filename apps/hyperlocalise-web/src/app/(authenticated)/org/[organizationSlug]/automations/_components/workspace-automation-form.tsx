@@ -77,6 +77,7 @@ type ContentfulConnectionOption = {
   id: string;
   displayName: string;
   projectId: string;
+  sourceLocale: string;
   targetLocales: string[];
   contentTypeIds: string[];
   enabled: boolean;
@@ -1228,6 +1229,8 @@ function ToolsSettings({
                       ...form,
                       contentfulConnectionId: value,
                       contentfulProjectId: connection?.projectId ?? form.contentfulProjectId,
+                      contentfulSourceLocale:
+                        connection?.sourceLocale ?? form.contentfulSourceLocale,
                       contentfulTargetLocales:
                         connection?.targetLocales ?? form.contentfulTargetLocales,
                       contentfulContentTypeIds:

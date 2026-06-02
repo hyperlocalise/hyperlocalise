@@ -35,6 +35,7 @@ export type WorkspaceAutomationFormState = {
   contentfulEnabled: boolean;
   contentfulConnectionId: string;
   contentfulProjectId: string;
+  contentfulSourceLocale: string;
   contentfulEntryId: string;
   contentfulContentTypeIds: string[];
   contentfulTargetLocales: string[];
@@ -106,6 +107,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     contentfulEnabled: false,
     contentfulConnectionId: "",
     contentfulProjectId: "",
+    contentfulSourceLocale: "en",
     contentfulEntryId: "",
     contentfulContentTypeIds: [],
     contentfulTargetLocales: [],
@@ -164,6 +166,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     contentfulEnabled: Boolean(contentful?.enabled),
     contentfulConnectionId: contentful?.connectionId ?? "",
     contentfulProjectId: contentful?.projectId ?? "",
+    contentfulSourceLocale: contentful?.sourceLocale ?? "en",
     contentfulEntryId: contentful?.entryId ?? "",
     contentfulContentTypeIds: contentful?.contentTypeIds ? [...contentful.contentTypeIds] : [],
     contentfulTargetLocales: contentful?.targetLocales ? [...contentful.targetLocales] : [],
@@ -276,6 +279,7 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
             enabled: true,
             connectionId: form.contentfulConnectionId || undefined,
             projectId: form.contentfulProjectId || undefined,
+            sourceLocale: form.contentfulSourceLocale.trim() || "en",
             entryId: form.contentfulEntryId.trim() || undefined,
             contentTypeIds: form.contentfulContentTypeIds,
             targetLocales: form.contentfulTargetLocales,
