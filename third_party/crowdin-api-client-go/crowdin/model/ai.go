@@ -251,7 +251,7 @@ const (
 type Prompt struct {
 	ID                int          `json:"id"`
 	Name              string       `json:"name"`
-	Action            string       `json:"action"`
+	Action            PromptAction `json:"action"`
 	AIProviderID      int          `json:"aiProviderId"`
 	AIModelID         string       `json:"aiModelId"`
 	IsEnabled         bool         `json:"isEnabled"`
@@ -305,6 +305,10 @@ type AIPromptsListOptions struct {
 	// Allows to filter the prompts available for the specific action.
 	// Enum: pre_translate, assist.
 	Action PromptAction `json:"action,omitempty"`
+	// Filter the prompts available for the specific AI provider.
+	AIProviderID int `json:"aiProviderId,omitempty"`
+	// Filter the prompts available for the specific AI model.
+	AIModelID string `json:"aiModelId,omitempty"`
 
 	ListOptions
 }
@@ -323,6 +327,12 @@ func (o *AIPromptsListOptions) Values() (url.Values, bool) {
 	}
 	if o.Action != "" {
 		v.Add("action", string(o.Action))
+	}
+	if o.AIProviderID > 0 {
+		v.Add("aiProviderId", strconv.Itoa(o.AIProviderID))
+	}
+	if o.AIModelID != "" {
+		v.Add("aiModelId", o.AIModelID)
 	}
 
 	return v, len(v) > 0
