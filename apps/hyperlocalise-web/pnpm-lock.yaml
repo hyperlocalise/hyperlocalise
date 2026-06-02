@@ -18,8 +18,8 @@ importers:
   .:
     dependencies:
       '@ai-sdk/openai':
-        specifier: 3.0.66
-        version: 3.0.66(zod@4.4.3)
+        specifier: 3.0.67
+        version: 3.0.67(zod@4.4.3)
       '@ai-sdk/react':
         specifier: ^3.0.176
         version: 3.0.195(react@19.2.6)(zod@4.4.3)
@@ -87,8 +87,8 @@ importers:
         specifier: ^2.3.3
         version: 2.4.0
       '@vercel/sandbox':
-        specifier: 2.0.1
-        version: 2.0.1
+        specifier: 2.0.2
+        version: 2.0.2
       '@workos-inc/authkit-nextjs':
         specifier: 4.1.1
         version: 4.1.1(next@16.2.6(@babel/core@7.29.0)(@opentelemetry/api@1.9.1)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.6(react@19.2.6))(react@19.2.6))(react-dom@19.2.6(react@19.2.6))(react@19.2.6)(typescript@6.0.3)
@@ -192,8 +192,8 @@ importers:
         specifier: 6.12.4
         version: 6.12.4
       shadcn:
-        specifier: 4.8.2
-        version: 4.8.2(@types/node@24.12.4)(typescript@6.0.3)
+        specifier: 4.8.3
+        version: 4.8.3(@types/node@24.12.4)(typescript@6.0.3)
       shiki:
         specifier: ^4.0.2
         version: 4.1.0
@@ -282,8 +282,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/openai@3.0.66':
-    resolution: {integrity: sha512-n9mZ7PbU7O2zN8UMcx495Gfx7sE/rL4KS+o5JzBOUbYJCuwEIxKO6yJaUkxa4r6IyiLxyGib0jegZw91Hh0diA==}
+  '@ai-sdk/openai@3.0.67':
+    resolution: {integrity: sha512-oAiGC9eWG7IgtdsdS74bOCnAAHarAfTJhWN9x5INwnWPekL802AvF+0I5DvLzIF1MIRmNw4N8mPSL/GUVbX9Mw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -3295,8 +3295,8 @@ packages:
     resolution: {integrity: sha512-4Uk9LOvDPVYqBJGrNDk4fdLte4CmFERXCUJI2y7SRYX1d//dI96Ww7sgKZF4+YDj/YaBXoCZ11AU0HYkVwW9Eg==}
     engines: {node: '>=20.0.0'}
 
-  '@vercel/sandbox@2.0.1':
-    resolution: {integrity: sha512-Q1PZVcTORgEMWAK63ga5h3Yfb5EIGpZAn25nJBw0bwA6Gu8rp7em58/OnpjduXsT408hhY6QP63ACWPM3acYPg==}
+  '@vercel/sandbox@2.0.2':
+    resolution: {integrity: sha512-Kd1gqvV4rjziFqLZMEJ7lJRZtskRohrCxkqueKY8rXO2MSGK8zSdp6/T5xApljnhDusEwEQ4+vi8e3dzFvnezg==}
 
   '@voidzero-dev/vite-plus-core@0.1.15':
     resolution: {integrity: sha512-0qAbqwcvQwiC8xGKSSuFtsjJUEM4LZzpXF7dffRazghGEQ8HH8NAvVryp/PiMSFwreJlV3rujwL4amKjnwCHpg==}
@@ -6912,8 +6912,8 @@ packages:
   setprototypeof@1.2.0:
     resolution: {integrity: sha512-E5LDX7Wrp85Kil5bhZv46j8jOeboKq5JMmYM3gVGdGH8xFpPWXUMsNrlODCrkoxMEeNi/XZIwuRvY4XNwYMJpw==}
 
-  shadcn@4.8.2:
-    resolution: {integrity: sha512-pt3KneOg6LGYKNAdoTVf/lpVcf7t2MlV+Ll2Xc3lIIYN3ph4ajrjU+CcG6OVSgO5ubbLZj+9j5oMA9Lqg7o8KA==}
+  shadcn@4.8.3:
+    resolution: {integrity: sha512-cnP485rIqtDb8waOp+IKUIfifVf64/PCd5VX/nnLeIP+qZ3yS4r6FOQtOdQkoQEvomQUsJS2OHr5CTzKWw0wKQ==}
     hasBin: true
 
   sharp@0.34.5:
@@ -7773,7 +7773,7 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
-  '@ai-sdk/openai@3.0.66(zod@4.4.3)':
+  '@ai-sdk/openai@3.0.67(zod@4.4.3)':
     dependencies:
       '@ai-sdk/provider': 3.0.10
       '@ai-sdk/provider-utils': 4.0.27(zod@4.4.3)
@@ -10515,7 +10515,7 @@ snapshots:
       mixpart: 0.0.6
       picocolors: 1.1.1
 
-  '@vercel/sandbox@2.0.1':
+  '@vercel/sandbox@2.0.2':
     dependencies:
       '@vercel/oidc': 3.2.0
       '@workflow/serde': 4.1.0-beta.2
@@ -14574,7 +14574,7 @@ snapshots:
 
   setprototypeof@1.2.0: {}
 
-  shadcn@4.8.2(@types/node@24.12.4)(typescript@6.0.3):
+  shadcn@4.8.3(@types/node@24.12.4)(typescript@6.0.3):
     dependencies:
       '@babel/core': 7.29.0
       '@babel/parser': 7.29.2
