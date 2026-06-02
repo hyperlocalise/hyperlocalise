@@ -205,6 +205,18 @@ describe("task tool", () => {
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
+        instructions: expect.stringContaining("preserving capitalization and punctuation"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("case-insensitively"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
         instructions: expect.stringContaining("short visible UI labels"),
       }),
     );

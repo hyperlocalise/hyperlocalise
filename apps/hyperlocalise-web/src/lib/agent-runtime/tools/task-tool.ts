@@ -99,6 +99,8 @@ BEHAVIOR:
                   "",
                   "Repository agent handoff requirements:",
                   "- Include the exact source text, key, file path, surrounding text, source locale, target locale, and repo hint when known.",
+                  "- Search the exact quoted source text first, preserving capitalization and punctuation.",
+                  "- If the exact quoted search has no matches, try the same text case-insensitively before declaring no match.",
                   "- For short visible UI labels, menu items, sidebar items, or page headings, search component, route, app shell, sidebar, navigation, and config files before accepting no-match results.",
                   "- For single-word or short-title UI copy, try lowercase route/key variants and nearby navigation labels.",
                   "- Return localization context only: product surface, user intent, tone/register, placeholders, nearby copy, existing translations, and ambiguities.",
