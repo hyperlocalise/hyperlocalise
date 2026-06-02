@@ -217,6 +217,47 @@ describe("createGrepTool", () => {
     expect((result as { matches: Array<{ path: string }> }).matches[0].path).toBe("a.go");
   });
 
+  it("constrains ripgrep include globs when searching globbed paths", async () => {
+    const calls: Array<{ command: string; args: string[] }> = [];
+    const t = createGrepTool({
+      bash: {
+        exec: async (command, options) => {
+          calls.push({ command, args: options?.args ?? [] });
+          return {
+            stdout: "src/user/routes/page.tsx:2:10:  return <h1>Dashboard</h1>;\n",
+            stderr: "",
+            exitCode: 0,
+            env: {},
+          };
+        },
+        readFile: async () => "",
+      },
+    });
+
+    const result = await t.execute!(
+      { pattern: "Dashboard", path: "src/*/routes", include: "*.tsx" },
+      toolCallInfo,
+    );
+
+    expect(calls).toEqual([
+      {
+        command: "rg",
+        args: expect.arrayContaining(["--glob", "src/*/routes/**/*.tsx", "Dashboard", "."]),
+      },
+    ]);
+    expect(calls[0]?.args).not.toContain("*.tsx");
+    expect(result).toMatchObject({ success: true, matchCount: 1, filesWithMatches: 1 });
+    expect(
+      (result as { matches: Array<{ path: string; line: number; content: string }> }).matches,
+    ).toEqual([
+      {
+        path: "src/user/routes/page.tsx",
+        line: 2,
+        content: "  return <h1>Dashboard</h1>;",
+      },
+    ]);
+  });
+
   it("finds matches", async () => {
     const ctx = createTestContext({
       "/home/user/project/a.go": "package main\n\nfunc main() {}\n",

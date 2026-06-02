@@ -158,6 +158,14 @@ function parseRipgrepLine(line: string) {
   };
 }
 
+function pathConstrainedRipgrepGlobs(searchPath: string, includes: string[]): string[] {
+  if (!hasPathGlobMetacharacter(searchPath)) {
+    return includes;
+  }
+
+  return includes.map((include) => `${searchPath}/**/${include}`);
+}
+
 async function grepWithRipgrep({
   ctx,
   pattern,
@@ -184,14 +192,10 @@ async function grepWithRipgrep({
     args.push("--fixed-strings");
   }
 
-  for (const include of includes) {
+  for (const include of pathConstrainedRipgrepGlobs(searchPath, includes)) {
     args.push("--glob", include);
   }
   args.push("--glob", "!node_modules/**", "--glob", "!.git/**");
-
-  if (hasPathGlobMetacharacter(searchPath)) {
-    args.push("--glob", searchPath);
-  }
 
   args.push(pattern, hasPathGlobMetacharacter(searchPath) ? "." : toShellRelativePath(searchPath));
 
