@@ -1,6 +1,5 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, ilike, inArray, sql } from "drizzle-orm";
 
-import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import type {
   ProjectFileRecord,
   ProjectFilesQuery,
@@ -16,8 +15,6 @@ export type ProjectFileListContext = {
   projectId: string;
   projectName: string;
 };
-
-const workspaceFilesProjectConcurrency = 5;
 
 type ProjectFileJobStatus = NonNullable<ProjectFileRecord["latestJob"]>["status"];
 type ProjectFileJobType = NonNullable<ProjectFileRecord["latestJob"]>["type"];
@@ -126,6 +123,16 @@ export async function listProjectFilesForProject(input: {
   providerFilters?: ProjectFileFilterQuery;
   resourceTypes?: ExternalTmsResourceType[];
 }) {
+  const shouldLoadRepositoryFiles =
+    !input.providerFilters?.origin ||
+    input.providerFilters.origin === "all" ||
+    input.providerFilters.origin === "repository";
+  const shouldLoadProviderFiles =
+    !input.providerFilters?.origin ||
+    input.providerFilters.origin === "all" ||
+    input.providerFilters.origin === "provider";
+  const repositorySearch = input.providerFilters?.search?.trim();
+
   const versionsSubquery = db
     .select({
       versionId: schema.repositorySourceFileVersions.id,
@@ -154,6 +161,9 @@ export async function listProjectFilesForProject(input: {
         eq(schema.storedFiles.role, "source"),
         eq(schema.storedFiles.sourceKind, "repository_file"),
         eq(schema.storedFiles.organizationId, input.organizationId),
+        ...(repositorySearch
+          ? [ilike(schema.repositorySourceFileVersions.sourcePath, `%${repositorySearch}%`)]
+          : []),
       ),
     )
     .as("versions_sq");
@@ -175,19 +185,22 @@ export async function listProjectFilesForProject(input: {
     .where(eq(versionsSubquery.rowNumber, 1))
     .orderBy(versionsSubquery.sourcePath);
 
-  const versions =
-    input.repositoryFetchLimit != null
+  const versions = shouldLoadRepositoryFiles
+    ? input.repositoryFetchLimit != null
       ? await versionsBaseQuery.limit(input.repositoryFetchLimit)
-      : await versionsBaseQuery;
+      : await versionsBaseQuery
+    : [];
 
   const versionIds = versions.map((v) => v.versionId);
-  const providerFiles = await listExternalTmsFilesForProject({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    resourceTypes: input.resourceTypes,
-    filters: input.providerFilters,
-    limit: input.providerFetchLimit,
-  });
+  const providerFiles = shouldLoadProviderFiles
+    ? await listExternalTmsFilesForProject({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        resourceTypes: input.resourceTypes,
+        filters: input.providerFilters,
+        limit: input.providerFetchLimit,
+      })
+    : [];
 
   const latestJobs = new Map<
     string,
@@ -336,46 +349,44 @@ export async function listWorkspaceFiles(input: {
       ? input.projects.filter((project) => project.projectId === input.query.projectId)
       : input.projects;
 
-  const perProjectFetchLimit = Math.max(
-    input.query.limit,
-    Math.ceil(input.query.limit / Math.max(projectIds.length, 1)) + 5,
-  );
+  const sortedProjects = projectIds.toSorted((a, b) => a.projectName.localeCompare(b.projectName));
+  const collected: WorkspaceFileRecord[] = [];
 
-  const fileGroups = await mapWithConcurrency(
-    projectIds,
-    workspaceFilesProjectConcurrency,
-    async (project) => {
-      const files = await listProjectFilesForProject({
-        organizationId: input.organizationId,
-        projectId: project.projectId,
-        providerFetchLimit: perProjectFetchLimit,
-        repositoryFetchLimit: perProjectFetchLimit,
-        providerFilters: input.query,
-        resourceTypes,
-      });
+  for (const project of sortedProjects) {
+    if (collected.length >= input.query.limit) {
+      break;
+    }
 
-      const filtered = filterProjectFiles(files, input.query);
+    const remaining = input.query.limit - collected.length;
+    const perProjectFetchLimit = Math.max(remaining + 5, input.query.limit);
 
-      return filtered.map(
+    const files = await listProjectFilesForProject({
+      organizationId: input.organizationId,
+      projectId: project.projectId,
+      providerFetchLimit: perProjectFetchLimit,
+      repositoryFetchLimit: perProjectFetchLimit,
+      providerFilters: input.query,
+      resourceTypes,
+    });
+
+    const filtered = filterProjectFiles(files, input.query);
+
+    collected.push(
+      ...filtered.slice(0, remaining).map(
         (file): WorkspaceFileRecord => ({
           ...file,
           projectId: project.projectId,
           projectName: project.projectName,
         }),
-      );
-    },
-  );
+      ),
+    );
+  }
 
-  const files = fileGroups
-    .flat()
-    .sort((a, b) => {
-      const projectCompare = a.projectName.localeCompare(b.projectName);
-      if (projectCompare !== 0) {
-        return projectCompare;
-      }
-      return a.sourcePath.localeCompare(b.sourcePath);
-    })
-    .slice(0, input.query.limit);
-
-  return files;
+  return collected.sort((a, b) => {
+    const projectCompare = a.projectName.localeCompare(b.projectName);
+    if (projectCompare !== 0) {
+      return projectCompare;
+    }
+    return a.sourcePath.localeCompare(b.sourcePath);
+  });
 }

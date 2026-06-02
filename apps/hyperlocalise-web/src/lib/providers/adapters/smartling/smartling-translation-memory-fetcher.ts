@@ -10,20 +10,23 @@ import {
 const TRANSLATION_MEMORY_FETCH_CONCURRENCY = 5;
 
 export const fetchSmartlingTranslationMemories: ExternalTmsTranslationMemoryFetcher = async ({
+  credential,
   secretMaterial,
   externalProjectId,
   project,
 }) => {
+  const authBaseUrl = credential.baseUrl ?? undefined;
   const accountUid = await resolveSmartlingAccountUid({
     secretMaterial,
     externalProjectId,
     project,
+    authBaseUrl,
   });
   if (!accountUid) {
     throw new Error("smartling_account_uid_required");
   }
 
-  const client = new SmartlingApiClient({ credentials: secretMaterial });
+  const client = new SmartlingApiClient({ credentials: secretMaterial, authBaseUrl });
 
   let memories;
   try {

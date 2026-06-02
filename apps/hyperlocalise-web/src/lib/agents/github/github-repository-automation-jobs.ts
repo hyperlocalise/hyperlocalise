@@ -163,7 +163,46 @@ export async function claimGithubRepositoryAutomationJob(input: {
     throw new Error("failed to read claimed github repository automation job");
   }
 
+  if (!githubRepositoryAutomationJobMatchesClaim(existing, input)) {
+    throw new Error("github_repository_automation_job_idempotency_mismatch");
+  }
+
   return { inserted: false, job: serializeJob(existing) };
+}
+
+function githubRepositoryAutomationJobMatchesClaim(
+  existing: JobRow,
+  input: {
+    organizationId: string;
+    githubInstallationRepositoryId: string;
+    githubInstallationId: string;
+    githubRepositoryId: string;
+    configVersion: number;
+    triggerMode: "push" | "scheduled";
+    workflows?: GithubRepoAutomationDispatchPayload["workflows"];
+  },
+): boolean {
+  if (
+    existing.organizationId !== input.organizationId ||
+    existing.githubInstallationRepositoryId !== input.githubInstallationRepositoryId ||
+    existing.githubInstallationId !== input.githubInstallationId ||
+    existing.githubRepositoryId !== input.githubRepositoryId ||
+    existing.configVersion !== input.configVersion ||
+    existing.triggerMode !== input.triggerMode
+  ) {
+    return false;
+  }
+
+  if (!input.workflows) {
+    return true;
+  }
+
+  const existingWorkflows = normalizeJobWorkflows(existing.workflows);
+  return (
+    existingWorkflows.pushSource === input.workflows.pushSource &&
+    existingWorkflows.pullTranslations === input.workflows.pullTranslations &&
+    existingWorkflows.validation === input.workflows.validation
+  );
 }
 
 export async function getGithubRepositoryAutomationJobById(

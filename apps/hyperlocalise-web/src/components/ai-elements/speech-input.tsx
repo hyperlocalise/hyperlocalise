@@ -277,6 +277,14 @@ export const SpeechInput = ({
       mediaRecorder.addEventListener("stop", handleStop);
       mediaRecorder.addEventListener("error", handleError);
 
+      if (!isMountedRef.current || mediaRecorderStartGenerationRef.current !== startGeneration) {
+        stopMediaStream(recordingStream);
+        if (streamRef.current === recordingStream) {
+          streamRef.current = null;
+        }
+        return;
+      }
+
       mediaRecorderRef.current = mediaRecorder;
       mediaRecorder.start();
       setIsListening(true);

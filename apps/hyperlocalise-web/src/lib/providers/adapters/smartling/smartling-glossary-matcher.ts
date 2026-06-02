@@ -9,6 +9,7 @@ import {
 import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";
 
 export const searchSmartlingGlossaryMatches: ExternalTmsGlossaryMatcher = async ({
+  credential,
   secretMaterial,
   externalProjectId,
   glossaries,
@@ -17,9 +18,11 @@ export const searchSmartlingGlossaryMatches: ExternalTmsGlossaryMatcher = async 
   sourceText,
   limit,
 }) => {
+  const authBaseUrl = credential.baseUrl ?? undefined;
   const accountUid = await resolveSmartlingAccountUid({
     secretMaterial,
     externalProjectId,
+    authBaseUrl,
   });
   if (!accountUid) {
     return [];
@@ -30,7 +33,7 @@ export const searchSmartlingGlossaryMatches: ExternalTmsGlossaryMatcher = async 
     return [];
   }
 
-  const client = new SmartlingApiClient({ credentials: secretMaterial });
+  const client = new SmartlingApiClient({ credentials: secretMaterial, authBaseUrl });
   const normalizedTargetLocale = targetLocale.trim();
   const liveMatches = [];
 

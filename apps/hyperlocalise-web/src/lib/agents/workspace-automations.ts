@@ -439,26 +439,36 @@ export async function updateWorkspaceAutomation(input: {
     input.triggerConfig !== undefined ||
     input.repositoryTarget !== undefined ||
     input.toolConfig !== undefined;
-  const config = workspaceAutomationConfigSchema.parse({
-    triggerConfig: input.triggerConfig ?? existing.triggerConfig,
-    repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
-    toolConfig: input.toolConfig ?? existing.toolConfig,
-  });
-  const validation = validateWorkspaceAutomationConfig({
-    triggerConfig: config.triggerConfig,
-    repositoryTarget: config.repositoryTarget,
-    toolConfig: config.toolConfig,
-  });
-  if (isErr(validation)) {
-    return err(validation.error);
-  }
 
-  const integrationValidation = await validateWorkspaceAutomationIntegrations({
-    organizationId: input.organizationId,
-    toolConfig: config.toolConfig,
-  });
-  if (isErr(integrationValidation)) {
-    return err(integrationValidation.error);
+  const config = configChanged
+    ? workspaceAutomationConfigSchema.parse({
+        triggerConfig: input.triggerConfig ?? existing.triggerConfig,
+        repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
+        toolConfig: input.toolConfig ?? existing.toolConfig,
+      })
+    : {
+        triggerConfig: existing.triggerConfig,
+        repositoryTarget: existing.repositoryTarget,
+        toolConfig: existing.toolConfig,
+      };
+
+  if (configChanged) {
+    const validation = validateWorkspaceAutomationConfig({
+      triggerConfig: config.triggerConfig,
+      repositoryTarget: config.repositoryTarget,
+      toolConfig: config.toolConfig,
+    });
+    if (isErr(validation)) {
+      return err(validation.error);
+    }
+
+    const integrationValidation = await validateWorkspaceAutomationIntegrations({
+      organizationId: input.organizationId,
+      toolConfig: config.toolConfig,
+    });
+    if (isErr(integrationValidation)) {
+      return err(integrationValidation.error);
+    }
   }
 
   const mergedAutomation: WorkspaceAutomationRecord = {

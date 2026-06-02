@@ -84,7 +84,7 @@ type ReplyComposerProps = {
   conversationProjectId: string | null;
   disabled: boolean;
   isStreaming: boolean;
-  onSend: (text: string, files: File[]) => void | Promise<void>;
+  onSend: (text: string, files: File[], projectId?: string) => void | Promise<void>;
   organizationSlug: string;
 };
 
@@ -141,7 +141,11 @@ function ReplyComposerContent({
       dataUrlToFile(file.url, file.filename || "untitled", file.mediaType),
     );
 
-    await onSend(trimmedText, fileObjects);
+    const projectIdForSend =
+      selectedProjectId && selectedProjectId !== conversationProjectId
+        ? selectedProjectId
+        : undefined;
+    await onSend(trimmedText, fileObjects, projectIdForSend);
     setReplyText("");
     attachments.clear();
   };

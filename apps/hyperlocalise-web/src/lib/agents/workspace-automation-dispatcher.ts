@@ -67,12 +67,21 @@ async function linkWorkspaceAutomationRun(input: {
     githubRepositoryId: string;
   };
 }): Promise<WorkspaceAutomationDispatchResult> {
+  const workspaceRunIdempotencyKey =
+    input.triggerSource === "manual"
+      ? buildWorkspaceManualAutomationIdempotencyKey({
+          automationId: input.automation.id,
+          configVersion: input.automation.configVersion,
+          idempotencyKey: input.idempotencyKey,
+        })
+      : input.idempotencyKey;
+
   const run = await createWorkspaceAutomationRun({
     automationId: input.automation.id,
     organizationId: input.organizationId,
     triggerSource: input.triggerSource,
     status: "queued",
-    idempotencyKey: input.idempotencyKey,
+    idempotencyKey: workspaceRunIdempotencyKey,
     inputSnapshot: {
       ...input.inputSnapshot,
       automationConfigVersion: input.automation.configVersion,

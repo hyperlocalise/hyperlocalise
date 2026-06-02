@@ -81,7 +81,7 @@ export function createWriteI18nConfigTool(
       const writeResult = await runSandboxCommand(
         ctx.sandboxId,
         "bash",
-        ["-lc", `printf '%s\\n' "$I18N_CONTENT" > i18n.yml`],
+        ["-lc", `printf '%s\\n' "$I18N_CONTENT" > i18n.yml.tmp`],
         { env: { I18N_CONTENT: input.content } },
       );
 
@@ -91,13 +91,26 @@ export function createWriteI18nConfigTool(
 
       const validateResult = await runSandboxCommand(ctx.sandboxId, "bash", [
         "-lc",
-        `export PATH="$HOME/.local/bin:$PATH"; command -v hl >/dev/null 2>&1 && hl status --config ${shellQuote("i18n.yml")} >/dev/null 2>&1 || test -f i18n.yml`,
+        `export PATH="$HOME/.local/bin:$PATH"; command -v hl >/dev/null 2>&1 && hl status --config ${shellQuote("i18n.yml.tmp")} >/dev/null 2>&1 || test -f i18n.yml.tmp`,
       ]);
 
       if (validateResult.exitCode !== 0) {
+        await runSandboxCommand(ctx.sandboxId, "bash", ["-lc", "rm -f i18n.yml.tmp"]);
         return {
           success: false,
-          error: `Wrote i18n.yml but validation failed: ${validateResult.output}`,
+          error: `i18n.yml validation failed: ${validateResult.output}`,
+        };
+      }
+
+      const promoteResult = await runSandboxCommand(ctx.sandboxId, "bash", [
+        "-lc",
+        "mv -f i18n.yml.tmp i18n.yml",
+      ]);
+
+      if (promoteResult.exitCode !== 0) {
+        return {
+          success: false,
+          error: `Failed to finalize i18n.yml: ${promoteResult.output}`,
         };
       }
 

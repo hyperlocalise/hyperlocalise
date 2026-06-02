@@ -10,6 +10,7 @@ import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
+import { getOwnedProject } from "@/api/routes/project/project.shared";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
@@ -226,7 +227,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const { conversationId } = c.req.valid("param");
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
 
-        const conversation = await canAccessInteraction(c.var.auth, conversationId);
+        let conversation = await canAccessInteraction(c.var.auth, conversationId);
         if (!conversation) {
           return notFoundResponse(c);
         }
@@ -234,6 +235,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const body = await c.req.parseBody({ all: true });
         const text = asString(body.text) ?? "";
         const files = asFiles(body.files);
+        const requestedProjectId = asString(body.projectId)?.trim();
 
         if (!text.trim() && files.length === 0) {
           return badRequestResponse(c);
@@ -245,6 +247,28 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
         if (conversation.source !== "chat_ui") {
           return c.json({ error: "conversation_not_replyable" }, 400);
+        }
+
+        if (requestedProjectId && requestedProjectId !== conversation.projectId) {
+          const project = await getOwnedProject(c.var.auth, requestedProjectId);
+          if (!project) {
+            return c.json({ error: "project_not_found" }, 400);
+          }
+
+          const [updatedConversation] = await db
+            .update(schema.interactions)
+            .set({ projectId: requestedProjectId, updatedAt: new Date() })
+            .where(
+              and(
+                eq(schema.interactions.id, conversationId),
+                eq(schema.interactions.organizationId, orgId),
+              ),
+            )
+            .returning();
+
+          if (updatedConversation) {
+            conversation = { ...conversation, projectId: updatedConversation.projectId };
+          }
         }
 
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
