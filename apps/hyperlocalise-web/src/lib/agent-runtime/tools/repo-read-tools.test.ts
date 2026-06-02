@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { createFuzzySearchTool, createGrepTool, createReadTool } from "./workspace";
+import { createFuzzySearchTool, createGrepTool, createReadTool, parseGrepLine } from "./workspace";
 
 import {
   buildHlArgs,
@@ -94,6 +94,50 @@ describe("createReadTool", () => {
   });
 });
 
+describe("parseGrepLine", () => {
+  it("parses filename-prefixed grep output", () => {
+    expect(parseGrepLine("src/app/[locale]/page.tsx:12:return <h1>Dashboard</h1>")).toEqual({
+      path: "src/app/[locale]/page.tsx",
+      line: 12,
+      content: "return <h1>Dashboard</h1>",
+    });
+  });
+
+  it("keeps colons in matched content", () => {
+    expect(parseGrepLine("src/config.ts:4:const url = 'http://localhost:3000';")).toEqual({
+      path: "src/config.ts",
+      line: 4,
+      content: "const url = 'http://localhost:3000';",
+    });
+  });
+
+  it("parses single-file grep output with a fallback path", () => {
+    expect(parseGrepLine("3:func main() {}", "a.go")).toEqual({
+      path: "a.go",
+      line: 3,
+      content: "func main() {}",
+    });
+  });
+
+  it("keeps colons in single-file grep output content", () => {
+    expect(
+      parseGrepLine("8:export const path = '/api/:id';", "src/app/api/[[...route]]/route.ts"),
+    ).toEqual({
+      path: "src/app/api/[[...route]]/route.ts",
+      line: 8,
+      content: "export const path = '/api/:id';",
+    });
+  });
+
+  it("does not parse single-file grep output without a fallback path", () => {
+    expect(parseGrepLine("3:func main() {}")).toBeNull();
+  });
+
+  it("returns null for grep messages that are not match lines", () => {
+    expect(parseGrepLine("Binary file a.go matches", "a.go")).toBeNull();
+  });
+});
+
 describe("createGrepTool", () => {
   it("finds matches", async () => {
     const ctx = createTestContext({
@@ -105,6 +149,223 @@ describe("createGrepTool", () => {
     expect(result).toMatchObject({ success: true });
     expect((result as { matches: Array<{ path: string }> }).matches).toHaveLength(1);
     expect((result as { matches: Array<{ path: string }> }).matches[0].path).toBe("a.go");
+  });
+
+  it("finds matches when searching one file", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/a.go": "package main\n\nfunc main() {}\n",
+    });
+    const t = createGrepTool(ctx);
+    const result = await t.execute!({ pattern: "func main", path: "a.go" }, toolCallInfo);
+
+    expect(result).toMatchObject({ success: true });
+    expect((result as { matches: Array<{ path: string; line: number }> }).matches).toEqual([
+      { path: "a.go", line: 3, content: "func main() {}" },
+    ]);
+  });
+
+  it("finds matches in Next.js route files with bracketed path segments", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/src/app/[locale]/dashboard/page.tsx":
+        "export default function Page() {\n  return <h1>Dashboard</h1>;\n}\n",
+      "/home/user/project/src/app/api/[[...route]]/route.ts": "export const runtime = 'nodejs';\n",
+    });
+    const t = createGrepTool(ctx);
+    const pageResult = await t.execute!(
+      { pattern: "Dashboard", path: "src/app/[locale]/dashboard/page.tsx" },
+      toolCallInfo,
+    );
+    const routeResult = await t.execute!(
+      { pattern: "runtime", path: "src/app/api/[[...route]]/route.ts" },
+      toolCallInfo,
+    );
+
+    expect(pageResult).toMatchObject({ success: true });
+    expect((pageResult as { matches: Array<{ path: string; line: number }> }).matches).toEqual([
+      {
+        path: "src/app/[locale]/dashboard/page.tsx",
+        line: 2,
+        content: "  return <h1>Dashboard</h1>;",
+      },
+    ]);
+    expect(routeResult).toMatchObject({ success: true });
+    expect((routeResult as { matches: Array<{ path: string; line: number }> }).matches).toEqual([
+      {
+        path: "src/app/api/[[...route]]/route.ts",
+        line: 1,
+        content: "export const runtime = 'nodejs';",
+      },
+    ]);
+  });
+
+  it("finds matches when searching a Next.js bracketed route directory", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/src/app/[locale]/dashboard/page.tsx":
+        "export default function Page() {\n  return <h1>Dashboard</h1>;\n}\n",
+      "/home/user/project/src/app/[locale]/settings/page.tsx":
+        "export default function Page() {\n  return <h1>Settings</h1>;\n}\n",
+    });
+    const t = createGrepTool(ctx);
+    const result = await t.execute!(
+      { pattern: "Dashboard", path: "src/app/[locale]" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true });
+    expect((result as { matches: Array<{ path: string; line: number }> }).matches).toEqual([
+      {
+        path: "src/app/[locale]/dashboard/page.tsx",
+        line: 2,
+        content: "  return <h1>Dashboard</h1>;",
+      },
+    ]);
+  });
+
+  it("supports case-insensitive regex searches in bracketed route directories", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/src/app/[locale]/dashboard/page.tsx":
+        "export default function Page() {\n  return <h1>Dashboard</h1>;\n}\n",
+      "/home/user/project/src/app/[locale]/settings/page.tsx":
+        "export default function Page() {\n  return <h1>Settings</h1>;\n}\n",
+    });
+    const t = createGrepTool(ctx);
+    const result = await t.execute!(
+      {
+        pattern: "dash(board)?",
+        path: "src/app/[locale]",
+        caseSensitive: false,
+        regex: true,
+      },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true });
+    expect((result as { matches: Array<{ path: string; line: number }> }).matches).toEqual([
+      {
+        path: "src/app/[locale]/dashboard/page.tsx",
+        line: 2,
+        content: "  return <h1>Dashboard</h1>;",
+      },
+    ]);
+  });
+
+  it("returns empty results for missing patterns in bracketed route directories", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/src/app/[locale]/dashboard/page.tsx":
+        "export default function Page() {\n  return <h1>Dashboard</h1>;\n}\n",
+    });
+    const t = createGrepTool(ctx);
+    const result = await t.execute!(
+      { pattern: "Settings", path: "src/app/[locale]" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({
+      success: true,
+      matchCount: 0,
+      filesWithMatches: 0,
+      matches: [],
+    });
+  });
+
+  it("parses single-file grep output without a filename prefix", async () => {
+    const t = createGrepTool({
+      bash: {
+        exec: async () => ({
+          stdout: "3:func main() {}\n",
+          stderr: "",
+          exitCode: 0,
+          env: {},
+        }),
+        readFile: async () => "",
+      },
+    });
+
+    const result = await t.execute!({ pattern: "func main", path: "a.go" }, toolCallInfo);
+
+    expect(result).toMatchObject({ success: true });
+    expect((result as { matches: Array<{ path: string; line: number }> }).matches).toEqual([
+      { path: "a.go", line: 3, content: "func main() {}" },
+    ]);
+  });
+
+  it("keeps colons in single-file grep matches", async () => {
+    const t = createGrepTool({
+      bash: {
+        exec: async (command) =>
+          command === "find"
+            ? {
+                stdout: "src/app/api/[[...route]]/route.ts\n",
+                stderr: "",
+                exitCode: 0,
+                env: {},
+              }
+            : {
+                stdout: "8:export const path = '/api/:id';\n",
+                stderr: "",
+                exitCode: 0,
+                env: {},
+              },
+        readFile: async () => "",
+      },
+    });
+
+    const result = await t.execute!(
+      { pattern: "/api/:id", path: "src/app/api/[[...route]]/route.ts" },
+      toolCallInfo,
+    );
+
+    expect(result).toMatchObject({ success: true });
+    expect((result as { matches: Array<{ path: string; line: number }> }).matches).toEqual([
+      {
+        path: "src/app/api/[[...route]]/route.ts",
+        line: 8,
+        content: "export const path = '/api/:id';",
+      },
+    ]);
+  });
+
+  it("ignores unparsable grep output when at least one match line parses", async () => {
+    const t = createGrepTool({
+      bash: {
+        exec: async () => ({
+          stdout: "Binary file a.go matches\n3:func main() {}\n",
+          stderr: "",
+          exitCode: 0,
+          env: {},
+        }),
+        readFile: async () => "",
+      },
+    });
+
+    const result = await t.execute!({ pattern: "func main", path: "a.go" }, toolCallInfo);
+
+    expect(result).toMatchObject({ success: true });
+    expect((result as { matches: Array<{ path: string; line: number }> }).matches).toEqual([
+      { path: "a.go", line: 3, content: "func main() {}" },
+    ]);
+  });
+
+  it("does not report zero matches when grep output is unparsable", async () => {
+    const t = createGrepTool({
+      bash: {
+        exec: async () => ({
+          stdout: "Binary file a.go matches\n",
+          stderr: "",
+          exitCode: 0,
+          env: {},
+        }),
+        readFile: async () => "",
+      },
+    });
+
+    const result = await t.execute!({ pattern: "func main", path: "a.go" }, toolCallInfo);
+
+    expect(result).toMatchObject({
+      success: false,
+      error: "Search returned output, but no match lines could be parsed",
+      matches: [],
+    });
   });
 
   it("returns empty for missing pattern", async () => {
