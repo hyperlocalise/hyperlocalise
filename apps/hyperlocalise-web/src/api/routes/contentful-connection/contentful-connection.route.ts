@@ -4,6 +4,7 @@ import { validator } from "hono/validator";
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import { isErr } from "@/lib/primitives/result/results";
 import {
   createContentfulConnection,
   deleteContentfulConnection,
@@ -199,10 +200,18 @@ export function createContentfulConnectionRoutes() {
         return notFoundResponse(c, "contentful_connection_not_found");
       }
 
-      if (!result.ok) {
-        return badRequestResponse(c, "contentful_connection_validation_failed", result.message);
+      if (isErr(result)) {
+        return badRequestResponse(c, result.error.code, result.error.message);
       }
 
-      return c.json({ contentfulConnectionValidation: result }, 200);
+      return c.json(
+        {
+          contentfulConnectionValidation: {
+            ok: true as const,
+            validation: result.value,
+          },
+        },
+        200,
+      );
     });
 }

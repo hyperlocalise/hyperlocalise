@@ -55,6 +55,21 @@ export async function recordContentfulWebhookEvent(input: {
   return { event: existing, inserted: false };
 }
 
+const CONTENTFUL_TRANSLATION_RUN_IN_PROGRESS_STATUSES = new Set(["queued", "running"]);
+
+export function resolveAggregatedContentfulWebhookProcessingStatus(runStatuses: string[]) {
+  if (runStatuses.length === 0) {
+    return null;
+  }
+  if (runStatuses.some((status) => CONTENTFUL_TRANSLATION_RUN_IN_PROGRESS_STATUSES.has(status))) {
+    return null;
+  }
+  if (runStatuses.some((status) => status === "failed")) {
+    return "failed";
+  }
+  return "succeeded";
+}
+
 export async function markContentfulWebhookEventStatus(input: {
   eventId: string;
   organizationId: string;
@@ -74,4 +89,42 @@ export async function markContentfulWebhookEventStatus(input: {
         eq(schema.contentfulWebhookEvents.organizationId, input.organizationId),
       ),
     );
+}
+
+/**
+ * Sets webhook event status only after every translation run for the event has
+ * finished. Failed wins over succeeded when sibling automations disagree.
+ */
+export async function syncContentfulWebhookEventStatus(input: {
+  eventId: string;
+  organizationId: string;
+  error?: Record<string, unknown> | null;
+}) {
+  const runs = await db
+    .select({ status: schema.contentfulTranslationRuns.status })
+    .from(schema.contentfulTranslationRuns)
+    .where(
+      and(
+        eq(schema.contentfulTranslationRuns.webhookEventId, input.eventId),
+        eq(schema.contentfulTranslationRuns.organizationId, input.organizationId),
+      ),
+    );
+
+  const processingStatus = resolveAggregatedContentfulWebhookProcessingStatus(
+    runs.map((run) => run.status),
+  );
+  if (!processingStatus) {
+    return;
+  }
+
+  await markContentfulWebhookEventStatus({
+    eventId: input.eventId,
+    organizationId: input.organizationId,
+    processingStatus,
+    ...(processingStatus === "failed" && input.error !== undefined
+      ? { error: input.error }
+      : processingStatus === "succeeded"
+        ? { error: null }
+        : {}),
+  });
 }

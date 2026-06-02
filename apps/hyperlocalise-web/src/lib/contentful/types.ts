@@ -100,3 +100,27 @@ export type ContentfulDraftTranslation = {
   locale: string;
   value: unknown;
 };
+
+export type ContentfulConnectionValidation = {
+  environmentId: string;
+  locales: Array<{
+    code: string;
+    name: string;
+    default: boolean;
+  }>;
+};
+
+export type ContentfulConnectionValidationError = {
+  code: "contentful_connection_validation_failed";
+  message: string;
+};
+
+export type ContentfulAutomationExecutionSuccess = {
+  runId: string;
+};
+
+export type ContentfulAutomationExecutionError = {
+  code: "contentful_automation_failed";
+  runId: string;
+  message: string;
+};

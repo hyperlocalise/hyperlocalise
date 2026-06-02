@@ -5,6 +5,7 @@ import { and, eq } from "drizzle-orm";
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
 import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
@@ -15,8 +16,10 @@ import {
   detectContentfulTranslatableFields,
   formatTranslatedValueForContentful,
 } from "./field-detector";
-import { markContentfulWebhookEventStatus } from "./events";
+import { syncContentfulWebhookEventStatus } from "./events";
 import type {
+  ContentfulAutomationExecutionError,
+  ContentfulAutomationExecutionSuccess,
   ContentfulConnectionFieldConfig,
   ContentfulDraftTranslation,
   ContentfulTranslatableUnit,
@@ -255,7 +258,9 @@ export async function createContentfulTranslationRun(input: {
   return run;
 }
 
-export async function executeContentfulAutomation(input: ContentfulAutomationExecutionEvent) {
+export async function executeContentfulAutomation(
+  input: ContentfulAutomationExecutionEvent,
+): Promise<Result<ContentfulAutomationExecutionSuccess, ContentfulAutomationExecutionError>> {
   const [run] = await db
     .select()
     .from(schema.contentfulTranslationRuns)
@@ -380,7 +385,8 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
               ? new Set(translations.map((translation) => translation.fieldId)).size
               : 0,
           localeValuesWritten: run.writeDrafts !== false ? translations.length : 0,
-          contentfulVersion: updatedEntry.sys.version,
+          contentfulVersion:
+            translations.length > 0 && run.writeDrafts !== false ? updatedEntry.sys.version : null,
         },
         completedAt,
         updatedAt: completedAt,
@@ -407,14 +413,13 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
       );
 
     if (run.webhookEventId) {
-      await markContentfulWebhookEventStatus({
+      await syncContentfulWebhookEventStatus({
         eventId: run.webhookEventId,
         organizationId: input.organizationId,
-        processingStatus: "succeeded",
       });
     }
 
-    return { ok: true as const, runId: run.id };
+    return ok({ runId: run.id });
   } catch (error) {
     const completedAt = new Date();
     const message = isContentfulClientError(error)
@@ -446,13 +451,16 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
         ),
       );
     if (run.webhookEventId) {
-      await markContentfulWebhookEventStatus({
+      await syncContentfulWebhookEventStatus({
         eventId: run.webhookEventId,
         organizationId: input.organizationId,
-        processingStatus: "failed",
         error: { message },
       });
     }
-    return { ok: false as const, runId: run.id, message };
+    return err({
+      code: "contentful_automation_failed",
+      runId: run.id,
+      message,
+    });
   }
 }

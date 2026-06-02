@@ -11,12 +11,16 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
+import { err, ok, type Result } from "@/lib/primitives/result/results";
+
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
 import { hashContentfulWebhookSecret } from "./webhook";
 import type {
   ContentfulConnectionFieldConfig,
   ContentfulConnectionSecretResult,
   ContentfulConnectionSummary,
+  ContentfulConnectionValidation,
+  ContentfulConnectionValidationError,
 } from "./types";
 
 type ContentfulConnectionRow = typeof schema.contentfulConnections.$inferSelect;
@@ -363,7 +367,7 @@ export async function deleteContentfulConnection(input: {
 export async function validateContentfulConnection(input: {
   organizationId: string;
   connectionId: string;
-}) {
+}): Promise<Result<ContentfulConnectionValidation, ContentfulConnectionValidationError> | null> {
   const loaded = await loadContentfulConnectionWithToken(input);
   if (!loaded) {
     return null;
@@ -386,7 +390,7 @@ export async function validateContentfulConnection(input: {
         updatedAt: new Date(),
       })
       .where(eq(schema.contentfulConnections.id, loaded.connection.id));
-    return { ok: true as const, validation };
+    return ok(validation);
   } catch (error) {
     const message = isContentfulClientError(error)
       ? error.message
@@ -400,7 +404,10 @@ export async function validateContentfulConnection(input: {
         updatedAt: new Date(),
       })
       .where(eq(schema.contentfulConnections.id, loaded.connection.id));
-    return { ok: false as const, message };
+    return err({
+      code: "contentful_connection_validation_failed",
+      message,
+    });
   }
 }
 
