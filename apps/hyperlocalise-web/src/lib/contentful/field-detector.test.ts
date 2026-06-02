@@ -88,6 +88,7 @@ describe("contentful field detector", () => {
     });
 
     expect(units.map((unit) => unit.fieldId)).toEqual(["title"]);
+    expect(units[0]?.existingTranslations).toEqual([]);
   });
 
   it("formats tag-like arrays back into Contentful arrays", () => {

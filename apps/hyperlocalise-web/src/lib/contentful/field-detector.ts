@@ -248,7 +248,7 @@ export function detectContentfulTranslatableFields(input: {
       sourceLocale: input.sourceLocale,
       sourceValue,
       sourceText,
-      existingTranslations,
+      existingTranslations: input.overwriteDraftLocales ? [] : existingTranslations,
       contentfulValueKind: detectValueKind(sourceValue),
     });
   }
