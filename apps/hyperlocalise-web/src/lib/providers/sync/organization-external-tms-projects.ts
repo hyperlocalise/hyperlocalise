@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 import { db, schema } from "@/lib/database";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
 
@@ -19,6 +20,7 @@ export async function upsertOrganizationExternalTmsProject(input: {
   metadata?: Record<string, unknown>;
 }) {
   const now = new Date();
+  const externalProjectUrl = sanitizeExternalUrl(input.externalProjectUrl);
   const [project] = await db
     .insert(schema.projects)
     .values({
@@ -33,7 +35,7 @@ export async function upsertOrganizationExternalTmsProject(input: {
       externalProjectId: input.externalProjectId,
       sourceLocale: input.sourceLocale ?? null,
       targetLocales: input.targetLocales,
-      externalProjectUrl: input.externalProjectUrl ?? null,
+      externalProjectUrl,
       isActive: input.isActive ?? true,
       lastSyncedAt: input.syncErrorMessage ? undefined : now,
       lastSyncErrorAt: input.syncErrorMessage ? now : null,
@@ -52,7 +54,7 @@ export async function upsertOrganizationExternalTmsProject(input: {
         externalProviderCredentialId: input.providerCredentialId,
         sourceLocale: input.sourceLocale ?? null,
         targetLocales: input.targetLocales,
-        externalProjectUrl: input.externalProjectUrl ?? null,
+        externalProjectUrl,
         isActive: input.isActive ?? true,
         lastSyncedAt: input.syncErrorMessage ? undefined : now,
         lastSyncErrorAt: input.syncErrorMessage ? now : null,

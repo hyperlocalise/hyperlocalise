@@ -2,6 +2,7 @@
  * Lokalise API v2 client for TMS connector discovery.
  */
 
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import {
   normalizeProviderDownloadUrl,
   requireProviderBaseUrl,
@@ -241,7 +242,7 @@ export class LokaliseApiClient {
   constructor(options: LokaliseApiClientOptions) {
     this.token = options.token;
     this.baseUrl = requireProviderBaseUrl(options.baseUrl, LOKALISE_DEFAULT_BASE_URL, "Lokalise");
-    this.fetchFn = options.fetchFn ?? fetch;
+    this.fetchFn = options.fetchFn ?? providerSafeFetch;
   }
 
   get resolvedBaseUrl() {
