@@ -36,7 +36,7 @@ export {
 } from "./conversation-classifier";
 export type { HyperlocaliseConversationIntent } from "./conversation-mode";
 
-export const hyperlocaliseAgentStepLimit = 40;
+export const hyperlocaliseAgentStepLimit = 10;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
 
 export type HyperlocaliseAgentSurface = "web" | "slack" | "github";

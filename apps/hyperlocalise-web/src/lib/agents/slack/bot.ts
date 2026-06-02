@@ -46,7 +46,7 @@ import {
   storeSlackFileAttachments,
 } from "./file-attachments";
 import { getSlackImageAttachments, handleSlackImageAttachments } from "./image-attachments";
-import { type SlackBotThreadState } from "./repository-session";
+import { getSlackRepositoryContextKey, type SlackBotThreadState } from "./repository-session";
 
 type SlackBotState = SlackBotThreadState;
 
@@ -134,6 +134,76 @@ function buildResolvedRepositoryContextInstructions(context: RepositoryAgentGitH
     "Only explain where strings, messages, or copy appear and what nearby code implies.",
     "Do not modify files, upload sources, commit, push, or create jobs from repository context alone.",
   ].join("\n");
+}
+
+async function getOrCreateSlackRepositorySandbox(input: {
+  thread: Thread<SlackBotState>;
+  state: SlackBotThreadState | null;
+  githubContext: RepositoryAgentGitHubContext;
+  log: ReturnType<typeof logger.child>;
+}): Promise<string> {
+  const repositoryContextKey = getSlackRepositoryContextKey(input.githubContext);
+  const sandboxSession = input.state?.repositorySandboxSession;
+  const now = new Date().toISOString();
+
+  if (sandboxSession?.repositoryContextKey === repositoryContextKey) {
+    await input.thread.setState({
+      ...input.state,
+      repositorySandboxSession: {
+        ...sandboxSession,
+        lastUsedAt: now,
+      },
+    });
+    input.log.info(
+      { sandboxId: sandboxSession.sandboxId },
+      "reusing stored repository sandbox for slack agent",
+    );
+    return sandboxSession.sandboxId;
+  }
+
+  input.log.info(
+    {
+      installationId: input.githubContext.installationId,
+      branch: input.githubContext.branch ?? null,
+      commitSha: input.githubContext.commitSha ?? null,
+    },
+    "creating repository sandbox for slack agent",
+  );
+  const sandboxId = await createRepositorySandbox(input.githubContext);
+  input.log.info({ sandboxId }, "repository sandbox created for slack agent");
+
+  try {
+    await input.thread.setState({
+      ...input.state,
+      repositoryGitHubContext: input.githubContext,
+      repositorySandboxSession: {
+        sandboxId,
+        repositoryContextKey,
+        createdAt: now,
+        lastUsedAt: now,
+      },
+    });
+  } catch (error) {
+    await stopRepositorySandbox(sandboxId).catch((cleanupError: unknown) => {
+      input.log.warn(
+        { err: serializeErrorForLog(cleanupError) },
+        "repository sandbox cleanup failed after slack state write failure",
+      );
+    });
+    throw error;
+  }
+
+  const staleSandboxId = sandboxSession?.sandboxId;
+  if (staleSandboxId) {
+    await stopRepositorySandbox(staleSandboxId).catch((error: unknown) => {
+      input.log.warn(
+        { err: serializeErrorForLog(error), sandboxId: staleSandboxId },
+        "stale repository sandbox cleanup failed",
+      );
+    });
+  }
+
+  return sandboxId;
 }
 
 async function removeEyesReaction(thread: Thread<SlackBotState>, message: Message): Promise<void> {
@@ -420,81 +490,69 @@ async function processSlackMessage(
       }
     }
 
-    let sandboxId: string | null = null;
-    try {
-      if (resolvedRepositoryContext) {
-        log.info(
-          {
-            installationId: resolvedRepositoryContext.installationId,
-            branch: resolvedRepositoryContext.branch ?? null,
-            commitSha: resolvedRepositoryContext.commitSha ?? null,
-          },
-          "creating repository sandbox for slack agent",
-        );
-        sandboxId = await createRepositorySandbox(resolvedRepositoryContext);
-        log.info({ sandboxId }, "repository sandbox created for slack agent");
-      }
+    const latestThreadState = (await thread.state) as SlackBotThreadState | null;
+    const sandboxId = resolvedRepositoryContext
+      ? await getOrCreateSlackRepositorySandbox({
+          thread,
+          state: latestThreadState,
+          githubContext: resolvedRepositoryContext,
+          log,
+        })
+      : null;
 
-      const agent = createConversationToolLoopAgent({
-        surface: "slack",
-        suggestedIntents: classification.intents,
-        toolContext: {
-          conversationId: interactionId,
-          organizationId,
-          localUserId: membership.localUserId,
-          membershipRole: membership.role,
-          projectId,
-          db,
-          ...(sandboxId
-            ? {
-                sandboxId,
-                githubContext: resolvedRepositoryContext,
-                workMode: "read_only" as const,
-                repositorySource: "slack" as const,
-                actor: {
-                  sourceUserId: message.author.userId,
-                  userId: membership.localUserId,
-                  role: membership.role,
-                },
-              }
-            : {}),
-        },
+    const agent = createConversationToolLoopAgent({
+      surface: "slack",
+      suggestedIntents: classification.intents,
+      toolContext: {
+        conversationId: interactionId,
+        organizationId,
+        localUserId: membership.localUserId,
+        membershipRole: membership.role,
+        projectId,
+        db,
+        ...(sandboxId
+          ? {
+              sandboxId,
+              githubContext: resolvedRepositoryContext,
+              workMode: "read_only" as const,
+              repositorySource: "slack" as const,
+              actor: {
+                sourceUserId: message.author.userId,
+                userId: membership.localUserId,
+                role: membership.role,
+              },
+            }
+          : {}),
+      },
+      hasFileAttachments: hasTranslationAttachments,
+      additionalInstructions: [
+        buildSlackFileTranslationInstructions(),
+        repositoryContextInstructions,
+      ]
+        .filter((instruction): instruction is string => instruction !== null)
+        .join("\n\n"),
+    });
+    log.info(
+      {
+        hasRepositoryContext: Boolean(resolvedRepositoryContext),
+        hasSandbox: Boolean(sandboxId),
         hasFileAttachments: hasTranslationAttachments,
-        additionalInstructions: [
-          buildSlackFileTranslationInstructions(),
-          repositoryContextInstructions,
-        ]
-          .filter((instruction): instruction is string => instruction !== null)
-          .join("\n\n"),
-      });
-      log.info(
-        {
-          hasRepositoryContext: Boolean(resolvedRepositoryContext),
-          hasSandbox: Boolean(sandboxId),
-          hasFileAttachments: hasTranslationAttachments,
-        },
-        "running slack conversation agent",
-      );
-      const result = await agent.generate({ messages: chatMessages });
-      log.info(
-        {
-          hasReplyText: result.text.trim().length > 0,
-        },
-        "slack conversation agent completed",
-      );
+      },
+      "running slack conversation agent",
+    );
+    const result = await agent.generate({ messages: chatMessages });
+    log.info(
+      {
+        hasReplyText: result.text.trim().length > 0,
+      },
+      "slack conversation agent completed",
+    );
 
-      await removeEyesReaction(thread, message);
-      wrapThreadPost(thread, interactionId);
-      const replyText = result.text.trim();
-      if (replyText) {
-        await thread.post({ markdown: replyText });
-      }
-    } finally {
-      if (sandboxId) {
-        await stopRepositorySandbox(sandboxId).catch((error: unknown) => {
-          log.warn({ err: serializeErrorForLog(error) }, "repository sandbox cleanup failed");
-        });
-      }
+    await removeEyesReaction(thread, message);
+    wrapThreadPost(thread, interactionId);
+    const replyText = result.text.trim();
+    if (replyText) {
+      await thread.post({ markdown: replyText });
     }
   } catch (error) {
     log.error({ err: serializeErrorForLog(error) }, "slack agent message processing failed");

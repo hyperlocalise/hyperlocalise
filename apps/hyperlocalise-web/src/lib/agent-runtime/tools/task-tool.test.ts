@@ -217,7 +217,25 @@ describe("task tool", () => {
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
+        instructions: expect.stringContaining("run fuzzySearch"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
         instructions: expect.stringContaining("short visible UI labels"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("Do not return `no match` for a short UI label"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        instructions: expect.stringContaining("brief search log"),
       }),
     );
     expect(runSubagentMock).toHaveBeenCalledWith(

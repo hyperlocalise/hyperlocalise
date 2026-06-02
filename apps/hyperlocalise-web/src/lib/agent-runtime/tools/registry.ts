@@ -14,6 +14,7 @@ import { resolveToolPolicy } from "./policy";
 import {
   createBashTool,
   createFetchTool,
+  createFuzzySearchTool,
   createGlobTool,
   createGrepTool,
   createReadTool,
@@ -33,6 +34,9 @@ function buildWorkspaceTools(ctx: ToolContext, repoBash: RepoToolContext): ToolS
   }
   if (policy.isToolAllowed("grep")) {
     tools.grep = createGrepTool(repoBash);
+  }
+  if (policy.isToolAllowed("fuzzySearch")) {
+    tools.fuzzySearch = createFuzzySearchTool(repoBash);
   }
   if (policy.isToolAllowed("glob")) {
     tools.glob = createGlobTool(repoBash);

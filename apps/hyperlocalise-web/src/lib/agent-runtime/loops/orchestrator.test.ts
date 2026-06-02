@@ -28,9 +28,12 @@ describe("conversation orchestrator", () => {
     expect(instructions).toContain("source text");
     expect(instructions).toContain("preserving capitalization and punctuation");
     expect(instructions).toContain("case-insensitive search");
+    expect(instructions).toContain("Require fuzzySearch for short UI labels");
     expect(instructions).toContain("short visible UI labels");
     expect(instructions).toContain("app shell, sidebar, navigation, and config files");
     expect(instructions).toContain("lowercase route/key variants");
+    expect(instructions).toContain("not to return `no match` for a short UI label");
+    expect(instructions).toContain("brief search log");
     expect(instructions).toContain("placeholder meanings");
     expect(instructions).toContain("Do not use repository context for broad architecture");
   });

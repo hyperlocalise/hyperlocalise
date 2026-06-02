@@ -30,6 +30,7 @@ describe("agent-runtime tool registry", () => {
 
     expect(tools.createTranslationJob).toBeDefined();
     expect(tools.grep).toBeDefined();
+    expect(tools.fuzzySearch).toBeDefined();
     expect(tools.read).toBeDefined();
     expect(tools.glob).toBeDefined();
     expect(tools.detectRepoConfig).toBeDefined();

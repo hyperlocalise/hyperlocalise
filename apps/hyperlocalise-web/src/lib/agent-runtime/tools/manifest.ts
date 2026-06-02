@@ -37,6 +37,12 @@ export const toolManifests = [
     requiredWorkspaceCapability: "repo_read",
   },
   {
+    name: "fuzzySearch",
+    domain: "repo",
+    sideEffect: "none",
+    requiredWorkspaceCapability: "repo_read",
+  },
+  {
     name: "glob",
     domain: "repo",
     sideEffect: "none",

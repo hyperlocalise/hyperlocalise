@@ -1,6 +1,7 @@
 /** Workspace primitives for repository specialists and workflows. */
 export const repositoryWorkspaceToolNames = [
   "grep",
+  "fuzzySearch",
   "read",
   "glob",
   "detectRepoConfig",

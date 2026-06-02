@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { createGrepTool, createReadTool } from "./workspace";
+import { createFuzzySearchTool, createGrepTool, createReadTool } from "./workspace";
 
 import {
   buildHlArgs,
@@ -137,6 +137,34 @@ describe("createGrepTool", () => {
     expect(matches).toHaveLength(1);
     expect(matches[0].content).toBe("api_token: ***REDACTED***");
     expect(matches[0].content).not.toContain("abcdefghijklmnopqrstuvwxyz12345");
+  });
+});
+
+describe("createFuzzySearchTool", () => {
+  it("finds stemmed UI label variants", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/src/integrations.tsx":
+        "export function Integrations() {\n  return <button>Repository configuration</button>;\n}\n",
+    });
+    const t = createFuzzySearchTool(ctx);
+    const result = await t.execute!({ query: "Configure" }, toolCallInfo);
+
+    expect(result).toMatchObject({ success: true });
+    const matches = (result as { matches: Array<{ path: string; matchedText: string }> }).matches;
+    expect(matches[0]).toMatchObject({
+      path: "src/integrations.tsx",
+      matchedText: "configuration",
+    });
+  });
+
+  it("returns empty matches when no fuzzy candidate exists", async () => {
+    const ctx = createTestContext({
+      "/home/user/project/src/home.tsx": "export const title = 'Dashboard';\n",
+    });
+    const t = createFuzzySearchTool(ctx);
+    const result = await t.execute!({ query: "Configure" }, toolCallInfo);
+
+    expect(result).toMatchObject({ success: true, matches: [] });
   });
 });
 

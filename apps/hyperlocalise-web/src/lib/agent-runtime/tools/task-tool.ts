@@ -101,8 +101,11 @@ BEHAVIOR:
                   "- Include the exact source text, key, file path, surrounding text, source locale, target locale, and repo hint when known.",
                   "- Search the exact quoted source text first, preserving capitalization and punctuation.",
                   "- If the exact quoted search has no matches, try the same text case-insensitively before declaring no match.",
+                  "- If case-insensitive grep has no useful matches for a short UI label, run fuzzySearch with the same label before declaring no match.",
                   "- For short visible UI labels, menu items, sidebar items, or page headings, search component, route, app shell, sidebar, navigation, and config files before accepting no-match results.",
                   "- For single-word or short-title UI copy, try lowercase route/key variants and nearby navigation labels.",
+                  "- Do not return `no match` for a short UI label until you have tried exact, case-insensitive, fuzzySearch, lowercase, route/key, navigation, component, config, and locale/resource searches.",
+                  "- Include a brief search log with the patterns and repo areas checked.",
                   "- Return localization context only: product surface, user intent, tone/register, placeholders, nearby copy, existing translations, and ambiguities.",
                   "- Do not ask for code changes, PR review, checks, or broad architecture analysis.",
                 ].join("\n")

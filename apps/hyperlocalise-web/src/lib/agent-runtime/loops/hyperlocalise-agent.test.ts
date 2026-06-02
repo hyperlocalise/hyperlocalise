@@ -51,6 +51,7 @@ import {
   buildHyperlocaliseAgentInstructions,
   createConversationToolLoopAgent,
   createHyperlocaliseAgent,
+  hyperlocaliseAgentModelId,
   hyperlocaliseAgentStepLimit,
   replaceLastUserMessage,
   toModelMessages,
@@ -110,7 +111,7 @@ describe("hyperlocalise agent core", () => {
       activeTools: ["example"],
     });
 
-    expect(openaiMock).toHaveBeenCalledWith("gpt-5.4-mini");
+    expect(openaiMock).toHaveBeenCalledWith(hyperlocaliseAgentModelId);
     expect(stepCountIsMock).toHaveBeenCalledWith(hyperlocaliseAgentStepLimit);
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({

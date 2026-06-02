@@ -11,6 +11,7 @@ import {
   handleSubscribedMessage,
   wrapThreadPost,
 } from "./bot";
+import { getSlackRepositoryContextKey } from "./repository-session";
 
 function createMockClassification(
   overrides: Partial<ConversationClassification> = {},
@@ -213,6 +214,10 @@ import {
   findInteractionBySourceThreadId,
   updateInteractionMessage,
 } from "@/lib/conversations/interactions";
+import {
+  createRepositorySandbox,
+  stopRepositorySandbox,
+} from "@/lib/agent-runtime/workspaces/repository-sandbox";
 
 function createMessage(
   input: {
@@ -524,7 +529,7 @@ describe("handleNewConversation", () => {
   });
 
   it("exposes repository read tools when GitHub context resolves", async () => {
-    const { thread, posts } = createThread();
+    const { thread, posts, getState } = createThread();
     const message = createMessage({
       text: "do you know the context of Knowledge?",
       raw: { team_id: "T123", channel: "C123" },
@@ -585,16 +590,43 @@ describe("handleNewConversation", () => {
         }),
       }),
     );
+    expect(stopRepositorySandbox).not.toHaveBeenCalled();
+    expect(getState()).toMatchObject({
+      repositoryGitHubContext: {
+        resolved: true,
+        installationId: 12345,
+        repositoryFullName: "acme/web",
+        pullRequestNumber: 42,
+      },
+      repositorySandboxSession: {
+        sandboxId: "sbx_test",
+        repositoryContextKey: getSlackRepositoryContextKey({
+          resolved: true,
+          installationId: 12345,
+          repositoryFullName: "acme/web",
+          pullRequestNumber: 42,
+        }),
+        createdAt: expect.any(String),
+        lastUsedAt: expect.any(String),
+      },
+    });
     expect(agentGenerateMock).toHaveBeenCalled();
     expect(posts).toEqual([{ markdown: "AI response" }]);
   });
 
   it("reuses stored repository context for thread follow-ups without re-resolving", async () => {
+    const repositoryContext = {
+      resolved: true as const,
+      installationId: 12345,
+      repositoryFullName: "acme/web",
+    };
     const { thread, posts } = createThread({
-      repositoryGitHubContext: {
-        resolved: true,
-        installationId: 12345,
-        repositoryFullName: "acme/web",
+      repositoryGitHubContext: repositoryContext,
+      repositorySandboxSession: {
+        sandboxId: "sbx_existing",
+        repositoryContextKey: getSlackRepositoryContextKey(repositoryContext),
+        createdAt: "2026-06-01T00:00:00.000Z",
+        lastUsedAt: "2026-06-01T00:00:00.000Z",
       },
     });
     const message = createMessage({
@@ -644,12 +676,93 @@ describe("handleNewConversation", () => {
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({
         toolContext: expect.objectContaining({
-          sandboxId: "sbx_test",
+          sandboxId: "sbx_existing",
           githubContext: expect.objectContaining({ repositoryFullName: "acme/web" }),
         }),
       }),
     );
+    expect(createRepositorySandbox).not.toHaveBeenCalled();
+    expect(stopRepositorySandbox).not.toHaveBeenCalled();
     expect(posts).toEqual([{ markdown: "AI response" }]);
+  });
+
+  it("replaces the stored repository sandbox when GitHub context changes", async () => {
+    const oldContext = {
+      resolved: true as const,
+      installationId: 12345,
+      repositoryFullName: "org/old-repo",
+    };
+    const newContext = {
+      resolved: true as const,
+      installationId: 67890,
+      repositoryFullName: "org/new-repo",
+      branch: "main",
+    };
+    const { thread, getState } = createThread({
+      repositoryGitHubContext: oldContext,
+      repositorySandboxSession: {
+        sandboxId: "sbx_old",
+        repositoryContextKey: getSlackRepositoryContextKey(oldContext),
+        createdAt: "2026-06-01T00:00:00.000Z",
+        lastUsedAt: "2026-06-01T00:00:00.000Z",
+      },
+    });
+    const message = createMessage({
+      text: "Find 'Email agent' in org/new-repo",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        intents: ["repository"],
+        needsRepositoryTools: true,
+        currentMessageSpecifiesRepository: true,
+        confidence: 0.95,
+      }),
+    );
+    resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
+      status: "resolved",
+      source: "slack_repo_reference",
+      context: newContext,
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: {},
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(createRepositorySandbox).toHaveBeenCalledWith(newContext);
+    expect(stopRepositorySandbox).toHaveBeenCalledWith("sbx_old");
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolContext: expect.objectContaining({
+          sandboxId: "sbx_test",
+          githubContext: expect.objectContaining({ repositoryFullName: "org/new-repo" }),
+        }),
+      }),
+    );
+    expect(getState()).toMatchObject({
+      repositoryGitHubContext: newContext,
+      repositorySandboxSession: {
+        sandboxId: "sbx_test",
+        repositoryContextKey: getSlackRepositoryContextKey(newContext),
+        createdAt: expect.any(String),
+        lastUsedAt: expect.any(String),
+      },
+    });
   });
 
   it("resolves GitHub context using recent conversation text", async () => {

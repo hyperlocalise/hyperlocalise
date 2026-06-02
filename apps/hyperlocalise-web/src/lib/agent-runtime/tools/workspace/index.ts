@@ -4,11 +4,19 @@ export { normalizeWorkspacePath } from "./path";
 export { parseGrepLine, type GrepMatch } from "./parse-grep-line";
 export { createReadTool } from "./read";
 export { createGrepTool } from "./grep";
+export { createFuzzySearchTool } from "./fuzzy-search";
 export { createGlobTool } from "./glob";
 export { createBashTool, isAllowedBashCommand } from "./bash";
 export { createFetchTool, isAllowedWebUrl } from "./fetch";
 export { createTodoWriteTool } from "./todo";
 
-export const workspacePrimitiveToolNames = ["read", "grep", "glob", "bash", "fetch"] as const;
+export const workspacePrimitiveToolNames = [
+  "read",
+  "grep",
+  "fuzzySearch",
+  "glob",
+  "bash",
+  "fetch",
+] as const;
 
 export const workspaceSessionToolNames = ["todoWrite"] as const;

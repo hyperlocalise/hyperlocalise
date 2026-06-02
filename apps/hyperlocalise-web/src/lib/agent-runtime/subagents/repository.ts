@@ -24,9 +24,12 @@ ${SUBAGENT_NO_QUESTIONS_RULES}
 - Start from the provided source text, key, file path, surrounding text, locale, or repository hint.
 - Use grep with the user's exact quoted string or key as the first pattern, preserving capitalization and punctuation, then read surrounding lines.
 - If exact quoted text has no matches, run a case-insensitive grep for the same text before trying normalized variants.
+- If case-insensitive grep has no useful matches for a short UI label, run fuzzySearch with the same label before declaring no match.
 - If the exact string is not found, search normalized variants, nearby keys, and likely locale/resource files.
 - For short visible UI labels, menu items, sidebar items, or page headings, search component, route, app shell, sidebar, navigation, and config files before declaring no repository evidence.
 - When a UI label is a single word or short title, also search lowercase route/key variants such as "knowledge" and nearby labels from the same navigation group.
+- Do not return "no match" or "could not find" for a short UI label until you have tried exact, case-insensitive, fuzzySearch, lowercase, route/key, navigation, component, config, and locale/resource searches.
+- In your final answer, briefly list the search patterns and repo areas you tried, especially when the best result is an inferred nearby context rather than an exact match.
 - Use glob to discover locale, resource, route, component, or i18n config paths when needed.
 - Use detectRepoConfig when asked about i18n.yml / project locale setup.
 - owner/repository strings refer to GitHub repos, not Hyperlocalise projects.
@@ -40,6 +43,8 @@ ${SUBAGENT_NO_QUESTIONS_RULES}
 Return concise Markdown with these sections:
 
 **Summary**: What you searched and which repo areas were relevant.
+
+**Searches Run**: Exact/case-insensitive/variant patterns and broad repo areas checked.
 
 **Localisation Context**:
 - Source location:
