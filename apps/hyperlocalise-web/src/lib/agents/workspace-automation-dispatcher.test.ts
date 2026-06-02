@@ -313,4 +313,139 @@ describe("workspace automation dispatcher", () => {
     expect(translationRuns[0]?.runQa).toBe(true);
     expect(translationRuns[0]?.overwriteDraftLocales).toBe(false);
   });
+
+  it("dispatches Contentful webhook automations only for matching content types", async () => {
+    const scope = await seedDispatchScope();
+    const contentfulConnection = await createContentfulConnection({
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      projectId: scope.projectId,
+      displayName: "Contentful Help Center",
+      spaceId: `space-${scope.organizationId.slice(0, 8)}`,
+      environmentId: "master",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      contentTypeIds: ["article", "blogPost"],
+      fieldConfig: { fieldMode: "auto" },
+      accessToken: "cma_test_token",
+    });
+    const [subscription] = await db
+      .select()
+      .from(schema.contentfulWebhookSubscriptions)
+      .where(
+        eq(schema.contentfulWebhookSubscriptions.connectionId, contentfulConnection.connection.id),
+      )
+      .limit(1);
+    if (!subscription) {
+      throw new Error("failed to seed contentful webhook subscription");
+    }
+
+    const [webhookEvent] = await db
+      .insert(schema.contentfulWebhookEvents)
+      .values({
+        organizationId: scope.organizationId,
+        connectionId: contentfulConnection.connection.id,
+        subscriptionId: subscription.id,
+        eventType: "ContentManagement.Entry.publish",
+        dedupeKey: "delivery-blog-post",
+        providerEventId: "delivery-blog-post",
+        entryId: "entry-blog-post",
+        contentTypeId: "blogPost",
+      })
+      .returning();
+    if (!webhookEvent) {
+      throw new Error("failed to seed contentful webhook event");
+    }
+
+    const articleAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Translate article entries",
+        instructions: "Translate article updates.",
+        triggerConfig: { mode: "contentful" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          contentful: {
+            enabled: true,
+            connectionId: contentfulConnection.connection.id,
+            projectId: scope.projectId,
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            contentTypeIds: ["article"],
+            fieldMode: "auto",
+            overwriteDraftLocales: false,
+            runQa: true,
+            writeDrafts: true,
+          },
+        },
+      }),
+    );
+    const blogPostAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Translate blog post entries",
+        instructions: "Translate blog post updates.",
+        triggerConfig: { mode: "contentful" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          contentful: {
+            enabled: true,
+            connectionId: contentfulConnection.connection.id,
+            projectId: scope.projectId,
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            contentTypeIds: ["blogPost"],
+            fieldMode: "auto",
+            overwriteDraftLocales: false,
+            runQa: true,
+            writeDrafts: true,
+          },
+        },
+      }),
+    );
+
+    const enqueuedAutomationIds: string[] = [];
+    const queue = {
+      async enqueue(event: {
+        contentfulTranslationRunId: string;
+        workspaceAutomationRunId: string;
+        organizationId: string;
+      }) {
+        const [run] = await db
+          .select({ automationId: schema.workspaceAutomationRuns.automationId })
+          .from(schema.workspaceAutomationRuns)
+          .where(eq(schema.workspaceAutomationRuns.id, event.workspaceAutomationRunId))
+          .limit(1);
+        if (run?.automationId) {
+          enqueuedAutomationIds.push(run.automationId);
+        }
+        return { ids: ["workflow-1"] };
+      },
+    };
+
+    const results = await dispatchWorkspaceAutomationsForContentfulWebhook({
+      organizationId: scope.organizationId,
+      connectionId: contentfulConnection.connection.id,
+      contentfulWebhookEventId: webhookEvent.id,
+      entryId: "entry-blog-post",
+      contentTypeId: "blogPost",
+      queue,
+    });
+
+    expect(results).toHaveLength(1);
+    expect(enqueuedAutomationIds).toEqual([blogPostAutomation.id]);
+
+    const articleRuns = await listWorkspaceAutomationRuns({
+      automationId: articleAutomation.id,
+      organizationId: scope.organizationId,
+    });
+    const blogPostRuns = await listWorkspaceAutomationRuns({
+      automationId: blogPostAutomation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(articleRuns).toHaveLength(0);
+    expect(blogPostRuns).toHaveLength(1);
+  });
 });
