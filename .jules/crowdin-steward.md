@@ -120,6 +120,12 @@
 
 **Action:** Added  (*bool) to  and . Added  ([]int) to , , and , and updated  to include them. Added  (*bool) to . Verified with comprehensive unit tests in  and .
 
+## 2026-08-29 - Improve AI Prompts parity for provider and model filtering
+
+**Learning:** The Crowdin AI Prompts API v2 supports filtering prompts by `aiProviderId` and `aiModelId`, but these options were missing from the SDK's `AIPromptsListOptions`. Additionally, the `Prompt` response model was using a generic `string` for the `action` field instead of the existing `PromptAction` enum.
+
+**Action:** Added `AIProviderID` and `AIModelID` to `AIPromptsListOptions` and updated its `Values()` method for correct query parameter encoding. Updated `Prompt.Action` to use the `PromptAction` type. Cleaned up redundant client access in AI service tests. Verified with updated unit tests in `model/ai_test.go` and full suite passing.
+
 ## 2026-08-22 - Improve Translations API parity for labels and soft match
 
 **Learning:** The Crowdin Translations API v2 supports several parameters that were missing from the Go SDK, specifically filtering by labels during project and directory builds, and the 'soft match' option for pre-translations. Additionally, uploading translations supports marking them as done immediately.

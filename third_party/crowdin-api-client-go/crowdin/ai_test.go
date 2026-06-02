@@ -419,7 +419,7 @@ func TestAIService_CreateFineTuningJob(t *testing.T) {
 			NEpochs:                10,
 		},
 	}
-	job, resp, err := client.AI.client.AI.CreateFineTuningJob(context.Background(), 2, 1, req)
+	job, resp, err := client.AI.CreateFineTuningJob(context.Background(), 2, 1, req)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
 

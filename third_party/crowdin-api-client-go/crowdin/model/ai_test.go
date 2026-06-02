@@ -165,9 +165,22 @@ func TestAIPromptsListOptionsValues(t *testing.T) {
 			out:  "action=assist",
 		},
 		{
+			name: "with AI provider ID",
+			opt:  &AIPromptsListOptions{AIProviderID: 3},
+			out:  "aiProviderId=3",
+		},
+		{
+			name: "with AI model ID",
+			opt:  &AIPromptsListOptions{AIModelID: "gpt-4"},
+			out:  "aiModelId=gpt-4",
+		},
+		{
 			name: "with all options",
-			opt:  &AIPromptsListOptions{ProjectID: 2, Action: ActionPreTranslate},
-			out:  "action=pre_translate&projectId=2",
+			opt: &AIPromptsListOptions{
+				ProjectID: 2, Action: ActionPreTranslate,
+				AIProviderID: 3, AIModelID: "gpt-4",
+			},
+			out: "action=pre_translate&aiModelId=gpt-4&aiProviderId=3&projectId=2",
 		},
 	}
 
