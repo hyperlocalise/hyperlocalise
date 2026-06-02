@@ -342,7 +342,9 @@ describe("createResendAdapter", () => {
       },
       error: null,
     });
-    const fetchMock = vi.mocked(providerSafeFetch).mockResolvedValueOnce(new Response("image-bytes"));
+    const fetchMock = vi
+      .mocked(providerSafeFetch)
+      .mockResolvedValueOnce(new Response("image-bytes"));
     const processMessage = vi.fn();
     const adapter = createResendAdapter({
       apiKey: "test-key",
