@@ -118,14 +118,11 @@ export const env = createEnv({
      */
     HYPERLOCALISE_PUBLIC_APP_URL: z.url().optional(),
 
-    /** Enables scheduled TMS reconciliation cron ticks. */
-    TMS_SCHEDULED_RECONCILIATION_ENABLED: z
-      .enum(["true", "false"])
-      .default("false")
-      .transform((value) => value === "true"),
-
-    /** Shared secret for scheduled TMS reconciliation cron requests. */
-    TMS_SCHEDULED_RECONCILIATION_CRON_SECRET: z.string().min(1).optional(),
+    /**
+     * Shared secret for Vercel Cron and manual cron invocations.
+     * Vercel sends `Authorization: Bearer <CRON_SECRET>` when this env var is set.
+     */
+    CRON_SECRET: z.string().min(1).optional(),
 
     /** Interval for lightweight file/job scans in minutes. */
     TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES: z.coerce
@@ -167,15 +164,6 @@ export const env = createEnv({
       .int()
       .positive()
       .default(500),
-
-    /** Enables scheduled GitHub repository automation dispatch cron ticks. */
-    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_ENABLED: z
-      .enum(["true", "false"])
-      .default("false")
-      .transform((value) => value === "true"),
-
-    /** Shared secret for GitHub repository automation dispatch cron requests. */
-    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_CRON_SECRET: z.string().min(1).optional(),
 
     /** Maximum repositories processed per GitHub automation dispatch cron tick. */
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK: z.coerce
@@ -255,10 +243,7 @@ export const env = createEnv({
       process.env.HYPERLOCALISE_PUBLIC_APP_URL ??
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
       (isTestEnv ? "https://app.example.test" : undefined),
-    TMS_SCHEDULED_RECONCILIATION_ENABLED: process.env.TMS_SCHEDULED_RECONCILIATION_ENABLED,
-    TMS_SCHEDULED_RECONCILIATION_CRON_SECRET:
-      process.env.TMS_SCHEDULED_RECONCILIATION_CRON_SECRET ??
-      (isTestEnv ? "test-tms-scheduled-reconciliation-secret" : undefined),
+    CRON_SECRET: process.env.CRON_SECRET ?? (isTestEnv ? "test-cron-secret" : undefined),
     TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES:
       process.env.TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES,
     TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES:
@@ -273,11 +258,6 @@ export const env = createEnv({
       process.env.TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC,
     TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK:
       process.env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
-    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_ENABLED:
-      process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_ENABLED,
-    GITHUB_REPOSITORY_AUTOMATION_DISPATCH_CRON_SECRET:
-      process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_CRON_SECRET ??
-      (isTestEnv ? "test-github-repository-automation-dispatch-secret" : undefined),
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     NEXT_PUBLIC_WAITLIST_URL:

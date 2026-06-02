@@ -1,7 +1,6 @@
 export type ScheduledReconciliationSchedule = "incremental" | "resource_import" | "full" | "audit";
 
 export type ScheduledReconciliationConfig = {
-  enabled: boolean;
   incrementalIntervalMinutes: number;
   tmGlossaryIntervalMinutes: number;
   fullIntervalMinutes: number;
@@ -12,7 +11,6 @@ export type ScheduledReconciliationConfig = {
 };
 
 export const DEFAULT_SCHEDULED_RECONCILIATION_CONFIG: ScheduledReconciliationConfig = {
-  enabled: false,
   incrementalIntervalMinutes: 15,
   tmGlossaryIntervalMinutes: 60,
   fullIntervalMinutes: 24 * 60,

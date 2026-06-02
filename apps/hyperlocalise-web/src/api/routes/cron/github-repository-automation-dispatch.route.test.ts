@@ -21,7 +21,10 @@ const runWorkspaceAutomationSchedulerMock = vi.fn(async () => ({
   duplicates: 0,
 }));
 
-async function createClient(input?: { enabled?: boolean; cronSecret?: string | null }) {
+async function createClient(input?: { cronSecret?: string | null }) {
+  const cronSecret =
+    input?.cronSecret === null ? undefined : (input?.cronSecret ?? "cron-secret");
+
   vi.resetModules();
   vi.doMock("@/lib/agents/github/github-repository-automation-scheduler", () => ({
     runGithubRepositoryAutomationScheduler: runGithubRepositoryAutomationSchedulerMock,
@@ -34,9 +37,7 @@ async function createClient(input?: { enabled?: boolean; cronSecret?: string | n
   }));
   vi.doMock("@/lib/env", () => ({
     env: {
-      GITHUB_REPOSITORY_AUTOMATION_DISPATCH_ENABLED: input?.enabled ?? true,
-      GITHUB_REPOSITORY_AUTOMATION_DISPATCH_CRON_SECRET:
-        input?.cronSecret === null ? undefined : (input?.cronSecret ?? "cron-secret"),
+      CRON_SECRET: cronSecret,
       GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK: 100,
     },
   }));
@@ -107,21 +108,4 @@ describe("github repository automation dispatch cron route", () => {
     expect(runGithubRepositoryAutomationWorkerMock).toHaveBeenCalledTimes(1);
   });
 
-  it("returns disabled when github automation dispatch is turned off", async () => {
-    const client = await createClient({ enabled: false });
-
-    const response = await client.index.$get(
-      {},
-      {
-        headers: {
-          authorization: "Bearer cron-secret",
-        },
-      },
-    );
-
-    expect(response.status).toBe(503);
-    await expect(response.json()).resolves.toEqual({
-      error: "github_repository_automation_dispatch_disabled",
-    });
-  });
 });

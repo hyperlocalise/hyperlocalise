@@ -1,11 +1,14 @@
 import { Hono } from "hono";
-import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { verifyCronRequest } from "@/api/routes/cron/cron-auth";
 import { env } from "@/lib/env";
+import { createLogger } from "@/lib/log";
 import type { ScheduledReconciliationSchedule } from "@/lib/providers/sync/provider-scheduled-reconciliation-config";
 import { runScheduledReconciliation } from "@/lib/providers/sync/provider-scheduled-reconciliation";
 import type { ProviderWebhookReconciliationQueue } from "@/lib/workflow/types";
 import { createProviderWebhookReconciliationQueue } from "@/workflows/adapters";
+
+const logger = createLogger("cron-tms-scheduled-reconciliation");
 
 const scheduleValues = new Set<ScheduledReconciliationSchedule>([
   "incremental",
@@ -20,23 +23,6 @@ function isScheduledReconciliationSchedule(
   return scheduleValues.has(value as ScheduledReconciliationSchedule);
 }
 
-function readCronSecret(request: Request) {
-  const authorization = request.headers.get("authorization");
-  if (authorization?.startsWith("Bearer ")) {
-    return authorization.slice("Bearer ".length).trim();
-  }
-
-  return request.headers.get("x-cron-secret")?.trim() ?? null;
-}
-
-const HMAC_KEY = Buffer.alloc(32);
-
-function secretsMatch(provided: string, expected: string) {
-  const providedHmac = createHmac("sha256", HMAC_KEY).update(provided).digest();
-  const expectedHmac = createHmac("sha256", HMAC_KEY).update(expected).digest();
-  return timingSafeEqual(providedHmac, expectedHmac);
-}
-
 type CreateTmsScheduledReconciliationRoutesOptions = {
   providerWebhookReconciliationQueue?: ProviderWebhookReconciliationQueue;
 };
@@ -48,17 +34,23 @@ export function createTmsScheduledReconciliationRoutes(
     options.providerWebhookReconciliationQueue ?? createProviderWebhookReconciliationQueue();
 
   return new Hono().get("/", async (c) => {
-    if (!env.TMS_SCHEDULED_RECONCILIATION_ENABLED) {
-      return c.json({ error: "scheduled_reconciliation_disabled" }, 503);
-    }
+    logger.info("cron tick received");
 
-    const cronSecret = env.TMS_SCHEDULED_RECONCILIATION_CRON_SECRET;
-    if (!cronSecret) {
-      return c.json({ error: "scheduled_reconciliation_misconfigured" }, 503);
-    }
+    const auth = verifyCronRequest(c.req.raw);
+    if (!auth.ok) {
+      if (auth.reason === "misconfigured") {
+        logger.warn({ reason: "misconfigured" }, "cron tick rejected; CRON_SECRET is not set");
+        return c.json({ error: "scheduled_reconciliation_misconfigured" }, 503);
+      }
 
-    const providedSecret = readCronSecret(c.req.raw);
-    if (!providedSecret || !secretsMatch(providedSecret, cronSecret)) {
+      logger.warn(
+        {
+          reason: "unauthorized",
+          hasAuthorizationHeader: auth.hasAuthorizationHeader,
+          hasCronSecretHeader: auth.hasCronSecretHeader,
+        },
+        "cron tick rejected; missing or invalid cron secret",
+      );
       return c.json({ error: "unauthorized" }, 401);
     }
 
@@ -66,11 +58,14 @@ export function createTmsScheduledReconciliationRoutes(
     const forceSchedule =
       scheduleParam && isScheduledReconciliationSchedule(scheduleParam) ? scheduleParam : undefined;
 
+    if (forceSchedule) {
+      logger.info({ forceSchedule }, "running scheduled reconciliation with forced schedule");
+    }
+
     const results = await runScheduledReconciliation({
       queue,
       forceSchedule,
       config: {
-        enabled: env.TMS_SCHEDULED_RECONCILIATION_ENABLED,
         incrementalIntervalMinutes: env.TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES,
         tmGlossaryIntervalMinutes: env.TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES,
         fullIntervalMinutes: env.TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES,
@@ -80,6 +75,15 @@ export function createTmsScheduledReconciliationRoutes(
         maxIntentsPerTick: env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
       },
     });
+
+    logger.info(
+      {
+        scheduleCount: results.length,
+        intentsEnqueued: results.reduce((total, result) => total + result.intentsEnqueued, 0),
+        intentsSkipped: results.reduce((total, result) => total + result.intentsSkipped, 0),
+      },
+      "cron tick completed",
+    );
 
     return c.json({ results }, 200);
   });

@@ -1,41 +1,33 @@
 import { Hono } from "hono";
-import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 
+import { verifyCronRequest } from "@/api/routes/cron/cron-auth";
 import { env } from "@/lib/env";
+import { createLogger } from "@/lib/log";
 import { runGithubRepositoryAutomationScheduler } from "@/lib/agents/github/github-repository-automation-scheduler";
 import { runGithubRepositoryAutomationWorker } from "@/lib/agents/github/github-repository-automation-worker";
 import { runWorkspaceAutomationScheduler } from "@/lib/agents/workspace-automation-scheduler";
 
-function readCronSecret(request: Request) {
-  const authorization = request.headers.get("authorization");
-  if (authorization?.startsWith("Bearer ")) {
-    return authorization.slice("Bearer ".length).trim();
-  }
-
-  return request.headers.get("x-cron-secret")?.trim() ?? null;
-}
-
-const HMAC_KEY = randomBytes(32);
-
-function secretsMatch(provided: string, expected: string) {
-  const providedHmac = createHmac("sha256", HMAC_KEY).update(provided).digest();
-  const expectedHmac = createHmac("sha256", HMAC_KEY).update(expected).digest();
-  return timingSafeEqual(providedHmac, expectedHmac);
-}
+const logger = createLogger("cron-github-repository-automation-dispatch");
 
 export function createGithubRepositoryAutomationDispatchRoutes() {
   return new Hono().get("/", async (c) => {
-    if (!env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_ENABLED) {
-      return c.json({ error: "github_repository_automation_dispatch_disabled" }, 503);
-    }
+    logger.info("cron tick received");
 
-    const cronSecret = env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_CRON_SECRET;
-    if (!cronSecret) {
-      return c.json({ error: "github_repository_automation_dispatch_misconfigured" }, 503);
-    }
+    const auth = verifyCronRequest(c.req.raw);
+    if (!auth.ok) {
+      if (auth.reason === "misconfigured") {
+        logger.warn({ reason: "misconfigured" }, "cron tick rejected; CRON_SECRET is not set");
+        return c.json({ error: "github_repository_automation_dispatch_misconfigured" }, 503);
+      }
 
-    const providedSecret = readCronSecret(c.req.raw);
-    if (!providedSecret || !secretsMatch(providedSecret, cronSecret)) {
+      logger.warn(
+        {
+          reason: "unauthorized",
+          hasAuthorizationHeader: auth.hasAuthorizationHeader,
+          hasCronSecretHeader: auth.hasCronSecretHeader,
+        },
+        "cron tick rejected; missing or invalid cron secret",
+      );
       return c.json({ error: "unauthorized" }, 401);
     }
 
@@ -49,6 +41,27 @@ export function createGithubRepositoryAutomationDispatchRoutes() {
     const workerResults = await runGithubRepositoryAutomationWorker({
       limit: env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     });
+
+    logger.info(
+      {
+        scheduler: {
+          processed: schedulerResults.processed,
+          enqueued: schedulerResults.enqueued,
+          skipped: schedulerResults.skipped,
+        },
+        workspaceAutomationScheduler: {
+          processed: workspaceAutomationSchedulerResults.processed,
+          enqueued: workspaceAutomationSchedulerResults.enqueued,
+          skipped: workspaceAutomationSchedulerResults.skipped,
+        },
+        worker: {
+          processed: workerResults.processed,
+          started: workerResults.started,
+          skipped: workerResults.skipped,
+        },
+      },
+      "cron tick completed",
+    );
 
     return c.json(
       {
