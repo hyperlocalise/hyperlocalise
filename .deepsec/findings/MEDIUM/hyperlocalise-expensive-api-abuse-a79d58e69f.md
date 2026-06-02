@@ -16,7 +16,12 @@ handleMention treats comments containing @hyperlocalise as commands, gates them 
 
 Before creating the agent or enqueueing workflows, enforce rate limits and usage quotas keyed by organization, GitHub installation, repository, and requester. Consider an admin-configurable allowlist or requiring Hyperlocalise workspace membership for costly bot-triggered workflows.
 
+## Revalidation
+
+**Verdict:** true-positive
+
+`handleMention` treats comments containing `@hyperlocalise` as commands after parsing, resolving the GitHub App installation, checking PR context, and calling `requesterCanRunFix`. `requesterCanRunFix` only verifies that the GitHub requester has admin, maintain, or write collaborator permission; it does not require Hyperlocalise workspace membership or apply a usage quota. For repository commands, the handler claims an idempotency row keyed by installation, repository, PR, comment ID, and instructions, then calls `createRepositoryAgentTaskQueue().enqueue`, which is a thin `workflow/api` start. For fix commands, it creates a `ToolLoopAgent` that calls the `enqueueGitHubFix` tool, which uses the same idempotency table and then queues `githubFixWorkflow`. The idempotency table suppresses duplicate processing of the same comment/scope, but distinct comments or changed instructions create distinct keys, and the fix workflow deletes its idempotency record in `finally`. The repository workflow can create a repository sandbox and run an LLM agent, while the fix workflow creates a Vercel sandbox and performs GitHub/CLI work. I found billing usage-control code elsewhere, but no calls to it, no rate limiter, and no per-requester/repository/installation/org quota in this bot path or the queues. A malicious or compromised write collaborator on an enabled repository can therefore post many distinct `@hyperlocalise` commands and consume the linked organization’s paid resources.
+
 ## Recent committers (`git log`)
 
-- Minh Cung <cungminh2710@gmail.com> (2026-05-27)
-- Muen Yu <22992947+MuenYu@users.noreply.github.com> (2026-05-19)
+- Minh Cung <cungminh2710@gmail.com> (2026-05-31)

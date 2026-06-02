@@ -16,6 +16,12 @@ After validating Slack's HMAC, the route resolves the tenant only from the signe
 
 Enforce a global partial unique constraint for Slack connector team IDs, reject or explicitly transfer an existing Slack workspace during OAuth install, and make webhook lookup fail closed unless exactly one enabled connector matches. Avoid enabledOnly: false for routing decisions so disabled duplicates cannot shadow an enabled connector.
 
+## Revalidation
+
+**Verdict:** true-positive
+
+The current route verifies Slack's HMAC and extracts team_id, but tenant selection is still a global database lookup by Slack team ID. findSlackConnector filters only kind = slack and config->>'teamId', optionally enabled, then returns limit(1) without organization scoping or deterministic ordering. The connectors schema enforces uniqueness only on (organizationId, kind), while idx_connectors_slack_team_id is a plain non-unique index. The Slack OAuth callback upserts a Slack connector for the selected Hyperlocalise organization and does not reject or transfer an existing connector with the same Slack teamId in another organization. After the route precheck, the Slack bot handlers call findSlackConnector(teamId) again and use connector.organizationId to create or find interactions and process files/jobs. A valid Slack event contains only Slack workspace identity, not the intended Hyperlocalise organization, so duplicate connectors make routing ambiguous. A disabled duplicate can cause the route to ignore an enabled workspace because enabledOnly: false can return the disabled row, and multiple enabled duplicates can route the event to the wrong organization.
+
 ## Recent committers (`git log`)
 
 - Minh Cung <cungminh2710@gmail.com> (2026-05-27)

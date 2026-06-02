@@ -16,6 +16,12 @@ This component fetches `/api/orgs/:organizationSlug/tms-dashboard-summary` and t
 
 Return a dashboard-specific provider DTO containing only the fields this UI uses, or enforce `provider_credentials:read` before returning credential details. Avoid including `maskedSecretSuffix`, validation details, base URLs, and webhook subscription data in the general dashboard summary response.
 
+## Revalidation
+
+**Verdict:** true-positive
+
+The client component fetches `/api/orgs/:organizationSlug/tms-dashboard-summary` and returns the response as `OrganizationTmsDashboardSummary`. The current route is not completely unauthenticated: it uses `workosAuthMiddleware` and now requires `integrations:read`. However, the role policy gives `integrations:read` to `developer` while withholding `provider_credentials:read`, so a developer can still reach this endpoint without the dedicated credential-read capability. The summary helper still calls `listOrganizationExternalTmsProviderCredentialDetails()`, and the returned provider list is typed as `ExternalTmsProviderCredentialListItem[]`. That DTO includes credential metadata such as `baseUrl`, `validationMessage`, `maskedSecretSuffix`, capabilities, and webhook subscription summaries. The dedicated external TMS credential list route requires `provider_credentials:read`, confirming this metadata is treated as more sensitive elsewhere. A concrete attack is a developer-role org member calling the dashboard summary API directly and reading provider credential metadata they cannot fetch from `/external-tms-provider-credential`. The finding overstates this as any authenticated member, because members/translators/reviewers are blocked by the `integrations:read` check, but the core ACL bypass remains real.
+
 ## Recent committers (`git log`)
 
-- Minh Cung <cungminh2710@gmail.com> (2026-05-24)
+- Minh Cung <cungminh2710@gmail.com> (2026-06-01)

@@ -16,6 +16,12 @@ After a Slack user maps to any organization membership, repository-looking messa
 
 Add per-user and per-organization rate limits, quota checks, and sandbox concurrency limits before repository context resolution, sandbox creation, and agent.generate.
 
+## Revalidation
+
+**Verdict:** true-positive
+
+After lookupMembership succeeds, the Slack path accepts any local organization membership role and does not check an AI, developer, or provider capability before expensive work. Repository-looking text reaches resolveSlackRepositoryGitHubContext, which queries enabled repositories for the organization and may resolve a repository or PR context. If resolved, createRepositorySandbox mints a GitHub installation token and creates a Vercel sandbox from the repository source, then createConversationToolLoopAgent is run and agent.generate is called. The tool policy currently returns true for every tool name, so low-privileged roles are not blocked at that layer. I found no per-user or per-organization rate limit, quota reservation, concurrency guard, or billing check on this Slack path before GitHub context resolution, sandbox creation, or LLM generation. A connected Slack member can repeatedly send repository-context requests to consume LLM calls, GitHub API work, and Vercel sandbox resources. The path is org-scoped to enabled repositories, so this is not cross-tenant data access, but the expensive API abuse finding is real.
+
 ## Recent committers (`git log`)
 
-- Minh Cung <cungminh2710@gmail.com> (2026-05-27)
+- Minh Cung <cungminh2710@gmail.com> (2026-05-31)

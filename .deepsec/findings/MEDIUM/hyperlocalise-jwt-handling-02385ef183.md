@@ -6,7 +6,7 @@
 
 ## Owners
 
-**Suggested assignee:** `206951365+cursor[bot]@users.noreply.github.com` _(via last-committer)_
+**Suggested assignee:** `cungminh2710@gmail.com` _(via last-committer)_
 
 ## Finding
 
@@ -16,7 +16,13 @@ parseAuthorizationCode splits the code with code.split(".") and destructures onl
 
 Reject authorization codes unless they contain exactly two dot-separated parts, and hash a canonical code representation for replay protection. Consider validating the decoded payload with a Zod schema before use.
 
+## Revalidation
+
+**Verdict:** true-positive
+
+`parseAuthorizationCode` still destructures `const [encodedPayload, signature] = code.split(".")`, so it ignores any third or later dot-separated segment. Signature verification is performed only over the first encoded payload segment, so `payload.signature.anything` is accepted when `payload.signature` was valid. The `/mcp/token` handler then validates the client ID, redirect URI, and PKCE challenge against that parsed payload. Replay prevention happens in `markAuthorizationCodeUsed`, but that hashes the full submitted code string. The first exchange of `payload.signature` inserts one hash, while a later exchange of `payload.signature.suffix` computes a different hash and bypasses the `used_authorization_codes` primary key. The existing test only rejects an exact second use of the same string; it does not cover suffixed variants. An attacker who has both the authorization code and matching PKCE verifier, such as a malicious registered OAuth client, can mint multiple MCP access and refresh token sessions during the five-minute code lifetime. This breaks the intended single-use authorization-code property.
+
 ## Recent committers (`git log`)
 
+- Minh Cung <cungminh2710@gmail.com> (2026-06-01)
 - cursor[bot] <206951365+cursor[bot]@users.noreply.github.com> (2026-05-25)
-- Minh Cung <cungminh2710@gmail.com> (2026-05-24)
