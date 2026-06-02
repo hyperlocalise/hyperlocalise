@@ -1,6 +1,9 @@
 package icuparser
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestSamePlaceholderSetIgnoresOrderAndDuplicates(t *testing.T) {
 	if !SamePlaceholderSet([]string{"b", "a", "b"}, []string{"a", "b"}) {
@@ -413,8 +416,61 @@ func TestParseInvariantIncludesTypedBlocks(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseInvariant failed: %v", err)
 			}
-			if !SameICUBlocks(inv.ICUBlocks, tt.want) {
+			if !reflect.DeepEqual(inv.ICUBlocks, tt.want) {
 				t.Errorf("ParseInvariant(%q) ICUBlocks = %s, want %s", tt.msg, FormatICUBlocks(inv.ICUBlocks), FormatICUBlocks(tt.want))
+			}
+		})
+	}
+}
+
+func TestCountPoundsComplexNesting(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want []BlockSignature
+	}{
+		{
+			name: "select inside plural takes max pounds",
+			msg:  "{n, plural, other {{gender, select, male {#} female {##} other {###}}}}",
+			want: []BlockSignature{
+				{Arg: "gender", Type: "select", Options: []string{"female", "male", "other"}},
+				{Arg: "n", Type: "plural", Options: []string{"other"}, Pounds: []int{3}},
+			},
+		},
+		{
+			name: "nested plural acts as boundary",
+			msg:  "{n1, plural, other {{gender, select, other {{n2, plural, other {##}}}} #}}",
+			want: []BlockSignature{
+				{Arg: "gender", Type: "select", Options: []string{"other"}},
+				{Arg: "n1", Type: "plural", Options: []string{"other"}, Pounds: []int{1}},
+				{Arg: "n2", Type: "plural", Options: []string{"other"}, Pounds: []int{2}},
+			},
+		},
+		{
+			name: "recursion through tags",
+			msg:  "{n, plural, other {<b><i>#</i>#</b>}}",
+			want: []BlockSignature{
+				{Arg: "n", Type: "plural", Options: []string{"other"}, Pounds: []int{2}},
+			},
+		},
+		{
+			name: "deeply nested mix",
+			msg:  "{n1, plural, one {<b>#</b>} other {<i>{gender, select, male {<span>#</span>} female {##}}</i>}}",
+			want: []BlockSignature{
+				{Arg: "gender", Type: "select", Options: []string{"female", "male"}},
+				{Arg: "n1", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{1, 2}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv, err := ParseInvariant(tt.msg)
+			if err != nil {
+				t.Fatalf("ParseInvariant failed: %v", err)
+			}
+			if !reflect.DeepEqual(inv.ICUBlocks, tt.want) {
+				t.Errorf("ICUBlocks mismatch\n got: %s\nwant: %s", FormatICUBlocks(inv.ICUBlocks), FormatICUBlocks(tt.want))
 			}
 		})
 	}
