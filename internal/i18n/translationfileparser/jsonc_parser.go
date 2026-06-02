@@ -52,18 +52,31 @@ func (p JSONCParser) ParseWithContext(content []byte) (map[string]string, map[st
 }
 
 func parseJSONCKeyComments(content []byte) map[string]string {
-	lines := bytes.Split(content, []byte("\n"))
+	// BOLT OPTIMIZATION: Avoid bytes.Split(content, []byte("\n")) to reduce allocations for large files.
 	stack := []string{}
 	stackPrefix := ""
 	pendingComments := []string{}
 	contexts := map[string]string{}
 	inBlockComment := false
 
-	for _, rawLine := range lines {
-		line := strings.TrimSpace(string(rawLine))
-		if line == "" {
+	s := content
+	for len(s) > 0 {
+		var rawLine []byte
+		idx := bytes.IndexByte(s, '\n')
+		if idx < 0 {
+			rawLine = s
+			s = nil
+		} else {
+			rawLine = s[:idx]
+			s = s[idx+1:]
+		}
+
+		trimmedLine := bytes.TrimSpace(rawLine)
+		if len(trimmedLine) == 0 {
 			continue
 		}
+
+		line := string(trimmedLine)
 
 		if inBlockComment {
 			if idx := strings.Index(line, "*/"); idx >= 0 {
@@ -121,12 +134,10 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 
 		for len(line) > 0 && line[0] == '}' {
 			if len(stack) > 0 {
+				// BOLT OPTIMIZATION: Avoid repeated strings.Join(stack, ".") by incrementally updating stackPrefix.
+				popped := stack[len(stack)-1]
 				stack = stack[:len(stack)-1]
-				if len(stack) > 0 {
-					stackPrefix = strings.Join(stack, ".") + "."
-				} else {
-					stackPrefix = ""
-				}
+				stackPrefix = stackPrefix[:len(stackPrefix)-len(popped)-1]
 				pendingComments = nil
 			}
 			line = strings.TrimSpace(line[1:])
@@ -144,7 +155,12 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		fullKey := stackPrefix + decodedKey
 
 		if len(pendingComments) > 0 {
-			contexts[fullKey] = strings.Join(pendingComments, "\n")
+			// BOLT OPTIMIZATION: Fast-path for single comments to avoid strings.Join.
+			if len(pendingComments) == 1 {
+				contexts[fullKey] = pendingComments[0]
+			} else {
+				contexts[fullKey] = strings.Join(pendingComments, "\n")
+			}
 			pendingComments = nil
 		}
 		if inlineComment != "" {
@@ -157,8 +173,9 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 
 		valuePart := strings.TrimSpace(matches[2])
 		if strings.HasPrefix(valuePart, "{") && jsoncObjectValueSpansMultipleLines(valuePart) {
+			// BOLT OPTIMIZATION: Avoid repeated strings.Join(stack, ".") by incrementally updating stackPrefix.
 			stack = append(stack, decodedKey)
-			stackPrefix = strings.Join(stack, ".") + "."
+			stackPrefix += decodedKey + "."
 		}
 	}
 
