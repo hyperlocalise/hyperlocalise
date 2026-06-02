@@ -102,110 +102,165 @@ IMPORTANT:
       const limit = maxResults ?? MAX_GREP_MATCHES;
       const includes = glob ? [glob] : TEXT_FILE_INCLUDES;
 
-      if (hasPathGlobMetacharacter(searchPath)) {
-        return grepExactDiscoveredFiles({
-          ctx,
-          pattern,
-          searchPath,
-          includes,
-          caseSensitive,
-          regex,
-          limit,
-        });
-      }
-
-      const args = ["-r", "-n", "-m", String(MAX_GREP_MATCHES_PER_FILE)];
-      if (!caseSensitive) {
-        args.push("-i");
-      }
-      args.push(regex ? "-E" : "-F");
-      args.push("--exclude-dir=node_modules", "--exclude-dir=.git");
-
-      for (const include of includes) {
-        args.push(`--include=${include}`);
-      }
-
-      args.push(pattern, searchPath === "." ? "." : searchPath);
-
-      const result = await ctx.bash.exec("grep", { args });
-
-      if (result.exitCode >= 2) {
-        return {
-          success: false as const,
-          error: redact(result.stderr || "Search command failed"),
-          pattern,
-          matches: [],
-          filesWithMatches: 0,
-        };
-      }
-
-      if (result.exitCode !== 0 && !result.stdout.trim()) {
-        return {
-          success: true as const,
-          pattern,
-          matchCount: 0,
-          filesWithMatches: 0,
-          matches: [],
-        };
-      }
-
-      const matches: Array<{ path: string; line: number; content: string }> = [];
-      const filesSet = new Set<string>();
-      const fileMatchCounts = new Map<string, number>();
-
-      const outputLines = result.stdout.split("\n").filter(Boolean);
-      let parsedLineCount = 0;
-
-      for (const line of outputLines) {
-        if (matches.length >= limit) {
-          break;
-        }
-
-        const parsed = parseGrepLine(line, searchPath === "." ? undefined : searchPath);
-        if (!parsed) {
-          continue;
-        }
-
-        parsedLineCount += 1;
-        const displayPath = parsed.path;
-        const currentFileCount = fileMatchCounts.get(displayPath) ?? 0;
-        if (currentFileCount >= MAX_GREP_MATCHES_PER_FILE) {
-          continue;
-        }
-
-        fileMatchCounts.set(displayPath, currentFileCount + 1);
-        filesSet.add(displayPath);
-        matches.push({
-          path: displayPath,
-          line: parsed.line,
-          content: redact(parsed.content).slice(0, MAX_GREP_LINE_CHARS),
-        });
-      }
-
-      if (outputLines.length > 0 && parsedLineCount === 0 && limit > 0) {
-        return {
-          success: false as const,
-          error: "Search returned output, but no match lines could be parsed",
-          pattern,
-          matches: [],
-          filesWithMatches: 0,
-        };
-      }
-
-      return {
-        success: true as const,
+      const rgResult = await grepWithRipgrep({
+        ctx,
         pattern,
-        matchCount: matches.length,
-        filesWithMatches: filesSet.size,
-        matches,
-        truncated: outputLines.length > limit,
-      };
+        searchPath,
+        includes,
+        caseSensitive,
+        regex,
+        limit,
+      });
+
+      if (rgResult) {
+        return rgResult;
+      }
+
+      return grepWithPosixGrep({
+        ctx,
+        pattern,
+        searchPath,
+        includes,
+        caseSensitive,
+        regex,
+        limit,
+      });
     },
   });
 }
 
 function hasPathGlobMetacharacter(path: string): boolean {
+  return path !== "." && /[*?]/.test(path);
+}
+
+function hasShellGlobMetacharacter(path: string): boolean {
   return path !== "." && /[*?[]/.test(path);
+}
+
+function parseRipgrepLine(line: string) {
+  const match = /^(.*?):(\d+):(\d+):(.*)$/.exec(line);
+  if (!match) {
+    return null;
+  }
+
+  const [, path, lineNumber, , content] = match;
+  if (!path || !lineNumber || content === undefined) {
+    return null;
+  }
+
+  return {
+    path,
+    line: Number.parseInt(lineNumber, 10),
+    content,
+  };
+}
+
+async function grepWithRipgrep({
+  ctx,
+  pattern,
+  searchPath,
+  includes,
+  caseSensitive,
+  regex,
+  limit,
+}: {
+  ctx: RepoToolContext;
+  pattern: string;
+  searchPath: string;
+  includes: string[];
+  caseSensitive: boolean;
+  regex: boolean;
+  limit: number;
+}): Promise<GrepToolResult | null> {
+  const args = [
+    "--vimgrep",
+    "--with-filename",
+    "--color",
+    "never",
+    "--max-count",
+    String(MAX_GREP_MATCHES_PER_FILE),
+  ];
+
+  if (!caseSensitive) {
+    args.push("--ignore-case");
+  }
+  if (!regex) {
+    args.push("--fixed-strings");
+  }
+
+  for (const include of includes) {
+    args.push("--glob", include);
+  }
+  args.push("--glob", "!node_modules/**", "--glob", "!.git/**");
+
+  if (hasPathGlobMetacharacter(searchPath)) {
+    args.push("--glob", searchPath);
+  }
+
+  args.push(pattern, hasPathGlobMetacharacter(searchPath) ? "." : toShellRelativePath(searchPath));
+
+  const result = await ctx.bash.exec("rg", { args });
+
+  if (result.exitCode >= 2) {
+    return null;
+  }
+
+  if (result.exitCode === 0 && !result.stdout.trim()) {
+    return null;
+  }
+
+  if (result.exitCode !== 0 && !result.stdout.trim()) {
+    return {
+      success: true,
+      pattern,
+      matchCount: 0,
+      filesWithMatches: 0,
+      matches: [],
+    };
+  }
+
+  const matches: Array<{ path: string; line: number; content: string }> = [];
+  const filesSet = new Set<string>();
+  const outputLines = result.stdout.split("\n").filter(Boolean);
+  let parsedLineCount = 0;
+
+  for (const line of outputLines) {
+    if (matches.length >= limit) {
+      break;
+    }
+
+    const parsed = parseRipgrepLine(line);
+    if (!parsed) {
+      continue;
+    }
+
+    parsedLineCount += 1;
+    filesSet.add(parsed.path);
+    matches.push({
+      path: parsed.path,
+      line: parsed.line,
+      content: redact(parsed.content).slice(0, MAX_GREP_LINE_CHARS),
+    });
+  }
+
+  if (outputLines.length > 0 && parsedLineCount === 0 && limit > 0) {
+    return {
+      success: false,
+      error: "Search returned output, but no match lines could be parsed",
+      pattern,
+      matches: [],
+      filesWithMatches: 0,
+    };
+  }
+
+  return {
+    success: true,
+    pattern,
+    matchCount: matches.length,
+    filesWithMatches: filesSet.size,
+    matches,
+    truncated: outputLines.length > limit,
+  };
 }
 
 function findArgs(searchPath: string, includes: string[]): string[] {
@@ -348,5 +403,122 @@ async function grepExactDiscoveredFiles({
     filesWithMatches: filesSet.size,
     matches,
     truncated: truncated || outputLineCount > limit,
+  };
+}
+
+async function grepWithPosixGrep({
+  ctx,
+  pattern,
+  searchPath,
+  includes,
+  caseSensitive,
+  regex,
+  limit,
+}: {
+  ctx: RepoToolContext;
+  pattern: string;
+  searchPath: string;
+  includes: string[];
+  caseSensitive: boolean;
+  regex: boolean;
+  limit: number;
+}): Promise<GrepToolResult> {
+  if (hasShellGlobMetacharacter(searchPath)) {
+    return grepExactDiscoveredFiles({
+      ctx,
+      pattern,
+      searchPath,
+      includes,
+      caseSensitive,
+      regex,
+      limit,
+    });
+  }
+
+  const args = ["-r", "-n", "-m", String(MAX_GREP_MATCHES_PER_FILE)];
+  if (!caseSensitive) {
+    args.push("-i");
+  }
+  args.push(regex ? "-E" : "-F");
+  args.push("--exclude-dir=node_modules", "--exclude-dir=.git");
+
+  for (const include of includes) {
+    args.push(`--include=${include}`);
+  }
+
+  args.push(pattern, searchPath === "." ? "." : searchPath);
+
+  const result = await ctx.bash.exec("grep", { args });
+
+  if (result.exitCode >= 2) {
+    return {
+      success: false,
+      error: redact(result.stderr || "Search command failed"),
+      pattern,
+      matches: [],
+      filesWithMatches: 0,
+    };
+  }
+
+  if (result.exitCode !== 0 && !result.stdout.trim()) {
+    return {
+      success: true,
+      pattern,
+      matchCount: 0,
+      filesWithMatches: 0,
+      matches: [],
+    };
+  }
+
+  const matches: Array<{ path: string; line: number; content: string }> = [];
+  const filesSet = new Set<string>();
+  const fileMatchCounts = new Map<string, number>();
+
+  const outputLines = result.stdout.split("\n").filter(Boolean);
+  let parsedLineCount = 0;
+
+  for (const line of outputLines) {
+    if (matches.length >= limit) {
+      break;
+    }
+
+    const parsed = parseGrepLine(line, searchPath === "." ? undefined : searchPath);
+    if (!parsed) {
+      continue;
+    }
+
+    parsedLineCount += 1;
+    const displayPath = parsed.path;
+    const currentFileCount = fileMatchCounts.get(displayPath) ?? 0;
+    if (currentFileCount >= MAX_GREP_MATCHES_PER_FILE) {
+      continue;
+    }
+
+    fileMatchCounts.set(displayPath, currentFileCount + 1);
+    filesSet.add(displayPath);
+    matches.push({
+      path: displayPath,
+      line: parsed.line,
+      content: redact(parsed.content).slice(0, MAX_GREP_LINE_CHARS),
+    });
+  }
+
+  if (outputLines.length > 0 && parsedLineCount === 0 && limit > 0) {
+    return {
+      success: false,
+      error: "Search returned output, but no match lines could be parsed",
+      pattern,
+      matches: [],
+      filesWithMatches: 0,
+    };
+  }
+
+  return {
+    success: true,
+    pattern,
+    matchCount: matches.length,
+    filesWithMatches: filesSet.size,
+    matches,
+    truncated: outputLines.length > limit,
   };
 }

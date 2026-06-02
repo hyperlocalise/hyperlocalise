@@ -18,6 +18,13 @@ import {
 function createTestContext(files: Record<string, string> = {}): { bash: Bash } {
   const fs = new InMemoryFs(files);
   const bash = new Bash({ fs, cwd: "/home/user/project" });
+  bash.registerCommand(
+    defineCommand("rg", async () => ({
+      stdout: "",
+      stderr: "rg: command not found",
+      exitCode: 127,
+    })),
+  );
   return { bash };
 }
 
@@ -139,6 +146,77 @@ describe("parseGrepLine", () => {
 });
 
 describe("createGrepTool", () => {
+  it("uses ripgrep vimgrep output when available", async () => {
+    const calls: Array<{ command: string; args: string[] }> = [];
+    const t = createGrepTool({
+      bash: {
+        exec: async (command, options) => {
+          calls.push({ command, args: options?.args ?? [] });
+          return {
+            stdout: "src/app.tsx:2:10:  return <h1>Dashboard</h1>;\n",
+            stderr: "",
+            exitCode: 0,
+            env: {},
+          };
+        },
+        readFile: async () => "",
+      },
+    });
+
+    const result = await t.execute!({ pattern: "Dashboard", glob: "*.tsx" }, toolCallInfo);
+
+    expect(calls).toEqual([
+      {
+        command: "rg",
+        args: expect.arrayContaining([
+          "--vimgrep",
+          "--fixed-strings",
+          "--glob",
+          "*.tsx",
+          "Dashboard",
+          ".",
+        ]),
+      },
+    ]);
+    expect(result).toMatchObject({ success: true, matchCount: 1, filesWithMatches: 1 });
+    expect(
+      (result as { matches: Array<{ path: string; line: number; content: string }> }).matches,
+    ).toEqual([
+      {
+        path: "src/app.tsx",
+        line: 2,
+        content: "  return <h1>Dashboard</h1>;",
+      },
+    ]);
+  });
+
+  it("falls back to POSIX grep when ripgrep is unavailable", async () => {
+    const calls: string[] = [];
+    const t = createGrepTool({
+      bash: {
+        exec: async (command) => {
+          calls.push(command);
+          if (command === "rg") {
+            return { stdout: "", stderr: "rg: command not found", exitCode: 127, env: {} };
+          }
+          return {
+            stdout: "a.go:3:func main() {}\n",
+            stderr: "",
+            exitCode: 0,
+            env: {},
+          };
+        },
+        readFile: async () => "",
+      },
+    });
+
+    const result = await t.execute!({ pattern: "func main" }, toolCallInfo);
+
+    expect(calls).toEqual(["rg", "grep"]);
+    expect(result).toMatchObject({ success: true });
+    expect((result as { matches: Array<{ path: string }> }).matches[0].path).toBe("a.go");
+  });
+
   it("finds matches", async () => {
     const ctx = createTestContext({
       "/home/user/project/a.go": "package main\n\nfunc main() {}\n",
@@ -271,12 +349,20 @@ describe("createGrepTool", () => {
   it("parses single-file grep output without a filename prefix", async () => {
     const t = createGrepTool({
       bash: {
-        exec: async () => ({
-          stdout: "3:func main() {}\n",
-          stderr: "",
-          exitCode: 0,
-          env: {},
-        }),
+        exec: async (command) =>
+          command === "rg"
+            ? {
+                stdout: "",
+                stderr: "rg: command not found",
+                exitCode: 127,
+                env: {},
+              }
+            : {
+                stdout: "3:func main() {}\n",
+                stderr: "",
+                exitCode: 0,
+                env: {},
+              },
         readFile: async () => "",
       },
     });
@@ -293,19 +379,26 @@ describe("createGrepTool", () => {
     const t = createGrepTool({
       bash: {
         exec: async (command) =>
-          command === "find"
+          command === "rg"
             ? {
-                stdout: "src/app/api/[[...route]]/route.ts\n",
-                stderr: "",
-                exitCode: 0,
+                stdout: "",
+                stderr: "rg: command not found",
+                exitCode: 127,
                 env: {},
               }
-            : {
-                stdout: "8:export const path = '/api/:id';\n",
-                stderr: "",
-                exitCode: 0,
-                env: {},
-              },
+            : command === "find"
+              ? {
+                  stdout: "src/app/api/[[...route]]/route.ts\n",
+                  stderr: "",
+                  exitCode: 0,
+                  env: {},
+                }
+              : {
+                  stdout: "8:export const path = '/api/:id';\n",
+                  stderr: "",
+                  exitCode: 0,
+                  env: {},
+                },
         readFile: async () => "",
       },
     });
@@ -328,12 +421,20 @@ describe("createGrepTool", () => {
   it("ignores unparsable grep output when at least one match line parses", async () => {
     const t = createGrepTool({
       bash: {
-        exec: async () => ({
-          stdout: "Binary file a.go matches\n3:func main() {}\n",
-          stderr: "",
-          exitCode: 0,
-          env: {},
-        }),
+        exec: async (command) =>
+          command === "rg"
+            ? {
+                stdout: "",
+                stderr: "rg: command not found",
+                exitCode: 127,
+                env: {},
+              }
+            : {
+                stdout: "Binary file a.go matches\n3:func main() {}\n",
+                stderr: "",
+                exitCode: 0,
+                env: {},
+              },
         readFile: async () => "",
       },
     });
@@ -349,12 +450,20 @@ describe("createGrepTool", () => {
   it("does not report zero matches when grep output is unparsable", async () => {
     const t = createGrepTool({
       bash: {
-        exec: async () => ({
-          stdout: "Binary file a.go matches\n",
-          stderr: "",
-          exitCode: 0,
-          env: {},
-        }),
+        exec: async (command) =>
+          command === "rg"
+            ? {
+                stdout: "",
+                stderr: "rg: command not found",
+                exitCode: 127,
+                env: {},
+              }
+            : {
+                stdout: "Binary file a.go matches\n",
+                stderr: "",
+                exitCode: 0,
+                env: {},
+              },
         readFile: async () => "",
       },
     });
