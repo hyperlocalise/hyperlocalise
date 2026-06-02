@@ -13,6 +13,114 @@ import type {
 
 const defaultSandboxTimeoutMs = 10 * 60 * 1000;
 
+export class VercelSandboxCommandError extends Error {
+  readonly command: string;
+  readonly argCount: number;
+  readonly argFlags: string[];
+  readonly sandboxId: string;
+  readonly responseStatus?: number;
+  readonly responseStatusText?: string;
+  readonly responseUrl?: string;
+  readonly providerErrorCode?: string;
+  readonly providerErrorMessage?: string;
+  readonly providerRequestId?: string;
+
+  constructor(input: { sandboxId: string; command: string; args: string[]; cause: unknown }) {
+    const details = extractVercelSandboxErrorDetails(input.cause);
+    const argFlags = extractSafeArgFlags(input.args);
+    super(
+      `Vercel sandbox command failed: ${input.command} ` +
+        `(sandboxId=${input.sandboxId}, args=${input.args.length}` +
+        `${details.responseStatus ? `, status=${details.responseStatus}` : ""}` +
+        `${details.providerErrorCode ? `, providerErrorCode=${details.providerErrorCode}` : ""})`,
+      { cause: input.cause },
+    );
+    this.name = "VercelSandboxCommandError";
+    this.command = input.command;
+    this.argCount = input.args.length;
+    this.argFlags = argFlags;
+    this.sandboxId = input.sandboxId;
+    this.responseStatus = details.responseStatus;
+    this.responseStatusText = details.responseStatusText;
+    this.responseUrl = details.responseUrl;
+    this.providerErrorCode = details.providerErrorCode;
+    this.providerErrorMessage = details.providerErrorMessage;
+    this.providerRequestId = details.providerRequestId;
+  }
+}
+
+const maxLoggedArgFlags = 24;
+
+function extractSafeArgFlags(args: string[]): string[] {
+  const flags: string[] = [];
+  const seen = new Set<string>();
+
+  for (const arg of args) {
+    if (!/^-{1,2}[A-Za-z]/.test(arg)) {
+      continue;
+    }
+
+    const flag = arg.includes("=") ? arg.slice(0, arg.indexOf("=")) : arg;
+    if (seen.has(flag)) {
+      continue;
+    }
+
+    flags.push(flag);
+    seen.add(flag);
+    if (flags.length >= maxLoggedArgFlags) {
+      break;
+    }
+  }
+
+  return flags;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function stringField(record: Record<string, unknown>, key: string): string | undefined {
+  const value = record[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function numberField(record: Record<string, unknown>, key: string): number | undefined {
+  const value = record[key];
+  return typeof value === "number" ? value : undefined;
+}
+
+function extractVercelSandboxErrorDetails(error: unknown) {
+  if (!isRecord(error)) {
+    return {};
+  }
+
+  const response = isRecord(error.response) ? error.response : undefined;
+  const json = isRecord(error.json) ? error.json : undefined;
+  const providerError = json && isRecord(json.error) ? json.error : undefined;
+
+  return {
+    responseStatus:
+      numberField(error, "responseStatus") ??
+      (response ? numberField(response, "status") : undefined),
+    responseStatusText:
+      stringField(error, "responseStatusText") ??
+      (response ? stringField(response, "statusText") : undefined),
+    responseUrl:
+      stringField(error, "responseUrl") ?? (response ? stringField(response, "url") : undefined),
+    providerErrorCode:
+      (providerError ? stringField(providerError, "code") : undefined) ??
+      stringField(error, "code"),
+    providerErrorMessage:
+      (providerError ? stringField(providerError, "message") : undefined) ??
+      stringField(error, "message"),
+    providerRequestId:
+      (providerError ? stringField(providerError, "requestId") : undefined) ??
+      (providerError ? stringField(providerError, "request_id") : undefined) ??
+      stringField(error, "requestId") ??
+      stringField(error, "request_id"),
+  };
+}
+
 function shellQuote(value: string) {
   return `'${value.replaceAll("'", "'\\''")}'`;
 }
@@ -26,7 +134,17 @@ export class VercelSandboxRuntime implements WorkspaceRuntime {
     options: { output?: "both" | "stdout" } = {},
   ): Promise<WorkspaceCommandResult> {
     const sandbox = await Sandbox.get({ name: this.id });
-    const result = await sandbox.runCommand(command, args);
+    let result;
+    try {
+      result = await sandbox.runCommand(command, args);
+    } catch (error) {
+      throw new VercelSandboxCommandError({
+        sandboxId: this.id,
+        command,
+        args,
+        cause: error,
+      });
+    }
     return {
       exitCode: result.exitCode,
       output: await result.output(options.output ?? "both"),
