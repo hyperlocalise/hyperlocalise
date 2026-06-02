@@ -310,5 +310,7 @@ describe("workspace automation dispatcher", () => {
     expect(translationRuns[0]?.entryId).toBe("entry-1");
     expect(translationRuns[0]?.sourceLocale).toBe("de-DE");
     expect(translationRuns[0]?.targetLocales).toEqual(["fr-FR"]);
+    expect(translationRuns[0]?.runQa).toBe(true);
+    expect(translationRuns[0]?.overwriteDraftLocales).toBe(false);
   });
 });

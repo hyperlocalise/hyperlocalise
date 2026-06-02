@@ -179,6 +179,8 @@ export const contentfulTranslationRuns = pgTable(
       .$type<string[]>()
       .notNull()
       .default(sql`'[]'::jsonb`),
+    runQa: boolean("run_qa").notNull().default(true),
+    overwriteDraftLocales: boolean("overwrite_draft_locales").notNull().default(false),
     detectedFields: jsonb("detected_fields")
       .$type<Record<string, unknown>[]>()
       .notNull()

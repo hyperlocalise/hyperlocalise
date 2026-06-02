@@ -1,0 +1,2 @@
+ALTER TABLE "contentful_translation_runs" ADD COLUMN "run_qa" boolean DEFAULT true NOT NULL;--> statement-breakpoint
+ALTER TABLE "contentful_translation_runs" ADD COLUMN "overwrite_draft_locales" boolean DEFAULT false NOT NULL;

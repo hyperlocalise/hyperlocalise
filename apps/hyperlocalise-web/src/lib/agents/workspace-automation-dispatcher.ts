@@ -128,8 +128,9 @@ async function enqueueWorkspaceContentfulAutomation(input: {
     };
   }
 
-  const targetLocales = input.automation.toolConfig.contentful?.targetLocales ?? [];
-  const sourceLocale = input.automation.toolConfig.contentful?.sourceLocale ?? "en";
+  const contentful = input.automation.toolConfig.contentful;
+  const targetLocales = contentful?.targetLocales ?? [];
+  const sourceLocale = contentful?.sourceLocale ?? "en";
   const translationRun = await createContentfulTranslationRun({
     organizationId: input.organizationId,
     connectionId: input.connectionId,
@@ -139,6 +140,8 @@ async function enqueueWorkspaceContentfulAutomation(input: {
     contentTypeId: input.contentTypeId ?? null,
     sourceLocale,
     targetLocales,
+    runQa: contentful?.runQa ?? true,
+    overwriteDraftLocales: contentful?.overwriteDraftLocales ?? false,
   });
 
   await updateWorkspaceAutomationRun({

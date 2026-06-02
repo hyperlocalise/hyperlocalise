@@ -225,6 +225,8 @@ export async function createContentfulTranslationRun(input: {
   contentTypeId?: string | null;
   sourceLocale: string;
   targetLocales: string[];
+  runQa?: boolean;
+  overwriteDraftLocales?: boolean;
 }) {
   const [run] = await db
     .insert(schema.contentfulTranslationRuns)
@@ -237,6 +239,8 @@ export async function createContentfulTranslationRun(input: {
       contentTypeId: input.contentTypeId ?? null,
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
+      runQa: input.runQa ?? true,
+      overwriteDraftLocales: input.overwriteDraftLocales ?? false,
       status: "queued",
     })
     .returning();
@@ -310,7 +314,7 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
       sourceLocale: loaded.connection.sourceLocale,
       targetLocales,
       fieldConfig,
-      overwriteDraftLocales: fieldConfig.overwriteDraftLocales,
+      overwriteDraftLocales: run.overwriteDraftLocales,
     });
 
     await db
@@ -340,7 +344,7 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
           unit,
           targetLocales,
           translateStringJob: generator.translateStringJob,
-          runQa: true,
+          runQa: run.runQa,
         }),
     );
     const translations = results.flatMap((result) => result.translations);
