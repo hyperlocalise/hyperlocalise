@@ -522,14 +522,10 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
     await listWorkspaceAutomations({
       organizationId: input.organizationId,
       status: "active",
+      contentfulWebhookConnectionId: input.connectionId,
       limit: 100,
     })
-  ).filter(
-    (automation) =>
-      automation.triggerConfig.mode === "contentful" &&
-      automation.toolConfig.contentful?.enabled === true &&
-      automation.toolConfig.contentful.connectionId === input.connectionId,
-  );
+  ).filter((automation) => hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig));
 
   const results: WorkspaceAutomationDispatchResult[] = [];
   for (const automation of automations) {

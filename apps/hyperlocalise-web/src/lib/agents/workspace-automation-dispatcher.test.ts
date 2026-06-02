@@ -180,7 +180,7 @@ describe("workspace automation dispatcher", () => {
       spaceId: `space-${scope.organizationId.slice(0, 8)}`,
       environmentId: "master",
       sourceLocale: "en-US",
-      targetLocales: ["fr-FR"],
+      targetLocales: ["fr-FR", "de-DE"],
       contentTypeIds: ["helpCenterArticle"],
       fieldConfig: { fieldMode: "auto" },
       accessToken: "cma_test_token",
@@ -237,6 +237,30 @@ describe("workspace automation dispatcher", () => {
         },
       }),
     );
+    for (let index = 0; index < 100; index += 1) {
+      expectOk(
+        await createWorkspaceAutomation({
+          organizationId: scope.organizationId,
+          authorUserId: scope.userId,
+          name: `Newer GitHub automation ${index}`,
+          instructions: "Run validation on pushes.",
+          triggerConfig: { mode: "github", branches: ["main"] },
+          repositoryTarget: {
+            kind: "github",
+            githubInstallationRepositoryId: scope.repository.id,
+          },
+          toolConfig: {
+            github: {
+              enabled: true,
+              projectId: scope.projectId,
+              pushSource: false,
+              pullTranslations: false,
+              validation: true,
+            },
+          },
+        }),
+      );
+    }
     const enqueued: unknown[] = [];
     const queue = {
       async enqueue(event: {
@@ -285,5 +309,6 @@ describe("workspace automation dispatcher", () => {
     expect(translationRuns).toHaveLength(1);
     expect(translationRuns[0]?.entryId).toBe("entry-1");
     expect(translationRuns[0]?.sourceLocale).toBe("de-DE");
+    expect(translationRuns[0]?.targetLocales).toEqual(["fr-FR"]);
   });
 });

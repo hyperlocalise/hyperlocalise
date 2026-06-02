@@ -36,6 +36,13 @@ function sha256(value: string) {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
+export function resolveContentfulExecutionTargetLocales(input: {
+  runTargetLocales: string[];
+  connectionTargetLocales: string[];
+}) {
+  return input.runTargetLocales.length > 0 ? input.runTargetLocales : input.connectionTargetLocales;
+}
+
 function extractMatches(text: string, regex: RegExp) {
   return new Set(text.match(regex) ?? []);
 }
@@ -285,6 +292,10 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
       spaceId: loaded.connection.spaceId,
       environmentId: loaded.connection.environmentId,
     });
+    const targetLocales = resolveContentfulExecutionTargetLocales({
+      runTargetLocales: run.targetLocales,
+      connectionTargetLocales: loaded.connection.targetLocales,
+    });
     const entry = await client.getEntry(run.entryId);
     const contentTypeId =
       run.contentTypeId ?? entry.sys.contentType?.sys?.id ?? loaded.connection.contentTypeIds[0];
@@ -297,7 +308,7 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
       entry,
       contentType,
       sourceLocale: loaded.connection.sourceLocale,
-      targetLocales: loaded.connection.targetLocales,
+      targetLocales,
       fieldConfig,
       overwriteDraftLocales: fieldConfig.overwriteDraftLocales,
     });
@@ -327,7 +338,7 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
           projectTranslationContext: generator.project.translationContext,
           runId: run.id,
           unit,
-          targetLocales: loaded.connection.targetLocales,
+          targetLocales,
           translateStringJob: generator.translateStringJob,
           runQa: true,
         }),

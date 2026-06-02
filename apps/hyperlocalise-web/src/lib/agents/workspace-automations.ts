@@ -642,20 +642,26 @@ export async function getWorkspaceAutomationById(input: {
 export async function listWorkspaceAutomations(input: {
   organizationId: string;
   status?: WorkspaceAutomationStatus;
+  contentfulWebhookConnectionId?: string;
   limit?: number;
   offset?: number;
 }): Promise<WorkspaceAutomationRecord[]> {
+  const conditions = [
+    eq(schema.workspaceAutomations.organizationId, input.organizationId),
+    ...(input.status ? [eq(schema.workspaceAutomations.status, input.status)] : []),
+    ...(input.contentfulWebhookConnectionId
+      ? [
+          sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'contentful'`,
+          sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'enabled' = 'true'`,
+          sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'connectionId' = ${input.contentfulWebhookConnectionId}`,
+        ]
+      : []),
+  ];
+
   const rows = await db
     .select()
     .from(schema.workspaceAutomations)
-    .where(
-      input.status
-        ? and(
-            eq(schema.workspaceAutomations.organizationId, input.organizationId),
-            eq(schema.workspaceAutomations.status, input.status),
-          )
-        : eq(schema.workspaceAutomations.organizationId, input.organizationId),
-    )
+    .where(and(...conditions))
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 50)
     .offset(input.offset ?? 0);
