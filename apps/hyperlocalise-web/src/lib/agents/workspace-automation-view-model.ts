@@ -78,6 +78,7 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   contentful_connection_required: "Choose a Contentful connection.",
   contentful_project_required: "Choose a Hyperlocalise project for Contentful translation.",
   contentful_target_locales_required: "Add at least one target locale for Contentful translation.",
+  contentful_entry_id_required: "Scheduled Contentful automations need an entry ID.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
@@ -393,6 +394,8 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { contentfulProjectId: message };
     case "contentful_target_locales_required":
       return { contentfulTargetLocales: message };
+    case "contentful_entry_id_required":
+      return { contentfulEntryId: message };
     default:
       return { form: message };
   }

@@ -254,6 +254,49 @@ describe("workspace automations", () => {
     });
   });
 
+  it("rejects scheduled Contentful automations without an entry ID", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const triggerConfig = {
+      mode: "scheduled" as const,
+      schedule: {
+        cadence: "daily" as const,
+        hourUtc: 8,
+        timezone: "UTC",
+      },
+    };
+
+    const missingEntryId = await createWorkspaceAutomation({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Scheduled Contentful automation",
+      instructions: "Translate the configured entry on a schedule.",
+      triggerConfig,
+      toolConfig: {
+        contentful: {
+          enabled: true,
+          connectionId: crypto.randomUUID(),
+          projectId: scope.projectId,
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          contentTypeIds: ["article"],
+          fieldMode: "auto",
+          overwriteDraftLocales: false,
+          runQa: true,
+          writeDrafts: true,
+        },
+      },
+    });
+
+    expect(missingEntryId.ok).toBe(false);
+    if (missingEntryId.ok) {
+      throw new Error("expected validation error");
+    }
+    expect(missingEntryId.error).toMatchObject({
+      code: "contentful_entry_id_required",
+      message: "Scheduled Contentful automations require an entry ID.",
+    });
+  });
+
   it("lists due Contentful automations before applying the row limit", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const triggerConfig = {
@@ -299,6 +342,7 @@ describe("workspace automations", () => {
             connectionId: crypto.randomUUID(),
             projectId: scope.projectId,
             sourceLocale: "en",
+            entryId: "entry-scheduled-1",
             targetLocales: ["fr"],
             contentTypeIds: [],
             fieldMode: "auto",

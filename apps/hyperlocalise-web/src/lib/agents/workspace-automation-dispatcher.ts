@@ -526,6 +526,7 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
       organizationId: input.organizationId,
       status: "active",
       contentfulWebhookConnectionId: input.connectionId,
+      contentfulWebhookContentTypeId: input.contentTypeId,
       limit: 100,
     })
   ).filter((automation) => hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig));

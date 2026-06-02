@@ -159,6 +159,10 @@ export type WorkspaceAutomationConfigValidationError =
       message: "Enabled Contentful tools require at least one target locale.";
     }
   | {
+      code: "contentful_entry_id_required";
+      message: "Scheduled Contentful automations require an entry ID.";
+    }
+  | {
       code: "slack_not_connected";
       message: "Enable the Slack integration before using Slack notifications.";
     }
@@ -295,6 +299,12 @@ function validateWorkspaceAutomationConfig(input: {
       return err({
         code: "contentful_target_locales_required",
         message: "Enabled Contentful tools require at least one target locale.",
+      });
+    }
+    if (input.triggerConfig.mode === "scheduled" && !contentfulTools.entryId?.trim()) {
+      return err({
+        code: "contentful_entry_id_required",
+        message: "Scheduled Contentful automations require an entry ID.",
       });
     }
   }
@@ -643,9 +653,15 @@ export async function listWorkspaceAutomations(input: {
   organizationId: string;
   status?: WorkspaceAutomationStatus;
   contentfulWebhookConnectionId?: string;
+  contentfulWebhookContentTypeId?: string | null;
   limit?: number;
   offset?: number;
 }): Promise<WorkspaceAutomationRecord[]> {
+  const contentfulContentTypeIdsJson =
+    input.contentfulWebhookContentTypeId != null && input.contentfulWebhookContentTypeId !== ""
+      ? JSON.stringify([input.contentfulWebhookContentTypeId])
+      : null;
+
   const conditions = [
     eq(schema.workspaceAutomations.organizationId, input.organizationId),
     ...(input.status ? [eq(schema.workspaceAutomations.status, input.status)] : []),
@@ -654,6 +670,26 @@ export async function listWorkspaceAutomations(input: {
           sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'contentful'`,
           sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'enabled' = 'true'`,
           sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'connectionId' = ${input.contentfulWebhookConnectionId}`,
+          ...(contentfulContentTypeIdsJson
+            ? [
+                sql`(
+                  jsonb_array_length(
+                    COALESCE(
+                      ${schema.workspaceAutomations.toolConfig}->'contentful'->'contentTypeIds',
+                      '[]'::jsonb
+                    )
+                  ) = 0
+                  OR ${schema.workspaceAutomations.toolConfig}->'contentful'->'contentTypeIds' @> ${contentfulContentTypeIdsJson}::jsonb
+                )`,
+              ]
+            : [
+                sql`jsonb_array_length(
+                  COALESCE(
+                    ${schema.workspaceAutomations.toolConfig}->'contentful'->'contentTypeIds',
+                    '[]'::jsonb
+                  )
+                ) = 0`,
+              ]),
         ]
       : []),
   ];
