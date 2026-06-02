@@ -1,7 +1,7 @@
 import type { ToolSet } from "ai";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { serializeErrorForLog } from "@/lib/log";
+import { serializeErrorForLog } from "@/lib/serialize-error-for-log";
 
 type ExecutableTool = {
   execute?: (input: unknown, options: unknown) => unknown;
