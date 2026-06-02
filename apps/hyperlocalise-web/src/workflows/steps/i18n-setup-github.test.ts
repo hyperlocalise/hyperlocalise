@@ -89,6 +89,7 @@ describe("createI18nSetupSandboxStep", () => {
     expect(getInstallationOctokitMock).toHaveBeenCalledWith(123);
     expect(authMock).toHaveBeenCalledWith({ type: "installation" });
     expect(sandboxCreateMock).toHaveBeenCalledWith({
+      runtime: "node26",
       source: {
         depth: 1,
         password: "installation_token",

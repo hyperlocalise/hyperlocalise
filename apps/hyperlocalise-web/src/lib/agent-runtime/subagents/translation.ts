@@ -8,6 +8,7 @@ import {
   SUBAGENT_NO_QUESTIONS_RULES,
   SUBAGENT_RESPONSE_FORMAT,
   SUBAGENT_STEP_LIMIT,
+  SUBAGENT_TIMEOUT,
 } from "./constants";
 import type { SubagentCallOptions } from "./types";
 
@@ -34,6 +35,7 @@ export const translationSubagent = new ToolLoopAgent({
   model: getHyperlocaliseAgentModel(),
   instructions: TRANSLATION_SYSTEM_PROMPT,
   stopWhen: stepCountIs(SUBAGENT_STEP_LIMIT),
+  timeout: SUBAGENT_TIMEOUT,
   callOptionsSchema,
   // @ts-expect-error Dynamic toolset is assembled in prepareCall from ToolContext.
   prepareCall: ({ options, ...settings }) => {

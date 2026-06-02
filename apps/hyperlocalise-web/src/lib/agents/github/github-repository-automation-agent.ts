@@ -4,6 +4,7 @@ import {
   buildHyperlocaliseAgentInstructions,
   getHyperlocaliseAgentModel,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   filterToolSetByNames,
   repositoryWorkspaceToolNames,
@@ -53,6 +54,7 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
     model: getHyperlocaliseAgentModel(),
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],
+    timeout: WORKFLOW_AGENT_TIMEOUT,
     instructions: buildHyperlocaliseAgentInstructions({
       surface: "github",
       projectId: null,

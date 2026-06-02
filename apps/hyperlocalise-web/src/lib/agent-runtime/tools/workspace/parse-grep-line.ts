@@ -5,10 +5,10 @@ export type GrepMatch = {
 };
 
 /** Parse a `grep -rn` output line into path, line number, and content. */
-export function parseGrepLine(line: string): GrepMatch | null {
+export function parseGrepLine(line: string, fallbackPath?: string): GrepMatch | null {
   const match = line.match(/:(\d+):/);
   if (!match || match.index === undefined) {
-    return null;
+    return parseGrepLineWithoutPath(line, fallbackPath);
   }
 
   const path = line.slice(0, match.index);
@@ -25,4 +25,26 @@ export function parseGrepLine(line: string): GrepMatch | null {
 
   const content = rest.slice(colonIndex + 1);
   return { path, line: lineNum, content };
+}
+
+function parseGrepLineWithoutPath(line: string, fallbackPath?: string): GrepMatch | null {
+  if (!fallbackPath) {
+    return null;
+  }
+
+  const match = line.match(/^(\d+):(.*)$/);
+  if (!match) {
+    return null;
+  }
+
+  const lineNum = Number.parseInt(match[1], 10);
+  if (Number.isNaN(lineNum)) {
+    return null;
+  }
+
+  return {
+    path: fallbackPath,
+    line: lineNum,
+    content: match[2],
+  };
 }

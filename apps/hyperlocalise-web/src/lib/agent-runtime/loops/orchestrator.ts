@@ -8,7 +8,10 @@ import {
 } from "@/lib/agent-runtime/subagents/registry";
 import type { HyperlocaliseSubagentType } from "@/lib/agent-runtime/subagents/definitions";
 import { createTaskTool } from "@/lib/agent-runtime/tools/task-tool";
-import { ORCHESTRATOR_STEP_LIMIT } from "@/lib/agent-runtime/subagents/constants";
+import {
+  ORCHESTRATOR_AGENT_TIMEOUT,
+  ORCHESTRATOR_STEP_LIMIT,
+} from "@/lib/agent-runtime/subagents/constants";
 
 import type { HyperlocaliseConversationMode } from "./conversation-mode";
 import { getHyperlocaliseAgentModel } from "./model";
@@ -69,9 +72,7 @@ export function buildOrchestratorInstructions(input: {
   );
 
   if (input.preferredSubagents.length === 1) {
-    lines.push(
-      `Delegate to \`${input.preferredSubagents[0]}\` for this turn unless the user clearly needs a different agent.`,
-    );
+    lines.push(`Delegate to \`${input.preferredSubagents[0]}\` for this turn before answering.`);
   } else if (input.preferredSubagents.length > 1) {
     lines.push(
       `Delegate to each required agent in order: ${input.preferredSubagents.map((name) => `\`${name}\``).join(" → ")}.`,
@@ -116,6 +117,7 @@ export function createConversationOrchestratorAgent(
   const available = listAvailableSubagentTypes(runtime);
   const preferredSubagents = resolvePreferredSubagentOrder(runtime);
   const taskTool = createTaskTool();
+  const mustDelegateOnFirstStep = preferredSubagents.length > 0;
 
   return new ToolLoopAgent<never, { task: typeof taskTool }>({
     model: getHyperlocaliseAgentModel(),
@@ -134,7 +136,24 @@ export function createConversationOrchestratorAgent(
     activeTools: available.length > 0 ? ["task"] : [],
     experimental_context: runtime,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
+    timeout: ORCHESTRATOR_AGENT_TIMEOUT,
     stopWhen: stepCountIs(ORCHESTRATOR_STEP_LIMIT),
+    prepareStep: ({ stepNumber }) => {
+      if (stepNumber === 0 && mustDelegateOnFirstStep) {
+        return {
+          activeTools: ["task"],
+          toolChoice: { type: "tool", toolName: "task" },
+        };
+      }
+
+      if (stepNumber === 1 && preferredSubagents.length === 1) {
+        return {
+          toolChoice: "none",
+        };
+      }
+
+      return {};
+    },
     onFinish,
   });
 }

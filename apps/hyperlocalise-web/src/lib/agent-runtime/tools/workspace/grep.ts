@@ -2,7 +2,7 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { parseGrepLine } from "./parse-grep-line";
-import { normalizeWorkspacePath } from "./path";
+import { normalizeWorkspacePath, toShellRelativePath } from "./path";
 import { MAX_GREP_LINE_CHARS, MAX_GREP_MATCHES, MAX_GREP_MATCHES_PER_FILE, redact } from "./redact";
 import type { RepoToolContext } from "./types";
 
@@ -29,6 +29,23 @@ const TEXT_FILE_INCLUDES = [
   "*.xliff",
   "*.strings",
 ];
+
+type GrepToolResult =
+  | {
+      success: true;
+      pattern: string;
+      matchCount: number;
+      filesWithMatches: number;
+      matches: Array<{ path: string; line: number; content: string }>;
+      truncated?: boolean;
+    }
+  | {
+      success: false;
+      error: string;
+      pattern: string;
+      matches: [];
+      filesWithMatches: 0;
+    };
 
 const grepInputSchema = z.object({
   pattern: z.string().describe("Text or regex pattern to search for."),
@@ -83,6 +100,19 @@ IMPORTANT:
     }) => {
       const searchPath = normalizeWorkspacePath(searchPathInput ?? ".") ?? ".";
       const limit = maxResults ?? MAX_GREP_MATCHES;
+      const includes = glob ? [glob] : TEXT_FILE_INCLUDES;
+
+      if (hasPathGlobMetacharacter(searchPath)) {
+        return grepExactDiscoveredFiles({
+          ctx,
+          pattern,
+          searchPath,
+          includes,
+          caseSensitive,
+          regex,
+          limit,
+        });
+      }
 
       const args = ["-r", "-n", "-m", String(MAX_GREP_MATCHES_PER_FILE)];
       if (!caseSensitive) {
@@ -91,7 +121,6 @@ IMPORTANT:
       args.push(regex ? "-E" : "-F");
       args.push("--exclude-dir=node_modules", "--exclude-dir=.git");
 
-      const includes = glob ? [glob] : TEXT_FILE_INCLUDES;
       for (const include of includes) {
         args.push(`--include=${include}`);
       }
@@ -124,16 +153,20 @@ IMPORTANT:
       const filesSet = new Set<string>();
       const fileMatchCounts = new Map<string, number>();
 
-      for (const line of result.stdout.split("\n").filter(Boolean)) {
+      const outputLines = result.stdout.split("\n").filter(Boolean);
+      let parsedLineCount = 0;
+
+      for (const line of outputLines) {
         if (matches.length >= limit) {
           break;
         }
 
-        const parsed = parseGrepLine(line);
+        const parsed = parseGrepLine(line, searchPath === "." ? undefined : searchPath);
         if (!parsed) {
           continue;
         }
 
+        parsedLineCount += 1;
         const displayPath = parsed.path;
         const currentFileCount = fileMatchCounts.get(displayPath) ?? 0;
         if (currentFileCount >= MAX_GREP_MATCHES_PER_FILE) {
@@ -149,14 +182,171 @@ IMPORTANT:
         });
       }
 
+      if (outputLines.length > 0 && parsedLineCount === 0 && limit > 0) {
+        return {
+          success: false as const,
+          error: "Search returned output, but no match lines could be parsed",
+          pattern,
+          matches: [],
+          filesWithMatches: 0,
+        };
+      }
+
       return {
         success: true as const,
         pattern,
         matchCount: matches.length,
         filesWithMatches: filesSet.size,
         matches,
-        truncated: result.stdout.split("\n").filter(Boolean).length > limit,
+        truncated: outputLines.length > limit,
       };
     },
   });
+}
+
+function hasPathGlobMetacharacter(path: string): boolean {
+  return path !== "." && /[*?[]/.test(path);
+}
+
+function findArgs(searchPath: string, includes: string[]): string[] {
+  const args = [
+    toShellRelativePath(searchPath),
+    "-type",
+    "f",
+    "-not",
+    "-path",
+    "*/.*",
+    "-not",
+    "-path",
+    "*/node_modules/*",
+    "(",
+  ];
+
+  includes.forEach((include, index) => {
+    if (index > 0) {
+      args.push("-o");
+    }
+    args.push("-name", include.split("/").at(-1) ?? include);
+  });
+
+  args.push(")");
+  return args;
+}
+
+async function grepExactDiscoveredFiles({
+  ctx,
+  pattern,
+  searchPath,
+  includes,
+  caseSensitive,
+  regex,
+  limit,
+}: {
+  ctx: RepoToolContext;
+  pattern: string;
+  searchPath: string;
+  includes: string[];
+  caseSensitive: boolean;
+  regex: boolean;
+  limit: number;
+}): Promise<GrepToolResult> {
+  const listResult = await ctx.bash.exec("find", { args: findArgs(searchPath, includes) });
+  if (listResult.exitCode !== 0 && !listResult.stdout.trim()) {
+    return {
+      success: false,
+      error: redact(listResult.stderr || "Search file discovery failed"),
+      pattern,
+      matches: [],
+      filesWithMatches: 0,
+    };
+  }
+
+  const files = listResult.stdout.split("\n").filter(Boolean);
+  if (files.length === 0) {
+    return {
+      success: true,
+      pattern,
+      matchCount: 0,
+      filesWithMatches: 0,
+      matches: [],
+      truncated: false,
+    };
+  }
+
+  const matches: Array<{ path: string; line: number; content: string }> = [];
+  const filesSet = new Set<string>();
+  let outputLineCount = 0;
+  let parsedLineCount = 0;
+  let truncated = false;
+
+  for (let fileIndex = 0; fileIndex < files.length; fileIndex += 1) {
+    const file = files[fileIndex]!;
+    const args = ["-n", "-m", String(MAX_GREP_MATCHES_PER_FILE)];
+    if (!caseSensitive) {
+      args.push("-i");
+    }
+    args.push(regex ? "-E" : "-F", pattern, file);
+
+    const result = await ctx.bash.exec("grep", { args });
+    if (result.exitCode >= 2) {
+      return {
+        success: false,
+        error: redact(result.stderr || "Search command failed"),
+        pattern,
+        matches: [],
+        filesWithMatches: 0,
+      };
+    }
+
+    if (result.exitCode !== 0 && !result.stdout.trim()) {
+      continue;
+    }
+
+    const outputLines = result.stdout.split("\n").filter(Boolean);
+    outputLineCount += outputLines.length;
+
+    for (const line of outputLines) {
+      if (matches.length >= limit) {
+        truncated = true;
+        break;
+      }
+
+      const parsed = parseGrepLine(line, file);
+      if (!parsed) {
+        continue;
+      }
+
+      parsedLineCount += 1;
+      filesSet.add(parsed.path);
+      matches.push({
+        path: parsed.path,
+        line: parsed.line,
+        content: redact(parsed.content).slice(0, MAX_GREP_LINE_CHARS),
+      });
+    }
+
+    if (matches.length >= limit && (outputLineCount > limit || fileIndex < files.length - 1)) {
+      truncated = true;
+      break;
+    }
+  }
+
+  if (outputLineCount > 0 && parsedLineCount === 0 && limit > 0) {
+    return {
+      success: false,
+      error: "Search returned output, but no match lines could be parsed",
+      pattern,
+      matches: [],
+      filesWithMatches: 0,
+    };
+  }
+
+  return {
+    success: true,
+    pattern,
+    matchCount: matches.length,
+    filesWithMatches: filesSet.size,
+    matches,
+    truncated: truncated || outputLineCount > limit,
+  };
 }

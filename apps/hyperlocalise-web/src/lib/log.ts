@@ -3,6 +3,10 @@ import type { DrainFn, LogLevel, LoggerConfig } from "evlog";
 import { createBetterStackDrain } from "evlog/better-stack";
 import type { Logger as ChatLogger } from "chat";
 
+import { errorToLogObject, isError } from "@/lib/serialize-error-for-log";
+
+export { serializeErrorForLog } from "@/lib/serialize-error-for-log";
+
 const isProduction = process.env.NODE_ENV === "production";
 const LOG_LEVELS = new Set<LogLevel>(["debug", "info", "warn", "error"]);
 const REDACTED = "[REDACTED]";
@@ -145,46 +149,6 @@ export function configureLoggerForTest(config: { drain?: DrainFn; silent?: boole
 
 function isRecord(value: unknown): value is LogBindings {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isError(value: unknown): value is Error {
-  return value instanceof Error;
-}
-
-function errorToLogObject(error: Error) {
-  const details: LogBindings = {
-    name: error.name,
-    message: error.message,
-    stack: error.stack,
-    cause: error.cause,
-  };
-
-  const maybeApiError = error as Error & {
-    response?: { status?: number; statusText?: string; url?: string };
-    json?: unknown;
-    sandboxId?: string;
-  };
-  if (maybeApiError.response) {
-    details.responseStatus = maybeApiError.response.status;
-    details.responseStatusText = maybeApiError.response.statusText;
-    details.responseUrl = maybeApiError.response.url;
-  }
-  if (maybeApiError.json !== undefined) {
-    details.responseJson = maybeApiError.json;
-  }
-  if (maybeApiError.sandboxId !== undefined) {
-    details.sandboxId = maybeApiError.sandboxId;
-  }
-
-  return details;
-}
-
-export function serializeErrorForLog(error: unknown): LogBindings {
-  if (!isError(error)) {
-    return { error };
-  }
-
-  return errorToLogObject(error);
 }
 
 function sanitizeValue(value: unknown, seen = new WeakSet<object>()): unknown {

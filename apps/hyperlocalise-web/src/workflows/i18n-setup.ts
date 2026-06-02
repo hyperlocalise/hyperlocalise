@@ -25,6 +25,7 @@ import {
   buildHyperlocaliseAgentInstructions,
   getHyperlocaliseAgentModel,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   filterToolSetByNames,
   repositoryWorkflowToolNames,
@@ -275,6 +276,7 @@ async function runSetupAgentStep(input: {
     model: getHyperlocaliseAgentModel(),
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],
+    timeout: WORKFLOW_AGENT_TIMEOUT,
     instructions: buildHyperlocaliseAgentInstructions({
       surface: "web",
       projectId: null,

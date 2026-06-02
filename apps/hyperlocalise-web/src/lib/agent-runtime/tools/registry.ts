@@ -11,6 +11,7 @@ import {
 } from "./repo-read-tools";
 import { createTranslationJobTool } from "./translation-tools";
 import { resolveToolPolicy } from "./policy";
+import { wrapToolSetWithLogging } from "./tool-logging";
 import {
   createBashTool,
   createFetchTool,
@@ -22,7 +23,7 @@ import {
   type RepoToolContext,
 } from "./workspace";
 
-function buildWorkspaceTools(ctx: ToolContext, repoBash: RepoToolContext): ToolSet {
+function createWorkspaceTools(ctx: ToolContext, repoBash: RepoToolContext): ToolSet {
   const policy = resolveToolPolicy({
     organizationId: ctx.organizationId,
     membershipRole: ctx.membershipRole,
@@ -82,12 +83,14 @@ export function buildTools(ctx: ToolContext): ToolSet {
 
   if (ctx.sandboxId) {
     const repoBash = createSandboxRepoBash(ctx.sandboxId) as Bash;
-    Object.assign(tools, buildWorkspaceTools(ctx, { bash: repoBash }));
+    Object.assign(tools, createWorkspaceTools(ctx, { bash: repoBash }));
   } else if (policy.isToolAllowed("fetch")) {
     tools.fetch = createFetchTool();
   }
 
-  return tools;
+  return wrapToolSetWithLogging(tools, ctx);
 }
 
-export { buildWorkspaceTools };
+export function buildWorkspaceTools(ctx: ToolContext, repoBash: RepoToolContext): ToolSet {
+  return wrapToolSetWithLogging(createWorkspaceTools(ctx, repoBash), ctx);
+}
