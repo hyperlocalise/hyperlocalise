@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { createResendAdapter } from "./adapter";
 
 const mocks = vi.hoisted(() => ({
@@ -7,6 +8,10 @@ const mocks = vi.hoisted(() => ({
   getReceivedEmail: vi.fn(),
   getReceivingAttachment: vi.fn(),
   listReceivingAttachments: vi.fn(),
+}));
+
+vi.mock("@/lib/providers/provider-safe-fetch", () => ({
+  providerSafeFetch: vi.fn(),
 }));
 
 vi.mock("resend", () => ({
@@ -337,9 +342,7 @@ describe("createResendAdapter", () => {
       },
       error: null,
     });
-    const fetchMock = vi
-      .spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response("image-bytes"));
+    const fetchMock = vi.mocked(providerSafeFetch).mockResolvedValueOnce(new Response("image-bytes"));
     const processMessage = vi.fn();
     const adapter = createResendAdapter({
       apiKey: "test-key",
@@ -382,8 +385,6 @@ describe("createResendAdapter", () => {
     });
     expect(mocks.listReceivingAttachments).toHaveBeenCalledWith({ emailId: "email_123" });
     expect(fetchMock).toHaveBeenCalledWith("https://example.com/banner.png");
-
-    fetchMock.mockRestore();
   });
 
   it("isolates thread metadata by org inbound address for the same sender and subject", async () => {
