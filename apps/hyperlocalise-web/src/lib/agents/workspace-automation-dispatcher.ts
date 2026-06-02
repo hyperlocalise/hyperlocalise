@@ -141,6 +141,7 @@ async function enqueueWorkspaceContentfulAutomation(input: {
     sourceLocale,
     targetLocales,
     runQa: contentful?.runQa ?? true,
+    writeDrafts: contentful?.writeDrafts ?? true,
     overwriteDraftLocales: contentful?.overwriteDraftLocales ?? false,
   });
 

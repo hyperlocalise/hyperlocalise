@@ -180,6 +180,7 @@ export const contentfulTranslationRuns = pgTable(
       .notNull()
       .default(sql`'[]'::jsonb`),
     runQa: boolean("run_qa").notNull().default(true),
+    writeDrafts: boolean("write_drafts").notNull().default(true),
     overwriteDraftLocales: boolean("overwrite_draft_locales").notNull().default(false),
     detectedFields: jsonb("detected_fields")
       .$type<Record<string, unknown>[]>()

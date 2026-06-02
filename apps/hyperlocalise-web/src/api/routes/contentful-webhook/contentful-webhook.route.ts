@@ -32,7 +32,11 @@ export function createContentfulWebhookRoutes(
   return new Hono().post("/:subscriptionId", validateWebhookParams, async (c) => {
     const { subscriptionId } = c.req.valid("param");
     const subscription = await getContentfulWebhookSubscription({ subscriptionId });
-    if (!subscription || !subscription.connection.enabled) {
+    if (
+      !subscription ||
+      !subscription.connection.enabled ||
+      subscription.subscription.status !== "active"
+    ) {
       return c.json({ ok: true, ignored: true }, 202);
     }
 

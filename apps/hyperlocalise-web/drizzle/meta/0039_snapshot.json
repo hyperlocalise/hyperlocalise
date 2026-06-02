@@ -1,5 +1,5 @@
 {
-  "id": "06070933-cb65-481a-9213-d87f94f64180",
+  "id": "3b43ca4b-27ea-4b91-b71c-a0076cc87059",
   "prevId": "4efaf162-2b0a-49ce-922d-aa3fd68e4c1d",
   "version": "7",
   "dialect": "postgresql",
@@ -6951,6 +6951,27 @@
           "primaryKey": false,
           "notNull": true,
           "default": "'[]'::jsonb"
+        },
+        "run_qa": {
+          "name": "run_qa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "write_drafts": {
+          "name": "write_drafts",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "overwrite_draft_locales": {
+          "name": "overwrite_draft_locales",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
         },
         "detected_fields": {
           "name": "detected_fields",

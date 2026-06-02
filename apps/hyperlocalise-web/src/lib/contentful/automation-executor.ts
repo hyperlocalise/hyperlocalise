@@ -100,6 +100,7 @@ async function createRunItem(input: {
     locale: input.locale,
     status: input.status,
     sourceHash: sha256(input.unit.sourceText),
+    sourcePreview: input.unit.sourceText.slice(0, 160),
     translationPreview: input.translatedText ? input.translatedText.slice(0, 160) : null,
     qaFindings: input.qaFindings ?? [],
     error: input.error ?? null,
@@ -226,6 +227,7 @@ export async function createContentfulTranslationRun(input: {
   sourceLocale: string;
   targetLocales: string[];
   runQa?: boolean;
+  writeDrafts?: boolean;
   overwriteDraftLocales?: boolean;
 }) {
   const [run] = await db
@@ -240,6 +242,7 @@ export async function createContentfulTranslationRun(input: {
       sourceLocale: input.sourceLocale,
       targetLocales: input.targetLocales,
       runQa: input.runQa ?? true,
+      writeDrafts: input.writeDrafts ?? true,
       overwriteDraftLocales: input.overwriteDraftLocales ?? false,
       status: "queued",
     })
@@ -275,7 +278,12 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
   await db
     .update(schema.workspaceAutomationRuns)
     .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
-    .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+    .where(
+      and(
+        eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
+        eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+      ),
+    );
 
   try {
     const loaded = await loadContentfulConnectionWithToken({
@@ -351,7 +359,9 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
     const qaFindings = results.flatMap((result) => result.qaFindings);
 
     const updatedEntry =
-      translations.length > 0 ? await client.updateEntryDraft({ entry, translations }) : entry;
+      translations.length > 0 && run.writeDrafts !== false
+        ? await client.updateEntryDraft({ entry, translations })
+        : entry;
     const completedAt = new Date();
     await db
       .update(schema.contentfulTranslationRuns)
@@ -365,8 +375,11 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
           warnings: qaFindings.filter((finding) => finding.severity === "warning").length,
         },
         writebackSummary: {
-          fieldsWritten: new Set(translations.map((translation) => translation.fieldId)).size,
-          localeValuesWritten: translations.length,
+          fieldsWritten:
+            run.writeDrafts !== false
+              ? new Set(translations.map((translation) => translation.fieldId)).size
+              : 0,
+          localeValuesWritten: run.writeDrafts !== false ? translations.length : 0,
           contentfulVersion: updatedEntry.sys.version,
         },
         completedAt,
@@ -386,7 +399,12 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
         completedAt,
         updatedAt: completedAt,
       })
-      .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      );
 
     if (run.webhookEventId) {
       await markContentfulWebhookEventStatus({
@@ -421,7 +439,12 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
         completedAt,
         updatedAt: completedAt,
       })
-      .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      );
     if (run.webhookEventId) {
       await markContentfulWebhookEventStatus({
         eventId: run.webhookEventId,

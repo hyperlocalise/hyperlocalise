@@ -278,15 +278,8 @@
     {
       "idx": 39,
       "version": "7",
-      "when": 1780373429982,
-      "tag": "0039_cold_tigra",
-      "breakpoints": true
-    },
-    {
-      "idx": 40,
-      "version": "7",
-      "when": 1780382020697,
-      "tag": "0040_colossal_harrier",
+      "when": 1780393353376,
+      "tag": "0039_complete_mattie_franklin",
       "breakpoints": true
     }
   ]
