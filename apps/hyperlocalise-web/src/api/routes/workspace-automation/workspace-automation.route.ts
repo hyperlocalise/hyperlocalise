@@ -5,7 +5,10 @@ import { validator } from "hono/validator";
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
-import { dispatchManualWorkspaceAutomationRun } from "@/lib/agents/workspace-automation-dispatcher";
+import {
+  dispatchContentfulWorkspaceAutomationForManual,
+  dispatchManualWorkspaceAutomationRun,
+} from "@/lib/agents/workspace-automation-dispatcher";
 import {
   createWorkspaceAutomation,
   getWorkspaceAutomationById,
@@ -132,6 +135,21 @@ async function projectExists(input: { organizationId: string; projectId: string 
   return Boolean(project);
 }
 
+async function contentfulConnectionExists(input: { organizationId: string; connectionId: string }) {
+  const [connection] = await db
+    .select({ id: schema.contentfulConnections.id })
+    .from(schema.contentfulConnections)
+    .where(
+      and(
+        eq(schema.contentfulConnections.organizationId, input.organizationId),
+        eq(schema.contentfulConnections.id, input.connectionId),
+      ),
+    )
+    .limit(1);
+
+  return Boolean(connection);
+}
+
 async function validateAutomationReferences(input: {
   organizationId: string;
   repositoryTarget: WorkspaceAutomationRepositoryTarget;
@@ -142,6 +160,7 @@ async function validateAutomationReferences(input: {
   | "github_repository_not_enabled"
   | "github_repository_archived"
   | "project_not_found"
+  | "contentful_connection_not_found"
 > {
   if (
     input.repositoryTarget.kind === "github" &&
@@ -171,6 +190,28 @@ async function validateAutomationReferences(input: {
     });
     if (!foundProject) {
       return "project_not_found";
+    }
+  }
+
+  const contentfulProjectId = input.toolConfig.contentful?.projectId;
+  if (contentfulProjectId) {
+    const foundProject = await projectExists({
+      organizationId: input.organizationId,
+      projectId: contentfulProjectId,
+    });
+    if (!foundProject) {
+      return "project_not_found";
+    }
+  }
+
+  const contentfulConnectionId = input.toolConfig.contentful?.connectionId;
+  if (contentfulConnectionId) {
+    const foundConnection = await contentfulConnectionExists({
+      organizationId: input.organizationId,
+      connectionId: contentfulConnectionId,
+    });
+    if (!foundConnection) {
+      return "contentful_connection_not_found";
     }
   }
 
@@ -214,6 +255,8 @@ function mapReferenceError(
         "Cannot configure automation for an archived repository.",
       );
     case "project_not_found":
+      return notFoundResponse(c, error);
+    case "contentful_connection_not_found":
       return notFoundResponse(c, error);
   }
 }
@@ -414,30 +457,46 @@ export function createWorkspaceAutomationRoutes() {
       if (referenceError !== "ok") {
         return mapReferenceError(c, referenceError);
       }
-      if (
-        automation.repositoryTarget.kind !== "github" ||
-        !automation.repositoryTarget.githubInstallationRepositoryId
-      ) {
-        return badRequestResponse(
-          c,
-          "github_repository_target_required",
-          "Manual runs require an enabled GitHub repository workflow.",
-        );
-      }
-
-      const repository = await getOwnedGithubRepository({
-        organizationId,
-        repositoryId: automation.repositoryTarget.githubInstallationRepositoryId,
-      });
-      if (!repository || !repository.enabled) {
-        return badRequestResponse(
-          c,
-          "github_repository_target_required",
-          "Manual runs require an enabled GitHub repository workflow.",
-        );
-      }
 
       try {
+        const contentfulResult = await dispatchContentfulWorkspaceAutomationForManual({
+          automation,
+          idempotencyKey: payload.idempotencyKey,
+        });
+        if (contentfulResult) {
+          const automationRun = await getWorkspaceAutomationRunById({
+            runId: contentfulResult.runId,
+            organizationId,
+          });
+          if (!automationRun) {
+            throw new Error("workspace_automation_run_not_found");
+          }
+          return c.json({ automationRun, dispatch: contentfulResult }, 202);
+        }
+
+        if (
+          automation.repositoryTarget.kind !== "github" ||
+          !automation.repositoryTarget.githubInstallationRepositoryId
+        ) {
+          return badRequestResponse(
+            c,
+            "github_repository_target_required",
+            "Manual runs require an enabled GitHub repository workflow.",
+          );
+        }
+
+        const repository = await getOwnedGithubRepository({
+          organizationId,
+          repositoryId: automation.repositoryTarget.githubInstallationRepositoryId,
+        });
+        if (!repository || !repository.enabled) {
+          return badRequestResponse(
+            c,
+            "github_repository_target_required",
+            "Manual runs require an enabled GitHub repository workflow.",
+          );
+        }
+
         const result = await dispatchManualWorkspaceAutomationRun({
           automation,
           repository: {
@@ -455,7 +514,7 @@ export function createWorkspaceAutomationRoutes() {
           return badRequestResponse(
             c,
             "manual_run_not_supported",
-            "Manual runs require an enabled GitHub repository workflow.",
+            "Manual runs require an enabled GitHub repository or Contentful workflow.",
           );
         }
 

@@ -1,6 +1,9 @@
 import { createLogger } from "@/lib/log";
 
-import { dispatchWorkspaceAutomationForScheduleAndAdvance } from "./workspace-automation-dispatcher";
+import {
+  dispatchDueContentfulWorkspaceAutomations,
+  dispatchWorkspaceAutomationForScheduleAndAdvance,
+} from "./workspace-automation-dispatcher";
 import { hasWorkspaceAutomationGithubWorkflow } from "./workspace-automation-github-mapping";
 import { listDueWorkspaceAutomations } from "./workspace-automations";
 
@@ -19,6 +22,10 @@ export async function runWorkspaceAutomationScheduler(input?: {
 }): Promise<WorkspaceAutomationSchedulerResult> {
   const now = input?.now ?? new Date();
   const dueAutomations = await listDueWorkspaceAutomations({
+    now,
+    limit: input?.limit,
+  });
+  const contentfulResults = await dispatchDueContentfulWorkspaceAutomations({
     now,
     limit: input?.limit,
   });
@@ -119,18 +126,20 @@ export async function runWorkspaceAutomationScheduler(input?: {
 
   logger.info(
     {
-      processed: dueAutomations.length,
+      processed: dueAutomations.length + contentfulResults.length,
       enqueued,
       skipped,
       duplicates,
+      contentfulEnqueued: contentfulResults.filter((result) => result.outcome === "enqueued")
+        .length,
     },
     "workspace automation scheduler tick completed",
   );
 
   return {
-    processed: dueAutomations.length,
-    enqueued,
-    skipped,
+    processed: dueAutomations.length + contentfulResults.length,
+    enqueued: enqueued + contentfulResults.filter((result) => result.outcome === "enqueued").length,
+    skipped: skipped + contentfulResults.filter((result) => result.outcome === "skipped").length,
     duplicates,
   };
 }

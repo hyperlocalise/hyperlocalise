@@ -73,6 +73,14 @@ type GithubRepositoryOption = {
   defaultBranch: string | null;
 };
 type SlackChannelOption = { id: string; name: string; private: boolean };
+type ContentfulConnectionOption = {
+  id: string;
+  displayName: string;
+  projectId: string;
+  targetLocales: string[];
+  contentTypeIds: string[];
+  enabled: boolean;
+};
 
 type AutomationEditorTab = "settings" | "history";
 
@@ -232,11 +240,20 @@ function triggerSummary(
     return `GitHub push · ${repositoryLabel} · ${branchLabel}`;
   }
 
+  if (form.triggerMode === "contentful") {
+    return "Contentful webhook";
+  }
+
   return "";
 }
 
 function toolCount(form: WorkspaceAutomationFormState) {
-  return Number(form.githubEnabled) + Number(form.slackEnabled) + Number(form.emailEnabled);
+  return (
+    Number(form.githubEnabled) +
+    Number(form.slackEnabled) +
+    Number(form.emailEnabled) +
+    Number(form.contentfulEnabled)
+  );
 }
 
 function formatRepositoryOptionLabel(repository: GithubRepositoryOption) {
@@ -265,6 +282,19 @@ function selectedSlackChannelLabel(channelId: string, channels: SlackChannelOpti
 
   const channel = channels.find((entry) => entry.id === channelId);
   return channel ? `#${channel.name}` : channelId;
+}
+
+function selectedContentfulConnectionLabel(
+  connectionId: string,
+  connections: ContentfulConnectionOption[],
+) {
+  if (!connectionId) {
+    return "Select connection";
+  }
+
+  return (
+    connections.find((connection) => connection.id === connectionId)?.displayName ?? connectionId
+  );
 }
 
 function HeaderProjectSelector({
@@ -453,12 +483,14 @@ function BranchPatternSelector({
 }
 
 function AddTriggerMenu({
+  contentfulConnected,
   disabled,
   form,
   githubConnected,
   onChange,
   repositories,
 }: {
+  contentfulConnected: boolean;
   disabled?: boolean;
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
@@ -535,6 +567,24 @@ function AddTriggerMenu({
                 <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.triggerMode === "contentful" || !contentfulConnected}
+              onClick={() =>
+                onChange({
+                  ...form,
+                  triggerMode: "contentful",
+                  contentfulEnabled: true,
+                })
+              }
+            >
+              <SearchIcon className="size-4" />
+              Contentful webhook
+              {form.triggerMode === "contentful" ? (
+                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+              ) : !contentfulConnected ? (
+                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -543,6 +593,7 @@ function AddTriggerMenu({
 }
 
 function TriggerSettings({
+  contentfulConnected,
   disabled,
   errors,
   form,
@@ -550,6 +601,7 @@ function TriggerSettings({
   onChange,
   repositories,
 }: {
+  contentfulConnected: boolean;
   disabled?: boolean;
   errors: Record<string, string | undefined>;
   form: WorkspaceAutomationFormState;
@@ -712,7 +764,20 @@ function TriggerSettings({
           />
         ) : null}
 
+        {form.triggerMode === "contentful" ? (
+          <EditorRow
+            icon={<SearchIcon className="size-4" />}
+            title="Contentful webhook"
+            description={
+              contentfulConnected
+                ? "Runs when Contentful sends a matching entry create or update webhook."
+                : "Connect Contentful in Integrations before this trigger can run."
+            }
+          />
+        ) : null}
+
         <AddTriggerMenu
+          contentfulConnected={contentfulConnected}
           disabled={disabled}
           form={form}
           githubConnected={githubConnected}
@@ -726,6 +791,7 @@ function TriggerSettings({
 }
 
 function AddToolMenu({
+  contentfulConnected,
   disabled,
   emailConnected,
   form,
@@ -733,6 +799,7 @@ function AddToolMenu({
   onChange,
   slackConnected,
 }: {
+  contentfulConnected: boolean;
   disabled?: boolean;
   emailConnected: boolean;
   form: WorkspaceAutomationFormState;
@@ -810,6 +877,26 @@ function AddToolMenu({
                 <DropdownMenuShortcut>Enable first</DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.contentfulEnabled || !contentfulConnected}
+              onClick={() =>
+                onChange({
+                  ...form,
+                  contentfulEnabled: true,
+                  triggerMode: form.triggerMode === "manual" ? "contentful" : form.triggerMode,
+                  contentfulRunQa: true,
+                  contentfulWriteDrafts: true,
+                })
+              }
+            >
+              <SearchIcon className="size-4" />
+              Contentful translate
+              {form.contentfulEnabled ? (
+                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+              ) : !contentfulConnected ? (
+                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
@@ -849,6 +936,7 @@ function AddToolMenu({
 }
 
 function ToolsSettings({
+  contentfulConnections,
   disabled,
   emailConnected,
   errors,
@@ -856,11 +944,13 @@ function ToolsSettings({
   githubConnected,
   onChange,
   organizationSlug,
+  projects,
   repositories,
   slackChannels,
   slackChannelsLoading,
   slackConnected,
 }: {
+  contentfulConnections: ContentfulConnectionOption[];
   disabled?: boolean;
   emailConnected: boolean;
   errors: Record<string, string | undefined>;
@@ -868,11 +958,14 @@ function ToolsSettings({
   githubConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
   organizationSlug: string;
+  projects: ProjectOption[];
   repositories: GithubRepositoryOption[];
   slackChannels: SlackChannelOption[];
   slackChannelsLoading: boolean;
   slackConnected: boolean;
 }) {
+  const contentfulConnected = contentfulConnections.length > 0;
+
   return (
     <EditorSection title="Tools">
       <EditorPanel>
@@ -1090,7 +1183,187 @@ function ToolsSettings({
           </EditorRow>
         ) : null}
 
+        {form.contentfulEnabled ? (
+          <EditorRow
+            icon={<SearchIcon className="size-4" />}
+            title={
+              <>
+                <span>Contentful translate</span>
+                {!contentfulConnected ? <Badge variant="secondary">Connect first</Badge> : null}
+              </>
+            }
+            description={
+              contentfulConnected ? (
+                "Translate detected Contentful fields, run QA, and write drafts back for review."
+              ) : (
+                <>
+                  Connect Contentful in{" "}
+                  <Link href={`/org/${organizationSlug}/integrations`} className="underline">
+                    Integrations
+                  </Link>{" "}
+                  to use this tool.
+                </>
+              )
+            }
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label="Remove Contentful translate"
+                onClick={() => onChange({ ...form, contentfulEnabled: false })}
+              />
+            }
+          >
+            <div className="grid gap-3">
+              <div className="grid gap-1.5">
+                <Label className="text-xs text-muted-foreground">Connection</Label>
+                <Select
+                  value={form.contentfulConnectionId || undefined}
+                  disabled={disabled || !contentfulConnected}
+                  onValueChange={(value) => {
+                    if (!value) {
+                      return;
+                    }
+                    const connection = contentfulConnections.find((entry) => entry.id === value);
+                    onChange({
+                      ...form,
+                      contentfulConnectionId: value,
+                      contentfulProjectId: connection?.projectId ?? form.contentfulProjectId,
+                      contentfulTargetLocales:
+                        connection?.targetLocales ?? form.contentfulTargetLocales,
+                      contentfulContentTypeIds:
+                        connection?.contentTypeIds ?? form.contentfulContentTypeIds,
+                    });
+                  }}
+                >
+                  <SelectTrigger className="h-8 w-full rounded-lg">
+                    <span className="truncate">
+                      {selectedContentfulConnectionLabel(
+                        form.contentfulConnectionId,
+                        contentfulConnections,
+                      )}
+                    </span>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {contentfulConnections.map((connection) => (
+                      <SelectItem key={connection.id} value={connection.id}>
+                        {connection.displayName}
+                        {connection.enabled ? "" : " (disabled)"}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldError message={errors.contentfulConnectionId} />
+              </div>
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="grid gap-1.5">
+                  <Label className="text-xs text-muted-foreground">Project</Label>
+                  <Select
+                    value={form.contentfulProjectId || undefined}
+                    disabled={disabled}
+                    onValueChange={(value) => {
+                      if (!value) {
+                        return;
+                      }
+                      onChange({ ...form, contentfulProjectId: value });
+                    }}
+                  >
+                    <SelectTrigger className="h-8 w-full rounded-lg">
+                      <span className="truncate">
+                        {projects.find((project) => project.id === form.contentfulProjectId)
+                          ?.name ?? "Select project"}
+                      </span>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {projects.map((project) => (
+                        <SelectItem key={project.id} value={project.id}>
+                          {project.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FieldError message={errors.contentfulProjectId} />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label htmlFor="contentful-entry-id" className="text-xs text-muted-foreground">
+                    Entry ID for manual or scheduled runs
+                  </Label>
+                  <Input
+                    id="contentful-entry-id"
+                    value={form.contentfulEntryId}
+                    disabled={disabled}
+                    className="h-8 rounded-lg text-sm"
+                    placeholder="Contentful entry ID"
+                    onChange={(event) =>
+                      onChange({ ...form, contentfulEntryId: event.target.value })
+                    }
+                  />
+                  <FieldError message={errors.contentfulEntryId} />
+                </div>
+              </div>
+              <div className="grid gap-1.5">
+                <Label
+                  htmlFor="contentful-target-locales"
+                  className="text-xs text-muted-foreground"
+                >
+                  Target locales
+                </Label>
+                <Input
+                  id="contentful-target-locales"
+                  value={form.contentfulTargetLocales.join(", ")}
+                  disabled={disabled}
+                  className="h-8 rounded-lg text-sm"
+                  placeholder="fr-FR, de-DE"
+                  onChange={(event) =>
+                    onChange({
+                      ...form,
+                      contentfulTargetLocales: event.target.value
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                    })
+                  }
+                />
+                <FieldError message={errors.contentfulTargetLocales} />
+              </div>
+              <div className="grid gap-2 md:grid-cols-3">
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                  <span className="text-xs text-foreground">Run QA</span>
+                  <Switch
+                    size="sm"
+                    checked={form.contentfulRunQa}
+                    disabled={disabled}
+                    onCheckedChange={(checked) => onChange({ ...form, contentfulRunQa: checked })}
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                  <span className="text-xs text-foreground">Write drafts</span>
+                  <Switch
+                    size="sm"
+                    checked={form.contentfulWriteDrafts}
+                    disabled={disabled}
+                    onCheckedChange={(checked) =>
+                      onChange({ ...form, contentfulWriteDrafts: checked })
+                    }
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
+                  <span className="text-xs text-foreground">Overwrite targets</span>
+                  <Switch
+                    size="sm"
+                    checked={form.contentfulOverwriteDraftLocales}
+                    disabled={disabled}
+                    onCheckedChange={(checked) =>
+                      onChange({ ...form, contentfulOverwriteDraftLocales: checked })
+                    }
+                  />
+                </label>
+              </div>
+            </div>
+          </EditorRow>
+        ) : null}
+
         <AddToolMenu
+          contentfulConnected={contentfulConnected}
           disabled={disabled}
           emailConnected={emailConnected}
           form={form}
@@ -1253,6 +1526,20 @@ export function WorkspaceAutomationEditor({
     },
   });
 
+  const contentfulConnectionsQuery = useQuery({
+    queryKey: ["contentful-connections", organizationSlug],
+    queryFn: async () => {
+      const response = await api.api.orgs[":organizationSlug"]["contentful-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load Contentful connections");
+      }
+      const body = await response.json();
+      return body.contentfulConnections as ContentfulConnectionOption[];
+    },
+  });
+
   const repositories = useMemo(
     () => (repositoriesQuery.data ?? []).filter((repository) => !repository.archived),
     [repositoriesQuery.data],
@@ -1260,6 +1547,8 @@ export function WorkspaceAutomationEditor({
   const canActivate = workspaceAutomationFormCanActivate(form);
   const slackConnected = Boolean(slackQuery.data?.enabled);
   const emailConnected = Boolean(emailQuery.data?.enabled);
+  const contentfulConnections = contentfulConnectionsQuery.data ?? [];
+  const contentfulConnected = contentfulConnections.length > 0;
   const hasHistory = mode === "detail";
 
   return (
@@ -1336,6 +1625,7 @@ export function WorkspaceAutomationEditor({
 
         <TabsContent value="settings" className="mt-4 flex flex-col gap-6">
           <TriggerSettings
+            contentfulConnected={contentfulConnected}
             disabled={disabled}
             errors={errors}
             form={form}
@@ -1363,6 +1653,7 @@ export function WorkspaceAutomationEditor({
           </EditorSection>
 
           <ToolsSettings
+            contentfulConnections={contentfulConnections}
             disabled={disabled}
             emailConnected={emailConnected}
             errors={errors}
@@ -1370,6 +1661,7 @@ export function WorkspaceAutomationEditor({
             githubConnected={githubConnected}
             onChange={onChange}
             organizationSlug={organizationSlug}
+            projects={projectsQuery.data ?? []}
             repositories={repositories}
             slackChannels={slackChannelsQuery.data ?? []}
             slackChannelsLoading={slackChannelsQuery.isLoading}

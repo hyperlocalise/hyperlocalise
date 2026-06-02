@@ -1,6 +1,7 @@
 import { start } from "workflow/api";
 
 import { emailTranslationWorkflow } from "./email-translation";
+import { contentfulAutomationExecutionWorkflow } from "./contentful-automation-execution";
 import { githubFixWorkflow } from "./github-fix";
 import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
 import { i18nSetupWorkflow } from "./i18n-setup";
@@ -20,6 +21,7 @@ import type {
   ProviderAgentWritebackQueue,
   ProviderWebhookReconciliationQueue,
   I18nSetupQueue,
+  ContentfulAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
 
@@ -118,6 +120,15 @@ export function createProviderWebhookReconciliationQueue(): ProviderWebhookRecon
   return {
     async enqueue(event) {
       const run = await start(providerWebhookReconciliationWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createContentfulAutomationExecutionQueue(): ContentfulAutomationExecutionQueue {
+  return {
+    async enqueue(event) {
+      const run = await start(contentfulAutomationExecutionWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

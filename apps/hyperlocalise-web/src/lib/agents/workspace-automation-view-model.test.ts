@@ -71,4 +71,59 @@ describe("workspace automation view model", () => {
       recipients: ["ops@example.com"],
     });
   });
+
+  it("prefills the Contentful translation template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate("translate-contentful-article");
+
+    expect(form).toMatchObject({
+      name: "Translate Contentful article",
+      triggerMode: "contentful",
+      contentfulEnabled: true,
+      contentfulRunQa: true,
+      contentfulWriteDrafts: true,
+    });
+    expect(form?.instructions).toContain("Contentful help center article");
+  });
+
+  it("maps Contentful tool settings to API payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Translate Contentful updates",
+      instructions: "Translate updates.",
+      triggerMode: "contentful" as const,
+      contentfulEnabled: true,
+      contentfulConnectionId: "11111111-1111-4111-8111-111111111111",
+      contentfulProjectId: "project-1",
+      contentfulTargetLocales: ["fr-FR", "de-DE"],
+      contentfulContentTypeIds: ["helpCenterArticle"],
+      contentfulRunQa: true,
+      contentfulWriteDrafts: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.triggerConfig).toEqual({ mode: "contentful" });
+    expect(payload.toolConfig.contentful).toMatchObject({
+      enabled: true,
+      connectionId: "11111111-1111-4111-8111-111111111111",
+      projectId: "project-1",
+      targetLocales: ["fr-FR", "de-DE"],
+      contentTypeIds: ["helpCenterArticle"],
+      runQa: true,
+      writeDrafts: true,
+    });
+  });
+
+  it("requires Contentful connection, project, and locales when enabled", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      contentfulEnabled: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      contentfulConnectionId: "Choose a Contentful connection.",
+      contentfulProjectId: "Choose a Hyperlocalise project.",
+      contentfulTargetLocales: "Add at least one target locale.",
+    });
+  });
 });

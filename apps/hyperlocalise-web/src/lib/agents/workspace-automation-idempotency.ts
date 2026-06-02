@@ -36,3 +36,29 @@ export function buildWorkspaceManualAutomationIdempotencyKey(input: {
     input.idempotencyKey,
   ].join(":");
 }
+
+export function buildWorkspaceContentfulWebhookAutomationIdempotencyKey(input: {
+  automationId: string;
+  configVersion: number;
+  contentfulWebhookEventId: string;
+}): string {
+  return [
+    "workspace-automation:contentful-webhook",
+    input.automationId,
+    String(input.configVersion),
+    input.contentfulWebhookEventId,
+  ].join(":");
+}
+
+export function buildWorkspaceContentfulScheduledAutomationIdempotencyKey(input: {
+  automationId: string;
+  configVersion: number;
+  scheduledRunAt: Date;
+}): string {
+  return [
+    "workspace-automation:contentful-scheduled",
+    input.automationId,
+    String(input.configVersion),
+    input.scheduledRunAt.toISOString(),
+  ].join(":");
+}

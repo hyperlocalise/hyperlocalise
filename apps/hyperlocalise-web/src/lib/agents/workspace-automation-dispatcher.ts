@@ -15,6 +15,8 @@ import {
 import { enqueueGithubRepositoryAutomationJob } from "./github/github-repository-automation-worker";
 import { githubRepositoryAutomationJobHasRunnableWorkflow } from "./github/github-repository-automation-workflows";
 import {
+  buildWorkspaceContentfulScheduledAutomationIdempotencyKey,
+  buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
   buildWorkspaceGithubPushAutomationIdempotencyKey,
   buildWorkspaceManualAutomationIdempotencyKey,
   buildWorkspaceScheduledAutomationIdempotencyKey,
@@ -27,10 +29,15 @@ import {
 import {
   advanceWorkspaceAutomationNextRun,
   createWorkspaceAutomationRun,
+  hasWorkspaceAutomationContentfulWorkflow,
+  listDueContentfulWorkspaceAutomations,
   listWorkspaceAutomations,
   updateWorkspaceAutomationRun,
   type WorkspaceAutomationRecord,
 } from "./workspace-automations";
+import { createContentfulTranslationRun } from "@/lib/contentful/automation-executor";
+import type { ContentfulAutomationExecutionQueue } from "@/lib/workflow/types";
+import { createContentfulAutomationExecutionQueue } from "@/workflows/adapters";
 
 const logger = createLogger("workspace-automation-dispatch");
 
@@ -47,7 +54,114 @@ export type WorkspaceAutomationDispatchResult =
       job: GithubRepositoryAutomationJobRecord;
       inserted: boolean;
       skipReason: string;
+    }
+  | {
+      outcome: "enqueued";
+      runId: string;
+      contentfulTranslationRunId: string;
+      inserted: boolean;
+    }
+  | {
+      outcome: "skipped";
+      runId: string;
+      contentfulTranslationRunId: string | null;
+      inserted: boolean;
+      skipReason: string;
     };
+
+function contentfulQueue(input?: ContentfulAutomationExecutionQueue) {
+  return input ?? createContentfulAutomationExecutionQueue();
+}
+
+async function enqueueWorkspaceContentfulAutomation(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  triggerSource: "scheduled" | "contentful" | "manual";
+  idempotencyKey: string;
+  connectionId: string;
+  entryId: string | null;
+  contentTypeId?: string | null;
+  webhookEventId?: string | null;
+  scheduledRunAt?: Date | null;
+  queue?: ContentfulAutomationExecutionQueue;
+}): Promise<WorkspaceAutomationDispatchResult> {
+  const run = await createWorkspaceAutomationRun({
+    automationId: input.automation.id,
+    organizationId: input.organizationId,
+    triggerSource: input.triggerSource,
+    status: input.entryId ? "queued" : "skipped",
+    idempotencyKey: input.idempotencyKey,
+    inputSnapshot: {
+      automationConfigVersion: input.automation.configVersion,
+      automationName: input.automation.name,
+      instructions: input.automation.instructions,
+      connectionId: input.connectionId,
+      ...(input.entryId ? { entryId: input.entryId } : {}),
+      ...(input.contentTypeId ? { contentTypeId: input.contentTypeId } : {}),
+      ...(input.webhookEventId ? { contentfulWebhookEventId: input.webhookEventId } : {}),
+      ...(input.scheduledRunAt ? { scheduledRunAt: input.scheduledRunAt.toISOString() } : {}),
+    },
+    completedAt: input.entryId ? null : new Date(),
+    outputSummary: input.entryId ? {} : { skipReason: "contentful_entry_id_missing" },
+  });
+
+  if (
+    input.entryId &&
+    typeof run.outputSummary.contentfulTranslationRunId === "string" &&
+    run.outputSummary.contentfulTranslationRunId.length > 0
+  ) {
+    return {
+      outcome: "enqueued",
+      runId: run.id,
+      contentfulTranslationRunId: run.outputSummary.contentfulTranslationRunId,
+      inserted: false,
+    };
+  }
+
+  if (!input.entryId) {
+    return {
+      outcome: "skipped",
+      runId: run.id,
+      contentfulTranslationRunId: null,
+      inserted: true,
+      skipReason: "contentful_entry_id_missing",
+    };
+  }
+
+  const targetLocales = input.automation.toolConfig.contentful?.targetLocales ?? [];
+  const sourceLocale = "en";
+  const translationRun = await createContentfulTranslationRun({
+    organizationId: input.organizationId,
+    connectionId: input.connectionId,
+    workspaceAutomationRunId: run.id,
+    webhookEventId: input.webhookEventId ?? null,
+    entryId: input.entryId,
+    contentTypeId: input.contentTypeId ?? null,
+    sourceLocale,
+    targetLocales,
+  });
+
+  await updateWorkspaceAutomationRun({
+    runId: run.id,
+    organizationId: input.organizationId,
+    outputSummary: {
+      contentfulTranslationRunId: translationRun.id,
+    },
+  });
+
+  await contentfulQueue(input.queue).enqueue({
+    contentfulTranslationRunId: translationRun.id,
+    workspaceAutomationRunId: run.id,
+    organizationId: input.organizationId,
+  });
+
+  return {
+    outcome: "enqueued",
+    runId: run.id,
+    contentfulTranslationRunId: translationRun.id,
+    inserted: true,
+  };
+}
 
 async function linkWorkspaceAutomationRun(input: {
   organizationId: string;
@@ -394,4 +508,157 @@ export async function dispatchWorkspaceAutomationForScheduleAndAdvance(input: {
     completedAt: input.completedAt,
   });
   return result;
+}
+
+export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
+  organizationId: string;
+  connectionId: string;
+  contentfulWebhookEventId: string;
+  entryId: string | null;
+  contentTypeId?: string | null;
+  queue?: ContentfulAutomationExecutionQueue;
+}): Promise<WorkspaceAutomationDispatchResult[]> {
+  const automations = (
+    await listWorkspaceAutomations({
+      organizationId: input.organizationId,
+      status: "active",
+      limit: 100,
+    })
+  ).filter(
+    (automation) =>
+      automation.triggerConfig.mode === "contentful" &&
+      automation.toolConfig.contentful?.enabled === true &&
+      automation.toolConfig.contentful.connectionId === input.connectionId,
+  );
+
+  const results: WorkspaceAutomationDispatchResult[] = [];
+  for (const automation of automations) {
+    try {
+      results.push(
+        await enqueueWorkspaceContentfulAutomation({
+          organizationId: input.organizationId,
+          automation,
+          triggerSource: "contentful",
+          idempotencyKey: buildWorkspaceContentfulWebhookAutomationIdempotencyKey({
+            automationId: automation.id,
+            configVersion: automation.configVersion,
+            contentfulWebhookEventId: input.contentfulWebhookEventId,
+          }),
+          connectionId: input.connectionId,
+          entryId: input.entryId,
+          contentTypeId: input.contentTypeId,
+          webhookEventId: input.contentfulWebhookEventId,
+          queue: input.queue,
+        }),
+      );
+    } catch (error) {
+      logger.error(
+        {
+          automationId: automation.id,
+          contentfulWebhookEventId: input.contentfulWebhookEventId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "workspace automation contentful webhook dispatch failed",
+      );
+    }
+  }
+
+  return results;
+}
+
+export async function dispatchContentfulWorkspaceAutomationForSchedule(input: {
+  automation: WorkspaceAutomationRecord;
+  scheduledRunAt: Date;
+  queue?: ContentfulAutomationExecutionQueue;
+}): Promise<WorkspaceAutomationDispatchResult | null> {
+  if (input.automation.status !== "active") {
+    return null;
+  }
+  if (input.automation.triggerConfig.mode !== "scheduled") {
+    return null;
+  }
+  if (!hasWorkspaceAutomationContentfulWorkflow(input.automation.toolConfig)) {
+    return null;
+  }
+
+  const contentful = input.automation.toolConfig.contentful;
+  if (!contentful?.connectionId) {
+    return null;
+  }
+
+  return enqueueWorkspaceContentfulAutomation({
+    organizationId: input.automation.organizationId,
+    automation: input.automation,
+    triggerSource: "scheduled",
+    idempotencyKey: buildWorkspaceContentfulScheduledAutomationIdempotencyKey({
+      automationId: input.automation.id,
+      configVersion: input.automation.configVersion,
+      scheduledRunAt: input.scheduledRunAt,
+    }),
+    connectionId: contentful.connectionId,
+    entryId: contentful.entryId ?? null,
+    contentTypeId: contentful.contentTypeIds[0] ?? null,
+    scheduledRunAt: input.scheduledRunAt,
+    queue: input.queue,
+  });
+}
+
+export async function dispatchContentfulWorkspaceAutomationForManual(input: {
+  automation: WorkspaceAutomationRecord;
+  idempotencyKey?: string | null;
+  queue?: ContentfulAutomationExecutionQueue;
+}): Promise<WorkspaceAutomationDispatchResult | null> {
+  if (!hasWorkspaceAutomationContentfulWorkflow(input.automation.toolConfig)) {
+    return null;
+  }
+
+  const contentful = input.automation.toolConfig.contentful;
+  if (!contentful?.connectionId) {
+    return null;
+  }
+
+  return enqueueWorkspaceContentfulAutomation({
+    organizationId: input.automation.organizationId,
+    automation: input.automation,
+    triggerSource: "manual",
+    idempotencyKey:
+      input.idempotencyKey ??
+      `workspace-automation:contentful-manual:${input.automation.id}:${Date.now()}`,
+    connectionId: contentful.connectionId,
+    entryId: contentful.entryId ?? null,
+    contentTypeId: contentful.contentTypeIds[0] ?? null,
+    queue: input.queue,
+  });
+}
+
+export async function dispatchDueContentfulWorkspaceAutomations(input?: {
+  now?: Date;
+  limit?: number;
+  queue?: ContentfulAutomationExecutionQueue;
+}) {
+  const now = input?.now ?? new Date();
+  const automations = await listDueContentfulWorkspaceAutomations({
+    now,
+    limit: input?.limit,
+  });
+
+  const results: WorkspaceAutomationDispatchResult[] = [];
+  for (const automation of automations) {
+    const scheduledRunAt = automation.nextRunAt ? new Date(automation.nextRunAt) : now;
+    const result = await dispatchContentfulWorkspaceAutomationForSchedule({
+      automation,
+      scheduledRunAt,
+      queue: input?.queue,
+    });
+    await advanceWorkspaceAutomationNextRun({
+      automationId: automation.id,
+      organizationId: automation.organizationId,
+      completedAt: now,
+    });
+    if (result) {
+      results.push(result);
+    }
+  }
+
+  return results;
 }

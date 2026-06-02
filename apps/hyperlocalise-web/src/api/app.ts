@@ -13,6 +13,7 @@ import type {
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
   ProviderWebhookReconciliationQueue,
+  ContentfulAutomationExecutionQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
@@ -22,6 +23,8 @@ import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
 import { createChatRequestRoutes } from "./routes/chat-request/chat-request.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
+import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
+import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
@@ -60,6 +63,7 @@ import {
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
   createI18nSetupQueue,
+  createContentfulAutomationExecutionQueue,
 } from "@/workflows/adapters";
 
 type CreateAppOptions = {
@@ -73,6 +77,7 @@ type CreateAppOptions = {
   providerAgentCommentQueue?: ProviderAgentCommentQueue;
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   providerWebhookReconciliationQueue?: ProviderWebhookReconciliationQueue;
+  contentfulAutomationExecutionQueue?: ContentfulAutomationExecutionQueue;
   providerTmsWebhookVerifier?: ProviderTmsWebhookVerifier;
   fileStorageAdapter?: FileStorageAdapter;
 };
@@ -87,6 +92,8 @@ export function createApp(options: CreateAppOptions = {}) {
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
   const i18nSetupQueue = options.i18nSetupQueue ?? createI18nSetupQueue();
+  const contentfulAutomationExecutionQueue =
+    options.contentfulAutomationExecutionQueue ?? createContentfulAutomationExecutionQueue();
 
   return new Hono<EvlogVariables>()
     .use("*", secureHeaders())
@@ -107,6 +114,7 @@ export function createApp(options: CreateAppOptions = {}) {
         providerAgentCommentQueue,
         providerAgentWritebackQueue,
         i18nSetupQueue,
+        contentfulAutomationExecutionQueue,
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
@@ -145,6 +153,7 @@ function createOrgScopedAppRoutes(
     providerAgentCommentQueue: ProviderAgentCommentQueue;
     providerAgentWritebackQueue: ProviderAgentWritebackQueue;
     i18nSetupQueue: I18nSetupQueue;
+    contentfulAutomationExecutionQueue: ContentfulAutomationExecutionQueue;
   },
 ) {
   return new Hono()
@@ -162,6 +171,7 @@ function createOrgScopedAppRoutes(
       }),
     )
     .route("/provider-credential", createProviderCredentialRoutes())
+    .route("/contentful-connections", createContentfulConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route("/tms-agent-automation", createTmsAgentAutomationRoutes())
     .route("/tms-dashboard-summary", createTmsDashboardSummaryRoutes())
@@ -214,6 +224,12 @@ function createWebhookRoutes(options: CreateAppOptions) {
       "/resend",
       createResendWebhookRoutes({
         emailAgentTaskQueue: options.emailAgentTaskQueue,
+      }),
+    )
+    .route(
+      "/contentful",
+      createContentfulWebhookRoutes({
+        contentfulAutomationExecutionQueue: options.contentfulAutomationExecutionQueue,
       }),
     )
     .route("/slack", createSlackWebhookRoutes());

@@ -10,7 +10,7 @@ import {
   Key01Icon,
   SaveIcon,
 } from "@hugeicons/core-free-icons";
-import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { ChevronDownIcon, EyeIcon, EyeOffIcon, SearchIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
 import { siAnthropic, siCrowdin, siGooglegemini } from "simple-icons";
@@ -880,6 +880,251 @@ function useDeleteExternalTmsCredential(organizationSlug: string) {
   });
 }
 
+type ContentfulConnectionSummary = {
+  id: string;
+  displayName: string;
+  projectId: string;
+  spaceId: string;
+  environmentId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  contentTypeIds: string[];
+  validationStatus: string;
+  validationMessage: string | null;
+  maskedTokenSuffix: string;
+  webhook: {
+    id: string;
+    status: string;
+    url: string | null;
+    lastDeliveryId: string | null;
+    lastDeliveredAt: string | null;
+    lastError: string | null;
+  } | null;
+};
+
+type ContentfulConnectionForm = {
+  displayName: string;
+  projectId: string;
+  spaceId: string;
+  environmentId: string;
+  sourceLocale: string;
+  targetLocales: string;
+  contentTypeIds: string;
+  accessToken: string;
+};
+
+function useContentfulConnections(organizationSlug: string) {
+  return useQuery({
+    queryKey: ["contentful-connections", organizationSlug],
+    queryFn: async () => {
+      const res = await api.api.orgs[":organizationSlug"]["contentful-connections"].$get({
+        param: { organizationSlug },
+      });
+      if (!res.ok) {
+        throw new Error("Failed to fetch Contentful connections");
+      }
+      const data = await res.json();
+      return data.contentfulConnections as ContentfulConnectionSummary[];
+    },
+  });
+}
+
+function useSaveContentfulConnection(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      projectId: string;
+      displayName: string;
+      spaceId: string;
+      environmentId: string;
+      sourceLocale: string;
+      targetLocales: string[];
+      contentTypeIds: string[];
+      accessToken: string;
+    }) => {
+      const res = await api.api.orgs[":organizationSlug"]["contentful-connections"].$post({
+        param: { organizationSlug },
+        json: {
+          ...payload,
+          fieldConfig: { fieldMode: "auto", overwriteDraftLocales: false },
+          enabled: true,
+        },
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "contentful_connection_failed" }));
+        throw new Error(
+          "message" in error ? String(error.message) : "Unable to save Contentful connection",
+        );
+      }
+      return res.json();
+    },
+    onSuccess: async (result) => {
+      await queryClient.invalidateQueries({
+        queryKey: ["contentful-connections", organizationSlug],
+      });
+      toast.success("Contentful connection saved");
+      if (result.webhookSecret) {
+        toast.message("Contentful webhook secret generated", {
+          description: "Use the displayed secret when creating the Contentful webhook.",
+        });
+      }
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+function ContentfulConnectionPanel({
+  connections,
+  disabled,
+  lastWebhookSecret,
+  onSave,
+  isSaving,
+  form,
+  onFormChange,
+}: {
+  connections: ContentfulConnectionSummary[];
+  disabled: boolean;
+  lastWebhookSecret: string;
+  onSave: () => void;
+  isSaving: boolean;
+  form: ContentfulConnectionForm;
+  onFormChange: (form: ContentfulConnectionForm) => void;
+}) {
+  const latest = connections[0];
+
+  return (
+    <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+      <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <SearchIcon className="size-5 text-muted-foreground" />
+            <div>
+              <h3 className="text-sm font-medium">Contentful</h3>
+              <p className="text-xs text-muted-foreground">
+                CMS connector for agentic article translation and draft writeback.
+              </p>
+            </div>
+          </div>
+          {latest ? (
+            <div className="mt-4 flex flex-wrap gap-2 text-xs">
+              <Badge variant="outline">{tmsHealthLabel(latest.validationStatus)}</Badge>
+              <Badge variant="outline">Token ...{latest.maskedTokenSuffix}</Badge>
+              <Badge variant="outline">
+                {latest.spaceId}/{latest.environmentId}
+              </Badge>
+            </div>
+          ) : null}
+        </div>
+        <Button type="button" disabled={disabled || isSaving} onClick={onSave}>
+          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+          {isSaving ? "Saving..." : latest ? "Add another connection" : "Save connection"}
+        </Button>
+      </div>
+
+      <div className="grid gap-4 border-t border-border p-5 lg:grid-cols-2">
+        <Field className="gap-2">
+          <FieldLabel>Display name</FieldLabel>
+          <Input
+            value={form.displayName}
+            disabled={disabled}
+            placeholder="Contentful Help Center"
+            onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
+          />
+        </Field>
+        <Field className="gap-2">
+          <FieldLabel>Project ID</FieldLabel>
+          <Input
+            value={form.projectId}
+            disabled={disabled}
+            placeholder="Hyperlocalise project ID"
+            onChange={(event) => onFormChange({ ...form, projectId: event.target.value })}
+          />
+        </Field>
+        <Field className="gap-2">
+          <FieldLabel>Space ID</FieldLabel>
+          <Input
+            value={form.spaceId}
+            disabled={disabled}
+            onChange={(event) => onFormChange({ ...form, spaceId: event.target.value })}
+          />
+        </Field>
+        <Field className="gap-2">
+          <FieldLabel>Environment ID</FieldLabel>
+          <Input
+            value={form.environmentId}
+            disabled={disabled}
+            placeholder="master"
+            onChange={(event) => onFormChange({ ...form, environmentId: event.target.value })}
+          />
+        </Field>
+        <Field className="gap-2">
+          <FieldLabel>Source locale</FieldLabel>
+          <Input
+            value={form.sourceLocale}
+            disabled={disabled}
+            placeholder="en-US"
+            onChange={(event) => onFormChange({ ...form, sourceLocale: event.target.value })}
+          />
+        </Field>
+        <Field className="gap-2">
+          <FieldLabel>Target locales</FieldLabel>
+          <Input
+            value={form.targetLocales}
+            disabled={disabled}
+            placeholder="fr-FR, de-DE"
+            onChange={(event) => onFormChange({ ...form, targetLocales: event.target.value })}
+          />
+        </Field>
+        <Field className="gap-2">
+          <FieldLabel>Content type IDs</FieldLabel>
+          <Input
+            value={form.contentTypeIds}
+            disabled={disabled}
+            placeholder="helpCenterArticle"
+            onChange={(event) => onFormChange({ ...form, contentTypeIds: event.target.value })}
+          />
+        </Field>
+        <Field className="gap-2">
+          <FieldLabel>Management API token</FieldLabel>
+          <Input
+            type="password"
+            value={form.accessToken}
+            disabled={disabled}
+            autoComplete="off"
+            onChange={(event) => onFormChange({ ...form, accessToken: event.target.value })}
+          />
+        </Field>
+      </div>
+
+      {latest?.webhook ? (
+        <div className="border-t border-border p-5 text-sm">
+          <h4 className="font-medium">Webhook setup</h4>
+          <p className="mt-1 text-xs text-muted-foreground">
+            In Contentful, create a webhook for entry publish/save events and add a custom header
+            named <code>x-hyperlocalise-webhook-secret</code>.
+          </p>
+          <div className="mt-3 grid gap-2 rounded-lg bg-muted/50 p-3 text-xs">
+            <span className="font-mono break-all">
+              URL: {latest.webhook.url ?? "Set HYPERLOCALISE_PUBLIC_APP_URL"}
+            </span>
+            {lastWebhookSecret ? (
+              <span className="font-mono break-all">Secret: {lastWebhookSecret}</span>
+            ) : (
+              <span className="text-muted-foreground">
+                Secret is only shown when the webhook subscription is first created.
+              </span>
+            )}
+            <span>Last delivery: {latest.webhook.lastDeliveredAt ?? "No deliveries yet"}</span>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function IntegrationsPageContent({
   organizationSlug,
   membershipRole,
@@ -899,7 +1144,10 @@ export function IntegrationsPageContent({
 
   const { data: externalTmsCredentials, isLoading: isLoadingExternalTms } =
     useExternalTmsCredentials(organizationSlug);
+  const { data: contentfulConnections, isLoading: isLoadingContentful } =
+    useContentfulConnections(organizationSlug);
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
+  const saveContentfulConnection = useSaveContentfulConnection(organizationSlug);
   const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
   const retryWebhookSetup = useRetryWebhookSubscriptions(organizationSlug);
   const [expandedTmsProvider, setExpandedTmsProvider] = useState<ExternalTmsProviderKind | null>(
@@ -911,6 +1159,17 @@ export function IntegrationsPageContent({
   const [showTmsSecret, setShowTmsSecret] = useState(false);
   const [disconnectingTmsProvider, setDisconnectingTmsProvider] =
     useState<ExternalTmsProviderKind | null>(null);
+  const [contentfulForm, setContentfulForm] = useState<ContentfulConnectionForm>({
+    displayName: "Contentful Help Center",
+    projectId: "",
+    spaceId: "",
+    environmentId: "master",
+    sourceLocale: "en-US",
+    targetLocales: "",
+    contentTypeIds: "helpCenterArticle",
+    accessToken: "",
+  });
+  const [lastContentfulWebhookSecret, setLastContentfulWebhookSecret] = useState("");
 
   const tmsDisplayNameFieldId = useId();
   const tmsSecretFieldId = useId();
@@ -1073,6 +1332,48 @@ export function IntegrationsPageContent({
                   );
                 })}
               </div>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>Content Management System</IntegrationCategoryLabel>
+            {isLoadingContentful ? (
+              <Skeleton className="min-h-64 rounded-lg" />
+            ) : (
+              <ContentfulConnectionPanel
+                connections={contentfulConnections ?? []}
+                disabled={!userIsAdmin}
+                form={contentfulForm}
+                onFormChange={setContentfulForm}
+                lastWebhookSecret={lastContentfulWebhookSecret}
+                isSaving={saveContentfulConnection.isPending}
+                onSave={() => {
+                  saveContentfulConnection.mutate(
+                    {
+                      projectId: contentfulForm.projectId.trim(),
+                      displayName: contentfulForm.displayName.trim(),
+                      spaceId: contentfulForm.spaceId.trim(),
+                      environmentId: contentfulForm.environmentId.trim() || "master",
+                      sourceLocale: contentfulForm.sourceLocale.trim(),
+                      targetLocales: contentfulForm.targetLocales
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                      contentTypeIds: contentfulForm.contentTypeIds
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                      accessToken: contentfulForm.accessToken.trim(),
+                    },
+                    {
+                      onSuccess: (result) => {
+                        setContentfulForm((current) => ({ ...current, accessToken: "" }));
+                        setLastContentfulWebhookSecret(result.webhookSecret ?? "");
+                      },
+                    },
+                  );
+                }}
+              />
             )}
           </section>
 
