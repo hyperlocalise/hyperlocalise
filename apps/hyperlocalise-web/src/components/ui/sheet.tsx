@@ -63,11 +63,13 @@ function SheetContent({
         {showCloseButton && (
           <SheetPrimitive.Close
             data-slot="sheet-close"
-            render={<Button variant="ghost" className="absolute top-4 end-4" size="icon-sm" />}
-          >
-            <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-            <span className="sr-only">Close</span>
-          </SheetPrimitive.Close>
+            render={
+              <Button variant="ghost" className="absolute top-4 end-4" size="icon-sm">
+                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                <span className="sr-only">Close</span>
+              </Button>
+            }
+          />
         )}
       </SheetPrimitive.Popup>
     </SheetPortal>
