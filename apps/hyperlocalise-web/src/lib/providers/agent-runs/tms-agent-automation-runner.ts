@@ -5,9 +5,9 @@ import type {
 } from "@/lib/workflow/types";
 
 import {
+  createOrReuseActivePushApprovedWriteBackAgentRun,
   createAgentRun,
   failAgentRun,
-  findActivePushApprovedWriteBackAgentRun,
 } from "../agent-runs/agent-runs";
 import { getJobProviderActionDefinition } from "../job-provider-actions";
 import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
@@ -164,15 +164,7 @@ export async function maybeEnqueueAutoWriteBackAfterProposalReview(input: {
     return { enqueued: false };
   }
 
-  const existingWriteBackRun = await findActivePushApprovedWriteBackAgentRun({
-    organizationId: input.organizationId,
-    hyperlocaliseJobId: input.hyperlocaliseJobId,
-  });
-  if (existingWriteBackRun) {
-    return { enqueued: false, agentRunId: existingWriteBackRun.id, reused: true };
-  }
-
-  const agentRun = await createAgentRun({
+  const { run: agentRun, reused } = await createOrReuseActivePushApprovedWriteBackAgentRun({
     organizationId: input.organizationId,
     providerKind: input.externalProviderKind,
     externalJobId: input.externalJobId,
@@ -187,6 +179,9 @@ export async function maybeEnqueueAutoWriteBackAfterProposalReview(input: {
     },
     hyperlocaliseJobId: input.hyperlocaliseJobId,
   });
+  if (reused) {
+    return { enqueued: false, agentRunId: agentRun.id, reused: true };
+  }
 
   const enqueued = await enqueueAgentRunOrFail({
     organizationId: input.organizationId,

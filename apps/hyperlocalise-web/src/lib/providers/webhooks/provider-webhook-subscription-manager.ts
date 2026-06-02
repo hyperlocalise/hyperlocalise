@@ -229,6 +229,17 @@ export async function ensureProviderWebhookSubscription(input: {
     projectId,
   });
 
+  if (
+    existing?.status === "active" &&
+    subscribedEventsEqual(existing.subscribedEvents, subscribedEvents) &&
+    (!endpointUrl || existing.endpointUrl === endpointUrl)
+  ) {
+    return {
+      subscription: summarizeSubscription(existing),
+      status: existing.status,
+    };
+  }
+
   const placeholderWebhookId =
     existing?.providerWebhookId ?? `pending-${randomBytes(8).toString("hex")}`;
 
@@ -304,17 +315,6 @@ export async function ensureProviderWebhookSubscription(input: {
 
   if (!credentialContext) {
     throw new Error("provider_credential_not_found");
-  }
-
-  if (
-    existing?.status === "active" &&
-    existing.endpointUrl === endpointUrl &&
-    subscribedEventsEqual(existing.subscribedEvents, subscribedEvents)
-  ) {
-    return {
-      subscription: summarizeSubscription(existing),
-      status: existing.status,
-    };
   }
 
   const webhookSecret = generateWebhookSecret();

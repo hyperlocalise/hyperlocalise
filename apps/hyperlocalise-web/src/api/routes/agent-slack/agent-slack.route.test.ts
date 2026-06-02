@@ -177,8 +177,8 @@ describe("agentSlackRoutes", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
       channels: [
-        { id: "C_PUBLIC", name: "localization", private: false },
-        { id: "C_PRIVATE", name: "team-l10n", private: true },
+        { id: "slack:C_PUBLIC", name: "localization", private: false },
+        { id: "slack:C_PRIVATE", name: "team-l10n", private: true },
       ],
     });
     expect(mocks.getInstallationMock).toHaveBeenCalledWith("T123");

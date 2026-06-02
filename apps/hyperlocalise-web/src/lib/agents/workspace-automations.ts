@@ -790,6 +790,24 @@ export async function getWorkspaceAutomationRunByIdempotencyKey(input: {
   return row ? serializeAutomationRun(row) : null;
 }
 
+export async function getWorkspaceAutomationRunById(input: {
+  runId: string;
+  organizationId: string;
+}): Promise<WorkspaceAutomationRunRecord | null> {
+  const [row] = await db
+    .select()
+    .from(schema.workspaceAutomationRuns)
+    .where(
+      and(
+        eq(schema.workspaceAutomationRuns.id, input.runId),
+        eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+      ),
+    )
+    .limit(1);
+
+  return row ? serializeAutomationRun(row) : null;
+}
+
 export async function listWorkspaceAutomationRuns(input: {
   automationId: string;
   organizationId: string;

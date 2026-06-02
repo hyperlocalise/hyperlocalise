@@ -38,6 +38,10 @@ const validateUpdateSlackAgentBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+function toCanonicalSlackChannelId(channelId: string) {
+  return channelId.startsWith("slack:") ? channelId : `slack:${channelId}`;
+}
+
 async function getSlackConnector(organizationId: string) {
   const [connector] = await db
     .select()
@@ -94,7 +98,7 @@ async function listSlackChannels(botToken: string) {
         continue;
       }
       channels.push({
-        id: channel.id,
+        id: toCanonicalSlackChannelId(channel.id),
         name: channel.name,
         private: Boolean(channel.is_private),
       });

@@ -78,7 +78,7 @@ describe("postSlackChannelMessage", () => {
     await waitForInitializeCall();
 
     const secondPost = postSlackChannelMessage({
-      channelId: "C123",
+      channelId: "slack:C123",
       text: "second",
     });
     await Promise.resolve();
@@ -92,7 +92,7 @@ describe("postSlackChannelMessage", () => {
     await Promise.all([firstPost, secondPost]);
 
     expect(postChannelMessageMock).toHaveBeenCalledTimes(2);
-    expect(postChannelMessageMock).toHaveBeenNthCalledWith(1, "C123", "first");
-    expect(postChannelMessageMock).toHaveBeenNthCalledWith(2, "C123", "second");
+    expect(postChannelMessageMock).toHaveBeenNthCalledWith(1, "slack:C123", "first");
+    expect(postChannelMessageMock).toHaveBeenNthCalledWith(2, "slack:C123", "second");
   });
 });

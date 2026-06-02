@@ -63,6 +63,42 @@ async function seedProject(input: { organizationId: string; userId?: string }) {
   return projectId;
 }
 
+async function seedGithubRepository(input: { organizationId: string }) {
+  const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
+  const githubInstallationId = `7${suffix}`;
+  const githubRepositoryId = `6${suffix}`;
+
+  await db.insert(schema.githubInstallations).values({
+    organizationId: input.organizationId,
+    githubInstallationId,
+    githubAppId: "123",
+    accountLogin: "hyperlocalise",
+    accountType: "Organization",
+  });
+
+  const [repository] = await db
+    .insert(schema.githubInstallationRepositories)
+    .values({
+      organizationId: input.organizationId,
+      githubInstallationId,
+      githubRepositoryId,
+      owner: "hyperlocalise",
+      name: `web-${suffix}`,
+      fullName: `hyperlocalise/web-${suffix}`,
+      private: false,
+      archived: false,
+      defaultBranch: "main",
+      enabled: true,
+    })
+    .returning();
+
+  if (!repository) {
+    throw new Error("failed to seed repository");
+  }
+
+  return repository;
+}
+
 describe("workspace automation routes", () => {
   it("creates, reads, updates, lists, and archives automations for an operator", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
@@ -256,7 +292,7 @@ describe("workspace automation routes", () => {
     });
   });
 
-  it("creates idempotent queued manual runs and returns recent run metadata", async () => {
+  it("rejects manual runs without a runnable GitHub workflow", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
@@ -299,6 +335,60 @@ describe("workspace automation routes", () => {
       },
       { headers },
     );
+
+    expect(firstRunResponse.status).toBe(400);
+    await expect(firstRunResponse.json()).resolves.toMatchObject({
+      error: "github_repository_target_required",
+    });
+  });
+
+  it("creates idempotent queued manual runs and returns recent run metadata", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
+    const projectId = await seedProject({ organizationId });
+    const repository = await seedGithubRepository({ organizationId });
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].automations.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          name: "Manual repository automation",
+          instructions: "Run manual automation.",
+          triggerConfig: { mode: "manual" },
+          repositoryTarget: {
+            kind: "github",
+            githubInstallationRepositoryId: repository.id,
+          },
+          toolConfig: {
+            github: {
+              enabled: true,
+              projectId,
+              pushSource: true,
+              pullTranslations: false,
+              validation: false,
+            },
+          },
+        },
+      },
+      { headers },
+    );
+    const created = (await createdResponse.json()) as { automation: { id: string } };
+
+    const runPayload = {
+      idempotencyKey: `manual:${created.automation.id}:test-run`,
+      inputSnapshot: { reason: "operator_test" },
+    };
+    const firstRunResponse = await client.api.orgs[":organizationSlug"].automations[
+      ":automationId"
+    ].runs.$post(
+      {
+        param: { organizationSlug, automationId: created.automation.id },
+        json: runPayload,
+      },
+      { headers },
+    );
     const secondRunResponse = await client.api.orgs[":organizationSlug"].automations[
       ":automationId"
     ].runs.$post(
@@ -312,11 +402,17 @@ describe("workspace automation routes", () => {
     expect(firstRunResponse.status).toBe(202);
     expect(secondRunResponse.status).toBe(202);
     const firstRun = (await firstRunResponse.json()) as {
-      automationRun: { id: string; status: string; idempotencyKey: string };
+      automationRun: {
+        id: string;
+        status: string;
+        idempotencyKey: string;
+        githubRepositoryAutomationJobId: string;
+      };
     };
     const secondRun = (await secondRunResponse.json()) as {
       automationRun: { id: string; status: string; idempotencyKey: string };
     };
+    expect(firstRun.automationRun.githubRepositoryAutomationJobId).toBeTruthy();
     expect(secondRun.automationRun).toMatchObject({
       id: firstRun.automationRun.id,
       status: "queued",
