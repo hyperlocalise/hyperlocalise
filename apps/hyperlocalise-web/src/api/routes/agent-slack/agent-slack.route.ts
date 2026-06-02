@@ -14,6 +14,7 @@ import {
 } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
 
 import { updateSlackAgentBodySchema } from "./agent-slack.schema";
@@ -75,7 +76,8 @@ async function listSlackChannels(botToken: string) {
       url.searchParams.set("cursor", cursor);
     }
 
-    const response = await fetch(url, {
+    // Use providerSafeFetch to prevent SSRF when calling Slack API
+    const response = await providerSafeFetch(url, {
       headers: { authorization: `Bearer ${botToken}` },
     });
     if (!response.ok) {

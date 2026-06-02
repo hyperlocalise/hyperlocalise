@@ -18,6 +18,7 @@ import {
 import { createHash } from "node:crypto";
 import { Resend } from "resend";
 
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
 
 export type ResendThreadId = {
@@ -203,7 +204,8 @@ class ResendAdapter implements Adapter<ResendThreadId, ResendRawMessage> {
           if (!downloadUrl) {
             throw new Error(`Failed to fetch attachment: ${result.error?.message ?? "unknown"}`);
           }
-          const response = await fetch(downloadUrl);
+          // Use providerSafeFetch to prevent SSRF when downloading attachments from external URLs
+          const response = await providerSafeFetch(downloadUrl);
           if (!response.ok) {
             throw new Error(`Failed to download attachment: ${response.status}`);
           }
