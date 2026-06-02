@@ -24,6 +24,8 @@ ${SUBAGENT_NO_QUESTIONS_RULES}
 - Start from the provided source text, key, file path, surrounding text, locale, or repository hint.
 - Use grep with the user's quoted string or key as the pattern, then read surrounding lines.
 - If the exact string is not found, search normalized variants, nearby keys, and likely locale/resource files.
+- For short visible UI labels, menu items, sidebar items, or page headings, search component, route, app shell, sidebar, navigation, and config files before declaring no repository evidence.
+- When a UI label is a single word or short title, also search lowercase route/key variants such as "knowledge" and nearby labels from the same navigation group.
 - Use glob to discover locale, resource, route, component, or i18n config paths when needed.
 - Use detectRepoConfig when asked about i18n.yml / project locale setup.
 - owner/repository strings refer to GitHub repos, not Hyperlocalise projects.

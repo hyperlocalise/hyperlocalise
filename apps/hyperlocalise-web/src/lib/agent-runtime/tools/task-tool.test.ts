@@ -205,6 +205,12 @@ describe("task tool", () => {
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
+        instructions: expect.stringContaining("short visible UI labels"),
+      }),
+    );
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
         instructions: expect.stringContaining("Do not ask for code changes"),
       }),
     );

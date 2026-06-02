@@ -26,6 +26,9 @@ describe("conversation orchestrator", () => {
     expect(instructions).toContain("Repository context handoff");
     expect(instructions).toContain("localization context exploration");
     expect(instructions).toContain("source text");
+    expect(instructions).toContain("short visible UI labels");
+    expect(instructions).toContain("app shell, sidebar, navigation, and config files");
+    expect(instructions).toContain("lowercase route/key variants");
     expect(instructions).toContain("placeholder meanings");
     expect(instructions).toContain("Do not use repository context for broad architecture");
   });

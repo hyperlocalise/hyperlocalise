@@ -90,6 +90,8 @@ export function buildOrchestratorInstructions(input: {
     "- Use `repository` only for read-only localization context exploration in the connected GitHub repo.",
     "- Delegate when the user asks where a localized string/message/key appears, what source copy means, or what context a translation should use.",
     "- Include exact source text, keys, file paths, surrounding text, source/target locales, and repository hints when the conversation provides them.",
+    "- For short visible UI labels, menu items, sidebar items, or page headings, require searches across component, route, app shell, sidebar, navigation, and config files before accepting no-match results.",
+    "- Ask the repository agent to try lowercase route/key variants and nearby navigation labels for single-word or short-title UI copy.",
     "- Ask for product surface, user intent, tone/register, placeholder meanings, nearby copy, existing translations, and ambiguities.",
     "- Do not use repository context for broad architecture summaries, PR fixes, code review, checks, or source edits.",
     "",
