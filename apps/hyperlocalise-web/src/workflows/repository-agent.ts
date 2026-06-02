@@ -9,6 +9,7 @@ import {
   buildHyperlocaliseAgentInstructions,
   getHyperlocaliseAgentModel,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import { buildRepositoryGitHubContextInstructions } from "@/lib/agents/repository-context";
 import {
   filterToolSetByNames,
@@ -88,6 +89,7 @@ export async function repositoryAgentWorkflow(
       model: getHyperlocaliseAgentModel(),
       tools,
       stopWhen: [(step) => step.steps.length >= agentStepLimit],
+      timeout: WORKFLOW_AGENT_TIMEOUT,
       instructions: buildHyperlocaliseAgentInstructions({
         surface: task.source === "slack" ? "slack" : task.source === "github" ? "github" : "web",
         projectId: task.projectId,

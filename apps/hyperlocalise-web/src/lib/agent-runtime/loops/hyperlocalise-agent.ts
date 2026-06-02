@@ -21,6 +21,7 @@ import {
   createConversationOrchestratorAgent,
   type ConversationOrchestratorOnFinish,
 } from "./orchestrator";
+import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 
 export type { HyperlocaliseConversationMode } from "./conversation-mode";
 export { buildConversationModeInstructions } from "./conversation-mode";
@@ -181,6 +182,7 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
     toolChoice,
     onFinish,
     maxOutputTokens: hyperlocaliseAgentMaxOutputTokens,
+    timeout: DEFAULT_AGENT_TIMEOUT,
     stopWhen: stepCountIs(hyperlocaliseAgentStepLimit),
   });
 }

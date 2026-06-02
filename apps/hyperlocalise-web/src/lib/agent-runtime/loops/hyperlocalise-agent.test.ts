@@ -57,6 +57,7 @@ import {
   toModelMessages,
 } from "./hyperlocalise-agent";
 import { createConversationOrchestratorAgent } from "./orchestrator";
+import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 
 describe("hyperlocalise agent core", () => {
   beforeEach(() => {
@@ -118,6 +119,7 @@ describe("hyperlocalise agent core", () => {
         model: "mock-model",
         tools,
         activeTools: ["example"],
+        timeout: DEFAULT_AGENT_TIMEOUT,
         stopWhen: { stepLimit: hyperlocaliseAgentStepLimit },
       }),
     );

@@ -55,6 +55,8 @@ vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => ({
 
 vi.mock("@/lib/agent-runtime/tools/registry", () => ({ buildTools: buildToolsMock }));
 
+import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
+
 import { repositoryAgentWorkflow } from "./repository-agent";
 
 const baseTask = {
@@ -87,6 +89,7 @@ describe("repositoryAgentWorkflow", () => {
     expect(toolLoopAgentCtor).toHaveBeenCalledWith(
       expect.objectContaining({
         instructions: "sys",
+        timeout: WORKFLOW_AGENT_TIMEOUT,
         experimental_context: { sandboxId: null, repositoryTaskId: "task_1" },
       }),
     );

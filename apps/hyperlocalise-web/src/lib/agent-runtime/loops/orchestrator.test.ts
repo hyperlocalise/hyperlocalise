@@ -1,8 +1,25 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
+const { stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
+  stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
+  toolLoopAgentMock: vi.fn(function ToolLoopAgent(settings: unknown) {
+    return { settings };
+  }),
+}));
+
 vi.mock("@ai-sdk/openai", () => ({
   openai: vi.fn(() => "mock-model"),
 }));
+
+vi.mock("ai", async () => {
+  const actual = await vi.importActual<typeof import("ai")>("ai");
+
+  return {
+    ...actual,
+    stepCountIs: stepCountIsMock,
+    ToolLoopAgent: toolLoopAgentMock,
+  };
+});
 
 vi.mock("@/lib/env", () => ({
   env: {
@@ -10,7 +27,12 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
-import { buildOrchestratorInstructions } from "./orchestrator";
+import {
+  ORCHESTRATOR_AGENT_TIMEOUT,
+  ORCHESTRATOR_STEP_LIMIT,
+} from "@/lib/agent-runtime/subagents/constants";
+
+import { buildOrchestratorInstructions, createConversationOrchestratorAgent } from "./orchestrator";
 
 describe("conversation orchestrator", () => {
   it("frames repository delegation as localization context exploration", () => {
@@ -25,6 +47,7 @@ describe("conversation orchestrator", () => {
 
     expect(instructions).toContain("Repository context handoff");
     expect(instructions).toContain("localization context exploration");
+    expect(instructions).toContain("Delegate to `repository` for this turn before answering.");
     expect(instructions).toContain("source text");
     expect(instructions).toContain("preserving capitalization and punctuation");
     expect(instructions).toContain("case-insensitive search");
@@ -54,5 +77,46 @@ describe("conversation orchestrator", () => {
     expect(instructions).toContain("`repository` → `translation`");
     expect(instructions).toContain("Run every agent");
     expect(instructions).toContain("complete repository context collection before translation");
+  });
+
+  it("forces the first repository turn through the task tool", () => {
+    createConversationOrchestratorAgent({
+      surface: "slack",
+      suggestedIntents: ["repository"],
+      suggestedMode: "repository",
+      hasFileAttachments: false,
+      additionalInstructions: undefined,
+      toolContext: {
+        conversationId: "conversation_123",
+        organizationId: "org_123",
+        localUserId: "user_123",
+        membershipRole: "member",
+        projectId: null,
+        db: {} as never,
+        sandboxId: "sbx_123",
+      },
+    });
+
+    expect(stepCountIsMock).toHaveBeenCalledWith(ORCHESTRATOR_STEP_LIMIT);
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeTools: ["task"],
+        timeout: ORCHESTRATOR_AGENT_TIMEOUT,
+        stopWhen: { stepLimit: ORCHESTRATOR_STEP_LIMIT },
+        prepareStep: expect.any(Function),
+      }),
+    );
+
+    const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
+      prepareStep: (input: { stepNumber: number }) => unknown;
+    };
+
+    expect(settings.prepareStep({ stepNumber: 0 })).toEqual({
+      activeTools: ["task"],
+      toolChoice: { type: "tool", toolName: "task" },
+    });
+    expect(settings.prepareStep({ stepNumber: 1 })).toEqual({
+      toolChoice: "none",
+    });
   });
 });

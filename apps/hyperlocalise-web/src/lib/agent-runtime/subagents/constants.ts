@@ -4,6 +4,26 @@ export const SUBAGENT_STEP_LIMIT = 200;
 /** Steps for the parent orchestrator (delegate + synthesize). */
 export const ORCHESTRATOR_STEP_LIMIT = 3;
 
+export const DEFAULT_AGENT_TIMEOUT = {
+  totalMs: 5 * 60 * 1000,
+  stepMs: 60 * 1000,
+} as const;
+
+export const ORCHESTRATOR_AGENT_TIMEOUT = {
+  totalMs: 2 * 60 * 1000,
+  stepMs: 60 * 1000,
+} as const;
+
+export const SUBAGENT_TIMEOUT = {
+  totalMs: 10 * 60 * 1000,
+  stepMs: 60 * 1000,
+} as const;
+
+export const WORKFLOW_AGENT_TIMEOUT = {
+  totalMs: 10 * 60 * 1000,
+  stepMs: 90 * 1000,
+} as const;
+
 export const SUBAGENT_NO_QUESTIONS_RULES = [
   "You cannot ask follow-up questions — no one will respond in this loop.",
   "If required information is missing, state what is missing in your final summary.",
