@@ -15,8 +15,7 @@ const runScheduledReconciliationMock = vi.fn(async () => [
 ]);
 
 async function createClient(input?: { cronSecret?: string | null }) {
-  const cronSecret =
-    input?.cronSecret === null ? undefined : (input?.cronSecret ?? "cron-secret");
+  const cronSecret = input?.cronSecret === null ? undefined : (input?.cronSecret ?? "cron-secret");
   vi.resetModules();
   vi.doMock("@/workflows/adapters", () => ({
     createProviderWebhookReconciliationQueue: () => ({
@@ -92,5 +91,4 @@ describe("tms scheduled reconciliation cron route", () => {
     });
     expect(runScheduledReconciliationMock).toHaveBeenCalledTimes(1);
   });
-
 });

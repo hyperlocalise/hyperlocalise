@@ -22,8 +22,7 @@ const runWorkspaceAutomationSchedulerMock = vi.fn(async () => ({
 }));
 
 async function createClient(input?: { cronSecret?: string | null }) {
-  const cronSecret =
-    input?.cronSecret === null ? undefined : (input?.cronSecret ?? "cron-secret");
+  const cronSecret = input?.cronSecret === null ? undefined : (input?.cronSecret ?? "cron-secret");
 
   vi.resetModules();
   vi.doMock("@/lib/agents/github/github-repository-automation-scheduler", () => ({
@@ -107,5 +106,4 @@ describe("github repository automation dispatch cron route", () => {
     expect(runWorkspaceAutomationSchedulerMock).toHaveBeenCalledTimes(1);
     expect(runGithubRepositoryAutomationWorkerMock).toHaveBeenCalledTimes(1);
   });
-
 });
