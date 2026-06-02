@@ -1,10 +1,11 @@
 import {
   createTranslationSandbox,
+  deleteTranslationSandbox,
   prepareSandbox,
   runSandboxCommand,
-  stopTranslationSandbox,
   writeFilesToSandbox,
 } from "@/lib/translation/sandbox-translation";
+import { runDisposableWorkspaceCleanup } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { isErr } from "@/lib/primitives/result/results";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
 
@@ -75,13 +76,20 @@ export async function runHlCheckOnProviderContentInSandbox(input: {
     input.targetLocales.length > 0 ? input.targetLocales : input.content.targetLocales;
   const bundle = buildHlCheckWorkspaceBundle(input.content, targetLocales);
   const { sandboxId } = await createTranslationSandbox();
+  let primaryError: unknown = null;
 
   try {
     await prepareSandbox(sandboxId);
     await writeHlCheckWorkspaceToSandbox(sandboxId, bundle);
     const report = await runHlCheckCommandInSandbox(sandboxId, bundle);
     return { report, bundle };
+  } catch (error) {
+    primaryError = error;
+    throw error;
   } finally {
-    await stopTranslationSandbox(sandboxId);
+    await runDisposableWorkspaceCleanup({
+      cleanup: () => deleteTranslationSandbox(sandboxId),
+      primaryError,
+    });
   }
 }

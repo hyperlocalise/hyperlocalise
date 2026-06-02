@@ -1,5 +1,6 @@
 import { Sandbox } from "@vercel/sandbox";
 
+import { deleteWorkspace } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { env } from "@/lib/env";
 
 export const sandboxTimeoutMs = 10 * 60 * 1000;
@@ -26,9 +27,8 @@ export async function createTranslationSandbox(): Promise<{ sandboxId: string }>
   return { sandboxId: sandbox.name };
 }
 
-export async function stopTranslationSandbox(sandboxId: string): Promise<void> {
-  const sandbox = await Sandbox.get({ name: sandboxId });
-  await sandbox.stop();
+export async function deleteTranslationSandbox(sandboxId: string): Promise<void> {
+  await deleteWorkspace(sandboxId);
 }
 
 export async function runSandboxCommand(

@@ -1,6 +1,7 @@
 import { getWorkflowMetadata } from "workflow";
 import { and, asc, eq, inArray } from "drizzle-orm";
 
+import { runDisposableWorkspaceCleanup } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { db, schema } from "@/lib/database";
 import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
 import {
@@ -10,6 +11,7 @@ import {
 import {
   buildTempConfig,
   createTranslationSandbox,
+  deleteTranslationSandbox,
   getSandboxInputFilename,
   getSandboxOutputFilename,
   getSandboxTranslationEnv,
@@ -17,7 +19,6 @@ import {
   readTranslatedFile,
   runSandboxCommand,
   type SandboxTranslationContext,
-  stopTranslationSandbox,
   userFacingFailureReason,
   writeFileToSandbox,
   writeTempConfig,
@@ -123,9 +124,9 @@ async function readOutputStep(sandboxId: string, outputFile: string, _attempt: 1
   return readTranslatedFile(sandboxId, outputFile);
 }
 
-async function stopSandboxStep(sandboxId: string) {
+async function deleteSandboxStep(sandboxId: string) {
   "use step";
-  return stopTranslationSandbox(sandboxId);
+  return deleteTranslationSandbox(sandboxId);
 }
 
 async function logDiagnosticsStep(
@@ -334,6 +335,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     sourceContent,
     metadata: parsedInput.metadata,
   });
+  let primaryError: unknown = null;
 
   try {
     await prepareSandboxStep(sandboxId);
@@ -497,6 +499,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     return outputFiles;
   } catch (error) {
+    primaryError = error;
     const reason = userFacingFailureReason(error);
     console.error("[file-translation-workflow] file translation failed", {
       jobId: claim.job.id,
@@ -512,6 +515,9 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
     });
     throw error;
   } finally {
-    await stopSandboxStep(sandboxId);
+    await runDisposableWorkspaceCleanup({
+      cleanup: () => deleteSandboxStep(sandboxId),
+      primaryError,
+    });
   }
 }

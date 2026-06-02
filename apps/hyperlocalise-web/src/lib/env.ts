@@ -91,6 +91,15 @@ export const env = createEnv({
     /** Vercel Blob read/write token used by the Vercel Blob storage adapter. */
     BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
 
+    /** Vercel API token used to hard-delete disposable sandbox workspaces. */
+    VERCEL_SANDBOX_API_TOKEN: z.string().min(1).optional(),
+
+    /** Vercel team ID that owns disposable sandbox workspaces. */
+    VERCEL_SANDBOX_TEAM_ID: z.string().min(1).optional(),
+
+    /** Vercel team slug that owns disposable sandbox workspaces. */
+    VERCEL_SANDBOX_TEAM_SLUG: z.string().min(1).optional(),
+
     /** Enables MCP OAuth and transport endpoints. */
     MCP_AUTH_ENABLED: z
       .enum(["true", "false"])
@@ -243,6 +252,12 @@ export const env = createEnv({
     FILE_STORAGE_ACCESS: process.env.FILE_STORAGE_ACCESS,
     BLOB_READ_WRITE_TOKEN:
       process.env.BLOB_READ_WRITE_TOKEN ?? (isTestEnv ? "test-blob-read-write-token" : undefined),
+    VERCEL_SANDBOX_API_TOKEN:
+      process.env.VERCEL_SANDBOX_API_TOKEN ??
+      (isTestEnv ? "test-vercel-sandbox-api-token" : undefined),
+    VERCEL_SANDBOX_TEAM_ID:
+      process.env.VERCEL_SANDBOX_TEAM_ID ?? (isTestEnv ? "team_test" : undefined),
+    VERCEL_SANDBOX_TEAM_SLUG: process.env.VERCEL_SANDBOX_TEAM_SLUG,
     MCP_AUTH_ENABLED: process.env.MCP_AUTH_ENABLED ?? "true",
     MCP_ALLOW_DYNAMIC_REGISTRATION:
       process.env.MCP_ALLOW_DYNAMIC_REGISTRATION ?? (isTestEnv ? "true" : "false"),

@@ -18,6 +18,7 @@ import { buildTools } from "@/lib/agent-runtime/tools/registry";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { db } from "@/lib/database";
+import { runDisposableWorkspaceCleanup } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 
 export type RepositoryWorkflowResult = {
   ok: boolean;
@@ -42,11 +43,11 @@ async function createRepositorySandboxStep(
   return createRepositorySandbox(githubContext);
 }
 
-async function stopRepositorySandboxStep(sandboxId: string): Promise<void> {
+async function deleteRepositorySandboxStep(sandboxId: string): Promise<void> {
   "use step";
-  const { stopRepositorySandbox } =
+  const { deleteRepositorySandbox } =
     await import("@/lib/agent-runtime/workspaces/repository-sandbox");
-  return stopRepositorySandbox(sandboxId);
+  return deleteRepositorySandbox(sandboxId);
 }
 
 export async function repositoryAgentWorkflow(
@@ -58,6 +59,7 @@ export async function repositoryAgentWorkflow(
   const localUserId = task.actor.userId?.trim() || "repository_agent";
 
   let sandboxId: string | null = null;
+  let primaryError: unknown = null;
 
   try {
     if (task.githubContext?.resolved) {
@@ -120,6 +122,7 @@ export async function repositoryAgentWorkflow(
       summary: result.text.trim() || "Completed repository agent task.",
     };
   } catch (error) {
+    primaryError = error;
     const message = error instanceof Error ? error.message : String(error);
     return {
       ok: false,
@@ -130,11 +133,11 @@ export async function repositoryAgentWorkflow(
     };
   } finally {
     if (sandboxId) {
-      try {
-        await stopRepositorySandboxStep(sandboxId);
-      } catch {
-        // Best-effort cleanup; preserve the structured workflow result.
-      }
+      const sandboxIdToDelete = sandboxId;
+      await runDisposableWorkspaceCleanup({
+        cleanup: () => deleteRepositorySandboxStep(sandboxIdToDelete),
+        primaryError,
+      });
     }
   }
 }

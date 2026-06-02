@@ -2,6 +2,10 @@ import { Sandbox } from "@vercel/sandbox";
 import { Resend } from "resend";
 import { getWorkflowMetadata } from "workflow";
 
+import {
+  deleteWorkspace,
+  runDisposableWorkspaceCleanup,
+} from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 import { env } from "@/lib/env";
 import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
 import { getTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
@@ -24,11 +28,10 @@ async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   return { sandboxId: sandbox.name };
 }
 
-async function stopTranslationSandbox(sandboxId: string): Promise<void> {
+async function deleteTranslationSandbox(sandboxId: string): Promise<void> {
   "use step";
 
-  const sandbox = await Sandbox.get({ name: sandboxId });
-  await sandbox.stop();
+  await deleteWorkspace(sandboxId);
 }
 
 async function runSandboxCommand(
@@ -348,6 +351,7 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
   const { sandboxId } = await createTranslationSandbox();
   const inputFile = getSandboxInputFilename(attachment.filename);
   const outputFile = getSandboxOutputFilename(attachment.filename, targetLocale);
+  let primaryError: unknown = null;
 
   try {
     await markEmailTranslationJobRunning({ jobId: task.jobId, workflowRunId });
@@ -378,6 +382,7 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
       targetLocale,
     });
   } catch (error) {
+    primaryError = error;
     const reason = userFacingFailureReason(error);
     try {
       await sendFailureReplyEmail(task, attachment, reason);
@@ -387,6 +392,9 @@ export async function emailTranslationWorkflow(task: EmailAgentTask) {
     await markEmailTranslationJobFailed({ jobId: task.jobId, workflowRunId, reason });
     throw error;
   } finally {
-    await stopTranslationSandbox(sandboxId);
+    await runDisposableWorkspaceCleanup({
+      cleanup: () => deleteTranslationSandbox(sandboxId),
+      primaryError,
+    });
   }
 }

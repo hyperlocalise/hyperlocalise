@@ -14,14 +14,14 @@ vi.mock("@/lib/env", () => ({
 
 const createTranslationSandboxMock = vi.fn();
 const prepareSandboxMock = vi.fn();
-const stopTranslationSandboxMock = vi.fn();
+const deleteTranslationSandboxMock = vi.fn();
 const runSandboxCommandMock = vi.fn();
 const writeFilesToSandboxMock = vi.fn();
 
 vi.mock("@/lib/translation/sandbox-translation", () => ({
   createTranslationSandbox: (...args: unknown[]) => createTranslationSandboxMock(...args),
+  deleteTranslationSandbox: (...args: unknown[]) => deleteTranslationSandboxMock(...args),
   prepareSandbox: (...args: unknown[]) => prepareSandboxMock(...args),
-  stopTranslationSandbox: (...args: unknown[]) => stopTranslationSandboxMock(...args),
   runSandboxCommand: (...args: unknown[]) => runSandboxCommandMock(...args),
   writeFilesToSandbox: (...args: unknown[]) => writeFilesToSandboxMock(...args),
 }));
@@ -32,8 +32,8 @@ describe("runHlCheckOnProviderContentInSandbox", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createTranslationSandboxMock.mockResolvedValue({ sandboxId: "sandbox_qa_1" });
+    deleteTranslationSandboxMock.mockResolvedValue(undefined);
     prepareSandboxMock.mockResolvedValue(undefined);
-    stopTranslationSandboxMock.mockResolvedValue(undefined);
     writeFilesToSandboxMock.mockResolvedValue(undefined);
     runSandboxCommandMock.mockImplementation(async (_sandboxId, command, args) => {
       if (command === "bash") {
@@ -49,7 +49,7 @@ describe("runHlCheckOnProviderContentInSandbox", () => {
     });
   });
 
-  it("creates a sandbox, runs hl check, and stops the sandbox", async () => {
+  it("creates a sandbox, runs hl check, and deletes the sandbox", async () => {
     await runHlCheckOnProviderContentInSandbox({
       content: {
         externalJobId: "job-1",
@@ -71,10 +71,10 @@ describe("runHlCheckOnProviderContentInSandbox", () => {
     expect(prepareSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
     expect(writeFilesToSandboxMock).toHaveBeenCalled();
     expect(runSandboxCommandMock).toHaveBeenCalled();
-    expect(stopTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
+    expect(deleteTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
   });
 
-  it("stops the sandbox when hl check fails", async () => {
+  it("deletes the sandbox when hl check fails", async () => {
     runSandboxCommandMock.mockImplementationOnce(async () => ({
       exitCode: 1,
       output: "hl check exploded",
@@ -91,10 +91,10 @@ describe("runHlCheckOnProviderContentInSandbox", () => {
       }),
     ).rejects.toThrow("hl check failed");
 
-    expect(stopTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
+    expect(deleteTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
   });
 
-  it("stops the sandbox when the hl check report is invalid JSON", async () => {
+  it("deletes the sandbox when the hl check report is invalid JSON", async () => {
     runSandboxCommandMock.mockImplementation(async (_sandboxId, command) => {
       if (command === "bash") {
         return { exitCode: 0, output: "" };
@@ -116,6 +116,6 @@ describe("runHlCheckOnProviderContentInSandbox", () => {
       }),
     ).rejects.toThrow("hl check report is not valid JSON");
 
-    expect(stopTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
+    expect(deleteTranslationSandboxMock).toHaveBeenCalledWith("sandbox_qa_1");
   });
 });

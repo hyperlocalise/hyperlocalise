@@ -1,4 +1,5 @@
 import { createLogger } from "@/lib/log";
+import { runDisposableWorkspaceCleanup } from "@/lib/agent-runtime/workspaces/vercel-sandbox-runtime";
 
 import { runRepositoryLocalisationAgentForCommit } from "./github-repository-automation-agent";
 import {
@@ -35,7 +36,7 @@ import {
   createGithubRepositoryAutomationSandbox,
   runGitDiffInSandbox,
   runGitLogInSandbox,
-  stopGithubRepositoryAutomationSandbox,
+  deleteGithubRepositoryAutomationSandbox,
 } from "./github-repository-automation-sandbox";
 
 const logger = createLogger("github-repo-automation-validation");
@@ -137,6 +138,7 @@ export async function runGithubRepositoryAutomationValidation(input: {
   };
 
   let sandboxId: string | null = null;
+  let primaryError: unknown = null;
   let checkRunId: string | null = job.githubCheckRunId;
   const shouldPublishCheckRun = job.workflows.statusCheck.enabled;
 
@@ -363,6 +365,7 @@ export async function runGithubRepositoryAutomationValidation(input: {
 
     return summary;
   } catch (error) {
+    primaryError = error;
     const message = error instanceof Error ? error.message : "automation validation failed";
 
     if (checkRunId) {
@@ -389,7 +392,11 @@ export async function runGithubRepositoryAutomationValidation(input: {
     throw error;
   } finally {
     if (sandboxId) {
-      await stopGithubRepositoryAutomationSandbox(sandboxId).catch(() => undefined);
+      const sandboxIdToDelete = sandboxId;
+      await runDisposableWorkspaceCleanup({
+        cleanup: () => deleteGithubRepositoryAutomationSandbox(sandboxIdToDelete),
+        primaryError,
+      });
     }
   }
 }
