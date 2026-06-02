@@ -1,28 +1,31 @@
 import { tool, type ToolSet } from "ai";
-import type { DrainContext, WideEvent } from "evlog";
-import { beforeEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import { z } from "zod";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { configureLoggerForTest } from "@/lib/log";
 
 import { wrapToolSetWithLogging } from "./tool-logging";
 
-const drainedEvents: WideEvent[] = [];
+const consoleLogCalls: unknown[][] = [];
 
 type TestExecutableTool = {
   execute: (input: unknown, options: unknown) => Promise<unknown>;
 };
 
 beforeEach(() => {
-  drainedEvents.length = 0;
-  configureLoggerForTest({
-    silent: true,
-    drain: (context: DrainContext) => {
-      drainedEvents.push(context.event);
-    },
+  consoleLogCalls.length = 0;
+  vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+    consoleLogCalls.push(args);
   });
 });
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+function getLoggedEvents(): unknown[] {
+  return consoleLogCalls.map(([, event]) => event);
+}
 
 function createToolContext(): ToolContext {
   return {
@@ -87,20 +90,19 @@ describe("wrapToolSetWithLogging", () => {
       { toolCallId: "call_123", messages: [] },
     );
 
-    expect(drainedEvents).toHaveLength(2);
-    expect(drainedEvents[0]).toMatchObject({
-      prefix: "agent-tool-call",
-      message: "agent tool call started",
+    const loggedEvents = getLoggedEvents();
+    expect(consoleLogCalls).toHaveLength(2);
+    expect(consoleLogCalls[0]?.[0]).toBe("agent tool call started");
+    expect(loggedEvents[0]).toMatchObject({
       toolName: "grep",
       toolCallId: "call_123",
     });
-    expect(drainedEvents[1]).toMatchObject({
-      prefix: "agent-tool-call",
-      message: "agent tool call completed",
+    expect(consoleLogCalls[1]?.[0]).toBe("agent tool call completed");
+    expect(loggedEvents[1]).toMatchObject({
       toolName: "grep",
     });
 
-    const serializedLogs = JSON.stringify(drainedEvents);
+    const serializedLogs = JSON.stringify(consoleLogCalls);
     expect(serializedLogs).not.toContain(sourceText);
     expect(serializedLogs).not.toContain(matchedLine);
     expect(serializedLogs).not.toContain("acme/private-repo");
@@ -130,7 +132,9 @@ describe("wrapToolSetWithLogging", () => {
 
     await wrappedBash.execute!({ command }, { toolCallId: "call_bash", messages: [] });
 
-    expect(drainedEvents[0]).toMatchObject({
+    const loggedEvents = getLoggedEvents();
+    expect(consoleLogCalls[0]?.[0]).toBe("agent tool call started");
+    expect(loggedEvents[0]).toMatchObject({
       toolName: "bash",
       input: {
         command: {
@@ -142,7 +146,7 @@ describe("wrapToolSetWithLogging", () => {
       },
     });
 
-    const serializedLogs = JSON.stringify(drainedEvents);
+    const serializedLogs = JSON.stringify(consoleLogCalls);
     expect(serializedLogs).toContain(command);
     expect(serializedLogs).not.toContain("private output");
   });
@@ -170,13 +174,13 @@ describe("wrapToolSetWithLogging", () => {
       ),
     ).rejects.toThrow("sandbox unavailable");
 
-    expect(drainedEvents).toHaveLength(2);
-    expect(drainedEvents[1]).toMatchObject({
-      prefix: "agent-tool-call",
-      message: "agent tool call failed",
+    const loggedEvents = getLoggedEvents();
+    expect(consoleLogCalls).toHaveLength(2);
+    expect(consoleLogCalls[1]?.[0]).toBe("agent tool call failed");
+    expect(loggedEvents[1]).toMatchObject({
       toolName: "fuzzySearch",
       toolCallId: "call_failure",
     });
-    expect(JSON.stringify(drainedEvents)).not.toContain("Reviewed strings");
+    expect(JSON.stringify(consoleLogCalls)).not.toContain("Reviewed strings");
   });
 });

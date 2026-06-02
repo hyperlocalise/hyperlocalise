@@ -1,8 +1,7 @@
-import { createHash } from "node:crypto";
 import type { ToolSet } from "ai";
 
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { createLogger, serializeErrorForLog } from "@/lib/log";
+import { serializeErrorForLog } from "@/lib/log";
 
 type ExecutableTool = {
   execute?: (input: unknown, options: unknown) => unknown;
@@ -10,8 +9,6 @@ type ExecutableTool = {
 
 type SafeRecord = Record<string, unknown>;
 
-const logger = createLogger("agent-tool-call");
-const STRING_HASH_LENGTH = 12;
 const MAX_OBJECT_KEYS = 20;
 const MAX_ARRAY_SAMPLES = 3;
 const MAX_DEPTH = 2;
@@ -28,10 +25,6 @@ const RAW_STRING_KEYS = new Set([
 
 const PATH_KEY_RE = /(^|.*)(baseDir|configPath|filePath|path)$/;
 const SENSITIVE_TEXT_KEY_RE = /content|instruction|message|pattern|prompt|query|summary|text/i;
-
-function hashString(value: string): string {
-  return createHash("sha256").update(value).digest("hex").slice(0, STRING_HASH_LENGTH);
-}
 
 function pathDepth(value: string): number {
   return value.split("/").filter(Boolean).length;
@@ -52,7 +45,6 @@ function summarizePath(value: string): SafeRecord {
     basename: pathBasename(value),
     depth: pathDepth(value),
     extension: pathExtension(value),
-    hash: hashString(value),
   };
 }
 
@@ -83,7 +75,6 @@ function summarizeString(value: string, key?: string): unknown {
   return {
     type: "string",
     length: value.length,
-    hash: hashString(value),
     sensitive: key ? SENSITIVE_TEXT_KEY_RE.test(key) : true,
   };
 }
@@ -197,7 +188,6 @@ function summarizeToolContext(ctx: ToolContext): SafeRecord {
     githubContext: githubContext
       ? {
           installationId: githubContext.installationId,
-          repositoryFullNameHash: hashString(githubContext.repositoryFullName),
           pullRequestNumber: githubContext.pullRequestNumber ?? null,
           branch:
             typeof githubContext.branch === "string"
@@ -261,34 +251,25 @@ export function wrapToolWithLogging<T>(toolName: string, tool: T, ctx: ToolConte
         context: summarizeToolContext(ctx),
       };
 
-      logger.info(
-        {
-          ...baseEvent,
-          input: summarizeValue(input),
-        },
-        "agent tool call started",
-      );
+      console.log("agent tool call started", {
+        ...baseEvent,
+        input: summarizeValue(input),
+      });
 
       try {
         const result = await execute(input, options);
-        logger.info(
-          {
-            ...baseEvent,
-            durationMs: Date.now() - startedAt,
-            result: summarizeResult(result),
-          },
-          "agent tool call completed",
-        );
+        console.log("agent tool call completed", {
+          ...baseEvent,
+          durationMs: Date.now() - startedAt,
+          result: summarizeResult(result),
+        });
         return result;
       } catch (error) {
-        logger.error(
-          {
-            ...baseEvent,
-            durationMs: Date.now() - startedAt,
-            err: serializeErrorForLog(error),
-          },
-          "agent tool call failed",
-        );
+        console.log("agent tool call failed", {
+          ...baseEvent,
+          durationMs: Date.now() - startedAt,
+          err: serializeErrorForLog(error),
+        });
         throw error;
       }
     },
