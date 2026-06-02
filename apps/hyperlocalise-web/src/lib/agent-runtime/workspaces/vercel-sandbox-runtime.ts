@@ -1,5 +1,7 @@
 import { Sandbox } from "@vercel/sandbox";
 
+import { defaultVercelSandboxRuntime } from "@/lib/vercel-sandbox-config";
+
 import type {
   GitWorkspaceSource,
   WorkspaceCommandResult,
@@ -122,6 +124,7 @@ export async function createVercelSandboxWorkspace(input: {
 }): Promise<WorkspaceRuntime> {
   const sandbox = await Sandbox.create({
     ...(input.source ? { source: input.source } : {}),
+    runtime: defaultVercelSandboxRuntime,
     timeout: input.timeoutMs ?? defaultSandboxTimeoutMs,
   });
 

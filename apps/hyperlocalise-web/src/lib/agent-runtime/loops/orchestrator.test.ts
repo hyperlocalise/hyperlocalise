@@ -30,6 +30,7 @@ vi.mock("@/lib/env", () => ({
 import {
   ORCHESTRATOR_AGENT_TIMEOUT,
   ORCHESTRATOR_STEP_LIMIT,
+  SUBAGENT_TIMEOUT,
 } from "@/lib/agent-runtime/subagents/constants";
 
 import { buildOrchestratorInstructions, createConversationOrchestratorAgent } from "./orchestrator";
@@ -79,6 +80,13 @@ describe("conversation orchestrator", () => {
     expect(instructions).toContain("complete repository context collection before translation");
   });
 
+  it("allows enough wall-clock time for delegated subagents", () => {
+    expect(ORCHESTRATOR_AGENT_TIMEOUT.totalMs).toBeGreaterThanOrEqual(
+      (ORCHESTRATOR_STEP_LIMIT - 1) * SUBAGENT_TIMEOUT.totalMs +
+        ORCHESTRATOR_STEP_LIMIT * ORCHESTRATOR_AGENT_TIMEOUT.stepMs,
+    );
+  });
+
   it("forces the first repository turn through the task tool", () => {
     createConversationOrchestratorAgent({
       surface: "slack",
@@ -118,5 +126,6 @@ describe("conversation orchestrator", () => {
     expect(settings.prepareStep({ stepNumber: 1 })).toEqual({
       toolChoice: "none",
     });
+    expect(settings.prepareStep({ stepNumber: 2 })).toEqual({});
   });
 });

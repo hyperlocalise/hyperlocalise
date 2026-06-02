@@ -5,6 +5,7 @@ import { getWorkflowMetadata } from "workflow";
 import { env } from "@/lib/env";
 import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
 import { getTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
+import { defaultVercelSandboxRuntime } from "@/lib/vercel-sandbox-config";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {
   markEmailTranslationJobFailed,
@@ -18,6 +19,7 @@ async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   "use step";
 
   const sandbox = await Sandbox.create({
+    runtime: defaultVercelSandboxRuntime,
     timeout: sandboxTimeoutMs,
   });
 

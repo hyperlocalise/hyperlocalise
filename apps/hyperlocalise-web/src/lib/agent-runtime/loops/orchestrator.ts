@@ -146,7 +146,7 @@ export function createConversationOrchestratorAgent(
         };
       }
 
-      if (preferredSubagents.length === 1) {
+      if (stepNumber === 1 && preferredSubagents.length === 1) {
         return {
           toolChoice: "none",
         };

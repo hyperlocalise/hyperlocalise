@@ -1,6 +1,7 @@
 import { Sandbox } from "@vercel/sandbox";
 
 import { env } from "@/lib/env";
+import { defaultVercelSandboxRuntime } from "@/lib/vercel-sandbox-config";
 
 export const sandboxTimeoutMs = 10 * 60 * 1000;
 
@@ -20,6 +21,7 @@ export type SandboxTranslationContext = {
 
 export async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   const sandbox = await Sandbox.create({
+    runtime: defaultVercelSandboxRuntime,
     timeout: sandboxTimeoutMs,
   });
 

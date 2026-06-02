@@ -1,11 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const sandboxMocks = vi.hoisted(() => {
+  const create = vi.fn();
   const output = vi.fn();
   const runCommand = vi.fn();
   const get = vi.fn();
 
-  return { get, output, runCommand };
+  return { create, get, output, runCommand };
 });
 
 vi.mock("@/lib/env", () => ({
@@ -18,12 +19,14 @@ vi.mock("@/lib/env", () => ({
 
 vi.mock("@vercel/sandbox", () => ({
   Sandbox: {
+    create: sandboxMocks.create,
     get: sandboxMocks.get,
   },
 }));
 
 import {
   buildTempConfig,
+  createTranslationSandbox,
   runSandboxCommand,
   userFacingFailureReason,
 } from "@/lib/translation/sandbox-translation";
@@ -31,6 +34,17 @@ import {
 describe("sandbox command runner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("creates translation sandboxes with Node 26", async () => {
+    sandboxMocks.create.mockResolvedValueOnce({ name: "sandbox_123" });
+
+    await expect(createTranslationSandbox()).resolves.toEqual({ sandboxId: "sandbox_123" });
+
+    expect(sandboxMocks.create).toHaveBeenCalledWith({
+      runtime: "node26",
+      timeout: 600_000,
+    });
   });
 
   it("captures combined output by default", async () => {
