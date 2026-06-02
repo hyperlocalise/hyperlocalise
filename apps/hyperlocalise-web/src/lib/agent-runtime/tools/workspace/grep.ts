@@ -53,10 +53,11 @@ const grepInputSchema = z.object({
     .string()
     .optional()
     .describe("Workspace-relative file or directory to search in. Default: repo root."),
-  glob: z
+  include: z
     .string()
     .optional()
-    .describe("Optional glob to filter files (e.g., '*.json', 'locales/**')."),
+    .describe('Optional file pattern to include in the search (e.g., "*.json", "*.{ts,tsx}").'),
+  glob: z.string().optional().describe("Legacy alias for include. Prefer include."),
   caseSensitive: z.boolean().optional().describe("Case-sensitive search. Default: true."),
   regex: z
     .boolean()
@@ -83,7 +84,7 @@ WHEN NOT TO USE:
 
 USAGE:
 - Prefer literal search (regex: false) for user-quoted UI copy
-- Use glob to narrow to locales or config files
+- Use include to narrow to locale, component, route, or config files
 - Results capped at ${MAX_GREP_MATCHES} matches (${MAX_GREP_MATCHES_PER_FILE} per file)
 - Skips node_modules and .git
 
@@ -93,6 +94,7 @@ IMPORTANT:
     execute: async ({
       pattern,
       path: searchPathInput,
+      include,
       glob,
       caseSensitive = true,
       regex = false,
@@ -100,7 +102,8 @@ IMPORTANT:
     }) => {
       const searchPath = normalizeWorkspacePath(searchPathInput ?? ".") ?? ".";
       const limit = maxResults ?? MAX_GREP_MATCHES;
-      const includes = glob ? [glob] : TEXT_FILE_INCLUDES;
+      const includePattern = include ?? glob;
+      const includes = includePattern ? [includePattern] : TEXT_FILE_INCLUDES;
 
       const rgResult = await grepWithRipgrep({
         ctx,

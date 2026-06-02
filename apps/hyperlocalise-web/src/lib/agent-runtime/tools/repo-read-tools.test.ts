@@ -163,7 +163,7 @@ describe("createGrepTool", () => {
       },
     });
 
-    const result = await t.execute!({ pattern: "Dashboard", glob: "*.tsx" }, toolCallInfo);
+    const result = await t.execute!({ pattern: "Dashboard", include: "*.tsx" }, toolCallInfo);
 
     expect(calls).toEqual([
       {
