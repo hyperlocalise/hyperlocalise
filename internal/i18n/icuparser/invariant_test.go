@@ -1,6 +1,9 @@
 package icuparser
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestSamePlaceholderSetIgnoresOrderAndDuplicates(t *testing.T) {
 	if !SamePlaceholderSet([]string{"b", "a", "b"}, []string{"a", "b"}) {
@@ -413,7 +416,7 @@ func TestParseInvariantIncludesTypedBlocks(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseInvariant failed: %v", err)
 			}
-			if !SameICUBlocks(inv.ICUBlocks, tt.want) {
+			if !reflect.DeepEqual(inv.ICUBlocks, tt.want) {
 				t.Errorf("ParseInvariant(%q) ICUBlocks = %s, want %s", tt.msg, FormatICUBlocks(inv.ICUBlocks), FormatICUBlocks(tt.want))
 			}
 		})
@@ -466,7 +469,7 @@ func TestCountPoundsComplexNesting(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ParseInvariant failed: %v", err)
 			}
-			if !SameICUBlocks(inv.ICUBlocks, tt.want) {
+			if !reflect.DeepEqual(inv.ICUBlocks, tt.want) {
 				t.Errorf("ICUBlocks mismatch\n got: %s\nwant: %s", FormatICUBlocks(inv.ICUBlocks), FormatICUBlocks(tt.want))
 			}
 		})
