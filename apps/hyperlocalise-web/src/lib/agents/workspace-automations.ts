@@ -143,8 +143,8 @@ export type WorkspaceAutomationConfigValidationError =
       message: "GitHub push triggers require at least one branch pattern.";
     }
   | {
-      code: "scheduled_github_workflow_required";
-      message: "Scheduled automations require at least one GitHub workflow.";
+      code: "scheduled_workflow_required";
+      message: "Scheduled automations require at least one GitHub or Contentful workflow.";
     }
   | {
       code: "contentful_connection_required";
@@ -272,8 +272,8 @@ function validateWorkspaceAutomationConfig(input: {
     !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)
   ) {
     return err({
-      code: "scheduled_github_workflow_required",
-      message: "Scheduled automations require at least one GitHub workflow.",
+      code: "scheduled_workflow_required",
+      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
     });
   }
 
@@ -721,6 +721,8 @@ export async function listDueContentfulWorkspaceAutomations(input: {
         eq(schema.workspaceAutomations.status, "active"),
         isNotNull(schema.workspaceAutomations.nextRunAt),
         lte(schema.workspaceAutomations.nextRunAt, now),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'scheduled'`,
+        sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'enabled' = 'true'`,
       ),
     )
     .orderBy(schema.workspaceAutomations.nextRunAt)

@@ -9,7 +9,7 @@ import { assembleStringTranslationContextSnapshot } from "@/lib/translation/asse
 import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
-import { ContentfulManagementClient } from "./client";
+import { ContentfulManagementClient, isContentfulClientError } from "./client";
 import { loadContentfulConnectionWithToken } from "./connections";
 import {
   detectContentfulTranslatableFields,
@@ -384,7 +384,11 @@ export async function executeContentfulAutomation(input: ContentfulAutomationExe
     return { ok: true as const, runId: run.id };
   } catch (error) {
     const completedAt = new Date();
-    const message = error instanceof Error ? error.message : "contentful_automation_failed";
+    const message = isContentfulClientError(error)
+      ? error.message
+      : error instanceof Error
+        ? error.message
+        : "contentful_automation_failed";
     await db
       .update(schema.contentfulTranslationRuns)
       .set({
