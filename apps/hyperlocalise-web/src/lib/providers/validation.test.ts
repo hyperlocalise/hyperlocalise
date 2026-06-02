@@ -20,6 +20,14 @@ function getLastProviderFetchInit() {
   return call[1] as RequestInit;
 }
 
+function parseProviderFetchJsonBody(init: RequestInit) {
+  if (typeof init.body !== "string") {
+    throw new Error("Expected provider credential validation to send a JSON string body");
+  }
+
+  return JSON.parse(init.body) as unknown;
+}
+
 describe("validateProviderCredential", () => {
   afterEach(() => {
     vi.clearAllMocks();
@@ -65,7 +73,7 @@ describe("validateProviderCredential", () => {
 
       const init = getLastProviderFetchInit();
       expect(init.signal).toBeInstanceOf(AbortSignal);
-      expect(JSON.parse(String(init.body))).toEqual({
+      expect(parseProviderFetchJsonBody(init)).toEqual({
         model: `${testCase.provider}-model`,
         messages: [{ role: "user", content: "ping" }],
         max_tokens: 1,
@@ -96,7 +104,7 @@ describe("validateProviderCredential", () => {
 
     const init = getLastProviderFetchInit();
     expect(init.signal).toBeInstanceOf(AbortSignal);
-    expect(JSON.parse(String(init.body))).toEqual({
+    expect(parseProviderFetchJsonBody(init)).toEqual({
       model: "claude-test",
       max_tokens: 1,
       messages: [{ role: "user", content: "ping" }],
