@@ -175,14 +175,7 @@ async function grepWithRipgrep({
   regex: boolean;
   limit: number;
 }): Promise<GrepToolResult | null> {
-  const args = [
-    "--vimgrep",
-    "--with-filename",
-    "--color",
-    "never",
-    "--max-count",
-    String(MAX_GREP_MATCHES_PER_FILE),
-  ];
+  const args = ["--vimgrep", "--color", "never", "--max-count", String(MAX_GREP_MATCHES_PER_FILE)];
 
   if (!caseSensitive) {
     args.push("--ignore-case");
@@ -209,7 +202,13 @@ async function grepWithRipgrep({
   }
 
   if (result.exitCode === 0 && !result.stdout.trim()) {
-    return null;
+    return {
+      success: true,
+      pattern,
+      matchCount: 0,
+      filesWithMatches: 0,
+      matches: [],
+    };
   }
 
   if (result.exitCode !== 0 && !result.stdout.trim()) {
