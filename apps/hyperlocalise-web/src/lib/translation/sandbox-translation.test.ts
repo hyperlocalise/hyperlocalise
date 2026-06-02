@@ -34,16 +34,28 @@ import {
 describe("sandbox command runner", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    sandboxMocks.runCommand.mockResolvedValue({
+      exitCode: 0,
+      output: sandboxMocks.output,
+    });
   });
 
   it("creates translation sandboxes with Node 26", async () => {
-    sandboxMocks.create.mockResolvedValueOnce({ name: "sandbox_123" });
+    sandboxMocks.create.mockResolvedValueOnce({
+      name: "sandbox_123",
+      runCommand: sandboxMocks.runCommand,
+    });
 
     await expect(createTranslationSandbox()).resolves.toEqual({ sandboxId: "sandbox_123" });
 
     expect(sandboxMocks.create).toHaveBeenCalledWith({
       runtime: "node26",
       timeout: 600_000,
+    });
+    expect(sandboxMocks.runCommand).toHaveBeenCalledWith({
+      cmd: "sh",
+      args: ["-c", expect.stringContaining("apt-get update && apt-get install -y ripgrep")],
+      sudo: true,
     });
   });
 

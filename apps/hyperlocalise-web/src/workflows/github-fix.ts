@@ -3,7 +3,7 @@ import { Sandbox } from "@vercel/sandbox";
 import { getInstallationOctokit } from "@/lib/agents/github/app";
 import { requesterCanRunFix } from "@/lib/agents/github/permissions";
 import { deleteGitHubAgentRequestForEvent } from "@/lib/agents/github/request-idempotency";
-import { defaultVercelSandboxRuntime } from "@/lib/vercel-sandbox-config";
+import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
 const sandboxTimeoutMs = 10 * 60 * 1000;
@@ -106,8 +106,7 @@ async function createFixSandbox(
 
   const octokit = await getInstallationOctokit(event.installationId);
   const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
-  const sandbox = await Sandbox.create({
-    runtime: defaultVercelSandboxRuntime,
+  const sandbox = await createConfiguredVercelSandbox({
     source: {
       depth: 1,
       password: token,

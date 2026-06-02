@@ -12,14 +12,16 @@ const {
   generateMock,
   getInstallationOctokitMock,
   getMock,
+  installCommandMock,
   stopMock,
   toolLoopAgentCtor,
 } = vi.hoisted(() => {
   const authMock = vi.fn(async () => ({ token: "installation-token" }));
   const buildHyperlocaliseAgentInstructionsMock = vi.fn(() => "sys");
   const buildToolsMock = vi.fn(() => ({}));
+  const installCommandMock = vi.fn(async () => ({ exitCode: 0 }));
   const stopMock = vi.fn();
-  const createMock = vi.fn(async () => ({ name: "sbx_1" }));
+  const createMock = vi.fn(async () => ({ name: "sbx_1", runCommand: installCommandMock }));
   const getMock = vi.fn(async () => ({ stop: stopMock }));
   const getInstallationOctokitMock = vi.fn(async () => ({ auth: authMock }));
   const generateMock = vi.fn(async () => ({ text: "done" }));
@@ -35,6 +37,7 @@ const {
     generateMock,
     getInstallationOctokitMock,
     getMock,
+    installCommandMock,
     stopMock,
     toolLoopAgentCtor,
   };
@@ -76,7 +79,8 @@ describe("repositoryAgentWorkflow", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     authMock.mockResolvedValue({ token: "installation-token" });
-    createMock.mockResolvedValue({ name: "sbx_1" });
+    installCommandMock.mockResolvedValue({ exitCode: 0 });
+    createMock.mockResolvedValue({ name: "sbx_1", runCommand: installCommandMock });
     generateMock.mockResolvedValue({ text: "done" });
     getInstallationOctokitMock.mockResolvedValue({ auth: authMock });
     getMock.mockResolvedValue({ stop: stopMock });
@@ -121,6 +125,11 @@ describe("repositoryAgentWorkflow", () => {
         }),
       }),
     );
+    expect(installCommandMock).toHaveBeenCalledWith({
+      cmd: "sh",
+      args: ["-c", expect.stringContaining("apt-get update && apt-get install -y ripgrep")],
+      sudo: true,
+    });
     expect(stopMock).toHaveBeenCalledTimes(1);
   });
 

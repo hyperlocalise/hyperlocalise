@@ -7,6 +7,7 @@ const {
   authMock,
   canPushToGitHubRepositoryMock,
   getInstallationOctokitMock,
+  sandboxInstallCommandMock,
   pullsCreateMock,
   runSandboxCommandMock,
   sandboxCreateMock,
@@ -14,6 +15,7 @@ const {
   authMock: vi.fn(),
   canPushToGitHubRepositoryMock: vi.fn(),
   getInstallationOctokitMock: vi.fn(),
+  sandboxInstallCommandMock: vi.fn(),
   pullsCreateMock: vi.fn(),
   runSandboxCommandMock: vi.fn(),
   sandboxCreateMock: vi.fn(),
@@ -74,7 +76,11 @@ beforeEach(() => {
   });
   canPushToGitHubRepositoryMock.mockResolvedValue({ canPush: true });
   runSandboxCommandMock.mockResolvedValue({ exitCode: 0, output: "" });
-  sandboxCreateMock.mockResolvedValue({ name: "sandbox_created" });
+  sandboxInstallCommandMock.mockResolvedValue({ exitCode: 0 });
+  sandboxCreateMock.mockResolvedValue({
+    name: "sandbox_created",
+    runCommand: sandboxInstallCommandMock,
+  });
 });
 
 describe("createI18nSetupSandboxStep", () => {
@@ -99,6 +105,11 @@ describe("createI18nSetupSandboxStep", () => {
         username: "x-access-token",
       },
       timeout: 600_000,
+    });
+    expect(sandboxInstallCommandMock).toHaveBeenCalledWith({
+      cmd: "sh",
+      args: ["-c", expect.stringContaining("apt-get update && apt-get install -y ripgrep")],
+      sudo: true,
     });
   });
 });

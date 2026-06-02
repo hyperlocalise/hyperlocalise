@@ -1,9 +1,7 @@
-import { Sandbox } from "@vercel/sandbox";
-
 import { canPushToGitHubRepository } from "@/lib/agents/repository-write-gate";
 import type { I18nSetupMode } from "@/lib/agents/i18n-setup/merge-i18n-config";
 import type { I18nSetupRequestedEventData } from "@/lib/agents/i18n-setup/i18n-setup-task";
-import { defaultVercelSandboxRuntime } from "@/lib/vercel-sandbox-config";
+import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 import { runSandboxCommand } from "@/workflows/steps/sandbox-utils";
 
 type InstallationAuth = {
@@ -23,8 +21,7 @@ export async function createI18nSetupSandboxStep(input: {
 
   const octokit = await getInstallationOctokitForStep(input.event.installationId);
   const { token } = (await octokit.auth({ type: "installation" })) as InstallationAuth;
-  const sandbox = await Sandbox.create({
-    runtime: defaultVercelSandboxRuntime,
+  const sandbox = await createConfiguredVercelSandbox({
     source: {
       depth: 1,
       password: token,
