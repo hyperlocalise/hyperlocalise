@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
   initializeMock: vi.fn().mockResolvedValue(undefined),
   getAdapterMock: vi.fn(),
   getInstallationMock: vi.fn().mockResolvedValue({ botToken: "xoxb-token" }),
+  providerSafeFetchMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agents/slack/bot", () => ({
@@ -39,6 +40,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
   };
 });
+
+vi.mock("@/lib/providers/provider-safe-fetch", () => ({
+  providerSafeFetch: mocks.providerSafeFetchMock,
+}));
 
 const client = testClient(app);
 const fixture = createProjectTestFixture(client);
@@ -153,7 +158,7 @@ describe("agentSlackRoutes", () => {
       teamName: "My Team",
     });
 
-    const fetchMock = vi.fn().mockResolvedValue({
+    mocks.providerSafeFetchMock.mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
         ok: true,
@@ -164,8 +169,7 @@ describe("agentSlackRoutes", () => {
         ],
         response_metadata: {},
       }),
-    });
-    vi.stubGlobal("fetch", fetchMock);
+    } as unknown as Response);
 
     const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
       {
@@ -182,11 +186,12 @@ describe("agentSlackRoutes", () => {
       ],
     });
     expect(mocks.getInstallationMock).toHaveBeenCalledWith("T123");
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining("slack.com/api/conversations.list"),
+    expect(mocks.providerSafeFetchMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        headers: expect.objectContaining({ authorization: "Bearer xoxb-token" }),
-        redirect: "error",
+        href: expect.stringContaining("https://slack.com/api/conversations.list"),
+      }),
+      expect.objectContaining({
+        headers: { authorization: "Bearer xoxb-token" },
       }),
     );
   });
