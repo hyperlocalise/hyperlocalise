@@ -398,7 +398,7 @@ function mapLiveFile(input: {
       localeReadiness: input.file.localeReadiness ?? {},
       revision: input.file.revision ?? null,
       format: input.file.format ?? null,
-      lastSyncedAt: timestamp,
+      lastSyncedAt: null,
     },
     latestJob: null,
   };

@@ -140,6 +140,24 @@ export async function logProjectNotFound(input: {
   }
 }
 
+export function scheduleProjectNotFoundDiagnostics(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  route: string;
+}) {
+  void logProjectNotFound(input).catch((error) => {
+    logger.warn(
+      {
+        route: input.route,
+        organizationId: input.auth.organization.localOrganizationId,
+        projectId: input.projectId,
+        err: serializeErrorForLog(error),
+      },
+      "project lookup diagnostics failed",
+    );
+  });
+}
+
 export {
   isProjectCreateAllowed,
   isProjectMutationAllowed,

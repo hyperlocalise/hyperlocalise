@@ -87,9 +87,9 @@ import {
   invalidProjectPayloadResponse,
   isProjectCreateAllowed,
   isProjectMutationAllowed,
-  logProjectNotFound,
   ownedProjectWhere,
   projectNotFoundResponse,
+  scheduleProjectNotFoundDiagnostics,
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
@@ -476,7 +476,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const project = await getOwnedProject(c.var.auth, params.projectId);
 
         if (!project) {
-          await logProjectNotFound({
+          scheduleProjectNotFoundDiagnostics({
             auth: c.var.auth,
             projectId: params.projectId,
             route: "project.files.detail",
@@ -508,7 +508,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {
-        await logProjectNotFound({
+        scheduleProjectNotFoundDiagnostics({
           auth: c.var.auth,
           projectId: params.projectId,
           route: "project.files.list",
@@ -553,7 +553,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const project = await getOwnedProject(c.var.auth, params.projectId);
 
         if (!project) {
-          await logProjectNotFound({
+          scheduleProjectNotFoundDiagnostics({
             auth: c.var.auth,
             projectId: params.projectId,
             route: "project.files.upload",
@@ -647,7 +647,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const project = await projectStore.getById(c.var.auth, params.projectId);
 
       if (!project) {
-        await logProjectNotFound({
+        scheduleProjectNotFoundDiagnostics({
           auth: c.var.auth,
           projectId: params.projectId,
           route: "project.detail",
