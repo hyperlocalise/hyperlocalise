@@ -59,7 +59,10 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
-import { AgentIntegrationsSection } from "./agent-integrations-section";
+import {
+  CollaborationIntegrationsSection,
+  SourceControlIntegrationsSection,
+} from "./agent-integrations-section";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 
@@ -235,18 +238,6 @@ const modelProviderCards: readonly ModelProviderCardConfig[] = [
 
 const tmsIntegrations = [
   {
-    name: "Lokalise",
-    providerKind: "lokalise" as const,
-    logo: "/images/tms/lokalise.webp",
-    detail: "Projects, branches, and reviewed strings.",
-  },
-  {
-    name: "Phrase",
-    providerKind: "phrase" as const,
-    logo: "/images/tms/phrase.png",
-    detail: "Sync jobs into existing Phrase workflows.",
-  },
-  {
     name: "Crowdin",
     providerKind: "crowdin" as const,
     logo: "/images/tms/crowdin.png",
@@ -254,10 +245,25 @@ const tmsIntegrations = [
     detail: "Route reviewed output into Crowdin projects.",
   },
   {
+    name: "Lokalise",
+    providerKind: "lokalise" as const,
+    logo: "/images/tms/lokalise.webp",
+    detail: "Projects, branches, and reviewed strings.",
+    comingSoon: true,
+  },
+  {
+    name: "Phrase",
+    providerKind: "phrase" as const,
+    logo: "/images/tms/phrase.png",
+    detail: "Sync jobs into existing Phrase workflows.",
+    comingSoon: true,
+  },
+  {
     name: "Smartling",
     providerKind: "smartling" as const,
     logo: "/images/tms/smartling.png",
     detail: "Connect enterprise localization programs.",
+    comingSoon: true,
   },
 ] as const;
 
@@ -408,11 +414,12 @@ function TmsIntegrationRow({
   children?: ReactNode;
 }) {
   const isConnected = !!credential;
-  const showPanel = userIsAdmin;
+  const isComingSoon = "comingSoon" in integration && integration.comingSoon;
+  const showPanel = userIsAdmin && !isComingSoon;
 
   return (
     <Collapsible
-      open={expanded}
+      open={showPanel && expanded}
       onOpenChange={onExpandedChange}
       className={cn(!isLast && "border-b border-border")}
     >
@@ -426,20 +433,23 @@ function TmsIntegrationRow({
         <div
           className={cn(
             "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
-            isConnected
+            isConnected && !isComingSoon
               ? "border-border bg-muted text-foreground"
               : "border-border bg-muted/50 text-muted-foreground",
           )}
         >
           {"icon" in integration && integration.icon ? (
-            <SimpleBrandIcon icon={integration.icon} colored={isConnected} />
+            <SimpleBrandIcon icon={integration.icon} colored={isConnected && !isComingSoon} />
           ) : (
             <Image
               src={integration.logo}
               alt=""
               width={30}
               height={30}
-              className={cn("max-h-7 w-auto object-contain", !isConnected && "opacity-75")}
+              className={cn(
+                "max-h-7 w-auto object-contain",
+                (!isConnected || isComingSoon) && "opacity-75",
+              )}
             />
           )}
         </div>
@@ -484,7 +494,11 @@ function TmsIntegrationRow({
         </div>
 
         <div className="shrink-0">
-          {userIsAdmin && showPanel ? (
+          {isComingSoon ? (
+            <Button type="button" variant="outline" size="sm" disabled>
+              Coming soon
+            </Button>
+          ) : userIsAdmin && showPanel ? (
             <CollapsibleTrigger
               render={
                 <Button
@@ -1245,7 +1259,7 @@ export function IntegrationsPageContent({
         </Badge>
       </div>
 
-      <AgentIntegrationsSection
+      <SourceControlIntegrationsSection
         organizationSlug={organizationSlug}
         userCanManage={userCanManageAgents}
       />
@@ -1334,49 +1348,16 @@ export function IntegrationsPageContent({
               </div>
             )}
           </section>
+        </>
+      ) : null}
 
-          <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>Content Management System</IntegrationCategoryLabel>
-            {isLoadingContentful ? (
-              <Skeleton className="min-h-64 rounded-lg" />
-            ) : (
-              <ContentfulConnectionPanel
-                connections={contentfulConnections ?? []}
-                disabled={!userIsAdmin}
-                form={contentfulForm}
-                onFormChange={setContentfulForm}
-                lastWebhookSecret={lastContentfulWebhookSecret}
-                isSaving={saveContentfulConnection.isPending}
-                onSave={() => {
-                  saveContentfulConnection.mutate(
-                    {
-                      projectId: contentfulForm.projectId.trim(),
-                      displayName: contentfulForm.displayName.trim(),
-                      spaceId: contentfulForm.spaceId.trim(),
-                      environmentId: contentfulForm.environmentId.trim() || "master",
-                      sourceLocale: contentfulForm.sourceLocale.trim(),
-                      targetLocales: contentfulForm.targetLocales
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                      contentTypeIds: contentfulForm.contentTypeIds
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                      accessToken: contentfulForm.accessToken.trim(),
-                    },
-                    {
-                      onSuccess: (result) => {
-                        setContentfulForm((current) => ({ ...current, accessToken: "" }));
-                        setLastContentfulWebhookSecret(result.webhookSecret ?? "");
-                      },
-                    },
-                  );
-                }}
-              />
-            )}
-          </section>
+      <CollaborationIntegrationsSection
+        organizationSlug={organizationSlug}
+        userCanManage={userCanManageAgents}
+      />
 
+      {canManageProviderIntegrations ? (
+        <>
           <section className="flex flex-col gap-3">
             <IntegrationCategoryLabel>Model provider</IntegrationCategoryLabel>
 
@@ -1429,6 +1410,48 @@ export function IntegrationsPageContent({
                   );
                 })}
               </div>
+            )}
+          </section>
+
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>Content Management System</IntegrationCategoryLabel>
+            {isLoadingContentful ? (
+              <Skeleton className="min-h-64 rounded-lg" />
+            ) : (
+              <ContentfulConnectionPanel
+                connections={contentfulConnections ?? []}
+                disabled={!userIsAdmin}
+                form={contentfulForm}
+                onFormChange={setContentfulForm}
+                lastWebhookSecret={lastContentfulWebhookSecret}
+                isSaving={saveContentfulConnection.isPending}
+                onSave={() => {
+                  saveContentfulConnection.mutate(
+                    {
+                      projectId: contentfulForm.projectId.trim(),
+                      displayName: contentfulForm.displayName.trim(),
+                      spaceId: contentfulForm.spaceId.trim(),
+                      environmentId: contentfulForm.environmentId.trim() || "master",
+                      sourceLocale: contentfulForm.sourceLocale.trim(),
+                      targetLocales: contentfulForm.targetLocales
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                      contentTypeIds: contentfulForm.contentTypeIds
+                        .split(",")
+                        .map((value) => value.trim())
+                        .filter(Boolean),
+                      accessToken: contentfulForm.accessToken.trim(),
+                    },
+                    {
+                      onSuccess: (result) => {
+                        setContentfulForm((current) => ({ ...current, accessToken: "" }));
+                        setLastContentfulWebhookSecret(result.webhookSecret ?? "");
+                      },
+                    },
+                  );
+                }}
+              />
             )}
           </section>
 

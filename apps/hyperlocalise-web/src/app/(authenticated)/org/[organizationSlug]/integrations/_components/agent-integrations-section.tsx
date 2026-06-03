@@ -86,42 +86,47 @@ function ComingSoonIntegrationRow({
   );
 }
 
-export function AgentIntegrationsSection({
+export function SourceControlIntegrationsSection({
   organizationSlug,
   userCanManage,
 }: AgentIntegrationsSectionProps) {
   return (
-    <>
-      <section className="flex flex-col gap-3">
-        <IntegrationCategoryLabel>Source control</IntegrationCategoryLabel>
-        <IntegrationCategoryCard>
-          <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-          <ComingSoonIntegrationRow
-            name="GitLab"
-            description="Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes."
-            icon={siGitlab}
-            isLast
-          />
-        </IntegrationCategoryCard>
-      </section>
+    <section className="flex flex-col gap-3">
+      <IntegrationCategoryLabel>Source control</IntegrationCategoryLabel>
+      <IntegrationCategoryCard>
+        <GitHubIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
+        <ComingSoonIntegrationRow
+          name="GitLab"
+          description="Connect GitLab so Hyperlocalise can inspect localized strings, review merge requests, and open localization fixes."
+          icon={siGitlab}
+          isLast
+        />
+      </IntegrationCategoryCard>
+    </section>
+  );
+}
 
-      <section className="flex flex-col gap-3">
-        <IntegrationCategoryLabel>Collaboration</IntegrationCategoryLabel>
-        <IntegrationCategoryCard>
-          <SlackIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-          <EmailIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
-          {comingSoonCollaborationAgents.map((agent, index) => (
-            <ComingSoonIntegrationRow
-              key={agent.name}
-              name={agent.name}
-              description={agent.description}
-              icon={agent.icon}
-              fallbackIcon={agent.fallbackIcon}
-              isLast={index === comingSoonCollaborationAgents.length - 1}
-            />
-          ))}
-        </IntegrationCategoryCard>
-      </section>
-    </>
+export function CollaborationIntegrationsSection({
+  organizationSlug,
+  userCanManage,
+}: AgentIntegrationsSectionProps) {
+  return (
+    <section className="flex flex-col gap-3">
+      <IntegrationCategoryLabel>Collaboration</IntegrationCategoryLabel>
+      <IntegrationCategoryCard>
+        <SlackIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
+        <EmailIntegrationRow organizationSlug={organizationSlug} userCanManage={userCanManage} />
+        {comingSoonCollaborationAgents.map((agent, index) => (
+          <ComingSoonIntegrationRow
+            key={agent.name}
+            name={agent.name}
+            description={agent.description}
+            icon={agent.icon}
+            fallbackIcon={agent.fallbackIcon}
+            isLast={index === comingSoonCollaborationAgents.length - 1}
+          />
+        ))}
+      </IntegrationCategoryCard>
+    </section>
   );
 }
