@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { optionalProjectIdSchema } from "@/lib/projects/project-id";
+
 const branchPatternSchema = z
   .string()
   .trim()
@@ -47,13 +49,13 @@ export const githubRepoAutomationWorkflowsSchema = z.object({
   pushSource: z
     .object({
       enabled: z.boolean().default(false),
-      projectId: z.string().trim().min(1).optional(),
+      projectId: optionalProjectIdSchema,
     })
     .default({ enabled: false }),
   pullTranslations: z
     .object({
       enabled: z.boolean().default(false),
-      projectId: z.string().trim().min(1).optional(),
+      projectId: optionalProjectIdSchema,
     })
     .default({ enabled: false }),
   validation: githubRepoAutomationValidationWorkflowSchema,
@@ -91,13 +93,13 @@ const githubRepositoryAutomationSettingsPartialSchema = z.object({
       pushSource: z
         .object({
           enabled: z.boolean().optional(),
-          projectId: z.string().trim().min(1).optional(),
+          projectId: optionalProjectIdSchema,
         })
         .optional(),
       pullTranslations: z
         .object({
           enabled: z.boolean().optional(),
-          projectId: z.string().trim().min(1).optional(),
+          projectId: optionalProjectIdSchema,
         })
         .optional(),
       validation: z

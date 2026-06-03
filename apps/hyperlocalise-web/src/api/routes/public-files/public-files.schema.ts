@@ -1,9 +1,11 @@
 import { z } from "zod";
 
+import { projectIdSchema } from "@/lib/projects/project-id";
+
 export const maxPublicUploadBytes = 25 * 1024 * 1024;
 
 export const uploadBodySchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
   sourcePath: z.string().trim().min(1).max(2048),
   sourceHash: z.string().trim().min(1).max(256).optional(),
   commitSha: z.string().trim().min(1).max(256).optional(),

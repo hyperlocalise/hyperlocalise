@@ -94,15 +94,14 @@ function createInlineTestProviderAgentWritebackQueue(): ProviderAgentWritebackQu
   };
 }
 
-const client = testClient(
-  createApp({
-    jobQueue: createInlineTestJobQueue(),
-    providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
-    providerAgentQaQueue: createInlineTestProviderAgentQaQueue(),
-    providerAgentCommentQueue: createInlineTestProviderAgentCommentQueue(),
-    providerAgentWritebackQueue: createInlineTestProviderAgentWritebackQueue(),
-  }),
-);
+const testApp = createApp({
+  jobQueue: createInlineTestJobQueue(),
+  providerAgentTranslationQueue: createInlineTestProviderAgentTranslationQueue(),
+  providerAgentQaQueue: createInlineTestProviderAgentQaQueue(),
+  providerAgentCommentQueue: createInlineTestProviderAgentCommentQueue(),
+  providerAgentWritebackQueue: createInlineTestProviderAgentWritebackQueue(),
+});
+const client = testClient(testApp);
 const appClient = client;
 const projectFixture = createProjectTestFixture(client);
 const {
@@ -303,6 +302,43 @@ describe("jobRoutes", () => {
     expect(workspaceResponse.status).toBe(200);
     await expect(workspaceResponse.json()).resolves.toMatchObject({
       job: expect.objectContaining({ id: job.id, projectName: expect.any(String) }),
+    });
+  });
+
+  it("loads nested jobs for a double-encoded external project route id", async () => {
+    const identity = createWorkosIdentity();
+    const projectResponse = await createProjectViaApi(identity);
+    const project = ((await projectResponse.json()) as ProjectResponse).project;
+    const projectId = `ext:crowdin:${project.id}`;
+    const encodedProjectId = encodeURIComponent(encodeURIComponent(projectId));
+    const localUserId = await getLocalUserId(identity.user.workosUserId);
+
+    await db
+      .update(schema.projects)
+      .set({ id: projectId })
+      .where(eq(schema.projects.id, project.id));
+    const job = await insertJob({
+      projectId,
+      createdByUserId: localUserId,
+      type: "string",
+      status: "queued",
+      inputPayload: {
+        sourceText: "Mounted job",
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR"],
+      },
+    });
+
+    const response = await testApp.request(
+      `/api/orgs/${identity.organization.slug}/projects/${encodedProjectId}/jobs/${job.id}`,
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      job: expect.objectContaining({ id: job.id, projectId }),
     });
   });
 

@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { db, schema } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { optionalProjectIdSchema } from "@/lib/projects/project-id";
 
 import { hasWorkspaceAutomationGithubWorkflow } from "./workspace-automation-github-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
@@ -55,7 +56,7 @@ const repositoryTargetSchema = z
 const githubToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
-    projectId: z.string().trim().min(1).optional(),
+    projectId: optionalProjectIdSchema,
     pushSource: z.boolean().default(false),
     pullTranslations: z.boolean().default(false),
     validation: z.boolean().default(false),
@@ -80,7 +81,7 @@ const contentfulToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
     connectionId: z.string().uuid().optional(),
-    projectId: z.string().trim().min(1).optional(),
+    projectId: optionalProjectIdSchema,
     sourceLocale: z.string().trim().min(1).max(32).default("en"),
     entryId: z.string().trim().min(1).max(256).optional(),
     contentTypeIds: z.array(z.string().trim().min(1).max(128)).max(50).default([]),

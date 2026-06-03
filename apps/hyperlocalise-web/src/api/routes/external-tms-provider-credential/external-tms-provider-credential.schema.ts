@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { optionalProjectIdSchema } from "@/lib/projects/project-id";
+
 export const externalTmsProviderKindSchema = z.enum(["crowdin", "smartling", "phrase", "lokalise"]);
 
 export const upsertExternalTmsProviderCredentialBodySchema = z.object({
@@ -23,7 +25,7 @@ export const revealExternalTmsProviderCredentialBodySchema = z.object({
 });
 
 export const providerSyncObservabilityQuerySchema = z.object({
-  projectId: z.string().trim().min(1).optional(),
+  projectId: optionalProjectIdSchema,
 });
 
 export const externalTmsProviderHealthResponseSchema = z.object({

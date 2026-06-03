@@ -38,6 +38,45 @@ afterEach(async () => {
 });
 
 describe("publicJobRoutes", () => {
+  it("creates a string job for a double-encoded external project id", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const projectId = `ext:crowdin:${project.id}`;
+    const encodedProjectId = encodeURIComponent(encodeURIComponent(projectId));
+    await db
+      .update(schema.projects)
+      .set({ id: projectId })
+      .where(eq(schema.projects.id, project.id));
+
+    const response = await client.api.v1.jobs.$post(
+      {
+        json: {
+          type: "string",
+          projectId: encodedProjectId,
+          stringInput: {
+            sourceText: "Hello world",
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+          },
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { id: string } };
+    const [job] = await db
+      .select({ projectId: schema.jobs.projectId })
+      .from(schema.jobs)
+      .where(eq(schema.jobs.id, body.job.id))
+      .limit(1);
+    expect(job?.projectId).toBe(projectId);
+    expect(enqueueJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId,
+      }),
+    );
+  });
+
   it("creates and enqueues a string translation job with an API key", async () => {
     const { apiKey, project } = await createPublicApiFixture();
 

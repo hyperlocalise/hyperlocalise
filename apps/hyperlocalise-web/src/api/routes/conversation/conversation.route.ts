@@ -6,6 +6,7 @@ import { validator } from "hono/validator";
 import { buildAccessibleInteractionsWhere, canAccessInteraction } from "@/api/auth/team-access";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
+import { normalizeProjectId } from "@/lib/projects/project-id";
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { getFileStorageAdapter } from "@/lib/file-storage";
@@ -235,7 +236,9 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         const body = await c.req.parseBody({ all: true });
         const text = asString(body.text) ?? "";
         const files = asFiles(body.files);
-        const requestedProjectId = asString(body.projectId)?.trim();
+        const normalizedProjectId = normalizeProjectId(asString(body.projectId));
+        const requestedProjectId =
+          typeof normalizedProjectId === "string" ? normalizedProjectId : undefined;
 
         if (!text.trim() && files.length === 0) {
           return badRequestResponse(c);

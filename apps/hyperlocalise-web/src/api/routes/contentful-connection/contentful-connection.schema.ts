@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/project-id";
+
 export const contentfulConnectionIdParamSchema = z.object({
   connectionId: z.string().uuid(),
 });
@@ -17,7 +19,7 @@ export const contentfulFieldConfigSchema = z
   .default({ fieldMode: "auto", overwriteDraftLocales: false });
 
 export const createContentfulConnectionBodySchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
   displayName: z.string().trim().min(1).max(256),
   spaceId: z.string().trim().min(1).max(128),
   environmentId: z.string().trim().min(1).max(128).default("master"),
@@ -30,7 +32,7 @@ export const createContentfulConnectionBodySchema = z.object({
 });
 
 export const updateContentfulConnectionBodySchema = z.object({
-  projectId: z.string().trim().min(1).max(128).optional(),
+  projectId: optionalProjectIdSchema,
   displayName: z.string().trim().min(1).max(256).optional(),
   spaceId: z.string().trim().min(1).max(128).optional(),
   environmentId: z.string().trim().min(1).max(128).optional(),

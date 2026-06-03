@@ -1,11 +1,13 @@
 import { z } from "zod";
 
+import { optionalProjectIdSchema } from "@/lib/projects/project-id";
+
 export const chatRequestBodySchema = z.object({
   text: z.string().trim().min(1).max(10000),
-  projectId: z.string().max(128).optional(),
+  projectId: optionalProjectIdSchema,
 });
 
 export const multipartChatRequestSchema = z.object({
   text: z.string().trim().max(10000).default(""),
-  projectId: z.string().trim().min(1).max(128).optional(),
+  projectId: optionalProjectIdSchema,
 });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { projectIdSchema } from "@/lib/projects/project-id";
 import { localeInputSchema } from "@/lib/i18n/locales";
 
 export const glossaryIdParamsSchema = z.object({
@@ -11,7 +12,7 @@ export const glossaryTermIdParamsSchema = glossaryIdParamsSchema.extend({
 });
 
 export const glossaryProjectParamsSchema = glossaryIdParamsSchema.extend({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
 });
 
 export const listGlossaryQuerySchema = z
@@ -88,7 +89,7 @@ export const importGlossaryTermsBodySchema = z.object({
 });
 
 export const attachGlossaryProjectBodySchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
   priority: z.number().int().min(0).max(10_000).optional().default(0),
 });
 

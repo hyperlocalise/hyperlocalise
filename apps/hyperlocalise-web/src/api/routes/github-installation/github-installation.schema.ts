@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { optionalProjectIdSchema } from "@/lib/projects/project-id";
 import { githubRepositoryAutomationSettingsSchema } from "@/lib/agents/github/github-repository-automation-settings";
 
 export const updateRepositoriesSchema = z.object({
@@ -24,13 +25,13 @@ const githubRepositoryAutomationSettingsPartialSchema = z.object({
       pushSource: z
         .object({
           enabled: z.boolean().optional(),
-          projectId: z.string().trim().min(1).optional(),
+          projectId: optionalProjectIdSchema,
         })
         .optional(),
       pullTranslations: z
         .object({
           enabled: z.boolean().optional(),
-          projectId: z.string().trim().min(1).optional(),
+          projectId: optionalProjectIdSchema,
         })
         .optional(),
       validation: z

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { projectIdSchema } from "@/lib/projects/project-id";
 import {
   maxTranslationMetadataEntries,
   maxTranslationTargetLocales,
@@ -16,7 +17,7 @@ const publicJobMetadataSchema = z
 export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("string"),
-    projectId: z.string().trim().min(1).max(128),
+    projectId: projectIdSchema,
     stringInput: z.object({
       sourceText: z.string().trim().min(1).max(100_000),
       sourceLocale: z.string().trim().min(1).max(32),
@@ -31,7 +32,7 @@ export const createPublicJobBodySchema = z.discriminatedUnion("type", [
   }),
   z.object({
     type: z.literal("file"),
-    projectId: z.string().trim().min(1).max(128),
+    projectId: projectIdSchema,
     fileInput: z.object({
       sourceFileId: z.string().trim().min(1).max(128),
       fileFormat: z.enum(supportedFileTranslationFileFormats),
@@ -50,7 +51,7 @@ export const jobIdParamsSchema = z.object({
 });
 
 export const latestPublicJobQuerySchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
   sourcePath: z.string().trim().min(1).max(2048),
 });
 
