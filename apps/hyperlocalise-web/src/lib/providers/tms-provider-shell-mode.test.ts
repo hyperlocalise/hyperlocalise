@@ -9,9 +9,8 @@ describe("tms-provider-shell-mode", () => {
     vi.stubEnv("NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE", undefined);
     vi.stubEnv("TMS_PROVIDER_SHELL_MODE", undefined);
 
-    const { isTmsProviderShellModeEnabled, isTmsBackgroundSyncEnabled } = await import(
-      "./tms-provider-shell-mode"
-    );
+    const { isTmsProviderShellModeEnabled, isTmsBackgroundSyncEnabled } =
+      await import("./tms-provider-shell-mode");
 
     expect(isTmsProviderShellModeEnabled()).toBe(false);
     expect(isTmsBackgroundSyncEnabled()).toBe(true);
@@ -21,9 +20,8 @@ describe("tms-provider-shell-mode", () => {
     vi.stubEnv("NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE", "true");
     vi.stubEnv("TMS_PROVIDER_SHELL_MODE", undefined);
 
-    const { isTmsProviderShellModeEnabled, isTmsBackgroundSyncEnabled } = await import(
-      "./tms-provider-shell-mode"
-    );
+    const { isTmsProviderShellModeEnabled, isTmsBackgroundSyncEnabled } =
+      await import("./tms-provider-shell-mode");
 
     expect(isTmsProviderShellModeEnabled()).toBe(true);
     expect(isTmsBackgroundSyncEnabled()).toBe(false);
