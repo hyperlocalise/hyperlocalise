@@ -212,6 +212,10 @@ export const contentfulTranslationRuns = pgTable(
     index("idx_contentful_translation_runs_connection").on(table.connectionId),
     index("idx_contentful_translation_runs_status").on(table.status),
     index("idx_contentful_translation_runs_automation_run").on(table.workspaceAutomationRunId),
+    index("idx_contentful_translation_runs_webhook_event_org").on(
+      table.webhookEventId,
+      table.organizationId,
+    ),
   ],
 );
 

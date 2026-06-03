@@ -80,28 +80,62 @@ export class ContentfulManagementClient {
     );
   }
 
-  async updateEntryDraft(input: {
-    entry: ContentfulEntry;
-    translations: ContentfulDraftTranslation[];
-  }) {
-    const fields = { ...input.entry.fields };
-    for (const translation of input.translations) {
+  private applyDraftTranslations(
+    entry: ContentfulEntry,
+    translations: ContentfulDraftTranslation[],
+  ) {
+    const fields = { ...entry.fields };
+    for (const translation of translations) {
       fields[translation.fieldId] = {
         ...fields[translation.fieldId],
         [translation.locale]: translation.value,
       };
     }
+    return fields;
+  }
 
+  private putEntryDraft(entry: ContentfulEntry, fields: ContentfulEntry["fields"]) {
     return this.request<ContentfulEntry>(
-      this.environmentPath(`/entries/${encodeURIComponent(input.entry.sys.id)}`),
+      this.environmentPath(`/entries/${encodeURIComponent(entry.sys.id)}`),
       {
         method: "PUT",
         headers: {
-          "x-contentful-version": String(input.entry.sys.version),
+          "x-contentful-version": String(entry.sys.version),
         },
         body: JSON.stringify({ fields }),
       },
     );
+  }
+
+  async updateEntryDraft(input: {
+    entry: ContentfulEntry;
+    translations: ContentfulDraftTranslation[];
+    maxVersionConflictRetries?: number;
+  }) {
+    const maxRetries = input.maxVersionConflictRetries ?? 5;
+    let entry = input.entry;
+
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        return await this.putEntryDraft(
+          entry,
+          this.applyDraftTranslations(entry, input.translations),
+        );
+      } catch (error) {
+        const isVersionConflict =
+          isContentfulClientError(error) && error.status === 409 && attempt < maxRetries;
+        if (!isVersionConflict) {
+          throw error;
+        }
+        entry = await this.getEntry(entry.sys.id);
+      }
+    }
+
+    throw {
+      code: "contentful_request_failed",
+      status: 409,
+      message: "Contentful entry version conflict persisted after retries",
+    } satisfies ContentfulClientError;
   }
 }
 

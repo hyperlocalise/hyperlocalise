@@ -1,0 +1,1 @@
+CREATE INDEX "idx_contentful_translation_runs_webhook_event_org" ON "contentful_translation_runs" USING btree ("webhook_event_id","organization_id");

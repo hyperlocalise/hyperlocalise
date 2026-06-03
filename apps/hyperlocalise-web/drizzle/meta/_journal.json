@@ -281,6 +281,13 @@
       "when": 1780393353376,
       "tag": "0039_complete_mattie_franklin",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1780447811923,
+      "tag": "0040_great_thunderbolts",
+      "breakpoints": true
     }
   ]
 }

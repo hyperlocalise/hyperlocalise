@@ -318,7 +318,7 @@ export async function executeContentfulAutomation(
     });
     const entry = await client.getEntry(run.entryId);
     const contentTypeId =
-      run.contentTypeId ?? entry.sys.contentType?.sys?.id ?? loaded.connection.contentTypeIds[0];
+      entry.sys.contentType?.sys?.id ?? run.contentTypeId ?? loaded.connection.contentTypeIds[0];
     if (!contentTypeId) {
       throw new Error("contentful_content_type_not_found");
     }

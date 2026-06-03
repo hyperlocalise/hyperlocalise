@@ -598,7 +598,7 @@ export async function dispatchContentfulWorkspaceAutomationForSchedule(input: {
     }),
     connectionId: contentful.connectionId,
     entryId: contentful.entryId ?? null,
-    contentTypeId: contentful.contentTypeIds[0] ?? null,
+    contentTypeId: null,
     scheduledRunAt: input.scheduledRunAt,
     queue: input.queue,
   });
@@ -627,7 +627,7 @@ export async function dispatchContentfulWorkspaceAutomationForManual(input: {
       `workspace-automation:contentful-manual:${input.automation.id}:${Date.now()}`,
     connectionId: contentful.connectionId,
     entryId: contentful.entryId ?? null,
-    contentTypeId: contentful.contentTypeIds[0] ?? null,
+    contentTypeId: null,
     queue: input.queue,
   });
 }
