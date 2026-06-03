@@ -436,10 +436,6 @@ function mapLiveFile(input: {
 }
 
 function crowdinSourceTextValue(text: CrowdinSourceString["text"]) {
-  if (typeof text === "string") {
-    return text;
-  }
-
   return text;
 }
 
