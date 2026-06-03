@@ -176,9 +176,7 @@ export const env = createEnv({
      * Opt in to TMS provider shell mode (live provider reads, background sync off).
      * Prefer NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE for client-visible behavior.
      */
-    TMS_PROVIDER_SHELL_MODE: z
-      .enum(["true", "false"])
-      .transform((value) => value === "true"),
+    TMS_PROVIDER_SHELL_MODE: z.enum(["true", "false"]).transform((value) => value === "true"),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
