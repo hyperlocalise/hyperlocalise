@@ -8,13 +8,10 @@ import (
 
 // MachineTranslation represents a machine translation engine (MTE).
 type MachineTranslation struct {
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Type        string `json:"type"`
-	Credentials struct {
-		CrowdinNMT                  string `json:"crowdin_nmt"`
-		CrowdinNMTMultiTranslations string `json:"crowdin_nmt_multi_translations"`
-	} `json:"credentials"`
+	ID                     int                 `json:"id"`
+	Name                   string              `json:"name"`
+	Type                   string              `json:"type"`
+	Credentials            map[string]any      `json:"credentials"`
 	SupportedLanguageIDs   []string            `json:"supportedLanguageIds"`
 	SupportedLanguagePairs map[string][]string `json:"supportedLanguagePairs"`
 
@@ -23,6 +20,8 @@ type MachineTranslation struct {
 	EnabledProjectIDs  []int    `json:"enabledProjectIds,omitempty"`
 	ProjectIDs         []int    `json:"projectIds,omitempty"`
 	IsEnabled          *bool    `json:"isEnabled,omitempty"`
+	CreatedAt          string   `json:"createdAt,omitempty"`
+	UpdatedAt          string   `json:"updatedAt,omitempty"`
 }
 
 // MachineTranslationsResponse defines the structure of
@@ -34,7 +33,8 @@ type MachineTranslationsResponse struct {
 // MachineTranslationsListResponse defines the structure of
 // a response to list machine translation engines.
 type MachineTranslationsListResponse struct {
-	Data []*MachineTranslationsResponse `json:"data"`
+	Data       []*MachineTranslationsResponse `json:"data"`
+	Pagination *Pagination                    `json:"pagination"`
 }
 
 // MTListOptions specifies the optional parameters
@@ -72,7 +72,7 @@ type MTAddRequest struct {
 	//       amazon, modernmt, custom_mt.
 	Type string `json:"type"`
 	// MT engine credentials.
-	Credentials *MTECredentials `json:"credentials"`
+	Credentials any `json:"credentials"`
 	// Group Identifier that defines the group to which the MT is added.
 	// If `0`, the MT will be available for all projects and groups
 	// in your workspace.
