@@ -377,6 +377,84 @@ describe("jobRoutes", () => {
     });
   });
 
+  it("lists live provider jobs through the workspace jobs route when a TMS integration is active", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: globalThis.__testApiAuthContext!.user.localUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const listJobs = vi.spyOn(tmsProviderLive, "listTmsProviderLiveJobs").mockResolvedValue([
+      {
+        id: "ext:crowdin:902807:task-1",
+        projectId: "ext:crowdin:902807",
+        projectName: "Marketing",
+        createdByUserId: null,
+        kind: "translation",
+        type: null,
+        status: "running",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        completedAt: null,
+        workflowRunId: null,
+        lastError: null,
+        inputPayload: {},
+        outcomeKind: null,
+        outcomePayload: null,
+        reviewCriteria: null,
+        reviewTargetLocale: null,
+        syncConnectorKind: null,
+        syncDirection: null,
+        assetType: null,
+        assetOperation: null,
+        externalProviderKind: "crowdin",
+        externalTaskId: "task-1",
+        externalStatus: "running",
+        externalTitle: "Translate homepage",
+        externalDueDate: null,
+        externalTargetLocales: ["fr"],
+        externalAssignedUsers: [],
+        externalSyncState: null,
+      },
+    ]);
+
+    const response = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { mine: "false", limit: "100" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { jobs: JobRecord[] };
+    expect(body.jobs).toHaveLength(1);
+    expect(body.jobs[0]).toMatchObject({
+      id: "ext:crowdin:902807:task-1",
+      projectId: "ext:crowdin:902807",
+      projectName: "Marketing",
+      externalProviderKind: "crowdin",
+    });
+    expect(listJobs).toHaveBeenCalledWith(
+      organizationId,
+      expect.objectContaining({
+        mine: false,
+        assignee: identity.user.email,
+        context: expect.objectContaining({
+          organizationId,
+          providerKind: "crowdin",
+        }),
+      }),
+    );
+  });
+
   it("loads nested jobs for a double-encoded external project route id", async () => {
     const identity = createWorkosIdentity();
     const projectResponse = await createProjectViaApi(identity);
