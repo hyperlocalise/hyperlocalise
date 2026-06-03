@@ -147,4 +147,46 @@ describe("Logger Redaction", () => {
     expect(deep.level2.masterKey).toBe("[REDACTED]");
     expect(deep.level2.encryption_key).toBe("[REDACTED]");
   });
+
+  it("should redact TMS webhook signature and secret headers", () => {
+    const logger = createLogger();
+
+    logger.info(
+      {
+        headers: {
+          "x-phraseapp-signature": "phrase-sig",
+          "event-signature": "smartling-sig",
+          "x-secret": "lokalise-secret",
+          "x-hyperlocalise-webhook-secret": "crowdin-secret",
+          "x-hyperlocalise-signature-256": "internal-sig",
+          "x-provider-signature-256": "provider-sig",
+        },
+      },
+      "test tms headers",
+    );
+
+    const headers = drainedEvents[0]?.headers as Record<string, unknown>;
+    expect(headers["x-phraseapp-signature"]).toBe("[REDACTED]");
+    expect(headers["event-signature"]).toBe("[REDACTED]");
+    expect(headers["x-secret"]).toBe("[REDACTED]");
+    expect(headers["x-hyperlocalise-webhook-secret"]).toBe("[REDACTED]");
+    expect(headers["x-hyperlocalise-signature-256"]).toBe("[REDACTED]");
+    expect(headers["x-provider-signature-256"]).toBe("[REDACTED]");
+  });
+
+  it("should redact TMS webhook signature and secret keys at top level and nested", () => {
+    const logger = createLogger();
+
+    logger.info({
+      "x-phraseapp-signature": "top-phrase",
+      nested: {
+        "event-signature": "nested-smartling",
+      },
+    });
+
+    const [event] = drainedEvents;
+    const nested = event?.nested as Record<string, unknown>;
+    expect(event?.["x-phraseapp-signature"]).toBe("[REDACTED]");
+    expect(nested["event-signature"]).toBe("[REDACTED]");
+  });
 });
