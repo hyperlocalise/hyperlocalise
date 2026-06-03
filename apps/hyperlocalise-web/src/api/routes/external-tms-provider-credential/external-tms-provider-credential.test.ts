@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import { createHash } from "node:crypto";
+
 import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
@@ -31,6 +33,28 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 const client = testClient(app);
 const fixture = createProviderCredentialTestFixture(client);
+
+function base64Url(input: Buffer) {
+  return input.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
+}
+
+function fetchInputUrl(input: string | URL | Request) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+function requestBodyString(body: BodyInit | null | undefined) {
+  if (typeof body === "string") return body;
+  throw new Error("expected string request body");
+}
+
+function crowdinOAuthCallbackUrl(organizationSlug: string, query: { state: string; code: string }) {
+  const params = new URLSearchParams(query);
+  return `/api/orgs/${encodeURIComponent(
+    organizationSlug,
+  )}/external-tms-provider-credential/crowdin/oauth/callback?${params.toString()}`;
+}
 
 describe("externalTmsProviderCredentialRoutes", () => {
   beforeAll(async () => {
@@ -161,6 +185,236 @@ describe("externalTmsProviderCredentialRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "crowdin_personal_token_deprecated",
     });
+  });
+
+  it("creates scoped Crowdin OAuth state and a PKCE authorization URL for admins", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin.oauth.start.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+        json: {
+          displayName: "Crowdin OAuth",
+          oauthClientId: "crowdin-client-id",
+          oauthClientSecret: "crowdin-client-secret",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as {
+      authorizationUrl: string;
+      redirectUri: string;
+    };
+    const authorizationUrl = new URL(data.authorizationUrl);
+    expect(authorizationUrl.origin).toBe("https://accounts.crowdin.com");
+    expect(authorizationUrl.searchParams.get("client_id")).toBe("crowdin-client-id");
+    expect(authorizationUrl.searchParams.get("redirect_uri")).toBe(data.redirectUri);
+    expect(authorizationUrl.searchParams.get("response_type")).toBe("code");
+    expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe("S256");
+
+    const stateParam = authorizationUrl.searchParams.get("state");
+    expect(stateParam).toEqual(expect.any(String));
+    const [state] = await db
+      .select()
+      .from(schema.crowdinOAuthStates)
+      .where(
+        and(
+          eq(schema.crowdinOAuthStates.nonce, stateParam!),
+          eq(
+            schema.crowdinOAuthStates.organizationId,
+            authContext.organization.localOrganizationId,
+          ),
+          eq(schema.crowdinOAuthStates.userId, authContext.user.localUserId),
+        ),
+      )
+      .limit(1);
+
+    expect(state).toMatchObject({
+      oauthClientId: "crowdin-client-id",
+      displayName: "Crowdin OAuth",
+      consumedAt: null,
+    });
+    expect(state!.oauthClientSecretCiphertext).not.toContain("crowdin-client-secret");
+    expect(authorizationUrl.searchParams.get("code_challenge")).toBe(
+      base64Url(createHash("sha256").update(state!.codeVerifier).digest()),
+    );
+    expect(data.redirectUri).toContain(
+      `/api/orgs/${encodeURIComponent(identity.organization.slug ?? "missing")}/external-tms-provider-credential/crowdin/oauth/callback`,
+    );
+  });
+
+  it("blocks non-admins from starting Crowdin OAuth", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("member");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin.oauth.start.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+        json: {
+          displayName: "Crowdin OAuth",
+          oauthClientId: "crowdin-client-id",
+          oauthClientSecret: "crowdin-client-secret",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+  });
+
+  it("rejects invalid Crowdin OAuth callback state before token exchange", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await app.request(
+      crowdinOAuthCallbackUrl(identity.organization.slug ?? "missing", {
+        state: "missing-state",
+        code: "oauth-code",
+      }),
+      { headers },
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/dashboard?error=invalid_crowdin_oauth_state");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("exchanges Crowdin OAuth callbacks into encrypted OAuth credentials once", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    const startResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin.oauth.start.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+        json: {
+          displayName: "Crowdin OAuth",
+          oauthClientId: "crowdin-client-id",
+          oauthClientSecret: "crowdin-client-secret",
+        },
+      },
+      { headers },
+    );
+    const startBody = (await startResponse.json()) as { authorizationUrl: string };
+    const stateParam = new URL(startBody.authorizationUrl).searchParams.get("state");
+    const [state] = await db
+      .select()
+      .from(schema.crowdinOAuthStates)
+      .where(eq(schema.crowdinOAuthStates.nonce, stateParam!))
+      .limit(1);
+
+    let capturedTokenBody: Record<string, unknown> | undefined;
+    let capturedUserHeaders: HeadersInit | undefined;
+
+    const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
+      const requestUrl = fetchInputUrl(url);
+      if (requestUrl === "https://accounts.crowdin.com/oauth/token") {
+        capturedTokenBody = JSON.parse(requestBodyString(init?.body)) as Record<string, unknown>;
+        return new Response(
+          JSON.stringify({
+            access_token: "crowdin-access-token",
+            refresh_token: "crowdin-refresh-token",
+            token_type: "bearer",
+            expires_in: 3600,
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (requestUrl === "https://api.crowdin.com/api/v2/user") {
+        capturedUserHeaders = init?.headers;
+        return new Response("{}", { status: 200 });
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const callbackResponse = await app.request(
+      crowdinOAuthCallbackUrl(identity.organization.slug ?? "missing", {
+        state: stateParam!,
+        code: "oauth-code",
+      }),
+      { headers },
+    );
+
+    expect(callbackResponse.status).toBe(302);
+    expect(callbackResponse.headers.get("location")).toBe(
+      `/org/${identity.organization.slug}/integrations?crowdin_connected=1`,
+    );
+    expect(capturedTokenBody).toMatchObject({
+      grant_type: "authorization_code",
+      client_id: "crowdin-client-id",
+      client_secret: "crowdin-client-secret",
+      code: "oauth-code",
+      code_verifier: state!.codeVerifier,
+    });
+    expect(String(capturedTokenBody!.redirect_uri)).toContain("/crowdin/oauth/callback");
+    expect(capturedUserHeaders).toEqual({ Authorization: "Bearer crowdin-access-token" });
+
+    const [credential] = await db
+      .select()
+      .from(schema.organizationExternalTmsProviderCredentials)
+      .where(
+        and(
+          eq(
+            schema.organizationExternalTmsProviderCredentials.organizationId,
+            authContext.organization.localOrganizationId,
+          ),
+          eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+        ),
+      )
+      .limit(1);
+
+    expect(credential).toMatchObject({
+      displayName: "Crowdin OAuth",
+      authMode: "oauth",
+      maskedSecretSuffix: "oauth",
+      validationStatus: "connected",
+      validationMessage: null,
+    });
+    expect(credential!.ciphertext).not.toContain("crowdin-access-token");
+    expect(credential!.oauthExpiresAt).not.toBeNull();
+
+    const [consumedState] = await db
+      .select()
+      .from(schema.crowdinOAuthStates)
+      .where(eq(schema.crowdinOAuthStates.nonce, stateParam!))
+      .limit(1);
+    expect(consumedState!.consumedAt).not.toBeNull();
+
+    const replayResponse = await app.request(
+      crowdinOAuthCallbackUrl(identity.organization.slug ?? "missing", {
+        state: stateParam!,
+        code: "second-code",
+      }),
+      { headers },
+    );
+
+    expect(replayResponse.status).toBe(302);
+    expect(replayResponse.headers.get("location")).toBe(
+      "/dashboard?error=invalid_crowdin_oauth_state",
+    );
+    expect(
+      fetchMock.mock.calls.filter(
+        ([url]) => fetchInputUrl(url) === "https://accounts.crowdin.com/oauth/token",
+      ),
+    ).toHaveLength(1);
   });
 
   it("returns external TMS credential summaries for the requested provider", async () => {
