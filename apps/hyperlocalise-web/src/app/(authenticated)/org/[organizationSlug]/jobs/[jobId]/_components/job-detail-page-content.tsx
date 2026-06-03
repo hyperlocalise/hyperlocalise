@@ -22,8 +22,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
+import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
+import { useActiveTmsProvider } from "../../../_hooks/use-active-tms-provider";
 
 import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
 
@@ -180,7 +182,25 @@ export function JobDetailPageContent({
   jobId: string;
   organizationSlug: string;
 }) {
-  if (parseProviderJobId(jobId)) {
+  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const encodedProviderJob = parseProviderJobId(jobId);
+  const useLiveProviderJob =
+    isTmsProviderShellModeEnabled() &&
+    Boolean(activeTmsProviderQuery.data) &&
+    encodedProviderJob?.providerKind === activeTmsProviderQuery.data?.providerKind;
+
+  if (encodedProviderJob && activeTmsProviderQuery.isLoading) {
+    return (
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+          <Skeleton className="h-5 w-48 bg-foreground/8" />
+          <Skeleton className="mt-4 h-40 w-full bg-foreground/8" />
+        </div>
+      </main>
+    );
+  }
+
+  if (useLiveProviderJob) {
     return <ProviderLiveJobDetailContent jobId={jobId} organizationSlug={organizationSlug} />;
   }
 

@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
+import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 import {
   ProjectPageShell,
@@ -21,6 +24,7 @@ import {
   ProjectSectionTitle,
 } from "../../_components/project-page-shell";
 import { ProjectFileDetailPanel } from "./project-file-detail-panel";
+import { useActiveTmsProvider } from "../../../../_hooks/use-active-tms-provider";
 
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
@@ -107,6 +111,12 @@ export function ProjectFilesPageContent({
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const encodedProviderProject = parseProviderProjectId(projectId);
+  const useLiveProviderFiles =
+    isTmsProviderShellModeEnabled() &&
+    Boolean(activeTmsProviderQuery.data) &&
+    encodedProviderProject?.providerKind === activeTmsProviderQuery.data?.providerKind;
 
   const selectedSourcePath = searchParams.get("sourcePath");
   const highlightLocale = searchParams.get("locale");
@@ -126,8 +136,32 @@ export function ProjectFilesPageContent({
   );
 
   const filesQuery = useQuery({
-    queryKey: projectFilesQueryKey(organizationSlug, projectId),
+    queryKey: [
+      ...projectFilesQueryKey(organizationSlug, projectId),
+      useLiveProviderFiles ? "live" : "native",
+      activeTmsProviderQuery.data?.providerKind ?? null,
+    ],
+    enabled: !encodedProviderProject || activeTmsProviderQuery.isFetched,
     queryFn: async () => {
+      if (useLiveProviderFiles && encodedProviderProject) {
+        const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
+          ":externalProjectId"
+        ].files.$get({
+          param: {
+            organizationSlug,
+            externalProjectId: encodedProviderProject.externalProjectId,
+          },
+          query: { limit: "500" },
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load provider files (${response.status})`);
+        }
+
+        const body = (await response.json()) as { files: ProjectFileRecord[] };
+        return body.files;
+      }
+
       const response = await fetch(`${apiPath(organizationSlug, projectId)}?limit=500`, {
         method: "GET",
       });
@@ -182,46 +216,55 @@ export function ProjectFilesPageContent({
     [files, selectedSourcePath],
   );
   const isUploading = uploadFiles.isPending;
+  const canUploadFiles = !useLiveProviderFiles;
 
   return (
     <ProjectPageShell className="gap-8">
       <ProjectSectionHeader
         icon={File01Icon}
         section="Files"
-        description="Upload source files, then select one to inspect content and related translation jobs."
+        description={
+          useLiveProviderFiles
+            ? "Browse source files and keys from the connected TMS provider."
+            : "Upload source files, then select one to inspect content and related translation jobs."
+        }
         actions={
-          <Button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={isUploading}
-            className="w-full sm:w-fit"
-          >
-            <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
-            Add files
-          </Button>
+          canUploadFiles ? (
+            <Button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full sm:w-fit"
+            >
+              <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+              Add files
+            </Button>
+          ) : null
         }
       />
 
-      <input
-        ref={inputRef}
-        type="file"
-        multiple
-        accept={FILE_ACCEPT}
-        className="sr-only"
-        onChange={(event) => {
-          const nextFiles = Array.from(event.target.files ?? []);
-          setSelectedFiles((currentFiles) => {
-            const existing = new Set(currentFiles.map(fileKey));
-            return [
-              ...currentFiles,
-              ...nextFiles.filter((file) => !existing.has(fileKey(file))),
-            ].slice(0, MAX_UPLOAD_FILES);
-          });
-          event.currentTarget.value = "";
-        }}
-      />
+      {canUploadFiles ? (
+        <input
+          ref={inputRef}
+          type="file"
+          multiple
+          accept={FILE_ACCEPT}
+          className="sr-only"
+          onChange={(event) => {
+            const nextFiles = Array.from(event.target.files ?? []);
+            setSelectedFiles((currentFiles) => {
+              const existing = new Set(currentFiles.map(fileKey));
+              return [
+                ...currentFiles,
+                ...nextFiles.filter((file) => !existing.has(fileKey(file))),
+              ].slice(0, MAX_UPLOAD_FILES);
+            });
+            event.currentTarget.value = "";
+          }}
+        />
+      ) : null}
 
-      {selectedFiles.length > 0 ? (
+      {canUploadFiles && selectedFiles.length > 0 ? (
         <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
@@ -300,7 +343,9 @@ export function ProjectFilesPageContent({
                   No files yet
                 </TypographyP>
                 <TypographyP className="text-sm text-foreground/52">
-                  Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats.
+                  {useLiveProviderFiles
+                    ? "No provider files or keys were found for this project."
+                    : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
                 </TypographyP>
               </div>
             ) : (
@@ -343,13 +388,25 @@ export function ProjectFilesPageContent({
           </aside>
 
           <main className="min-h-0 overflow-y-auto bg-background/40">
-            <ProjectFileDetailPanel
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              file={selectedFile}
-              requestedSourcePath={selectedSourcePath}
-              highlightLocale={highlightLocale}
-            />
+            {useLiveProviderFiles ? (
+              <div className="p-4">
+                <ProjectSectionTitle>
+                  {selectedFile ? selectedFile.sourcePath : "Select a file"}
+                </ProjectSectionTitle>
+                <TypographyP className="mt-2 text-sm text-foreground/52">
+                  Provider file content and related job details are read live from the connected
+                  TMS. Select Jobs to inspect provider tasks for this project.
+                </TypographyP>
+              </div>
+            ) : (
+              <ProjectFileDetailPanel
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                file={selectedFile}
+                requestedSourcePath={selectedSourcePath}
+                highlightLocale={highlightLocale}
+              />
+            )}
           </main>
         </div>
       </section>

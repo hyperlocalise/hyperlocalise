@@ -10,6 +10,7 @@ import {
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import {
   tmsProviderGlossaryFetchers,
+  tmsProviderFileKeyFetchers,
   tmsProviderJobTaskFetchers,
   tmsProviderProjectFetchers,
   tmsProviderTranslationMemoryFetchers,
@@ -23,6 +24,7 @@ import {
 } from "@/lib/providers/tms-provider-resource-id";
 import { mapProviderStatusToNormalized } from "@/lib/providers/sync/external-tms-status-mapper";
 import type { ExternalTmsGlossaryMetadata } from "@/lib/providers/sync/external-tms-glossary-sync";
+import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/sync/external-tms-file-sync";
 import type { ExternalTmsJobTaskMetadata } from "@/lib/providers/sync/external-tms-job-sync";
 import type { ExternalTmsProjectMetadata } from "@/lib/providers/sync/external-tms-project-sync";
 import type { ExternalTmsTranslationMemoryMetadata } from "@/lib/providers/sync/external-tms-tm-sync";
@@ -104,6 +106,34 @@ export type TmsProviderLiveJobDetail = TmsProviderLiveJob & {
   externalJobId: string;
   externalUrl: string | null;
   externalProviderPayload: Record<string, unknown>;
+};
+
+export type TmsProviderLiveFile = {
+  origin: "provider";
+  sourcePath: string;
+  sourceHash: string | null;
+  commitSha: null;
+  workflowRunId: null;
+  uploadedAt: string;
+  storedFileId: null;
+  metadata: Record<string, unknown>;
+  filename: string;
+  byteSize: null;
+  provider: {
+    kind: ExternalTmsProviderKind;
+    resourceType: "file" | "key";
+    externalProjectId: string;
+    externalResourceId: string;
+    externalUrl: string | null;
+    syncState: string;
+    sourceLocale: string | null;
+    targetLocales: string[];
+    localeReadiness: Record<string, unknown>;
+    revision: string | null;
+    format: string | null;
+    lastSyncedAt: string | null;
+  };
+  latestJob: null;
 };
 
 export type TmsProviderLiveGlossary = {
@@ -336,6 +366,44 @@ function mapLiveJob(input: {
   };
 }
 
+function mapLiveFile(input: {
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  file: ExternalTmsFileKeyMetadata;
+}): TmsProviderLiveFile {
+  const timestamp = new Date().toISOString();
+  const sourcePath = input.file.sourcePath;
+  const filename = input.file.displayName?.trim() || sourcePath.split("/").filter(Boolean).at(-1);
+
+  return {
+    origin: "provider",
+    sourcePath,
+    sourceHash: input.file.sourceHash ?? null,
+    commitSha: null,
+    workflowRunId: null,
+    uploadedAt: timestamp,
+    storedFileId: null,
+    metadata: input.file.providerPayload ?? {},
+    filename: filename || sourcePath,
+    byteSize: null,
+    provider: {
+      kind: input.providerKind,
+      resourceType: input.file.resourceType,
+      externalProjectId: input.externalProjectId,
+      externalResourceId: input.file.externalResourceId,
+      externalUrl: input.file.externalUrl ?? null,
+      syncState: input.file.syncState ?? "synced",
+      sourceLocale: input.file.sourceLocale ?? null,
+      targetLocales: input.file.targetLocales ?? [],
+      localeReadiness: input.file.localeReadiness ?? {},
+      revision: input.file.revision ?? null,
+      format: input.file.format ?? null,
+      lastSyncedAt: timestamp,
+    },
+    latestJob: null,
+  };
+}
+
 async function fetchLiveProjects(context: ActiveTmsProviderContext) {
   const fetcher = tmsProviderProjectFetchers[context.providerKind];
   if (!fetcher) {
@@ -460,6 +528,62 @@ export async function listTmsProviderLiveJobsForProject(
       task,
     }),
   );
+}
+
+export async function listTmsProviderLiveFilesForProject(
+  organizationId: string,
+  externalProjectId: string,
+  options?: {
+    limit?: number;
+    context?: ActiveTmsProviderContext;
+    projects?: ExternalTmsProjectMetadata[];
+  },
+): Promise<TmsProviderLiveFile[]> {
+  const context = options?.context ?? (await loadActiveTmsProviderContext(organizationId));
+  const fetcher = tmsProviderFileKeyFetchers[context.providerKind];
+  if (!fetcher) {
+    throw new TmsProviderLiveError(
+      "provider_fetcher_unavailable",
+      `Live file fetch is not available for ${context.providerKind}.`,
+    );
+  }
+
+  const projects = options?.projects ?? (await fetchLiveProjects(context));
+  const project = projects.find((item) => item.externalProjectId === externalProjectId);
+  if (!project) {
+    return [];
+  }
+
+  const liveProject = buildLiveProviderProject({
+    organizationId: context.organizationId,
+    credentialId: context.credential.id,
+    providerKind: context.providerKind,
+    externalProjectId: project.externalProjectId,
+    name: project.name,
+    sourceLocale: project.sourceLocale ?? "en",
+    targetLocales: project.targetLocales ?? [],
+    externalProjectUrl: project.externalProjectUrl,
+    isActive: project.isActive,
+  });
+
+  let files;
+  try {
+    files = await fetcher({
+      organizationId: context.organizationId,
+      projectId: liveProject.id,
+      providerKind: context.providerKind,
+      externalProjectId,
+      credential: context.credential,
+      project: liveProject,
+      secretMaterial: context.secretMaterial,
+    });
+  } catch (error) {
+    rethrowProviderFetcherError(error);
+  }
+
+  return files
+    .slice(0, options?.limit ?? 500)
+    .map((file) => mapLiveFile({ providerKind: context.providerKind, externalProjectId, file }));
 }
 
 export async function listTmsProviderLiveJobs(

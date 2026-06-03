@@ -212,18 +212,25 @@ export function ProjectSettingsPageContent({
 
   const isSaving = updateProject.isPending;
   const localesEditable = project.source === "native";
+  const settingsEditable = project.source === "native";
 
   return (
     <ProjectPageShell>
       <ProjectSectionHeader
         icon={Settings01Icon}
         section="Settings"
-        description="Edit project metadata, translation guidance, locales, and source connection details."
+        description={
+          settingsEditable
+            ? "Edit project metadata, translation guidance, locales, and source connection details."
+            : "View provider-managed project metadata, locales, and source connection details."
+        }
         actions={
-          <Button type="submit" form="project-settings-form" disabled={isSaving}>
-            {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
-            {isSaving ? "Saving..." : "Save settings"}
-          </Button>
+          settingsEditable ? (
+            <Button type="submit" form="project-settings-form" disabled={isSaving}>
+              {isSaving ? <Spinner /> : <SaveIcon className="size-4" strokeWidth={2} />}
+              {isSaving ? "Saving..." : "Save settings"}
+            </Button>
+          ) : null
         }
       />
 
@@ -240,7 +247,7 @@ export function ProjectSettingsPageContent({
             <Input
               id="project-name"
               value={values.name}
-              disabled={isSaving}
+              disabled={isSaving || !settingsEditable}
               onChange={(event) =>
                 setValues((current) =>
                   current ? { ...current, name: event.target.value } : current,
@@ -255,7 +262,7 @@ export function ProjectSettingsPageContent({
             <Textarea
               id="project-description"
               value={values.description}
-              disabled={isSaving}
+              disabled={isSaving || !settingsEditable}
               onChange={(event) =>
                 setValues((current) =>
                   current ? { ...current, description: event.target.value } : current,
@@ -285,7 +292,7 @@ export function ProjectSettingsPageContent({
             <Textarea
               id="translation-context"
               value={values.translationContext}
-              disabled={isSaving}
+              disabled={isSaving || !settingsEditable}
               onChange={(event) =>
                 setValues((current) =>
                   current ? { ...current, translationContext: event.target.value } : current,
