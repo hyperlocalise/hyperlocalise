@@ -147,7 +147,11 @@ func (r *MTAddRequest) Validate() error {
 	if r.Type == "" {
 		return errors.New("type is required")
 	}
-	if r.Credentials == nil || (reflect.ValueOf(r.Credentials).Kind() == reflect.Ptr && reflect.ValueOf(r.Credentials).IsNil()) {
+	if r.Credentials == nil {
+		return errors.New("credentials are required")
+	}
+	if v := reflect.ValueOf(r.Credentials); (v.Kind() == reflect.Ptr || v.Kind() == reflect.Map ||
+		v.Kind() == reflect.Slice || v.Kind() == reflect.Chan || v.Kind() == reflect.Func) && v.IsNil() {
 		return errors.New("credentials are required")
 	}
 
