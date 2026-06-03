@@ -1,7 +1,11 @@
 import { createLogger } from "@/lib/log";
 import { schema } from "@/lib/database";
 import type { ProjectFileDetailResponse } from "@/api/routes/project/project.schema";
-import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import {
+  CrowdinApiClient,
+  CrowdinApiError,
+  type CrowdinSourceString,
+} from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
@@ -39,6 +43,7 @@ const logger = createLogger("tms-provider-live");
 const LIVE_PROJECT_JOB_FANOUT_CONCURRENCY = 5;
 const LIVE_GLOSSARY_TM_FANOUT_CONCURRENCY = 5;
 const maxLiveProviderInlineTextBytes = 512 * 1024;
+const maxLiveProviderStringPreviewItems = 1_000;
 
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
@@ -430,6 +435,65 @@ function mapLiveFile(input: {
   };
 }
 
+function crowdinSourceTextValue(text: CrowdinSourceString["text"]) {
+  return text;
+}
+
+function serializeCrowdinSourceStringsPreview(input: {
+  strings: CrowdinSourceString[];
+  truncated: boolean;
+}) {
+  if (input.strings.length === 0) {
+    return null;
+  }
+
+  return `${JSON.stringify(
+    {
+      provider: "crowdin",
+      resource: "source_strings",
+      note: "Raw source file download was unavailable; this preview is generated from Crowdin source string metadata.",
+      truncated: input.truncated,
+      strings: input.strings.map((sourceString) => ({
+        id: sourceString.id,
+        key: sourceString.identifier,
+        text: crowdinSourceTextValue(sourceString.text),
+        type: sourceString.type,
+        context: sourceString.context,
+      })),
+    },
+    null,
+    2,
+  )}\n`;
+}
+
+async function downloadCrowdinSourceStringPreview(input: {
+  client: CrowdinApiClient;
+  projectId: number;
+  fileId: number;
+}): Promise<{
+  byteSize: number | null;
+  content: { text: string } | null;
+  contentType: string | null;
+} | null> {
+  const strings = await input.client.listSourceStrings(input.projectId, input.fileId, undefined, {
+    maxItems: maxLiveProviderStringPreviewItems + 1,
+  });
+  const previewText = serializeCrowdinSourceStringsPreview({
+    strings: strings.slice(0, maxLiveProviderStringPreviewItems),
+    truncated: strings.length > maxLiveProviderStringPreviewItems,
+  });
+  if (!previewText) {
+    return null;
+  }
+
+  const byteSize = new TextEncoder().encode(previewText).byteLength;
+  return {
+    byteSize,
+    content: byteSize <= maxLiveProviderInlineTextBytes ? { text: previewText } : null,
+    contentType: "application/json",
+  };
+}
+
 async function downloadLiveProviderFileContent(input: {
   context: ActiveTmsProviderContext;
   externalProjectId: string;
@@ -475,6 +539,27 @@ async function downloadLiveProviderFileContent(input: {
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    try {
+      const preview = await downloadCrowdinSourceStringPreview({ client, projectId, fileId });
+      if (preview) {
+        return preview;
+      }
+    } catch (previewError) {
+      if (previewError instanceof CrowdinApiError && previewError.status === 401) {
+        throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+      }
+
+      logger.warn("tms_provider_live_file_content_failed", {
+        organizationId: input.context.organizationId,
+        providerKind: input.context.providerKind,
+        externalProjectId: input.externalProjectId,
+        externalResourceId: input.externalResourceId,
+        downloadError: error instanceof Error ? error.message : String(error),
+        previewError: previewError instanceof Error ? previewError.message : String(previewError),
+      });
+      return { byteSize: null, content: null, contentType: null };
     }
 
     logger.warn("tms_provider_live_file_content_failed", {

@@ -991,6 +991,186 @@ describe("projectRoutes", () => {
     expect(listFiles).toHaveBeenCalledWith(organizationId, "902807", { limit: 500 });
   });
 
+  it("falls back to Crowdin source strings for live file detail preview", async () => {
+    const originalFetch = globalThis.fetch;
+    const baseIdentity = createWorkosIdentity();
+    const identity = {
+      ...baseIdentity,
+      organization: {
+        ...baseIdentity.organization,
+        slug: "hyperlocalise",
+      },
+    };
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: globalThis.__testApiAuthContext!.user.localUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/projects?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 902807,
+                  name: "HL-Test",
+                  identifier: "hl-test",
+                  sourceLanguageId: "en",
+                  targetLanguageIds: ["fr"],
+                  webUrl: "https://crowdin.test/project/hl-test",
+                  isSuspended: false,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/directories?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1,
+                  branchId: null,
+                  directoryId: null,
+                  name: "Test nested",
+                  title: null,
+                  exportPattern: null,
+                  path: "/Test nested",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: 1,
+                  name: "en-US.stringsdict",
+                  title: null,
+                  type: "stringsdict",
+                  path: "/Test nested/en-US.stringsdict",
+                  status: "active",
+                  revisionId: 5,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/revisions?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 77,
+                  fileId: 101,
+                  projectId: 902807,
+                  info: {
+                    sourceLanguageId: "en",
+                    addedStrings: 2,
+                    removedStrings: 0,
+                    updatedStrings: 0,
+                  },
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/projects/902807/files/101/download")) {
+        return new Response(JSON.stringify({ error: { message: "No source export" } }), {
+          status: 503,
+        });
+      }
+
+      if (path.includes("/strings?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 902807,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: 1,
+                  identifier: "items.count",
+                  text: { one: "%d item", other: "%d items" },
+                  type: "text",
+                  context: "Pluralized item count",
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+    try {
+      const response = await app.request(
+        "/api/orgs/hyperlocalise/projects/ext%253Acrowdin%253A902807/files/detail?sourcePath=Test%20nested%2Fen-US.stringsdict",
+        { headers },
+      );
+
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as ProjectFileDetailResponse;
+      expect(body.file.versions[0]).toMatchObject({
+        origin: "provider",
+        revision: "77",
+        contentType: "application/json",
+      });
+      expect(body.file.versions[0]?.content?.text).toContain('"resource": "source_strings"');
+      expect(body.file.versions[0]?.content?.text).toContain('"key": "items.count"');
+      expect(body.file.versions[0]?.content?.text).toContain('"%d items"');
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/projects/902807/files/101/download"),
+        expect.anything(),
+      );
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/projects/902807/strings?limit=500&offset=0&fileId=101"),
+        expect.anything(),
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it("combines repository and provider records for the same source path", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createProjectViaApi(identity);
