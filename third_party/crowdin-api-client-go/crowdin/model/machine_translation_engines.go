@@ -3,6 +3,7 @@ package model
 import (
 	"errors"
 	"net/url"
+	"reflect"
 	"strconv"
 )
 
@@ -146,7 +147,7 @@ func (r *MTAddRequest) Validate() error {
 	if r.Type == "" {
 		return errors.New("type is required")
 	}
-	if r.Credentials == nil {
+	if r.Credentials == nil || (reflect.ValueOf(r.Credentials).Kind() == reflect.Ptr && reflect.ValueOf(r.Credentials).IsNil()) {
 		return errors.New("credentials are required")
 	}
 
