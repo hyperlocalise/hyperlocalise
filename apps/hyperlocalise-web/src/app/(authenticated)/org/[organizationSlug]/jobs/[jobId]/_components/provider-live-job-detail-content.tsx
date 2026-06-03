@@ -15,6 +15,14 @@ import { cn } from "@/lib/primitives/cn";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
+import {
+  JobDetailRow,
+  ProviderCrowdinJobDetailRows,
+} from "../../_components/provider-crowdin-job-detail-rows";
+import {
+  formatLocaleList,
+  getCrowdinTargetLocales,
+} from "../../_components/provider-crowdin-job-display";
 
 function statusTone(status: TmsProviderLiveJobDetail["status"]) {
   switch (status) {
@@ -35,20 +43,15 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
-function formatDate(value: string | null) {
+function formatDate(value: string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return DATE_FORMATTER.format(date);
 }
 
-function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-      <dt className="text-sm text-foreground/42">{label}</dt>
-      <dd className="min-w-0 wrap-break-word text-sm text-foreground/74">{value ?? "—"}</dd>
-    </div>
-  );
+function formatJobKind(job: TmsProviderLiveJobDetail) {
+  return job.kind.replace("_", " ");
 }
 
 export function ProviderLiveJobDetailContent({
@@ -168,25 +171,36 @@ export function ProviderLiveJobDetailContent({
             Provider task
           </TypographyH2>
           <dl className="mt-3 divide-y divide-foreground/8">
-            <DetailRow label="Job ID" value={job.id} />
-            <DetailRow label="Provider status" value={job.externalStatus} />
-            <DetailRow label="Kind" value={job.kind.replace("_", " ")} />
-            <DetailRow label="Project" value={job.projectName ?? job.projectId} />
-            <DetailRow
-              label="Target locales"
-              value={
-                job.externalTargetLocales.length > 0 ? job.externalTargetLocales.join(", ") : "—"
-              }
-            />
-            <DetailRow
+            <JobDetailRow label="Job ID" value={job.id} />
+            <JobDetailRow label="Provider status" value={job.externalStatus} />
+            <JobDetailRow label="Kind" value={job.kind.replace("_", " ")} />
+            <JobDetailRow
               label="Assignees"
               value={
                 job.externalAssignedUsers.length > 0 ? job.externalAssignedUsers.join(", ") : "—"
               }
             />
-            <DetailRow label="Due date" value={formatDate(job.externalDueDate)} />
-            <DetailRow label="Provider URL" value={job.externalUrl} />
-            <DetailRow label="Last refreshed" value={formatDate(job.updatedAt)} />
+            {job.externalProviderKind === "crowdin" ? (
+              <ProviderCrowdinJobDetailRows
+                job={job}
+                providerPayload={job.externalProviderPayload}
+                organizationSlug={organizationSlug}
+                formatJobKind={formatJobKind}
+                formatDateTime={formatDate}
+                descriptionQueryKey={jobQueryKey}
+                showProviderLink={false}
+              />
+            ) : (
+              <>
+                <JobDetailRow label="Project" value={job.projectName ?? job.projectId} />
+                <JobDetailRow
+                  label="Target locales"
+                  value={formatLocaleList(getCrowdinTargetLocales(null, job.externalTargetLocales))}
+                />
+                <JobDetailRow label="Due date" value={formatDate(job.externalDueDate)} />
+                <JobDetailRow label="Last refreshed" value={formatDate(job.updatedAt)} />
+              </>
+            )}
           </dl>
         </section>
       ) : null}

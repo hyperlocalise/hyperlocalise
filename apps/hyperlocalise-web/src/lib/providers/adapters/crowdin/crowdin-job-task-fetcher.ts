@@ -1,6 +1,48 @@
-import type { ExternalTmsJobTaskFetcher } from "@/lib/providers/sync/external-tms-job-sync";
+import type {
+  ExternalTmsJobTaskFetcher,
+  ExternalTmsJobTaskMetadata,
+} from "@/lib/providers/sync/external-tms-job-sync";
 
-import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
+import { CrowdinApiClient, CrowdinApiError, type CrowdinTask } from "./crowdin-api";
+import {
+  extractCrowdinTaskPrimaryLanguageId,
+  extractCrowdinTaskSourceLanguageId,
+  extractCrowdinTaskTargetLocales,
+} from "./crowdin-task-locales";
+
+export function mapCrowdinTaskToJobTaskMetadata(
+  task: CrowdinTask,
+  localeReadinessByLanguage: Record<string, unknown>,
+): ExternalTmsJobTaskMetadata {
+  const targetLocales = extractCrowdinTaskTargetLocales(task);
+  const sourceLanguageId = extractCrowdinTaskSourceLanguageId(task);
+  const primaryLanguageId = extractCrowdinTaskPrimaryLanguageId(task);
+  const localeReadinessKey = primaryLanguageId ?? targetLocales[0] ?? null;
+
+  return {
+    externalJobId: String(task.id),
+    externalTaskId: null,
+    externalStatus: task.status,
+    title: task.title,
+    dueDate: task.deadline ? new Date(task.deadline) : null,
+    targetLocales,
+    assignedUsers: task.assignees?.map((a) => (a.username ? a.username : String(a.id))) ?? [],
+    externalUrl: task.webUrl,
+    providerPayload: {
+      type: task.type,
+      description: task.description,
+      fileIds: task.fileIds,
+      languageId: primaryLanguageId ?? task.languageId,
+      sourceLanguageId,
+      targetLanguageId: task.targetLanguageId ?? null,
+      targetLanguageIds: targetLocales,
+      localeReadiness: localeReadinessKey
+        ? (localeReadinessByLanguage[localeReadinessKey] ?? null)
+        : localeReadinessByLanguage,
+    },
+    kind: mapTaskTypeToKind(task.type),
+  };
+}
 
 export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
   credential,
@@ -44,26 +86,7 @@ export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
     };
   }
 
-  return tasks.map((task) => ({
-    externalJobId: String(task.id),
-    externalTaskId: null,
-    externalStatus: task.status,
-    title: task.title,
-    dueDate: task.deadline ? new Date(task.deadline) : null,
-    targetLocales: task.languageId ? [task.languageId] : [],
-    assignedUsers: task.assignees?.map((a) => (a.username ? a.username : String(a.id))) ?? [],
-    externalUrl: task.webUrl,
-    providerPayload: {
-      type: task.type,
-      description: task.description,
-      fileIds: task.fileIds,
-      languageId: task.languageId,
-      localeReadiness: task.languageId
-        ? (localeReadiness[task.languageId] ?? null)
-        : localeReadiness,
-    },
-    kind: mapTaskTypeToKind(task.type),
-  }));
+  return tasks.map((task) => mapCrowdinTaskToJobTaskMetadata(task, localeReadiness));
 };
 
 function mapTaskTypeToKind(

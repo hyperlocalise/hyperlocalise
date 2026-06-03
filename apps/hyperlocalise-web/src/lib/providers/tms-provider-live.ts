@@ -2,6 +2,7 @@ import { createLogger } from "@/lib/log";
 import { schema } from "@/lib/database";
 import type { ProjectFileDetailResponse } from "@/api/routes/project/project.schema";
 import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { mapCrowdinTaskToJobTaskMetadata } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
@@ -750,6 +751,55 @@ export async function listTmsProviderLiveJobs(
   return jobsByProject.flat();
 }
 
+async function fetchCrowdinLiveJobTaskMetadata(input: {
+  context: ActiveTmsProviderContext;
+  externalProjectId: string;
+  externalJobId: string;
+}): Promise<ExternalTmsJobTaskMetadata | null> {
+  const projectId = Number(input.externalProjectId);
+  const taskId = Number(input.externalJobId);
+  if (Number.isNaN(projectId) || Number.isNaN(taskId)) {
+    return null;
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  let crowdinTask: Awaited<ReturnType<typeof client.getTask>>;
+  try {
+    crowdinTask = await client.getTask(projectId, taskId);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    if (error instanceof CrowdinApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+
+  let progress: Awaited<ReturnType<typeof client.listProjectLanguageProgress>> = [];
+  try {
+    progress = await client.listProjectLanguageProgress(projectId);
+  } catch {
+    // Best-effort progress for detail view
+  }
+
+  const localeReadiness: Record<string, unknown> = {};
+  for (const lang of progress) {
+    localeReadiness[lang.languageId] = {
+      translationProgress: lang.translationProgress,
+      approvalProgress: lang.approvalProgress,
+      words: lang.words,
+      phrases: lang.phrases,
+    };
+  }
+
+  return mapCrowdinTaskToJobTaskMetadata(crowdinTask, localeReadiness);
+}
+
 export async function getTmsProviderLiveJobDetail(
   organizationId: string,
   encodedJobId: string,
@@ -764,48 +814,58 @@ export async function getTmsProviderLiveJobDetail(
     return null;
   }
 
-  const fetcher = tmsProviderJobTaskFetchers[context.providerKind];
-  if (!fetcher) {
-    throw new TmsProviderLiveError(
-      "provider_fetcher_unavailable",
-      `Live job fetch is not available for ${context.providerKind}.`,
-    );
-  }
-
   const projects = await fetchLiveProjects(context);
   const project = projects.find((item) => item.externalProjectId === parsed.externalProjectId);
   if (!project) {
     return null;
   }
 
-  const liveProject = buildLiveProviderProject({
-    organizationId: context.organizationId,
-    credentialId: context.credential.id,
-    providerKind: context.providerKind,
-    externalProjectId: project.externalProjectId,
-    name: project.name,
-    sourceLocale: project.sourceLocale ?? "en",
-    targetLocales: project.targetLocales ?? [],
-    externalProjectUrl: project.externalProjectUrl,
-    isActive: project.isActive,
-  });
-
-  let tasks;
-  try {
-    tasks = await fetcher({
-      organizationId: context.organizationId,
-      projectId: liveProject.id,
-      providerKind: context.providerKind,
+  let task: ExternalTmsJobTaskMetadata | null;
+  if (context.providerKind === "crowdin") {
+    task = await fetchCrowdinLiveJobTaskMetadata({
+      context,
       externalProjectId: parsed.externalProjectId,
-      credential: context.credential,
-      project: liveProject,
-      secretMaterial: context.secretMaterial,
+      externalJobId: parsed.externalJobId,
     });
-  } catch (error) {
-    rethrowProviderFetcherError(error);
+  } else {
+    const fetcher = tmsProviderJobTaskFetchers[context.providerKind];
+    if (!fetcher) {
+      throw new TmsProviderLiveError(
+        "provider_fetcher_unavailable",
+        `Live job fetch is not available for ${context.providerKind}.`,
+      );
+    }
+
+    const liveProject = buildLiveProviderProject({
+      organizationId: context.organizationId,
+      credentialId: context.credential.id,
+      providerKind: context.providerKind,
+      externalProjectId: project.externalProjectId,
+      name: project.name,
+      sourceLocale: project.sourceLocale ?? "en",
+      targetLocales: project.targetLocales ?? [],
+      externalProjectUrl: project.externalProjectUrl,
+      isActive: project.isActive,
+    });
+
+    let tasks;
+    try {
+      tasks = await fetcher({
+        organizationId: context.organizationId,
+        projectId: liveProject.id,
+        providerKind: context.providerKind,
+        externalProjectId: parsed.externalProjectId,
+        credential: context.credential,
+        project: liveProject,
+        secretMaterial: context.secretMaterial,
+      });
+    } catch (error) {
+      rethrowProviderFetcherError(error);
+    }
+
+    task = tasks.find((item) => item.externalJobId === parsed.externalJobId) ?? null;
   }
 
-  const task = tasks.find((item) => item.externalJobId === parsed.externalJobId);
   if (!task) {
     return null;
   }
@@ -826,6 +886,54 @@ export async function getTmsProviderLiveJobDetail(
         ? (task.providerPayload as Record<string, unknown>)
         : {},
   };
+}
+
+export async function updateTmsProviderLiveJobDescription(
+  organizationId: string,
+  encodedJobId: string,
+  description: string,
+): Promise<TmsProviderLiveJobDetail | null> {
+  const parsed = parseProviderJobId(encodedJobId);
+  if (!parsed) {
+    throw new TmsProviderLiveError("invalid_encoded_job_id", "Job id is not a provider job id.");
+  }
+
+  const context = await loadActiveTmsProviderContext(organizationId);
+  if (context.providerKind !== parsed.providerKind) {
+    return null;
+  }
+
+  if (context.providerKind !== "crowdin") {
+    throw new TmsProviderLiveError(
+      "provider_description_edit_unsupported",
+      `Description edits are not supported for ${context.providerKind}.`,
+    );
+  }
+
+  const projectId = Number(parsed.externalProjectId);
+  const taskId = Number(parsed.externalJobId);
+  if (Number.isNaN(projectId) || Number.isNaN(taskId)) {
+    return null;
+  }
+
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    await client.editTaskDescription(projectId, taskId, description);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    if (error instanceof CrowdinApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+
+  return getTmsProviderLiveJobDetail(organizationId, encodedJobId);
 }
 
 function dedupeGlossaries(items: TmsProviderLiveGlossary[]) {

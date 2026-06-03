@@ -7,6 +7,7 @@ import { hasCapability } from "@/api/auth/policy";
 import {
   getTmsProviderConnection,
   getTmsProviderLiveJobDetail,
+  updateTmsProviderLiveJobDescription,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveGlossaries,
@@ -30,6 +31,10 @@ const externalProjectIdQuerySchema = z.object({
 
 const projectFilesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
+});
+
+const updateJobDescriptionBodySchema = z.object({
+  description: z.string(),
 });
 
 const validateMineQuery = validator("query", (value, c) => {
@@ -59,6 +64,15 @@ const validateProjectFilesQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateUpdateJobDescriptionBody = validator("json", (value, c) => {
+  const parsed = updateJobDescriptionBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_request_body" }, 400);
+  }
+
+  return parsed.data;
+});
+
 function mapTmsProviderLiveError(
   c: { json: (body: unknown, status: number) => Response },
   error: unknown,
@@ -72,6 +86,8 @@ function mapTmsProviderLiveError(
       case "invalid_encoded_job_id":
         return c.json({ error: error.code, message: error.message }, 400);
       case "provider_fetcher_unavailable":
+        return c.json({ error: error.code, message: error.message }, 501);
+      case "provider_description_edit_unsupported":
         return c.json({ error: error.code, message: error.message }, 501);
       default:
         return c.json({ error: error.code, message: error.message }, 500);
@@ -200,6 +216,28 @@ export function createTmsProviderRoutes() {
         const job = await getTmsProviderLiveJobDetail(
           c.var.auth.organization.localOrganizationId,
           c.req.param("encodedJobId"),
+        );
+        if (!job) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.json({ job }, 200);
+      } catch (error) {
+        return mapTmsProviderLiveError(c, error);
+      }
+    })
+    .patch("/jobs/:encodedJobId/description", validateUpdateJobDescriptionBody, async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:write")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const body = c.req.valid("json");
+
+      try {
+        const job = await updateTmsProviderLiveJobDescription(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("encodedJobId"),
+          body.description,
         );
         if (!job) {
           return c.json({ error: "job_not_found" }, 404);
