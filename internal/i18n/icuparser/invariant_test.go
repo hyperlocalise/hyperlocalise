@@ -122,6 +122,21 @@ func TestParseInvariantMustacheNormalization(t *testing.T) {
 			want: []string{"name"},
 		},
 		{
+			name: "triple mustache",
+			msg:  "Hello {{{name}}}",
+			want: []string{"name"},
+		},
+		{
+			name:    "invalid triple mustache identifier (spaces)",
+			msg:     "Hello {{{not a valid id}}}",
+			wantErr: true,
+		},
+		{
+			name: "mixed double and triple mustache",
+			msg:  "{{name}} and {{{title}}}",
+			want: []string{"name", "title"},
+		},
+		{
 			name: "mustache with dots and dollars",
 			msg:  "Price for {{user.id}} is {{$amount}}",
 			want: []string{"$amount", "user.id"},
