@@ -609,6 +609,9 @@ export async function dispatchContentfulWorkspaceAutomationForManual(input: {
   idempotencyKey?: string | null;
   queue?: ContentfulAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult | null> {
+  if (input.automation.status !== "active") {
+    return null;
+  }
   if (!hasWorkspaceAutomationContentfulWorkflow(input.automation.toolConfig)) {
     return null;
   }
