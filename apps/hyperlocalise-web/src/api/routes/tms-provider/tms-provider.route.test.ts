@@ -1,14 +1,21 @@
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
+import { db, schema } from "@/lib/database";
 import {
   getActiveOrganizationExternalTmsProviderCredential,
+  upsertCrowdinOAuthProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import * as tmsProviderLive from "@/lib/providers/tms-provider-live";
+import {
+  encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
@@ -116,5 +123,89 @@ describe("tmsProviderRoutes", () => {
     const body = (await response.json()) as { projects: unknown[] };
     expect(body.projects).toHaveLength(1);
     expect(listProjects).toHaveBeenCalledWith(organizationId);
+  });
+
+  it("returns 401 when Crowdin OAuth refresh fails while loading live projects", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    await upsertCrowdinOAuthProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: "admin",
+      displayName: "Crowdin",
+      tokenBundle: {
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        accessToken: "expired-token",
+        refreshToken: "refresh-token",
+        tokenType: "bearer",
+        expiresAt: new Date(Date.now() - 60_000).toISOString(),
+      },
+    });
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({ error: "invalid_grant" }), { status: 401 })),
+    );
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "crowdin_auth_invalid",
+      message: "Crowdin credentials are invalid.",
+    });
+  });
+
+  it("returns 401 when the stored Crowdin OAuth token bundle is invalid", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const authContext = globalThis.__testApiAuthContext!;
+
+    const credential = await upsertCrowdinOAuthProviderCredential({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      role: "admin",
+      displayName: "Crowdin",
+      tokenBundle: {
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        tokenType: "bearer",
+        expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      },
+    });
+    const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("not-json"));
+    await db
+      .update(schema.organizationExternalTmsProviderCredentials)
+      .set({
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        encryptionAlgorithm: encrypted.algorithm,
+        keyVersion: encrypted.keyVersion,
+      })
+      .where(eq(schema.organizationExternalTmsProviderCredentials.id, credential.id));
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "crowdin_auth_invalid",
+      message: "Crowdin credentials are invalid.",
+    });
   });
 });

@@ -31,6 +31,7 @@ import type {
   ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
+import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/webhooks/provider-webhook-subscription-types";
 import { toneClass } from "../../_components/workspace-resource-shared";
 import { TmsSyncObservabilityPanel } from "./tms-sync-observability-panel";
@@ -815,6 +816,28 @@ function TmsProviderCredentialPanel({
               </InputGroupAddon>
             </InputGroup>
           </Field>
+
+          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+            <div>
+              <p className="text-sm font-medium text-foreground">Required OAuth scopes</p>
+              <p className="mt-1 text-sm leading-6 text-muted-foreground">
+                In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the
+                same list when you click Connect Crowdin.
+              </p>
+            </div>
+            <ul className="space-y-2">
+              {CROWDIN_OAUTH_SCOPE_GUIDE.map((entry) => (
+                <li key={entry.scope} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                  <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
+                    {entry.scope}
+                  </code>
+                  <span className="text-sm leading-6 text-muted-foreground">
+                    {entry.description}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
 
           <Field className="gap-2">
             <FieldLabel htmlFor={oauthClientIdFieldId}>OAuth client ID</FieldLabel>

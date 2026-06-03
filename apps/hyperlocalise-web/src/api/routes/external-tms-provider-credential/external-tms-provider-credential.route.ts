@@ -37,6 +37,7 @@ import {
   checkExternalTmsProviderHealth,
   persistExternalTmsProviderHealth,
 } from "@/lib/providers/sync/external-tms-health-check";
+import { getCrowdinOAuthScopeString } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import { recordProviderSyncRun } from "@/lib/providers/sync/provider-sync-runs";
 import {
   ensureProviderWebhookSubscriptionsForCredential,
@@ -58,7 +59,6 @@ import {
 } from "./external-tms-provider-credential.schema";
 
 const CROWDIN_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
-const CROWDIN_OAUTH_SCOPES = ["project", "tm", "glossary", "task", "webhook"].join(" ");
 
 const validateUpsertBody = validator("json", (value, c) => {
   const parsed = upsertExternalTmsProviderCredentialBodySchema.safeParse(value);
@@ -151,7 +151,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         authorizationUrl.searchParams.set("client_id", payload.oauthClientId);
         authorizationUrl.searchParams.set("redirect_uri", redirectUri);
         authorizationUrl.searchParams.set("response_type", "code");
-        authorizationUrl.searchParams.set("scope", CROWDIN_OAUTH_SCOPES);
+        authorizationUrl.searchParams.set("scope", getCrowdinOAuthScopeString());
         authorizationUrl.searchParams.set("state", nonce);
         authorizationUrl.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
         authorizationUrl.searchParams.set("code_challenge_method", "S256");

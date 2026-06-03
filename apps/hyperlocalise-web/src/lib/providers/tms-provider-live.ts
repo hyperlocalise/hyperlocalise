@@ -148,7 +148,20 @@ async function loadActiveTmsProviderContext(
   }
 
   const providerKind = credential.providerKind as ExternalTmsProviderKind;
-  const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+  let secretMaterial: string;
+  try {
+    secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message === "crowdin_oauth_refresh_failed" ||
+        error.message === "crowdin_oauth_token_invalid")
+    ) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    throw error;
+  }
 
   return {
     organizationId,
