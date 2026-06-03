@@ -178,7 +178,6 @@ export const env = createEnv({
      */
     TMS_PROVIDER_SHELL_MODE: z
       .enum(["true", "false"])
-      .default("true")
       .transform((value) => value === "true"),
   },
   client: {
@@ -194,7 +193,6 @@ export const env = createEnv({
     /** Exposes TMS provider shell mode to client components. Falls back to TMS_PROVIDER_SHELL_MODE. */
     NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE: z
       .enum(["true", "false"])
-      .default("true")
       .transform((value) => value === "true"),
   },
   runtimeEnv: {
