@@ -10,6 +10,7 @@ import { claimGithubRepositoryAutomationJob } from "./github/github-repository-a
 import {
   createWorkspaceAutomation,
   createWorkspaceAutomationRun,
+  listDueContentfulWorkspaceAutomations,
   listWorkspaceAutomations,
   listWorkspaceAutomationRuns,
   pauseWorkspaceAutomation,
@@ -185,7 +186,7 @@ describe("workspace automations", () => {
     expect(missingProject.error.code).toBe("github_project_required");
   });
 
-  it("rejects scheduled automations without a GitHub workflow", async () => {
+  it("rejects scheduled automations without a GitHub or Contentful workflow", async () => {
     const scope = await seedWorkspaceAutomationScope();
     const triggerConfig = {
       mode: "scheduled" as const,
@@ -219,7 +220,10 @@ describe("workspace automations", () => {
     if (notificationOnlySchedule.ok) {
       throw new Error("expected validation error");
     }
-    expect(notificationOnlySchedule.error.code).toBe("scheduled_github_workflow_required");
+    expect(notificationOnlySchedule.error).toMatchObject({
+      code: "scheduled_workflow_required",
+      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
+    });
 
     const manualNotification = expectOk(
       await createWorkspaceAutomation({
@@ -244,7 +248,119 @@ describe("workspace automations", () => {
     if (scheduledUpdate.ok) {
       throw new Error("expected validation error");
     }
-    expect(scheduledUpdate.error.code).toBe("scheduled_github_workflow_required");
+    expect(scheduledUpdate.error).toMatchObject({
+      code: "scheduled_workflow_required",
+      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
+    });
+  });
+
+  it("rejects scheduled Contentful automations without an entry ID", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const triggerConfig = {
+      mode: "scheduled" as const,
+      schedule: {
+        cadence: "daily" as const,
+        hourUtc: 8,
+        timezone: "UTC",
+      },
+    };
+
+    const missingEntryId = await createWorkspaceAutomation({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Scheduled Contentful automation",
+      instructions: "Translate the configured entry on a schedule.",
+      triggerConfig,
+      toolConfig: {
+        contentful: {
+          enabled: true,
+          connectionId: crypto.randomUUID(),
+          projectId: scope.projectId,
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          contentTypeIds: ["article"],
+          fieldMode: "auto",
+          overwriteDraftLocales: false,
+          runQa: true,
+          writeDrafts: true,
+        },
+      },
+    });
+
+    expect(missingEntryId.ok).toBe(false);
+    if (missingEntryId.ok) {
+      throw new Error("expected validation error");
+    }
+    expect(missingEntryId.error).toMatchObject({
+      code: "contentful_entry_id_required",
+      message: "Scheduled Contentful automations require an entry ID.",
+    });
+  });
+
+  it("lists due Contentful automations before applying the row limit", async () => {
+    const scope = await seedWorkspaceAutomationScope();
+    const triggerConfig = {
+      mode: "scheduled" as const,
+      schedule: {
+        cadence: "daily" as const,
+        hourUtc: 8,
+        timezone: "UTC",
+      },
+    };
+
+    await createWorkspaceAutomation({
+      organizationId: scope.organizationId,
+      authorUserId: scope.userId,
+      name: "Due GitHub automation",
+      instructions: "Run GitHub automation first.",
+      repositoryTarget: {
+        kind: "github",
+        githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+      },
+      triggerConfig,
+      toolConfig: {
+        github: {
+          enabled: true,
+          projectId: scope.projectId,
+          pushSource: true,
+          pullTranslations: false,
+          validation: false,
+        },
+      },
+      nextRunAt: new Date("2026-06-01T08:00:00.000Z"),
+    });
+    const contentfulAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Due Contentful automation",
+        instructions: "Run Contentful automation second.",
+        triggerConfig,
+        toolConfig: {
+          contentful: {
+            enabled: true,
+            connectionId: crypto.randomUUID(),
+            projectId: scope.projectId,
+            sourceLocale: "en",
+            entryId: "entry-scheduled-1",
+            targetLocales: ["fr"],
+            contentTypeIds: [],
+            fieldMode: "auto",
+            overwriteDraftLocales: false,
+            runQa: true,
+            writeDrafts: true,
+          },
+        },
+        nextRunAt: new Date("2026-06-01T09:00:00.000Z"),
+      }),
+    );
+
+    const dueAutomations = await listDueContentfulWorkspaceAutomations({
+      now: new Date("2026-06-01T10:00:00.000Z"),
+      limit: 1,
+    });
+
+    expect(dueAutomations.map((automation) => automation.id)).toEqual([contentfulAutomation.id]);
   });
 
   it("only versions config-changing automation updates", async () => {

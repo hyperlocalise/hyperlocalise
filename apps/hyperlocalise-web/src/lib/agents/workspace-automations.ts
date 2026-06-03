@@ -16,7 +16,12 @@ export const workspaceAutomationRunStatusSchema = z.enum([
   "cancelled",
   "skipped",
 ]);
-export const workspaceAutomationRunTriggerSourceSchema = z.enum(["manual", "scheduled", "github"]);
+export const workspaceAutomationRunTriggerSourceSchema = z.enum([
+  "manual",
+  "scheduled",
+  "github",
+  "contentful",
+]);
 
 const branchPatternSchema = z
   .string()
@@ -27,7 +32,7 @@ const branchPatternSchema = z
 
 const triggerConfigSchema = z
   .object({
-    mode: z.enum(["manual", "scheduled", "github"]).default("manual"),
+    mode: z.enum(["manual", "scheduled", "github", "contentful"]).default("manual"),
     schedule: z
       .object({
         cadence: z.enum(["hourly", "daily", "weekly"]),
@@ -71,11 +76,37 @@ const emailToolConfigSchema = z
   })
   .default({ enabled: false });
 
+const contentfulToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    connectionId: z.string().uuid().optional(),
+    projectId: z.string().trim().min(1).optional(),
+    sourceLocale: z.string().trim().min(1).max(32).default("en"),
+    entryId: z.string().trim().min(1).max(256).optional(),
+    contentTypeIds: z.array(z.string().trim().min(1).max(128)).max(50).default([]),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+    fieldMode: z.enum(["auto", "configured"]).default("auto"),
+    overwriteDraftLocales: z.boolean().default(false),
+    runQa: z.boolean().default(true),
+    writeDrafts: z.boolean().default(true),
+  })
+  .default({
+    enabled: false,
+    sourceLocale: "en",
+    contentTypeIds: [],
+    targetLocales: [],
+    fieldMode: "auto",
+    overwriteDraftLocales: false,
+    runQa: true,
+    writeDrafts: true,
+  });
+
 const toolConfigSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
     slack: slackToolConfigSchema.optional(),
     email: emailToolConfigSchema.optional(),
+    contentful: contentfulToolConfigSchema.optional(),
   })
   .default({});
 
@@ -94,6 +125,7 @@ export type WorkspaceAutomationTriggerConfig = z.infer<typeof triggerConfigSchem
 export type WorkspaceAutomationRepositoryTarget = z.infer<typeof repositoryTargetSchema>;
 export type WorkspaceAutomationSlackToolConfig = z.infer<typeof slackToolConfigSchema>;
 export type WorkspaceAutomationEmailToolConfig = z.infer<typeof emailToolConfigSchema>;
+export type WorkspaceAutomationContentfulToolConfig = z.infer<typeof contentfulToolConfigSchema>;
 export type WorkspaceAutomationToolConfig = z.infer<typeof toolConfigSchema>;
 
 export type WorkspaceAutomationConfigValidationError =
@@ -111,8 +143,24 @@ export type WorkspaceAutomationConfigValidationError =
       message: "GitHub push triggers require at least one branch pattern.";
     }
   | {
-      code: "scheduled_github_workflow_required";
-      message: "Scheduled automations require at least one GitHub workflow.";
+      code: "scheduled_workflow_required";
+      message: "Scheduled automations require at least one GitHub or Contentful workflow.";
+    }
+  | {
+      code: "contentful_connection_required";
+      message: "Enabled Contentful tools require a Contentful connection.";
+    }
+  | {
+      code: "contentful_project_required";
+      message: "Enabled Contentful tools require a project.";
+    }
+  | {
+      code: "contentful_target_locales_required";
+      message: "Enabled Contentful tools require at least one target locale.";
+    }
+  | {
+      code: "contentful_entry_id_required";
+      message: "Scheduled Contentful automations require an entry ID.";
     }
   | {
       code: "slack_not_connected";
@@ -133,6 +181,12 @@ export type WorkspaceAutomationConfigValidationError =
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
 type AutomationRunRow = typeof schema.workspaceAutomationRuns.$inferSelect;
+
+export function hasWorkspaceAutomationContentfulWorkflow(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.contentful?.enabled);
+}
 
 export type WorkspaceAutomationRecord = {
   id: string;
@@ -218,12 +272,41 @@ function validateWorkspaceAutomationConfig(input: {
 
   if (
     input.triggerConfig.mode === "scheduled" &&
-    !hasWorkspaceAutomationGithubWorkflow(input.toolConfig)
+    !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
+    !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)
   ) {
     return err({
-      code: "scheduled_github_workflow_required",
-      message: "Scheduled automations require at least one GitHub workflow.",
+      code: "scheduled_workflow_required",
+      message: "Scheduled automations require at least one GitHub or Contentful workflow.",
     });
+  }
+
+  const contentfulTools = input.toolConfig.contentful;
+  if (contentfulTools?.enabled) {
+    if (!contentfulTools.connectionId) {
+      return err({
+        code: "contentful_connection_required",
+        message: "Enabled Contentful tools require a Contentful connection.",
+      });
+    }
+    if (!contentfulTools.projectId) {
+      return err({
+        code: "contentful_project_required",
+        message: "Enabled Contentful tools require a project.",
+      });
+    }
+    if (contentfulTools.targetLocales.length === 0) {
+      return err({
+        code: "contentful_target_locales_required",
+        message: "Enabled Contentful tools require at least one target locale.",
+      });
+    }
+    if (input.triggerConfig.mode === "scheduled" && !contentfulTools.entryId?.trim()) {
+      return err({
+        code: "contentful_entry_id_required",
+        message: "Scheduled Contentful automations require an entry ID.",
+      });
+    }
   }
 
   const slackTools = input.toolConfig.slack;
@@ -569,20 +652,52 @@ export async function getWorkspaceAutomationById(input: {
 export async function listWorkspaceAutomations(input: {
   organizationId: string;
   status?: WorkspaceAutomationStatus;
+  contentfulWebhookConnectionId?: string;
+  contentfulWebhookContentTypeId?: string | null;
   limit?: number;
   offset?: number;
 }): Promise<WorkspaceAutomationRecord[]> {
+  const contentfulContentTypeIdsJson =
+    input.contentfulWebhookContentTypeId != null && input.contentfulWebhookContentTypeId !== ""
+      ? JSON.stringify([input.contentfulWebhookContentTypeId])
+      : null;
+
+  const conditions = [
+    eq(schema.workspaceAutomations.organizationId, input.organizationId),
+    ...(input.status ? [eq(schema.workspaceAutomations.status, input.status)] : []),
+    ...(input.contentfulWebhookConnectionId
+      ? [
+          sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'contentful'`,
+          sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'enabled' = 'true'`,
+          sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'connectionId' = ${input.contentfulWebhookConnectionId}`,
+          ...(contentfulContentTypeIdsJson
+            ? [
+                sql`(
+                  jsonb_array_length(
+                    COALESCE(
+                      ${schema.workspaceAutomations.toolConfig}->'contentful'->'contentTypeIds',
+                      '[]'::jsonb
+                    )
+                  ) = 0
+                  OR ${schema.workspaceAutomations.toolConfig}->'contentful'->'contentTypeIds' @> ${contentfulContentTypeIdsJson}::jsonb
+                )`,
+              ]
+            : [
+                sql`jsonb_array_length(
+                  COALESCE(
+                    ${schema.workspaceAutomations.toolConfig}->'contentful'->'contentTypeIds',
+                    '[]'::jsonb
+                  )
+                ) = 0`,
+              ]),
+        ]
+      : []),
+  ];
+
   const rows = await db
     .select()
     .from(schema.workspaceAutomations)
-    .where(
-      input.status
-        ? and(
-            eq(schema.workspaceAutomations.organizationId, input.organizationId),
-            eq(schema.workspaceAutomations.status, input.status),
-          )
-        : eq(schema.workspaceAutomations.organizationId, input.organizationId),
-    )
+    .where(and(...conditions))
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 50)
     .offset(input.offset ?? 0);
@@ -631,6 +746,37 @@ export async function listDueWorkspaceAutomations(input: {
     automation: serializeAutomation(automation),
     repository,
   }));
+}
+
+export async function listDueContentfulWorkspaceAutomations(input: {
+  now?: Date;
+  limit?: number;
+}): Promise<WorkspaceAutomationRecord[]> {
+  const now = input.now ?? new Date();
+  const limit = input.limit ?? 100;
+
+  const rows = await db
+    .select()
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.status, "active"),
+        isNotNull(schema.workspaceAutomations.nextRunAt),
+        lte(schema.workspaceAutomations.nextRunAt, now),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'scheduled'`,
+        sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'enabled' = 'true'`,
+      ),
+    )
+    .orderBy(schema.workspaceAutomations.nextRunAt)
+    .limit(limit);
+
+  return rows
+    .map(serializeAutomation)
+    .filter(
+      (automation) =>
+        automation.triggerConfig.mode === "scheduled" &&
+        hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig),
+    );
 }
 
 export async function advanceWorkspaceAutomationNextRun(input: {

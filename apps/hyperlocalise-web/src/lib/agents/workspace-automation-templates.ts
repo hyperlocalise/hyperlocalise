@@ -32,6 +32,32 @@ export const WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES: Array<{
 
 export const WORKSPACE_AUTOMATION_TEMPLATES: WorkspaceAutomationTemplate[] = [
   {
+    id: "translate-contentful-article",
+    category: "popular",
+    name: "Translate Contentful article",
+    description:
+      "Translate updated Contentful help center articles, run QA, and write localized draft fields back for review.",
+    instructions: [
+      "Translate Contentful help center article updates into the configured target locales.",
+      "",
+      "Workflow:",
+      "- Read the updated entry and metadata from Contentful.",
+      "- Detect translatable title, body, SEO, tags, and CTA fields.",
+      "- Preserve placeholders, links, product terms, glossary terms, tone, and rich text structure.",
+      "- Run QA checks before writeback.",
+      "- Write localized fields back as Contentful drafts for review. Do not publish.",
+    ].join("\n"),
+    activatable: true,
+    defaultForm: {
+      name: "Translate Contentful article",
+      triggerMode: "contentful",
+      contentfulEnabled: true,
+      contentfulFieldMode: "auto",
+      contentfulRunQa: true,
+      contentfulWriteDrafts: true,
+    },
+  },
+  {
     id: "validate-localisation-on-push",
     category: "popular",
     name: "Validate localisation on push",
@@ -619,9 +645,11 @@ export function getWorkspaceAutomationTemplateFlow(
   const trigger: WorkspaceAutomationTemplateFlowNode =
     triggerMode === "github"
       ? { id: "github-push", label: "GitHub push" }
-      : triggerMode === "scheduled"
-        ? { id: "scheduled", label: scheduledTriggerLabel(form) }
-        : { id: "manual", label: "Manual" };
+      : triggerMode === "contentful"
+        ? { id: "contentful-webhook", label: "Contentful webhook" }
+        : triggerMode === "scheduled"
+          ? { id: "scheduled", label: scheduledTriggerLabel(form) }
+          : { id: "manual", label: "Manual" };
 
   const tools: WorkspaceAutomationTemplateFlowNode[] = [];
 
@@ -646,6 +674,10 @@ export function getWorkspaceAutomationTemplateFlow(
 
   if (form.emailEnabled) {
     tools.push({ id: "email", label: "Email" });
+  }
+
+  if (form.contentfulEnabled) {
+    tools.push({ id: "contentful", label: "Contentful" });
   }
 
   return { trigger, tools };

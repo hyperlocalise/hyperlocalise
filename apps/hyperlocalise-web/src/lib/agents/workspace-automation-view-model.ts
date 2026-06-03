@@ -9,7 +9,7 @@ import {
   type WorkspaceAutomationTemplate,
 } from "./workspace-automation-templates";
 
-export type WorkspaceAutomationTriggerMode = "manual" | "scheduled" | "github";
+export type WorkspaceAutomationTriggerMode = "manual" | "scheduled" | "github" | "contentful";
 
 export type WorkspaceAutomationFormState = {
   name: string;
@@ -32,6 +32,17 @@ export type WorkspaceAutomationFormState = {
   slackChannelId: string;
   emailEnabled: boolean;
   emailRecipients: string[];
+  contentfulEnabled: boolean;
+  contentfulConnectionId: string;
+  contentfulProjectId: string;
+  contentfulSourceLocale: string;
+  contentfulEntryId: string;
+  contentfulContentTypeIds: string[];
+  contentfulTargetLocales: string[];
+  contentfulFieldMode: "auto" | "configured";
+  contentfulOverwriteDraftLocales: boolean;
+  contentfulRunQa: boolean;
+  contentfulWriteDrafts: boolean;
 };
 
 export type WorkspaceAutomationFieldErrors = Partial<
@@ -44,6 +55,10 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "pushBranches"
     | "slackChannelId"
     | "emailRecipients"
+    | "contentfulConnectionId"
+    | "contentfulProjectId"
+    | "contentfulTargetLocales"
+    | "contentfulEntryId"
     | "form",
     string
   >
@@ -54,11 +69,16 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_project_required: "Choose a Hyperlocalise project for GitHub workflows.",
   github_trigger_required: "Choose a schedule or GitHub push trigger for GitHub workflows.",
   github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
-  scheduled_github_workflow_required: "Scheduled automations require at least one GitHub workflow.",
+  scheduled_workflow_required:
+    "Scheduled automations require at least one GitHub or Contentful workflow.",
   slack_not_connected: "Connect Slack in Integrations before enabling Slack notifications.",
   slack_channel_required: "Choose a Slack channel for notifications.",
   email_not_connected: "Enable the email agent in Integrations before using email notifications.",
   email_recipients_required: "Add at least one email recipient.",
+  contentful_connection_required: "Choose a Contentful connection.",
+  contentful_project_required: "Choose a Hyperlocalise project for Contentful translation.",
+  contentful_target_locales_required: "Add at least one target locale for Contentful translation.",
+  contentful_entry_id_required: "Scheduled Contentful automations need an entry ID.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
@@ -86,6 +106,17 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     slackChannelId: "",
     emailEnabled: false,
     emailRecipients: [],
+    contentfulEnabled: false,
+    contentfulConnectionId: "",
+    contentfulProjectId: "",
+    contentfulSourceLocale: "en",
+    contentfulEntryId: "",
+    contentfulContentTypeIds: [],
+    contentfulTargetLocales: [],
+    contentfulFieldMode: "auto",
+    contentfulOverwriteDraftLocales: false,
+    contentfulRunQa: true,
+    contentfulWriteDrafts: true,
   };
 }
 
@@ -95,6 +126,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const github = automation.toolConfig.github;
   const slack = automation.toolConfig.slack;
   const email = automation.toolConfig.email;
+  const contentful = automation.toolConfig.contentful;
 
   return {
     name: automation.name,
@@ -133,6 +165,17 @@ export function createWorkspaceAutomationFormStateFromRecord(
     slackChannelId: slack?.channelId ?? "",
     emailEnabled: Boolean(email?.enabled),
     emailRecipients: email?.recipients ? [...email.recipients] : [],
+    contentfulEnabled: Boolean(contentful?.enabled),
+    contentfulConnectionId: contentful?.connectionId ?? "",
+    contentfulProjectId: contentful?.projectId ?? "",
+    contentfulSourceLocale: contentful?.sourceLocale ?? "en",
+    contentfulEntryId: contentful?.entryId ?? "",
+    contentfulContentTypeIds: contentful?.contentTypeIds ? [...contentful.contentTypeIds] : [],
+    contentfulTargetLocales: contentful?.targetLocales ? [...contentful.targetLocales] : [],
+    contentfulFieldMode: contentful?.fieldMode ?? "auto",
+    contentfulOverwriteDraftLocales: Boolean(contentful?.overwriteDraftLocales),
+    contentfulRunQa: contentful?.runQa ?? true,
+    contentfulWriteDrafts: contentful?.writeDrafts ?? true,
   };
 }
 
@@ -161,6 +204,10 @@ export function applyTemplateToWorkspaceAutomationFormState(
     instructions: template.defaultForm.instructions ?? template.instructions,
     pushBranches: template.defaultForm.pushBranches ?? base.pushBranches,
     emailRecipients: template.defaultForm.emailRecipients ?? base.emailRecipients,
+    contentfulContentTypeIds:
+      template.defaultForm.contentfulContentTypeIds ?? base.contentfulContentTypeIds,
+    contentfulTargetLocales:
+      template.defaultForm.contentfulTargetLocales ?? base.contentfulTargetLocales,
   };
 }
 
@@ -188,7 +235,9 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
             mode: "github",
             branches: form.pushBranches,
           }
-        : { mode: "manual" };
+        : form.triggerMode === "contentful"
+          ? { mode: "contentful" }
+          : { mode: "manual" };
 
   const repositoryTarget: WorkspaceAutomationRepositoryTarget =
     form.githubEnabled && form.githubInstallationRepositoryId
@@ -223,6 +272,23 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           email: {
             enabled: true,
             recipients: form.emailRecipients,
+          },
+        }
+      : {}),
+    ...(form.contentfulEnabled
+      ? {
+          contentful: {
+            enabled: true,
+            connectionId: form.contentfulConnectionId || undefined,
+            projectId: form.contentfulProjectId || undefined,
+            sourceLocale: form.contentfulSourceLocale.trim() || "en",
+            entryId: form.contentfulEntryId.trim() || undefined,
+            contentTypeIds: form.contentfulContentTypeIds,
+            targetLocales: form.contentfulTargetLocales,
+            fieldMode: form.contentfulFieldMode,
+            overwriteDraftLocales: form.contentfulOverwriteDraftLocales,
+            runQa: form.contentfulRunQa,
+            writeDrafts: form.contentfulWriteDrafts,
           },
         }
       : {}),
@@ -277,6 +343,21 @@ export function validateWorkspaceAutomationFormState(
     errors.emailRecipients = "Add at least one email recipient.";
   }
 
+  if (form.contentfulEnabled) {
+    if (!form.contentfulConnectionId) {
+      errors.contentfulConnectionId = "Choose a Contentful connection.";
+    }
+    if (!form.contentfulProjectId.trim()) {
+      errors.contentfulProjectId = "Choose a Hyperlocalise project.";
+    }
+    if (form.contentfulTargetLocales.length === 0) {
+      errors.contentfulTargetLocales = "Add at least one target locale.";
+    }
+    if (form.triggerMode === "scheduled" && !form.contentfulEntryId.trim()) {
+      errors.contentfulEntryId = "Scheduled Contentful automations need an entry ID.";
+    }
+  }
+
   return errors;
 }
 
@@ -297,7 +378,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "project_not_found":
       return { githubProjectId: message };
     case "github_trigger_required":
-    case "scheduled_github_workflow_required":
+    case "scheduled_workflow_required":
       return { trigger: message };
     case "github_push_branches_required":
       return { pushBranches: message };
@@ -307,11 +388,19 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "email_not_connected":
     case "email_recipients_required":
       return { emailRecipients: message };
+    case "contentful_connection_required":
+      return { contentfulConnectionId: message };
+    case "contentful_project_required":
+      return { contentfulProjectId: message };
+    case "contentful_target_locales_required":
+      return { contentfulTargetLocales: message };
+    case "contentful_entry_id_required":
+      return { contentfulEntryId: message };
     default:
       return { form: message };
   }
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {
-  return form.githubEnabled || form.slackEnabled || form.emailEnabled;
+  return form.githubEnabled || form.slackEnabled || form.emailEnabled || form.contentfulEnabled;
 }
