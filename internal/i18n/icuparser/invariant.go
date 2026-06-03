@@ -127,18 +127,38 @@ func normalizeMustachePlaceholders(s string) string {
 
 	for i := 0; i < len(s); {
 		if i+3 < len(s) && s[i] == '{' && s[i+1] == '{' {
-			j := i + 2
+			isTriple := i+2 < len(s) && s[i+2] == '{'
+			startOffset := 2
+			if isTriple {
+				startOffset = 3
+			}
+
+			j := i + startOffset
 			for j < len(s) && s[j] != '}' {
 				j++
 			}
-			if j+1 < len(s) && s[j] == '}' && s[j+1] == '}' {
-				name := strings.TrimSpace(s[i+2 : j])
+
+			braceCount := 2
+			if isTriple {
+				braceCount = 3
+			}
+
+			match := true
+			for k := 0; k < braceCount; k++ {
+				if j+k >= len(s) || s[j+k] != '}' {
+					match = false
+					break
+				}
+			}
+
+			if match {
+				name := strings.TrimSpace(s[i+braceCount : j])
 				if isPlaceholderName(name) {
 					// Convert moustache placeholders to ICU-style arguments for fallback parsing.
 					b.WriteByte('{')
 					b.WriteString(name)
 					b.WriteByte('}')
-					i = j + 2
+					i = j + braceCount
 					continue
 				}
 			}

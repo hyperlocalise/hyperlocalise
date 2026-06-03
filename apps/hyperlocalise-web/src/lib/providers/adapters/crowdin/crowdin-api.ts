@@ -550,14 +550,23 @@ export class CrowdinApiClient {
     projectId: number,
     fileId?: number,
     stringIds?: number[],
+    options?: { maxItems?: number },
   ): Promise<CrowdinSourceString[]> {
     const strings: CrowdinSourceString[] = [];
     let offset = 0;
     const limit = 500;
 
     while (true) {
+      const pageLimit =
+        options?.maxItems !== undefined
+          ? Math.min(limit, Math.max(options.maxItems - strings.length, 0))
+          : limit;
+      if (pageLimit === 0) {
+        break;
+      }
+
       const params = new URLSearchParams({
-        limit: String(limit),
+        limit: String(pageLimit),
         offset: String(offset),
       });
       if (fileId !== undefined) {
@@ -573,11 +582,11 @@ export class CrowdinApiClient {
       const page = response.data.map((item) => item.data);
       strings.push(...page);
 
-      if (page.length < limit) {
+      if (page.length < pageLimit || strings.length === options?.maxItems) {
         break;
       }
 
-      offset += limit;
+      offset += pageLimit;
     }
 
     return strings;
