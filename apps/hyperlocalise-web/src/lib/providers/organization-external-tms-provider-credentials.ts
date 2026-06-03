@@ -411,6 +411,37 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
   return credential;
 }
 
+type CredentialCryptoFields = Pick<
+  ExternalTmsCredential,
+  "encryptionAlgorithm" | "keyVersion" | "ciphertext" | "iv" | "authTag"
+>;
+
+function decryptCrowdinOAuthTokenBundle(
+  credential: CredentialCryptoFields,
+): CrowdinOAuthTokenBundle {
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+    }),
+  );
+  const parsed = crowdinOAuthTokenBundleSchema.safeParse(safeJsonParse(secretMaterial));
+  if (!parsed.success) {
+    throw new Error("crowdin_oauth_token_invalid");
+  }
+
+  return parsed.data;
+}
+
+function isCrowdinOAuthAccessTokenFresh(tokenBundle: CrowdinOAuthTokenBundle) {
+  return (
+    new Date(tokenBundle.expiresAt).getTime() - Date.now() > CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS
+  );
+}
+
 export async function resolveExternalTmsSecretMaterial(input: {
   credential: ExternalTmsCredential;
   fetchFn?: typeof fetch;
@@ -432,38 +463,57 @@ export async function resolveExternalTmsSecretMaterial(input: {
     return secretMaterial;
   }
 
-  const parsed = crowdinOAuthTokenBundleSchema.safeParse(safeJsonParse(secretMaterial));
-  if (!parsed.success) {
-    throw new Error("crowdin_oauth_token_invalid");
+  const tokenBundle = decryptCrowdinOAuthTokenBundle(input.credential);
+  if (isCrowdinOAuthAccessTokenFresh(tokenBundle)) {
+    return tokenBundle.accessToken;
   }
 
-  const expiresAt = new Date(parsed.data.expiresAt).getTime();
-  if (expiresAt - Date.now() > CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS) {
-    return parsed.data.accessToken;
-  }
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${[
+        "crowdin_oauth_refresh",
+        input.credential.id,
+      ].join(":")}, 0))`,
+    );
 
-  const refreshed = await refreshCrowdinOAuthToken({
-    tokenBundle: parsed.data,
-    fetchFn: input.fetchFn,
+    const [freshCredential] = await tx
+      .select()
+      .from(schema.organizationExternalTmsProviderCredentials)
+      .where(eq(schema.organizationExternalTmsProviderCredentials.id, input.credential.id))
+      .limit(1);
+
+    if (!freshCredential) {
+      throw new Error("provider_credential_not_found");
+    }
+
+    const lockedTokenBundle = decryptCrowdinOAuthTokenBundle(freshCredential);
+    if (isCrowdinOAuthAccessTokenFresh(lockedTokenBundle)) {
+      return lockedTokenBundle.accessToken;
+    }
+
+    const refreshed = await refreshCrowdinOAuthToken({
+      tokenBundle: lockedTokenBundle,
+      fetchFn: input.fetchFn,
+    });
+    const encrypted = unwrapProviderCredentialCrypto(
+      encryptProviderCredential(JSON.stringify(refreshed)),
+    );
+
+    await tx
+      .update(schema.organizationExternalTmsProviderCredentials)
+      .set({
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        encryptionAlgorithm: encrypted.algorithm,
+        keyVersion: encrypted.keyVersion,
+        oauthExpiresAt: new Date(refreshed.expiresAt),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.organizationExternalTmsProviderCredentials.id, input.credential.id));
+
+    return refreshed.accessToken;
   });
-  const encrypted = unwrapProviderCredentialCrypto(
-    encryptProviderCredential(JSON.stringify(refreshed)),
-  );
-
-  await db
-    .update(schema.organizationExternalTmsProviderCredentials)
-    .set({
-      ciphertext: encrypted.ciphertext,
-      iv: encrypted.iv,
-      authTag: encrypted.authTag,
-      encryptionAlgorithm: encrypted.algorithm,
-      keyVersion: encrypted.keyVersion,
-      oauthExpiresAt: new Date(refreshed.expiresAt),
-      updatedAt: new Date(),
-    })
-    .where(eq(schema.organizationExternalTmsProviderCredentials.id, input.credential.id));
-
-  return refreshed.accessToken;
 }
 
 async function refreshCrowdinOAuthToken(input: {

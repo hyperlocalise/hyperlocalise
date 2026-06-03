@@ -28,6 +28,7 @@ export type ExternalTmsJobTaskMetadata = {
   dueDate?: Date | string | null;
   targetLocales?: string[];
   assignedUsers?: string[];
+  completedAt?: Date | string | null;
   externalUrl?: string | null;
   providerPayload?: Record<string, unknown>;
   kind?: JobKind;

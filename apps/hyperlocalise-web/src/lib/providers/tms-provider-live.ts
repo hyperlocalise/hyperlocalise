@@ -251,6 +251,18 @@ function mapLiveProject(
   };
 }
 
+function normalizeExternalTimestamp(value: Date | string | null | undefined): string | null {
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return value;
+  }
+
+  return null;
+}
+
 function mapLiveJob(input: {
   providerKind: ExternalTmsProviderKind;
   externalProjectId: string;
@@ -285,7 +297,10 @@ function mapLiveJob(input: {
     status,
     createdAt: timestamp,
     updatedAt: timestamp,
-    completedAt: status === "succeeded" || status === "failed" ? timestamp : null,
+    completedAt:
+      status === "succeeded" || status === "failed"
+        ? normalizeExternalTimestamp(input.task.completedAt)
+        : null,
     workflowRunId: null,
     lastError: null,
     inputPayload: null,
