@@ -76,7 +76,7 @@ function SheetContent({
                 />
               }
             />
-            <TooltipContent side="bottom" align="center">
+            <TooltipContent side="bottom" align="end">
               Close
             </TooltipContent>
           </Tooltip>
