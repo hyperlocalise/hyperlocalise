@@ -7,6 +7,7 @@ import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 function Sheet({ ...props }: SheetPrimitive.Root.Props) {
   return <SheetPrimitive.Root data-slot="sheet" {...props} />;
@@ -61,15 +62,24 @@ function SheetContent({
       >
         {children}
         {showCloseButton && (
-          <SheetPrimitive.Close
-            data-slot="sheet-close"
-            render={
-              <Button variant="ghost" className="absolute top-4 end-4" size="icon-sm">
-                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-                <span className="sr-only">Close</span>
-              </Button>
-            }
-          />
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <SheetPrimitive.Close
+                  data-slot="sheet-close"
+                  render={
+                    <Button variant="ghost" className="absolute top-4 end-4" size="icon-sm">
+                      <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                      <span className="sr-only">Close</span>
+                    </Button>
+                  }
+                />
+              }
+            />
+            <TooltipContent side="bottom" align="center">
+              Close
+            </TooltipContent>
+          </Tooltip>
         )}
       </SheetPrimitive.Popup>
     </SheetPortal>

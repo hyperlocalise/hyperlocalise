@@ -7,6 +7,7 @@ import { cn } from "@/lib/primitives/cn";
 import { Button } from "@/components/ui/button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Cancel01Icon } from "@hugeicons/core-free-icons";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 function Dialog({ ...props }: DialogPrimitive.Root.Props) {
   return <DialogPrimitive.Root data-slot="dialog" {...props} />;
@@ -58,15 +59,24 @@ function DialogContent({
       >
         {children}
         {showCloseButton && (
-          <DialogPrimitive.Close
-            data-slot="dialog-close"
-            render={
-              <Button variant="ghost" className="absolute top-4 end-4" size="icon-sm">
-                <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
-                <span className="sr-only">Close</span>
-              </Button>
-            }
-          />
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <DialogPrimitive.Close
+                  data-slot="dialog-close"
+                  render={
+                    <Button variant="ghost" className="absolute top-4 end-4" size="icon-sm">
+                      <HugeiconsIcon icon={Cancel01Icon} strokeWidth={2} />
+                      <span className="sr-only">Close</span>
+                    </Button>
+                  }
+                />
+              }
+            />
+            <TooltipContent side="bottom" align="center">
+              Close
+            </TooltipContent>
+          </Tooltip>
         )}
       </DialogPrimitive.Popup>
     </DialogPortal>

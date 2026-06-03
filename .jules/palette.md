@@ -21,3 +21,7 @@
 ## 2026-06-01 - [Dynamic Sidebar Labels & Structural Consistency]
 **Learning:** In `apps/hyperlocalise-web`, toggle controls like `SidebarTrigger` should use dynamic ARIA labels and tooltips (e.g., 'Expand Sidebar' / 'Collapse Sidebar') to reflect the interface state. Additionally, when using `@base-ui/react` primitives with a `render` prop, nesting children inside the rendered component is necessary for correct accessibility prop forwarding and event delegation.
 **Action:** Always synchronize toggle labels with state and ensure children of `render` prop components are nested within those components.
+
+## 2026-06-03 - [Tooltip Coverage for Portaled Close Buttons]
+**Learning:** In `apps/hyperlocalise-web`, icon-only close buttons within `Dialog` and `Sheet` components were missing tooltips. Standardizing these with `Tooltip` components improves discoverability. When testing these components with `renderToStaticMarkup`, note that content rendered inside Portals (like `DialogContent` or `SheetContent`) will not be captured in the output as they are teleported out of the static tree.
+**Action:** Consistently wrap icon-only close buttons in `Tooltip` using the `render` prop pattern and use E2E tests (Playwright) or full DOM rendering for verification of portaled content.
