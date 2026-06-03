@@ -183,11 +183,10 @@ describe("agentSlackRoutes", () => {
     });
     expect(mocks.getInstallationMock).toHaveBeenCalledWith("T123");
     expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringContaining("slack.com/api/conversations.list"),
       expect.objectContaining({
-        pathname: "/api/conversations.list",
-      }),
-      expect.objectContaining({
-        headers: { authorization: "Bearer xoxb-token" },
+        headers: expect.objectContaining({ authorization: "Bearer xoxb-token" }),
+        redirect: "error",
       }),
     );
   });

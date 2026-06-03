@@ -59,6 +59,15 @@ export function workspaceAutomationToGithubSettings(
 function resolveGithubTriggerFromWorkspaceTrigger(
   triggerConfig: WorkspaceAutomationTriggerConfig,
 ): GithubRepositoryAutomationSettings["trigger"] {
+  if (triggerConfig.mode === "manual") {
+    return {
+      mode: "scheduled",
+      cadence: "daily",
+      hourUtc: 0,
+      timezone: "UTC",
+    };
+  }
+
   if (triggerConfig.mode === "scheduled" && triggerConfig.schedule) {
     return {
       mode: "scheduled",

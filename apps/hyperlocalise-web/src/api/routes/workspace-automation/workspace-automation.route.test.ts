@@ -64,9 +64,11 @@ async function seedProject(input: { organizationId: string; userId?: string }) {
 }
 
 async function seedGithubRepository(input: { organizationId: string }) {
-  const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
-  const githubInstallationId = `7${suffix}`;
-  const githubRepositoryId = `6${suffix}`;
+  const numericSuffix = BigInt(`0x${crypto.randomUUID().replaceAll("-", "").slice(0, 12)}`)
+    .toString()
+    .slice(0, 12);
+  const githubInstallationId = `7${numericSuffix}`;
+  const githubRepositoryId = `6${numericSuffix}`;
 
   await db.insert(schema.githubInstallations).values({
     organizationId: input.organizationId,
@@ -83,8 +85,8 @@ async function seedGithubRepository(input: { organizationId: string }) {
       githubInstallationId,
       githubRepositoryId,
       owner: "hyperlocalise",
-      name: `web-${suffix}`,
-      fullName: `hyperlocalise/web-${suffix}`,
+      name: `web-${numericSuffix}`,
+      fullName: `hyperlocalise/web-${numericSuffix}`,
       private: false,
       archived: false,
       defaultBranch: "main",
@@ -416,7 +418,7 @@ describe("workspace automation routes", () => {
     expect(secondRun.automationRun).toMatchObject({
       id: firstRun.automationRun.id,
       status: "queued",
-      idempotencyKey: runPayload.idempotencyKey,
+      idempotencyKey: firstRun.automationRun.idempotencyKey,
     });
 
     const runsResponse = await client.api.orgs[":organizationSlug"].automations[

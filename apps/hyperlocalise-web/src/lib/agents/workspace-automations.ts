@@ -205,13 +205,6 @@ function validateWorkspaceAutomationConfig(input: {
       });
     }
 
-    if (input.triggerConfig.mode === "manual") {
-      return err({
-        code: "github_trigger_required",
-        message: "Enabled GitHub tools require a scheduled or GitHub push trigger.",
-      });
-    }
-
     if (
       input.triggerConfig.mode === "github" &&
       (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)

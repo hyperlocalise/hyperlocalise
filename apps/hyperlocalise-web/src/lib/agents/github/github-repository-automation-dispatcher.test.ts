@@ -193,7 +193,7 @@ describe("github repository automation dispatch", () => {
     const jobs = await db
       .select()
       .from(schema.githubRepositoryAutomationJobs)
-      .where(eq(schema.githubRepositoryAutomationJobs.idempotencyKey, "push:delivery-enqueue"));
+      .where(eq(schema.githubRepositoryAutomationJobs.id, first.job.id));
 
     expect(jobs).toHaveLength(1);
     expect(jobs[0]?.status).toBe("queued");

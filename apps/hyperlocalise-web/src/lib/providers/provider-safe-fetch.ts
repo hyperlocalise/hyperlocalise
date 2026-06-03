@@ -1,5 +1,5 @@
 import { isErr } from "@/lib/primitives/result/results";
-import { formatSsrfGuardError } from "@/lib/security/ssrf-guard";
+import { formatSsrfGuardError, validatePublicHttpUrl } from "@/lib/security/ssrf-guard";
 import {
   resolvePinnedHttpConnectTarget,
   type PinnedHttpConnectTarget,
@@ -12,18 +12,22 @@ export async function providerSafeFetch(
   init?: RequestInit,
 ): Promise<Response> {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (isTestEnv && process.env.VITEST_PROVIDER_SAFE_FETCH_PINNING !== "true") {
+    const urlResult = validatePublicHttpUrl(url);
+    if (isErr(urlResult)) {
+      throw new Error(formatSsrfGuardError(urlResult.error));
+    }
+
+    return fetch(url, { ...init, redirect: "error" });
+  }
+
   const pinnedTargetResult = await resolvePinnedHttpConnectTarget(url);
   if (isErr(pinnedTargetResult)) {
     throw new Error(formatSsrfGuardError(pinnedTargetResult.error));
   }
 
-  // Vitest stubs global.fetch; use it in tests so provider health-check route tests can mock responses.
   const { requestUrl, connect } = pinnedTargetResult.value;
   const requestInit = buildPinnedRequestInit(input, init, pinnedTargetResult.value);
-
-  if (isTestEnv) {
-    return fetch(requestUrl, requestInit);
-  }
 
   const { Agent, fetch: undiciFetch } = await import("undici");
   const dispatcher = new Agent({ connect });

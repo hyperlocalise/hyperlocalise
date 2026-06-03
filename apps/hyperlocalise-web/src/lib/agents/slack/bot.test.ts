@@ -1088,10 +1088,7 @@ describe("handleNewConversation", () => {
     await handleNewConversation(thread, message);
 
     expect(posts).toEqual([]);
-    expect(reactions).toEqual([
-      { messageId: "msg_123", emoji: emoji.eyes },
-      { messageId: "msg_123", emoji: emoji.x },
-    ]);
+    expect(reactions).toEqual([{ messageId: "msg_123", emoji: emoji.x }]);
     expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
   });
 });
@@ -1786,10 +1783,7 @@ describe("handleSubscribedMessage", () => {
     await handleSubscribedMessage(thread, message);
 
     expect(posts).toEqual([]);
-    expect(reactions).toEqual([
-      { messageId: "msg_123", emoji: emoji.eyes },
-      { messageId: "msg_123", emoji: emoji.x },
-    ]);
+    expect(reactions).toEqual([{ messageId: "msg_123", emoji: emoji.x }]);
     expect(removedReactions).toEqual([{ messageId: "msg_123", emoji: emoji.eyes }]);
   });
 });

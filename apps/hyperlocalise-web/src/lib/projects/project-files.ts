@@ -124,14 +124,9 @@ export async function listProjectFilesForProject(input: {
   providerFilters?: ProjectFileFilterQuery;
   resourceTypes?: ExternalTmsResourceType[];
 }) {
-  const shouldLoadRepositoryFiles =
-    !input.providerFilters?.origin ||
-    input.providerFilters.origin === "all" ||
-    input.providerFilters.origin === "repository";
-  const shouldLoadProviderFiles =
-    !input.providerFilters?.origin ||
-    input.providerFilters.origin === "all" ||
-    input.providerFilters.origin === "provider";
+  // Load both sources so repository/provider rows can merge into combined entries before origin filtering.
+  const shouldLoadRepositoryFiles = true;
+  const shouldLoadProviderFiles = true;
   const repositorySearch = input.providerFilters?.search?.trim();
 
   const versionsSubquery = db

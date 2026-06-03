@@ -193,16 +193,7 @@ function githubRepositoryAutomationJobMatchesClaim(
     return false;
   }
 
-  if (!input.workflows) {
-    return true;
-  }
-
-  const existingWorkflows = normalizeJobWorkflows(existing.workflows);
-  return (
-    existingWorkflows.pushSource === input.workflows.pushSource &&
-    existingWorkflows.pullTranslations === input.workflows.pullTranslations &&
-    existingWorkflows.validation === input.workflows.validation
-  );
+  return true;
 }
 
 export async function getGithubRepositoryAutomationJobById(
