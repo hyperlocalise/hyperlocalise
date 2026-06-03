@@ -278,11 +278,11 @@ export const env = createEnv({
     TMS_PROVIDER_SHELL_MODE:
       process.env.TMS_PROVIDER_SHELL_MODE ??
       process.env.NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE ??
-      "false",
+      "true",
     NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE:
       process.env.NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE ??
       process.env.TMS_PROVIDER_SHELL_MODE ??
-      "false",
+      "true",
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),

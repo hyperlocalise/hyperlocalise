@@ -12,10 +12,11 @@ import {
   SaveIcon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
-import { ChevronDownIcon, EyeIcon, EyeOffIcon, SearchIcon } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
-import { siAnthropic, siCrowdin, siGooglegemini } from "simple-icons";
+import { siAnthropic, siContentful, siCrowdin, siGooglegemini } from "simple-icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -303,6 +304,45 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
     comingSoon: true,
   },
 ] as const;
+
+const contentfulIntegration = {
+  name: "Contentful",
+  icon: siContentful,
+  detail: "CMS connector for agentic article translation and draft writeback.",
+} as const;
+
+type ContentfulConnectionSummary = {
+  id: string;
+  displayName: string;
+  projectId: string;
+  spaceId: string;
+  environmentId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  contentTypeIds: string[];
+  validationStatus: string;
+  validationMessage: string | null;
+  maskedTokenSuffix: string;
+  webhook: {
+    id: string;
+    status: string;
+    url: string | null;
+    lastDeliveryId: string | null;
+    lastDeliveredAt: string | null;
+    lastError: string | null;
+  } | null;
+};
+
+type ContentfulConnectionForm = {
+  displayName: string;
+  projectId: string;
+  spaceId: string;
+  environmentId: string;
+  sourceLocale: string;
+  targetLocales: string;
+  contentTypeIds: string;
+  accessToken: string;
+};
 
 function useProviderCredential(organizationSlug: string) {
   return useQuery({
@@ -637,6 +677,235 @@ function TmsIntegrationRow({
   );
 }
 
+function CmsIntegrationRow({
+  connection,
+  userIsAdmin,
+  expanded,
+  onExpandedChange,
+  children,
+}: {
+  connection?: ContentfulConnectionSummary;
+  userIsAdmin: boolean;
+  expanded: boolean;
+  onExpandedChange: (expanded: boolean) => void;
+  children?: ReactNode;
+}) {
+  const isConnected = Boolean(connection);
+
+  return (
+    <Collapsible
+      open={userIsAdmin && expanded}
+      onOpenChange={onExpandedChange}
+      className="border-b border-border last:border-b-0"
+    >
+      <div
+        className={cn(
+          "flex items-center gap-4 px-5 py-4 transition-colors",
+          "hover:bg-muted/20",
+          expanded && "bg-muted/20",
+        )}
+      >
+        <div
+          className={cn(
+            "flex size-10 shrink-0 items-center justify-center rounded-lg border border-border p-2",
+            isConnected
+              ? "border-border bg-muted text-foreground"
+              : "border-border bg-muted/50 text-muted-foreground",
+          )}
+        >
+          <SimpleBrandIcon icon={contentfulIntegration.icon} colored={isConnected} />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-base font-medium text-foreground">{contentfulIntegration.name}</p>
+            {connection ? (
+              <Badge
+                variant="outline"
+                className={toneClass(tmsHealthTone(connection.validationStatus))}
+              >
+                <HugeiconsIcon
+                  icon={
+                    connection.validationStatus === "connected"
+                      ? CheckmarkCircle02Icon
+                      : Alert02Icon
+                  }
+                  strokeWidth={1.8}
+                />
+                {tmsHealthLabel(connection.validationStatus)}
+              </Badge>
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-sm leading-6 text-muted-foreground">
+            {contentfulIntegration.detail}
+          </p>
+        </div>
+
+        <div className="shrink-0">
+          {userIsAdmin ? (
+            <CollapsibleTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className={isConnected ? undefined : integrationConnectButtonClassName}
+                >
+                  {isConnected ? "Manage" : "Connect"}
+                  <ChevronDownIcon
+                    className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+                    strokeWidth={2}
+                  />
+                </Button>
+              }
+            />
+          ) : isConnected ? (
+            <Badge variant="outline">View only</Badge>
+          ) : (
+            <span className="text-sm text-muted-foreground">Admins can connect</span>
+          )}
+        </div>
+      </div>
+
+      {userIsAdmin ? (
+        <CollapsibleContent className={cn("border-t px-5 py-5", "border-border bg-muted/20")}>
+          {children}
+        </CollapsibleContent>
+      ) : null}
+    </Collapsible>
+  );
+}
+
+function CrowdinOAuthSetupFields({
+  crowdinRedirectUri,
+  redirectUriFieldId,
+  redirectUriCopied,
+  onCopyRedirectUri,
+  oauthClientIdFieldId,
+  oauthClientId,
+  onOauthClientIdChange,
+  oauthClientSecretFieldId,
+  oauthClientSecret,
+  onOauthClientSecretChange,
+  showSecret,
+  onToggleShowSecret,
+}: {
+  crowdinRedirectUri: string;
+  redirectUriFieldId: string;
+  redirectUriCopied: boolean;
+  onCopyRedirectUri: () => void;
+  oauthClientIdFieldId: string;
+  oauthClientId: string;
+  onOauthClientIdChange: (value: string) => void;
+  oauthClientSecretFieldId: string;
+  oauthClientSecret: string;
+  onOauthClientSecretChange: (value: string) => void;
+  showSecret: boolean;
+  onToggleShowSecret: () => void;
+}) {
+  return (
+    <>
+      <Field className="gap-2">
+        <FieldLabel htmlFor={redirectUriFieldId}>OAuth callback URL</FieldLabel>
+        <InputGroup className="h-10 bg-muted/30">
+          <InputGroupInput
+            id={redirectUriFieldId}
+            readOnly
+            tabIndex={-1}
+            value={crowdinRedirectUri}
+            aria-label="OAuth callback URL"
+            className="truncate text-sm cursor-default"
+          />
+          <InputGroupAddon align="inline-end">
+            <Tooltip>
+              <TooltipTrigger
+                render={
+                  <InputGroupButton
+                    variant="ghost"
+                    size="icon-sm"
+                    onClick={onCopyRedirectUri}
+                    disabled={!crowdinRedirectUri}
+                    aria-label={
+                      redirectUriCopied ? "Copied OAuth callback URL" : "Copy OAuth callback URL"
+                    }
+                  >
+                    <HugeiconsIcon
+                      icon={redirectUriCopied ? Tick02Icon : Copy01Icon}
+                      strokeWidth={1.8}
+                    />
+                  </InputGroupButton>
+                }
+              />
+              <TooltipContent>
+                {redirectUriCopied ? "Copied!" : "Copy OAuth callback URL"}
+              </TooltipContent>
+            </Tooltip>
+          </InputGroupAddon>
+        </InputGroup>
+      </Field>
+
+      <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
+        <div>
+          <p className="text-sm font-medium text-foreground">Required OAuth scopes</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">
+            In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same
+            list when you connect Crowdin.
+          </p>
+        </div>
+        <ul className="space-y-2">
+          {CROWDIN_OAUTH_SCOPE_GUIDE.map((entry) => (
+            <li key={entry.scope} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+              <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
+                {entry.scope}
+              </code>
+              <span className="text-sm leading-6 text-muted-foreground">{entry.description}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      <Field className="gap-2">
+        <FieldLabel htmlFor={oauthClientIdFieldId}>OAuth client ID</FieldLabel>
+        <Input
+          id={oauthClientIdFieldId}
+          value={oauthClientId}
+          onChange={(event) => onOauthClientIdChange(event.target.value)}
+          autoComplete="off"
+          placeholder="Crowdin OAuth App client ID"
+        />
+      </Field>
+
+      <Field className="gap-2">
+        <FieldLabel htmlFor={oauthClientSecretFieldId}>OAuth client secret</FieldLabel>
+        <div className="relative">
+          <HugeiconsIcon
+            icon={Key01Icon}
+            strokeWidth={1.8}
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+          />
+          <Input
+            id={oauthClientSecretFieldId}
+            type={showSecret ? "text" : "password"}
+            autoComplete="off"
+            value={oauthClientSecret}
+            onChange={(event) => onOauthClientSecretChange(event.target.value)}
+            placeholder="Crowdin OAuth App client secret"
+            className="ps-9 pe-9"
+          />
+          <button
+            type="button"
+            onClick={onToggleShowSecret}
+            className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
+            aria-label={showSecret ? "Hide secret" : "Show secret"}
+          >
+            {showSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
+          </button>
+        </div>
+      </Field>
+    </>
+  );
+}
+
 type TmsProviderCredentialPanelProps = {
   providerKind: ExternalTmsProviderKind;
   providerName: string;
@@ -737,8 +1006,14 @@ function TmsProviderCredentialPanel({
     }, 2000);
   };
 
+  const isCrowdinOAuthConnected = isCrowdin && credential?.authMode === "oauth";
+  const [crowdinReconnectOpen, setCrowdinReconnectOpen] = useState(false);
+  const showCrowdinOAuthSetupFields = !isCrowdinOAuthConnected || crowdinReconnectOpen;
+
   const canSubmit = isCrowdin
-    ? Boolean(displayName.trim() && oauthClientId.trim() && oauthClientSecret.trim())
+    ? isCrowdinOAuthConnected && !crowdinReconnectOpen
+      ? false
+      : Boolean(displayName.trim() && oauthClientId.trim() && oauthClientSecret.trim())
     : Boolean(displayName.trim() && secret.trim());
 
   return (
@@ -749,18 +1024,33 @@ function TmsProviderCredentialPanel({
         onSave();
       }}
     >
-      {isCrowdin ? (
+      {isCrowdin && isCrowdinOAuthConnected ? (
+        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+          <p className="font-medium text-foreground">Crowdin is connected via OAuth</p>
+          <p className="leading-6 text-muted-foreground">
+            Access and refresh tokens are stored encrypted. Projects, jobs, glossaries, and
+            translation memories load live from Crowdin when you open those pages.
+          </p>
+          {credential.oauthExpiresAt ? (
+            <p className="text-xs text-muted-foreground">
+              Access token expires {new Date(credential.oauthExpiresAt).toLocaleString()}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {isCrowdin && !isCrowdinOAuthConnected ? (
         <p className="text-sm leading-6 text-muted-foreground">
           {isTmsProviderShellModeEnabled()
             ? `Connect ${providerName} with a Crowdin OAuth App. Projects, jobs, glossaries, and translation memories load live from Crowdin — background sync and webhooks stay off in this phase.`
             : `Connect ${providerName} with a Crowdin OAuth App created in your Crowdin account. Personal token setup is deprecated in Hyperlocalise.`}
         </p>
-      ) : (
+      ) : !isCrowdin ? (
         <p className="text-sm leading-6 text-muted-foreground">
           Save credentials to connect {providerName}. The secret is encrypted at rest and used to
           sync projects, files, and jobs into the workspace.
         </p>
-      )}
+      ) : null}
 
       <Field className="gap-2">
         <FieldLabel htmlFor={displayNameFieldId}>Display name</FieldLabel>
@@ -772,113 +1062,68 @@ function TmsProviderCredentialPanel({
         />
       </Field>
 
-      {isCrowdin ? (
-        <>
-          <Field className="gap-2">
-            <FieldLabel htmlFor={redirectUriFieldId}>OAuth callback URL</FieldLabel>
-            <InputGroup className="h-10 bg-muted/30">
-              <InputGroupInput
-                id={redirectUriFieldId}
-                readOnly
-                tabIndex={-1}
-                value={crowdinRedirectUri}
-                aria-label="OAuth callback URL"
-                className="truncate text-sm cursor-default"
-              />
-              <InputGroupAddon align="inline-end">
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <InputGroupButton
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => {
-                          void copyCrowdinRedirectUri();
-                        }}
-                        disabled={!crowdinRedirectUri}
-                        aria-label={
-                          redirectUriCopied
-                            ? "Copied OAuth callback URL"
-                            : "Copy OAuth callback URL"
-                        }
-                      >
-                        <HugeiconsIcon
-                          icon={redirectUriCopied ? Tick02Icon : Copy01Icon}
-                          strokeWidth={1.8}
-                        />
-                      </InputGroupButton>
-                    }
-                  />
-                  <TooltipContent>
-                    {redirectUriCopied ? "Copied!" : "Copy OAuth callback URL"}
-                  </TooltipContent>
-                </Tooltip>
-              </InputGroupAddon>
-            </InputGroup>
-          </Field>
-
-          <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-            <div>
-              <p className="text-sm font-medium text-foreground">Required OAuth scopes</p>
-              <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same
-                list when you click Connect Crowdin.
-              </p>
-            </div>
-            <ul className="space-y-2">
-              {CROWDIN_OAUTH_SCOPE_GUIDE.map((entry) => (
-                <li key={entry.scope} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-                  <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
-                    {entry.scope}
-                  </code>
-                  <span className="text-sm leading-6 text-muted-foreground">
-                    {entry.description}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          <Field className="gap-2">
-            <FieldLabel htmlFor={oauthClientIdFieldId}>OAuth client ID</FieldLabel>
-            <Input
-              id={oauthClientIdFieldId}
-              value={oauthClientId}
-              onChange={(event) => onOauthClientIdChange(event.target.value)}
-              autoComplete="off"
-              placeholder="Crowdin OAuth App client ID"
-            />
-          </Field>
-
-          <Field className="gap-2">
-            <FieldLabel htmlFor={oauthClientSecretFieldId}>OAuth client secret</FieldLabel>
-            <div className="relative">
-              <HugeiconsIcon
-                icon={Key01Icon}
-                strokeWidth={1.8}
-                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
-              />
-              <Input
-                id={oauthClientSecretFieldId}
-                type={showSecret ? "text" : "password"}
-                autoComplete="off"
-                value={oauthClientSecret}
-                onChange={(event) => onOauthClientSecretChange(event.target.value)}
-                placeholder="Crowdin OAuth App client secret"
-                className="ps-9 pe-9"
-              />
-              <button
+      {isCrowdin && isCrowdinOAuthConnected ? (
+        <Collapsible open={crowdinReconnectOpen} onOpenChange={setCrowdinReconnectOpen}>
+          <CollapsibleTrigger
+            render={
+              <Button
                 type="button"
-                onClick={onToggleShowSecret}
-                className="absolute top-1/2 right-3 -translate-y-1/2 text-muted-foreground transition-colors hover:text-foreground"
-                aria-label={showSecret ? "Hide secret" : "Show secret"}
+                variant="ghost"
+                size="sm"
+                className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
               >
-                {showSecret ? <EyeOffIcon size={16} /> : <EyeIcon size={16} />}
-              </button>
-            </div>
-          </Field>
-        </>
-      ) : (
+                Reconnect with a different OAuth app
+                <ChevronDownIcon
+                  className={cn(
+                    "size-3.5 shrink-0 transition-transform",
+                    crowdinReconnectOpen && "rotate-180",
+                  )}
+                  strokeWidth={2}
+                />
+              </Button>
+            }
+          />
+          <CollapsibleContent className="space-y-5 pt-3">
+            <CrowdinOAuthSetupFields
+              crowdinRedirectUri={crowdinRedirectUri}
+              redirectUriFieldId={redirectUriFieldId}
+              redirectUriCopied={redirectUriCopied}
+              onCopyRedirectUri={() => {
+                void copyCrowdinRedirectUri();
+              }}
+              oauthClientIdFieldId={oauthClientIdFieldId}
+              oauthClientId={oauthClientId}
+              onOauthClientIdChange={onOauthClientIdChange}
+              oauthClientSecretFieldId={oauthClientSecretFieldId}
+              oauthClientSecret={oauthClientSecret}
+              onOauthClientSecretChange={onOauthClientSecretChange}
+              showSecret={showSecret}
+              onToggleShowSecret={onToggleShowSecret}
+            />
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
+
+      {isCrowdin && showCrowdinOAuthSetupFields && !isCrowdinOAuthConnected ? (
+        <CrowdinOAuthSetupFields
+          crowdinRedirectUri={crowdinRedirectUri}
+          redirectUriFieldId={redirectUriFieldId}
+          redirectUriCopied={redirectUriCopied}
+          onCopyRedirectUri={() => {
+            void copyCrowdinRedirectUri();
+          }}
+          oauthClientIdFieldId={oauthClientIdFieldId}
+          oauthClientId={oauthClientId}
+          onOauthClientIdChange={onOauthClientIdChange}
+          oauthClientSecretFieldId={oauthClientSecretFieldId}
+          oauthClientSecret={oauthClientSecret}
+          onOauthClientSecretChange={onOauthClientSecretChange}
+          showSecret={showSecret}
+          onToggleShowSecret={onToggleShowSecret}
+        />
+      ) : null}
+
+      {!isCrowdin ? (
         <Field className="gap-2">
           <FieldLabel htmlFor={secretFieldId}>API token / secret</FieldLabel>
           <div className="relative">
@@ -906,7 +1151,7 @@ function TmsProviderCredentialPanel({
             </button>
           </div>
         </Field>
-      )}
+      ) : null}
 
       <Collapsible open={advancedSettingsOpen} onOpenChange={setAdvancedSettingsOpen}>
         <CollapsibleTrigger
@@ -1046,7 +1291,13 @@ function TmsProviderCredentialPanel({
         )}
         <Button type="submit" disabled={!canSubmit || isSaving} className="sm:ms-auto">
           <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-          {isSaving ? "Saving..." : isCrowdin ? "Connect Crowdin" : "Save provider"}
+          {isSaving
+            ? "Saving..."
+            : isCrowdin
+              ? isCrowdinOAuthConnected
+                ? "Reconnect Crowdin"
+                : "Connect Crowdin"
+              : "Save provider"}
         </Button>
       </div>
     </form>
@@ -1196,39 +1447,6 @@ function useDeleteExternalTmsCredential(organizationSlug: string) {
   });
 }
 
-type ContentfulConnectionSummary = {
-  id: string;
-  displayName: string;
-  projectId: string;
-  spaceId: string;
-  environmentId: string;
-  sourceLocale: string;
-  targetLocales: string[];
-  contentTypeIds: string[];
-  validationStatus: string;
-  validationMessage: string | null;
-  maskedTokenSuffix: string;
-  webhook: {
-    id: string;
-    status: string;
-    url: string | null;
-    lastDeliveryId: string | null;
-    lastDeliveredAt: string | null;
-    lastError: string | null;
-  } | null;
-};
-
-type ContentfulConnectionForm = {
-  displayName: string;
-  projectId: string;
-  spaceId: string;
-  environmentId: string;
-  sourceLocale: string;
-  targetLocales: string;
-  contentTypeIds: string;
-  accessToken: string;
-};
-
 function useContentfulConnections(organizationSlug: string) {
   return useQuery({
     queryKey: ["contentful-connections", organizationSlug],
@@ -1293,7 +1511,7 @@ function useSaveContentfulConnection(organizationSlug: string) {
 }
 
 function ContentfulConnectionPanel({
-  connections,
+  connection,
   disabled,
   lastWebhookSecret,
   onSave,
@@ -1301,7 +1519,7 @@ function ContentfulConnectionPanel({
   form,
   onFormChange,
 }: {
-  connections: ContentfulConnectionSummary[];
+  connection?: ContentfulConnectionSummary;
   disabled: boolean;
   lastWebhookSecret: string;
   onSave: () => void;
@@ -1309,38 +1527,18 @@ function ContentfulConnectionPanel({
   form: ContentfulConnectionForm;
   onFormChange: (form: ContentfulConnectionForm) => void;
 }) {
-  const latest = connections[0];
-
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-      <div className="flex flex-col gap-4 px-5 py-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="min-w-0">
-          <div className="flex items-center gap-3">
-            <SearchIcon className="size-5 text-muted-foreground" />
-            <div>
-              <h3 className="text-sm font-medium">Contentful</h3>
-              <p className="text-xs text-muted-foreground">
-                CMS connector for agentic article translation and draft writeback.
-              </p>
-            </div>
-          </div>
-          {latest ? (
-            <div className="mt-4 flex flex-wrap gap-2 text-xs">
-              <Badge variant="outline">{tmsHealthLabel(latest.validationStatus)}</Badge>
-              <Badge variant="outline">Token ...{latest.maskedTokenSuffix}</Badge>
-              <Badge variant="outline">
-                {latest.spaceId}/{latest.environmentId}
-              </Badge>
-            </div>
-          ) : null}
+    <div className="flex flex-col gap-5">
+      {connection ? (
+        <div className="flex flex-wrap gap-2 text-xs">
+          <Badge variant="outline">Token ...{connection.maskedTokenSuffix}</Badge>
+          <Badge variant="outline">
+            {connection.spaceId}/{connection.environmentId}
+          </Badge>
         </div>
-        <Button type="button" disabled={disabled || isSaving} onClick={onSave}>
-          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
-          {isSaving ? "Saving..." : latest ? "Add another connection" : "Save connection"}
-        </Button>
-      </div>
+      ) : null}
 
-      <div className="grid gap-4 border-t border-border p-5 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Field className="gap-2">
           <FieldLabel>Display name</FieldLabel>
           <Input
@@ -1415,8 +1613,8 @@ function ContentfulConnectionPanel({
         </Field>
       </div>
 
-      {latest?.webhook ? (
-        <div className="border-t border-border p-5 text-sm">
+      {connection?.webhook ? (
+        <div className="text-sm">
           <h4 className="font-medium">Webhook setup</h4>
           <p className="mt-1 text-xs text-muted-foreground">
             In Contentful, create a webhook for entry publish/save events and add a custom header
@@ -1424,7 +1622,7 @@ function ContentfulConnectionPanel({
           </p>
           <div className="mt-3 grid gap-2 rounded-lg bg-muted/50 p-3 text-xs">
             <span className="font-mono break-all">
-              URL: {latest.webhook.url ?? "Set HYPERLOCALISE_PUBLIC_APP_URL"}
+              URL: {connection.webhook.url ?? "Set HYPERLOCALISE_PUBLIC_APP_URL"}
             </span>
             {lastWebhookSecret ? (
               <span className="font-mono break-all">Secret: {lastWebhookSecret}</span>
@@ -1433,10 +1631,17 @@ function ContentfulConnectionPanel({
                 Secret is only shown when the webhook subscription is first created.
               </span>
             )}
-            <span>Last delivery: {latest.webhook.lastDeliveredAt ?? "No deliveries yet"}</span>
+            <span>Last delivery: {connection.webhook.lastDeliveredAt ?? "No deliveries yet"}</span>
           </div>
         </div>
       ) : null}
+
+      <div className="flex justify-end">
+        <Button type="button" disabled={disabled || isSaving} onClick={onSave}>
+          <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
+          {isSaving ? "Saving..." : connection ? "Update connection" : "Save connection"}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -1446,6 +1651,8 @@ export function IntegrationsPageContent({
   membershipRole,
   canManageProviderIntegrations,
 }: IntegrationsPageContentProps) {
+  const searchParams = useSearchParams();
+  const queryClient = useQueryClient();
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
   const deleteCredential = useDeleteProviderCredential(organizationSlug);
@@ -1491,6 +1698,7 @@ export function IntegrationsPageContent({
     accessToken: "",
   });
   const [lastContentfulWebhookSecret, setLastContentfulWebhookSecret] = useState("");
+  const [expandedContentful, setExpandedContentful] = useState(false);
 
   const tmsDisplayNameFieldId = useId();
   const tmsSecretFieldId = useId();
@@ -1521,6 +1729,28 @@ export function IntegrationsPageContent({
     }
   }, [selectedModel, selectedProvider]);
 
+  useEffect(() => {
+    if (searchParams.get("crowdin_connected") !== "1") {
+      return;
+    }
+
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["external-tms-credentials", organizationSlug] }),
+      queryClient.invalidateQueries({ queryKey: ["tms-provider-connection", organizationSlug] }),
+      queryClient.invalidateQueries({ queryKey: ["translation-projects", organizationSlug] }),
+      queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] }),
+      queryClient.invalidateQueries({ queryKey: ["translation-memories", organizationSlug] }),
+      queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] }),
+    ]).then(() => {
+      toast.success("Crowdin connected");
+      setExpandedTmsProvider("crowdin");
+    });
+
+    const url = new URL(window.location.href);
+    url.searchParams.delete("crowdin_connected");
+    window.history.replaceState({}, "", url.toString());
+  }, [organizationSlug, queryClient, searchParams]);
+
   const selectedByokProvider =
     selectedProvider && selectedProvider !== hyperlocaliseGoProvider.id ? selectedProvider : null;
   const selectedProviderConfig = selectedByokProvider
@@ -1543,6 +1773,29 @@ export function IntegrationsPageContent({
     setTmsOauthClientSecret("");
     setTmsBaseUrl(existingCredential?.baseUrl ?? "");
     setShowTmsSecret(false);
+  }
+
+  function loadContentfulForm(existingConnection?: ContentfulConnectionSummary) {
+    setContentfulForm({
+      displayName: existingConnection?.displayName ?? "Contentful Help Center",
+      projectId: existingConnection?.projectId ?? "",
+      spaceId: existingConnection?.spaceId ?? "",
+      environmentId: existingConnection?.environmentId ?? "master",
+      sourceLocale: existingConnection?.sourceLocale ?? "en-US",
+      targetLocales: existingConnection?.targetLocales.join(", ") ?? "",
+      contentTypeIds: existingConnection?.contentTypeIds.join(", ") ?? "helpCenterArticle",
+      accessToken: "",
+    });
+  }
+
+  function handleContentfulExpandedChange(expanded: boolean) {
+    if (expanded) {
+      loadContentfulForm(contentfulConnections?.[0]);
+      setExpandedContentful(true);
+      return;
+    }
+
+    setExpandedContentful(false);
   }
 
   function handleTmsExpandedChange(
@@ -1756,42 +2009,55 @@ export function IntegrationsPageContent({
           <section className="flex flex-col gap-3">
             <IntegrationCategoryLabel>Content Management System</IntegrationCategoryLabel>
             {isLoadingContentful ? (
-              <Skeleton className="min-h-64 rounded-lg" />
+              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+                <div className="px-5 py-4">
+                  <Skeleton className="h-14 rounded-lg" />
+                </div>
+              </div>
             ) : (
-              <ContentfulConnectionPanel
-                connections={contentfulConnections ?? []}
-                disabled={!userIsAdmin}
-                form={contentfulForm}
-                onFormChange={setContentfulForm}
-                lastWebhookSecret={lastContentfulWebhookSecret}
-                isSaving={saveContentfulConnection.isPending}
-                onSave={() => {
-                  saveContentfulConnection.mutate(
-                    {
-                      projectId: contentfulForm.projectId.trim(),
-                      displayName: contentfulForm.displayName.trim(),
-                      spaceId: contentfulForm.spaceId.trim(),
-                      environmentId: contentfulForm.environmentId.trim() || "master",
-                      sourceLocale: contentfulForm.sourceLocale.trim(),
-                      targetLocales: contentfulForm.targetLocales
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                      contentTypeIds: contentfulForm.contentTypeIds
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                      accessToken: contentfulForm.accessToken.trim(),
-                    },
-                    {
-                      onSuccess: (result) => {
-                        setContentfulForm((current) => ({ ...current, accessToken: "" }));
-                        setLastContentfulWebhookSecret(result.webhookSecret ?? "");
-                      },
-                    },
-                  );
-                }}
-              />
+              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+                <CmsIntegrationRow
+                  connection={contentfulConnections?.[0]}
+                  userIsAdmin={userIsAdmin}
+                  expanded={expandedContentful}
+                  onExpandedChange={handleContentfulExpandedChange}
+                >
+                  <ContentfulConnectionPanel
+                    connection={contentfulConnections?.[0]}
+                    disabled={!userIsAdmin}
+                    form={contentfulForm}
+                    onFormChange={setContentfulForm}
+                    lastWebhookSecret={lastContentfulWebhookSecret}
+                    isSaving={saveContentfulConnection.isPending}
+                    onSave={() => {
+                      saveContentfulConnection.mutate(
+                        {
+                          projectId: contentfulForm.projectId.trim(),
+                          displayName: contentfulForm.displayName.trim(),
+                          spaceId: contentfulForm.spaceId.trim(),
+                          environmentId: contentfulForm.environmentId.trim() || "master",
+                          sourceLocale: contentfulForm.sourceLocale.trim(),
+                          targetLocales: contentfulForm.targetLocales
+                            .split(",")
+                            .map((value) => value.trim())
+                            .filter(Boolean),
+                          contentTypeIds: contentfulForm.contentTypeIds
+                            .split(",")
+                            .map((value) => value.trim())
+                            .filter(Boolean),
+                          accessToken: contentfulForm.accessToken.trim(),
+                        },
+                        {
+                          onSuccess: (result) => {
+                            setContentfulForm((current) => ({ ...current, accessToken: "" }));
+                            setLastContentfulWebhookSecret(result.webhookSecret ?? "");
+                          },
+                        },
+                      );
+                    }}
+                  />
+                </CmsIntegrationRow>
+              </div>
             )}
           </section>
 

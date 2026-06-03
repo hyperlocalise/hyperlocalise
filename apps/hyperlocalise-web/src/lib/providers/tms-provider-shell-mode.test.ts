@@ -5,15 +5,15 @@ describe("tms-provider-shell-mode", () => {
     vi.resetModules();
   });
 
-  it("defaults shell mode to disabled", async () => {
+  it("defaults shell mode to enabled", async () => {
     vi.stubEnv("NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE", undefined);
     vi.stubEnv("TMS_PROVIDER_SHELL_MODE", undefined);
 
     const { isTmsProviderShellModeEnabled, isTmsBackgroundSyncEnabled } =
       await import("./tms-provider-shell-mode");
 
-    expect(isTmsProviderShellModeEnabled()).toBe(false);
-    expect(isTmsBackgroundSyncEnabled()).toBe(true);
+    expect(isTmsProviderShellModeEnabled()).toBe(true);
+    expect(isTmsBackgroundSyncEnabled()).toBe(false);
   });
 
   it("enables shell mode from NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE", async () => {

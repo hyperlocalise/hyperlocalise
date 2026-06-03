@@ -252,7 +252,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         return c.redirect("/dashboard?error=crowdin_oauth_exchange_failed");
       }
 
-      await upsertCrowdinOAuthProviderCredential({
+      const credential = await upsertCrowdinOAuthProviderCredential({
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         role: c.var.auth.membership.role,
@@ -260,6 +260,15 @@ export function createExternalTmsProviderCredentialRoutes() {
         baseUrl: state.baseUrl,
         tokenBundle,
       });
+
+      const { health } = await checkExternalTmsProviderHealth({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        providerKind: "crowdin",
+        credentialId: credential.id,
+      });
+      if (health) {
+        await persistExternalTmsProviderHealth({ credentialId: credential.id, health });
+      }
 
       await db
         .update(schema.crowdinOAuthStates)
