@@ -24,6 +24,7 @@ overrides:
   "undici@^8.0.0": "8.3.0"
   devalue: "5.8.1"
   qs: "6.15.2"
+  "@anthropic-ai/sdk": "0.81.0"
 peerDependencyRules:
   allowAny:
     - vite
