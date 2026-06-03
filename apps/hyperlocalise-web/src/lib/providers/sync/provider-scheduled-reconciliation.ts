@@ -17,6 +17,7 @@ import {
   type ScheduledReconciliationConfig,
   type ScheduledReconciliationSchedule,
 } from "./provider-scheduled-reconciliation-config";
+import { isTmsBackgroundSyncEnabled } from "../tms-provider-shell-mode";
 import { auditProviderWebhookSubscriptions } from "../webhooks/provider-webhook-subscription-manager";
 
 const logger = createLogger("tms-scheduled-reconciliation");
@@ -256,6 +257,10 @@ async function runAuditSchedule(credentials: ScheduledReconciliationCredential[]
 export async function runScheduledReconciliation(
   input: RunScheduledReconciliationInput,
 ): Promise<ScheduledReconciliationEnqueueResult[]> {
+  if (!isTmsBackgroundSyncEnabled()) {
+    return [];
+  }
+
   const now = input.now ?? new Date();
   const config = input.config ?? DEFAULT_SCHEDULED_RECONCILIATION_CONFIG;
   const schedules = resolveDueSchedules({

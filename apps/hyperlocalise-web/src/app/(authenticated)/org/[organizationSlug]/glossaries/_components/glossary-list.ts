@@ -1,4 +1,7 @@
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import type { TmsProviderLiveGlossary } from "@/lib/providers/tms-provider-live";
 import {
   formatTermCapabilityLabel,
   parseTermCapabilitySupport,
@@ -143,6 +146,45 @@ export function mapGlossaryToListRow(
     lastSyncErrorMessage: glossary.lastSyncErrorMessage,
     updatedAt: formatRelativeTimestamp(glossary.updatedAt) ?? "—",
     projectLinkId: lookupKey ? (projectIdByExternalKey.get(lookupKey) ?? null) : null,
+  };
+}
+
+export function mapLiveTmsProviderGlossaryToListRow(
+  glossary: TmsProviderLiveGlossary,
+  providerKind: ExternalTmsProviderKind,
+): GlossaryListRow {
+  return {
+    id: glossary.id,
+    name: glossary.name,
+    description: glossary.description?.trim() || "No description",
+    source: "external_tms",
+    externalProviderKind: providerKind,
+    externalProjectId: glossary.externalProjectId,
+    externalGlossaryId: glossary.id.split(":").at(-1) ?? glossary.id,
+    externalResourceType: "glossary",
+    resourceTypeLabel: "Glossary",
+    sourceLocale: glossary.sourceLocale,
+    targetLocale: glossary.targetLocale,
+    localePairLabel: `${glossary.sourceLocale} → ${glossary.targetLocale}`,
+    localeCoverage: glossary.localeCoverage,
+    localeSummary: formatLocaleCoverage(
+      glossary.localeCoverage,
+      glossary.sourceLocale,
+      glossary.targetLocale,
+    ),
+    termCount: glossary.termCount,
+    termCountLabel: formatTermCount(glossary.termCount),
+    syncState: null,
+    termCapabilityLabel: "Read-only (live)",
+    externalUrl: glossary.externalUrl,
+    lastSyncedAt: "Live",
+    lastSyncErrorAt: null,
+    lastSyncErrorMessage: null,
+    updatedAt: "Live",
+    projectLinkId: encodeProviderProjectId({
+      providerKind,
+      externalProjectId: glossary.externalProjectId,
+    }),
   };
 }
 

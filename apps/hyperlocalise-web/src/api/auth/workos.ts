@@ -123,6 +123,10 @@ export function createWorkosAuthMiddleware() {
         teamSlug,
       });
       if (!authFromSession) {
+        if (organizationSlug) {
+          throw new Error("organization_access_denied");
+        }
+
         throw new Error("missing_auth_context");
       }
 

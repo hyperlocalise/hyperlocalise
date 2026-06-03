@@ -3,20 +3,18 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
-
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+  resolveExternalTmsSecretMaterial,
+  type ExternalTmsCredential,
+  type ExternalTmsProviderKind,
+} from "../organization-external-tms-provider-credentials";
 import { upsertOrganizationExternalTmsProject } from "./organization-external-tms-projects";
 import {
   completeProviderSyncRun,
   failProviderSyncRun,
   startProviderSyncRun,
 } from "./provider-sync-runs";
+import { isTmsBackgroundSyncEnabled } from "../tms-provider-shell-mode";
 import { ensureProviderWebhookSubscription } from "../webhooks/provider-webhook-subscription-manager";
-
-type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
 
 export type ExternalTmsProjectMetadata = {
   externalProjectId: string;
@@ -87,15 +85,7 @@ export async function syncExternalTmsProjects(input: {
   const failures: ExternalTmsProjectSyncFailure[] = [];
 
   try {
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    );
+    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
     const projects = await input.fetchProjects({
       organizationId: input.organizationId,
       providerKind: input.providerKind,
@@ -120,13 +110,15 @@ export async function syncExternalTmsProjects(input: {
           isActive: project.isActive ?? true,
           metadata: project.metadata,
         });
-        void ensureProviderWebhookSubscription({
-          organizationId: input.organizationId,
-          providerKind: input.providerKind,
-          providerCredentialId: credential.id,
-          projectId: syncedProject.id,
-          externalProjectId: project.externalProjectId,
-        }).catch(() => undefined);
+        if (isTmsBackgroundSyncEnabled()) {
+          void ensureProviderWebhookSubscription({
+            organizationId: input.organizationId,
+            providerKind: input.providerKind,
+            providerCredentialId: credential.id,
+            projectId: syncedProject.id,
+            externalProjectId: project.externalProjectId,
+          }).catch(() => undefined);
+        }
         counts.projectsSynced += 1;
         counts.localesSynced += countProjectLocales(project.sourceLocale, targetLocales);
       } catch (error) {

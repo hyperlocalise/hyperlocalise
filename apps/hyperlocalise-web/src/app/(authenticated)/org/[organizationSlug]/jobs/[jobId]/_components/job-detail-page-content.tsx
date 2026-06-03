@@ -25,7 +25,10 @@ import { cn } from "@/lib/primitives/cn";
 
 import { toneClass } from "../../../_components/workspace-resource-shared";
 
+import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+
 import { JobProviderDetailSection } from "./job-provider-detail-section";
+import { ProviderLiveJobDetailContent } from "./provider-live-job-detail-content";
 
 type JobDetail = {
   id: string;
@@ -171,6 +174,20 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
 }
 
 export function JobDetailPageContent({
+  jobId,
+  organizationSlug,
+}: {
+  jobId: string;
+  organizationSlug: string;
+}) {
+  if (parseProviderJobId(jobId)) {
+    return <ProviderLiveJobDetailContent jobId={jobId} organizationSlug={organizationSlug} />;
+  }
+
+  return <NativeJobDetailPageContent jobId={jobId} organizationSlug={organizationSlug} />;
+}
+
+function NativeJobDetailPageContent({
   jobId,
   organizationSlug,
 }: {

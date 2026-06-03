@@ -288,6 +288,13 @@
       "when": 1780447811923,
       "tag": "0040_great_thunderbolts",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1780455173632,
+      "tag": "0041_talented_the_hunter",
+      "breakpoints": true
     }
   ]
 }

@@ -4,12 +4,9 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { ProviderWebhookSubscription } from "@/lib/database/types";
-import {
-  decryptProviderCredential,
-  maskProviderCredentialSuffix,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
+import { maskProviderCredentialSuffix } from "@/lib/security/provider-credential-crypto";
 import { providerSupportsTmsAction } from "@/lib/providers/tms-capabilities";
+import { resolveExternalTmsSecretMaterial } from "@/lib/providers/organization-external-tms-provider-credentials";
 
 import { listDefaultWebhookEvents } from "./provider-webhook-default-events";
 import {
@@ -32,6 +29,10 @@ import {
   decryptWebhookSecret,
   updateProviderWebhookSubscription,
 } from "./provider-webhook-storage";
+import {
+  isTmsBackgroundSyncEnabled,
+  TMS_PROVIDER_SHELL_BACKGROUND_SYNC_DISABLED_REASON,
+} from "../tms-provider-shell-mode";
 import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
 
 /**
@@ -157,15 +158,7 @@ async function loadCredentialContext(input: {
 
   return {
     credential,
-    secretMaterial: unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    ),
+    secretMaterial: await resolveExternalTmsSecretMaterial({ credential }),
   };
 }
 
@@ -217,6 +210,29 @@ export async function ensureProviderWebhookSubscription(input: {
   externalProjectId?: string | null;
   fetchFn?: typeof fetch;
 }): Promise<ProviderWebhookSubscriptionSetupResult> {
+  if (!isTmsBackgroundSyncEnabled()) {
+    return {
+      subscription: {
+        id: "shell-mode-disabled",
+        organizationId: input.organizationId,
+        providerCredentialId: input.providerCredentialId,
+        projectId: input.projectId ?? null,
+        providerKind: input.providerKind,
+        providerWebhookId: "disabled",
+        endpointUrl: "",
+        subscribedEvents: [],
+        status: "disabled",
+        manualFallback: null,
+        lastError: TMS_PROVIDER_SHELL_BACKGROUND_SYNC_DISABLED_REASON,
+        lastErrorAt: null,
+        lastAuditedAt: null,
+        updatedAt: new Date().toISOString(),
+        canRetry: false,
+      },
+      status: "disabled",
+    };
+  }
+
   const subscribedEvents = listDefaultWebhookEvents(input.providerKind);
   const projectId = input.projectId ?? null;
   const externalProjectId =
@@ -572,15 +588,10 @@ export async function auditProviderWebhookSubscriptions(input: {
       continue;
     }
 
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credentialRow.encryptionAlgorithm,
-        keyVersion: credentialRow.keyVersion,
-        ciphertext: credentialRow.ciphertext,
-        iv: credentialRow.iv,
-        authTag: credentialRow.authTag,
-      }),
-    );
+    const secretMaterial = await resolveExternalTmsSecretMaterial({
+      credential: credentialRow,
+      fetchFn: input.fetchFn,
+    });
     const webhookSecret = decryptWebhookSecret(subscription) ?? "";
 
     let remoteWebhooks: Awaited<ReturnType<typeof adapter.listRemoteSubscriptions>> = [];
@@ -714,6 +725,10 @@ export async function ensureProviderWebhookSubscriptionsForCredential(input: {
   providerCredentialId: string;
   fetchFn?: typeof fetch;
 }) {
+  if (!isTmsBackgroundSyncEnabled()) {
+    return [];
+  }
+
   const projects = await db
     .select({
       id: schema.projects.id,

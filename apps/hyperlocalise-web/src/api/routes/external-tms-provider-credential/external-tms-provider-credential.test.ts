@@ -53,9 +53,9 @@ describe("externalTmsProviderCredentialRoutes", () => {
       {
         param: { organizationSlug: identity.organization.slug ?? "missing" },
         json: {
-          providerKind: "crowdin",
-          displayName: "Crowdin Prod",
-          secretMaterial: "crowdin-token-super-secret",
+          providerKind: "phrase",
+          displayName: "Phrase Prod",
+          secretMaterial: "phrase-token-super-secret",
           region: "us",
         },
       },
@@ -73,7 +73,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
           authContext!.organization.localOrganizationId,
         ),
       );
-    expect(stored?.ciphertext).not.toContain("crowdin-token-super-secret");
+    expect(stored?.ciphertext).not.toContain("phrase-token-super-secret");
   });
 
   it("refreshes updatedAt when admins replace external TMS credentials", async () => {
@@ -84,8 +84,8 @@ describe("externalTmsProviderCredentialRoutes", () => {
       {
         param: { organizationSlug: identity.organization.slug ?? "missing" },
         json: {
-          providerKind: "crowdin",
-          displayName: "Crowdin",
+          providerKind: "phrase",
+          displayName: "Phrase",
           secretMaterial: "first-secret",
         },
       },
@@ -102,7 +102,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
             schema.organizationExternalTmsProviderCredentials.organizationId,
             authContext!.organization.localOrganizationId,
           ),
-          eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+          eq(schema.organizationExternalTmsProviderCredentials.providerKind, "phrase"),
         ),
       );
 
@@ -114,8 +114,8 @@ describe("externalTmsProviderCredentialRoutes", () => {
       {
         param: { organizationSlug: identity.organization.slug ?? "missing" },
         json: {
-          providerKind: "crowdin",
-          displayName: "Crowdin",
+          providerKind: "phrase",
+          displayName: "Phrase",
           secretMaterial: "second-secret",
         },
       },
@@ -132,11 +132,35 @@ describe("externalTmsProviderCredentialRoutes", () => {
             schema.organizationExternalTmsProviderCredentials.organizationId,
             authContext!.organization.localOrganizationId,
           ),
-          eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+          eq(schema.organizationExternalTmsProviderCredentials.providerKind, "phrase"),
         ),
       );
 
     expect(updated!.updatedAt.getTime()).toBeGreaterThan(first!.updatedAt.getTime());
+  });
+
+  it("rejects Crowdin personal-token setup through the public credential route", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].$put(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+        json: {
+          providerKind: "crowdin",
+          displayName: "Crowdin",
+          secretMaterial: "crowdin-token",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "crowdin_personal_token_deprecated",
+    });
   });
 
   it("returns external TMS credential summaries for the requested provider", async () => {
@@ -180,8 +204,8 @@ describe("externalTmsProviderCredentialRoutes", () => {
       {
         param: { organizationSlug: identity.organization.slug ?? "missing" },
         json: {
-          providerKind: "crowdin",
-          displayName: "Crowdin",
+          providerKind: "phrase",
+          displayName: "Phrase",
           secretMaterial: "secret",
         },
       },

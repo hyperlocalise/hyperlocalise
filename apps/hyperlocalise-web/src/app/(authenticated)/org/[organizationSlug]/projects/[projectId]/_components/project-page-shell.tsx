@@ -11,12 +11,30 @@ import {
   WorkspacePageShell,
   type Icon,
 } from "../../../_components/workspace-resource-shared";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+
 import { mapProjectToListRow } from "../../_components/project-list";
 
 export function useProjectPageQuery(organizationSlug: string, projectId: string) {
   return useQuery({
     queryKey: ["translation-project", organizationSlug, projectId],
     queryFn: async () => {
+      const encodedProject = parseProviderProjectId(projectId);
+      if (encodedProject) {
+        const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
+          ":externalProjectId"
+        ].$get({
+          param: { organizationSlug, externalProjectId: encodedProject.externalProjectId },
+        });
+        if (!response.ok) {
+          throw new Error(`Failed to load provider project (${response.status})`);
+        }
+        const body = (await response.json()) as {
+          project: Parameters<typeof mapProjectToListRow>[0];
+        };
+        return mapProjectToListRow(body.project);
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
         param: { organizationSlug, projectId },
       });

@@ -3,11 +3,10 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
-
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+  resolveExternalTmsSecretMaterial,
+  type ExternalTmsCredential,
+  type ExternalTmsProviderKind,
+} from "../organization-external-tms-provider-credentials";
 import { upsertExternalTmsFile } from "./organization-external-tms-files";
 import {
   completeProviderSyncRun,
@@ -15,7 +14,6 @@ import {
   startProviderSyncRun,
 } from "./provider-sync-runs";
 
-type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
 export type ExternalTmsFileKeyMetadata = {
@@ -106,15 +104,7 @@ export async function syncExternalTmsFileKeys(input: {
   const failures: ExternalTmsFileKeySyncFailure[] = [];
 
   try {
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    );
+    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
     const fileKeys = await input.fetchFileKeys({
       organizationId: input.organizationId,
       projectId: project.id,

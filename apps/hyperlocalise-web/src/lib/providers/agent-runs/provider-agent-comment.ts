@@ -1,10 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
 
 import {
   completeAgentRun,
@@ -20,7 +16,10 @@ import type {
 } from "../provider-feedback-types";
 import { buildFindingId } from "../provider-job-qa/build-finding-id";
 import type { ProviderQaFinding } from "../provider-job-qa/types";
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+import {
+  resolveExternalTmsSecretMaterial,
+  type ExternalTmsProviderKind,
+} from "../organization-external-tms-provider-credentials";
 
 export type ProviderAgentCommentResult =
   | {
@@ -369,15 +368,7 @@ export async function executeProviderAgentComment(input: {
   }));
 
   try {
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    );
+    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
 
     const pushResult = await pushComments({
       organizationId: input.organizationId,

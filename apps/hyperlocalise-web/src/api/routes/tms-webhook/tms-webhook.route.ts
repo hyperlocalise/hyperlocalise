@@ -11,6 +11,7 @@ import {
   logWebhookVerificationFailed,
 } from "@/lib/providers/provider-tms-sync-telemetry";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { isTmsBackgroundSyncEnabled } from "@/lib/providers/tms-provider-shell-mode";
 import { enqueueProviderSyncIntentFromWebhookEvent } from "@/lib/providers/sync/provider-sync-intent-worker";
 import { readTmsWebhookSubscriptionIdFromRequestUrl } from "@/lib/providers/webhooks/provider-webhook-public-url";
 import {
@@ -293,6 +294,14 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
       const providerKindParam = c.req.param("providerKind");
       if (!isExternalTmsProviderKind(providerKindParam)) {
         return c.json({ error: "unsupported_provider_kind" }, 404);
+      }
+
+      if (!isTmsBackgroundSyncEnabled()) {
+        logWebhookIgnored({
+          providerKind: providerKindParam,
+          reason: "tms_provider_shell_mode",
+        });
+        return c.json({ ok: true, ignored: true, reason: "tms_provider_shell_mode" }, 202);
       }
 
       const rawBody = await c.req.text();

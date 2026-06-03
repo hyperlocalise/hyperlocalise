@@ -29,6 +29,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
+
+import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
   GLOSSARY_SYNC_FILTERS,
@@ -43,11 +46,13 @@ import {
 } from "../../_components/workspace-resource-shared";
 import {
   buildProjectIdByExternalKey,
+  mapLiveTmsProviderMemoryToListRow,
   mapMemoryToListRow,
   providerLabel,
   type ApiMemory,
   type MemoryListRow,
 } from "./memory-list";
+import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/tms-provider-live";
 import {
   TranslationMemoriesEmptyAction,
   TranslationMemoriesTable,
@@ -164,6 +169,9 @@ export function TranslationMemoriesPageContent({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
   const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
+  const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
+  const useLiveProviderMemories = isTmsProviderShellModeEnabled() && Boolean(activeTmsProvider);
+  const allowCreateMemories = canCreateMemories && !useLiveProviderMemories;
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
     queryFn: async () => {
@@ -199,8 +207,37 @@ export function TranslationMemoriesPageContent({
   });
 
   const memoriesQuery = useQuery({
-    queryKey: memoriesQueryKey(organizationSlug, page),
+    queryKey: [
+      ...memoriesQueryKey(organizationSlug, page),
+      useLiveProviderMemories ? "live" : "native",
+    ],
     queryFn: async () => {
+      if (useLiveProviderMemories && activeTmsProvider) {
+        const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"][
+          "translation-memories"
+        ].$get({
+          param: { organizationSlug },
+          query: {},
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load provider translation memories (${response.status})`);
+        }
+
+        const body = (await response.json()) as {
+          translationMemories: TmsProviderLiveTranslationMemory[];
+        };
+        const liveRows = body.translationMemories.map((memory) =>
+          mapLiveTmsProviderMemoryToListRow(memory, activeTmsProvider.providerKind),
+        );
+
+        return {
+          memories: [] as ApiMemory[],
+          liveRows,
+          total: liveRows.length,
+        };
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"]["translation-memories"].$get({
         param: { organizationSlug },
         query: {
@@ -253,13 +290,20 @@ export function TranslationMemoriesPageContent({
     [projectsQuery.data],
   );
 
-  const memories = useMemo(
-    () =>
-      (memoriesQuery.data?.memories ?? []).map((memory) =>
-        mapMemoryToListRow(memory, projectIdByExternalKey),
-      ),
-    [memoriesQuery.data?.memories, projectIdByExternalKey],
-  );
+  const memories = useMemo(() => {
+    if (useLiveProviderMemories) {
+      return memoriesQuery.data?.liveRows ?? [];
+    }
+
+    return (memoriesQuery.data?.memories ?? []).map((memory) =>
+      mapMemoryToListRow(memory, projectIdByExternalKey),
+    );
+  }, [
+    memoriesQuery.data?.liveRows,
+    memoriesQuery.data?.memories,
+    projectIdByExternalKey,
+    useLiveProviderMemories,
+  ]);
 
   const memoryTotal = memoriesQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(memoryTotal / MEMORIES_PAGE_SIZE));
@@ -338,7 +382,7 @@ export function TranslationMemoriesPageContent({
         description="Create first-party workspace memories or sync provider translation memories. Provider memories stay read-only."
         statusLabel={memoryCountLabel}
         actions={
-          canCreateMemories ? (
+          allowCreateMemories ? (
             <Button
               type="button"
               onClick={() => setCreateDialogOpen(true)}
@@ -488,14 +532,14 @@ export function TranslationMemoriesPageContent({
         memories={filteredMemories}
         memoriesQuery={memoriesQuery}
         organizationSlug={organizationSlug}
-        emptyTitle={canCreateMemories ? "No translation memories yet" : emptyTitle}
+        emptyTitle={allowCreateMemories ? "No translation memories yet" : emptyTitle}
         emptyDescription={
-          canCreateMemories
+          allowCreateMemories
             ? "Create a workspace memory, import entries, then assign it to the projects that should use it."
             : emptyDescription
         }
         emptyAction={
-          canCreateMemories ? (
+          allowCreateMemories ? (
             <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
               Create memory
             </Button>

@@ -5,6 +5,13 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
+vi.mock("@/lib/providers/tms-provider-shell-mode", () => ({
+  isTmsProviderShellModeEnabled: () => false,
+  isTmsBackgroundSyncEnabled: () => true,
+  TMS_PROVIDER_SHELL_BACKGROUND_SYNC_DISABLED_REASON:
+    "Background TMS sync is disabled while provider shell mode is enabled.",
+}));
+
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
 import { upsertOrganizationExternalTmsProviderCredential } from "../organization-external-tms-provider-credentials";
 import {

@@ -3,22 +3,20 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
-
-import {
   upsertOrganizationExternalTmsMemory,
   upsertOrganizationExternalTmsMemoryEntries,
 } from "./organization-external-tms-memories";
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+import {
+  resolveExternalTmsSecretMaterial,
+  type ExternalTmsCredential,
+  type ExternalTmsProviderKind,
+} from "../organization-external-tms-provider-credentials";
 import {
   completeProviderSyncRun,
   failProviderSyncRun,
   startProviderSyncRun,
 } from "./provider-sync-runs";
 
-type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
 export type ExternalTmsTranslationMemoryEntryMetadata = {
@@ -117,15 +115,7 @@ export async function syncExternalTmsTranslationMemories(input: {
   const failures: ExternalTmsTranslationMemorySyncFailure[] = [];
 
   try {
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    );
+    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
 
     const memories = await input.fetchTranslationMemories({
       organizationId: input.organizationId,

@@ -216,7 +216,7 @@ describe("resolveApiAuthContextFromSession", () => {
       resolveApiAuthContextFromSession({
         organizationSlug: "not-a-real-membership",
       }),
-    ).rejects.toThrow("organization_access_denied");
+    ).resolves.toBeNull();
   });
 
   it("does not grant access while invite replacement sentinel is set on membership", async () => {
@@ -239,7 +239,7 @@ describe("resolveApiAuthContextFromSession", () => {
       resolveApiAuthContextFromSession({
         organizationSlug: identity.organization.slug,
       }),
-    ).rejects.toThrow("organization_access_denied");
+    ).resolves.toBeNull();
 
     await expect(resolveApiAuthContextFromSession()).resolves.toBeNull();
   });
@@ -264,7 +264,7 @@ describe("resolveApiAuthContextFromSession", () => {
       resolveApiAuthContextFromSession({
         organizationSlug: pendingOnlyIdentity.organization.slug,
       }),
-    ).rejects.toThrow("organization_access_denied");
+    ).resolves.toBeNull();
 
     await expect(resolveApiAuthContextFromSession()).resolves.toBeNull();
   });

@@ -3,10 +3,17 @@ import "dotenv/config";
 import { createHmac, randomUUID } from "node:crypto";
 
 import { eq, inArray } from "drizzle-orm";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
+
+vi.mock("@/lib/providers/tms-provider-shell-mode", () => ({
+  isTmsProviderShellModeEnabled: () => false,
+  isTmsBackgroundSyncEnabled: () => true,
+  TMS_PROVIDER_SHELL_BACKGROUND_SYNC_DISABLED_REASON:
+    "Background TMS sync is disabled while provider shell mode is enabled.",
+}));
 import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { insertProviderWebhookSubscription } from "@/lib/providers/webhooks/provider-webhook-storage";
 import type { ProviderWebhookReconciliationEventData } from "@/lib/workflow/types";

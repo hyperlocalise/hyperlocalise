@@ -1,4 +1,7 @@
 import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/tms-provider-live";
 
 export type ApiMemory = MemoryRecord;
 
@@ -116,6 +119,37 @@ export function mapMemoryToListRow(
     lastSyncErrorMessage: memory.lastSyncErrorMessage,
     updatedAt: formatRelativeTimestamp(memory.updatedAt) ?? "—",
     projectLinkId: lookupKey ? (projectIdByExternalKey.get(lookupKey) ?? null) : null,
+  };
+}
+
+export function mapLiveTmsProviderMemoryToListRow(
+  memory: TmsProviderLiveTranslationMemory,
+  providerKind: ExternalTmsProviderKind,
+): MemoryListRow {
+  return {
+    id: memory.id,
+    name: memory.name,
+    description: memory.description?.trim() || "No description",
+    source: "external_tms",
+    externalProviderKind: providerKind,
+    externalProjectId: memory.externalProjectId,
+    externalMemoryId: memory.id.split(":").at(-1) ?? memory.id,
+    localeCoverage: memory.localeCoverage,
+    localeSummary: formatLocaleCoverage(memory.localeCoverage),
+    segmentCount: memory.segmentCount,
+    segmentCountLabel: formatSegmentCount(memory.segmentCount),
+    syncState: null,
+    capabilityMode: "reference_only",
+    capabilityLabel: "Read-only (live)",
+    externalUrl: memory.externalUrl,
+    lastSyncedAt: "Live",
+    lastSyncErrorAt: null,
+    lastSyncErrorMessage: null,
+    updatedAt: "Live",
+    projectLinkId: encodeProviderProjectId({
+      providerKind,
+      externalProjectId: memory.externalProjectId,
+    }),
   };
 }
 

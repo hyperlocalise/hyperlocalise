@@ -3,23 +3,21 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
-
-import {
   upsertOrganizationExternalTmsGlossary,
   upsertOrganizationExternalTmsGlossaryTerms,
   type ExternalTmsTerminologyResourceType,
 } from "./organization-external-tms-glossaries";
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+import {
+  resolveExternalTmsSecretMaterial,
+  type ExternalTmsCredential,
+  type ExternalTmsProviderKind,
+} from "../organization-external-tms-provider-credentials";
 import {
   completeProviderSyncRun,
   failProviderSyncRun,
   startProviderSyncRun,
 } from "./provider-sync-runs";
 
-type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
 export type ExternalTmsGlossaryTermMetadata = {
@@ -123,15 +121,7 @@ export async function syncExternalTmsGlossaries(input: {
   const failures: ExternalTmsGlossarySyncFailure[] = [];
 
   try {
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    );
+    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
 
     const glossaries = await input.fetchGlossaries({
       organizationId: input.organizationId,

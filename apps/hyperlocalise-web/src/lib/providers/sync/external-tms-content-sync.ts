@@ -3,18 +3,16 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
-
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+  resolveExternalTmsSecretMaterial,
+  type ExternalTmsCredential,
+  type ExternalTmsProviderKind,
+} from "../organization-external-tms-provider-credentials";
 import {
   completeProviderSyncRun,
   failProviderSyncRun,
   startProviderSyncRun,
 } from "./provider-sync-runs";
 
-type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
 export type ExternalTmsTranslationUnit = {
@@ -158,15 +156,7 @@ export async function pullExternalTmsTaskContent(input: {
   });
 
   try {
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    );
+    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
 
     const content = await input.pullContent({
       organizationId: input.organizationId,
@@ -274,15 +264,7 @@ export async function pushExternalTmsTranslations(input: {
   const failures: ExternalTmsContentSyncFailure[] = [];
 
   try {
-    const secretMaterial = unwrapProviderCredentialCrypto(
-      decryptProviderCredential({
-        algorithm: credential.encryptionAlgorithm,
-        keyVersion: credential.keyVersion,
-        ciphertext: credential.ciphertext,
-        iv: credential.iv,
-        authTag: credential.authTag,
-      }),
-    );
+    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
 
     const pushResult = await input.pushTranslations({
       organizationId: input.organizationId,
