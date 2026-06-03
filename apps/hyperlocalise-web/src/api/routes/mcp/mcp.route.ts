@@ -10,6 +10,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
+import { projectIdSchema } from "@/lib/projects/project-id";
 import {
   buildAccessibleProjectsWhere,
   buildProjectLinkedGlossaryWhere,
@@ -309,7 +310,7 @@ async function createMcpServerForRequest(auth: McpAuthVariables["mcpAuth"]) {
     {
       description: "Get Hyperlocalise project details by ID.",
       inputSchema: z.object({
-        projectId: z.string().min(1).max(128),
+        projectId: projectIdSchema,
       }),
     },
     async ({ projectId }) => {

@@ -1,11 +1,12 @@
 import { z } from "zod";
 
+import { projectIdSchema } from "@/lib/projects/project-id";
 import { tmsAgentAutomationSettingsSchema } from "@/lib/providers/agent-runs/tms-agent-automation-settings";
 
 export const tmsAgentAutomationScopeParamSchema = z.enum(["organization", "project", "provider"]);
 
 export const projectAutomationParamsSchema = z.object({
-  projectId: z.string().min(1),
+  projectId: projectIdSchema,
 });
 
 export const providerAutomationParamsSchema = z.object({

@@ -25,6 +25,35 @@ afterEach(async () => {
 });
 
 describe("publicFileRoutes", () => {
+  it("uploads a repository source file for a double-encoded external project id", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    const projectId = `ext:crowdin:${project.id}`;
+    const encodedProjectId = encodeURIComponent(encodeURIComponent(projectId));
+    await db
+      .update(schema.projects)
+      .set({ id: projectId })
+      .where(eq(schema.projects.id, project.id));
+
+    const uploadResponse = await client.api.v1.files.$post(
+      {
+        form: {
+          projectId: encodedProjectId,
+          sourcePath: "content/en/home.md",
+          file: new File(["# Hello"], "home.md", { type: "text/markdown" }),
+        },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(uploadResponse.status).toBe(201);
+    const [storedFile] = await db
+      .select({ projectId: schema.storedFiles.projectId })
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.projectId, projectId))
+      .limit(1);
+    expect(storedFile?.projectId).toBe(projectId);
+  });
+
   it("uploads and downloads a repository source file with an API key", async () => {
     const { apiKey, project } = await createPublicApiFixture();
 

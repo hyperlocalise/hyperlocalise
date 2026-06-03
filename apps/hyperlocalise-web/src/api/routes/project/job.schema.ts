@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { projectIdSchema } from "@/lib/projects/project-id";
 import * as schema from "@/lib/database/schema";
 import { supportedTranslationFileFormats } from "@/lib/translation/file-formats";
 
@@ -7,11 +8,11 @@ export const maxTranslationTargetLocales = 20;
 export const maxTranslationMetadataEntries = 50;
 
 export const jobProjectParamsSchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
 });
 
 export const jobParamsSchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
   jobId: z.string().trim().min(1).max(128),
 });
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { projectIdSchema } from "@/lib/projects/project-id";
 import { schema } from "@/lib/database";
 
 export const memoryIdParamsSchema = z.object({
@@ -11,7 +12,7 @@ export const memoryEntryIdParamsSchema = memoryIdParamsSchema.extend({
 });
 
 export const memoryProjectParamsSchema = memoryIdParamsSchema.extend({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
 });
 
 export const listMemoryQuerySchema = z
@@ -76,7 +77,7 @@ export const importMemoryEntriesBodySchema = z.object({
 });
 
 export const attachMemoryProjectBodySchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
   priority: z.number().int().min(0).max(10_000).optional().default(0),
 });
 

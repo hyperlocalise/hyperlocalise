@@ -817,6 +817,66 @@ describe("projectRoutes", () => {
     ]);
   });
 
+  it("lists files for a double-encoded external project route id", async () => {
+    const baseIdentity = createWorkosIdentity();
+    const identity = {
+      ...baseIdentity,
+      organization: {
+        ...baseIdentity.organization,
+        slug: "hyperlocalise",
+      },
+    };
+    const createdResponse = await createProjectViaApi(identity);
+    const createdBody = (await createdResponse.json()) as ProjectResponse;
+    const projectId = "ext:crowdin:902807";
+
+    await db
+      .update(schema.projects)
+      .set({
+        id: projectId,
+        source: "external_tms",
+        externalProviderKind: "crowdin",
+        externalProjectId: "902807",
+      })
+      .where(eq(schema.projects.id, createdBody.project.id));
+
+    await upsertExternalTmsFile({
+      organizationId: createdBody.project.organizationId,
+      projectId,
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+      resourceType: "key",
+      externalResourceId: "key-902807",
+      sourcePath: "keys/home.title",
+      displayName: "home.title",
+      format: "icu",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      revision: "one",
+      syncState: "synced",
+      providerPayload: { id: "key-902807" },
+    });
+
+    const response = await app.request(
+      "/api/orgs/hyperlocalise/projects/ext%253Acrowdin%253A902807/files?limit=500",
+      {
+        headers: await authHeadersFor(identity),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFilesResponse;
+    expect(body.files).toHaveLength(1);
+    expect(body.files[0]).toMatchObject({
+      origin: "provider",
+      sourcePath: "keys/home.title",
+      provider: expect.objectContaining({
+        kind: "crowdin",
+        externalProjectId: "902807",
+      }),
+    });
+  });
+
   it("combines repository and provider records for the same source path", async () => {
     const identity = createWorkosIdentity();
     const createdResponse = await createProjectViaApi(identity);

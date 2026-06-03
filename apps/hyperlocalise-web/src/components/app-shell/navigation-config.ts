@@ -36,7 +36,7 @@ export function buildOrganizationPath(organizationSlug: string, section: string)
 }
 
 export function buildProjectPath(organizationSlug: string, projectId: string, section?: string) {
-  const base = `/org/${organizationSlug}/projects/${projectId}`;
+  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}`;
   return section ? `${base}/${section}` : base;
 }
 
@@ -157,12 +157,20 @@ export function parseProjectRoute(pathname: string | null) {
   const match = pathname.match(/^\/org\/([^/]+)\/projects\/([^/]+)(?:\/(.*))?$/);
   if (!match) return null;
 
-  const [, organizationSlug, projectId, remainder] = match;
+  const [, organizationSlug, projectIdSegment, remainder] = match;
   const section = remainder?.split("/").filter(Boolean)[0] ?? null;
 
   return {
     organizationSlug,
-    projectId,
+    projectId: decodePathSegment(projectIdSegment),
     section,
   };
+}
+
+function decodePathSegment(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
 }

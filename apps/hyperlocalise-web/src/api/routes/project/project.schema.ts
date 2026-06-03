@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/project-id";
 import {
   localeInputSchema,
   maxProjectTargetLocales,
@@ -7,7 +8,7 @@ import {
 } from "@/lib/i18n/locales";
 
 export const projectIdParamsSchema = z.object({
-  projectId: z.string().trim().min(1).max(128),
+  projectId: projectIdSchema,
 });
 
 export const externalTmsContentSyncBodySchema = z.object({
@@ -192,7 +193,7 @@ export const projectFilesQuerySchema = z.object({
   providerKind: projectFilesFilterProviderKindSchema.optional(),
   locale: z.string().trim().max(32).optional(),
   syncState: z.string().trim().max(64).optional(),
-  projectId: z.string().trim().max(128).optional(),
+  projectId: optionalProjectIdSchema,
 });
 
 export const workspaceFileRecordSchema = projectFileRecordSchema.extend({
