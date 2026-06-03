@@ -131,3 +131,9 @@
 **Learning:** The Crowdin Translations API v2 supports several parameters that were missing from the Go SDK, specifically filtering by labels during project and directory builds, and the 'soft match' option for pre-translations. Additionally, uploading translations supports marking them as done immediately.
 
 **Action:** Added `TranslateWithSoftMatchOnly` (*bool) to `PreTranslationRequest` and `PreTranslationAttributes`. Added `LabelIDs` ([]int) to `BuildProjectRequest`, `BuildProjectDirectoryTranslationRequest`, and `BuildAttributes`, and updated `MarshalJSON` to include them. Added `MarkAddedAsDone` (*bool) to `UploadTranslationsRequest`. Verified with comprehensive unit tests in `translations_test.go` and `model/translations_test.go`.
+
+## 2026-09-05 - Improve Machine Translation Engines model parity and flexibility
+
+**Learning:** The Crowdin MT Engines API v2 uses different credential structures depending on the engine type (e.g., Google, DeepL, etc.), but the SDK was using a hardcoded struct. Additionally, the list response was missing pagination, and the resource model was missing standard fields like `createdAt` and `updatedAt`.
+
+**Action:** Updated `MachineTranslation.Credentials` to `map[string]any` and `MTAddRequest.Credentials` to `any` to support all engine types. Added `Pagination` to `MachineTranslationsListResponse`. Added `CreatedAt` and `UpdatedAt` fields to the `MachineTranslation` model. Fixed and unskipped `TestMachineTranslationEnginesService_AddMT` by aligning expectations and correcting mock JSON data.

@@ -52,12 +52,9 @@ func TestMachineTranslationEnginesService_GetMT(t *testing.T) {
 		ID:   2,
 		Name: "Crowdin Translate",
 		Type: "crowdin",
-		Credentials: struct {
-			CrowdinNMT                  string `json:"crowdin_nmt"`
-			CrowdinNMTMultiTranslations string `json:"crowdin_nmt_multi_translations"`
-		}{
-			CrowdinNMT:                  "1",
-			CrowdinNMTMultiTranslations: "1",
+		Credentials: map[string]any{
+			"crowdin_nmt":                    "1",
+			"crowdin_nmt_multi_translations": "1",
 		},
 		SupportedLanguageIDs: []string{"en", "es", "pl"},
 		SupportedLanguagePairs: map[string][]string{
@@ -212,8 +209,6 @@ func TestMachineTranslationEnginesService_ListMT_invalidJSON(t *testing.T) {
 }
 
 func TestMachineTranslationEnginesService_AddMT(t *testing.T) {
-	t.Skip("Not implemented correctly")
-
 	client, mux, teardown := setupClient()
 	defer teardown()
 
@@ -230,7 +225,7 @@ func TestMachineTranslationEnginesService_AddMT(t *testing.T) {
 			"groupId": 0,
 			"enabledLanguageIds": ["uk"],
 			"enabledProjectIds": [ 22],
-			"isEnabled": "true"
+			"isEnabled": true
 		}`)
 
 		fmt.Fprint(w, `{
@@ -240,8 +235,8 @@ func TestMachineTranslationEnginesService_AddMT(t *testing.T) {
 				"name": "Crowdin Translate",
 				"type": "crowdin",
 				"credentials": {
-					"crowdin_nmt": 1,
-					"crowdin_nmt_multi_translations": 1
+					"crowdin_nmt": "1",
+					"crowdin_nmt_multi_translations": "1"
 				},
 				"supportedLanguageIds": ["en","es","pl"],
 				"supportedLanguagePairs": {
@@ -276,12 +271,9 @@ func TestMachineTranslationEnginesService_AddMT(t *testing.T) {
 		ID:   2,
 		Name: "Crowdin Translate",
 		Type: "crowdin",
-		Credentials: struct {
-			CrowdinNMT                  string `json:"crowdin_nmt"`
-			CrowdinNMTMultiTranslations string `json:"crowdin_nmt_multi_translations"`
-		}{
-			CrowdinNMT:                  "1",
-			CrowdinNMTMultiTranslations: "1",
+		Credentials: map[string]any{
+			"crowdin_nmt":                    "1",
+			"crowdin_nmt_multi_translations": "1",
 		},
 		SupportedLanguageIDs: []string{"en", "es", "pl"},
 		SupportedLanguagePairs: map[string][]string{

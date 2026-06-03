@@ -79,6 +79,14 @@ func TestMTAddRequestValidate(t *testing.T) {
 			err:  "credentials are required",
 		},
 		{
+			name: "typed nil credentials",
+			req: func() *MTAddRequest {
+				var creds *MTECredentials = nil
+				return &MTAddRequest{Name: "Crowdin Translate", Type: "crowdin", Credentials: creds}
+			}(),
+			err: "credentials are required",
+		},
+		{
 			name: "valid request",
 			req: &MTAddRequest{
 				Name: "Crowdin Translate", Type: "crowdin",
