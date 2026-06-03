@@ -317,18 +317,13 @@ describe("externalTmsProviderCredentialRoutes", () => {
       .where(eq(schema.crowdinOAuthStates.nonce, stateParam!))
       .limit(1);
 
+    let capturedTokenBody: Record<string, unknown> | undefined;
+    let capturedUserHeaders: HeadersInit | undefined;
+
     const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       const requestUrl = fetchInputUrl(url);
       if (requestUrl === "https://accounts.crowdin.com/oauth/token") {
-        const body = JSON.parse(requestBodyString(init?.body)) as Record<string, unknown>;
-        expect(body).toMatchObject({
-          grant_type: "authorization_code",
-          client_id: "crowdin-client-id",
-          client_secret: "crowdin-client-secret",
-          code: "oauth-code",
-          code_verifier: state!.codeVerifier,
-        });
-        expect(String(body.redirect_uri)).toContain("/crowdin/oauth/callback");
+        capturedTokenBody = JSON.parse(requestBodyString(init?.body)) as Record<string, unknown>;
         return new Response(
           JSON.stringify({
             access_token: "crowdin-access-token",
@@ -341,7 +336,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
       }
 
       if (requestUrl === "https://api.crowdin.com/api/v2/user") {
-        expect(init?.headers).toEqual({ Authorization: "Bearer crowdin-access-token" });
+        capturedUserHeaders = init?.headers;
         return new Response("{}", { status: 200 });
       }
 
@@ -362,6 +357,15 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(callbackResponse.headers.get("location")).toBe(
       `/org/${identity.organization.slug}/integrations?crowdin_connected=1`,
     );
+    expect(capturedTokenBody).toMatchObject({
+      grant_type: "authorization_code",
+      client_id: "crowdin-client-id",
+      client_secret: "crowdin-client-secret",
+      code: "oauth-code",
+      code_verifier: state!.codeVerifier,
+    });
+    expect(String(capturedTokenBody!.redirect_uri)).toContain("/crowdin/oauth/callback");
+    expect(capturedUserHeaders).toEqual({ Authorization: "Bearer crowdin-access-token" });
 
     const [credential] = await db
       .select()
