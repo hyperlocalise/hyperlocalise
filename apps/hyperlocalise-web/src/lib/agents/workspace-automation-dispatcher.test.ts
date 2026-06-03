@@ -17,6 +17,7 @@ function expectOk<T, E>(result: Result<T, E>): T {
   return result.value;
 }
 import {
+  dispatchContentfulWorkspaceAutomationForManual,
   dispatchWorkspaceAutomationForSchedule,
   dispatchWorkspaceAutomationsForContentfulWebhook,
 } from "./workspace-automation-dispatcher";
@@ -312,6 +313,73 @@ describe("workspace automation dispatcher", () => {
     expect(translationRuns[0]?.targetLocales).toEqual(["fr-FR"]);
     expect(translationRuns[0]?.runQa).toBe(true);
     expect(translationRuns[0]?.overwriteDraftLocales).toBe(false);
+  });
+
+  it("does not manually dispatch non-manual Contentful automations", async () => {
+    const scope = await seedDispatchScope();
+    const contentfulConnection = await createContentfulConnection({
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      projectId: scope.projectId,
+      displayName: "Contentful Help Center",
+      spaceId: `space-${scope.organizationId.slice(0, 8)}`,
+      environmentId: "master",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      contentTypeIds: ["helpCenterArticle"],
+      fieldConfig: { fieldMode: "auto" },
+      accessToken: "cma_test_token",
+    });
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Contentful webhook translation",
+        instructions: "Translate Contentful entries from webhooks.",
+        triggerConfig: { mode: "contentful" },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          contentful: {
+            enabled: true,
+            connectionId: contentfulConnection.connection.id,
+            projectId: scope.projectId,
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            contentTypeIds: ["helpCenterArticle"],
+            fieldMode: "auto",
+            overwriteDraftLocales: false,
+            runQa: true,
+            writeDrafts: true,
+          },
+        },
+      }),
+    );
+    const enqueued: unknown[] = [];
+
+    const result = await dispatchContentfulWorkspaceAutomationForManual({
+      automation,
+      idempotencyKey: "manual-non-manual-contentful",
+      queue: {
+        async enqueue(event) {
+          enqueued.push(event);
+          return { ids: ["workflow-1"] };
+        },
+      },
+    });
+
+    expect(result).toBeNull();
+    expect(enqueued).toHaveLength(0);
+    const runs = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(runs).toHaveLength(0);
+
+    const translationRuns = await db
+      .select()
+      .from(schema.contentfulTranslationRuns)
+      .where(eq(schema.contentfulTranslationRuns.organizationId, scope.organizationId));
+    expect(translationRuns).toHaveLength(0);
   });
 
   it("dispatches Contentful webhook automations only for matching content types", async () => {

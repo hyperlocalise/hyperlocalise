@@ -295,6 +295,7 @@ export async function updateContentfulConnection(input: {
   const encrypted = input.accessToken
     ? unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken))
     : null;
+  const shouldResetValidation = !!(input.accessToken || input.spaceId || input.environmentId);
 
   const [connection] = await db
     .update(schema.contentfulConnections)
@@ -317,6 +318,10 @@ export async function updateContentfulConnection(input: {
             authTag: encrypted.authTag,
             keyVersion: encrypted.keyVersion,
             maskedTokenSuffix: maskProviderCredentialSuffix(input.accessToken ?? ""),
+          }
+        : {}),
+      ...(shouldResetValidation
+        ? {
             validationStatus: "unvalidated",
             validationMessage: null,
             lastValidatedAt: null,

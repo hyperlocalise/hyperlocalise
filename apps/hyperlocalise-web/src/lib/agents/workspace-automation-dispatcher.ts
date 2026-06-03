@@ -612,6 +612,9 @@ export async function dispatchContentfulWorkspaceAutomationForManual(input: {
   if (input.automation.status !== "active") {
     return null;
   }
+  if (input.automation.triggerConfig.mode !== "manual") {
+    return null;
+  }
   if (!hasWorkspaceAutomationContentfulWorkflow(input.automation.toolConfig)) {
     return null;
   }
