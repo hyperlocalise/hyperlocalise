@@ -59,6 +59,7 @@ import {
   listTmsProviderLiveProjects,
 } from "@/lib/providers/tms-provider-live";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
+import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import type { ExternalTmsResourceType } from "@/lib/providers/sync/organization-external-tms-files";
 import type {
@@ -75,6 +76,7 @@ import {
   externalTmsTranslationPushBodySchema,
   maxProjectFileUploadBytes,
   projectFileDetailQuerySchema,
+  projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
   projectFilesQuerySchema,
   projectIdParamsSchema,
@@ -318,6 +320,16 @@ const validateProjectFileDetailQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileStringContextBody = validator("json", (value, c) => {
+  const parsed = projectFileStringContextBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 function asString(value: unknown) {
   return typeof value === "string" ? value : undefined;
 }
@@ -545,6 +557,44 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         return c.json({ file }, 200);
+      },
+    )
+    .post(
+      "/:projectId/files/string-context",
+      validateProjectParams,
+      validateProjectFileStringContextBody,
+      async (c) => {
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+
+        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        const result = await lookupProjectFileStringRepositoryContext({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          repositoryFullName: body.repositoryFullName,
+          sourcePath: body.sourcePath,
+          key: body.key,
+          text: body.text,
+          context: body.context ?? null,
+          localUserId: c.var.auth.user.localUserId,
+          membershipRole: c.var.auth.membership.role,
+          displayName: null,
+          email: c.var.auth.user.email,
+        });
+
+        if (isErr(result)) {
+          return badRequestResponse(c, result.error.code, result.error.message);
+        }
+
+        return c.json({ stringContext: result.value }, 200);
       },
     )
     .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {

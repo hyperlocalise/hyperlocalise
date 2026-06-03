@@ -75,6 +75,23 @@ export type RepositoryGitHubContextDependencies = {
   }) => Promise<PullRequestDetails | null>;
 };
 
+export async function resolveWebProjectRepositoryGitHubContext(input: {
+  organizationId: string;
+  repositoryFullName: string;
+  dependencies?: RepositoryGitHubContextDependencies;
+}): Promise<RepositoryGitHubContextResolution> {
+  const dependencies = input.dependencies ?? defaultRepositoryGitHubContextDependencies;
+
+  return resolveInstalledGitHubContext({
+    organizationId: input.organizationId,
+    repositoryFullName: input.repositoryFullName,
+    source: "workspace_config",
+    accessFailureFollowUp:
+      "The GitHub App could not access this repository. Check that it is installed and enabled in Agent → GitHub.",
+    dependencies,
+  });
+}
+
 export async function resolveSlackRepositoryGitHubContext(input: {
   organizationId: string;
   text: string;

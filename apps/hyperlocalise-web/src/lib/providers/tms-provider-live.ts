@@ -1,6 +1,13 @@
 import { createLogger } from "@/lib/log";
 import { schema } from "@/lib/database";
-import type { ProjectFileDetailResponse } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileContent,
+  ProjectFileDetailResponse,
+} from "@/api/routes/project/project.schema";
+import {
+  buildSourceStringsPreviewContent,
+  normalizeProjectFileContent,
+} from "@/lib/projects/project-file-source-strings";
 import {
   CrowdinApiClient,
   CrowdinApiError,
@@ -439,31 +446,30 @@ function crowdinSourceTextValue(text: CrowdinSourceString["text"]) {
   return text;
 }
 
-function serializeCrowdinSourceStringsPreview(input: {
+function buildCrowdinSourceStringsPreviewContent(input: {
   strings: CrowdinSourceString[];
   truncated: boolean;
-}) {
+}): ProjectFileContent | null {
   if (input.strings.length === 0) {
     return null;
   }
 
-  return `${JSON.stringify(
-    {
-      provider: "crowdin",
-      resource: "source_strings",
-      note: "Raw source file download was unavailable; this preview is generated from Crowdin source string metadata.",
-      truncated: input.truncated,
-      strings: input.strings.map((sourceString) => ({
-        id: sourceString.id,
-        key: sourceString.identifier,
-        text: crowdinSourceTextValue(sourceString.text),
-        type: sourceString.type,
-        context: sourceString.context,
-      })),
-    },
-    null,
-    2,
-  )}\n`;
+  const entries = input.strings.map((sourceString) => ({
+    id: sourceString.id,
+    key: sourceString.identifier,
+    text:
+      typeof sourceString.text === "string"
+        ? sourceString.text
+        : JSON.stringify(crowdinSourceTextValue(sourceString.text)),
+    type: sourceString.type,
+    context: sourceString.context,
+  }));
+
+  return buildSourceStringsPreviewContent({
+    entries,
+    truncated: input.truncated,
+    note: "Raw source file download was unavailable; this preview is generated from Crowdin source string metadata.",
+  });
 }
 
 async function downloadCrowdinSourceStringPreview(input: {
@@ -472,24 +478,25 @@ async function downloadCrowdinSourceStringPreview(input: {
   fileId: number;
 }): Promise<{
   byteSize: number | null;
-  content: { text: string } | null;
+  content: ProjectFileContent | null;
   contentType: string | null;
 } | null> {
   const strings = await input.client.listSourceStrings(input.projectId, input.fileId, undefined, {
     maxItems: maxLiveProviderStringPreviewItems + 1,
   });
-  const previewText = serializeCrowdinSourceStringsPreview({
+  const previewContent = buildCrowdinSourceStringsPreviewContent({
     strings: strings.slice(0, maxLiveProviderStringPreviewItems),
     truncated: strings.length > maxLiveProviderStringPreviewItems,
   });
-  if (!previewText) {
+  if (!previewContent) {
     return null;
   }
 
-  const byteSize = new TextEncoder().encode(previewText).byteLength;
+  const serialized = JSON.stringify(previewContent);
+  const byteSize = new TextEncoder().encode(serialized).byteLength;
   return {
     byteSize,
-    content: byteSize <= maxLiveProviderInlineTextBytes ? { text: previewText } : null,
+    content: byteSize <= maxLiveProviderInlineTextBytes ? previewContent : null,
     contentType: "application/json",
   };
 }
@@ -501,7 +508,7 @@ async function downloadLiveProviderFileContent(input: {
   sourcePath: string;
 }): Promise<{
   byteSize: number | null;
-  content: { text: string } | null;
+  content: ProjectFileContent | null;
   contentType: string | null;
 }> {
   if (input.context.providerKind !== "crowdin") {
@@ -801,7 +808,7 @@ export async function getTmsProviderLiveFileDetail(
         byteSize: downloaded.byteSize,
         sha256: null,
         metadata: file.metadata,
-        content: downloaded.content,
+        content: normalizeProjectFileContent(downloaded.content),
       },
     ],
     jobsByLocale: [],

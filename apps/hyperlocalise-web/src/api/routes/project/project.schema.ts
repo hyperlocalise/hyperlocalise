@@ -218,8 +218,37 @@ export const projectFileUploadBodySchema = z.object({
   workflowRunId: z.string().trim().min(1).max(256).optional(),
 });
 
-export const projectFileContentSchema = z.object({
+export const projectSourceStringEntrySchema = z.object({
+  key: z.string(),
   text: z.string(),
+  context: z.string().nullable(),
+  type: z.string().optional(),
+  id: z.number().optional(),
+});
+
+export const projectSourceStringsPreviewSchema = z.object({
+  truncated: z.boolean(),
+  note: z.string().optional(),
+  entries: z.array(projectSourceStringEntrySchema),
+});
+
+export const projectFileContentSchema = z.object({
+  text: z.string().optional(),
+  sourceStrings: projectSourceStringsPreviewSchema.optional(),
+});
+
+export const projectFileStringContextBodySchema = z.object({
+  repositoryFullName: z.string().trim().min(1).max(256),
+  sourcePath: z.string().trim().min(1).max(2048),
+  key: z.string().trim().min(1).max(2048),
+  text: z.string().trim().min(1).max(16_384),
+  context: z.string().trim().max(16_384).nullable().optional(),
+});
+
+export const projectFileStringContextResponseSchema = z.object({
+  stringContext: z.object({
+    summary: z.string(),
+  }),
 });
 
 export const projectFileVersionRecordSchema = z.object({
@@ -309,7 +338,13 @@ export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
+export type ProjectSourceStringEntry = z.infer<typeof projectSourceStringEntrySchema>;
+export type ProjectSourceStringsPreview = z.infer<typeof projectSourceStringsPreviewSchema>;
 export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
+export type ProjectFileStringContextBody = z.infer<typeof projectFileStringContextBodySchema>;
+export type ProjectFileStringContextResponse = z.infer<
+  typeof projectFileStringContextResponseSchema
+>;
 export type ProjectFileVersionRecord = z.infer<typeof projectFileVersionRecordSchema>;
 export type ProjectFileOutputRecord = z.infer<typeof projectFileOutputRecordSchema>;
 export type ProjectFileJobRecord = z.infer<typeof projectFileJobRecordSchema>;

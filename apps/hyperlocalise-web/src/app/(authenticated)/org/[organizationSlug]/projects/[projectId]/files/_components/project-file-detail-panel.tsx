@@ -10,8 +10,10 @@ import type {
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { ProjectFileSourceStringsPreview } from "./project-file-source-strings-preview";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { parseSourceStringsFromFileContent } from "@/lib/projects/project-file-source-strings";
 import { cn } from "@/lib/primitives/cn";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -148,7 +150,10 @@ export function ProjectFileDetailPanel({
 
   const detail = detailQuery.data;
   const latestVersion = detail?.versions[0];
-  const preview = latestVersion?.content?.text ? truncatePreview(latestVersion.content.text) : null;
+  const latestContent = latestVersion?.content ?? null;
+  const sourceStringsPreview = parseSourceStringsFromFileContent(latestContent);
+  const textPreview =
+    latestContent?.text && !sourceStringsPreview ? truncatePreview(latestContent.text) : null;
   const displayByteSize = latestVersion?.byteSize ?? file.byteSize;
 
   const jobsByLocale = detail?.jobsByLocale ?? [];
@@ -195,12 +200,19 @@ export function ProjectFileDetailPanel({
         <TypographyP className="text-xs font-medium tracking-wide text-foreground/52 uppercase">
           Source preview
         </TypographyP>
-        {preview ? (
+        {sourceStringsPreview ? (
+          <ProjectFileSourceStringsPreview
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourcePath={sourcePath}
+            content={latestContent}
+          />
+        ) : textPreview ? (
           <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">
             <pre className="max-h-[min(24rem,50vh)] overflow-auto p-3 font-mono text-xs leading-relaxed text-foreground/82 whitespace-pre-wrap wrap-break-word">
-              {preview.text}
+              {textPreview.text}
             </pre>
-            {preview.truncated ? (
+            {textPreview.truncated ? (
               <TypographyP className="border-t border-foreground/8 px-3 py-2 text-xs text-foreground/42">
                 Preview truncated. Download the full file from a completed job output when
                 available.

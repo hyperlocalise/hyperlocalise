@@ -1155,9 +1155,16 @@ describe("projectRoutes", () => {
         revision: "77",
         contentType: "application/json",
       });
-      expect(body.file.versions[0]?.content?.text).toContain('"resource": "source_strings"');
-      expect(body.file.versions[0]?.content?.text).toContain('"key": "items.count"');
-      expect(body.file.versions[0]?.content?.text).toContain('"%d items"');
+      expect(body.file.versions[0]?.content?.sourceStrings?.entries).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            key: "items.count",
+            text: JSON.stringify({ one: "%d item", other: "%d items" }),
+            context: "Pluralized item count",
+          }),
+        ]),
+      );
+      expect(body.file.versions[0]?.content?.text).toBeUndefined();
       expect(fetchMock).toHaveBeenCalledWith(
         expect.stringContaining("/projects/902807/files/101/download"),
         expect.anything(),

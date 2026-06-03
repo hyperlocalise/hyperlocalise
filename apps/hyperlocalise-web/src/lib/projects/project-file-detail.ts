@@ -15,6 +15,7 @@ import { listExternalTmsFileVersionsForFile } from "@/lib/providers/sync/organiz
 import { resolveProviderJobsForFile } from "@/lib/providers/job-provider-source-files";
 import { bufferFromStream } from "@/lib/primitives/streams";
 import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+import { normalizeProjectFileContent } from "@/lib/projects/project-file-source-strings";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 const maxInlineTextBytes = 512 * 1024;
@@ -100,9 +101,8 @@ export async function inlineProjectFileTextContent(input: {
   }
 
   const buffer = await bufferFromStream(object.body);
-  return {
-    text: new TextDecoder("utf-8", { fatal: false }).decode(buffer),
-  };
+  const text = new TextDecoder("utf-8", { fatal: false }).decode(buffer);
+  return normalizeProjectFileContent({ text });
 }
 
 function toProviderRecord(file: typeof schema.externalTmsFiles.$inferSelect) {
