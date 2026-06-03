@@ -1,10 +1,12 @@
+import { env } from "@/lib/env";
+
 /**
  * Provider shell phase: Hyperlocalise reads TMS data live via API.
  * Background sync, webhooks, and scheduled reconciliation stay off until
  * native + provider convergence is ready.
  */
 export function isTmsProviderShellModeEnabled() {
-  return process.env.TMS_PROVIDER_SHELL_MODE === "true";
+  return env.NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE;
 }
 
 export function isTmsBackgroundSyncEnabled() {

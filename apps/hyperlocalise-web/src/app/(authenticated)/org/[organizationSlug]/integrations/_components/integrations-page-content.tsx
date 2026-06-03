@@ -500,6 +500,7 @@ function TmsIntegrationRow({
   const isBlockedByActiveProvider =
     !isComingSoon &&
     integrationProviderKind !== null &&
+    integrationProviderKind !== "crowdin" &&
     activeExternalProviderKind !== null &&
     activeExternalProviderKind !== integrationProviderKind &&
     !isConnected;

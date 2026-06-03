@@ -171,6 +171,15 @@ export const env = createEnv({
       .int()
       .positive()
       .default(100),
+
+    /**
+     * Opt in to TMS provider shell mode (live provider reads, background sync off).
+     * Prefer NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE for client-visible behavior.
+     */
+    TMS_PROVIDER_SHELL_MODE: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -181,6 +190,12 @@ export const env = createEnv({
 
     /** Public WorkOS OAuth redirect URI exposed to the browser. Optional — falls back to WORKOS_REDIRECT_URI. */
     NEXT_PUBLIC_WORKOS_REDIRECT_URI: z.url().optional(),
+
+    /** Exposes TMS provider shell mode to client components. Falls back to TMS_PROVIDER_SHELL_MODE. */
+    NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
   },
   runtimeEnv: {
     NODE_ENV: process.env.NODE_ENV,
@@ -260,6 +275,14 @@ export const env = createEnv({
       process.env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
+    TMS_PROVIDER_SHELL_MODE:
+      process.env.TMS_PROVIDER_SHELL_MODE ??
+      process.env.NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE ??
+      "false",
+    NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE:
+      process.env.NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE ??
+      process.env.TMS_PROVIDER_SHELL_MODE ??
+      "false",
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),
