@@ -452,6 +452,32 @@ describe("CrowdinApiClient", () => {
     expect(revisions[0]).toMatchObject({ id: 50, fileId: 101, info: { addedStrings: 2 } });
   });
 
+  it("gets a source file download link", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: {
+            url: "https://downloads.crowdin.test/source.json",
+            expireIn: "2026-06-03T00:00:00+00:00",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const downloadLink = await client.downloadFile(1, 101);
+
+    expect(downloadLink).toMatchObject({
+      url: "https://downloads.crowdin.test/source.json",
+      expireIn: "2026-06-03T00:00:00+00:00",
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/projects/1/files/101/download",
+      expect.objectContaining({ method: "GET" }),
+    );
+  });
+
   it("lists source strings", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

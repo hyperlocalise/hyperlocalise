@@ -911,6 +911,16 @@ export class CrowdinApiClient {
   }
 
   /**
+   * Get a temporary download link for a source file.
+   */
+  async downloadFile(projectId: number, fileId: number): Promise<CrowdinDownloadLink> {
+    const response = await this.get<CrowdinGetResponse<CrowdinDownloadLink>>(
+      `/projects/${projectId}/files/${fileId}/download`,
+    );
+    return response.data;
+  }
+
+  /**
    * Export strings for a task and return a download link when available.
    */
   async exportTaskStrings(projectId: number, taskId: number): Promise<CrowdinDownloadLink | null> {

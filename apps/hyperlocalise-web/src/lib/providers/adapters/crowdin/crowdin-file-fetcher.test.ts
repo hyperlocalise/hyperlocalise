@@ -13,7 +13,7 @@ describe("fetchCrowdinFileKeys", () => {
     globalThis.fetch = originalFetch;
   });
 
-  it("returns normalized file and key metadata from Crowdin", async () => {
+  it("returns normalized file metadata from Crowdin", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
@@ -145,25 +145,21 @@ describe("fetchCrowdinFileKeys", () => {
       secretMaterial: "test-token",
     });
 
-    expect(result).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          externalResourceId: "101",
-          resourceType: "file",
-          sourcePath: "main/locales/en.json",
-          displayName: "English",
-          format: "json",
-          revision: "50",
-          externalUrl: "https://api.crowdin.test/project/1/files/101",
-          syncState: "synced",
-        }),
-        expect.objectContaining({
-          externalResourceId: "1001",
-          resourceType: "key",
-          sourcePath: "main/locales/en.json/keys/hello",
-          displayName: "hello",
-        }),
-      ]),
+    expect(result).toEqual([
+      expect.objectContaining({
+        externalResourceId: "101",
+        resourceType: "file",
+        sourcePath: "main/locales/en.json",
+        displayName: "English",
+        format: "json",
+        revision: "50",
+        externalUrl: "https://api.crowdin.test/project/1/files/101",
+        syncState: "synced",
+      }),
+    ]);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/strings?"),
+      expect.anything(),
     );
   });
 
@@ -221,7 +217,7 @@ describe("fetchCrowdinFileKeys", () => {
     );
   });
 
-  it("returns a failed key resource when source strings cannot be listed for a file", async () => {
+  it("does not list source strings when discovering files", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
@@ -249,9 +245,7 @@ describe("fetchCrowdinFileKeys", () => {
       }
 
       if (path.includes("/strings?")) {
-        return new Response(JSON.stringify({ error: { message: "Rate limited" } }), {
-          status: 429,
-        });
+        throw new Error("Source strings should not be fetched for file discovery");
       }
 
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
@@ -269,22 +263,16 @@ describe("fetchCrowdinFileKeys", () => {
       secretMaterial: "test-token",
     });
 
-    expect(result).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          externalResourceId: "101",
-          resourceType: "file",
-          sourcePath: "en.json",
-        }),
-        expect.objectContaining({
-          externalResourceId: "101",
-          resourceType: "key",
-          sourcePath: "en.json/keys",
-          syncErrorMessage: expect.stringContaining(
-            "Failed to list source strings for en.json: Crowdin API returned HTTP 429",
-          ),
-        }),
-      ]),
+    expect(result).toEqual([
+      expect.objectContaining({
+        externalResourceId: "101",
+        resourceType: "file",
+        sourcePath: "en.json",
+      }),
+    ]);
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/strings?"),
+      expect.anything(),
     );
   });
 

@@ -1,5 +1,8 @@
 import { createLogger } from "@/lib/log";
 import { schema } from "@/lib/database";
+import type { ProjectFileDetailResponse } from "@/api/routes/project/project.schema";
+import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
   getActiveOrganizationExternalTmsProviderCredentialRow,
@@ -28,11 +31,13 @@ import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/sync/external-t
 import type { ExternalTmsJobTaskMetadata } from "@/lib/providers/sync/external-tms-job-sync";
 import type { ExternalTmsProjectMetadata } from "@/lib/providers/sync/external-tms-project-sync";
 import type { ExternalTmsTranslationMemoryMetadata } from "@/lib/providers/sync/external-tms-tm-sync";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 const logger = createLogger("tms-provider-live");
 
 const LIVE_PROJECT_JOB_FANOUT_CONCURRENCY = 5;
 const LIVE_GLOSSARY_TM_FANOUT_CONCURRENCY = 5;
+const maxLiveProviderInlineTextBytes = 512 * 1024;
 
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
@@ -135,6 +140,8 @@ export type TmsProviderLiveFile = {
   };
   latestJob: null;
 };
+
+export type TmsProviderLiveFileDetail = ProjectFileDetailResponse["file"];
 
 export type TmsProviderLiveGlossary = {
   id: string;
@@ -404,6 +411,64 @@ function mapLiveFile(input: {
   };
 }
 
+async function downloadLiveProviderFileContent(input: {
+  context: ActiveTmsProviderContext;
+  externalProjectId: string;
+  externalResourceId: string;
+  sourcePath: string;
+}): Promise<{
+  byteSize: number | null;
+  content: { text: string } | null;
+  contentType: string | null;
+}> {
+  if (input.context.providerKind !== "crowdin") {
+    return { byteSize: null, content: null, contentType: null };
+  }
+
+  if (!inferSupportedFileTranslationFileFormat(input.sourcePath)) {
+    return { byteSize: null, content: null, contentType: null };
+  }
+
+  const projectId = Number(input.externalProjectId);
+  const fileId = Number(input.externalResourceId);
+  if (Number.isNaN(projectId) || Number.isNaN(fileId)) {
+    return { byteSize: null, content: null, contentType: null };
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const downloadLink = await client.downloadFile(projectId, fileId);
+    const bytes = await client.downloadUrl(downloadLink.url);
+    const byteSize = bytes.byteLength;
+
+    return {
+      byteSize,
+      content:
+        byteSize <= maxLiveProviderInlineTextBytes
+          ? { text: new TextDecoder("utf-8", { fatal: false }).decode(bytes) }
+          : null,
+      contentType: sourceContentType(input.sourcePath),
+    };
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    logger.warn("tms_provider_live_file_content_failed", {
+      organizationId: input.context.organizationId,
+      providerKind: input.context.providerKind,
+      externalProjectId: input.externalProjectId,
+      externalResourceId: input.externalResourceId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return { byteSize: null, content: null, contentType: null };
+  }
+}
+
 async function fetchLiveProjects(context: ActiveTmsProviderContext) {
   const fetcher = tmsProviderProjectFetchers[context.providerKind];
   if (!fetcher) {
@@ -584,6 +649,59 @@ export async function listTmsProviderLiveFilesForProject(
   return files
     .slice(0, options?.limit ?? 500)
     .map((file) => mapLiveFile({ providerKind: context.providerKind, externalProjectId, file }));
+}
+
+export async function getTmsProviderLiveFileDetail(
+  organizationId: string,
+  externalProjectId: string,
+  sourcePath: string,
+): Promise<TmsProviderLiveFileDetail | null> {
+  const context = await loadActiveTmsProviderContext(organizationId);
+  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
+    context,
+    limit: 1000,
+  });
+  const file = files.find((item) => item.sourcePath === sourcePath);
+  if (!file?.provider) {
+    return null;
+  }
+
+  const downloaded =
+    file.provider.resourceType === "file"
+      ? await downloadLiveProviderFileContent({
+          context,
+          externalProjectId,
+          externalResourceId: file.provider.externalResourceId,
+          sourcePath: file.sourcePath,
+        })
+      : { byteSize: null, content: null, contentType: null };
+
+  return {
+    sourcePath: file.sourcePath,
+    filename: file.filename,
+    provider: file.provider,
+    versions: [
+      {
+        id: `provider-live:${file.provider.kind}:${file.provider.externalProjectId}:${file.provider.externalResourceId}`,
+        origin: "provider",
+        sourcePath: file.sourcePath,
+        sourceHash: file.sourceHash,
+        revision: file.provider.revision,
+        commitSha: null,
+        workflowRunId: null,
+        uploadedAt: file.uploadedAt,
+        storedFileId: null,
+        filename: file.filename,
+        contentType: downloaded.contentType,
+        byteSize: downloaded.byteSize,
+        sha256: null,
+        metadata: file.metadata,
+        content: downloaded.content,
+      },
+    ],
+    jobsByLocale: [],
+    providerJobsByLocale: [],
+  };
 }
 
 export async function listTmsProviderLiveJobs(

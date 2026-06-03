@@ -1,19 +1,18 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import type { FileTreeRowDecorationContext } from "@pierre/trees";
+import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
 import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { cn } from "@/lib/primitives/cn";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 import {
@@ -64,6 +63,28 @@ function formatBytes(bytes: number | null) {
   return `${Number((bytes / 1024 ** unitIndex).toFixed(1))} ${units[unitIndex]}`;
 }
 
+function formatNullableDate(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return DATE_FORMATTER.format(date);
+}
+
+function fileListMetadata(file: ProjectFileRecord) {
+  const uploadedAt = formatNullableDate(file.uploadedAt);
+  if (file.provider && file.byteSize === null) {
+    return [
+      file.provider.format,
+      file.provider.resourceType === "file" ? "Provider file" : "Provider key",
+      uploadedAt,
+    ]
+      .filter(Boolean)
+      .join(" · ");
+  }
+
+  return [formatBytes(file.byteSize), uploadedAt].filter(Boolean).join(" · ");
+}
+
 function sourcePathForFile(file: File) {
   const fileWithPath = file as File & { webkitRelativePath?: string };
   return fileWithPath.webkitRelativePath || file.name;
@@ -79,19 +100,85 @@ function sortFilesByPath(files: ProjectFileRecord[]) {
   );
 }
 
-function StatusBadge({ file }: { file: ProjectFileRecord }) {
-  if (file.latestJob) {
-    return (
-      <Badge variant="outline" className="shrink-0 rounded-full text-[10px]">
-        {file.latestJob.status}
-      </Badge>
-    );
-  }
+function ProjectFilesTree({
+  files,
+  selectedSourcePath,
+  onSelectFile,
+}: {
+  files: ProjectFileRecord[];
+  selectedSourcePath: string | null;
+  onSelectFile: (sourcePath: string) => void;
+}) {
+  const paths = useMemo(() => files.map((file) => file.sourcePath), [files]);
+  const fileByPath = useMemo(() => new Map(files.map((file) => [file.sourcePath, file])), [files]);
+  const selectedPaths =
+    selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
+  const latestStateRef = useRef({ fileByPath, onSelectFile });
+
+  useEffect(() => {
+    latestStateRef.current = { fileByPath, onSelectFile };
+  }, [fileByPath, onSelectFile]);
+
+  const { model } = useFileTree({
+    density: "compact",
+    flattenEmptyDirectories: true,
+    initialExpansion: "open",
+    initialSelectedPaths: selectedPaths,
+    paths,
+    renderRowDecoration: (context: FileTreeRowDecorationContext) => {
+      if (context.item.kind !== "file") {
+        return null;
+      }
+
+      const file = latestStateRef.current.fileByPath.get(context.item.path);
+      if (!file) {
+        return null;
+      }
+
+      if (file.provider) {
+        return {
+          text: file.provider.syncState,
+          title: fileListMetadata(file),
+        };
+      }
+
+      return {
+        text: file.latestJob?.status ?? "Uploaded",
+        title: fileListMetadata(file),
+      };
+    },
+    onSelectionChange: (nextSelectedPaths) => {
+      const [nextPath] = nextSelectedPaths;
+      if (!nextPath) {
+        return;
+      }
+
+      if (latestStateRef.current.fileByPath.has(nextPath)) {
+        latestStateRef.current.onSelectFile(nextPath);
+      }
+    },
+  });
+
+  useEffect(() => {
+    model.resetPaths(paths);
+  }, [model, paths]);
+
+  useEffect(() => {
+    if (!selectedSourcePath || !fileByPath.has(selectedSourcePath)) {
+      return;
+    }
+
+    model.getItem(selectedSourcePath)?.select();
+    model.scrollToPath(selectedSourcePath, { offset: "nearest" });
+  }, [fileByPath, model, selectedSourcePath]);
 
   return (
-    <Badge variant="outline" className="shrink-0 rounded-full text-[10px]">
-      Uploaded
-    </Badge>
+    <PierreFileTree
+      aria-label="Project files"
+      className="h-full min-h-0 border-0 bg-transparent"
+      model={model}
+      style={{ height: "100%", minHeight: 0 }}
+    />
   );
 }
 
@@ -194,7 +281,7 @@ export function ProjectFilesPageContent({
         section="Files"
         description={
           isProviderProject
-            ? "Browse source files and keys from the connected TMS provider."
+            ? "Browse source files from the connected TMS provider, then select one to preview its source content when the provider exposes it."
             : "Upload source files, then select one to inspect content and related translation jobs."
         }
         actions={
@@ -313,69 +400,29 @@ export function ProjectFilesPageContent({
                 </TypographyP>
                 <TypographyP className="text-sm text-foreground/52">
                   {isProviderProject
-                    ? "No provider files or keys were found for this project."
+                    ? "No provider files were found for this project."
                     : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
                 </TypographyP>
               </div>
             ) : (
-              <ScrollArea className="min-h-0 flex-1">
-                <ul className="p-2" role="listbox" aria-label="Project files">
-                  {files.map((file) => {
-                    const isSelected = file.sourcePath === selectedSourcePath;
-
-                    return (
-                      <li key={`${file.sourcePath}:${file.uploadedAt}`}>
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={isSelected}
-                          onClick={() => setSelectedSourcePath(file.sourcePath)}
-                          className={cn(
-                            "flex w-full flex-col gap-1 rounded-md px-3 py-2.5 text-start transition-colors",
-                            isSelected
-                              ? "bg-primary/12 text-foreground"
-                              : "text-foreground/82 hover:bg-foreground/5",
-                          )}
-                        >
-                          <div className="flex min-w-0 items-start justify-between gap-2">
-                            <TypographyP className="line-clamp-2 font-mono text-xs leading-snug font-medium">
-                              {file.sourcePath}
-                            </TypographyP>
-                            <StatusBadge file={file} />
-                          </div>
-                          <TypographyP className="text-[11px] text-foreground/42">
-                            {formatBytes(file.byteSize)} ·{" "}
-                            {DATE_FORMATTER.format(new Date(file.uploadedAt))}
-                          </TypographyP>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </ScrollArea>
+              <div className="min-h-0 flex-1 p-2">
+                <ProjectFilesTree
+                  files={files}
+                  selectedSourcePath={selectedSourcePath}
+                  onSelectFile={setSelectedSourcePath}
+                />
+              </div>
             )}
           </aside>
 
           <main className="min-h-0 overflow-y-auto bg-background/40">
-            {selectedFile?.provider ? (
-              <div className="p-4">
-                <ProjectSectionTitle>
-                  {selectedFile ? selectedFile.sourcePath : "Select a file"}
-                </ProjectSectionTitle>
-                <TypographyP className="mt-2 text-sm text-foreground/52">
-                  Provider file content and related job details are read live from the connected
-                  TMS. Select Jobs to inspect provider tasks for this project.
-                </TypographyP>
-              </div>
-            ) : (
-              <ProjectFileDetailPanel
-                organizationSlug={organizationSlug}
-                projectId={projectId}
-                file={selectedFile}
-                requestedSourcePath={selectedSourcePath}
-                highlightLocale={highlightLocale}
-              />
-            )}
+            <ProjectFileDetailPanel
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              file={selectedFile}
+              requestedSourcePath={selectedSourcePath}
+              highlightLocale={highlightLocale}
+            />
           </main>
         </div>
       </section>

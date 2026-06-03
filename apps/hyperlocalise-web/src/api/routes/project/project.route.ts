@@ -53,6 +53,7 @@ import {
 } from "@/lib/providers/sync/external-tms-content-sync";
 import {
   getTmsProviderConnection,
+  getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveProjects,
@@ -496,8 +497,29 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       async (c) => {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
-        const project = await getOwnedProject(c.var.auth, params.projectId);
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
 
+        if (target.kind === "provider") {
+          try {
+            const file = await getTmsProviderLiveFileDetail(
+              c.var.auth.organization.localOrganizationId,
+              target.externalProjectId,
+              query.sourcePath,
+            );
+            if (!file) {
+              return projectNotFoundResponse(c);
+            }
+
+            return c.json({ file }, 200);
+          } catch (error) {
+            return tmsProviderLiveErrorResponse(c, error);
+          }
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
         if (!project) {
           scheduleProjectNotFoundDiagnostics({
             auth: c.var.auth,

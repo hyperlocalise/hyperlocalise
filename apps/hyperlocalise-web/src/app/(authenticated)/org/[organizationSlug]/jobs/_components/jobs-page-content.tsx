@@ -3,16 +3,12 @@
 import { useId, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import {
-  MoreHorizontalCircle01Icon,
-  SearchIcon,
-  Task01Icon,
-  WorkHistoryIcon,
-} from "@hugeicons/core-free-icons";
+import { SearchIcon, Task01Icon, WorkHistoryIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -22,7 +18,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
+import { getLocaleLabel } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
 
 import {
@@ -79,6 +84,12 @@ type JobRow = ApiJob & {
   projectName: string | null;
 };
 
+type ProviderJobDetail = JobRow & {
+  externalJobId: string;
+  externalUrl: string | null;
+  externalProviderPayload: Record<string, unknown>;
+};
+
 const statusOptions = [
   "all",
   "queued",
@@ -116,6 +127,9 @@ const jobsFilterTriggerClassName =
 
 const jobsFilterSelectContentClassName =
   "w-max min-w-[var(--anchor-width)] max-w-[min(16rem,calc(100vw-2rem))]";
+
+const jobsTableGridClassName =
+  "grid grid-cols-[minmax(13rem,1.35fr)_7.5rem_minmax(8rem,0.8fr)_7.5rem_minmax(10rem,1fr)_5.5rem] gap-3";
 
 function JobsFilterField({
   label,
@@ -168,6 +182,18 @@ function formatRelativeTime(value: string | null) {
   return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 31_536_000), "year");
 }
 
+const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
+  dateStyle: "medium",
+  timeStyle: "short",
+});
+
+function formatDateTime(value: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  return DATE_TIME_FORMATTER.format(date);
+}
+
 function sourceLabel(job: ApiJob) {
   return job.externalProviderKind ? `Provider · ${job.externalProviderKind}` : "Native";
 }
@@ -217,6 +243,97 @@ function formatJobKind(job: ApiJob) {
   return job.kind.replace("_", " ");
 }
 
+function getProviderPayloadString(payload: Record<string, unknown> | null, key: string) {
+  const value = payload?.[key];
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+function getProviderPayloadNumber(payload: Record<string, unknown> | null, key: string) {
+  const value = payload?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getCrowdinTaskTypeLabel(payload: Record<string, unknown> | null) {
+  switch (getProviderPayloadNumber(payload, "type")) {
+    case 0:
+      return "Translate by own translators";
+    case 1:
+      return "Proofread by own proofreaders";
+    case 2:
+      return "Translate by vendor";
+    case 3:
+      return "Proofread by vendor";
+    default:
+      return null;
+  }
+}
+
+function getCrowdinFileCount(payload: Record<string, unknown> | null) {
+  const fileIds = payload?.fileIds;
+  return Array.isArray(fileIds) ? fileIds.length : null;
+}
+
+function getCrowdinLanguageLabel(payload: Record<string, unknown> | null, job: ApiJob) {
+  const languageId =
+    getProviderPayloadString(payload, "languageId") ?? job.externalTargetLocales?.[0];
+  return languageId ? `${getLocaleLabel(languageId)} (${languageId})` : null;
+}
+
+function getCrowdinLocaleReadiness(payload: Record<string, unknown> | null) {
+  const readiness = payload?.localeReadiness;
+  if (!readiness || typeof readiness !== "object" || Array.isArray(readiness)) return null;
+  return readiness as Record<string, unknown>;
+}
+
+function getReadinessNumber(readiness: Record<string, unknown> | null, key: string) {
+  const value = readiness?.[key];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function getReadinessWords(readiness: Record<string, unknown> | null) {
+  const words = readiness?.words;
+  if (!words || typeof words !== "object" || Array.isArray(words)) return null;
+  return words as Record<string, unknown>;
+}
+
+function formatReadinessProgress(readiness: Record<string, unknown> | null) {
+  const translationProgress = getReadinessNumber(readiness, "translationProgress");
+  const approvalProgress = getReadinessNumber(readiness, "approvalProgress");
+  if (translationProgress === null && approvalProgress === null) return null;
+  if (approvalProgress === null) return `${Math.round(translationProgress ?? 0)}% translated`;
+  if (translationProgress === null) return `${Math.round(approvalProgress)}% approved`;
+  return `${Math.round(translationProgress)}% translated · ${Math.round(approvalProgress)}% approved`;
+}
+
+function formatWordsToDo(readiness: Record<string, unknown> | null) {
+  const words = getReadinessWords(readiness);
+  const total = getReadinessNumber(words, "total");
+  const translated = getReadinessNumber(words, "translated");
+  const approved = getReadinessNumber(words, "approved");
+  if (total === null) return null;
+  const completed = translated ?? approved ?? 0;
+  const remaining = Math.max(total - completed, 0);
+  return `${remaining} words left of ${total}`;
+}
+
+function taskDetailSummary(job: ApiJob) {
+  const locales = targetLocales(job);
+  const people = assignees(job);
+  if (locales === "—" && people === "—") return "No locales or assignees";
+  if (locales === "—") return people;
+  if (people === "—") return locales;
+  return `${locales} · ${people}`;
+}
+
+function JobDetailRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+      <dt className="text-sm text-foreground/42">{label}</dt>
+      <dd className="min-w-0 wrap-break-word text-sm text-foreground/74">{value ?? "—"}</dd>
+    </div>
+  );
+}
+
 function JobsList({
   emptyLabel,
   isLoading,
@@ -228,6 +345,44 @@ function JobsList({
   jobs: JobRow[];
   organizationSlug: string;
 }) {
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
+  const selectedJob = useMemo(
+    () => jobs.find((job) => job.id === selectedJobId) ?? null,
+    [jobs, selectedJobId],
+  );
+  const selectedJobName = selectedJob ? getJobName(selectedJob) : "Task detail";
+  const shouldFetchProviderDetail = Boolean(
+    selectedJob?.externalProviderKind && selectedJob.id.startsWith("ext:"),
+  );
+  const providerDetailQuery = useQuery({
+    queryKey: ["tms-provider-job", organizationSlug, selectedJob?.id],
+    enabled: shouldFetchProviderDetail,
+    queryFn: async () => {
+      if (!selectedJob) throw new Error("No task selected");
+      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+        ":encodedJobId"
+      ].$get({
+        param: { organizationSlug, encodedJobId: selectedJob.id },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load provider task (${response.status})`);
+      }
+
+      const body = (await response.json()) as { job: ProviderJobDetail };
+      return body.job;
+    },
+  });
+  const detailJob = providerDetailQuery.data ?? selectedJob;
+  const providerPayload = providerDetailQuery.data?.externalProviderPayload ?? null;
+  const crowdinLocaleReadiness = getCrowdinLocaleReadiness(providerPayload);
+  const crowdinTaskType = getCrowdinTaskTypeLabel(providerPayload);
+  const crowdinLanguage = detailJob ? getCrowdinLanguageLabel(providerPayload, detailJob) : null;
+  const crowdinFileCount = getCrowdinFileCount(providerPayload);
+  const crowdinDescription = getProviderPayloadString(providerPayload, "description");
+  const crowdinProgress = formatReadinessProgress(crowdinLocaleReadiness);
+  const crowdinWordsToDo = formatWordsToDo(crowdinLocaleReadiness);
+
   if (isLoading)
     return (
       <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>
@@ -237,71 +392,188 @@ function JobsList({
   }
 
   return (
-    <div className="overflow-x-auto">
-      <div className="min-w-344">
-        <div className="grid grid-cols-[minmax(16rem,1fr)_9rem_12rem_9rem_10rem_10rem_10rem_10rem_3rem] gap-4 px-3 py-3 text-sm font-medium text-foreground/42">
-          <TypographyP>Name</TypographyP>
-          <TypographyP>Source</TypographyP>
-          <TypographyP>Project</TypographyP>
-          <TypographyP>Status</TypographyP>
-          <TypographyP>Target locales</TypographyP>
-          <TypographyP>Assignees</TypographyP>
-          <TypographyP>Deadline</TypographyP>
-          <TypographyP>Last sync</TypographyP>
-          <span aria-hidden />
-        </div>
-        {jobs.map((job, index) => (
-          <div key={job.id}>
-            <div className="grid grid-cols-[minmax(16rem,1fr)_9rem_12rem_9rem_10rem_10rem_10rem_10rem_3rem] items-center gap-4 px-3 py-4">
-              <div className="min-w-0">
-                <TypographyP className="truncate text-base font-medium text-foreground">
-                  {getJobName(job)}
-                </TypographyP>
-                <TypographyP className="mt-1 truncate text-xs text-foreground/38">
-                  {formatJobKind(job)} · {job.externalTaskId ?? job.id}
-                </TypographyP>
-              </div>
-              <Badge variant="outline" className="w-fit rounded-full">
-                {sourceLabel(job)}
-              </Badge>
-              <TypographyP className="truncate text-base text-foreground/58">
-                {job.projectName ?? "Workspace"}
-              </TypographyP>
-              <Badge
-                variant="outline"
-                className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}
-              >
-                {job.status}
-              </Badge>
-              <TypographyP className="truncate text-sm text-foreground/58">
-                {targetLocales(job)}
-              </TypographyP>
-              <TypographyP className="truncate text-sm text-foreground/58">
-                {assignees(job)}
-              </TypographyP>
-              <TypographyP className="text-sm text-foreground/58">
-                {formatRelativeTime(job.externalDueDate)}
-              </TypographyP>
-              <TypographyP className="text-sm text-foreground/58">
-                {formatRelativeTime(job.updatedAt)}
-              </TypographyP>
-              <Link
-                href={`/org/${organizationSlug}/jobs/${job.id}`}
-                aria-label={`Open ${getJobName(job)}`}
-                className="flex size-9 items-center justify-center rounded-lg text-foreground/58 transition-colors hover:bg-foreground/6 hover:text-foreground"
-              >
-                <HugeiconsIcon
-                  icon={MoreHorizontalCircle01Icon}
-                  strokeWidth={2}
-                  className="size-5"
-                />
-              </Link>
-            </div>
-            {index < jobs.length - 1 ? <Separator className="bg-foreground/8" /> : null}
+    <>
+      <div className="overflow-x-auto">
+        <div className="min-w-[56rem]">
+          <div
+            className={cn(
+              jobsTableGridClassName,
+              "px-3 py-3 text-sm font-medium text-foreground/42",
+            )}
+          >
+            <TypographyP>Name</TypographyP>
+            <TypographyP>Source</TypographyP>
+            <TypographyP>Project</TypographyP>
+            <TypographyP>Status</TypographyP>
+            <TypographyP>Task details</TypographyP>
+            <span aria-hidden />
           </div>
-        ))}
+          {jobs.map((job, index) => (
+            <div key={job.id}>
+              <div className={cn(jobsTableGridClassName, "items-center px-3 py-3")}>
+                <Button
+                  variant="ghost"
+                  className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-foreground/6"
+                  onClick={() => setSelectedJobId(job.id)}
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate text-base font-medium text-foreground">
+                      {getJobName(job)}
+                    </span>
+                    <span className="mt-1 block truncate text-xs font-normal text-foreground/38">
+                      {formatJobKind(job)} · {job.externalTaskId ?? job.id}
+                    </span>
+                  </span>
+                </Button>
+                <Badge variant="outline" className="w-fit rounded-full">
+                  {sourceLabel(job)}
+                </Badge>
+                <TypographyP className="truncate text-sm text-foreground/58">
+                  {job.projectName ?? "Workspace"}
+                </TypographyP>
+                <Badge
+                  variant="outline"
+                  className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}
+                >
+                  {job.status}
+                </Badge>
+                <div className="min-w-0">
+                  <TypographyP className="truncate text-sm text-foreground/68">
+                    {taskDetailSummary(job)}
+                  </TypographyP>
+                  <TypographyP className="mt-1 truncate text-xs text-foreground/38">
+                    Due {formatRelativeTime(job.externalDueDate)} · Synced{" "}
+                    {formatRelativeTime(job.updatedAt)}
+                  </TypographyP>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-fit"
+                  onClick={() => setSelectedJobId(job.id)}
+                >
+                  Details
+                </Button>
+              </div>
+              {index < jobs.length - 1 ? <Separator className="bg-foreground/8" /> : null}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+      <Sheet
+        open={Boolean(selectedJob)}
+        onOpenChange={(open) => {
+          if (!open) setSelectedJobId(null);
+        }}
+      >
+        <SheetContent className="w-full max-w-full border-foreground/10 bg-background p-0 sm:max-w-xl">
+          <SheetHeader className="border-b border-foreground/8 pe-14">
+            <SheetTitle className="text-pretty">{selectedJobName}</SheetTitle>
+            <SheetDescription>
+              {selectedJob?.externalProviderKind
+                ? `Live task from ${selectedJob.externalProviderKind}`
+                : "Workspace task detail"}
+            </SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
+            {providerDetailQuery.isLoading ? (
+              <div className="py-5">
+                <Skeleton className="h-5 w-40 bg-foreground/8" />
+                <Skeleton className="mt-4 h-40 w-full bg-foreground/8" />
+              </div>
+            ) : null}
+            {providerDetailQuery.isError ? (
+              <div className="mt-5 rounded-lg border border-flame-300/20 bg-flame-300/8 p-4 text-sm text-flame-100">
+                {providerDetailQuery.error instanceof Error
+                  ? providerDetailQuery.error.message
+                  : "Unable to load provider task"}
+              </div>
+            ) : null}
+            {providerDetailQuery.data?.externalUrl ? (
+              <Button
+                nativeButton={false}
+                render={
+                  <a
+                    href={providerDetailQuery.data.externalUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  />
+                }
+                className="mt-5 w-full"
+              >
+                View strings in {providerDetailQuery.data.externalProviderKind ?? "provider"}
+              </Button>
+            ) : null}
+            {detailJob ? (
+              <dl className="divide-y divide-foreground/8">
+                <JobDetailRow label="Task ID" value={detailJob.externalTaskId ?? detailJob.id} />
+                <JobDetailRow label="Provider status" value={detailJob.externalStatus} />
+                <JobDetailRow label="Status" value={detailJob.status} />
+                <JobDetailRow
+                  label="Task type"
+                  value={crowdinTaskType ?? formatJobKind(detailJob)}
+                />
+                <JobDetailRow
+                  label="Language"
+                  value={crowdinLanguage ?? targetLocales(detailJob)}
+                />
+                <JobDetailRow label="Project" value={detailJob.projectName ?? "Workspace"} />
+                <JobDetailRow label="Target locales" value={targetLocales(detailJob)} />
+                <JobDetailRow label="Assignees" value={assignees(detailJob)} />
+                {crowdinDescription ? (
+                  <JobDetailRow label="Description" value={crowdinDescription} />
+                ) : null}
+                {crowdinFileCount !== null ? (
+                  <JobDetailRow
+                    label="Resources"
+                    value={`${crowdinFileCount} file${crowdinFileCount === 1 ? "" : "s"}`}
+                  />
+                ) : null}
+                {crowdinProgress ? <JobDetailRow label="Progress" value={crowdinProgress} /> : null}
+                {crowdinWordsToDo ? (
+                  <JobDetailRow label="Words to do" value={crowdinWordsToDo} />
+                ) : null}
+                <JobDetailRow label="Due date" value={formatDateTime(detailJob.externalDueDate)} />
+                <JobDetailRow label="Last sync" value={formatDateTime(detailJob.updatedAt)} />
+                {providerDetailQuery.data ? (
+                  <JobDetailRow
+                    label="External job ID"
+                    value={providerDetailQuery.data.externalJobId}
+                  />
+                ) : null}
+                {providerDetailQuery.data?.externalUrl ? (
+                  <JobDetailRow
+                    label="Provider link"
+                    value={
+                      <Link
+                        href={providerDetailQuery.data.externalUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                      >
+                        Open in {providerDetailQuery.data.externalProviderKind}
+                      </Link>
+                    }
+                  />
+                ) : null}
+              </dl>
+            ) : null}
+          </div>
+          {selectedJob ? (
+            <div className="border-t border-foreground/8 p-6">
+              <Button
+                nativeButton={false}
+                render={<Link href={`/org/${organizationSlug}/jobs/${selectedJob.id}`} />}
+                variant="outline"
+                className="w-full"
+              >
+                Open full detail page
+              </Button>
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 

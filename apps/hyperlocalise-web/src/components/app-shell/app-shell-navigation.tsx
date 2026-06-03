@@ -22,6 +22,7 @@ import { cn } from "@/lib/primitives/cn";
 import {
   buildOrganizationPath,
   buildProjectNavigationItems,
+  isNavigationItemActive,
   parseProjectRoute,
   type NavigationGroup,
   type NavigationItem,
@@ -217,61 +218,4 @@ function navigationButtonClass(isActive: boolean) {
     "h-8 rounded-md px-2.5 text-sm font-medium text-muted-foreground hover:text-sidebar-foreground group-data-[collapsible=icon]:size-8!",
     isActive && "bg-sidebar-accent font-semibold text-sidebar-accent-foreground",
   );
-}
-
-function isNavigationItemActive(
-  pathname: string,
-  href: string,
-  options?: {
-    exact?: boolean;
-    projectId?: string;
-    organizationSlug?: string;
-  },
-) {
-  const itemPathname = href.split("#", 1)[0];
-
-  if (options?.exact) {
-    return pathname === itemPathname;
-  }
-
-  if (options?.projectId && options.organizationSlug) {
-    const overviewHref = `/org/${options.organizationSlug}/projects/${options.projectId}`;
-    if (itemPathname === overviewHref) {
-      return pathname === overviewHref;
-    }
-  }
-
-  if (pathname === itemPathname) {
-    return true;
-  }
-
-  if (itemPathname.endsWith("/projects")) {
-    return pathname === itemPathname;
-  }
-
-  if (pathname.startsWith(`${itemPathname}/`)) {
-    if (itemPathname.endsWith("/settings")) {
-      const settingsSubpath = pathname.slice(itemPathname.length + 1);
-      if (settingsSubpath === "members" || settingsSubpath.startsWith("members/")) {
-        return false;
-      }
-    }
-    return true;
-  }
-
-  if (
-    itemPathname.endsWith("/command-center") &&
-    pathname.startsWith(itemPathname.replace("command-center", "dashboard"))
-  ) {
-    return true;
-  }
-
-  if (
-    itemPathname.endsWith("/my-work") &&
-    pathname.startsWith(itemPathname.replace("my-work", "my-jobs"))
-  ) {
-    return true;
-  }
-
-  return false;
 }

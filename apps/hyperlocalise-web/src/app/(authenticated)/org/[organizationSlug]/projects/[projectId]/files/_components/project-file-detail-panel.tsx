@@ -38,6 +38,21 @@ function formatBytes(bytes: number | null) {
   return `${Number((bytes / 1024 ** unitIndex).toFixed(1))} ${units[unitIndex]}`;
 }
 
+function providerName(kind: string) {
+  switch (kind) {
+    case "crowdin":
+      return "Crowdin";
+    case "phrase":
+      return "Phrase";
+    case "lokalise":
+      return "Lokalise";
+    case "smartling":
+      return "Smartling";
+    default:
+      return kind;
+  }
+}
+
 function truncatePreview(text: string) {
   if (text.length <= MAX_PREVIEW_CHARS) {
     return { text, truncated: false };
@@ -134,6 +149,7 @@ export function ProjectFileDetailPanel({
   const detail = detailQuery.data;
   const latestVersion = detail?.versions[0];
   const preview = latestVersion?.content?.text ? truncatePreview(latestVersion.content.text) : null;
+  const displayByteSize = latestVersion?.byteSize ?? file.byteSize;
 
   const jobsByLocale = detail?.jobsByLocale ?? [];
   const orderedJobsByLocale = highlightLocale
@@ -150,7 +166,11 @@ export function ProjectFileDetailPanel({
           {sourcePath}
         </TypographyP>
         <div className="flex flex-wrap items-center gap-2">
-          {file.latestJob ? (
+          {file.provider ? (
+            <Badge variant="outline" className="rounded-full text-[10px]">
+              {providerName(file.provider.kind)} · {file.provider.syncState}
+            </Badge>
+          ) : file.latestJob ? (
             <Badge variant="outline" className="rounded-full text-[10px]">
               Latest job · {file.latestJob.status}
             </Badge>
@@ -160,7 +180,7 @@ export function ProjectFileDetailPanel({
             </Badge>
           )}
           <TypographyP className="text-xs text-foreground/42">
-            {formatBytes(file.byteSize)} · Updated{" "}
+            {formatBytes(displayByteSize)} · Updated{" "}
             {DATE_FORMATTER.format(new Date(file.uploadedAt))}
           </TypographyP>
         </div>
@@ -177,7 +197,7 @@ export function ProjectFileDetailPanel({
         </TypographyP>
         {preview ? (
           <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">
-            <pre className="max-h-[min(24rem,50vh)] overflow-auto p-3 font-mono text-xs leading-relaxed text-foreground/82 whitespace-pre-wrap break-words">
+            <pre className="max-h-[min(24rem,50vh)] overflow-auto p-3 font-mono text-xs leading-relaxed text-foreground/82 whitespace-pre-wrap wrap-break-word">
               {preview.text}
             </pre>
             {preview.truncated ? (

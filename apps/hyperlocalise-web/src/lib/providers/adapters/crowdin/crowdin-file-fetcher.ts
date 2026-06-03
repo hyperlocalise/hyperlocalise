@@ -116,51 +116,6 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
     });
   }
 
-  // Fetch source strings as "key" resources per file
-  for (const file of allFiles) {
-    const sourcePath = sourcePathOf(file, branchMap, directoryPathById);
-
-    try {
-      const strings = await client.listSourceStrings(projectId, file.id);
-      for (const str of strings) {
-        const keyPath = `${sourcePath}/keys/${str.identifier}`;
-        results.push({
-          externalResourceId: String(str.id),
-          resourceType: "key",
-          sourcePath: keyPath,
-          displayName: str.identifier,
-          providerPayload: {
-            fileId: str.fileId,
-            branchId: str.branchId,
-            directoryId: str.directoryId,
-            identifier: str.identifier,
-            type: str.type,
-            context: str.context,
-            labelIds: str.labelIds,
-          },
-        });
-      }
-    } catch (error) {
-      if (error instanceof CrowdinApiError && error.status === 401) {
-        throw new Error("crowdin_auth_invalid");
-      }
-
-      results.push({
-        externalResourceId: String(file.id),
-        resourceType: "key",
-        sourcePath: `${sourcePath}/keys`,
-        displayName: `${file.name} keys`,
-        syncErrorMessage: `Failed to list source strings for ${sourcePath}: ${errorMessageOf(error)}`,
-        providerPayload: {
-          fileId: file.id,
-          branchId: file.branchId,
-          directoryId: file.directoryId,
-          name: file.name,
-        },
-      });
-    }
-  }
-
   return results;
 };
 
@@ -207,10 +162,6 @@ function sourcePathOf(
   const branchName = file.branchId ? (branchMap.get(file.branchId) ?? "") : "";
   const directoryPath = file.directoryId ? (directoryPathById.get(file.directoryId) ?? "") : "";
   return branchName ? `${branchName}/${directoryPath}${file.name}` : `${directoryPath}${file.name}`;
-}
-
-function errorMessageOf(error: unknown): string {
-  return error instanceof Error ? error.message : "unknown error";
 }
 
 function crowdinWebOrigin(baseUrl: string | null): string {

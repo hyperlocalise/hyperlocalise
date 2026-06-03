@@ -174,3 +174,60 @@ function decodePathSegment(value: string) {
     return value;
   }
 }
+
+export function isNavigationItemActive(
+  pathname: string,
+  href: string,
+  options?: {
+    exact?: boolean;
+    projectId?: string;
+    organizationSlug?: string;
+  },
+) {
+  const itemPathname = href.split("#", 1)[0];
+
+  if (options?.exact) {
+    return pathname === itemPathname;
+  }
+
+  if (options?.projectId && options.organizationSlug) {
+    const overviewHref = buildProjectPath(options.organizationSlug, options.projectId);
+    if (itemPathname === overviewHref) {
+      return pathname === overviewHref;
+    }
+  }
+
+  if (pathname === itemPathname) {
+    return true;
+  }
+
+  if (itemPathname.endsWith("/projects")) {
+    return pathname === itemPathname;
+  }
+
+  if (pathname.startsWith(`${itemPathname}/`)) {
+    if (itemPathname.endsWith("/settings")) {
+      const settingsSubpath = pathname.slice(itemPathname.length + 1);
+      if (settingsSubpath === "members" || settingsSubpath.startsWith("members/")) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  if (
+    itemPathname.endsWith("/command-center") &&
+    pathname.startsWith(itemPathname.replace("command-center", "dashboard"))
+  ) {
+    return true;
+  }
+
+  if (
+    itemPathname.endsWith("/my-work") &&
+    pathname.startsWith(itemPathname.replace("my-work", "my-jobs"))
+  ) {
+    return true;
+  }
+
+  return false;
+}
