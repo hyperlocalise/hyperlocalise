@@ -50,6 +50,7 @@ import {
   getOwnedProject,
   getOwnedProjectRecord,
   projectNotFoundResponse,
+  scheduleProjectNotFoundDiagnostics,
 } from "./project.shared";
 import {
   applyAgentRunProposalReviewUpdates,
@@ -365,6 +366,11 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {
+        scheduleProjectNotFoundDiagnostics({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          route: "project.jobs.list",
+        });
         return projectNotFoundResponse(c);
       }
 
@@ -407,6 +413,11 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
 
       if (!project) {
+        scheduleProjectNotFoundDiagnostics({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          route: "project.jobs.create",
+        });
         return projectNotFoundResponse(c);
       }
 
@@ -540,6 +551,11 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {
+        scheduleProjectNotFoundDiagnostics({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          route: "project.jobs.detail",
+        });
         return projectNotFoundResponse(c);
       }
 
@@ -556,6 +572,11 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {
+        scheduleProjectNotFoundDiagnostics({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          route: "project.jobs.status",
+        });
         return projectNotFoundResponse(c);
       }
 

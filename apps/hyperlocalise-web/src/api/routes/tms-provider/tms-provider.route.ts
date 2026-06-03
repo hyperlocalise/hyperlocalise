@@ -8,6 +8,7 @@ import {
   getTmsProviderConnection,
   getTmsProviderLiveJobDetail,
   getTmsProviderLiveProject,
+  listTmsProviderLiveFilesForProject,
   listTmsProviderLiveGlossaries,
   listTmsProviderLiveJobs,
   listTmsProviderLiveJobsForProject,
@@ -27,6 +28,10 @@ const externalProjectIdQuerySchema = z.object({
   externalProjectId: z.string().min(1).optional(),
 });
 
+const projectFilesQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
+});
+
 const validateMineQuery = validator("query", (value, c) => {
   const parsed = mineQuerySchema.safeParse(value);
   if (!parsed.success) {
@@ -38,6 +43,15 @@ const validateMineQuery = validator("query", (value, c) => {
 
 const validateExternalProjectIdQuery = validator("query", (value, c) => {
   const parsed = externalProjectIdQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_query" }, 400);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFilesQuery = validator("query", (value, c) => {
+  const parsed = projectFilesQuerySchema.safeParse(value);
   if (!parsed.success) {
     return c.json({ error: "invalid_query" }, 400);
   }
@@ -138,6 +152,24 @@ export function createTmsProviderRoutes() {
           },
         );
         return c.json({ jobs }, 200);
+      } catch (error) {
+        return mapTmsProviderLiveError(c, error);
+      }
+    })
+    .get("/projects/:externalProjectId/files", validateProjectFilesQuery, async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const query = c.req.valid("query");
+
+      try {
+        const files = await listTmsProviderLiveFilesForProject(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("externalProjectId"),
+          { limit: query.limit },
+        );
+        return c.json({ files }, 200);
       } catch (error) {
         return mapTmsProviderLiveError(c, error);
       }

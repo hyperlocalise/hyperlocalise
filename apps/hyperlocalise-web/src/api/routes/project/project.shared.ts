@@ -1,7 +1,10 @@
 import {
   buildAccessibleProjectsWhere,
+  getVisibleTeamIds,
+  hasOrganizationWideProjectAccess,
   ownedProjectWhere as teamOwnedProjectWhere,
 } from "@/api/auth/team-access";
+import { and, eq } from "drizzle-orm";
 import {
   badRequestResponse,
   forbiddenResponse as sharedForbiddenResponse,
@@ -11,6 +14,27 @@ import {
 } from "@/api/errors";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
+
+const logger = createLogger("project-routes");
+const externalTmsProviderKinds = new Set<string>(schema.externalTmsProviderKindEnum.enumValues);
+
+function parseExternalProjectId(projectId: string) {
+  const match = /^ext:([^:]+):(.+)$/.exec(projectId);
+  if (!match) {
+    return null;
+  }
+
+  const providerKind = match[1];
+  if (!externalTmsProviderKinds.has(providerKind)) {
+    return null;
+  }
+
+  return {
+    providerKind: providerKind as (typeof schema.externalTmsProviderKindEnum.enumValues)[number],
+    externalProjectId: match[2],
+  };
+}
 
 export { buildAccessibleProjectsWhere };
 
@@ -30,6 +54,108 @@ export function unsupportedProjectFileResponse(c: { json: JsonContext["json"] },
 
 export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
+}
+
+export async function logProjectNotFound(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  route: string;
+}) {
+  const { auth, projectId, route } = input;
+  const organizationId = auth.organization.localOrganizationId;
+  const externalProject = parseExternalProjectId(projectId);
+
+  try {
+    const [projectInOrganization] = await db
+      .select({
+        id: schema.projects.id,
+        teamId: schema.projects.teamId,
+        source: schema.projects.source,
+        externalProviderKind: schema.projects.externalProviderKind,
+        externalProjectId: schema.projects.externalProjectId,
+        isActive: schema.projects.isActive,
+      })
+      .from(schema.projects)
+      .where(
+        and(eq(schema.projects.organizationId, organizationId), eq(schema.projects.id, projectId)),
+      )
+      .limit(1);
+
+    const [externalProjectInOrganization] = externalProject
+      ? await db
+          .select({
+            id: schema.projects.id,
+            teamId: schema.projects.teamId,
+            source: schema.projects.source,
+            isActive: schema.projects.isActive,
+          })
+          .from(schema.projects)
+          .where(
+            and(
+              eq(schema.projects.organizationId, organizationId),
+              eq(schema.projects.externalProviderKind, externalProject.providerKind),
+              eq(schema.projects.externalProjectId, externalProject.externalProjectId),
+            ),
+          )
+          .limit(1)
+      : [];
+
+    const hasOrganizationWideAccess = hasOrganizationWideProjectAccess(auth);
+    const visibleTeamIds = hasOrganizationWideAccess ? [] : await getVisibleTeamIds(auth);
+
+    logger.warn(
+      {
+        route,
+        organizationId,
+        activeTeamId: auth.activeTeam?.id ?? null,
+        hasOrganizationWideAccess,
+        visibleTeamCount: visibleTeamIds.length,
+        projectId,
+        externalProviderKind: externalProject?.providerKind ?? null,
+        externalProjectId: externalProject?.externalProjectId ?? null,
+        projectExistsInOrganization: Boolean(projectInOrganization),
+        projectTeamId: projectInOrganization?.teamId ?? null,
+        projectSource: projectInOrganization?.source ?? null,
+        projectExternalProviderKind: projectInOrganization?.externalProviderKind ?? null,
+        projectExternalProjectId: projectInOrganization?.externalProjectId ?? null,
+        projectIsActive: projectInOrganization?.isActive ?? null,
+        externalProjectExistsInOrganization: Boolean(externalProjectInOrganization),
+        externalProjectRecordId: externalProjectInOrganization?.id ?? null,
+        externalProjectTeamId: externalProjectInOrganization?.teamId ?? null,
+        externalProjectSource: externalProjectInOrganization?.source ?? null,
+        externalProjectIsActive: externalProjectInOrganization?.isActive ?? null,
+      },
+      "project lookup returned not found",
+    );
+  } catch (error) {
+    logger.warn(
+      {
+        route,
+        organizationId,
+        projectId,
+        err: serializeErrorForLog(error),
+      },
+      "project lookup diagnostics failed",
+    );
+  }
+}
+
+export function scheduleProjectNotFoundDiagnostics(input: {
+  auth: ApiAuthContext;
+  projectId: string;
+  route: string;
+}) {
+  void logProjectNotFound(input).catch((error) => {
+    logger.warn(
+      {
+        route: input.route,
+        organizationId: input.auth.organization.localOrganizationId,
+        projectId: input.projectId,
+        err: serializeErrorForLog(error),
+      },
+      "project lookup diagnostics failed",
+    );
+  });
 }
 
 export {

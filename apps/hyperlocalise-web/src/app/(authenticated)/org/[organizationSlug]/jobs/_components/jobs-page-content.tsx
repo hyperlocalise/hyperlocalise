@@ -332,9 +332,14 @@ export function JobsPageContent({
     return source === "native" || source === "provider" ? source : "all";
   });
   const [agentReadyFilter, setAgentReadyFilter] = useState<"all" | "ready" | "not_ready">("all");
-  const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
+  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const activeTmsProvider = activeTmsProviderQuery.data;
   const encodedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
-  const useLiveProviderJobs = isTmsProviderShellModeEnabled() && Boolean(activeTmsProvider);
+  const tmsProviderShellMode = isTmsProviderShellModeEnabled();
+  const useLiveProviderJobs =
+    tmsProviderShellMode &&
+    Boolean(activeTmsProvider) &&
+    (!projectId || encodedProviderProject?.providerKind === activeTmsProvider?.providerKind);
 
   const jobsQuery = useQuery({
     queryKey: [
@@ -344,7 +349,9 @@ export function JobsPageContent({
       statusFilter,
       projectId ?? "workspace",
       useLiveProviderJobs ? "live" : "native",
+      activeTmsProvider?.providerKind ?? null,
     ],
+    enabled: !tmsProviderShellMode || activeTmsProviderQuery.isFetched,
     queryFn: async () => {
       if (useLiveProviderJobs) {
         const mine = scope === "mine" ? "true" : "false";

@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { cn } from "@/lib/primitives/cn";
 import { apiClient } from "@/lib/api-client-instance";
+import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 
 import {
   PageHeader,
@@ -12,15 +13,29 @@ import {
   type Icon,
 } from "../../../_components/workspace-resource-shared";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { useActiveTmsProvider } from "../../../_hooks/use-active-tms-provider";
 
 import { mapProjectToListRow } from "../../_components/project-list";
 
 export function useProjectPageQuery(organizationSlug: string, projectId: string) {
+  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const encodedProject = parseProviderProjectId(projectId);
+  const useLiveProviderProject =
+    isTmsProviderShellModeEnabled() &&
+    Boolean(activeTmsProviderQuery.data) &&
+    encodedProject?.providerKind === activeTmsProviderQuery.data?.providerKind;
+
   return useQuery({
-    queryKey: ["translation-project", organizationSlug, projectId],
+    queryKey: [
+      "translation-project",
+      organizationSlug,
+      projectId,
+      useLiveProviderProject ? "live" : "native",
+      activeTmsProviderQuery.data?.providerKind ?? null,
+    ],
+    enabled: !encodedProject || activeTmsProviderQuery.isFetched,
     queryFn: async () => {
-      const encodedProject = parseProviderProjectId(projectId);
-      if (encodedProject) {
+      if (useLiveProviderProject && encodedProject) {
         const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
           ":externalProjectId"
         ].$get({

@@ -164,6 +164,62 @@ describe("tmsProviderRoutes", () => {
     });
   });
 
+  it("returns live files for a provider project", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    const listFiles = vi
+      .spyOn(tmsProviderLive, "listTmsProviderLiveFilesForProject")
+      .mockResolvedValue([
+        {
+          origin: "provider",
+          sourcePath: "keys/home.title",
+          sourceHash: null,
+          commitSha: null,
+          workflowRunId: null,
+          uploadedAt: new Date().toISOString(),
+          storedFileId: null,
+          metadata: {},
+          filename: "home.title",
+          byteSize: null,
+          provider: {
+            kind: "crowdin",
+            resourceType: "key",
+            externalProjectId: "902807",
+            externalResourceId: "key-1",
+            externalUrl: null,
+            syncState: "synced",
+            sourceLocale: "en",
+            targetLocales: ["fr"],
+            localeReadiness: {},
+            revision: null,
+            format: "icu",
+            lastSyncedAt: new Date().toISOString(),
+          },
+          latestJob: null,
+        },
+      ]);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects[
+      ":externalProjectId"
+    ].files.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          externalProjectId: "902807",
+        },
+        query: { limit: "500" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { files: unknown[] };
+    expect(body.files).toHaveLength(1);
+    expect(listFiles).toHaveBeenCalledWith(organizationId, "902807", { limit: 500 });
+  });
+
   it("returns 401 when the stored Crowdin OAuth token bundle is invalid", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

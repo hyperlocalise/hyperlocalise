@@ -89,6 +89,7 @@ import {
   isProjectMutationAllowed,
   ownedProjectWhere,
   projectNotFoundResponse,
+  scheduleProjectNotFoundDiagnostics,
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
@@ -475,6 +476,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const project = await getOwnedProject(c.var.auth, params.projectId);
 
         if (!project) {
+          scheduleProjectNotFoundDiagnostics({
+            auth: c.var.auth,
+            projectId: params.projectId,
+            route: "project.files.detail",
+          });
           return projectNotFoundResponse(c);
         }
 
@@ -502,6 +508,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {
+        scheduleProjectNotFoundDiagnostics({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          route: "project.files.list",
+        });
         return projectNotFoundResponse(c);
       }
 
@@ -542,6 +553,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const project = await getOwnedProject(c.var.auth, params.projectId);
 
         if (!project) {
+          scheduleProjectNotFoundDiagnostics({
+            auth: c.var.auth,
+            projectId: params.projectId,
+            route: "project.files.upload",
+          });
           return projectNotFoundResponse(c);
         }
 
@@ -631,6 +647,11 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const project = await projectStore.getById(c.var.auth, params.projectId);
 
       if (!project) {
+        scheduleProjectNotFoundDiagnostics({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          route: "project.detail",
+        });
         return projectNotFoundResponse(c);
       }
 
