@@ -646,18 +646,28 @@ export async function dispatchDueContentfulWorkspaceAutomations(input?: {
   const results: WorkspaceAutomationDispatchResult[] = [];
   for (const automation of automations) {
     const scheduledRunAt = automation.nextRunAt ? new Date(automation.nextRunAt) : now;
-    const result = await dispatchContentfulWorkspaceAutomationForSchedule({
-      automation,
-      scheduledRunAt,
-      queue: input?.queue,
-    });
-    await advanceWorkspaceAutomationNextRun({
-      automationId: automation.id,
-      organizationId: automation.organizationId,
-      completedAt: now,
-    });
-    if (result) {
-      results.push(result);
+    try {
+      const result = await dispatchContentfulWorkspaceAutomationForSchedule({
+        automation,
+        scheduledRunAt,
+        queue: input?.queue,
+      });
+      await advanceWorkspaceAutomationNextRun({
+        automationId: automation.id,
+        organizationId: automation.organizationId,
+        completedAt: now,
+      });
+      if (result) {
+        results.push(result);
+      }
+    } catch (error) {
+      logger.error(
+        {
+          automationId: automation.id,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "workspace automation contentful scheduled dispatch failed",
+      );
     }
   }
 

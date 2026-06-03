@@ -298,6 +298,9 @@ export async function executeContentfulAutomation(
     if (!loaded) {
       throw new Error("contentful_connection_not_found");
     }
+    if (!loaded.connection.enabled) {
+      throw new Error("contentful_connection_disabled");
+    }
 
     const generator = await loadOrganizationOpenAITranslationGenerator(loaded.connection.projectId);
     if (!generator.ok) {
