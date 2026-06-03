@@ -16,6 +16,7 @@ import { enqueueGithubRepositoryAutomationJob } from "./github/github-repository
 import { githubRepositoryAutomationJobHasRunnableWorkflow } from "./github/github-repository-automation-workflows";
 import {
   buildWorkspaceGithubPushAutomationIdempotencyKey,
+  buildWorkspaceManualAutomationIdempotencyKey,
   buildWorkspaceScheduledAutomationIdempotencyKey,
 } from "./workspace-automation-idempotency";
 import {
@@ -51,13 +52,14 @@ export type WorkspaceAutomationDispatchResult =
 async function linkWorkspaceAutomationRun(input: {
   organizationId: string;
   automation: WorkspaceAutomationRecord;
-  triggerSource: "scheduled" | "github";
+  triggerSource: "manual" | "scheduled" | "github";
   idempotencyKey: string;
   scheduledRunAt?: Date;
   githubDeliveryId?: string;
   pushBranch?: string;
   commitBefore?: string;
   commitAfter?: string;
+  inputSnapshot?: Record<string, unknown>;
   dispatchPayload: NonNullable<ReturnType<typeof buildGithubRepoAutomationDispatchPayload>>;
   repository: {
     id: string;
@@ -65,13 +67,23 @@ async function linkWorkspaceAutomationRun(input: {
     githubRepositoryId: string;
   };
 }): Promise<WorkspaceAutomationDispatchResult> {
+  const workspaceRunIdempotencyKey =
+    input.triggerSource === "manual"
+      ? buildWorkspaceManualAutomationIdempotencyKey({
+          automationId: input.automation.id,
+          configVersion: input.automation.configVersion,
+          idempotencyKey: input.idempotencyKey,
+        })
+      : input.idempotencyKey;
+
   const run = await createWorkspaceAutomationRun({
     automationId: input.automation.id,
     organizationId: input.organizationId,
     triggerSource: input.triggerSource,
     status: "queued",
-    idempotencyKey: input.idempotencyKey,
+    idempotencyKey: workspaceRunIdempotencyKey,
     inputSnapshot: {
+      ...input.inputSnapshot,
       automationConfigVersion: input.automation.configVersion,
       automationName: input.automation.name,
       instructions: input.automation.instructions,
@@ -84,15 +96,33 @@ async function linkWorkspaceAutomationRun(input: {
   });
 
   const githubIdempotencyKey =
-    input.triggerSource === "scheduled" && input.scheduledRunAt
-      ? buildGithubScheduledAutomationIdempotencyKey({
-          githubInstallationRepositoryId: input.repository.id,
+    input.triggerSource === "manual"
+      ? buildWorkspaceManualAutomationIdempotencyKey({
+          automationId: input.automation.id,
           configVersion: input.dispatchPayload.configVersion,
-          scheduledRunAt: input.scheduledRunAt,
+          idempotencyKey: input.idempotencyKey,
         })
-      : buildGithubPushAutomationIdempotencyKey({
-          githubDeliveryId: input.githubDeliveryId ?? run.id,
-        });
+      : input.triggerSource === "scheduled" && input.scheduledRunAt
+        ? buildGithubScheduledAutomationIdempotencyKey({
+            githubInstallationRepositoryId: input.repository.id,
+            configVersion: input.dispatchPayload.configVersion,
+            scheduledRunAt: input.scheduledRunAt,
+          })
+        : input.pushBranch && input.commitAfter
+          ? buildGithubPushAutomationIdempotencyKey({
+              organizationId: input.organizationId,
+              githubInstallationRepositoryId: input.repository.id,
+              githubRepositoryId: input.repository.githubRepositoryId,
+              branch: input.pushBranch,
+              commitBefore: input.commitBefore ?? "",
+              commitAfter: input.commitAfter,
+              configVersion: input.dispatchPayload.configVersion,
+            })
+          : buildWorkspaceGithubPushAutomationIdempotencyKey({
+              automationId: input.automation.id,
+              configVersion: input.dispatchPayload.configVersion,
+              githubDeliveryId: input.githubDeliveryId ?? run.id,
+            });
 
   const claim = await claimGithubRepositoryAutomationJob({
     idempotencyKey: githubIdempotencyKey,
@@ -101,7 +131,7 @@ async function linkWorkspaceAutomationRun(input: {
     githubInstallationId: input.repository.githubInstallationId,
     githubRepositoryId: input.repository.githubRepositoryId,
     configVersion: input.dispatchPayload.configVersion,
-    triggerMode: input.triggerSource === "scheduled" ? "scheduled" : "push",
+    triggerMode: input.triggerSource === "github" ? "push" : "scheduled",
     triggerBranch: input.pushBranch ?? null,
     commitBefore: input.commitBefore ?? null,
     commitAfter: input.commitAfter ?? null,
@@ -146,6 +176,57 @@ async function linkWorkspaceAutomationRun(input: {
     job: claim.job,
     inserted: claim.inserted,
   };
+}
+
+export async function dispatchManualWorkspaceAutomationRun(input: {
+  automation: WorkspaceAutomationRecord;
+  repository: {
+    id: string;
+    githubInstallationId: string;
+    githubRepositoryId: string;
+  };
+  idempotencyKey: string;
+  inputSnapshot?: Record<string, unknown>;
+}): Promise<WorkspaceAutomationDispatchResult | null> {
+  if (input.automation.status !== "active") {
+    return null;
+  }
+
+  if (!hasWorkspaceAutomationGithubWorkflow(input.automation.toolConfig)) {
+    return null;
+  }
+
+  if (input.automation.triggerConfig.mode !== "manual") {
+    return null;
+  }
+
+  const githubSettings = workspaceAutomationToGithubSettings(input.automation);
+  if (!githubSettings) {
+    return null;
+  }
+
+  const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
+    configVersion: input.automation.configVersion,
+    githubInstallationRepositoryId: input.repository.id,
+    organizationId: input.automation.organizationId,
+    githubRepositoryId: input.repository.githubRepositoryId,
+    githubInstallationId: input.repository.githubInstallationId,
+    settings: githubSettings,
+  });
+
+  if (!dispatchPayload) {
+    return null;
+  }
+
+  return linkWorkspaceAutomationRun({
+    organizationId: input.automation.organizationId,
+    automation: input.automation,
+    triggerSource: "manual",
+    idempotencyKey: input.idempotencyKey,
+    inputSnapshot: input.inputSnapshot,
+    dispatchPayload,
+    repository: input.repository,
+  });
 }
 
 export async function dispatchWorkspaceAutomationForSchedule(input: {

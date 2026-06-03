@@ -321,6 +321,7 @@ describe("provider webhook subscription manager", () => {
       providerCredentialId: credential.id,
       projectId,
       externalProjectId: "12345",
+      fetchFn: fetchMock,
     });
 
     expect(second.status).toBe("active");

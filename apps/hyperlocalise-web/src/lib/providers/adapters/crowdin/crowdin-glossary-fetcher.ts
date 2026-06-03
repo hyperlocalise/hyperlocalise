@@ -1,6 +1,9 @@
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import type { ExternalTmsGlossaryFetcher } from "@/lib/providers/sync/external-tms-glossary-sync";
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
+
+const CROWDIN_GLOSSARY_FETCH_CONCURRENCY = 5;
 import { isCrowdinResourceLinkedToProject } from "./crowdin-resource-scope";
 
 export const fetchCrowdinGlossaries: ExternalTmsGlossaryFetcher = async ({
@@ -40,8 +43,10 @@ export const fetchCrowdinGlossaries: ExternalTmsGlossaryFetcher = async ({
     }),
   );
 
-  const results = await Promise.all(
-    scoped.map(async (glossary) => {
+  const results = await mapWithConcurrency(
+    scoped,
+    CROWDIN_GLOSSARY_FETCH_CONCURRENCY,
+    async (glossary) => {
       try {
         const terms = await client.listGlossaryTerms(glossary.id);
         const glossaryTargetLocales = uniqueLocales([
@@ -107,7 +112,7 @@ export const fetchCrowdinGlossaries: ExternalTmsGlossaryFetcher = async ({
           },
         ];
       }
-    }),
+    },
   );
 
   return results.flat();

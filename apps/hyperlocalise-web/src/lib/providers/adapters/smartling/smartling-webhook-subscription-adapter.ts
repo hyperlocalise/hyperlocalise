@@ -22,6 +22,7 @@ const maxProjectUidsPerSubscription = 10;
 function createSmartlingClient(context: ProviderWebhookSubscriptionAdapterContext) {
   return new SmartlingApiClient({
     credentials: context.secretMaterial,
+    authBaseUrl: context.baseUrl ?? undefined,
     fetchFn: context.fetchFn,
   });
 }
@@ -83,6 +84,7 @@ async function resolveAccountUid(context: ProviderWebhookSubscriptionAdapterCont
   const accountUid = await resolveSmartlingAccountUid({
     secretMaterial: context.secretMaterial,
     externalProjectId: projectId,
+    authBaseUrl: context.baseUrl ?? undefined,
   });
 
   if (!accountUid) {

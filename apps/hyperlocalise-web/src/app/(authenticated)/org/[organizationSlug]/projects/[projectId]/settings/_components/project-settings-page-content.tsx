@@ -14,6 +14,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 import {
   createProjectFormFromRow,
@@ -82,6 +83,8 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
     return null;
   }
 
+  const providerUrl = sanitizeExternalUrl(project.externalProjectUrl);
+
   return (
     <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -101,14 +104,14 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
         <DetailRow label="Last synced" value={project.lastSyncedAt} />
         <DetailRow label="Last sync error" value={project.lastSyncErrorMessage} />
       </div>
-      {project.externalProjectUrl ? (
+      {providerUrl ? (
         <Button
           type="button"
           variant="outline"
           size="sm"
           className="mt-4"
           nativeButton={false}
-          render={<a href={project.externalProjectUrl} target="_blank" rel="noopener noreferrer" />}
+          render={<a href={providerUrl} target="_blank" rel="noopener noreferrer" />}
         >
           Open in provider
         </Button>

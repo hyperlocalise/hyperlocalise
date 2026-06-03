@@ -104,6 +104,44 @@ describe("createPhraseWebhookSubscriptionAdapter", () => {
     ).toBe("https://app.example.test/api/webhooks/tms/phrase?provider_webhook_id=wh-created");
   });
 
+  it("preserves provider webhook id when callback URL patch fails", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const target = String(url);
+
+      if (target.includes("/webhooks") && init?.method === "POST") {
+        const body =
+          typeof init.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {};
+        return new Response(
+          JSON.stringify({
+            id: "wh-created",
+            callback_url: body.callback_url,
+            events: body.events,
+            active: true,
+          }),
+          { status: 201 },
+        );
+      }
+
+      if (target.includes("/webhooks/wh-created") && init?.method === "PATCH") {
+        return new Response(JSON.stringify({ message: "patch failed" }), { status: 500 });
+      }
+
+      return new Response(JSON.stringify({}), { status: 404 });
+    });
+
+    const adapter = createPhraseWebhookSubscriptionAdapter();
+
+    await expect(
+      adapter.createRemoteSubscription({
+        ...context,
+        fetchFn: fetchMock,
+      }),
+    ).rejects.toMatchObject({
+      code: "provider_error",
+      providerWebhookId: "wh-created",
+    });
+  });
+
   it("creates remote webhooks and patches callback URL with provider id", async () => {
     const fetchMock = createFetchMock();
     const adapter = createPhraseWebhookSubscriptionAdapter();

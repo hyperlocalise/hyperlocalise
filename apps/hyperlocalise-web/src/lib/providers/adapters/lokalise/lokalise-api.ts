@@ -2,6 +2,7 @@
  * Lokalise API v2 client for TMS connector discovery.
  */
 
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import {
   normalizeProviderDownloadUrl,
   requireProviderBaseUrl,
@@ -241,7 +242,7 @@ export class LokaliseApiClient {
   constructor(options: LokaliseApiClientOptions) {
     this.token = options.token;
     this.baseUrl = requireProviderBaseUrl(options.baseUrl, LOKALISE_DEFAULT_BASE_URL, "Lokalise");
-    this.fetchFn = options.fetchFn ?? fetch;
+    this.fetchFn = options.fetchFn ?? providerSafeFetch;
   }
 
   get resolvedBaseUrl() {
@@ -456,6 +457,57 @@ export class LokaliseApiClient {
     }
 
     return response.arrayBuffer();
+  }
+
+  async getDownloadByteLength(url: string, maxBytes: number): Promise<number | null> {
+    const safeUrl = normalizeProviderDownloadUrl(url);
+    if (!safeUrl) {
+      throw new LokaliseApiError("Lokalise download URL is invalid or unsafe", 400, null);
+    }
+
+    const headResponse = await this.fetchFn(safeUrl, { method: "HEAD", redirect: "error" });
+    if (headResponse.ok) {
+      const contentLength = headResponse.headers.get("content-length");
+      if (contentLength) {
+        const byteLength = Number(contentLength);
+        if (Number.isFinite(byteLength)) {
+          if (byteLength > maxBytes) {
+            throw new LokaliseApiError("Lokalise bundle exceeds metadata size limit", 413, null);
+          }
+          return byteLength;
+        }
+      }
+    }
+
+    const response = await this.fetchFn(safeUrl, { method: "GET", redirect: "error" });
+    if (!response.ok) {
+      throw new LokaliseApiError(
+        `Failed to inspect Lokalise bundle from ${url}`,
+        response.status,
+        null,
+      );
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) {
+      return null;
+    }
+
+    let byteLength = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+          return byteLength;
+        }
+        byteLength += value.byteLength;
+        if (byteLength > maxBytes) {
+          throw new LokaliseApiError("Lokalise bundle exceeds metadata size limit", 413, null);
+        }
+      }
+    } finally {
+      reader.releaseLock();
+    }
   }
 
   async listGlossaryTerms(projectId: string): Promise<LokaliseGlossaryTerm[]> {

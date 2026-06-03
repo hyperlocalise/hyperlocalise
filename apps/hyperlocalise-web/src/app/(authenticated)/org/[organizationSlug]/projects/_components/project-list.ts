@@ -1,3 +1,5 @@
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
+
 export type ApiProject = {
   id: string;
   name: string;
@@ -117,7 +119,7 @@ export function mapProjectToListRow(project: ApiProject): ProjectListRow {
     externalProjectId: project.externalProjectId ?? null,
     sourceLocale: project.sourceLocale ?? null,
     targetLocales: project.targetLocales ?? [],
-    externalProjectUrl: project.externalProjectUrl ?? null,
+    externalProjectUrl: sanitizeExternalUrl(project.externalProjectUrl),
     isActive: project.isActive ?? true,
     lastSyncedAt: formatTimestampOrNull(project.lastSyncedAt),
     lastSyncErrorAt: formatTimestampOrNull(project.lastSyncErrorAt),

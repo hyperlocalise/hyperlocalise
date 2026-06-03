@@ -1,6 +1,9 @@
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import type { ExternalTmsTranslationMemoryFetcher } from "@/lib/providers/sync/external-tms-tm-sync";
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
+
+const CROWDIN_TM_FETCH_CONCURRENCY = 5;
 import { isCrowdinResourceLinkedToProject } from "./crowdin-resource-scope";
 
 const maxSegmentsPerMemory = 2_000;
@@ -42,69 +45,66 @@ export const fetchCrowdinTranslationMemories: ExternalTmsTranslationMemoryFetche
     }),
   );
 
-  const results = await Promise.all(
-    scoped.map(async (memory) => {
-      try {
-        const entryTargetLocales = uniqueLocales([
-          ...targetLocales,
-          ...memory.languageIds.filter((locale) => locale !== memory.languageId),
-        ]);
-        const sourceLanguageId = memory.languageId || sourceLocale;
-        const buildEntries = (
-          segments: Parameters<typeof buildTranslationMemoryEntries>[0]["segments"],
-        ) =>
-          buildTranslationMemoryEntries({
-            memoryId: memory.id,
-            sourceLanguageId,
-            targetLocales: entryTargetLocales,
-            segments,
-          });
-
-        const segments = await client.listTranslationMemorySegments(memory.id, {
-          shouldStop: (fetchedSegments) =>
-            buildEntries(fetchedSegments).length >= maxSegmentsPerMemory,
+  const results = await mapWithConcurrency(scoped, CROWDIN_TM_FETCH_CONCURRENCY, async (memory) => {
+    try {
+      const entryTargetLocales = uniqueLocales([
+        ...targetLocales,
+        ...memory.languageIds.filter((locale) => locale !== memory.languageId),
+      ]);
+      const sourceLanguageId = memory.languageId || sourceLocale;
+      const buildEntries = (
+        segments: Parameters<typeof buildTranslationMemoryEntries>[0]["segments"],
+      ) =>
+        buildTranslationMemoryEntries({
+          memoryId: memory.id,
+          sourceLanguageId,
+          targetLocales: entryTargetLocales,
+          segments,
         });
-        const syncedEntries = buildEntries(segments).slice(0, maxSegmentsPerMemory);
 
-        return {
-          externalMemoryId: String(memory.id),
-          name: memory.name,
-          description: memory.description ?? "",
-          sourceLocale: memory.languageId || sourceLocale,
-          localeCoverage: uniqueLocales([memory.languageId, ...memory.languageIds]),
-          segmentCount: memory.segmentsCount,
-          externalUrl: memory.webUrl,
-          metadata: {
-            crowdinTranslationMemoryId: memory.id,
-            crowdinProjectId,
-            importedSegmentCount: syncedEntries.length,
-          },
-          entries: syncedEntries,
-        };
-      } catch (error) {
-        if (error instanceof CrowdinApiError && error.status === 401) {
-          throw new Error("crowdin_auth_invalid");
-        }
+      const segments = await client.listTranslationMemorySegments(memory.id, {
+        shouldStop: (fetchedSegments) =>
+          buildEntries(fetchedSegments).length >= maxSegmentsPerMemory,
+      });
+      const syncedEntries = buildEntries(segments).slice(0, maxSegmentsPerMemory);
 
-        return {
-          externalMemoryId: String(memory.id),
-          name: memory.name,
-          description: memory.description ?? "",
-          sourceLocale: memory.languageId || sourceLocale,
-          localeCoverage: uniqueLocales([memory.languageId, ...memory.languageIds]),
-          segmentCount: memory.segmentsCount,
-          externalUrl: memory.webUrl,
-          syncErrorMessage:
-            error instanceof Error ? error.message : "translation_memory_sync_failed",
-          metadata: {
-            crowdinTranslationMemoryId: memory.id,
-            crowdinProjectId,
-          },
-          entries: [],
-        };
+      return {
+        externalMemoryId: String(memory.id),
+        name: memory.name,
+        description: memory.description ?? "",
+        sourceLocale: memory.languageId || sourceLocale,
+        localeCoverage: uniqueLocales([memory.languageId, ...memory.languageIds]),
+        segmentCount: memory.segmentsCount,
+        externalUrl: memory.webUrl,
+        metadata: {
+          crowdinTranslationMemoryId: memory.id,
+          crowdinProjectId,
+          importedSegmentCount: syncedEntries.length,
+        },
+        entries: syncedEntries,
+      };
+    } catch (error) {
+      if (error instanceof CrowdinApiError && error.status === 401) {
+        throw new Error("crowdin_auth_invalid");
       }
-    }),
-  );
+
+      return {
+        externalMemoryId: String(memory.id),
+        name: memory.name,
+        description: memory.description ?? "",
+        sourceLocale: memory.languageId || sourceLocale,
+        localeCoverage: uniqueLocales([memory.languageId, ...memory.languageIds]),
+        segmentCount: memory.segmentsCount,
+        externalUrl: memory.webUrl,
+        syncErrorMessage: error instanceof Error ? error.message : "translation_memory_sync_failed",
+        metadata: {
+          crowdinTranslationMemoryId: memory.id,
+          crowdinProjectId,
+        },
+        entries: [],
+      };
+    }
+  });
 
   return results;
 };

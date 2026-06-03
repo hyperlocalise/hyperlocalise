@@ -97,7 +97,13 @@ export async function dispatchGithubRepositoryAutomationForPush(
 
   const claim = await claimGithubRepositoryAutomationJob({
     idempotencyKey: buildGithubPushAutomationIdempotencyKey({
-      githubDeliveryId: input.deliveryId,
+      organizationId: input.organizationId,
+      githubInstallationRepositoryId: input.githubInstallationRepositoryId,
+      githubRepositoryId: input.githubRepositoryId,
+      branch: input.branch,
+      commitBefore: input.commitBefore,
+      commitAfter: input.commitAfter,
+      configVersion: dispatchPayload.configVersion,
     }),
     organizationId: input.organizationId,
     githubInstallationRepositoryId: input.githubInstallationRepositoryId,
@@ -144,7 +150,13 @@ async function recordPushSkip(
 ): Promise<GithubRepositoryAutomationDispatchResult> {
   const claim = await claimGithubRepositoryAutomationJob({
     idempotencyKey: buildGithubPushSkipIdempotencyKey({
-      githubDeliveryId: input.deliveryId,
+      organizationId: input.organizationId,
+      githubInstallationRepositoryId: input.githubInstallationRepositoryId,
+      githubRepositoryId: input.githubRepositoryId,
+      branch: input.branch,
+      commitBefore: input.commitBefore,
+      commitAfter: input.commitAfter,
+      configVersion: input.configVersion,
       skipReason: input.skipReason,
     }),
     organizationId: input.organizationId,

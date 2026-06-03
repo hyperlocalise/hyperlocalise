@@ -150,13 +150,35 @@ describe("githubInstallationRoutes", () => {
     );
 
     expect(response.status).toBe(200);
-    const body = await response.json();
+    const body = (await response.json()) as {
+      repositories: Array<{
+        fullName: string;
+        private: boolean;
+        enabled: boolean;
+      }>;
+    };
     expect(body.repositories).toHaveLength(1);
     expect(body.repositories[0]).toMatchObject({
       fullName: "hyperlocalise/demo-repository",
       private: true,
       enabled: false,
     });
+  });
+
+  it("forbids members without integrations:read from listing repositories", async () => {
+    const { headers, organizationSlug } = await createInstallationFixture("member");
+
+    const response = await client.api.orgs[":organizationSlug"]["github-installation"][
+      "repositories"
+    ].$get(
+      {
+        param: { organizationSlug },
+        query: {},
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
   });
 
   it("allows admins to update enabled repositories", async () => {

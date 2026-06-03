@@ -5,7 +5,11 @@ import { createHash } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
-import { createAuthorizationCode } from "@/api/auth/mcp";
+import {
+  createAuthorizationCode,
+  markAuthorizationCodeUsed,
+  parseAuthorizationCode,
+} from "@/api/auth/mcp";
 import { createApp } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
@@ -42,6 +46,30 @@ beforeAll(async () => {
 afterEach(async () => {
   await fixture.cleanup();
   await db.delete(schema.usedAuthorizationCodes);
+});
+
+describe("authorization codes", () => {
+  it("rejects suffixed authorization code variants after the canonical code is used", async () => {
+    const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    const code = createAuthorizationCode({
+      clientId: "test-client",
+      redirectUri: "http://localhost:8787/callback",
+      codeChallenge: pkceChallenge(verifier),
+      codeChallengeMethod: "S256",
+      scope: "mcp",
+      userId: "user-1",
+      organizationId: "org-1",
+    });
+
+    const payload = parseAuthorizationCode(code);
+    expect(payload).not.toBeNull();
+
+    const firstUse = await markAuthorizationCodeUsed(code, payload!);
+    expect(firstUse).toBe(true);
+
+    const replay = await markAuthorizationCodeUsed(`${code}.suffix`, payload!);
+    expect(replay).toBe(false);
+  });
 });
 
 describe("mcpBearerAuthMiddleware", () => {

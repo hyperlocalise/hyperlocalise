@@ -1,4 +1,13 @@
-import type { ExternalTmsProviderCredentialListItem } from "./organization-external-tms-provider-credentials";
+import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
+
+export type TmsDashboardProviderItem = {
+  id: string;
+  providerKind: ExternalTmsProviderKind;
+  displayName: string;
+  validationStatus: string;
+  projectCount: number;
+  lastSuccessfulSyncAt: string | null;
+};
 
 export type TmsDashboardLocaleReadinessRow = {
   locale: string;
@@ -30,7 +39,7 @@ export type TmsDashboardFailedSyncRun = {
 };
 
 export type OrganizationTmsDashboardSummary = {
-  providers: ExternalTmsProviderCredentialListItem[];
+  providers: TmsDashboardProviderItem[];
   counts: TmsDashboardSummaryCounts;
   localeReadiness: TmsDashboardLocaleReadinessRow[];
   recentFailedSyncRuns: TmsDashboardFailedSyncRun[];

@@ -16,6 +16,7 @@ import {
 import { mapLokaliseTranslationReadiness } from "./lokalise-locale-readiness";
 
 const KEY_ID_CHUNK_SIZE = 100;
+const LOKALISE_EXPORT_ARTIFACT_METADATA_MAX_BYTES = 5 * 1024 * 1024;
 
 export const pullLokaliseTaskContent: ExternalTmsContentPuller = async ({
   credential,
@@ -123,11 +124,14 @@ export const pullLokaliseTaskContent: ExternalTmsContentPuller = async ({
       bundleStructure: LOKALISE_DEFAULT_BUNDLE_STRUCTURE,
       filterLangs: [...new Set([...(sourceLocale ? [sourceLocale] : []), ...targetLocales])],
     });
-    const bytes = await client.downloadUrl(download.bundleUrl);
+    const byteLength = await client.getDownloadByteLength(
+      download.bundleUrl,
+      LOKALISE_EXPORT_ARTIFACT_METADATA_MAX_BYTES,
+    );
     exportArtifact = {
       url: download.bundleUrl,
       format,
-      byteLength: bytes.byteLength,
+      byteLength,
     };
   } catch {
     // File export is best-effort for agent workflows.

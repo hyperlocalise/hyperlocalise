@@ -183,7 +183,14 @@ async function grepWithRipgrep({
   regex: boolean;
   limit: number;
 }): Promise<GrepToolResult | null> {
-  const args = ["--vimgrep", "--color", "never", "--max-count", String(MAX_GREP_MATCHES_PER_FILE)];
+  const args = [
+    "--vimgrep",
+    "--color",
+    "never",
+    "--no-follow",
+    "--max-count",
+    String(MAX_GREP_MATCHES_PER_FILE),
+  ];
 
   if (!caseSensitive) {
     args.push("--ignore-case");

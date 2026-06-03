@@ -106,7 +106,10 @@ export const pullSmartlingTaskContent: ExternalTmsContentPuller = async ({
         fileUri ? { fileUri } : undefined,
       );
       for (const translation of localeTranslations) {
-        const key = translationLookupKey(translation);
+        const key = translationLookupKey({
+          ...translation,
+          fileUri: translation.fileUri ?? fileUri ?? null,
+        });
         if (!key || !translation.translation) {
           continue;
         }

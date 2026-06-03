@@ -188,7 +188,13 @@ export function parseMcpConsentGrant(token: string): McpConsentGrantPayload | nu
 }
 
 export function parseAuthorizationCode(code: string): AuthorizationCodePayload | null {
-  const [encodedPayload, signature] = code.split(".");
+  const separatorIndex = code.indexOf(".");
+  if (separatorIndex <= 0 || code.indexOf(".", separatorIndex + 1) !== -1) {
+    return null;
+  }
+
+  const encodedPayload = code.slice(0, separatorIndex);
+  const signature = code.slice(separatorIndex + 1);
   if (!encodedPayload || !signature || !constantTimeEqual(signature, sign(encodedPayload))) {
     return null;
   }
@@ -207,10 +213,29 @@ export function parseAuthorizationCode(code: string): AuthorizationCodePayload |
   return payload;
 }
 
+export function canonicalAuthorizationCode(code: string): string | null {
+  const separatorIndex = code.indexOf(".");
+  if (separatorIndex <= 0) {
+    return null;
+  }
+
+  const secondSeparatorIndex = code.indexOf(".", separatorIndex + 1);
+  if (secondSeparatorIndex === -1) {
+    return code;
+  }
+
+  return code.slice(0, secondSeparatorIndex);
+}
+
 export async function markAuthorizationCodeUsed(
   code: string,
   payload: AuthorizationCodePayload,
 ): Promise<boolean> {
+  const canonicalCode = canonicalAuthorizationCode(code);
+  if (!canonicalCode) {
+    return false;
+  }
+
   await db
     .delete(schema.usedAuthorizationCodes)
     .where(lt(schema.usedAuthorizationCodes.expiresAt, new Date()));
@@ -218,7 +243,7 @@ export async function markAuthorizationCodeUsed(
   const [usedCode] = await db
     .insert(schema.usedAuthorizationCodes)
     .values({
-      codeHash: createHash("sha256").update(code).digest("hex"),
+      codeHash: createHash("sha256").update(canonicalCode).digest("hex"),
       expiresAt: new Date(payload.expiresAt),
     })
     .onConflictDoNothing()

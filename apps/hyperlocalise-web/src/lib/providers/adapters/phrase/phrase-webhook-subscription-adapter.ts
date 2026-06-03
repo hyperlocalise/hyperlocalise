@@ -114,25 +114,31 @@ export function createPhraseWebhookSubscriptionAdapter(): ProviderWebhookSubscri
     },
 
     async createRemoteSubscription(context) {
+      let createdWebhookId: string | undefined;
       try {
         const projectId = parsePhraseProjectId(context.externalProjectId);
         const client = createPhraseClient(context);
         const created = await client.createWebhook(projectId, buildCreateRequest(context));
+        createdWebhookId = created.id;
         const callbackUrl = appendPhraseWebhookProviderId(context.endpointUrl, created.id);
-        const updated =
-          callbackUrl === created.callbackUrl
-            ? created
-            : await client.updateWebhook(projectId, created.id, {
-                ...buildCreateRequest(context),
-                callbackUrl,
-              });
+        try {
+          const updated =
+            callbackUrl === created.callbackUrl
+              ? created
+              : await client.updateWebhook(projectId, created.id, {
+                  ...buildCreateRequest(context),
+                  callbackUrl,
+                });
 
-        return {
-          ...mapPhraseWebhook(updated),
-          secret: context.webhookSecret,
-        };
+          return {
+            ...mapPhraseWebhook(updated),
+            secret: context.webhookSecret,
+          };
+        } catch (error) {
+          throw mapPhraseError(error, { providerWebhookId: created.id });
+        }
       } catch (error) {
-        throw mapPhraseError(error);
+        throw mapPhraseError(error, { providerWebhookId: createdWebhookId });
       }
     },
 

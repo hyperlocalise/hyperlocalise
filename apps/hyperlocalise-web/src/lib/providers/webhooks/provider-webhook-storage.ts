@@ -295,17 +295,17 @@ export function decryptWebhookSecret(subscription: ProviderWebhookSubscription):
  * Resolves an active subscription by provider webhook id for inbound delivery
  * verification and includes the decrypted signing secret when available.
  */
-export async function findActiveProviderWebhookSubscription(input: {
+export async function findActiveProviderWebhookSubscriptionById(input: {
+  subscriptionId: string;
   providerKind: ExternalTmsProviderKind;
-  providerWebhookId: string;
 }): Promise<ProviderWebhookSubscriptionWithSecret | null> {
   const [subscription] = await db
     .select()
     .from(schema.providerWebhookSubscriptions)
     .where(
       and(
+        eq(schema.providerWebhookSubscriptions.id, input.subscriptionId),
         eq(schema.providerWebhookSubscriptions.providerKind, input.providerKind),
-        eq(schema.providerWebhookSubscriptions.providerWebhookId, input.providerWebhookId),
         eq(schema.providerWebhookSubscriptions.status, "active"),
       ),
     )
@@ -314,6 +314,33 @@ export async function findActiveProviderWebhookSubscription(input: {
   if (!subscription) {
     return null;
   }
+
+  return {
+    ...subscription,
+    webhookSecretPlaintext: decryptWebhookSecret(subscription),
+  };
+}
+
+export async function findActiveProviderWebhookSubscription(input: {
+  providerKind: ExternalTmsProviderKind;
+  providerWebhookId: string;
+}): Promise<ProviderWebhookSubscriptionWithSecret | null> {
+  const subscriptions = await db
+    .select()
+    .from(schema.providerWebhookSubscriptions)
+    .where(
+      and(
+        eq(schema.providerWebhookSubscriptions.providerKind, input.providerKind),
+        eq(schema.providerWebhookSubscriptions.providerWebhookId, input.providerWebhookId),
+        eq(schema.providerWebhookSubscriptions.status, "active"),
+      ),
+    );
+
+  if (subscriptions.length !== 1) {
+    return null;
+  }
+
+  const subscription = subscriptions[0];
 
   return {
     ...subscription,

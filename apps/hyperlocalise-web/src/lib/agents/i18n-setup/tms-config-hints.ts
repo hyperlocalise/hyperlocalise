@@ -79,15 +79,33 @@ function uniqueSorted(values: string[]): string[] {
 }
 
 function replaceLocaleToken(path: string, locale: string, replacement: string): string {
-  const normalizedLocale = normalizeLocaleToken(locale);
-  const variants = uniqueSorted([normalizedLocale, normalizedLocale.replace(/-/g, "_")]);
+  const normalized = normalizeTmsPath(path);
+  const segments = normalized.split("/");
+  const variants = uniqueSorted([
+    normalizeLocaleToken(locale),
+    normalizeLocaleToken(locale).replace(/-/g, "_"),
+  ]);
 
-  let result = path;
-  for (const variant of variants) {
-    result = result.replaceAll(variant, replacement);
-  }
+  return segments
+    .map((segment, index) => {
+      const isFileName = index === segments.length - 1;
+      if (isFileName) {
+        const dotIndex = segment.lastIndexOf(".");
+        const stem = dotIndex > 0 ? segment.slice(0, dotIndex) : segment;
+        const extension = dotIndex > 0 ? segment.slice(dotIndex) : "";
+        if (variants.includes(stem)) {
+          return `${replacement}${extension}`;
+        }
+        return segment;
+      }
 
-  return result;
+      if (variants.includes(segment)) {
+        return replacement;
+      }
+
+      return segment;
+    })
+    .join("/");
 }
 
 function inferSourceLocaleFromPath(path: string): string | null {

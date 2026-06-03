@@ -181,7 +181,8 @@ function buildPatternKey(path: string, locale: string): string {
     return segments.slice(0, -1).join("/") || "root";
   }
 
-  return segments.slice(0, -2).join("/") || "root";
+  const localeParent = segments.slice(0, -2).join("/") || "root";
+  return `${localeParent}/${fileName}`;
 }
 
 function buildPathPattern(path: string, locale: string): { from: string; to: string } {

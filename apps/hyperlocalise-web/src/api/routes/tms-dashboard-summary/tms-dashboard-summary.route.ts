@@ -1,6 +1,9 @@
 import { Hono } from "hono";
 
-import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
+import {
+  isIntegrationsReadAllowed,
+  isProviderCredentialReadAllowed,
+} from "@/api/auth/capability-guards";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { forbiddenResponse, internalErrorResponse } from "@/api/response.schema";
 import { getOrganizationTmsDashboardSummary } from "@/lib/providers/organization-tms-dashboard-summary";
@@ -16,6 +19,9 @@ export function createTmsDashboardSummaryRoutes() {
       try {
         const tmsDashboardSummary = await getOrganizationTmsDashboardSummary(
           c.var.auth.organization.localOrganizationId,
+          {
+            includeCredentialDetails: isProviderCredentialReadAllowed(c.var.auth.membership.role),
+          },
         );
 
         return c.json({ tmsDashboardSummary }, 200);

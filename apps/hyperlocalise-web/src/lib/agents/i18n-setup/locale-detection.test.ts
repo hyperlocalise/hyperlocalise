@@ -67,6 +67,23 @@ describe("detectLocaleFiles", () => {
   it("returns null when no locale files are found", () => {
     expect(detectLocaleFiles(["src/index.ts", "package.json"])).toBeNull();
   });
+
+  it("keeps sibling files under the same locale directory", () => {
+    const result = detectLocaleFiles([
+      "messages/en/common.json",
+      "messages/en/errors.json",
+      "messages/fr/common.json",
+      "messages/fr/errors.json",
+    ]);
+
+    expect(result?.groups).toHaveLength(2);
+    expect(result?.groups.map((group) => group.pathPattern)).toEqual(
+      expect.arrayContaining([
+        { from: "messages/{{source}}/common.json", to: "messages/{{target}}/common.json" },
+        { from: "messages/{{source}}/errors.json", to: "messages/{{target}}/errors.json" },
+      ]),
+    );
+  });
 });
 
 describe("generateI18nConfigYaml", () => {

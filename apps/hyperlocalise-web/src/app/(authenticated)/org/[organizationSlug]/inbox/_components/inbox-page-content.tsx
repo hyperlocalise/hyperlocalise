@@ -89,9 +89,20 @@ export function InboxPageContent({
   });
 
   const sendMessageMutation = useMutation({
-    mutationFn: async ({ text, files }: { text: string; files: File[] }) => {
+    mutationFn: async ({
+      text,
+      files,
+      projectId,
+    }: {
+      text: string;
+      files: File[];
+      projectId?: string;
+    }) => {
       const formData = new FormData();
       formData.append("text", text);
+      if (projectId) {
+        formData.append("projectId", projectId);
+      }
       for (const file of files) {
         formData.append("files", file);
       }
@@ -116,7 +127,7 @@ export function InboxPageContent({
   const mutateAsync = sendMessageMutation.mutateAsync;
   // Stabilize callbacks to prevent unnecessary re-renders of memoized child components
   const onSendMessage = useCallback(
-    (text: string, files: File[]) => mutateAsync({ text, files }),
+    (text: string, files: File[], projectId?: string) => mutateAsync({ text, files, projectId }),
     [mutateAsync],
   );
 

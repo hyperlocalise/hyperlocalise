@@ -205,13 +205,6 @@ function validateWorkspaceAutomationConfig(input: {
       });
     }
 
-    if (input.triggerConfig.mode === "manual") {
-      return err({
-        code: "github_trigger_required",
-        message: "Enabled GitHub tools require a scheduled or GitHub push trigger.",
-      });
-    }
-
     if (
       input.triggerConfig.mode === "github" &&
       (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
@@ -439,26 +432,36 @@ export async function updateWorkspaceAutomation(input: {
     input.triggerConfig !== undefined ||
     input.repositoryTarget !== undefined ||
     input.toolConfig !== undefined;
-  const config = workspaceAutomationConfigSchema.parse({
-    triggerConfig: input.triggerConfig ?? existing.triggerConfig,
-    repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
-    toolConfig: input.toolConfig ?? existing.toolConfig,
-  });
-  const validation = validateWorkspaceAutomationConfig({
-    triggerConfig: config.triggerConfig,
-    repositoryTarget: config.repositoryTarget,
-    toolConfig: config.toolConfig,
-  });
-  if (isErr(validation)) {
-    return err(validation.error);
-  }
 
-  const integrationValidation = await validateWorkspaceAutomationIntegrations({
-    organizationId: input.organizationId,
-    toolConfig: config.toolConfig,
-  });
-  if (isErr(integrationValidation)) {
-    return err(integrationValidation.error);
+  const config = configChanged
+    ? workspaceAutomationConfigSchema.parse({
+        triggerConfig: input.triggerConfig ?? existing.triggerConfig,
+        repositoryTarget: input.repositoryTarget ?? existing.repositoryTarget,
+        toolConfig: input.toolConfig ?? existing.toolConfig,
+      })
+    : {
+        triggerConfig: existing.triggerConfig,
+        repositoryTarget: existing.repositoryTarget,
+        toolConfig: existing.toolConfig,
+      };
+
+  if (configChanged) {
+    const validation = validateWorkspaceAutomationConfig({
+      triggerConfig: config.triggerConfig,
+      repositoryTarget: config.repositoryTarget,
+      toolConfig: config.toolConfig,
+    });
+    if (isErr(validation)) {
+      return err(validation.error);
+    }
+
+    const integrationValidation = await validateWorkspaceAutomationIntegrations({
+      organizationId: input.organizationId,
+      toolConfig: config.toolConfig,
+    });
+    if (isErr(integrationValidation)) {
+      return err(integrationValidation.error);
+    }
   }
 
   const mergedAutomation: WorkspaceAutomationRecord = {
@@ -783,6 +786,24 @@ export async function getWorkspaceAutomationRunByIdempotencyKey(input: {
         eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
         eq(schema.workspaceAutomationRuns.automationId, input.automationId),
         eq(schema.workspaceAutomationRuns.idempotencyKey, input.idempotencyKey),
+      ),
+    )
+    .limit(1);
+
+  return row ? serializeAutomationRun(row) : null;
+}
+
+export async function getWorkspaceAutomationRunById(input: {
+  runId: string;
+  organizationId: string;
+}): Promise<WorkspaceAutomationRunRecord | null> {
+  const [row] = await db
+    .select()
+    .from(schema.workspaceAutomationRuns)
+    .where(
+      and(
+        eq(schema.workspaceAutomationRuns.id, input.runId),
+        eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
       ),
     )
     .limit(1);

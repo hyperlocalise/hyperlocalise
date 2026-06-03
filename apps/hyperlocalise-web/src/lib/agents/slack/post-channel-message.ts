@@ -51,5 +51,8 @@ export async function postSlackChannelMessage(input: {
   const adapter = chat.getAdapter("slack") as {
     postChannelMessage: (channelId: string, message: string) => Promise<unknown>;
   };
-  await adapter.postChannelMessage(input.channelId, input.text);
+  const channelId = input.channelId.startsWith("slack:")
+    ? input.channelId
+    : `slack:${input.channelId}`;
+  await adapter.postChannelMessage(channelId, input.text);
 }

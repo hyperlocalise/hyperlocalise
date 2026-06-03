@@ -66,21 +66,24 @@ describe("createFetchTool", () => {
   });
 
   it("blocks hostnames that resolve to private IPs", async () => {
-    // We use a hostname that isAllowedWebUrl thinks is public.
-    const url = "https://public-looking.example.com/api";
+    vi.stubEnv("VITEST_PROVIDER_SAFE_FETCH_PINNING", "true");
 
-    // We can verify it's blocked because providerSafeFetch (via resolvePinnedHttpConnectTarget)
-    // will attempt DNS resolution. Since this hostname won't resolve in the test env,
-    // it should return success: false with a host_unresolvable or similar error.
-    // This proves that we are now going through the safe fetch path which includes DNS checks.
-    const tool = createFetchTool();
-    const result = await tool.execute!({ url }, toolCallInfo);
+    try {
+      // We use a hostname that isAllowedWebUrl thinks is public.
+      const url = "https://public-looking.example.com/api";
 
-    expect(result).toMatchObject({
-      success: false,
-      error: expect.stringMatching(
-        /URL host could not be resolved|resolves to a private or restricted address/,
-      ),
-    });
+      // providerSafeFetch resolves the hostname before fetch; an unresolvable host must fail closed.
+      const tool = createFetchTool();
+      const result = await tool.execute!({ url }, toolCallInfo);
+
+      expect(result).toMatchObject({
+        success: false,
+        error: expect.stringMatching(
+          /URL host could not be resolved|resolves to a private or restricted address/,
+        ),
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });

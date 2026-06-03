@@ -104,8 +104,8 @@ func TestPackCommandStripsPrefixID(t *testing.T) {
     "defaultMessage": "Dashboard",
     "description": "Main dashboard heading"
   },
-  "src.components.hero.title": {
-    "defaultMessage": "Dashboard",
+  "src.components.hero.headline": {
+    "defaultMessage": "Welcome back",
     "description": "Hero heading"
   },
   "src.components.app-header.button.label": {
@@ -132,6 +132,7 @@ func TestPackCommandStripsPrefixID(t *testing.T) {
 	want := map[string][]string{
 		"Create project":    {"cta"},
 		"Dashboard":         {"title"},
+		"Welcome back":      {"headline"},
 		"Save button label": {"my-button.label"},
 		"Save settings":     {"button.label"},
 	}

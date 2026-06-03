@@ -3,6 +3,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { resolveSourcePath, resolveTargetPath } from "@/lib/i18n/i18n-pathresolver";
+import { isSafeRepositoryRelativePath } from "@/lib/i18n/safe-repository-path";
 import { bufferFromStream } from "@/lib/primitives/streams";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
@@ -278,6 +279,9 @@ export async function listPullTranslationExportCandidates(input: {
       }
 
       const targetPath = resolveTargetPath(mapping.toPattern, locales.sourceLocale, output.locale);
+      if (!isSafeRepositoryRelativePath(targetPath)) {
+        continue;
+      }
 
       planned.push({
         sourcePath,

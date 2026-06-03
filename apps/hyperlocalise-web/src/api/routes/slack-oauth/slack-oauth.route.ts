@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { getSlackBot } from "@/lib/agents/slack/bot";
+import { findSlackConnectorOwnedByAnotherOrganization } from "@/lib/agents/slack/helpers";
 import { getSlackStateSecret, verifySlackState } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
@@ -96,6 +97,14 @@ export function createSlackOAuthRoutes() {
       return c.redirect("/dashboard?error=slack_oauth_failed");
     }
     const { teamId, installation } = oauthResult;
+
+    const conflictingConnector = await findSlackConnectorOwnedByAnotherOrganization({
+      teamId,
+      organizationId: org.id,
+    });
+    if (conflictingConnector) {
+      return c.redirect("/dashboard?error=slack_team_already_connected");
+    }
 
     try {
       await db

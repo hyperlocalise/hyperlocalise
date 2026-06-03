@@ -9,6 +9,7 @@ import {
 
 export type PinnedHttpConnectTarget = {
   requestUrl: string;
+  hostHeader?: string;
   connect: {
     host: string;
     port: number;
@@ -65,7 +66,8 @@ export async function resolvePinnedHttpConnectTarget(
     results[0];
 
   return ok({
-    requestUrl: parsed.toString(),
+    requestUrl: toPinnedIpUrl(parsed, preferred.address),
+    hostHeader: parsed.host,
     connect: {
       host: preferred.address,
       port,
@@ -116,4 +118,10 @@ export async function resolvePublicHttpUrl(
 
 function looksLikeIpAddress(hostname: string): boolean {
   return hostname.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(hostname);
+}
+
+function toPinnedIpUrl(parsed: URL, address: string): string {
+  const pinned = new URL(parsed.toString());
+  pinned.hostname = address;
+  return pinned.toString();
 }

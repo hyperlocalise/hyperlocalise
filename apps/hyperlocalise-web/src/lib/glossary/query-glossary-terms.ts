@@ -10,6 +10,7 @@ export type GlossaryTermQueryRow = {
   targetTerm: string;
   targetLocale: string;
   description: string;
+  partOfSpeech: string;
   forbidden: boolean;
   caseSensitive: boolean;
   provenance: string;
@@ -30,6 +31,7 @@ export async function listGlossaryTermsByGlossaryId(input: {
       targetTerm: schema.glossaryTerms.targetTerm,
       targetLocale: schema.glossaries.targetLocale,
       description: schema.glossaryTerms.description,
+      partOfSpeech: schema.glossaryTerms.partOfSpeech,
       forbidden: schema.glossaryTerms.forbidden,
       caseSensitive: schema.glossaryTerms.caseSensitive,
       provenance: schema.glossaryTerms.provenance,
@@ -79,6 +81,7 @@ export async function listGlossaryTermsForProject(input: {
       targetTerm: schema.glossaryTerms.targetTerm,
       targetLocale: schema.glossaries.targetLocale,
       description: schema.glossaryTerms.description,
+      partOfSpeech: schema.glossaryTerms.partOfSpeech,
       forbidden: schema.glossaryTerms.forbidden,
       caseSensitive: schema.glossaryTerms.caseSensitive,
       provenance: schema.glossaryTerms.provenance,

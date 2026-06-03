@@ -6,6 +6,7 @@
  * attempt to wrap the full Crowdin API surface.
  */
 
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import {
   normalizeProviderDownloadUrl,
   requireProviderBaseUrl,
@@ -388,7 +389,7 @@ export class CrowdinApiClient {
       "https://api.crowdin.com/api/v2",
       "Crowdin",
     );
-    this.fetchFn = options.fetchFn ?? fetch;
+    this.fetchFn = options.fetchFn ?? providerSafeFetch;
   }
 
   /**

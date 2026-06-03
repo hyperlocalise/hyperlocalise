@@ -81,6 +81,13 @@ export function validateJobLocalesAgainstProject(
       }
     }
 
+    if (new Set(input.targetLocales).size !== input.targetLocales.length) {
+      return err({
+        code: "duplicate_job_target_locales",
+        message: "Target locales must be unique",
+      });
+    }
+
     return ok(undefined);
   }
 
@@ -123,6 +130,14 @@ export function validateJobLocalesAgainstProject(
     return err({
       code: "job_source_in_targets",
       message: "Source locale cannot appear in target locales",
+    });
+  }
+
+  const uniqueTargetKeys = new Set(normalizedTargets.map((locale) => localeKey(locale)));
+  if (uniqueTargetKeys.size !== normalizedTargets.length) {
+    return err({
+      code: "duplicate_job_target_locales",
+      message: "Target locales must be unique",
     });
   }
 

@@ -41,6 +41,67 @@ export async function createAgentRun(input: {
   return run;
 }
 
+export async function createOrReuseActivePushApprovedWriteBackAgentRun(input: {
+  organizationId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalJobId: string;
+  externalTaskId?: string | null;
+  kind: AgentRunKind;
+  actorUserId?: string | null;
+  inputSnapshot?: AgentRunInputSnapshot;
+  hyperlocaliseJobId: string;
+}) {
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${[
+        "push_approved_changes",
+        input.organizationId,
+        input.hyperlocaliseJobId,
+      ].join(":")}, 0))`,
+    );
+
+    const [existing] = await tx
+      .select()
+      .from(schema.agentRuns)
+      .where(
+        and(
+          eq(schema.agentRuns.organizationId, input.organizationId),
+          eq(schema.agentRuns.hyperlocaliseJobId, input.hyperlocaliseJobId),
+          eq(schema.agentRuns.kind, "translate"),
+          inArray(schema.agentRuns.status, ["queued", "running"]),
+          sql`${schema.agentRuns.inputSnapshot}->>'action' = 'push_approved_changes'`,
+        ),
+      )
+      .orderBy(desc(schema.agentRuns.createdAt))
+      .limit(1);
+
+    if (existing) {
+      return { run: existing, reused: true };
+    }
+
+    const [run] = await tx
+      .insert(schema.agentRuns)
+      .values({
+        organizationId: input.organizationId,
+        providerKind: input.providerKind,
+        externalJobId: input.externalJobId,
+        externalTaskId: input.externalTaskId ?? null,
+        kind: input.kind,
+        status: "queued",
+        actorUserId: input.actorUserId ?? null,
+        inputSnapshot: input.inputSnapshot ?? {},
+        hyperlocaliseJobId: input.hyperlocaliseJobId,
+      })
+      .returning();
+
+    if (!run) {
+      throw new Error("Failed to create agent run");
+    }
+
+    return { run, reused: false };
+  });
+}
+
 export async function startAgentRun(input: { runId: string; organizationId: string }) {
   const now = new Date();
   const [run] = await db

@@ -397,10 +397,7 @@ func runPackGrouped(path string, options packOptions) (map[string][]string, erro
 			if options.ignoreDuplicateID {
 				continue
 			}
-			if translation != translationByPackedID[packedID] {
-				return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
-			}
-			continue
+			return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
 		}
 		sourceByPackedID[packedID] = id
 		translationByPackedID[packedID] = translation

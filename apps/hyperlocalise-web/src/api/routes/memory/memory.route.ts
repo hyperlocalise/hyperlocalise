@@ -1,6 +1,9 @@
 import { and, count, desc, eq, ne } from "drizzle-orm";
 
-import { buildProjectLinkedMemoryWhere } from "@/api/auth/team-access";
+import {
+  buildAccessibleProjectsWhere,
+  buildProjectLinkedMemoryWhere,
+} from "@/api/auth/team-access";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -305,6 +308,8 @@ async function listMemoryProjects(
   auth: ApiAuthContext,
   memoryId: string,
 ): Promise<MemoryProjectRecord[]> {
+  const accessibleProjectsWhere = await buildAccessibleProjectsWhere(auth);
+
   return db
     .select({
       projectId: schema.projects.id,
@@ -319,6 +324,7 @@ async function listMemoryProjects(
       and(
         eq(schema.projectMemories.organizationId, auth.organization.localOrganizationId),
         eq(schema.projectMemories.memoryId, memoryId),
+        accessibleProjectsWhere,
       ),
     )
     .orderBy(schema.projectMemories.priority, schema.projects.name);

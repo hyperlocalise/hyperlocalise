@@ -61,44 +61,19 @@ IMPORTANT:
       const endLine = startLine + boundedLimit - 1;
 
       try {
-        const sizeResult = await ctx.bash.exec("wc", { args: ["-c", shellPath] });
-        if (sizeResult.exitCode !== 0) {
-          return {
-            success: false as const,
-            error: redact(sizeResult.stderr || "File not found"),
-          };
-        }
-
-        const byteSize = Number.parseInt(sizeResult.stdout.trim().split(/\s+/)[0] ?? "", 10);
-        if (Number.isFinite(byteSize) && byteSize > DEFAULT_MAX_FILE_BYTES) {
+        const rawContent = await ctx.bash.readFile(shellPath);
+        const byteSize = Buffer.byteLength(rawContent, "utf8");
+        if (byteSize > DEFAULT_MAX_FILE_BYTES) {
           return {
             success: false as const,
             error: `File exceeds maximum size of ${DEFAULT_MAX_FILE_BYTES} bytes.`,
           };
         }
 
-        const lineCountResult = await ctx.bash.exec("wc", { args: ["-l", shellPath] });
-        const wcLineCount =
-          lineCountResult.exitCode === 0
-            ? Number.parseInt(lineCountResult.stdout.trim().split(/\s+/)[0] ?? "", 10)
-            : Number.NaN;
-
-        const lineResult = await ctx.bash.exec("sed", {
-          args: ["-n", `${startLine},${endLine}p`, shellPath],
-        });
-        if (lineResult.exitCode !== 0) {
-          return {
-            success: false as const,
-            error: redact(lineResult.stderr || "Failed to read file"),
-          };
-        }
-
-        const selectedLines = lineResult.stdout.split("\n").filter((line, index, lines) => {
-          if (index < lines.length - 1) {
-            return true;
-          }
-          return line.length > 0;
-        });
+        const lines = rawContent.split("\n");
+        const totalLines =
+          lines.length > 0 && lines.at(-1) === "" ? lines.length - 1 : lines.length;
+        const selectedLines = lines.slice(startLine - 1, endLine);
         const numberedLines = selectedLines.map(
           (line, index) => `${startLine + index}: ${redact(line)}`,
         );
@@ -108,14 +83,6 @@ IMPORTANT:
         );
 
         const linesReadEnd = selectedLines.length > 0 ? startLine + selectedLines.length - 1 : null;
-        const totalLines =
-          linesReadEnd === null
-            ? Number.isFinite(wcLineCount)
-              ? wcLineCount
-              : null
-            : Number.isFinite(wcLineCount)
-              ? Math.max(wcLineCount, linesReadEnd)
-              : linesReadEnd;
 
         return {
           success: true as const,

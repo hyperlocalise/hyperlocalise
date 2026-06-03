@@ -2,6 +2,7 @@ import { and, eq, ilike, inArray, or, sql, type SQL } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 
 import { snapshotExternalTmsFileVersion } from "./organization-external-tms-file-versions";
 import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
@@ -71,6 +72,7 @@ function providerRevisionChanged(
 export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
   const now = new Date();
   const sourcePath = normalizeSourcePath(input.sourcePath);
+  const externalUrl = sanitizeExternalUrl(input.externalUrl);
 
   return db.transaction(async (tx) => {
     const [existing] = await tx
@@ -127,7 +129,7 @@ export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
         sourceHash: input.sourceHash ?? null,
         revision: input.revision ?? null,
         storedFileId: input.storedFileId ?? null,
-        externalUrl: input.externalUrl ?? null,
+        externalUrl,
         syncState: input.syncState ?? "pending",
         localeReadiness: input.localeReadiness ?? {},
         providerPayload: input.providerPayload ?? {},
@@ -152,7 +154,7 @@ export async function upsertExternalTmsFile(input: ExternalTmsFileInput) {
           sourceHash: input.sourceHash ?? null,
           revision: input.revision ?? null,
           storedFileId: input.storedFileId ?? null,
-          externalUrl: input.externalUrl ?? null,
+          externalUrl,
           syncState: input.syncState ?? "pending",
           localeReadiness: input.localeReadiness ?? {},
           providerPayload: input.providerPayload ?? {},

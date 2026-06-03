@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
+import { forbiddenResponse } from "@/api/response.schema";
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth/slack-oauth.route";
 import { getSlackBot } from "@/lib/agents/slack/bot";
@@ -37,6 +39,10 @@ const validateUpdateSlackAgentBody = validator("json", (value, c) => {
 
   return parsed.data;
 });
+
+function toCanonicalSlackChannelId(channelId: string) {
+  return channelId.startsWith("slack:") ? channelId : `slack:${channelId}`;
+}
 
 async function getSlackConnector(organizationId: string) {
   const [connector] = await db
@@ -94,7 +100,7 @@ async function listSlackChannels(botToken: string) {
         continue;
       }
       channels.push({
-        id: channel.id,
+        id: toCanonicalSlackChannelId(channel.id),
         name: channel.name,
         private: Boolean(channel.is_private),
       });
@@ -110,6 +116,10 @@ export function createAgentSlackRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const connector = await getSlackConnector(c.var.auth.organization.localOrganizationId);
 
       const enabled = connector?.enabled ?? false;
@@ -127,6 +137,10 @@ export function createAgentSlackRoutes() {
       );
     })
     .get("/channels", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const connector = await getSlackConnector(c.var.auth.organization.localOrganizationId);
       const config = (connector?.config ?? {}) as SlackConnectorConfig;
       if (!connector?.enabled || !config.teamId) {

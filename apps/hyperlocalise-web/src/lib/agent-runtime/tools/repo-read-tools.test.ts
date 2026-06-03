@@ -88,6 +88,25 @@ describe("createReadTool", () => {
     expect((result as { content: string }).content).toBe("");
   });
 
+  it("rejects symlink reads from the sandbox readFile guard", async () => {
+    const t = createReadTool({
+      bash: {
+        exec: async () => ({
+          stdout: "",
+          stderr: "",
+          exitCode: 0,
+          env: {},
+        }),
+        readFile: async () => {
+          throw new Error("Symlink reads are not allowed.");
+        },
+      },
+    });
+    const result = await t.execute!({ filePath: "leak.yaml" }, toolCallInfo);
+    expect(result).toMatchObject({ success: false });
+    expect((result as { error: string }).error).toContain("Symlink reads are not allowed");
+  });
+
   it("redacts secrets in file content", async () => {
     const ctx = createTestContext({
       "/home/user/project/.env": "OPENAI_API_KEY=sk-12345\ntoken=abcdefghijklmnopqrstuvwxyz12345",

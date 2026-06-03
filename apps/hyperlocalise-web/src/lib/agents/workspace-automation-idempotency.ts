@@ -23,3 +23,16 @@ export function buildWorkspaceGithubPushAutomationIdempotencyKey(input: {
     input.githubDeliveryId,
   ].join(":");
 }
+
+export function buildWorkspaceManualAutomationIdempotencyKey(input: {
+  automationId: string;
+  configVersion: number;
+  idempotencyKey: string;
+}): string {
+  return [
+    "workspace-automation:manual",
+    input.automationId,
+    String(input.configVersion),
+    input.idempotencyKey,
+  ].join(":");
+}

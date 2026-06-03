@@ -33,6 +33,7 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
+import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -417,6 +418,13 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       });
       if (isErr(localeValidation)) {
         return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
+      }
+
+      const jobBudget = await assertOrganizationCanEnqueueTranslationJob(
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (isErr(jobBudget)) {
+        return c.json({ error: jobBudget.error.code, message: jobBudget.error.message }, 429);
       }
 
       if (payload.type === "file") {

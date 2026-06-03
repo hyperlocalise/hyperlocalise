@@ -4,9 +4,10 @@ import { and, count, eq, ilike, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
+import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import {
@@ -128,6 +129,10 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const [installation] = await db
         .select()
         .from(schema.githubInstallations)
@@ -216,6 +221,10 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
       return c.json({ url: url.toString() }, 200);
     })
     .get("/repositories", validateRepositorySearch, async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const organizationId = c.var.auth.organization.localOrganizationId;
       const query = c.req.valid("query").q?.trim();
       const conditions = [eq(schema.githubInstallationRepositories.organizationId, organizationId)];
