@@ -43,3 +43,11 @@
 ## 2025-06-12 - [PO msgid Significance of Whitespace]
 **Learning:** In gettext/PO files, `msgid` keys are the source of truth for translation lookups, and leading/trailing whitespace is significant. Over-eagerly trimming spaces from these keys during parsing causes lookup failures in downstream systems.
 **Action:** Always preserve the exact literal string for `msgid` keys, except for the header entry (`msgid ""`) which is standardly skipped in message maps.
+
+## 2026-06-03 - [Triple Mustache Placeholder Normalization]
+**Learning:**  uses a  fallback to handle non-ICU formats. Many mustache-based systems use triple braces `{{{key}}}` for unescaped content. Failing to account for this leads to validation errors when these keys are used in translations.
+**Action:** Update `normalizeMustachePlaceholders` to detect and strip both double and triple braces, converting them to standard ICU `{key}` format for invariant extraction.
+
+## 2026-06-03 - [Triple Mustache Placeholder Normalization]
+**Learning:** ParseInvariant uses a normalizeMustachePlaceholders fallback to handle non-ICU formats. Many mustache-based systems use triple braces {{{key}}} for unescaped content. Failing to account for this leads to validation errors when these keys are used in translations.
+**Action:** Update normalizeMustachePlaceholders to detect and strip both double and triple braces, converting them to standard ICU {key} format for invariant extraction.
