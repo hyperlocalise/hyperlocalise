@@ -27,9 +27,7 @@ describe("crowdin-oauth-scopes", () => {
   });
 
   it("includes supporting organization scopes", () => {
-    expect(CROWDIN_OAUTH_SCOPES).toEqual(
-      expect.arrayContaining(["language", "tm", "glossary"]),
-    );
+    expect(CROWDIN_OAUTH_SCOPES).toEqual(expect.arrayContaining(["language", "tm", "glossary"]));
   });
 
   it("builds a space-separated authorize scope string", () => {

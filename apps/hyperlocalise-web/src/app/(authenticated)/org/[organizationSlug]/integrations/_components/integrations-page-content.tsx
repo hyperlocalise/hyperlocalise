@@ -821,8 +821,8 @@ function TmsProviderCredentialPanel({
             <div>
               <p className="text-sm font-medium text-foreground">Required OAuth scopes</p>
               <p className="mt-1 text-sm leading-6 text-muted-foreground">
-                In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the
-                same list when you click Connect Crowdin.
+                In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same
+                list when you click Connect Crowdin.
               </p>
             </div>
             <ul className="space-y-2">
