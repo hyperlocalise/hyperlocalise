@@ -49,37 +49,56 @@ func parseFormatJS(payload map[string]any) (map[string]string, map[string]string
 		return nil, nil, false, nil
 	}
 
-	out := make(map[string]string, len(payload))
+	var out map[string]string
 	var descriptions map[string]string
 
 	for key, value := range payload {
-		message, ok := value.(map[string]any)
+		defaultMsg, description, ok, err := parseFormatJSMessage(key, value)
+		if err != nil {
+			return nil, nil, false, err
+		}
 		if !ok {
 			return nil, nil, false, nil
 		}
-		rawMsg, ok := message["defaultMessage"]
-		if !ok {
-			return nil, nil, false, nil
-		}
-		defaultMsg, ok := rawMsg.(string)
-		if !ok {
-			return nil, nil, false, fmt.Errorf("json key %q field %q must be string, got %T", key, "defaultMessage", rawMsg)
+
+		if out == nil {
+			out = make(map[string]string, len(payload))
 		}
 		out[key] = defaultMsg
 
-		if rawDesc, ok := message["description"]; ok {
-			if description, ok := rawDesc.(string); ok {
-				if trimmed := strings.TrimSpace(description); trimmed != "" {
-					if descriptions == nil {
-						descriptions = make(map[string]string, len(payload))
-					}
-					descriptions[key] = trimmed
-				}
+		if description != "" {
+			if descriptions == nil {
+				descriptions = make(map[string]string, len(payload))
 			}
+			descriptions[key] = description
 		}
 	}
 
 	return out, descriptions, true, nil
+}
+
+func parseFormatJSMessage(key string, value any) (string, string, bool, error) {
+	message, ok := value.(map[string]any)
+	if !ok {
+		return "", "", false, nil
+	}
+	rawMsg, ok := message["defaultMessage"]
+	if !ok {
+		return "", "", false, nil
+	}
+	defaultMsg, ok := rawMsg.(string)
+	if !ok {
+		return "", "", false, fmt.Errorf("json key %q field %q must be string, got %T", key, "defaultMessage", rawMsg)
+	}
+
+	var description string
+	if rawDesc, ok := message["description"]; ok {
+		if desc, ok := rawDesc.(string); ok {
+			description = strings.TrimSpace(desc)
+		}
+	}
+
+	return defaultMsg, description, true, nil
 }
 
 // IsStrictFormatJSRoot reports whether payload is a FormatJS message catalog.
@@ -89,16 +108,10 @@ func IsStrictFormatJSRoot(payload map[string]any) (bool, error) {
 	}
 
 	for key, value := range payload {
-		message, ok := value.(map[string]any)
-		if !ok {
+		if _, _, ok, err := parseFormatJSMessage(key, value); err != nil {
+			return false, err
+		} else if !ok {
 			return false, nil
-		}
-		raw, ok := message["defaultMessage"]
-		if !ok {
-			return false, nil
-		}
-		if _, ok := raw.(string); !ok {
-			return false, fmt.Errorf("json key %q field %q must be string, got %T", key, "defaultMessage", raw)
 		}
 	}
 
