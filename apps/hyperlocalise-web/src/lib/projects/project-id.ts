@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export function normalizeProjectId(value: string): string;
+export function normalizeProjectId(value: unknown): unknown;
 export function normalizeProjectId(value: unknown) {
   if (typeof value !== "string") {
     return value;
