@@ -30,6 +30,9 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
+
+import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
   GLOSSARY_SYNC_FILTERS,
@@ -45,9 +48,12 @@ import {
 import {
   buildProjectIdByExternalKey,
   mapGlossaryToListRow,
+  mapLiveTmsProviderGlossaryToListRow,
   providerLabel,
   type ApiGlossary,
+  type GlossaryListRow,
 } from "./glossary-list";
+import type { TmsProviderLiveGlossary } from "@/lib/providers/tms-provider-live";
 import { GlossariesEmptyAction, GlossariesTable } from "./glossaries-table";
 import {
   ProjectSourceLocalePicker,
@@ -237,6 +243,9 @@ export function GlossariesPageContent({
     activeFilterCount,
     hasActiveFilters,
   } = useGlossaryFilters(searchParams);
+  const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
+  const useLiveProviderGlossaries = isTmsProviderShellModeEnabled() && Boolean(activeTmsProvider);
+  const allowCreateGlossaries = canCreateGlossaries && !useLiveProviderGlossaries;
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
@@ -273,8 +282,52 @@ export function GlossariesPageContent({
   });
 
   const glossariesQuery = useQuery({
-    queryKey: glossariesQueryKey(organizationSlug, page, filters),
+    queryKey: [
+      ...glossariesQueryKey(organizationSlug, page, filters),
+      useLiveProviderGlossaries ? "live" : "native",
+    ],
     queryFn: async () => {
+      if (useLiveProviderGlossaries && activeTmsProvider) {
+        const response = await apiClient.api.orgs[":organizationSlug"][
+          "tms-provider"
+        ].glossaries.$get({
+          param: { organizationSlug },
+          query: {},
+        });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load provider glossaries (${response.status})`);
+        }
+
+        const body = (await response.json()) as { glossaries: TmsProviderLiveGlossary[] };
+        const rows = body.glossaries.map((glossary: TmsProviderLiveGlossary) =>
+          mapLiveTmsProviderGlossaryToListRow(glossary, activeTmsProvider.providerKind),
+        );
+        const normalizedSearch = filters.searchQuery.trim().toLowerCase();
+        const filtered = rows.filter((row: GlossaryListRow) => {
+          if (normalizedSearch) {
+            const haystack = [row.name, row.description, row.id].join(" ").toLowerCase();
+            if (!haystack.includes(normalizedSearch)) return false;
+          }
+          if (filters.sourceFilter !== "all" && row.source !== filters.sourceFilter) {
+            return false;
+          }
+          if (
+            filters.providerFilter !== "all" &&
+            row.externalProviderKind !== filters.providerFilter
+          ) {
+            return false;
+          }
+          return true;
+        });
+
+        return {
+          glossaries: [] as ApiGlossary[],
+          liveRows: filtered,
+          total: filtered.length,
+        };
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"].glossaries.$get({
         param: { organizationSlug },
         query: buildGlossaryListQuery(page, filters),
@@ -326,13 +379,20 @@ export function GlossariesPageContent({
     [projectsQuery.data],
   );
 
-  const glossaries = useMemo(
-    () =>
-      (glossariesQuery.data?.glossaries ?? []).map((glossary) =>
-        mapGlossaryToListRow(glossary, projectIdByExternalKey),
-      ),
-    [glossariesQuery.data?.glossaries, projectIdByExternalKey],
-  );
+  const glossaries = useMemo(() => {
+    if (useLiveProviderGlossaries) {
+      return glossariesQuery.data?.liveRows ?? [];
+    }
+
+    return (glossariesQuery.data?.glossaries ?? []).map((glossary) =>
+      mapGlossaryToListRow(glossary, projectIdByExternalKey),
+    );
+  }, [
+    glossariesQuery.data?.glossaries,
+    glossariesQuery.data?.liveRows,
+    projectIdByExternalKey,
+    useLiveProviderGlossaries,
+  ]);
 
   const glossaryTotal = glossariesQuery.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(glossaryTotal / GLOSSARIES_PAGE_SIZE));
@@ -401,7 +461,7 @@ export function GlossariesPageContent({
         description="Create first-party workspace glossaries or sync provider term bases. Provider glossaries stay read-only."
         statusLabel={glossaryCountLabel}
         actions={
-          canCreateGlossaries ? (
+          allowCreateGlossaries ? (
             <Button
               type="button"
               onClick={() => setCreateDialogOpen(true)}
@@ -582,14 +642,14 @@ export function GlossariesPageContent({
         glossaries={glossaries}
         glossariesQuery={glossariesQuery}
         organizationSlug={organizationSlug}
-        emptyTitle={canCreateGlossaries ? "No glossaries yet" : emptyTitle}
+        emptyTitle={allowCreateGlossaries ? "No glossaries yet" : emptyTitle}
         emptyDescription={
-          canCreateGlossaries
+          allowCreateGlossaries
             ? "Create a workspace glossary, import terms, then assign it to the projects that should use it."
             : emptyDescription
         }
         emptyAction={
-          canCreateGlossaries ? (
+          allowCreateGlossaries ? (
             <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
               Create glossary
             </Button>

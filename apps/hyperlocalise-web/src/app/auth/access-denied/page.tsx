@@ -1,31 +1,18 @@
 import Link from "next/link";
 
-import { SyncWorkosMembershipAction } from "@/app/auth/access-denied/_components/sync-workos-membership-action";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { TypographyP } from "@/components/ui/typography";
 
 type AccessDeniedReason =
-  | "organization-access-denied"
   | "workos-membership-lookup-failed"
   | "workspace-archived"
   | "insufficient-permissions"
   | "missing-org-slug"
   | "callback";
 
-function shouldOfferWorkosMembershipSync(reason: AccessDeniedReason | undefined) {
-  return reason === "organization-access-denied";
-}
-
 function getAccessDeniedCopy(reason: AccessDeniedReason | undefined) {
   switch (reason) {
-    case "organization-access-denied":
-      return {
-        title: "Organization access unavailable",
-        description:
-          "Your account is signed in, but we could not match this workspace to an active WorkOS membership.",
-        body: "This can happen when a legacy workspace has not finished syncing to WorkOS yet. Try syncing below, choose another organization, or ask an admin to confirm your membership.",
-      };
     case "workos-membership-lookup-failed":
       return {
         title: "Could not verify membership",
@@ -75,7 +62,6 @@ export default async function AccessDeniedPage({ searchParams }: AccessDeniedPag
   const { reason: rawReason } = await searchParams;
   const reason = rawReason as AccessDeniedReason | undefined;
   const copy = getAccessDeniedCopy(reason);
-  const showWorkosSync = shouldOfferWorkosMembershipSync(reason);
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
@@ -86,8 +72,6 @@ export default async function AccessDeniedPage({ searchParams }: AccessDeniedPag
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <TypographyP className="text-sm leading-6 text-muted-foreground">{copy.body}</TypographyP>
-
-          {showWorkosSync ? <SyncWorkosMembershipAction /> : null}
 
           <div className="flex flex-wrap gap-3">
             <Button

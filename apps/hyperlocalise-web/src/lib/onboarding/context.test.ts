@@ -10,7 +10,6 @@ const {
   setStoredOnboardingStateMock,
   setStoredActiveOrganizationSlugMock,
   resolveApiAuthContextFromSessionMock,
-  listLocalOrgWorkspacesForUserMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
@@ -21,7 +20,6 @@ const {
   setStoredOnboardingStateMock: vi.fn(),
   setStoredActiveOrganizationSlugMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(),
-  listLocalOrgWorkspacesForUserMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -30,10 +28,6 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@workos-inc/authkit-nextjs", () => ({
   withAuth: withAuthMock,
-}));
-
-vi.mock("@/lib/organizations/migrate-local-org-to-workos", () => ({
-  listLocalOrgWorkspacesForUser: listLocalOrgWorkspacesForUserMock,
 }));
 
 vi.mock("@/lib/workos/onboarding-state", () => ({
@@ -57,10 +51,9 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 describe("loadOnboardingContext", () => {
   afterEach(() => {
     vi.clearAllMocks();
-    listLocalOrgWorkspacesForUserMock.mockResolvedValue([]);
   });
 
-  it("redirects to workspace upgrade when auth is missing but legacy workspaces exist", async () => {
+  it("returns onboarding context when auth is missing", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
       organizationId: null,
@@ -68,14 +61,15 @@ describe("loadOnboardingContext", () => {
     withAuthMock.mockResolvedValue(session);
     getStoredOnboardingStateMock.mockResolvedValue(null);
     resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
-    listLocalOrgWorkspacesForUserMock.mockResolvedValue([
-      { organizationId: "org_1", name: "Legacy Workspace", slug: "legacy" },
-    ]);
 
     const { loadOnboardingContext } = await import("./context");
 
-    await expect(loadOnboardingContext()).rejects.toThrow("redirect:/auth/upgrade-workspace");
-    expect(redirectMock).toHaveBeenCalledWith("/auth/upgrade-workspace");
+    await expect(loadOnboardingContext()).resolves.toEqual({
+      session,
+      onboardingState: null,
+      auth: null,
+    });
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
   it("clears stale onboarding state when the stored org is no longer accessible", async () => {

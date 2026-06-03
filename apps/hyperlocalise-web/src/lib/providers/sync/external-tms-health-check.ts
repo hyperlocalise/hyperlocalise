@@ -2,11 +2,10 @@ import { and, desc, eq, ne } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
-
-import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
+  type ExternalTmsCredential,
+  resolveExternalTmsSecretMaterial,
+  type ExternalTmsProviderKind,
+} from "../organization-external-tms-provider-credentials";
 import { resolvePhraseBaseUrl } from "../adapters/phrase/phrase-base-url";
 import { providerSafeFetch } from "../provider-safe-fetch";
 import { normalizeProviderBaseUrl } from "../provider-url-safety";
@@ -33,8 +32,6 @@ export type ExternalTmsHealthCheckResult = {
   rateLimit: ExternalTmsRateLimitHints;
   lastSuccessfulSyncAt: string | null;
 };
-
-type ExternalTmsCredential = typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
 
 export async function checkExternalTmsProviderHealth(input: {
   organizationId: string;
@@ -76,15 +73,10 @@ export async function checkExternalTmsProviderHealth(input: {
     organizationId: input.organizationId,
     providerKind: input.providerKind,
   });
-  const secretMaterial = unwrapProviderCredentialCrypto(
-    decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    }),
-  );
+  const secretMaterial = await resolveExternalTmsSecretMaterial({
+    credential,
+    fetchFn: input.fetchFn,
+  });
   const response = await validateExternalTmsCredential({
     providerKind: input.providerKind,
     secretMaterial,

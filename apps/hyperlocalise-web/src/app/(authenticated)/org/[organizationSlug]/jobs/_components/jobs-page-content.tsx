@@ -24,6 +24,10 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
+import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+
+import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
   JOB_SOURCE_FILTERS,
@@ -328,10 +332,45 @@ export function JobsPageContent({
     return source === "native" || source === "provider" ? source : "all";
   });
   const [agentReadyFilter, setAgentReadyFilter] = useState<"all" | "ready" | "not_ready">("all");
+  const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
+  const encodedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
+  const useLiveProviderJobs = isTmsProviderShellModeEnabled() && Boolean(activeTmsProvider);
 
   const jobsQuery = useQuery({
-    queryKey: ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"],
+    queryKey: [
+      "jobs",
+      organizationSlug,
+      scope,
+      statusFilter,
+      projectId ?? "workspace",
+      useLiveProviderJobs ? "live" : "native",
+    ],
     queryFn: async () => {
+      if (useLiveProviderJobs) {
+        const mine = scope === "mine" ? "true" : "false";
+        const response = encodedProviderProject
+          ? await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
+              ":externalProjectId"
+            ].jobs.$get({
+              param: {
+                organizationSlug,
+                externalProjectId: encodedProviderProject.externalProjectId,
+              },
+              query: { mine },
+            })
+          : await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs.$get({
+              param: { organizationSlug },
+              query: { mine },
+            });
+
+        if (!response.ok) {
+          throw new Error(`Failed to load provider jobs (${response.status})`);
+        }
+
+        const body = (await response.json()) as { jobs: JobRow[] };
+        return body.jobs;
+      }
+
       if (projectId) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
           ":projectId"

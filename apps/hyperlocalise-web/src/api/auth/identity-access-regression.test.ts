@@ -159,7 +159,7 @@ describe("enterprise identity access regression", () => {
         resolveApiAuthContextFromSession({
           organizationSlug: ownerIdentity.organization.slug,
         }),
-      ).rejects.toThrow("organization_access_denied");
+      ).resolves.toBeNull();
 
       await expect(resolveApiAuthContextFromSession()).resolves.toBeNull();
     });
@@ -195,7 +195,7 @@ describe("enterprise identity access regression", () => {
         resolveApiAuthContextFromSession({
           organizationSlug: ownerIdentity.organization.slug,
         }),
-      ).rejects.toThrow("organization_access_denied");
+      ).resolves.toBeNull();
     });
 
     it("denies access while invite replacement sentinel is set", async () => {
@@ -216,7 +216,7 @@ describe("enterprise identity access regression", () => {
         resolveApiAuthContextFromSession({
           organizationSlug: identity.organization.slug,
         }),
-      ).rejects.toThrow("organization_access_denied");
+      ).resolves.toBeNull();
     });
 
     it("does not grant access from local membership alone when WorkOS no longer lists the member", async () => {
@@ -232,7 +232,7 @@ describe("enterprise identity access regression", () => {
         resolveApiAuthContextFromSession({
           organizationSlug: identity.organization.slug,
         }),
-      ).rejects.toThrow("organization_access_denied");
+      ).resolves.toBeNull();
 
       const response = await requestOrgProjects(identity.organization.slug!);
       expect(response.status).toBe(403);
@@ -272,7 +272,7 @@ describe("enterprise identity access regression", () => {
         resolveApiAuthContextFromSession({
           organizationSlug: identity.organization.slug,
         }),
-      ).rejects.toThrow("organization_access_denied");
+      ).resolves.toBeNull();
     });
 
     it("skips reconcile for placeholder invited users", async () => {

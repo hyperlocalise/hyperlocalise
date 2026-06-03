@@ -9,8 +9,6 @@ import {
   resolveApiAuthContextFromSession,
   StaleOrganizationSlugError,
 } from "@/api/auth/workos-session";
-import { db } from "@/lib/database";
-import { listLocalOrgWorkspacesForUser } from "@/lib/organizations/migrate-local-org-to-workos";
 import {
   getStoredActiveOrganizationSlug,
   setStoredActiveOrganizationSlug,
@@ -52,20 +50,7 @@ export async function requireAppAuthContext(
     }
 
     if (error instanceof Error && error.message === "organization_access_denied") {
-      // Temporary: legacy local workspaces can exist while WorkOS membership is still empty.
-      let pendingLocalOrgWorkspaces: Awaited<ReturnType<typeof listLocalOrgWorkspacesForUser>> = [];
-
-      try {
-        pendingLocalOrgWorkspaces = await listLocalOrgWorkspacesForUser(db, session.user.id);
-      } catch {
-        // Fall through to access denied if the legacy workspace lookup fails.
-      }
-
-      if (pendingLocalOrgWorkspaces.length > 0) {
-        redirect("/auth/upgrade-workspace");
-      }
-
-      redirect("/auth/access-denied?reason=organization-access-denied");
+      redirect("/auth/onboarding");
     }
 
     if (error instanceof Error && error.message === "workos_membership_lookup_failed") {
@@ -76,11 +61,6 @@ export async function requireAppAuthContext(
   }
 
   if (!auth) {
-    const pendingLocalOrgWorkspaces = await listLocalOrgWorkspacesForUser(db, session.user.id);
-    if (pendingLocalOrgWorkspaces.length > 0) {
-      redirect("/auth/upgrade-workspace");
-    }
-
     redirect("/auth/onboarding");
   }
 

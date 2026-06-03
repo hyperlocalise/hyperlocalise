@@ -289,7 +289,22 @@ export async function resolveApiAuthContextFromSession(
           },
         }));
 
-  if (organizations.length === 0 && !options.organizationSlug) {
+  if (organizations.length === 0) {
+    if (options.organizationSlug) {
+      try {
+        await resolveStaleSlugRedirectTarget({
+          requestedSlug: options.organizationSlug,
+          organizations,
+          workosOrganizationId: session.organizationId,
+          workosUserId: session.user.id,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "archived_organization_access") {
+          throw error;
+        }
+      }
+    }
+
     return null;
   }
 

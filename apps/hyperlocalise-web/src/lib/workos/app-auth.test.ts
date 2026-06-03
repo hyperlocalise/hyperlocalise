@@ -7,7 +7,6 @@ const {
   withAuthMock,
   resolveApiAuthContextFromSessionMock,
   getStoredActiveOrganizationSlugMock,
-  listLocalOrgWorkspacesForUserMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
@@ -15,7 +14,6 @@ const {
   withAuthMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(),
   getStoredActiveOrganizationSlugMock: vi.fn(),
-  listLocalOrgWorkspacesForUserMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -36,10 +34,6 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 vi.mock("@/lib/workos/active-organization", () => ({
   getStoredActiveOrganizationSlug: getStoredActiveOrganizationSlugMock,
-}));
-
-vi.mock("@/lib/organizations/migrate-local-org-to-workos", () => ({
-  listLocalOrgWorkspacesForUser: listLocalOrgWorkspacesForUserMock,
 }));
 
 describe("requireAppAuthContext", () => {
@@ -68,7 +62,7 @@ describe("requireAppAuthContext", () => {
     expect(redirectMock).toHaveBeenCalledWith("/auth/select-organization");
   });
 
-  it("redirects to workspace upgrade when org access is denied but legacy workspaces exist", async () => {
+  it("redirects to onboarding when org access is denied", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
       organizationId: null,
@@ -76,80 +70,13 @@ describe("requireAppAuthContext", () => {
     withAuthMock.mockResolvedValue(session);
     getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
     resolveApiAuthContextFromSessionMock.mockRejectedValue(new Error("organization_access_denied"));
-    listLocalOrgWorkspacesForUserMock.mockResolvedValue([
-      { organizationId: "org_1", name: "Legacy Workspace", slug: "legacy" },
-    ]);
 
     const { requireAppAuthContext } = await import("./app-auth");
 
     await expect(requireAppAuthContext({ organizationSlug: "stale-slug" })).rejects.toThrow(
-      "redirect:/auth/upgrade-workspace",
+      "redirect:/auth/onboarding",
     );
-    expect(redirectMock).toHaveBeenCalledWith("/auth/upgrade-workspace");
-    expect(listLocalOrgWorkspacesForUserMock).toHaveBeenCalledWith(expect.anything(), "user_123");
-  });
-
-  it("redirects to access denied when legacy workspace lookup fails", async () => {
-    const session = {
-      user: { id: "user_123", email: "person@example.com" },
-      organizationId: null,
-    };
-    withAuthMock.mockResolvedValue(session);
-    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
-    resolveApiAuthContextFromSessionMock.mockRejectedValue(new Error("organization_access_denied"));
-    listLocalOrgWorkspacesForUserMock.mockRejectedValue(new Error("database_unavailable"));
-
-    const { requireAppAuthContext } = await import("./app-auth");
-
-    await expect(requireAppAuthContext({ organizationSlug: "stale-slug" })).rejects.toThrow(
-      "redirect:/auth/access-denied?reason=organization-access-denied",
-    );
-    expect(redirectMock).toHaveBeenCalledWith(
-      "/auth/access-denied?reason=organization-access-denied",
-    );
-  });
-
-  it("redirects to the org access-denied page when the requested org is not accessible", async () => {
-    const session = {
-      user: { id: "user_123", email: "person@example.com" },
-      organizationId: null,
-    };
-    withAuthMock.mockResolvedValue(session);
-    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
-    resolveApiAuthContextFromSessionMock.mockRejectedValue(new Error("organization_access_denied"));
-    listLocalOrgWorkspacesForUserMock.mockResolvedValue([]);
-
-    const { requireAppAuthContext } = await import("./app-auth");
-
-    await expect(requireAppAuthContext({ organizationSlug: "stale-slug" })).rejects.toThrow(
-      "redirect:/auth/access-denied?reason=organization-access-denied",
-    );
-    expect(redirectMock).toHaveBeenCalledWith(
-      "/auth/access-denied?reason=organization-access-denied",
-    );
-    expect(resolveApiAuthContextFromSessionMock).toHaveBeenCalledWith({
-      organizationSlug: "stale-slug",
-      session,
-    });
-  });
-
-  it("redirects to workspace upgrade when the user has legacy local org workspaces", async () => {
-    const session = {
-      user: { id: "user_123", email: "person@example.com" },
-      organizationId: null,
-    };
-    withAuthMock.mockResolvedValue(session);
-    getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
-    resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
-    listLocalOrgWorkspacesForUserMock.mockResolvedValue([
-      { organizationId: "org_1", name: "Legacy Workspace", slug: "legacy" },
-    ]);
-
-    const { requireAppAuthContext } = await import("./app-auth");
-
-    await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/upgrade-workspace");
-    expect(redirectMock).toHaveBeenCalledWith("/auth/upgrade-workspace");
-    expect(listLocalOrgWorkspacesForUserMock).toHaveBeenCalledWith(expect.anything(), "user_123");
+    expect(redirectMock).toHaveBeenCalledWith("/auth/onboarding");
   });
 
   it("redirects to onboarding when the signed-in user has no memberships yet", async () => {
@@ -160,7 +87,6 @@ describe("requireAppAuthContext", () => {
     withAuthMock.mockResolvedValue(session);
     getStoredActiveOrganizationSlugMock.mockResolvedValue(null);
     resolveApiAuthContextFromSessionMock.mockResolvedValue(null);
-    listLocalOrgWorkspacesForUserMock.mockResolvedValue([]);
 
     const { requireAppAuthContext } = await import("./app-auth");
 

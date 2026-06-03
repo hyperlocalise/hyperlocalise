@@ -84,8 +84,10 @@ export const organizationExternalTmsProviderCredentials = pgTable(
     }),
     providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
     displayName: text("display_name").notNull(),
+    authMode: text("auth_mode").notNull().default("api_token"),
     region: text("region"),
     baseUrl: text("base_url"),
+    oauthExpiresAt: timestamp("oauth_expires_at", { withTimezone: true }),
     validationStatus: text("validation_status").notNull().default("unvalidated"),
     validationMessage: text("validation_message"),
     lastValidatedAt: timestamp("last_validated_at", { withTimezone: true }),
@@ -107,6 +109,46 @@ export const organizationExternalTmsProviderCredentials = pgTable(
       table.providerKind,
     ),
     index("idx_organization_external_tms_provider_credentials_updated_at").on(table.updatedAt),
+  ],
+);
+
+/**
+ * Stores short-lived Crowdin OAuth state and PKCE verifier material so callback handling can be scoped to the initiating organization and user.
+ */
+export const crowdinOAuthStates = pgTable(
+  "crowdin_oauth_states",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    nonce: text("nonce").notNull(),
+    codeVerifier: text("code_verifier").notNull(),
+    oauthClientId: text("oauth_client_id").notNull(),
+    oauthClientSecretEncryptionAlgorithm: text(
+      "oauth_client_secret_encryption_algorithm",
+    ).notNull(),
+    oauthClientSecretCiphertext: text("oauth_client_secret_ciphertext").notNull(),
+    oauthClientSecretIv: text("oauth_client_secret_iv").notNull(),
+    oauthClientSecretAuthTag: text("oauth_client_secret_auth_tag").notNull(),
+    oauthClientSecretKeyVersion: integer("oauth_client_secret_key_version").notNull().default(1),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    displayName: text("display_name").notNull(),
+    baseUrl: text("base_url"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("crowdin_oauth_states_nonce_key").on(table.nonce),
+    index("idx_crowdin_oauth_states_org_user").on(table.organizationId, table.userId),
+    index("idx_crowdin_oauth_states_expires_at").on(table.expiresAt),
   ],
 );
 

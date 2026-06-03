@@ -1,4 +1,5 @@
-import { and, eq, inArray, ne, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { assertCapability } from "@/api/auth/policy";
 import { db, schema } from "@/lib/database";
@@ -23,6 +24,30 @@ import { resolvePhraseBaseUrl } from "@/lib/providers/adapters/phrase/phrase-bas
 export type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 
+type OrganizationExternalTmsProviderCredential =
+  typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
+
+export type ExternalTmsCredential = Omit<
+  OrganizationExternalTmsProviderCredential,
+  "authMode" | "oauthExpiresAt"
+> &
+  Partial<Pick<OrganizationExternalTmsProviderCredential, "authMode" | "oauthExpiresAt">>;
+
+export const CROWDIN_OAUTH_AUTH_MODE = "oauth";
+export const API_TOKEN_AUTH_MODE = "api_token";
+export const CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+
+const crowdinOAuthTokenBundleSchema = z.object({
+  clientId: z.string().min(1),
+  clientSecret: z.string().min(1),
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+  tokenType: z.string().min(1).default("bearer"),
+  expiresAt: z.string().datetime(),
+});
+
+export type CrowdinOAuthTokenBundle = z.infer<typeof crowdinOAuthTokenBundleSchema>;
+
 export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRole) {
   assertCapability(role, "provider_credentials:write");
 }
@@ -31,8 +56,10 @@ export type ExternalTmsProviderCredentialSummary = {
   id: string;
   providerKind: ExternalTmsProviderKind;
   displayName: string;
+  authMode: string;
   region: string | null;
   baseUrl: string | null;
+  oauthExpiresAt: string | null;
   validationStatus: string;
   validationMessage: string | null;
   lastValidatedAt: string | null;
@@ -55,8 +82,10 @@ function summarizeExternalCredential(
     id: credential.id,
     providerKind: credential.providerKind as ExternalTmsProviderKind,
     displayName: credential.displayName,
+    authMode: credential.authMode,
     region: credential.region,
     baseUrl: credential.baseUrl,
+    oauthExpiresAt: credential.oauthExpiresAt?.toISOString() ?? null,
     validationStatus: credential.validationStatus,
     validationMessage: credential.validationMessage,
     lastValidatedAt: credential.lastValidatedAt?.toISOString() ?? null,
@@ -75,6 +104,36 @@ export async function listOrganizationExternalTmsProviderCredentialSummaries(
     .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId));
 
   return credentials.map(summarizeExternalCredential);
+}
+
+/**
+ * Returns the single active TMS credential for an org. When legacy rows exist,
+ * the most recently updated credential wins.
+ */
+export async function getActiveOrganizationExternalTmsProviderCredential(
+  organizationId: string,
+): Promise<ExternalTmsProviderCredentialSummary | null> {
+  const [credential] = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId))
+    .orderBy(desc(schema.organizationExternalTmsProviderCredentials.updatedAt))
+    .limit(1);
+
+  return credential ? summarizeExternalCredential(credential) : null;
+}
+
+export async function getActiveOrganizationExternalTmsProviderCredentialRow(
+  organizationId: string,
+): Promise<OrganizationExternalTmsProviderCredential | null> {
+  const [credential] = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(eq(schema.organizationExternalTmsProviderCredentials.organizationId, organizationId))
+    .orderBy(desc(schema.organizationExternalTmsProviderCredentials.updatedAt))
+    .limit(1);
+
+  return credential ?? null;
 }
 
 export async function listOrganizationExternalTmsProviderCredentialDetails(
@@ -202,49 +261,313 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
     region: input.region ?? null,
     baseUrl: input.baseUrl ?? null,
   });
-  const [credential] = await db
-    .insert(schema.organizationExternalTmsProviderCredentials)
-    .values({
-      organizationId: input.organizationId,
-      createdByUserId: input.userId,
-      updatedByUserId: input.userId,
-      providerKind: input.providerKind,
-      displayName: input.displayName,
-      region: input.region ?? null,
-      baseUrl,
-      validationStatus: "unvalidated",
-      encryptionAlgorithm: encrypted.algorithm,
-      ciphertext: encrypted.ciphertext,
-      iv: encrypted.iv,
-      authTag: encrypted.authTag,
-      keyVersion: encrypted.keyVersion,
-      maskedSecretSuffix: maskProviderCredentialSuffix(input.secretMaterial),
-    })
-    .onConflictDoUpdate({
-      target: [
-        schema.organizationExternalTmsProviderCredentials.organizationId,
-        schema.organizationExternalTmsProviderCredentials.providerKind,
-      ],
-      set: {
+
+  const credential = await db.transaction(async (tx) => {
+    await tx
+      .delete(schema.organizationExternalTmsProviderCredentials)
+      .where(
+        and(
+          eq(
+            schema.organizationExternalTmsProviderCredentials.organizationId,
+            input.organizationId,
+          ),
+          ne(schema.organizationExternalTmsProviderCredentials.providerKind, input.providerKind),
+        ),
+      );
+
+    const [row] = await tx
+      .insert(schema.organizationExternalTmsProviderCredentials)
+      .values({
+        organizationId: input.organizationId,
+        createdByUserId: input.userId,
         updatedByUserId: input.userId,
+        providerKind: input.providerKind,
         displayName: input.displayName,
+        authMode: API_TOKEN_AUTH_MODE,
         region: input.region ?? null,
         baseUrl,
+        oauthExpiresAt: null,
         validationStatus: "unvalidated",
-        validationMessage: null,
-        lastValidatedAt: null,
         encryptionAlgorithm: encrypted.algorithm,
         ciphertext: encrypted.ciphertext,
         iv: encrypted.iv,
         authTag: encrypted.authTag,
         keyVersion: encrypted.keyVersion,
         maskedSecretSuffix: maskProviderCredentialSuffix(input.secretMaterial),
-        updatedAt: now,
-      },
-    })
-    .returning();
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.organizationExternalTmsProviderCredentials.organizationId,
+          schema.organizationExternalTmsProviderCredentials.providerKind,
+        ],
+        set: {
+          updatedByUserId: input.userId,
+          displayName: input.displayName,
+          authMode: API_TOKEN_AUTH_MODE,
+          region: input.region ?? null,
+          baseUrl,
+          oauthExpiresAt: null,
+          validationStatus: "unvalidated",
+          validationMessage: null,
+          lastValidatedAt: null,
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          maskedSecretSuffix: maskProviderCredentialSuffix(input.secretMaterial),
+          updatedAt: now,
+        },
+      })
+      .returning();
+
+    return row;
+  });
 
   return credential;
+}
+
+export async function upsertCrowdinOAuthProviderCredential(input: {
+  organizationId: string;
+  userId: string;
+  role: OrganizationMembershipRole;
+  displayName: string;
+  tokenBundle: CrowdinOAuthTokenBundle;
+  baseUrl?: string | null;
+}) {
+  assertExternalTmsCredentialAdmin(input.role);
+
+  const now = new Date();
+  const secretMaterial = JSON.stringify(input.tokenBundle);
+  const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(secretMaterial));
+  const baseUrl = await normalizeExternalTmsCredentialBaseUrl({
+    providerKind: "crowdin",
+    region: null,
+    baseUrl: input.baseUrl ?? null,
+  });
+
+  const credential = await db.transaction(async (tx) => {
+    await tx
+      .delete(schema.organizationExternalTmsProviderCredentials)
+      .where(
+        and(
+          eq(
+            schema.organizationExternalTmsProviderCredentials.organizationId,
+            input.organizationId,
+          ),
+          ne(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+        ),
+      );
+
+    const [row] = await tx
+      .insert(schema.organizationExternalTmsProviderCredentials)
+      .values({
+        organizationId: input.organizationId,
+        createdByUserId: input.userId,
+        updatedByUserId: input.userId,
+        providerKind: "crowdin",
+        displayName: input.displayName,
+        authMode: CROWDIN_OAUTH_AUTH_MODE,
+        region: null,
+        baseUrl,
+        oauthExpiresAt: new Date(input.tokenBundle.expiresAt),
+        validationStatus: "unvalidated",
+        encryptionAlgorithm: encrypted.algorithm,
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        keyVersion: encrypted.keyVersion,
+        maskedSecretSuffix: "oauth",
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.organizationExternalTmsProviderCredentials.organizationId,
+          schema.organizationExternalTmsProviderCredentials.providerKind,
+        ],
+        set: {
+          updatedByUserId: input.userId,
+          displayName: input.displayName,
+          authMode: CROWDIN_OAUTH_AUTH_MODE,
+          region: null,
+          baseUrl,
+          oauthExpiresAt: new Date(input.tokenBundle.expiresAt),
+          validationStatus: "unvalidated",
+          validationMessage: null,
+          lastValidatedAt: null,
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          maskedSecretSuffix: "oauth",
+          updatedAt: now,
+        },
+      })
+      .returning();
+
+    return row;
+  });
+
+  return credential;
+}
+
+type CredentialCryptoFields = Pick<
+  ExternalTmsCredential,
+  "encryptionAlgorithm" | "keyVersion" | "ciphertext" | "iv" | "authTag"
+>;
+
+function decryptCrowdinOAuthTokenBundle(
+  credential: CredentialCryptoFields,
+): CrowdinOAuthTokenBundle {
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+    }),
+  );
+  const parsed = crowdinOAuthTokenBundleSchema.safeParse(safeJsonParse(secretMaterial));
+  if (!parsed.success) {
+    throw new Error("crowdin_oauth_token_invalid");
+  }
+
+  return parsed.data;
+}
+
+function isCrowdinOAuthAccessTokenFresh(tokenBundle: CrowdinOAuthTokenBundle) {
+  return (
+    new Date(tokenBundle.expiresAt).getTime() - Date.now() > CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS
+  );
+}
+
+export async function resolveExternalTmsSecretMaterial(input: {
+  credential: ExternalTmsCredential;
+  fetchFn?: typeof fetch;
+}) {
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: input.credential.encryptionAlgorithm,
+      keyVersion: input.credential.keyVersion,
+      ciphertext: input.credential.ciphertext,
+      iv: input.credential.iv,
+      authTag: input.credential.authTag,
+    }),
+  );
+
+  if (
+    input.credential.providerKind !== "crowdin" ||
+    input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE
+  ) {
+    return secretMaterial;
+  }
+
+  const tokenBundle = decryptCrowdinOAuthTokenBundle(input.credential);
+  if (isCrowdinOAuthAccessTokenFresh(tokenBundle)) {
+    return tokenBundle.accessToken;
+  }
+
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${[
+        "crowdin_oauth_refresh",
+        input.credential.id,
+      ].join(":")}, 0))`,
+    );
+
+    const [freshCredential] = await tx
+      .select()
+      .from(schema.organizationExternalTmsProviderCredentials)
+      .where(eq(schema.organizationExternalTmsProviderCredentials.id, input.credential.id))
+      .limit(1);
+
+    if (!freshCredential) {
+      throw new Error("provider_credential_not_found");
+    }
+
+    const lockedTokenBundle = decryptCrowdinOAuthTokenBundle(freshCredential);
+    if (isCrowdinOAuthAccessTokenFresh(lockedTokenBundle)) {
+      return lockedTokenBundle.accessToken;
+    }
+
+    const refreshed = await refreshCrowdinOAuthToken({
+      tokenBundle: lockedTokenBundle,
+      fetchFn: input.fetchFn,
+    });
+    const encrypted = unwrapProviderCredentialCrypto(
+      encryptProviderCredential(JSON.stringify(refreshed)),
+    );
+
+    await tx
+      .update(schema.organizationExternalTmsProviderCredentials)
+      .set({
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        encryptionAlgorithm: encrypted.algorithm,
+        keyVersion: encrypted.keyVersion,
+        oauthExpiresAt: new Date(refreshed.expiresAt),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.organizationExternalTmsProviderCredentials.id, input.credential.id));
+
+    return refreshed.accessToken;
+  });
+}
+
+async function refreshCrowdinOAuthToken(input: {
+  tokenBundle: CrowdinOAuthTokenBundle;
+  fetchFn?: typeof fetch;
+}): Promise<CrowdinOAuthTokenBundle> {
+  const response = await (input.fetchFn ?? fetch)("https://accounts.crowdin.com/oauth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      grant_type: "refresh_token",
+      client_id: input.tokenBundle.clientId,
+      client_secret: input.tokenBundle.clientSecret,
+      refresh_token: input.tokenBundle.refreshToken,
+    }),
+    redirect: "error",
+  });
+
+  if (!response.ok) {
+    throw new Error("crowdin_oauth_refresh_failed");
+  }
+
+  const body = await response.json();
+  return mapCrowdinOAuthTokenResponse(body, {
+    clientId: input.tokenBundle.clientId,
+    clientSecret: input.tokenBundle.clientSecret,
+  });
+}
+
+export function mapCrowdinOAuthTokenResponse(
+  body: unknown,
+  client: { clientId: string; clientSecret: string },
+): CrowdinOAuthTokenBundle {
+  const parsed = z
+    .object({
+      access_token: z.string().min(1),
+      refresh_token: z.string().min(1),
+      token_type: z.string().min(1).default("bearer"),
+      expires_in: z.number().positive(),
+    })
+    .safeParse(body);
+
+  if (!parsed.success) {
+    throw new Error("crowdin_oauth_token_response_invalid");
+  }
+
+  return {
+    clientId: client.clientId,
+    clientSecret: client.clientSecret,
+    accessToken: parsed.data.access_token,
+    refreshToken: parsed.data.refresh_token,
+    tokenType: parsed.data.token_type,
+    expiresAt: new Date(Date.now() + parsed.data.expires_in * 1000).toISOString(),
+  };
 }
 
 async function normalizeExternalTmsCredentialBaseUrl(input: {
@@ -299,6 +622,9 @@ export async function revealOrganizationExternalTmsProviderCredential(input: {
     .limit(1);
 
   if (!credential) return null;
+  if (credential.providerKind === "crowdin" && credential.authMode === CROWDIN_OAUTH_AUTH_MODE) {
+    throw new Error("crowdin_oauth_secret_unavailable");
+  }
 
   return {
     summary: credential,
@@ -312,6 +638,14 @@ export async function revealOrganizationExternalTmsProviderCredential(input: {
       }),
     ),
   };
+}
+
+function safeJsonParse(input: string): unknown {
+  try {
+    return JSON.parse(input);
+  } catch {
+    return null;
+  }
 }
 
 export async function deleteOrganizationExternalTmsProviderCredential(input: {

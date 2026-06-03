@@ -4,6 +4,7 @@ import {
   buildLokaliseTaskUrl,
   collectLokaliseTaskAssignees,
   collectLokaliseTaskTargetLocales,
+  getLokaliseTaskCompletionMs,
   LOKALISE_COMPLETED_TASK_MAX_PAGES,
   LOKALISE_RECENT_COMPLETED_WINDOW_MS,
   LokaliseApiClient,
@@ -34,33 +35,38 @@ export const fetchLokaliseJobTasks: ExternalTmsJobTaskFetcher = async ({
     throw error;
   }
 
-  return tasks.map((task) => ({
-    externalJobId: String(task.taskId),
-    externalTaskId: null,
-    externalStatus: task.status,
-    title: task.title,
-    dueDate: parseLokaliseTaskDueDate(task),
-    targetLocales: collectLokaliseTaskTargetLocales(task),
-    assignedUsers: collectLokaliseTaskAssignees(task),
-    externalUrl: buildLokaliseTaskUrl(externalProjectId, task.taskId),
-    providerPayload: {
-      taskType: task.taskType,
-      description: task.description,
-      progress: task.progress,
-      sourceLanguageIso: task.sourceLanguageIso,
-      keysCount: task.keysCount,
-      wordsCount: task.wordsCount,
-      languages: task.languages.map((language) => ({
-        languageIso: language.languageIso,
-        languageName: language.languageName,
-        status: language.status,
-        progress: language.progress,
-      })),
-      createdAt: task.createdAt,
-      completedAt: task.completedAt,
-    },
-    kind: mapLokaliseTaskKind(task.taskType),
-  }));
+  return tasks.map((task) => {
+    const completedAtMs = getLokaliseTaskCompletionMs(task);
+
+    return {
+      externalJobId: String(task.taskId),
+      externalTaskId: null,
+      externalStatus: task.status,
+      title: task.title,
+      dueDate: parseLokaliseTaskDueDate(task),
+      targetLocales: collectLokaliseTaskTargetLocales(task),
+      assignedUsers: collectLokaliseTaskAssignees(task),
+      externalUrl: buildLokaliseTaskUrl(externalProjectId, task.taskId),
+      completedAt: completedAtMs != null ? new Date(completedAtMs).toISOString() : null,
+      providerPayload: {
+        taskType: task.taskType,
+        description: task.description,
+        progress: task.progress,
+        sourceLanguageIso: task.sourceLanguageIso,
+        keysCount: task.keysCount,
+        wordsCount: task.wordsCount,
+        languages: task.languages.map((language) => ({
+          languageIso: language.languageIso,
+          languageName: language.languageName,
+          status: language.status,
+          progress: language.progress,
+        })),
+        createdAt: task.createdAt,
+        completedAt: task.completedAt,
+      },
+      kind: mapLokaliseTaskKind(task.taskType),
+    };
+  });
 };
 
 async function listOpenAndRecentLokaliseTasks(client: LokaliseApiClient, projectId: string) {
