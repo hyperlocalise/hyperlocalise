@@ -120,3 +120,7 @@
 ## 2026-08-10 - Optimizing JSONC comment parsing and stack management
 **Learning:** In recursive or stateful parsing (like JSONC comment extraction), repeated use of `bytes.Split` and `strings.Join` for path management (e.g., `stackPrefix`) leads to significant allocation overhead. Replacing `bytes.Split` with manual `bytes.IndexByte` iteration and managing the stack prefix incrementally (concatenating on push, slicing on pop) provides measurable efficiency gains.
 **Action:** Optimized `parseJSONCKeyComments` in `internal/i18n/translationfileparser/jsonc_parser.go`, achieving ~7.4% faster parsing and ~8% fewer allocations.
+
+## 2026-08-15 - Optimizing JSON and FormatJS parsing
+**Learning:** Sorting keys before iterating over a map to populate another map (like in JSON flattening or FormatJS extraction) adds O(N log N) overhead and extra allocations for no benefit, as Go maps are unordered. Additionally, combining multiple validation and extraction passes into a single loop significantly reduces CPU time for specialized formats.
+**Action:** Removed redundant `slices.Sort` calls in `flattenJSON` and combined three passes (validation, message extraction, description extraction) into one in `parseFormatJS`, resulting in a ~16% speedup for standard JSON and ~17% for FormatJS.

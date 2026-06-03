@@ -3,7 +3,6 @@ package translationfileparser
 import (
 	"encoding/json"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -29,15 +28,15 @@ func (p JSONParser) ParseWithContext(content []byte) (map[string]string, map[str
 		return map[string]string{}, nil, nil
 	}
 
-	out := make(map[string]string)
-	formatJS, err := parseStrictFormatJSMessages(out, payload)
-	if err != nil {
+	// Single-pass check and extraction for FormatJS catalogs avoids O(N log N)
+	// sorting of all keys and redundant iterations for descriptions.
+	if out, descriptions, isFormatJS, err := parseFormatJS(payload); err != nil {
 		return nil, nil, err
-	}
-	if formatJS {
-		return out, parseFormatJSDescriptions(payload), nil
+	} else if isFormatJS {
+		return out, descriptions, nil
 	}
 
+	out := make(map[string]string, len(payload))
 	if err := flattenJSON(out, "", payload); err != nil {
 		return nil, nil, err
 	}
@@ -45,81 +44,78 @@ func (p JSONParser) ParseWithContext(content []byte) (map[string]string, map[str
 	return out, nil, nil
 }
 
-func parseStrictFormatJSMessages(out map[string]string, payload map[string]any) (bool, error) {
-	formatJS, err := isStrictFormatJSRoot(payload)
-	if err != nil {
-		return false, err
-	}
-	if !formatJS {
-		return false, nil
+func parseFormatJS(payload map[string]any) (map[string]string, map[string]string, bool, error) {
+	if len(payload) == 0 {
+		return nil, nil, false, nil
 	}
 
-	keys := make([]string, 0, len(payload))
-	for key := range payload {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
+	var out map[string]string
+	var descriptions map[string]string
 
-	for _, key := range keys {
-		message := payload[key].(map[string]any)
-		out[key] = message["defaultMessage"].(string)
-	}
-
-	return true, nil
-}
-
-func parseFormatJSDescriptions(payload map[string]any) map[string]string {
-	out := make(map[string]string)
 	for key, value := range payload {
-		message, ok := value.(map[string]any)
+		defaultMsg, description, ok, err := parseFormatJSMessage(key, value)
+		if err != nil {
+			return nil, nil, false, err
+		}
 		if !ok {
-			continue
+			return nil, nil, false, nil
 		}
-		raw, ok := message["description"]
-		if !ok {
-			continue
+
+		if out == nil {
+			out = make(map[string]string, len(payload))
 		}
-		description, ok := raw.(string)
-		if !ok {
-			continue
+		out[key] = defaultMsg
+
+		if description != "" {
+			if descriptions == nil {
+				descriptions = make(map[string]string, len(payload))
+			}
+			descriptions[key] = description
 		}
-		description = strings.TrimSpace(description)
-		if description == "" {
-			continue
-		}
-		out[key] = description
 	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
+
+	return out, descriptions, true, nil
 }
 
-func isStrictFormatJSRoot(payload map[string]any) (bool, error) {
+func parseFormatJSMessage(key string, value any) (string, string, bool, error) {
+	message, ok := value.(map[string]any)
+	if !ok {
+		return "", "", false, nil
+	}
+	rawMsg, ok := message["defaultMessage"]
+	if !ok {
+		return "", "", false, nil
+	}
+	defaultMsg, ok := rawMsg.(string)
+	if !ok {
+		return "", "", false, fmt.Errorf("json key %q field %q must be string, got %T", key, "defaultMessage", rawMsg)
+	}
+
+	var description string
+	if rawDesc, ok := message["description"]; ok {
+		if desc, ok := rawDesc.(string); ok {
+			description = strings.TrimSpace(desc)
+		}
+	}
+
+	return defaultMsg, description, true, nil
+}
+
+// IsStrictFormatJSRoot reports whether payload is a FormatJS message catalog.
+func IsStrictFormatJSRoot(payload map[string]any) (bool, error) {
 	if len(payload) == 0 {
 		return false, nil
 	}
 
 	for key, value := range payload {
-		message, ok := value.(map[string]any)
-		if !ok {
+		if _, _, ok, err := parseFormatJSMessage(key, value); err != nil {
+			return false, err
+		} else if !ok {
 			return false, nil
-		}
-		raw, ok := message["defaultMessage"]
-		if !ok {
-			return false, nil
-		}
-		if _, ok := raw.(string); !ok {
-			return false, fmt.Errorf("json key %q field %q must be string, got %T", key, "defaultMessage", raw)
 		}
 	}
 
 	return true, nil
-}
-
-// IsStrictFormatJSRoot reports whether payload is a FormatJS message catalog.
-func IsStrictFormatJSRoot(payload map[string]any) (bool, error) {
-	return isStrictFormatJSRoot(payload)
 }
 
 // FlattenJSON flattens nested JSON objects into dotted string keys.
@@ -128,14 +124,9 @@ func FlattenJSON(out map[string]string, prefix string, input map[string]any) err
 }
 
 func flattenJSON(out map[string]string, prefix string, input map[string]any) error {
-	keys := make([]string, 0, len(input))
-	for key := range input {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-
-	for _, key := range keys {
-		value := input[key]
+	// BOLT OPTIMIZATION: Avoid O(N log N) sorting of keys as map[string]string
+	// is unordered and sorting adds unnecessary allocations and CPU overhead.
+	for key, value := range input {
 		nextKey := key
 		if prefix != "" {
 			nextKey = prefix + "." + key

@@ -16,7 +16,7 @@ func MarshalJSON(template []byte, values map[string]string) ([]byte, error) {
 		payload = map[string]any{}
 	}
 
-	formatJS, err := isStrictFormatJSRoot(payload)
+	formatJS, err := IsStrictFormatJSRoot(payload)
 	if err != nil {
 		return nil, err
 	}
