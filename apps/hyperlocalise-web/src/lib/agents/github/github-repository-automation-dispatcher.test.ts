@@ -62,9 +62,17 @@ describe("github repository automation dispatch", () => {
   it("builds stable idempotency keys", () => {
     const scheduledAt = new Date("2026-05-30T12:00:00.000Z");
 
-    expect(buildGithubPushAutomationIdempotencyKey({ githubDeliveryId: "delivery-1" })).toBe(
-      "push:delivery-1",
-    );
+    expect(
+      buildGithubPushAutomationIdempotencyKey({
+        organizationId: "org-1",
+        githubInstallationRepositoryId: "repo-row",
+        githubRepositoryId: "123",
+        branch: "main",
+        commitBefore: "before",
+        commitAfter: "after",
+        configVersion: 1,
+      }),
+    ).toBe("push:981f886867fa7fa9c453516aaf5e6f30");
     expect(
       buildGithubScheduledAutomationIdempotencyKey({
         githubInstallationRepositoryId: "repo-row",

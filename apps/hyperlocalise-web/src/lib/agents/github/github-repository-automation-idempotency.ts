@@ -1,9 +1,29 @@
 import { createHash } from "node:crypto";
 
 export function buildGithubPushAutomationIdempotencyKey(input: {
-  githubDeliveryId: string;
+  organizationId: string;
+  githubInstallationRepositoryId: string;
+  githubRepositoryId: string;
+  branch: string;
+  commitBefore: string;
+  commitAfter: string;
+  configVersion: number;
 }): string {
-  return `push:${input.githubDeliveryId}`;
+  const digest = createHash("sha256")
+    .update(
+      [
+        input.organizationId,
+        input.githubInstallationRepositoryId,
+        input.githubRepositoryId,
+        input.branch,
+        input.commitBefore,
+        input.commitAfter,
+        String(input.configVersion),
+      ].join(":"),
+    )
+    .digest("hex")
+    .slice(0, 32);
+  return `push:${digest}`;
 }
 
 export function buildGithubScheduledAutomationIdempotencyKey(input: {
@@ -20,11 +40,28 @@ export function buildGithubScheduledAutomationIdempotencyKey(input: {
 }
 
 export function buildGithubPushSkipIdempotencyKey(input: {
-  githubDeliveryId: string;
+  organizationId: string;
+  githubInstallationRepositoryId: string;
+  githubRepositoryId: string;
+  branch: string;
+  commitBefore: string;
+  commitAfter: string;
+  configVersion: number;
   skipReason: string;
 }): string {
   const digest = createHash("sha256")
-    .update(`${input.githubDeliveryId}:${input.skipReason}`)
+    .update(
+      [
+        input.organizationId,
+        input.githubInstallationRepositoryId,
+        input.githubRepositoryId,
+        input.branch,
+        input.commitBefore,
+        input.commitAfter,
+        String(input.configVersion),
+        input.skipReason,
+      ].join(":"),
+    )
     .digest("hex")
     .slice(0, 32);
   return `push-skip:${digest}`;

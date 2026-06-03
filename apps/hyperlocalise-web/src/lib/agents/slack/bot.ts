@@ -73,6 +73,32 @@ export function wrapThreadPost(thread: Thread<SlackBotState>, interactionId: str
   wrapThreadPostForInteraction(thread, interactionId);
 }
 
+async function warnUnauthorizedSlackSender(
+  thread: Thread<SlackBotState>,
+  message: Message,
+  log: ReturnType<typeof logger.child>,
+) {
+  log.warn("slack agent membership lookup failed");
+
+  const state = await thread.state;
+  const warnedUsers = (state?.warnedNonMemberUsers as string[] | undefined) ?? [];
+
+  if (warnedUsers.includes(message.author.userId)) {
+    await removeEyesReaction(thread, message);
+    await thread.adapter.addReaction(thread.id, message.id, emoji.x).catch(() => {});
+    return;
+  }
+
+  await removeEyesReaction(thread, message);
+  await thread.post({
+    markdown:
+      "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
+  });
+  await thread.setState({
+    warnedNonMemberUsers: [...warnedUsers, message.author.userId],
+  });
+}
+
 export async function getOrCreateInteraction(
   organizationId: string,
   threadId: string,
@@ -255,45 +281,21 @@ async function processSlackMessage(
       "processing slack agent message",
     );
 
+    const membership = slackUser?.email
+      ? await lookupMembership({ email: slackUser.email, organizationId })
+      : null;
+
+    if (!membership) {
+      await warnUnauthorizedSlackSender(thread, message, log);
+      return;
+    }
+
     const persistedMessage = await addInteractionMessage({
       interactionId,
       senderType: "user",
       text: message.text,
       senderEmail: slackUser?.email,
     });
-
-    const membership = slackUser?.email
-      ? await lookupMembership({ email: slackUser.email, organizationId })
-      : null;
-
-    if (!membership) {
-      log.warn(
-        {
-          hasSlackUserEmail: Boolean(slackUser?.email),
-        },
-        "slack agent membership lookup failed",
-      );
-      const state = await thread.state;
-      const warnedUsers = (state?.warnedNonMemberUsers as string[] | undefined) ?? [];
-
-      if (warnedUsers.includes(message.author.userId)) {
-        await removeEyesReaction(thread, message);
-        await thread.adapter.addReaction(thread.id, message.id, emoji.x).catch(() => {
-          // Ignore reaction failures
-        });
-      } else {
-        await removeEyesReaction(thread, message);
-        wrapThreadPost(thread, interactionId);
-        await thread.post({
-          markdown:
-            "I couldn't verify your account in this Hyperlocalise workspace. Please make sure your Slack email matches your Hyperlocalise account email.",
-        });
-        await thread.setState({
-          warnedNonMemberUsers: [...warnedUsers, message.author.userId],
-        });
-      }
-      return;
-    }
 
     const imageAttachments = getSlackImageAttachments(message);
     const fileAttachments = getSlackTranslationFileAttachments(message);
@@ -580,6 +582,19 @@ export async function handleNewConversation(thread: Thread<SlackBotState>, messa
     return;
   }
 
+  const slackUser = await getSlackUser(thread, message.author.userId);
+  const membership = slackUser?.email
+    ? await lookupMembership({ email: slackUser.email, organizationId: connector.organizationId })
+    : null;
+  if (!membership) {
+    await warnUnauthorizedSlackSender(
+      thread,
+      message,
+      logger.child({ slackThreadId: thread.id, organizationId: connector.organizationId }),
+    );
+    return;
+  }
+
   const { interaction, isNew } = await getOrCreateInteraction(
     connector.organizationId,
     thread.id,
@@ -614,6 +629,19 @@ export async function handleSubscribedMessage(thread: Thread<SlackBotState>, mes
 
   const connector = await findSlackConnector(teamId);
   if (!connector) {
+    return;
+  }
+
+  const slackUser = await getSlackUser(thread, message.author.userId);
+  const membership = slackUser?.email
+    ? await lookupMembership({ email: slackUser.email, organizationId: connector.organizationId })
+    : null;
+  if (!membership) {
+    await warnUnauthorizedSlackSender(
+      thread,
+      message,
+      logger.child({ slackThreadId: thread.id, organizationId: connector.organizationId }),
+    );
     return;
   }
 

@@ -24,6 +24,7 @@ import {
   normalizeSourcePath,
 } from "@/lib/file-storage/records";
 import { isErr } from "@/lib/primitives/result/results";
+import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
@@ -155,6 +156,11 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         });
         if (isErr(localeValidation)) {
           return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
+        }
+
+        const jobBudget = await assertOrganizationCanEnqueueTranslationJob(organizationId);
+        if (isErr(jobBudget)) {
+          return c.json({ error: jobBudget.error.code, message: jobBudget.error.message }, 429);
         }
 
         if (payload.type === "file") {

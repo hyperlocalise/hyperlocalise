@@ -217,7 +217,6 @@ export async function ensureProviderWebhookSubscription(input: {
   externalProjectId?: string | null;
   fetchFn?: typeof fetch;
 }): Promise<ProviderWebhookSubscriptionSetupResult> {
-  const endpointUrl = buildTmsWebhookEndpointUrl(input.providerKind);
   const subscribedEvents = listDefaultWebhookEvents(input.providerKind);
   const projectId = input.projectId ?? null;
   const externalProjectId =
@@ -229,10 +228,14 @@ export async function ensureProviderWebhookSubscription(input: {
     projectId,
   });
 
+  const routedEndpointUrl = existing
+    ? buildTmsWebhookEndpointUrl(input.providerKind, existing.id)
+    : null;
+
   if (
     existing?.status === "active" &&
     subscribedEventsEqual(existing.subscribedEvents, subscribedEvents) &&
-    (!endpointUrl || existing.endpointUrl === endpointUrl)
+    (!routedEndpointUrl || existing.endpointUrl === routedEndpointUrl)
   ) {
     return {
       subscription: summarizeSubscription(existing),
@@ -250,11 +253,13 @@ export async function ensureProviderWebhookSubscription(input: {
       providerCredentialId: input.providerCredentialId,
       providerKind: input.providerKind,
       providerWebhookId: placeholderWebhookId,
-      endpointUrl: endpointUrl ?? "",
+      endpointUrl: "",
       projectId,
       subscribedEvents,
       status: "pending",
     }));
+
+  const endpointUrl = buildTmsWebhookEndpointUrl(input.providerKind, subscription.id);
 
   if (!endpointUrl) {
     const manualFallback = buildManualFallback({

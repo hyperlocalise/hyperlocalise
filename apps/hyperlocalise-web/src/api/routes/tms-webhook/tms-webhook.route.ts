@@ -12,8 +12,10 @@ import {
 } from "@/lib/providers/provider-tms-sync-telemetry";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { enqueueProviderSyncIntentFromWebhookEvent } from "@/lib/providers/sync/provider-sync-intent-worker";
+import { readTmsWebhookSubscriptionIdFromRequestUrl } from "@/lib/providers/webhooks/provider-webhook-public-url";
 import {
   findActiveProviderWebhookSubscription,
+  findActiveProviderWebhookSubscriptionById,
   insertProviderWebhookEventIdempotent,
   updateProviderWebhookEventProcessingStatus,
 } from "@/lib/providers/webhooks/provider-webhook-storage";
@@ -321,10 +323,16 @@ export function createTmsWebhookRoutes(options: CreateTmsWebhookRoutesOptions = 
         deliveryId: descriptor.deliveryId,
       });
 
-      const subscription = await findActiveProviderWebhookSubscription({
-        providerKind: providerKindParam,
-        providerWebhookId: descriptor.providerWebhookId,
-      });
+      const subscriptionId = readTmsWebhookSubscriptionIdFromRequestUrl(c.req.url);
+      const subscription = subscriptionId
+        ? await findActiveProviderWebhookSubscriptionById({
+            subscriptionId,
+            providerKind: providerKindParam,
+          })
+        : await findActiveProviderWebhookSubscription({
+            providerKind: providerKindParam,
+            providerWebhookId: descriptor.providerWebhookId,
+          });
       if (!subscription) {
         logWebhookIgnored({
           providerKind: providerKindParam,

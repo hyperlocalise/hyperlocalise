@@ -55,6 +55,25 @@ export async function upsertExternalJob(input: {
   };
 
   return await db.transaction(async (tx) => {
+    const [existingExternalJob] = await tx
+      .select({ jobId: schema.externalJobDetails.jobId, projectId: schema.jobs.projectId })
+      .from(schema.externalJobDetails)
+      .innerJoin(schema.jobs, eq(schema.jobs.id, schema.externalJobDetails.jobId))
+      .where(
+        and(
+          eq(schema.externalJobDetails.organizationId, input.organizationId),
+          eq(schema.externalJobDetails.providerKind, input.providerKind),
+          eq(schema.externalJobDetails.externalJobId, input.externalJobId),
+        ),
+      )
+      .limit(1);
+
+    if (existingExternalJob && existingExternalJob.projectId !== input.projectId) {
+      throw new Error(
+        `External job ${input.externalJobId} is already linked to a different project`,
+      );
+    }
+
     const [createdJob] = await tx
       .insert(schema.jobs)
       .values({ id: jobId, ...jobValues })

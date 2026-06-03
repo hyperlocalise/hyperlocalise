@@ -11,10 +11,34 @@ export async function findSlackConnector(teamId: string, options: { enabledOnly?
     conditions.push(eq(schema.connectors.enabled, true));
   }
 
-  const [connector] = await db
+  const connectors = await db
     .select()
     .from(schema.connectors)
     .where(and(...conditions))
+    .orderBy(schema.connectors.updatedAt);
+
+  if (connectors.length !== 1) {
+    return null;
+  }
+
+  return connectors[0];
+}
+
+export async function findSlackConnectorOwnedByAnotherOrganization(input: {
+  teamId: string;
+  organizationId: string;
+}) {
+  const [connector] = await db
+    .select({ organizationId: schema.connectors.organizationId })
+    .from(schema.connectors)
+    .where(
+      and(
+        eq(schema.connectors.kind, "slack"),
+        sql`${schema.connectors.config}->>'teamId' = ${input.teamId}`,
+        sql`${schema.connectors.organizationId} <> ${input.organizationId}`,
+        eq(schema.connectors.enabled, true),
+      ),
+    )
     .limit(1);
 
   return connector ?? null;

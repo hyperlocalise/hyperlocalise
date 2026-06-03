@@ -4,6 +4,8 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
+import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
+import { forbiddenResponse } from "@/api/response.schema";
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth/slack-oauth.route";
 import { getSlackBot } from "@/lib/agents/slack/bot";
@@ -114,6 +116,10 @@ export function createAgentSlackRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const connector = await getSlackConnector(c.var.auth.organization.localOrganizationId);
 
       const enabled = connector?.enabled ?? false;
@@ -131,6 +137,10 @@ export function createAgentSlackRoutes() {
       );
     })
     .get("/channels", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
       const connector = await getSlackConnector(c.var.auth.organization.localOrganizationId);
       const config = (connector?.config ?? {}) as SlackConnectorConfig;
       if (!connector?.enabled || !config.teamId) {

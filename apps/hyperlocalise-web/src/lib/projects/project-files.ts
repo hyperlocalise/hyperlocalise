@@ -6,6 +6,7 @@ import type {
   WorkspaceFileRecord,
 } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
+import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 import {
   listExternalTmsFilesForProject,
   type ExternalTmsResourceType,
@@ -293,7 +294,7 @@ export async function listProjectFilesForProject(input: {
       resourceType: file.resourceType,
       externalProjectId: file.externalProjectId,
       externalResourceId: file.externalResourceId,
-      externalUrl: file.externalUrl,
+      externalUrl: sanitizeExternalUrl(file.externalUrl),
       syncState: file.syncState,
       sourceLocale: file.sourceLocale,
       targetLocales: file.targetLocales,

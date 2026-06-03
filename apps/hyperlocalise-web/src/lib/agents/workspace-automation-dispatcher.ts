@@ -108,9 +108,21 @@ async function linkWorkspaceAutomationRun(input: {
             configVersion: input.dispatchPayload.configVersion,
             scheduledRunAt: input.scheduledRunAt,
           })
-        : buildGithubPushAutomationIdempotencyKey({
-            githubDeliveryId: input.githubDeliveryId ?? run.id,
-          });
+        : input.pushBranch && input.commitAfter
+          ? buildGithubPushAutomationIdempotencyKey({
+              organizationId: input.organizationId,
+              githubInstallationRepositoryId: input.repository.id,
+              githubRepositoryId: input.repository.githubRepositoryId,
+              branch: input.pushBranch,
+              commitBefore: input.commitBefore ?? "",
+              commitAfter: input.commitAfter,
+              configVersion: input.dispatchPayload.configVersion,
+            })
+          : buildWorkspaceGithubPushAutomationIdempotencyKey({
+              automationId: input.automation.id,
+              configVersion: input.dispatchPayload.configVersion,
+              githubDeliveryId: input.githubDeliveryId ?? run.id,
+            });
 
   const claim = await claimGithubRepositoryAutomationJob({
     idempotencyKey: githubIdempotencyKey,

@@ -1,8 +1,12 @@
-import { and, eq, gte, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNotNull, ne, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
-import { listOrganizationExternalTmsProviderCredentialDetails } from "./organization-external-tms-provider-credentials";
+import {
+  listOrganizationExternalTmsProviderCredentialDetails,
+  listOrganizationExternalTmsProviderCredentialSummaries,
+} from "./organization-external-tms-provider-credentials";
+import type { TmsDashboardProviderItem } from "./organization-tms-dashboard-summary.types";
 
 export {
   FAILED_SYNC_RUNS_RECENCY_DAYS,
@@ -94,10 +98,88 @@ function emptySummary(): OrganizationTmsDashboardSummary {
   };
 }
 
+async function listTmsDashboardProviders(
+  organizationId: string,
+  includeCredentialDetails: boolean,
+): Promise<TmsDashboardProviderItem[]> {
+  if (includeCredentialDetails) {
+    const providers = await listOrganizationExternalTmsProviderCredentialDetails(organizationId);
+    return providers.map((provider) => ({
+      id: provider.id,
+      providerKind: provider.providerKind,
+      displayName: provider.displayName,
+      validationStatus: provider.validationStatus,
+      projectCount: provider.projectCount,
+      lastSuccessfulSyncAt: provider.lastSuccessfulSyncAt,
+    }));
+  }
+
+  const summaries = await listOrganizationExternalTmsProviderCredentialSummaries(organizationId);
+  if (summaries.length === 0) {
+    return [];
+  }
+
+  const providerKinds = summaries.map((credential) => credential.providerKind);
+  const [projectCounts, lastSyncs] = await Promise.all([
+    db
+      .select({
+        providerKind: schema.projects.externalProviderKind,
+        count: sql<number>`count(*)`.mapWith(Number),
+      })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, organizationId),
+          eq(schema.projects.source, "external_tms"),
+          eq(schema.projects.isActive, true),
+          inArray(schema.projects.externalProviderKind, providerKinds),
+        ),
+      )
+      .groupBy(schema.projects.externalProviderKind),
+    db
+      .select({
+        providerKind: schema.providerSyncRuns.providerKind,
+        completedAt: sql<Date | null>`max(${schema.providerSyncRuns.completedAt})`.mapWith((v) =>
+          v == null ? null : new Date(v),
+        ),
+      })
+      .from(schema.providerSyncRuns)
+      .where(
+        and(
+          eq(schema.providerSyncRuns.organizationId, organizationId),
+          eq(schema.providerSyncRuns.status, "succeeded"),
+          ne(schema.providerSyncRuns.kind, "health_check"),
+          inArray(schema.providerSyncRuns.providerKind, providerKinds),
+        ),
+      )
+      .groupBy(schema.providerSyncRuns.providerKind),
+  ]);
+
+  const projectCountByProvider = Object.fromEntries(
+    projectCounts.map((row) => [row.providerKind, row.count]),
+  ) as Record<string, number>;
+  const lastSyncByProvider = Object.fromEntries(
+    lastSyncs.map((row) => [row.providerKind, row.completedAt?.toISOString() ?? null]),
+  ) as Record<string, string | null>;
+
+  return summaries.map((credential) => ({
+    id: credential.id,
+    providerKind: credential.providerKind,
+    displayName: credential.displayName,
+    validationStatus: credential.validationStatus,
+    projectCount: projectCountByProvider[credential.providerKind] ?? 0,
+    lastSuccessfulSyncAt: lastSyncByProvider[credential.providerKind] ?? null,
+  }));
+}
+
 export async function getOrganizationTmsDashboardSummary(
   organizationId: string,
+  options: { includeCredentialDetails?: boolean } = {},
 ): Promise<OrganizationTmsDashboardSummary> {
-  const providers = await listOrganizationExternalTmsProviderCredentialDetails(organizationId);
+  const providers = await listTmsDashboardProviders(
+    organizationId,
+    options.includeCredentialDetails ?? false,
+  );
   if (providers.length === 0) {
     return emptySummary();
   }
