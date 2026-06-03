@@ -4,11 +4,7 @@
  * native + provider convergence is ready.
  */
 export function isTmsProviderShellModeEnabled() {
-  if (process.env.TMS_PROVIDER_SHELL_MODE === "false") {
-    return false;
-  }
-
-  return true;
+  return process.env.TMS_PROVIDER_SHELL_MODE === "true";
 }
 
 export function isTmsBackgroundSyncEnabled() {

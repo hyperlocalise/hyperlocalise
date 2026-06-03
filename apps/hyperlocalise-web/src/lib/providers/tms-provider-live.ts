@@ -367,9 +367,14 @@ export async function getTmsProviderLiveProject(
 export async function listTmsProviderLiveJobsForProject(
   organizationId: string,
   externalProjectId: string,
-  options?: { mine?: boolean; assignee?: string | null },
+  options?: {
+    mine?: boolean;
+    assignee?: string | null;
+    context?: ActiveTmsProviderContext;
+    projects?: ExternalTmsProjectMetadata[];
+  },
 ): Promise<TmsProviderLiveJob[]> {
-  const context = await loadActiveTmsProviderContext(organizationId);
+  const context = options?.context ?? (await loadActiveTmsProviderContext(organizationId));
   const fetcher = tmsProviderJobTaskFetchers[context.providerKind];
   if (!fetcher) {
     throw new TmsProviderLiveError(
@@ -378,7 +383,7 @@ export async function listTmsProviderLiveJobsForProject(
     );
   }
 
-  const projects = await fetchLiveProjects(context);
+  const projects = options?.projects ?? (await fetchLiveProjects(context));
   const project = projects.find((item) => item.externalProjectId === externalProjectId);
   if (!project) {
     return [];
@@ -441,7 +446,11 @@ export async function listTmsProviderLiveJobs(
     activeProjects,
     LIVE_PROJECT_JOB_FANOUT_CONCURRENCY,
     async (project) =>
-      listTmsProviderLiveJobsForProject(organizationId, project.externalProjectId, options),
+      listTmsProviderLiveJobsForProject(organizationId, project.externalProjectId, {
+        ...options,
+        context,
+        projects,
+      }),
   );
 
   return jobsByProject.flat();

@@ -28,6 +28,22 @@ export function encodeProviderJobId(input: EncodedProviderJobId) {
   return `ext:${input.providerKind}:${input.externalProjectId}:${input.externalJobId}`;
 }
 
+function parseProviderKindAndRemainder(value: string) {
+  const remainder = value.slice("ext:".length);
+  const kindSeparator = remainder.indexOf(":");
+  if (kindSeparator === -1) {
+    return null;
+  }
+
+  const providerKind = remainder.slice(0, kindSeparator);
+  const afterKind = remainder.slice(kindSeparator + 1);
+  if (!providerKind || !afterKind || !isExternalTmsProviderKind(providerKind)) {
+    return null;
+  }
+
+  return { providerKind, afterKind };
+}
+
 export function parseProviderProjectId(
   value: string | null | undefined,
 ): EncodedProviderProjectId | null {
@@ -35,18 +51,12 @@ export function parseProviderProjectId(
     return null;
   }
 
-  const parts = value.split(":");
-  if (parts.length !== 3) {
+  const parsed = parseProviderKindAndRemainder(value);
+  if (!parsed) {
     return null;
   }
 
-  const providerKind = parts[1];
-  const externalProjectId = parts[2];
-  if (!providerKind || !externalProjectId || !isExternalTmsProviderKind(providerKind)) {
-    return null;
-  }
-
-  return { providerKind, externalProjectId };
+  return { providerKind: parsed.providerKind, externalProjectId: parsed.afterKind };
 }
 
 export function parseProviderJobId(value: string | null | undefined): EncodedProviderJobId | null {
@@ -54,22 +64,25 @@ export function parseProviderJobId(value: string | null | undefined): EncodedPro
     return null;
   }
 
-  const parts = value.split(":");
-  if (parts.length !== 4) {
+  const parsed = parseProviderKindAndRemainder(value);
+  if (!parsed) {
     return null;
   }
 
-  const providerKind = parts[1];
-  const externalProjectId = parts[2];
-  const externalJobId = parts[3];
-  if (
-    !providerKind ||
-    !externalProjectId ||
-    !externalJobId ||
-    !isExternalTmsProviderKind(providerKind)
-  ) {
+  const lastColon = parsed.afterKind.lastIndexOf(":");
+  if (lastColon === -1) {
     return null;
   }
 
-  return { providerKind, externalProjectId, externalJobId };
+  const externalProjectId = parsed.afterKind.slice(0, lastColon);
+  const externalJobId = parsed.afterKind.slice(lastColon + 1);
+  if (!externalProjectId || !externalJobId) {
+    return null;
+  }
+
+  return {
+    providerKind: parsed.providerKind,
+    externalProjectId,
+    externalJobId,
+  };
 }

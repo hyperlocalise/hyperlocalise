@@ -36,6 +36,28 @@ describe("tms-provider-resource-id", () => {
     });
   });
 
+  it("parses ids when external segments contain colons", () => {
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "proj:with:colons",
+    });
+    expect(parseProviderProjectId(projectId)).toEqual({
+      providerKind: "crowdin",
+      externalProjectId: "proj:with:colons",
+    });
+
+    const jobId = encodeProviderJobId({
+      providerKind: "crowdin",
+      externalProjectId: "proj:with:colons",
+      externalJobId: "9001",
+    });
+    expect(parseProviderJobId(jobId)).toEqual({
+      providerKind: "crowdin",
+      externalProjectId: "proj:with:colons",
+      externalJobId: "9001",
+    });
+  });
+
   it("rejects malformed encoded ids", () => {
     expect(parseProviderProjectId("project_123")).toBeNull();
     expect(parseProviderJobId("ext:crowdin:42")).toBeNull();
