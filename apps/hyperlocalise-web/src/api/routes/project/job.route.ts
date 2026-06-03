@@ -34,7 +34,12 @@ import {
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
 import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
-import { listTmsProviderLiveJobsForProject } from "@/lib/providers/tms-provider-live";
+import {
+  getTmsProviderConnection,
+  listTmsProviderLiveJobs,
+  listTmsProviderLiveJobsForProject,
+  type TmsProviderLiveJob,
+} from "@/lib/providers/tms-provider-live";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -208,6 +213,29 @@ function jobListFilters(input: {
   }
 
   return filters;
+}
+
+function filterLiveProviderJobs(
+  jobs: TmsProviderLiveJob[],
+  query: {
+    kind?: "translation" | "research" | "review" | "sync" | "asset_management";
+    status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
+    limit: number;
+  },
+) {
+  let filtered = jobs;
+
+  if (query.kind) {
+    filtered = filtered.filter((job) => job.kind === query.kind);
+  }
+
+  if (query.status) {
+    filtered = filtered.filter((job) => job.status === query.status);
+  }
+
+  return filtered
+    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt))
+    .slice(0, query.limit);
 }
 
 async function retryableJobWhere(auth: ApiAuthContext, jobId: string) {
@@ -638,6 +666,29 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     .use("*", workosAuthMiddleware)
     .get("/", validateJobListQuery, async (c) => {
       const query = c.req.valid("query");
+      const connection = await getTmsProviderConnection(
+        c.var.auth.organization.localOrganizationId,
+      );
+
+      if (connection) {
+        try {
+          const jobs = filterLiveProviderJobs(
+            await listTmsProviderLiveJobs(c.var.auth.organization.localOrganizationId, {
+              mine: query.mine,
+              assignee: c.var.auth.user.email,
+            }),
+            {
+              kind: query.kind,
+              status: query.status,
+              limit: query.limit,
+            },
+          );
+          return c.json({ jobs }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      }
+
       const filters = [
         await buildAccessibleJobsWhere(c.var.auth),
         ...jobListFilters({

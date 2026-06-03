@@ -578,12 +578,13 @@ export async function listTmsProviderLiveJobsForProject(
   }
 
   const assigneeNeedle = options?.assignee?.trim().toLowerCase();
-  const filteredTasks =
-    options?.mine && assigneeNeedle
+  const filteredTasks = options?.mine
+    ? assigneeNeedle
       ? tasks.filter((task) =>
           (task.assignedUsers ?? []).some((user) => user.toLowerCase().includes(assigneeNeedle)),
         )
-      : tasks;
+      : []
+    : tasks;
 
   return filteredTasks.map((task) =>
     mapLiveJob({
