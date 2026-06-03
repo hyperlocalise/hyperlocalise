@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -22,12 +22,12 @@ export function ProviderJobDescriptionField({
   queryKey: readonly unknown[];
 }) {
   const queryClient = useQueryClient();
-  const [draft, setDraft] = useState(description);
+  const [draftState, setDraftState] = useState({
+    baseDescription: description,
+    draft: description,
+  });
+  const draft = draftState.baseDescription === description ? draftState.draft : description;
   const isDirty = draft !== description;
-
-  useEffect(() => {
-    setDraft(description);
-  }, [description]);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -54,7 +54,7 @@ export function ProviderJobDescriptionField({
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey });
-      toast.success("Description saved to Crowdin");
+      toast.success("Description saved");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to save description");
@@ -80,7 +80,9 @@ export function ProviderJobDescriptionField({
     <div className="space-y-3">
       <MarkdownDescriptionEditor
         value={draft}
-        onChange={setDraft}
+        onChange={(nextDraft) => {
+          setDraftState({ baseDescription: description, draft: nextDraft });
+        }}
         disabled={saveMutation.isPending}
       />
       <div className="flex flex-wrap items-center gap-2">
@@ -95,7 +97,9 @@ export function ProviderJobDescriptionField({
           size="sm"
           variant="outline"
           disabled={!isDirty || saveMutation.isPending}
-          onClick={() => setDraft(description)}
+          onClick={() => {
+            setDraftState({ baseDescription: description, draft: description });
+          }}
         >
           Reset
         </Button>

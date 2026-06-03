@@ -34,7 +34,7 @@ const projectFilesQuerySchema = z.object({
 });
 
 const updateJobDescriptionBodySchema = z.object({
-  description: z.string(),
+  description: z.string().max(2_048),
 });
 
 const validateMineQuery = validator("query", (value, c) => {
