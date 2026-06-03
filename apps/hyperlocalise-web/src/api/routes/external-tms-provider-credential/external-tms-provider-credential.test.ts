@@ -38,6 +38,24 @@ function base64Url(input: Buffer) {
   return input.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
 
+function fetchInputUrl(input: string | URL | Request) {
+  if (typeof input === "string") return input;
+  if (input instanceof URL) return input.toString();
+  return input.url;
+}
+
+function requestBodyString(body: BodyInit | null | undefined) {
+  if (typeof body === "string") return body;
+  throw new Error("expected string request body");
+}
+
+function crowdinOAuthCallbackUrl(organizationSlug: string, query: { state: string; code: string }) {
+  const params = new URLSearchParams(query);
+  return `/api/orgs/${encodeURIComponent(
+    organizationSlug,
+  )}/external-tms-provider-credential/crowdin/oauth/callback?${params.toString()}`;
+}
+
 describe("externalTmsProviderCredentialRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
@@ -208,7 +226,10 @@ describe("externalTmsProviderCredentialRoutes", () => {
       .where(
         and(
           eq(schema.crowdinOAuthStates.nonce, stateParam!),
-          eq(schema.crowdinOAuthStates.organizationId, authContext.organization.localOrganizationId),
+          eq(
+            schema.crowdinOAuthStates.organizationId,
+            authContext.organization.localOrganizationId,
+          ),
           eq(schema.crowdinOAuthStates.userId, authContext.user.localUserId),
         ),
       )
@@ -257,13 +278,11 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await client.api.orgs[":organizationSlug"][
-      "external-tms-provider-credential"
-    ].crowdin.oauth.callback.$get(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing" },
-        query: { state: "missing-state", code: "oauth-code" },
-      },
+    const response = await app.request(
+      crowdinOAuthCallbackUrl(identity.organization.slug ?? "missing", {
+        state: "missing-state",
+        code: "oauth-code",
+      }),
       { headers },
     );
 
@@ -299,9 +318,9 @@ describe("externalTmsProviderCredentialRoutes", () => {
       .limit(1);
 
     const fetchMock = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
-      const requestUrl = String(url);
+      const requestUrl = fetchInputUrl(url);
       if (requestUrl === "https://accounts.crowdin.com/oauth/token") {
-        const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+        const body = JSON.parse(requestBodyString(init?.body)) as Record<string, unknown>;
         expect(body).toMatchObject({
           grant_type: "authorization_code",
           client_id: "crowdin-client-id",
@@ -331,13 +350,11 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     vi.stubGlobal("fetch", fetchMock);
 
-    const callbackResponse = await client.api.orgs[":organizationSlug"][
-      "external-tms-provider-credential"
-    ].crowdin.oauth.callback.$get(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing" },
-        query: { state: stateParam!, code: "oauth-code" },
-      },
+    const callbackResponse = await app.request(
+      crowdinOAuthCallbackUrl(identity.organization.slug ?? "missing", {
+        state: stateParam!,
+        code: "oauth-code",
+      }),
       { headers },
     );
 
@@ -377,13 +394,11 @@ describe("externalTmsProviderCredentialRoutes", () => {
       .limit(1);
     expect(consumedState!.consumedAt).not.toBeNull();
 
-    const replayResponse = await client.api.orgs[":organizationSlug"][
-      "external-tms-provider-credential"
-    ].crowdin.oauth.callback.$get(
-      {
-        param: { organizationSlug: identity.organization.slug ?? "missing" },
-        query: { state: stateParam!, code: "second-code" },
-      },
+    const replayResponse = await app.request(
+      crowdinOAuthCallbackUrl(identity.organization.slug ?? "missing", {
+        state: stateParam!,
+        code: "second-code",
+      }),
       { headers },
     );
 
@@ -393,7 +408,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     );
     expect(
       fetchMock.mock.calls.filter(
-        ([url]) => String(url) === "https://accounts.crowdin.com/oauth/token",
+        ([url]) => fetchInputUrl(url) === "https://accounts.crowdin.com/oauth/token",
       ),
     ).toHaveLength(1);
   });
