@@ -5,6 +5,7 @@ import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crow
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
+  API_TOKEN_AUTH_MODE,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
@@ -176,14 +177,10 @@ type ActiveTmsProviderContext = {
   providerKind: ExternalTmsProviderKind;
 };
 
-async function loadActiveTmsProviderContext(
+async function buildActiveTmsProviderContext(
   organizationId: string,
+  credential: ExternalTmsCredential,
 ): Promise<ActiveTmsProviderContext> {
-  const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
-  if (!credential) {
-    throw new TmsProviderLiveError("no_active_tms_provider", "No external TMS is connected.");
-  }
-
   const providerKind = credential.providerKind as ExternalTmsProviderKind;
   let secretMaterial: string;
   try {
@@ -207,7 +204,7 @@ async function loadActiveTmsProviderContext(
       id: credential.id,
       providerKind,
       displayName: credential.displayName,
-      authMode: credential.authMode,
+      authMode: credential.authMode ?? API_TOKEN_AUTH_MODE,
       region: credential.region,
       baseUrl: credential.baseUrl,
       oauthExpiresAt: credential.oauthExpiresAt?.toISOString() ?? null,
@@ -221,6 +218,28 @@ async function loadActiveTmsProviderContext(
     secretMaterial,
     providerKind,
   };
+}
+
+export async function tryLoadActiveTmsProviderContext(
+  organizationId: string,
+): Promise<ActiveTmsProviderContext | null> {
+  const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
+  if (!credential) {
+    return null;
+  }
+
+  return buildActiveTmsProviderContext(organizationId, credential);
+}
+
+async function loadActiveTmsProviderContext(
+  organizationId: string,
+): Promise<ActiveTmsProviderContext> {
+  const context = await tryLoadActiveTmsProviderContext(organizationId);
+  if (!context) {
+    throw new TmsProviderLiveError("no_active_tms_provider", "No external TMS is connected.");
+  }
+
+  return context;
 }
 
 function rethrowProviderFetcherError(error: unknown): never {
@@ -707,9 +726,13 @@ export async function getTmsProviderLiveFileDetail(
 
 export async function listTmsProviderLiveJobs(
   organizationId: string,
-  options?: { mine?: boolean; assignee?: string | null },
+  options?: {
+    mine?: boolean;
+    assignee?: string | null;
+    context?: ActiveTmsProviderContext;
+  },
 ): Promise<TmsProviderLiveJob[]> {
-  const context = await loadActiveTmsProviderContext(organizationId);
+  const context = options?.context ?? (await loadActiveTmsProviderContext(organizationId));
   const projects = await fetchLiveProjects(context);
   const activeProjects = projects.filter((project) => project.isActive !== false);
 

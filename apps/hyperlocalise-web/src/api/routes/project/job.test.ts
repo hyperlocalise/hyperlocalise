@@ -442,10 +442,17 @@ describe("jobRoutes", () => {
       projectName: "Marketing",
       externalProviderKind: "crowdin",
     });
-    expect(listJobs).toHaveBeenCalledWith(organizationId, {
-      mine: false,
-      assignee: identity.user.email,
-    });
+    expect(listJobs).toHaveBeenCalledWith(
+      organizationId,
+      expect.objectContaining({
+        mine: false,
+        assignee: identity.user.email,
+        context: expect.objectContaining({
+          organizationId,
+          providerKind: "crowdin",
+        }),
+      }),
+    );
   });
 
   it("loads nested jobs for a double-encoded external project route id", async () => {

@@ -35,8 +35,8 @@ import {
 import { isErr } from "@/lib/primitives/result/results";
 import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
 import {
-  getTmsProviderConnection,
   listTmsProviderLiveJobs,
+  tryLoadActiveTmsProviderContext,
   listTmsProviderLiveJobsForProject,
   type TmsProviderLiveJob,
 } from "@/lib/providers/tms-provider-live";
@@ -666,16 +666,16 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     .use("*", workosAuthMiddleware)
     .get("/", validateJobListQuery, async (c) => {
       const query = c.req.valid("query");
-      const connection = await getTmsProviderConnection(
-        c.var.auth.organization.localOrganizationId,
-      );
+      const organizationId = c.var.auth.organization.localOrganizationId;
 
-      if (connection) {
-        try {
+      try {
+        const context = await tryLoadActiveTmsProviderContext(organizationId);
+        if (context) {
           const jobs = filterLiveProviderJobs(
-            await listTmsProviderLiveJobs(c.var.auth.organization.localOrganizationId, {
+            await listTmsProviderLiveJobs(organizationId, {
               mine: query.mine,
               assignee: c.var.auth.user.email,
+              context,
             }),
             {
               kind: query.kind,
@@ -684,9 +684,9 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
             },
           );
           return c.json({ jobs }, 200);
-        } catch (error) {
-          return tmsProviderLiveErrorResponse(c, error);
         }
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
       }
 
       const filters = [
