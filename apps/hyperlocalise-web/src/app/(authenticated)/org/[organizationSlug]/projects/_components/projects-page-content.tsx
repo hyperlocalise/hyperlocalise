@@ -17,9 +17,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client-instance";
-import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
-
-import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
   PROJECT_SOURCE_FILTERS,
@@ -134,31 +131,12 @@ function useProjectFilters(projects: ProjectListRow[], searchParams: URLSearchPa
 export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
-  const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
-  const useLiveProviderProjects = isTmsProviderShellModeEnabled() && Boolean(activeTmsProvider);
   const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
   const [deleteProject, setDeleteProject] = useState<ProjectListRow | null>(null);
   const projectsQuery = useQuery({
-    queryKey: [...projectQueryKey(organizationSlug), useLiveProviderProjects ? "live" : "native"],
+    queryKey: projectQueryKey(organizationSlug),
     queryFn: async () => {
-      if (useLiveProviderProjects) {
-        const response = await apiClient.api.orgs[":organizationSlug"][
-          "tms-provider"
-        ].projects.$get({
-          param: { organizationSlug },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load provider projects (${response.status})`);
-        }
-
-        const body = (await response.json()) as {
-          projects: Parameters<typeof mapProjectToListRow>[0][];
-        };
-        return body.projects.map(mapProjectToListRow);
-      }
-
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
       });
@@ -307,7 +285,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         title="Projects"
         description="Track localization programs by release, source, owner, and market readiness before they move into translation jobs."
         actions={
-          useLiveProviderProjects ? null : (
+          hasExternalProjects ? null : (
             <Button
               type="button"
               onClick={openCreateProjectDialog}

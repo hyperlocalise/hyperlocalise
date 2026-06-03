@@ -34,6 +34,7 @@ import {
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
 import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
+import { listTmsProviderLiveJobsForProject } from "@/lib/providers/tms-provider-live";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -50,7 +51,10 @@ import {
   getOwnedProject,
   getOwnedProjectRecord,
   projectNotFoundResponse,
+  providerProjectUnavailableResponse,
+  resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
+  tmsProviderLiveErrorResponse,
 } from "./project.shared";
 import {
   applyAgentRunProposalReviewUpdates,
@@ -363,6 +367,27 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
     .get("/", validateProjectParams, validateJobListQuery, async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind === "provider") {
+        try {
+          const jobs = await listTmsProviderLiveJobsForProject(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            {
+              mine: query.mine,
+              assignee: c.var.auth.user.email,
+            },
+          );
+          return c.json({ jobs }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      }
+
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {

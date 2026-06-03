@@ -1,4 +1,5 @@
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import { normalizeProjectId } from "@/lib/projects/project-id";
 
 const externalTmsProviderKinds = new Set<ExternalTmsProviderKind>([
   "crowdin",
@@ -47,11 +48,12 @@ function parseProviderKindAndRemainder(value: string) {
 export function parseProviderProjectId(
   value: string | null | undefined,
 ): EncodedProviderProjectId | null {
-  if (!value?.startsWith("ext:")) {
+  const normalizedValue = normalizeProjectId(value);
+  if (typeof normalizedValue !== "string" || !normalizedValue.startsWith("ext:")) {
     return null;
   }
 
-  const parsed = parseProviderKindAndRemainder(value);
+  const parsed = parseProviderKindAndRemainder(normalizedValue);
   if (!parsed) {
     return null;
   }
@@ -60,11 +62,12 @@ export function parseProviderProjectId(
 }
 
 export function parseProviderJobId(value: string | null | undefined): EncodedProviderJobId | null {
-  if (!value?.startsWith("ext:")) {
+  const normalizedValue = normalizeProjectId(value);
+  if (typeof normalizedValue !== "string" || !normalizedValue.startsWith("ext:")) {
     return null;
   }
 
-  const parsed = parseProviderKindAndRemainder(value);
+  const parsed = parseProviderKindAndRemainder(normalizedValue);
   if (!parsed) {
     return null;
   }

@@ -51,6 +51,12 @@ import {
   pullExternalTmsTaskContent,
   pushExternalTmsTranslations,
 } from "@/lib/providers/sync/external-tms-content-sync";
+import {
+  getTmsProviderConnection,
+  getTmsProviderLiveProject,
+  listTmsProviderLiveFilesForProject,
+  listTmsProviderLiveProjects,
+} from "@/lib/providers/tms-provider-live";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import type { ExternalTmsResourceType } from "@/lib/providers/sync/organization-external-tms-files";
@@ -89,7 +95,10 @@ import {
   isProjectMutationAllowed,
   ownedProjectWhere,
   projectNotFoundResponse,
+  providerProjectUnavailableResponse,
+  resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
+  tmsProviderLiveErrorResponse,
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
@@ -416,6 +425,20 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
+      const connection = await getTmsProviderConnection(
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (connection) {
+        try {
+          const projects = await listTmsProviderLiveProjects(
+            c.var.auth.organization.localOrganizationId,
+          );
+          return c.json({ projects }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      }
+
       const projects = await projectStore.list(c.var.auth);
 
       const projectIds = projects.map((p) => p.id);
@@ -505,6 +528,24 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind === "provider") {
+        try {
+          const files = await listTmsProviderLiveFilesForProject(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            { limit: query.limit },
+          );
+          return c.json({ files }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      }
+
       const project = await getOwnedProject(c.var.auth, params.projectId);
 
       if (!project) {
@@ -644,6 +685,27 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     )
     .get("/:projectId", validateProjectParams, async (c) => {
       const params = c.req.valid("param");
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind === "provider") {
+        try {
+          const project = await getTmsProviderLiveProject(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+          );
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          return c.json({ project: { ...project, openJobCount: 0 } }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      }
+
       const project = await projectStore.getById(c.var.auth, params.projectId);
 
       if (!project) {

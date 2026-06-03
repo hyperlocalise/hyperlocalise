@@ -21,6 +21,17 @@ describe("tms-provider-resource-id", () => {
     });
   });
 
+  it("parses percent-encoded project ids from route params", () => {
+    expect(parseProviderProjectId("ext%3Acrowdin%3A902807")).toEqual({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+    expect(parseProviderProjectId("ext%253Acrowdin%253A902807")).toEqual({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+  });
+
   it("round-trips encoded job ids", () => {
     const encoded = encodeProviderJobId({
       providerKind: "crowdin",
@@ -33,6 +44,19 @@ describe("tms-provider-resource-id", () => {
       providerKind: "crowdin",
       externalProjectId: "42",
       externalJobId: "9001",
+    });
+  });
+
+  it("parses percent-encoded job ids from route params", () => {
+    expect(parseProviderJobId("ext%3Acrowdin%3A902807%3A2001")).toEqual({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+      externalJobId: "2001",
+    });
+    expect(parseProviderJobId("ext%253Acrowdin%253A902807%253A2001")).toEqual({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+      externalJobId: "2001",
     });
   });
 

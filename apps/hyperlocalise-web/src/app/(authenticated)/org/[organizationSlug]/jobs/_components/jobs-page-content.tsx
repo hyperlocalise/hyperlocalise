@@ -24,10 +24,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
-import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
-
-import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
 import {
   JOB_SOURCE_FILTERS,
@@ -242,7 +238,7 @@ function JobsList({
 
   return (
     <div className="overflow-x-auto">
-      <div className="min-w-[86rem]">
+      <div className="min-w-344">
         <div className="grid grid-cols-[minmax(16rem,1fr)_9rem_12rem_9rem_10rem_10rem_10rem_10rem_3rem] gap-4 px-3 py-3 text-sm font-medium text-foreground/42">
           <TypographyP>Name</TypographyP>
           <TypographyP>Source</TypographyP>
@@ -332,52 +328,10 @@ export function JobsPageContent({
     return source === "native" || source === "provider" ? source : "all";
   });
   const [agentReadyFilter, setAgentReadyFilter] = useState<"all" | "ready" | "not_ready">("all");
-  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
-  const activeTmsProvider = activeTmsProviderQuery.data;
-  const encodedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
-  const tmsProviderShellMode = isTmsProviderShellModeEnabled();
-  const useLiveProviderJobs =
-    tmsProviderShellMode &&
-    Boolean(activeTmsProvider) &&
-    (!projectId || encodedProviderProject?.providerKind === activeTmsProvider?.providerKind);
 
   const jobsQuery = useQuery({
-    queryKey: [
-      "jobs",
-      organizationSlug,
-      scope,
-      statusFilter,
-      projectId ?? "workspace",
-      useLiveProviderJobs ? "live" : "native",
-      activeTmsProvider?.providerKind ?? null,
-    ],
-    enabled: !tmsProviderShellMode || activeTmsProviderQuery.isFetched,
+    queryKey: ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"],
     queryFn: async () => {
-      if (useLiveProviderJobs) {
-        const mine = scope === "mine" ? "true" : "false";
-        const response = encodedProviderProject
-          ? await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
-              ":externalProjectId"
-            ].jobs.$get({
-              param: {
-                organizationSlug,
-                externalProjectId: encodedProviderProject.externalProjectId,
-              },
-              query: { mine },
-            })
-          : await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs.$get({
-              param: { organizationSlug },
-              query: { mine },
-            });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load provider jobs (${response.status})`);
-        }
-
-        const body = (await response.json()) as { jobs: JobRow[] };
-        return body.jobs;
-      }
-
       if (projectId) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
           ":projectId"

@@ -13,9 +13,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
-import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 import {
@@ -24,7 +22,6 @@ import {
   ProjectSectionTitle,
 } from "../../_components/project-page-shell";
 import { ProjectFileDetailPanel } from "./project-file-detail-panel";
-import { useActiveTmsProvider } from "../../../../_hooks/use-active-tms-provider";
 
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
@@ -111,12 +108,6 @@ export function ProjectFilesPageContent({
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
-  const encodedProviderProject = parseProviderProjectId(projectId);
-  const useLiveProviderFiles =
-    isTmsProviderShellModeEnabled() &&
-    Boolean(activeTmsProviderQuery.data) &&
-    encodedProviderProject?.providerKind === activeTmsProviderQuery.data?.providerKind;
 
   const selectedSourcePath = searchParams.get("sourcePath");
   const highlightLocale = searchParams.get("locale");
@@ -136,32 +127,8 @@ export function ProjectFilesPageContent({
   );
 
   const filesQuery = useQuery({
-    queryKey: [
-      ...projectFilesQueryKey(organizationSlug, projectId),
-      useLiveProviderFiles ? "live" : "native",
-      activeTmsProviderQuery.data?.providerKind ?? null,
-    ],
-    enabled: !encodedProviderProject || activeTmsProviderQuery.isFetched,
+    queryKey: projectFilesQueryKey(organizationSlug, projectId),
     queryFn: async () => {
-      if (useLiveProviderFiles && encodedProviderProject) {
-        const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects[
-          ":externalProjectId"
-        ].files.$get({
-          param: {
-            organizationSlug,
-            externalProjectId: encodedProviderProject.externalProjectId,
-          },
-          query: { limit: "500" },
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to load provider files (${response.status})`);
-        }
-
-        const body = (await response.json()) as { files: ProjectFileRecord[] };
-        return body.files;
-      }
-
       const response = await fetch(`${apiPath(organizationSlug, projectId)}?limit=500`, {
         method: "GET",
       });
@@ -216,7 +183,9 @@ export function ProjectFilesPageContent({
     [files, selectedSourcePath],
   );
   const isUploading = uploadFiles.isPending;
-  const canUploadFiles = !useLiveProviderFiles;
+  const isProviderProject =
+    Boolean(parseProviderProjectId(projectId)) || files.some((file) => file.provider);
+  const canUploadFiles = !isProviderProject;
 
   return (
     <ProjectPageShell className="gap-8">
@@ -224,7 +193,7 @@ export function ProjectFilesPageContent({
         icon={File01Icon}
         section="Files"
         description={
-          useLiveProviderFiles
+          isProviderProject
             ? "Browse source files and keys from the connected TMS provider."
             : "Upload source files, then select one to inspect content and related translation jobs."
         }
@@ -343,7 +312,7 @@ export function ProjectFilesPageContent({
                   No files yet
                 </TypographyP>
                 <TypographyP className="text-sm text-foreground/52">
-                  {useLiveProviderFiles
+                  {isProviderProject
                     ? "No provider files or keys were found for this project."
                     : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
                 </TypographyP>
@@ -388,7 +357,7 @@ export function ProjectFilesPageContent({
           </aside>
 
           <main className="min-h-0 overflow-y-auto bg-background/40">
-            {useLiveProviderFiles ? (
+            {selectedFile?.provider ? (
               <div className="p-4">
                 <ProjectSectionTitle>
                   {selectedFile ? selectedFile.sourcePath : "Select a file"}

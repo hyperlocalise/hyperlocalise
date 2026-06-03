@@ -15,6 +15,11 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
+import { getTmsProviderConnection, TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
+import {
+  parseProviderProjectId,
+  type EncodedProviderProjectId,
+} from "@/lib/providers/tms-provider-resource-id";
 
 const logger = createLogger("project-routes");
 const externalTmsProviderKinds = new Set<string>(schema.externalTmsProviderKindEnum.enumValues);
@@ -54,6 +59,70 @@ export function unsupportedProjectFileResponse(c: { json: JsonContext["json"] },
 
 export function forbiddenResponse(c: { json: JsonContext["json"] }) {
   return sharedForbiddenResponse(c, "forbidden", "Insufficient permissions");
+}
+
+type ProjectResourceTarget =
+  | { kind: "native"; projectId: string }
+  | ({ kind: "provider" } & EncodedProviderProjectId)
+  | {
+      kind: "provider_unavailable";
+      error: "no_active_tms_provider" | "provider_project_not_available";
+      message: string;
+    };
+
+export async function resolveProjectResourceTarget(
+  auth: ApiAuthContext,
+  projectId: string,
+): Promise<ProjectResourceTarget> {
+  const encodedProject = parseProviderProjectId(projectId);
+  if (!encodedProject) {
+    return { kind: "native", projectId };
+  }
+
+  const connection = await getTmsProviderConnection(auth.organization.localOrganizationId);
+  if (!connection) {
+    return {
+      kind: "provider_unavailable",
+      error: "no_active_tms_provider",
+      message: `No active ${encodedProject.providerKind} provider connection is available`,
+    };
+  }
+
+  if (connection.providerKind !== encodedProject.providerKind) {
+    return {
+      kind: "provider_unavailable",
+      error: "provider_project_not_available",
+      message: `Project belongs to ${encodedProject.providerKind}, but the active provider is ${connection.providerKind}`,
+    };
+  }
+
+  return { kind: "provider", ...encodedProject };
+}
+
+export function providerProjectUnavailableResponse(
+  c: { json: JsonContext["json"] },
+  target: Extract<ProjectResourceTarget, { kind: "provider_unavailable" }>,
+) {
+  return c.json({ error: target.error, message: target.message }, 404);
+}
+
+export function tmsProviderLiveErrorResponse(c: { json: JsonContext["json"] }, error: unknown) {
+  if (error instanceof TmsProviderLiveError) {
+    switch (error.code) {
+      case "no_active_tms_provider":
+        return c.json({ error: error.code, message: error.message }, 404);
+      case "crowdin_auth_invalid":
+        return c.json({ error: error.code, message: error.message }, 401);
+      case "invalid_encoded_job_id":
+        return c.json({ error: error.code, message: error.message }, 400);
+      case "provider_fetcher_unavailable":
+        return c.json({ error: error.code, message: error.message }, 501);
+      default:
+        return c.json({ error: error.code, message: error.message }, 500);
+    }
+  }
+
+  throw error;
 }
 
 export async function logProjectNotFound(input: {

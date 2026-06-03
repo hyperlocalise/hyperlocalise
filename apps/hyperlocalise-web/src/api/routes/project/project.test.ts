@@ -9,8 +9,10 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app, createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
+import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { upsertExternalJob } from "@/lib/providers/sync/organization-external-tms-jobs";
 import { upsertExternalTmsFile } from "@/lib/providers/sync/organization-external-tms-files";
+import * as tmsProviderLive from "@/lib/providers/tms-provider-live";
 
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "./project.fixture";
@@ -52,6 +54,7 @@ beforeAll(async () => {
 });
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
   await projectFixture.cleanup();
 });
@@ -107,6 +110,57 @@ describe("projectRoutes", () => {
     expect(body.projects.map((project) => project.name)).toEqual(["Project Two", "Project One"]);
   });
 
+  it("lists live provider projects through the project collection route when a TMS integration is active", async () => {
+    const identity = createWorkosIdentityWithRole("admin");
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: globalThis.__testApiAuthContext!.user.localUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const listProjects = vi
+      .spyOn(tmsProviderLive, "listTmsProviderLiveProjects")
+      .mockResolvedValue([
+        {
+          id: "ext:crowdin:902807",
+          name: "Marketing",
+          description: null,
+          translationContext: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          source: "external_tms",
+          externalProviderKind: "crowdin",
+          externalProjectId: "902807",
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          externalProjectUrl: "https://crowdin.example.test/project/902807",
+          isActive: true,
+          openJobCount: 0,
+        },
+      ]);
+
+    const response = await client.api.orgs[":organizationSlug"].projects.$get(
+      { param: { organizationSlug: identity.organization.slug ?? "missing-slug" } },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectsResponse;
+    expect(body.projects).toHaveLength(1);
+    expect(body.projects[0]).toMatchObject({
+      id: "ext:crowdin:902807",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+    });
+    expect(listProjects).toHaveBeenCalledWith(organizationId);
+  });
+
   it("creates a project with validated input", async () => {
     const identity = createWorkosIdentity();
     const response = await createProjectViaApi(identity, {
@@ -126,6 +180,52 @@ describe("projectRoutes", () => {
     expect(body.project.translationContext).toBe("Keep terminology consistent.");
     expect(body.project.sourceLocale).toBe("en-US");
     expect(body.project.targetLocales).toEqual(["fr-FR", "de-DE"]);
+  });
+
+  it("loads live provider project details through the project detail route", async () => {
+    const identity = createWorkosIdentityWithRole("admin");
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: globalThis.__testApiAuthContext!.user.localUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const getProject = vi.spyOn(tmsProviderLive, "getTmsProviderLiveProject").mockResolvedValue({
+      id: "ext:crowdin:902807",
+      name: "Marketing",
+      description: null,
+      translationContext: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId: "902807",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      externalProjectUrl: "https://crowdin.example.test/project/902807",
+      isActive: true,
+      openJobCount: 0,
+    });
+
+    const response = await app.request("/api/orgs/hyperlocalise/projects/ext%3Acrowdin%3A902807", {
+      headers,
+    });
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectResponse;
+    expect(body.project).toMatchObject({
+      id: "ext:crowdin:902807",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      openJobCount: 0,
+    });
+    expect(getProject).toHaveBeenCalledWith(organizationId, "902807");
   });
 
   it("returns 400 when create payload omits locales", async () => {
@@ -817,7 +917,7 @@ describe("projectRoutes", () => {
     ]);
   });
 
-  it("lists files for a double-encoded external project route id", async () => {
+  it("dispatches double-encoded external project file routes to the live provider", async () => {
     const baseIdentity = createWorkosIdentity();
     const identity = {
       ...baseIdentity,
@@ -826,41 +926,54 @@ describe("projectRoutes", () => {
         slug: "hyperlocalise",
       },
     };
-    const createdResponse = await createProjectViaApi(identity);
-    const createdBody = (await createdResponse.json()) as ProjectResponse;
-    const projectId = "ext:crowdin:902807";
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
 
-    await db
-      .update(schema.projects)
-      .set({
-        id: projectId,
-        source: "external_tms",
-        externalProviderKind: "crowdin",
-        externalProjectId: "902807",
-      })
-      .where(eq(schema.projects.id, createdBody.project.id));
-
-    await upsertExternalTmsFile({
-      organizationId: createdBody.project.organizationId,
-      projectId,
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: globalThis.__testApiAuthContext!.user.localUserId,
+      role: "admin",
       providerKind: "crowdin",
-      externalProjectId: "902807",
-      resourceType: "key",
-      externalResourceId: "key-902807",
-      sourcePath: "keys/home.title",
-      displayName: "home.title",
-      format: "icu",
-      sourceLocale: "en",
-      targetLocales: ["fr"],
-      revision: "one",
-      syncState: "synced",
-      providerPayload: { id: "key-902807" },
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
     });
+
+    const listFiles = vi
+      .spyOn(tmsProviderLive, "listTmsProviderLiveFilesForProject")
+      .mockResolvedValue([
+        {
+          origin: "provider",
+          sourcePath: "keys/home.title",
+          sourceHash: null,
+          commitSha: null,
+          workflowRunId: null,
+          uploadedAt: new Date().toISOString(),
+          storedFileId: null,
+          metadata: {},
+          filename: "home.title",
+          byteSize: null,
+          provider: {
+            kind: "crowdin",
+            resourceType: "key",
+            externalProjectId: "902807",
+            externalResourceId: "key-902807",
+            externalUrl: null,
+            syncState: "synced",
+            sourceLocale: "en",
+            targetLocales: ["fr"],
+            localeReadiness: {},
+            revision: "one",
+            format: "icu",
+            lastSyncedAt: null,
+          },
+          latestJob: null,
+        },
+      ]);
 
     const response = await app.request(
       "/api/orgs/hyperlocalise/projects/ext%253Acrowdin%253A902807/files?limit=500",
       {
-        headers: await authHeadersFor(identity),
+        headers,
       },
     );
 
@@ -875,6 +988,7 @@ describe("projectRoutes", () => {
         externalProjectId: "902807",
       }),
     });
+    expect(listFiles).toHaveBeenCalledWith(organizationId, "902807", { limit: 500 });
   });
 
   it("combines repository and provider records for the same source path", async () => {

@@ -25,7 +25,9 @@ import {
   startAgentRun,
 } from "@/lib/providers/agent-runs/agent-runs";
 import { serializeAgentRunProposalItem } from "@/lib/providers/agent-runs/agent-run-proposals";
+import { upsertOrganizationExternalTmsProviderCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { upsertExternalJob } from "@/lib/providers/sync/organization-external-tms-jobs";
+import * as tmsProviderLive from "@/lib/providers/tms-provider-live";
 
 const { resolveApiAuthContextFromSessionMock, runProviderJobQaForJobMock } = vi.hoisted(() => ({
   resolveApiAuthContextFromSessionMock: vi.fn(
@@ -248,6 +250,7 @@ async function insertStoredSourceFile(params: {
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   vi.clearAllMocks();
   await cleanup();
 });
@@ -302,6 +305,75 @@ describe("jobRoutes", () => {
     expect(workspaceResponse.status).toBe(200);
     await expect(workspaceResponse.json()).resolves.toMatchObject({
       job: expect.objectContaining({ id: job.id, projectName: expect.any(String) }),
+    });
+  });
+
+  it("dispatches encoded external project job routes to the live provider", async () => {
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: globalThis.__testApiAuthContext!.user.localUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const listJobs = vi
+      .spyOn(tmsProviderLive, "listTmsProviderLiveJobsForProject")
+      .mockResolvedValue([
+        {
+          id: "ext:crowdin:902807:task-1",
+          projectId: "ext:crowdin:902807",
+          projectName: "Marketing",
+          createdByUserId: null,
+          kind: "translation",
+          type: null,
+          status: "running",
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          completedAt: null,
+          workflowRunId: null,
+          lastError: null,
+          inputPayload: {},
+          outcomeKind: null,
+          outcomePayload: null,
+          reviewCriteria: null,
+          reviewTargetLocale: null,
+          syncConnectorKind: null,
+          syncDirection: null,
+          assetType: null,
+          assetOperation: null,
+          externalProviderKind: "crowdin",
+          externalTaskId: "task-1",
+          externalStatus: "running",
+          externalTitle: "Translate homepage",
+          externalDueDate: null,
+          externalTargetLocales: ["fr"],
+          externalAssignedUsers: [],
+          externalSyncState: null,
+        },
+      ]);
+
+    const response = await testApp.request(
+      "/api/orgs/hyperlocalise/projects/ext%3Acrowdin%3A902807/jobs?limit=100&mine=false",
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { jobs: JobRecord[] };
+    expect(body.jobs).toHaveLength(1);
+    expect(body.jobs[0]).toMatchObject({
+      id: "ext:crowdin:902807:task-1",
+      projectId: "ext:crowdin:902807",
+      externalProviderKind: "crowdin",
+    });
+    expect(listJobs).toHaveBeenCalledWith(organizationId, "902807", {
+      mine: false,
+      assignee: identity.user.email,
     });
   });
 
