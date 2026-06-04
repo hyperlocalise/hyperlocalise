@@ -14,6 +14,7 @@ import {
 import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { membershipRoleToWorkosRoleSlug } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
@@ -42,6 +43,8 @@ import {
   memberNotFoundResponse,
   toMemberSummary,
 } from "./member.shared";
+
+const logger = createLogger("member-route");
 
 const validateInviteMemberBody = validator("json", (value, c) => {
   const parsed = inviteMemberBodySchema.safeParse(value);
@@ -272,10 +275,12 @@ async function revokePendingWorkosInvitation(input: {
 
 class WorkosInvitationRevokedNotDeliveredError extends Error {
   readonly code = "member_invite_revoked_not_delivered" as const;
+  override cause?: unknown;
 
-  constructor() {
+  constructor(cause?: unknown) {
     super("WorkOS invitation was revoked but a replacement could not be sent");
     this.name = "WorkosInvitationRevokedNotDeliveredError";
+    this.cause = cause;
   }
 }
 
@@ -336,11 +341,11 @@ async function deliverWorkosInvitation(input: {
       await workos.userManagement.revokeInvitation(pendingInvitation.id);
       try {
         await sendWorkosInvitation(workos, invitationPayload);
-      } catch {
+      } catch (firstError) {
         try {
           await sendWorkosInvitation(workos, invitationPayload);
-        } catch {
-          throw new WorkosInvitationRevokedNotDeliveredError();
+        } catch (retryError) {
+          throw new WorkosInvitationRevokedNotDeliveredError({ firstError, retryError });
         }
       }
     } finally {
@@ -462,6 +467,21 @@ export function createMemberRoutes() {
             !isResend || ("roleChanged" in pendingInvite && pendingInvite.roleChanged),
         });
       } catch (error) {
+        logger.error(
+          {
+            err: serializeErrorForLog(error),
+            organizationId,
+            workosOrganizationId,
+            membershipId: pendingInvite.membershipId,
+            localUserId: pendingInvite.localUserId,
+            actorWorkosUserId: c.var.auth.user.workosUserId,
+            role: payload.role,
+            isResend,
+            roleChanged: "roleChanged" in pendingInvite ? pendingInvite.roleChanged : false,
+          },
+          "workspace member invitation delivery failed",
+        );
+
         if (!isResend) {
           await rollbackPendingInvite({
             membershipId: pendingInvite.membershipId,
@@ -564,7 +584,22 @@ export function createMemberRoutes() {
           await workos!.userManagement.updateOrganizationMembership(member.workosMembershipId!, {
             roleSlug: membershipRoleToWorkosRoleSlug(payload.role),
           });
-        } catch {
+        } catch (error) {
+          logger.error(
+            {
+              err: serializeErrorForLog(error),
+              organizationId,
+              workosOrganizationId,
+              membershipId: member.membershipId,
+              workosMembershipId: member.workosMembershipId,
+              actorWorkosUserId: c.var.auth.user.workosUserId,
+              targetWorkosUserId: member.workosUserId,
+              previousRole,
+              role: payload.role,
+            },
+            "workspace member role sync failed",
+          );
+
           await db
             .update(schema.organizationMemberships)
             .set({ role: previousRole })
@@ -600,6 +635,20 @@ export function createMemberRoutes() {
             replacePendingInvitation: true,
           });
         } catch (error) {
+          logger.error(
+            {
+              err: serializeErrorForLog(error),
+              organizationId,
+              workosOrganizationId,
+              membershipId: member.membershipId,
+              actorWorkosUserId: c.var.auth.user.workosUserId,
+              targetWorkosUserId: member.workosUserId,
+              previousRole,
+              role: payload.role,
+            },
+            "workspace pending invitation role update failed",
+          );
+
           await db
             .update(schema.organizationMemberships)
             .set({ role: previousRole })
@@ -691,7 +740,20 @@ export function createMemberRoutes() {
       ) {
         try {
           await workos!.userManagement.deleteOrganizationMembership(member.workosMembershipId!);
-        } catch {
+        } catch (error) {
+          logger.error(
+            {
+              err: serializeErrorForLog(error),
+              organizationId,
+              workosOrganizationId,
+              membershipId: member.membershipId,
+              workosMembershipId: member.workosMembershipId,
+              actorWorkosUserId: c.var.auth.user.workosUserId,
+              targetWorkosUserId: member.workosUserId,
+            },
+            "workspace member removal sync failed",
+          );
+
           return internalErrorResponse(
             c,
             "member_sync_failed",
@@ -704,7 +766,19 @@ export function createMemberRoutes() {
             workosOrganizationId,
             email: member.email,
           });
-        } catch {
+        } catch (error) {
+          logger.error(
+            {
+              err: serializeErrorForLog(error),
+              organizationId,
+              workosOrganizationId,
+              membershipId: member.membershipId,
+              actorWorkosUserId: c.var.auth.user.workosUserId,
+              targetWorkosUserId: member.workosUserId,
+            },
+            "workspace pending invitation revoke failed",
+          );
+
           return internalErrorResponse(
             c,
             "member_sync_failed",
