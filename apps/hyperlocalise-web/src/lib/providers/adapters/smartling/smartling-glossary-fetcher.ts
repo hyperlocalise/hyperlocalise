@@ -1,4 +1,4 @@
-import type { ExternalTmsGlossaryFetcher } from "@/lib/providers/sync/external-tms-glossary-sync";
+import type { ExternalTmsGlossaryFetcher } from "@/lib/providers/tms-provider-types";
 
 import { resolveSmartlingAccountUid, uniqueLocales } from "./smartling-account-context";
 import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";

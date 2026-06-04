@@ -1,4 +1,4 @@
-import type { ExternalTmsJobTaskFetcher } from "@/lib/providers/sync/external-tms-job-sync";
+import type { ExternalTmsJobTaskFetcher } from "@/lib/providers/tms-provider-types";
 
 import { parseSmartlingCredentials } from "./smartling-credentials";
 import { SmartlingApiClient } from "./smartling-api";

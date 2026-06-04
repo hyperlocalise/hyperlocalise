@@ -1,4 +1,4 @@
-import type { ExternalTmsTranslationPusher } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsTranslationPusher } from "@/lib/providers/tms-provider-types";
 
 import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";
 import { pollSmartlingJobProgress } from "./smartling-async-polling";

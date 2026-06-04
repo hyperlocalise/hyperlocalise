@@ -15,8 +15,6 @@ import {
   type TmsProviderCapability,
   type TmsProviderCapabilityAction,
 } from "@/lib/providers/tms-capabilities";
-import { listProviderWebhookSubscriptionSummaries } from "@/lib/providers/webhooks/provider-webhook-subscription-manager";
-import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/webhooks/provider-webhook-subscription-types";
 import { assertProviderUrlResolvable } from "@/lib/providers/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
 import { resolvePhraseBaseUrl } from "@/lib/providers/adapters/phrase/phrase-base-url";
@@ -79,7 +77,6 @@ export type ExternalTmsProviderCredentialListItem = ExternalTmsProviderCredentia
   lastSuccessfulSyncAt: string | null;
   projectCount: number;
   capabilities: Record<TmsProviderCapabilityAction, TmsProviderCapability>;
-  webhookSubscriptions: ProviderWebhookSubscriptionSummary[];
 };
 
 function summarizeExternalCredential(
@@ -153,63 +150,31 @@ export async function listOrganizationExternalTmsProviderCredentialDetails(
 
   const providerKinds = credentials.map((c) => c.providerKind);
 
-  const [projectCounts, lastSyncs, webhookSubscriptions] = await Promise.all([
-    db
-      .select({
-        providerKind: schema.projects.externalProviderKind,
-        count: sql<number>`count(*)`.mapWith(Number),
-      })
-      .from(schema.projects)
-      .where(
-        and(
-          eq(schema.projects.organizationId, organizationId),
-          eq(schema.projects.source, "external_tms"),
-          eq(schema.projects.isActive, true),
-          inArray(schema.projects.externalProviderKind, providerKinds),
-        ),
-      )
-      .groupBy(schema.projects.externalProviderKind),
-    db
-      .select({
-        providerKind: schema.providerSyncRuns.providerKind,
-        completedAt: sql<Date | null>`max(${schema.providerSyncRuns.completedAt})`.mapWith((v) =>
-          v == null ? null : new Date(v),
-        ),
-      })
-      .from(schema.providerSyncRuns)
-      .where(
-        and(
-          eq(schema.providerSyncRuns.organizationId, organizationId),
-          eq(schema.providerSyncRuns.status, "succeeded"),
-          ne(schema.providerSyncRuns.kind, "health_check"),
-          inArray(schema.providerSyncRuns.providerKind, providerKinds),
-        ),
-      )
-      .groupBy(schema.providerSyncRuns.providerKind),
-    Promise.all(
-      credentials.map((credential) =>
-        listProviderWebhookSubscriptionSummaries({
-          organizationId,
-          providerCredentialId: credential.id,
-        }),
+  const projectCounts = await db
+    .select({
+      providerKind: schema.projects.externalProviderKind,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.organizationId, organizationId),
+        eq(schema.projects.source, "external_tms"),
+        eq(schema.projects.isActive, true),
+        inArray(schema.projects.externalProviderKind, providerKinds),
       ),
-    ),
-  ]);
+    )
+    .groupBy(schema.projects.externalProviderKind);
 
   const projectCountByProvider = Object.fromEntries(
     projectCounts.map((row) => [row.providerKind, row.count]),
   ) as Record<string, number>;
 
-  const lastSyncByProvider = Object.fromEntries(
-    lastSyncs.map((row) => [row.providerKind, row.completedAt?.toISOString() ?? null]),
-  ) as Record<string, string | null>;
-
-  return credentials.map((credential, index) => ({
+  return credentials.map((credential) => ({
     ...credential,
-    lastSuccessfulSyncAt: lastSyncByProvider[credential.providerKind] ?? null,
+    lastSuccessfulSyncAt: null,
     projectCount: projectCountByProvider[credential.providerKind] ?? 0,
     capabilities: getTmsProviderCapability(credential.providerKind).capabilities,
-    webhookSubscriptions: webhookSubscriptions[index] ?? [],
   }));
 }
 

@@ -10,11 +10,11 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "../agent-runs/agent-runs";
-import {
-  pushExternalTmsTranslations,
-  type ExternalTmsApprovedTranslationUpload,
-  type ExternalTmsContentSyncFailure,
-} from "../sync/external-tms-content-sync";
+import { pushExternalTmsTranslations } from "../tms-provider-content";
+import type {
+  ExternalTmsApprovedTranslationUpload,
+  ExternalTmsContentSyncFailure,
+} from "../tms-provider-types";
 import type { ProviderTranslationWritebackChangedItem } from "../provider-feedback-types";
 import { getProviderTranslationPusher } from "../provider-translation-pushers";
 

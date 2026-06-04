@@ -1,4 +1,4 @@
-import type { ExternalTmsProjectFetcher } from "@/lib/providers/sync/external-tms-project-sync";
+import type { ExternalTmsProjectFetcher } from "@/lib/providers/tms-provider-types";
 
 import { parseSmartlingCredentials } from "./smartling-credentials";
 import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";

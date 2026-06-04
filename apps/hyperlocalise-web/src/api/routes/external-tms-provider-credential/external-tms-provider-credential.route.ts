@@ -6,19 +6,10 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
-import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
 import { env } from "@/lib/env";
 import { isErr } from "@/lib/primitives/result/results";
 import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { db, schema } from "@/lib/database";
-import { fetchCrowdinProjects } from "@/lib/providers/adapters/crowdin/crowdin-project-fetcher";
-import { fetchLokaliseProjects } from "@/lib/providers/adapters/lokalise/lokalise-project-fetcher";
-import { fetchPhraseProjects } from "@/lib/providers/adapters/phrase/phrase-project-fetcher";
-import { fetchSmartlingProjects } from "@/lib/providers/adapters/smartling/smartling-project-fetcher";
-import {
-  syncExternalTmsProjects,
-  type ExternalTmsProjectFetcher,
-} from "@/lib/providers/sync/external-tms-project-sync";
 import {
   assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
@@ -32,23 +23,11 @@ import {
   upsertCrowdinOAuthProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { isTmsBackgroundSyncEnabled } from "@/lib/providers/tms-provider-shell-mode";
 import {
   checkExternalTmsProviderHealth,
   persistExternalTmsProviderHealth,
-} from "@/lib/providers/sync/external-tms-health-check";
+} from "@/lib/providers/external-tms-health-check";
 import { getCrowdinOAuthScopeString } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
-import { recordProviderSyncRun } from "@/lib/providers/sync/provider-sync-runs";
-import {
-  ensureProviderWebhookSubscriptionsForCredential,
-  listProviderWebhookSubscriptionSummaries,
-} from "@/lib/providers/webhooks/provider-webhook-subscription-manager";
-import {
-  getProviderSyncObservability,
-  ProviderSyncIntentNotFoundError,
-  ProviderSyncIntentNotRetryableError,
-  retryProviderSyncIntent,
-} from "@/lib/providers/sync/provider-sync-observability";
 import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import {
   getCrowdinUserConnectionSummary,
@@ -60,7 +39,6 @@ import {
   crowdinOAuthStartBodySchema,
   crowdinUserOAuthStartBodySchema,
   externalTmsProviderKindSchema,
-  providerSyncObservabilityQuerySchema,
   revealExternalTmsProviderCredentialBodySchema,
   upsertExternalTmsProviderCredentialBodySchema,
 } from "./external-tms-provider-credential.schema";
@@ -296,6 +274,41 @@ async function handleCrowdinUserOAuthCallback(
   });
 }
 
+async function createCrowdinUserOAuthAuthorization(input: {
+  c: ExternalTmsProviderCredentialRouteContext;
+  credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
+  organizationSlug: string;
+  returnTo: string;
+}) {
+  const client = getCrowdinOAuthClientFromCredential(input.credential);
+  const nonce = randomBytes(24).toString("hex");
+  const codeVerifier = base64Url(randomBytes(48));
+  const now = new Date();
+  const returnTo = normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug);
+
+  await db.insert(schema.crowdinUserOAuthStates).values({
+    nonce,
+    codeVerifier,
+    organizationId: input.c.var.auth.organization.localOrganizationId,
+    userId: input.c.var.auth.user.localUserId,
+    providerCredentialId: input.credential.id,
+    returnTo,
+    expiresAt: new Date(now.getTime() + CROWDIN_USER_OAUTH_STATE_TTL_MS),
+  });
+
+  const authorizationUrl = new URL("https://accounts.crowdin.com/oauth/authorize");
+  const redirectUri = getCrowdinOAuthRedirectUri(input.c, input.organizationSlug);
+  authorizationUrl.searchParams.set("client_id", client.clientId);
+  authorizationUrl.searchParams.set("redirect_uri", redirectUri);
+  authorizationUrl.searchParams.set("response_type", "code");
+  authorizationUrl.searchParams.set("scope", getCrowdinOAuthScopeString());
+  authorizationUrl.searchParams.set("state", nonce);
+  authorizationUrl.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
+  authorizationUrl.searchParams.set("code_challenge_method", "S256");
+
+  return { authorizationUrl: authorizationUrl.toString(), redirectUri };
+}
+
 export function createExternalTmsProviderCredentialRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -318,12 +331,13 @@ export function createExternalTmsProviderCredentialRoutes() {
         200,
       );
     })
-    .post("/crowdin/oauth/start", validateCrowdinOAuthStartBody, async (c) => {
+    .post("/crowdin/oauth-app", validateCrowdinOAuthStartBody, async (c) => {
       try {
         if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
           return c.json({ error: "forbidden" }, 403);
         }
         const payload = c.req.valid("json");
+
         const providerCredential = await upsertCrowdinOAuthProviderCredential({
           organizationId: c.var.auth.organization.localOrganizationId,
           userId: c.var.auth.user.localUserId,
@@ -472,31 +486,15 @@ export function createExternalTmsProviderCredentialRoutes() {
       }
 
       const payload = c.req.valid("json");
-      const client = getCrowdinOAuthClientFromCredential(credential);
-      const nonce = randomBytes(24).toString("hex");
-      const codeVerifier = base64Url(randomBytes(48));
-      const now = new Date();
-      await db.insert(schema.crowdinUserOAuthStates).values({
-        nonce,
-        codeVerifier,
-        organizationId: c.var.auth.organization.localOrganizationId,
-        userId: c.var.auth.user.localUserId,
-        providerCredentialId: credential.id,
-        returnTo: normalizeCrowdinUserOAuthReturnTo(payload.returnTo, organizationSlug),
-        expiresAt: new Date(now.getTime() + CROWDIN_USER_OAUTH_STATE_TTL_MS),
-      });
-
-      const authorizationUrl = new URL("https://accounts.crowdin.com/oauth/authorize");
-      const redirectUri = getCrowdinOAuthRedirectUri(c, organizationSlug);
-      authorizationUrl.searchParams.set("client_id", client.clientId);
-      authorizationUrl.searchParams.set("redirect_uri", redirectUri);
-      authorizationUrl.searchParams.set("response_type", "code");
-      authorizationUrl.searchParams.set("scope", getCrowdinOAuthScopeString());
-      authorizationUrl.searchParams.set("state", nonce);
-      authorizationUrl.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
-      authorizationUrl.searchParams.set("code_challenge_method", "S256");
-
-      return c.json({ authorizationUrl: authorizationUrl.toString(), redirectUri }, 200);
+      return c.json(
+        await createCrowdinUserOAuthAuthorization({
+          c,
+          credential,
+          organizationSlug,
+          returnTo: payload.returnTo ?? `/org/${organizationSlug}`,
+        }),
+        200,
+      );
     })
     .put("/", validateUpsertBody, async (c) => {
       try {
@@ -520,14 +518,6 @@ export function createExternalTmsProviderCredentialRoutes() {
           region: payload.region,
           baseUrl: payload.baseUrl,
         });
-
-        if (isTmsBackgroundSyncEnabled()) {
-          void ensureProviderWebhookSubscriptionsForCredential({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            providerKind: payload.providerKind,
-            providerCredentialId: providerCredential.id,
-          }).catch(() => undefined);
-        }
 
         return c.json({ externalTmsProviderCredential: providerCredential }, 200);
       } catch (error) {
@@ -590,47 +580,20 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json({ error: "provider_credential_not_found" }, 404);
         }
 
-        const result = await recordProviderSyncRun(
-          {
-            organizationId: c.var.auth.organization.localOrganizationId,
-            providerKind: providerKind.data,
-            kind: "health_check",
-          },
-          async (run) => {
-            const { credential, health } = await checkExternalTmsProviderHealth({
-              organizationId: c.var.auth.organization.localOrganizationId,
-              providerKind: providerKind.data,
-            });
+        const { credential, health } = await checkExternalTmsProviderHealth({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          providerKind: providerKind.data,
+        });
 
-            if (!credential || !health) throw new Error("provider_credential_not_found");
+        if (!credential || !health) throw new Error("provider_credential_not_found");
 
-            await persistExternalTmsProviderHealth({ credentialId: credential.id, health });
+        await persistExternalTmsProviderHealth({ credentialId: credential.id, health });
 
-            return {
-              result: {
-                providerKind: providerKind.data,
-                ...health,
-                checkedAt: (run.startedAt ?? new Date()).toISOString(),
-              },
-              providerMetadata: {
-                credentialId: credential.id,
-                status: health.status,
-                availability: health.availability,
-                authValidity: health.authValidity,
-                errorCode: health.errorCode,
-                rateLimit: health.rateLimit,
-              },
-            };
-          },
-        );
-
-        if (isTmsBackgroundSyncEnabled()) {
-          void ensureProviderWebhookSubscriptionsForCredential({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            providerKind: providerKind.data,
-            providerCredentialId: providerCredentialSummary.id,
-          }).catch(() => undefined);
-        }
+        const result = {
+          providerKind: providerKind.data,
+          ...health,
+          checkedAt: new Date().toISOString(),
+        };
 
         return c.json({ externalTmsProviderHealth: result }, 200);
       } catch (error) {
@@ -639,184 +602,6 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         if (error instanceof Error && error.message === "provider_credential_not_found") {
           return c.json({ error: "provider_credential_not_found" }, 404);
-        }
-        throw error;
-      }
-    })
-    .get("/:providerKind/webhook-subscriptions", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:read")) {
-        return c.json({ error: "forbidden" }, 403);
-      }
-
-      const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
-      if (!providerKind.success) {
-        return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
-      }
-
-      const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
-        c.var.auth.organization.localOrganizationId,
-        providerKind.data,
-      );
-      if (!providerCredentialSummary) {
-        return c.json({ error: "provider_credential_not_found" }, 404);
-      }
-
-      const providerWebhookSubscriptions = await listProviderWebhookSubscriptionSummaries({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        providerCredentialId: providerCredentialSummary.id,
-      });
-
-      return c.json({ providerWebhookSubscriptions }, 200);
-    })
-    .get("/:providerKind/sync-observability", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:read")) {
-        return c.json({ error: "forbidden" }, 403);
-      }
-
-      const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
-      if (!providerKind.success) {
-        return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
-      }
-
-      const query = providerSyncObservabilityQuerySchema.safeParse({
-        projectId: c.req.query("projectId") || undefined,
-      });
-      if (!query.success) {
-        return badRequestResponse(c, "invalid_sync_observability_query");
-      }
-
-      const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
-        c.var.auth.organization.localOrganizationId,
-        providerKind.data,
-      );
-      if (!providerCredentialSummary) {
-        return c.json({ error: "provider_credential_not_found" }, 404);
-      }
-
-      const providerSyncObservability = await getProviderSyncObservability({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        providerKind: providerKind.data,
-        providerCredentialId: providerCredentialSummary.id,
-        projectId: query.data.projectId,
-      });
-
-      return c.json({ providerSyncObservability }, 200);
-    })
-    .post("/:providerKind/sync-intents/:intentId/retry", async (c) => {
-      try {
-        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
-
-        const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
-        if (!providerKind.success) {
-          return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
-        }
-
-        const intentId = c.req.param("intentId");
-        if (!intentId) {
-          return badRequestResponse(c, "invalid_provider_sync_intent_id");
-        }
-
-        const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
-          c.var.auth.organization.localOrganizationId,
-          providerKind.data,
-        );
-        if (!providerCredentialSummary) {
-          return c.json({ error: "provider_credential_not_found" }, 404);
-        }
-
-        const result = await retryProviderSyncIntent({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          providerKind: providerKind.data,
-          intentId,
-        });
-
-        return c.json(result, 200);
-      } catch (error) {
-        if (error instanceof Error && error.message === "forbidden") {
-          return c.json({ error: "forbidden" }, 403);
-        }
-        if (error instanceof ProviderSyncIntentNotFoundError) {
-          return notFoundResponse(c, "provider_sync_intent_not_found");
-        }
-        if (error instanceof ProviderSyncIntentNotRetryableError) {
-          return badRequestResponse(c, "provider_sync_intent_not_retryable");
-        }
-        throw error;
-      }
-    })
-    .post("/:providerKind/webhook-subscriptions/retry", async (c) => {
-      try {
-        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
-
-        const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
-        if (!providerKind.success) {
-          return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
-        }
-
-        const providerCredentialSummary = await getOrganizationExternalTmsProviderCredentialSummary(
-          c.var.auth.organization.localOrganizationId,
-          providerKind.data,
-        );
-        if (!providerCredentialSummary) {
-          return c.json({ error: "provider_credential_not_found" }, 404);
-        }
-
-        await ensureProviderWebhookSubscriptionsForCredential({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          providerKind: providerKind.data,
-          providerCredentialId: providerCredentialSummary.id,
-        });
-
-        const providerWebhookSubscriptions = await listProviderWebhookSubscriptionSummaries({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          providerCredentialId: providerCredentialSummary.id,
-        });
-
-        return c.json({ providerWebhookSubscriptions }, 200);
-      } catch (error) {
-        if (error instanceof Error && error.message === "forbidden") {
-          return c.json({ error: "forbidden" }, 403);
-        }
-        throw error;
-      }
-    })
-    .post("/:providerKind/sync-projects", async (c) => {
-      try {
-        assertExternalTmsCredentialAdmin(c.var.auth.membership.role);
-
-        const providerKind = externalTmsProviderKindSchema.safeParse(c.req.param("providerKind"));
-        if (!providerKind.success) {
-          return c.json({ error: "invalid_external_tms_provider_kind" }, 400);
-        }
-
-        const fetchProjectsByProvider: Partial<
-          Record<(typeof providerKind)["data"], ExternalTmsProjectFetcher>
-        > = {
-          crowdin: fetchCrowdinProjects,
-          lokalise: fetchLokaliseProjects,
-          phrase: fetchPhraseProjects,
-          smartling: fetchSmartlingProjects,
-        };
-
-        const fetchProjects = fetchProjectsByProvider[providerKind.data];
-        if (!fetchProjects) {
-          return c.json({ error: "provider_sync_not_implemented" }, 501);
-        }
-
-        const result = await syncExternalTmsProjects({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          providerKind: providerKind.data,
-          fetchProjects,
-          actorUserId: c.var.auth.user.localUserId,
-        });
-
-        return c.json({ externalTmsProjectSync: result }, 200);
-      } catch (error) {
-        if (error instanceof Error && error.message === "forbidden") {
-          return c.json({ error: "forbidden" }, 403);
-        }
-        if (error instanceof Error && error.message === "provider_credential_not_found") {
-          return notFoundResponse(c, "provider_credential_not_found");
         }
         throw error;
       }

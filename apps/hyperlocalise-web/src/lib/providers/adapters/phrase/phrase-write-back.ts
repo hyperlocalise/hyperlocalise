@@ -1,4 +1,4 @@
-import type { ExternalTmsApprovedTranslationUpload } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsApprovedTranslationUpload } from "@/lib/providers/tms-provider-types";
 
 export type PhraseTranslationWriteBackEntry = {
   key: string;

@@ -1,7 +1,7 @@
 import type {
   ExternalTmsJobTaskFetcher,
   ExternalTmsJobTaskMetadata,
-} from "@/lib/providers/sync/external-tms-job-sync";
+} from "@/lib/providers/tms-provider-types";
 
 import { CrowdinApiClient, CrowdinApiError, type CrowdinTask } from "./crowdin-api";
 import {

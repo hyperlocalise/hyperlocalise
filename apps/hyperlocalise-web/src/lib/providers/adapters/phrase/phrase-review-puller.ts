@@ -1,4 +1,4 @@
-import type { ExternalTmsTaskContent } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
 import { buildProviderReviewReport } from "@/lib/providers/provider-job-review/normalize-provider-review";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 

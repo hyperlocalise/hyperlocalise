@@ -411,6 +411,9 @@ export const providerSyncIntents = pgTable(
 
 /**
  * Stores provider webhook subscription registrations, encrypted secret metadata, subscribed events, setup status, manual fallback details, and audit timestamps.
+ *
+ * @deprecated TMS automatic webhook setup and automatic sync have been removed.
+ * This table remains only for legacy data until a future migration drops it.
  */
 export const providerWebhookSubscriptions = pgTable(
   "provider_webhook_subscriptions",
@@ -483,6 +486,9 @@ export const providerWebhookSubscriptions = pgTable(
 
 /**
  * Stores accepted provider webhook deliveries with dedupe keys, redacted payloads, processing status, retry metadata, and links to sync intents or runs.
+ *
+ * @deprecated TMS automatic webhook intake and automatic sync have been removed.
+ * This table remains only for legacy data until a future migration drops it.
  */
 export const providerWebhookEvents = pgTable(
   "provider_webhook_events",

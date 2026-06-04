@@ -1,4 +1,4 @@
-import type { ExternalTmsContentPuller } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsContentPuller } from "@/lib/providers/tms-provider-types";
 
 import { SmartlingApiClient, SmartlingApiError } from "./smartling-api";
 import { mapSmartlingFetcherError } from "./smartling-errors";

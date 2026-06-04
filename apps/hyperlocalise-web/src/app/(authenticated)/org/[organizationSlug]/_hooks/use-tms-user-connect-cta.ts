@@ -9,10 +9,14 @@ export function tmsUserConnectCtaQueryKey(organizationSlug: string) {
   return ["tms-user-connect-cta", organizationSlug] as const;
 }
 
-export function useTmsUserConnectCta(organizationSlug: string, options?: { enabled?: boolean }) {
+export function useTmsUserConnectCta(
+  organizationSlug: string,
+  options?: { enabled?: boolean; initialData?: TmsUserConnectCta },
+) {
   return useQuery({
     queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
     enabled: options?.enabled ?? true,
+    initialData: options?.initialData,
     queryFn: async (): Promise<TmsUserConnectCta> => {
       const response = await apiClient.api.orgs[":organizationSlug"][
         "external-tms-provider-credential"

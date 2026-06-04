@@ -1,5 +1,5 @@
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import type { ExternalTmsGlossaryFetcher } from "@/lib/providers/sync/external-tms-glossary-sync";
+import type { ExternalTmsGlossaryFetcher } from "@/lib/providers/tms-provider-types";
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
 

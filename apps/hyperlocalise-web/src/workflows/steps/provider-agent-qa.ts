@@ -1,7 +1,7 @@
 import type {
   ExternalTmsContentSyncFailure,
   ExternalTmsTaskContent,
-} from "@/lib/providers/sync/external-tms-content-sync";
+} from "@/lib/providers/tms-provider-types";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import type { RunHlCheckResult } from "@/lib/providers/provider-job-qa/run-hl-check";
 

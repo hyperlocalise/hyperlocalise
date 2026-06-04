@@ -1,4 +1,4 @@
-import type { ExternalTmsContentPuller } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsContentPuller } from "@/lib/providers/tms-provider-types";
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
 

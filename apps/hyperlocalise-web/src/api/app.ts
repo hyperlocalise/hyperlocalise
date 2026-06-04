@@ -12,7 +12,6 @@ import type {
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
-  ProviderWebhookReconciliationQueue,
   ContentfulAutomationExecutionQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
@@ -46,17 +45,12 @@ import { createExternalTmsProviderCredentialRoutes } from "./routes/external-tms
 import { createTmsProviderRoutes } from "./routes/tms-provider/tms-provider.route";
 import { createTmsAgentAutomationRoutes } from "./routes/tms-agent-automation/tms-agent-automation.route";
 import { createTmsDashboardSummaryRoutes } from "./routes/tms-dashboard-summary/tms-dashboard-summary.route";
-import {
-  createTmsWebhookRoutes,
-  type ProviderTmsWebhookVerifier,
-} from "./routes/tms-webhook/tms-webhook.route";
 import { createMemberRoutes } from "./routes/member/member.route";
 import { createTeamRoutes } from "./routes/team/team.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
-import { createTmsScheduledReconciliationRoutes } from "./routes/cron/tms-scheduled-reconciliation.route";
 import {
   createTranslationJobEventQueue,
   createProviderAgentCommentQueue,
@@ -77,9 +71,7 @@ type CreateAppOptions = {
   providerAgentQaQueue?: ProviderAgentQaQueue;
   providerAgentCommentQueue?: ProviderAgentCommentQueue;
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
-  providerWebhookReconciliationQueue?: ProviderWebhookReconciliationQueue;
   contentfulAutomationExecutionQueue?: ContentfulAutomationExecutionQueue;
-  providerTmsWebhookVerifier?: ProviderTmsWebhookVerifier;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -102,7 +94,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .basePath("/api")
     .onError(handleUnexpectedError)
     .notFound(notFoundHandler)
-    .route("/", createInternalRoutes(options))
+    .route("/", createInternalRoutes())
     .route("/auth", createAuthRoutes())
     .route("/autumn", createAutumnRoutes())
     .route(
@@ -126,16 +118,10 @@ export const app = createApp();
 
 export type AppType = typeof app;
 
-function createInternalRoutes(options: CreateAppOptions = {}) {
+function createInternalRoutes() {
   return new Hono()
     .route("/", createMcpRoutes())
     .route("/health", healthRoutes)
-    .route(
-      "/cron/tms-scheduled-reconciliation",
-      createTmsScheduledReconciliationRoutes({
-        providerWebhookReconciliationQueue: options.providerWebhookReconciliationQueue,
-      }),
-    )
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
@@ -215,13 +201,6 @@ function createWebhookRoutes(options: CreateAppOptions) {
       }),
     )
     .route("/workos", workosWebhookRoutes)
-    .route(
-      "/tms",
-      createTmsWebhookRoutes({
-        verifier: options.providerTmsWebhookVerifier,
-        providerWebhookReconciliationQueue: options.providerWebhookReconciliationQueue,
-      }),
-    )
     .route(
       "/resend",
       createResendWebhookRoutes({

@@ -1,5 +1,5 @@
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import type { ExternalTmsProjectFetcher } from "@/lib/providers/sync/external-tms-project-sync";
+import type { ExternalTmsProjectFetcher } from "@/lib/providers/tms-provider-types";
 
 import {
   buildLokaliseProjectUrl,

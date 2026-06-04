@@ -1,4 +1,4 @@
-import type { ExternalTmsFileKeyFetcher } from "@/lib/providers/sync/external-tms-file-sync";
+import type { ExternalTmsFileKeyFetcher } from "@/lib/providers/tms-provider-types";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import {
