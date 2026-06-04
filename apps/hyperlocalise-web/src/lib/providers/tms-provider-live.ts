@@ -1017,6 +1017,12 @@ export async function updateTmsProviderLiveJobDescription(
     return null;
   }
 
+  const projects = await fetchLiveProjects(context);
+  const project = projects.find((item) => item.externalProjectId === parsed.externalProjectId);
+  if (!project) {
+    return null;
+  }
+
   const client = new CrowdinApiClient({
     token: context.secretMaterial,
     baseUrl: context.credential.baseUrl ?? undefined,
@@ -1040,7 +1046,7 @@ export async function updateTmsProviderLiveJobDescription(
     providerKind: context.providerKind,
     externalProjectId: parsed.externalProjectId,
     externalJobId: parsed.externalJobId,
-    projectName: parsed.externalProjectId,
+    projectName: project.name,
     task,
   });
 }

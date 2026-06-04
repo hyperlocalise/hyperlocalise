@@ -60,8 +60,26 @@ export function getCrowdinLanguageLabel(payload: Record<string, unknown> | null)
     return formatLocaleLabel(targetLanguageId);
   }
 
-  const sourceLanguageId = getProviderPayloadString(payload, "sourceLanguageId");
-  return sourceLanguageId ? formatLocaleLabel(sourceLanguageId) : null;
+  const targetLanguageIds = getProviderPayloadStringArray(payload, "targetLanguageIds");
+  if (targetLanguageIds[0]) {
+    return formatLocaleLabel(targetLanguageIds[0]);
+  }
+
+  const targetLanguages = payload?.targetLanguages;
+  if (Array.isArray(targetLanguages)) {
+    for (const targetLanguage of targetLanguages) {
+      if (!targetLanguage || typeof targetLanguage !== "object" || Array.isArray(targetLanguage)) {
+        continue;
+      }
+
+      const id = (targetLanguage as Record<string, unknown>).id;
+      if (typeof id === "string" && id.trim().length > 0) {
+        return formatLocaleLabel(id);
+      }
+    }
+  }
+
+  return null;
 }
 
 export function getCrowdinTargetLocales(
