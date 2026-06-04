@@ -133,9 +133,11 @@ describe("crowdin user connections", () => {
       },
     });
 
-    expect(duplicateResult).toEqual({
-      error: { code: "crowdin_user_already_linked" },
-    });
+    expect(isErr(duplicateResult)).toBe(true);
+    if (!isErr(duplicateResult)) {
+      throw new Error("expected duplicate Crowdin user link to fail");
+    }
+    expect(duplicateResult.error).toEqual({ code: "crowdin_user_already_linked" });
   });
 
   it("returns fresh user access tokens without refreshing", async () => {
