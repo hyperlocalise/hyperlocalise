@@ -727,7 +727,17 @@ func (p *astParser) readSelector() (string, bool) {
 }
 
 func (p *astParser) readTagName() (string, bool) {
+	if p.pos >= len(p.src) {
+		return "", false
+	}
+	// Tag names must start with a letter.
+	ch := p.src[p.pos]
+	if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+		return "", false
+	}
+
 	start := p.pos
+	p.pos++
 	for p.pos < len(p.src) {
 		ch := p.src[p.pos]
 		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '.' || ch == ':' {
@@ -735,9 +745,6 @@ func (p *astParser) readTagName() (string, bool) {
 			continue
 		}
 		break
-	}
-	if p.pos == start {
-		return "", false
 	}
 	return p.src[start:p.pos], true
 }
