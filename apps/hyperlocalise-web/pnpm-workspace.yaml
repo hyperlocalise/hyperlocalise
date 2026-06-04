@@ -24,10 +24,10 @@ overrides:
   "undici@^8.0.0": "8.3.0"
   devalue: "5.8.1"
   qs: "6.15.2"
-  "@anthropic-ai/sdk": "0.91.1"
-  postcss: "8.5.10"
-  esbuild: "0.25.0"
-  "ip-address": "10.1.1"
+  "@anthropic-ai/sdk": "0.100.1"
+  postcss: "8.5.15"
+  esbuild: "0.28.0"
+  "ip-address": "10.2.0"
 peerDependencyRules:
   allowAny:
     - vite
