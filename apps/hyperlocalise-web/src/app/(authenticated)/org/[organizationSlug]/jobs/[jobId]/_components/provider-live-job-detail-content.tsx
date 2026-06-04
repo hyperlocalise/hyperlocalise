@@ -173,7 +173,9 @@ export function ProviderLiveJobDetailContent({
           <dl className="mt-3 divide-y divide-foreground/8">
             <JobDetailRow label="Job ID" value={job.id} />
             <JobDetailRow label="Provider status" value={job.externalStatus} />
-            <JobDetailRow label="Kind" value={job.kind.replace("_", " ")} />
+            {job.externalProviderKind !== "crowdin" ? (
+              <JobDetailRow label="Kind" value={job.kind.replace("_", " ")} />
+            ) : null}
             <JobDetailRow
               label="Assignees"
               value={
