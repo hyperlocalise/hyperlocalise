@@ -129,12 +129,14 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe("S256");
     const state = authorizationUrl.searchParams.get("state") ?? "";
 
+    let tokenExchangeInit: RequestInit | undefined;
     vi.stubGlobal(
       "fetch",
-      vi.fn(async (input: RequestInfo | URL) => {
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
         const url =
           typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
         if (url === "https://accounts.crowdin.com/oauth/token") {
+          tokenExchangeInit = init;
           return new Response(
             JSON.stringify({
               access_token: "crowdin-access-token",
@@ -169,6 +171,20 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     expect(callbackResponse.status).toBe(302);
     expect(callbackResponse.headers.get("location")).toBe(`/org/${organizationSlug}/integrations`);
+    expect(tokenExchangeInit).toMatchObject({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(tokenExchangeInit?.body).toBeTypeOf("string");
+    const tokenExchangeBody = JSON.parse(tokenExchangeInit?.body as string);
+    expect(tokenExchangeBody).toMatchObject({
+      grant_type: "authorization_code",
+      client_id: "crowdin-client-id",
+      client_secret: "crowdin-client-secret",
+      redirect_uri: userStartBody.redirectUri,
+      code: "crowdin-code",
+    });
+    expect(tokenExchangeBody.code_verifier).toBeTypeOf("string");
 
     const [connection] = await db
       .select()

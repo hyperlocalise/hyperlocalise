@@ -126,6 +126,23 @@ function appendRelativeRedirectParam(path: string, key: string, value: string) {
   return `${url.pathname}${url.search}`;
 }
 
+function redirectToCrowdinUserOAuthReturnTo(
+  c: ExternalTmsProviderCredentialRouteContext,
+  input: {
+    returnTo: string | null | undefined;
+    organizationSlug: string;
+    error: string;
+  },
+) {
+  return c.redirect(
+    appendRelativeRedirectParam(
+      normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug),
+      "error",
+      input.error,
+    ),
+  );
+}
+
 async function findActiveCrowdinUserOAuthState(
   c: ExternalTmsProviderCredentialRouteContext,
   stateParam: string,
@@ -183,12 +200,16 @@ async function completeCrowdinUserOAuthLink(
       },
       "crowdin user oauth callback rejected: missing jobs read capability",
     );
-    return c.redirect("/dashboard?error=forbidden");
+    return redirectToCrowdinUserOAuthReturnTo(c, {
+      returnTo: input.returnTo,
+      organizationSlug: input.organizationSlug,
+      error: "forbidden",
+    });
   }
 
   let tokenBundle: ReturnType<typeof mapCrowdinOAuthTokenResponse>;
   try {
-    const response = await providerSafeFetch("https://accounts.crowdin.com/oauth/token", {
+    const response = await fetch("https://accounts.crowdin.com/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -210,7 +231,11 @@ async function completeCrowdinUserOAuthLink(
         },
         "crowdin user oauth token exchange failed",
       );
-      return c.redirect(`/dashboard?error=${input.exchangeFailedError}`);
+      return redirectToCrowdinUserOAuthReturnTo(c, {
+        returnTo: input.returnTo,
+        organizationSlug: input.organizationSlug,
+        error: input.exchangeFailedError,
+      });
     }
     tokenBundle = mapCrowdinOAuthTokenResponse(await response.json(), input.client);
   } catch {
@@ -222,7 +247,11 @@ async function completeCrowdinUserOAuthLink(
       },
       "crowdin user oauth token exchange errored",
     );
-    return c.redirect(`/dashboard?error=${input.exchangeFailedError}`);
+    return redirectToCrowdinUserOAuthReturnTo(c, {
+      returnTo: input.returnTo,
+      organizationSlug: input.organizationSlug,
+      error: input.exchangeFailedError,
+    });
   }
 
   let crowdinUser: Awaited<ReturnType<CrowdinApiClient["getAuthenticatedUser"]>>;
@@ -242,9 +271,17 @@ async function completeCrowdinUserOAuthLink(
       "crowdin user oauth profile lookup failed",
     );
     if (error instanceof CrowdinApiError && error.status === 401) {
-      return c.redirect("/dashboard?error=crowdin_user_oauth_invalid");
+      return redirectToCrowdinUserOAuthReturnTo(c, {
+        returnTo: input.returnTo,
+        organizationSlug: input.organizationSlug,
+        error: "crowdin_user_oauth_invalid",
+      });
     }
-    return c.redirect("/dashboard?error=crowdin_user_lookup_failed");
+    return redirectToCrowdinUserOAuthReturnTo(c, {
+      returnTo: input.returnTo,
+      organizationSlug: input.organizationSlug,
+      error: "crowdin_user_lookup_failed",
+    });
   }
 
   const upsertResult = await upsertCrowdinUserConnection({
@@ -328,7 +365,11 @@ async function handleCrowdinUserOAuthCallback(
       },
       "crowdin user oauth callback rejected: credential unavailable",
     );
-    return c.redirect("/dashboard?error=crowdin_integration_not_connected");
+    return redirectToCrowdinUserOAuthReturnTo(c, {
+      returnTo: state.returnTo,
+      organizationSlug,
+      error: "crowdin_integration_not_connected",
+    });
   }
 
   const client = getCrowdinOAuthClientFromCredential(credential);

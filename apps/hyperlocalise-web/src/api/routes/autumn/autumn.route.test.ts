@@ -61,7 +61,6 @@ import { createApp } from "@/api/app";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { ORGANIZATION_SLUG_HEADER } from "@/lib/billing/autumn-public-config";
-import { LOCAL_ORG_WORKOS_ID_PREFIX } from "@/lib/billing/autumn-customer";
 import { db } from "@/lib/database";
 
 const app = createApp();
@@ -128,24 +127,6 @@ describe("autumnRoutes", () => {
     expect(response.status).toBe(200);
     expect(autumnRequestHandlerMock).toHaveBeenCalledTimes(1);
   });
-
-  it("forbids deprecated local_org workspaces before Autumn is invoked", async () => {
-    const identity = fixture.createWorkosIdentity();
-    identity.organization.workosOrganizationId = `${LOCAL_ORG_WORKOS_ID_PREFIX}legacy`;
-    const headers = await fixture.authHeadersFor(identity);
-
-    const response = await postAutumnRoute("getOrCreateCustomer", {
-      cookie: headers.cookie,
-      [ORGANIZATION_SLUG_HEADER]: identity.organization.slug ?? "missing-slug",
-    });
-
-    expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({
-      error: "billing_customer_unavailable",
-    });
-    expect(autumnRequestHandlerMock).not.toHaveBeenCalled();
-  });
-
   it("scopes Autumn identity to the active organization from the slug header", async () => {
     const primaryIdentity = fixture.createWorkosIdentity();
     const secondaryIdentity = {

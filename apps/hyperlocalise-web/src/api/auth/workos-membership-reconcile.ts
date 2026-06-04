@@ -15,7 +15,6 @@ import {
   isInvitedPlaceholderWorkosUserId,
   REPLACING_WORKOS_MEMBERSHIP_ID,
 } from "@/lib/workos/constants";
-import { migrateLocalOrgWorkspacesForUser } from "@/lib/organizations/migrate-local-org-to-workos";
 import { membershipRoleFromUnknownRoleField } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 
@@ -154,15 +153,6 @@ export async function reconcileWorkosMembershipsForUser(
     Date.now() - lastReconciledAt.getTime() < WORKOS_MEMBERSHIP_RECONCILE_TTL_MS
   ) {
     return { status: "skipped" };
-  }
-
-  try {
-    await migrateLocalOrgWorkspacesForUser(database, input.workosUserId);
-  } catch (error) {
-    logger.warn("local_org_workspace_migration_batch_failed", {
-      workosUserId: input.workosUserId,
-      errorName: error instanceof Error ? error.name : "unknown_error",
-    });
   }
 
   let remoteMemberships: OrganizationMembership[];

@@ -1,11 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
-import {
-  isDeprecatedLocalOrgWorkosId,
-  LOCAL_ORG_WORKOS_ID_PREFIX,
-  resolveAutumnCustomerIdentity,
-} from "@/lib/billing/autumn-customer";
+import { resolveAutumnCustomerIdentity } from "@/lib/billing/autumn-customer";
 import { isErr } from "@/lib/primitives/result/results";
 
 function createAuthContext(
@@ -68,18 +64,6 @@ describe("autumn customer identity", () => {
         name: "Example Workspace",
         email: "owner@example.com",
       },
-    });
-  });
-
-  it("rejects deprecated local_org workspaces", () => {
-    const auth = createAuthContext({
-      workosOrganizationId: `${LOCAL_ORG_WORKOS_ID_PREFIX}legacy`,
-    });
-
-    expect(isDeprecatedLocalOrgWorkosId(auth.organization.workosOrganizationId)).toBe(true);
-    expect(resolveAutumnCustomerIdentity(auth)).toMatchObject({
-      ok: false,
-      error: { code: "billing_customer_unavailable" },
     });
   });
 });

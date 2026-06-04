@@ -86,7 +86,44 @@ type IntegrationsPageContentProps = {
   organizationSlug: string;
   membershipRole: OrganizationMembershipRole;
   canManageProviderIntegrations: boolean;
+  errorCode?: string | null;
 };
+
+type IntegrationErrorCopy = {
+  title: string;
+  description: string;
+};
+
+const integrationErrorCopyByCode = {
+  crowdin_user_oauth_exchange_failed: {
+    title: "Crowdin account link failed",
+    description:
+      "Crowdin did not return an access token. Check that the OAuth app callback URL, client ID, client secret, and app type match the Crowdin OAuth App configuration.",
+  },
+  crowdin_user_oauth_invalid: {
+    title: "Crowdin account link failed",
+    description:
+      "Crowdin rejected the access token returned during authorization. Try connecting again, then verify the OAuth app credentials if it repeats.",
+  },
+  crowdin_user_lookup_failed: {
+    title: "Crowdin account link failed",
+    description:
+      "Hyperlocalise received a token but could not load the authorized Crowdin user. For Crowdin Enterprise, verify the API base URL uses your organization domain.",
+  },
+  crowdin_integration_not_connected: {
+    title: "Crowdin integration is not connected",
+    description: "Save the Crowdin OAuth app credentials before linking a user account.",
+  },
+  crowdin_user_already_linked: {
+    title: "Crowdin account already linked",
+    description:
+      "That Crowdin user is already linked to another Hyperlocalise user in this workspace.",
+  },
+  missing_crowdin_user_oauth_code: {
+    title: "Crowdin account link was cancelled",
+    description: "Crowdin did not return an authorization code. Start the connection again.",
+  },
+} satisfies Record<string, IntegrationErrorCopy>;
 
 function canManageIntegrations(role: OrganizationMembershipRole) {
   return hasCapability(role, "integrations:write");
@@ -94,6 +131,11 @@ function canManageIntegrations(role: OrganizationMembershipRole) {
 
 function canManageAgents(role: OrganizationMembershipRole) {
   return hasCapability(role, "provider_credentials:write");
+}
+
+function getIntegrationErrorCopy(error: string | null) {
+  if (!error) return null;
+  return integrationErrorCopyByCode[error as keyof typeof integrationErrorCopyByCode] ?? null;
 }
 
 function tmsHealthTone(status: string): Parameters<typeof toneClass>[0] {
@@ -1451,7 +1493,9 @@ export function IntegrationsPageContent({
   organizationSlug,
   membershipRole,
   canManageProviderIntegrations,
+  errorCode,
 }: IntegrationsPageContentProps) {
+  const integrationError = getIntegrationErrorCopy(errorCode ?? null);
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
   const deleteCredential = useDeleteProviderCredential(organizationSlug);
@@ -1599,6 +1643,19 @@ export function IntegrationsPageContent({
           Workspace level
         </Badge>
       </div>
+
+      {integrationError ? (
+        <div
+          role="alert"
+          className="flex gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
+        >
+          <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} className="mt-0.5 size-4 shrink-0" />
+          <div className="space-y-1">
+            <p className="font-medium">{integrationError.title}</p>
+            <p className="leading-6 text-destructive/80">{integrationError.description}</p>
+          </div>
+        </div>
+      ) : null}
 
       <SourceControlIntegrationsSection
         organizationSlug={organizationSlug}

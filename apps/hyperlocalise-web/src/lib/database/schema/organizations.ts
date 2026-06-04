@@ -21,8 +21,7 @@ export const organizations = pgTable(
     name: text("name").notNull(),
     // Optional human-readable slug for URLs and future workspace routing.
     slug: text("slug"),
-    // App-local lifecycle (WorkOS owns identity). archived = soft-deleted workspace;
-    // deprecated = legacy rows with synthetic local_org_* WorkOS ids (migration only).
+    // App-local lifecycle. WorkOS owns identity; archived rows are soft-deleted.
     lifecycleStatus: organizationLifecycleStatusEnum("lifecycle_status")
       .notNull()
       .default("active"),
