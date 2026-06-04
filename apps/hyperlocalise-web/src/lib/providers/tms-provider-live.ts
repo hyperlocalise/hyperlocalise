@@ -398,6 +398,31 @@ function mapLiveJob(input: {
   };
 }
 
+function mapLiveJobDetail(input: {
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  externalJobId: string;
+  projectName: string;
+  task: ExternalTmsJobTaskMetadata;
+}): TmsProviderLiveJobDetail {
+  const job = mapLiveJob({
+    providerKind: input.providerKind,
+    externalProjectId: input.externalProjectId,
+    projectName: input.projectName,
+    task: input.task,
+  });
+
+  return {
+    ...job,
+    externalJobId: input.externalJobId,
+    externalUrl: input.task.externalUrl ?? null,
+    externalProviderPayload:
+      input.task.providerPayload && typeof input.task.providerPayload === "object"
+        ? input.task.providerPayload
+        : {},
+  };
+}
+
 function mapLiveFile(input: {
   providerKind: ExternalTmsProviderKind;
   externalProjectId: string;
@@ -955,22 +980,13 @@ export async function getTmsProviderLiveJobDetail(
     return null;
   }
 
-  const job = mapLiveJob({
+  return mapLiveJobDetail({
     providerKind: context.providerKind,
     externalProjectId: parsed.externalProjectId,
+    externalJobId: parsed.externalJobId,
     projectName: project.name,
     task,
   });
-
-  return {
-    ...job,
-    externalJobId: parsed.externalJobId,
-    externalUrl: task.externalUrl ?? null,
-    externalProviderPayload:
-      task.providerPayload && typeof task.providerPayload === "object"
-        ? (task.providerPayload as Record<string, unknown>)
-        : {},
-  };
 }
 
 export async function updateTmsProviderLiveJobDescription(
@@ -1006,8 +1022,9 @@ export async function updateTmsProviderLiveJobDescription(
     baseUrl: context.credential.baseUrl ?? undefined,
   });
 
+  let updatedTask: Awaited<ReturnType<typeof client.editTaskDescription>>;
   try {
-    await client.editTaskDescription(projectId, taskId, description);
+    updatedTask = await client.editTaskDescription(projectId, taskId, description);
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
@@ -1018,7 +1035,14 @@ export async function updateTmsProviderLiveJobDescription(
     throw error;
   }
 
-  return getTmsProviderLiveJobDetail(organizationId, encodedJobId);
+  const task = mapCrowdinTaskToJobTaskMetadata(updatedTask, {});
+  return mapLiveJobDetail({
+    providerKind: context.providerKind,
+    externalProjectId: parsed.externalProjectId,
+    externalJobId: parsed.externalJobId,
+    projectName: parsed.externalProjectId,
+    task,
+  });
 }
 
 function dedupeGlossaries(items: TmsProviderLiveGlossary[]) {

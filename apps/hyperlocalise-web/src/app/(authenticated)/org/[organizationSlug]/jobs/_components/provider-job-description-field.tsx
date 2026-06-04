@@ -52,8 +52,27 @@ export function ProviderJobDescriptionField({
         job: { externalProviderPayload?: Record<string, unknown> };
       }>;
     },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey });
+    onSuccess: ({ job }) => {
+      const nextDescription =
+        typeof job.externalProviderPayload?.description === "string"
+          ? job.externalProviderPayload.description
+          : draft;
+
+      queryClient.setQueryData(queryKey, (current: unknown) => {
+        if (!current || typeof current !== "object" || Array.isArray(current)) {
+          return job;
+        }
+
+        const currentJob = current as { externalProviderPayload?: Record<string, unknown> };
+        return {
+          ...currentJob,
+          externalProviderPayload: {
+            ...currentJob.externalProviderPayload,
+            ...job.externalProviderPayload,
+          },
+        };
+      });
+      setDraftState({ baseDescription: nextDescription, draft: nextDescription });
       toast.success("Description saved");
     },
     onError: (error) => {

@@ -50,13 +50,18 @@ export function getCrowdinTaskTypeLabel(payload: Record<string, unknown> | null)
 }
 
 export function getCrowdinLanguageLabel(payload: Record<string, unknown> | null) {
-  const sourceLanguageId = getProviderPayloadString(payload, "sourceLanguageId");
-  if (sourceLanguageId) {
-    return formatLocaleLabel(sourceLanguageId);
+  const languageId = getProviderPayloadString(payload, "languageId");
+  if (languageId) {
+    return formatLocaleLabel(languageId);
   }
 
-  const languageId = getProviderPayloadString(payload, "languageId");
-  return languageId ? formatLocaleLabel(languageId) : null;
+  const targetLanguageId = getProviderPayloadString(payload, "targetLanguageId");
+  if (targetLanguageId) {
+    return formatLocaleLabel(targetLanguageId);
+  }
+
+  const sourceLanguageId = getProviderPayloadString(payload, "sourceLanguageId");
+  return sourceLanguageId ? formatLocaleLabel(sourceLanguageId) : null;
 }
 
 export function getCrowdinTargetLocales(

@@ -447,6 +447,21 @@ function JobsList({
                       value={formatDateTime(detailJob.externalDueDate)}
                     />
                     <JobDetailRow label="Last sync" value={formatDateTime(detailJob.updatedAt)} />
+                    {providerDetailQuery.data?.externalUrl ? (
+                      <JobDetailRow
+                        label="Provider URL"
+                        value={
+                          <a
+                            href={providerDetailQuery.data.externalUrl}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                          >
+                            Open in {providerDetailQuery.data.externalProviderKind ?? "provider"}
+                          </a>
+                        }
+                      />
+                    ) : null}
                   </>
                 )}
               </dl>

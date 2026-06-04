@@ -199,6 +199,21 @@ export function ProviderLiveJobDetailContent({
                 />
                 <JobDetailRow label="Due date" value={formatDate(job.externalDueDate)} />
                 <JobDetailRow label="Last refreshed" value={formatDate(job.updatedAt)} />
+                {job.externalUrl ? (
+                  <JobDetailRow
+                    label="Provider URL"
+                    value={
+                      <a
+                        href={job.externalUrl}
+                        target="_blank"
+                        rel="noreferrer noopener"
+                        className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                      >
+                        Open in {job.externalProviderKind}
+                      </a>
+                    }
+                  />
+                ) : null}
               </>
             )}
           </dl>
