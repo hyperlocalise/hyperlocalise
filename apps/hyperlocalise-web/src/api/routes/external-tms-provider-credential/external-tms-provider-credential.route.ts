@@ -8,7 +8,6 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { env } from "@/lib/env";
 import { isErr } from "@/lib/primitives/result/results";
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { db, schema } from "@/lib/database";
 import {
   assertExternalTmsCredentialAdmin,
