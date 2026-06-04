@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import { and, eq, gt, isNull } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
@@ -101,10 +101,6 @@ function getCrowdinOAuthRedirectUri(requestUrl: string, organizationSlug: string
   return `${new URL(requestUrl).origin}/api/orgs/${encodeURIComponent(organizationSlug)}/external-tms-provider-credential/crowdin/oauth/callback`;
 }
 
-function getCrowdinUserOAuthRedirectUri(requestUrl: string, organizationSlug: string) {
-  return `${new URL(requestUrl).origin}/api/orgs/${encodeURIComponent(organizationSlug)}/external-tms-provider-credential/crowdin/user/oauth/callback`;
-}
-
 function base64Url(input: Buffer) {
   return input.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
@@ -139,6 +135,228 @@ function appendRelativeRedirectParam(path: string, key: string, value: string) {
   const url = new URL(path, "https://app.hyperlocalise.local");
   url.searchParams.set(key, value);
   return `${url.pathname}${url.search}`;
+}
+
+type ExternalTmsProviderCredentialRouteContext = Context<{ Variables: AuthVariables }>;
+
+async function findActiveCrowdinOAuthState(
+  c: ExternalTmsProviderCredentialRouteContext,
+  stateParam: string,
+  now: Date,
+) {
+  const [state] = await db
+    .select()
+    .from(schema.crowdinOAuthStates)
+    .where(
+      and(
+        eq(schema.crowdinOAuthStates.nonce, stateParam),
+        eq(schema.crowdinOAuthStates.organizationId, c.var.auth.organization.localOrganizationId),
+        eq(schema.crowdinOAuthStates.userId, c.var.auth.user.localUserId),
+        gt(schema.crowdinOAuthStates.expiresAt, now),
+        isNull(schema.crowdinOAuthStates.consumedAt),
+      ),
+    )
+    .limit(1);
+
+  return state ?? null;
+}
+
+async function findActiveCrowdinUserOAuthState(
+  c: ExternalTmsProviderCredentialRouteContext,
+  stateParam: string,
+  now: Date,
+) {
+  const [state] = await db
+    .select()
+    .from(schema.crowdinUserOAuthStates)
+    .where(
+      and(
+        eq(schema.crowdinUserOAuthStates.nonce, stateParam),
+        eq(
+          schema.crowdinUserOAuthStates.organizationId,
+          c.var.auth.organization.localOrganizationId,
+        ),
+        eq(schema.crowdinUserOAuthStates.userId, c.var.auth.user.localUserId),
+        gt(schema.crowdinUserOAuthStates.expiresAt, now),
+        isNull(schema.crowdinUserOAuthStates.consumedAt),
+      ),
+    )
+    .limit(1);
+
+  return state ?? null;
+}
+
+async function handleCrowdinOrganizationOAuthCallback(
+  c: ExternalTmsProviderCredentialRouteContext,
+  state: NonNullable<Awaited<ReturnType<typeof findActiveCrowdinOAuthState>>>,
+  code: string,
+  organizationSlug: string,
+) {
+  if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
+    return c.redirect("/dashboard?error=forbidden");
+  }
+
+  const clientSecret = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: state.oauthClientSecretEncryptionAlgorithm,
+      keyVersion: state.oauthClientSecretKeyVersion,
+      ciphertext: state.oauthClientSecretCiphertext,
+      iv: state.oauthClientSecretIv,
+      authTag: state.oauthClientSecretAuthTag,
+    }),
+  );
+
+  let tokenBundle: ReturnType<typeof mapCrowdinOAuthTokenResponse>;
+  try {
+    // Use providerSafeFetch to prevent SSRF when exchanging OAuth codes for tokens
+    const response = await providerSafeFetch("https://accounts.crowdin.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "authorization_code",
+        client_id: state.oauthClientId,
+        client_secret: clientSecret,
+        redirect_uri: getCrowdinOAuthRedirectUri(c.req.url, organizationSlug),
+        code,
+        code_verifier: state.codeVerifier,
+      }),
+    });
+    if (!response.ok) {
+      return c.redirect("/dashboard?error=crowdin_oauth_exchange_failed");
+    }
+    tokenBundle = mapCrowdinOAuthTokenResponse(await response.json(), {
+      clientId: state.oauthClientId,
+      clientSecret,
+    });
+  } catch {
+    return c.redirect("/dashboard?error=crowdin_oauth_exchange_failed");
+  }
+
+  const credential = await upsertCrowdinOAuthProviderCredential({
+    organizationId: c.var.auth.organization.localOrganizationId,
+    userId: c.var.auth.user.localUserId,
+    role: c.var.auth.membership.role,
+    displayName: state.displayName,
+    baseUrl: state.baseUrl,
+    tokenBundle,
+  });
+
+  const { health } = await checkExternalTmsProviderHealth({
+    organizationId: c.var.auth.organization.localOrganizationId,
+    providerKind: "crowdin",
+    credentialId: credential.id,
+  });
+  if (health) {
+    await persistExternalTmsProviderHealth({ credentialId: credential.id, health });
+  }
+
+  await db
+    .update(schema.crowdinOAuthStates)
+    .set({ consumedAt: new Date(), updatedAt: new Date() })
+    .where(eq(schema.crowdinOAuthStates.id, state.id));
+
+  return c.redirect(`/org/${organizationSlug}/integrations?crowdin_connected=1`);
+}
+
+async function handleCrowdinUserOAuthCallback(
+  c: ExternalTmsProviderCredentialRouteContext,
+  state: NonNullable<Awaited<ReturnType<typeof findActiveCrowdinUserOAuthState>>>,
+  code: string,
+  organizationSlug: string,
+  redirectUri: string,
+) {
+  if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+    return c.redirect("/dashboard?error=forbidden");
+  }
+
+  const [credential] = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.id, state.providerCredentialId),
+        eq(
+          schema.organizationExternalTmsProviderCredentials.organizationId,
+          c.var.auth.organization.localOrganizationId,
+        ),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+      ),
+    )
+    .limit(1);
+  if (!credential || credential.authMode !== "oauth") {
+    return c.redirect("/dashboard?error=crowdin_integration_not_connected");
+  }
+
+  const client = getCrowdinOAuthClientFromCredential(credential);
+  let tokenBundle: ReturnType<typeof mapCrowdinOAuthTokenResponse>;
+  try {
+    const response = await providerSafeFetch("https://accounts.crowdin.com/oauth/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "authorization_code",
+        client_id: client.clientId,
+        client_secret: client.clientSecret,
+        redirect_uri: redirectUri,
+        code,
+        code_verifier: state.codeVerifier,
+      }),
+    });
+    if (!response.ok) {
+      return c.redirect("/dashboard?error=crowdin_user_oauth_exchange_failed");
+    }
+    tokenBundle = mapCrowdinOAuthTokenResponse(await response.json(), client);
+  } catch {
+    return c.redirect("/dashboard?error=crowdin_user_oauth_exchange_failed");
+  }
+
+  let crowdinUser: Awaited<ReturnType<CrowdinApiClient["getAuthenticatedUser"]>>;
+  try {
+    crowdinUser = await new CrowdinApiClient({
+      token: tokenBundle.accessToken,
+      baseUrl: credential.baseUrl ?? undefined,
+    }).getAuthenticatedUser();
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      return c.redirect("/dashboard?error=crowdin_user_oauth_invalid");
+    }
+    return c.redirect("/dashboard?error=crowdin_user_lookup_failed");
+  }
+
+  const upsertResult = await upsertCrowdinUserConnection({
+    organizationId: c.var.auth.organization.localOrganizationId,
+    userId: c.var.auth.user.localUserId,
+    providerCredentialId: credential.id,
+    tokenBundle,
+    crowdinUser: {
+      id: crowdinUser.id,
+      username: crowdinUser.username,
+      email: crowdinUser.email,
+      fullName: crowdinUser.fullName,
+    },
+  });
+  if (isErr(upsertResult)) {
+    return c.redirect(
+      appendRelativeRedirectParam(
+        normalizeCrowdinUserOAuthReturnTo(state.returnTo, organizationSlug),
+        "error",
+        "crowdin_user_already_linked",
+      ),
+    );
+  }
+
+  await db
+    .update(schema.crowdinUserOAuthStates)
+    .set({ consumedAt: new Date(), updatedAt: new Date() })
+    .where(eq(schema.crowdinUserOAuthStates.id, state.id));
+
+  return c.redirect(
+    appendRelativeRedirectParam(
+      normalizeCrowdinUserOAuthReturnTo(state.returnTo, organizationSlug),
+      "crowdin_user_connected",
+      "1",
+    ),
+  );
 }
 
 export function createExternalTmsProviderCredentialRoutes() {
@@ -225,106 +443,60 @@ export function createExternalTmsProviderCredentialRoutes() {
         return c.redirect("/dashboard?error=missing_crowdin_oauth_state");
       }
 
+      const organizationSlug = c.var.auth.organization.slug;
+      if (!organizationSlug) {
+        return c.redirect("/dashboard?error=organization_slug_missing");
+      }
+
+      const now = new Date();
+      const [organizationState, userState] = await Promise.all([
+        findActiveCrowdinOAuthState(c, stateParam, now),
+        findActiveCrowdinUserOAuthState(c, stateParam, now),
+      ]);
+
       const errorParam = c.req.query("error");
       if (errorParam) {
+        if (userState && !organizationState) {
+          return c.redirect(
+            appendRelativeRedirectParam(
+              normalizeCrowdinUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              "error",
+              errorParam,
+            ),
+          );
+        }
         return c.redirect(`/dashboard?error=${encodeURIComponent(errorParam)}`);
       }
 
       const code = c.req.query("code");
       if (!code) {
+        if (userState && !organizationState) {
+          return c.redirect(
+            appendRelativeRedirectParam(
+              normalizeCrowdinUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              "error",
+              "missing_crowdin_user_oauth_code",
+            ),
+          );
+        }
         return c.redirect("/dashboard?error=missing_crowdin_oauth_code");
       }
 
-      const now = new Date();
-      const organizationSlug = c.var.auth.organization.slug;
-      if (!organizationSlug) {
-        return c.redirect("/dashboard?error=organization_slug_missing");
-      }
-      const [state] = await db
-        .select()
-        .from(schema.crowdinOAuthStates)
-        .where(
-          and(
-            eq(schema.crowdinOAuthStates.nonce, stateParam),
-            eq(
-              schema.crowdinOAuthStates.organizationId,
-              c.var.auth.organization.localOrganizationId,
-            ),
-            eq(schema.crowdinOAuthStates.userId, c.var.auth.user.localUserId),
-            gt(schema.crowdinOAuthStates.expiresAt, now),
-            isNull(schema.crowdinOAuthStates.consumedAt),
-          ),
-        )
-        .limit(1);
-
-      if (!state) {
-        return c.redirect("/dashboard?error=invalid_crowdin_oauth_state");
+      if (organizationState) {
+        return handleCrowdinOrganizationOAuthCallback(c, organizationState, code, organizationSlug);
       }
 
-      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
-        return c.redirect("/dashboard?error=forbidden");
+      if (userState) {
+        return handleCrowdinUserOAuthCallback(
+          c,
+          userState,
+          code,
+          organizationSlug,
+          getCrowdinOAuthRedirectUri(c.req.url, organizationSlug),
+        );
       }
 
-      const clientSecret = unwrapProviderCredentialCrypto(
-        decryptProviderCredential({
-          algorithm: state.oauthClientSecretEncryptionAlgorithm,
-          keyVersion: state.oauthClientSecretKeyVersion,
-          ciphertext: state.oauthClientSecretCiphertext,
-          iv: state.oauthClientSecretIv,
-          authTag: state.oauthClientSecretAuthTag,
-        }),
-      );
-
-      let tokenBundle: ReturnType<typeof mapCrowdinOAuthTokenResponse>;
-      try {
-        // Use providerSafeFetch to prevent SSRF when exchanging OAuth codes for tokens
-        const response = await providerSafeFetch("https://accounts.crowdin.com/oauth/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            grant_type: "authorization_code",
-            client_id: state.oauthClientId,
-            client_secret: clientSecret,
-            redirect_uri: getCrowdinOAuthRedirectUri(c.req.url, organizationSlug),
-            code,
-            code_verifier: state.codeVerifier,
-          }),
-        });
-        if (!response.ok) {
-          return c.redirect("/dashboard?error=crowdin_oauth_exchange_failed");
-        }
-        tokenBundle = mapCrowdinOAuthTokenResponse(await response.json(), {
-          clientId: state.oauthClientId,
-          clientSecret,
-        });
-      } catch {
-        return c.redirect("/dashboard?error=crowdin_oauth_exchange_failed");
-      }
-
-      const credential = await upsertCrowdinOAuthProviderCredential({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        userId: c.var.auth.user.localUserId,
-        role: c.var.auth.membership.role,
-        displayName: state.displayName,
-        baseUrl: state.baseUrl,
-        tokenBundle,
-      });
-
-      const { health } = await checkExternalTmsProviderHealth({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        providerKind: "crowdin",
-        credentialId: credential.id,
-      });
-      if (health) {
-        await persistExternalTmsProviderHealth({ credentialId: credential.id, health });
-      }
-
-      await db
-        .update(schema.crowdinOAuthStates)
-        .set({ consumedAt: new Date(), updatedAt: new Date() })
-        .where(eq(schema.crowdinOAuthStates.id, state.id));
-
-      return c.redirect(`/org/${organizationSlug}/integrations?crowdin_connected=1`);
+      return c.redirect("/dashboard?error=invalid_crowdin_oauth_state");
     })
     .get("/crowdin/user-connection", async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
@@ -391,7 +563,7 @@ export function createExternalTmsProviderCredentialRoutes() {
       });
 
       const authorizationUrl = new URL("https://accounts.crowdin.com/oauth/authorize");
-      const redirectUri = getCrowdinUserOAuthRedirectUri(c.req.url, organizationSlug);
+      const redirectUri = getCrowdinOAuthRedirectUri(c.req.url, organizationSlug);
       authorizationUrl.searchParams.set("client_id", client.clientId);
       authorizationUrl.searchParams.set("redirect_uri", redirectUri);
       authorizationUrl.searchParams.set("response_type", "code");
@@ -401,142 +573,6 @@ export function createExternalTmsProviderCredentialRoutes() {
       authorizationUrl.searchParams.set("code_challenge_method", "S256");
 
       return c.json({ authorizationUrl: authorizationUrl.toString(), redirectUri }, 200);
-    })
-    .get("/crowdin/user/oauth/callback", async (c) => {
-      const stateParam = c.req.query("state");
-      if (!stateParam) {
-        return c.redirect("/dashboard?error=missing_crowdin_user_oauth_state");
-      }
-
-      const errorParam = c.req.query("error");
-      if (errorParam) {
-        return c.redirect(`/dashboard?error=${encodeURIComponent(errorParam)}`);
-      }
-
-      const code = c.req.query("code");
-      if (!code) {
-        return c.redirect("/dashboard?error=missing_crowdin_user_oauth_code");
-      }
-
-      const organizationSlug = c.var.auth.organization.slug;
-      if (!organizationSlug) {
-        return c.redirect("/dashboard?error=organization_slug_missing");
-      }
-
-      const now = new Date();
-      const [state] = await db
-        .select()
-        .from(schema.crowdinUserOAuthStates)
-        .where(
-          and(
-            eq(schema.crowdinUserOAuthStates.nonce, stateParam),
-            eq(
-              schema.crowdinUserOAuthStates.organizationId,
-              c.var.auth.organization.localOrganizationId,
-            ),
-            eq(schema.crowdinUserOAuthStates.userId, c.var.auth.user.localUserId),
-            gt(schema.crowdinUserOAuthStates.expiresAt, now),
-            isNull(schema.crowdinUserOAuthStates.consumedAt),
-          ),
-        )
-        .limit(1);
-
-      if (!state) {
-        return c.redirect("/dashboard?error=invalid_crowdin_user_oauth_state");
-      }
-
-      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
-        return c.redirect("/dashboard?error=forbidden");
-      }
-
-      const [credential] = await db
-        .select()
-        .from(schema.organizationExternalTmsProviderCredentials)
-        .where(
-          and(
-            eq(schema.organizationExternalTmsProviderCredentials.id, state.providerCredentialId),
-            eq(
-              schema.organizationExternalTmsProviderCredentials.organizationId,
-              c.var.auth.organization.localOrganizationId,
-            ),
-            eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
-          ),
-        )
-        .limit(1);
-      if (!credential || credential.authMode !== "oauth") {
-        return c.redirect("/dashboard?error=crowdin_integration_not_connected");
-      }
-
-      const client = getCrowdinOAuthClientFromCredential(credential);
-      let tokenBundle: ReturnType<typeof mapCrowdinOAuthTokenResponse>;
-      try {
-        const response = await providerSafeFetch("https://accounts.crowdin.com/oauth/token", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            grant_type: "authorization_code",
-            client_id: client.clientId,
-            client_secret: client.clientSecret,
-            redirect_uri: getCrowdinUserOAuthRedirectUri(c.req.url, organizationSlug),
-            code,
-            code_verifier: state.codeVerifier,
-          }),
-        });
-        if (!response.ok) {
-          return c.redirect("/dashboard?error=crowdin_user_oauth_exchange_failed");
-        }
-        tokenBundle = mapCrowdinOAuthTokenResponse(await response.json(), client);
-      } catch {
-        return c.redirect("/dashboard?error=crowdin_user_oauth_exchange_failed");
-      }
-
-      let crowdinUser: Awaited<ReturnType<CrowdinApiClient["getAuthenticatedUser"]>>;
-      try {
-        crowdinUser = await new CrowdinApiClient({
-          token: tokenBundle.accessToken,
-          baseUrl: credential.baseUrl ?? undefined,
-        }).getAuthenticatedUser();
-      } catch (error) {
-        if (error instanceof CrowdinApiError && error.status === 401) {
-          return c.redirect("/dashboard?error=crowdin_user_oauth_invalid");
-        }
-        return c.redirect("/dashboard?error=crowdin_user_lookup_failed");
-      }
-
-      const upsertResult = await upsertCrowdinUserConnection({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        userId: c.var.auth.user.localUserId,
-        providerCredentialId: credential.id,
-        tokenBundle,
-        crowdinUser: {
-          id: crowdinUser.id,
-          username: crowdinUser.username,
-          email: crowdinUser.email,
-          fullName: crowdinUser.fullName,
-        },
-      });
-      if (isErr(upsertResult)) {
-        return c.redirect(
-          appendRelativeRedirectParam(
-            normalizeCrowdinUserOAuthReturnTo(state.returnTo, organizationSlug),
-            "error",
-            "crowdin_user_already_linked",
-          ),
-        );
-      }
-
-      await db
-        .update(schema.crowdinUserOAuthStates)
-        .set({ consumedAt: new Date(), updatedAt: new Date() })
-        .where(eq(schema.crowdinUserOAuthStates.id, state.id));
-
-      return c.redirect(
-        appendRelativeRedirectParam(
-          normalizeCrowdinUserOAuthReturnTo(state.returnTo, organizationSlug),
-          "crowdin_user_connected",
-          "1",
-        ),
-      );
     })
     .put("/", validateUpsertBody, async (c) => {
       try {

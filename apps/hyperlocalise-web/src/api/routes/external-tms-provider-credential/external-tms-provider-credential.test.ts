@@ -61,10 +61,7 @@ function crowdinUserOAuthCallbackUrl(
   organizationSlug: string,
   query: { state: string; code: string },
 ) {
-  const params = new URLSearchParams(query);
-  return `/api/orgs/${encodeURIComponent(
-    organizationSlug,
-  )}/external-tms-provider-credential/crowdin/user/oauth/callback?${params.toString()}`;
+  return crowdinOAuthCallbackUrl(organizationSlug, query);
 }
 
 describe("externalTmsProviderCredentialRoutes", () => {
@@ -469,7 +466,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     const authorizationUrl = new URL(data.authorizationUrl);
     expect(authorizationUrl.searchParams.get("client_id")).toBe("crowdin-client-id");
     expect(authorizationUrl.searchParams.get("redirect_uri")).toBe(data.redirectUri);
-    expect(data.redirectUri).toContain("/crowdin/user/oauth/callback");
+    expect(data.redirectUri).toContain("/crowdin/oauth/callback");
 
     const stateParam = authorizationUrl.searchParams.get("state");
     const [state] = await db
@@ -584,7 +581,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
       code: "user-oauth-code",
       code_verifier: state!.codeVerifier,
     });
-    expect(String(capturedTokenBody!.redirect_uri)).toContain("/crowdin/user/oauth/callback");
+    expect(String(capturedTokenBody!.redirect_uri)).toContain("/crowdin/oauth/callback");
     expect(capturedUserHeaders).toEqual(
       expect.objectContaining({ Authorization: "Bearer user-access-token" }),
     );
