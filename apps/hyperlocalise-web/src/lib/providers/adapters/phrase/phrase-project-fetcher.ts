@@ -1,4 +1,4 @@
-import type { ExternalTmsProjectFetcher } from "@/lib/providers/sync/external-tms-project-sync";
+import type { ExternalTmsProjectFetcher } from "@/lib/providers/tms-provider-types";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 
 import { PhraseApiClient, PhraseApiError } from "./phrase-api";

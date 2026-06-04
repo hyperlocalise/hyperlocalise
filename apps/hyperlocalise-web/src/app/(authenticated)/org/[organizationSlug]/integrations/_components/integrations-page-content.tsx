@@ -32,9 +32,7 @@ import type {
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
-import type { ProviderWebhookSubscriptionSummary } from "@/lib/providers/webhooks/provider-webhook-subscription-types";
 import { toneClass } from "../../_components/workspace-resource-shared";
-import { TmsSyncObservabilityPanel } from "./tms-sync-observability-panel";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -80,6 +78,7 @@ import {
 } from "./agent-integrations-section";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
 import { SimpleBrandIcon } from "./simple-brand-icon";
+import { tmsUserConnectCtaQueryKey } from "../../_hooks/use-tms-user-connect-cta";
 
 const api = createApiClient();
 
@@ -121,72 +120,6 @@ function tmsHealthLabel(status: string) {
     default:
       return "Unvalidated";
   }
-}
-
-function webhookStatusTone(status: ProviderWebhookSubscriptionSummary["status"]) {
-  switch (status) {
-    case "active":
-      return "safe" as const;
-    case "pending":
-      return "info" as const;
-    case "disabled":
-      return "info" as const;
-    case "permission_error":
-    case "provider_error":
-    case "manual_required":
-      return "watch" as const;
-    default:
-      return "info" as const;
-  }
-}
-
-function webhookStatusLabel(status: ProviderWebhookSubscriptionSummary["status"]) {
-  switch (status) {
-    case "active":
-      return "Webhooks active";
-    case "pending":
-      return "Webhook setup pending";
-    case "permission_error":
-      return "Webhook permission issue";
-    case "provider_error":
-      return "Webhook setup failed";
-    case "manual_required":
-      return "Manual webhook setup";
-    case "disabled":
-      return "Webhooks disabled";
-    default:
-      return "Webhook status unknown";
-  }
-}
-
-function summarizeWebhookSubscriptions(subscriptions: ProviderWebhookSubscriptionSummary[]) {
-  if (subscriptions.length === 0) {
-    return null;
-  }
-
-  const activeCount = subscriptions.filter((item) => item.status === "active").length;
-  const needsAttention = subscriptions.filter((item) =>
-    ["permission_error", "provider_error", "manual_required"].includes(item.status),
-  );
-
-  if (needsAttention.length > 0) {
-    return {
-      tone: "watch" as const,
-      label: `${needsAttention.length} webhook${needsAttention.length === 1 ? "" : "s"} need attention`,
-    };
-  }
-
-  if (activeCount === subscriptions.length) {
-    return {
-      tone: "safe" as const,
-      label: `${activeCount} active webhook${activeCount === 1 ? "" : "s"}`,
-    };
-  }
-
-  return {
-    tone: "info" as const,
-    label: `${subscriptions.length} webhook subscription${subscriptions.length === 1 ? "" : "s"}`,
-  };
 }
 
 type ProviderCredentialSummary = {
@@ -482,7 +415,7 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
   });
 }
 
-function useStartCrowdinOAuth(organizationSlug: string) {
+function useSaveCrowdinOAuthApp(organizationSlug: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -494,7 +427,7 @@ function useStartCrowdinOAuth(organizationSlug: string) {
     }) => {
       const res = await api.api.orgs[":organizationSlug"][
         "external-tms-provider-credential"
-      ].crowdin.oauth.start.$post({
+      ].crowdin["oauth-app"].$post({
         param: { organizationSlug },
         json: payload,
       });
@@ -507,12 +440,7 @@ function useStartCrowdinOAuth(organizationSlug: string) {
 
       return res.json();
     },
-    onSuccess: async (data, payload) => {
-      if ("authorizationUrl" in data && typeof data.authorizationUrl === "string") {
-        window.location.assign(data.authorizationUrl);
-        return;
-      }
-
+    onSuccess: async (_, payload) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["external-tms-credentials", organizationSlug],
@@ -522,6 +450,9 @@ function useStartCrowdinOAuth(organizationSlug: string) {
         }),
         queryClient.invalidateQueries({
           queryKey: ["crowdin-user-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
         }),
       ]);
       toast.success(`${payload.displayName} saved. Connect your Crowdin account to continue.`);
@@ -622,22 +553,6 @@ function TmsIntegrationRow({
                   />
                   {tmsHealthLabel(credential.validationStatus)}
                 </Badge>
-                {!isTmsProviderShellModeEnabled()
-                  ? (() => {
-                      const webhookSummary = summarizeWebhookSubscriptions(
-                        credential.webhookSubscriptions,
-                      );
-                      if (!webhookSummary) {
-                        return null;
-                      }
-
-                      return (
-                        <Badge variant="outline" className={toneClass(webhookSummary.tone)}>
-                          {webhookSummary.label}
-                        </Badge>
-                      );
-                    })()
-                  : null}
               </>
             ) : null}
           </div>
@@ -928,7 +843,6 @@ type TmsProviderCredentialPanelProps = {
   providerName: string;
   credential?: ExternalTmsProviderCredentialListItem;
   organizationSlug: string;
-  membershipRole: OrganizationMembershipRole;
   userIsAdmin: boolean;
   displayName: string;
   onDisplayNameChange: (value: string) => void;
@@ -946,8 +860,6 @@ type TmsProviderCredentialPanelProps = {
   onSave: () => void;
   isSaving: boolean;
   isDisconnecting: boolean;
-  onRetryWebhooks: () => void;
-  isRetryingWebhooks: boolean;
   displayNameFieldId: string;
   secretFieldId: string;
   oauthClientIdFieldId: string;
@@ -961,7 +873,6 @@ function TmsProviderCredentialPanel({
   providerName,
   credential,
   organizationSlug,
-  membershipRole,
   userIsAdmin,
   displayName,
   onDisplayNameChange,
@@ -979,8 +890,6 @@ function TmsProviderCredentialPanel({
   onSave,
   isSaving,
   isDisconnecting,
-  onRetryWebhooks,
-  isRetryingWebhooks,
   displayNameFieldId,
   secretFieldId,
   oauthClientIdFieldId,
@@ -1203,100 +1112,6 @@ function TmsProviderCredentialPanel({
         </CollapsibleContent>
       </Collapsible>
 
-      {!isTmsProviderShellModeEnabled() &&
-      credential &&
-      credential.webhookSubscriptions.length > 0 ? (
-        <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <div>
-              <p className="text-sm font-medium text-foreground">Webhook sync</p>
-              <p className="mt-0.5 text-sm text-muted-foreground">
-                Hyperlocalise registers inbound webhooks automatically when the provider API allows
-                it.
-              </p>
-            </div>
-            {userIsAdmin && credential.webhookSubscriptions.some((item) => item.canRetry) ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={isRetryingWebhooks}
-                onClick={onRetryWebhooks}
-              >
-                {isRetryingWebhooks ? "Retrying..." : "Retry setup"}
-              </Button>
-            ) : null}
-          </div>
-
-          <div className="space-y-3">
-            {credential.webhookSubscriptions.map((subscription) => (
-              <div
-                key={subscription.id}
-                className="space-y-2 rounded-md border border-border bg-card p-3"
-              >
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge
-                    variant="outline"
-                    className={toneClass(webhookStatusTone(subscription.status))}
-                  >
-                    {webhookStatusLabel(subscription.status)}
-                  </Badge>
-                  {subscription.projectId ? (
-                    <span className="text-xs text-muted-foreground">
-                      Project {subscription.projectId}
-                    </span>
-                  ) : null}
-                </div>
-
-                {subscription.manualFallback ? (
-                  <div className="space-y-2 text-sm text-muted-foreground">
-                    <p>
-                      <span className="font-medium text-foreground">Webhook URL:</span>{" "}
-                      <code className="break-all rounded bg-muted px-1 py-0.5 text-xs">
-                        {subscription.manualFallback.webhookUrl}
-                      </code>
-                    </p>
-                    {subscription.manualFallback.secretHeaderName ? (
-                      <p>
-                        <span className="font-medium text-foreground">Secret header:</span>{" "}
-                        {subscription.manualFallback.secretHeaderName}
-                      </p>
-                    ) : null}
-                    {subscription.manualFallback.secretInstructions ? (
-                      <p>{subscription.manualFallback.secretInstructions}</p>
-                    ) : null}
-                    {subscription.manualFallback.subscribedEvents.length > 0 ? (
-                      <p>
-                        <span className="font-medium text-foreground">Events:</span>{" "}
-                        {subscription.manualFallback.subscribedEvents.join(", ")}
-                      </p>
-                    ) : null}
-                    {subscription.manualFallback.lastError ? (
-                      <p className="text-destructive">{subscription.manualFallback.lastError}</p>
-                    ) : null}
-                  </div>
-                ) : subscription.lastError ? (
-                  <p className="text-sm text-destructive">{subscription.lastError}</p>
-                ) : null}
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : !isTmsProviderShellModeEnabled() && credential ? (
-        <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-          Webhook subscriptions appear after projects are synced for this provider.
-        </div>
-      ) : null}
-
-      {!isTmsProviderShellModeEnabled() ? (
-        <TmsSyncObservabilityPanel
-          organizationSlug={organizationSlug}
-          providerKind={providerKind}
-          membershipRole={membershipRole}
-          enabled={Boolean(credential)}
-        />
-      ) : null}
-
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {credential && userIsAdmin ? (
           <Button type="button" variant="outline" onClick={onDisconnect} disabled={isDisconnecting}>
@@ -1399,37 +1214,6 @@ function ModelProviderCard({
       </div>
     </button>
   );
-}
-
-function useRetryWebhookSubscriptions(organizationSlug: string) {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (providerKind: ExternalTmsProviderKind) => {
-      const res = await api.api.orgs[":organizationSlug"]["external-tms-provider-credential"][
-        ":providerKind"
-      ]["webhook-subscriptions"].retry.$post({
-        param: { organizationSlug, providerKind },
-      });
-      if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: "webhook_retry_failed" }));
-        throw new Error(
-          "message" in error ? String(error.message) : "Unable to retry webhook setup",
-        );
-      }
-
-      return res.json();
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: ["external-tms-credentials", organizationSlug],
-      });
-      toast.success("Webhook setup retried");
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
 }
 
 function useDeleteExternalTmsCredential(organizationSlug: string) {
@@ -1687,10 +1471,9 @@ export function IntegrationsPageContent({
   const { data: contentfulConnections, isLoading: isLoadingContentful } =
     useContentfulConnections(organizationSlug);
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
-  const startCrowdinOAuth = useStartCrowdinOAuth(organizationSlug);
+  const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug);
   const saveContentfulConnection = useSaveContentfulConnection(organizationSlug);
   const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
-  const retryWebhookSetup = useRetryWebhookSubscriptions(organizationSlug);
   const [expandedTmsProvider, setExpandedTmsProvider] = useState<ExternalTmsProviderKind | null>(
     null,
   );
@@ -1875,7 +1658,6 @@ export function IntegrationsPageContent({
                           providerName={integration.name}
                           credential={tmsCredential}
                           organizationSlug={organizationSlug}
-                          membershipRole={membershipRole}
                           userIsAdmin={userIsAdmin}
                           displayName={tmsDisplayName}
                           onDisplayNameChange={setTmsDisplayName}
@@ -1892,7 +1674,7 @@ export function IntegrationsPageContent({
                           onDisconnect={() => setDisconnectingTmsProvider(integration.providerKind)}
                           onSave={() => {
                             if (integration.providerKind === "crowdin") {
-                              startCrowdinOAuth.mutate({
+                              saveCrowdinOAuthApp.mutate({
                                 displayName: tmsDisplayName.trim(),
                                 oauthClientId: tmsOauthClientId.trim(),
                                 oauthClientSecret: tmsOauthClientSecret.trim(),
@@ -1916,10 +1698,8 @@ export function IntegrationsPageContent({
                               },
                             );
                           }}
-                          isSaving={saveExternalTms.isPending || startCrowdinOAuth.isPending}
+                          isSaving={saveExternalTms.isPending || saveCrowdinOAuthApp.isPending}
                           isDisconnecting={deleteExternalTms.isPending}
-                          onRetryWebhooks={() => retryWebhookSetup.mutate(integration.providerKind)}
-                          isRetryingWebhooks={retryWebhookSetup.isPending}
                           displayNameFieldId={tmsDisplayNameFieldId}
                           secretFieldId={tmsSecretFieldId}
                           oauthClientIdFieldId={tmsOauthClientIdFieldId}

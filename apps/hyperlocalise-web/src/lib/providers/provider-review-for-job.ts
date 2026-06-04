@@ -1,14 +1,13 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import {
-  resolveExternalTmsSecretMaterialForActor,
-  type ExternalTmsTaskContent,
-} from "./external-tms-content-sync";
-import { type ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
-import { mergeProviderReviewReports } from "../provider-job-review/normalize-provider-review";
-import type { ProviderReviewReport } from "../provider-job-review/types";
-import { getProviderReviewPuller } from "../provider-review-pullers";
+
+import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
+import { mergeProviderReviewReports } from "./provider-job-review/normalize-provider-review";
+import type { ProviderReviewReport } from "./provider-job-review/types";
+import { getProviderReviewPuller } from "./provider-review-pullers";
+import { resolveExternalTmsSecretMaterialForActor } from "./tms-provider-content";
+import type { ExternalTmsTaskContent } from "./tms-provider-types";
 
 export async function pullProviderReviewForJob(input: {
   organizationId: string;
@@ -40,7 +39,6 @@ export async function pullProviderReviewForJob(input: {
   if (!project?.externalProjectId) {
     throw new Error("external_tms_project_not_found");
   }
-
   if (!project.externalProviderCredentialId) {
     throw new Error("provider_credential_not_found");
   }

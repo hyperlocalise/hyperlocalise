@@ -5,16 +5,12 @@ import type {
   ProjectFileContent,
   ProjectFileDetailResponse,
   ProjectFileJobRecord,
-  ProjectFileProviderJobRecord,
   ProjectFileVersionRecord,
 } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
-import { listExternalTmsFileVersionsForFile } from "@/lib/providers/sync/organization-external-tms-file-versions";
-import { resolveProviderJobsForFile } from "@/lib/providers/job-provider-source-files";
 import { bufferFromStream } from "@/lib/primitives/streams";
-import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
 import { normalizeProjectFileContent } from "@/lib/projects/project-file-source-strings";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
@@ -105,23 +101,6 @@ export async function inlineProjectFileTextContent(input: {
   return normalizeProjectFileContent({ text });
 }
 
-function toProviderRecord(file: typeof schema.externalTmsFiles.$inferSelect) {
-  return {
-    kind: file.providerKind,
-    resourceType: file.resourceType,
-    externalProjectId: file.externalProjectId,
-    externalResourceId: file.externalResourceId,
-    externalUrl: sanitizeExternalUrl(file.externalUrl),
-    syncState: file.syncState,
-    sourceLocale: file.sourceLocale,
-    targetLocales: file.targetLocales,
-    localeReadiness: file.localeReadiness as Record<string, unknown>,
-    revision: file.revision,
-    format: file.format,
-    lastSyncedAt: file.lastSyncedAt?.toISOString() ?? null,
-  };
-}
-
 function groupJobsByLocale<T extends { targetLocales: string[] }>(
   jobs: T[],
   localeForJob: (job: T) => string[],
@@ -152,18 +131,6 @@ export async function getProjectFileDetail(input: {
   adapter: FileStorageAdapter;
 }): Promise<ProjectFileDetailResponse["file"] | null> {
   const sourcePath = normalizeSourcePath(input.sourcePath);
-
-  const [providerFile] = await db
-    .select()
-    .from(schema.externalTmsFiles)
-    .where(
-      and(
-        eq(schema.externalTmsFiles.projectId, input.projectId),
-        eq(schema.externalTmsFiles.organizationId, input.organizationId),
-        eq(schema.externalTmsFiles.sourcePath, sourcePath),
-      ),
-    )
-    .limit(1);
 
   const repositoryVersions = await db
     .select({
@@ -201,47 +168,9 @@ export async function getProjectFileDetail(input: {
     )
     .limit(50);
 
-  if (repositoryVersions.length === 0 && !providerFile) {
+  if (repositoryVersions.length === 0) {
     return null;
   }
-
-  const providerVersionRows = providerFile
-    ? await listExternalTmsFileVersionsForFile({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        externalTmsFileId: providerFile.id,
-      })
-    : [];
-
-  const providerStoredFileIds = [
-    ...(providerFile?.storedFileId ? [providerFile.storedFileId] : []),
-    ...providerVersionRows
-      .map((version) => version.storedFileId)
-      .filter((storedFileId): storedFileId is string => Boolean(storedFileId)),
-  ];
-
-  const providerStoredFiles =
-    providerStoredFileIds.length > 0
-      ? await db
-          .select({
-            id: schema.storedFiles.id,
-            filename: schema.storedFiles.filename,
-            contentType: schema.storedFiles.contentType,
-            byteSize: schema.storedFiles.byteSize,
-            sha256: schema.storedFiles.sha256,
-            storageKey: schema.storedFiles.storageKey,
-          })
-          .from(schema.storedFiles)
-          .where(
-            and(
-              eq(schema.storedFiles.organizationId, input.organizationId),
-              eq(schema.storedFiles.projectId, input.projectId),
-              inArray(schema.storedFiles.id, providerStoredFileIds),
-            ),
-          )
-      : [];
-
-  const providerStoredFileById = new Map(providerStoredFiles.map((file) => [file.id, file]));
 
   const repositoryVersionRecords: ProjectFileVersionRecord[] = await mapWithConcurrency(
     repositoryVersions,
@@ -265,87 +194,7 @@ export async function getProjectFileDetail(input: {
     }),
   );
 
-  const providerHistoryRecords: ProjectFileVersionRecord[] = await mapWithConcurrency(
-    providerVersionRows,
-    fileDetailStorageReadConcurrency,
-    async (version) => {
-      const storedFile = version.storedFileId
-        ? providerStoredFileById.get(version.storedFileId)
-        : undefined;
-
-      return {
-        id: version.id,
-        origin: "provider" as const,
-        sourcePath: version.sourcePath,
-        sourceHash: version.sourceHash,
-        revision: version.revision,
-        commitSha: null,
-        workflowRunId: null,
-        uploadedAt: version.capturedAt.toISOString(),
-        storedFileId: version.storedFileId,
-        filename:
-          storedFile?.filename ??
-          providerFile?.displayName ??
-          sourcePath.split("/").at(-1) ??
-          sourcePath,
-        contentType: storedFile?.contentType ?? null,
-        byteSize: storedFile?.byteSize ?? null,
-        sha256: storedFile?.sha256 ?? null,
-        metadata: {},
-        content: storedFile
-          ? await inlineProjectFileTextContent({ adapter: input.adapter, file: storedFile })
-          : null,
-      };
-    },
-  );
-
-  const currentProviderStoredFile = providerFile?.storedFileId
-    ? providerStoredFileById.get(providerFile.storedFileId)
-    : undefined;
-
-  function versionIdentity(version: Pick<ProjectFileVersionRecord, "revision" | "sourceHash">) {
-    return `${version.revision ?? ""}:${version.sourceHash ?? ""}`;
-  }
-
-  const currentProviderVersion: ProjectFileVersionRecord | null = providerFile
-    ? {
-        id: `provider-current:${providerFile.id}`,
-        origin: "provider",
-        sourcePath: providerFile.sourcePath,
-        sourceHash: providerFile.sourceHash,
-        revision: providerFile.revision,
-        commitSha: null,
-        workflowRunId: null,
-        uploadedAt: (providerFile.lastSyncedAt ?? providerFile.updatedAt).toISOString(),
-        storedFileId: providerFile.storedFileId,
-        filename:
-          currentProviderStoredFile?.filename ??
-          providerFile.displayName ??
-          sourcePath.split("/").at(-1) ??
-          sourcePath,
-        contentType: currentProviderStoredFile?.contentType ?? null,
-        byteSize: currentProviderStoredFile?.byteSize ?? null,
-        sha256: currentProviderStoredFile?.sha256 ?? null,
-        metadata: providerFile.providerPayload as Record<string, unknown>,
-        content: currentProviderStoredFile
-          ? await inlineProjectFileTextContent({
-              adapter: input.adapter,
-              file: currentProviderStoredFile,
-            })
-          : null,
-      }
-    : null;
-
-  const providerVersions = [
-    ...(currentProviderVersion ? [currentProviderVersion] : []),
-    ...providerHistoryRecords.filter(
-      (version) =>
-        !currentProviderVersion ||
-        versionIdentity(version) !== versionIdentity(currentProviderVersion),
-    ),
-  ];
-
-  const versions = [...repositoryVersionRecords, ...providerVersions].sort(
+  const versions = repositoryVersionRecords.toSorted(
     (a, b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime(),
   );
 
@@ -451,43 +300,12 @@ export async function getProjectFileDetail(input: {
     return locales;
   });
 
-  const providerJobRows = providerFile
-    ? await resolveProviderJobsForFile({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        providerKind: providerFile.providerKind,
-        externalResourceId: providerFile.externalResourceId,
-      })
-    : [];
-
-  const providerJobRecords: ProjectFileProviderJobRecord[] = providerJobRows.map((job) => ({
-    id: job.id,
-    externalJobId: job.externalJobId,
-    externalTaskId: job.externalTaskId,
-    providerKind: job.providerKind,
-    title: job.title,
-    externalStatus: job.externalStatus,
-    syncState: job.syncState,
-    targetLocales: job.targetLocales,
-    externalUrl: sanitizeExternalUrl(job.externalUrl),
-    linkedJobId: job.linkedJobId,
-    createdAt: job.createdAt.toISOString(),
-    updatedAt: job.updatedAt.toISOString(),
-  }));
-
-  const providerJobsByLocale = groupJobsByLocale(providerJobRecords, (job) => job.targetLocales);
-
   return {
     sourcePath,
-    filename:
-      repositoryVersionRecords[0]?.filename ??
-      currentProviderVersion?.filename ??
-      providerFile?.displayName ??
-      sourcePath.split("/").at(-1) ??
-      sourcePath,
-    provider: providerFile ? toProviderRecord(providerFile) : null,
+    filename: repositoryVersionRecords[0]?.filename ?? sourcePath.split("/").at(-1) ?? sourcePath,
+    provider: null,
     versions,
     jobsByLocale,
-    providerJobsByLocale,
+    providerJobsByLocale: [],
   };
 }

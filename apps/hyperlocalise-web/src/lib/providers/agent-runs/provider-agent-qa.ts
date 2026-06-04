@@ -5,11 +5,11 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "@/lib/providers/agent-runs/agent-runs";
-import {
-  pullExternalTmsTaskContent,
-  type ExternalTmsContentSyncFailure,
-  type ExternalTmsTaskContent,
-} from "@/lib/providers/sync/external-tms-content-sync";
+import { pullExternalTmsTaskContent } from "@/lib/providers/tms-provider-content";
+import type {
+  ExternalTmsContentSyncFailure,
+  ExternalTmsTaskContent,
+} from "@/lib/providers/tms-provider-types";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import {
   defaultGlossaryMatchResolution,
@@ -35,7 +35,7 @@ import {
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 import { providerReviewReportSchema } from "@/api/routes/project/job-qa.schema";
 import { readInputSnapshotAction } from "@/lib/providers/read-input-snapshot-action";
-import { pullProviderReviewForJob } from "@/lib/providers/sync/sync-provider-review";
+import { pullProviderReviewForJob } from "@/lib/providers/provider-review-for-job";
 
 export type ProviderAgentQaResult =
   | {

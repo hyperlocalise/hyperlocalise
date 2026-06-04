@@ -1,4 +1,4 @@
-import type { ExternalTmsGlossaryFetcher } from "@/lib/providers/sync/external-tms-glossary-sync";
+import type { ExternalTmsGlossaryFetcher } from "@/lib/providers/tms-provider-types";
 
 import { resolvePhraseTmsProjectUid } from "./phrase-job-context";
 import { PhraseTmsApiClient, PhraseTmsApiError } from "./phrase-tms-api";

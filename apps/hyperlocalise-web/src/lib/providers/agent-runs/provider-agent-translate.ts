@@ -11,11 +11,11 @@ import {
   getAgentRun,
   startAgentRun,
 } from "@/lib/providers/agent-runs/agent-runs";
-import {
-  pullExternalTmsTaskContent,
-  type ExternalTmsTaskContent,
-  type ExternalTmsTranslationUnit,
-} from "@/lib/providers/sync/external-tms-content-sync";
+import { pullExternalTmsTaskContent } from "@/lib/providers/tms-provider-content";
+import type {
+  ExternalTmsTaskContent,
+  ExternalTmsTranslationUnit,
+} from "@/lib/providers/tms-provider-types";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
 import {
   assembleStringTranslationContextSnapshot,

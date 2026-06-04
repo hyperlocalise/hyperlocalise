@@ -1,5 +1,5 @@
 import { pullCrowdinProviderReview } from "@/lib/providers/adapters/crowdin/crowdin-review-puller";
-import type { ExternalTmsTaskContent } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
 import { pullLokaliseProviderReview } from "@/lib/providers/adapters/lokalise/lokalise-review-puller";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
 import { pullPhraseProviderReview } from "@/lib/providers/adapters/phrase/phrase-review-puller";

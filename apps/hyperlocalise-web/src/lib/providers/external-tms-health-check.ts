@@ -1,16 +1,17 @@
-import { and, desc, eq, ne } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+
+import { parseSmartlingCredentials } from "./adapters/smartling/smartling-credentials";
+import { classifySmartlingHttpError } from "./adapters/smartling/smartling-api";
+import { resolvePhraseBaseUrl } from "./adapters/phrase/phrase-base-url";
 import {
-  type ExternalTmsCredential,
   resolveExternalTmsSecretMaterial,
+  type ExternalTmsCredential,
   type ExternalTmsProviderKind,
-} from "../organization-external-tms-provider-credentials";
-import { resolvePhraseBaseUrl } from "../adapters/phrase/phrase-base-url";
-import { providerSafeFetch } from "../provider-safe-fetch";
-import { normalizeProviderBaseUrl } from "../provider-url-safety";
-import { parseSmartlingCredentials } from "../adapters/smartling/smartling-credentials";
-import { classifySmartlingHttpError } from "../adapters/smartling/smartling-api";
+} from "./organization-external-tms-provider-credentials";
+import { providerSafeFetch } from "./provider-safe-fetch";
+import { normalizeProviderBaseUrl } from "./provider-url-safety";
 
 export type ExternalTmsHealthStatus = "connected" | "degraded" | "error";
 export type ExternalTmsAvailability = "available" | "unavailable" | "unknown";
@@ -69,10 +70,6 @@ export async function checkExternalTmsProviderHealth(input: {
     return { credential: null, health: null };
   }
 
-  const lastSuccessfulSyncAt = await getLastSuccessfulSyncAt({
-    organizationId: input.organizationId,
-    providerKind: input.providerKind,
-  });
   const secretMaterial = await resolveExternalTmsSecretMaterial({
     credential,
     fetchFn: input.fetchFn,
@@ -89,7 +86,7 @@ export async function checkExternalTmsProviderHealth(input: {
     credential,
     health: {
       ...response,
-      lastSuccessfulSyncAt,
+      lastSuccessfulSyncAt: null,
     },
   };
 }
@@ -109,27 +106,6 @@ export async function persistExternalTmsProviderHealth(input: {
       updatedAt: now,
     })
     .where(eq(schema.organizationExternalTmsProviderCredentials.id, input.credentialId));
-}
-
-async function getLastSuccessfulSyncAt(input: {
-  organizationId: string;
-  providerKind: ExternalTmsProviderKind;
-}) {
-  const [run] = await db
-    .select({ completedAt: schema.providerSyncRuns.completedAt })
-    .from(schema.providerSyncRuns)
-    .where(
-      and(
-        eq(schema.providerSyncRuns.organizationId, input.organizationId),
-        eq(schema.providerSyncRuns.providerKind, input.providerKind),
-        eq(schema.providerSyncRuns.status, "succeeded"),
-        ne(schema.providerSyncRuns.kind, "health_check"),
-      ),
-    )
-    .orderBy(desc(schema.providerSyncRuns.completedAt))
-    .limit(1);
-
-  return run?.completedAt?.toISOString() ?? null;
 }
 
 async function validateExternalTmsCredential(input: {
@@ -259,7 +235,7 @@ function parseSmartlingHealthFromBody(
     const classified = classifySmartlingHttpError(status, body);
     return {
       status: classified.errorCode === "smartling_auth_invalid" ? "error" : "degraded",
-      availability: classified.errorCode === "smartling_unavailable" ? "unavailable" : "available",
+      availability: "available",
       authValidity: classified.errorCode === "smartling_auth_invalid" ? "invalid" : "unknown",
       errorCode: classified.errorCode,
       message: classified.message,
@@ -275,80 +251,63 @@ function parseSmartlingHealthFromBody(
   };
 }
 
-async function readResponseBody(response: Response) {
-  try {
-    return await response.json();
-  } catch {
-    return await response.text().catch(() => null);
-  }
-}
-
 function buildValidationRequest(input: {
   providerKind: ExternalTmsProviderKind;
   secretMaterial: string;
   baseUrl: string | null;
   region: string | null;
 }): { url: string; init: RequestInit } | null {
-  switch (input.providerKind) {
-    case "crowdin": {
-      const baseUrl = normalizeProviderBaseUrl(input.baseUrl, "https://api.crowdin.com/api/v2");
-      if (!baseUrl) return null;
-      return {
-        url: `${baseUrl}/user`,
-        init: { headers: { Authorization: `Bearer ${input.secretMaterial}` }, redirect: "error" },
-      };
-    }
-    case "phrase": {
-      const baseUrl = normalizeProviderBaseUrl(
-        input.baseUrl,
-        resolvePhraseBaseUrl({ region: input.region }),
-      );
-      if (!baseUrl) return null;
-      return {
-        url: `${baseUrl}/user`,
-        init: { headers: { Authorization: `token ${input.secretMaterial}` }, redirect: "error" },
-      };
-    }
-    case "lokalise": {
-      const baseUrl = normalizeProviderBaseUrl(input.baseUrl, "https://api.lokalise.com/api2");
-      if (!baseUrl) return null;
-      return {
-        url: `${baseUrl}/me`,
-        init: { headers: { "X-Api-Token": input.secretMaterial }, redirect: "error" },
-      };
-    }
-    case "smartling": {
-      try {
-        const credentials = parseSmartlingCredentials(input.secretMaterial);
-        const baseUrl = normalizeProviderBaseUrl(
-          input.baseUrl,
-          "https://api.smartling.com/auth-api/v2",
-        );
-        if (!baseUrl) return null;
-        return {
-          url: `${baseUrl}/authenticate`,
-          init: {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            redirect: "error",
-            body: JSON.stringify({
-              userIdentifier: credentials.userIdentifier,
-              userSecret: credentials.userSecret,
-            }),
-          },
-        };
-      } catch {
-        return null;
-      }
-    }
+  if (input.providerKind === "crowdin") {
+    const baseUrl = normalizeProviderBaseUrl(input.baseUrl, "https://api.crowdin.com");
+    return {
+      url: `${baseUrl}/api/v2/user`,
+      init: { headers: { Authorization: `Bearer ${input.secretMaterial}` } },
+    };
   }
+
+  if (input.providerKind === "phrase") {
+    const baseUrl = resolvePhraseBaseUrl({
+      region: input.region,
+      baseUrl: input.baseUrl,
+    });
+    return {
+      url: `${baseUrl}/v2/user`,
+      init: { headers: { Authorization: `token ${input.secretMaterial}` } },
+    };
+  }
+
+  if (input.providerKind === "lokalise") {
+    const baseUrl = normalizeProviderBaseUrl(input.baseUrl, "https://api.lokalise.com");
+    return {
+      url: `${baseUrl}/api2/projects?limit=1`,
+      init: { headers: { "X-Api-Token": input.secretMaterial } },
+    };
+  }
+
+  if (input.providerKind === "smartling") {
+    const credentials = parseSmartlingCredentials(input.secretMaterial);
+    const baseUrl = normalizeProviderBaseUrl(input.baseUrl, "https://api.smartling.com");
+    return {
+      url: `${baseUrl}/auth-api/v2/authenticate`,
+      init: {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userIdentifier: credentials.userIdentifier,
+          userSecret: credentials.userSecret,
+        }),
+      },
+    };
+  }
+
+  return null;
 }
 
 function readRateLimitHints(headers: Headers): ExternalTmsRateLimitHints {
   return {
-    limit: firstHeader(headers, ["x-ratelimit-limit", "ratelimit-limit"]),
-    remaining: firstHeader(headers, ["x-ratelimit-remaining", "ratelimit-remaining"]),
-    resetAt: firstHeader(headers, ["x-ratelimit-reset", "ratelimit-reset"]),
+    limit: headers.get("x-ratelimit-limit"),
+    remaining: headers.get("x-ratelimit-remaining"),
+    resetAt: headers.get("x-ratelimit-reset"),
     retryAfter: headers.get("retry-after"),
   };
 }
@@ -362,11 +321,10 @@ function emptyRateLimitHints(): ExternalTmsRateLimitHints {
   };
 }
 
-function firstHeader(headers: Headers, names: string[]) {
-  for (const name of names) {
-    const value = headers.get(name);
-    if (value) return value;
+async function readResponseBody(response: Response) {
+  try {
+    return await response.clone().json();
+  } catch {
+    return null;
   }
-
-  return null;
 }

@@ -18,6 +18,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { TmsUserConnectButton } from "./tms-user-connect-button";
 import type { TmsUserConnectCta } from "@/lib/providers/tms-user-connection-shared";
+import { useTmsUserConnectCta } from "@/app/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
@@ -55,6 +56,11 @@ export function AppShellClient({
   user,
 }: AppShellClientProps) {
   const organizationSlug = activeOrganization.slug ?? "";
+  const tmsUserConnectQuery = useTmsUserConnectCta(organizationSlug, {
+    enabled: Boolean(organizationSlug),
+    initialData: tmsUserConnectCta,
+  });
+  const resolvedTmsUserConnectCta = tmsUserConnectQuery.data ?? tmsUserConnectCta;
 
   return (
     <SidebarProvider
@@ -126,11 +132,11 @@ export function AppShellClient({
               <AppShellBreadcrumb organizationSlug={organizationSlug} />
             </div>
             <div className="flex shrink-0 items-center gap-2">
-              {tmsUserConnectCta.showConnectCta && organizationSlug ? (
+              {resolvedTmsUserConnectCta.showConnectCta && organizationSlug ? (
                 <TmsUserConnectButton
                   organizationSlug={organizationSlug}
-                  providerKind={tmsUserConnectCta.providerKind}
-                  providerDisplayName={tmsUserConnectCta.providerDisplayName}
+                  providerKind={resolvedTmsUserConnectCta.providerKind}
+                  providerDisplayName={resolvedTmsUserConnectCta.providerDisplayName}
                 />
               ) : null}
               <ThemeToggle />

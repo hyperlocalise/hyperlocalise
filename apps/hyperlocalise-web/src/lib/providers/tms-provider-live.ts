@@ -43,12 +43,14 @@ import {
   parseProviderProjectId,
   type EncodedProviderProjectId,
 } from "@/lib/providers/tms-provider-resource-id";
-import { mapProviderStatusToNormalized } from "@/lib/providers/sync/external-tms-status-mapper";
-import type { ExternalTmsGlossaryMetadata } from "@/lib/providers/sync/external-tms-glossary-sync";
-import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/sync/external-tms-file-sync";
-import type { ExternalTmsJobTaskMetadata } from "@/lib/providers/sync/external-tms-job-sync";
-import type { ExternalTmsProjectMetadata } from "@/lib/providers/sync/external-tms-project-sync";
-import type { ExternalTmsTranslationMemoryMetadata } from "@/lib/providers/sync/external-tms-tm-sync";
+import {
+  mapProviderStatusToNormalized,
+  type ExternalTmsFileKeyMetadata,
+  type ExternalTmsGlossaryMetadata,
+  type ExternalTmsJobTaskMetadata,
+  type ExternalTmsProjectMetadata,
+  type ExternalTmsTranslationMemoryMetadata,
+} from "@/lib/providers/tms-provider-types";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 const logger = createLogger("tms-provider-live");

@@ -1,4 +1,4 @@
-import type { ExternalTmsTranslationMemoryFetcher } from "@/lib/providers/sync/external-tms-tm-sync";
+import type { ExternalTmsTranslationMemoryFetcher } from "@/lib/providers/tms-provider-types";
 
 import {
   buildLokaliseProjectTranslationMemoryExternalId,

@@ -12,45 +12,6 @@ import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
-import { fetchCrowdinFileKeys } from "@/lib/providers/adapters/crowdin/crowdin-file-fetcher";
-import { fetchCrowdinGlossaries } from "@/lib/providers/adapters/crowdin/crowdin-glossary-fetcher";
-import { fetchCrowdinJobTasks } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
-import { fetchCrowdinTranslationMemories } from "@/lib/providers/adapters/crowdin/crowdin-tm-fetcher";
-import {
-  syncExternalTmsFileKeys,
-  type ExternalTmsFileKeyFetcher,
-} from "@/lib/providers/sync/external-tms-file-sync";
-import {
-  syncExternalTmsGlossaries,
-  type ExternalTmsGlossaryFetcher,
-} from "@/lib/providers/sync/external-tms-glossary-sync";
-import {
-  syncExternalTmsJobTasks,
-  type ExternalTmsJobTaskFetcher,
-} from "@/lib/providers/sync/external-tms-job-sync";
-import {
-  syncExternalTmsTranslationMemories,
-  type ExternalTmsTranslationMemoryFetcher,
-} from "@/lib/providers/sync/external-tms-tm-sync";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
-import { getProviderTranslationPusher } from "@/lib/providers/provider-translation-pushers";
-import { fetchLokaliseFileKeys } from "@/lib/providers/adapters/lokalise/lokalise-file-fetcher";
-import { fetchLokaliseGlossaries } from "@/lib/providers/adapters/lokalise/lokalise-glossary-fetcher";
-import { fetchLokaliseJobTasks } from "@/lib/providers/adapters/lokalise/lokalise-job-task-fetcher";
-import { fetchLokaliseTranslationMemories } from "@/lib/providers/adapters/lokalise/lokalise-translation-memory-fetcher";
-import { fetchPhraseGlossaries } from "@/lib/providers/adapters/phrase/phrase-glossary-fetcher";
-import { fetchPhraseFileKeys } from "@/lib/providers/adapters/phrase/phrase-file-fetcher";
-import { fetchPhraseJobTasks } from "@/lib/providers/adapters/phrase/phrase-job-task-fetcher";
-import { fetchPhraseTranslationMemories } from "@/lib/providers/adapters/phrase/phrase-translation-memory-fetcher";
-import { fetchSmartlingFileKeys } from "@/lib/providers/adapters/smartling/smartling-file-fetcher";
-import { fetchSmartlingGlossaries } from "@/lib/providers/adapters/smartling/smartling-glossary-fetcher";
-import { fetchSmartlingJobTasks } from "@/lib/providers/adapters/smartling/smartling-job-fetcher";
-import { fetchSmartlingTranslationMemories } from "@/lib/providers/adapters/smartling/smartling-translation-memory-fetcher";
-import {
-  pullExternalTmsTaskContent,
-  pushExternalTmsTranslations,
-} from "@/lib/providers/sync/external-tms-content-sync";
 import {
   getTmsProviderConnection,
   getTmsProviderLiveFileDetail,
@@ -61,19 +22,12 @@ import {
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
-import type { ExternalTmsResourceType } from "@/lib/providers/sync/organization-external-tms-files";
-import type {
-  JobQueue,
-  ProviderAgentQaQueue,
-  ProviderAgentTranslationQueue,
-  TranslationJobEventData,
-} from "@/lib/workflow/types";
+import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
+import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
 
 import {
   createProjectBodySchema,
-  externalTmsContentSyncBodySchema,
-  externalTmsTranslationPushBodySchema,
   maxProjectFileUploadBytes,
   projectFileDetailQuerySchema,
   projectFileStringContextBodySchema,
@@ -370,67 +324,9 @@ const validateUpdateProjectBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-const validateExternalTmsContentSyncBody = validator("json", (value, c) => {
-  const parsed = externalTmsContentSyncBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
-const validateExternalTmsTranslationPushBody = validator("json", (value, c) => {
-  const parsed = externalTmsTranslationPushBodySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
 type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
-  providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
-  providerAgentQaQueue?: ProviderAgentQaQueue;
-};
-
-const fileKeyFetchersByProvider: Partial<
-  Record<ExternalTmsProviderKind, ExternalTmsFileKeyFetcher>
-> = {
-  crowdin: fetchCrowdinFileKeys,
-  lokalise: fetchLokaliseFileKeys,
-  phrase: fetchPhraseFileKeys,
-  smartling: fetchSmartlingFileKeys,
-};
-
-const jobTaskFetchersByProvider: Partial<
-  Record<ExternalTmsProviderKind, ExternalTmsJobTaskFetcher>
-> = {
-  crowdin: fetchCrowdinJobTasks,
-  lokalise: fetchLokaliseJobTasks,
-  phrase: fetchPhraseJobTasks,
-  smartling: fetchSmartlingJobTasks,
-};
-
-const glossaryFetchersByProvider: Partial<
-  Record<ExternalTmsProviderKind, ExternalTmsGlossaryFetcher>
-> = {
-  lokalise: fetchLokaliseGlossaries,
-  crowdin: fetchCrowdinGlossaries,
-  phrase: fetchPhraseGlossaries,
-  smartling: fetchSmartlingGlossaries,
-};
-
-const translationMemoryFetchersByProvider: Partial<
-  Record<ExternalTmsProviderKind, ExternalTmsTranslationMemoryFetcher>
-> = {
-  lokalise: fetchLokaliseTranslationMemories,
-  crowdin: fetchCrowdinTranslationMemories,
-  phrase: fetchPhraseTranslationMemories,
-  smartling: fetchSmartlingTranslationMemories,
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
@@ -634,7 +530,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
       const resourceTypes =
         query.resourceType && query.resourceType !== "all"
-          ? ([query.resourceType] as ExternalTmsResourceType[])
+          ? ([query.resourceType] as ExternalTmsFileKeyMetadata["resourceType"][])
           : undefined;
 
       const files = await listFilteredProjectFiles({
@@ -820,219 +716,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       const openJobCount = await countOpenJobs(c.var.auth, project.id);
       return c.json({ project: { ...project, openJobCount } }, 200);
     })
-    .post("/:projectId/sync-files", validateProjectParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const project = await projectStore.getById(c.var.auth, params.projectId);
-
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      if (!project.externalProviderKind) {
-        return c.json({ error: "provider_sync_not_implemented" }, 501);
-      }
-
-      const fetchFileKeys = fileKeyFetchersByProvider[project.externalProviderKind];
-      if (!fetchFileKeys) {
-        return c.json({ error: "provider_sync_not_implemented" }, 501);
-      }
-
-      const result = await syncExternalTmsFileKeys({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectId: project.id,
-        providerKind: project.externalProviderKind,
-        fetchFileKeys,
-        actorUserId: c.var.auth.user.localUserId,
-      });
-
-      return c.json({ externalTmsFileKeySync: result }, result.status === "failed" ? 207 : 200);
-    })
-    .post("/:projectId/sync-jobs", validateProjectParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const project = await projectStore.getById(c.var.auth, params.projectId);
-
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      if (!project.externalProviderKind) {
-        return c.json({ error: "provider_sync_not_implemented" }, 501);
-      }
-
-      const fetchJobTasks = jobTaskFetchersByProvider[project.externalProviderKind];
-      if (!fetchJobTasks) {
-        return c.json({ error: "provider_sync_not_implemented" }, 501);
-      }
-
-      const result = await syncExternalTmsJobTasks({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectId: project.id,
-        providerKind: project.externalProviderKind,
-        fetchJobTasks,
-        actorUserId: c.var.auth.user.localUserId,
-        automationQueues:
-          options.providerAgentTranslationQueue && options.providerAgentQaQueue
-            ? {
-                providerAgentTranslationQueue: options.providerAgentTranslationQueue,
-                providerAgentQaQueue: options.providerAgentQaQueue,
-              }
-            : undefined,
-      });
-
-      return c.json({ externalTmsJobTaskSync: result }, result.status === "failed" ? 207 : 200);
-    })
-    .post("/:projectId/sync-glossaries", validateProjectParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const project = await projectStore.getById(c.var.auth, params.projectId);
-
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      if (!project.externalProviderKind) {
-        return c.json({ error: "provider_sync_not_implemented" }, 501);
-      }
-
-      const fetchGlossaries = glossaryFetchersByProvider[project.externalProviderKind];
-      if (!fetchGlossaries) {
-        return c.json({ error: "provider_sync_not_implemented" }, 501);
-      }
-
-      const result = await syncExternalTmsGlossaries({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectId: project.id,
-        providerKind: project.externalProviderKind,
-        fetchGlossaries,
-        actorUserId: c.var.auth.user.localUserId,
-      });
-
-      return c.json({ externalTmsGlossarySync: result }, result.status === "failed" ? 207 : 200);
-    })
-    .post("/:projectId/sync-translation-memories", validateProjectParams, async (c) => {
-      if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const project = await projectStore.getById(c.var.auth, params.projectId);
-
-      if (!project) {
-        return projectNotFoundResponse(c);
-      }
-
-      if (!project.externalProviderKind) {
-        return c.json({ error: "provider_sync_not_implemented" }, 501);
-      }
-
-      const fetchTranslationMemories =
-        translationMemoryFetchersByProvider[project.externalProviderKind];
-      if (!fetchTranslationMemories) {
-        return c.json({ error: "provider_sync_not_implemented" }, 501);
-      }
-
-      const result = await syncExternalTmsTranslationMemories({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        projectId: project.id,
-        providerKind: project.externalProviderKind,
-        fetchTranslationMemories,
-        actorUserId: c.var.auth.user.localUserId,
-      });
-
-      return c.json(
-        { externalTmsTranslationMemorySync: result },
-        result.status === "failed" ? 207 : 200,
-      );
-    })
-    .post(
-      "/:projectId/sync-pull-content",
-      validateProjectParams,
-      validateExternalTmsContentSyncBody,
-      async (c) => {
-        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
-        const params = c.req.valid("param");
-        const payload = c.req.valid("json");
-        const project = await projectStore.getById(c.var.auth, params.projectId);
-
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        if (!project.externalProviderKind) {
-          return c.json({ error: "provider_sync_not_implemented" }, 501);
-        }
-
-        const pullContent = getProviderContentPuller(project.externalProviderKind);
-        if (!pullContent) {
-          return c.json({ error: "provider_sync_not_implemented" }, 501);
-        }
-
-        const result = await pullExternalTmsTaskContent({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: project.id,
-          providerKind: project.externalProviderKind,
-          externalJobId: payload.externalJobId,
-          pullContent,
-        });
-
-        return c.json({ externalTmsContentPull: result }, result.status === "failed" ? 207 : 200);
-      },
-    )
-    .post(
-      "/:projectId/sync-push-translations",
-      validateProjectParams,
-      validateExternalTmsTranslationPushBody,
-      async (c) => {
-        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
-          return forbiddenResponse(c);
-        }
-
-        const params = c.req.valid("param");
-        const payload = c.req.valid("json");
-        const project = await projectStore.getById(c.var.auth, params.projectId);
-
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        if (!project.externalProviderKind) {
-          return c.json({ error: "provider_sync_not_implemented" }, 501);
-        }
-
-        const pushTranslations = getProviderTranslationPusher(project.externalProviderKind);
-        if (!pushTranslations) {
-          return c.json({ error: "provider_sync_not_implemented" }, 501);
-        }
-
-        const result = await pushExternalTmsTranslations({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: project.id,
-          providerKind: project.externalProviderKind,
-          externalJobId: payload.externalJobId,
-          translations: payload.translations,
-          pushTranslations,
-        });
-
-        return c.json(
-          { externalTmsTranslationPush: result },
-          result.status === "failed" ? 207 : 200,
-        );
-      },
-    )
     .delete("/:projectId", validateProjectParams, async (c) => {
       if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);

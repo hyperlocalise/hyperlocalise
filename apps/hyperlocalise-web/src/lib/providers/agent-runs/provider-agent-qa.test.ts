@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
-import type { ExternalTmsTaskContent } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
 
 import { createProjectTestFixture } from "../../../api/routes/project/project.fixture";
 import * as agentRuns from "../agent-runs/agent-runs";
@@ -16,14 +16,14 @@ const pullExternalTmsTaskContentMock = vi.fn();
 const runHlCheckOnProviderContentMock = vi.fn();
 const pullProviderReviewForJobMock = vi.fn();
 
-vi.mock("@/lib/providers/sync/sync-provider-review", () => ({
+vi.mock("@/lib/providers/provider-review-for-job", () => ({
   pullProviderReviewForJob: (...args: unknown[]) => pullProviderReviewForJobMock(...args),
 }));
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
     providerKind: import("../organization-external-tms-provider-credentials").ExternalTmsProviderKind,
-  ) => import("@/lib/providers/sync/external-tms-content-sync").ExternalTmsContentPuller | null;
+  ) => import("@/lib/providers/tms-provider-types").ExternalTmsContentPuller | null;
 
   const state: { actual: GetProviderContentPuller } = {
     actual: () => null,
@@ -52,9 +52,8 @@ vi.mock("@/lib/providers/provider-job-qa/run-hl-check", () => ({
   runHlCheckOnProviderContent: (...args: unknown[]) => runHlCheckOnProviderContentMock(...args),
 }));
 
-vi.mock("@/lib/providers/sync/external-tms-content-sync", async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import("@/lib/providers/sync/external-tms-content-sync")>();
+vi.mock("@/lib/providers/tms-provider-content", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/providers/tms-provider-content")>();
   return {
     ...actual,
     pullExternalTmsTaskContent: (...args: unknown[]) => pullExternalTmsTaskContentMock(...args),

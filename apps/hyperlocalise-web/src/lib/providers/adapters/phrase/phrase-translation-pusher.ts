@@ -1,4 +1,4 @@
-import type { ExternalTmsTranslationPusher } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsTranslationPusher } from "@/lib/providers/tms-provider-types";
 
 import { PhraseApiError } from "./phrase-api";
 import { createPhraseStringsApiClient } from "./phrase-strings-client";

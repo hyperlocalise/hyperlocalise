@@ -1,4 +1,4 @@
-import type { ExternalTmsTranslationMemoryFetcher } from "@/lib/providers/sync/external-tms-tm-sync";
+import type { ExternalTmsTranslationMemoryFetcher } from "@/lib/providers/tms-provider-types";
 
 import { resolvePhraseTmsProjectUid } from "./phrase-job-context";
 import { PhraseTmsApiClient, PhraseTmsApiError } from "./phrase-tms-api";

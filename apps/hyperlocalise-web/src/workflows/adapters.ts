@@ -9,7 +9,6 @@ import { providerAgentCommentWorkflow } from "./provider-agent-comment";
 import { providerAgentQaWorkflow } from "./provider-agent-qa";
 import { providerAgentTranslationWorkflow } from "./provider-agent-translation";
 import { providerAgentWritebackWorkflow } from "./provider-agent-writeback";
-import { providerWebhookReconciliationWorkflow } from "./provider-webhook-reconciliation";
 import { repositoryAgentWorkflow } from "./repository-agent";
 import type {
   EmailAgentTaskQueue,
@@ -19,7 +18,6 @@ import type {
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
-  ProviderWebhookReconciliationQueue,
   I18nSetupQueue,
   ContentfulAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
@@ -111,15 +109,6 @@ export function createProviderAgentWritebackQueue(): ProviderAgentWritebackQueue
   return {
     async enqueue(event) {
       const run = await start(providerAgentWritebackWorkflow, [event]);
-      return { ids: [run.runId] };
-    },
-  };
-}
-
-export function createProviderWebhookReconciliationQueue(): ProviderWebhookReconciliationQueue {
-  return {
-    async enqueue(event) {
-      const run = await start(providerWebhookReconciliationWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

@@ -6,11 +6,8 @@ import type {
   WorkspaceFileRecord,
 } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
-import { sanitizeExternalUrl } from "@/lib/security/safe-external-url";
-import {
-  listExternalTmsFilesForProject,
-  type ExternalTmsResourceType,
-} from "@/lib/providers/sync/organization-external-tms-files";
+import { listTmsProviderLiveFilesForProject } from "@/lib/providers/tms-provider-live";
+import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
 
 export type ProjectFileListContext = {
   projectId: string;
@@ -101,7 +98,7 @@ export async function listFilteredProjectFiles(input: {
   organizationId: string;
   projectId: string;
   query: ProjectFilesQuery;
-  resourceTypes?: ExternalTmsResourceType[];
+  resourceTypes?: ExternalTmsFileKeyMetadata["resourceType"][];
 }) {
   const fetchLimit = input.query.limit;
   const mergedFiles = await listProjectFilesForProject({
@@ -122,7 +119,7 @@ export async function listProjectFilesForProject(input: {
   providerFetchLimit?: number;
   repositoryFetchLimit?: number;
   providerFilters?: ProjectFileFilterQuery;
-  resourceTypes?: ExternalTmsResourceType[];
+  resourceTypes?: ExternalTmsFileKeyMetadata["resourceType"][];
 }) {
   // Load both sources so repository/provider rows can merge into combined entries before origin filtering.
   const shouldLoadRepositoryFiles = true;
@@ -188,15 +185,37 @@ export async function listProjectFilesForProject(input: {
     : [];
 
   const versionIds = versions.map((v) => v.versionId);
-  const providerFiles = shouldLoadProviderFiles
-    ? await listExternalTmsFilesForProject({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        resourceTypes: input.resourceTypes,
-        filters: input.providerFilters,
-        limit: input.providerFetchLimit,
-      })
+  const [project] = shouldLoadProviderFiles
+    ? await db
+        .select({
+          externalProjectId: schema.projects.externalProjectId,
+        })
+        .from(schema.projects)
+        .where(
+          and(
+            eq(schema.projects.id, input.projectId),
+            eq(schema.projects.organizationId, input.organizationId),
+            eq(schema.projects.source, "external_tms"),
+          ),
+        )
+        .limit(1)
     : [];
+  const providerFiles =
+    shouldLoadProviderFiles && project?.externalProjectId
+      ? (
+          await listTmsProviderLiveFilesForProject(
+            input.organizationId,
+            project.externalProjectId,
+            {
+              limit: input.providerFetchLimit,
+            },
+          )
+        ).filter((file) =>
+          input.resourceTypes?.length
+            ? input.resourceTypes.includes(file.provider.resourceType)
+            : true,
+        )
+      : [];
 
   const latestJobs = new Map<
     string,
@@ -277,51 +296,21 @@ export async function listProjectFilesForProject(input: {
     };
   });
 
-  const nativeFileByStoredFileId = new Map(nativeFiles.map((file) => [file.storedFileId, file]));
   const nativeFileBySourcePath = new Map(nativeFiles.map((file) => [file.sourcePath, file]));
   const combinedSourcePaths = new Set<string>();
   const providerBackedFiles: ProjectFileRecord[] = providerFiles.map((file) => {
-    const linkedNativeFile =
-      nativeFileBySourcePath.get(file.sourcePath) ??
-      (file.storedFileId ? nativeFileByStoredFileId.get(file.storedFileId) : undefined);
-    const provider = {
-      kind: file.providerKind,
-      resourceType: file.resourceType,
-      externalProjectId: file.externalProjectId,
-      externalResourceId: file.externalResourceId,
-      externalUrl: sanitizeExternalUrl(file.externalUrl),
-      syncState: file.syncState,
-      sourceLocale: file.sourceLocale,
-      targetLocales: file.targetLocales,
-      localeReadiness: file.localeReadiness as Record<string, unknown>,
-      revision: file.revision,
-      format: file.format,
-      lastSyncedAt: file.lastSyncedAt?.toISOString() ?? null,
-    };
+    const linkedNativeFile = nativeFileBySourcePath.get(file.sourcePath);
 
     if (linkedNativeFile) {
       combinedSourcePaths.add(linkedNativeFile.sourcePath);
       return {
         ...linkedNativeFile,
         origin: "combined" as const,
-        provider,
+        provider: file.provider,
       };
     }
 
-    return {
-      origin: "provider" as const,
-      sourcePath: file.sourcePath,
-      sourceHash: file.sourceHash,
-      commitSha: null,
-      workflowRunId: null,
-      uploadedAt: file.lastSyncedAt?.toISOString() ?? file.updatedAt.toISOString(),
-      storedFileId: file.storedFileId,
-      metadata: file.providerPayload as Record<string, unknown>,
-      filename: file.displayName,
-      byteSize: null,
-      provider,
-      latestJob: null,
-    };
+    return file;
   });
 
   return [
@@ -337,7 +326,7 @@ export async function listWorkspaceFiles(input: {
 }) {
   const resourceTypes =
     input.query.resourceType && input.query.resourceType !== "all"
-      ? ([input.query.resourceType] as ExternalTmsResourceType[])
+      ? ([input.query.resourceType] as ExternalTmsFileKeyMetadata["resourceType"][])
       : undefined;
 
   const projectIds =

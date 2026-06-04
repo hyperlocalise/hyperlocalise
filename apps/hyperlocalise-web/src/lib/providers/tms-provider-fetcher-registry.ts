@@ -19,10 +19,12 @@ import { fetchSmartlingJobTasks } from "@/lib/providers/adapters/smartling/smart
 import { fetchSmartlingProjects } from "@/lib/providers/adapters/smartling/smartling-project-fetcher";
 import { fetchSmartlingTranslationMemories } from "@/lib/providers/adapters/smartling/smartling-translation-memory-fetcher";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import type { ExternalTmsGlossaryFetcher } from "@/lib/providers/sync/external-tms-glossary-sync";
-import type { ExternalTmsJobTaskFetcher } from "@/lib/providers/sync/external-tms-job-sync";
-import type { ExternalTmsProjectFetcher } from "@/lib/providers/sync/external-tms-project-sync";
-import type { ExternalTmsTranslationMemoryFetcher } from "@/lib/providers/sync/external-tms-tm-sync";
+import type {
+  ExternalTmsGlossaryFetcher,
+  ExternalTmsJobTaskFetcher,
+  ExternalTmsProjectFetcher,
+  ExternalTmsTranslationMemoryFetcher,
+} from "@/lib/providers/tms-provider-types";
 
 export const tmsProviderProjectFetchers: Partial<
   Record<ExternalTmsProviderKind, ExternalTmsProjectFetcher>

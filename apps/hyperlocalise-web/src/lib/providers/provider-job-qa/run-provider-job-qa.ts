@@ -1,4 +1,4 @@
-import type { ExternalTmsTaskContent } from "@/lib/providers/sync/external-tms-content-sync";
+import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
 
 import { mapHlCheckReportToProviderFindings } from "./map-hl-findings";
 import { runHlCheckOnProviderContent } from "./run-hl-check";
