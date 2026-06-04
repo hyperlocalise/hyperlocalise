@@ -12,6 +12,9 @@ import {
   refreshCrowdinOAuthToken,
   type CrowdinOAuthTokenBundle,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { createLogger } from "@/lib/log";
+
+const logger = createLogger("crowdin-user-connections");
 
 export type CrowdinUserConnectionSummary = {
   id: string;
@@ -71,6 +74,17 @@ export async function getCrowdinUserConnection(input: {
     )
     .limit(1);
 
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      userId: input.userId,
+      connectionId: connection?.id ?? null,
+      providerCredentialId: connection?.providerCredentialId ?? null,
+      found: Boolean(connection),
+    },
+    "crowdin user connection lookup completed",
+  );
+
   return connection ?? null;
 }
 
@@ -117,6 +131,16 @@ export async function upsertCrowdinUserConnection(input: {
     crowdinUserId: input.crowdinUser.id,
   });
   if (existingByCrowdinUserId && existingByCrowdinUserId.userId !== input.userId) {
+    logger.warn(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        existingUserId: existingByCrowdinUserId.userId,
+        providerCredentialId: input.providerCredentialId,
+        crowdinUserId: input.crowdinUser.id,
+      },
+      "crowdin user connection upsert rejected: crowdin user already linked",
+    );
     return err({ code: "crowdin_user_already_linked" });
   }
 
@@ -165,9 +189,29 @@ export async function upsertCrowdinUserConnection(input: {
       })
       .returning();
 
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        providerCredentialId: input.providerCredentialId,
+        connectionId: connection.id,
+        crowdinUserId: input.crowdinUser.id,
+      },
+      "crowdin user connection upsert completed",
+    );
+
     return ok(summarizeCrowdinUserConnection(connection));
   } catch (error) {
     if (isUniqueViolation(error)) {
+      logger.warn(
+        {
+          organizationId: input.organizationId,
+          userId: input.userId,
+          providerCredentialId: input.providerCredentialId,
+          crowdinUserId: input.crowdinUser.id,
+        },
+        "crowdin user connection upsert rejected: unique violation",
+      );
       return err({ code: "crowdin_user_already_linked" });
     }
 

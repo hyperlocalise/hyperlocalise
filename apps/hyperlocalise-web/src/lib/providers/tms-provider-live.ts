@@ -262,6 +262,21 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
   actorUserId?: string | null;
 }) {
   if (
+    input.credential.providerKind === "crowdin" &&
+    input.credential.authMode === CROWDIN_OAUTH_AUTH_MODE
+  ) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        providerCredentialId: input.credential.id,
+        actorUserId: input.actorUserId ?? null,
+        hasActorUserId: Boolean(input.actorUserId),
+      },
+      "resolving crowdin oauth user secret material",
+    );
+  }
+
+  if (
     input.credential.providerKind !== "crowdin" ||
     input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE ||
     !input.actorUserId
@@ -274,8 +289,26 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
     userId: input.actorUserId,
   });
   if (!crowdinUserConnection) {
+    logger.warn(
+      {
+        organizationId: input.organizationId,
+        providerCredentialId: input.credential.id,
+        actorUserId: input.actorUserId,
+      },
+      "crowdin user connection missing while resolving provider secret",
+    );
     throw new Error("crowdin_user_connection_required");
   }
+
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      providerCredentialId: input.credential.id,
+      actorUserId: input.actorUserId,
+      connectionId: crowdinUserConnection.id,
+    },
+    "crowdin user connection found while resolving provider secret",
+  );
 
   return resolveCrowdinUserConnectionSecretMaterial({
     connection: crowdinUserConnection,

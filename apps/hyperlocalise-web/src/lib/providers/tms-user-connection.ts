@@ -9,6 +9,9 @@ import {
   type TmsUserConnectCta,
   type TmsUserConnectProviderKind,
 } from "@/lib/providers/tms-user-connection-shared";
+import { createLogger } from "@/lib/log";
+
+const logger = createLogger("tms-user-connection");
 
 export {
   formatTmsUserConnectProviderLabel,
@@ -30,8 +33,24 @@ async function resolveCrowdinUserConnectCta(input: {
     userId: input.userId,
   });
   if (connection) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        connectionId: connection.id,
+      },
+      "crowdin user connect cta hidden: connection found",
+    );
     return { showConnectCta: false };
   }
+
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      userId: input.userId,
+    },
+    "crowdin user connect cta shown: connection missing",
+  );
 
   return {
     showConnectCta: true,
@@ -52,6 +71,13 @@ export async function getTmsUserConnectCtaState(input: {
     input.organizationId,
   );
   if (!credential) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+      },
+      "tms user connect cta hidden: no active credential",
+    );
     return { showConnectCta: false };
   }
 
@@ -61,12 +87,31 @@ export async function getTmsUserConnectCtaState(input: {
     formatTmsUserConnectProviderLabel(providerKind as TmsUserConnectProviderKind);
 
   if (providerKind === "crowdin" && credential.authMode === CROWDIN_OAUTH_AUTH_MODE) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        providerCredentialId: credential.id,
+      },
+      "tms user connect cta checking crowdin connection",
+    );
     return resolveCrowdinUserConnectCta({
       organizationId: input.organizationId,
       userId: input.userId,
       displayName,
     });
   }
+
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      userId: input.userId,
+      providerCredentialId: credential.id,
+      providerKind,
+      authMode: credential.authMode,
+    },
+    "tms user connect cta hidden: provider does not require user link",
+  );
 
   return { showConnectCta: false };
 }

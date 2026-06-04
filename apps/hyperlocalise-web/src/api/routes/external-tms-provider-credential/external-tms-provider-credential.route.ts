@@ -34,6 +34,7 @@ import {
   upsertCrowdinUserConnection,
 } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 import { getTmsUserConnectCtaState } from "@/lib/providers/tms-user-connection";
+import { createLogger } from "@/lib/log";
 
 import {
   crowdinOAuthStartBodySchema,
@@ -44,6 +45,7 @@ import {
 } from "./external-tms-provider-credential.schema";
 
 const CROWDIN_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
+const logger = createLogger("crowdin-user-oauth");
 
 const validateUpsertBody = validator("json", (value, c) => {
   const parsed = upsertExternalTmsProviderCredentialBodySchema.safeParse(value);
@@ -146,6 +148,15 @@ async function findActiveCrowdinUserOAuthState(
     )
     .limit(1);
 
+  logger.info(
+    {
+      found: Boolean(state),
+      organizationId: c.var.auth.organization.localOrganizationId,
+      userId: c.var.auth.user.localUserId,
+    },
+    "crowdin user oauth state lookup completed",
+  );
+
   return state ?? null;
 }
 
@@ -164,6 +175,14 @@ async function completeCrowdinUserOAuthLink(
   },
 ) {
   if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        role: c.var.auth.membership.role,
+      },
+      "crowdin user oauth callback rejected: missing jobs read capability",
+    );
     return c.redirect("/dashboard?error=forbidden");
   }
 
@@ -182,10 +201,27 @@ async function completeCrowdinUserOAuthLink(
       }),
     });
     if (!response.ok) {
+      logger.warn(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          providerCredentialId: input.credential.id,
+          status: response.status,
+        },
+        "crowdin user oauth token exchange failed",
+      );
       return c.redirect(`/dashboard?error=${input.exchangeFailedError}`);
     }
     tokenBundle = mapCrowdinOAuthTokenResponse(await response.json(), input.client);
   } catch {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        providerCredentialId: input.credential.id,
+      },
+      "crowdin user oauth token exchange errored",
+    );
     return c.redirect(`/dashboard?error=${input.exchangeFailedError}`);
   }
 
@@ -196,6 +232,15 @@ async function completeCrowdinUserOAuthLink(
       baseUrl: input.credential.baseUrl ?? undefined,
     }).getAuthenticatedUser();
   } catch (error) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        providerCredentialId: input.credential.id,
+        status: error instanceof CrowdinApiError ? error.status : null,
+      },
+      "crowdin user oauth profile lookup failed",
+    );
     if (error instanceof CrowdinApiError && error.status === 401) {
       return c.redirect("/dashboard?error=crowdin_user_oauth_invalid");
     }
@@ -215,6 +260,16 @@ async function completeCrowdinUserOAuthLink(
     },
   });
   if (isErr(upsertResult)) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        providerCredentialId: input.credential.id,
+        crowdinUserId: crowdinUser.id,
+        code: upsertResult.error.code,
+      },
+      "crowdin user oauth connection upsert rejected",
+    );
     return c.redirect(
       appendRelativeRedirectParam(
         normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug),
@@ -225,6 +280,17 @@ async function completeCrowdinUserOAuthLink(
   }
 
   await input.consumeState();
+
+  logger.info(
+    {
+      organizationId: c.var.auth.organization.localOrganizationId,
+      userId: c.var.auth.user.localUserId,
+      providerCredentialId: input.credential.id,
+      crowdinUserId: crowdinUser.id,
+      connectionId: upsertResult.value.id,
+    },
+    "crowdin user oauth connection linked",
+  );
 
   return c.redirect(normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug));
 }
@@ -251,6 +317,17 @@ async function handleCrowdinUserOAuthCallback(
     )
     .limit(1);
   if (!credential || credential.authMode !== "oauth") {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        stateId: state.id,
+        providerCredentialId: state.providerCredentialId,
+        credentialFound: Boolean(credential),
+        authMode: credential?.authMode ?? null,
+      },
+      "crowdin user oauth callback rejected: credential unavailable",
+    );
     return c.redirect("/dashboard?error=crowdin_integration_not_connected");
   }
 
@@ -373,19 +450,48 @@ export function createExternalTmsProviderCredentialRoutes() {
     .get("/crowdin/oauth/callback", async (c) => {
       const stateParam = c.req.query("state");
       if (!stateParam) {
+        logger.warn("crowdin user oauth callback missing state");
         return c.redirect("/dashboard?error=missing_crowdin_oauth_state");
       }
 
       const organizationSlug = c.var.auth.organization.slug;
       if (!organizationSlug) {
+        logger.warn(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+          },
+          "crowdin user oauth callback missing organization slug",
+        );
         return c.redirect("/dashboard?error=organization_slug_missing");
       }
+
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          organizationSlug,
+          hasCode: Boolean(c.req.query("code")),
+          hasError: Boolean(c.req.query("error")),
+        },
+        "crowdin user oauth callback received",
+      );
 
       const now = new Date();
       const userState = await findActiveCrowdinUserOAuthState(c, stateParam, now);
 
       const errorParam = c.req.query("error");
       if (errorParam) {
+        logger.warn(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            organizationSlug,
+            stateFound: Boolean(userState),
+            error: errorParam,
+          },
+          "crowdin user oauth callback returned provider error",
+        );
         if (userState) {
           return c.redirect(
             appendRelativeRedirectParam(
@@ -400,6 +506,15 @@ export function createExternalTmsProviderCredentialRoutes() {
 
       const code = c.req.query("code");
       if (!code) {
+        logger.warn(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            organizationSlug,
+            stateFound: Boolean(userState),
+          },
+          "crowdin user oauth callback missing code",
+        );
         if (userState) {
           return c.redirect(
             appendRelativeRedirectParam(
@@ -413,6 +528,14 @@ export function createExternalTmsProviderCredentialRoutes() {
       }
 
       if (!userState) {
+        logger.warn(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            organizationSlug,
+          },
+          "crowdin user oauth callback rejected: invalid state",
+        );
         return c.redirect("/dashboard?error=invalid_crowdin_oauth_state");
       }
 
@@ -434,6 +557,15 @@ export function createExternalTmsProviderCredentialRoutes() {
         userId: c.var.auth.user.localUserId,
       });
 
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          showConnectCta: cta.showConnectCta,
+        },
+        "tms user connect cta route resolved",
+      );
+
       return c.json({ connectCta: cta }, 200);
     })
     .get("/crowdin/user-connection", async (c) => {
@@ -452,6 +584,18 @@ export function createExternalTmsProviderCredentialRoutes() {
             userId: c.var.auth.user.localUserId,
           })
         : null;
+
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          providerCredentialId: credential?.id ?? null,
+          hasCrowdinIntegration,
+          connectionId: connection?.id ?? null,
+          shouldConnectCrowdinUser: hasCrowdinIntegration && !connection,
+        },
+        "crowdin user connection route resolved",
+      );
 
       return c.json(
         {
@@ -486,6 +630,15 @@ export function createExternalTmsProviderCredentialRoutes() {
       }
 
       const payload = c.req.valid("json");
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          providerCredentialId: credential.id,
+          organizationSlug,
+        },
+        "crowdin user oauth start requested",
+      );
       return c.json(
         await createCrowdinUserOAuthAuthorization({
           c,
