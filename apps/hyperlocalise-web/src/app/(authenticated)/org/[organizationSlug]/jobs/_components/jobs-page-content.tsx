@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
+import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
 import { cn } from "@/lib/primitives/cn";
 
 import { JobDetailRow, ProviderCrowdinJobDetailRows } from "./provider-crowdin-job-detail-rows";
@@ -125,23 +126,8 @@ const statusFilterLabels = {
   cancelled: "Cancelled",
 } as const satisfies Record<(typeof statusOptions)[number], string>;
 
-async function readJobsError(response: Response, fallback: string) {
-  const body = await response.json().catch(() => null);
-
-  if (body && typeof body === "object") {
-    if ("message" in body && typeof body.message === "string") {
-      return body.message;
-    }
-    if ("error" in body && typeof body.error === "string") {
-      return body.error;
-    }
-  }
-
-  return fallback;
-}
-
 function isCrowdinUserConnectionError(error: unknown) {
-  return error instanceof Error && error.message.includes("Connect your Crowdin account");
+  return isApiResponseErrorCode(error, "crowdin_user_connection_required");
 }
 
 const jobsFilterTriggerClassName =
@@ -548,7 +534,7 @@ export function JobsPageContent({
             ...(statusFilter === "all" ? {} : { status: statusFilter }),
           },
         });
-        if (!response.ok) throw new Error(await readJobsError(response, "Failed to load jobs"));
+        if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
         const body = (await response.json()) as { jobs: ApiJob[] };
         return body.jobs.map((job) => ({ ...job, projectName: null }));
       }
@@ -561,7 +547,7 @@ export function JobsPageContent({
           ...(statusFilter === "all" ? {} : { status: statusFilter }),
         },
       });
-      if (!response.ok) throw new Error(await readJobsError(response, "Failed to load jobs"));
+      if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
       const body = (await response.json()) as { jobs: JobRow[] };
       return body.jobs;
     },

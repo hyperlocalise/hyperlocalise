@@ -14,6 +14,7 @@ import { CrowdinUserConnectButton } from "@/components/app-shell/crowdin-user-co
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { isApiResponseErrorCode } from "@/lib/api-error";
 
 import type { ProjectListRow } from "./project-list";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
@@ -116,7 +117,7 @@ function SyncInfo({ project }: { project: ProjectListRow }) {
 }
 
 function isCrowdinUserConnectionError(error: unknown) {
-  return error instanceof Error && error.message.includes("Connect your Crowdin account");
+  return isApiResponseErrorCode(error, "crowdin_user_connection_required");
 }
 
 export function ProjectsTable({

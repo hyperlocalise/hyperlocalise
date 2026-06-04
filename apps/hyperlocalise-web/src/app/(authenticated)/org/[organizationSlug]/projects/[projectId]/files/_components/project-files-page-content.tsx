@@ -14,6 +14,7 @@ import { CrowdinUserConnectButton } from "@/components/app-shell/crowdin-user-co
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 import {
@@ -40,23 +41,8 @@ function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
 }
 
-async function readActionError(response: Response, fallback: string) {
-  const body = await response.json().catch(() => null);
-
-  if (body && typeof body === "object") {
-    if ("message" in body && typeof body.message === "string") {
-      return body.message;
-    }
-    if ("error" in body && typeof body.error === "string") {
-      return body.error;
-    }
-  }
-
-  return fallback;
-}
-
 function isCrowdinUserConnectionError(error: unknown) {
-  return error instanceof Error && error.message.includes("Connect your Crowdin account");
+  return isApiResponseErrorCode(error, "crowdin_user_connection_required");
 }
 
 function formatBytes(bytes: number | null) {
@@ -228,7 +214,7 @@ export function ProjectFilesPageContent({
       });
 
       if (!response.ok) {
-        throw new Error(await readActionError(response, "Failed to load project files"));
+        throw await readApiResponseError(response, "Failed to load project files");
       }
 
       const body = (await response.json()) as { files: ProjectFileRecord[] };
@@ -249,9 +235,7 @@ export function ProjectFilesPageContent({
         });
 
         if (!response.ok) {
-          throw new Error(
-            await readActionError(response, `Failed to upload ${sourcePathForFile(file)}`),
-          );
+          throw await readApiResponseError(response, `Failed to upload ${sourcePathForFile(file)}`);
         }
       }
     },

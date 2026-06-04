@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client-instance";
+import { readApiResponseError } from "@/lib/api-error";
 
 import {
   PROJECT_SOURCE_FILTERS,
@@ -61,21 +62,6 @@ const statusFilterLabels = {
   active: "Active",
   inactive: "Inactive",
 } as const;
-
-async function readProjectError(response: Response, fallback: string) {
-  const body = await response.json().catch(() => null);
-
-  if (body && typeof body === "object") {
-    if ("message" in body && typeof body.message === "string") {
-      return body.message;
-    }
-    if ("error" in body && typeof body.error === "string") {
-      return body.error;
-    }
-  }
-
-  return fallback;
-}
 
 function useProjectFilters(projects: ProjectListRow[], searchParams: URLSearchParams) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -147,7 +133,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw new Error(await readProjectError(response, "Failed to load projects"));
+        throw await readApiResponseError(response, "Failed to load projects");
       }
 
       const body = await response.json();
@@ -162,7 +148,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw new Error(await readProjectError(response, "Unable to create project"));
+        throw await readApiResponseError(response, "Unable to create project");
       }
 
       return response.json();
@@ -187,7 +173,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw new Error(await readProjectError(response, "Unable to update project"));
+        throw await readApiResponseError(response, "Unable to update project");
       }
 
       return response.json();
@@ -211,7 +197,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       );
 
       if (!response.ok) {
-        throw new Error(await readProjectError(response, "Unable to delete project"));
+        throw await readApiResponseError(response, "Unable to delete project");
       }
     },
     onSuccess: async () => {
