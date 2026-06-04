@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"slices"
 	"strings"
 )
@@ -16,75 +17,113 @@ type CSVParser struct {
 }
 
 func (p CSVParser) Parse(content []byte) (map[string]string, error) {
-	records, err := readCSVRecords(content, p.Delimiter)
+	r := newCSVReader(bytes.NewReader(content), p.Delimiter)
+
+	// BOLT OPTIMIZATION: Use streaming reader instead of loading all records into memory.
+	first, err := r.Read()
 	if err != nil {
-		return nil, err
-	}
-	if len(records) == 0 {
-		return map[string]string{}, nil
+		if err == io.EOF {
+			return map[string]string{}, nil
+		}
+		return nil, fmt.Errorf("csv decode: %w", err)
 	}
 
-	headers := normalizeCSVHeaders(records[0])
+	headers := normalizeCSVHeaders(first)
 	keyIdx, valueIdx, err := resolveCSVColumns(headers, p.KeyColumn, p.ValueColumn)
 	if err != nil {
 		return nil, err
 	}
 
 	out := map[string]string{}
-	for i, row := range records[1:] {
+	rowIdx := 2
+	for {
+		row, err := r.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("csv decode: %w", err)
+		}
+
 		if keyIdx >= len(row) {
+			rowIdx++
 			continue
 		}
 		key := strings.TrimSpace(row[keyIdx])
 		if key == "" {
+			rowIdx++
 			continue
 		}
 		if valueIdx >= len(row) {
-			return nil, fmt.Errorf("csv row %d missing value column", i+2)
+			return nil, fmt.Errorf("csv row %d missing value column", rowIdx)
 		}
 		out[key] = row[valueIdx]
+		rowIdx++
 	}
 	return out, nil
 }
 
 func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]byte, error) {
-	records, err := readCSVRecords(template, parser.Delimiter)
+	// BOLT OPTIMIZATION: Use streaming reader and writer instead of loading all records into memory.
+	r := newCSVReader(bytes.NewReader(template), parser.Delimiter)
+
+	var buf bytes.Buffer
+	w := csv.NewWriter(&buf)
+	if parser.Delimiter != 0 {
+		w.Comma = parser.Delimiter
+	}
+
+	first, err := r.Read()
 	if err != nil {
-		return nil, err
+		if err == io.EOF {
+			keyHeader := strings.TrimSpace(parser.KeyColumn)
+			if keyHeader == "" {
+				keyHeader = "key"
+			}
+			valueHeader := strings.TrimSpace(parser.ValueColumn)
+			if valueHeader == "" {
+				valueHeader = "value"
+			}
+			first = []string{keyHeader, valueHeader}
+		} else {
+			return nil, fmt.Errorf("csv decode: %w", err)
+		}
 	}
 
-	if len(records) == 0 {
-		keyHeader := strings.TrimSpace(parser.KeyColumn)
-		if keyHeader == "" {
-			keyHeader = "key"
-		}
-		valueHeader := strings.TrimSpace(parser.ValueColumn)
-		if valueHeader == "" {
-			valueHeader = "value"
-		}
-		records = [][]string{{keyHeader, valueHeader}}
-	}
-
-	headers := normalizeCSVHeaders(records[0])
+	headers := normalizeCSVHeaders(first)
 	keyIdx, valueIdx, err := resolveCSVColumns(headers, parser.KeyColumn, parser.ValueColumn)
 	if err != nil {
 		return nil, err
 	}
 
-	seen := map[string]struct{}{}
-	for i := 1; i < len(records); i++ {
-		if keyIdx >= len(records[i]) {
-			continue
+	if err := w.Write(first); err != nil {
+		return nil, fmt.Errorf("csv write header: %w", err)
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	for {
+		row, err := r.Read()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return nil, fmt.Errorf("csv decode: %w", err)
 		}
-		key := strings.TrimSpace(records[i][keyIdx])
-		if key == "" {
-			continue
+
+		if keyIdx < len(row) {
+			key := strings.TrimSpace(row[keyIdx])
+			if key != "" {
+				if value, ok := values[key]; ok {
+					row = ensureCSVLen(row, valueIdx+1)
+					row[valueIdx] = value
+				}
+				seen[key] = struct{}{}
+			}
 		}
-		if value, ok := values[key]; ok {
-			records[i] = ensureCSVLen(records[i], valueIdx+1)
-			records[i][valueIdx] = value
+
+		if err := w.Write(row); err != nil {
+			return nil, fmt.Errorf("csv write row: %w", err)
 		}
-		seen[key] = struct{}{}
 	}
 
 	keys := make([]string, 0, len(values))
@@ -95,36 +134,32 @@ func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]
 		keys = append(keys, key)
 	}
 	slices.Sort(keys)
+	extraRow := make([]string, max(keyIdx, valueIdx)+1)
 	for _, key := range keys {
-		row := make([]string, max(keyIdx, valueIdx)+1)
-		row[keyIdx] = key
-		row[valueIdx] = values[key]
-		records = append(records, row)
+		extraRow[keyIdx] = key
+		extraRow[valueIdx] = values[key]
+		if err := w.Write(extraRow); err != nil {
+			return nil, fmt.Errorf("csv write extra: %w", err)
+		}
 	}
 
-	var buf bytes.Buffer
-	w := csv.NewWriter(&buf)
-	if parser.Delimiter != 0 {
-		w.Comma = parser.Delimiter
-	}
-	if err := w.WriteAll(records); err != nil {
-		return nil, fmt.Errorf("csv write: %w", err)
+	w.Flush()
+	if err := w.Error(); err != nil {
+		return nil, fmt.Errorf("csv flush: %w", err)
 	}
 	return buf.Bytes(), nil
 }
 
-func readCSVRecords(content []byte, delimiter rune) ([][]string, error) {
-	r := csv.NewReader(bytes.NewReader(content))
+func newCSVReader(r io.Reader, delimiter rune) *csv.Reader {
+	cr := csv.NewReader(r)
 	if delimiter != 0 {
-		r.Comma = delimiter
+		cr.Comma = delimiter
 	}
-	r.FieldsPerRecord = -1
-	r.LazyQuotes = true
-	records, err := r.ReadAll()
-	if err != nil {
-		return nil, fmt.Errorf("csv decode: %w", err)
-	}
-	return records, nil
+	cr.FieldsPerRecord = -1
+	cr.LazyQuotes = true
+	// BOLT OPTIMIZATION: Reuse record slice to reduce allocations.
+	cr.ReuseRecord = true
+	return cr
 }
 
 func normalizeCSVHeaders(headers []string) []string {
