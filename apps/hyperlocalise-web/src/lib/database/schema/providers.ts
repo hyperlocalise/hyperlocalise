@@ -84,6 +84,10 @@ export const organizationExternalTmsProviderCredentials = pgTable(
     }),
     providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
     displayName: text("display_name").notNull(),
+    /**
+     * @deprecated For Crowdin, `api_token` is legacy personal-token auth. Use
+     * `oauth` plus a row in `crowdin_user_connections` for the active user.
+     */
     authMode: text("auth_mode").notNull().default("api_token"),
     region: text("region"),
     baseUrl: text("base_url"),

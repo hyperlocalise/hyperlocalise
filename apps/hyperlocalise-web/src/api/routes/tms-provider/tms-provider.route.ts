@@ -148,6 +148,7 @@ export function createTmsProviderRoutes() {
       try {
         const projects = await listTmsProviderLiveProjects(
           c.var.auth.organization.localOrganizationId,
+          { actorUserId: c.var.auth.user.localUserId },
         );
         return c.json({ projects }, 200);
       } catch (error) {
@@ -163,6 +164,7 @@ export function createTmsProviderRoutes() {
         const project = await getTmsProviderLiveProject(
           c.var.auth.organization.localOrganizationId,
           c.req.param("externalProjectId"),
+          { actorUserId: c.var.auth.user.localUserId },
         );
         if (!project) {
           return c.json({ error: "project_not_found" }, 404);
@@ -190,6 +192,7 @@ export function createTmsProviderRoutes() {
           {
             mine: query.mine,
             assigneeCandidates,
+            actorUserId: c.var.auth.user.localUserId,
           },
         );
         return c.json({ jobs }, 200);
@@ -208,7 +211,7 @@ export function createTmsProviderRoutes() {
         const files = await listTmsProviderLiveFilesForProject(
           c.var.auth.organization.localOrganizationId,
           c.req.param("externalProjectId"),
-          { limit: query.limit },
+          { limit: query.limit, actorUserId: c.var.auth.user.localUserId },
         );
         return c.json({ files }, 200);
       } catch (error) {
@@ -229,6 +232,7 @@ export function createTmsProviderRoutes() {
         const jobs = await listTmsProviderLiveJobs(c.var.auth.organization.localOrganizationId, {
           mine: query.mine,
           assigneeCandidates,
+          actorUserId: c.var.auth.user.localUserId,
         });
         return c.json({ jobs }, 200);
       } catch (error) {
@@ -244,6 +248,7 @@ export function createTmsProviderRoutes() {
         const job = await getTmsProviderLiveJobDetail(
           c.var.auth.organization.localOrganizationId,
           c.req.param("encodedJobId"),
+          { actorUserId: c.var.auth.user.localUserId },
         );
         if (!job) {
           return c.json({ error: "job_not_found" }, 404);
@@ -287,7 +292,10 @@ export function createTmsProviderRoutes() {
       try {
         const glossaries = await listTmsProviderLiveGlossaries(
           c.var.auth.organization.localOrganizationId,
-          { externalProjectId: query.externalProjectId },
+          {
+            externalProjectId: query.externalProjectId,
+            actorUserId: c.var.auth.user.localUserId,
+          },
         );
         return c.json({ glossaries }, 200);
       } catch (error) {
@@ -304,7 +312,10 @@ export function createTmsProviderRoutes() {
       try {
         const translationMemories = await listTmsProviderLiveTranslationMemories(
           c.var.auth.organization.localOrganizationId,
-          { externalProjectId: query.externalProjectId },
+          {
+            externalProjectId: query.externalProjectId,
+            actorUserId: c.var.auth.user.localUserId,
+          },
         );
         return c.json({ translationMemories }, 200);
       } catch (error) {

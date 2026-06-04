@@ -10,9 +10,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { CrowdinUserConnectButton } from "@/components/app-shell/crowdin-user-connect-button";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
+import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 import {
@@ -39,19 +41,8 @@ function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
 }
 
-async function readActionError(response: Response, fallback: string) {
-  const body = await response.json().catch(() => null);
-
-  if (body && typeof body === "object") {
-    if ("message" in body && typeof body.message === "string") {
-      return body.message;
-    }
-    if ("error" in body && typeof body.error === "string") {
-      return body.error;
-    }
-  }
-
-  return fallback;
+function isCrowdinUserConnectionError(error: unknown) {
+  return isApiResponseErrorCode(error, "crowdin_user_connection_required");
 }
 
 function formatBytes(bytes: number | null) {
@@ -223,7 +214,7 @@ export function ProjectFilesPageContent({
       });
 
       if (!response.ok) {
-        throw new Error(await readActionError(response, "Failed to load project files"));
+        throw await readApiResponseError(response, "Failed to load project files");
       }
 
       const body = (await response.json()) as { files: ProjectFileRecord[] };
@@ -244,9 +235,7 @@ export function ProjectFilesPageContent({
         });
 
         if (!response.ok) {
-          throw new Error(
-            await readActionError(response, `Failed to upload ${sourcePathForFile(file)}`),
-          );
+          throw await readApiResponseError(response, `Failed to upload ${sourcePathForFile(file)}`);
         }
       }
     },
@@ -390,11 +379,24 @@ export function ProjectFilesPageContent({
             {filesQuery.isLoading ? (
               <TypographyP className="p-4 text-sm text-foreground/52">Loading files…</TypographyP>
             ) : filesQuery.isError ? (
-              <TypographyP className="p-4 text-sm text-flame-100">
-                {filesQuery.error instanceof Error
-                  ? filesQuery.error.message
-                  : "Failed to load files."}
-              </TypographyP>
+              <div className="p-4">
+                <TypographyP className="text-sm font-medium text-flame-100">
+                  {isCrowdinUserConnectionError(filesQuery.error)
+                    ? "Connect Crowdin to view provider files."
+                    : "Files failed to load."}
+                </TypographyP>
+                <TypographyP className="mt-1 text-sm text-foreground/58">
+                  {filesQuery.error instanceof Error
+                    ? filesQuery.error.message
+                    : "Failed to load files."}
+                </TypographyP>
+                {isCrowdinUserConnectionError(filesQuery.error) ? (
+                  <CrowdinUserConnectButton
+                    organizationSlug={organizationSlug}
+                    className="mt-4 flex"
+                  />
+                ) : null}
+              </div>
             ) : files.length === 0 ? (
               <div className="flex flex-col gap-2 p-4">
                 <TypographyP className="text-sm font-medium text-foreground">

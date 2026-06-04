@@ -122,7 +122,9 @@ describe("tmsProviderRoutes", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { projects: unknown[] };
     expect(body.projects).toHaveLength(1);
-    expect(listProjects).toHaveBeenCalledWith(organizationId);
+    expect(listProjects).toHaveBeenCalledWith(organizationId, {
+      actorUserId: expect.any(String),
+    });
   });
 
   it("returns 401 when Crowdin OAuth refresh fails while loading live projects", async () => {
@@ -159,8 +161,8 @@ describe("tmsProviderRoutes", () => {
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toMatchObject({
-      error: "crowdin_auth_invalid",
-      message: "Crowdin credentials are invalid.",
+      error: "crowdin_user_connection_required",
+      message: "Connect your Crowdin account before using Crowdin.",
     });
   });
 
@@ -217,7 +219,10 @@ describe("tmsProviderRoutes", () => {
     expect(response.status).toBe(200);
     const body = (await response.json()) as { files: unknown[] };
     expect(body.files).toHaveLength(1);
-    expect(listFiles).toHaveBeenCalledWith(organizationId, "902807", { limit: 500 });
+    expect(listFiles).toHaveBeenCalledWith(organizationId, "902807", {
+      limit: 500,
+      actorUserId: expect.any(String),
+    });
   });
 
   it("returns 401 when the stored Crowdin OAuth token bundle is invalid", async () => {
@@ -260,8 +265,8 @@ describe("tmsProviderRoutes", () => {
 
     expect(response.status).toBe(401);
     await expect(response.json()).resolves.toMatchObject({
-      error: "crowdin_auth_invalid",
-      message: "Crowdin credentials are invalid.",
+      error: "crowdin_user_connection_required",
+      message: "Connect your Crowdin account before using Crowdin.",
     });
   });
 });

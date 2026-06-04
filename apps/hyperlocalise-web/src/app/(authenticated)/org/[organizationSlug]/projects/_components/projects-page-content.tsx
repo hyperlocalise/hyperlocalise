@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { apiClient } from "@/lib/api-client-instance";
+import { readApiResponseError } from "@/lib/api-error";
 
 import {
   PROJECT_SOURCE_FILTERS,
@@ -61,16 +62,6 @@ const statusFilterLabels = {
   active: "Active",
   inactive: "Inactive",
 } as const;
-
-async function readProjectError(response: Response, fallback: string) {
-  const body = await response.json().catch(() => null);
-
-  if (body && typeof body === "object" && "error" in body) {
-    return String(body.error);
-  }
-
-  return fallback;
-}
 
 function useProjectFilters(projects: ProjectListRow[], searchParams: URLSearchParams) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -142,7 +133,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load projects (${response.status})`);
+        throw await readApiResponseError(response, "Failed to load projects");
       }
 
       const body = await response.json();
@@ -157,7 +148,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw new Error(await readProjectError(response, "Unable to create project"));
+        throw await readApiResponseError(response, "Unable to create project");
       }
 
       return response.json();
@@ -182,7 +173,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw new Error(await readProjectError(response, "Unable to update project"));
+        throw await readApiResponseError(response, "Unable to update project");
       }
 
       return response.json();
@@ -206,7 +197,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       );
 
       if (!response.ok) {
-        throw new Error(await readProjectError(response, "Unable to delete project"));
+        throw await readApiResponseError(response, "Unable to delete project");
       }
     },
     onSuccess: async () => {

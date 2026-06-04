@@ -12,7 +12,6 @@ import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { db, schema } from "@/lib/database";
 import {
   decryptProviderCredential,
-  encryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 import { fetchCrowdinProjects } from "@/lib/providers/adapters/crowdin/crowdin-project-fetcher";
@@ -68,7 +67,6 @@ import {
   upsertExternalTmsProviderCredentialBodySchema,
 } from "./external-tms-provider-credential.schema";
 
-const CROWDIN_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 const CROWDIN_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 
 const validateUpsertBody = validator("json", (value, c) => {
@@ -387,43 +385,25 @@ export function createExternalTmsProviderCredentialRoutes() {
           return c.json({ error: "forbidden" }, 403);
         }
         const payload = c.req.valid("json");
-        const organizationSlug = c.var.auth.organization.slug;
-        if (!organizationSlug) {
-          return c.json({ error: "organization_slug_missing" }, 400);
-        }
-        const nonce = randomBytes(24).toString("hex");
-        const codeVerifier = base64Url(randomBytes(48));
-        const encryptedClientSecret = unwrapProviderCredentialCrypto(
-          encryptProviderCredential(payload.oauthClientSecret),
-        );
-        const now = new Date();
-        await db.insert(schema.crowdinOAuthStates).values({
-          nonce,
-          codeVerifier,
-          oauthClientId: payload.oauthClientId,
-          oauthClientSecretEncryptionAlgorithm: encryptedClientSecret.algorithm,
-          oauthClientSecretCiphertext: encryptedClientSecret.ciphertext,
-          oauthClientSecretIv: encryptedClientSecret.iv,
-          oauthClientSecretAuthTag: encryptedClientSecret.authTag,
-          oauthClientSecretKeyVersion: encryptedClientSecret.keyVersion,
+        const providerCredential = await upsertCrowdinOAuthProviderCredential({
           organizationId: c.var.auth.organization.localOrganizationId,
           userId: c.var.auth.user.localUserId,
+          role: c.var.auth.membership.role,
           displayName: payload.displayName,
+          oauthClient: {
+            clientId: payload.oauthClientId,
+            clientSecret: payload.oauthClientSecret,
+          },
           baseUrl: payload.baseUrl ?? null,
-          expiresAt: new Date(now.getTime() + CROWDIN_OAUTH_STATE_TTL_MS),
         });
 
-        const authorizationUrl = new URL("https://accounts.crowdin.com/oauth/authorize");
-        const redirectUri = getCrowdinOAuthRedirectUri(c.req.url, organizationSlug);
-        authorizationUrl.searchParams.set("client_id", payload.oauthClientId);
-        authorizationUrl.searchParams.set("redirect_uri", redirectUri);
-        authorizationUrl.searchParams.set("response_type", "code");
-        authorizationUrl.searchParams.set("scope", getCrowdinOAuthScopeString());
-        authorizationUrl.searchParams.set("state", nonce);
-        authorizationUrl.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
-        authorizationUrl.searchParams.set("code_challenge_method", "S256");
-
-        return c.json({ authorizationUrl: authorizationUrl.toString(), redirectUri }, 200);
+        return c.json(
+          {
+            externalTmsProviderCredential: providerCredential,
+            shouldConnectCrowdinUser: true,
+          },
+          200,
+        );
       } catch (error) {
         if (error instanceof Error && error.message === "provider_base_url_invalid") {
           return c.json(
@@ -883,6 +863,7 @@ export function createExternalTmsProviderCredentialRoutes() {
           organizationId: c.var.auth.organization.localOrganizationId,
           providerKind: providerKind.data,
           fetchProjects,
+          actorUserId: c.var.auth.user.localUserId,
         });
 
         return c.json({ externalTmsProjectSync: result }, 200);

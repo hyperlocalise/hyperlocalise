@@ -83,7 +83,7 @@ describe("organization external TMS provider credentials", () => {
   });
 
   describe("resolveExternalTmsSecretMaterial", () => {
-    it("returns fresh Crowdin OAuth access tokens without refreshing", async () => {
+    it("requires a user connection for Crowdin OAuth access tokens", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
 
@@ -108,11 +108,11 @@ describe("organization external TMS provider credentials", () => {
 
       await expect(
         resolveExternalTmsSecretMaterial({ credential, fetchFn: fetchMock }),
-      ).resolves.toBe("fresh-access-token");
+      ).rejects.toThrow("crowdin_user_connection_required");
       expect(fetchMock).not.toHaveBeenCalled();
     });
 
-    it("refreshes expired Crowdin OAuth access tokens and persists the replacement", async () => {
+    it("does not refresh deprecated org Crowdin OAuth token bundles", async () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
 
@@ -147,37 +147,15 @@ describe("organization external TMS provider credentials", () => {
 
       await expect(
         resolveExternalTmsSecretMaterial({ credential, fetchFn: fetchMock }),
-      ).resolves.toBe("new-access-token");
-      expect(fetchMock).toHaveBeenCalledWith(
-        "https://accounts.crowdin.com/oauth/token",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({
-            grant_type: "refresh_token",
-            client_id: "client-id",
-            client_secret: "client-secret",
-            refresh_token: "old-refresh-token",
-          }),
-        }),
-      );
+      ).rejects.toThrow("crowdin_user_connection_required");
+      expect(fetchMock).not.toHaveBeenCalled();
 
       const [updatedCredential] = await db
         .select()
         .from(schema.organizationExternalTmsProviderCredentials)
         .where(eq(schema.organizationExternalTmsProviderCredentials.id, credential.id))
         .limit(1);
-      const secondFetchMock = vi.fn(async () => {
-        throw new Error("should not refresh a fresh persisted token");
-      });
-
-      await expect(
-        resolveExternalTmsSecretMaterial({
-          credential: updatedCredential!,
-          fetchFn: secondFetchMock,
-        }),
-      ).resolves.toBe("new-access-token");
-      expect(secondFetchMock).not.toHaveBeenCalled();
-      expect(updatedCredential!.oauthExpiresAt?.toISOString()).toBe("2026-01-01T02:00:00.000Z");
+      expect(updatedCredential!.oauthExpiresAt).toBeNull();
     });
   });
 });

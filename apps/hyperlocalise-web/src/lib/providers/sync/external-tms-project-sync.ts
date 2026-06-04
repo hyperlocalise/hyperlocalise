@@ -3,10 +3,10 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import {
-  resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
 } from "../organization-external-tms-provider-credentials";
+import { resolveExternalTmsSecretMaterialForActor } from "./external-tms-content-sync";
 import { upsertOrganizationExternalTmsProject } from "./organization-external-tms-projects";
 import {
   completeProviderSyncRun,
@@ -57,6 +57,7 @@ export async function syncExternalTmsProjects(input: {
   organizationId: string;
   providerKind: ExternalTmsProviderKind;
   fetchProjects: ExternalTmsProjectFetcher;
+  actorUserId?: string | null;
 }): Promise<ExternalTmsProjectSyncResult> {
   const credential = await getExternalTmsCredential({
     organizationId: input.organizationId,
@@ -85,7 +86,11 @@ export async function syncExternalTmsProjects(input: {
   const failures: ExternalTmsProjectSyncFailure[] = [];
 
   try {
-    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+    const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+      credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
     const projects = await input.fetchProjects({
       organizationId: input.organizationId,
       providerKind: input.providerKind,

@@ -3,6 +3,11 @@ import { and, eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncRunStatus } from "@/lib/database/types";
 import {
+  getCrowdinUserConnection,
+  resolveCrowdinUserConnectionSecretMaterial,
+} from "../adapters/crowdin/crowdin-user-connections";
+import {
+  CROWDIN_OAUTH_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
@@ -125,6 +130,7 @@ export async function pullExternalTmsTaskContent(input: {
   providerKind: ExternalTmsProviderKind;
   externalJobId: string;
   pullContent: ExternalTmsContentPuller;
+  actorUserId?: string | null;
 }): Promise<ExternalTmsContentPullResult> {
   const project = await getExternalTmsProject(input);
 
@@ -156,7 +162,11 @@ export async function pullExternalTmsTaskContent(input: {
   });
 
   try {
-    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+    const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+      credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
 
     const content = await input.pullContent({
       organizationId: input.organizationId,
@@ -228,6 +238,7 @@ export async function pushExternalTmsTranslations(input: {
   externalJobId: string;
   translations: ExternalTmsApprovedTranslationUpload[];
   pushTranslations: ExternalTmsTranslationPusher;
+  actorUserId?: string | null;
 }): Promise<ExternalTmsTranslationPushResult> {
   const project = await getExternalTmsProject(input);
 
@@ -264,7 +275,11 @@ export async function pushExternalTmsTranslations(input: {
   const failures: ExternalTmsContentSyncFailure[] = [];
 
   try {
-    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+    const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+      credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
 
     const pushResult = await input.pushTranslations({
       organizationId: input.organizationId,
@@ -343,6 +358,33 @@ export async function pushExternalTmsTranslations(input: {
     });
     throw error;
   }
+}
+
+export async function resolveExternalTmsSecretMaterialForActor(input: {
+  credential: ExternalTmsCredential;
+  organizationId: string;
+  actorUserId?: string | null;
+}) {
+  if (
+    input.credential.providerKind !== "crowdin" ||
+    input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE
+  ) {
+    return resolveExternalTmsSecretMaterial({ credential: input.credential });
+  }
+
+  if (!input.actorUserId) {
+    throw new Error("crowdin_user_connection_required");
+  }
+
+  const connection = await getCrowdinUserConnection({
+    organizationId: input.organizationId,
+    userId: input.actorUserId,
+  });
+  if (!connection) {
+    throw new Error("crowdin_user_connection_required");
+  }
+
+  return resolveCrowdinUserConnectionSecretMaterial({ connection });
 }
 
 async function getExternalTmsProject(input: {

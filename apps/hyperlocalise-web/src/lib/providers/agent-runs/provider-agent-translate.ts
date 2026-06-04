@@ -437,6 +437,7 @@ export async function executeProviderAgentTranslation(input: {
       providerKind: run.providerKind,
       externalJobId: run.externalJobId,
       pullContent,
+      actorUserId: run.actorUserId,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Provider content pull failed";

@@ -22,6 +22,7 @@ import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
   API_TOKEN_AUTH_MODE,
+  CROWDIN_OAUTH_AUTH_MODE,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
@@ -197,18 +198,34 @@ type ActiveTmsProviderContext = {
 async function buildActiveTmsProviderContext(
   organizationId: string,
   credential: ExternalTmsCredential,
+  options?: { actorUserId?: string | null },
 ): Promise<ActiveTmsProviderContext> {
   const providerKind = credential.providerKind as ExternalTmsProviderKind;
   let secretMaterial: string;
   try {
-    secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+    secretMaterial = await resolveActiveTmsProviderSecretMaterial({
+      organizationId,
+      credential,
+      actorUserId: options?.actorUserId,
+    });
   } catch (error) {
     if (
       error instanceof Error &&
       (error.message === "crowdin_oauth_refresh_failed" ||
-        error.message === "crowdin_oauth_token_invalid")
+        error.message === "crowdin_oauth_token_invalid" ||
+        error.message === "crowdin_user_connection_required")
     ) {
-      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+      if (error.message === "crowdin_user_connection_required") {
+        throw new TmsProviderLiveError(
+          "crowdin_user_connection_required",
+          "Connect your Crowdin account before using Crowdin.",
+        );
+      }
+
+      throw new TmsProviderLiveError(
+        "crowdin_user_auth_invalid",
+        "Your Crowdin connection is invalid. Reconnect Crowdin and try again.",
+      );
     }
 
     throw error;
@@ -237,21 +254,49 @@ async function buildActiveTmsProviderContext(
   };
 }
 
+async function resolveActiveTmsProviderSecretMaterial(input: {
+  organizationId: string;
+  credential: ExternalTmsCredential;
+  actorUserId?: string | null;
+}) {
+  if (
+    input.credential.providerKind !== "crowdin" ||
+    input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE ||
+    !input.actorUserId
+  ) {
+    return resolveExternalTmsSecretMaterial({ credential: input.credential });
+  }
+
+  const crowdinUserConnection = await getCrowdinUserConnection({
+    organizationId: input.organizationId,
+    userId: input.actorUserId,
+  });
+  if (!crowdinUserConnection) {
+    throw new Error("crowdin_user_connection_required");
+  }
+
+  return resolveCrowdinUserConnectionSecretMaterial({
+    connection: crowdinUserConnection,
+  });
+}
+
 export async function tryLoadActiveTmsProviderContext(
   organizationId: string,
+  options?: { actorUserId?: string | null },
 ): Promise<ActiveTmsProviderContext | null> {
   const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
   if (!credential) {
     return null;
   }
 
-  return buildActiveTmsProviderContext(organizationId, credential);
+  return buildActiveTmsProviderContext(organizationId, credential, options);
 }
 
 async function loadActiveTmsProviderContext(
   organizationId: string,
+  options?: { actorUserId?: string | null },
 ): Promise<ActiveTmsProviderContext> {
-  const context = await tryLoadActiveTmsProviderContext(organizationId);
+  const context = await tryLoadActiveTmsProviderContext(organizationId, options);
   if (!context) {
     throw new TmsProviderLiveError("no_active_tms_provider", "No external TMS is connected.");
   }
@@ -649,8 +694,11 @@ export async function getTmsProviderConnection(
 
 export async function listTmsProviderLiveProjects(
   organizationId: string,
+  options?: { actorUserId?: string | null },
 ): Promise<TmsProviderLiveProject[]> {
-  const context = await loadActiveTmsProviderContext(organizationId);
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
   const projects = await fetchLiveProjects(context);
 
   return projects
@@ -661,8 +709,9 @@ export async function listTmsProviderLiveProjects(
 export async function getTmsProviderLiveProject(
   organizationId: string,
   externalProjectId: string,
+  options?: { actorUserId?: string | null },
 ): Promise<TmsProviderLiveProject | null> {
-  const projects = await listTmsProviderLiveProjects(organizationId);
+  const projects = await listTmsProviderLiveProjects(organizationId, options);
   return projects.find((project) => project.externalProjectId === externalProjectId) ?? null;
 }
 
@@ -675,9 +724,12 @@ export async function listTmsProviderLiveJobsForProject(
     assigneeCandidates?: string[];
     context?: ActiveTmsProviderContext;
     projects?: ExternalTmsProjectMetadata[];
+    actorUserId?: string | null;
   },
 ): Promise<TmsProviderLiveJob[]> {
-  const context = options?.context ?? (await loadActiveTmsProviderContext(organizationId));
+  const context =
+    options?.context ??
+    (await loadActiveTmsProviderContext(organizationId, { actorUserId: options?.actorUserId }));
   const fetcher = tmsProviderJobTaskFetchers[context.providerKind];
   if (!fetcher) {
     throw new TmsProviderLiveError(
@@ -759,9 +811,12 @@ export async function listTmsProviderLiveFilesForProject(
     limit?: number;
     context?: ActiveTmsProviderContext;
     projects?: ExternalTmsProjectMetadata[];
+    actorUserId?: string | null;
   },
 ): Promise<TmsProviderLiveFile[]> {
-  const context = options?.context ?? (await loadActiveTmsProviderContext(organizationId));
+  const context =
+    options?.context ??
+    (await loadActiveTmsProviderContext(organizationId, { actorUserId: options?.actorUserId }));
   const fetcher = tmsProviderFileKeyFetchers[context.providerKind];
   if (!fetcher) {
     throw new TmsProviderLiveError(
@@ -812,8 +867,11 @@ export async function getTmsProviderLiveFileDetail(
   organizationId: string,
   externalProjectId: string,
   sourcePath: string,
+  options?: { actorUserId?: string | null },
 ): Promise<TmsProviderLiveFileDetail | null> {
-  const context = await loadActiveTmsProviderContext(organizationId);
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
   const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
     context,
     limit: 1000,
@@ -868,9 +926,12 @@ export async function listTmsProviderLiveJobs(
     assignee?: string | null;
     assigneeCandidates?: string[];
     context?: ActiveTmsProviderContext;
+    actorUserId?: string | null;
   },
 ): Promise<TmsProviderLiveJob[]> {
-  const context = options?.context ?? (await loadActiveTmsProviderContext(organizationId));
+  const context =
+    options?.context ??
+    (await loadActiveTmsProviderContext(organizationId, { actorUserId: options?.actorUserId }));
   const projects = await fetchLiveProjects(context);
   const activeProjects = projects.filter((project) => project.isActive !== false);
 
@@ -940,13 +1001,16 @@ async function fetchCrowdinLiveJobTaskMetadata(input: {
 export async function getTmsProviderLiveJobDetail(
   organizationId: string,
   encodedJobId: string,
+  options?: { actorUserId?: string | null },
 ): Promise<TmsProviderLiveJobDetail | null> {
   const parsed = parseProviderJobId(encodedJobId);
   if (!parsed) {
     throw new TmsProviderLiveError("invalid_encoded_job_id", "Job id is not a provider job id.");
   }
 
-  const context = await loadActiveTmsProviderContext(organizationId);
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
   if (context.providerKind !== parsed.providerKind) {
     return null;
   }
@@ -1027,7 +1091,7 @@ export async function updateTmsProviderLiveJobDescription(
     throw new TmsProviderLiveError("invalid_encoded_job_id", "Job id is not a provider job id.");
   }
 
-  const context = await loadActiveTmsProviderContext(organizationId);
+  const context = await loadActiveTmsProviderContext(organizationId, { actorUserId });
   if (context.providerKind !== parsed.providerKind) {
     return null;
   }
@@ -1150,9 +1214,11 @@ function mapLiveGlossary(input: {
 
 export async function listTmsProviderLiveGlossaries(
   organizationId: string,
-  options?: { externalProjectId?: string },
+  options?: { externalProjectId?: string; actorUserId?: string | null },
 ): Promise<TmsProviderLiveGlossary[]> {
-  const context = await loadActiveTmsProviderContext(organizationId);
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
   const fetcher = tmsProviderGlossaryFetchers[context.providerKind];
   if (!fetcher) {
     throw new TmsProviderLiveError(
@@ -1237,9 +1303,11 @@ function mapLiveTranslationMemory(input: {
 
 export async function listTmsProviderLiveTranslationMemories(
   organizationId: string,
-  options?: { externalProjectId?: string },
+  options?: { externalProjectId?: string; actorUserId?: string | null },
 ): Promise<TmsProviderLiveTranslationMemory[]> {
-  const context = await loadActiveTmsProviderContext(organizationId);
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
   const fetcher = tmsProviderTranslationMemoryFetchers[context.providerKind];
   if (!fetcher) {
     throw new TmsProviderLiveError(

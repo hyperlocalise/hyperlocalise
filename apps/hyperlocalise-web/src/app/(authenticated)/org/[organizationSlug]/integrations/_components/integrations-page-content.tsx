@@ -484,6 +484,8 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
 }
 
 function useStartCrowdinOAuth(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
   return useMutation({
     mutationFn: async (payload: {
       displayName: string;
@@ -506,8 +508,24 @@ function useStartCrowdinOAuth(organizationSlug: string) {
 
       return res.json();
     },
-    onSuccess: (data) => {
-      window.location.assign(data.authorizationUrl);
+    onSuccess: async (data, payload) => {
+      if ("authorizationUrl" in data && typeof data.authorizationUrl === "string") {
+        window.location.assign(data.authorizationUrl);
+        return;
+      }
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["external-tms-credentials", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["tms-provider-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["crowdin-user-connection", organizationSlug],
+        }),
+      ]);
+      toast.success(`${payload.displayName} saved. Connect your Crowdin account to continue.`);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -1295,8 +1313,8 @@ function TmsProviderCredentialPanel({
             ? "Saving..."
             : isCrowdin
               ? isCrowdinOAuthConnected
-                ? "Reconnect Crowdin"
-                : "Connect Crowdin"
+                ? "Update Crowdin"
+                : "Save Crowdin"
               : "Save provider"}
         </Button>
       </div>

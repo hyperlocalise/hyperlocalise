@@ -7,10 +7,10 @@ import {
   upsertOrganizationExternalTmsMemoryEntries,
 } from "./organization-external-tms-memories";
 import {
-  resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
 } from "../organization-external-tms-provider-credentials";
+import { resolveExternalTmsSecretMaterialForActor } from "./external-tms-content-sync";
 import {
   completeProviderSyncRun,
   failProviderSyncRun,
@@ -78,6 +78,7 @@ export async function syncExternalTmsTranslationMemories(input: {
   projectId: string;
   providerKind: ExternalTmsProviderKind;
   fetchTranslationMemories: ExternalTmsTranslationMemoryFetcher;
+  actorUserId?: string | null;
 }): Promise<ExternalTmsTranslationMemorySyncResult> {
   const project = await getExternalTmsProject(input);
 
@@ -115,7 +116,11 @@ export async function syncExternalTmsTranslationMemories(input: {
   const failures: ExternalTmsTranslationMemorySyncFailure[] = [];
 
   try {
-    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+    const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+      credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
 
     const memories = await input.fetchTranslationMemories({
       organizationId: input.organizationId,
