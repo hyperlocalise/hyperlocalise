@@ -416,7 +416,7 @@ type CredentialCryptoFields = Pick<
   "encryptionAlgorithm" | "keyVersion" | "ciphertext" | "iv" | "authTag"
 >;
 
-function decryptCrowdinOAuthTokenBundle(
+export function decryptCrowdinOAuthTokenBundle(
   credential: CredentialCryptoFields,
 ): CrowdinOAuthTokenBundle {
   const secretMaterial = unwrapProviderCredentialCrypto(
@@ -436,7 +436,7 @@ function decryptCrowdinOAuthTokenBundle(
   return parsed.data;
 }
 
-function isCrowdinOAuthAccessTokenFresh(tokenBundle: CrowdinOAuthTokenBundle) {
+export function isCrowdinOAuthAccessTokenFresh(tokenBundle: CrowdinOAuthTokenBundle) {
   return (
     new Date(tokenBundle.expiresAt).getTime() - Date.now() > CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS
   );
@@ -516,7 +516,7 @@ export async function resolveExternalTmsSecretMaterial(input: {
   });
 }
 
-async function refreshCrowdinOAuthToken(input: {
+export async function refreshCrowdinOAuthToken(input: {
   tokenBundle: CrowdinOAuthTokenBundle;
   fetchFn?: typeof fetch;
 }): Promise<CrowdinOAuthTokenBundle> {
@@ -541,6 +541,18 @@ async function refreshCrowdinOAuthToken(input: {
     clientId: input.tokenBundle.clientId,
     clientSecret: input.tokenBundle.clientSecret,
   });
+}
+
+export function getCrowdinOAuthClientFromCredential(credential: ExternalTmsCredential) {
+  if (credential.providerKind !== "crowdin" || credential.authMode !== CROWDIN_OAUTH_AUTH_MODE) {
+    throw new Error("crowdin_oauth_credential_required");
+  }
+
+  const tokenBundle = decryptCrowdinOAuthTokenBundle(credential);
+  return {
+    clientId: tokenBundle.clientId,
+    clientSecret: tokenBundle.clientSecret,
+  };
 }
 
 export function mapCrowdinOAuthTokenResponse(

@@ -17,6 +17,7 @@ import {
   listTmsProviderLiveTranslationMemories,
   TmsProviderLiveError,
 } from "@/lib/providers/tms-provider-live";
+import { getCrowdinUserConnectionSummary } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 
 const mineQuerySchema = z.object({
   mine: z
@@ -83,6 +84,9 @@ function mapTmsProviderLiveError(
         return c.json({ error: error.code, message: error.message }, 404);
       case "crowdin_auth_invalid":
         return c.json({ error: error.code, message: error.message }, 401);
+      case "crowdin_user_auth_invalid":
+      case "crowdin_user_connection_required":
+        return c.json({ error: error.code, message: error.message }, 401);
       case "invalid_encoded_job_id":
         return c.json({ error: error.code, message: error.message }, 400);
       case "provider_fetcher_unavailable":
@@ -95,6 +99,24 @@ function mapTmsProviderLiveError(
   }
 
   throw error;
+}
+
+async function getCurrentUserProviderAssigneeCandidates(auth: AuthVariables["auth"]) {
+  const candidates = [auth.user.email];
+  const crowdinUserConnection = await getCrowdinUserConnectionSummary({
+    organizationId: auth.organization.localOrganizationId,
+    userId: auth.user.localUserId,
+  });
+
+  if (crowdinUserConnection) {
+    candidates.push(
+      crowdinUserConnection.username,
+      crowdinUserConnection.email ?? "",
+      crowdinUserConnection.fullName ?? "",
+    );
+  }
+
+  return candidates.filter((candidate) => candidate.trim().length > 0);
 }
 
 export function createTmsProviderRoutes() {
@@ -159,12 +181,15 @@ export function createTmsProviderRoutes() {
       const query = c.req.valid("query");
 
       try {
+        const assigneeCandidates = query.mine
+          ? await getCurrentUserProviderAssigneeCandidates(c.var.auth)
+          : undefined;
         const jobs = await listTmsProviderLiveJobsForProject(
           c.var.auth.organization.localOrganizationId,
           c.req.param("externalProjectId"),
           {
             mine: query.mine,
-            assignee: c.var.auth.user.email,
+            assigneeCandidates,
           },
         );
         return c.json({ jobs }, 200);
@@ -198,9 +223,12 @@ export function createTmsProviderRoutes() {
       const query = c.req.valid("query");
 
       try {
+        const assigneeCandidates = query.mine
+          ? await getCurrentUserProviderAssigneeCandidates(c.var.auth)
+          : undefined;
         const jobs = await listTmsProviderLiveJobs(c.var.auth.organization.localOrganizationId, {
           mine: query.mine,
-          assignee: c.var.auth.user.email,
+          assigneeCandidates,
         });
         return c.json({ jobs }, 200);
       } catch (error) {
@@ -238,6 +266,7 @@ export function createTmsProviderRoutes() {
           c.var.auth.organization.localOrganizationId,
           c.req.param("encodedJobId"),
           body.description,
+          c.var.auth.user.localUserId,
         );
         if (!job) {
           return c.json({ error: "job_not_found" }, 404);

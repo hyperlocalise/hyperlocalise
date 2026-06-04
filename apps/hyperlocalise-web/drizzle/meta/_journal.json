@@ -295,6 +295,13 @@
       "when": 1780455173632,
       "tag": "0041_talented_the_hunter",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1780548555212,
+      "tag": "0042_worried_pete_wisdom",
+      "breakpoints": true
     }
   ]
 }
