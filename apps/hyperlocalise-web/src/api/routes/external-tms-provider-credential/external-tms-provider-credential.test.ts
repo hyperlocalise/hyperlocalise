@@ -618,6 +618,134 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(consumedState!.consumedAt).not.toBeNull();
   });
 
+  it("redirects when a Crowdin account is already linked to another workspace member", async () => {
+    const adminIdentity = fixture.createWorkosIdentityWithRole("admin");
+    await fixture.authHeadersFor(adminIdentity);
+    const adminAuthContext = globalThis.__testApiAuthContext!;
+    const credential = await upsertCrowdinOAuthProviderCredential({
+      organizationId: adminAuthContext.organization.localOrganizationId,
+      userId: adminAuthContext.user.localUserId,
+      role: "admin",
+      displayName: "Crowdin",
+      tokenBundle: {
+        clientId: "crowdin-client-id",
+        clientSecret: "crowdin-client-secret",
+        accessToken: "org-access-token",
+        refreshToken: "org-refresh-token",
+        tokenType: "bearer",
+        expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      },
+    });
+
+    await db.insert(schema.crowdinUserConnections).values({
+      organizationId: adminAuthContext.organization.localOrganizationId,
+      userId: adminAuthContext.user.localUserId,
+      providerCredentialId: credential.id,
+      crowdinUserId: 42,
+      username: "crowdin-translator",
+      email: "translator@example.com",
+      fullName: "Crowdin Translator",
+      oauthExpiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      encryptionAlgorithm: "aes-256-gcm",
+      ciphertext: "ciphertext",
+      iv: "iv",
+      authTag: "auth-tag",
+      keyVersion: 1,
+    });
+
+    const memberIdentity = fixture.createWorkosIdentityForOrganization(
+      adminIdentity.organization,
+      "member",
+    );
+    const memberHeaders = await fixture.authHeadersFor(memberIdentity);
+    const startResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin.user.oauth.start.$post(
+      {
+        param: { organizationSlug: memberIdentity.organization.slug ?? "missing" },
+        json: { returnTo: `/org/${memberIdentity.organization.slug}/jobs?mine=true` },
+      },
+      { headers: memberHeaders },
+    );
+    const startBody = (await startResponse.json()) as { authorizationUrl: string };
+    const stateParam = new URL(startBody.authorizationUrl).searchParams.get("state");
+    const [state] = await db
+      .select()
+      .from(schema.crowdinUserOAuthStates)
+      .where(eq(schema.crowdinUserOAuthStates.nonce, stateParam!))
+      .limit(1);
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string | URL | Request) => {
+        const requestUrl = fetchInputUrl(url);
+        if (requestUrl === "https://accounts.crowdin.com/oauth/token") {
+          return new Response(
+            JSON.stringify({
+              access_token: "user-access-token",
+              refresh_token: "user-refresh-token",
+              token_type: "bearer",
+              expires_in: 3600,
+            }),
+            { status: 200 },
+          );
+        }
+
+        if (requestUrl === "https://api.crowdin.com/api/v2/user") {
+          return new Response(
+            JSON.stringify({
+              data: {
+                id: 42,
+                username: "crowdin-translator",
+                email: "translator@example.com",
+                fullName: "Crowdin Translator",
+              },
+            }),
+            { status: 200 },
+          );
+        }
+
+        return new Response("Not Found", { status: 404 });
+      }),
+    );
+
+    const callbackResponse = await app.request(
+      crowdinUserOAuthCallbackUrl(memberIdentity.organization.slug ?? "missing", {
+        state: stateParam!,
+        code: "user-oauth-code",
+      }),
+      { headers: memberHeaders },
+    );
+
+    expect(callbackResponse.status).toBe(302);
+    expect(callbackResponse.headers.get("location")).toBe(
+      `/org/${memberIdentity.organization.slug}/jobs?mine=true&error=crowdin_user_already_linked`,
+    );
+
+    const memberAuthContext = globalThis.__testApiAuthContext!;
+    const [memberConnection] = await db
+      .select()
+      .from(schema.crowdinUserConnections)
+      .where(
+        and(
+          eq(
+            schema.crowdinUserConnections.organizationId,
+            memberAuthContext.organization.localOrganizationId,
+          ),
+          eq(schema.crowdinUserConnections.userId, memberAuthContext.user.localUserId),
+        ),
+      )
+      .limit(1);
+    expect(memberConnection).toBeUndefined();
+
+    const [consumedState] = await db
+      .select()
+      .from(schema.crowdinUserOAuthStates)
+      .where(eq(schema.crowdinUserOAuthStates.id, state!.id))
+      .limit(1);
+    expect(consumedState!.consumedAt).toBeNull();
+  });
+
   it("returns external TMS credential summaries for the requested provider", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     await fixture.authHeadersFor(identity);

@@ -1,6 +1,7 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -24,6 +25,21 @@ export type CrowdinUserConnectionSummary = {
 };
 
 type CrowdinUserConnection = typeof schema.crowdinUserConnections.$inferSelect;
+
+export type CrowdinUserConnectionUpsertError = { code: "crowdin_user_already_linked" };
+
+function isUniqueViolation(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "23505") {
+    return true;
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
 
 function summarizeCrowdinUserConnection(
   connection: CrowdinUserConnection,
@@ -63,6 +79,54 @@ export async function getCrowdinUserConnectionSummary(input: {
   return connection ? summarizeCrowdinUserConnection(connection) : null;
 }
 
+export async function getCrowdinConnectCtaState(input: {
+  organizationId: string;
+  userId: string;
+}): Promise<{ showCrowdinConnectCta: boolean }> {
+  const [row] = await db
+    .select({
+      providerKind: schema.organizationExternalTmsProviderCredentials.providerKind,
+      authMode: schema.organizationExternalTmsProviderCredentials.authMode,
+      userConnectionId: schema.crowdinUserConnections.id,
+    })
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .leftJoin(
+      schema.crowdinUserConnections,
+      and(
+        eq(schema.crowdinUserConnections.organizationId, input.organizationId),
+        eq(schema.crowdinUserConnections.userId, input.userId),
+      ),
+    )
+    .where(
+      eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
+    )
+    .orderBy(desc(schema.organizationExternalTmsProviderCredentials.updatedAt))
+    .limit(1);
+
+  const showCrowdinConnectCta =
+    row?.providerKind === "crowdin" && row.authMode === "oauth" && !row.userConnectionId;
+
+  return { showCrowdinConnectCta };
+}
+
+async function findCrowdinUserConnectionOwnerByCrowdinUserId(input: {
+  organizationId: string;
+  crowdinUserId: number;
+}) {
+  const [connection] = await db
+    .select({ userId: schema.crowdinUserConnections.userId })
+    .from(schema.crowdinUserConnections)
+    .where(
+      and(
+        eq(schema.crowdinUserConnections.organizationId, input.organizationId),
+        eq(schema.crowdinUserConnections.crowdinUserId, input.crowdinUserId),
+      ),
+    )
+    .limit(1);
+
+  return connection ?? null;
+}
+
 export async function upsertCrowdinUserConnection(input: {
   organizationId: string;
   userId: string;
@@ -74,32 +138,26 @@ export async function upsertCrowdinUserConnection(input: {
     email?: string | null;
     fullName?: string | null;
   };
-}) {
+}): Promise<Result<CrowdinUserConnectionSummary, CrowdinUserConnectionUpsertError>> {
+  const existingByCrowdinUserId = await findCrowdinUserConnectionOwnerByCrowdinUserId({
+    organizationId: input.organizationId,
+    crowdinUserId: input.crowdinUser.id,
+  });
+  if (existingByCrowdinUserId && existingByCrowdinUserId.userId !== input.userId) {
+    return err({ code: "crowdin_user_already_linked" });
+  }
+
   const encrypted = unwrapProviderCredentialCrypto(
     encryptProviderCredential(JSON.stringify(input.tokenBundle)),
   );
   const now = new Date();
 
-  const [connection] = await db
-    .insert(schema.crowdinUserConnections)
-    .values({
-      organizationId: input.organizationId,
-      userId: input.userId,
-      providerCredentialId: input.providerCredentialId,
-      crowdinUserId: input.crowdinUser.id,
-      username: input.crowdinUser.username,
-      email: input.crowdinUser.email ?? null,
-      fullName: input.crowdinUser.fullName ?? null,
-      oauthExpiresAt: new Date(input.tokenBundle.expiresAt),
-      encryptionAlgorithm: encrypted.algorithm,
-      ciphertext: encrypted.ciphertext,
-      iv: encrypted.iv,
-      authTag: encrypted.authTag,
-      keyVersion: encrypted.keyVersion,
-    })
-    .onConflictDoUpdate({
-      target: [schema.crowdinUserConnections.organizationId, schema.crowdinUserConnections.userId],
-      set: {
+  try {
+    const [connection] = await db
+      .insert(schema.crowdinUserConnections)
+      .values({
+        organizationId: input.organizationId,
+        userId: input.userId,
         providerCredentialId: input.providerCredentialId,
         crowdinUserId: input.crowdinUser.id,
         username: input.crowdinUser.username,
@@ -111,12 +169,37 @@ export async function upsertCrowdinUserConnection(input: {
         iv: encrypted.iv,
         authTag: encrypted.authTag,
         keyVersion: encrypted.keyVersion,
-        updatedAt: now,
-      },
-    })
-    .returning();
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.crowdinUserConnections.organizationId,
+          schema.crowdinUserConnections.userId,
+        ],
+        set: {
+          providerCredentialId: input.providerCredentialId,
+          crowdinUserId: input.crowdinUser.id,
+          username: input.crowdinUser.username,
+          email: input.crowdinUser.email ?? null,
+          fullName: input.crowdinUser.fullName ?? null,
+          oauthExpiresAt: new Date(input.tokenBundle.expiresAt),
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          updatedAt: now,
+        },
+      })
+      .returning();
 
-  return summarizeCrowdinUserConnection(connection);
+    return ok(summarizeCrowdinUserConnection(connection));
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      return err({ code: "crowdin_user_already_linked" });
+    }
+
+    throw error;
+  }
 }
 
 export async function resolveCrowdinUserConnectionSecretMaterial(input: {

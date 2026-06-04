@@ -7,6 +7,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
+import { isErr } from "@/lib/primitives/result/results";
 import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { db, schema } from "@/lib/database";
 import {
@@ -502,7 +503,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         return c.redirect("/dashboard?error=crowdin_user_lookup_failed");
       }
 
-      await upsertCrowdinUserConnection({
+      const upsertResult = await upsertCrowdinUserConnection({
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         providerCredentialId: credential.id,
@@ -514,6 +515,15 @@ export function createExternalTmsProviderCredentialRoutes() {
           fullName: crowdinUser.fullName,
         },
       });
+      if (isErr(upsertResult)) {
+        return c.redirect(
+          appendRelativeRedirectParam(
+            normalizeCrowdinUserOAuthReturnTo(state.returnTo, organizationSlug),
+            "error",
+            "crowdin_user_already_linked",
+          ),
+        );
+      }
 
       await db
         .update(schema.crowdinUserOAuthStates)
