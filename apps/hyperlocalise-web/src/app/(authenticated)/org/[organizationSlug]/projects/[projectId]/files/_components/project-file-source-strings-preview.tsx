@@ -1,10 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 
 import type {
-  ProjectFileContent,
   ProjectSourceStringEntry,
   ProjectSourceStringsPreview,
 } from "@/api/routes/project/project.schema";
@@ -21,7 +20,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { parseSourceStringsFromFileContent } from "@/lib/projects/project-file-source-strings";
 import { cn } from "@/lib/primitives/cn";
 
 type GitHubRepositoryOption = {
@@ -54,15 +52,15 @@ export function ProjectFileSourceStringsPreview({
   organizationSlug,
   projectId,
   sourcePath,
-  content,
+  sourceStrings,
+  canFindInRepo,
 }: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
-  content: ProjectFileContent | null | undefined;
+  sourceStrings: ProjectSourceStringsPreview;
+  canFindInRepo: boolean;
 }) {
-  const sourceStrings = useMemo(() => parseSourceStringsFromFileContent(content), [content]);
-
   const repositoriesQuery = useEnabledGitHubRepositories(organizationSlug);
   const enabledRepositories = repositoriesQuery.data ?? [];
 
@@ -110,7 +108,7 @@ export function ProjectFileSourceStringsPreview({
     },
   });
 
-  if (!sourceStrings || sourceStrings.entries.length === 0) {
+  if (sourceStrings.entries.length === 0) {
     return null;
   }
 
@@ -122,8 +120,9 @@ export function ProjectFileSourceStringsPreview({
         repositories={enabledRepositories}
         repositoriesLoading={repositoriesQuery.isLoading}
         onRepositoryChange={setRepositoryFullName}
+        canFindInRepo={canFindInRepo}
         onFindInRepo={(entry) => {
-          if (!repositoryFullName) {
+          if (!repositoryFullName || !canFindInRepo) {
             return;
           }
           lookupMutation.mutate(entry);
@@ -150,6 +149,7 @@ function SourceStringsTable({
   repositories,
   repositoriesLoading,
   onRepositoryChange,
+  canFindInRepo,
   onFindInRepo,
   findInRepoPending,
 }: {
@@ -158,10 +158,12 @@ function SourceStringsTable({
   repositories: GitHubRepositoryOption[];
   repositoriesLoading: boolean;
   onRepositoryChange: (fullName: string) => void;
+  canFindInRepo: boolean;
   onFindInRepo: (entry: ProjectSourceStringEntry) => void;
   findInRepoPending: boolean;
 }) {
   const repoReady = Boolean(repositoryFullName);
+  const findInRepoEnabled = canFindInRepo && repoReady && !findInRepoPending;
 
   return (
     <div className="space-y-3">
@@ -234,7 +236,7 @@ function SourceStringsTable({
                       variant="outline"
                       size="sm"
                       className="h-7 text-[10px]"
-                      disabled={!repoReady || findInRepoPending}
+                      disabled={!findInRepoEnabled}
                       onClick={() => onFindInRepo(entry)}
                     >
                       Find in repo
@@ -247,7 +249,12 @@ function SourceStringsTable({
         </div>
       </div>
 
-      {!repoReady && repositories.length > 0 ? (
+      {!canFindInRepo ? (
+        <TypographyP className={cn("text-xs text-foreground/42")}>
+          Repository context lookup requires a role that can run AI actions (for example translator
+          or developer).
+        </TypographyP>
+      ) : !repoReady && repositories.length > 0 ? (
         <TypographyP className={cn("text-xs text-foreground/42")}>
           Select a repository, then use Find in repo on a string to run the same repository agent as
           Slack.

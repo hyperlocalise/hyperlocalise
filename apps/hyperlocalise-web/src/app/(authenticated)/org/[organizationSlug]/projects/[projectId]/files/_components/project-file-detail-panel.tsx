@@ -72,12 +72,14 @@ export function ProjectFileDetailPanel({
   file,
   requestedSourcePath,
   highlightLocale,
+  canFindInRepo,
 }: {
   organizationSlug: string;
   projectId: string;
   file: ProjectFileRecord | null;
   requestedSourcePath: string | null;
   highlightLocale: string | null;
+  canFindInRepo: boolean;
 }) {
   const sourcePath = file?.sourcePath ?? null;
 
@@ -205,7 +207,8 @@ export function ProjectFileDetailPanel({
             organizationSlug={organizationSlug}
             projectId={projectId}
             sourcePath={sourcePath}
-            content={latestContent}
+            sourceStrings={sourceStringsPreview}
+            canFindInRepo={canFindInRepo}
           />
         ) : textPreview ? (
           <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">

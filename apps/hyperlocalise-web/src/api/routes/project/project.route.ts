@@ -89,6 +89,7 @@ import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
+import { isAiActionAllowed } from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
   forbiddenResponse,
@@ -567,7 +568,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const params = c.req.valid("param");
         const body = c.req.valid("json");
 
-        if (!isProjectMutationAllowed(c.var.auth.membership.role)) {
+        if (!isAiActionAllowed(c.var.auth.membership.role)) {
           return forbiddenResponse(c);
         }
 
