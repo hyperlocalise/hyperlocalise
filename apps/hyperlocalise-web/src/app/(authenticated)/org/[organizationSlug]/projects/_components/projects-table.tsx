@@ -11,7 +11,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
-import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";

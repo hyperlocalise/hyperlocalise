@@ -12,7 +12,7 @@ import { cn } from "@/lib/primitives/cn";
 import {
   formatTmsUserConnectProviderLabel,
   type TmsUserConnectProviderKind,
-} from "@/lib/providers/tms-user-connection";
+} from "@/lib/providers/tms-user-connection-shared";
 
 const CROWDIN_USER_OAUTH_ERROR_MESSAGES: Record<string, string> = {
   crowdin_user_oauth_exchange_failed:

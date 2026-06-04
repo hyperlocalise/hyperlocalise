@@ -3,7 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
-import type { TmsUserConnectCta } from "@/lib/providers/tms-user-connection";
+import type { TmsUserConnectCta } from "@/lib/providers/tms-user-connection-shared";
 
 export function tmsUserConnectCtaQueryKey(organizationSlug: string) {
   return ["tms-user-connect-cta", organizationSlug] as const;
