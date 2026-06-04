@@ -182,6 +182,7 @@ export function MarkdownDescriptionEditor({
       <div
         className={cn(
           "min-h-[8rem] rounded-lg border border-foreground/12 bg-foreground/2.5",
+          "resize-y overflow-auto",
           className,
         )}
       />
@@ -203,7 +204,10 @@ export function MarkdownDescriptionEditor({
       )}
     >
       <MarkdownDescriptionToolbar editor={editor} disabled={disabled} />
-      <EditorContent editor={editor} />
+      <EditorContent
+        editor={editor}
+        className="max-h-[32rem] min-h-[8rem] resize-y overflow-auto"
+      />
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { FileTreeRowDecorationContext } from "@pierre/trees";
 import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
@@ -33,6 +33,23 @@ const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
+
+const projectFilesTreeStyle = {
+  height: "100%",
+  minHeight: 0,
+  backgroundColor: "transparent",
+  color: "var(--foreground)",
+  borderColor: "var(--border)",
+  "--trees-bg-override": "transparent",
+  "--trees-bg-muted-override": "color-mix(in oklab, var(--foreground) 6%, transparent)",
+  "--trees-border-color-override": "var(--border)",
+  "--trees-fg-override": "var(--foreground)",
+  "--trees-fg-muted-override": "color-mix(in oklab, var(--foreground) 52%, transparent)",
+  "--trees-focus-ring-color-override": "var(--ring)",
+  "--trees-selected-bg-override": "color-mix(in oklab, var(--primary) 16%, transparent)",
+  "--trees-selected-fg-override": "var(--foreground)",
+  "--trees-selected-focused-border-color-override": "var(--ring)",
+} as CSSProperties;
 
 function projectFilesQueryKey(organizationSlug: string, projectId: string) {
   return ["project-files", organizationSlug, projectId] as const;
@@ -124,10 +141,7 @@ function ProjectFilesTree({
       }
 
       if (file.provider) {
-        return {
-          text: file.provider.syncState,
-          title: fileListMetadata(file),
-        };
+        return null;
       }
 
       return {
@@ -165,7 +179,7 @@ function ProjectFilesTree({
       aria-label="Project files"
       className="h-full min-h-0 border-0 bg-transparent"
       model={model}
-      style={{ height: "100%", minHeight: 0 }}
+      style={projectFilesTreeStyle}
     />
   );
 }

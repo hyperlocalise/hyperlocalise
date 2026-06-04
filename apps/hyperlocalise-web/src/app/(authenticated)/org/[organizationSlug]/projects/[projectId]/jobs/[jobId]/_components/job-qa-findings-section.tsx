@@ -38,7 +38,7 @@ import type { ProviderQaFinding, ProviderQaSeverity } from "@/lib/providers/prov
 import type { ProviderReviewThread } from "@/lib/providers/provider-job-review/types";
 import { cn } from "@/lib/primitives/cn";
 
-import { toneClass, type Tone } from "../../../_components/workspace-resource-shared";
+import { toneClass, type Tone } from "../../../../../_components/workspace-resource-shared";
 
 import type { AgentRunRecord, ProviderActionAvailability } from "./job-provider-detail-section";
 import {

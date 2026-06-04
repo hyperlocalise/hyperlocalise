@@ -6,6 +6,7 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import {
   getTmsProviderConnection,
+  listTmsProviderLiveJobComments,
   getTmsProviderLiveJobDetail,
   updateTmsProviderLiveJobDescription,
   getTmsProviderLiveProject,
@@ -73,6 +74,11 @@ const validateUpdateJobDescriptionBody = validator("json", (value, c) => {
 
   return parsed.data;
 });
+
+function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
+  const role = auth.membership.role;
+  return role === "admin" || (role === "localization_manager" && hasCapability(role, "jobs:write"));
+}
 
 async function getCurrentUserProviderAssigneeCandidates(auth: AuthVariables["auth"]) {
   const candidates = [auth.user.email];
@@ -232,8 +238,28 @@ export function createTmsProviderRoutes() {
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
+    .get("/jobs/:encodedJobId/comments", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      try {
+        const comments = await listTmsProviderLiveJobComments(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("encodedJobId"),
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        if (!comments) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.json({ comments }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
     .patch("/jobs/:encodedJobId/description", validateUpdateJobDescriptionBody, async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "jobs:write")) {
+      if (!canEditTmsProviderJobDescription(c.var.auth)) {
         return c.json({ error: "forbidden" }, 403);
       }
 

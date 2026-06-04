@@ -17,7 +17,7 @@ import { agentRunHasReviewableProposals } from "@/lib/providers/agent-runs/agent
 import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
 import { cn } from "@/lib/primitives/cn";
 
-import { toneClass } from "../../../_components/workspace-resource-shared";
+import { toneClass } from "../../../../../_components/workspace-resource-shared";
 
 import {
   countGlossaryMatchesInUsage,
@@ -33,7 +33,7 @@ import {
   getCrowdinLanguageLabel,
   getCrowdinTargetLocales,
   getProviderPayloadString,
-} from "../../_components/provider-crowdin-job-display";
+} from "../../../../../jobs/_components/provider-crowdin-job-display";
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
 import { JobQaFindingsSection } from "./job-qa-findings-section";
 
@@ -154,7 +154,7 @@ export function JobProviderDetailSection({
   projectId: string | null;
 }) {
   const queryClient = useQueryClient();
-  const jobQueryKey = ["job", organizationSlug, jobId] as const;
+  const jobQueryKey = ["job", organizationSlug, projectId ?? "workspace", jobId] as const;
   const agentRunsQueryKey = ["job-agent-runs", organizationSlug, jobId] as const;
 
   const agentRunsQuery = useQuery({

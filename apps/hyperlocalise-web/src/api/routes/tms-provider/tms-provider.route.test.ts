@@ -225,6 +225,58 @@ describe("tmsProviderRoutes", () => {
     });
   });
 
+  it("returns live job comments for a provider task", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    const listComments = vi
+      .spyOn(tmsProviderLive, "listTmsProviderLiveJobComments")
+      .mockResolvedValue([
+        {
+          id: "crowdin:task-comment:17",
+          externalCommentId: "17",
+          userId: "42",
+          taskId: "99",
+          text: "Please prioritize this task.",
+          timeSpentSeconds: null,
+          createdAt: "2026-06-01T10:00:00.000Z",
+          updatedAt: "2026-06-01T10:00:00.000Z",
+        },
+      ]);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].comments.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      comments: [
+        {
+          id: "crowdin:task-comment:17",
+          externalCommentId: "17",
+          userId: "42",
+          taskId: "99",
+          text: "Please prioritize this task.",
+          timeSpentSeconds: null,
+          createdAt: "2026-06-01T10:00:00.000Z",
+          updatedAt: "2026-06-01T10:00:00.000Z",
+        },
+      ],
+    });
+    expect(listComments).toHaveBeenCalledWith(organizationId, "ext:crowdin:902807:99", {
+      actorUserId: expect.any(String),
+    });
+  });
+
   it("returns 401 when the stored Crowdin OAuth token bundle is invalid", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

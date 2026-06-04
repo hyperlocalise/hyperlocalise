@@ -90,28 +90,44 @@ export const ConversationDetails = memo(function ConversationDetails({
           <TypographyMuted className="mt-3">None linked</TypographyMuted>
         ) : (
           <div className="mt-3 flex flex-col divide-y divide-border">
-            {jobs.map((job) => (
-              <a
-                key={job.id}
-                href={`/org/${organizationSlug}/jobs/${job.id}`}
-                className="block py-2.5 transition-colors first:pt-0 last:pb-0 hover:text-foreground"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <TypographySmall className="truncate text-foreground">{job.id}</TypographySmall>
-                  <Badge
-                    variant="outline"
-                    className={cn("text-[10px]", jobStatusStyles[job.status])}
-                  >
-                    {job.status}
-                  </Badge>
-                </div>
-                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                  <span className="uppercase">{formatJobKind(job)}</span>
-                  <span className="size-1 rounded-full bg-muted-foreground/20" />
-                  <span>{formatRelativeTime(job.createdAt)}</span>
-                </div>
-              </a>
-            ))}
+            {jobs.map((job) => {
+              const content = (
+                <>
+                  <div className="flex items-center justify-between gap-2">
+                    <TypographySmall className="truncate text-foreground">{job.id}</TypographySmall>
+                    <Badge
+                      variant="outline"
+                      className={cn("text-[10px]", jobStatusStyles[job.status])}
+                    >
+                      {job.status}
+                    </Badge>
+                  </div>
+                  <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="uppercase">{formatJobKind(job)}</span>
+                    <span className="size-1 rounded-full bg-muted-foreground/20" />
+                    <span>{formatRelativeTime(job.createdAt)}</span>
+                  </div>
+                </>
+              );
+
+              if (!job.projectId) {
+                return (
+                  <div key={job.id} className="block py-2.5 first:pt-0 last:pb-0">
+                    {content}
+                  </div>
+                );
+              }
+
+              return (
+                <a
+                  key={job.id}
+                  href={`/org/${organizationSlug}/projects/${encodeURIComponent(job.projectId)}/jobs/${encodeURIComponent(job.id)}`}
+                  className="block py-2.5 transition-colors first:pt-0 last:pb-0 hover:text-foreground"
+                >
+                  {content}
+                </a>
+              );
+            })}
           </div>
         )}
       </section>

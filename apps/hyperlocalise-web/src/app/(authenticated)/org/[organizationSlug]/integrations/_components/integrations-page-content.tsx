@@ -5,7 +5,6 @@ import Image from "next/image";
 import {
   Alert02Icon,
   ArrowRight01Icon,
-  CheckmarkCircle02Icon,
   Copy01Icon,
   Delete02Icon,
   Key01Icon,
@@ -32,7 +31,6 @@ import type {
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
-import { toneClass } from "../../_components/workspace-resource-shared";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -136,32 +134,6 @@ function canManageAgents(role: OrganizationMembershipRole) {
 function getIntegrationErrorCopy(error: string | null) {
   if (!error) return null;
   return integrationErrorCopyByCode[error as keyof typeof integrationErrorCopyByCode] ?? null;
-}
-
-function tmsHealthTone(status: string): Parameters<typeof toneClass>[0] {
-  switch (status) {
-    case "connected":
-      return "safe";
-    case "degraded":
-      return "watch";
-    case "error":
-      return "risk";
-    default:
-      return "info";
-  }
-}
-
-function tmsHealthLabel(status: string) {
-  switch (status) {
-    case "connected":
-      return "Connected";
-    case "degraded":
-      return "Degraded";
-    case "error":
-      return "Error";
-    default:
-      return "Unvalidated";
-  }
 }
 
 type ProviderCredentialSummary = {
@@ -579,24 +551,6 @@ function TmsIntegrationRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-base font-medium text-foreground">{integration.name}</p>
-            {isConnected ? (
-              <>
-                <Badge
-                  variant="outline"
-                  className={toneClass(tmsHealthTone(credential.validationStatus))}
-                >
-                  <HugeiconsIcon
-                    icon={
-                      credential.validationStatus === "connected"
-                        ? CheckmarkCircle02Icon
-                        : Alert02Icon
-                    }
-                    strokeWidth={1.8}
-                  />
-                  {tmsHealthLabel(credential.validationStatus)}
-                </Badge>
-              </>
-            ) : null}
           </div>
           <p className="mt-0.5 text-sm leading-6 text-muted-foreground">{integration.detail}</p>
         </div>
@@ -693,22 +647,6 @@ function CmsIntegrationRow({
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-base font-medium text-foreground">{contentfulIntegration.name}</p>
-            {connection ? (
-              <Badge
-                variant="outline"
-                className={toneClass(tmsHealthTone(connection.validationStatus))}
-              >
-                <HugeiconsIcon
-                  icon={
-                    connection.validationStatus === "connected"
-                      ? CheckmarkCircle02Icon
-                      : Alert02Icon
-                  }
-                  strokeWidth={1.8}
-                />
-                {tmsHealthLabel(connection.validationStatus)}
-              </Badge>
-            ) : null}
           </div>
           <p className="mt-0.5 text-sm leading-6 text-muted-foreground">
             {contentfulIntegration.detail}

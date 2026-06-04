@@ -25,6 +25,7 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
       return 400;
     case "provider_fetcher_unavailable":
     case "provider_description_edit_unsupported":
+    case "provider_comments_read_unsupported":
       return 501;
     default:
       return 500;

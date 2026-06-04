@@ -24,8 +24,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 
-import { toneClass } from "../../../_components/workspace-resource-shared";
-import { useActiveTmsProvider } from "../../../_hooks/use-active-tms-provider";
+import { toneClass } from "../../../../../_components/workspace-resource-shared";
+import { useActiveTmsProvider } from "../../../../../_hooks/use-active-tms-provider";
 
 import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
 
@@ -178,9 +178,13 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
 export function JobDetailPageContent({
   jobId,
   organizationSlug,
+  projectId,
+  canEditProviderJobDescription,
 }: {
   jobId: string;
   organizationSlug: string;
+  projectId: string;
+  canEditProviderJobDescription: boolean;
 }) {
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const encodedProviderJob = parseProviderJobId(jobId);
@@ -201,22 +205,37 @@ export function JobDetailPageContent({
   }
 
   if (useLiveProviderJob) {
-    return <ProviderLiveJobDetailContent jobId={jobId} organizationSlug={organizationSlug} />;
+    return (
+      <ProviderLiveJobDetailContent
+        jobId={jobId}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canEditProviderJobDescription={canEditProviderJobDescription}
+      />
+    );
   }
 
-  return <NativeJobDetailPageContent jobId={jobId} organizationSlug={organizationSlug} />;
+  return (
+    <NativeJobDetailPageContent
+      jobId={jobId}
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+    />
+  );
 }
 
 function NativeJobDetailPageContent({
   jobId,
   organizationSlug,
+  projectId,
 }: {
   jobId: string;
   organizationSlug: string;
+  projectId: string;
 }) {
   const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
   const queryClient = useQueryClient();
-  const jobQueryKey = ["job", organizationSlug, jobId] as const;
+  const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
     queryFn: async () => {
@@ -229,6 +248,9 @@ function NativeJobDetailPageContent({
       }
 
       const body = (await response.json()) as { job: JobDetail };
+      if (body.job.projectId !== projectId) {
+        throw new Error("Job does not belong to this project");
+      }
       return body.job;
     },
   });
@@ -291,7 +313,11 @@ function NativeJobDetailPageContent({
         <div className="min-w-0">
           <Button
             nativeButton={false}
-            render={<Link href={`/org/${organizationSlug}/jobs`} />}
+            render={
+              <Link
+                href={`/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs`}
+              />
+            }
             variant="ghost"
             className="-ml-2 mb-2 text-foreground/54 hover:bg-foreground/6 hover:text-foreground"
           >

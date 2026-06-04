@@ -12,17 +12,20 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
-import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
+import type {
+  TmsProviderLiveJobComment,
+  TmsProviderLiveJobDetail,
+} from "@/lib/providers/tms-provider-live";
 
-import { toneClass } from "../../../_components/workspace-resource-shared";
+import { toneClass } from "../../../../../_components/workspace-resource-shared";
 import {
   JobDetailRow,
   ProviderCrowdinJobDetailRows,
-} from "../../_components/provider-crowdin-job-detail-rows";
+} from "../../../../../jobs/_components/provider-crowdin-job-detail-rows";
 import {
   formatLocaleList,
   getCrowdinTargetLocales,
-} from "../../_components/provider-crowdin-job-display";
+} from "../../../../../jobs/_components/provider-crowdin-job-display";
 
 function statusTone(status: TmsProviderLiveJobDetail["status"]) {
   switch (status) {
@@ -54,15 +57,93 @@ function formatJobKind(job: TmsProviderLiveJobDetail) {
   return job.kind.replace("_", " ");
 }
 
+function formatTimeSpent(seconds: number | null) {
+  if (!seconds || seconds <= 0) {
+    return null;
+  }
+
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return remainingMinutes > 0 ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
+}
+
+function TaskCommentsSection({
+  comments,
+  isError,
+  isLoading,
+}: {
+  comments: TmsProviderLiveJobComment[];
+  isError: boolean;
+  isLoading: boolean;
+}) {
+  return (
+    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+        Task comments
+      </TypographyH2>
+
+      {isLoading ? (
+        <div className="mt-4 space-y-3">
+          <Skeleton className="h-16 w-full bg-foreground/8" />
+          <Skeleton className="h-16 w-full bg-foreground/8" />
+        </div>
+      ) : null}
+
+      {isError ? (
+        <p className="mt-4 text-sm text-flame-100">Unable to load task comments.</p>
+      ) : null}
+
+      {!isLoading && !isError && comments.length === 0 ? (
+        <p className="mt-4 text-sm text-foreground/52">No task comments yet.</p>
+      ) : null}
+
+      {!isLoading && !isError && comments.length > 0 ? (
+        <ul className="mt-4 divide-y divide-foreground/8 rounded-md border border-foreground/8 bg-background/50">
+          {comments.map((comment) => {
+            const timeSpent = formatTimeSpent(comment.timeSpentSeconds);
+
+            return (
+              <li key={comment.id} className="px-3 py-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-medium text-foreground">User {comment.userId}</span>
+                  <span className="text-xs text-foreground/42">
+                    {formatDate(comment.createdAt)}
+                  </span>
+                </div>
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground/74">
+                  {comment.text}
+                </p>
+                {timeSpent ? (
+                  <p className="mt-2 text-xs text-foreground/42">Time spent: {timeSpent}</p>
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </section>
+  );
+}
+
 export function ProviderLiveJobDetailContent({
   jobId,
   organizationSlug,
+  projectId,
+  canEditProviderJobDescription,
 }: {
   jobId: string;
   organizationSlug: string;
+  projectId: string;
+  canEditProviderJobDescription: boolean;
 }) {
   const queryClient = useQueryClient();
   const jobQueryKey = ["tms-provider-job", organizationSlug, jobId] as const;
+  const commentsQueryKey = ["tms-provider-job-comments", organizationSlug, jobId] as const;
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
     queryFn: async () => {
@@ -80,6 +161,24 @@ export function ProviderLiveJobDetailContent({
       return body.job;
     },
   });
+  const commentsQuery = useQuery({
+    queryKey: commentsQueryKey,
+    enabled: jobQuery.data?.externalProviderKind === "crowdin",
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+        ":encodedJobId"
+      ].comments.$get({
+        param: { organizationSlug, encodedJobId: jobId },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load task comments (${response.status})`);
+      }
+
+      const body = (await response.json()) as { comments: TmsProviderLiveJobComment[] };
+      return body.comments;
+    },
+  });
 
   const job = jobQuery.data;
 
@@ -89,7 +188,11 @@ export function ProviderLiveJobDetailContent({
         <div className="min-w-0">
           <Button
             nativeButton={false}
-            render={<Link href={`/org/${organizationSlug}/jobs`} />}
+            render={
+              <Link
+                href={`/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs`}
+              />
+            }
             variant="ghost"
             className="-ml-2 mb-2 text-foreground/54 hover:bg-foreground/6 hover:text-foreground"
           >
@@ -190,6 +293,7 @@ export function ProviderLiveJobDetailContent({
                 formatJobKind={formatJobKind}
                 formatDateTime={formatDate}
                 descriptionQueryKey={jobQueryKey}
+                canEditDescription={canEditProviderJobDescription}
                 showProviderLink={false}
               />
             ) : (
@@ -220,6 +324,14 @@ export function ProviderLiveJobDetailContent({
             )}
           </dl>
         </section>
+      ) : null}
+
+      {job?.externalProviderKind === "crowdin" ? (
+        <TaskCommentsSection
+          comments={commentsQuery.data ?? []}
+          isError={commentsQuery.isError}
+          isLoading={commentsQuery.isLoading}
+        />
       ) : null}
     </main>
   );

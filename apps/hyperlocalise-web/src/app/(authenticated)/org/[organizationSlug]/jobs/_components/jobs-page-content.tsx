@@ -20,23 +20,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { cn } from "@/lib/primitives/cn";
 
-import { JobDetailRow, ProviderCrowdinJobDetailRows } from "./provider-crowdin-job-detail-rows";
 import { formatLocaleList, getCrowdinTargetLocales } from "./provider-crowdin-job-display";
 
 import {
-  JOB_SOURCE_FILTERS,
   JOB_STATUS_FILTERS,
   readWorkspaceFilterParam,
 } from "../../_components/workspace-filter-params";
@@ -89,12 +79,6 @@ type JobRow = ApiJob & {
   projectName: string | null;
 };
 
-type ProviderJobDetail = JobRow & {
-  externalJobId: string;
-  externalUrl: string | null;
-  externalProviderPayload: Record<string, unknown>;
-};
-
 const statusOptions = [
   "all",
   "queued",
@@ -104,18 +88,6 @@ const statusOptions = [
   "waiting_for_review",
   "cancelled",
 ] as const;
-
-const sourceFilterLabels = {
-  all: "All sources",
-  native: "Native",
-  provider: "Provider",
-} as const;
-
-const agentReadyFilterLabels = {
-  all: "Any agent state",
-  ready: "Agent-ready",
-  not_ready: "Not ready",
-} as const;
 
 const statusFilterLabels = {
   all: "All status",
@@ -187,18 +159,6 @@ function formatRelativeTime(value: string | null) {
   return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 31_536_000), "year");
 }
 
-const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-function formatDateTime(value: string | null | undefined) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return DATE_TIME_FORMATTER.format(date);
-}
-
 function sourceLabel(job: ApiJob) {
   return job.externalProviderKind ? `Provider · ${job.externalProviderKind}` : "Native";
 }
@@ -267,44 +227,14 @@ function JobsList({
   isLoading,
   jobs,
   organizationSlug,
+  projectId,
 }: {
   emptyLabel: string;
   isLoading: boolean;
   jobs: JobRow[];
   organizationSlug: string;
+  projectId?: string;
 }) {
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null);
-  const selectedJob = useMemo(
-    () => jobs.find((job) => job.id === selectedJobId) ?? null,
-    [jobs, selectedJobId],
-  );
-  const selectedJobName = selectedJob ? getJobName(selectedJob) : "Task detail";
-  const shouldFetchProviderDetail = Boolean(
-    selectedJob?.externalProviderKind && selectedJob.id.startsWith("ext:"),
-  );
-  const providerDetailQuery = useQuery({
-    queryKey: ["tms-provider-job", organizationSlug, selectedJob?.id],
-    enabled: shouldFetchProviderDetail,
-    queryFn: async () => {
-      if (!selectedJob) throw new Error("No task selected");
-      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
-        ":encodedJobId"
-      ].$get({
-        param: { organizationSlug, encodedJobId: selectedJob.id },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load provider task (${response.status})`);
-      }
-
-      const body = (await response.json()) as { job: ProviderJobDetail };
-      return body.job;
-    },
-  });
-  const detailJob = providerDetailQuery.data ?? selectedJob;
-  const providerPayload = providerDetailQuery.data?.externalProviderPayload ?? null;
-  const providerJobQueryKey = ["tms-provider-job", organizationSlug, selectedJob?.id] as const;
-
   if (isLoading)
     return (
       <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>
@@ -330,166 +260,99 @@ function JobsList({
             <TypographyP>Task details</TypographyP>
             <span aria-hidden />
           </div>
-          {jobs.map((job, index) => (
-            <div key={job.id}>
-              <div className={cn(jobsTableGridClassName, "items-center px-3 py-3")}>
-                <Button
-                  variant="ghost"
-                  className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-foreground/6"
-                  onClick={() => setSelectedJobId(job.id)}
-                >
-                  <span className="min-w-0">
-                    <span className="block truncate text-base font-medium text-foreground">
-                      {getJobName(job)}
-                    </span>
-                    <span className="mt-1 block truncate text-xs font-normal text-foreground/38">
-                      {formatJobKind(job)} · {job.externalTaskId ?? job.id}
-                    </span>
-                  </span>
-                </Button>
-                <Badge variant="outline" className="w-fit rounded-full">
-                  {sourceLabel(job)}
-                </Badge>
-                <TypographyP className="truncate text-sm text-foreground/58">
-                  {job.projectName ?? "Workspace"}
-                </TypographyP>
-                <Badge
-                  variant="outline"
-                  className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}
-                >
-                  {job.status}
-                </Badge>
-                <div className="min-w-0">
-                  <TypographyP className="truncate text-sm text-foreground/68">
-                    {taskDetailSummary(job)}
+          {jobs.map((job, index) => {
+            const detailHref = getJobDetailHref(
+              organizationSlug,
+              projectId ?? job.projectId,
+              job.id,
+            );
+
+            return (
+              <div key={job.id}>
+                <div className={cn(jobsTableGridClassName, "items-center px-3 py-3")}>
+                  {detailHref ? (
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={detailHref} />}
+                      variant="ghost"
+                      className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-foreground/6"
+                    >
+                      <JobListItemTitle job={job} />
+                    </Button>
+                  ) : (
+                    <div className="min-w-0 px-0 py-1">
+                      <JobListItemTitle job={job} />
+                    </div>
+                  )}
+                  <Badge variant="outline" className="w-fit rounded-full">
+                    {sourceLabel(job)}
+                  </Badge>
+                  <TypographyP className="truncate text-sm text-foreground/58">
+                    {job.projectName ?? "Workspace"}
                   </TypographyP>
-                  <TypographyP className="mt-1 truncate text-xs text-foreground/38">
-                    Due {formatRelativeTime(job.externalDueDate)} · Synced{" "}
-                    {formatRelativeTime(job.updatedAt)}
-                  </TypographyP>
+                  <Badge
+                    variant="outline"
+                    className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}
+                  >
+                    {job.status}
+                  </Badge>
+                  <div className="min-w-0">
+                    <TypographyP className="truncate text-sm text-foreground/68">
+                      {taskDetailSummary(job)}
+                    </TypographyP>
+                    <TypographyP className="mt-1 truncate text-xs text-foreground/38">
+                      Due {formatRelativeTime(job.externalDueDate)} · Synced{" "}
+                      {formatRelativeTime(job.updatedAt)}
+                    </TypographyP>
+                  </div>
+                  {detailHref ? (
+                    <Button
+                      nativeButton={false}
+                      render={<Link href={detailHref} />}
+                      variant="outline"
+                      size="sm"
+                      className="w-fit"
+                    >
+                      Details
+                    </Button>
+                  ) : (
+                    <Button variant="outline" size="sm" className="w-fit" disabled>
+                      Details
+                    </Button>
+                  )}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-fit"
-                  onClick={() => setSelectedJobId(job.id)}
-                >
-                  Details
-                </Button>
+                {index < jobs.length - 1 ? <Separator className="bg-foreground/8" /> : null}
               </div>
-              {index < jobs.length - 1 ? <Separator className="bg-foreground/8" /> : null}
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
-      <Sheet
-        open={Boolean(selectedJob)}
-        onOpenChange={(open) => {
-          if (!open) setSelectedJobId(null);
-        }}
-      >
-        <SheetContent className="w-full max-w-full border-foreground/10 bg-background p-0 sm:max-w-xl">
-          <SheetHeader className="border-b border-foreground/8 pe-14">
-            <SheetTitle className="text-pretty">{selectedJobName}</SheetTitle>
-            <SheetDescription>
-              {selectedJob?.externalProviderKind
-                ? `Live task from ${selectedJob.externalProviderKind}`
-                : "Workspace task detail"}
-            </SheetDescription>
-          </SheetHeader>
-          <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-6">
-            {providerDetailQuery.isLoading ? (
-              <div className="py-5">
-                <Skeleton className="h-5 w-40 bg-foreground/8" />
-                <Skeleton className="mt-4 h-40 w-full bg-foreground/8" />
-              </div>
-            ) : null}
-            {providerDetailQuery.isError ? (
-              <div className="mt-5 rounded-lg border border-flame-300/20 bg-flame-300/8 p-4 text-sm text-flame-100">
-                {providerDetailQuery.error instanceof Error
-                  ? providerDetailQuery.error.message
-                  : "Unable to load provider task"}
-              </div>
-            ) : null}
-            {providerDetailQuery.data?.externalUrl ? (
-              <Button
-                nativeButton={false}
-                render={
-                  <a
-                    href={providerDetailQuery.data.externalUrl}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                  />
-                }
-                className="mt-5 w-full"
-              >
-                View strings in {providerDetailQuery.data.externalProviderKind ?? "provider"}
-              </Button>
-            ) : null}
-            {detailJob ? (
-              <dl className="divide-y divide-foreground/8">
-                <JobDetailRow label="Task ID" value={detailJob.externalTaskId ?? detailJob.id} />
-                <JobDetailRow label="Provider status" value={detailJob.externalStatus} />
-                <JobDetailRow label="Status" value={detailJob.status} />
-                <JobDetailRow label="Assignees" value={assignees(detailJob)} />
-                {detailJob.externalProviderKind === "crowdin" ? (
-                  <ProviderCrowdinJobDetailRows
-                    job={{
-                      ...detailJob,
-                      externalJobId: providerDetailQuery.data?.externalJobId ?? detailJob.id,
-                      externalUrl: providerDetailQuery.data?.externalUrl ?? null,
-                    }}
-                    providerPayload={providerPayload}
-                    organizationSlug={organizationSlug}
-                    formatJobKind={formatJobKind}
-                    formatDateTime={formatDateTime}
-                    descriptionQueryKey={providerJobQueryKey}
-                  />
-                ) : (
-                  <>
-                    <JobDetailRow label="Task type" value={formatJobKind(detailJob)} />
-                    <JobDetailRow label="Project" value={detailJob.projectName ?? "Workspace"} />
-                    <JobDetailRow label="Target locales" value={targetLocales(detailJob)} />
-                    <JobDetailRow
-                      label="Due date"
-                      value={formatDateTime(detailJob.externalDueDate)}
-                    />
-                    <JobDetailRow label="Last sync" value={formatDateTime(detailJob.updatedAt)} />
-                    {providerDetailQuery.data?.externalUrl ? (
-                      <JobDetailRow
-                        label="Provider URL"
-                        value={
-                          <a
-                            href={providerDetailQuery.data.externalUrl}
-                            target="_blank"
-                            rel="noreferrer noopener"
-                            className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
-                          >
-                            Open in {providerDetailQuery.data.externalProviderKind ?? "provider"}
-                          </a>
-                        }
-                      />
-                    ) : null}
-                  </>
-                )}
-              </dl>
-            ) : null}
-          </div>
-          {selectedJob ? (
-            <div className="border-t border-foreground/8 p-6">
-              <Button
-                nativeButton={false}
-                render={<Link href={`/org/${organizationSlug}/jobs/${selectedJob.id}`} />}
-                variant="outline"
-                className="w-full"
-              >
-                Open full detail page
-              </Button>
-            </div>
-          ) : null}
-        </SheetContent>
-      </Sheet>
     </>
+  );
+}
+
+function getJobDetailHref(
+  organizationSlug: string,
+  projectId: string | null | undefined,
+  jobId: string,
+) {
+  if (!projectId) {
+    return null;
+  }
+
+  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
+}
+
+function JobListItemTitle({ job }: { job: ApiJob }) {
+  return (
+    <span className="min-w-0">
+      <span className="block truncate text-base font-medium text-foreground">
+        {getJobName(job)}
+      </span>
+      <span className="mt-1 block truncate text-xs font-normal text-foreground/38">
+        {formatJobKind(job)} · {job.externalTaskId ?? job.id}
+      </span>
+    </span>
   );
 }
 
@@ -511,11 +374,6 @@ export function JobsPageContent({
       ? (status as (typeof statusOptions)[number])
       : "all";
   });
-  const [sourceFilter, setSourceFilter] = useState<"all" | "native" | "provider">(() => {
-    const source = readWorkspaceFilterParam(searchParams, "source", JOB_SOURCE_FILTERS);
-    return source === "native" || source === "provider" ? source : "all";
-  });
-  const [agentReadyFilter, setAgentReadyFilter] = useState<"all" | "ready" | "not_ready">("all");
 
   const jobsQuery = useQuery({
     queryKey: ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"],
@@ -555,15 +413,6 @@ export function JobsPageContent({
     const normalizedSearch = search.trim().toLowerCase();
     return jobs.filter((job) => {
       const matchesStatus = statusFilter === "all" || job.status === statusFilter;
-      const matchesSource =
-        sourceFilter === "all" ||
-        (sourceFilter === "provider"
-          ? Boolean(job.externalProviderKind)
-          : !job.externalProviderKind);
-      const isReady =
-        job.status === "queued" || job.status === "running" || job.status === "waiting_for_review";
-      const matchesReady =
-        agentReadyFilter === "all" || (agentReadyFilter === "ready" ? isReady : !isReady);
       const matchesSearch =
         !normalizedSearch ||
         [
@@ -579,9 +428,9 @@ export function JobsPageContent({
           .join(" ")
           .toLowerCase()
           .includes(normalizedSearch);
-      return matchesStatus && matchesSource && matchesReady && matchesSearch;
+      return matchesStatus && matchesSearch;
     });
-  }, [jobs, search, statusFilter, sourceFilter, agentReadyFilter]);
+  }, [jobs, search, statusFilter]);
 
   const isMyWork = scope === "mine";
   const emptyLabel = projectId
@@ -609,27 +458,6 @@ export function JobsPageContent({
             />
           </div>
         </JobsFilterField>
-        <JobsFilterField label="Source" className="w-full lg:w-40">
-          <Select
-            value={sourceFilter}
-            onValueChange={(value) => setSourceFilter((value ?? "all") as typeof sourceFilter)}
-          >
-            <SelectTrigger className={jobsFilterTriggerClassName}>
-              <SelectValue>{sourceFilterLabels[sourceFilter]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent className={jobsFilterSelectContentClassName}>
-              <SelectItem value="all" label={sourceFilterLabels.all}>
-                {sourceFilterLabels.all}
-              </SelectItem>
-              <SelectItem value="native" label={sourceFilterLabels.native}>
-                {sourceFilterLabels.native}
-              </SelectItem>
-              <SelectItem value="provider" label={sourceFilterLabels.provider}>
-                {sourceFilterLabels.provider}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </JobsFilterField>
         <JobsFilterField label="Status" className="w-full lg:w-40">
           <Select
             value={statusFilter}
@@ -646,29 +474,6 @@ export function JobsPageContent({
                   {statusFilterLabels[status]}
                 </SelectItem>
               ))}
-            </SelectContent>
-          </Select>
-        </JobsFilterField>
-        <JobsFilterField label="Agent" className="w-full lg:w-40">
-          <Select
-            value={agentReadyFilter}
-            onValueChange={(value) =>
-              setAgentReadyFilter((value ?? "all") as typeof agentReadyFilter)
-            }
-          >
-            <SelectTrigger className={jobsFilterTriggerClassName}>
-              <SelectValue>{agentReadyFilterLabels[agentReadyFilter]}</SelectValue>
-            </SelectTrigger>
-            <SelectContent className={jobsFilterSelectContentClassName}>
-              <SelectItem value="all" label={agentReadyFilterLabels.all}>
-                {agentReadyFilterLabels.all}
-              </SelectItem>
-              <SelectItem value="ready" label={agentReadyFilterLabels.ready}>
-                {agentReadyFilterLabels.ready}
-              </SelectItem>
-              <SelectItem value="not_ready" label={agentReadyFilterLabels.not_ready}>
-                {agentReadyFilterLabels.not_ready}
-              </SelectItem>
             </SelectContent>
           </Select>
         </JobsFilterField>
@@ -700,6 +505,7 @@ export function JobsPageContent({
         isLoading={jobsQuery.isLoading}
         jobs={visibleJobs}
         organizationSlug={organizationSlug}
+        projectId={projectId}
       />
     </section>
   );

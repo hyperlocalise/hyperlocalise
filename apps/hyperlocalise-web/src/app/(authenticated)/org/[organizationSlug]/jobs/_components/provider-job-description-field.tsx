@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { Edit02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -25,6 +27,7 @@ export function ProviderJobDescriptionField({
   queryKey: readonly unknown[];
 }) {
   const queryClient = useQueryClient();
+  const [isEditing, setIsEditing] = useState(false);
   const [draftState, setDraftState] = useState({
     baseDescription: description,
     draft: description,
@@ -76,6 +79,7 @@ export function ProviderJobDescriptionField({
         };
       });
       setDraftState({ baseDescription: nextDescription, draft: nextDescription });
+      setIsEditing(false);
       toast.success("Description saved");
     },
     onError: (error) => {
@@ -93,6 +97,31 @@ export function ProviderJobDescriptionField({
         value={description}
         className="border-foreground/8 bg-transparent"
       />
+    );
+  }
+
+  if (!isEditing) {
+    return (
+      <div className="group/description relative">
+        <MarkdownDescriptionPreview
+          value={description}
+          emptyMessage="No description"
+          className="border-foreground/8 bg-transparent pr-12"
+        />
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="Edit description"
+          className="absolute top-2 right-2 text-foreground/54 hover:text-foreground"
+          onClick={() => {
+            setDraftState({ baseDescription: description, draft: description });
+            setIsEditing(true);
+          }}
+        >
+          <HugeiconsIcon icon={Edit02Icon} strokeWidth={1.8} />
+        </Button>
+      </div>
     );
   }
 
@@ -123,14 +152,17 @@ export function ProviderJobDescriptionField({
         >
           Reset
         </Button>
-      </div>
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">Preview</p>
-        <MarkdownDescriptionPreview
-          value={draft}
-          emptyMessage="Nothing to preview yet."
-          className="border-foreground/8 bg-transparent"
-        />
+        <Button
+          size="sm"
+          variant="ghost"
+          disabled={saveMutation.isPending}
+          onClick={() => {
+            setDraftState({ baseDescription: description, draft: description });
+            setIsEditing(false);
+          }}
+        >
+          Cancel
+        </Button>
       </div>
     </div>
   );

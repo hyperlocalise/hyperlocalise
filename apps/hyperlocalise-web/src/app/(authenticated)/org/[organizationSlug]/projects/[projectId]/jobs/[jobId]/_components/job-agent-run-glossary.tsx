@@ -9,7 +9,7 @@ import {
 } from "@/lib/translation/agent-run-glossary";
 import { cn } from "@/lib/primitives/cn";
 
-import { toneClass } from "../../../_components/workspace-resource-shared";
+import { toneClass } from "../../../../../_components/workspace-resource-shared";
 
 function matchSourceTone(matchSource: AgentRunGlossaryMatchUsage["matchSource"]) {
   return matchSource === "synced_database" ? "safe" : "info";

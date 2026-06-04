@@ -8,7 +8,7 @@ import {
 } from "@/lib/translation/agent-run-translation-memory";
 import { cn } from "@/lib/primitives/cn";
 
-import { toneClass } from "../../../_components/workspace-resource-shared";
+import { toneClass } from "../../../../../_components/workspace-resource-shared";
 
 function matchSourceTone(matchSource: AgentRunTranslationMemoryMatchUsage["matchSource"]) {
   return matchSource === "synced_database" ? "safe" : "info";

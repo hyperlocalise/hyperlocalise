@@ -46,6 +46,7 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   formatJobKind,
   formatDateTime,
   descriptionQueryKey,
+  canEditDescription,
   showProviderLink = true,
   extraRows,
 }: {
@@ -55,6 +56,7 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   formatJobKind: (job: J) => string;
   formatDateTime: (value: string | null | undefined) => string;
   descriptionQueryKey?: readonly unknown[];
+  canEditDescription?: boolean;
   showProviderLink?: boolean;
   extraRows?: ReactNode;
 }) {
@@ -71,7 +73,7 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   const crowdinLocaleReadiness = isCrowdin ? getCrowdinLocaleReadiness(providerPayload) : null;
   const crowdinProgress = formatReadinessProgress(crowdinLocaleReadiness);
   const crowdinWordsToDo = formatWordsToDo(crowdinLocaleReadiness);
-  const canEditDescription =
+  const canEditProviderDescription =
     isCrowdin && job.id.startsWith("ext:") && Boolean(descriptionQueryKey?.length);
 
   return (
@@ -84,7 +86,7 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
         <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
           <dt className="text-sm text-foreground/42">Description</dt>
           <dd className="min-w-0">
-            {canEditDescription && descriptionQueryKey ? (
+            {canEditDescription && canEditProviderDescription && descriptionQueryKey ? (
               <ProviderJobDescriptionField
                 organizationSlug={organizationSlug}
                 encodedJobId={job.id}

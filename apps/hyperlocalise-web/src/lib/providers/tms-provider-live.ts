@@ -134,6 +134,17 @@ export type TmsProviderLiveJobDetail = TmsProviderLiveJob & {
   externalProviderPayload: Record<string, unknown>;
 };
 
+export type TmsProviderLiveJobComment = {
+  id: string;
+  externalCommentId: string;
+  userId: string;
+  taskId: string;
+  text: string;
+  timeSpentSeconds: number | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type TmsProviderLiveFile = {
   origin: "provider";
   sourcePath: string;
@@ -1113,6 +1124,66 @@ export async function getTmsProviderLiveJobDetail(
     projectName: project.name,
     task,
   });
+}
+
+export async function listTmsProviderLiveJobComments(
+  organizationId: string,
+  encodedJobId: string,
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveJobComment[] | null> {
+  const parsed = parseProviderJobId(encodedJobId);
+  if (!parsed) {
+    throw new TmsProviderLiveError("invalid_encoded_job_id", "Job id is not a provider job id.");
+  }
+
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  if (context.providerKind !== parsed.providerKind) {
+    return null;
+  }
+
+  if (context.providerKind !== "crowdin") {
+    throw new TmsProviderLiveError(
+      "provider_comments_read_unsupported",
+      `Task comments are not available for ${context.providerKind}.`,
+    );
+  }
+
+  const projectId = Number(parsed.externalProjectId);
+  const taskId = Number(parsed.externalJobId);
+  if (Number.isNaN(projectId) || Number.isNaN(taskId)) {
+    return null;
+  }
+
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
+  });
+
+  let comments: Awaited<ReturnType<typeof client.listTaskComments>>;
+  try {
+    comments = await client.listTaskComments(projectId, taskId);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    if (error instanceof CrowdinApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+
+  return comments.map((comment) => ({
+    id: `crowdin:task-comment:${comment.id}`,
+    externalCommentId: String(comment.id),
+    userId: String(comment.userId),
+    taskId: String(comment.taskId),
+    text: comment.text,
+    timeSpentSeconds: comment.timeSpent ?? null,
+    createdAt: comment.createdAt,
+    updatedAt: comment.updatedAt,
+  }));
 }
 
 export async function updateTmsProviderLiveJobDescription(

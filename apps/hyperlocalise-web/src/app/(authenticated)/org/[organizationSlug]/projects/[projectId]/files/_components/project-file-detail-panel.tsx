@@ -55,6 +55,20 @@ function providerName(kind: string) {
   }
 }
 
+function fileMetadataLine(
+  byteSize: number | null,
+  revision: string | null | undefined,
+  uploadedAt: string,
+) {
+  return [
+    formatBytes(byteSize),
+    revision ? `revision ${revision}` : null,
+    `Updated ${DATE_FORMATTER.format(new Date(uploadedAt))}`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 function truncatePreview(text: string) {
   if (text.length <= MAX_PREVIEW_CHARS) {
     return { text, truncated: false };
@@ -123,7 +137,7 @@ export function ProjectFileDetailPanel({
       <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
         <TypographyP className="text-sm font-medium text-foreground">Select a file</TypographyP>
         <TypographyP className="max-w-sm text-sm text-foreground/52">
-          Choose a file from the list to preview its source content, versions, and related jobs.
+          Choose a file from the list to preview its source content and related jobs.
         </TypographyP>
       </div>
     );
@@ -175,7 +189,7 @@ export function ProjectFileDetailPanel({
         <div className="flex flex-wrap items-center gap-2">
           {file.provider ? (
             <Badge variant="outline" className="rounded-full text-[10px]">
-              {providerName(file.provider.kind)} · {file.provider.syncState}
+              {providerName(file.provider.kind)}
             </Badge>
           ) : file.latestJob ? (
             <Badge variant="outline" className="rounded-full text-[10px]">
@@ -187,8 +201,7 @@ export function ProjectFileDetailPanel({
             </Badge>
           )}
           <TypographyP className="text-xs text-foreground/42">
-            {formatBytes(displayByteSize)} · Updated{" "}
-            {DATE_FORMATTER.format(new Date(file.uploadedAt))}
+            {fileMetadataLine(displayByteSize, latestVersion?.revision, file.uploadedAt)}
           </TypographyP>
         </div>
         {latestVersion?.sourceHash ? (
@@ -229,33 +242,6 @@ export function ProjectFileDetailPanel({
         )}
       </section>
 
-      {detail && detail.versions.length > 0 ? (
-        <section className="space-y-2">
-          <TypographyP className="text-xs font-medium tracking-wide text-foreground/52 uppercase">
-            Versions ({detail.versions.length})
-          </TypographyP>
-          <ul className="divide-y divide-foreground/8 rounded-md border border-foreground/8 bg-background/60">
-            {detail.versions.slice(0, 5).map((version) => (
-              <li key={version.id} className="flex flex-col gap-0.5 px-3 py-2">
-                <TypographyP className="text-sm text-foreground">
-                  {DATE_FORMATTER.format(new Date(version.uploadedAt))}
-                </TypographyP>
-                <TypographyP className="text-xs text-foreground/42">
-                  {version.origin}
-                  {version.commitSha ? ` · ${version.commitSha.slice(0, 7)}` : ""}
-                  {version.revision ? ` · rev ${version.revision}` : ""}
-                </TypographyP>
-              </li>
-            ))}
-          </ul>
-          {detail.versions.length > 5 ? (
-            <TypographyP className="text-xs text-foreground/42">
-              {detail.versions.length - 5} older versions not shown.
-            </TypographyP>
-          ) : null}
-        </section>
-      ) : null}
-
       {orderedJobsByLocale.length > 0 ? (
         <section className="space-y-3">
           <TypographyP className="text-xs font-medium tracking-wide text-foreground/52 uppercase">
@@ -277,7 +263,7 @@ export function ProjectFileDetailPanel({
                   {group.jobs.map((job) => (
                     <li key={job.id}>
                       <Link
-                        href={`/org/${organizationSlug}/jobs/${job.id}`}
+                        href={`/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}`}
                         className="flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-foreground/5"
                       >
                         <span className="font-mono text-xs text-foreground/72">{job.id}</span>

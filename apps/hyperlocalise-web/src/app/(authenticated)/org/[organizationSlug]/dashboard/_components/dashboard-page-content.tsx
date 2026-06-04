@@ -12,7 +12,7 @@ export function DashboardPageContent({ organizationSlug }: { organizationSlug: s
         icon={DashboardSquare01Icon}
         label="Workspace"
         title="Overview"
-        description="TMS connectivity, sync health, and locale readiness across your workspace."
+        description="Overview of your workspace"
       />
       <TmsDashboardSummarySection organizationSlug={organizationSlug} />
     </WorkspacePageShell>

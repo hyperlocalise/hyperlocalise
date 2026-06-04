@@ -101,8 +101,6 @@ function ProjectSourceDetails({ project }: { project: ProjectListRow }) {
       <div className="mt-4 grid gap-4 md:grid-cols-2">
         <DetailRow label="External project ID" value={project.externalProjectId} />
         <DetailRow label="Status" value={project.isActive ? "Active" : "Inactive"} />
-        <DetailRow label="Last synced" value={project.lastSyncedAt} />
-        <DetailRow label="Last sync error" value={project.lastSyncErrorMessage} />
       </div>
       {providerUrl ? (
         <Button
@@ -236,11 +234,14 @@ export function ProjectSettingsPageContent({
 
       <form id="project-settings-form" onSubmit={handleSubmit} className="grid gap-5">
         <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          <div>
-            <ProjectSectionTitle>General</ProjectSectionTitle>
-            <TypographyP className="mt-1 text-sm text-foreground/52">
-              Name the project and capture operational notes for the team.
-            </TypographyP>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <ProjectSectionTitle>General</ProjectSectionTitle>
+              <TypographyP className="mt-1 text-sm text-foreground/52">
+                Name the project and capture operational notes for the team.
+              </TypographyP>
+            </div>
+            {!settingsEditable ? <Badge variant="outline">Read-only</Badge> : null}
           </div>
           <Field className="gap-1.5">
             <FieldLabel htmlFor="project-name">Name</FieldLabel>
@@ -280,35 +281,37 @@ export function ProjectSettingsPageContent({
           </Field>
         </section>
 
-        <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
-          <div>
-            <ProjectSectionTitle>Translation guidance</ProjectSectionTitle>
-            <TypographyP className="mt-1 text-sm text-foreground/52">
-              Shared instructions for tone, terminology, formatting, and product context.
-            </TypographyP>
-          </div>
-          <Field className="gap-1.5">
-            <FieldLabel htmlFor="translation-context">Guidance</FieldLabel>
-            <Textarea
-              id="translation-context"
-              value={values.translationContext}
-              disabled={isSaving || !settingsEditable}
-              onChange={(event) =>
-                setValues((current) =>
-                  current ? { ...current, translationContext: event.target.value } : current,
-                )
-              }
-              aria-invalid={Boolean(errors.translationContext)}
-              className="min-h-36"
-              placeholder="Example: Keep product names in English. Use concise UI copy. Prefer informal tone for marketing pages."
-            />
-            <FieldError
-              errors={
-                errors.translationContext ? [{ message: errors.translationContext }] : undefined
-              }
-            />
-          </Field>
-        </section>
+        {settingsEditable ? (
+          <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
+            <div>
+              <ProjectSectionTitle>Translation guidance</ProjectSectionTitle>
+              <TypographyP className="mt-1 text-sm text-foreground/52">
+                Shared instructions for tone, terminology, formatting, and product context.
+              </TypographyP>
+            </div>
+            <Field className="gap-1.5">
+              <FieldLabel htmlFor="translation-context">Guidance</FieldLabel>
+              <Textarea
+                id="translation-context"
+                value={values.translationContext}
+                disabled={isSaving}
+                onChange={(event) =>
+                  setValues((current) =>
+                    current ? { ...current, translationContext: event.target.value } : current,
+                  )
+                }
+                aria-invalid={Boolean(errors.translationContext)}
+                className="min-h-36"
+                placeholder="Example: Keep product names in English. Use concise UI copy. Prefer informal tone for marketing pages."
+              />
+              <FieldError
+                errors={
+                  errors.translationContext ? [{ message: errors.translationContext }] : undefined
+                }
+              />
+            </Field>
+          </section>
+        ) : null}
 
         <section className="grid gap-4 rounded-lg border border-foreground/8 bg-foreground/2.5 p-4">
           <div className="flex flex-wrap items-start justify-between gap-3">
