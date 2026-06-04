@@ -4,7 +4,10 @@ import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { MarkdownDescriptionEditor } from "@/components/markdown-description-editor";
+import {
+  MarkdownDescriptionEditor,
+  MarkdownDescriptionPreview,
+} from "@/components/markdown-description-editor";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
@@ -86,10 +89,8 @@ export function ProviderJobDescriptionField({
     }
 
     return (
-      <MarkdownDescriptionEditor
+      <MarkdownDescriptionPreview
         value={description}
-        onChange={() => {}}
-        disabled
         className="border-foreground/8 bg-transparent"
       />
     );
@@ -122,6 +123,14 @@ export function ProviderJobDescriptionField({
         >
           Reset
         </Button>
+      </div>
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-foreground/42">Preview</p>
+        <MarkdownDescriptionPreview
+          value={draft}
+          emptyMessage="Nothing to preview yet."
+          className="border-foreground/8 bg-transparent"
+        />
       </div>
     </div>
   );

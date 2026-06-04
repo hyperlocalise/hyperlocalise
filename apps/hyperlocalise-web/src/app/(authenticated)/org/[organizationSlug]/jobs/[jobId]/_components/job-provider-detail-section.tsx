@@ -7,6 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
+import { MarkdownDescriptionPreview } from "@/components/markdown-description-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -213,6 +214,8 @@ export function JobProviderDetailSection({
 
   const visibleActions = (job.providerActions ?? []).filter((action) => action.visible);
   const sourceFiles = job.providerSourceFiles ?? [];
+  const crowdinDescription =
+    getProviderPayloadString(job.externalProviderPayload, "description")?.trim() ?? "";
 
   return (
     <>
@@ -248,9 +251,14 @@ export function JobProviderDetailSection({
               <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
                 <dt className="text-sm text-foreground/42">Description</dt>
                 <dd className="min-w-0 text-sm text-foreground/74">
-                  {getProviderPayloadString(job.externalProviderPayload, "description")?.trim()
-                    ? getProviderPayloadString(job.externalProviderPayload, "description")
-                    : "—"}
+                  {crowdinDescription ? (
+                    <MarkdownDescriptionPreview
+                      value={crowdinDescription}
+                      className="border-foreground/8 bg-transparent"
+                    />
+                  ) : (
+                    "—"
+                  )}
                 </dd>
               </div>
             </>
