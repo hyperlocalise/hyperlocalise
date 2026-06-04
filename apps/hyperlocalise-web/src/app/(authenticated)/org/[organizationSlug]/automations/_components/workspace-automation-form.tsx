@@ -49,6 +49,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -195,17 +196,26 @@ function DeleteToolButton({
   onClick: () => void;
 }) {
   return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
-    >
-      <Trash2Icon className="size-4" />
-    </Button>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={label}
+            disabled={disabled}
+            onClick={onClick}
+            className="size-8 rounded-lg text-muted-foreground hover:text-foreground"
+          >
+            <Trash2Icon className="size-4" />
+          </Button>
+        }
+      />
+      <TooltipContent side="bottom" align="center">
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
@@ -326,17 +336,17 @@ function HeaderProjectSelector({
             type="button"
             variant="ghost"
             className="h-auto gap-1 px-0 py-0 text-sm font-normal text-muted-foreground hover:bg-transparent hover:text-foreground disabled:opacity-50"
-          />
+          >
+            <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
+            {isLoading ? (
+              <Skeleton className="h-3.5 w-20 rounded-full bg-muted-foreground/20" />
+            ) : (
+              triggerLabel
+            )}
+            <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
+          </Button>
         }
-      >
-        <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
-        {isLoading ? (
-          <Skeleton className="h-3.5 w-20 rounded-full bg-muted-foreground/20" />
-        ) : (
-          triggerLabel
-        )}
-        <HugeiconsIcon icon={ArrowDown01Icon} strokeWidth={1.8} className="size-3.5" />
-      </DropdownMenuTrigger>
+      />
       <DropdownMenuContent className="min-w-56" align="start">
         <DropdownMenuGroup>
           <DropdownMenuLabel>Projects</DropdownMenuLabel>
@@ -414,16 +424,16 @@ function BranchPatternSelector({
               type="button"
               variant="outline"
               className="h-8 w-full justify-between gap-2 rounded-lg border border-input bg-input/30 px-3 text-sm font-normal text-foreground hover:bg-input/50 disabled:opacity-50"
-            />
+            >
+              <span className="truncate">{formatBranchPatternLabel(branches)}</span>
+              <HugeiconsIcon
+                icon={ArrowDown01Icon}
+                strokeWidth={1.8}
+                className="size-3.5 shrink-0 opacity-60"
+              />
+            </Button>
           }
-        >
-          <span className="truncate">{formatBranchPatternLabel(branches)}</span>
-          <HugeiconsIcon
-            icon={ArrowDown01Icon}
-            strokeWidth={1.8}
-            className="size-3.5 shrink-0 opacity-60"
-          />
-        </DropdownMenuTrigger>
+        />
         <DropdownMenuContent className="min-w-56" align="start">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Branch patterns</DropdownMenuLabel>
@@ -509,12 +519,12 @@ function AddTriggerMenu({
               variant="ghost"
               disabled={disabled}
               className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-            />
+            >
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
+              Add Trigger
+            </Button>
           }
-        >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-          Add Trigger
-        </DropdownMenuTrigger>
+        />
         <DropdownMenuContent className="w-72" align="start" sideOffset={2}>
           <DropdownMenuGroup>
             <DropdownMenuLabel>Supported triggers</DropdownMenuLabel>
@@ -819,12 +829,12 @@ function AddToolMenu({
               variant="ghost"
               disabled={disabled}
               className="flex h-10 w-full shrink justify-start rounded-none px-3 text-muted-foreground hover:bg-foreground/5 hover:text-foreground"
-            />
+            >
+              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
+              Add Tool
+            </Button>
           }
-        >
-          <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} className="size-4" />
-          Add Tool
-        </DropdownMenuTrigger>
+        />
         <DropdownMenuContent
           className="max-h-(--available-height) w-80 overflow-y-auto"
           align="start"
