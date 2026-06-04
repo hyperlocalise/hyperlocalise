@@ -130,6 +130,7 @@ export async function runProviderJobQaForJob(input: {
   projectId: string;
   providerKind: ExternalTmsProviderKind;
   externalJobId: string;
+  actorUserId?: string | null;
 }) {
   const pullContent = getProviderContentPuller(input.providerKind);
   if (!pullContent) {
@@ -142,6 +143,7 @@ export async function runProviderJobQaForJob(input: {
     providerKind: input.providerKind,
     externalJobId: input.externalJobId,
     pullContent,
+    actorUserId: input.actorUserId,
   });
 
   const qaResult = await executeProviderJobQaForContent({
@@ -323,6 +325,7 @@ export async function prepareProviderAgentQaRun(input: {
       providerKind: run.providerKind,
       externalJobId: run.externalJobId,
       pullContent,
+      actorUserId: run.actorUserId,
     });
 
     return {
@@ -365,6 +368,7 @@ export async function completeProviderAgentQaRun(input: {
   hlResult: RunHlCheckResult;
   syncProviderReview?: boolean;
   hyperlocaliseJobId?: string | null;
+  actorUserId?: string | null;
 }): Promise<ProviderAgentQaResult> {
   const glossaryTerms = await loadProjectGlossaryTerms(input.projectId);
   const [translationMemoryUsage, glossaryUsage] = await Promise.all([
@@ -424,6 +428,7 @@ export async function completeProviderAgentQaRun(input: {
           externalJobId: input.externalJobId,
           content: input.content,
           previousReport,
+          actorUserId: input.actorUserId,
         })) ?? buildProviderReviewReport([]);
     } catch (error) {
       const message =
@@ -502,5 +507,6 @@ export async function executeProviderAgentQa(input: {
     hlResult,
     syncProviderReview: readInputSnapshotAction(run?.inputSnapshot ?? {}) === "review_with_agent",
     hyperlocaliseJobId: run?.hyperlocaliseJobId ?? null,
+    actorUserId: run?.actorUserId ?? null,
   });
 }

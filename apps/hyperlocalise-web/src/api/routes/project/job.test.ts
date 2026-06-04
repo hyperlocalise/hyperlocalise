@@ -374,6 +374,7 @@ describe("jobRoutes", () => {
     expect(listJobs).toHaveBeenCalledWith(organizationId, "902807", {
       mine: false,
       assignee: identity.user.email,
+      actorUserId: expect.any(String),
     });
   });
 

@@ -158,7 +158,9 @@ describe("projectRoutes", () => {
       source: "external_tms",
       externalProviderKind: "crowdin",
     });
-    expect(listProjects).toHaveBeenCalledWith(organizationId);
+    expect(listProjects).toHaveBeenCalledWith(organizationId, {
+      actorUserId: expect.any(String),
+    });
   });
 
   it("creates a project with validated input", async () => {
@@ -225,7 +227,9 @@ describe("projectRoutes", () => {
       externalProviderKind: "crowdin",
       openJobCount: 0,
     });
-    expect(getProject).toHaveBeenCalledWith(organizationId, "902807");
+    expect(getProject).toHaveBeenCalledWith(organizationId, "902807", {
+      actorUserId: expect.any(String),
+    });
   });
 
   it("returns 400 when create payload omits locales", async () => {
@@ -988,7 +992,10 @@ describe("projectRoutes", () => {
         externalProjectId: "902807",
       }),
     });
-    expect(listFiles).toHaveBeenCalledWith(organizationId, "902807", { limit: 500 });
+    expect(listFiles).toHaveBeenCalledWith(organizationId, "902807", {
+      limit: 500,
+      actorUserId: expect.any(String),
+    });
   });
 
   it("falls back to Crowdin source strings for live file detail preview", async () => {

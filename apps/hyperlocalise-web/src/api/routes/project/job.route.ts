@@ -408,6 +408,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             {
               mine: query.mine,
               assignee: c.var.auth.user.email,
+              actorUserId: c.var.auth.user.localUserId,
             },
           );
           return c.json({ jobs }, 200);
@@ -669,12 +670,15 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
       const organizationId = c.var.auth.organization.localOrganizationId;
 
       try {
-        const context = await tryLoadActiveTmsProviderContext(organizationId);
+        const context = await tryLoadActiveTmsProviderContext(organizationId, {
+          actorUserId: c.var.auth.user.localUserId,
+        });
         if (context) {
           const jobs = filterLiveProviderJobs(
             await listTmsProviderLiveJobs(organizationId, {
               mine: query.mine,
               assignee: c.var.auth.user.email,
+              actorUserId: c.var.auth.user.localUserId,
               context,
             }),
             {
@@ -1191,6 +1195,7 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           projectId: job.projectId,
           providerKind: job.externalProviderKind,
           externalJobId: job.externalJobId,
+          actorUserId: c.var.auth.user.localUserId,
         });
 
         const qaReport = {

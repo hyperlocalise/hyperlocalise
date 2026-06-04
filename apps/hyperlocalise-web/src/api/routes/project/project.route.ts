@@ -446,6 +446,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         try {
           const projects = await listTmsProviderLiveProjects(
             c.var.auth.organization.localOrganizationId,
+            { actorUserId: c.var.auth.user.localUserId },
           );
           return c.json({ projects }, 200);
         } catch (error) {
@@ -521,6 +522,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               c.var.auth.organization.localOrganizationId,
               target.externalProjectId,
               query.sourcePath,
+              { actorUserId: c.var.auth.user.localUserId },
             );
             if (!file) {
               return projectNotFoundResponse(c);
@@ -611,7 +613,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           const files = await listTmsProviderLiveFilesForProject(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
-            { limit: query.limit },
+            { limit: query.limit, actorUserId: c.var.auth.user.localUserId },
           );
           return c.json({ files }, 200);
         } catch (error) {
@@ -768,6 +770,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           const project = await getTmsProviderLiveProject(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
+            { actorUserId: c.var.auth.user.localUserId },
           );
           if (!project) {
             return projectNotFoundResponse(c);
@@ -843,6 +846,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         projectId: project.id,
         providerKind: project.externalProviderKind,
         fetchFileKeys,
+        actorUserId: c.var.auth.user.localUserId,
       });
 
       return c.json({ externalTmsFileKeySync: result }, result.status === "failed" ? 207 : 200);
@@ -873,6 +877,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         projectId: project.id,
         providerKind: project.externalProviderKind,
         fetchJobTasks,
+        actorUserId: c.var.auth.user.localUserId,
         automationQueues:
           options.providerAgentTranslationQueue && options.providerAgentQaQueue
             ? {
@@ -910,6 +915,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         projectId: project.id,
         providerKind: project.externalProviderKind,
         fetchGlossaries,
+        actorUserId: c.var.auth.user.localUserId,
       });
 
       return c.json({ externalTmsGlossarySync: result }, result.status === "failed" ? 207 : 200);
@@ -941,6 +947,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         projectId: project.id,
         providerKind: project.externalProviderKind,
         fetchTranslationMemories,
+        actorUserId: c.var.auth.user.localUserId,
       });
 
       return c.json(

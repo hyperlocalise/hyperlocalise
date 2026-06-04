@@ -7,6 +7,7 @@ import { SearchIcon, Task01Icon, WorkHistoryIcon } from "@hugeicons/core-free-ic
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 
+import { CrowdinUserConnectButton } from "@/components/app-shell/crowdin-user-connect-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -123,6 +124,25 @@ const statusFilterLabels = {
   waiting_for_review: "Waiting for review",
   cancelled: "Cancelled",
 } as const satisfies Record<(typeof statusOptions)[number], string>;
+
+async function readJobsError(response: Response, fallback: string) {
+  const body = await response.json().catch(() => null);
+
+  if (body && typeof body === "object") {
+    if ("message" in body && typeof body.message === "string") {
+      return body.message;
+    }
+    if ("error" in body && typeof body.error === "string") {
+      return body.error;
+    }
+  }
+
+  return fallback;
+}
+
+function isCrowdinUserConnectionError(error: unknown) {
+  return error instanceof Error && error.message.includes("Connect your Crowdin account");
+}
 
 const jobsFilterTriggerClassName =
   "h-9 min-h-9 w-full border-foreground/14 bg-transparent px-3 text-sm text-foreground data-[size=default]:h-9";
@@ -528,7 +548,7 @@ export function JobsPageContent({
             ...(statusFilter === "all" ? {} : { status: statusFilter }),
           },
         });
-        if (!response.ok) throw new Error(`Failed to load jobs (${response.status})`);
+        if (!response.ok) throw new Error(await readJobsError(response, "Failed to load jobs"));
         const body = (await response.json()) as { jobs: ApiJob[] };
         return body.jobs.map((job) => ({ ...job, projectName: null }));
       }
@@ -541,7 +561,7 @@ export function JobsPageContent({
           ...(statusFilter === "all" ? {} : { status: statusFilter }),
         },
       });
-      if (!response.ok) throw new Error(`Failed to load jobs (${response.status})`);
+      if (!response.ok) throw new Error(await readJobsError(response, "Failed to load jobs"));
       const body = (await response.json()) as { jobs: JobRow[] };
       return body.jobs;
     },
@@ -671,9 +691,19 @@ export function JobsPageContent({
         </JobsFilterField>
       </div>
       {jobsQuery.error ? (
-        <TypographyP className="text-sm text-flame-100">
-          {jobsQuery.error instanceof Error ? jobsQuery.error.message : "Failed to load jobs."}
-        </TypographyP>
+        <div>
+          <TypographyP className="text-sm font-medium text-flame-100">
+            {isCrowdinUserConnectionError(jobsQuery.error)
+              ? "Connect Crowdin to view provider jobs."
+              : "Jobs failed to load."}
+          </TypographyP>
+          <TypographyP className="mt-1 text-sm text-foreground/58">
+            {jobsQuery.error instanceof Error ? jobsQuery.error.message : "Failed to load jobs."}
+          </TypographyP>
+          {isCrowdinUserConnectionError(jobsQuery.error) ? (
+            <CrowdinUserConnectButton organizationSlug={organizationSlug} className="mt-4 flex" />
+          ) : null}
+        </div>
       ) : null}
       <JobsList
         emptyLabel={emptyLabel}

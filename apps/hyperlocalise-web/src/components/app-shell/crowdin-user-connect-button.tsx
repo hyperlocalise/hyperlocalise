@@ -7,8 +7,15 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
+import { cn } from "@/lib/primitives/cn";
 
-export function CrowdinUserConnectButton({ organizationSlug }: { organizationSlug: string }) {
+export function CrowdinUserConnectButton({
+  organizationSlug,
+  className,
+}: {
+  organizationSlug: string;
+  className?: string;
+}) {
   const [isPending, setIsPending] = useState(false);
 
   async function handleConnect() {
@@ -45,7 +52,7 @@ export function CrowdinUserConnectButton({ organizationSlug }: { organizationSlu
       type="button"
       size="sm"
       variant="outline"
-      className="hidden sm:inline-flex"
+      className={cn("hidden sm:inline-flex", className)}
       disabled={isPending}
       onClick={handleConnect}
     >

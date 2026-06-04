@@ -65,8 +65,13 @@ const statusFilterLabels = {
 async function readProjectError(response: Response, fallback: string) {
   const body = await response.json().catch(() => null);
 
-  if (body && typeof body === "object" && "error" in body) {
-    return String(body.error);
+  if (body && typeof body === "object") {
+    if ("message" in body && typeof body.message === "string") {
+      return body.message;
+    }
+    if ("error" in body && typeof body.error === "string") {
+      return body.error;
+    }
   }
 
   return fallback;
@@ -142,7 +147,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load projects (${response.status})`);
+        throw new Error(await readProjectError(response, "Failed to load projects"));
       }
 
       const body = await response.json();

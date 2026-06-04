@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import type { ExternalTmsTaskContent } from "./external-tms-content-sync";
 import {
-  resolveExternalTmsSecretMaterial,
-  type ExternalTmsProviderKind,
-} from "../organization-external-tms-provider-credentials";
+  resolveExternalTmsSecretMaterialForActor,
+  type ExternalTmsTaskContent,
+} from "./external-tms-content-sync";
+import { type ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
 import { mergeProviderReviewReports } from "../provider-job-review/normalize-provider-review";
 import type { ProviderReviewReport } from "../provider-job-review/types";
 import { getProviderReviewPuller } from "../provider-review-pullers";
@@ -17,6 +17,7 @@ export async function pullProviderReviewForJob(input: {
   externalJobId: string;
   content: ExternalTmsTaskContent;
   previousReport?: ProviderReviewReport | null;
+  actorUserId?: string | null;
 }): Promise<ProviderReviewReport | null> {
   const pullReview = getProviderReviewPuller(input.providerKind);
   if (!pullReview) {
@@ -63,7 +64,11 @@ export async function pullProviderReviewForJob(input: {
     throw new Error("provider_credential_not_found");
   }
 
-  const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+  const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+    credential,
+    organizationId: input.organizationId,
+    actorUserId: input.actorUserId,
+  });
 
   const incoming = await pullReview({
     organizationId: input.organizationId,

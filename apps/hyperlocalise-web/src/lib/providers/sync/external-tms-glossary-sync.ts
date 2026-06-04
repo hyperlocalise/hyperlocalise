@@ -8,10 +8,10 @@ import {
   type ExternalTmsTerminologyResourceType,
 } from "./organization-external-tms-glossaries";
 import {
-  resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
 } from "../organization-external-tms-provider-credentials";
+import { resolveExternalTmsSecretMaterialForActor } from "./external-tms-content-sync";
 import {
   completeProviderSyncRun,
   failProviderSyncRun,
@@ -84,6 +84,7 @@ export async function syncExternalTmsGlossaries(input: {
   projectId: string;
   providerKind: ExternalTmsProviderKind;
   fetchGlossaries: ExternalTmsGlossaryFetcher;
+  actorUserId?: string | null;
 }): Promise<ExternalTmsGlossarySyncResult> {
   const project = await getExternalTmsProject(input);
 
@@ -121,7 +122,11 @@ export async function syncExternalTmsGlossaries(input: {
   const failures: ExternalTmsGlossarySyncFailure[] = [];
 
   try {
-    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+    const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+      credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
 
     const glossaries = await input.fetchGlossaries({
       organizationId: input.organizationId,

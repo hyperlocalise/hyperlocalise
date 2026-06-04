@@ -425,6 +425,7 @@ export async function executeProviderAgentWriteback(input: {
       externalJobId: run.externalJobId,
       translations,
       pushTranslations,
+      actorUserId: run.actorUserId,
     });
 
     const changedItems = buildWritebackChangedItems({

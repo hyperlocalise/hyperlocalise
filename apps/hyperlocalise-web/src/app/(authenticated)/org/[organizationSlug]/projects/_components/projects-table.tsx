@@ -10,6 +10,7 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 
+import { CrowdinUserConnectButton } from "@/components/app-shell/crowdin-user-connect-button";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -114,6 +115,10 @@ function SyncInfo({ project }: { project: ProjectListRow }) {
   return <span className="text-xs text-foreground/42">Not synced yet</span>;
 }
 
+function isCrowdinUserConnectionError(error: unknown) {
+  return error instanceof Error && error.message.includes("Connect your Crowdin account");
+}
+
 export function ProjectsTable({
   projects,
   projectsQuery,
@@ -141,13 +146,18 @@ export function ProjectsTable({
       {projectsQuery.isError ? (
         <div className="border-t border-foreground/8 px-1 py-8">
           <TypographyP className="text-sm font-medium text-flame-100">
-            Projects failed to load.
+            {isCrowdinUserConnectionError(projectsQuery.error)
+              ? "Connect Crowdin to view provider projects."
+              : "Projects failed to load."}
           </TypographyP>
           <TypographyP className="mt-1 text-xs text-foreground/42">
             {projectsQuery.error instanceof Error
               ? projectsQuery.error.message
               : "Refresh the page to try again."}
           </TypographyP>
+          {isCrowdinUserConnectionError(projectsQuery.error) ? (
+            <CrowdinUserConnectButton organizationSlug={organizationSlug} className="mt-4 flex" />
+          ) : null}
         </div>
       ) : null}
       {projectsQuery.isSuccess && projects.length === 0 ? (

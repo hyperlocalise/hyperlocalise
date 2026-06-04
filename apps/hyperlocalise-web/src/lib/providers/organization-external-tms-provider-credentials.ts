@@ -48,6 +48,13 @@ const crowdinOAuthTokenBundleSchema = z.object({
 
 export type CrowdinOAuthTokenBundle = z.infer<typeof crowdinOAuthTokenBundleSchema>;
 
+const crowdinOAuthClientMaterialSchema = z.object({
+  clientId: z.string().min(1),
+  clientSecret: z.string().min(1),
+});
+
+export type CrowdinOAuthClientMaterial = z.infer<typeof crowdinOAuthClientMaterialSchema>;
+
 export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRole) {
   assertCapability(role, "provider_credentials:write");
 }
@@ -332,13 +339,22 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
   userId: string;
   role: OrganizationMembershipRole;
   displayName: string;
-  tokenBundle: CrowdinOAuthTokenBundle;
+  oauthClient?: CrowdinOAuthClientMaterial;
+  tokenBundle?: CrowdinOAuthTokenBundle;
   baseUrl?: string | null;
 }) {
   assertExternalTmsCredentialAdmin(input.role);
 
   const now = new Date();
-  const secretMaterial = JSON.stringify(input.tokenBundle);
+  const oauthClient = input.oauthClient ?? input.tokenBundle;
+  if (!oauthClient) {
+    throw new Error("crowdin_oauth_client_required");
+  }
+
+  const secretMaterial = JSON.stringify({
+    clientId: oauthClient.clientId,
+    clientSecret: oauthClient.clientSecret,
+  });
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(secretMaterial));
   const baseUrl = await normalizeExternalTmsCredentialBaseUrl({
     providerKind: "crowdin",
@@ -370,7 +386,7 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
         authMode: CROWDIN_OAUTH_AUTH_MODE,
         region: null,
         baseUrl,
-        oauthExpiresAt: new Date(input.tokenBundle.expiresAt),
+        oauthExpiresAt: null,
         validationStatus: "unvalidated",
         encryptionAlgorithm: encrypted.algorithm,
         ciphertext: encrypted.ciphertext,
@@ -390,7 +406,7 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
           authMode: CROWDIN_OAUTH_AUTH_MODE,
           region: null,
           baseUrl,
-          oauthExpiresAt: new Date(input.tokenBundle.expiresAt),
+          oauthExpiresAt: null,
           validationStatus: "unvalidated",
           validationMessage: null,
           lastValidatedAt: null,
@@ -436,6 +452,35 @@ export function decryptCrowdinOAuthTokenBundle(
   return parsed.data;
 }
 
+function decryptCrowdinOAuthClientMaterial(
+  credential: CredentialCryptoFields,
+): CrowdinOAuthClientMaterial {
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+    }),
+  );
+  const raw = safeJsonParse(secretMaterial);
+  const clientMaterial = crowdinOAuthClientMaterialSchema.safeParse(raw);
+  if (clientMaterial.success) {
+    return clientMaterial.data;
+  }
+
+  const tokenBundle = crowdinOAuthTokenBundleSchema.safeParse(raw);
+  if (tokenBundle.success) {
+    return {
+      clientId: tokenBundle.data.clientId,
+      clientSecret: tokenBundle.data.clientSecret,
+    };
+  }
+
+  throw new Error("crowdin_oauth_client_invalid");
+}
+
 export function isCrowdinOAuthAccessTokenFresh(tokenBundle: CrowdinOAuthTokenBundle) {
   return (
     new Date(tokenBundle.expiresAt).getTime() - Date.now() > CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS
@@ -463,6 +508,13 @@ export async function resolveExternalTmsSecretMaterial(input: {
     return secretMaterial;
   }
 
+  throw new Error("crowdin_user_connection_required");
+}
+
+export async function resolveDeprecatedCrowdinOAuthSecretMaterial(input: {
+  credential: ExternalTmsCredential;
+  fetchFn?: typeof fetch;
+}) {
   const tokenBundle = decryptCrowdinOAuthTokenBundle(input.credential);
   if (isCrowdinOAuthAccessTokenFresh(tokenBundle)) {
     return tokenBundle.accessToken;
@@ -548,11 +600,7 @@ export function getCrowdinOAuthClientFromCredential(credential: ExternalTmsCrede
     throw new Error("crowdin_oauth_credential_required");
   }
 
-  const tokenBundle = decryptCrowdinOAuthTokenBundle(credential);
-  return {
-    clientId: tokenBundle.clientId,
-    clientSecret: tokenBundle.clientSecret,
-  };
+  return decryptCrowdinOAuthClientMaterial(credential);
 }
 
 export function mapCrowdinOAuthTokenResponse(

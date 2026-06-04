@@ -17,6 +17,11 @@ import type {
 import { buildFindingId } from "../provider-job-qa/build-finding-id";
 import type { ProviderQaFinding } from "../provider-job-qa/types";
 import {
+  getCrowdinUserConnection,
+  resolveCrowdinUserConnectionSecretMaterial,
+} from "../adapters/crowdin/crowdin-user-connections";
+import {
+  CROWDIN_OAUTH_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsProviderKind,
 } from "../organization-external-tms-provider-credentials";
@@ -368,7 +373,11 @@ export async function executeProviderAgentComment(input: {
   }));
 
   try {
-    const secretMaterial = await resolveExternalTmsSecretMaterial({ credential });
+    const secretMaterial = await resolveProviderCommentSecretMaterial({
+      credential,
+      organizationId: input.organizationId,
+      actorUserId: run.actorUserId,
+    });
 
     const pushResult = await pushComments({
       organizationId: input.organizationId,
@@ -421,4 +430,31 @@ export async function executeProviderAgentComment(input: {
       message,
     };
   }
+}
+
+async function resolveProviderCommentSecretMaterial(input: {
+  credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
+  organizationId: string;
+  actorUserId?: string | null;
+}) {
+  if (
+    input.credential.providerKind !== "crowdin" ||
+    input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE
+  ) {
+    return resolveExternalTmsSecretMaterial({ credential: input.credential });
+  }
+
+  if (!input.actorUserId) {
+    throw new Error("crowdin_user_connection_required");
+  }
+
+  const connection = await getCrowdinUserConnection({
+    organizationId: input.organizationId,
+    userId: input.actorUserId,
+  });
+  if (!connection) {
+    throw new Error("crowdin_user_connection_required");
+  }
+
+  return resolveCrowdinUserConnectionSecretMaterial({ connection });
 }
