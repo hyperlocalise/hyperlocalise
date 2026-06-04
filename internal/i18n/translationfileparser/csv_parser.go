@@ -17,12 +17,7 @@ type CSVParser struct {
 }
 
 func (p CSVParser) Parse(content []byte) (map[string]string, error) {
-	r := csv.NewReader(bytes.NewReader(content))
-	if p.Delimiter != 0 {
-		r.Comma = p.Delimiter
-	}
-	r.FieldsPerRecord = -1
-	r.LazyQuotes = true
+	r := newCSVReader(bytes.NewReader(content), p.Delimiter)
 
 	// BOLT OPTIMIZATION: Use streaming reader instead of loading all records into memory.
 	first, err := r.Read()
@@ -70,12 +65,7 @@ func (p CSVParser) Parse(content []byte) (map[string]string, error) {
 
 func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]byte, error) {
 	// BOLT OPTIMIZATION: Use streaming reader and writer instead of loading all records into memory.
-	r := csv.NewReader(bytes.NewReader(template))
-	if parser.Delimiter != 0 {
-		r.Comma = parser.Delimiter
-	}
-	r.FieldsPerRecord = -1
-	r.LazyQuotes = true
+	r := newCSVReader(bytes.NewReader(template), parser.Delimiter)
 
 	var buf bytes.Buffer
 	w := csv.NewWriter(&buf)
@@ -144,11 +134,11 @@ func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]
 		keys = append(keys, key)
 	}
 	slices.Sort(keys)
+	extraRow := make([]string, max(keyIdx, valueIdx)+1)
 	for _, key := range keys {
-		row := make([]string, max(keyIdx, valueIdx)+1)
-		row[keyIdx] = key
-		row[valueIdx] = values[key]
-		if err := w.Write(row); err != nil {
+		extraRow[keyIdx] = key
+		extraRow[valueIdx] = values[key]
+		if err := w.Write(extraRow); err != nil {
 			return nil, fmt.Errorf("csv write extra: %w", err)
 		}
 	}
@@ -158,6 +148,18 @@ func MarshalCSV(template []byte, values map[string]string, parser CSVParser) ([]
 		return nil, fmt.Errorf("csv flush: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+func newCSVReader(r io.Reader, delimiter rune) *csv.Reader {
+	cr := csv.NewReader(r)
+	if delimiter != 0 {
+		cr.Comma = delimiter
+	}
+	cr.FieldsPerRecord = -1
+	cr.LazyQuotes = true
+	// BOLT OPTIMIZATION: Reuse record slice to reduce allocations.
+	cr.ReuseRecord = true
+	return cr
 }
 
 func normalizeCSVHeaders(headers []string) []string {
