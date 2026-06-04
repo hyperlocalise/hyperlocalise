@@ -27,8 +27,10 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
-import { getLocaleLabel } from "@/lib/i18n/locales";
 import { cn } from "@/lib/primitives/cn";
+
+import { JobDetailRow, ProviderCrowdinJobDetailRows } from "./provider-crowdin-job-detail-rows";
+import { formatLocaleList, getCrowdinTargetLocales } from "./provider-crowdin-job-display";
 
 import {
   JOB_SOURCE_FILTERS,
@@ -187,7 +189,7 @@ const DATE_TIME_FORMATTER = new Intl.DateTimeFormat(undefined, {
   timeStyle: "short",
 });
 
-function formatDateTime(value: string | null) {
+function formatDateTime(value: string | null | undefined) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
@@ -243,95 +245,18 @@ function formatJobKind(job: ApiJob) {
   return job.kind.replace("_", " ");
 }
 
-function getProviderPayloadString(payload: Record<string, unknown> | null, key: string) {
-  const value = payload?.[key];
-  return typeof value === "string" && value.trim().length > 0 ? value : null;
-}
-
-function getProviderPayloadNumber(payload: Record<string, unknown> | null, key: string) {
-  const value = payload?.[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function getCrowdinTaskTypeLabel(payload: Record<string, unknown> | null) {
-  switch (getProviderPayloadNumber(payload, "type")) {
-    case 0:
-      return "Translate by own translators";
-    case 1:
-      return "Proofread by own proofreaders";
-    case 2:
-      return "Translate by vendor";
-    case 3:
-      return "Proofread by vendor";
-    default:
-      return null;
-  }
-}
-
-function getCrowdinFileCount(payload: Record<string, unknown> | null) {
-  const fileIds = payload?.fileIds;
-  return Array.isArray(fileIds) ? fileIds.length : null;
-}
-
-function getCrowdinLanguageLabel(payload: Record<string, unknown> | null, job: ApiJob) {
-  const languageId =
-    getProviderPayloadString(payload, "languageId") ?? job.externalTargetLocales?.[0];
-  return languageId ? `${getLocaleLabel(languageId)} (${languageId})` : null;
-}
-
-function getCrowdinLocaleReadiness(payload: Record<string, unknown> | null) {
-  const readiness = payload?.localeReadiness;
-  if (!readiness || typeof readiness !== "object" || Array.isArray(readiness)) return null;
-  return readiness as Record<string, unknown>;
-}
-
-function getReadinessNumber(readiness: Record<string, unknown> | null, key: string) {
-  const value = readiness?.[key];
-  return typeof value === "number" && Number.isFinite(value) ? value : null;
-}
-
-function getReadinessWords(readiness: Record<string, unknown> | null) {
-  const words = readiness?.words;
-  if (!words || typeof words !== "object" || Array.isArray(words)) return null;
-  return words as Record<string, unknown>;
-}
-
-function formatReadinessProgress(readiness: Record<string, unknown> | null) {
-  const translationProgress = getReadinessNumber(readiness, "translationProgress");
-  const approvalProgress = getReadinessNumber(readiness, "approvalProgress");
-  if (translationProgress === null && approvalProgress === null) return null;
-  if (approvalProgress === null) return `${Math.round(translationProgress ?? 0)}% translated`;
-  if (translationProgress === null) return `${Math.round(approvalProgress)}% approved`;
-  return `${Math.round(translationProgress)}% translated · ${Math.round(approvalProgress)}% approved`;
-}
-
-function formatWordsToDo(readiness: Record<string, unknown> | null) {
-  const words = getReadinessWords(readiness);
-  const total = getReadinessNumber(words, "total");
-  const translated = getReadinessNumber(words, "translated");
-  const approved = getReadinessNumber(words, "approved");
-  if (total === null) return null;
-  const completed = translated ?? approved ?? 0;
-  const remaining = Math.max(total - completed, 0);
-  return `${remaining} words left of ${total}`;
-}
-
 function taskDetailSummary(job: ApiJob) {
-  const locales = targetLocales(job);
+  const fallbackTargetLocales = job.externalTargetLocales?.length
+    ? job.externalTargetLocales
+    : job.reviewTargetLocale
+      ? [job.reviewTargetLocale]
+      : [];
+  const locales = formatLocaleList(getCrowdinTargetLocales(null, fallbackTargetLocales));
   const people = assignees(job);
   if (locales === "—" && people === "—") return "No locales or assignees";
   if (locales === "—") return people;
   if (people === "—") return locales;
   return `${locales} · ${people}`;
-}
-
-function JobDetailRow({ label, value }: { label: string; value: ReactNode }) {
-  return (
-    <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-      <dt className="text-sm text-foreground/42">{label}</dt>
-      <dd className="min-w-0 wrap-break-word text-sm text-foreground/74">{value ?? "—"}</dd>
-    </div>
-  );
 }
 
 function JobsList({
@@ -375,13 +300,7 @@ function JobsList({
   });
   const detailJob = providerDetailQuery.data ?? selectedJob;
   const providerPayload = providerDetailQuery.data?.externalProviderPayload ?? null;
-  const crowdinLocaleReadiness = getCrowdinLocaleReadiness(providerPayload);
-  const crowdinTaskType = getCrowdinTaskTypeLabel(providerPayload);
-  const crowdinLanguage = detailJob ? getCrowdinLanguageLabel(providerPayload, detailJob) : null;
-  const crowdinFileCount = getCrowdinFileCount(providerPayload);
-  const crowdinDescription = getProviderPayloadString(providerPayload, "description");
-  const crowdinProgress = formatReadinessProgress(crowdinLocaleReadiness);
-  const crowdinWordsToDo = formatWordsToDo(crowdinLocaleReadiness);
+  const providerJobQueryKey = ["tms-provider-job", organizationSlug, selectedJob?.id] as const;
 
   if (isLoading)
     return (
@@ -509,53 +428,47 @@ function JobsList({
                 <JobDetailRow label="Task ID" value={detailJob.externalTaskId ?? detailJob.id} />
                 <JobDetailRow label="Provider status" value={detailJob.externalStatus} />
                 <JobDetailRow label="Status" value={detailJob.status} />
-                <JobDetailRow
-                  label="Task type"
-                  value={crowdinTaskType ?? formatJobKind(detailJob)}
-                />
-                <JobDetailRow
-                  label="Language"
-                  value={crowdinLanguage ?? targetLocales(detailJob)}
-                />
-                <JobDetailRow label="Project" value={detailJob.projectName ?? "Workspace"} />
-                <JobDetailRow label="Target locales" value={targetLocales(detailJob)} />
                 <JobDetailRow label="Assignees" value={assignees(detailJob)} />
-                {crowdinDescription ? (
-                  <JobDetailRow label="Description" value={crowdinDescription} />
-                ) : null}
-                {crowdinFileCount !== null ? (
-                  <JobDetailRow
-                    label="Resources"
-                    value={`${crowdinFileCount} file${crowdinFileCount === 1 ? "" : "s"}`}
+                {detailJob.externalProviderKind === "crowdin" ? (
+                  <ProviderCrowdinJobDetailRows
+                    job={{
+                      ...detailJob,
+                      externalJobId: providerDetailQuery.data?.externalJobId ?? detailJob.id,
+                      externalUrl: providerDetailQuery.data?.externalUrl ?? null,
+                    }}
+                    providerPayload={providerPayload}
+                    organizationSlug={organizationSlug}
+                    formatJobKind={formatJobKind}
+                    formatDateTime={formatDateTime}
+                    descriptionQueryKey={providerJobQueryKey}
                   />
-                ) : null}
-                {crowdinProgress ? <JobDetailRow label="Progress" value={crowdinProgress} /> : null}
-                {crowdinWordsToDo ? (
-                  <JobDetailRow label="Words to do" value={crowdinWordsToDo} />
-                ) : null}
-                <JobDetailRow label="Due date" value={formatDateTime(detailJob.externalDueDate)} />
-                <JobDetailRow label="Last sync" value={formatDateTime(detailJob.updatedAt)} />
-                {providerDetailQuery.data ? (
-                  <JobDetailRow
-                    label="External job ID"
-                    value={providerDetailQuery.data.externalJobId}
-                  />
-                ) : null}
-                {providerDetailQuery.data?.externalUrl ? (
-                  <JobDetailRow
-                    label="Provider link"
-                    value={
-                      <Link
-                        href={providerDetailQuery.data.externalUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
-                      >
-                        Open in {providerDetailQuery.data.externalProviderKind}
-                      </Link>
-                    }
-                  />
-                ) : null}
+                ) : (
+                  <>
+                    <JobDetailRow label="Task type" value={formatJobKind(detailJob)} />
+                    <JobDetailRow label="Project" value={detailJob.projectName ?? "Workspace"} />
+                    <JobDetailRow label="Target locales" value={targetLocales(detailJob)} />
+                    <JobDetailRow
+                      label="Due date"
+                      value={formatDateTime(detailJob.externalDueDate)}
+                    />
+                    <JobDetailRow label="Last sync" value={formatDateTime(detailJob.updatedAt)} />
+                    {providerDetailQuery.data?.externalUrl ? (
+                      <JobDetailRow
+                        label="Provider URL"
+                        value={
+                          <a
+                            href={providerDetailQuery.data.externalUrl}
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
+                          >
+                            Open in {providerDetailQuery.data.externalProviderKind ?? "provider"}
+                          </a>
+                        }
+                      />
+                    ) : null}
+                  </>
+                )}
               </dl>
             ) : null}
           </div>

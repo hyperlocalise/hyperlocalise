@@ -85,6 +85,11 @@ export interface CrowdinSourceString {
   labelIds: number[] | null;
 }
 
+export interface CrowdinLanguageRef {
+  id: string;
+  name?: string;
+}
+
 export interface CrowdinTask {
   id: number;
   projectId: number;
@@ -93,6 +98,9 @@ export interface CrowdinTask {
   title: string;
   description: string | null;
   languageId: string | null;
+  sourceLanguageId?: string | null;
+  targetLanguageId?: string | null;
+  targetLanguages?: CrowdinLanguageRef[] | null;
   fileIds: number[] | null;
   assignees: Array<{ id: number; username: string }> | null;
   deadline: string | null;
@@ -116,8 +124,6 @@ export interface CrowdinLanguageProgress {
 }
 
 export interface CrowdinTaskDetails extends CrowdinTask {
-  sourceLanguageId?: string;
-  targetLanguageId?: string;
   stringIds?: number[] | null;
 }
 
@@ -617,6 +623,18 @@ export class CrowdinApiClient {
   async getTask(projectId: number, taskId: number): Promise<CrowdinTaskDetails> {
     const response = await this.get<CrowdinGetResponse<CrowdinTaskDetails>>(
       `/projects/${projectId}/tasks/${taskId}`,
+    );
+    return response.data;
+  }
+
+  async editTaskDescription(
+    projectId: number,
+    taskId: number,
+    description: string,
+  ): Promise<CrowdinTaskDetails> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinTaskDetails>>(
+      `/projects/${projectId}/tasks/${taskId}`,
+      [{ op: "replace", path: "/description", value: description }],
     );
     return response.data;
   }

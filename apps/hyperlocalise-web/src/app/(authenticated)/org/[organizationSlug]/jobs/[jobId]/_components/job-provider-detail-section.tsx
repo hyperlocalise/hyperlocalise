@@ -27,6 +27,12 @@ import {
   parseTranslationMemoryUsageFromOutputSummary,
 } from "@/lib/translation/agent-run-translation-memory";
 
+import {
+  formatLocaleList,
+  getCrowdinLanguageLabel,
+  getCrowdinTargetLocales,
+  getProviderPayloadString,
+} from "../../_components/provider-crowdin-job-display";
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
 import { JobQaFindingsSection } from "./job-qa-findings-section";
 
@@ -224,7 +230,33 @@ export function JobProviderDetailSection({
           <DetailRow label="Provider status" value={job.externalStatus} />
           <DetailRow label="Sync state" value={job.externalSyncState} />
           <DetailRow label="Last sync" value={formatDate(job.updatedAt)} />
-          <DetailRow label="Target locales" value={job.externalTargetLocales?.join(", ")} />
+          {job.externalProviderKind === "crowdin" ? (
+            <>
+              <DetailRow
+                label="Language"
+                value={getCrowdinLanguageLabel(job.externalProviderPayload) ?? "—"}
+              />
+              <DetailRow
+                label="Target locales"
+                value={formatLocaleList(
+                  getCrowdinTargetLocales(
+                    job.externalProviderPayload,
+                    job.externalTargetLocales ?? [],
+                  ),
+                )}
+              />
+              <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                <dt className="text-sm text-foreground/42">Description</dt>
+                <dd className="min-w-0 text-sm text-foreground/74">
+                  {getProviderPayloadString(job.externalProviderPayload, "description")?.trim()
+                    ? getProviderPayloadString(job.externalProviderPayload, "description")
+                    : "—"}
+                </dd>
+              </div>
+            </>
+          ) : (
+            <DetailRow label="Target locales" value={job.externalTargetLocales?.join(", ")} />
+          )}
           <DetailRow label="Assignees" value={job.externalAssignedUsers?.join(", ")} />
           <DetailRow label="Deadline" value={formatDate(job.externalDueDate)} />
           <DetailRow label="External job ID" value={job.externalJobId} />

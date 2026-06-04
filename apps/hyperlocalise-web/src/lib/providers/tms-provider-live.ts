@@ -13,6 +13,7 @@ import {
   CrowdinApiError,
   type CrowdinSourceString,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import { mapCrowdinTaskToJobTaskMetadata } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
@@ -401,6 +402,31 @@ function mapLiveJob(input: {
     externalTargetLocales: targetLocales,
     externalAssignedUsers: assignedUsers,
     externalSyncState: null,
+  };
+}
+
+function mapLiveJobDetail(input: {
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  externalJobId: string;
+  projectName: string;
+  task: ExternalTmsJobTaskMetadata;
+}): TmsProviderLiveJobDetail {
+  const job = mapLiveJob({
+    providerKind: input.providerKind,
+    externalProjectId: input.externalProjectId,
+    projectName: input.projectName,
+    task: input.task,
+  });
+
+  return {
+    ...job,
+    externalJobId: input.externalJobId,
+    externalUrl: input.task.externalUrl ?? null,
+    externalProviderPayload:
+      input.task.providerPayload && typeof input.task.providerPayload === "object"
+        ? input.task.providerPayload
+        : {},
   };
 }
 
@@ -842,6 +868,55 @@ export async function listTmsProviderLiveJobs(
   return jobsByProject.flat();
 }
 
+async function fetchCrowdinLiveJobTaskMetadata(input: {
+  context: ActiveTmsProviderContext;
+  externalProjectId: string;
+  externalJobId: string;
+}): Promise<ExternalTmsJobTaskMetadata | null> {
+  const projectId = Number(input.externalProjectId);
+  const taskId = Number(input.externalJobId);
+  if (Number.isNaN(projectId) || Number.isNaN(taskId)) {
+    return null;
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  let crowdinTask: Awaited<ReturnType<typeof client.getTask>>;
+  try {
+    crowdinTask = await client.getTask(projectId, taskId);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    if (error instanceof CrowdinApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
+  }
+
+  let progress: Awaited<ReturnType<typeof client.listProjectLanguageProgress>> = [];
+  try {
+    progress = await client.listProjectLanguageProgress(projectId);
+  } catch {
+    // Best-effort progress for detail view
+  }
+
+  const localeReadiness: Record<string, unknown> = {};
+  for (const lang of progress) {
+    localeReadiness[lang.languageId] = {
+      translationProgress: lang.translationProgress,
+      approvalProgress: lang.approvalProgress,
+      words: lang.words,
+      phrases: lang.phrases,
+    };
+  }
+
+  return mapCrowdinTaskToJobTaskMetadata(crowdinTask, localeReadiness);
+}
+
 export async function getTmsProviderLiveJobDetail(
   organizationId: string,
   encodedJobId: string,
@@ -856,12 +931,97 @@ export async function getTmsProviderLiveJobDetail(
     return null;
   }
 
-  const fetcher = tmsProviderJobTaskFetchers[context.providerKind];
-  if (!fetcher) {
+  const projects = await fetchLiveProjects(context);
+  const project = projects.find((item) => item.externalProjectId === parsed.externalProjectId);
+  if (!project) {
+    return null;
+  }
+
+  let task: ExternalTmsJobTaskMetadata | null;
+  if (context.providerKind === "crowdin") {
+    task = await fetchCrowdinLiveJobTaskMetadata({
+      context,
+      externalProjectId: parsed.externalProjectId,
+      externalJobId: parsed.externalJobId,
+    });
+  } else {
+    const fetcher = tmsProviderJobTaskFetchers[context.providerKind];
+    if (!fetcher) {
+      throw new TmsProviderLiveError(
+        "provider_fetcher_unavailable",
+        `Live job fetch is not available for ${context.providerKind}.`,
+      );
+    }
+
+    const liveProject = buildLiveProviderProject({
+      organizationId: context.organizationId,
+      credentialId: context.credential.id,
+      providerKind: context.providerKind,
+      externalProjectId: project.externalProjectId,
+      name: project.name,
+      sourceLocale: project.sourceLocale ?? "en",
+      targetLocales: project.targetLocales ?? [],
+      externalProjectUrl: project.externalProjectUrl,
+      isActive: project.isActive,
+    });
+
+    let tasks;
+    try {
+      tasks = await fetcher({
+        organizationId: context.organizationId,
+        projectId: liveProject.id,
+        providerKind: context.providerKind,
+        externalProjectId: parsed.externalProjectId,
+        credential: context.credential,
+        project: liveProject,
+        secretMaterial: context.secretMaterial,
+      });
+    } catch (error) {
+      rethrowProviderFetcherError(error);
+    }
+
+    task = tasks.find((item) => item.externalJobId === parsed.externalJobId) ?? null;
+  }
+
+  if (!task) {
+    return null;
+  }
+
+  return mapLiveJobDetail({
+    providerKind: context.providerKind,
+    externalProjectId: parsed.externalProjectId,
+    externalJobId: parsed.externalJobId,
+    projectName: project.name,
+    task,
+  });
+}
+
+export async function updateTmsProviderLiveJobDescription(
+  organizationId: string,
+  encodedJobId: string,
+  description: string,
+): Promise<TmsProviderLiveJobDetail | null> {
+  const parsed = parseProviderJobId(encodedJobId);
+  if (!parsed) {
+    throw new TmsProviderLiveError("invalid_encoded_job_id", "Job id is not a provider job id.");
+  }
+
+  const context = await loadActiveTmsProviderContext(organizationId);
+  if (context.providerKind !== parsed.providerKind) {
+    return null;
+  }
+
+  if (context.providerKind !== "crowdin") {
     throw new TmsProviderLiveError(
-      "provider_fetcher_unavailable",
-      `Live job fetch is not available for ${context.providerKind}.`,
+      "provider_description_edit_unsupported",
+      `Description edits are not supported for ${context.providerKind}.`,
     );
+  }
+
+  const projectId = Number(parsed.externalProjectId);
+  const taskId = Number(parsed.externalJobId);
+  if (Number.isNaN(projectId) || Number.isNaN(taskId)) {
+    return null;
   }
 
   const projects = await fetchLiveProjects(context);
@@ -870,54 +1030,39 @@ export async function getTmsProviderLiveJobDetail(
     return null;
   }
 
-  const liveProject = buildLiveProviderProject({
-    organizationId: context.organizationId,
-    credentialId: context.credential.id,
-    providerKind: context.providerKind,
-    externalProjectId: project.externalProjectId,
-    name: project.name,
-    sourceLocale: project.sourceLocale ?? "en",
-    targetLocales: project.targetLocales ?? [],
-    externalProjectUrl: project.externalProjectUrl,
-    isActive: project.isActive,
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
   });
 
-  let tasks;
+  let updatedTask: Awaited<ReturnType<typeof client.editTaskDescription>>;
   try {
-    tasks = await fetcher({
-      organizationId: context.organizationId,
-      projectId: liveProject.id,
-      providerKind: context.providerKind,
-      externalProjectId: parsed.externalProjectId,
-      credential: context.credential,
-      project: liveProject,
-      secretMaterial: context.secretMaterial,
-    });
+    updatedTask = await client.editTaskDescription(projectId, taskId, description);
   } catch (error) {
-    rethrowProviderFetcherError(error);
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    if (error instanceof CrowdinApiError && error.status === 404) {
+      return null;
+    }
+    throw error;
   }
 
-  const task = tasks.find((item) => item.externalJobId === parsed.externalJobId);
-  if (!task) {
-    return null;
-  }
+  const task = mapCrowdinTaskToJobTaskMetadata(updatedTask, {});
+  const providerPayload = Object.fromEntries(
+    Object.entries(task.providerPayload ?? {}).filter(([key]) => key !== "localeReadiness"),
+  );
 
-  const job = mapLiveJob({
+  return mapLiveJobDetail({
     providerKind: context.providerKind,
     externalProjectId: parsed.externalProjectId,
-    projectName: project.name,
-    task,
-  });
-
-  return {
-    ...job,
     externalJobId: parsed.externalJobId,
-    externalUrl: task.externalUrl ?? null,
-    externalProviderPayload:
-      task.providerPayload && typeof task.providerPayload === "object"
-        ? (task.providerPayload as Record<string, unknown>)
-        : {},
-  };
+    projectName: project.name,
+    task: {
+      ...task,
+      providerPayload,
+    },
+  });
 }
 
 function dedupeGlossaries(items: TmsProviderLiveGlossary[]) {
