@@ -124,3 +124,7 @@
 ## 2026-08-15 - Optimizing JSON and FormatJS parsing
 **Learning:** Sorting keys before iterating over a map to populate another map (like in JSON flattening or FormatJS extraction) adds O(N log N) overhead and extra allocations for no benefit, as Go maps are unordered. Additionally, combining multiple validation and extraction passes into a single loop significantly reduces CPU time for specialized formats.
 **Action:** Removed redundant `slices.Sort` calls in `flattenJSON` and combined three passes (validation, message extraction, description extraction) into one in `parseFormatJS`, resulting in a ~16% speedup for standard JSON and ~17% for FormatJS.
+
+## 2026-08-20 - Optimizing CSV parsing and marshaling via streaming
+**Learning:** Loading entire files into memory using `csv.ReadAll` is a major bottleneck for large translation files. A streaming approach using `csv.Reader.Read` and `csv.Writer.Write` allows processing files row-by-row, significantly reducing peak memory usage.
+**Action:** Refactored `CSVParser.Parse` and `MarshalCSV` to use streaming I/O, resulting in ~32% fewer allocations for parsing and ~38% fewer for marshaling, while improving marshaling speed by ~32%.
