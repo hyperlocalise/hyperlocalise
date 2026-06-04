@@ -71,6 +71,46 @@ func TestParseASTTags(t *testing.T) {
 	}
 }
 
+func TestParseASTTagsWithAttributesAndColons(t *testing.T) {
+	msg := `Click <ui:button id="btn" class='primary' disabled><b>{name}</b></ui:button> now`
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(elems) != 3 {
+		t.Fatalf("expected 3 top-level elements, got %d", len(elems))
+	}
+	tag, ok := elems[1].(TagElement)
+	if !ok {
+		t.Fatalf("expected tag element, got %T", elems[1])
+	}
+	if tag.Value != "ui:button" {
+		t.Fatalf("unexpected tag value: %q", tag.Value)
+	}
+	if len(tag.Children) != 1 {
+		t.Fatalf("expected 1 child for ui:button, got %d", len(tag.Children))
+	}
+	innerTag, ok := tag.Children[0].(TagElement)
+	if !ok || innerTag.Value != "b" {
+		t.Fatalf("expected inner <b> tag, got %+v", tag.Children[0])
+	}
+}
+
+func TestParseASTTagsWithQuotesInAttributes(t *testing.T) {
+	msg := `<div attr=">">content</div>`
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(elems))
+	}
+	tag, ok := elems[0].(TagElement)
+	if !ok || tag.Value != "div" {
+		t.Fatalf("expected div tag, got %+v", elems[0])
+	}
+}
+
 func TestParseASTIgnoreTagOption(t *testing.T) {
 	elems, err := Parse("<b>x</b>", &ParseOptions{IgnoreTag: true})
 	if err != nil {

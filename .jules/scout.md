@@ -47,3 +47,7 @@
 ## 2026-06-03 - [Triple Mustache Placeholder Normalization]
 **Learning:** `ParseInvariant` uses a `normalizeMustachePlaceholders` fallback to handle non-ICU formats. Many mustache-based systems use triple braces `{{{key}}}` for unescaped content. Failing to account for this leads to validation errors when these keys are used in translations.
 **Action:** Update `normalizeMustachePlaceholders` to detect and strip both double and triple braces, converting them to standard ICU `{key}` format for invariant extraction.
+
+## 2026-06-03 - [Robust ICU Tag Parsing with Attributes]
+**Learning:** ICU parsers that support HTML-style tags must correctly handle attributes and namespaced tags (e.g., `<ui:button>`). Naive tag detection that stops at the first `>` can fail if that character appears inside a quoted attribute value (e.g., `<div attr=">">`). Misidentifying tag boundaries leads to incorrect structural analysis and false-positive placeholder/pound-sign detections.
+**Action:** Implement attribute skipping in tag parsers that explicitly handles both single and double-quoted literals. Ensure the parser remains strict about tag closing to prevent malformed tags from silently being treated as literal text.

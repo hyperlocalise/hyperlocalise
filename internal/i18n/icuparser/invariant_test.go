@@ -476,6 +476,13 @@ func TestCountPoundsComplexNesting(t *testing.T) {
 				{Arg: "n1", Type: "plural", Options: []string{"one", "other"}, Pounds: []int{1, 2}},
 			},
 		},
+		{
+			name: "pound in attribute is ignored",
+			msg:  "{n, plural, other {<a href=\"#foo\">#</a>}}",
+			want: []BlockSignature{
+				{Arg: "n", Type: "plural", Options: []string{"other"}, Pounds: []int{1}},
+			},
+		},
 	}
 
 	for _, tt := range tests {
