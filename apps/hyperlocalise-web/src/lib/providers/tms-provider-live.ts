@@ -1092,7 +1092,10 @@ export async function updateTmsProviderLiveJobDescription(
     updatedTask = await client.editTaskDescription(projectId, taskId, description);
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
-      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+      throw new TmsProviderLiveError(
+        "crowdin_user_auth_invalid",
+        "Your Crowdin connection is invalid. Reconnect Crowdin and try again.",
+      );
     }
     if (error instanceof CrowdinApiError && error.status === 404) {
       return null;
