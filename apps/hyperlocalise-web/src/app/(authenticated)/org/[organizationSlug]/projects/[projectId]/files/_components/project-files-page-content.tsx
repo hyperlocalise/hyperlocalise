@@ -185,9 +185,11 @@ function ProjectFilesTree({
 export function ProjectFilesPageContent({
   organizationSlug,
   projectId,
+  canFindInRepo,
 }: {
   organizationSlug: string;
   projectId: string;
+  canFindInRepo: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -422,6 +424,7 @@ export function ProjectFilesPageContent({
               file={selectedFile}
               requestedSourcePath={selectedSourcePath}
               highlightLocale={highlightLocale}
+              canFindInRepo={canFindInRepo}
             />
           </main>
         </div>
