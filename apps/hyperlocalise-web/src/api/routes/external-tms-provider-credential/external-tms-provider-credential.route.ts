@@ -7,6 +7,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { db, schema } from "@/lib/database";
 import {
   decryptProviderCredential,
@@ -228,7 +229,8 @@ export function createExternalTmsProviderCredentialRoutes() {
 
       let tokenBundle: ReturnType<typeof mapCrowdinOAuthTokenResponse>;
       try {
-        const response = await fetch("https://accounts.crowdin.com/oauth/token", {
+        // Use providerSafeFetch to prevent SSRF when exchanging OAuth codes for tokens
+        const response = await providerSafeFetch("https://accounts.crowdin.com/oauth/token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -239,7 +241,6 @@ export function createExternalTmsProviderCredentialRoutes() {
             code,
             code_verifier: state.codeVerifier,
           }),
-          redirect: "error",
         });
         if (!response.ok) {
           return c.redirect("/dashboard?error=crowdin_oauth_exchange_failed");
