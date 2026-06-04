@@ -5,6 +5,7 @@ import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
 import { AppShellNavigation } from "@/components/app-shell/app-shell-navigation";
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
+import { getCrowdinConnectCtaState } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 
 export type AppShellProps = {
   children: ReactNode;
@@ -19,11 +20,18 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
   const navigationGroups = buildGlobalNavigationGroups(activeOrganizationSlug);
+  const { showCrowdinConnectCta } = hasCapability(auth.membership.role, "jobs:read")
+    ? await getCrowdinConnectCtaState({
+        organizationId: auth.activeOrganization.localOrganizationId,
+        userId: auth.user.localUserId,
+      })
+    : { showCrowdinConnectCta: false };
 
   return (
     <AppShellClient
       activeOrganization={auth.activeOrganization}
       organizations={auth.organizations}
+      showCrowdinConnectCta={showCrowdinConnectCta}
       showApiKeysLink={hasCapability(auth.membership.role, "api_keys:read")}
       showBillingLink={hasCapability(auth.membership.role, "billing:read")}
       showMembersLink={hasCapability(auth.membership.role, "workspace:read")}

@@ -14,6 +14,10 @@ import {
   type CrowdinSourceString,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { mapCrowdinTaskToJobTaskMetadata } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
+import {
+  getCrowdinUserConnection,
+  resolveCrowdinUserConnectionSecretMaterial,
+} from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
@@ -668,6 +672,7 @@ export async function listTmsProviderLiveJobsForProject(
   options?: {
     mine?: boolean;
     assignee?: string | null;
+    assigneeCandidates?: string[];
     context?: ActiveTmsProviderContext;
     projects?: ExternalTmsProjectMetadata[];
   },
@@ -714,11 +719,25 @@ export async function listTmsProviderLiveJobsForProject(
     rethrowProviderFetcherError(error);
   }
 
-  const assigneeNeedle = options?.assignee?.trim().toLowerCase();
+  const assigneeNeedles = [
+    ...(options?.assigneeCandidates ?? []),
+    ...(options?.assignee ? [options.assignee] : []),
+  ]
+    .map((candidate) => candidate.trim().toLowerCase())
+    .filter(Boolean);
   const filteredTasks = options?.mine
-    ? assigneeNeedle
+    ? assigneeNeedles.length > 0
       ? tasks.filter((task) =>
-          (task.assignedUsers ?? []).some((user) => user.toLowerCase().includes(assigneeNeedle)),
+          (task.assignedUsers ?? []).some((user) => {
+            const assignedUser = user.trim().toLowerCase();
+            if (!assignedUser) return false;
+            return assigneeNeedles.some(
+              (candidate) =>
+                assignedUser === candidate ||
+                assignedUser.includes(candidate) ||
+                candidate.includes(assignedUser),
+            );
+          }),
         )
       : []
     : tasks;
@@ -847,6 +866,7 @@ export async function listTmsProviderLiveJobs(
   options?: {
     mine?: boolean;
     assignee?: string | null;
+    assigneeCandidates?: string[];
     context?: ActiveTmsProviderContext;
   },
 ): Promise<TmsProviderLiveJob[]> {
@@ -1000,6 +1020,7 @@ export async function updateTmsProviderLiveJobDescription(
   organizationId: string,
   encodedJobId: string,
   description: string,
+  actorUserId: string,
 ): Promise<TmsProviderLiveJobDetail | null> {
   const parsed = parseProviderJobId(encodedJobId);
   if (!parsed) {
@@ -1030,8 +1051,39 @@ export async function updateTmsProviderLiveJobDescription(
     return null;
   }
 
+  const crowdinUserConnection = await getCrowdinUserConnection({
+    organizationId,
+    userId: actorUserId,
+  });
+  if (!crowdinUserConnection) {
+    throw new TmsProviderLiveError(
+      "crowdin_user_connection_required",
+      "Connect your Crowdin account before editing Crowdin tasks.",
+    );
+  }
+
+  let userAccessToken: string;
+  try {
+    userAccessToken = await resolveCrowdinUserConnectionSecretMaterial({
+      connection: crowdinUserConnection,
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.message === "crowdin_oauth_refresh_failed" ||
+        error.message === "crowdin_oauth_token_invalid")
+    ) {
+      throw new TmsProviderLiveError(
+        "crowdin_user_auth_invalid",
+        "Your Crowdin connection is invalid. Reconnect Crowdin and try again.",
+      );
+    }
+
+    throw error;
+  }
+
   const client = new CrowdinApiClient({
-    token: context.secretMaterial,
+    token: userAccessToken,
     baseUrl: context.credential.baseUrl ?? undefined,
   });
 
@@ -1040,7 +1092,10 @@ export async function updateTmsProviderLiveJobDescription(
     updatedTask = await client.editTaskDescription(projectId, taskId, description);
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
-      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+      throw new TmsProviderLiveError(
+        "crowdin_user_auth_invalid",
+        "Your Crowdin connection is invalid. Reconnect Crowdin and try again.",
+      );
     }
     if (error instanceof CrowdinApiError && error.status === 404) {
       return null;

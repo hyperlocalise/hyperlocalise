@@ -154,6 +154,15 @@ export interface CrowdinShortUser {
   fullName?: string | null;
 }
 
+export interface CrowdinAuthenticatedUser {
+  id: number;
+  username: string;
+  email: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  fullName?: string | null;
+}
+
 export interface CrowdinStringComment {
   id: number;
   text: string;
@@ -396,6 +405,14 @@ export class CrowdinApiClient {
       "Crowdin",
     );
     this.fetchFn = options.fetchFn ?? providerSafeFetch;
+  }
+
+  /**
+   * List all accessible projects, following pagination automatically.
+   */
+  async getAuthenticatedUser(): Promise<CrowdinAuthenticatedUser> {
+    const response = await this.get<CrowdinGetResponse<CrowdinAuthenticatedUser>>("/user");
+    return response.data;
   }
 
   /**

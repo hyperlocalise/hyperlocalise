@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/sidebar";
 import ThemeToggle from "@/components/theme-toggle";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
+import { CrowdinUserConnectButton } from "./crowdin-user-connect-button";
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
@@ -31,6 +32,7 @@ type AppShellClientProps = {
     name: string;
     slug?: string | null;
   }>;
+  showCrowdinConnectCta?: boolean;
   showApiKeysLink?: boolean;
   showBillingLink?: boolean;
   showMembersLink?: boolean;
@@ -45,6 +47,7 @@ export function AppShellClient({
   navigation,
   activeOrganization,
   organizations,
+  showCrowdinConnectCta = false,
   showApiKeysLink = false,
   showBillingLink = false,
   showMembersLink = false,
@@ -122,6 +125,9 @@ export function AppShellClient({
               <AppShellBreadcrumb organizationSlug={organizationSlug} />
             </div>
             <div className="flex shrink-0 items-center gap-2">
+              {showCrowdinConnectCta && organizationSlug ? (
+                <CrowdinUserConnectButton organizationSlug={organizationSlug} />
+              ) : null}
               <ThemeToggle />
               <NavUser
                 organizationName={activeOrganization.name}
