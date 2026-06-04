@@ -1444,11 +1444,11 @@ export function WorkspaceAutomationEditor({
       const response = await api.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error("Failed to load projects");
       }
       const body = await response.json();
-      return body.projects as ProjectOption[];
+      return body.projects;
     },
   });
 

@@ -74,7 +74,9 @@ export async function getTmsUserConnectCtaState(input: {
   }
 
   const providerKind = credential.providerKind as ExternalTmsProviderKind;
-  const displayName = credential.displayName.trim() || formatTmsUserConnectProviderLabel("crowdin");
+  const displayName =
+    credential.displayName.trim() ||
+    formatTmsUserConnectProviderLabel(providerKind as TmsUserConnectProviderKind);
 
   if (providerKind === "crowdin" && credential.authMode === CROWDIN_OAUTH_AUTH_MODE) {
     return resolveCrowdinUserConnectCta({

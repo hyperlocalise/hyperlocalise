@@ -24,7 +24,8 @@ export function useTmsUserConnectCta(organizationSlug: string, options?: { enabl
         throw new Error(`Failed to load TMS user connect state (${response.status})`);
       }
 
-      return (await response.json()) as TmsUserConnectCta;
+      const { connectCta } = (await response.json()) as { connectCta: TmsUserConnectCta };
+      return connectCta;
     },
   });
 }

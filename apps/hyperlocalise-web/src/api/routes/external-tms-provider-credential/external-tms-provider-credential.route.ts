@@ -7,6 +7,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { badRequestResponse, notFoundResponse } from "@/api/response.schema";
+import { env } from "@/lib/env";
 import { isErr } from "@/lib/primitives/result/results";
 import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { db, schema } from "@/lib/database";
@@ -95,13 +96,8 @@ const validateCrowdinUserOAuthStartBody = validator("json", (value, c) => {
 type ExternalTmsProviderCredentialRouteContext = Context<{ Variables: AuthVariables }>;
 
 function getCrowdinOAuthRequestOrigin(c: ExternalTmsProviderCredentialRouteContext) {
-  const forwardedHost = c.req.header("x-forwarded-host");
-  const forwardedProto = c.req.header("x-forwarded-proto") ?? "https";
-  if (forwardedHost) {
-    const host = forwardedHost.split(",")[0]?.trim();
-    if (host) {
-      return `${forwardedProto}://${host}`;
-    }
+  if (env.HYPERLOCALISE_PUBLIC_APP_URL) {
+    return new URL(env.HYPERLOCALISE_PUBLIC_APP_URL).origin;
   }
 
   return new URL(c.req.url).origin;
@@ -424,7 +420,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         userId: c.var.auth.user.localUserId,
       });
 
-      return c.json(cta, 200);
+      return c.json({ connectCta: cta }, 200);
     })
     .get("/crowdin/user-connection", async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {

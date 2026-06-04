@@ -12,7 +12,6 @@ import {
   SaveIcon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
-import { useSearchParams } from "next/navigation";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
@@ -1669,8 +1668,6 @@ export function IntegrationsPageContent({
   membershipRole,
   canManageProviderIntegrations,
 }: IntegrationsPageContentProps) {
-  const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
   const deleteCredential = useDeleteProviderCredential(organizationSlug);

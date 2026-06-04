@@ -1,6 +1,19 @@
+import type { TypedResponse } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
+
 import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
 
-export function getTmsProviderLiveErrorStatus(code: string): number {
+type JsonContext = {
+  json<T extends object, U extends ContentfulStatusCode>(
+    body: T,
+    status: U,
+  ): Response & TypedResponse<T, U, "json">;
+};
+
+export type TmsProviderLiveErrorStatus = 400 | 401 | 404 | 500 | 501;
+export type TmsProviderLiveErrorBody = { error: string; message: string };
+
+export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErrorStatus {
   switch (code) {
     case "no_active_tms_provider":
       return 404;
@@ -19,9 +32,9 @@ export function getTmsProviderLiveErrorStatus(code: string): number {
 }
 
 export function tmsProviderLiveErrorResponse(
-  c: { json: (body: unknown, status: number) => Response },
+  c: JsonContext,
   error: unknown,
-): Response {
+): Response & TypedResponse<TmsProviderLiveErrorBody, TmsProviderLiveErrorStatus, "json"> {
   if (error instanceof TmsProviderLiveError) {
     return c.json(
       { error: error.code, message: error.message },

@@ -75,11 +75,6 @@ const attachOptions = [
   },
 ] as const;
 
-type ApiProject = {
-  id: string;
-  name: string;
-};
-
 type ReplyComposerProps = {
   conversationProjectId: string | null;
   disabled: boolean;
@@ -117,11 +112,11 @@ function ReplyComposerContent({
         param: { organizationSlug },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(`Failed to load projects (${response.status})`);
       }
 
-      const body = (await response.json()) as { projects: ApiProject[] };
+      const body = await response.json();
       return body.projects;
     },
   });

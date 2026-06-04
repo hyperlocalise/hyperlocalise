@@ -132,7 +132,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         param: { organizationSlug },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw await readApiResponseError(response, "Failed to load projects");
       }
 

@@ -184,12 +184,12 @@ export function RepositoryAutomationSettingsPanel({
         param: { organizationSlug },
       });
 
-      if (!res.ok) {
+      if (res.status !== 200) {
         throw new Error("Failed to load projects");
       }
 
       const data = await res.json();
-      return (data.projects as ProjectOption[]).map((project) => ({
+      return data.projects.map((project) => ({
         id: project.id,
         name: project.name,
       }));

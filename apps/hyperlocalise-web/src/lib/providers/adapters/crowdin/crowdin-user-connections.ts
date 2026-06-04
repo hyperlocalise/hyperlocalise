@@ -56,7 +56,10 @@ function summarizeCrowdinUserConnection(
   };
 }
 
-export async function getCrowdinUserConnection(input: { organizationId: string; userId: string }) {
+export async function getCrowdinUserConnection(input: {
+  organizationId: string;
+  userId: string;
+}): Promise<CrowdinUserConnection | null> {
   const [connection] = await db
     .select()
     .from(schema.crowdinUserConnections)

@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
-import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
+import { readApiResponseError } from "@/lib/api-error";
 import { cn } from "@/lib/primitives/cn";
 
 import { JobDetailRow, ProviderCrowdinJobDetailRows } from "./provider-crowdin-job-detail-rows";

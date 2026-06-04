@@ -91,11 +91,6 @@ const translationSourceFileAccept = [
 ].join(",");
 const maxTranslationSourceFiles = 5;
 
-type ApiProject = {
-  id: string;
-  name: string;
-};
-
 export function ChatPageContent({ organizationSlug }: { organizationSlug: string }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -109,11 +104,11 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
         param: { organizationSlug },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(`Failed to load projects (${response.status})`);
       }
 
-      const body = (await response.json()) as { projects: ApiProject[] };
+      const body = await response.json();
       return body.projects;
     },
   });

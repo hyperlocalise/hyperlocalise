@@ -15,7 +15,7 @@ import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-conne
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { isApiResponseErrorCode, readApiResponseError } from "@/lib/api-error";
+import { readApiResponseError } from "@/lib/api-error";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 import {
