@@ -7,7 +7,8 @@ import { SearchIcon, Task01Icon, WorkHistoryIcon } from "@hugeicons/core-free-ic
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery } from "@tanstack/react-query";
 
-import { CrowdinUserConnectButton } from "@/components/app-shell/crowdin-user-connect-button";
+import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
+import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -125,10 +126,6 @@ const statusFilterLabels = {
   waiting_for_review: "Waiting for review",
   cancelled: "Cancelled",
 } as const satisfies Record<(typeof statusOptions)[number], string>;
-
-function isCrowdinUserConnectionError(error: unknown) {
-  return isApiResponseErrorCode(error, "crowdin_user_connection_required");
-}
 
 const jobsFilterTriggerClassName =
   "h-9 min-h-9 w-full border-foreground/14 bg-transparent px-3 text-sm text-foreground data-[size=default]:h-9";
@@ -678,17 +675,24 @@ export function JobsPageContent({
       </div>
       {jobsQuery.error ? (
         <div>
-          <TypographyP className="text-sm font-medium text-flame-100">
-            {isCrowdinUserConnectionError(jobsQuery.error)
-              ? "Connect Crowdin to view provider jobs."
-              : "Jobs failed to load."}
-          </TypographyP>
-          <TypographyP className="mt-1 text-sm text-foreground/58">
-            {jobsQuery.error instanceof Error ? jobsQuery.error.message : "Failed to load jobs."}
-          </TypographyP>
-          {isCrowdinUserConnectionError(jobsQuery.error) ? (
-            <CrowdinUserConnectButton organizationSlug={organizationSlug} className="mt-4 flex" />
-          ) : null}
+          {isTmsUserConnectionRequiredError(jobsQuery.error) ? (
+            <TmsUserConnectionErrorPanel
+              organizationSlug={organizationSlug}
+              resource="jobs"
+              error={jobsQuery.error}
+            />
+          ) : (
+            <>
+              <TypographyP className="text-sm font-medium text-flame-100">
+                Jobs failed to load.
+              </TypographyP>
+              <TypographyP className="mt-1 text-sm text-foreground/58">
+                {jobsQuery.error instanceof Error
+                  ? jobsQuery.error.message
+                  : "Failed to load jobs."}
+              </TypographyP>
+            </>
+          )}
         </div>
       ) : null}
       <JobsList

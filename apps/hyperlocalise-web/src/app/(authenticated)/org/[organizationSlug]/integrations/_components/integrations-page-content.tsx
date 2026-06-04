@@ -1747,28 +1747,6 @@ export function IntegrationsPageContent({
     }
   }, [selectedModel, selectedProvider]);
 
-  useEffect(() => {
-    if (searchParams.get("crowdin_connected") !== "1") {
-      return;
-    }
-
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["external-tms-credentials", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["tms-provider-connection", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["translation-projects", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["translation-memories", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] }),
-    ]).then(() => {
-      toast.success("Crowdin connected");
-      setExpandedTmsProvider("crowdin");
-    });
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete("crowdin_connected");
-    window.history.replaceState({}, "", url.toString());
-  }, [organizationSlug, queryClient, searchParams]);
-
   const selectedByokProvider =
     selectedProvider && selectedProvider !== hyperlocaliseGoProvider.id ? selectedProvider : null;
   const selectedProviderConfig = selectedByokProvider

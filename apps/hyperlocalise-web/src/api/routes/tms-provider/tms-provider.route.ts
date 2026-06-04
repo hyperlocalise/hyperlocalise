@@ -15,8 +15,8 @@ import {
   listTmsProviderLiveJobsForProject,
   listTmsProviderLiveProjects,
   listTmsProviderLiveTranslationMemories,
-  TmsProviderLiveError,
 } from "@/lib/providers/tms-provider-live";
+import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
 import { getCrowdinUserConnectionSummary } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 
 const mineQuerySchema = z.object({
@@ -74,33 +74,6 @@ const validateUpdateJobDescriptionBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
-function mapTmsProviderLiveError(
-  c: { json: (body: unknown, status: number) => Response },
-  error: unknown,
-) {
-  if (error instanceof TmsProviderLiveError) {
-    switch (error.code) {
-      case "no_active_tms_provider":
-        return c.json({ error: error.code, message: error.message }, 404);
-      case "crowdin_auth_invalid":
-        return c.json({ error: error.code, message: error.message }, 401);
-      case "crowdin_user_auth_invalid":
-      case "crowdin_user_connection_required":
-        return c.json({ error: error.code, message: error.message }, 401);
-      case "invalid_encoded_job_id":
-        return c.json({ error: error.code, message: error.message }, 400);
-      case "provider_fetcher_unavailable":
-        return c.json({ error: error.code, message: error.message }, 501);
-      case "provider_description_edit_unsupported":
-        return c.json({ error: error.code, message: error.message }, 501);
-      default:
-        return c.json({ error: error.code, message: error.message }, 500);
-    }
-  }
-
-  throw error;
-}
-
 async function getCurrentUserProviderAssigneeCandidates(auth: AuthVariables["auth"]) {
   const candidates = [auth.user.email];
   const crowdinUserConnection = await getCrowdinUserConnectionSummary({
@@ -137,7 +110,7 @@ export function createTmsProviderRoutes() {
 
         return c.json({ connection }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .get("/projects", async (c) => {
@@ -152,7 +125,7 @@ export function createTmsProviderRoutes() {
         );
         return c.json({ projects }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .get("/projects/:externalProjectId", async (c) => {
@@ -172,7 +145,7 @@ export function createTmsProviderRoutes() {
 
         return c.json({ project }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .get("/projects/:externalProjectId/jobs", validateMineQuery, async (c) => {
@@ -197,7 +170,7 @@ export function createTmsProviderRoutes() {
         );
         return c.json({ jobs }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .get("/projects/:externalProjectId/files", validateProjectFilesQuery, async (c) => {
@@ -215,7 +188,7 @@ export function createTmsProviderRoutes() {
         );
         return c.json({ files }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .get("/jobs", validateMineQuery, async (c) => {
@@ -236,7 +209,7 @@ export function createTmsProviderRoutes() {
         });
         return c.json({ jobs }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .get("/jobs/:encodedJobId", async (c) => {
@@ -256,7 +229,7 @@ export function createTmsProviderRoutes() {
 
         return c.json({ job }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .patch("/jobs/:encodedJobId/description", validateUpdateJobDescriptionBody, async (c) => {
@@ -279,7 +252,7 @@ export function createTmsProviderRoutes() {
 
         return c.json({ job }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .get("/glossaries", validateExternalProjectIdQuery, async (c) => {
@@ -299,7 +272,7 @@ export function createTmsProviderRoutes() {
         );
         return c.json({ glossaries }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     })
     .get("/translation-memories", validateExternalProjectIdQuery, async (c) => {
@@ -319,7 +292,7 @@ export function createTmsProviderRoutes() {
         );
         return c.json({ translationMemories }, 200);
       } catch (error) {
-        return mapTmsProviderLiveError(c, error);
+        return tmsProviderLiveErrorResponse(c, error);
       }
     });
 }

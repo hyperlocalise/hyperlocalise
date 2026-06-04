@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
@@ -77,36 +77,6 @@ export async function getCrowdinUserConnectionSummary(input: {
 }): Promise<CrowdinUserConnectionSummary | null> {
   const connection = await getCrowdinUserConnection(input);
   return connection ? summarizeCrowdinUserConnection(connection) : null;
-}
-
-export async function getCrowdinConnectCtaState(input: {
-  organizationId: string;
-  userId: string;
-}): Promise<{ showCrowdinConnectCta: boolean }> {
-  const [row] = await db
-    .select({
-      providerKind: schema.organizationExternalTmsProviderCredentials.providerKind,
-      authMode: schema.organizationExternalTmsProviderCredentials.authMode,
-      userConnectionId: schema.crowdinUserConnections.id,
-    })
-    .from(schema.organizationExternalTmsProviderCredentials)
-    .leftJoin(
-      schema.crowdinUserConnections,
-      and(
-        eq(schema.crowdinUserConnections.organizationId, input.organizationId),
-        eq(schema.crowdinUserConnections.userId, input.userId),
-      ),
-    )
-    .where(
-      eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
-    )
-    .orderBy(desc(schema.organizationExternalTmsProviderCredentials.updatedAt))
-    .limit(1);
-
-  const showCrowdinConnectCta =
-    row?.providerKind === "crowdin" && row.authMode === "oauth" && !row.userConnectionId;
-
-  return { showCrowdinConnectCta };
 }
 
 async function findCrowdinUserConnectionOwnerByCrowdinUserId(input: {
