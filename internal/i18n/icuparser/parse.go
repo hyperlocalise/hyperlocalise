@@ -732,7 +732,7 @@ func (p *astParser) readTagName() (string, bool) {
 	}
 	// Tag names must start with a letter.
 	ch := p.src[p.pos]
-	if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+	if (ch < 'a' || ch > 'z') && (ch < 'A' || ch > 'Z') {
 		return "", false
 	}
 
