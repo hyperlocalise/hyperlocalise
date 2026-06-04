@@ -117,7 +117,8 @@ export const organizationExternalTmsProviderCredentials = pgTable(
 );
 
 /**
- * Stores short-lived Crowdin OAuth state and PKCE verifier material so callback handling can be scoped to the initiating organization and user.
+ * @deprecated Legacy organization-level Crowdin OAuth state. Unused; user linking uses
+ * {@link crowdinUserOAuthStates} and {@link crowdinUserConnections} instead. Scheduled for removal.
  */
 export const crowdinOAuthStates = pgTable(
   "crowdin_oauth_states",

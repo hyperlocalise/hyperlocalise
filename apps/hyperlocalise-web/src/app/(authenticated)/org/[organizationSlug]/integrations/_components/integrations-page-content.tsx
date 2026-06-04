@@ -12,7 +12,6 @@ import {
   SaveIcon,
   Tick02Icon,
 } from "@hugeicons/core-free-icons";
-import { useSearchParams } from "next/navigation";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
@@ -1669,8 +1668,6 @@ export function IntegrationsPageContent({
   membershipRole,
   canManageProviderIntegrations,
 }: IntegrationsPageContentProps) {
-  const searchParams = useSearchParams();
-  const queryClient = useQueryClient();
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
   const deleteCredential = useDeleteProviderCredential(organizationSlug);
@@ -1746,28 +1743,6 @@ export function IntegrationsPageContent({
       setSelectedModel(defaultModelByProvider[selectedProvider]);
     }
   }, [selectedModel, selectedProvider]);
-
-  useEffect(() => {
-    if (searchParams.get("crowdin_connected") !== "1") {
-      return;
-    }
-
-    void Promise.all([
-      queryClient.invalidateQueries({ queryKey: ["external-tms-credentials", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["tms-provider-connection", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["translation-projects", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["glossaries", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["translation-memories", organizationSlug] }),
-      queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] }),
-    ]).then(() => {
-      toast.success("Crowdin connected");
-      setExpandedTmsProvider("crowdin");
-    });
-
-    const url = new URL(window.location.href);
-    url.searchParams.delete("crowdin_connected");
-    window.history.replaceState({}, "", url.toString());
-  }, [organizationSlug, queryClient, searchParams]);
 
   const selectedByokProvider =
     selectedProvider && selectedProvider !== hyperlocaliseGoProvider.id ? selectedProvider : null;

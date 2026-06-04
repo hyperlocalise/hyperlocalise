@@ -21,7 +21,7 @@ export function useProjectPageQuery(organizationSlug: string, projectId: string)
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
         param: { organizationSlug, projectId },
       });
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(`Failed to load project (${response.status})`);
       }
       const body = await response.json();

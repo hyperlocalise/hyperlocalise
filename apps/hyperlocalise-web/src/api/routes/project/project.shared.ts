@@ -15,7 +15,8 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
-import { getTmsProviderConnection, TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
+import { getTmsProviderConnection } from "@/lib/providers/tms-provider-live";
+import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
 import {
   parseProviderProjectId,
   type EncodedProviderProjectId,
@@ -106,24 +107,7 @@ export function providerProjectUnavailableResponse(
   return c.json({ error: target.error, message: target.message }, 404);
 }
 
-export function tmsProviderLiveErrorResponse(c: { json: JsonContext["json"] }, error: unknown) {
-  if (error instanceof TmsProviderLiveError) {
-    switch (error.code) {
-      case "no_active_tms_provider":
-        return c.json({ error: error.code, message: error.message }, 404);
-      case "crowdin_auth_invalid":
-        return c.json({ error: error.code, message: error.message }, 401);
-      case "invalid_encoded_job_id":
-        return c.json({ error: error.code, message: error.message }, 400);
-      case "provider_fetcher_unavailable":
-        return c.json({ error: error.code, message: error.message }, 501);
-      default:
-        return c.json({ error: error.code, message: error.message }, 500);
-    }
-  }
-
-  throw error;
-}
+export { tmsProviderLiveErrorResponse };
 
 export async function logProjectNotFound(input: {
   auth: ApiAuthContext;

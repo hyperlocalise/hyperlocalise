@@ -12,7 +12,6 @@ import type {
   MemoryProjectRecord,
   MemoryRecord,
 } from "@/api/routes/memory/memory.schema";
-import type { ProjectRecord } from "@/api/routes/project/project.schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -102,9 +101,10 @@ export function TranslationMemoryDetailPageContent({
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
       });
-      if (!response.ok) throw new Error(await readApiError(response, "Unable to load projects"));
+      if (response.status !== 200)
+        throw new Error(await readApiError(response, "Unable to load projects"));
       const body = await response.json();
-      return body.projects as ProjectRecord[];
+      return body.projects;
     },
   });
 

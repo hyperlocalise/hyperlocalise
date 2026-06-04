@@ -189,7 +189,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     });
   });
 
-  it("saves Crowdin OAuth app client config for admins without creating an org token state", async () => {
+  it("saves Crowdin OAuth app client config for admins without starting user OAuth", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const authContext = globalThis.__testApiAuthContext!;
@@ -227,14 +227,14 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     const states = await db
       .select()
-      .from(schema.crowdinOAuthStates)
+      .from(schema.crowdinUserOAuthStates)
       .where(
         and(
           eq(
-            schema.crowdinOAuthStates.organizationId,
+            schema.crowdinUserOAuthStates.organizationId,
             authContext.organization.localOrganizationId,
           ),
-          eq(schema.crowdinOAuthStates.userId, authContext.user.localUserId),
+          eq(schema.crowdinUserOAuthStates.userId, authContext.user.localUserId),
         ),
       )
       .limit(1);
@@ -301,7 +301,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("does not exchange org Crowdin OAuth callbacks after client config save", async () => {
+  it("rejects Crowdin OAuth callbacks without a user OAuth state", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
 
@@ -490,7 +490,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
 
     expect(callbackResponse.status).toBe(302);
     expect(callbackResponse.headers.get("location")).toBe(
-      `/org/${memberIdentity.organization.slug}/jobs?mine=true&crowdin_user_connected=1`,
+      `/org/${memberIdentity.organization.slug}/jobs?mine=true`,
     );
     expect(capturedTokenBody).toMatchObject({
       grant_type: "authorization_code",

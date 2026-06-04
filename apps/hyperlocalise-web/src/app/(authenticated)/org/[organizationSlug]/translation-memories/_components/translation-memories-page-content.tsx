@@ -179,7 +179,7 @@ export function TranslationMemoriesPageContent({
         param: { organizationSlug },
       });
 
-      if (!response.ok) {
+      if (response.status !== 200) {
         throw new Error(`Failed to load projects (${response.status})`);
       }
 
