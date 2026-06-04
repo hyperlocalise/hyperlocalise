@@ -451,22 +451,42 @@ func (p *astParser) tryParseTag(ctx parseCtx) (TagElement, bool, error) {
 		p.pos = start
 		return TagElement{}, false, nil
 	}
-	p.skipSpaces()
-	if p.consume('/') {
-		if !p.consume('>') {
-			return TagElement{}, false, fmt.Errorf("expected '/>' for self-closing tag at %d", p.pos)
+
+	// Skip attributes until we find the end of the opening tag.
+	for p.pos < len(p.src) {
+		ch := p.src[p.pos]
+		if ch == '"' || ch == '\'' {
+			p.skipTagAttributeQuotedLiteral(ch)
+			continue
 		}
-		return TagElement{Value: name, SelfClosing: true}, true, nil
+		if p.consume('/') {
+			if p.consume('>') {
+				return TagElement{Value: name, SelfClosing: true}, true, nil
+			}
+			continue
+		}
+		if p.consume('>') {
+			children, err := p.parseUntilClosingTag(name, ctx)
+			if err != nil {
+				return TagElement{}, false, err
+			}
+			return TagElement{Value: name, Children: children}, true, nil
+		}
+		p.pos++
 	}
-	if !p.consume('>') {
-		p.pos = start
-		return TagElement{}, false, nil
+
+	return TagElement{}, false, fmt.Errorf("unclosed opening tag %q at %d", name, start)
+}
+
+func (p *astParser) skipTagAttributeQuotedLiteral(quote byte) {
+	p.pos++ // opening quote
+	for p.pos < len(p.src) {
+		if p.src[p.pos] == quote {
+			p.pos++
+			return
+		}
+		p.pos++
 	}
-	children, err := p.parseUntilClosingTag(name, ctx)
-	if err != nil {
-		return TagElement{}, false, err
-	}
-	return TagElement{Value: name, Children: children}, true, nil
 }
 
 func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, error) {
@@ -710,7 +730,7 @@ func (p *astParser) readTagName() (string, bool) {
 	start := p.pos
 	for p.pos < len(p.src) {
 		ch := p.src[p.pos]
-		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '.' {
+		if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_' || ch == '-' || ch == '.' || ch == ':' {
 			p.pos++
 			continue
 		}
