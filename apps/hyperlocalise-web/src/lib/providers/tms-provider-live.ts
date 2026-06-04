@@ -1042,12 +1042,19 @@ export async function updateTmsProviderLiveJobDescription(
   }
 
   const task = mapCrowdinTaskToJobTaskMetadata(updatedTask, {});
+  const providerPayload = Object.fromEntries(
+    Object.entries(task.providerPayload ?? {}).filter(([key]) => key !== "localeReadiness"),
+  );
+
   return mapLiveJobDetail({
     providerKind: context.providerKind,
     externalProjectId: parsed.externalProjectId,
     externalJobId: parsed.externalJobId,
     projectName: project.name,
-    task,
+    task: {
+      ...task,
+      providerPayload,
+    },
   });
 }
 

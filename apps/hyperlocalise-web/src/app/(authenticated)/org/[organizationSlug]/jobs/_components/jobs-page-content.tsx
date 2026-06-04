@@ -246,7 +246,12 @@ function formatJobKind(job: ApiJob) {
 }
 
 function taskDetailSummary(job: ApiJob) {
-  const locales = formatLocaleList(getCrowdinTargetLocales(null, job.externalTargetLocales ?? []));
+  const fallbackTargetLocales = job.externalTargetLocales?.length
+    ? job.externalTargetLocales
+    : job.reviewTargetLocale
+      ? [job.reviewTargetLocale]
+      : [];
+  const locales = formatLocaleList(getCrowdinTargetLocales(null, fallbackTargetLocales));
   const people = assignees(job);
   if (locales === "—" && people === "—") return "No locales or assignees";
   if (locales === "—") return people;
