@@ -179,7 +179,7 @@ describe("lokalise user connections", () => {
 
     try {
       const duplicateResult = await upsertLokaliseUserConnection({
-        organizationId: authContext.organization.localOrganizationId,
+        organizationId: secondAuthContext.organization.localOrganizationId,
         userId: secondAuthContext.user.localUserId,
         providerCredentialId: credential.id,
         tokenBundle: tokenBundle({ accessToken: "second-access-token" }),
@@ -194,6 +194,7 @@ describe("lokalise user connections", () => {
         throw new Error("expected duplicate Lokalise user link to fail via unique constraint");
       }
       expect(duplicateResult.error).toEqual({ code: "lokalise_user_already_linked" });
+      expect(selectSpy).toHaveBeenCalledOnce();
     } finally {
       selectSpy.mockRestore();
     }
