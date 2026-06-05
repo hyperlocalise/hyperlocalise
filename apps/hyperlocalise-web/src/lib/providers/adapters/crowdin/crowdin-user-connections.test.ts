@@ -7,6 +7,7 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 import {
+  CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS,
   decryptCrowdinOAuthTokenBundle,
   upsertCrowdinOAuthProviderCredential,
   type CrowdinOAuthTokenBundle,
@@ -140,15 +141,74 @@ describe("crowdin user connections", () => {
     expect(duplicateResult.error).toEqual({ code: "crowdin_user_already_linked" });
   });
 
+  it("rejects duplicate Crowdin user links via DB unique constraint when pre-check races", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const { authContext, credential, identity } = await createCrowdinOAuthCredential();
+
+    const firstResult = await upsertCrowdinUserConnection({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      providerCredentialId: credential.id,
+      tokenBundle: tokenBundle(),
+      crowdinUser: {
+        id: 12345,
+        username: "crowdin-user",
+      },
+    });
+    expect(isErr(firstResult)).toBe(false);
+
+    const secondIdentity = fixture.createWorkosIdentityForOrganization(
+      identity.organization,
+      "admin",
+    );
+    await fixture.authHeadersFor(secondIdentity);
+    const secondAuthContext = globalThis.__testApiAuthContext!;
+
+    const selectSpy = vi.spyOn(db, "select").mockImplementationOnce((_fields) => {
+      const chain = {
+        from: () => chain,
+        where: () => chain,
+        limit: () => Promise.resolve([]),
+      };
+      return chain as unknown as ReturnType<typeof db.select>;
+    });
+
+    try {
+      const duplicateResult = await upsertCrowdinUserConnection({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: secondAuthContext.user.localUserId,
+        providerCredentialId: credential.id,
+        tokenBundle: tokenBundle({ accessToken: "second-access-token" }),
+        crowdinUser: {
+          id: 12345,
+          username: "crowdin-user",
+        },
+      });
+
+      expect(isErr(duplicateResult)).toBe(true);
+      if (!isErr(duplicateResult)) {
+        throw new Error("expected duplicate Crowdin user link to fail via unique constraint");
+      }
+      expect(duplicateResult.error).toEqual({ code: "crowdin_user_already_linked" });
+    } finally {
+      selectSpy.mockRestore();
+    }
+  });
+
   it("returns fresh user access tokens without refreshing", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const nearExpiry = new Date(Date.now() + CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS + 30_000);
     const { authContext, credential } = await createCrowdinOAuthCredential();
     const upsertResult = await upsertCrowdinUserConnection({
       organizationId: authContext.organization.localOrganizationId,
       userId: authContext.user.localUserId,
       providerCredentialId: credential.id,
-      tokenBundle: tokenBundle({ accessToken: "user-access-token" }),
+      tokenBundle: tokenBundle({
+        accessToken: "user-access-token",
+        expiresAt: nearExpiry.toISOString(),
+      }),
       crowdinUser: {
         id: 12345,
         username: "crowdin-user",
