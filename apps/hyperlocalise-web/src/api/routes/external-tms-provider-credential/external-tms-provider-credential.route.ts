@@ -739,8 +739,10 @@ async function completeLokaliseUserOAuthLink(
   c: ExternalTmsProviderCredentialRouteContext,
   input: {
     code: string;
+    codeVerifier: string;
     client: { clientId: string; clientSecret: string };
     credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
+    redirectUri: string;
     organizationSlug: string;
     returnTo: string | null | undefined;
     consumeState: () => Promise<void>;
@@ -771,7 +773,9 @@ async function completeLokaliseUserOAuthLink(
         grant_type: "authorization_code",
         client_id: input.client.clientId,
         client_secret: input.client.clientSecret,
+        redirect_uri: input.redirectUri,
         code: input.code,
+        code_verifier: input.codeVerifier,
       }),
       redirect: "error",
     });
@@ -835,6 +839,7 @@ async function handleLokaliseUserOAuthCallback(
   state: NonNullable<Awaited<ReturnType<typeof findActiveLokaliseUserOAuthState>>>,
   code: string,
   organizationSlug: string,
+  redirectUri: string,
 ) {
   const [credential] = await db
     .select()
@@ -870,11 +875,29 @@ async function handleLokaliseUserOAuthCallback(
   }
 
   const client = getLokaliseOAuthClientFromCredential(credential);
+  if (!state.codeVerifier) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        stateId: state.id,
+        providerCredentialId: state.providerCredentialId,
+      },
+      "lokalise user oauth callback rejected: missing code verifier",
+    );
+    return redirectToUserOAuthReturnTo(c, {
+      returnTo: state.returnTo,
+      organizationSlug,
+      error: "lokalise_user_oauth_exchange_failed",
+    });
+  }
 
   return completeLokaliseUserOAuthLink(c, {
     code,
+    codeVerifier: state.codeVerifier,
     client,
     credential,
+    redirectUri,
     organizationSlug,
     returnTo: state.returnTo,
     consumeState: async () => {
@@ -966,11 +989,13 @@ async function createLokaliseUserOAuthAuthorization(input: {
 }) {
   const client = getLokaliseOAuthClientFromCredential(input.credential);
   const nonce = randomBytes(24).toString("hex");
+  const codeVerifier = base64Url(randomBytes(48));
   const now = new Date();
   const returnTo = normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug);
 
   await db.insert(schema.lokaliseUserOAuthStates).values({
     nonce,
+    codeVerifier,
     organizationId: input.c.var.auth.organization.localOrganizationId,
     userId: input.c.var.auth.user.localUserId,
     providerCredentialId: input.credential.id,
@@ -982,8 +1007,11 @@ async function createLokaliseUserOAuthAuthorization(input: {
   const redirectUri = getLokaliseOAuthRedirectUri(input.c, input.organizationSlug);
   authorizationUrl.searchParams.set("client_id", client.clientId);
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
+  authorizationUrl.searchParams.set("response_type", "code");
   authorizationUrl.searchParams.set("scope", getLokaliseOAuthScopeString());
   authorizationUrl.searchParams.set("state", nonce);
+  authorizationUrl.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
+  authorizationUrl.searchParams.set("code_challenge_method", "S256");
 
   return { authorizationUrl: authorizationUrl.toString(), redirectUri };
 }
@@ -1419,7 +1447,13 @@ export function createExternalTmsProviderCredentialRoutes() {
         return c.redirect("/dashboard?error=invalid_lokalise_oauth_state");
       }
 
-      return handleLokaliseUserOAuthCallback(c, userState, code, organizationSlug);
+      return handleLokaliseUserOAuthCallback(
+        c,
+        userState,
+        code,
+        organizationSlug,
+        getLokaliseOAuthRedirectUri(c, organizationSlug),
+      );
     })
     .get("/user-connect-cta", async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {

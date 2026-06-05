@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/lokalise-oauth-scopes";
 import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
@@ -438,6 +439,123 @@ describe("externalTmsProviderCredentialRoutes", () => {
       .from(schema.phraseUserOAuthStates)
       .where(eq(schema.phraseUserOAuthStates.nonce, state))
       .limit(1);
+    expect(oauthState?.consumedAt).toBeInstanceOf(Date);
+  });
+
+  it("consumes Lokalise OAuth callback state and links the signed-in user", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+    const auth = globalThis.__testApiAuthContext!;
+
+    const startResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].lokalise["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Lokalise",
+          oauthClientId: "lokalise-client-id",
+          oauthClientSecret: "lokalise-client-secret",
+        },
+      },
+      { headers },
+    );
+    expect(startResponse.status).toBe(200);
+
+    const userStartResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].lokalise.user.oauth.start.$post(
+      {
+        param: { organizationSlug },
+        json: { returnTo: `/org/${organizationSlug}/integrations` },
+      },
+      { headers },
+    );
+    expect(userStartResponse.status).toBe(200);
+    const userStartBody = (await userStartResponse.json()) as {
+      authorizationUrl: string;
+      redirectUri: string;
+    };
+    expect(new URL(userStartBody.redirectUri).pathname).toBe(
+      `/api/orgs/${organizationSlug}/external-tms-provider-credential/lokalise/oauth/callback`,
+    );
+
+    const authorizationUrl = new URL(userStartBody.authorizationUrl);
+    expect(authorizationUrl.origin).toBe("https://app.lokalise.com");
+    expect(authorizationUrl.pathname).toBe("/oauth2/auth");
+    expect(authorizationUrl.searchParams.get("client_id")).toBe("lokalise-client-id");
+    expect(authorizationUrl.searchParams.get("redirect_uri")).toBe(userStartBody.redirectUri);
+    expect(authorizationUrl.searchParams.get("response_type")).toBe("code");
+    expect(authorizationUrl.searchParams.get("scope")).toBe(getLokaliseOAuthScopeString());
+    expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe("S256");
+    expect(authorizationUrl.searchParams.get("code_challenge")).toBeTypeOf("string");
+    const state = authorizationUrl.searchParams.get("state") ?? "";
+
+    let tokenExchangeInit: RequestInit | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url =
+          typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+        if (url === "https://app.lokalise.com/oauth2/token") {
+          tokenExchangeInit = init;
+          return new Response(
+            JSON.stringify({
+              access_token: "lokalise-access-token",
+              refresh_token: "lokalise-refresh-token",
+              token_type: "Bearer",
+              expires_in: 3600,
+            }),
+            { status: 200 },
+          );
+        }
+        return new Response(JSON.stringify({ error: "unexpected_url", url }), { status: 500 });
+      }),
+    );
+
+    const callbackResponse = await app.request(
+      `/api/orgs/${organizationSlug}/external-tms-provider-credential/lokalise/oauth/callback?state=${encodeURIComponent(state)}&code=lokalise-code`,
+      { headers },
+    );
+
+    expect(callbackResponse.status).toBe(302);
+    expect(callbackResponse.headers.get("location")).toBe(`/org/${organizationSlug}/integrations`);
+    expect(tokenExchangeInit).toMatchObject({
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+    expect(tokenExchangeInit?.body).toBeTypeOf("string");
+    const tokenExchangeBody = JSON.parse(tokenExchangeInit?.body as string);
+    expect(tokenExchangeBody).toMatchObject({
+      grant_type: "authorization_code",
+      client_id: "lokalise-client-id",
+      client_secret: "lokalise-client-secret",
+      redirect_uri: userStartBody.redirectUri,
+      code: "lokalise-code",
+    });
+    expect(tokenExchangeBody.code_verifier).toBeTypeOf("string");
+
+    const [connection] = await db
+      .select()
+      .from(schema.lokaliseUserConnections)
+      .where(
+        and(
+          eq(schema.lokaliseUserConnections.organizationId, auth.organization.localOrganizationId),
+          eq(schema.lokaliseUserConnections.userId, auth.user.localUserId),
+        ),
+      )
+      .limit(1);
+    expect(connection).toMatchObject({
+      providerCredentialId: expect.any(String),
+    });
+
+    const [oauthState] = await db
+      .select()
+      .from(schema.lokaliseUserOAuthStates)
+      .where(eq(schema.lokaliseUserOAuthStates.nonce, state))
+      .limit(1);
+    expect(oauthState?.codeVerifier).toBeTypeOf("string");
     expect(oauthState?.consumedAt).toBeInstanceOf(Date);
   });
 });

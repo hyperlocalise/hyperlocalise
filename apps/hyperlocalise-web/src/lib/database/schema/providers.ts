@@ -125,7 +125,7 @@ export const crowdinOAuthStates = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     nonce: text("nonce").notNull(),
-    codeVerifier: text("code_verifier").notNull(),
+    codeVerifier: text("code_verifier"),
     oauthClientId: text("oauth_client_id").notNull(),
     oauthClientSecretEncryptionAlgorithm: text(
       "oauth_client_secret_encryption_algorithm",
@@ -324,6 +324,7 @@ export const lokaliseUserOAuthStates = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     nonce: text("nonce").notNull(),
+    codeVerifier: text("code_verifier").notNull(),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),

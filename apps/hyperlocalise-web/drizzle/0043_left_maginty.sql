@@ -16,6 +16,7 @@ CREATE TABLE "lokalise_user_connections" (
 CREATE TABLE "lokalise_user_oauth_states" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"nonce" text NOT NULL,
+	"code_verifier" text NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"provider_credential_id" uuid NOT NULL,
@@ -26,6 +27,7 @@ CREATE TABLE "lokalise_user_oauth_states" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
+ALTER TABLE "crowdin_oauth_states" ALTER COLUMN "code_verifier" DROP NOT NULL;--> statement-breakpoint
 ALTER TABLE "lokalise_user_connections" ADD CONSTRAINT "lokalise_user_connections_organization_id_organizations_id_fk" FOREIGN KEY ("organization_id") REFERENCES "public"."organizations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "lokalise_user_connections" ADD CONSTRAINT "lokalise_user_connections_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "lokalise_user_connections" ADD CONSTRAINT "lokalise_user_connections_provider_credential_id_organization_external_tms_provider_credentials_id_fk" FOREIGN KEY ("provider_credential_id") REFERENCES "public"."organization_external_tms_provider_credentials"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
