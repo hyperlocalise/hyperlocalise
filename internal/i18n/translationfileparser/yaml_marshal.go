@@ -76,7 +76,20 @@ func detectYAMLIndent(template []byte, fallback int) int {
 	minIndent := 0
 	inBlockScalar := false
 	blockIndent := 0
-	for _, line := range bytes.Split(template, []byte{'\n'}) {
+
+	// BOLT OPTIMIZATION: Avoid bytes.Split(template, []byte{'\n'}) to reduce allocations for large files.
+	s := template
+	for len(s) > 0 {
+		idx := bytes.IndexByte(s, '\n')
+		var line []byte
+		if idx < 0 {
+			line = s
+			s = nil
+		} else {
+			line = s[:idx]
+			s = s[idx+1:]
+		}
+
 		trimmed := bytes.TrimSpace(line)
 		if len(trimmed) == 0 {
 			continue

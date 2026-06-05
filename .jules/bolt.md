@@ -128,3 +128,7 @@
 ## 2026-08-20 - Optimizing CSV parsing and marshaling via streaming
 **Learning:** Loading entire files into memory using `csv.ReadAll` is a major bottleneck for large translation files. A streaming approach using `csv.Reader.Read` and `csv.Writer.Write` allows processing files row-by-row, significantly reducing peak memory usage.
 **Action:** Refactored `CSVParser.Parse` and `MarshalCSV` to use streaming I/O, resulting in ~32% fewer allocations for parsing and ~38% fewer for marshaling, while improving marshaling speed by ~32%.
+
+## 2026-08-25 - Optimizing Markdown and YAML line processing
+**Learning:** Using `strings.SplitAfter` or `bytes.Split` on large translation files creates significant memory pressure by allocating large slices of string/byte pointers. Replacing these with manual `IndexByte` loops allows for streaming line-by-line processing with zero intermediate slice allocations. Additionally, unconditional `strings.ReplaceAll` for CRLF normalization on `[]byte` should be avoided; using a `bytes.Contains` fast-path and `bytes.ReplaceAll` directly avoids expensive `[]byte` <-> `string` conversions.
+**Action:** Refactored line splitting in Markdown, MDX, and YAML parsers and implemented CRLF fast-paths.

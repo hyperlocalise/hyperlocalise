@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 var markdownPlaceholderPattern = regexp.MustCompile("\x1eHLMDPH_[A-Z0-9_]+_(\\d+)\x1f")
@@ -640,11 +641,22 @@ func findQuotedStringEnd(s string, quote byte) int {
 }
 
 func isTranslatableChunk(chunk string) bool {
-	// BOLT OPTIMIZATION: Iterate directly to avoid TrimSpace pass and potential allocation.
-	for _, r := range chunk {
+	// BOLT OPTIMIZATION: Manual byte loop for common ASCII characters to avoid rune decoding overhead.
+	for i := 0; i < len(chunk); {
+		ch := chunk[i]
+		if ch < 0x80 {
+			if (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') {
+				return true
+			}
+			i++
+			continue
+		}
+
+		r, size := utf8.DecodeRuneInString(chunk[i:])
 		if unicode.IsLetter(r) || unicode.IsDigit(r) {
 			return true
 		}
+		i += size
 	}
 	return false
 }
