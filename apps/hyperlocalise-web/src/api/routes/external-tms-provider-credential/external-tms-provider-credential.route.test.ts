@@ -271,6 +271,47 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(oauthStates).toHaveLength(0);
   });
 
+  it("returns Phrase user connection required for Phrase OAuth health checks", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const saveResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].phrase["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Phrase",
+          oauthClientId: "phrase-client-id",
+          oauthClientSecret: "phrase-client-secret",
+        },
+      },
+      { headers },
+    );
+    expect(saveResponse.status).toBe(200);
+
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await app.request(
+      `/api/orgs/${organizationSlug}/external-tms-provider-credential/phrase/health-check`,
+      { method: "POST", headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      externalTmsProviderHealth: {
+        providerKind: "phrase",
+        status: "error",
+        availability: "unknown",
+        authValidity: "unknown",
+        errorCode: "phrase_user_connection_required",
+      },
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("consumes Phrase OAuth callback state and links the signed-in user", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
