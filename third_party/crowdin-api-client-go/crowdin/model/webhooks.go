@@ -23,10 +23,14 @@ const (
 	FileTranslated Event = "file.translated"
 	// Project file is fully reviewed.
 	FileApproved Event = "file.approved"
+	// File QA check is finished.
+	FileQAFinished Event = "file.qa.finished"
 	// All strings in project are translated.
 	ProjectTranslated Event = "project.translated"
 	// All strings in project are approved.
 	ProjectApproved Event = "project.approved"
+	// Project QA check is finished.
+	ProjectQAFinished Event = "project.qa.finished"
 	// Project are successfully built.
 	ProjectBuilt Event = "project.built"
 	// Final translation of string is updated (using Replace in suggestions feature).
@@ -59,6 +63,8 @@ const (
 	TaskAdded Event = "task.added"
 	// Task status was changed.
 	TaskStatusChanged Event = "task.statusChanged"
+	// Task is updated.
+	TaskUpdated Event = "task.updated"
 	// Task is deleted.
 	TaskDeleted Event = "task.deleted"
 
@@ -67,6 +73,10 @@ const (
 	ProjectCreated Event = "project.created"
 	// Project is deleted.
 	ProjectDeleted Event = "project.deleted"
+	// Group is created.
+	GroupCreated Event = "group.created"
+	// Group is deleted.
+	GroupDeleted Event = "group.deleted"
 )
 
 // ContentType is a type that represents the content type of a webhook.
@@ -81,7 +91,7 @@ const (
 // Webhook represents a webhook in Crowdin projects or account.
 type Webhook struct {
 	ID              int               `json:"id"`
-	ProjectID       int               `json:"projectId"`
+	ProjectID       *int              `json:"projectId,omitempty"`
 	Name            string            `json:"name"`
 	URL             string            `json:"url"`
 	Events          []string          `json:"events"`

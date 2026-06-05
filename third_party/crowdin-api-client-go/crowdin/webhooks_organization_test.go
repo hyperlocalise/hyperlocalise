@@ -102,11 +102,11 @@ func TestOrganizationWebhooksService_Get(t *testing.T) {
 	webhook, resp, err := client.OrganizationWebhooks.Get(context.Background(), 1)
 	require.NoError(t, err)
 	assert.NotNil(t, resp)
-	assert.Equal(t, 0, webhook.ProjectID)
+	assert.Nil(t, webhook.ProjectID)
 
 	expected := &model.Webhook{
 		ID:        4,
-		ProjectID: 0,
+		ProjectID: nil,
 		Name:      "Proofread",
 		URL:       "https://webhook.site/1c20d9b5-6e6a-4522-974d-9da7ea7595c9",
 		Events:    []string{"file.approved"},
@@ -246,12 +246,12 @@ func TestOrganizationWebhooksService_List(t *testing.T) {
 					Headers: map[string]string{
 						"Autorization": "Bearer ef231f493cafe336f98d486f596282205b3c2a0",
 					},
-					ProjectID: 0,
+					ProjectID: nil,
 				},
 				{
 					ID:        6,
 					Headers:   map[string]string{},
-					ProjectID: 0,
+					ProjectID: nil,
 				},
 			}
 			assert.Equal(t, expected, webhooks)
