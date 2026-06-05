@@ -14,7 +14,7 @@ import {
   type TmsUserConnectProviderKind,
 } from "@/lib/providers/tms-user-connection-shared";
 
-const CROWDIN_USER_OAUTH_ERROR_MESSAGES: Record<string, string> = {
+const TMS_USER_OAUTH_ERROR_MESSAGES: Record<string, string> = {
   crowdin_user_oauth_exchange_failed:
     "Crowdin could not exchange the authorization code. Check the OAuth callback URL in your Crowdin app settings.",
   crowdin_user_oauth_invalid: "Crowdin rejected the connection. Try connecting again.",
@@ -55,7 +55,7 @@ export function TmsUserConnectButton({
 
   useEffect(() => {
     const errorCode = searchParams.get("error");
-    if (!errorCode || !CROWDIN_USER_OAUTH_ERROR_MESSAGES[errorCode]) {
+    if (!errorCode || !TMS_USER_OAUTH_ERROR_MESSAGES[errorCode]) {
       return;
     }
     if (handledOAuthErrorRef.current === errorCode) {
@@ -63,7 +63,7 @@ export function TmsUserConnectButton({
     }
     handledOAuthErrorRef.current = errorCode;
 
-    toast.error(CROWDIN_USER_OAUTH_ERROR_MESSAGES[errorCode]);
+    toast.error(TMS_USER_OAUTH_ERROR_MESSAGES[errorCode]);
 
     const url = new URL(window.location.href);
     url.searchParams.delete("error");
