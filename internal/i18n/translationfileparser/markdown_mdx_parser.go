@@ -113,9 +113,6 @@ func (s *mdxExtractState) emitFrontmatterText(text string) {
 			line = text[:idx+1]
 			text = text[idx+1:]
 		}
-		if line == "" {
-			continue
-		}
 		emitFrontmatterLineParts(line, s.doc, func(part markdownPart) {
 			appendKey(part)
 		})
@@ -140,9 +137,6 @@ func (s *mdxExtractState) emitMarkdownText(text string, stack []mdxContainer) {
 		} else {
 			line = text[:idx+1]
 			text = text[idx+1:]
-		}
-		if line == "" {
-			continue
 		}
 		trimmed := strings.TrimSpace(line)
 		if len(stack) == 0 && isIndentedCodeLine(line) && s.prevTrimmed == "" {
