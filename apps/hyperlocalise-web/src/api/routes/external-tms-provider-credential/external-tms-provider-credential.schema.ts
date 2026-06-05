@@ -20,12 +20,14 @@ export const crowdinOAuthStartBodySchema = z.object({
 });
 
 export const phraseOAuthStartBodySchema = crowdinOAuthStartBodySchema;
+export const lokaliseOAuthStartBodySchema = crowdinOAuthStartBodySchema;
 
 export const crowdinUserOAuthStartBodySchema = z.object({
   returnTo: z.string().trim().max(2048).optional(),
 });
 
 export const phraseUserOAuthStartBodySchema = crowdinUserOAuthStartBodySchema;
+export const lokaliseUserOAuthStartBodySchema = crowdinUserOAuthStartBodySchema;
 
 export const revealExternalTmsProviderCredentialBodySchema = z.object({
   providerKind: externalTmsProviderKindSchema,

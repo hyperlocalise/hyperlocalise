@@ -22,6 +22,10 @@ import {
   getPhraseUserConnection,
   resolvePhraseUserConnectionSecretMaterial,
 } from "@/lib/providers/adapters/phrase/phrase-user-connections";
+import {
+  getLokaliseUserConnection,
+  resolveLokaliseUserConnectionSecretMaterial,
+} from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
@@ -72,6 +76,11 @@ const PROVIDER_CONNECTION_SECRET_ERROR_CODES = new Set([
   "phrase_oauth_token_response_invalid",
   "phrase_user_connection_not_found",
   "phrase_user_connection_required",
+  "lokalise_oauth_refresh_failed",
+  "lokalise_oauth_token_invalid",
+  "lokalise_oauth_token_response_invalid",
+  "lokalise_user_connection_not_found",
+  "lokalise_user_connection_required",
 ]);
 
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
@@ -249,11 +258,23 @@ async function buildActiveTmsProviderContext(
           "Connect your Phrase account before using Phrase.",
         );
       }
+      if (error.message === "lokalise_user_connection_required") {
+        throw new TmsProviderLiveError(
+          "lokalise_user_connection_required",
+          "Connect your Lokalise account before using Lokalise.",
+        );
+      }
 
       if (error.message.startsWith("phrase_")) {
         throw new TmsProviderLiveError(
           "phrase_user_auth_invalid",
           "Your Phrase connection is invalid. Reconnect Phrase and try again.",
+        );
+      }
+      if (error.message.startsWith("lokalise_")) {
+        throw new TmsProviderLiveError(
+          "lokalise_user_auth_invalid",
+          "Your Lokalise connection is invalid. Reconnect Lokalise and try again.",
         );
       }
 
@@ -319,14 +340,65 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
       "resolving phrase oauth user secret material",
     );
   }
+  if (
+    input.credential.providerKind === "lokalise" &&
+    input.credential.authMode === OAUTH_AUTH_MODE
+  ) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        providerCredentialId: input.credential.id,
+        actorUserId: input.actorUserId ?? null,
+        hasActorUserId: Boolean(input.actorUserId),
+      },
+      "resolving lokalise oauth user secret material",
+    );
+  }
 
   const usesCrowdinUserOAuth =
     input.credential.providerKind === "crowdin" && input.credential.authMode === OAUTH_AUTH_MODE;
   const usesPhraseUserOAuth =
     input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE;
+  const usesLokaliseUserOAuth =
+    input.credential.providerKind === "lokalise" && input.credential.authMode === OAUTH_AUTH_MODE;
 
-  if ((!usesCrowdinUserOAuth && !usesPhraseUserOAuth) || !input.actorUserId) {
+  if (
+    (!usesCrowdinUserOAuth && !usesPhraseUserOAuth && !usesLokaliseUserOAuth) ||
+    !input.actorUserId
+  ) {
     return resolveExternalTmsSecretMaterial({ credential: input.credential });
+  }
+
+  if (usesLokaliseUserOAuth) {
+    const lokaliseUserConnection = await getLokaliseUserConnection({
+      organizationId: input.organizationId,
+      userId: input.actorUserId,
+    });
+    if (!lokaliseUserConnection) {
+      logger.warn(
+        {
+          organizationId: input.organizationId,
+          providerCredentialId: input.credential.id,
+          actorUserId: input.actorUserId,
+        },
+        "lokalise user connection missing while resolving provider secret",
+      );
+      throw new Error("lokalise_user_connection_required");
+    }
+
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        providerCredentialId: input.credential.id,
+        actorUserId: input.actorUserId,
+        connectionId: lokaliseUserConnection.id,
+      },
+      "lokalise user connection found while resolving provider secret",
+    );
+
+    return resolveLokaliseUserConnectionSecretMaterial({
+      connection: lokaliseUserConnection,
+    });
   }
 
   if (usesPhraseUserOAuth) {

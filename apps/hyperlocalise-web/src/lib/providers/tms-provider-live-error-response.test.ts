@@ -8,6 +8,8 @@ describe("getTmsProviderLiveErrorStatus", () => {
     ["crowdin_user_connection_required", 401],
     ["phrase_user_auth_invalid", 401],
     ["phrase_user_connection_required", 401],
+    ["lokalise_user_auth_invalid", 401],
+    ["lokalise_user_connection_required", 401],
     ["crowdin_auth_invalid", 401],
     ["no_active_tms_provider", 404],
     ["invalid_encoded_job_id", 400],

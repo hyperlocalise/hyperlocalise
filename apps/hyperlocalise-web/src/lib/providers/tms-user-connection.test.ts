@@ -22,9 +22,14 @@ vi.mock("@/lib/providers/adapters/phrase/phrase-user-connections", () => ({
   getPhraseUserConnection: vi.fn(),
 }));
 
+vi.mock("@/lib/providers/adapters/lokalise/lokalise-user-connections", () => ({
+  getLokaliseUserConnection: vi.fn(),
+}));
+
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getCrowdinUserConnection } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 import { getPhraseUserConnection } from "@/lib/providers/adapters/phrase/phrase-user-connections";
+import { getLokaliseUserConnection } from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
 
 describe("getTmsUserConnectCtaState", () => {
   it("returns no CTA when there is no active integration", async () => {
@@ -48,6 +53,7 @@ describe("getTmsUserConnectCtaState", () => {
 
     expect(getCrowdinUserConnection).not.toHaveBeenCalled();
     expect(getPhraseUserConnection).not.toHaveBeenCalled();
+    expect(getLokaliseUserConnection).not.toHaveBeenCalled();
   });
 
   it("returns connect CTA for Crowdin OAuth without a user link", async () => {
@@ -109,17 +115,51 @@ describe("getTmsUserConnectCtaState", () => {
       getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
     ).resolves.toEqual({ showConnectCta: false });
   });
+
+  it("returns connect CTA for Lokalise OAuth without a user link", async () => {
+    vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue({
+      providerKind: "lokalise",
+      authMode: "oauth",
+      displayName: "My Lokalise",
+    } as never);
+    vi.mocked(getLokaliseUserConnection).mockResolvedValue(null);
+
+    await expect(
+      getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
+    ).resolves.toEqual({
+      showConnectCta: true,
+      providerKind: "lokalise",
+      providerDisplayName: "My Lokalise",
+    });
+  });
+
+  it("returns no CTA when Lokalise user is already linked", async () => {
+    vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue({
+      providerKind: "lokalise",
+      authMode: "oauth",
+      displayName: "Lokalise",
+    } as never);
+    vi.mocked(getLokaliseUserConnection).mockResolvedValue({ id: "conn-1" } as never);
+
+    await expect(
+      getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
+    ).resolves.toEqual({ showConnectCta: false });
+  });
 });
 
 describe("tms user connection helpers", () => {
   it("formats provider labels and messages", () => {
     expect(formatTmsUserConnectProviderLabel("crowdin")).toBe("Crowdin");
     expect(formatTmsUserConnectProviderLabel("phrase")).toBe("Phrase");
+    expect(formatTmsUserConnectProviderLabel("lokalise")).toBe("Lokalise");
     expect(tmsUserConnectionRequiredMessage("crowdin", "jobs")).toBe(
       "Connect Crowdin to view provider jobs.",
     );
     expect(tmsUserConnectionRequiredMessage("phrase", "files")).toBe(
       "Connect Phrase to view provider files.",
+    );
+    expect(tmsUserConnectionRequiredMessage("lokalise", "projects")).toBe(
+      "Connect Lokalise to view provider projects.",
     );
   });
 
@@ -134,6 +174,11 @@ describe("tms user connection helpers", () => {
       status: 401,
     });
     expect(isTmsUserConnectionRequiredError(phraseError)).toBe(true);
+    const lokaliseError = new ApiResponseError("Connect Lokalise", {
+      code: "lokalise_user_connection_required",
+      status: 401,
+    });
+    expect(isTmsUserConnectionRequiredError(lokaliseError)).toBe(true);
     expect(isTmsUserConnectionRequiredError(new Error("other"))).toBe(false);
   });
 });

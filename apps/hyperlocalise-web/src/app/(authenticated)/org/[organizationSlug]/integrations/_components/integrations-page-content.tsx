@@ -32,6 +32,7 @@ import type {
 import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import { PHRASE_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
+import { LOKALISE_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/lokalise/lokalise-oauth-scopes";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -153,6 +154,23 @@ const integrationErrorCopyByCode = {
     title: "Phrase account link expired",
     description: "This Phrase connection link expired. Start Connect Phrase again.",
   },
+  lokalise_user_oauth_exchange_failed: {
+    title: "Lokalise account link failed",
+    description:
+      "Lokalise did not return an access token. Check that the OAuth app callback URL, client ID, and client secret match the Lokalise OAuth app configuration.",
+  },
+  lokalise_integration_not_connected: {
+    title: "Lokalise integration is not connected",
+    description: "Save the Lokalise OAuth app credentials before linking a user account.",
+  },
+  missing_lokalise_user_oauth_code: {
+    title: "Lokalise account link was cancelled",
+    description: "Lokalise did not return an authorization code. Start the connection again.",
+  },
+  invalid_lokalise_oauth_state: {
+    title: "Lokalise account link expired",
+    description: "This Lokalise connection link expired. Start Connect Lokalise again.",
+  },
 } satisfies Record<string, IntegrationErrorCopy>;
 
 function canManageIntegrations(role: OrganizationMembershipRole) {
@@ -264,8 +282,7 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
     name: "Lokalise",
     providerKind: "lokalise" as const,
     logo: "/images/tms/lokalise.webp",
-    detail: "Projects, branches, and reviewed strings.",
-    comingSoon: true,
+    detail: "Connect to browse Lokalise projects and tasks with user OAuth.",
   },
   {
     name: "Phrase",
@@ -549,6 +566,54 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
         }),
       ]);
       toast.success(`${payload.displayName} saved. Connect your Phrase account to continue.`);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+function useSaveLokaliseOAuthApp(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      displayName: string;
+      oauthClientId: string;
+      oauthClientSecret: string;
+      baseUrl?: string;
+    }) => {
+      const res = await api.api.orgs[":organizationSlug"][
+        "external-tms-provider-credential"
+      ].lokalise["oauth-app"].$post({
+        param: { organizationSlug },
+        json: payload,
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "lokalise_oauth_start_failed" }));
+        throw new Error(
+          "message" in error ? String(error.message) : "Unable to start Lokalise OAuth",
+        );
+      }
+
+      return res.json();
+    },
+    onSuccess: async (_, payload) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["external-tms-credentials", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["tms-provider-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["lokalise-user-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
+        }),
+      ]);
+      toast.success(`${payload.displayName} saved. Connect your Lokalise account to continue.`);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -845,14 +910,18 @@ function CrowdinOAuthSetupFields({
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {providerKind === "crowdin"
               ? "In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Crowdin."
-              : "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token."}
+              : providerKind === "phrase"
+                ? "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token."
+                : "In your Lokalise app, enable every scope below. Hyperlocalise requests the same list when you connect Lokalise."}
           </p>
         </div>
-        {providerKind === "crowdin" || providerKind === "phrase" ? (
+        {providerKind === "crowdin" || providerKind === "phrase" || providerKind === "lokalise" ? (
           <ul className="space-y-2">
             {(providerKind === "crowdin"
               ? CROWDIN_OAUTH_SCOPE_GUIDE
-              : PHRASE_OAUTH_SCOPE_GUIDE
+              : providerKind === "phrase"
+                ? PHRASE_OAUTH_SCOPE_GUIDE
+                : LOKALISE_OAUTH_SCOPE_GUIDE
             ).map((entry) => (
               <li key={entry.scope} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
                 <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
@@ -967,7 +1036,7 @@ function TmsProviderCredentialPanel({
   baseUrlFieldId,
 }: TmsProviderCredentialPanelProps) {
   const isCrowdin = providerKind === "crowdin";
-  const isOAuthProvider = isCrowdin || providerKind === "phrase";
+  const isOAuthProvider = isCrowdin || providerKind === "phrase" || providerKind === "lokalise";
   const oauthRedirectUri =
     typeof window === "undefined"
       ? ""
@@ -1547,6 +1616,7 @@ export function IntegrationsPageContent({
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
   const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug);
   const savePhraseOAuthApp = useSavePhraseOAuthApp(organizationSlug);
+  const saveLokaliseOAuthApp = useSaveLokaliseOAuthApp(organizationSlug);
   const saveContentfulConnection = useSaveContentfulConnection(organizationSlug);
   const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
   const [expandedTmsProvider, setExpandedTmsProvider] = useState<ExternalTmsProviderKind | null>(
@@ -1779,6 +1849,15 @@ export function IntegrationsPageContent({
                               });
                               return;
                             }
+                            if (integration.providerKind === "lokalise") {
+                              saveLokaliseOAuthApp.mutate({
+                                displayName: tmsDisplayName.trim(),
+                                oauthClientId: tmsOauthClientId.trim(),
+                                oauthClientSecret: tmsOauthClientSecret.trim(),
+                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              });
+                              return;
+                            }
                             saveExternalTms.mutate(
                               {
                                 providerKind: integration.providerKind,
@@ -1798,7 +1877,8 @@ export function IntegrationsPageContent({
                           isSaving={
                             saveExternalTms.isPending ||
                             saveCrowdinOAuthApp.isPending ||
-                            savePhraseOAuthApp.isPending
+                            savePhraseOAuthApp.isPending ||
+                            saveLokaliseOAuthApp.isPending
                           }
                           isDisconnecting={deleteExternalTms.isPending}
                           displayNameFieldId={tmsDisplayNameFieldId}
