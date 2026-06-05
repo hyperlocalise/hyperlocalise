@@ -3,21 +3,76 @@
 package htmltagparity
 
 import (
-	"regexp"
 	"slices"
 	"strings"
 
 	"golang.org/x/net/html/atom"
 )
 
-var tagPattern = regexp.MustCompile(`</?[A-Za-z][^>]*?>`)
-
 // Mismatch reports whether the normalized HTML tag name sequences differ
 // between source and target (same semantics as check hasHTMLTagMismatch).
 func Mismatch(sourceValue, targetValue string) bool {
-	sourceTags := normalizedMarkupTagNames(tagPattern.FindAllString(sourceValue, -1))
-	targetTags := normalizedMarkupTagNames(tagPattern.FindAllString(targetValue, -1))
+	sourceTags := normalizedMarkupTagNames(findAllTags(sourceValue))
+	targetTags := normalizedMarkupTagNames(findAllTags(targetValue))
 	return !slices.Equal(sourceTags, targetTags)
+}
+
+func findAllTags(s string) []string {
+	var out []string
+	for i := 0; i < len(s); i++ {
+		if s[i] != '<' {
+			continue
+		}
+
+		// Potential tag start.
+		start := i
+		if i+1 >= len(s) {
+			break
+		}
+
+		// We only care about </?[A-Za-z] to match the previous regex behavior.
+		next := s[i+1]
+		if next == '/' {
+			if i+2 >= len(s) {
+				break
+			}
+			next = s[i+2]
+		}
+		if !((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z')) {
+			continue
+		}
+
+		// Found a tag start, scan until we find the closing '>', respecting quotes.
+		var quote byte
+		found := false
+		for j := i + 1; j < len(s); j++ {
+			ch := s[j]
+			if quote != 0 {
+				if ch == quote {
+					quote = 0
+				}
+				continue
+			}
+
+			if ch == '"' || ch == '\'' {
+				quote = ch
+				continue
+			}
+
+			if ch == '>' {
+				out = append(out, s[start:j+1])
+				i = j
+				found = true
+				break
+			}
+		}
+
+		if !found {
+			// Unclosed tag, skip it as a potential start.
+			continue
+		}
+	}
+	return out
 }
 
 // NormalizedTagNames returns normalized tag names from raw HTML snippets (exported for tests).

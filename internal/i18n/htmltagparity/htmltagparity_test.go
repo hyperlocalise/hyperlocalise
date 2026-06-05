@@ -115,6 +115,18 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			tgt:  "Path <id> and <name>",
 			want: false,
 		},
+		{
+			name: "greater-than sign in quoted attribute does not terminate tag",
+			src:  `<div title="a > b">content</div>`,
+			tgt:  `<div title="something">content</div>`,
+			want: false,
+		},
+		{
+			name: "tag-like content in quoted attribute is ignored",
+			src:  `<div title=" > <br/> ">content</div>`,
+			tgt:  `<div title="something">content</div>`,
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
