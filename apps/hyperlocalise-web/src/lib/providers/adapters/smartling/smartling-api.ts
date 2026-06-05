@@ -5,6 +5,8 @@
  * credential validation, TMS connector scans, terminology resources, and job-scoped content pull/write-back.
  */
 
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
+
 import { parseSmartlingCredentials, type SmartlingCredentials } from "./smartling-credentials";
 import { uniqueLocales } from "./smartling-locales";
 import { requireProviderBaseUrl } from "../../provider-url-safety";
@@ -363,7 +365,8 @@ export class SmartlingApiClient {
       options.webhooksBaseUrl ?? deriveServiceBaseUrl(this.authBaseUrl, "webhooks"),
       DEFAULT_WEBHOOKS_BASE_URL,
     );
-    this.fetchFn = options.fetchFn ?? fetch;
+    // We use providerSafeFetch to mitigate SSRF risks via DNS-level validation and IP blocklisting
+    this.fetchFn = options.fetchFn ?? providerSafeFetch;
   }
 
   get credentialScope() {

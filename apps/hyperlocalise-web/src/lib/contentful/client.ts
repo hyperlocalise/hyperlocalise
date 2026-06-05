@@ -1,3 +1,5 @@
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
+
 import type { ContentfulContentType, ContentfulDraftTranslation, ContentfulEntry } from "./types";
 
 const CONTENTFUL_CMA_BASE_URL = "https://api.contentful.com";
@@ -19,7 +21,8 @@ export class ContentfulManagementClient {
   ) {}
 
   private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
-    const fetchImpl = this.options.fetchImpl ?? fetch;
+    // We use providerSafeFetch to mitigate SSRF risks via DNS-level validation and IP blocklisting
+    const fetchImpl = this.options.fetchImpl ?? providerSafeFetch;
     const headers = new Headers(init.headers);
     headers.set("authorization", `Bearer ${this.options.accessToken}`);
     headers.set("content-type", "application/vnd.contentful.management.v1+json");

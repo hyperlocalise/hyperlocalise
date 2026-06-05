@@ -17,6 +17,7 @@ import {
 } from "@/lib/providers/tms-capabilities";
 import { assertProviderUrlResolvable } from "@/lib/providers/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { resolvePhraseBaseUrl } from "@/lib/providers/adapters/phrase/phrase-base-url";
 
 export type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
@@ -537,17 +538,21 @@ export async function refreshCrowdinOAuthToken(input: {
   tokenBundle: CrowdinOAuthTokenBundle;
   fetchFn?: typeof fetch;
 }): Promise<CrowdinOAuthTokenBundle> {
-  const response = await (input.fetchFn ?? fetch)("https://accounts.crowdin.com/oauth/token", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      grant_type: "refresh_token",
-      client_id: input.tokenBundle.clientId,
-      client_secret: input.tokenBundle.clientSecret,
-      refresh_token: input.tokenBundle.refreshToken,
-    }),
-    redirect: "error",
-  });
+  // We use providerSafeFetch to mitigate SSRF risks via DNS-level validation and IP blocklisting
+  const response = await (input.fetchFn ?? providerSafeFetch)(
+    "https://accounts.crowdin.com/oauth/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        grant_type: "refresh_token",
+        client_id: input.tokenBundle.clientId,
+        client_secret: input.tokenBundle.clientSecret,
+        refresh_token: input.tokenBundle.refreshToken,
+      }),
+      redirect: "error",
+    },
+  );
 
   if (!response.ok) {
     throw new Error("crowdin_oauth_refresh_failed");

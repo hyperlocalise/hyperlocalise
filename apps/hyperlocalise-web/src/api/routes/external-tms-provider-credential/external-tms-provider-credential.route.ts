@@ -7,6 +7,7 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { env } from "@/lib/env";
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { isErr } from "@/lib/primitives/result/results";
 import { db, schema } from "@/lib/database";
 import {
@@ -208,7 +209,8 @@ async function completeCrowdinUserOAuthLink(
 
   let tokenBundle: ReturnType<typeof mapCrowdinOAuthTokenResponse>;
   try {
-    const response = await fetch("https://accounts.crowdin.com/oauth/token", {
+    // We use providerSafeFetch to mitigate SSRF risks via DNS-level validation and IP blocklisting
+    const response = await providerSafeFetch("https://accounts.crowdin.com/oauth/token", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

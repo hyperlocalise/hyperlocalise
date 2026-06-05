@@ -4,6 +4,7 @@ import { usageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
 import type { DatabaseClient } from "@/lib/database";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
+import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const AUTUMN_API_VERSION = "2.2.0";
@@ -226,7 +227,8 @@ export async function trackUsageEventInAutumnByOperationKey(input: {
   const trackingResult = await trackUsageEventInAutumn({
     event,
     apiKey: autumnApiKey,
-    fetchFn: input.fetchFn ?? fetch,
+    // We use providerSafeFetch to mitigate SSRF risks via DNS-level validation and IP blocklisting
+    fetchFn: input.fetchFn ?? providerSafeFetch,
   });
 
   if (!trackingResult.ok) {
