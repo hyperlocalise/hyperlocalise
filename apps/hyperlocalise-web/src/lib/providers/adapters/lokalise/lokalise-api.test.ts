@@ -109,6 +109,72 @@ describe("LokaliseApiClient", () => {
     });
   });
 
+  it("continues resolving OAuth user identity after a per-project API error", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const href = String(url);
+      if (href.includes("/projects?page=1")) {
+        return new Response(
+          JSON.stringify({
+            projects: [
+              { project_id: "proj.inaccessible", name: "Inaccessible Project" },
+              { project_id: "proj.accessible", name: "Accessible Project" },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+      if (href.endsWith("/projects/proj.inaccessible/contributors/me")) {
+        return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
+      }
+      if (href.endsWith("/projects/proj.accessible/contributors/me")) {
+        return new Response(
+          JSON.stringify({
+            contributor: {
+              user_id: 98765,
+              email: "lokalise-user@example.com",
+              fullname: "Lokalise User",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ error: "unexpected_url", url: href }), {
+        status: 500,
+      });
+    }) as unknown as typeof fetch;
+
+    const identity = await createClient(fetchMock).resolveOAuthUserIdentity();
+
+    expect(identity.id).toBe(98765);
+  });
+
+  it("surfaces Lokalise API errors when OAuth user identity cannot be resolved", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const href = String(url);
+      if (href.includes("/projects?page=1")) {
+        return new Response(
+          JSON.stringify({
+            projects: [{ project_id: "proj.123", name: "Marketing Website" }],
+          }),
+          { status: 200 },
+        );
+      }
+      if (href.endsWith("/projects/proj.123/contributors/me")) {
+        return new Response(JSON.stringify({ error: "forbidden" }), { status: 403 });
+      }
+      return new Response(JSON.stringify({ error: "unexpected_url", url: href }), {
+        status: 500,
+      });
+    }) as unknown as typeof fetch;
+
+    await expect(createClient(fetchMock).resolveOAuthUserIdentity()).rejects.toBeInstanceOf(
+      LokaliseApiError,
+    );
+    await expect(createClient(fetchMock).resolveOAuthUserIdentity()).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
   it("reports no_projects when OAuth identity cannot be resolved without accessible projects", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ projects: [] }), { status: 200 });

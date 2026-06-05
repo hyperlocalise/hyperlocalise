@@ -311,6 +311,7 @@ export class LokaliseApiClient {
       throw new LokaliseOAuthUserResolutionError("no_projects");
     }
 
+    let contributorApiError: LokaliseApiError | null = null;
     for (const project of projects) {
       try {
         const contributor = await this.getAuthenticatedContributor(project.projectId);
@@ -326,10 +327,18 @@ export class LokaliseApiClient {
           fullName: contributor.fullname,
         };
       } catch (error) {
-        if (error instanceof LokaliseApiError && error.status === 401) {
+        if (!(error instanceof LokaliseApiError)) {
           throw error;
         }
+        if (error.status === 401) {
+          throw error;
+        }
+        contributorApiError ??= error;
       }
+    }
+
+    if (contributorApiError) {
+      throw contributorApiError;
     }
 
     throw new LokaliseOAuthUserResolutionError("missing_user_id");

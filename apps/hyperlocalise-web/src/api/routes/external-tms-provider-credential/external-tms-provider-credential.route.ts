@@ -1049,6 +1049,7 @@ async function createLokaliseUserOAuthAuthorization(input: {
   const redirectUri = getLokaliseOAuthRedirectUri(input.c, input.organizationSlug);
   authorizationUrl.searchParams.set("client_id", client.clientId);
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
+  authorizationUrl.searchParams.set("response_type", "code");
   authorizationUrl.searchParams.set("scope", getLokaliseOAuthScopeString());
   authorizationUrl.searchParams.set("state", nonce);
 

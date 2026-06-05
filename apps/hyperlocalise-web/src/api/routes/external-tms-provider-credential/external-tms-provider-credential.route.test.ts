@@ -587,6 +587,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(authorizationUrl.pathname).toBe("/oauth2/auth");
     expect(authorizationUrl.searchParams.get("client_id")).toBe("lokalise-client-id");
     expect(authorizationUrl.searchParams.get("redirect_uri")).toBe(userStartBody.redirectUri);
+    expect(authorizationUrl.searchParams.get("response_type")).toBe("code");
     expect(authorizationUrl.searchParams.get("scope")).toBe(getLokaliseOAuthScopeString());
     const state = authorizationUrl.searchParams.get("state") ?? "";
 
