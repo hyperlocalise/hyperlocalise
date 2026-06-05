@@ -57,10 +57,7 @@ export class AppRunner {
       try {
         cert = await createOrRetrieveCertificate();
       } catch (err) {
-        console.log(
-          errorChalk("Error:"),
-          "Unable to generate SSL certificate.",
-        );
+        console.log(errorChalk("Error:"), "Unable to generate SSL certificate.");
         throw err;
       }
     }
@@ -152,10 +149,7 @@ export class AppRunner {
         });
         url = ngrokListener.url() ?? url;
       } catch (err) {
-        console.log(
-          errorChalk("Error:"),
-          `Unable to start ngrok server: ${err}`,
-        );
+        console.log(errorChalk("Error:"), `Unable to start ngrok server: ${err}`);
       }
     }
 
@@ -181,10 +175,7 @@ export class AppRunner {
     });
 
     const compiler = webpack(runtimeWebpackConfig);
-    const server = new WebpackDevServer(
-      runtimeWebpackConfig.devServer,
-      compiler,
-    );
+    const server = new WebpackDevServer(runtimeWebpackConfig.devServer, compiler);
     await server.start();
 
     table.push(["Development URL (Frontend)", linkChalk(ctx.frontendUrl)]);
@@ -195,19 +186,13 @@ export class AppRunner {
   /**
    * Calls the Canva CLI to generate a preview URL for the app
    */
-  private readonly generateAndOpenPreviewUrl = async (
-    openPreview: boolean,
-    table: Table.Table,
-  ) => {
+  private readonly generateAndOpenPreviewUrl = async (openPreview: boolean, table: Table.Table) => {
     const previewCellHeader = { content: "Preview your app in Canva" };
 
     const generatePreviewResult = await generatePreviewUrl();
 
     if (!generatePreviewResult.success) {
-      table.push([
-        previewCellHeader,
-        { content: warnChalk(generatePreviewResult.message) },
-      ]);
+      table.push([previewCellHeader, { content: warnChalk(generatePreviewResult.message) }]);
       return;
     }
 

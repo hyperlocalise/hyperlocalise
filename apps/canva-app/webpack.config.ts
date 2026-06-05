@@ -40,9 +40,7 @@ export function buildConfig({
     );
   } else if (backendHost.includes("localhost") && mode === "production") {
     console.error(
-      chalk.redBright.bold(
-        "BACKEND_HOST should not be set to localhost for production builds!",
-      ),
+      chalk.redBright.bold("BACKEND_HOST should not be set to localhost for production builds!"),
       `Refer to "Customizing the backend host" in the README.md for more information.`,
     );
   }
@@ -194,8 +192,7 @@ function buildDevConfig(options?: DevConfig): {
     return {};
   }
 
-  const { port, enableHmr, appOrigin, enableHttps, certFile, keyFile } =
-    options;
+  const { port, enableHmr, appOrigin, enableHttps, certFile, keyFile } = options;
   const host = "localhost";
 
   let devServer: DevServerConfiguration = {

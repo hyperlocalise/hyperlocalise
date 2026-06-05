@@ -67,10 +67,7 @@ const generateRsaKeys = async (): Promise<{
     );
   });
 
-const generateCertificate = (opts: {
-  privateKey: string;
-  publicKey: string;
-}): string => {
+const generateCertificate = (opts: { privateKey: string; publicKey: string }): string => {
   const privateKey = pki.privateKeyFromPem(opts.privateKey);
   const publicKey = pki.publicKeyFromPem(opts.publicKey);
 
@@ -92,10 +89,7 @@ const generateCertificate = (opts: {
   return pki.certificateToPem(cert);
 };
 
-const writeCertFiles = async (opts: {
-  cert: string;
-  privateKey: string;
-}): Promise<void> => {
+const writeCertFiles = async (opts: { cert: string; privateKey: string }): Promise<void> => {
   const { cert, privateKey } = opts;
 
   await fs.mkdir(SSL_CERT_DIR, { recursive: true });

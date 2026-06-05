@@ -12,17 +12,25 @@ Translation is simulated with lorem ipsum placeholder text. Replace `getTranslat
 ## Requirements
 
 - Node.js `^22` or `^24`
-- npm
+- [Vite+](https://vite.plus) (`vp`)
 
 ## Quick start
 
 ```bash
 cd apps/canva-app
-npm install
-npm start
+vp install
+vp run start
 ```
 
-The dev server runs at `http://localhost:8080`.
+The Canva development server runs at `http://localhost:8080`.
+
+Use `vp check --fix` for formatting, oxlint, and TypeScript checks. Use `vp test` for Vitest.
+
+Production bundles for the Canva Developer Portal are built with:
+
+```bash
+vp run bundle
+```
 
 ## Preview in Canva
 
@@ -41,17 +49,13 @@ apps/canva-app/
 │   └── intents/design_editor/
 │       ├── index.tsx                      # App entry and providers
 │       ├── app.tsx                        # Translation UI and editContent logic
-│       └── lorem_generator.ts           # Placeholder translation helper
+│       └── lorem_generator.ts             # Placeholder translation helper
 ├── styles/components.css                  # Scroll container styles
 ├── canva-app.json                         # App manifest (content read/write scopes)
-└── webpack.config.ts                      # Build configuration
+├── vite.config.ts                         # Vite+ (oxlint, oxfmt, vitest)
+└── webpack.config.ts                      # Canva app bundle configuration
 ```
 
-## Production notes
+## License
 
-This is a template, not a production-ready app. Before submitting to the Canva Apps Marketplace:
-
-- Integrate a real translation service instead of lorem ipsum.
-- Add internationalization with `@canva/app-i18n-kit`.
-- Add error handling and user feedback for failed translations.
-- Configure `.env` with your app credentials from the Developer Portal.
+Licensed under the Business Source License 1.1. See [LICENSE](./LICENSE).

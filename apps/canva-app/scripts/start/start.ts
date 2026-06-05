@@ -13,15 +13,13 @@ yargs(hideBin(process.argv))
     description: "Run backend server via ngrok.",
     type: "boolean",
     // npm swallows command line args instead of forwarding to the script
-    default:
-      process.env.npm_config_ngrok?.toLocaleLowerCase().trim() === "true",
+    default: process.env.npm_config_ngrok?.toLocaleLowerCase().trim() === "true",
   })
   .option("use-https", {
     description: "Start local development server on HTTPS.",
     type: "boolean",
     // npm swallows commands line args instead of forwarding to the script
-    default:
-      process.env.npm_config_use_https?.toLocaleLowerCase().trim() === "true",
+    default: process.env.npm_config_use_https?.toLocaleLowerCase().trim() === "true",
   })
   .option("override-frontend-port", {
     description:
