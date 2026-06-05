@@ -47,7 +47,7 @@ const generateRsaKeys = async (): Promise<{
     crypto.generateKeyPair(
       "rsa",
       {
-        modulusLength: 2096,
+        modulusLength: 2048,
         publicKeyEncoding: {
           type: "spki",
           format: "pem",

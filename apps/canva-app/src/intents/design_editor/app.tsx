@@ -14,67 +14,73 @@ export const App = () => {
 
   const translateWithoutFormatting = async () => {
     setInProgressTask(Task.WITHOUT_FORMATTING);
-    await editContent(
-      {
-        contentType: "richtext",
-        target: "current_page",
-      },
-      async (session) => {
-        const request: string[][] = session.contents.map((range) => [range.readPlaintext()]);
+    try {
+      await editContent(
+        {
+          contentType: "richtext",
+          target: "current_page",
+        },
+        async (session) => {
+          const request: string[][] = session.contents.map((range) => [range.readPlaintext()]);
 
-        const response = await getTranslation(request);
+          const response = await getTranslation(request);
 
-        session.contents.forEach((range, i) => {
-          const length = range.readPlaintext().length;
-          const translatedText = response[i]?.[0];
-          if (translatedText) {
-            range.replaceText({ index: 0, length }, translatedText);
-          }
-        });
+          session.contents.forEach((range, i) => {
+            const length = range.readPlaintext().length;
+            const translatedText = response[i]?.[0];
+            if (translatedText) {
+              range.replaceText({ index: 0, length }, translatedText);
+            }
+          });
 
-        await session.sync();
-      },
-    );
-    setInProgressTask(undefined);
+          await session.sync();
+        },
+      );
+    } finally {
+      setInProgressTask(undefined);
+    }
   };
 
   const translateWithFormatting = async () => {
     setInProgressTask(Task.WITH_FORMATTING);
-    await editContent(
-      {
-        contentType: "richtext",
-        target: "current_page",
-      },
-      async (session) => {
-        const request = session.contents.map((range) =>
-          range.readTextRegions().map((region) => region.text),
-        );
+    try {
+      await editContent(
+        {
+          contentType: "richtext",
+          target: "current_page",
+        },
+        async (session) => {
+          const request = session.contents.map((range) =>
+            range.readTextRegions().map((region) => region.text),
+          );
 
-        const response = await getTranslation(request);
+          const response = await getTranslation(request);
 
-        session.contents.forEach((range, index) => {
-          const translatedRegions = response[index];
-          let endOfRegion = range.readPlaintext().length;
-          const regionsToTranslate = range.readTextRegions();
-          regionsToTranslate.reverse().forEach((region, i) => {
-            endOfRegion = endOfRegion - region.text.length;
-            const translatedText = translatedRegions?.[regionsToTranslate.length - 1 - i];
-            if (translatedText) {
-              range.replaceText(
-                {
-                  index: endOfRegion,
-                  length: region.text.length,
-                },
-                translatedText,
-              );
-            }
+          session.contents.forEach((range, index) => {
+            const translatedRegions = response[index];
+            let endOfRegion = range.readPlaintext().length;
+            const regionsToTranslate = range.readTextRegions();
+            regionsToTranslate.reverse().forEach((region, i) => {
+              endOfRegion = endOfRegion - region.text.length;
+              const translatedText = translatedRegions?.[regionsToTranslate.length - 1 - i];
+              if (translatedText) {
+                range.replaceText(
+                  {
+                    index: endOfRegion,
+                    length: region.text.length,
+                  },
+                  translatedText,
+                );
+              }
+            });
           });
-        });
 
-        await session.sync();
-      },
-    );
-    setInProgressTask(undefined);
+          await session.sync();
+        },
+      );
+    } finally {
+      setInProgressTask(undefined);
+    }
   };
 
   return (
