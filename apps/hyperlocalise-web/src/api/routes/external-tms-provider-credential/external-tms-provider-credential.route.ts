@@ -10,6 +10,7 @@ import { env } from "@/lib/env";
 import { isErr } from "@/lib/primitives/result/results";
 import { db, schema } from "@/lib/database";
 import {
+  OAUTH_AUTH_MODE,
   assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
   getActiveOrganizationExternalTmsProviderCredentialRow,
@@ -420,7 +421,7 @@ async function handleCrowdinUserOAuthCallback(
       ),
     )
     .limit(1);
-  if (!credential || credential.authMode !== "oauth") {
+  if (!credential || credential.authMode !== OAUTH_AUTH_MODE) {
     logger.warn(
       {
         organizationId: c.var.auth.organization.localOrganizationId,
@@ -634,7 +635,7 @@ async function handlePhraseUserOAuthCallback(
       ),
     )
     .limit(1);
-  if (!credential || credential.authMode !== "oauth") {
+  if (!credential || credential.authMode !== OAUTH_AUTH_MODE) {
     logger.warn(
       {
         organizationId: c.var.auth.organization.localOrganizationId,
@@ -1073,7 +1074,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         c.var.auth.organization.localOrganizationId,
       );
       const hasCrowdinIntegration =
-        credential?.providerKind === "crowdin" && credential.authMode === "oauth";
+        credential?.providerKind === "crowdin" && credential.authMode === OAUTH_AUTH_MODE;
       const connection = hasCrowdinIntegration
         ? await getCrowdinUserConnectionSummary({
             organizationId: c.var.auth.organization.localOrganizationId,
@@ -1111,7 +1112,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         c.var.auth.organization.localOrganizationId,
       );
       const hasPhraseIntegration =
-        credential?.providerKind === "phrase" && credential.authMode === "oauth";
+        credential?.providerKind === "phrase" && credential.authMode === OAUTH_AUTH_MODE;
       const connection = hasPhraseIntegration
         ? await getPhraseUserConnectionSummary({
             organizationId: c.var.auth.organization.localOrganizationId,
@@ -1153,7 +1154,7 @@ export function createExternalTmsProviderCredentialRoutes() {
       const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
         c.var.auth.organization.localOrganizationId,
       );
-      if (credential?.providerKind !== "crowdin" || credential.authMode !== "oauth") {
+      if (credential?.providerKind !== "crowdin" || credential.authMode !== OAUTH_AUTH_MODE) {
         return c.json(
           {
             error: "crowdin_integration_not_connected",
@@ -1196,7 +1197,7 @@ export function createExternalTmsProviderCredentialRoutes() {
       const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
         c.var.auth.organization.localOrganizationId,
       );
-      if (credential?.providerKind !== "phrase" || credential.authMode !== "oauth") {
+      if (credential?.providerKind !== "phrase" || credential.authMode !== OAUTH_AUTH_MODE) {
         return c.json(
           {
             error: "phrase_integration_not_connected",

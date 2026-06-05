@@ -13,8 +13,7 @@ import {
   resolvePhraseUserConnectionSecretMaterial,
 } from "./adapters/phrase/phrase-user-connections";
 import {
-  CROWDIN_OAUTH_AUTH_MODE,
-  PHRASE_OAUTH_AUTH_MODE,
+  OAUTH_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
@@ -168,13 +167,9 @@ export async function resolveExternalTmsSecretMaterialForActor(input: {
 }) {
   if (
     !(
-      input.credential.providerKind === "crowdin" &&
-      input.credential.authMode === CROWDIN_OAUTH_AUTH_MODE
+      input.credential.providerKind === "crowdin" && input.credential.authMode === OAUTH_AUTH_MODE
     ) &&
-    !(
-      input.credential.providerKind === "phrase" &&
-      input.credential.authMode === PHRASE_OAUTH_AUTH_MODE
-    )
+    !(input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE)
   ) {
     return resolveExternalTmsSecretMaterial({ credential: input.credential });
   }

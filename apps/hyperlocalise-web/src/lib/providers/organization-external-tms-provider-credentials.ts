@@ -32,8 +32,7 @@ export type ExternalTmsCredential = Omit<
 > &
   Partial<Pick<OrganizationExternalTmsProviderCredential, "authMode" | "oauthExpiresAt">>;
 
-export const CROWDIN_OAUTH_AUTH_MODE = "oauth";
-export const PHRASE_OAUTH_AUTH_MODE = "oauth";
+export const OAUTH_AUTH_MODE = "oauth";
 export const API_TOKEN_AUTH_MODE = "api_token";
 export const CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 export const PHRASE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
@@ -369,7 +368,7 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
         updatedByUserId: input.userId,
         providerKind: "crowdin",
         displayName: input.displayName,
-        authMode: CROWDIN_OAUTH_AUTH_MODE,
+        authMode: OAUTH_AUTH_MODE,
         region: null,
         baseUrl,
         oauthExpiresAt: null,
@@ -389,7 +388,7 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
         set: {
           updatedByUserId: input.userId,
           displayName: input.displayName,
-          authMode: CROWDIN_OAUTH_AUTH_MODE,
+          authMode: OAUTH_AUTH_MODE,
           region: null,
           baseUrl,
           oauthExpiresAt: null,
@@ -452,7 +451,7 @@ export async function upsertPhraseOAuthProviderCredential(input: {
         updatedByUserId: input.userId,
         providerKind: "phrase",
         displayName: input.displayName,
-        authMode: PHRASE_OAUTH_AUTH_MODE,
+        authMode: OAUTH_AUTH_MODE,
         region: null,
         baseUrl,
         oauthExpiresAt: null,
@@ -472,7 +471,7 @@ export async function upsertPhraseOAuthProviderCredential(input: {
         set: {
           updatedByUserId: input.userId,
           displayName: input.displayName,
-          authMode: PHRASE_OAUTH_AUTH_MODE,
+          authMode: OAUTH_AUTH_MODE,
           region: null,
           baseUrl,
           oauthExpiresAt: null,
@@ -632,11 +631,11 @@ export async function resolveExternalTmsSecretMaterial(input: {
 
   if (
     input.credential.providerKind !== "crowdin" ||
-    input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE
+    input.credential.authMode !== OAUTH_AUTH_MODE
   ) {
     if (
       input.credential.providerKind === "phrase" &&
-      input.credential.authMode === PHRASE_OAUTH_AUTH_MODE
+      input.credential.authMode === OAUTH_AUTH_MODE
     ) {
       throw new Error("phrase_user_connection_required");
     }
@@ -766,7 +765,7 @@ export async function refreshPhraseOAuthToken(input: {
 }
 
 export function getCrowdinOAuthClientFromCredential(credential: ExternalTmsCredential) {
-  if (credential.providerKind !== "crowdin" || credential.authMode !== CROWDIN_OAUTH_AUTH_MODE) {
+  if (credential.providerKind !== "crowdin" || credential.authMode !== OAUTH_AUTH_MODE) {
     throw new Error("crowdin_oauth_credential_required");
   }
 
@@ -774,7 +773,7 @@ export function getCrowdinOAuthClientFromCredential(credential: ExternalTmsCrede
 }
 
 export function getPhraseOAuthClientFromCredential(credential: ExternalTmsCredential) {
-  if (credential.providerKind !== "phrase" || credential.authMode !== PHRASE_OAUTH_AUTH_MODE) {
+  if (credential.providerKind !== "phrase" || credential.authMode !== OAUTH_AUTH_MODE) {
     throw new Error("phrase_oauth_credential_required");
   }
 
@@ -900,10 +899,10 @@ export async function revealOrganizationExternalTmsProviderCredential(input: {
     .limit(1);
 
   if (!credential) return null;
-  if (credential.providerKind === "crowdin" && credential.authMode === CROWDIN_OAUTH_AUTH_MODE) {
+  if (credential.providerKind === "crowdin" && credential.authMode === OAUTH_AUTH_MODE) {
     throw new Error("crowdin_oauth_secret_unavailable");
   }
-  if (credential.providerKind === "phrase" && credential.authMode === PHRASE_OAUTH_AUTH_MODE) {
+  if (credential.providerKind === "phrase" && credential.authMode === OAUTH_AUTH_MODE) {
     throw new Error("phrase_oauth_secret_unavailable");
   }
 

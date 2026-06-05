@@ -1,5 +1,5 @@
 import {
-  CROWDIN_OAUTH_AUTH_MODE,
+  OAUTH_AUTH_MODE,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   type ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
@@ -123,7 +123,7 @@ export async function getTmsUserConnectCtaState(input: {
     credential.displayName.trim() ||
     formatTmsUserConnectProviderLabel(providerKind as TmsUserConnectProviderKind);
 
-  if (providerKind === "crowdin" && credential.authMode === CROWDIN_OAUTH_AUTH_MODE) {
+  if (providerKind === "crowdin" && credential.authMode === OAUTH_AUTH_MODE) {
     logger.info(
       {
         organizationId: input.organizationId,
@@ -139,7 +139,7 @@ export async function getTmsUserConnectCtaState(input: {
     });
   }
 
-  if (providerKind === "phrase" && credential.authMode === CROWDIN_OAUTH_AUTH_MODE) {
+  if (providerKind === "phrase" && credential.authMode === OAUTH_AUTH_MODE) {
     logger.info(
       {
         organizationId: input.organizationId,

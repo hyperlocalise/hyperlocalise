@@ -26,8 +26,7 @@ import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
   API_TOKEN_AUTH_MODE,
-  CROWDIN_OAUTH_AUTH_MODE,
-  PHRASE_OAUTH_AUTH_MODE,
+  OAUTH_AUTH_MODE,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
@@ -295,7 +294,7 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
 }) {
   if (
     input.credential.providerKind === "crowdin" &&
-    input.credential.authMode === CROWDIN_OAUTH_AUTH_MODE
+    input.credential.authMode === OAUTH_AUTH_MODE
   ) {
     logger.info(
       {
@@ -307,10 +306,7 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
       "resolving crowdin oauth user secret material",
     );
   }
-  if (
-    input.credential.providerKind === "phrase" &&
-    input.credential.authMode === PHRASE_OAUTH_AUTH_MODE
-  ) {
+  if (input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE) {
     logger.info(
       {
         organizationId: input.organizationId,
@@ -323,11 +319,9 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
   }
 
   const usesCrowdinUserOAuth =
-    input.credential.providerKind === "crowdin" &&
-    input.credential.authMode === CROWDIN_OAUTH_AUTH_MODE;
+    input.credential.providerKind === "crowdin" && input.credential.authMode === OAUTH_AUTH_MODE;
   const usesPhraseUserOAuth =
-    input.credential.providerKind === "phrase" &&
-    input.credential.authMode === PHRASE_OAUTH_AUTH_MODE;
+    input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE;
 
   if ((!usesCrowdinUserOAuth && !usesPhraseUserOAuth) || !input.actorUserId) {
     return resolveExternalTmsSecretMaterial({ credential: input.credential });

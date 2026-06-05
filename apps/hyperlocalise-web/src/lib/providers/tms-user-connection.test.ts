@@ -10,7 +10,7 @@ import {
 } from "./tms-user-connection";
 
 vi.mock("@/lib/providers/organization-external-tms-provider-credentials", () => ({
-  CROWDIN_OAUTH_AUTH_MODE: "oauth",
+  OAUTH_AUTH_MODE: "oauth",
   getActiveOrganizationExternalTmsProviderCredentialRow: vi.fn(),
 }));
 
