@@ -106,7 +106,7 @@ func TestWebhooksService_Get(t *testing.T) {
 
 	expected := &model.Webhook{
 		ID:        4,
-		ProjectID: 2,
+		ProjectID: ToPtr(2),
 		Name:      "Proofread",
 		URL:       "https://webhook.site/1c20d9b5-6e6a-4522-974d-9da7ea7595c9",
 		Events:    []string{"file.approved"},
