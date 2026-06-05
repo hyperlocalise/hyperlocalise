@@ -277,6 +277,63 @@ describe("tmsProviderRoutes", () => {
     });
   });
 
+  it("returns live job files for a provider task", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    const listJobFiles = vi
+      .spyOn(tmsProviderLive, "listTmsProviderLiveJobFiles")
+      .mockResolvedValue([
+        {
+          origin: "provider",
+          sourcePath: "locales/en.json",
+          sourceHash: null,
+          commitSha: null,
+          workflowRunId: null,
+          uploadedAt: "2026-06-01T10:00:00.000Z",
+          storedFileId: null,
+          metadata: {},
+          filename: "en.json",
+          byteSize: null,
+          provider: {
+            kind: "crowdin",
+            resourceType: "file",
+            externalProjectId: "902807",
+            externalResourceId: "12",
+            externalUrl: "https://crowdin.com/file/12",
+            syncState: "synced",
+            sourceLocale: "en",
+            targetLocales: ["fr"],
+            localeReadiness: {},
+            revision: "1",
+            format: "json",
+            lastSyncedAt: "2026-06-01T10:00:00.000Z",
+          },
+          latestJob: null,
+        },
+      ]);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].files.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { files: unknown[] };
+    expect(body.files).toHaveLength(1);
+    expect(listJobFiles).toHaveBeenCalledWith(organizationId, "ext:crowdin:902807:99", {
+      actorUserId: expect.any(String),
+    });
+  });
+
   it("returns 401 when the stored Crowdin OAuth token bundle is invalid", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

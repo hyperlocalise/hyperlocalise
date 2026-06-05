@@ -6,7 +6,9 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import {
   getTmsProviderConnection,
+  getTmsProviderLiveJobFileDetail,
   listTmsProviderLiveJobComments,
+  listTmsProviderLiveJobFiles,
   getTmsProviderLiveJobDetail,
   updateTmsProviderLiveJobDescription,
   getTmsProviderLiveProject,
@@ -40,6 +42,10 @@ const updateJobDescriptionBodySchema = z.object({
   description: z.string().max(2_048),
 });
 
+const jobFileDetailQuerySchema = z.object({
+  sourcePath: z.string().min(1),
+});
+
 const validateMineQuery = validator("query", (value, c) => {
   const parsed = mineQuerySchema.safeParse(value);
   if (!parsed.success) {
@@ -60,6 +66,15 @@ const validateExternalProjectIdQuery = validator("query", (value, c) => {
 
 const validateProjectFilesQuery = validator("query", (value, c) => {
   const parsed = projectFilesQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_query" }, 400);
+  }
+
+  return parsed.data;
+});
+
+const validateJobFileDetailQuery = validator("query", (value, c) => {
+  const parsed = jobFileDetailQuerySchema.safeParse(value);
   if (!parsed.success) {
     return c.json({ error: "invalid_query" }, 400);
   }
@@ -246,6 +261,49 @@ export function createTmsProviderRoutes() {
         }
 
         return c.json({ job }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .get("/jobs/:encodedJobId/files", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      try {
+        const files = await listTmsProviderLiveJobFiles(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("encodedJobId"),
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        if (!files) {
+          return c.json({ error: "job_not_found" }, 404);
+        }
+
+        return c.json({ files }, 200);
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+    })
+    .get("/jobs/:encodedJobId/files/detail", validateJobFileDetailQuery, async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const query = c.req.valid("query");
+
+      try {
+        const file = await getTmsProviderLiveJobFileDetail(
+          c.var.auth.organization.localOrganizationId,
+          c.req.param("encodedJobId"),
+          query.sourcePath,
+          { actorUserId: c.var.auth.user.localUserId },
+        );
+        if (!file) {
+          return c.json({ error: "file_not_found" }, 404);
+        }
+
+        return c.json({ file }, 200);
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }

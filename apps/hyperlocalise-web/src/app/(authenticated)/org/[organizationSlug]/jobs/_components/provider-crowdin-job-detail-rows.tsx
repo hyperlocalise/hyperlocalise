@@ -6,7 +6,6 @@ import {
   formatLocaleList,
   formatReadinessProgress,
   formatWordsToDo,
-  getCrowdinFileCount,
   getCrowdinLanguageLabel,
   getCrowdinLocaleReadiness,
   getCrowdinTargetLocales,
@@ -69,7 +68,6 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   const crowdinDescription = isCrowdin
     ? getProviderPayloadString(providerPayload, "description")
     : null;
-  const crowdinFileCount = isCrowdin ? getCrowdinFileCount(providerPayload) : null;
   const crowdinLocaleReadiness = isCrowdin ? getCrowdinLocaleReadiness(providerPayload) : null;
   const crowdinProgress = formatReadinessProgress(crowdinLocaleReadiness);
   const crowdinWordsToDo = formatWordsToDo(crowdinLocaleReadiness);
@@ -105,12 +103,6 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
             )}
           </dd>
         </div>
-      ) : null}
-      {crowdinFileCount !== null ? (
-        <JobDetailRow
-          label="Resources"
-          value={`${crowdinFileCount} file${crowdinFileCount === 1 ? "" : "s"}`}
-        />
       ) : null}
       {crowdinProgress ? <JobDetailRow label="Progress" value={crowdinProgress} /> : null}
       {crowdinWordsToDo ? <JobDetailRow label="Words to do" value={crowdinWordsToDo} /> : null}
