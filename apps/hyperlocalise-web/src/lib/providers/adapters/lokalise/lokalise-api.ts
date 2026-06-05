@@ -72,6 +72,28 @@ export interface LokaliseTaskLanguageUser {
   fullname: string;
 }
 
+export interface LokaliseContributor {
+  userId: number;
+  email: string | null;
+  fullname: string | null;
+}
+
+export interface LokaliseOAuthUserIdentity {
+  id: number;
+  username: string;
+  email: string | null;
+  fullName: string | null;
+}
+
+export type LokaliseOAuthUserResolutionErrorCode = "no_projects" | "missing_user_id";
+
+export class LokaliseOAuthUserResolutionError extends Error {
+  constructor(readonly code: LokaliseOAuthUserResolutionErrorCode) {
+    super(`lokalise_oauth_user_resolution_${code}`);
+    this.name = "LokaliseOAuthUserResolutionError";
+  }
+}
+
 export interface LokaliseTaskLanguage {
   languageIso: string;
   languageId: number;
@@ -269,6 +291,57 @@ export class LokaliseApiClient {
     }
 
     return projects;
+  }
+
+  async getAuthenticatedContributor(projectId: string): Promise<LokaliseContributor> {
+    const response = await this.get<LokaliseContributorResponse>(
+      `/projects/${encodeURIComponent(projectId)}/contributors/me`,
+    );
+
+    return normalizeLokaliseContributor(response.contributor ?? response);
+  }
+
+  /**
+   * Lokalise has no OAuth-scoped /me endpoint. Resolve identity via contributors/me
+   * in the first accessible project.
+   */
+  async resolveOAuthUserIdentity(): Promise<LokaliseOAuthUserIdentity> {
+    const projects = await this.listProjects();
+    if (projects.length === 0) {
+      throw new LokaliseOAuthUserResolutionError("no_projects");
+    }
+
+    let contributorApiError: LokaliseApiError | null = null;
+    for (const project of projects) {
+      try {
+        const contributor = await this.getAuthenticatedContributor(project.projectId);
+        if (!contributor.userId) {
+          continue;
+        }
+
+        return {
+          id: contributor.userId,
+          username:
+            contributor.email ?? contributor.fullname ?? `lokalise-user-${contributor.userId}`,
+          email: contributor.email,
+          fullName: contributor.fullname,
+        };
+      } catch (error) {
+        if (!(error instanceof LokaliseApiError)) {
+          throw error;
+        }
+        if (error.status === 401) {
+          throw error;
+        }
+        contributorApiError ??= error;
+      }
+    }
+
+    if (contributorApiError) {
+      throw contributorApiError;
+    }
+
+    throw new LokaliseOAuthUserResolutionError("missing_user_id");
   }
 
   async listKeys(
@@ -689,8 +762,15 @@ export class LokaliseApiClient {
   }
 
   private authHeaders(): Record<string, string> {
+    const trimmed = this.token.trim();
+    if (/^bearer\s+/i.test(trimmed)) {
+      return {
+        Authorization: trimmed,
+      };
+    }
+
     return {
-      "X-Api-Token": this.token,
+      "X-Api-Token": trimmed,
     };
   }
 
@@ -855,6 +935,10 @@ type LokaliseProjectsListResponse = {
   projects?: LokaliseProjectApiRecord[];
 };
 
+type LokaliseContributorResponse = LokaliseContributorApiRecord & {
+  contributor?: LokaliseContributorApiRecord;
+};
+
 type LokaliseTasksListResponse = {
   project_id?: string;
   tasks?: LokaliseTaskApiRecord[];
@@ -896,6 +980,12 @@ type LokaliseTaskLanguageUserApiRecord = {
   user_id?: number;
   email?: string;
   fullname?: string;
+};
+
+type LokaliseContributorApiRecord = {
+  user_id?: number;
+  email?: string | null;
+  fullname?: string | null;
 };
 
 type LokaliseTaskLanguageApiRecord = {
@@ -1083,6 +1173,16 @@ function normalizeLokaliseTaskLanguageUser(
     userId: record.user_id ?? 0,
     email: record.email?.trim() ?? "",
     fullname: record.fullname?.trim() ?? "",
+  };
+}
+
+function normalizeLokaliseContributor(
+  record: LokaliseContributorApiRecord | undefined,
+): LokaliseContributor {
+  return {
+    userId: record?.user_id ?? 0,
+    email: record?.email?.trim() || null,
+    fullname: record?.fullname?.trim() || null,
   };
 }
 

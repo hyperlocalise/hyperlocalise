@@ -25,6 +25,10 @@ import {
   resolvePhraseUserConnectionSecretMaterial,
 } from "../adapters/phrase/phrase-user-connections";
 import {
+  getLokaliseUserConnection,
+  resolveLokaliseUserConnectionSecretMaterial,
+} from "../adapters/lokalise/lokalise-user-connections";
+import {
   OAUTH_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsProviderKind,
@@ -445,7 +449,10 @@ async function resolveProviderCommentSecretMaterial(input: {
     !(
       input.credential.providerKind === "crowdin" && input.credential.authMode === OAUTH_AUTH_MODE
     ) &&
-    !(input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE)
+    !(
+      input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE
+    ) &&
+    !(input.credential.providerKind === "lokalise" && input.credential.authMode === OAUTH_AUTH_MODE)
   ) {
     return resolveExternalTmsSecretMaterial({ credential: input.credential });
   }
@@ -467,6 +474,18 @@ async function resolveProviderCommentSecretMaterial(input: {
       connection,
       baseUrl: input.credential.baseUrl,
     });
+  }
+
+  if (input.credential.providerKind === "lokalise") {
+    const connection = await getLokaliseUserConnection({
+      organizationId: input.organizationId,
+      userId: input.actorUserId,
+    });
+    if (!connection) {
+      throw new Error("lokalise_user_connection_required");
+    }
+
+    return resolveLokaliseUserConnectionSecretMaterial({ connection });
   }
 
   const connection = await getCrowdinUserConnection({

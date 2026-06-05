@@ -1,7 +1,7 @@
 import { isApiResponseErrorCode } from "@/lib/api-error";
 
 /** Providers that require a per-user OAuth link in addition to the org integration. */
-export type TmsUserConnectProviderKind = "crowdin" | "phrase";
+export type TmsUserConnectProviderKind = "crowdin" | "phrase" | "lokalise";
 
 export type TmsUserConnectCta =
   | { showConnectCta: false }
@@ -14,6 +14,7 @@ export type TmsUserConnectCta =
 const DEFAULT_PROVIDER_LABELS: Record<TmsUserConnectProviderKind, string> = {
   crowdin: "Crowdin",
   phrase: "Phrase",
+  lokalise: "Lokalise",
 };
 
 export function formatTmsUserConnectProviderLabel(providerKind: TmsUserConnectProviderKind) {
@@ -32,6 +33,7 @@ export function tmsUserConnectionRequiredMessage(
 export function isTmsUserConnectionRequiredError(error: unknown) {
   return (
     isApiResponseErrorCode(error, "crowdin_user_connection_required") ||
-    isApiResponseErrorCode(error, "phrase_user_connection_required")
+    isApiResponseErrorCode(error, "phrase_user_connection_required") ||
+    isApiResponseErrorCode(error, "lokalise_user_connection_required")
   );
 }

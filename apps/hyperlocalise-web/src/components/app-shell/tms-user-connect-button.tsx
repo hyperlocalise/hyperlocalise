@@ -35,6 +35,19 @@ const TMS_USER_OAUTH_ERROR_MESSAGES: Record<string, string> = {
   missing_phrase_user_oauth_code: "Phrase did not return an authorization code.",
   phrase_integration_not_connected:
     "Connect the Phrase integration in Integrations before linking your account.",
+  lokalise_user_oauth_exchange_failed:
+    "Lokalise could not exchange the authorization code. Check the OAuth callback URL in your Lokalise app settings.",
+  lokalise_user_oauth_invalid: "Lokalise rejected the connection. Try connecting again.",
+  lokalise_user_lookup_failed: "Lokalise connected, but Hyperlocalise could not load your profile.",
+  lokalise_user_no_projects:
+    "Lokalise authorized your account, but you need access to at least one project before linking.",
+  lokalise_user_already_linked:
+    "This Lokalise account is already linked to another member in this workspace.",
+  invalid_lokalise_oauth_state:
+    "This Lokalise connection link expired. Start Connect Lokalise again.",
+  missing_lokalise_user_oauth_code: "Lokalise did not return an authorization code.",
+  lokalise_integration_not_connected:
+    "Connect the Lokalise integration in Integrations before linking your account.",
 };
 
 export function TmsUserConnectButton({
@@ -80,8 +93,11 @@ export function TmsUserConnectButton({
         providerKind === "phrase"
           ? apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].phrase.user
               .oauth.start
-          : apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].crowdin.user
-              .oauth.start;
+          : providerKind === "lokalise"
+            ? apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].lokalise
+                .user.oauth.start
+            : apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].crowdin
+                .user.oauth.start;
       const response = await route.$post({
         param: { organizationSlug },
         json: { returnTo },

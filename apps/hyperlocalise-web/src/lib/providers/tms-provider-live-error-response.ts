@@ -22,6 +22,8 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "crowdin_user_connection_required":
     case "phrase_user_auth_invalid":
     case "phrase_user_connection_required":
+    case "lokalise_user_auth_invalid":
+    case "lokalise_user_connection_required":
       return 401;
     case "invalid_encoded_job_id":
       return 400;
