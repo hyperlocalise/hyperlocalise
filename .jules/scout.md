@@ -51,3 +51,7 @@
 ## 2026-06-03 - [Robust ICU Tag Parsing with Attributes]
 **Learning:** ICU parsers that support HTML-style tags must correctly handle attributes and namespaced tags (e.g., `<ui:button>`). Naive tag detection that stops at the first `>` can fail if that character appears inside a quoted attribute value (e.g., `<div attr=">">`). Misidentifying tag boundaries leads to incorrect structural analysis and false-positive placeholder/pound-sign detections.
 **Action:** Implement attribute skipping in tag parsers that explicitly handles both single and double-quoted literals. Ensure the parser remains strict about tag closing to prevent malformed tags from silently being treated as literal text.
+
+## 2026-06-12 - [Robust HTML Tag Parity with Quoted Attributes]
+**Learning:** Standard regex-based tag extraction (e.g., `</?[A-Za-z][^>]*?>`) is insufficient for HTML tag parity checks when attributes contain `>` or tag-like content (e.g., `<div title="a > b">`). The regex prematurely terminates at the first `>`, leading to incorrect tag sequences and false-positive mismatches.
+**Action:** Use a scanner-based approach for tag extraction that respects single and double quotes within tags. Ensure the scanner correctly identifies the full span of a tag before normalization and comparison.
