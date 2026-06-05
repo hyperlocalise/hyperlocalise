@@ -38,7 +38,7 @@ func findAllTags(s string) []string {
 			}
 			next = s[i+2]
 		}
-		if !((next >= 'a' && next <= 'z') || (next >= 'A' && next <= 'Z')) {
+		if (next < 'a' || next > 'z') && (next < 'A' || next > 'Z') {
 			continue
 		}
 
