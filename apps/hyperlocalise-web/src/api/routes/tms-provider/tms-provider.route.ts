@@ -19,6 +19,7 @@ import {
 } from "@/lib/providers/tms-provider-live";
 import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
 import { getCrowdinUserConnectionSummary } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
+import { getPhraseUserConnectionSummary } from "@/lib/providers/adapters/phrase/phrase-user-connections";
 
 const mineQuerySchema = z.object({
   mine: z
@@ -86,12 +87,23 @@ async function getCurrentUserProviderAssigneeCandidates(auth: AuthVariables["aut
     organizationId: auth.organization.localOrganizationId,
     userId: auth.user.localUserId,
   });
+  const phraseUserConnection = await getPhraseUserConnectionSummary({
+    organizationId: auth.organization.localOrganizationId,
+    userId: auth.user.localUserId,
+  });
 
   if (crowdinUserConnection) {
     candidates.push(
       crowdinUserConnection.username,
       crowdinUserConnection.email ?? "",
       crowdinUserConnection.fullName ?? "",
+    );
+  }
+  if (phraseUserConnection) {
+    candidates.push(
+      phraseUserConnection.username,
+      phraseUserConnection.email ?? "",
+      phraseUserConnection.fullName ?? "",
     );
   }
 

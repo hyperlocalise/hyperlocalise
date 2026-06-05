@@ -18,11 +18,16 @@ import {
   getCrowdinUserConnection,
   resolveCrowdinUserConnectionSecretMaterial,
 } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
+import {
+  getPhraseUserConnection,
+  resolvePhraseUserConnectionSecretMaterial,
+} from "@/lib/providers/adapters/phrase/phrase-user-connections";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
   API_TOKEN_AUTH_MODE,
   CROWDIN_OAUTH_AUTH_MODE,
+  PHRASE_OAUTH_AUTH_MODE,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
@@ -226,12 +231,28 @@ async function buildActiveTmsProviderContext(
       error instanceof Error &&
       (error.message === "crowdin_oauth_refresh_failed" ||
         error.message === "crowdin_oauth_token_invalid" ||
-        error.message === "crowdin_user_connection_required")
+        error.message === "crowdin_user_connection_required" ||
+        error.message === "phrase_oauth_refresh_failed" ||
+        error.message === "phrase_oauth_token_invalid" ||
+        error.message === "phrase_user_connection_required")
     ) {
       if (error.message === "crowdin_user_connection_required") {
         throw new TmsProviderLiveError(
           "crowdin_user_connection_required",
           "Connect your Crowdin account before using Crowdin.",
+        );
+      }
+      if (error.message === "phrase_user_connection_required") {
+        throw new TmsProviderLiveError(
+          "phrase_user_connection_required",
+          "Connect your Phrase account before using Phrase.",
+        );
+      }
+
+      if (error.message.startsWith("phrase_")) {
+        throw new TmsProviderLiveError(
+          "phrase_user_auth_invalid",
+          "Your Phrase connection is invalid. Reconnect Phrase and try again.",
         );
       }
 
@@ -286,13 +307,63 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
       "resolving crowdin oauth user secret material",
     );
   }
-
   if (
-    input.credential.providerKind !== "crowdin" ||
-    input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE ||
-    !input.actorUserId
+    input.credential.providerKind === "phrase" &&
+    input.credential.authMode === PHRASE_OAUTH_AUTH_MODE
   ) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        providerCredentialId: input.credential.id,
+        actorUserId: input.actorUserId ?? null,
+        hasActorUserId: Boolean(input.actorUserId),
+      },
+      "resolving phrase oauth user secret material",
+    );
+  }
+
+  const usesCrowdinUserOAuth =
+    input.credential.providerKind === "crowdin" &&
+    input.credential.authMode === CROWDIN_OAUTH_AUTH_MODE;
+  const usesPhraseUserOAuth =
+    input.credential.providerKind === "phrase" &&
+    input.credential.authMode === PHRASE_OAUTH_AUTH_MODE;
+
+  if ((!usesCrowdinUserOAuth && !usesPhraseUserOAuth) || !input.actorUserId) {
     return resolveExternalTmsSecretMaterial({ credential: input.credential });
+  }
+
+  if (usesPhraseUserOAuth) {
+    const phraseUserConnection = await getPhraseUserConnection({
+      organizationId: input.organizationId,
+      userId: input.actorUserId,
+    });
+    if (!phraseUserConnection) {
+      logger.warn(
+        {
+          organizationId: input.organizationId,
+          providerCredentialId: input.credential.id,
+          actorUserId: input.actorUserId,
+        },
+        "phrase user connection missing while resolving provider secret",
+      );
+      throw new Error("phrase_user_connection_required");
+    }
+
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        providerCredentialId: input.credential.id,
+        actorUserId: input.actorUserId,
+        connectionId: phraseUserConnection.id,
+      },
+      "phrase user connection found while resolving provider secret",
+    );
+
+    return resolvePhraseUserConnectionSecretMaterial({
+      connection: phraseUserConnection,
+      baseUrl: input.credential.baseUrl,
+    });
   }
 
   const crowdinUserConnection = await getCrowdinUserConnection({

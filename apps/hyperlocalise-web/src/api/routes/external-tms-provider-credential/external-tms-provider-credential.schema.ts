@@ -19,9 +19,13 @@ export const crowdinOAuthStartBodySchema = z.object({
   baseUrl: z.string().trim().url().max(2048).optional(),
 });
 
+export const phraseOAuthStartBodySchema = crowdinOAuthStartBodySchema;
+
 export const crowdinUserOAuthStartBodySchema = z.object({
   returnTo: z.string().trim().max(2048).optional(),
 });
+
+export const phraseUserOAuthStartBodySchema = crowdinUserOAuthStartBodySchema;
 
 export const revealExternalTmsProviderCredentialBodySchema = z.object({
   providerKind: externalTmsProviderKindSchema,

@@ -18,8 +18,13 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-user-connections", () => ({
   getCrowdinUserConnection: vi.fn(),
 }));
 
+vi.mock("@/lib/providers/adapters/phrase/phrase-user-connections", () => ({
+  getPhraseUserConnection: vi.fn(),
+}));
+
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getCrowdinUserConnection } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
+import { getPhraseUserConnection } from "@/lib/providers/adapters/phrase/phrase-user-connections";
 
 describe("getTmsUserConnectCtaState", () => {
   it("returns no CTA when there is no active integration", async () => {
@@ -42,6 +47,7 @@ describe("getTmsUserConnectCtaState", () => {
     ).resolves.toEqual({ showConnectCta: false });
 
     expect(getCrowdinUserConnection).not.toHaveBeenCalled();
+    expect(getPhraseUserConnection).not.toHaveBeenCalled();
   });
 
   it("returns connect CTA for Crowdin OAuth without a user link", async () => {
@@ -73,13 +79,47 @@ describe("getTmsUserConnectCtaState", () => {
       getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
     ).resolves.toEqual({ showConnectCta: false });
   });
+
+  it("returns connect CTA for Phrase OAuth without a user link", async () => {
+    vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue({
+      providerKind: "phrase",
+      authMode: "oauth",
+      displayName: "My Phrase",
+    } as never);
+    vi.mocked(getPhraseUserConnection).mockResolvedValue(null);
+
+    await expect(
+      getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
+    ).resolves.toEqual({
+      showConnectCta: true,
+      providerKind: "phrase",
+      providerDisplayName: "My Phrase",
+    });
+  });
+
+  it("returns no CTA when Phrase user is already linked", async () => {
+    vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue({
+      providerKind: "phrase",
+      authMode: "oauth",
+      displayName: "Phrase",
+    } as never);
+    vi.mocked(getPhraseUserConnection).mockResolvedValue({ id: "conn-1" } as never);
+
+    await expect(
+      getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
+    ).resolves.toEqual({ showConnectCta: false });
+  });
 });
 
 describe("tms user connection helpers", () => {
   it("formats provider labels and messages", () => {
     expect(formatTmsUserConnectProviderLabel("crowdin")).toBe("Crowdin");
+    expect(formatTmsUserConnectProviderLabel("phrase")).toBe("Phrase");
     expect(tmsUserConnectionRequiredMessage("crowdin", "jobs")).toBe(
       "Connect Crowdin to view provider jobs.",
+    );
+    expect(tmsUserConnectionRequiredMessage("phrase", "files")).toBe(
+      "Connect Phrase to view provider files.",
     );
   });
 
@@ -89,6 +129,11 @@ describe("tms user connection helpers", () => {
       status: 401,
     });
     expect(isTmsUserConnectionRequiredError(error)).toBe(true);
+    const phraseError = new ApiResponseError("Connect Phrase", {
+      code: "phrase_user_connection_required",
+      status: 401,
+    });
+    expect(isTmsUserConnectionRequiredError(phraseError)).toBe(true);
     expect(isTmsUserConnectionRequiredError(new Error("other"))).toBe(false);
   });
 });

@@ -18,6 +18,7 @@ import {
 import { assertProviderUrlResolvable } from "@/lib/providers/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
 import { resolvePhraseBaseUrl } from "@/lib/providers/adapters/phrase/phrase-base-url";
+import { resolvePhraseTmsBaseUrl } from "@/lib/providers/adapters/phrase/phrase-tms-base-url";
 
 export type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
@@ -32,8 +33,10 @@ export type ExternalTmsCredential = Omit<
   Partial<Pick<OrganizationExternalTmsProviderCredential, "authMode" | "oauthExpiresAt">>;
 
 export const CROWDIN_OAUTH_AUTH_MODE = "oauth";
+export const PHRASE_OAUTH_AUTH_MODE = "oauth";
 export const API_TOKEN_AUTH_MODE = "api_token";
 export const CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+export const PHRASE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 const crowdinOAuthTokenBundleSchema = z.object({
   clientId: z.string().min(1),
@@ -52,6 +55,24 @@ const crowdinOAuthClientMaterialSchema = z.object({
 });
 
 export type CrowdinOAuthClientMaterial = z.infer<typeof crowdinOAuthClientMaterialSchema>;
+
+const phraseOAuthTokenBundleSchema = z.object({
+  clientId: z.string().min(1),
+  clientSecret: z.string().min(1),
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+  tokenType: z.string().min(1).default("Bearer"),
+  expiresAt: z.string().datetime(),
+});
+
+export type PhraseOAuthTokenBundle = z.infer<typeof phraseOAuthTokenBundleSchema>;
+
+const phraseOAuthClientMaterialSchema = z.object({
+  clientId: z.string().min(1),
+  clientSecret: z.string().min(1),
+});
+
+export type PhraseOAuthClientMaterial = z.infer<typeof phraseOAuthClientMaterialSchema>;
 
 export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRole) {
   assertCapability(role, "provider_credentials:write");
@@ -392,6 +413,89 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
   return credential;
 }
 
+export async function upsertPhraseOAuthProviderCredential(input: {
+  organizationId: string;
+  userId: string;
+  role: OrganizationMembershipRole;
+  displayName: string;
+  oauthClient: PhraseOAuthClientMaterial;
+  baseUrl?: string | null;
+}) {
+  assertExternalTmsCredentialAdmin(input.role);
+
+  const now = new Date();
+  const secretMaterial = JSON.stringify({
+    clientId: input.oauthClient.clientId,
+    clientSecret: input.oauthClient.clientSecret,
+  });
+  const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(secretMaterial));
+  const baseUrl = await normalizePhraseOAuthCredentialBaseUrl(input.baseUrl ?? null);
+
+  const credential = await db.transaction(async (tx) => {
+    await tx
+      .delete(schema.organizationExternalTmsProviderCredentials)
+      .where(
+        and(
+          eq(
+            schema.organizationExternalTmsProviderCredentials.organizationId,
+            input.organizationId,
+          ),
+          ne(schema.organizationExternalTmsProviderCredentials.providerKind, "phrase"),
+        ),
+      );
+
+    const [row] = await tx
+      .insert(schema.organizationExternalTmsProviderCredentials)
+      .values({
+        organizationId: input.organizationId,
+        createdByUserId: input.userId,
+        updatedByUserId: input.userId,
+        providerKind: "phrase",
+        displayName: input.displayName,
+        authMode: PHRASE_OAUTH_AUTH_MODE,
+        region: null,
+        baseUrl,
+        oauthExpiresAt: null,
+        validationStatus: "unvalidated",
+        encryptionAlgorithm: encrypted.algorithm,
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        keyVersion: encrypted.keyVersion,
+        maskedSecretSuffix: "oauth",
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.organizationExternalTmsProviderCredentials.organizationId,
+          schema.organizationExternalTmsProviderCredentials.providerKind,
+        ],
+        set: {
+          updatedByUserId: input.userId,
+          displayName: input.displayName,
+          authMode: PHRASE_OAUTH_AUTH_MODE,
+          region: null,
+          baseUrl,
+          oauthExpiresAt: null,
+          validationStatus: "unvalidated",
+          validationMessage: null,
+          lastValidatedAt: null,
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          maskedSecretSuffix: "oauth",
+          updatedAt: now,
+        },
+      })
+      .returning();
+
+    return row;
+  });
+
+  return credential;
+}
+
 type CredentialCryptoFields = Pick<
   ExternalTmsCredential,
   "encryptionAlgorithm" | "keyVersion" | "ciphertext" | "iv" | "authTag"
@@ -412,6 +516,26 @@ export function decryptCrowdinOAuthTokenBundle(
   const parsed = crowdinOAuthTokenBundleSchema.safeParse(safeJsonParse(secretMaterial));
   if (!parsed.success) {
     throw new Error("crowdin_oauth_token_invalid");
+  }
+
+  return parsed.data;
+}
+
+export function decryptPhraseOAuthTokenBundle(
+  credential: CredentialCryptoFields,
+): PhraseOAuthTokenBundle {
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+    }),
+  );
+  const parsed = phraseOAuthTokenBundleSchema.safeParse(safeJsonParse(secretMaterial));
+  if (!parsed.success) {
+    throw new Error("phrase_oauth_token_invalid");
   }
 
   return parsed.data;
@@ -446,10 +570,50 @@ function decryptCrowdinOAuthClientMaterial(
   throw new Error("crowdin_oauth_client_invalid");
 }
 
+function decryptPhraseOAuthClientMaterial(
+  credential: CredentialCryptoFields,
+): PhraseOAuthClientMaterial {
+  const secretMaterial = unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: credential.encryptionAlgorithm,
+      keyVersion: credential.keyVersion,
+      ciphertext: credential.ciphertext,
+      iv: credential.iv,
+      authTag: credential.authTag,
+    }),
+  );
+  const raw = safeJsonParse(secretMaterial);
+  const clientMaterial = phraseOAuthClientMaterialSchema.safeParse(raw);
+  if (clientMaterial.success) {
+    return clientMaterial.data;
+  }
+
+  const tokenBundle = phraseOAuthTokenBundleSchema.safeParse(raw);
+  if (tokenBundle.success) {
+    return {
+      clientId: tokenBundle.data.clientId,
+      clientSecret: tokenBundle.data.clientSecret,
+    };
+  }
+
+  throw new Error("phrase_oauth_client_invalid");
+}
+
 export function isCrowdinOAuthAccessTokenFresh(tokenBundle: CrowdinOAuthTokenBundle) {
   return (
     new Date(tokenBundle.expiresAt).getTime() - Date.now() > CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS
   );
+}
+
+export function isPhraseOAuthAccessTokenFresh(tokenBundle: PhraseOAuthTokenBundle) {
+  return (
+    new Date(tokenBundle.expiresAt).getTime() - Date.now() > PHRASE_OAUTH_TOKEN_REFRESH_BUFFER_MS
+  );
+}
+
+export function formatPhraseOAuthAuthorizationSecret(tokenBundle: PhraseOAuthTokenBundle) {
+  const tokenType = tokenBundle.tokenType.trim() || "Bearer";
+  return `${tokenType} ${tokenBundle.accessToken}`;
 }
 
 export async function resolveExternalTmsSecretMaterial(input: {
@@ -470,6 +634,13 @@ export async function resolveExternalTmsSecretMaterial(input: {
     input.credential.providerKind !== "crowdin" ||
     input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE
   ) {
+    if (
+      input.credential.providerKind === "phrase" &&
+      input.credential.authMode === PHRASE_OAUTH_AUTH_MODE
+    ) {
+      throw new Error("phrase_user_connection_required");
+    }
+
     return secretMaterial;
   }
 
@@ -560,12 +731,54 @@ export async function refreshCrowdinOAuthToken(input: {
   });
 }
 
+export async function refreshPhraseOAuthToken(input: {
+  tokenBundle: PhraseOAuthTokenBundle;
+  baseUrl?: string | null;
+  fetchFn?: typeof fetch;
+}): Promise<PhraseOAuthTokenBundle> {
+  const body = new URLSearchParams({
+    grant_type: "refresh_token",
+    client_id: input.tokenBundle.clientId,
+    client_secret: input.tokenBundle.clientSecret,
+    refresh_token: input.tokenBundle.refreshToken,
+  });
+
+  const response = await (input.fetchFn ?? fetch)(
+    `${resolvePhraseTmsBaseUrl({ baseUrl: input.baseUrl })}/oauth/token`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+      redirect: "error",
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("phrase_oauth_refresh_failed");
+  }
+
+  const responseBody = await response.json();
+  return mapPhraseOAuthTokenResponse(responseBody, {
+    clientId: input.tokenBundle.clientId,
+    clientSecret: input.tokenBundle.clientSecret,
+    refreshToken: input.tokenBundle.refreshToken,
+  });
+}
+
 export function getCrowdinOAuthClientFromCredential(credential: ExternalTmsCredential) {
   if (credential.providerKind !== "crowdin" || credential.authMode !== CROWDIN_OAUTH_AUTH_MODE) {
     throw new Error("crowdin_oauth_credential_required");
   }
 
   return decryptCrowdinOAuthClientMaterial(credential);
+}
+
+export function getPhraseOAuthClientFromCredential(credential: ExternalTmsCredential) {
+  if (credential.providerKind !== "phrase" || credential.authMode !== PHRASE_OAUTH_AUTH_MODE) {
+    throw new Error("phrase_oauth_credential_required");
+  }
+
+  return decryptPhraseOAuthClientMaterial(credential);
 }
 
 export function mapCrowdinOAuthTokenResponse(
@@ -595,6 +808,38 @@ export function mapCrowdinOAuthTokenResponse(
   };
 }
 
+export function mapPhraseOAuthTokenResponse(
+  body: unknown,
+  client: { clientId: string; clientSecret: string; refreshToken?: string },
+): PhraseOAuthTokenBundle {
+  const parsed = z
+    .object({
+      access_token: z.string().min(1),
+      refresh_token: z.string().min(1).optional(),
+      token_type: z.string().min(1).default("Bearer"),
+      expires_in: z.number().positive(),
+    })
+    .safeParse(body);
+
+  if (!parsed.success) {
+    throw new Error("phrase_oauth_token_response_invalid");
+  }
+
+  const refreshToken = parsed.data.refresh_token ?? client.refreshToken;
+  if (!refreshToken) {
+    throw new Error("phrase_oauth_token_response_invalid");
+  }
+
+  return {
+    clientId: client.clientId,
+    clientSecret: client.clientSecret,
+    accessToken: parsed.data.access_token,
+    refreshToken,
+    tokenType: parsed.data.token_type,
+    expiresAt: new Date(Date.now() + parsed.data.expires_in * 1000).toISOString(),
+  };
+}
+
 async function normalizeExternalTmsCredentialBaseUrl(input: {
   providerKind: ExternalTmsProviderKind;
   region: string | null;
@@ -608,6 +853,14 @@ async function normalizeExternalTmsCredentialBaseUrl(input: {
     throw new Error("provider_base_url_invalid");
   }
 
+  await assertProviderUrlResolvable(normalized);
+  return normalized;
+}
+
+async function normalizePhraseOAuthCredentialBaseUrl(baseUrl: string | null) {
+  if (!baseUrl?.trim()) return null;
+
+  const normalized = resolvePhraseTmsBaseUrl({ baseUrl });
   await assertProviderUrlResolvable(normalized);
   return normalized;
 }
@@ -649,6 +902,9 @@ export async function revealOrganizationExternalTmsProviderCredential(input: {
   if (!credential) return null;
   if (credential.providerKind === "crowdin" && credential.authMode === CROWDIN_OAUTH_AUTH_MODE) {
     throw new Error("crowdin_oauth_secret_unavailable");
+  }
+  if (credential.providerKind === "phrase" && credential.authMode === PHRASE_OAUTH_AUTH_MODE) {
+    throw new Error("phrase_oauth_secret_unavailable");
   }
 
   return {

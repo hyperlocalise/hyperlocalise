@@ -121,6 +121,37 @@ const integrationErrorCopyByCode = {
     title: "Crowdin account link was cancelled",
     description: "Crowdin did not return an authorization code. Start the connection again.",
   },
+  phrase_user_oauth_exchange_failed: {
+    title: "Phrase account link failed",
+    description:
+      "Phrase did not return an access token. Check that the OAuth app callback URL, client ID, and client secret match the Phrase OAuth App configuration.",
+  },
+  phrase_user_oauth_invalid: {
+    title: "Phrase account link failed",
+    description:
+      "Phrase rejected the access token returned during authorization. Try connecting again.",
+  },
+  phrase_user_lookup_failed: {
+    title: "Phrase account link failed",
+    description: "Hyperlocalise received a token but could not load the authorized Phrase user.",
+  },
+  phrase_integration_not_connected: {
+    title: "Phrase integration is not connected",
+    description: "Save the Phrase OAuth app credentials before linking a user account.",
+  },
+  phrase_user_already_linked: {
+    title: "Phrase account already linked",
+    description:
+      "That Phrase user is already linked to another Hyperlocalise user in this workspace.",
+  },
+  missing_phrase_user_oauth_code: {
+    title: "Phrase account link was cancelled",
+    description: "Phrase did not return an authorization code. Start the connection again.",
+  },
+  invalid_phrase_oauth_state: {
+    title: "Phrase account link expired",
+    description: "This Phrase connection link expired. Start Connect Phrase again.",
+  },
 } satisfies Record<string, IntegrationErrorCopy>;
 
 function canManageIntegrations(role: OrganizationMembershipRole) {
@@ -239,8 +270,7 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
     name: "Phrase",
     providerKind: "phrase" as const,
     logo: "/images/tms/phrase.png",
-    detail: "Sync jobs into existing Phrase workflows.",
-    comingSoon: true,
+    detail: "Connect to browse Phrase projects and jobs with user OAuth.",
   },
   {
     name: "Smartling",
@@ -477,6 +507,54 @@ function useSaveCrowdinOAuthApp(organizationSlug: string) {
   });
 }
 
+function useSavePhraseOAuthApp(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      displayName: string;
+      oauthClientId: string;
+      oauthClientSecret: string;
+      baseUrl?: string;
+    }) => {
+      const res = await api.api.orgs[":organizationSlug"][
+        "external-tms-provider-credential"
+      ].phrase["oauth-app"].$post({
+        param: { organizationSlug },
+        json: payload,
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "phrase_oauth_start_failed" }));
+        throw new Error(
+          "message" in error ? String(error.message) : "Unable to start Phrase OAuth",
+        );
+      }
+
+      return res.json();
+    },
+    onSuccess: async (_, payload) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["external-tms-credentials", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["tms-provider-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["phrase-user-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
+        }),
+      ]);
+      toast.success(`${payload.displayName} saved. Connect your Phrase account to continue.`);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
 function TmsIntegrationRow({
   integration,
   credential,
@@ -689,6 +767,8 @@ function CmsIntegrationRow({
 }
 
 function CrowdinOAuthSetupFields({
+  providerKind,
+  providerName,
   crowdinRedirectUri,
   redirectUriFieldId,
   redirectUriCopied,
@@ -702,6 +782,8 @@ function CrowdinOAuthSetupFields({
   showSecret,
   onToggleShowSecret,
 }: {
+  providerKind: ExternalTmsProviderKind;
+  providerName: string;
   crowdinRedirectUri: string;
   redirectUriFieldId: string;
   redirectUriCopied: boolean;
@@ -760,20 +842,23 @@ function CrowdinOAuthSetupFields({
         <div>
           <p className="text-sm font-medium text-foreground">Required OAuth scopes</p>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
-            In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same
-            list when you connect Crowdin.
+            {providerKind === "crowdin"
+              ? "In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Crowdin."
+              : "Phrase TMS OAuth does not require app-level scopes in the current API. Hyperlocalise requests an authorization code and exchanges it for a user bearer token."}
           </p>
         </div>
-        <ul className="space-y-2">
-          {CROWDIN_OAUTH_SCOPE_GUIDE.map((entry) => (
-            <li key={entry.scope} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
-              <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
-                {entry.scope}
-              </code>
-              <span className="text-sm leading-6 text-muted-foreground">{entry.description}</span>
-            </li>
-          ))}
-        </ul>
+        {providerKind === "crowdin" ? (
+          <ul className="space-y-2">
+            {CROWDIN_OAUTH_SCOPE_GUIDE.map((entry) => (
+              <li key={entry.scope} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
+                <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
+                  {entry.scope}
+                </code>
+                <span className="text-sm leading-6 text-muted-foreground">{entry.description}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       <Field className="gap-2">
@@ -783,7 +868,7 @@ function CrowdinOAuthSetupFields({
           value={oauthClientId}
           onChange={(event) => onOauthClientIdChange(event.target.value)}
           autoComplete="off"
-          placeholder="Crowdin OAuth App client ID"
+          placeholder={`${providerName} OAuth App client ID`}
         />
       </Field>
 
@@ -801,7 +886,7 @@ function CrowdinOAuthSetupFields({
             autoComplete="off"
             value={oauthClientSecret}
             onChange={(event) => onOauthClientSecretChange(event.target.value)}
-            placeholder="Crowdin OAuth App client secret"
+            placeholder={`${providerName} OAuth App client secret`}
             className="ps-9 pe-9"
           />
           <button
@@ -878,10 +963,11 @@ function TmsProviderCredentialPanel({
   baseUrlFieldId,
 }: TmsProviderCredentialPanelProps) {
   const isCrowdin = providerKind === "crowdin";
-  const crowdinRedirectUri =
+  const isOAuthProvider = isCrowdin || providerKind === "phrase";
+  const oauthRedirectUri =
     typeof window === "undefined"
       ? ""
-      : `${window.location.origin}/api/orgs/${encodeURIComponent(organizationSlug)}/external-tms-provider-credential/crowdin/oauth/callback`;
+      : `${window.location.origin}/api/orgs/${encodeURIComponent(organizationSlug)}/external-tms-provider-credential/${providerKind}/oauth/callback`;
   const [redirectUriCopied, setRedirectUriCopied] = useState(false);
   const [advancedSettingsOpen, setAdvancedSettingsOpen] = useState(false);
   const redirectUriCopyTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -895,11 +981,11 @@ function TmsProviderCredentialPanel({
   }, []);
 
   const copyCrowdinRedirectUri = async () => {
-    if (!crowdinRedirectUri) {
+    if (!oauthRedirectUri) {
       return;
     }
 
-    await navigator.clipboard.writeText(crowdinRedirectUri);
+    await navigator.clipboard.writeText(oauthRedirectUri);
     setRedirectUriCopied(true);
     toast.success("OAuth callback URL copied");
 
@@ -912,12 +998,12 @@ function TmsProviderCredentialPanel({
     }, 2000);
   };
 
-  const isCrowdinOAuthConnected = isCrowdin && credential?.authMode === "oauth";
-  const [crowdinReconnectOpen, setCrowdinReconnectOpen] = useState(false);
-  const showCrowdinOAuthSetupFields = !isCrowdinOAuthConnected || crowdinReconnectOpen;
+  const isOAuthConnected = isOAuthProvider && credential?.authMode === "oauth";
+  const [oauthReconnectOpen, setOauthReconnectOpen] = useState(false);
+  const showOAuthSetupFields = !isOAuthConnected || oauthReconnectOpen;
 
-  const canSubmit = isCrowdin
-    ? isCrowdinOAuthConnected && !crowdinReconnectOpen
+  const canSubmit = isOAuthProvider
+    ? isOAuthConnected && !oauthReconnectOpen
       ? false
       : Boolean(displayName.trim() && oauthClientId.trim() && oauthClientSecret.trim())
     : Boolean(displayName.trim() && secret.trim());
@@ -930,12 +1016,12 @@ function TmsProviderCredentialPanel({
         onSave();
       }}
     >
-      {isCrowdin && isCrowdinOAuthConnected ? (
+      {isOAuthProvider && isOAuthConnected ? (
         <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          <p className="font-medium text-foreground">Crowdin is connected via OAuth</p>
+          <p className="font-medium text-foreground">{providerName} is connected via OAuth</p>
           <p className="leading-6 text-muted-foreground">
             Access and refresh tokens are stored encrypted. Projects, jobs, glossaries, and
-            translation memories load live from Crowdin when you open those pages.
+            translation memories load live from {providerName} when you open those pages.
           </p>
           {credential.oauthExpiresAt ? (
             <p className="text-xs text-muted-foreground">
@@ -945,13 +1031,11 @@ function TmsProviderCredentialPanel({
         </div>
       ) : null}
 
-      {isCrowdin && !isCrowdinOAuthConnected ? (
+      {isOAuthProvider && !isOAuthConnected ? (
         <p className="text-sm leading-6 text-muted-foreground">
-          {isTmsProviderShellModeEnabled()
-            ? `Connect ${providerName} with a Crowdin OAuth App. Projects, jobs, glossaries, and translation memories load live from Crowdin — background sync and webhooks stay off in this phase.`
-            : `Connect ${providerName} with a Crowdin OAuth App created in your Crowdin account. Personal token setup is deprecated in Hyperlocalise.`}
+          {`Connect ${providerName} with an OAuth App. Projects, jobs, glossaries, and translation memories load live from ${providerName}. API-token setup is disabled in Hyperlocalise.`}
         </p>
-      ) : !isCrowdin ? (
+      ) : !isOAuthProvider ? (
         <p className="text-sm leading-6 text-muted-foreground">
           Save credentials to connect {providerName}. The secret is encrypted at rest and used to
           sync projects, files, and jobs into the workspace.
@@ -968,8 +1052,8 @@ function TmsProviderCredentialPanel({
         />
       </Field>
 
-      {isCrowdin && isCrowdinOAuthConnected ? (
-        <Collapsible open={crowdinReconnectOpen} onOpenChange={setCrowdinReconnectOpen}>
+      {isOAuthProvider && isOAuthConnected ? (
+        <Collapsible open={oauthReconnectOpen} onOpenChange={setOauthReconnectOpen}>
           <CollapsibleTrigger
             render={
               <Button
@@ -982,7 +1066,7 @@ function TmsProviderCredentialPanel({
                 <ChevronDownIcon
                   className={cn(
                     "size-3.5 shrink-0 transition-transform",
-                    crowdinReconnectOpen && "rotate-180",
+                    oauthReconnectOpen && "rotate-180",
                   )}
                   strokeWidth={2}
                 />
@@ -991,7 +1075,9 @@ function TmsProviderCredentialPanel({
           />
           <CollapsibleContent className="space-y-5 pt-3">
             <CrowdinOAuthSetupFields
-              crowdinRedirectUri={crowdinRedirectUri}
+              providerKind={providerKind}
+              providerName={providerName}
+              crowdinRedirectUri={oauthRedirectUri}
               redirectUriFieldId={redirectUriFieldId}
               redirectUriCopied={redirectUriCopied}
               onCopyRedirectUri={() => {
@@ -1010,9 +1096,11 @@ function TmsProviderCredentialPanel({
         </Collapsible>
       ) : null}
 
-      {isCrowdin && showCrowdinOAuthSetupFields && !isCrowdinOAuthConnected ? (
+      {isOAuthProvider && showOAuthSetupFields && !isOAuthConnected ? (
         <CrowdinOAuthSetupFields
-          crowdinRedirectUri={crowdinRedirectUri}
+          providerKind={providerKind}
+          providerName={providerName}
+          crowdinRedirectUri={oauthRedirectUri}
           redirectUriFieldId={redirectUriFieldId}
           redirectUriCopied={redirectUriCopied}
           onCopyRedirectUri={() => {
@@ -1029,7 +1117,7 @@ function TmsProviderCredentialPanel({
         />
       ) : null}
 
-      {!isCrowdin ? (
+      {!isOAuthProvider ? (
         <Field className="gap-2">
           <FieldLabel htmlFor={secretFieldId}>API token / secret</FieldLabel>
           <div className="relative">
@@ -1105,10 +1193,10 @@ function TmsProviderCredentialPanel({
           <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
           {isSaving
             ? "Saving..."
-            : isCrowdin
-              ? isCrowdinOAuthConnected
-                ? "Update Crowdin"
-                : "Save Crowdin"
+            : isOAuthProvider
+              ? isOAuthConnected
+                ? `Update ${providerName}`
+                : `Save ${providerName}`
               : "Save provider"}
         </Button>
       </div>
@@ -1454,6 +1542,7 @@ export function IntegrationsPageContent({
     useContentfulConnections(organizationSlug);
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
   const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug);
+  const savePhraseOAuthApp = useSavePhraseOAuthApp(organizationSlug);
   const saveContentfulConnection = useSaveContentfulConnection(organizationSlug);
   const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
   const [expandedTmsProvider, setExpandedTmsProvider] = useState<ExternalTmsProviderKind | null>(
@@ -1677,6 +1766,15 @@ export function IntegrationsPageContent({
                               });
                               return;
                             }
+                            if (integration.providerKind === "phrase") {
+                              savePhraseOAuthApp.mutate({
+                                displayName: tmsDisplayName.trim(),
+                                oauthClientId: tmsOauthClientId.trim(),
+                                oauthClientSecret: tmsOauthClientSecret.trim(),
+                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              });
+                              return;
+                            }
                             saveExternalTms.mutate(
                               {
                                 providerKind: integration.providerKind,
@@ -1693,7 +1791,11 @@ export function IntegrationsPageContent({
                               },
                             );
                           }}
-                          isSaving={saveExternalTms.isPending || saveCrowdinOAuthApp.isPending}
+                          isSaving={
+                            saveExternalTms.isPending ||
+                            saveCrowdinOAuthApp.isPending ||
+                            savePhraseOAuthApp.isPending
+                          }
                           isDisconnecting={deleteExternalTms.isPending}
                           displayNameFieldId={tmsDisplayNameFieldId}
                           secretFieldId={tmsSecretFieldId}

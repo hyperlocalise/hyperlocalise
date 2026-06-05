@@ -237,6 +237,85 @@ export const crowdinUserConnections = pgTable(
 );
 
 /**
+ * Stores short-lived Phrase OAuth state for linking the signed-in Hyperlocalise user to
+ * their own Phrase account. This mirrors Crowdin's user-link flow while keeping provider
+ * tokens separate.
+ */
+export const phraseUserOAuthStates = pgTable(
+  "phrase_user_oauth_states",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    nonce: text("nonce").notNull(),
+    codeVerifier: text("code_verifier").notNull(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id")
+      .notNull()
+      .references(() => organizationExternalTmsProviderCredentials.id, { onDelete: "cascade" }),
+    returnTo: text("return_to"),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    consumedAt: timestamp("consumed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("phrase_user_oauth_states_nonce_key").on(table.nonce),
+    index("idx_phrase_user_oauth_states_org_user").on(table.organizationId, table.userId),
+    index("idx_phrase_user_oauth_states_expires_at").on(table.expiresAt),
+  ],
+);
+
+/**
+ * Links a Hyperlocalise user to their Phrase identity and stores the user's OAuth token
+ * bundle for user-attributed Phrase actions.
+ */
+export const phraseUserConnections = pgTable(
+  "phrase_user_connections",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    organizationId: uuid("organization_id")
+      .notNull()
+      .references(() => organizations.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    providerCredentialId: uuid("provider_credential_id")
+      .notNull()
+      .references(() => organizationExternalTmsProviderCredentials.id, { onDelete: "cascade" }),
+    phraseUserUid: text("phrase_user_uid").notNull(),
+    username: text("username").notNull(),
+    email: text("email"),
+    fullName: text("full_name"),
+    oauthExpiresAt: timestamp("oauth_expires_at", { withTimezone: true }),
+    encryptionAlgorithm: text("encryption_algorithm").notNull(),
+    ciphertext: text("ciphertext").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("auth_tag").notNull(),
+    keyVersion: integer("key_version").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdateFn(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("phrase_user_connections_org_user_key").on(table.organizationId, table.userId),
+    uniqueIndex("phrase_user_connections_org_phrase_user_key").on(
+      table.organizationId,
+      table.phraseUserUid,
+    ),
+    index("idx_phrase_user_connections_provider_credential").on(table.providerCredentialId),
+  ],
+);
+
+/**
  * Stores automation configuration for provider-facing TMS agents at organization, project, or provider scope, with shape constraints that keep each scope unambiguous.
  */
 export const tmsAgentAutomationSettings = pgTable(

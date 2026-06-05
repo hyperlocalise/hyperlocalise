@@ -25,6 +25,16 @@ const CROWDIN_USER_OAUTH_ERROR_MESSAGES: Record<string, string> = {
   missing_crowdin_user_oauth_code: "Crowdin did not return an authorization code.",
   crowdin_integration_not_connected:
     "Connect the Crowdin integration in Integrations before linking your account.",
+  phrase_user_oauth_exchange_failed:
+    "Phrase could not exchange the authorization code. Check the OAuth callback URL in your Phrase app settings.",
+  phrase_user_oauth_invalid: "Phrase rejected the connection. Try connecting again.",
+  phrase_user_lookup_failed: "Phrase connected, but Hyperlocalise could not load your profile.",
+  phrase_user_already_linked:
+    "This Phrase account is already linked to another member in this workspace.",
+  invalid_phrase_oauth_state: "This Phrase connection link expired. Start Connect Phrase again.",
+  missing_phrase_user_oauth_code: "Phrase did not return an authorization code.",
+  phrase_integration_not_connected:
+    "Connect the Phrase integration in Integrations before linking your account.",
 };
 
 export function TmsUserConnectButton({
@@ -44,10 +54,6 @@ export function TmsUserConnectButton({
   const handledOAuthErrorRef = useRef<string | null>(null);
 
   useEffect(() => {
-    if (providerKind !== "crowdin") {
-      return;
-    }
-
     const errorCode = searchParams.get("error");
     if (!errorCode || !CROWDIN_USER_OAUTH_ERROR_MESSAGES[errorCode]) {
       return;
@@ -69,14 +75,14 @@ export function TmsUserConnectButton({
 
     setIsPending(true);
     try {
-      if (providerKind !== "crowdin") {
-        throw new Error(`User account linking is not available for ${label} yet.`);
-      }
-
       const returnTo = `${window.location.pathname}${window.location.search}`;
-      const response = await apiClient.api.orgs[":organizationSlug"][
-        "external-tms-provider-credential"
-      ].crowdin.user.oauth.start.$post({
+      const route =
+        providerKind === "phrase"
+          ? apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].phrase.user
+              .oauth.start
+          : apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].crowdin.user
+              .oauth.start;
+      const response = await route.$post({
         param: { organizationSlug },
         json: { returnTo },
       });
