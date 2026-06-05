@@ -249,7 +249,7 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
     name: "Hyperlocalise Native",
     providerKind: "native",
     comingSoon: true,
-    detail: "Built-in TMS — projects, jobs, and memories without an external provider.",
+    detail: "Built-in TMS for projects, jobs, and memories without an external provider.",
   },
   {
     name: "Crowdin",
@@ -264,8 +264,8 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
     name: "Lokalise",
     providerKind: "lokalise" as const,
     logo: "/images/tms/lokalise.webp",
-    detail: "Projects, branches, and reviewed strings.",
-    comingSoon: true,
+    detail:
+      "Connect to browse Lokalise projects, tasks, glossaries, and translation memories with user OAuth.",
   },
   {
     name: "Phrase",
@@ -549,6 +549,54 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
         }),
       ]);
       toast.success(`${payload.displayName} saved. Connect your Phrase account to continue.`);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+}
+
+function useSaveLokaliseOAuthApp(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      displayName: string;
+      oauthClientId: string;
+      oauthClientSecret: string;
+      baseUrl?: string;
+    }) => {
+      const res = await api.api.orgs[":organizationSlug"][
+        "external-tms-provider-credential"
+      ].lokalise["oauth-app"].$post({
+        param: { organizationSlug },
+        json: payload,
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "lokalise_oauth_start_failed" }));
+        throw new Error(
+          "message" in error ? String(error.message) : "Unable to start Lokalise OAuth",
+        );
+      }
+
+      return res.json();
+    },
+    onSuccess: async (_, payload) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["external-tms-credentials", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["tms-provider-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["lokalise-user-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
+        }),
+      ]);
+      toast.success(`${payload.displayName} saved. Connect your Lokalise account to continue.`);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -967,7 +1015,7 @@ function TmsProviderCredentialPanel({
   baseUrlFieldId,
 }: TmsProviderCredentialPanelProps) {
   const isCrowdin = providerKind === "crowdin";
-  const isOAuthProvider = isCrowdin || providerKind === "phrase";
+  const isOAuthProvider = isCrowdin || providerKind === "phrase" || providerKind === "lokalise";
   const oauthRedirectUri =
     typeof window === "undefined"
       ? ""
@@ -1547,6 +1595,7 @@ export function IntegrationsPageContent({
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
   const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug);
   const savePhraseOAuthApp = useSavePhraseOAuthApp(organizationSlug);
+  const saveLokaliseOAuthApp = useSaveLokaliseOAuthApp(organizationSlug);
   const saveContentfulConnection = useSaveContentfulConnection(organizationSlug);
   const deleteExternalTms = useDeleteExternalTmsCredential(organizationSlug);
   const [expandedTmsProvider, setExpandedTmsProvider] = useState<ExternalTmsProviderKind | null>(
@@ -1779,6 +1828,15 @@ export function IntegrationsPageContent({
                               });
                               return;
                             }
+                            if (integration.providerKind === "lokalise") {
+                              saveLokaliseOAuthApp.mutate({
+                                displayName: tmsDisplayName.trim(),
+                                oauthClientId: tmsOauthClientId.trim(),
+                                oauthClientSecret: tmsOauthClientSecret.trim(),
+                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              });
+                              return;
+                            }
                             saveExternalTms.mutate(
                               {
                                 providerKind: integration.providerKind,
@@ -1798,7 +1856,8 @@ export function IntegrationsPageContent({
                           isSaving={
                             saveExternalTms.isPending ||
                             saveCrowdinOAuthApp.isPending ||
-                            savePhraseOAuthApp.isPending
+                            savePhraseOAuthApp.isPending ||
+                            saveLokaliseOAuthApp.isPending
                           }
                           isDisconnecting={deleteExternalTms.isPending}
                           displayNameFieldId={tmsDisplayNameFieldId}
@@ -2047,8 +2106,8 @@ export function IntegrationsPageContent({
                   Disconnect {disconnectingTmsProviderName ?? "TMS provider"}?
                 </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This removes the saved encrypted API credential. Reconnecting this provider will
-                  require entering the secret again.
+                  This removes the saved encrypted provider credentials. Reconnecting this provider
+                  will require entering the secret again.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>

@@ -4,6 +4,7 @@ import {
   type ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getCrowdinUserConnection } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
+import { getLokaliseUserConnection } from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
 import { getPhraseUserConnection } from "@/lib/providers/adapters/phrase/phrase-user-connections";
 import {
   formatTmsUserConnectProviderLabel,
@@ -96,6 +97,42 @@ async function resolvePhraseUserConnectCta(input: {
   };
 }
 
+async function resolveLokaliseUserConnectCta(input: {
+  organizationId: string;
+  userId: string;
+  displayName: string;
+}): Promise<TmsUserConnectCta> {
+  const connection = await getLokaliseUserConnection({
+    organizationId: input.organizationId,
+    userId: input.userId,
+  });
+  if (connection) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        connectionId: connection.id,
+      },
+      "lokalise user connect cta hidden: connection found",
+    );
+    return { showConnectCta: false };
+  }
+
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      userId: input.userId,
+    },
+    "lokalise user connect cta shown: connection missing",
+  );
+
+  return {
+    showConnectCta: true,
+    providerKind: "lokalise",
+    providerDisplayName: input.displayName,
+  };
+}
+
 /**
  * Whether the signed-in user should link a personal account for the org's active TMS.
  * Based on the active integration only — not a hardcoded Crowdin assumption.
@@ -149,6 +186,22 @@ export async function getTmsUserConnectCtaState(input: {
       "tms user connect cta checking phrase connection",
     );
     return resolvePhraseUserConnectCta({
+      organizationId: input.organizationId,
+      userId: input.userId,
+      displayName,
+    });
+  }
+
+  if (providerKind === "lokalise" && credential.authMode === OAUTH_AUTH_MODE) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        providerCredentialId: credential.id,
+      },
+      "tms user connect cta checking lokalise connection",
+    );
+    return resolveLokaliseUserConnectCta({
       organizationId: input.organizationId,
       userId: input.userId,
       displayName,

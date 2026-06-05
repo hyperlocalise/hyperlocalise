@@ -86,6 +86,21 @@ export async function checkExternalTmsProviderHealth(input: {
     };
   }
 
+  if (credential.providerKind === "lokalise" && credential.authMode === OAUTH_AUTH_MODE) {
+    return {
+      credential,
+      health: {
+        status: "error",
+        availability: "unknown",
+        authValidity: "unknown",
+        errorCode: "lokalise_user_connection_required",
+        message: "Connect your Lokalise account before checking Lokalise health.",
+        rateLimit: emptyRateLimitHints(),
+        lastSuccessfulSyncAt: null,
+      },
+    };
+  }
+
   const secretMaterial = await resolveExternalTmsSecretMaterial({
     credential,
     fetchFn: input.fetchFn,

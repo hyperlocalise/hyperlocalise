@@ -7,9 +7,11 @@ import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
 import {
   mapCrowdinOAuthTokenResponse,
+  mapLokaliseOAuthTokenResponse,
   mapPhraseOAuthTokenResponse,
   resolveExternalTmsSecretMaterial,
   upsertCrowdinOAuthProviderCredential,
+  upsertLokaliseOAuthProviderCredential,
   upsertPhraseOAuthProviderCredential,
 } from "./organization-external-tms-provider-credentials";
 
@@ -162,6 +164,84 @@ describe("organization external TMS provider credentials", () => {
     });
   });
 
+  describe("mapLokaliseOAuthTokenResponse", () => {
+    it("maps Lokalise OAuth token responses into persisted token bundles", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+
+      const tokenBundle = mapLokaliseOAuthTokenResponse(
+        {
+          access_token: "access-token",
+          refresh_token: "refresh-token",
+          token_type: "Bearer",
+          expires_in: 3600,
+        },
+        {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+        },
+      );
+
+      expect(tokenBundle).toEqual({
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        accessToken: "access-token",
+        refreshToken: "refresh-token",
+        tokenType: "Bearer",
+        expiresAt: "2026-01-01T01:00:00.000Z",
+      });
+    });
+
+    it("keeps the previous Lokalise refresh token when refresh responses omit one", () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+
+      const tokenBundle = mapLokaliseOAuthTokenResponse(
+        {
+          access_token: "access-token",
+          token_type: "Bearer",
+          expires_in: 3600,
+        },
+        {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+          refreshToken: "old-refresh-token",
+        },
+      );
+
+      expect(tokenBundle.refreshToken).toBe("old-refresh-token");
+    });
+
+    it("rejects malformed Lokalise OAuth token responses", () => {
+      expect(() =>
+        mapLokaliseOAuthTokenResponse(
+          {
+            refresh_token: "refresh-token",
+            expires_in: 3600,
+          },
+          {
+            clientId: "client-id",
+            clientSecret: "client-secret",
+          },
+        ),
+      ).toThrow("lokalise_oauth_token_response_invalid");
+
+      expect(() =>
+        mapLokaliseOAuthTokenResponse(
+          {
+            access_token: "access-token",
+            expires_in: 0,
+          },
+          {
+            clientId: "client-id",
+            clientSecret: "client-secret",
+            refreshToken: "old-refresh-token",
+          },
+        ),
+      ).toThrow("lokalise_oauth_token_response_invalid");
+    });
+  });
+
   describe("resolveExternalTmsSecretMaterial", () => {
     it("requires a user connection for Crowdin OAuth access tokens", async () => {
       vi.useFakeTimers();
@@ -257,6 +337,28 @@ describe("organization external TMS provider credentials", () => {
       await expect(
         resolveExternalTmsSecretMaterial({ credential, fetchFn: fetchMock }),
       ).rejects.toThrow("phrase_user_connection_required");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("requires a user connection for Lokalise OAuth access tokens", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      await fixture.authHeadersFor(identity);
+      const authContext = globalThis.__testApiAuthContext!;
+      const credential = await upsertLokaliseOAuthProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Lokalise",
+        oauthClient: {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+        },
+      });
+      const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+
+      await expect(
+        resolveExternalTmsSecretMaterial({ credential, fetchFn: fetchMock }),
+      ).rejects.toThrow("lokalise_user_connection_required");
       expect(fetchMock).not.toHaveBeenCalled();
     });
   });

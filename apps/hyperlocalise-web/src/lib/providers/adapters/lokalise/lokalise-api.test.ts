@@ -70,6 +70,26 @@ describe("LokaliseApiClient", () => {
     );
   });
 
+  it("uses Authorization for OAuth bearer tokens", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ projects: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = new LokaliseApiClient({
+      token: "Bearer oauth-token",
+      baseUrl: "https://api.lokalise.test/api2",
+      fetchFn: fetchMock,
+    });
+    await client.listProjects();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.lokalise.test/api2/projects?page=1&limit=100",
+      expect.objectContaining({
+        headers: { Authorization: "Bearer oauth-token" },
+      }),
+    );
+  });
+
   it("rejects unsafe base URLs before making requests", () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ projects: [] }), { status: 200 });
