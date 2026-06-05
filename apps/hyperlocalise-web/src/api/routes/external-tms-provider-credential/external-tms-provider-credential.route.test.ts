@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { createProviderCredentialTestFixture } from "../provider-credential/provider-credential.fixture";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
@@ -357,7 +358,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(authorizationUrl.searchParams.get("client_id")).toBe("phrase-client-id");
     expect(authorizationUrl.searchParams.get("redirect_uri")).toBe(userStartBody.redirectUri);
     expect(authorizationUrl.searchParams.get("response_type")).toBe("code");
-    expect(authorizationUrl.searchParams.get("scope")).toBe("openid");
+    expect(authorizationUrl.searchParams.get("scope")).toBe(getPhraseOAuthScopeString());
     expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe("S256");
     const state = authorizationUrl.searchParams.get("state") ?? "";
 
