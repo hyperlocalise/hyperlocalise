@@ -3,7 +3,7 @@ import fs from "fs/promises";
 import { pki } from "node-forge";
 import path from "path";
 
-const SSL_CERT_DIR = path.resolve(process.cwd(), "..", "..", ".ssl");
+const SSL_CERT_DIR = path.resolve(process.cwd(), ".ssl");
 const CERT_FILE = path.resolve(SSL_CERT_DIR, "certificate.pem");
 const KEY_FILE = path.resolve(SSL_CERT_DIR, "private-key.pem");
 

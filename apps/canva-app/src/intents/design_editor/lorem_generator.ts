@@ -12,7 +12,7 @@ export function convertWordsToLorem(text: string[]): string[] {
         if (w.length === 0) {
           return "";
         }
-        const word = loremWords[index];
+        const word = loremWords[index] ?? "";
         index = (index + 1) % loremWords.length;
         return word;
       })

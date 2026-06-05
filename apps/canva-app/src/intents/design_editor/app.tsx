@@ -58,21 +58,36 @@ export const App = () => {
 
           session.contents.forEach((range, index) => {
             const translatedRegions = response[index];
-            let endOfRegion = range.readPlaintext().length;
+            const plaintext = range.readPlaintext();
             const regionsToTranslate = range.readTextRegions();
-            regionsToTranslate.reverse().forEach((region, i) => {
-              endOfRegion = endOfRegion - region.text.length;
-              const translatedText = translatedRegions?.[regionsToTranslate.length - 1 - i];
-              if (translatedText) {
+            const offsets: number[] = [];
+            let searchFrom = 0;
+
+            for (const region of regionsToTranslate) {
+              const regionIndex = plaintext.indexOf(region.text, searchFrom);
+              if (regionIndex === -1) {
+                offsets.push(searchFrom);
+                searchFrom += region.text.length;
+              } else {
+                offsets.push(regionIndex);
+                searchFrom = regionIndex + region.text.length;
+              }
+            }
+
+            for (let i = regionsToTranslate.length - 1; i >= 0; i--) {
+              const region = regionsToTranslate[i];
+              const translatedText = translatedRegions?.[i];
+              const offset = offsets[i];
+              if (region && translatedText && offset != null) {
                 range.replaceText(
                   {
-                    index: endOfRegion,
+                    index: offset,
                     length: region.text.length,
                   },
                   translatedText,
                 );
               }
-            });
+            }
           });
 
           await session.sync();
