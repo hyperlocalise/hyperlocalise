@@ -10,6 +10,7 @@ describe("phrase-oauth-scopes", () => {
   it("builds a space-separated authorize scope string", () => {
     expect(getPhraseOAuthScopeString()).toBe(PHRASE_OAUTH_SCOPES.join(" "));
     expect(getPhraseOAuthScopeString()).toContain("openid");
+    expect(getPhraseOAuthScopeString()).toContain("offline_access");
   });
 
   it("keeps guide entries aligned with requested scopes", () => {

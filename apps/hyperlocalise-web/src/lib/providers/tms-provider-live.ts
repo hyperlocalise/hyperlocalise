@@ -63,6 +63,16 @@ const LIVE_PROJECT_JOB_FANOUT_CONCURRENCY = 5;
 const LIVE_GLOSSARY_TM_FANOUT_CONCURRENCY = 5;
 const maxLiveProviderInlineTextBytes = 512 * 1024;
 const maxLiveProviderStringPreviewItems = 1_000;
+const PROVIDER_CONNECTION_SECRET_ERROR_CODES = new Set([
+  "crowdin_oauth_refresh_failed",
+  "crowdin_oauth_token_invalid",
+  "crowdin_user_connection_required",
+  "phrase_oauth_refresh_failed",
+  "phrase_oauth_token_invalid",
+  "phrase_oauth_token_response_invalid",
+  "phrase_user_connection_not_found",
+  "phrase_user_connection_required",
+]);
 
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
@@ -226,15 +236,7 @@ async function buildActiveTmsProviderContext(
       actorUserId: options?.actorUserId,
     });
   } catch (error) {
-    if (
-      error instanceof Error &&
-      (error.message === "crowdin_oauth_refresh_failed" ||
-        error.message === "crowdin_oauth_token_invalid" ||
-        error.message === "crowdin_user_connection_required" ||
-        error.message === "phrase_oauth_refresh_failed" ||
-        error.message === "phrase_oauth_token_invalid" ||
-        error.message === "phrase_user_connection_required")
-    ) {
+    if (error instanceof Error && PROVIDER_CONNECTION_SECRET_ERROR_CODES.has(error.message)) {
       if (error.message === "crowdin_user_connection_required") {
         throw new TmsProviderLiveError(
           "crowdin_user_connection_required",
