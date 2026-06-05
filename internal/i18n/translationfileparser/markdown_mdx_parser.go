@@ -15,7 +15,11 @@ type mdxPathState struct {
 }
 
 func parseMarkdownMDXDocument(content []byte) (markdownDocument, map[string]string) {
-	source := strings.ReplaceAll(string(content), "\r\n", "\n")
+	source := string(content)
+	// BOLT OPTIMIZATION: Fast-path for strings without CRLF to avoid redundant strings.ReplaceAll allocations.
+	if strings.Contains(source, "\r\n") {
+		source = strings.ReplaceAll(source, "\r\n", "\n")
+	}
 	root := parseMDXCSTFromSource(source)
 	return extractMDXDocument(root, source)
 }
@@ -98,9 +102,16 @@ func (s *mdxExtractState) emitFrontmatterText(text string) {
 		s.doc.parts = append(s.doc.parts, part)
 		s.entries[key] = part.source
 	}
-	for _, line := range strings.SplitAfter(text, "\n") {
-		if line == "" {
-			continue
+	// BOLT OPTIMIZATION: Avoid strings.SplitAfter(text, "\n") to reduce allocations.
+	for len(text) > 0 {
+		var line string
+		idx := strings.IndexByte(text, '\n')
+		if idx < 0 {
+			line = text
+			text = ""
+		} else {
+			line = text[:idx+1]
+			text = text[idx+1:]
 		}
 		emitFrontmatterLineParts(line, s.doc, func(part markdownPart) {
 			appendKey(part)
@@ -116,9 +127,16 @@ func (s *mdxExtractState) emitMarkdownText(text string, stack []mdxContainer) {
 		s.doc.parts = append(s.doc.parts, part)
 		s.entries[key] = part.source
 	}
-	for _, line := range strings.SplitAfter(text, "\n") {
-		if line == "" {
-			continue
+	// BOLT OPTIMIZATION: Avoid strings.SplitAfter(text, "\n") to reduce allocations.
+	for len(text) > 0 {
+		var line string
+		idx := strings.IndexByte(text, '\n')
+		if idx < 0 {
+			line = text
+			text = ""
+		} else {
+			line = text[:idx+1]
+			text = text[idx+1:]
 		}
 		trimmed := strings.TrimSpace(line)
 		if len(stack) == 0 && isIndentedCodeLine(line) && s.prevTrimmed == "" {

@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"cmp"
 	"crypto/sha256"
 	"encoding/hex"
@@ -39,7 +40,10 @@ func parseMarkdownDocument(content []byte, mdx bool) (markdownDocument, map[stri
 }
 
 func parseMarkdownASTDocument(content []byte) (markdownDocument, map[string]string) {
-	content = []byte(strings.ReplaceAll(string(content), "\r\n", "\n"))
+	// BOLT OPTIMIZATION: Fast-path for strings without CRLF to avoid redundant bytes.ReplaceAll allocations.
+	if bytes.Contains(content, []byte("\r\n")) {
+		content = bytes.ReplaceAll(content, []byte("\r\n"), []byte("\n"))
+	}
 	candidates, bodyStart := collectFrontmatterCandidates(content)
 	candidates = append(candidates, collectMarkdownBodyCandidates(content[bodyStart:], bodyStart)...)
 	slices.SortFunc(candidates, func(a, b markdownSpanCandidate) int {
@@ -90,17 +94,28 @@ func parseMarkdownASTDocument(content []byte) (markdownDocument, map[string]stri
 }
 
 func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int) {
-	lines := strings.SplitAfter(string(content), "\n")
-	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+	// BOLT OPTIMIZATION: Avoid strings.SplitAfter(string(content), "\n") to reduce allocations for large files.
+	s := string(content)
+	idx := strings.IndexByte(s, '\n')
+	if idx < 0 {
+		return nil, 0
+	}
+	firstLine := s[:idx+1]
+	if strings.TrimSpace(firstLine) != "---" {
 		return nil, 0
 	}
 
 	candidates := []markdownSpanCandidate{}
-	offset := 0
-	for i, line := range lines {
-		if i == 0 {
-			offset += len(line)
-			continue
+	offset := len(firstLine)
+	s = s[offset:]
+
+	for len(s) > 0 {
+		idx = strings.IndexByte(s, '\n')
+		var line string
+		if idx < 0 {
+			line = s
+		} else {
+			line = s[:idx+1]
 		}
 
 		trimmed := strings.TrimSpace(line)
@@ -113,12 +128,14 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 		colon := strings.IndexByte(body, ':')
 		if colon <= 0 {
 			offset += len(line)
+			s = s[len(line):]
 			continue
 		}
 
 		key := strings.TrimSpace(body[:colon])
 		if key == "" {
 			offset += len(line)
+			s = s[len(line):]
 			continue
 		}
 
@@ -126,12 +143,14 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 		lead := len(valuePart) - len(strings.TrimLeftFunc(valuePart, unicode.IsSpace))
 		if lead >= len(valuePart) {
 			offset += len(line)
+			s = s[len(line):]
 			continue
 		}
 
 		valueRest := valuePart[lead:]
 		if len(valueRest) < 2 {
 			offset += len(line)
+			s = s[len(line):]
 			continue
 		}
 
@@ -143,6 +162,7 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 				strings.HasPrefix(plainValue, "[") || strings.HasPrefix(plainValue, "{") ||
 				strings.HasPrefix(plainValue, "|") || strings.HasPrefix(plainValue, ">") {
 				offset += len(line)
+				s = s[len(line):]
 				continue
 			}
 			if isTranslatableChunk(plainValue) {
@@ -151,17 +171,19 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 				candidates = append(candidates, markdownSpanCandidate{
 					start:     valueStart,
 					stop:      valueEnd,
-					path:      "frontmatter/" + key, // BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+					path:      "frontmatter/" + key,
 					yamlPlain: true,
 				})
 			}
 			offset += len(line)
+			s = s[len(line):]
 			continue
 		}
 
 		end := findQuotedStringEnd(valueRest, quote)
 		if end <= 1 {
 			offset += len(line)
+			s = s[len(line):]
 			continue
 		}
 
@@ -170,9 +192,10 @@ func collectFrontmatterCandidates(content []byte) ([]markdownSpanCandidate, int)
 		candidates = append(candidates, markdownSpanCandidate{
 			start: start,
 			stop:  stop,
-			path:  "frontmatter/" + key, // BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
+			path:  "frontmatter/" + key,
 		})
 		offset += len(line)
+		s = s[len(line):]
 	}
 
 	return candidates, offset
