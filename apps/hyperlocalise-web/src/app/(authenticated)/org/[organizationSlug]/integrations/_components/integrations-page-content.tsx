@@ -31,6 +31,7 @@ import type {
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
+import { PHRASE_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -844,12 +845,15 @@ function CrowdinOAuthSetupFields({
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {providerKind === "crowdin"
               ? "In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Crowdin."
-              : "Phrase TMS OAuth does not require app-level scopes in the current API. Hyperlocalise requests an authorization code and exchanges it for a user bearer token."}
+              : "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token."}
           </p>
         </div>
-        {providerKind === "crowdin" ? (
+        {providerKind === "crowdin" || providerKind === "phrase" ? (
           <ul className="space-y-2">
-            {CROWDIN_OAUTH_SCOPE_GUIDE.map((entry) => (
+            {(providerKind === "crowdin"
+              ? CROWDIN_OAUTH_SCOPE_GUIDE
+              : PHRASE_OAUTH_SCOPE_GUIDE
+            ).map((entry) => (
               <li key={entry.scope} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
                 <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
                   {entry.scope}

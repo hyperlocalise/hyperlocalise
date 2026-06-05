@@ -40,6 +40,7 @@ import {
   PhraseTmsApiClient,
   PhraseTmsApiError,
 } from "@/lib/providers/adapters/phrase/phrase-tms-api";
+import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { resolvePhraseTmsBaseUrl } from "@/lib/providers/adapters/phrase/phrase-tms-base-url";
 import {
   getPhraseUserConnectionSummary,
@@ -132,10 +133,7 @@ function createCodeChallenge(codeVerifier: string) {
   return base64Url(createHash("sha256").update(codeVerifier).digest());
 }
 
-function normalizeCrowdinUserOAuthReturnTo(
-  value: string | null | undefined,
-  organizationSlug: string,
-) {
+function normalizeUserOAuthReturnTo(value: string | null | undefined, organizationSlug: string) {
   const fallback = `/org/${organizationSlug}`;
   if (!value?.trim()) {
     return fallback;
@@ -160,7 +158,7 @@ function appendRelativeRedirectParam(path: string, key: string, value: string) {
   return `${url.pathname}${url.search}`;
 }
 
-function redirectToCrowdinUserOAuthReturnTo(
+function redirectToUserOAuthReturnTo(
   c: ExternalTmsProviderCredentialRouteContext,
   input: {
     returnTo: string | null | undefined;
@@ -170,7 +168,7 @@ function redirectToCrowdinUserOAuthReturnTo(
 ) {
   return c.redirect(
     appendRelativeRedirectParam(
-      normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug),
+      normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug),
       "error",
       input.error,
     ),
@@ -268,7 +266,7 @@ async function completeCrowdinUserOAuthLink(
       },
       "crowdin user oauth callback rejected: missing jobs read capability",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: "forbidden",
@@ -299,7 +297,7 @@ async function completeCrowdinUserOAuthLink(
         },
         "crowdin user oauth token exchange failed",
       );
-      return redirectToCrowdinUserOAuthReturnTo(c, {
+      return redirectToUserOAuthReturnTo(c, {
         returnTo: input.returnTo,
         organizationSlug: input.organizationSlug,
         error: input.exchangeFailedError,
@@ -315,7 +313,7 @@ async function completeCrowdinUserOAuthLink(
       },
       "crowdin user oauth token exchange errored",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: input.exchangeFailedError,
@@ -339,13 +337,13 @@ async function completeCrowdinUserOAuthLink(
       "crowdin user oauth profile lookup failed",
     );
     if (error instanceof CrowdinApiError && error.status === 401) {
-      return redirectToCrowdinUserOAuthReturnTo(c, {
+      return redirectToUserOAuthReturnTo(c, {
         returnTo: input.returnTo,
         organizationSlug: input.organizationSlug,
         error: "crowdin_user_oauth_invalid",
       });
     }
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: "crowdin_user_lookup_failed",
@@ -377,7 +375,7 @@ async function completeCrowdinUserOAuthLink(
     );
     return c.redirect(
       appendRelativeRedirectParam(
-        normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug),
+        normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug),
         "error",
         "crowdin_user_already_linked",
       ),
@@ -397,7 +395,7 @@ async function completeCrowdinUserOAuthLink(
     "crowdin user oauth connection linked",
   );
 
-  return c.redirect(normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug));
+  return c.redirect(normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug));
 }
 
 async function handleCrowdinUserOAuthCallback(
@@ -433,7 +431,7 @@ async function handleCrowdinUserOAuthCallback(
       },
       "crowdin user oauth callback rejected: credential unavailable",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: state.returnTo,
       organizationSlug,
       error: "crowdin_integration_not_connected",
@@ -482,7 +480,7 @@ async function completePhraseUserOAuthLink(
       },
       "phrase user oauth callback rejected: missing jobs read capability",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: "forbidden",
@@ -518,7 +516,7 @@ async function completePhraseUserOAuthLink(
         },
         "phrase user oauth token exchange failed",
       );
-      return redirectToCrowdinUserOAuthReturnTo(c, {
+      return redirectToUserOAuthReturnTo(c, {
         returnTo: input.returnTo,
         organizationSlug: input.organizationSlug,
         error: "phrase_user_oauth_exchange_failed",
@@ -534,7 +532,7 @@ async function completePhraseUserOAuthLink(
       },
       "phrase user oauth token exchange errored",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: "phrase_user_oauth_exchange_failed",
@@ -558,13 +556,13 @@ async function completePhraseUserOAuthLink(
       "phrase user oauth profile lookup failed",
     );
     if (error instanceof PhraseTmsApiError && error.status === 401) {
-      return redirectToCrowdinUserOAuthReturnTo(c, {
+      return redirectToUserOAuthReturnTo(c, {
         returnTo: input.returnTo,
         organizationSlug: input.organizationSlug,
         error: "phrase_user_oauth_invalid",
       });
     }
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: "phrase_user_lookup_failed",
@@ -591,7 +589,7 @@ async function completePhraseUserOAuthLink(
     );
     return c.redirect(
       appendRelativeRedirectParam(
-        normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug),
+        normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug),
         "error",
         "phrase_user_already_linked",
       ),
@@ -611,7 +609,7 @@ async function completePhraseUserOAuthLink(
     "phrase user oauth connection linked",
   );
 
-  return c.redirect(normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug));
+  return c.redirect(normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug));
 }
 
 async function handlePhraseUserOAuthCallback(
@@ -647,7 +645,7 @@ async function handlePhraseUserOAuthCallback(
       },
       "phrase user oauth callback rejected: credential unavailable",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: state.returnTo,
       organizationSlug,
       error: "phrase_integration_not_connected",
@@ -683,7 +681,7 @@ async function createCrowdinUserOAuthAuthorization(input: {
   const nonce = randomBytes(24).toString("hex");
   const codeVerifier = base64Url(randomBytes(48));
   const now = new Date();
-  const returnTo = normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug);
+  const returnTo = normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug);
 
   await db.insert(schema.crowdinUserOAuthStates).values({
     nonce,
@@ -718,7 +716,7 @@ async function createPhraseUserOAuthAuthorization(input: {
   const nonce = randomBytes(24).toString("hex");
   const codeVerifier = base64Url(randomBytes(48));
   const now = new Date();
-  const returnTo = normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug);
+  const returnTo = normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug);
 
   await db.insert(schema.phraseUserOAuthStates).values({
     nonce,
@@ -737,6 +735,7 @@ async function createPhraseUserOAuthAuthorization(input: {
   authorizationUrl.searchParams.set("client_id", client.clientId);
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
   authorizationUrl.searchParams.set("response_type", "code");
+  authorizationUrl.searchParams.set("scope", getPhraseOAuthScopeString());
   authorizationUrl.searchParams.set("state", nonce);
   authorizationUrl.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
   authorizationUrl.searchParams.set("code_challenge_method", "S256");
@@ -892,7 +891,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (userState) {
           return c.redirect(
             appendRelativeRedirectParam(
-              normalizeCrowdinUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              normalizeUserOAuthReturnTo(userState.returnTo, organizationSlug),
               "error",
               errorParam,
             ),
@@ -915,7 +914,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (userState) {
           return c.redirect(
             appendRelativeRedirectParam(
-              normalizeCrowdinUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              normalizeUserOAuthReturnTo(userState.returnTo, organizationSlug),
               "error",
               "missing_crowdin_user_oauth_code",
             ),
@@ -992,7 +991,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (userState) {
           return c.redirect(
             appendRelativeRedirectParam(
-              normalizeCrowdinUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              normalizeUserOAuthReturnTo(userState.returnTo, organizationSlug),
               "error",
               errorParam,
             ),
@@ -1015,7 +1014,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (userState) {
           return c.redirect(
             appendRelativeRedirectParam(
-              normalizeCrowdinUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              normalizeUserOAuthReturnTo(userState.returnTo, organizationSlug),
               "error",
               "missing_phrase_user_oauth_code",
             ),

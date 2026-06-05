@@ -316,6 +316,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(authorizationUrl.searchParams.get("client_id")).toBe("phrase-client-id");
     expect(authorizationUrl.searchParams.get("redirect_uri")).toBe(userStartBody.redirectUri);
     expect(authorizationUrl.searchParams.get("response_type")).toBe("code");
+    expect(authorizationUrl.searchParams.get("scope")).toBe("openid");
     expect(authorizationUrl.searchParams.get("code_challenge_method")).toBe("S256");
     const state = authorizationUrl.searchParams.get("state") ?? "";
 
