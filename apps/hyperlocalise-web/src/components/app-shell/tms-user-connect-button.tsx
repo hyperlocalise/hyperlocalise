@@ -39,6 +39,8 @@ const TMS_USER_OAUTH_ERROR_MESSAGES: Record<string, string> = {
     "Lokalise could not exchange the authorization code. Check the OAuth callback URL in your Lokalise app settings.",
   lokalise_user_oauth_invalid: "Lokalise rejected the connection. Try connecting again.",
   lokalise_user_lookup_failed: "Lokalise connected, but Hyperlocalise could not load your profile.",
+  lokalise_user_no_projects:
+    "Lokalise authorized your account, but you need access to at least one project before linking.",
   lokalise_user_already_linked:
     "This Lokalise account is already linked to another member in this workspace.",
   invalid_lokalise_oauth_state:

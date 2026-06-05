@@ -13,6 +13,7 @@ import {
   listLokaliseFilenameEntries,
   LokaliseApiClient,
   LokaliseApiError,
+  LokaliseOAuthUserResolutionError,
   parseLokaliseTaskDueDate,
   partitionLokaliseLocales,
   summarizeLokaliseBulkUpdateChunkResult,
@@ -68,6 +69,57 @@ describe("LokaliseApiClient", () => {
         headers: { "X-Api-Token": "test-token" },
       }),
     );
+  });
+
+  it("resolves OAuth user identity from contributors/me in an accessible project", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const href = String(url);
+      if (href.includes("/projects?page=1")) {
+        return new Response(
+          JSON.stringify({
+            projects: [{ project_id: "proj.123", name: "Marketing Website" }],
+          }),
+          { status: 200 },
+        );
+      }
+      if (href.endsWith("/projects/proj.123/contributors/me")) {
+        return new Response(
+          JSON.stringify({
+            contributor: {
+              user_id: 98765,
+              email: "lokalise-user@example.com",
+              fullname: "Lokalise User",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ error: "unexpected_url", url: href }), {
+        status: 500,
+      });
+    }) as unknown as typeof fetch;
+
+    const identity = await createClient(fetchMock).resolveOAuthUserIdentity();
+
+    expect(identity).toEqual({
+      id: 98765,
+      username: "lokalise-user@example.com",
+      email: "lokalise-user@example.com",
+      fullName: "Lokalise User",
+    });
+  });
+
+  it("reports no_projects when OAuth identity cannot be resolved without accessible projects", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ projects: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await expect(createClient(fetchMock).resolveOAuthUserIdentity()).rejects.toBeInstanceOf(
+      LokaliseOAuthUserResolutionError,
+    );
+    await expect(createClient(fetchMock).resolveOAuthUserIdentity()).rejects.toMatchObject({
+      code: "no_projects",
+    });
   });
 
   it("uses Authorization for OAuth bearer tokens", async () => {

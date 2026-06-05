@@ -20,7 +20,6 @@ CREATE TABLE "lokalise_user_connections" (
 CREATE TABLE "lokalise_user_oauth_states" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"nonce" text NOT NULL,
-	"code_verifier" text NOT NULL,
 	"organization_id" uuid NOT NULL,
 	"user_id" uuid NOT NULL,
 	"provider_credential_id" uuid NOT NULL,

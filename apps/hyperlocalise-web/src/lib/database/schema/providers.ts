@@ -325,7 +325,6 @@ export const lokaliseUserOAuthStates = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     nonce: text("nonce").notNull(),
-    codeVerifier: text("code_verifier").notNull(),
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),

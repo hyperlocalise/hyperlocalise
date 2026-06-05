@@ -654,8 +654,10 @@ describe("externalTmsProviderCredentialRoutes", () => {
       grant_type: "authorization_code",
       client_id: "lokalise-client-id",
       client_secret: "lokalise-client-secret",
+      redirect_uri: userStartBody.redirectUri,
       code: "lokalise-code",
     });
+    expect(authorizationUrl.searchParams.has("code_challenge")).toBe(false);
 
     const [connection] = await db
       .select()

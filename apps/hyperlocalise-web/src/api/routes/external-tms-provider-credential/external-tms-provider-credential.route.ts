@@ -53,6 +53,7 @@ import { getLokaliseOAuthScopeString } from "@/lib/providers/adapters/lokalise/l
 import {
   LokaliseApiClient,
   LokaliseApiError,
+  LokaliseOAuthUserResolutionError,
 } from "@/lib/providers/adapters/lokalise/lokalise-api";
 import {
   getLokaliseUserConnectionSummary,
@@ -745,6 +746,7 @@ async function completeLokaliseUserOAuthLink(
     code: string;
     client: { clientId: string; clientSecret: string };
     credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
+    redirectUri: string;
     organizationSlug: string;
     returnTo: string | null | undefined;
     consumeState: () => Promise<void>;
@@ -775,6 +777,7 @@ async function completeLokaliseUserOAuthLink(
         grant_type: "authorization_code",
         client_id: input.client.clientId,
         client_secret: input.client.clientSecret,
+        redirect_uri: input.redirectUri,
         code: input.code,
       }),
       redirect: "error",
@@ -812,39 +815,12 @@ async function completeLokaliseUserOAuthLink(
     });
   }
 
-  let lokaliseUser: { id: number; username: string; email: string | null; fullName: string | null };
+  let lokaliseUser: Awaited<ReturnType<LokaliseApiClient["resolveOAuthUserIdentity"]>>;
   try {
-    const client = new LokaliseApiClient({
+    lokaliseUser = await new LokaliseApiClient({
       token: `${tokenBundle.tokenType} ${tokenBundle.accessToken}`,
       baseUrl: input.credential.baseUrl ?? undefined,
-    });
-    const projects = await client.listProjects();
-    const firstProject = projects[0];
-    if (!firstProject) {
-      return redirectToUserOAuthReturnTo(c, {
-        returnTo: input.returnTo,
-        organizationSlug: input.organizationSlug,
-        error: "lokalise_user_lookup_failed",
-      });
-    }
-
-    const contributor = await client.getAuthenticatedContributor(firstProject.projectId);
-    if (!contributor.userId) {
-      return redirectToUserOAuthReturnTo(c, {
-        returnTo: input.returnTo,
-        organizationSlug: input.organizationSlug,
-        error: "lokalise_user_lookup_failed",
-      });
-    }
-
-    const fullName = contributor.fullname;
-    const email = contributor.email;
-    lokaliseUser = {
-      id: contributor.userId,
-      username: email ?? fullName ?? `lokalise-user-${contributor.userId}`,
-      email,
-      fullName,
-    };
+    }).resolveOAuthUserIdentity();
   } catch (error) {
     logger.warn(
       {
@@ -852,9 +828,17 @@ async function completeLokaliseUserOAuthLink(
         userId: c.var.auth.user.localUserId,
         providerCredentialId: input.credential.id,
         status: error instanceof LokaliseApiError ? error.status : null,
+        resolutionCode: error instanceof LokaliseOAuthUserResolutionError ? error.code : null,
       },
       "lokalise user oauth profile lookup failed",
     );
+    if (error instanceof LokaliseOAuthUserResolutionError && error.code === "no_projects") {
+      return redirectToUserOAuthReturnTo(c, {
+        returnTo: input.returnTo,
+        organizationSlug: input.organizationSlug,
+        error: "lokalise_user_no_projects",
+      });
+    }
     if (error instanceof LokaliseApiError && error.status === 401) {
       return redirectToUserOAuthReturnTo(c, {
         returnTo: input.returnTo,
@@ -957,6 +941,7 @@ async function handleLokaliseUserOAuthCallback(
     code,
     client,
     credential,
+    redirectUri: getLokaliseOAuthRedirectUri(c, organizationSlug),
     organizationSlug,
     returnTo: state.returnTo,
     consumeState: async () => {
@@ -1048,13 +1033,11 @@ async function createLokaliseUserOAuthAuthorization(input: {
 }) {
   const client = getLokaliseOAuthClientFromCredential(input.credential);
   const nonce = randomBytes(24).toString("hex");
-  const codeVerifier = base64Url(randomBytes(48));
   const now = new Date();
   const returnTo = normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug);
 
   await db.insert(schema.lokaliseUserOAuthStates).values({
     nonce,
-    codeVerifier,
     organizationId: input.c.var.auth.organization.localOrganizationId,
     userId: input.c.var.auth.user.localUserId,
     providerCredentialId: input.credential.id,

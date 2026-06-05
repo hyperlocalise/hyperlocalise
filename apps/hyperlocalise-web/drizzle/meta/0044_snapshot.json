@@ -1,5 +1,5 @@
 {
-  "id": "172e3f2f-f635-487e-b86d-31b66c50e7b8",
+  "id": "c20a9ddc-5ca2-4000-ae90-fa282d4358e8",
   "prevId": "a7b9d38a-624a-4ec5-905b-fde3b466618d",
   "version": "7",
   "dialect": "postgresql",
@@ -1405,12 +1405,6 @@
         },
         "nonce": {
           "name": "nonce",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "code_verifier": {
-          "name": "code_verifier",
           "type": "text",
           "primaryKey": false,
           "notNull": true
