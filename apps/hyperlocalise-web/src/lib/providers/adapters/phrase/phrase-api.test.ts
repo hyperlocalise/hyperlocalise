@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { PhraseApiClient, PhraseApiError } from "./phrase-api";
+import { PhraseApiClient, PhraseApiError, phraseStringsAuthorizationHeader } from "./phrase-api";
 import { PHRASE_US_BASE_URL } from "./phrase-base-url";
 
 describe("PhraseApiClient", () => {
@@ -12,6 +12,12 @@ describe("PhraseApiClient", () => {
       fetchFn,
     });
   }
+
+  it("builds token authorization headers while preserving bearer tokens", () => {
+    expect(phraseStringsAuthorizationHeader("secret")).toBe("token secret");
+    expect(phraseStringsAuthorizationHeader("token secret")).toBe("token secret");
+    expect(phraseStringsAuthorizationHeader("Bearer access-token")).toBe("Bearer access-token");
+  });
 
   it("lists projects with pagination", async () => {
     const fetchMock = vi.fn(async (url) => {

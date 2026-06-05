@@ -1,9 +1,10 @@
 import {
-  CROWDIN_OAUTH_AUTH_MODE,
+  OAUTH_AUTH_MODE,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   type ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getCrowdinUserConnection } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
+import { getPhraseUserConnection } from "@/lib/providers/adapters/phrase/phrase-user-connections";
 import {
   formatTmsUserConnectProviderLabel,
   type TmsUserConnectCta,
@@ -59,6 +60,42 @@ async function resolveCrowdinUserConnectCta(input: {
   };
 }
 
+async function resolvePhraseUserConnectCta(input: {
+  organizationId: string;
+  userId: string;
+  displayName: string;
+}): Promise<TmsUserConnectCta> {
+  const connection = await getPhraseUserConnection({
+    organizationId: input.organizationId,
+    userId: input.userId,
+  });
+  if (connection) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        connectionId: connection.id,
+      },
+      "phrase user connect cta hidden: connection found",
+    );
+    return { showConnectCta: false };
+  }
+
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      userId: input.userId,
+    },
+    "phrase user connect cta shown: connection missing",
+  );
+
+  return {
+    showConnectCta: true,
+    providerKind: "phrase",
+    providerDisplayName: input.displayName,
+  };
+}
+
 /**
  * Whether the signed-in user should link a personal account for the org's active TMS.
  * Based on the active integration only — not a hardcoded Crowdin assumption.
@@ -86,7 +123,7 @@ export async function getTmsUserConnectCtaState(input: {
     credential.displayName.trim() ||
     formatTmsUserConnectProviderLabel(providerKind as TmsUserConnectProviderKind);
 
-  if (providerKind === "crowdin" && credential.authMode === CROWDIN_OAUTH_AUTH_MODE) {
+  if (providerKind === "crowdin" && credential.authMode === OAUTH_AUTH_MODE) {
     logger.info(
       {
         organizationId: input.organizationId,
@@ -96,6 +133,22 @@ export async function getTmsUserConnectCtaState(input: {
       "tms user connect cta checking crowdin connection",
     );
     return resolveCrowdinUserConnectCta({
+      organizationId: input.organizationId,
+      userId: input.userId,
+      displayName,
+    });
+  }
+
+  if (providerKind === "phrase" && credential.authMode === OAUTH_AUTH_MODE) {
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        providerCredentialId: credential.id,
+      },
+      "tms user connect cta checking phrase connection",
+    );
+    return resolvePhraseUserConnectCta({
       organizationId: input.organizationId,
       userId: input.userId,
       displayName,

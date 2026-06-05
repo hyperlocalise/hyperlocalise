@@ -519,7 +519,7 @@ export class PhraseApiClient {
 
   private authHeaders(): Record<string, string> {
     return {
-      Authorization: `token ${this.token}`,
+      Authorization: phraseStringsAuthorizationHeader(this.token),
     };
   }
 
@@ -588,6 +588,15 @@ export class PhraseApiClient {
 
     return response.json() as Promise<T>;
   }
+}
+
+export function phraseStringsAuthorizationHeader(token: string): string {
+  const trimmed = token.trim();
+  const lower = trimmed.toLowerCase();
+  if (lower.startsWith("token ") || lower.startsWith("bearer ")) {
+    return trimmed;
+  }
+  return `token ${trimmed}`;
 }
 
 function isPhraseTranslationConflict(error: unknown): boolean {

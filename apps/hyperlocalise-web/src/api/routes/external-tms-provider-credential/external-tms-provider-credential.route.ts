@@ -10,17 +10,21 @@ import { env } from "@/lib/env";
 import { isErr } from "@/lib/primitives/result/results";
 import { db, schema } from "@/lib/database";
 import {
+  OAUTH_AUTH_MODE,
   assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   getCrowdinOAuthClientFromCredential,
+  getPhraseOAuthClientFromCredential,
   getActiveOrganizationExternalTmsProviderCredential,
   getOrganizationExternalTmsProviderCredentialSummary,
   listOrganizationExternalTmsProviderCredentialDetails,
   mapCrowdinOAuthTokenResponse,
+  mapPhraseOAuthTokenResponse,
   revealOrganizationExternalTmsProviderCredential,
   upsertCrowdinOAuthProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
+  upsertPhraseOAuthProviderCredential,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import {
   checkExternalTmsProviderHealth,
@@ -32,6 +36,16 @@ import {
   getCrowdinUserConnectionSummary,
   upsertCrowdinUserConnection,
 } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
+import {
+  PhraseTmsApiClient,
+  PhraseTmsApiError,
+} from "@/lib/providers/adapters/phrase/phrase-tms-api";
+import { getPhraseOAuthScopeString } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
+import { resolvePhraseTmsBaseUrl } from "@/lib/providers/adapters/phrase/phrase-tms-base-url";
+import {
+  getPhraseUserConnectionSummary,
+  upsertPhraseUserConnection,
+} from "@/lib/providers/adapters/phrase/phrase-user-connections";
 import { getTmsUserConnectCtaState } from "@/lib/providers/tms-user-connection";
 import { createLogger } from "@/lib/log";
 
@@ -39,12 +53,15 @@ import {
   crowdinOAuthStartBodySchema,
   crowdinUserOAuthStartBodySchema,
   externalTmsProviderKindSchema,
+  phraseOAuthStartBodySchema,
+  phraseUserOAuthStartBodySchema,
   revealExternalTmsProviderCredentialBodySchema,
   upsertExternalTmsProviderCredentialBodySchema,
 } from "./external-tms-provider-credential.schema";
 
 const CROWDIN_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
-const logger = createLogger("crowdin-user-oauth");
+const PHRASE_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
+const logger = createLogger("tms-user-oauth");
 
 const validateUpsertBody = validator("json", (value, c) => {
   const parsed = upsertExternalTmsProviderCredentialBodySchema.safeParse(value);
@@ -72,6 +89,18 @@ const validateCrowdinUserOAuthStartBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validatePhraseOAuthStartBody = validator("json", (value, c) => {
+  const parsed = phraseOAuthStartBodySchema.safeParse(value);
+  if (!parsed.success) return c.json({ error: "invalid_phrase_oauth_start_payload" }, 400);
+  return parsed.data;
+});
+
+const validatePhraseUserOAuthStartBody = validator("json", (value, c) => {
+  const parsed = phraseUserOAuthStartBodySchema.safeParse(value);
+  if (!parsed.success) return c.json({ error: "invalid_phrase_user_oauth_start_payload" }, 400);
+  return parsed.data;
+});
+
 type ExternalTmsProviderCredentialRouteContext = Context<{ Variables: AuthVariables }>;
 
 function getCrowdinOAuthRequestOrigin(c: ExternalTmsProviderCredentialRouteContext) {
@@ -89,6 +118,13 @@ function getCrowdinOAuthRedirectUri(
   return `${getCrowdinOAuthRequestOrigin(c)}/api/orgs/${encodeURIComponent(organizationSlug)}/external-tms-provider-credential/crowdin/oauth/callback`;
 }
 
+function getPhraseOAuthRedirectUri(
+  c: ExternalTmsProviderCredentialRouteContext,
+  organizationSlug: string,
+) {
+  return `${getCrowdinOAuthRequestOrigin(c)}/api/orgs/${encodeURIComponent(organizationSlug)}/external-tms-provider-credential/phrase/oauth/callback`;
+}
+
 function base64Url(input: Buffer) {
   return input.toString("base64").replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "");
 }
@@ -97,10 +133,7 @@ function createCodeChallenge(codeVerifier: string) {
   return base64Url(createHash("sha256").update(codeVerifier).digest());
 }
 
-function normalizeCrowdinUserOAuthReturnTo(
-  value: string | null | undefined,
-  organizationSlug: string,
-) {
+function normalizeUserOAuthReturnTo(value: string | null | undefined, organizationSlug: string) {
   const fallback = `/org/${organizationSlug}`;
   if (!value?.trim()) {
     return fallback;
@@ -125,7 +158,7 @@ function appendRelativeRedirectParam(path: string, key: string, value: string) {
   return `${url.pathname}${url.search}`;
 }
 
-function redirectToCrowdinUserOAuthReturnTo(
+function redirectToUserOAuthReturnTo(
   c: ExternalTmsProviderCredentialRouteContext,
   input: {
     returnTo: string | null | undefined;
@@ -135,7 +168,7 @@ function redirectToCrowdinUserOAuthReturnTo(
 ) {
   return c.redirect(
     appendRelativeRedirectParam(
-      normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug),
+      normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug),
       "error",
       input.error,
     ),
@@ -176,6 +209,40 @@ async function findActiveCrowdinUserOAuthState(
   return state ?? null;
 }
 
+async function findActivePhraseUserOAuthState(
+  c: ExternalTmsProviderCredentialRouteContext,
+  stateParam: string,
+  now: Date,
+) {
+  const [state] = await db
+    .select()
+    .from(schema.phraseUserOAuthStates)
+    .where(
+      and(
+        eq(schema.phraseUserOAuthStates.nonce, stateParam),
+        eq(
+          schema.phraseUserOAuthStates.organizationId,
+          c.var.auth.organization.localOrganizationId,
+        ),
+        eq(schema.phraseUserOAuthStates.userId, c.var.auth.user.localUserId),
+        gt(schema.phraseUserOAuthStates.expiresAt, now),
+        isNull(schema.phraseUserOAuthStates.consumedAt),
+      ),
+    )
+    .limit(1);
+
+  logger.info(
+    {
+      found: Boolean(state),
+      organizationId: c.var.auth.organization.localOrganizationId,
+      userId: c.var.auth.user.localUserId,
+    },
+    "phrase user oauth state lookup completed",
+  );
+
+  return state ?? null;
+}
+
 async function completeCrowdinUserOAuthLink(
   c: ExternalTmsProviderCredentialRouteContext,
   input: {
@@ -199,7 +266,7 @@ async function completeCrowdinUserOAuthLink(
       },
       "crowdin user oauth callback rejected: missing jobs read capability",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: "forbidden",
@@ -230,7 +297,7 @@ async function completeCrowdinUserOAuthLink(
         },
         "crowdin user oauth token exchange failed",
       );
-      return redirectToCrowdinUserOAuthReturnTo(c, {
+      return redirectToUserOAuthReturnTo(c, {
         returnTo: input.returnTo,
         organizationSlug: input.organizationSlug,
         error: input.exchangeFailedError,
@@ -246,7 +313,7 @@ async function completeCrowdinUserOAuthLink(
       },
       "crowdin user oauth token exchange errored",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: input.exchangeFailedError,
@@ -270,13 +337,13 @@ async function completeCrowdinUserOAuthLink(
       "crowdin user oauth profile lookup failed",
     );
     if (error instanceof CrowdinApiError && error.status === 401) {
-      return redirectToCrowdinUserOAuthReturnTo(c, {
+      return redirectToUserOAuthReturnTo(c, {
         returnTo: input.returnTo,
         organizationSlug: input.organizationSlug,
         error: "crowdin_user_oauth_invalid",
       });
     }
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: input.returnTo,
       organizationSlug: input.organizationSlug,
       error: "crowdin_user_lookup_failed",
@@ -308,7 +375,7 @@ async function completeCrowdinUserOAuthLink(
     );
     return c.redirect(
       appendRelativeRedirectParam(
-        normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug),
+        normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug),
         "error",
         "crowdin_user_already_linked",
       ),
@@ -328,7 +395,7 @@ async function completeCrowdinUserOAuthLink(
     "crowdin user oauth connection linked",
   );
 
-  return c.redirect(normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug));
+  return c.redirect(normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug));
 }
 
 async function handleCrowdinUserOAuthCallback(
@@ -352,7 +419,7 @@ async function handleCrowdinUserOAuthCallback(
       ),
     )
     .limit(1);
-  if (!credential || credential.authMode !== "oauth") {
+  if (!credential || credential.authMode !== OAUTH_AUTH_MODE) {
     logger.warn(
       {
         organizationId: c.var.auth.organization.localOrganizationId,
@@ -364,7 +431,7 @@ async function handleCrowdinUserOAuthCallback(
       },
       "crowdin user oauth callback rejected: credential unavailable",
     );
-    return redirectToCrowdinUserOAuthReturnTo(c, {
+    return redirectToUserOAuthReturnTo(c, {
       returnTo: state.returnTo,
       organizationSlug,
       error: "crowdin_integration_not_connected",
@@ -391,6 +458,219 @@ async function handleCrowdinUserOAuthCallback(
   });
 }
 
+async function completePhraseUserOAuthLink(
+  c: ExternalTmsProviderCredentialRouteContext,
+  input: {
+    code: string;
+    codeVerifier: string;
+    client: { clientId: string; clientSecret: string };
+    credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
+    redirectUri: string;
+    organizationSlug: string;
+    returnTo: string | null | undefined;
+    consumeState: () => Promise<void>;
+  },
+) {
+  if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        role: c.var.auth.membership.role,
+      },
+      "phrase user oauth callback rejected: missing jobs read capability",
+    );
+    return redirectToUserOAuthReturnTo(c, {
+      returnTo: input.returnTo,
+      organizationSlug: input.organizationSlug,
+      error: "forbidden",
+    });
+  }
+
+  let tokenBundle: ReturnType<typeof mapPhraseOAuthTokenResponse>;
+  try {
+    const body = new URLSearchParams({
+      grant_type: "authorization_code",
+      client_id: input.client.clientId,
+      client_secret: input.client.clientSecret,
+      redirect_uri: input.redirectUri,
+      code: input.code,
+      code_verifier: input.codeVerifier,
+    });
+    const response = await fetch(
+      `${resolvePhraseTmsBaseUrl({ baseUrl: input.credential.baseUrl })}/oauth/token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body,
+        redirect: "error",
+      },
+    );
+    if (!response.ok) {
+      logger.warn(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          providerCredentialId: input.credential.id,
+          status: response.status,
+        },
+        "phrase user oauth token exchange failed",
+      );
+      return redirectToUserOAuthReturnTo(c, {
+        returnTo: input.returnTo,
+        organizationSlug: input.organizationSlug,
+        error: "phrase_user_oauth_exchange_failed",
+      });
+    }
+    tokenBundle = mapPhraseOAuthTokenResponse(await response.json(), input.client);
+  } catch {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        providerCredentialId: input.credential.id,
+      },
+      "phrase user oauth token exchange errored",
+    );
+    return redirectToUserOAuthReturnTo(c, {
+      returnTo: input.returnTo,
+      organizationSlug: input.organizationSlug,
+      error: "phrase_user_oauth_exchange_failed",
+    });
+  }
+
+  let phraseUser: Awaited<ReturnType<PhraseTmsApiClient["getAuthenticatedUser"]>>;
+  try {
+    phraseUser = await new PhraseTmsApiClient({
+      token: `${tokenBundle.tokenType} ${tokenBundle.accessToken}`,
+      baseUrl: input.credential.baseUrl ?? undefined,
+    }).getAuthenticatedUser();
+  } catch (error) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        providerCredentialId: input.credential.id,
+        status: error instanceof PhraseTmsApiError ? error.status : null,
+      },
+      "phrase user oauth profile lookup failed",
+    );
+    if (error instanceof PhraseTmsApiError && error.status === 401) {
+      return redirectToUserOAuthReturnTo(c, {
+        returnTo: input.returnTo,
+        organizationSlug: input.organizationSlug,
+        error: "phrase_user_oauth_invalid",
+      });
+    }
+    return redirectToUserOAuthReturnTo(c, {
+      returnTo: input.returnTo,
+      organizationSlug: input.organizationSlug,
+      error: "phrase_user_lookup_failed",
+    });
+  }
+
+  const upsertResult = await upsertPhraseUserConnection({
+    organizationId: c.var.auth.organization.localOrganizationId,
+    userId: c.var.auth.user.localUserId,
+    providerCredentialId: input.credential.id,
+    tokenBundle,
+    phraseUser,
+  });
+  if (isErr(upsertResult)) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        providerCredentialId: input.credential.id,
+        phraseUserUid: phraseUser.uid,
+        code: upsertResult.error.code,
+      },
+      "phrase user oauth connection upsert rejected",
+    );
+    return c.redirect(
+      appendRelativeRedirectParam(
+        normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug),
+        "error",
+        "phrase_user_already_linked",
+      ),
+    );
+  }
+
+  await input.consumeState();
+
+  logger.info(
+    {
+      organizationId: c.var.auth.organization.localOrganizationId,
+      userId: c.var.auth.user.localUserId,
+      providerCredentialId: input.credential.id,
+      phraseUserUid: phraseUser.uid,
+      connectionId: upsertResult.value.id,
+    },
+    "phrase user oauth connection linked",
+  );
+
+  return c.redirect(normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug));
+}
+
+async function handlePhraseUserOAuthCallback(
+  c: ExternalTmsProviderCredentialRouteContext,
+  state: NonNullable<Awaited<ReturnType<typeof findActivePhraseUserOAuthState>>>,
+  code: string,
+  organizationSlug: string,
+  redirectUri: string,
+) {
+  const [credential] = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.id, state.providerCredentialId),
+        eq(
+          schema.organizationExternalTmsProviderCredentials.organizationId,
+          c.var.auth.organization.localOrganizationId,
+        ),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, "phrase"),
+      ),
+    )
+    .limit(1);
+  if (!credential || credential.authMode !== OAUTH_AUTH_MODE) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        stateId: state.id,
+        providerCredentialId: state.providerCredentialId,
+        credentialFound: Boolean(credential),
+        authMode: credential?.authMode ?? null,
+      },
+      "phrase user oauth callback rejected: credential unavailable",
+    );
+    return redirectToUserOAuthReturnTo(c, {
+      returnTo: state.returnTo,
+      organizationSlug,
+      error: "phrase_integration_not_connected",
+    });
+  }
+
+  const client = getPhraseOAuthClientFromCredential(credential);
+
+  return completePhraseUserOAuthLink(c, {
+    code,
+    codeVerifier: state.codeVerifier,
+    client,
+    credential,
+    redirectUri,
+    organizationSlug,
+    returnTo: state.returnTo,
+    consumeState: async () => {
+      await db
+        .update(schema.phraseUserOAuthStates)
+        .set({ consumedAt: new Date(), updatedAt: new Date() })
+        .where(eq(schema.phraseUserOAuthStates.id, state.id));
+    },
+  });
+}
+
 async function createCrowdinUserOAuthAuthorization(input: {
   c: ExternalTmsProviderCredentialRouteContext;
   credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
@@ -401,7 +681,7 @@ async function createCrowdinUserOAuthAuthorization(input: {
   const nonce = randomBytes(24).toString("hex");
   const codeVerifier = base64Url(randomBytes(48));
   const now = new Date();
-  const returnTo = normalizeCrowdinUserOAuthReturnTo(input.returnTo, input.organizationSlug);
+  const returnTo = normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug);
 
   await db.insert(schema.crowdinUserOAuthStates).values({
     nonce,
@@ -419,6 +699,43 @@ async function createCrowdinUserOAuthAuthorization(input: {
   authorizationUrl.searchParams.set("redirect_uri", redirectUri);
   authorizationUrl.searchParams.set("response_type", "code");
   authorizationUrl.searchParams.set("scope", getCrowdinOAuthScopeString());
+  authorizationUrl.searchParams.set("state", nonce);
+  authorizationUrl.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
+  authorizationUrl.searchParams.set("code_challenge_method", "S256");
+
+  return { authorizationUrl: authorizationUrl.toString(), redirectUri };
+}
+
+async function createPhraseUserOAuthAuthorization(input: {
+  c: ExternalTmsProviderCredentialRouteContext;
+  credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
+  organizationSlug: string;
+  returnTo: string;
+}) {
+  const client = getPhraseOAuthClientFromCredential(input.credential);
+  const nonce = randomBytes(24).toString("hex");
+  const codeVerifier = base64Url(randomBytes(48));
+  const now = new Date();
+  const returnTo = normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug);
+
+  await db.insert(schema.phraseUserOAuthStates).values({
+    nonce,
+    codeVerifier,
+    organizationId: input.c.var.auth.organization.localOrganizationId,
+    userId: input.c.var.auth.user.localUserId,
+    providerCredentialId: input.credential.id,
+    returnTo,
+    expiresAt: new Date(now.getTime() + PHRASE_USER_OAUTH_STATE_TTL_MS),
+  });
+
+  const authorizationUrl = new URL(
+    `${resolvePhraseTmsBaseUrl({ baseUrl: input.credential.baseUrl })}/oauth/authorize`,
+  );
+  const redirectUri = getPhraseOAuthRedirectUri(input.c, input.organizationSlug);
+  authorizationUrl.searchParams.set("client_id", client.clientId);
+  authorizationUrl.searchParams.set("redirect_uri", redirectUri);
+  authorizationUrl.searchParams.set("response_type", "code");
+  authorizationUrl.searchParams.set("scope", getPhraseOAuthScopeString());
   authorizationUrl.searchParams.set("state", nonce);
   authorizationUrl.searchParams.set("code_challenge", createCodeChallenge(codeVerifier));
   authorizationUrl.searchParams.set("code_challenge_method", "S256");
@@ -487,6 +804,45 @@ export function createExternalTmsProviderCredentialRoutes() {
         throw error;
       }
     })
+    .post("/phrase/oauth-app", validatePhraseOAuthStartBody, async (c) => {
+      try {
+        if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        const payload = c.req.valid("json");
+
+        const providerCredential = await upsertPhraseOAuthProviderCredential({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          role: c.var.auth.membership.role,
+          displayName: payload.displayName,
+          oauthClient: {
+            clientId: payload.oauthClientId,
+            clientSecret: payload.oauthClientSecret,
+          },
+          baseUrl: payload.baseUrl ?? null,
+        });
+
+        return c.json(
+          {
+            externalTmsProviderCredential: providerCredential,
+            shouldConnectPhraseUser: true,
+          },
+          200,
+        );
+      } catch (error) {
+        if (error instanceof Error && error.message === "provider_base_url_invalid") {
+          return c.json(
+            {
+              error: "provider_base_url_invalid",
+              message: "Provider base URL is invalid.",
+            },
+            400,
+          );
+        }
+        throw error;
+      }
+    })
     .get("/crowdin/oauth/callback", async (c) => {
       const stateParam = c.req.query("state");
       if (!stateParam) {
@@ -535,7 +891,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (userState) {
           return c.redirect(
             appendRelativeRedirectParam(
-              normalizeCrowdinUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              normalizeUserOAuthReturnTo(userState.returnTo, organizationSlug),
               "error",
               errorParam,
             ),
@@ -558,7 +914,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (userState) {
           return c.redirect(
             appendRelativeRedirectParam(
-              normalizeCrowdinUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              normalizeUserOAuthReturnTo(userState.returnTo, organizationSlug),
               "error",
               "missing_crowdin_user_oauth_code",
             ),
@@ -585,6 +941,106 @@ export function createExternalTmsProviderCredentialRoutes() {
         code,
         organizationSlug,
         getCrowdinOAuthRedirectUri(c, organizationSlug),
+      );
+    })
+    .get("/phrase/oauth/callback", async (c) => {
+      const stateParam = c.req.query("state");
+      if (!stateParam) {
+        logger.warn("phrase user oauth callback missing state");
+        return c.redirect("/dashboard?error=missing_phrase_oauth_state");
+      }
+
+      const organizationSlug = c.var.auth.organization.slug;
+      if (!organizationSlug) {
+        logger.warn(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+          },
+          "phrase user oauth callback missing organization slug",
+        );
+        return c.redirect("/dashboard?error=organization_slug_missing");
+      }
+
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          organizationSlug,
+          hasCode: Boolean(c.req.query("code")),
+          hasError: Boolean(c.req.query("error")),
+        },
+        "phrase user oauth callback received",
+      );
+
+      const now = new Date();
+      const userState = await findActivePhraseUserOAuthState(c, stateParam, now);
+
+      const errorParam = c.req.query("error");
+      if (errorParam) {
+        logger.warn(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            organizationSlug,
+            stateFound: Boolean(userState),
+            error: errorParam,
+          },
+          "phrase user oauth callback returned provider error",
+        );
+        if (userState) {
+          return c.redirect(
+            appendRelativeRedirectParam(
+              normalizeUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              "error",
+              errorParam,
+            ),
+          );
+        }
+        return c.redirect(`/dashboard?error=${encodeURIComponent(errorParam)}`);
+      }
+
+      const code = c.req.query("code");
+      if (!code) {
+        logger.warn(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            organizationSlug,
+            stateFound: Boolean(userState),
+          },
+          "phrase user oauth callback missing code",
+        );
+        if (userState) {
+          return c.redirect(
+            appendRelativeRedirectParam(
+              normalizeUserOAuthReturnTo(userState.returnTo, organizationSlug),
+              "error",
+              "missing_phrase_user_oauth_code",
+            ),
+          );
+        }
+        return c.redirect("/dashboard?error=missing_phrase_oauth_code");
+      }
+
+      if (!userState) {
+        logger.warn(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+            organizationSlug,
+          },
+          "phrase user oauth callback rejected: invalid state",
+        );
+        return c.redirect("/dashboard?error=invalid_phrase_oauth_state");
+      }
+
+      return handlePhraseUserOAuthCallback(
+        c,
+        userState,
+        code,
+        organizationSlug,
+        getPhraseOAuthRedirectUri(c, organizationSlug),
       );
     })
     .get("/user-connect-cta", async (c) => {
@@ -617,7 +1073,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         c.var.auth.organization.localOrganizationId,
       );
       const hasCrowdinIntegration =
-        credential?.providerKind === "crowdin" && credential.authMode === "oauth";
+        credential?.providerKind === "crowdin" && credential.authMode === OAUTH_AUTH_MODE;
       const connection = hasCrowdinIntegration
         ? await getCrowdinUserConnectionSummary({
             organizationId: c.var.auth.organization.localOrganizationId,
@@ -646,6 +1102,44 @@ export function createExternalTmsProviderCredentialRoutes() {
         200,
       );
     })
+    .get("/phrase/user-connection", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
+        c.var.auth.organization.localOrganizationId,
+      );
+      const hasPhraseIntegration =
+        credential?.providerKind === "phrase" && credential.authMode === OAUTH_AUTH_MODE;
+      const connection = hasPhraseIntegration
+        ? await getPhraseUserConnectionSummary({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            userId: c.var.auth.user.localUserId,
+          })
+        : null;
+
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          providerCredentialId: credential?.id ?? null,
+          hasPhraseIntegration,
+          connectionId: connection?.id ?? null,
+          shouldConnectPhraseUser: hasPhraseIntegration && !connection,
+        },
+        "phrase user connection route resolved",
+      );
+
+      return c.json(
+        {
+          hasPhraseIntegration,
+          phraseUserConnection: connection,
+          shouldConnectPhraseUser: hasPhraseIntegration && !connection,
+        },
+        200,
+      );
+    })
     .post("/crowdin/user/oauth/start", validateCrowdinUserOAuthStartBody, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
         return c.json({ error: "forbidden" }, 403);
@@ -659,7 +1153,7 @@ export function createExternalTmsProviderCredentialRoutes() {
       const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
         c.var.auth.organization.localOrganizationId,
       );
-      if (credential?.providerKind !== "crowdin" || credential.authMode !== "oauth") {
+      if (credential?.providerKind !== "crowdin" || credential.authMode !== OAUTH_AUTH_MODE) {
         return c.json(
           {
             error: "crowdin_integration_not_connected",
@@ -689,6 +1183,49 @@ export function createExternalTmsProviderCredentialRoutes() {
         200,
       );
     })
+    .post("/phrase/user/oauth/start", validatePhraseUserOAuthStartBody, async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const organizationSlug = c.var.auth.organization.slug;
+      if (!organizationSlug) {
+        return c.json({ error: "organization_slug_missing" }, 400);
+      }
+
+      const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (credential?.providerKind !== "phrase" || credential.authMode !== OAUTH_AUTH_MODE) {
+        return c.json(
+          {
+            error: "phrase_integration_not_connected",
+            message: "Phrase must be connected before users can link their accounts.",
+          },
+          404,
+        );
+      }
+
+      const payload = c.req.valid("json");
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          providerCredentialId: credential.id,
+          organizationSlug,
+        },
+        "phrase user oauth start requested",
+      );
+      return c.json(
+        await createPhraseUserOAuthAuthorization({
+          c,
+          credential,
+          organizationSlug,
+          returnTo: payload.returnTo ?? `/org/${organizationSlug}`,
+        }),
+        200,
+      );
+    })
     .put("/", validateUpsertBody, async (c) => {
       try {
         const payload = c.req.valid("json");
@@ -697,6 +1234,15 @@ export function createExternalTmsProviderCredentialRoutes() {
             {
               error: "crowdin_personal_token_deprecated",
               message: "Crowdin personal-token setup is deprecated. Use OAuth App connection.",
+            },
+            400,
+          );
+        }
+        if (payload.providerKind === "phrase") {
+          return c.json(
+            {
+              error: "phrase_api_token_unsupported",
+              message: "Phrase API-token setup is disabled. Use OAuth App connection.",
             },
             400,
           );
@@ -749,6 +1295,15 @@ export function createExternalTmsProviderCredentialRoutes() {
             {
               error: "crowdin_oauth_secret_unavailable",
               message: "Crowdin OAuth secrets cannot be revealed.",
+            },
+            400,
+          );
+        }
+        if (error instanceof Error && error.message === "phrase_oauth_secret_unavailable") {
+          return c.json(
+            {
+              error: "phrase_oauth_secret_unavailable",
+              message: "Phrase OAuth secrets cannot be revealed.",
             },
             400,
           );

@@ -9,7 +9,11 @@ import {
   resolveCrowdinUserConnectionSecretMaterial,
 } from "./adapters/crowdin/crowdin-user-connections";
 import {
-  CROWDIN_OAUTH_AUTH_MODE,
+  getPhraseUserConnection,
+  resolvePhraseUserConnectionSecretMaterial,
+} from "./adapters/phrase/phrase-user-connections";
+import {
+  OAUTH_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
@@ -162,14 +166,31 @@ export async function resolveExternalTmsSecretMaterialForActor(input: {
   actorUserId?: string | null;
 }) {
   if (
-    input.credential.providerKind !== "crowdin" ||
-    input.credential.authMode !== CROWDIN_OAUTH_AUTH_MODE
+    !(
+      input.credential.providerKind === "crowdin" && input.credential.authMode === OAUTH_AUTH_MODE
+    ) &&
+    !(input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE)
   ) {
     return resolveExternalTmsSecretMaterial({ credential: input.credential });
   }
 
   if (!input.actorUserId) {
-    throw new Error("crowdin_user_connection_required");
+    throw new Error(`${input.credential.providerKind}_user_connection_required`);
+  }
+
+  if (input.credential.providerKind === "phrase") {
+    const connection = await getPhraseUserConnection({
+      organizationId: input.organizationId,
+      userId: input.actorUserId,
+    });
+    if (!connection) {
+      throw new Error("phrase_user_connection_required");
+    }
+
+    return resolvePhraseUserConnectionSecretMaterial({
+      connection,
+      baseUrl: input.credential.baseUrl,
+    });
   }
 
   const connection = await getCrowdinUserConnection({

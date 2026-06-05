@@ -16,6 +16,7 @@ describe("PhraseTmsApiClient", () => {
   it("builds ApiToken authorization headers", () => {
     expect(phraseTmsAuthorizationHeader("secret")).toBe("ApiToken secret");
     expect(phraseTmsAuthorizationHeader("ApiToken secret")).toBe("ApiToken secret");
+    expect(phraseTmsAuthorizationHeader("Bearer access-token")).toBe("Bearer access-token");
   });
 
   it("lists job parts across workflow levels", async () => {

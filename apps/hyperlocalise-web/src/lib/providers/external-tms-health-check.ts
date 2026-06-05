@@ -6,6 +6,7 @@ import { parseSmartlingCredentials } from "./adapters/smartling/smartling-creden
 import { classifySmartlingHttpError } from "./adapters/smartling/smartling-api";
 import { resolvePhraseBaseUrl } from "./adapters/phrase/phrase-base-url";
 import {
+  OAUTH_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
@@ -68,6 +69,21 @@ export async function checkExternalTmsProviderHealth(input: {
 
   if (!credential) {
     return { credential: null, health: null };
+  }
+
+  if (credential.providerKind === "phrase" && credential.authMode === OAUTH_AUTH_MODE) {
+    return {
+      credential,
+      health: {
+        status: "error",
+        availability: "unknown",
+        authValidity: "unknown",
+        errorCode: "phrase_user_connection_required",
+        message: "Connect your Phrase account before checking Phrase health.",
+        rateLimit: emptyRateLimitHints(),
+        lastSuccessfulSyncAt: null,
+      },
+    };
   }
 
   const secretMaterial = await resolveExternalTmsSecretMaterial({

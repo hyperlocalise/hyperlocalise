@@ -91,6 +91,13 @@ export interface PhraseTmsConversation {
   lqaReference: PhraseTmsLqaConversationReference | null;
 }
 
+export interface PhraseTmsAuthenticatedUser {
+  uid: string;
+  username: string;
+  email: string | null;
+  fullName: string | null;
+}
+
 export class PhraseTmsApiError extends Error {
   constructor(
     message: string,
@@ -115,6 +122,28 @@ export class PhraseTmsApiClient {
 
   get resolvedBaseUrl() {
     return this.baseUrl;
+  }
+
+  async getAuthenticatedUser(): Promise<PhraseTmsAuthenticatedUser> {
+    const response = await this.get<PhraseTmsWhoAmIApiRecord>("/api2/v1/auth/whoAmI");
+    const user = response.user;
+    const uid = user?.uid ?? user?.id;
+    if (!uid) {
+      throw new PhraseTmsApiError("Phrase TMS whoAmI response did not include a user uid", 500, {
+        user,
+      });
+    }
+
+    const firstName = user?.firstName?.trim() ?? "";
+    const lastName = user?.lastName?.trim() ?? "";
+    const fullName = [firstName, lastName].filter(Boolean).join(" ") || null;
+
+    return {
+      uid,
+      username: user?.userName ?? user?.email ?? uid,
+      email: user?.email ?? null,
+      fullName,
+    };
   }
 
   async listJobParts(projectUid: string, workflowLevel: number): Promise<PhraseTmsJobPart[]> {
@@ -298,6 +327,17 @@ export function mapPhraseTmsFetcherError(error: unknown) {
 type PhraseTmsJobsPageApiRecord = {
   content?: PhraseTmsJobPartApiRecord[];
   totalPages?: number;
+};
+
+type PhraseTmsWhoAmIApiRecord = {
+  user?: {
+    id?: string | null;
+    uid?: string | null;
+    userName?: string | null;
+    email?: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+  } | null;
 };
 
 type PhraseTmsJobPartApiRecord = {
