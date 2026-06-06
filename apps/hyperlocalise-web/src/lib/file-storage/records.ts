@@ -4,6 +4,11 @@ import { db, schema } from "@/lib/database";
 
 import { getFileStorageAdapter, type FileStorageAdapter } from ".";
 
+async function readStoredObjectBody(body: ReadableStream) {
+  const arrayBuffer = await new Response(body).arrayBuffer();
+  return Buffer.from(arrayBuffer);
+}
+
 type StoredFileRole = (typeof schema.storedFileRoleEnum.enumValues)[number];
 type StoredFileSourceKind = (typeof schema.storedFileSourceKindEnum.enumValues)[number];
 
@@ -153,6 +158,24 @@ export async function createStoredFile(input: CreateStoredFileInput) {
     await adapter.delete({ keyOrUrl: uploaded.key });
     throw error;
   }
+}
+
+export async function getStoredFileContent(input: StoredFileScopeInput) {
+  const file = await getStoredFileForJobScope(input);
+  if (!file) {
+    throw new Error(`Stored file ${input.fileId} not found`);
+  }
+
+  const adapter = getFileStorageAdapter();
+  const storedObject = await adapter.get({ keyOrUrl: file.storageKey });
+  if (!storedObject) {
+    throw new Error(`Stored file content for ${input.fileId} not found`);
+  }
+
+  return {
+    file,
+    content: await readStoredObjectBody(storedObject.body),
+  };
 }
 
 export async function getStoredFileForJobScope(input: StoredFileScopeInput) {
