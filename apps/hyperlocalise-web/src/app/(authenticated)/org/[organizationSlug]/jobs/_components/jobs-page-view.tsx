@@ -393,11 +393,13 @@ export function JobsPageView({
   isLoading,
   jobs,
   now,
+  onStatusFilterChange,
   organizationSlug,
   projectId,
-  renderError = ({ error: renderError }) => <JobsPageErrorMessage error={renderError} />,
+  renderError = ({ error }) => <JobsPageErrorMessage error={error} />,
   renderJobLink = defaultRenderJobLink,
   scope = "all",
+  statusFilter: controlledStatusFilter,
 }: {
   buildJobDetailHref?: typeof defaultBuildJobDetailHref;
   error?: unknown;
@@ -406,15 +408,19 @@ export function JobsPageView({
   isLoading: boolean;
   jobs: JobRow[];
   now?: number;
+  onStatusFilterChange?: (statusFilter: JobsStatusFilter) => void;
   organizationSlug: string;
   projectId?: string;
   renderError?: JobsErrorRenderer;
   renderJobLink?: JobsLinkRenderer;
   scope?: JobsScope;
+  statusFilter?: JobsStatusFilter;
 }) {
   const searchId = useId();
   const [search, setSearch] = useState(initialSearch);
-  const [statusFilter, setStatusFilter] = useState<JobsStatusFilter>(initialStatusFilter);
+  const [uncontrolledStatusFilter, setUncontrolledStatusFilter] =
+    useState<JobsStatusFilter>(initialStatusFilter);
+  const statusFilter = controlledStatusFilter ?? uncontrolledStatusFilter;
 
   const visibleJobs = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -468,7 +474,13 @@ export function JobsPageView({
         <JobsFilterField label="Status" className="w-full lg:w-40">
           <Select
             value={statusFilter}
-            onValueChange={(value) => setStatusFilter((value ?? "all") as JobsStatusFilter)}
+            onValueChange={(value) => {
+              const nextStatusFilter = (value ?? "all") as JobsStatusFilter;
+              if (controlledStatusFilter === undefined) {
+                setUncontrolledStatusFilter(nextStatusFilter);
+              }
+              onStatusFilterChange?.(nextStatusFilter);
+            }}
           >
             <SelectTrigger className={jobsFilterTriggerClassName}>
               <SelectValue>{statusFilterLabels[statusFilter]}</SelectValue>

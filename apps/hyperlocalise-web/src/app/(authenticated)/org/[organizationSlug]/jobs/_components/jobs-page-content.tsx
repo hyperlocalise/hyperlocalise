@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
@@ -85,10 +86,10 @@ export function JobsPageContent({
   projectId?: string;
 }) {
   const searchParams = useSearchParams();
-  const initialStatusFilter = readInitialStatusFilter(searchParams);
+  const [statusFilter, setStatusFilter] = useState(() => readInitialStatusFilter(searchParams));
 
   const jobsQuery = useQuery({
-    queryKey: ["jobs", organizationSlug, scope, initialStatusFilter, projectId ?? "workspace"],
+    queryKey: ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"],
     queryFn: async () => {
       if (projectId) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -98,7 +99,7 @@ export function JobsPageContent({
           query: {
             limit: "100",
             mine: "false",
-            ...(initialStatusFilter === "all" ? {} : { status: initialStatusFilter }),
+            ...(statusFilter === "all" ? {} : { status: statusFilter }),
           },
         });
         if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
@@ -111,7 +112,7 @@ export function JobsPageContent({
         query: {
           limit: "100",
           mine: scope === "mine" ? "true" : "false",
-          ...(initialStatusFilter === "all" ? {} : { status: initialStatusFilter }),
+          ...(statusFilter === "all" ? {} : { status: statusFilter }),
         },
       });
       if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
@@ -123,14 +124,15 @@ export function JobsPageContent({
   return (
     <JobsPageView
       error={jobsQuery.error}
-      initialStatusFilter={initialStatusFilter}
       isLoading={jobsQuery.isLoading}
       jobs={jobsQuery.data ?? []}
+      onStatusFilterChange={setStatusFilter}
       organizationSlug={organizationSlug}
       projectId={projectId}
       renderError={renderProductionJobsError}
       renderJobLink={renderProductionJobLink}
       scope={scope}
+      statusFilter={statusFilter}
     />
   );
 }
