@@ -134,9 +134,5 @@
 **Action:** Refactored line splitting in Markdown, MDX, and YAML parsers and implemented CRLF fast-paths.
 
 ## 2026-08-30 - Optimizing PO parser and marshaler via fast-paths and deferred allocations
-**Learning:**  and  always perform heap allocations even for simple strings. Implementing fast-paths for strings without escape sequences or special characters significantly reduces allocations. Additionally, using a utility struct to defer  initialization until multiple string segments (continuations) are encountered avoids builder overhead for the common single-line case. Reusing the builder via  across entries further reduces GC pressure.
-**Action:** Refactored  and  in  with fast-paths and a deferred-allocation  struct, resulting in a ~98-99% reduction in allocations and measurable speedups.
-
-## 2026-08-30 - Optimizing PO parser and marshaler via fast-paths and deferred allocations
 **Learning:** strconv.Unquote and strconv.Quote always perform heap allocations even for simple strings. Implementing fast-paths for strings without escape sequences or special characters significantly reduces allocations. Additionally, using a utility struct to defer strings.Builder initialization until multiple string segments (continuations) are encountered avoids builder overhead for the common single-line case. Reusing the builder via Reset() across entries further reduces GC pressure.
 **Action:** Refactored POFileParser and MarshalPOFile in internal/i18n/translationfileparser/po_parser.go with fast-paths and a deferred-allocation poValue struct, resulting in a ~98-99% reduction in allocations and measurable speedups.

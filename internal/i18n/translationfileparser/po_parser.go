@@ -308,7 +308,8 @@ func writePOQuotedSuffix(w *strings.Builder, raw, field, value string) {
 	w.WriteString(field)
 	w.WriteByte(' ')
 	// BOLT OPTIMIZATION: Fast-path for simple values to avoid strconv.Quote allocations.
-	if !strings.ContainsAny(value, "\\\"\n\r\t") {
+	// Must cover every byte strconv.Quote would escape: \a \b \f \v \t \n \r \\ \"
+	if !strings.ContainsAny(value, "\\\"\a\b\f\v\n\r\t") {
 		w.WriteByte('"')
 		w.WriteString(value)
 		w.WriteByte('"')
