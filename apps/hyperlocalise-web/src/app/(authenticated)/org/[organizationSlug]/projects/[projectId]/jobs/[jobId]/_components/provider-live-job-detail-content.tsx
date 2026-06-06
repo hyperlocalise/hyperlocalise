@@ -69,7 +69,7 @@ function formatDate(value: string | null | undefined) {
 }
 
 function formatJobKind(job: TmsProviderLiveJobDetail) {
-  return job.kind.replace("_", " ");
+  return job.kind.replaceAll("_", " ");
 }
 
 function formatProviderKind(kind: string | null | undefined) {
@@ -166,9 +166,13 @@ function TaskDescriptionSection({
 
 function StatusSummaryCard({ job }: { job: TmsProviderLiveJobDetail }) {
   const readiness = getCrowdinLocaleReadiness(job.externalProviderPayload);
-  const progress = getProgressValue(job);
-  const progressLabel = formatReadinessProgress(readiness) ?? `${progress}% translated`;
-  const wordsProgress = getWordsProgress(job);
+  const hasReadiness = readiness !== null;
+  const progress = hasReadiness ? getProgressValue(job) : null;
+  const progressLabel =
+    hasReadiness && progress !== null
+      ? (formatReadinessProgress(readiness) ?? `${progress}% translated`)
+      : null;
+  const wordsProgress = hasReadiness ? getWordsProgress(job) : null;
 
   return (
     <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
@@ -181,28 +185,35 @@ function StatusSummaryCard({ job }: { job: TmsProviderLiveJobDetail }) {
       >
         {job.status}
       </Badge>
-      <div className="mt-7">
-        <div className="flex items-baseline gap-2">
-          <span className="text-3xl font-semibold text-foreground">{progress}%</span>
-          <span className="text-sm text-foreground/58">
-            {progressLabel.replace(/^\d+%\s*/, "")}
-          </span>
+      {progress !== null && progressLabel !== null ? (
+        <div className="mt-7">
+          <div className="flex items-baseline gap-2">
+            <span className="text-3xl font-semibold text-foreground">{progress}%</span>
+            <span className="text-sm text-foreground/58">
+              {progressLabel.replace(/^\d+%\s*/, "")}
+            </span>
+          </div>
+          <div
+            className="mt-4 h-1.5 overflow-hidden rounded-full bg-foreground/10"
+            role="progressbar"
+            aria-label="Translation progress"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={progress}
+          >
+            <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
+          </div>
+          {wordsProgress ? (
+            <p className="mt-3 text-sm text-foreground/52">
+              {wordsProgress.completed} / {wordsProgress.total} words
+            </p>
+          ) : null}
         </div>
-        <div
-          className="mt-4 h-1.5 overflow-hidden rounded-full bg-foreground/10"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={progress}
-        >
-          <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
-        </div>
-        <p className="mt-3 text-sm text-foreground/52">
-          {wordsProgress
-            ? `${wordsProgress.completed} / ${wordsProgress.total} words`
-            : "No word count"}
+      ) : (
+        <p className="mt-5 text-sm text-foreground/58">
+          Provider status: {job.externalStatus || job.status}
         </p>
-      </div>
+      )}
     </section>
   );
 }
@@ -373,6 +384,14 @@ export function ProviderLiveJobDetailContent({
   });
 
   const job = jobQuery.data;
+  const providerDescription = job
+    ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
+    : "";
+  const canEditProviderDescription = Boolean(
+    job && canEditProviderJobDescription && job.id.startsWith("ext:"),
+  );
+  const showTaskDescriptionSection =
+    providerDescription.trim().length > 0 || canEditProviderDescription;
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-5">
@@ -478,15 +497,15 @@ export function ProviderLiveJobDetailContent({
       {job ? (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-5">
-            <TaskDescriptionSection
-              canEditProviderJobDescription={canEditProviderJobDescription}
-              description={
-                getProviderPayloadString(job.externalProviderPayload, "description") ?? ""
-              }
-              job={job}
-              jobQueryKey={jobQueryKey}
-              organizationSlug={organizationSlug}
-            />
+            {showTaskDescriptionSection ? (
+              <TaskDescriptionSection
+                canEditProviderJobDescription={canEditProviderJobDescription}
+                description={providerDescription}
+                job={job}
+                jobQueryKey={jobQueryKey}
+                organizationSlug={organizationSlug}
+              />
+            ) : null}
 
             {job.externalProviderKind === "crowdin" ? (
               <TmsLiveJobFilesSection
