@@ -353,10 +353,27 @@ func isPlaceholderName(s string) bool {
 				if !isASCIIPlaceholderFirst(ch) {
 					return false
 				}
-			} else {
-				if !isASCIIPlaceholderSubsequent(ch) {
+				i++
+				continue
+			}
+
+			// Support array index notation: items[0]
+			if ch == '[' {
+				i++
+				digitCount := 0
+				for i < len(s) && isASCIIDigit(s[i]) {
+					i++
+					digitCount++
+				}
+				if digitCount == 0 || i >= len(s) || s[i] != ']' {
 					return false
 				}
+				i++
+				continue
+			}
+
+			if !isASCIIPlaceholderSubsequent(ch) {
+				return false
 			}
 			i++
 			continue
