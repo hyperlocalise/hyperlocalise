@@ -38,6 +38,18 @@ export type CrowdinJobDetailSource = {
   type?: string | null;
 };
 
+export type ProviderJobDescriptionFieldRenderer = (props: {
+  organizationSlug: string;
+  encodedJobId: string;
+  description: string;
+  editable: boolean;
+  queryKey: readonly unknown[];
+}) => ReactNode;
+
+const renderProviderJobDescriptionField: ProviderJobDescriptionFieldRenderer = (props) => (
+  <ProviderJobDescriptionField {...props} />
+);
+
 export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   job,
   providerPayload,
@@ -47,6 +59,7 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   descriptionQueryKey,
   canEditDescription,
   showProviderLink = true,
+  renderDescriptionField = renderProviderJobDescriptionField,
   extraRows,
 }: {
   job: J;
@@ -57,6 +70,7 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   descriptionQueryKey?: readonly unknown[];
   canEditDescription?: boolean;
   showProviderLink?: boolean;
+  renderDescriptionField?: ProviderJobDescriptionFieldRenderer;
   extraRows?: ReactNode;
 }) {
   const isCrowdin = job.externalProviderKind === "crowdin";
@@ -84,23 +98,15 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
         <div className="grid gap-1 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
           <dt className="text-sm text-foreground/42">Description</dt>
           <dd className="min-w-0">
-            {canEditDescription && canEditProviderDescription && descriptionQueryKey ? (
-              <ProviderJobDescriptionField
-                organizationSlug={organizationSlug}
-                encodedJobId={job.id}
-                description={crowdinDescription ?? ""}
-                editable
-                queryKey={descriptionQueryKey}
-              />
-            ) : (
-              <ProviderJobDescriptionField
-                organizationSlug={organizationSlug}
-                encodedJobId={job.id}
-                description={crowdinDescription ?? ""}
-                editable={false}
-                queryKey={descriptionQueryKey ?? []}
-              />
-            )}
+            {renderDescriptionField({
+              organizationSlug,
+              encodedJobId: job.id,
+              description: crowdinDescription ?? "",
+              editable: Boolean(
+                canEditDescription && canEditProviderDescription && descriptionQueryKey,
+              ),
+              queryKey: descriptionQueryKey ?? [],
+            })}
           </dd>
         </div>
       ) : null}

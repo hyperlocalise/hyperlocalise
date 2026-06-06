@@ -13,79 +13,32 @@ import {
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
-export function ProviderJobDescriptionField({
-  organizationSlug,
-  encodedJobId,
+export function ProviderJobDescriptionFieldView({
   description,
   editable,
-  queryKey,
+  initialDraft,
+  initialIsEditing = false,
+  isSaving = false,
+  onSaveDescription,
+  onSaveError,
 }: {
-  organizationSlug: string;
-  encodedJobId: string;
   description: string;
   editable: boolean;
-  queryKey: readonly unknown[];
+  initialDraft?: string;
+  initialIsEditing?: boolean;
+  isSaving?: boolean;
+  onSaveDescription?: (description: string) => Promise<string | void>;
+  onSaveError?: (error: unknown) => void;
 }) {
-  const queryClient = useQueryClient();
-  const [isEditing, setIsEditing] = useState(false);
+  const [isEditing, setIsEditing] = useState(initialIsEditing);
   const [draftState, setDraftState] = useState({
     baseDescription: description,
-    draft: description,
+    draft: initialDraft ?? description,
   });
   const draft = draftState.baseDescription === description ? draftState.draft : description;
   const isDirty = draft !== description;
-
-  const saveMutation = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
-        ":encodedJobId"
-      ].description.$patch({
-        param: { organizationSlug, encodedJobId },
-        json: { description: draft },
-      });
-
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: string;
-          message?: string;
-        } | null;
-        throw new Error(
-          body?.message ?? body?.error ?? `Failed to save description (${response.status})`,
-        );
-      }
-
-      return response.json() as Promise<{
-        job: { externalProviderPayload?: Record<string, unknown> };
-      }>;
-    },
-    onSuccess: ({ job }) => {
-      const nextDescription =
-        typeof job.externalProviderPayload?.description === "string"
-          ? job.externalProviderPayload.description
-          : draft;
-
-      queryClient.setQueryData(queryKey, (current: unknown) => {
-        if (!current || typeof current !== "object" || Array.isArray(current)) {
-          return job;
-        }
-
-        const currentJob = current as { externalProviderPayload?: Record<string, unknown> };
-        return {
-          ...currentJob,
-          externalProviderPayload: {
-            ...currentJob.externalProviderPayload,
-            ...job.externalProviderPayload,
-          },
-        };
-      });
-      setDraftState({ baseDescription: nextDescription, draft: nextDescription });
-      setIsEditing(false);
-      toast.success("Description saved");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to save description");
-    },
-  });
+  const [internalIsSaving, setInternalIsSaving] = useState(false);
+  const savePending = isSaving || internalIsSaving;
 
   if (!editable) {
     if (!description.trim()) {
@@ -132,20 +85,35 @@ export function ProviderJobDescriptionField({
         onChange={(nextDraft) => {
           setDraftState({ baseDescription: description, draft: nextDraft });
         }}
-        disabled={saveMutation.isPending}
+        disabled={savePending}
       />
       <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
-          disabled={!isDirty || saveMutation.isPending}
-          onClick={() => saveMutation.mutate()}
+          disabled={!isDirty || savePending || !onSaveDescription}
+          onClick={async () => {
+            if (!onSaveDescription) {
+              return;
+            }
+
+            setInternalIsSaving(true);
+            try {
+              const nextDescription = (await onSaveDescription(draft)) ?? draft;
+              setDraftState({ baseDescription: nextDescription, draft: nextDescription });
+              setIsEditing(false);
+            } catch (error) {
+              onSaveError?.(error);
+            } finally {
+              setInternalIsSaving(false);
+            }
+          }}
         >
-          {saveMutation.isPending ? "Saving…" : "Save description"}
+          {savePending ? "Saving…" : "Save description"}
         </Button>
         <Button
           size="sm"
           variant="outline"
-          disabled={!isDirty || saveMutation.isPending}
+          disabled={!isDirty || savePending}
           onClick={() => {
             setDraftState({ baseDescription: description, draft: description });
           }}
@@ -155,7 +123,7 @@ export function ProviderJobDescriptionField({
         <Button
           size="sm"
           variant="ghost"
-          disabled={saveMutation.isPending}
+          disabled={savePending}
           onClick={() => {
             setDraftState({ baseDescription: description, draft: description });
             setIsEditing(false);
@@ -165,5 +133,82 @@ export function ProviderJobDescriptionField({
         </Button>
       </div>
     </div>
+  );
+}
+
+export function ProviderJobDescriptionField({
+  organizationSlug,
+  encodedJobId,
+  description,
+  editable,
+  queryKey,
+}: {
+  organizationSlug: string;
+  encodedJobId: string;
+  description: string;
+  editable: boolean;
+  queryKey: readonly unknown[];
+}) {
+  const queryClient = useQueryClient();
+
+  const saveMutation = useMutation({
+    mutationFn: async (nextDraft: string) => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+        ":encodedJobId"
+      ].description.$patch({
+        param: { organizationSlug, encodedJobId },
+        json: { description: nextDraft },
+      });
+
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(
+          body?.message ?? body?.error ?? `Failed to save description (${response.status})`,
+        );
+      }
+
+      const body = (await response.json()) as {
+        job: { externalProviderPayload?: Record<string, unknown> };
+      };
+      const nextDescription =
+        typeof body.job.externalProviderPayload?.description === "string"
+          ? body.job.externalProviderPayload.description
+          : nextDraft;
+
+      queryClient.setQueryData(queryKey, (current: unknown) => {
+        if (!current || typeof current !== "object" || Array.isArray(current)) {
+          return body.job;
+        }
+
+        const currentJob = current as { externalProviderPayload?: Record<string, unknown> };
+        return {
+          ...currentJob,
+          externalProviderPayload: {
+            ...currentJob.externalProviderPayload,
+            ...body.job.externalProviderPayload,
+          },
+        };
+      });
+
+      return nextDescription;
+    },
+    onSuccess: () => {
+      toast.success("Description saved");
+    },
+  });
+
+  return (
+    <ProviderJobDescriptionFieldView
+      description={description}
+      editable={editable}
+      isSaving={saveMutation.isPending}
+      onSaveDescription={(nextDescription) => saveMutation.mutateAsync(nextDescription)}
+      onSaveError={(error) => {
+        toast.error(error instanceof Error ? error.message : "Failed to save description");
+      }}
+    />
   );
 }
