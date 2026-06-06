@@ -13,12 +13,18 @@ describe("extractProviderFileIds", () => {
     { name: "undefined payload", providerPayload: undefined },
     { name: "missing fileIds", providerPayload: {} },
     { name: "non-array fileIds", providerPayload: { fileIds: "123" } },
+    { name: "empty fileIds array", providerPayload: { fileIds: [] } },
   ])("returns an empty list for $name", ({ providerPayload }) => {
     expect(extractProviderFileIds(providerPayload)).toEqual([]);
   });
 
   it("normalizes string and numeric file ids", () => {
-    expect(extractProviderFileIds({ fileIds: [123, "456", 0] })).toEqual(["123", "456", "0"]);
+    expect(extractProviderFileIds({ fileIds: [123, "456", 0, "0"] })).toEqual([
+      "123",
+      "456",
+      "0",
+      "0",
+    ]);
   });
 
   it("filters unsupported and empty file id entries", () => {
