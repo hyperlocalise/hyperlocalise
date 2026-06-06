@@ -36,6 +36,7 @@ import {
 } from "../../../../../jobs/_components/provider-crowdin-job-display";
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
 import { JobQaFindingsSection } from "./job-qa-findings-section";
+import { SyncedJobSourceFilesSection } from "./tms/synced-job-source-files-section";
 
 export type ProviderSourceFile = {
   id: string;
@@ -290,42 +291,15 @@ export function JobProviderDetailSection({
         </dl>
       </section>
 
-      <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-        <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-          Source Files
-        </TypographyH2>
-        {sourceFiles.length > 0 ? (
-          <ul className="mt-4 space-y-2">
-            {sourceFiles.map((file) => (
-              <li
-                key={file.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-foreground/8 bg-foreground/3.5 px-3 py-2 text-sm"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-foreground/82">{file.displayName}</p>
-                  {file.sourcePath ? (
-                    <p className="text-xs text-foreground/48">{file.sourcePath}</p>
-                  ) : null}
-                </div>
-                {file.externalUrl ? (
-                  <Link
-                    href={file.externalUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-xs text-foreground/62 underline decoration-foreground/24 underline-offset-4 hover:text-foreground"
-                  >
-                    Open
-                  </Link>
-                ) : null}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="mt-4 text-sm text-foreground/48">
-            No synced source files linked to this job.
-          </p>
-        )}
-      </section>
+      {projectId ? (
+        <SyncedJobSourceFilesSection
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          providerKind={job.externalProviderKind}
+          sourceFiles={sourceFiles}
+          highlightLocale={job.externalTargetLocales?.[0] ?? null}
+        />
+      ) : null}
 
       {visibleActions.length > 0 ? (
         <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">

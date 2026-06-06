@@ -22,6 +22,7 @@ import {
   JobDetailRow,
   ProviderCrowdinJobDetailRows,
 } from "../../../../../jobs/_components/provider-crowdin-job-detail-rows";
+import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
 import {
   formatLocaleList,
   getCrowdinTargetLocales,
@@ -327,11 +328,23 @@ export function ProviderLiveJobDetailContent({
       ) : null}
 
       {job?.externalProviderKind === "crowdin" ? (
-        <TaskCommentsSection
-          comments={commentsQuery.data ?? []}
-          isError={commentsQuery.isError}
-          isLoading={commentsQuery.isLoading}
-        />
+        <>
+          <TmsLiveJobFilesSection
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            encodedJobId={jobId}
+            highlightLocale={
+              typeof job.externalProviderPayload.languageId === "string"
+                ? job.externalProviderPayload.languageId
+                : null
+            }
+          />
+          <TaskCommentsSection
+            comments={commentsQuery.data ?? []}
+            isError={commentsQuery.isError}
+            isLoading={commentsQuery.isLoading}
+          />
+        </>
       ) : null}
     </main>
   );

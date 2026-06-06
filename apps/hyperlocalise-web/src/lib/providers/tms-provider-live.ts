@@ -44,6 +44,7 @@ import {
   tmsProviderProjectFetchers,
   tmsProviderTranslationMemoryFetchers,
 } from "@/lib/providers/tms-provider-fetcher-registry";
+import { extractProviderFileIds } from "@/lib/providers/job-provider-source-files";
 import {
   encodeProviderJobId,
   encodeProviderProjectId,
@@ -1048,21 +1049,11 @@ export async function listTmsProviderLiveFilesForProject(
     .map((file) => mapLiveFile({ providerKind: context.providerKind, externalProjectId, file }));
 }
 
-export async function getTmsProviderLiveFileDetail(
-  organizationId: string,
-  externalProjectId: string,
-  sourcePath: string,
-  options?: { actorUserId?: string | null },
+async function buildTmsProviderLiveFileDetail(
+  context: ActiveTmsProviderContext,
+  file: TmsProviderLiveFile,
 ): Promise<TmsProviderLiveFileDetail | null> {
-  const context = await loadActiveTmsProviderContext(organizationId, {
-    actorUserId: options?.actorUserId,
-  });
-  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
-    context,
-    limit: 1000,
-  });
-  const file = files.find((item) => item.sourcePath === sourcePath);
-  if (!file?.provider) {
+  if (!file.provider) {
     return null;
   }
 
@@ -1070,7 +1061,7 @@ export async function getTmsProviderLiveFileDetail(
     file.provider.resourceType === "file"
       ? await downloadLiveProviderFileContent({
           context,
-          externalProjectId,
+          externalProjectId: file.provider.externalProjectId,
           externalResourceId: file.provider.externalResourceId,
           sourcePath: file.sourcePath,
         })
@@ -1102,6 +1093,27 @@ export async function getTmsProviderLiveFileDetail(
     jobsByLocale: [],
     providerJobsByLocale: [],
   };
+}
+
+export async function getTmsProviderLiveFileDetail(
+  organizationId: string,
+  externalProjectId: string,
+  sourcePath: string,
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveFileDetail | null> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
+    context,
+    limit: 1000,
+  });
+  const file = files.find((item) => item.sourcePath === sourcePath);
+  if (!file) {
+    return null;
+  }
+
+  return buildTmsProviderLiveFileDetail(context, file);
 }
 
 export async function listTmsProviderLiveJobs(
@@ -1263,6 +1275,82 @@ export async function getTmsProviderLiveJobDetail(
     projectName: project.name,
     task,
   });
+}
+
+async function resolveTmsProviderLiveJobFileIds(
+  organizationId: string,
+  encodedJobId: string,
+  options?: { actorUserId?: string | null },
+): Promise<{ externalProjectId: string; fileIds: string[] } | null> {
+  const job = await getTmsProviderLiveJobDetail(organizationId, encodedJobId, options);
+  if (!job) {
+    return null;
+  }
+
+  const parsed = parseProviderJobId(encodedJobId);
+  if (!parsed) {
+    return null;
+  }
+
+  return {
+    externalProjectId: parsed.externalProjectId,
+    fileIds: extractProviderFileIds(job.externalProviderPayload),
+  };
+}
+
+export async function listTmsProviderLiveJobFiles(
+  organizationId: string,
+  encodedJobId: string,
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveFile[] | null> {
+  const resolved = await resolveTmsProviderLiveJobFileIds(organizationId, encodedJobId, options);
+  if (!resolved) {
+    return null;
+  }
+
+  if (resolved.fileIds.length === 0) {
+    return [];
+  }
+
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  const projectFiles = await listTmsProviderLiveFilesForProject(
+    organizationId,
+    resolved.externalProjectId,
+    { context, limit: 1000, actorUserId: options?.actorUserId },
+  );
+  const filesByResourceId = new Map(
+    projectFiles.map((file) => [file.provider?.externalResourceId ?? "", file]),
+  );
+
+  return resolved.fileIds.flatMap((fileId) => {
+    const file = filesByResourceId.get(fileId);
+    return file ? [file] : [];
+  });
+}
+
+export async function getTmsProviderLiveJobFileDetail(
+  organizationId: string,
+  encodedJobId: string,
+  sourcePath: string,
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveFileDetail | null> {
+  const files = await listTmsProviderLiveJobFiles(organizationId, encodedJobId, options);
+  if (!files) {
+    return null;
+  }
+
+  const file = files.find((item) => item.sourcePath === sourcePath);
+  if (!file) {
+    return null;
+  }
+
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+
+  return buildTmsProviderLiveFileDetail(context, file);
 }
 
 export async function listTmsProviderLiveJobComments(

@@ -27,8 +27,11 @@ function projectFileDetailQueryKey(
   organizationSlug: string,
   projectId: string,
   sourcePath: string,
+  encodedJobId?: string | null,
 ) {
-  return ["project-file-detail", organizationSlug, projectId, sourcePath] as const;
+  return encodedJobId
+    ? (["tms-provider-job-file-detail", organizationSlug, encodedJobId, sourcePath] as const)
+    : (["project-file-detail", organizationSlug, projectId, sourcePath] as const);
 }
 
 function formatBytes(bytes: number | null) {
@@ -87,6 +90,7 @@ export function ProjectFileDetailPanel({
   requestedSourcePath,
   highlightLocale,
   canFindInRepo,
+  encodedJobId,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -94,13 +98,35 @@ export function ProjectFileDetailPanel({
   requestedSourcePath: string | null;
   highlightLocale: string | null;
   canFindInRepo: boolean;
+  encodedJobId?: string | null;
 }) {
   const sourcePath = file?.sourcePath ?? null;
 
   const detailQuery = useQuery({
-    queryKey: projectFileDetailQueryKey(organizationSlug, projectId, sourcePath ?? ""),
+    queryKey: projectFileDetailQueryKey(
+      organizationSlug,
+      projectId,
+      sourcePath ?? "",
+      encodedJobId,
+    ),
     enabled: Boolean(sourcePath),
     queryFn: async () => {
+      if (encodedJobId) {
+        const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+          ":encodedJobId"
+        ].files.detail.$get({
+          param: { organizationSlug, encodedJobId },
+          query: { sourcePath: sourcePath as string },
+        });
+
+        if (!response.ok) {
+          throw new Error(await readApiError(response, "Failed to load file details"));
+        }
+
+        const body = (await response.json()) as ProjectFileDetailResponse;
+        return body.file;
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.$get({

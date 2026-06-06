@@ -4,7 +4,9 @@ import { db, schema } from "@/lib/database";
 
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 
-function extractProviderFileIds(providerPayload: Record<string, unknown> | null | undefined) {
+export function extractProviderFileIds(
+  providerPayload: Record<string, unknown> | null | undefined,
+) {
   if (!providerPayload) return [];
 
   const fileIds = providerPayload.fileIds;

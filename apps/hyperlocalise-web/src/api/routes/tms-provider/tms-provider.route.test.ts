@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+import * as policy from "@/api/auth/policy";
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import {
@@ -12,6 +13,7 @@ import {
   upsertOrganizationExternalTmsProviderCredential,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import * as tmsProviderLive from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveFileDetail } from "@/lib/providers/tms-provider-live";
 import {
   encryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -273,6 +275,211 @@ describe("tmsProviderRoutes", () => {
       ],
     });
     expect(listComments).toHaveBeenCalledWith(organizationId, "ext:crowdin:902807:99", {
+      actorUserId: expect.any(String),
+    });
+  });
+
+  it("returns live job file detail for a provider task", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    const fileDetail: TmsProviderLiveFileDetail = {
+      sourcePath: "locales/en.json",
+      filename: "en.json",
+      provider: {
+        kind: "crowdin" as const,
+        resourceType: "file" as const,
+        externalProjectId: "902807",
+        externalResourceId: "12",
+        externalUrl: "https://crowdin.com/file/12",
+        syncState: "synced" as const,
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        localeReadiness: {},
+        revision: "1",
+        format: "json",
+        lastSyncedAt: "2026-06-01T10:00:00.000Z",
+      },
+      versions: [
+        {
+          id: "provider-live:crowdin:902807:12",
+          origin: "provider" as const,
+          sourcePath: "locales/en.json",
+          sourceHash: null,
+          revision: "1",
+          commitSha: null,
+          workflowRunId: null,
+          uploadedAt: "2026-06-01T10:00:00.000Z",
+          storedFileId: null,
+          filename: "en.json",
+          contentType: "application/json",
+          byteSize: 18,
+          sha256: null,
+          metadata: {},
+          content: { text: '{"hello":"world"}' },
+        },
+      ],
+      jobsByLocale: [],
+      providerJobsByLocale: [],
+    };
+
+    const getJobFileDetail = vi
+      .spyOn(tmsProviderLive, "getTmsProviderLiveJobFileDetail")
+      .mockResolvedValue(fileDetail);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].files.detail.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+        query: { sourcePath: "locales/en.json" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ file: fileDetail });
+    expect(getJobFileDetail).toHaveBeenCalledWith(
+      organizationId,
+      "ext:crowdin:902807:99",
+      "locales/en.json",
+      { actorUserId: expect.any(String) },
+    );
+  });
+
+  it("returns 404 when live job file detail is not found", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    vi.spyOn(tmsProviderLive, "getTmsProviderLiveJobFileDetail").mockResolvedValue(null);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].files.detail.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+        query: { sourcePath: "locales/missing.json" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "file_not_found" });
+  });
+
+  it("returns 403 when reading live job file detail without jobs:read", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const originalHasCapability = policy.hasCapability;
+    const hasCapabilitySpy = vi
+      .spyOn(policy, "hasCapability")
+      .mockImplementation((role, capability) => {
+        if (capability === "jobs:read") {
+          return false;
+        }
+
+        return originalHasCapability(role, capability);
+      });
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].files.detail.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+        query: { sourcePath: "locales/en.json" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ error: "forbidden" });
+    hasCapabilitySpy.mockRestore();
+  });
+
+  it("returns 400 when live job file detail query is invalid", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].files.detail.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+        query: { sourcePath: "" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({ error: "invalid_query" });
+  });
+
+  it("returns live job files for a provider task", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    const listJobFiles = vi
+      .spyOn(tmsProviderLive, "listTmsProviderLiveJobFiles")
+      .mockResolvedValue([
+        {
+          origin: "provider",
+          sourcePath: "locales/en.json",
+          sourceHash: null,
+          commitSha: null,
+          workflowRunId: null,
+          uploadedAt: "2026-06-01T10:00:00.000Z",
+          storedFileId: null,
+          metadata: {},
+          filename: "en.json",
+          byteSize: null,
+          provider: {
+            kind: "crowdin",
+            resourceType: "file",
+            externalProjectId: "902807",
+            externalResourceId: "12",
+            externalUrl: "https://crowdin.com/file/12",
+            syncState: "synced",
+            sourceLocale: "en",
+            targetLocales: ["fr"],
+            localeReadiness: {},
+            revision: "1",
+            format: "json",
+            lastSyncedAt: "2026-06-01T10:00:00.000Z",
+          },
+          latestJob: null,
+        },
+      ]);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ].files.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { files: unknown[] };
+    expect(body.files).toHaveLength(1);
+    expect(listJobFiles).toHaveBeenCalledWith(organizationId, "ext:crowdin:902807:99", {
       actorUserId: expect.any(String),
     });
   });
