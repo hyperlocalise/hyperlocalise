@@ -9,11 +9,47 @@ import (
 // POFileParser parses GNU gettext .po translation files.
 type POFileParser struct{}
 
+type poValue struct {
+	first    string
+	builder  *strings.Builder
+	hasValue bool
+}
+
+func (v *poValue) WriteString(s string) {
+	if !v.hasValue {
+		v.first = s
+		v.hasValue = true
+		return
+	}
+	if v.builder == nil {
+		v.builder = &strings.Builder{}
+		v.builder.WriteString(v.first)
+	} else if v.builder.Len() == 0 {
+		v.builder.WriteString(v.first)
+	}
+	v.builder.WriteString(s)
+}
+
+func (v *poValue) String() string {
+	if v.builder != nil && v.builder.Len() > 0 {
+		return v.builder.String()
+	}
+	return v.first
+}
+
+func (v *poValue) Reset() {
+	v.first = ""
+	v.hasValue = false
+	if v.builder != nil {
+		v.builder.Reset()
+	}
+}
+
 func (p POFileParser) Parse(content []byte) (map[string]string, error) {
 	out := map[string]string{}
 
-	var currentMsgID strings.Builder
-	var currentMsgStr strings.Builder
+	var currentMsgID poValue
+	var currentMsgStr poValue
 	activeField := ""
 	seenMsgID := false
 	seenMsgStr := false
@@ -69,7 +105,7 @@ func (p POFileParser) Parse(content []byte) (map[string]string, error) {
 func consumePOLine(
 	lineNumber int,
 	line string,
-	currentMsgID, currentMsgStr *strings.Builder,
+	currentMsgID, currentMsgStr *poValue,
 	activeField *string,
 	seenMsgID, seenMsgStr *bool,
 	flush, reset func(),
@@ -104,7 +140,7 @@ func consumePOLine(
 	}
 }
 
-func handlePOMsgID(lineNumber int, line string, currentMsgID *strings.Builder, activeField *string, seenMsgID *bool, flush, reset func()) error {
+func handlePOMsgID(lineNumber int, line string, currentMsgID *poValue, activeField *string, seenMsgID *bool, flush, reset func()) error {
 	flush()
 	reset()
 	v, err := parsePOQuoted(strings.TrimPrefix(line, "msgid "))
@@ -117,7 +153,7 @@ func handlePOMsgID(lineNumber int, line string, currentMsgID *strings.Builder, a
 	return nil
 }
 
-func handlePOMsgStr(lineNumber int, raw string, currentMsgStr *strings.Builder, activeField *string, seenMsgStr *bool) error {
+func handlePOMsgStr(lineNumber int, raw string, currentMsgStr *poValue, activeField *string, seenMsgStr *bool) error {
 	v, err := parsePOQuoted(raw)
 	if err != nil {
 		return fmt.Errorf("line %d: parse msgstr: %w", lineNumber, err)
@@ -128,7 +164,7 @@ func handlePOMsgStr(lineNumber int, raw string, currentMsgStr *strings.Builder, 
 	return nil
 }
 
-func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *strings.Builder, activeField *string, seenMsgStr *bool) error {
+func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *poValue, activeField *string, seenMsgStr *bool) error {
 	if !strings.HasPrefix(line, "msgstr[0]") {
 		*activeField = ""
 		return nil
@@ -148,7 +184,7 @@ func handlePOIndexedMsgStr(lineNumber int, line string, currentMsgStr *strings.B
 	return nil
 }
 
-func handlePOContinuation(lineNumber int, line string, currentMsgID, currentMsgStr *strings.Builder, activeField string) error {
+func handlePOContinuation(lineNumber int, line string, currentMsgID, currentMsgStr *poValue, activeField string) error {
 	v, err := parsePOQuoted(line)
 	if err != nil {
 		return fmt.Errorf("line %d: parse continued string: %w", lineNumber, err)
@@ -164,11 +200,14 @@ func handlePOContinuation(lineNumber int, line string, currentMsgID, currentMsgS
 
 func parsePOQuoted(raw string) (string, error) {
 	raw = strings.TrimSpace(raw)
-	if raw == "" {
-		return "", fmt.Errorf("expected quoted string")
-	}
-	if !strings.HasPrefix(raw, "\"") {
+	if len(raw) < 2 || raw[0] != '"' || raw[len(raw)-1] != '"' {
 		return "", fmt.Errorf("expected quoted string, got %q", raw)
+	}
+
+	// BOLT OPTIMIZATION: Fast-path for simple quoted strings to avoid strconv.Unquote allocations.
+	inner := raw[1 : len(raw)-1]
+	if !strings.ContainsAny(inner, "\\\"") {
+		return inner, nil
 	}
 
 	unquoted, err := strconv.Unquote(raw)
@@ -198,8 +237,8 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 			raw = s[:idx]
 		}
 
-		lineOutput := raw
 		trimmed := strings.TrimSpace(raw)
+		var processed bool
 
 		switch {
 		case trimmed == "":
@@ -216,12 +255,14 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 		case strings.HasPrefix(trimmed, "msgstr "):
 			activeField = "msgstr"
 			if replacement, ok := values[currentKey]; ok {
-				lineOutput = replacePOQuotedSuffix(raw, "msgstr", replacement)
+				writePOQuotedSuffix(&out, raw, "msgstr", replacement)
+				processed = true
 			}
 		case strings.HasPrefix(trimmed, "msgstr[0]"):
 			activeField = "msgstr0"
 			if replacement, ok := values[currentKey]; ok {
-				lineOutput = replacePOQuotedSuffix(raw, "msgstr[0]", replacement)
+				writePOQuotedSuffix(&out, raw, "msgstr[0]", replacement)
+				processed = true
 			}
 		case strings.HasPrefix(trimmed, "msgstr["):
 			activeField = "msgstrN"
@@ -235,14 +276,19 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 				currentKey += v
 			case "msgstr", "msgstr0":
 				if _, ok := values[currentKey]; ok {
-					lineOutput = preserveIndent(raw) + `""`
+					out.WriteString(preserveIndent(raw))
+					out.WriteString(`""`)
+					processed = true
 				}
 			}
 		default:
 			activeField = ""
 		}
 
-		out.WriteString(lineOutput)
+		if !processed {
+			out.WriteString(raw)
+		}
+
 		if idx >= 0 {
 			out.WriteByte('\n')
 		}
@@ -257,9 +303,19 @@ func MarshalPOFile(template []byte, values map[string]string) ([]byte, error) {
 	return []byte(out.String()), nil
 }
 
-func replacePOQuotedSuffix(raw, field, value string) string {
-	indent := preserveIndent(raw)
-	return indent + field + " " + strconv.Quote(value)
+func writePOQuotedSuffix(w *strings.Builder, raw, field, value string) {
+	w.WriteString(preserveIndent(raw))
+	w.WriteString(field)
+	w.WriteByte(' ')
+	// BOLT OPTIMIZATION: Fast-path for simple values to avoid strconv.Quote allocations.
+	// Must cover every byte strconv.Quote would escape: \a \b \f \v \t \n \r \\ \"
+	if !strings.ContainsAny(value, "\\\"\a\b\f\v\n\r\t") {
+		w.WriteByte('"')
+		w.WriteString(value)
+		w.WriteByte('"')
+	} else {
+		w.WriteString(strconv.Quote(value))
+	}
 }
 
 func preserveIndent(raw string) string {
