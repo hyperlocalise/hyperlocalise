@@ -2,6 +2,7 @@ package icuparser
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -459,6 +460,16 @@ func TestPlaceholderWithArrayIndices(t *testing.T) {
 			msg:  "{data[0], plural, one {# item} other {# items}}",
 			want: []string{"data[0]"},
 		},
+		{
+			name: "moustache with array index",
+			msg:  "Hello {{items[0]}}",
+			want: []string{"items[0]"},
+		},
+		{
+			name: "moustache with nested array index",
+			msg:  "Value: {{nested.items[123].field}}",
+			want: []string{"nested.items[123].field"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -469,6 +480,52 @@ func TestPlaceholderWithArrayIndices(t *testing.T) {
 			}
 			if !SamePlaceholderSet(inv.Placeholders, tt.want) {
 				t.Errorf("got placeholders %v, want %v", inv.Placeholders, tt.want)
+			}
+		})
+	}
+}
+
+func TestPlaceholderWithMalformedArrayIndices(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+	}{
+		{
+			name: "missing closing bracket",
+			msg:  "Hello {items[0}",
+		},
+		{
+			name: "missing opening bracket",
+			msg:  "Hello {items0]}",
+		},
+		{
+			name: "empty brackets",
+			msg:  "Hello {items[]}",
+		},
+		{
+			name: "non-digit in brackets",
+			msg:  "Hello {items[a]}",
+		},
+		{
+			name: "nested brackets",
+			msg:  "Hello {items[[0]]}",
+		},
+		{
+			name: "unclosed bracket in plural arg",
+			msg:  "{data[0, plural, one {# item} other {# items}}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv, err := ParseInvariant(tt.msg)
+			// These should either fail parsing or not include the malformed string as a placeholder.
+			if err == nil {
+				for _, p := range inv.Placeholders {
+					if strings.Contains(p, "[") || strings.Contains(p, "]") {
+						t.Errorf("malformed placeholder %q was collected", p)
+					}
+				}
 			}
 		})
 	}

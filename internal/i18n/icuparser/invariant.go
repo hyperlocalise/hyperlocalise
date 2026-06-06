@@ -353,10 +353,27 @@ func isPlaceholderName(s string) bool {
 				if !isASCIIPlaceholderFirst(ch) {
 					return false
 				}
-			} else {
-				if !isASCIIPlaceholderSubsequent(ch) {
+				i++
+				continue
+			}
+
+			// Support array index notation: items[0]
+			if ch == '[' {
+				i++
+				digitCount := 0
+				for i < len(s) && isASCIIDigit(s[i]) {
+					i++
+					digitCount++
+				}
+				if digitCount == 0 || i >= len(s) || s[i] != ']' {
 					return false
 				}
+				i++
+				continue
+			}
+
+			if !isASCIIPlaceholderSubsequent(ch) {
+				return false
 			}
 			i++
 			continue
@@ -382,7 +399,7 @@ func isASCIIPlaceholderFirst(b byte) bool {
 }
 
 func isASCIIPlaceholderSubsequent(b byte) bool {
-	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '.' || b == '-' || b == '$' || b == '[' || b == ']'
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '.' || b == '-' || b == '$'
 }
 
 func isASCIIDigit(b byte) bool {
@@ -394,7 +411,7 @@ func isPlaceholderFirstRune(r rune) bool {
 }
 
 func isPlaceholderSubsequentRune(r rune) bool {
-	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '.' || r == '-' || r == '$' || r == '[' || r == ']'
+	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '.' || r == '-' || r == '$'
 }
 
 func isASCIIDigitRune(r rune) bool {
