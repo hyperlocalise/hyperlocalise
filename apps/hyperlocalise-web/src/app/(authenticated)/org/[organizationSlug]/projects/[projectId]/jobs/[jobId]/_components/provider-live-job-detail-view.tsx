@@ -1,9 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import Link from "next/link";
 import {
-  ArrowLeft02Icon,
   Clock01Icon,
   File01Icon,
   LanguageSquareIcon,
@@ -40,7 +38,12 @@ import {
 } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
 import { buildJobsListHref, formatJobDetailDate } from "./job-detail-types";
-import type { JobDetailBackLinkRenderer, JobDetailErrorRenderer } from "./native-job-detail-view";
+import {
+  defaultRenderBackLink,
+  defaultRenderError,
+  type JobDetailBackLinkRenderer,
+  type JobDetailErrorRenderer,
+} from "./native-job-detail-view";
 
 export type ProviderLiveDescriptionFieldRenderer = (props: {
   description: string;
@@ -216,7 +219,7 @@ function TaskDetailsCard({ job }: { job: TmsProviderLiveJobDetail }) {
         <JobDetailRow label="Last sync" value={formatJobDetailDate(job.updatedAt)} />
         {wordsToDo ? <JobDetailRow label="Words to do" value={wordsToDo} /> : null}
         <JobDetailRow label="External job ID" value={job.externalJobId} />
-        <JobDetailRow label="External task ID" value={job.id} />
+        <JobDetailRow label="External task ID" value={job.externalTaskId} />
       </dl>
     </section>
   );
@@ -298,28 +301,6 @@ function TaskActivitySection({ job }: { job: TmsProviderLiveJobDetail }) {
         </li>
       </ul>
     </section>
-  );
-}
-
-function defaultRenderBackLink({ href, children }: Parameters<JobDetailBackLinkRenderer>[0]) {
-  return (
-    <Button
-      nativeButton={false}
-      render={<Link href={href} />}
-      variant="ghost"
-      className="-ml-2 mb-2 text-foreground/54 hover:bg-foreground/6 hover:text-foreground"
-    >
-      <HugeiconsIcon icon={ArrowLeft02Icon} strokeWidth={1.8} />
-      {children}
-    </Button>
-  );
-}
-
-function defaultRenderError({ error }: Parameters<JobDetailErrorRenderer>[0]) {
-  return (
-    <div className="rounded-lg border border-flame-300/20 bg-flame-300/8 p-5 text-sm text-flame-100">
-      {error instanceof Error ? error.message : "Unable to load provider job"}
-    </div>
   );
 }
 

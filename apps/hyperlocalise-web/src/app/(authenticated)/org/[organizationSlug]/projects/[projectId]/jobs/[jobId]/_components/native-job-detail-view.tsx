@@ -61,7 +61,10 @@ function DetailRow({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
-function defaultRenderBackLink({ href, children }: Parameters<JobDetailBackLinkRenderer>[0]) {
+export function defaultRenderBackLink({
+  href,
+  children,
+}: Parameters<JobDetailBackLinkRenderer>[0]) {
   return (
     <Button
       nativeButton={false}
@@ -75,7 +78,7 @@ function defaultRenderBackLink({ href, children }: Parameters<JobDetailBackLinkR
   );
 }
 
-function defaultRenderError({ error }: Parameters<JobDetailErrorRenderer>[0]) {
+export function defaultRenderError({ error }: Parameters<JobDetailErrorRenderer>[0]) {
   return (
     <div className="rounded-lg border border-flame-300/20 bg-flame-300/8 p-5 text-sm text-flame-100">
       {error instanceof Error ? error.message : "Unable to load job"}
