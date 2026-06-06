@@ -1,7 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft02Icon, LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft02Icon,
+  Clock01Icon,
+  File01Icon,
+  LanguageSquareIcon,
+  LinkSquare02Icon,
+  RefreshIcon,
+  Task01Icon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -18,14 +26,20 @@ import type {
 } from "@/lib/providers/tms-provider-live";
 
 import { toneClass } from "../../../../../_components/workspace-resource-shared";
-import {
-  JobDetailRow,
-  ProviderCrowdinJobDetailRows,
-} from "../../../../../jobs/_components/provider-crowdin-job-detail-rows";
+import { JobDetailRow } from "../../../../../jobs/_components/provider-crowdin-job-detail-rows";
+import { ProviderJobDescriptionField } from "../../../../../jobs/_components/provider-job-description-field";
 import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
 import {
+  formatReadinessProgress,
   formatLocaleList,
   getCrowdinTargetLocales,
+  formatWordsToDo,
+  getCrowdinLanguageLabel,
+  getCrowdinLocaleReadiness,
+  getCrowdinTaskTypeLabel,
+  getProviderPayloadString,
+  getReadinessNumber,
+  getReadinessWords,
 } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
 function statusTone(status: TmsProviderLiveJobDetail["status"]) {
@@ -58,6 +72,11 @@ function formatJobKind(job: TmsProviderLiveJobDetail) {
   return job.kind.replace("_", " ");
 }
 
+function formatProviderKind(kind: string | null | undefined) {
+  if (!kind) return "Provider";
+  return kind.charAt(0).toUpperCase() + kind.slice(1);
+}
+
 function formatTimeSpent(seconds: number | null) {
   if (!seconds || seconds <= 0) {
     return null;
@@ -71,6 +90,157 @@ function formatTimeSpent(seconds: number | null) {
   const hours = Math.floor(minutes / 60);
   const remainingMinutes = minutes % 60;
   return remainingMinutes > 0 ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
+}
+
+function MetricItem({
+  icon,
+  label,
+}: {
+  icon: Parameters<typeof HugeiconsIcon>[0]["icon"];
+  label: string;
+}) {
+  return (
+    <span className="inline-flex min-w-0 items-center gap-2 text-sm text-foreground/58">
+      <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4 shrink-0 text-foreground/42" />
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
+
+function getProgressValue(job: TmsProviderLiveJobDetail) {
+  const readiness = getCrowdinLocaleReadiness(job.externalProviderPayload);
+  const translationProgress = getReadinessNumber(readiness, "translationProgress");
+  const approvalProgress = getReadinessNumber(readiness, "approvalProgress");
+  return Math.max(0, Math.min(100, Math.round(translationProgress ?? approvalProgress ?? 0)));
+}
+
+function getWordsProgress(job: TmsProviderLiveJobDetail) {
+  const readiness = getCrowdinLocaleReadiness(job.externalProviderPayload);
+  const words = getReadinessWords(readiness);
+  const total = getReadinessNumber(words, "total");
+  const translated = getReadinessNumber(words, "translated");
+  const approved = getReadinessNumber(words, "approved");
+
+  if (total === null) {
+    return null;
+  }
+
+  return {
+    completed: Math.max(0, translated ?? approved ?? 0),
+    total,
+  };
+}
+
+function TaskDescriptionSection({
+  canEditProviderJobDescription,
+  description,
+  job,
+  jobQueryKey,
+  organizationSlug,
+}: {
+  canEditProviderJobDescription: boolean;
+  description: string;
+  job: TmsProviderLiveJobDetail;
+  jobQueryKey: readonly unknown[];
+  organizationSlug: string;
+}) {
+  const canEditProviderDescription = job.id.startsWith("ext:");
+
+  return (
+    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+        Task description
+      </TypographyH2>
+      <div className="mt-4">
+        <ProviderJobDescriptionField
+          organizationSlug={organizationSlug}
+          encodedJobId={job.id}
+          description={description}
+          editable={canEditProviderJobDescription && canEditProviderDescription}
+          queryKey={jobQueryKey}
+        />
+      </div>
+    </section>
+  );
+}
+
+function StatusSummaryCard({ job }: { job: TmsProviderLiveJobDetail }) {
+  const readiness = getCrowdinLocaleReadiness(job.externalProviderPayload);
+  const progress = getProgressValue(job);
+  const progressLabel = formatReadinessProgress(readiness) ?? `${progress}% translated`;
+  const wordsProgress = getWordsProgress(job);
+
+  return (
+    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+        Status
+      </TypographyH2>
+      <Badge
+        variant="outline"
+        className={cn("mt-5 w-fit rounded-full capitalize", toneClass(statusTone(job.status)))}
+      >
+        {job.status}
+      </Badge>
+      <div className="mt-7">
+        <div className="flex items-baseline gap-2">
+          <span className="text-3xl font-semibold text-foreground">{progress}%</span>
+          <span className="text-sm text-foreground/58">
+            {progressLabel.replace(/^\d+%\s*/, "")}
+          </span>
+        </div>
+        <div
+          className="mt-4 h-1.5 overflow-hidden rounded-full bg-foreground/10"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={progress}
+        >
+          <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
+        </div>
+        <p className="mt-3 text-sm text-foreground/52">
+          {wordsProgress
+            ? `${wordsProgress.completed} / ${wordsProgress.total} words`
+            : "No word count"}
+        </p>
+      </div>
+    </section>
+  );
+}
+
+function TaskDetailsCard({ job }: { job: TmsProviderLiveJobDetail }) {
+  const providerName = formatProviderKind(job.externalProviderKind);
+  const targetLocales = formatLocaleList(
+    getCrowdinTargetLocales(job.externalProviderPayload, job.externalTargetLocales),
+  );
+  const taskType = getCrowdinTaskTypeLabel(job.externalProviderPayload) ?? formatJobKind(job);
+  const wordsToDo = formatWordsToDo(getCrowdinLocaleReadiness(job.externalProviderPayload));
+
+  return (
+    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+        Details
+      </TypographyH2>
+      <dl className="mt-3 divide-y divide-foreground/8">
+        <JobDetailRow label="Provider" value={providerName} />
+        <JobDetailRow label="Task type" value={taskType} />
+        <JobDetailRow label="Project" value={job.projectName ?? job.projectId} />
+        <JobDetailRow
+          label="Language"
+          value={getCrowdinLanguageLabel(job.externalProviderPayload) ?? "—"}
+        />
+        <JobDetailRow label="Target locales" value={targetLocales} />
+        <JobDetailRow
+          label="Assignees"
+          value={job.externalAssignedUsers.length > 0 ? job.externalAssignedUsers.join(", ") : "—"}
+        />
+        <JobDetailRow label="Due date" value={formatDate(job.externalDueDate)} />
+        <JobDetailRow label="Last sync" value={formatDate(job.updatedAt)} />
+        {wordsToDo ? <JobDetailRow label="Words to do" value={wordsToDo} /> : null}
+        <JobDetailRow label="External job ID" value={job.externalJobId} />
+        <JobDetailRow label="External task ID" value={job.id} />
+      </dl>
+    </section>
+  );
 }
 
 function TaskCommentsSection({
@@ -131,6 +301,27 @@ function TaskCommentsSection({
   );
 }
 
+function TaskActivitySection({ job }: { job: TmsProviderLiveJobDetail }) {
+  return (
+    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+        Activity
+      </TypographyH2>
+      <ul className="mt-4 divide-y divide-foreground/8 rounded-md border border-foreground/8 bg-background/50">
+        <li className="px-3 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="text-sm font-medium text-foreground">Task refreshed</span>
+            <span className="text-xs text-foreground/42">{formatDate(job.updatedAt)}</span>
+          </div>
+          <p className="mt-2 text-sm leading-6 text-foreground/58">
+            Latest provider status is {job.status}.
+          </p>
+        </li>
+      </ul>
+    </section>
+  );
+}
+
 export function ProviderLiveJobDetailContent({
   jobId,
   organizationSlug,
@@ -184,7 +375,7 @@ export function ProviderLiveJobDetailContent({
   const job = jobQuery.data;
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+    <main className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <Button
@@ -203,19 +394,34 @@ export function ProviderLiveJobDetailContent({
           <TypographyH1 className="wrap-break-word font-heading text-3xl font-semibold text-foreground md:text-4xl">
             {job?.externalTitle ?? jobId}
           </TypographyH1>
-          <p className="mt-2 text-sm text-muted-foreground">
-            Live task from {job?.externalProviderKind ?? "provider"} — agent workflows are not
-            available in this phase.
-          </p>
+          {job ? (
+            <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
+              <MetricItem
+                icon={Task01Icon}
+                label={`${formatProviderKind(job.externalProviderKind)} task`}
+              />
+              <MetricItem
+                icon={LanguageSquareIcon}
+                label={
+                  getCrowdinLanguageLabel(job.externalProviderPayload) ??
+                  formatLocaleList(
+                    getCrowdinTargetLocales(job.externalProviderPayload, job.externalTargetLocales),
+                  )
+                }
+              />
+              <MetricItem
+                icon={File01Icon}
+                label={
+                  formatWordsToDo(getCrowdinLocaleReadiness(job.externalProviderPayload)) ??
+                  "Source files linked"
+                }
+              />
+              <MetricItem icon={Clock01Icon} label={`Last synced ${formatDate(job.updatedAt)}`} />
+            </div>
+          ) : null}
         </div>
         {job ? (
           <div className="flex flex-col items-start gap-3 sm:items-end">
-            <Badge
-              variant="outline"
-              className={cn("w-fit rounded-full capitalize", toneClass(statusTone(job.status)))}
-            >
-              {job.status}
-            </Badge>
             <div className="flex flex-wrap gap-2 sm:justify-end">
               {job.externalUrl ? (
                 <Button
@@ -270,81 +476,47 @@ export function ProviderLiveJobDetailContent({
       ) : null}
 
       {job ? (
-        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-          <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-            Provider task
-          </TypographyH2>
-          <dl className="mt-3 divide-y divide-foreground/8">
-            <JobDetailRow label="Job ID" value={job.id} />
-            <JobDetailRow label="Provider status" value={job.externalStatus} />
-            {job.externalProviderKind !== "crowdin" ? (
-              <JobDetailRow label="Kind" value={job.kind.replace("_", " ")} />
-            ) : null}
-            <JobDetailRow
-              label="Assignees"
-              value={
-                job.externalAssignedUsers.length > 0 ? job.externalAssignedUsers.join(", ") : "—"
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
+          <div className="flex min-w-0 flex-col gap-5">
+            <TaskDescriptionSection
+              canEditProviderJobDescription={canEditProviderJobDescription}
+              description={
+                getProviderPayloadString(job.externalProviderPayload, "description") ?? ""
               }
+              job={job}
+              jobQueryKey={jobQueryKey}
+              organizationSlug={organizationSlug}
             />
+
             {job.externalProviderKind === "crowdin" ? (
-              <ProviderCrowdinJobDetailRows
-                job={job}
-                providerPayload={job.externalProviderPayload}
+              <TmsLiveJobFilesSection
                 organizationSlug={organizationSlug}
-                formatJobKind={formatJobKind}
-                formatDateTime={formatDate}
-                descriptionQueryKey={jobQueryKey}
-                canEditDescription={canEditProviderJobDescription}
-                showProviderLink={false}
+                projectId={projectId}
+                encodedJobId={jobId}
+                highlightLocale={
+                  typeof job.externalProviderPayload.languageId === "string"
+                    ? job.externalProviderPayload.languageId
+                    : null
+                }
               />
-            ) : (
-              <>
-                <JobDetailRow label="Project" value={job.projectName ?? job.projectId} />
-                <JobDetailRow
-                  label="Target locales"
-                  value={formatLocaleList(getCrowdinTargetLocales(null, job.externalTargetLocales))}
-                />
-                <JobDetailRow label="Due date" value={formatDate(job.externalDueDate)} />
-                <JobDetailRow label="Last refreshed" value={formatDate(job.updatedAt)} />
-                {job.externalUrl ? (
-                  <JobDetailRow
-                    label="Provider URL"
-                    value={
-                      <a
-                        href={job.externalUrl}
-                        target="_blank"
-                        rel="noreferrer noopener"
-                        className="text-foreground underline decoration-foreground/24 underline-offset-4 hover:decoration-foreground/48"
-                      >
-                        Open in {job.externalProviderKind}
-                      </a>
-                    }
-                  />
-                ) : null}
-              </>
-            )}
-          </dl>
-        </section>
+            ) : null}
+          </div>
+          <aside className="flex min-w-0 flex-col gap-5">
+            <StatusSummaryCard job={job} />
+            <TaskDetailsCard job={job} />
+          </aside>
+        </div>
       ) : null}
 
       {job?.externalProviderKind === "crowdin" ? (
-        <>
-          <TmsLiveJobFilesSection
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            encodedJobId={jobId}
-            highlightLocale={
-              typeof job.externalProviderPayload.languageId === "string"
-                ? job.externalProviderPayload.languageId
-                : null
-            }
-          />
+        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <TaskCommentsSection
             comments={commentsQuery.data ?? []}
             isError={commentsQuery.isError}
             isLoading={commentsQuery.isLoading}
           />
-        </>
+          <TaskActivitySection job={job} />
+        </div>
       ) : null}
     </main>
   );
