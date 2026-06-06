@@ -18,11 +18,7 @@ describe("extractProviderFileIds", () => {
   });
 
   it("normalizes string and numeric file ids", () => {
-    expect(extractProviderFileIds({ fileIds: [123, "456", 0] })).toEqual([
-      "123",
-      "456",
-      "0",
-    ]);
+    expect(extractProviderFileIds({ fileIds: [123, "456", 0] })).toEqual(["123", "456", "0"]);
   });
 
   it("filters unsupported and empty file id entries", () => {
