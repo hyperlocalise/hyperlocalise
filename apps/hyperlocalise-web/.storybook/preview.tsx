@@ -37,7 +37,7 @@ const preview: Preview = {
             >
               <Story />
             </div>
-            <Toaster />
+            <Toaster richColors closeButton />
           </TooltipProvider>
         </ThemeProvider>
       </QueryProvider>

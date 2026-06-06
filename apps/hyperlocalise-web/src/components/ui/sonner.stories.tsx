@@ -26,7 +26,6 @@ export const Overview: Story = {
       <Button variant="destructive" onClick={() => toast.error("Write-back failed")}>
         Error
       </Button>
-      <Toaster richColors closeButton />
     </div>
   ),
   play: async ({ canvas }) => {
