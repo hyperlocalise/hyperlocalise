@@ -36,7 +36,7 @@ export function providerSourceFileToProjectFileRecord(
     sourceHash: null,
     commitSha: null,
     workflowRunId: null,
-    uploadedAt: new Date().toISOString(),
+    uploadedAt: new Date(0).toISOString(),
     storedFileId: null,
     metadata: {},
     filename: file.displayName,
