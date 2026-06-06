@@ -137,3 +137,15 @@
 **Learning:** The Crowdin MT Engines API v2 uses different credential structures depending on the engine type (e.g., Google, DeepL, etc.), but the SDK was using a hardcoded struct. Additionally, the list response was missing pagination, and the resource model was missing standard fields like `createdAt` and `updatedAt`.
 
 **Action:** Updated `MachineTranslation.Credentials` to `map[string]any` and `MTAddRequest.Credentials` to `any` to support all engine types. Added `Pagination` to `MachineTranslationsListResponse`. Added `CreatedAt` and `UpdatedAt` fields to the `MachineTranslation` model. Fixed and unskipped `TestMachineTranslationEnginesService_AddMT` by aligning expectations and correcting mock JSON data.
+
+## 2026-09-12 - Improve StringComment model parity and fix documentation URL
+
+**Learning:** The Crowdin String Comments API v2 response includes a `string` object that contains `hasPlurals` and `isIcu` fields, which were missing from the Go SDK's `String` struct in `model/string_comments.go`. Additionally, the documentation URL for the `Get` method was incorrectly pointing to the `post` (Add) operation.
+
+**Action:** Added `HasPlurals` (bool) and `IsIcu` (bool) fields to the `String` struct in `model/string_comments.go`. Fixed the documentation URL in the comment for `StringCommentsService.Get` by changing `post` to `get`. Updated the `getStringComment` test helper in `string_comments_test.go` to reflect these changes. Verified with full test suite passing.
+
+## 2026-09-12 - Update StringComment test fixture for explicit field validation
+
+**Learning:** Test fixtures that only use zero values (like `false` for booleans) may pass even if JSON struct tags are missing or incorrect, as the unmarshaler defaults to the zero value. Using non-zero values in tests ensures that tags like `json:"hasPlurals"` are actually working.
+
+**Action:** Updated `string_comments_test.go` to use `true` for `hasPlurals` and `isIcu` in both the JSON mock and the expected struct. This confirms that these new fields are correctly unmarshaled from Crowdin API responses.

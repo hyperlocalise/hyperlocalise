@@ -62,7 +62,7 @@ func (s *StringCommentsService) BatchOperations(ctx context.Context, projectID i
 
 // Get returns a string comment by its ID.
 //
-// https://developer.crowdin.com/api/v2/#operation/api.projects.comments.post
+// https://developer.crowdin.com/api/v2/#operation/api.projects.comments.get
 func (s *StringCommentsService) Get(ctx context.Context, projectID, commentID int) (
 	*model.StringComment, *Response, error,
 ) {

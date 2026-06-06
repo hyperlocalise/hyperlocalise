@@ -30,11 +30,13 @@ type StringComment struct {
 }
 
 type String struct {
-	ID      int    `json:"id"`
-	Text    string `json:"text"`
-	Type    string `json:"type"`
-	Context string `json:"context"`
-	FileID  int    `json:"fileId"`
+	ID         int    `json:"id"`
+	Text       string `json:"text"`
+	Type       string `json:"type"`
+	HasPlurals bool   `json:"hasPlurals"`
+	IsIcu      bool   `json:"isIcu"`
+	Context    string `json:"context"`
+	FileID     int    `json:"fileId"`
 }
 
 type Organization struct {
