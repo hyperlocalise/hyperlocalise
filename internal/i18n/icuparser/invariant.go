@@ -382,7 +382,7 @@ func isASCIIPlaceholderFirst(b byte) bool {
 }
 
 func isASCIIPlaceholderSubsequent(b byte) bool {
-	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '.' || b == '-' || b == '$'
+	return (b >= 'a' && b <= 'z') || (b >= 'A' && b <= 'Z') || (b >= '0' && b <= '9') || b == '_' || b == '.' || b == '-' || b == '$' || b == '[' || b == ']'
 }
 
 func isASCIIDigit(b byte) bool {
@@ -394,7 +394,7 @@ func isPlaceholderFirstRune(r rune) bool {
 }
 
 func isPlaceholderSubsequentRune(r rune) bool {
-	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '.' || r == '-' || r == '$'
+	return unicode.IsLetter(r) || isASCIIDigitRune(r) || r == '_' || r == '.' || r == '-' || r == '$' || r == '[' || r == ']'
 }
 
 func isASCIIDigitRune(r rune) bool {

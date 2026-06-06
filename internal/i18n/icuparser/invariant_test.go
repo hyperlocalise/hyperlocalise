@@ -438,6 +438,42 @@ func TestParseInvariantIncludesTypedBlocks(t *testing.T) {
 	}
 }
 
+func TestPlaceholderWithArrayIndices(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want []string
+	}{
+		{
+			name: "placeholder with array index",
+			msg:  "Hello {items[0]}",
+			want: []string{"items[0]"},
+		},
+		{
+			name: "placeholder with nested array index",
+			msg:  "Value: {nested.items[123].field}",
+			want: []string{"nested.items[123].field"},
+		},
+		{
+			name: "plural with array index argument",
+			msg:  "{data[0], plural, one {# item} other {# items}}",
+			want: []string{"data[0]"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv, err := ParseInvariant(tt.msg)
+			if err != nil {
+				t.Fatalf("ParseInvariant failed: %v", err)
+			}
+			if !SamePlaceholderSet(inv.Placeholders, tt.want) {
+				t.Errorf("got placeholders %v, want %v", inv.Placeholders, tt.want)
+			}
+		})
+	}
+}
+
 func TestCountPoundsComplexNesting(t *testing.T) {
 	tests := []struct {
 		name string
