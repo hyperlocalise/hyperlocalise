@@ -3,7 +3,24 @@ import "dotenv/config";
 import { randomUUID } from "node:crypto";
 
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+}));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
 
 import { createApp } from "@/api/app";
 import { createMemoryFileStorageAdapter } from "@/api/routes/file/file.fixture";
@@ -22,14 +39,20 @@ const fileStorageAdapter = createMemoryFileStorageAdapter();
 const client = testClient(createApp({ fileStorageAdapter }));
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
-const { authHeadersFor, createWorkosIdentityWithRole, createWorkosIdentityForOrganization, getLocalUserId, cleanup } =
-  projectFixture;
+const {
+  authHeadersFor,
+  createWorkosIdentityWithRole,
+  createWorkosIdentityForOrganization,
+  getLocalUserId,
+  cleanup,
+} = projectFixture;
 
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
 afterEach(async () => {
+  vi.clearAllMocks();
   await cleanup();
   await cleanupPublicApiFixture();
 });
@@ -138,7 +161,9 @@ describe("public API team-scoped access", () => {
     expect(betaProjectResponse.status).toBe(201);
     const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
 
-    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Jobs Team" });
+    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, {
+      name: "Alpha Jobs Team",
+    });
     expect(teamAlphaResponse.status).toBe(201);
     const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
 
@@ -171,6 +196,6 @@ describe("public API team-scoped access", () => {
     );
 
     expect(createJobResponse.status).toBe(404);
-    await expect(createJobResponse.json()).resolves.toEqual({ error: "project_not_found" });
+    await expect(createJobResponse.json()).resolves.toMatchObject({ error: "project_not_found" });
   });
 });

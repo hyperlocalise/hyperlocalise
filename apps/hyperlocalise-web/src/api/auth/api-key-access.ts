@@ -73,10 +73,7 @@ export async function resolveApiKeyTeamAccessContext(input: {
   return enrichAuthContextWithCapabilities(authBase);
 }
 
-export async function getAccessibleProjectForApiKey(
-  teamAccess: ApiAuthContext,
-  projectId: string,
-) {
+export async function getAccessibleProjectForApiKey(teamAccess: ApiAuthContext, projectId: string) {
   const [project] = await db
     .select()
     .from(schema.projects)

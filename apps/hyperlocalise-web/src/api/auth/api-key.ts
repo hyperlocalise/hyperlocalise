@@ -67,7 +67,11 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
     });
 
     if (!teamAccess) {
-      return forbiddenResponse(c, "forbidden", "API key creator is not authorized for this workspace");
+      return forbiddenResponse(
+        c,
+        "forbidden",
+        "API key creator is not authorized for this workspace",
+      );
     }
 
     // Update lastUsedAt asynchronously — don't block the request.

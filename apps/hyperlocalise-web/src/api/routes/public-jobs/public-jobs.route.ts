@@ -267,10 +267,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         const query = c.req.valid("query");
         const organizationId = c.var.auth.organization.localOrganizationId;
         const sourcePath = normalizeSourcePath(query.sourcePath);
-        const project = await getAccessibleProjectForApiKey(
-          c.var.auth.teamAccess,
-          query.projectId,
-        );
+        const project = await getAccessibleProjectForApiKey(c.var.auth.teamAccess, query.projectId);
 
         if (!project) {
           return projectNotFoundResponse(c);
