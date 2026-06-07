@@ -107,9 +107,10 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           icon: LinkSquare02Icon,
         },
         {
-          label: "Team",
-          href: org("settings/members"),
+          label: "Teams",
+          href: org("teams"),
           icon: UserGroupIcon,
+          description: "Create teams and assign workspace members",
         },
         {
           label: "Settings",
