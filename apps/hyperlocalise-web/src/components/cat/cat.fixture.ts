@@ -161,6 +161,7 @@ export function createCatWorkspaceState(
     selectedSegmentId: "seg-02",
     queueSummary: { total: 12, reviewed: 5 },
     formatChecks: catFormatChecksFixture,
+    suggestions: catSuggestionsFixture,
     intelligence: catIntelligenceFixture,
     breadcrumbs: ["Project", "HL-Test", "Jobs", "Translate to Vietnamese"],
     ...overrides,

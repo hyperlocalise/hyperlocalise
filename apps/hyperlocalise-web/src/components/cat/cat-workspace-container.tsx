@@ -82,9 +82,9 @@ export function CatWorkspaceContainer({
           if (!previousId) {
             return current;
           }
-          dependencyOverrides?.navigation?.onPreviousSegment?.();
           return { ...current, selectedSegmentId: previousId };
         });
+        dependencyOverrides?.navigation?.onPreviousSegment?.();
       },
       onNextSegment: () => {
         setState((current) => {
@@ -92,9 +92,9 @@ export function CatWorkspaceContainer({
           if (!nextId) {
             return current;
           }
-          dependencyOverrides?.navigation?.onNextSegment?.();
           return { ...current, selectedSegmentId: nextId };
         });
+        dependencyOverrides?.navigation?.onNextSegment?.();
       },
       onReviewInSequence: () => {
         dependencyOverrides?.navigation?.onReviewInSequence?.();

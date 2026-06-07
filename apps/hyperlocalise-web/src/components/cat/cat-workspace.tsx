@@ -5,6 +5,7 @@ import { cn } from "@/lib/primitives/cn";
 import { CatEditorPanel } from "./cat-editor-panel";
 import { CatIntelligencePanel } from "./cat-intelligence-panel";
 import { CatQueuePanel } from "./cat-queue-panel";
+import { CatSuggestionsTabs } from "./cat-suggestions-tabs";
 import type { CatWorkspaceViewProps } from "./dependencies";
 
 export function CatWorkspaceView({
@@ -31,6 +32,9 @@ export function CatWorkspaceView({
 
   const segmentPosition = selectedSegment.index;
   const { navigation, editing, review } = dependencies;
+  const tmMatchBasisCount = state.suggestions.filter(
+    (suggestion) => suggestion.source === "tm",
+  ).length;
 
   return (
     <div
@@ -50,22 +54,35 @@ export function CatWorkspaceView({
           />
         </div>
 
-        <div className="min-w-0 overflow-hidden">
-          <CatEditorPanel
-            segment={selectedSegment}
-            segmentPosition={segmentPosition}
-            totalSegments={state.segments.length}
-            formatChecks={state.formatChecks}
-            intelligence={state.intelligence}
-            isBusy={isBusy}
-            onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
-            onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
-            onApprove={() => review.onApprove(selectedSegment.id)}
-            onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
-            onSkip={() => review.onSkip(selectedSegment.id)}
-            onPrevious={navigation.onPreviousSegment}
-            onNext={navigation.onNextSegment}
-          />
+        <div className="flex min-w-0 flex-col overflow-hidden">
+          <div className="min-h-0 flex-1 overflow-hidden">
+            <CatEditorPanel
+              segment={selectedSegment}
+              segmentPosition={segmentPosition}
+              totalSegments={state.segments.length}
+              formatChecks={state.formatChecks}
+              intelligence={state.intelligence}
+              isBusy={isBusy}
+              onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
+              onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
+              onApprove={() => review.onApprove(selectedSegment.id)}
+              onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
+              onSkip={() => review.onSkip(selectedSegment.id)}
+              onPrevious={navigation.onPreviousSegment}
+              onNext={navigation.onNextSegment}
+            />
+          </div>
+          <div className="flex h-72 min-h-56 flex-col border-t border-foreground/8">
+            <CatSuggestionsTabs
+              suggestions={state.suggestions}
+              historyCount={state.intelligence.relatedStringCount}
+              glossaryMatchCount={state.intelligence.glossaryTerms.length}
+              tmMatchBasisCount={tmMatchBasisCount}
+              onUseSuggestion={(suggestion) =>
+                editing.onTargetChange(selectedSegment.id, suggestion.text)
+              }
+            />
+          </div>
         </div>
 
         <div className="min-w-0 overflow-hidden">

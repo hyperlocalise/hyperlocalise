@@ -53,22 +53,11 @@ export function CatSuggestionsTabs({
   tmMatchBasisCount?: number;
   onUseSuggestion: (suggestion: CatSuggestion) => void;
 }) {
-  const drawerToggleId = useId();
   const drawerContentId = useId();
   const [isOpen, setIsOpen] = useState(true);
 
   return (
-    <div className="group/suggestions relative flex min-h-0 flex-1 flex-col">
-      <input
-        id={drawerToggleId}
-        type="checkbox"
-        checked={isOpen}
-        onChange={(event) => setIsOpen(event.currentTarget.checked)}
-        className="absolute top-0.5 right-2 z-20 h-8 w-24 cursor-pointer appearance-none rounded transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-hidden"
-        aria-controls={drawerContentId}
-        aria-label="Show suggestions drawer"
-      />
-
+    <div className="relative flex min-h-0 flex-1 flex-col">
       <Tabs defaultValue="suggestions" className="flex min-h-0 flex-1 flex-col">
         <TabsList className="w-full justify-start rounded-none border-b border-foreground/8 bg-transparent px-4 pe-28">
           <TabsTrigger value="suggestions">Suggestions {suggestions.length}</TabsTrigger>
@@ -78,7 +67,7 @@ export function CatSuggestionsTabs({
 
         <div
           id={drawerContentId}
-          className="hidden min-h-0 flex-1 flex-col group-has-[input:checked]/suggestions:flex"
+          className={cn("min-h-0 flex-1 flex-col", isOpen ? "flex" : "hidden")}
         >
           <TabsContent
             value="suggestions"
@@ -121,18 +110,16 @@ export function CatSuggestionsTabs({
         </div>
       </Tabs>
 
-      <div className="pointer-events-none absolute top-0.5 right-2 z-30 inline-flex h-8 w-24 shrink-0 items-center justify-center gap-1 rounded px-2 text-sm font-medium text-muted-foreground">
-        <span className="hidden group-has-[input:checked]/suggestions:inline">Collapse</span>
-        <span className="group-has-[input:checked]/suggestions:hidden">Expand</span>
-        <HugeiconsIcon
-          icon={ArrowDown01Icon}
-          className="size-4 group-has-[input:not(:checked)]/suggestions:hidden"
-        />
-        <HugeiconsIcon
-          icon={ArrowUp01Icon}
-          className="hidden size-4 group-has-[input:not(:checked)]/suggestions:block"
-        />
-      </div>
+      <button
+        type="button"
+        className="absolute top-0.5 right-2 z-20 inline-flex h-8 w-24 shrink-0 items-center justify-center gap-1 rounded px-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-hidden"
+        aria-controls={drawerContentId}
+        aria-expanded={isOpen}
+        onClick={() => setIsOpen((current) => !current)}
+      >
+        {isOpen ? "Collapse" : "Expand"}
+        <HugeiconsIcon icon={isOpen ? ArrowDown01Icon : ArrowUp01Icon} className="size-4" />
+      </button>
     </div>
   );
 }

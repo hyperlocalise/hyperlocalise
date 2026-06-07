@@ -29,12 +29,3 @@ export type {
   CatSuggestionSource,
   CatWorkspaceState,
 } from "./types";
-export {
-  catFormatChecksFixture,
-  catIntelligenceFixture,
-  catSegmentsFixture,
-  catSuggestionsFixture,
-  catWorkspaceFixture,
-  createCatWorkspaceState,
-  mockValidateFormat,
-} from "./cat.fixture";

@@ -76,6 +76,7 @@ export interface CatWorkspaceState {
   selectedSegmentId: string;
   queueSummary: CatQueueSummary;
   formatChecks: CatFormatCheck[];
+  suggestions: CatSuggestion[];
   intelligence: CatSegmentIntelligence;
   jobTitle?: string;
   breadcrumbs?: string[];
