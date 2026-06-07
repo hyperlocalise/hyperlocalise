@@ -369,6 +369,11 @@ func isPlaceholderName(s string) bool {
 					return false
 				}
 				i++
+				// Array indices must be at the end of the identifier or followed by
+				// another property access (.) or array index ([).
+				if i < len(s) && s[i] != '.' && s[i] != '[' {
+					return false
+				}
 				continue
 			}
 
