@@ -446,29 +446,29 @@ func TestPlaceholderWithArrayIndices(t *testing.T) {
 		want []string
 	}{
 		{
-			name: "placeholder with array index",
-			msg:  "Hello {items[0]}",
+			name: "basic array index",
+			msg:  "{items[0]}",
 			want: []string{"items[0]"},
 		},
 		{
-			name: "placeholder with nested array index",
-			msg:  "Value: {nested.items[123].field}",
-			want: []string{"nested.items[123].field"},
+			name: "multi-dimensional array index",
+			msg:  "{matrix[0][1][2]}",
+			want: []string{"matrix[0][1][2]"},
 		},
 		{
-			name: "plural with array index argument",
-			msg:  "{data[0], plural, one {# item} other {# items}}",
-			want: []string{"data[0]"},
+			name: "nested path with array index",
+			msg:  "{a.b[0].c.d[1]}",
+			want: []string{"a.b[0].c.d[1]"},
 		},
 		{
-			name: "moustache with array index",
-			msg:  "Hello {{items[0]}}",
-			want: []string{"items[0]"},
+			name: "array index with underscores and dollars",
+			msg:  "{$items_list[0]}",
+			want: []string{"$items_list[0]"},
 		},
 		{
-			name: "moustache with nested array index",
-			msg:  "Value: {{nested.items[123].field}}",
-			want: []string{"nested.items[123].field"},
+			name: "unicode identifier with array index",
+			msg:  "{π[0]}",
+			want: []string{"π[0]"},
 		},
 	}
 
@@ -492,27 +492,31 @@ func TestPlaceholderWithMalformedArrayIndices(t *testing.T) {
 	}{
 		{
 			name: "missing closing bracket",
-			msg:  "Hello {items[0}",
+			msg:  "{items[0}",
 		},
 		{
 			name: "missing opening bracket",
-			msg:  "Hello {items0]}",
+			msg:  "{items0]}",
 		},
 		{
 			name: "empty brackets",
-			msg:  "Hello {items[]}",
+			msg:  "{items[]}",
 		},
 		{
 			name: "non-digit in brackets",
-			msg:  "Hello {items[a]}",
+			msg:  "{items[a]}",
 		},
 		{
 			name: "nested brackets",
-			msg:  "Hello {items[[0]]}",
+			msg:  "{items[[0]]}",
 		},
 		{
 			name: "unclosed bracket in plural arg",
 			msg:  "{data[0, plural, one {# item} other {# items}}",
+		},
+		{
+			name: "brackets in name part",
+			msg:  "{items[0]suffix}",
 		},
 	}
 
@@ -523,7 +527,7 @@ func TestPlaceholderWithMalformedArrayIndices(t *testing.T) {
 			if err == nil {
 				for _, p := range inv.Placeholders {
 					if strings.Contains(p, "[") || strings.Contains(p, "]") {
-						t.Errorf("malformed placeholder %q was collected", p)
+						t.Errorf("%s: malformed placeholder %q was collected", tt.name, p)
 					}
 				}
 			}
@@ -586,6 +590,67 @@ func TestCountPoundsComplexNesting(t *testing.T) {
 			}
 			if !reflect.DeepEqual(inv.ICUBlocks, tt.want) {
 				t.Errorf("ICUBlocks mismatch\n got: %s\nwant: %s", FormatICUBlocks(inv.ICUBlocks), FormatICUBlocks(tt.want))
+			}
+		})
+	}
+}
+
+func TestParseInvariantComplexPlaceholders(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want []string
+	}{
+		{
+			name: "plural with array index argument",
+			msg:  "{data[0], plural, one {# item} other {# items}}",
+			want: []string{"data[0]"},
+		},
+		{
+			name: "select with nested path argument",
+			msg:  "{user.profile[0].gender, select, male {He} female {She} other {They}}",
+			want: []string{"user.profile[0].gender"},
+		},
+		{
+			name: "number with complex path",
+			msg:  "{results[0].stats.count, number}",
+			want: []string{"results[0].stats.count"},
+		},
+		{
+			name: "date with complex path",
+			msg:  "{history[12].updated_at, date, short}",
+			want: []string{"history[12].updated_at"},
+		},
+		{
+			name: "time with complex path",
+			msg:  "{events[5].start_time, time, ::Hmm}",
+			want: []string{"events[5].start_time"},
+		},
+		{
+			name: "mustache with complex array path",
+			msg:  "Value: {{nested.items[123].field}}",
+			want: []string{"nested.items[123].field"},
+		},
+		{
+			name: "triple mustache with complex array path",
+			msg:  "HTML: {{{content[0].raw_html}}}",
+			want: []string{"content[0].raw_html"},
+		},
+		{
+			name: "mixed complex identifiers",
+			msg:  "{n[0], plural, other {{user.id} logged in at {session[5].time, time}}}",
+			want: []string{"n[0]", "session[5].time", "user.id"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			inv, err := ParseInvariant(tt.msg)
+			if err != nil {
+				t.Fatalf("ParseInvariant failed: %v", err)
+			}
+			if !SamePlaceholderSet(inv.Placeholders, tt.want) {
+				t.Errorf("got placeholders %v, want %v", inv.Placeholders, tt.want)
 			}
 		})
 	}

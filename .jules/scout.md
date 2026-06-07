@@ -55,3 +55,7 @@
 ## 2026-06-12 - [Robust HTML Tag Parity with Quoted Attributes]
 **Learning:** Standard regex-based tag extraction (e.g., `</?[A-Za-z][^>]*?>`) is insufficient for HTML tag parity checks when attributes contain `>` or tag-like content (e.g., `<div title="a > b">`). The regex prematurely terminates at the first `>`, leading to incorrect tag sequences and false-positive mismatches.
 **Action:** Use a scanner-based approach for tag extraction that respects single and double quotes within tags. Ensure the scanner correctly identifies the full span of a tag before normalization and comparison.
+
+## 2025-06-12 - [Structural Validation of Complex Identifiers]
+**Learning:** ICU placeholders often use flattened JSON paths (dots and array indices). Validation must ensure structural integrity: a closing bracket `]` must either end the identifier or be immediately followed by a path separator (`.`) or another index (`[`). Failing to enforce this allows malformed strings like `{items[0]suffix}` to be collected as valid placeholders.
+**Action:** When testing identifier validation, include "tail" cases where valid segments are followed by invalid characters to ensure the state machine or regex correctly terminates or rejects the input.
