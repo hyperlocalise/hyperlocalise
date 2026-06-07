@@ -15,6 +15,7 @@ import type {
 
 type StoreSlackImageSourceInput = {
   attachment: ImageLocalizationAttachment;
+  index: number;
   organizationId: string;
   projectId: string | null;
   createdByUserId: string | null;
@@ -44,7 +45,7 @@ function attachmentContentType(attachment: ImageLocalizationAttachment) {
 
 export async function storeSlackImageSource(input: StoreSlackImageSourceInput) {
   const content = await getImageAttachmentData(input.attachment);
-  const filename = attachmentFilename(input.attachment, 0);
+  const filename = attachmentFilename(input.attachment, input.index);
 
   const file = await createStoredFile({
     organizationId: input.organizationId,
@@ -60,7 +61,6 @@ export async function storeSlackImageSource(input: StoreSlackImageSourceInput) {
       uploadSurface: "slack_agent",
       imageLocalizationSource: true,
       slackAttachmentType: input.attachment.type,
-      slackAttachmentUrl: input.attachment.url,
     },
   });
 

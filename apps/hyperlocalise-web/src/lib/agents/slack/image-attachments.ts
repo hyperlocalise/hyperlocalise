@@ -269,6 +269,7 @@ async function localizeSlackImageSources(input: {
   beforePostGeneratedImage?: () => Promise<void> | void;
 }) {
   let localizedCount = 0;
+  let threadState = input.threadState;
 
   for (const source of input.sources) {
     try {
@@ -278,12 +279,12 @@ async function localizeSlackImageSources(input: {
         source,
         targetLocale: input.targetLocale,
         instructions: input.instructions,
-        threadState: input.threadState,
+        threadState,
         storage: input.storage,
         beforePostGeneratedImage: input.beforePostGeneratedImage,
       });
       localizedCount += 1;
-      input.threadState = (await input.thread.state) as SlackBotThreadState | null;
+      threadState = (await input.thread.state) as SlackBotThreadState | null;
     } catch (error) {
       console.error("Failed to localize Slack image attachment", {
         error,
@@ -318,9 +319,10 @@ export async function handleSlackImageAttachments(
 
   const storedSources = storage
     ? await Promise.all(
-        imageAttachments.map(async (imageAttachment) =>
+        imageAttachments.map(async (imageAttachment, index) =>
           storeSlackImageSource({
             attachment: imageAttachment,
+            index,
             organizationId: storage.organizationId,
             projectId: storage.projectId,
             createdByUserId: storage.createdByUserId,
@@ -414,6 +416,7 @@ export async function handleSlackImageFollowUp(
     conversationMessages?: SlackImageIntentMessage[];
     threadState?: SlackBotThreadState | null;
     storage: SlackImageStorageContext;
+    beforeLocalize?: () => void;
     beforePostGeneratedImage?: () => Promise<void> | void;
   },
 ) {
@@ -435,6 +438,8 @@ export async function handleSlackImageFollowUp(
   if (sources.length === 0) {
     return { handled: false, localizedCount: 0 };
   }
+
+  options.beforeLocalize?.();
 
   const localizedCount = await localizeSlackImageSources({
     thread,

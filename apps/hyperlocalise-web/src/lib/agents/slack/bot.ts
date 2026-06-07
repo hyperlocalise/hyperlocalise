@@ -505,11 +505,13 @@ async function processSlackMessage(
       }
     } else if (threadHasStoredSlackImages(threadState)) {
       await removeEyesReaction(thread, message);
-      wrapThreadPost(thread, interactionId);
       const followUpResult = await handleSlackImageFollowUp(thread, message, {
         conversationMessages: imageIntentMessages,
         threadState,
         storage: imageStorageContext,
+        beforeLocalize: () => {
+          wrapThreadPost(thread, interactionId);
+        },
         beforePostGeneratedImage: async () => {
           await removeEyesReaction(thread, message);
         },
