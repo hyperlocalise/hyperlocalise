@@ -24,6 +24,7 @@ import {
 } from "../../_components/project-page-shell";
 import { ProjectFileDetailPanel } from "./project-file-detail-panel";
 import { ProjectFilesTree } from "./project-files-tree";
+import { formatBytes } from "./project-files-shared";
 
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
@@ -35,15 +36,6 @@ function projectFilesQueryKey(organizationSlug: string, projectId: string) {
 
 function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
-}
-
-function formatBytes(bytes: number | null) {
-  if (bytes === null) return "Unknown size";
-  if (bytes === 0) return "0 B";
-
-  const units = ["B", "KB", "MB", "GB"];
-  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${Number((bytes / 1024 ** unitIndex).toFixed(1))} ${units[unitIndex]}`;
 }
 
 function sourcePathForFile(file: File) {

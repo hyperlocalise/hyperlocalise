@@ -17,6 +17,7 @@ import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { parseSourceStringsFromFileContent } from "@/lib/projects/project-file-source-strings";
 import { cn } from "@/lib/primitives/cn";
+import { formatBytes } from "./project-files-shared";
 
 type ProjectFileDetail = ProjectFileDetailResponse["file"];
 
@@ -44,15 +45,6 @@ function projectFileDetailQueryKey(
   return encodedJobId
     ? (["tms-provider-job-file-detail", organizationSlug, encodedJobId, sourcePath] as const)
     : (["project-file-detail", organizationSlug, projectId, sourcePath] as const);
-}
-
-function formatBytes(bytes: number | null) {
-  if (bytes === null) return "Unknown size";
-  if (bytes === 0) return "0 B";
-
-  const units = ["B", "KB", "MB", "GB"];
-  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${Number((bytes / 1024 ** unitIndex).toFixed(1))} ${units[unitIndex]}`;
 }
 
 function providerName(kind: string) {
