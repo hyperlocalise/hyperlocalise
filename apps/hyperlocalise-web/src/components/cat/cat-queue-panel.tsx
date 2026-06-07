@@ -7,7 +7,6 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { Progress } from "@/components/ui/progress";
@@ -15,7 +14,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/primitives/cn";
 
 import type { CatQueueSummary, CatSegment } from "./types";
-import { segmentStatusTone } from "./cat-tone";
 
 function QueueStatusIcon({ status }: { status: CatSegment["status"] }) {
   if (status === "reviewed") {
@@ -80,9 +78,7 @@ export function CatQueuePanel({
                   onClick={() => onSelectSegment(segment.id)}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
-                    selected
-                      ? "bg-spruce-500/15 ring-1 ring-spruce-400/30"
-                      : "hover:bg-foreground/4",
+                    selected ? "bg-grove-500/10 ring-1 ring-grove-400/25" : "hover:bg-foreground/4",
                   )}
                 >
                   <span className="mt-0.5 w-5 shrink-0 font-mono text-xs text-muted-foreground">
@@ -90,23 +86,11 @@ export function CatQueuePanel({
                   </span>
                   <div className="min-w-0 flex-1 space-y-1">
                     <p className="line-clamp-2 text-sm text-foreground/90">{segment.sourceText}</p>
-                    {segment.contextLabel ? (
-                      <p className="text-xs text-muted-foreground">{segment.contextLabel}</p>
-                    ) : null}
-                    {segment.status !== "pending" ? (
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "rounded-full text-[10px]",
-                          segmentStatusTone(segment.status) === "safe" &&
-                            "border-grove-300/25 bg-grove-300/10 text-grove-300",
-                          segmentStatusTone(segment.status) === "watch" &&
-                            "border-bud-500/25 bg-bud-500/10 text-bud-300",
-                        )}
-                      >
-                        {segment.contextLabel ? null : segment.status.replace("_", " ")}
-                      </Badge>
-                    ) : null}
+                    <div className="flex min-w-0 items-center">
+                      <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
+                        {segment.key}
+                      </span>
+                    </div>
                   </div>
                   <div className="mt-1 shrink-0">
                     <QueueStatusIcon status={segment.status} />

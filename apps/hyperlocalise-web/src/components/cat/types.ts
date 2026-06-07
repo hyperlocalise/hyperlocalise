@@ -75,12 +75,8 @@ export interface CatWorkspaceState {
   segments: CatSegment[];
   selectedSegmentId: string;
   queueSummary: CatQueueSummary;
-  suggestions: CatSuggestion[];
   formatChecks: CatFormatCheck[];
   intelligence: CatSegmentIntelligence;
-  historyCount?: number;
-  glossaryMatchCount?: number;
-  tmMatchBasisCount?: number;
   jobTitle?: string;
   breadcrumbs?: string[];
 }

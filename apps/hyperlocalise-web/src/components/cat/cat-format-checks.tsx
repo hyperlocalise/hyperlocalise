@@ -7,10 +7,8 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
 
-import { catToneClass, formatCheckTone } from "./cat-tone";
 import type { CatFormatCheck } from "./types";
 
 function FormatCheckIcon({ status }: { status: CatFormatCheck["status"] }) {
@@ -24,6 +22,19 @@ function FormatCheckIcon({ status }: { status: CatFormatCheck["status"] }) {
   }
 }
 
+function formatCheckStatusLabel(status: CatFormatCheck["status"]) {
+  switch (status) {
+    case "pass":
+      return "Passed";
+    case "warn":
+      return "Check";
+    case "fail":
+      return "Issue";
+    default:
+      return status;
+  }
+}
+
 export function CatFormatChecks({ checks }: { checks: CatFormatCheck[] }) {
   if (checks.length === 0) {
     return (
@@ -34,27 +45,25 @@ export function CatFormatChecks({ checks }: { checks: CatFormatCheck[] }) {
   }
 
   return (
-    <ul className="space-y-2">
+    <ul className="divide-y divide-foreground/8 rounded-xl border border-foreground/8 bg-foreground/2">
       {checks.map((check) => (
-        <li
-          key={check.id}
-          className="flex items-start gap-2.5 rounded-lg border border-foreground/8 bg-foreground/2 px-3 py-2.5"
-        >
+        <li key={check.id} className="flex items-start gap-3 px-3 py-3">
           <FormatCheckIcon status={check.status} />
-          <div className="min-w-0 flex-1 space-y-1">
-            <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
               <p className="text-sm font-medium text-foreground/88">{check.label}</p>
-              <Badge
-                variant="outline"
+              <span
                 className={cn(
-                  "rounded-full text-[10px]",
-                  catToneClass(formatCheckTone(check.status)),
+                  "shrink-0 text-xs font-medium",
+                  check.status === "pass" && "text-grove-300",
+                  check.status === "warn" && "text-bud-300",
+                  check.status === "fail" && "text-flame-200",
                 )}
               >
-                {check.status}
-              </Badge>
+                {formatCheckStatusLabel(check.status)}
+              </span>
             </div>
-            <p className="text-xs text-muted-foreground">{check.message}</p>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{check.message}</p>
           </div>
         </li>
       ))}

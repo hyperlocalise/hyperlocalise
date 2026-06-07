@@ -8,9 +8,6 @@ import { catWorkspaceFixture, createCatWorkspaceState, mockValidateFormat } from
 const actionLog = {
   onSelectSegment: fn(),
   onApprove: fn(),
-  onUseSuggestion: fn(),
-  onRefresh: fn(),
-  onRunWithAgent: fn(),
 };
 
 const meta = {
@@ -43,19 +40,12 @@ export const Default: Story = {
       },
       editing: {
         onTargetChange: fn(),
-        onUseSuggestion: actionLog.onUseSuggestion,
         onUseAiSuggestion: fn(),
       },
       review: {
         onApprove: actionLog.onApprove,
-        onRequestChanges: fn(),
         onAskQuestion: fn(),
         onSkip: fn(),
-      },
-      toolbar: {
-        onRefresh: actionLog.onRefresh,
-        onOpenExternal: fn(),
-        onRunWithAgent: actionLog.onRunWithAgent,
       },
       services: {
         validateFormat: mockValidateFormat,
@@ -71,7 +61,6 @@ export const Default: Story = {
       canvas.getByText("Dashboard card showing how many reviews still need approval."),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Approve" })).toBeInTheDocument();
-    await expect(canvas.getByText("Run with agent")).toBeInTheDocument();
   },
 };
 

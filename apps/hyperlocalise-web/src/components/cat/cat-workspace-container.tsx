@@ -4,7 +4,7 @@ import { useCallback, useMemo, useState } from "react";
 
 import type { CatWorkspaceDependencies, PartialCatWorkspaceDependencies } from "./dependencies";
 import { CatWorkspaceView } from "./cat-workspace";
-import type { CatSegment, CatSuggestion, CatWorkspaceState } from "./types";
+import type { CatSegment, CatWorkspaceState } from "./types";
 
 function getAdjacentSegmentId(segments: CatSegment[], currentId: string, direction: -1 | 1) {
   const currentIndex = segments.findIndex((segment) => segment.id === currentId);
@@ -41,14 +41,12 @@ function countReviewed(segments: CatSegment[]) {
 export interface CatWorkspaceContainerProps {
   initialState: CatWorkspaceState;
   dependencies?: PartialCatWorkspaceDependencies;
-  externalLinkLabel?: string;
   className?: string;
 }
 
 export function CatWorkspaceContainer({
   initialState,
   dependencies: dependencyOverrides,
-  externalLinkLabel,
   className,
 }: CatWorkspaceContainerProps) {
   const [state, setState] = useState(initialState);
@@ -115,13 +113,6 @@ export function CatWorkspaceContainer({
         });
         dependencyOverrides?.editing?.onTargetChange?.(segmentId, value);
       },
-      onUseSuggestion: (segmentId: string, suggestion: CatSuggestion) => {
-        setState((current) => {
-          const segments = updateSegmentTarget(current.segments, segmentId, suggestion.text);
-          return { ...current, segments };
-        });
-        dependencyOverrides?.editing?.onUseSuggestion?.(segmentId, suggestion);
-      },
       onUseAiSuggestion: (segmentId: string) => {
         const aiSuggestion = state.intelligence.aiSuggestion;
         if (!aiSuggestion) {
@@ -147,13 +138,6 @@ export function CatWorkspaceContainer({
         });
         dependencyOverrides?.review?.onApprove?.(segmentId);
       },
-      onRequestChanges: (segmentId: string) => {
-        setState((current) => {
-          const segments = updateSegmentStatus(current.segments, segmentId, "needs_review");
-          return { ...current, segments };
-        });
-        dependencyOverrides?.review?.onRequestChanges?.(segmentId);
-      },
       onAskQuestion: (segmentId: string) => {
         dependencyOverrides?.review?.onAskQuestion?.(segmentId);
       },
@@ -170,7 +154,6 @@ export function CatWorkspaceContainer({
       navigation,
       editing,
       review,
-      toolbar: dependencyOverrides?.toolbar,
       services: dependencyOverrides?.services,
     };
   }, [dependencyOverrides, runFormatValidation, state.intelligence.aiSuggestion]);
@@ -180,7 +163,6 @@ export function CatWorkspaceContainer({
       state={state}
       dependencies={dependencies}
       isBusy={isBusy}
-      externalLinkLabel={externalLinkLabel}
       className={className}
     />
   );

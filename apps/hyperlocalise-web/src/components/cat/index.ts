@@ -6,14 +6,12 @@ export { CatEditorPanel } from "./cat-editor-panel";
 export { CatIntelligencePanel } from "./cat-intelligence-panel";
 export { CatFormatChecks } from "./cat-format-checks";
 export { CatSuggestionsTabs } from "./cat-suggestions-tabs";
-export { CatWorkspaceHeader } from "./cat-workspace-header";
 export type {
   CatWorkspaceDependencies,
   CatWorkspaceEditing,
   CatWorkspaceNavigation,
   CatWorkspaceReview,
   CatWorkspaceServices,
-  CatWorkspaceToolbar,
   CatWorkspaceViewProps,
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
