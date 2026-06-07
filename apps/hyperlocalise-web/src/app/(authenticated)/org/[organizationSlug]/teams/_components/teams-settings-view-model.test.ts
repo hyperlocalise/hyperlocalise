@@ -58,9 +58,23 @@ describe("teams-settings-view-model", () => {
         member: members[0]!,
         members,
         canManageMembers: true,
-        currentUserWorkosId: "user_manager",
       }),
     ).toBe(false);
+  });
+
+  it("allows removing a manager when another manager remains", () => {
+    const members = [
+      createTeamMember({ workosUserId: "user_manager_a", role: "manager" }),
+      createTeamMember({ workosUserId: "user_manager_b", role: "manager" }),
+    ];
+
+    expect(
+      canRemoveTeamMember({
+        member: members[0]!,
+        members,
+        canManageMembers: true,
+      }),
+    ).toBe(true);
   });
 
   it("prevents demoting the last team manager", () => {

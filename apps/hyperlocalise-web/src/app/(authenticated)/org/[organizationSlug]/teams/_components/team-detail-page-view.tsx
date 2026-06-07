@@ -74,7 +74,7 @@ export function TeamDetailPageView({
   isEditOpen,
   isSavingTeam,
   isRemovingMember,
-  isUpdatingRole,
+  updatingMemberRoleId,
   removingMember,
   onAddMemberOpenChange,
   onEditOpenChange,
@@ -96,7 +96,7 @@ export function TeamDetailPageView({
   isEditOpen: boolean;
   isSavingTeam: boolean;
   isRemovingMember: boolean;
-  isUpdatingRole: boolean;
+  updatingMemberRoleId: string | null;
   removingMember: TeamMemberRow | null;
   onAddMemberOpenChange: (open: boolean) => void;
   onEditOpenChange: (open: boolean) => void;
@@ -210,7 +210,6 @@ export function TeamDetailPageView({
                 member,
                 members: pageState.members,
                 canManageMembers: pageState.canManageMembers,
-                currentUserWorkosId,
               });
 
               return (
@@ -250,7 +249,7 @@ export function TeamDetailPageView({
                               role: value as TeamRole,
                             });
                           }}
-                          disabled={isUpdatingRole}
+                          disabled={updatingMemberRoleId === member.workosUserId}
                         >
                           <SelectTrigger className="h-9 w-[12rem] max-w-full border-foreground/10 bg-background/60 text-foreground/78 hover:bg-foreground/4">
                             <SelectValue>{getTeamRoleLabel(member.role)}</SelectValue>

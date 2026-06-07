@@ -24,7 +24,7 @@ const meta = {
     isEditOpen: false,
     isSavingTeam: false,
     isRemovingMember: false,
-    isUpdatingRole: false,
+    updatingMemberRoleId: null,
     removingMember: null,
     onAddMemberOpenChange: fn(),
     onEditOpenChange: fn(),

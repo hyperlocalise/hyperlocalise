@@ -68,18 +68,16 @@ export function canRemoveTeamMember(input: {
   member: TeamMemberRow;
   members: TeamMemberRow[];
   canManageMembers: boolean;
-  currentUserWorkosId: string;
 }) {
   if (!input.canManageMembers) {
     return false;
   }
 
-  if (input.member.workosUserId === input.currentUserWorkosId) {
-    const managerCount = input.members.filter((member) => member.role === "manager").length;
-    return managerCount > 1 || input.member.role !== "manager";
+  if (input.member.role !== "manager") {
+    return true;
   }
 
-  return true;
+  return input.members.filter((member) => member.role === "manager").length > 1;
 }
 
 export function canUpdateTeamMemberRole(input: {

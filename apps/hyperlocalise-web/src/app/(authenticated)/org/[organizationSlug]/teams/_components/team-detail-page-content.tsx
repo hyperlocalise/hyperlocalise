@@ -122,7 +122,9 @@ export function TeamDetailPageContent({
       isEditOpen={isEditOpen}
       isSavingTeam={updateTeam.isPending}
       isRemovingMember={removeMember.isPending}
-      isUpdatingRole={updateMemberRole.isPending}
+      updatingMemberRoleId={
+        updateMemberRole.isPending ? (updateMemberRole.variables?.workosUserId ?? null) : null
+      }
       removingMember={removingMember}
       onAddMemberOpenChange={setIsAddMemberOpen}
       onEditOpenChange={setIsEditOpen}
