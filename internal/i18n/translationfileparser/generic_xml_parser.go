@@ -517,15 +517,15 @@ func genericXMLKeyAttr(attrs []xml.Attr) string {
 			continue
 		}
 		local := attr.Name.Local
-		if local == "key" || strings.EqualFold(local, "key") {
+		if strings.EqualFold(local, "key") {
 			if v := strings.TrimSpace(attr.Value); v != "" {
 				return v
 			}
-		} else if id == "" && (local == "id" || strings.EqualFold(local, "id")) {
+		} else if id == "" && strings.EqualFold(local, "id") {
 			if v := strings.TrimSpace(attr.Value); v != "" {
 				id = v
 			}
-		} else if name == "" && (local == "name" || strings.EqualFold(local, "name")) {
+		} else if name == "" && strings.EqualFold(local, "name") {
 			if v := strings.TrimSpace(attr.Value); v != "" {
 				name = v
 			}
