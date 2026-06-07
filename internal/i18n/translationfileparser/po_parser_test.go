@@ -2,6 +2,7 @@ package translationfileparser
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -175,6 +176,29 @@ msgstr "Hello "
 	// Check that indentation of continuation lines is preserved when cleared
 	if !strings.Contains(content, `  ""`) {
 		t.Errorf("expected indented cleared continuation lines, got:\n%s", content)
+	}
+}
+
+func TestMarshalPOFileEscapesNonPrintableBytes(t *testing.T) {
+	template := []byte(`msgid "binary-control"
+msgstr ""
+`)
+	replacement := "prefix\x00middle\x1fsuffix\x7f"
+
+	out, err := MarshalPOFile(template, map[string]string{
+		"binary-control": replacement,
+	})
+	if err != nil {
+		t.Fatalf("MarshalPOFile() error = %v", err)
+	}
+
+	expectedLine := "msgstr " + strconv.Quote(replacement)
+	content := string(out)
+	if !strings.Contains(content, expectedLine) {
+		t.Fatalf("expected control bytes to be escaped as %q, got:\n%s", expectedLine, content)
+	}
+	if strings.Contains(content, replacement) {
+		t.Fatalf("expected raw control bytes to be escaped, got:\n%s", content)
 	}
 }
 
