@@ -5,11 +5,13 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
+import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import {
   apiKeyAuthMiddleware,
   requireApiKeyPermission,
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
+import { buildAccessibleJobsWhere, canAccessStoredFile } from "@/api/auth/team-access";
 import { badRequestResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import {
@@ -115,18 +117,6 @@ function publicJobOutputFiles(input: {
   }));
 }
 
-async function getProjectForOrganization(organizationId: string, projectId: string) {
-  const [project] = await db
-    .select()
-    .from(schema.projects)
-    .where(
-      and(eq(schema.projects.id, projectId), eq(schema.projects.organizationId, organizationId)),
-    )
-    .limit(1);
-
-  return project ?? null;
-}
-
 export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}) {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
     .use("*", apiKeyAuthMiddleware)
@@ -142,7 +132,10 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
 
-        const project = await getProjectForOrganization(organizationId, payload.projectId);
+        const project = await getAccessibleProjectForApiKey(
+          c.var.auth.teamAccess,
+          payload.projectId,
+        );
 
         if (!project) {
           return projectNotFoundResponse(c);
@@ -170,7 +163,14 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
             fileId: payload.fileInput.sourceFileId,
           });
 
-          if (!sourceFile) {
+          if (
+            !sourceFile ||
+            !(await canAccessStoredFile(c.var.auth.teamAccess, {
+              organizationId: sourceFile.organizationId,
+              projectId: sourceFile.projectId,
+              createdByUserId: sourceFile.createdByUserId,
+            }))
+          ) {
             return sourceFileNotFoundResponse(c);
           }
 
@@ -267,11 +267,16 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         const query = c.req.valid("query");
         const organizationId = c.var.auth.organization.localOrganizationId;
         const sourcePath = normalizeSourcePath(query.sourcePath);
-        const project = await getProjectForOrganization(organizationId, query.projectId);
+        const project = await getAccessibleProjectForApiKey(
+          c.var.auth.teamAccess,
+          query.projectId,
+        );
 
         if (!project) {
           return projectNotFoundResponse(c);
         }
+
+        const accessibleJobsWhere = await buildAccessibleJobsWhere(c.var.auth.teamAccess);
 
         const [job] = await db
           .select({
@@ -300,8 +305,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
               eq(schema.repositorySourceFileVersions.organizationId, organizationId),
               eq(schema.repositorySourceFileVersions.projectId, project.id),
               eq(schema.repositorySourceFileVersions.sourcePath, sourcePath),
-              eq(schema.jobs.organizationId, organizationId),
-              eq(schema.jobs.projectId, project.id),
+              accessibleJobsWhere,
               eq(schema.jobs.kind, "translation"),
               eq(schema.jobs.status, "succeeded"),
               eq(schema.translationJobDetails.type, "file"),
@@ -335,7 +339,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
     )
     .get("/:jobId", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
       const params = c.req.valid("param");
-      const organizationId = c.var.auth.organization.localOrganizationId;
+      const accessibleJobsWhere = await buildAccessibleJobsWhere(c.var.auth.teamAccess);
 
       const [job] = await db
         .select({
@@ -359,9 +363,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
-        .where(
-          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
-        )
+        .where(and(eq(schema.jobs.id, params.jobId), accessibleJobsWhere))
         .limit(1);
 
       if (!job) {
@@ -387,7 +389,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
     })
     .get("/:jobId/status", requireApiKeyPermission("jobs:read"), validateJobIdParams, async (c) => {
       const params = c.req.valid("param");
-      const organizationId = c.var.auth.organization.localOrganizationId;
+      const accessibleJobsWhere = await buildAccessibleJobsWhere(c.var.auth.teamAccess);
 
       const [job] = await db
         .select({
@@ -406,9 +408,7 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
           schema.translationJobDetails,
           eq(schema.translationJobDetails.jobId, schema.jobs.id),
         )
-        .where(
-          and(eq(schema.jobs.id, params.jobId), eq(schema.jobs.organizationId, organizationId)),
-        )
+        .where(and(eq(schema.jobs.id, params.jobId), accessibleJobsWhere))
         .limit(1);
 
       if (!job) {
