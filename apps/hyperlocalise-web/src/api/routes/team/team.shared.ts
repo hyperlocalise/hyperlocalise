@@ -6,13 +6,7 @@ import type { JsonContext } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import type { TeamMembershipRole } from "@/lib/database/types";
 
-export function slugifyTeamName(name: string) {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .slice(0, 120);
-}
+export { slugifyTeamName } from "./team-slug";
 
 export function forbiddenResponse(c: { json(body: { error: string }, status: 403): Response }) {
   return c.json({ error: "forbidden" }, 403);
