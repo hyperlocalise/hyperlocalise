@@ -9,7 +9,7 @@ import {
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";
 
 const meta = {
-  title: "App/Jobs/Detail/Provider Section",
+  title: "App/Project/Jobs/Detail/Provider Section",
   component: JobProviderDetailSectionView,
   parameters: {
     layout: "fullscreen",

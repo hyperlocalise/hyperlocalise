@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import type { ReactNode } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { FileTreeRowDecorationContext } from "@pierre/trees";
-import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
 import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -24,32 +23,12 @@ import {
   ProjectSectionTitle,
 } from "../../_components/project-page-shell";
 import { ProjectFileDetailPanel } from "./project-file-detail-panel";
+import { ProjectFilesTree } from "./project-files-tree";
+import { formatBytes } from "./project-files-shared";
 
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
 const MAX_UPLOAD_FILES = 10;
-
-const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "short",
-});
-
-const projectFilesTreeStyle = {
-  height: "100%",
-  minHeight: 0,
-  backgroundColor: "transparent",
-  color: "var(--foreground)",
-  borderColor: "var(--border)",
-  "--trees-bg-override": "transparent",
-  "--trees-bg-muted-override": "color-mix(in oklab, var(--foreground) 6%, transparent)",
-  "--trees-border-color-override": "var(--border)",
-  "--trees-fg-override": "var(--foreground)",
-  "--trees-fg-muted-override": "color-mix(in oklab, var(--foreground) 52%, transparent)",
-  "--trees-focus-ring-color-override": "var(--ring)",
-  "--trees-selected-bg-override": "color-mix(in oklab, var(--primary) 16%, transparent)",
-  "--trees-selected-fg-override": "var(--foreground)",
-  "--trees-selected-focused-border-color-override": "var(--ring)",
-} as CSSProperties;
 
 function projectFilesQueryKey(organizationSlug: string, projectId: string) {
   return ["project-files", organizationSlug, projectId] as const;
@@ -57,37 +36,6 @@ function projectFilesQueryKey(organizationSlug: string, projectId: string) {
 
 function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
-}
-
-function formatBytes(bytes: number | null) {
-  if (bytes === null) return "Unknown size";
-  if (bytes === 0) return "0 B";
-
-  const units = ["B", "KB", "MB", "GB"];
-  const unitIndex = Math.min(Math.floor(Math.log(bytes) / Math.log(1024)), units.length - 1);
-  return `${Number((bytes / 1024 ** unitIndex).toFixed(1))} ${units[unitIndex]}`;
-}
-
-function formatNullableDate(value: string | null | undefined) {
-  if (!value) return null;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return DATE_FORMATTER.format(date);
-}
-
-function fileListMetadata(file: ProjectFileRecord) {
-  const uploadedAt = formatNullableDate(file.uploadedAt);
-  if (file.provider && file.byteSize === null) {
-    return [
-      file.provider.format,
-      file.provider.resourceType === "file" ? "Provider file" : "Provider key",
-      uploadedAt,
-    ]
-      .filter(Boolean)
-      .join(" · ");
-  }
-
-  return [formatBytes(file.byteSize), uploadedAt].filter(Boolean).join(" · ");
 }
 
 function sourcePathForFile(file: File) {
@@ -105,82 +53,83 @@ function sortFilesByPath(files: ProjectFileRecord[]) {
   );
 }
 
-function ProjectFilesTree({
+export type ProjectFilesTreeRenderer = (props: {
+  files: ProjectFileRecord[];
+  selectedSourcePath: string | null;
+  onSelectFile: (sourcePath: string | null) => void;
+}) => ReactNode;
+
+export type ProjectFilesDetailPanelRenderer = (props: {
+  organizationSlug: string;
+  projectId: string;
+  file: ProjectFileRecord | null;
+  requestedSourcePath: string | null;
+  highlightLocale: string | null;
+  canFindInRepo: boolean;
+}) => ReactNode;
+
+export type ProjectFilesErrorRenderer = (props: {
+  organizationSlug: string;
+  error: unknown;
+}) => ReactNode;
+
+function defaultRenderFilesTree({
   files,
   selectedSourcePath,
   onSelectFile,
-}: {
-  files: ProjectFileRecord[];
-  selectedSourcePath: string | null;
-  onSelectFile: (sourcePath: string) => void;
-}) {
-  const paths = useMemo(() => files.map((file) => file.sourcePath), [files]);
-  const fileByPath = useMemo(() => new Map(files.map((file) => [file.sourcePath, file])), [files]);
-  const selectedPaths =
-    selectedSourcePath && fileByPath.has(selectedSourcePath) ? [selectedSourcePath] : [];
-  const latestStateRef = useRef({ fileByPath, onSelectFile });
+}: Parameters<ProjectFilesTreeRenderer>[0]) {
+  return (
+    <ProjectFilesTree
+      files={files}
+      selectedSourcePath={selectedSourcePath}
+      onSelectFile={onSelectFile}
+    />
+  );
+}
 
-  useEffect(() => {
-    latestStateRef.current = { fileByPath, onSelectFile };
-  }, [fileByPath, onSelectFile]);
+function defaultRenderDetailPanel({
+  organizationSlug,
+  projectId,
+  file,
+  requestedSourcePath,
+  highlightLocale,
+  canFindInRepo,
+}: Parameters<ProjectFilesDetailPanelRenderer>[0]) {
+  return (
+    <ProjectFileDetailPanel
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      file={file}
+      requestedSourcePath={requestedSourcePath}
+      highlightLocale={highlightLocale}
+      canFindInRepo={canFindInRepo}
+    />
+  );
+}
 
-  const { model } = useFileTree({
-    density: "compact",
-    flattenEmptyDirectories: true,
-    initialExpansion: "open",
-    initialSelectedPaths: selectedPaths,
-    paths,
-    renderRowDecoration: (context: FileTreeRowDecorationContext) => {
-      if (context.item.kind !== "file") {
-        return null;
-      }
-
-      const file = latestStateRef.current.fileByPath.get(context.item.path);
-      if (!file) {
-        return null;
-      }
-
-      if (file.provider) {
-        return null;
-      }
-
-      return {
-        text: file.latestJob?.status ?? "Uploaded",
-        title: fileListMetadata(file),
-      };
-    },
-    onSelectionChange: (nextSelectedPaths) => {
-      const [nextPath] = nextSelectedPaths;
-      if (!nextPath) {
-        return;
-      }
-
-      if (latestStateRef.current.fileByPath.has(nextPath)) {
-        latestStateRef.current.onSelectFile(nextPath);
-      }
-    },
-  });
-
-  useEffect(() => {
-    model.resetPaths(paths);
-  }, [model, paths]);
-
-  useEffect(() => {
-    if (!selectedSourcePath || !fileByPath.has(selectedSourcePath)) {
-      return;
-    }
-
-    model.getItem(selectedSourcePath)?.select();
-    model.scrollToPath(selectedSourcePath, { offset: "nearest" });
-  }, [fileByPath, model, selectedSourcePath]);
+function defaultRenderFilesError({
+  organizationSlug,
+  error,
+}: Parameters<ProjectFilesErrorRenderer>[0]) {
+  if (isTmsUserConnectionRequiredError(error)) {
+    return (
+      <TmsUserConnectionErrorPanel
+        organizationSlug={organizationSlug}
+        resource="files"
+        error={error}
+      />
+    );
+  }
 
   return (
-    <PierreFileTree
-      aria-label="Project files"
-      className="h-full min-h-0 border-0 bg-transparent"
-      model={model}
-      style={projectFilesTreeStyle}
-    />
+    <>
+      <TypographyP className="text-sm font-medium text-flame-100">
+        Files failed to load.
+      </TypographyP>
+      <TypographyP className="mt-1 text-sm text-foreground/58">
+        {error instanceof Error ? error.message : "Failed to load files."}
+      </TypographyP>
+    </>
   );
 }
 
@@ -196,7 +145,6 @@ export function ProjectFilesPageContent({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
 
@@ -267,11 +215,85 @@ export function ProjectFilesPageContent({
   });
 
   const files = useMemo(() => sortFilesByPath(filesQuery.data ?? []), [filesQuery.data]);
+  const addSelectedFiles = useCallback((nextFiles: File[]) => {
+    setSelectedFiles((currentFiles) => {
+      const existing = new Set(currentFiles.map(fileKey));
+      return [...currentFiles, ...nextFiles.filter((file) => !existing.has(fileKey(file)))].slice(
+        0,
+        MAX_UPLOAD_FILES,
+      );
+    });
+  }, []);
+
+  const removeSelectedFile = useCallback((file: File) => {
+    setSelectedFiles((currentFiles) => currentFiles.filter((item) => item !== file));
+  }, []);
+
+  return (
+    <ProjectFilesPageContentView
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      canFindInRepo={canFindInRepo}
+      files={files}
+      isFilesLoading={filesQuery.isLoading}
+      isFilesFetching={filesQuery.isFetching}
+      filesError={filesQuery.isError ? filesQuery.error : undefined}
+      selectedSourcePath={selectedSourcePath}
+      highlightLocale={highlightLocale}
+      selectedFiles={selectedFiles}
+      isUploading={uploadFiles.isPending}
+      onSelectSourcePath={setSelectedSourcePath}
+      onAddSelectedFiles={addSelectedFiles}
+      onRemoveSelectedFile={removeSelectedFile}
+      onUploadSelectedFiles={() => uploadFiles.mutate(selectedFiles)}
+    />
+  );
+}
+
+export function ProjectFilesPageContentView({
+  organizationSlug,
+  projectId,
+  canFindInRepo,
+  files,
+  isFilesLoading,
+  isFilesFetching,
+  filesError,
+  selectedSourcePath,
+  highlightLocale,
+  selectedFiles,
+  isUploading,
+  onSelectSourcePath,
+  onAddSelectedFiles,
+  onRemoveSelectedFile,
+  onUploadSelectedFiles,
+  renderDetailPanel = defaultRenderDetailPanel,
+  renderError = defaultRenderFilesError,
+  renderFilesTree = defaultRenderFilesTree,
+}: {
+  organizationSlug: string;
+  projectId: string;
+  canFindInRepo: boolean;
+  files: ProjectFileRecord[];
+  isFilesLoading: boolean;
+  isFilesFetching: boolean;
+  filesError?: unknown;
+  selectedSourcePath: string | null;
+  highlightLocale: string | null;
+  selectedFiles: File[];
+  isUploading: boolean;
+  onSelectSourcePath: (sourcePath: string | null) => void;
+  onAddSelectedFiles: (files: File[]) => void;
+  onRemoveSelectedFile: (file: File) => void;
+  onUploadSelectedFiles: () => void;
+  renderDetailPanel?: ProjectFilesDetailPanelRenderer;
+  renderError?: ProjectFilesErrorRenderer;
+  renderFilesTree?: ProjectFilesTreeRenderer;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
   const selectedFile = useMemo(
     () => files.find((file) => file.sourcePath === selectedSourcePath) ?? null,
     [files, selectedSourcePath],
   );
-  const isUploading = uploadFiles.isPending;
   const isProviderProject =
     Boolean(parseProviderProjectId(projectId)) || files.some((file) => file.provider);
   const canUploadFiles = !isProviderProject;
@@ -310,13 +332,7 @@ export function ProjectFilesPageContent({
           className="sr-only"
           onChange={(event) => {
             const nextFiles = Array.from(event.target.files ?? []);
-            setSelectedFiles((currentFiles) => {
-              const existing = new Set(currentFiles.map(fileKey));
-              return [
-                ...currentFiles,
-                ...nextFiles.filter((file) => !existing.has(fileKey(file))),
-              ].slice(0, MAX_UPLOAD_FILES);
-            });
+            onAddSelectedFiles(nextFiles);
             event.currentTarget.value = "";
           }}
         />
@@ -335,7 +351,7 @@ export function ProjectFilesPageContent({
             <Button
               type="button"
               disabled={isUploading}
-              onClick={() => uploadFiles.mutate(selectedFiles)}
+              onClick={onUploadSelectedFiles}
               className="w-full sm:w-fit"
             >
               {isUploading ? <Spinner /> : <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />}
@@ -358,9 +374,7 @@ export function ProjectFilesPageContent({
                   variant="ghost"
                   size="sm"
                   disabled={isUploading}
-                  onClick={() =>
-                    setSelectedFiles((currentFiles) => currentFiles.filter((item) => item !== file))
-                  }
+                  onClick={() => onRemoveSelectedFile(file)}
                 >
                   Remove
                 </Button>
@@ -375,41 +389,22 @@ export function ProjectFilesPageContent({
           <div>
             <ProjectSectionTitle>Project files</ProjectSectionTitle>
             <TypographyP className="mt-0.5 text-sm text-foreground/52">
-              {filesQuery.isLoading
+              {isFilesLoading
                 ? "Loading…"
-                : filesQuery.isError
+                : filesError
                   ? "Could not load files"
                   : `${files.length} file${files.length === 1 ? "" : "s"}`}
             </TypographyP>
           </div>
-          {filesQuery.isFetching && !filesQuery.isLoading ? <Spinner /> : null}
+          {isFilesFetching && !isFilesLoading ? <Spinner /> : null}
         </header>
 
         <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
           <aside className="flex min-h-0 flex-col border-foreground/8 lg:border-e">
-            {filesQuery.isLoading ? (
+            {isFilesLoading ? (
               <TypographyP className="p-4 text-sm text-foreground/52">Loading files…</TypographyP>
-            ) : filesQuery.isError ? (
-              <div className="p-4">
-                {isTmsUserConnectionRequiredError(filesQuery.error) ? (
-                  <TmsUserConnectionErrorPanel
-                    organizationSlug={organizationSlug}
-                    resource="files"
-                    error={filesQuery.error}
-                  />
-                ) : (
-                  <>
-                    <TypographyP className="text-sm font-medium text-flame-100">
-                      Files failed to load.
-                    </TypographyP>
-                    <TypographyP className="mt-1 text-sm text-foreground/58">
-                      {filesQuery.error instanceof Error
-                        ? filesQuery.error.message
-                        : "Failed to load files."}
-                    </TypographyP>
-                  </>
-                )}
-              </div>
+            ) : filesError ? (
+              <div className="p-4">{renderError({ organizationSlug, error: filesError })}</div>
             ) : files.length === 0 ? (
               <div className="flex flex-col gap-2 p-4">
                 <TypographyP className="text-sm font-medium text-foreground">
@@ -423,24 +418,24 @@ export function ProjectFilesPageContent({
               </div>
             ) : (
               <div className="min-h-0 flex-1 p-2">
-                <ProjectFilesTree
-                  files={files}
-                  selectedSourcePath={selectedSourcePath}
-                  onSelectFile={setSelectedSourcePath}
-                />
+                {renderFilesTree({
+                  files,
+                  selectedSourcePath,
+                  onSelectFile: onSelectSourcePath,
+                })}
               </div>
             )}
           </aside>
 
           <main className="min-h-0 overflow-y-auto bg-background/40">
-            <ProjectFileDetailPanel
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              file={selectedFile}
-              requestedSourcePath={selectedSourcePath}
-              highlightLocale={highlightLocale}
-              canFindInRepo={canFindInRepo}
-            />
+            {renderDetailPanel({
+              organizationSlug,
+              projectId,
+              file: selectedFile,
+              requestedSourcePath: selectedSourcePath,
+              highlightLocale,
+              canFindInRepo,
+            })}
           </main>
         </div>
       </section>

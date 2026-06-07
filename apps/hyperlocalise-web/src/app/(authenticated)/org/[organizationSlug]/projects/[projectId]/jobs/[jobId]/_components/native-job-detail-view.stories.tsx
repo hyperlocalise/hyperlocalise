@@ -10,7 +10,7 @@ import { JobProviderDetailSectionView } from "./job-provider-detail-section-view
 import { NativeJobDetailView } from "./native-job-detail-view";
 
 const meta = {
-  title: "App/Jobs/Detail/Native",
+  title: "App/Project/Jobs/Detail/Native",
   component: NativeJobDetailView,
   parameters: {
     layout: "fullscreen",
