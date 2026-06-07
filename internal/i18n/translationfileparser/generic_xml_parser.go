@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 // GenericXMLParser parses non-Android XML locale files whose translatable
@@ -196,12 +197,12 @@ func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 			}
 			current := stack[len(stack)-1]
 			current.hasText = true
-			if strings.TrimSpace(string(token)) != "" {
+			if !isAllXMLWhitespace(token) {
 				current.hasNonWhitespace = true
 			}
 			current.value.Write(token)
 		case xml.Comment:
-			if len(stack) > 0 && strings.TrimSpace(string(token)) != "" {
+			if len(stack) > 0 && !isAllXMLWhitespace(token) {
 				stack[len(stack)-1].hasNonTextContent = true
 			}
 		case xml.Directive, xml.ProcInst:
@@ -429,12 +430,36 @@ func genericXMLAttrNameBoundaryAfter(s string, offset int) bool {
 }
 
 func isGenericXMLLocaleAttrName(name string) bool {
+	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed attribute names.
+	switch name {
+	case "xml:lang", "lang", "locale", "language", "code":
+		return true
+	}
+
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "xml:lang", "lang", "locale", "language", "code":
 		return true
 	default:
 		return false
 	}
+}
+
+func isAllXMLWhitespace(data []byte) bool {
+	for _, b := range data {
+		if b >= 0x80 {
+			// Non-ASCII byte: fall back to rune-aware Unicode whitespace check.
+			for _, r := range string(data) {
+				if !unicode.IsSpace(r) {
+					return false
+				}
+			}
+			return true
+		}
+		if b != ' ' && b != '\t' && b != '\n' && b != '\r' {
+			return false
+		}
+	}
+	return true
 }
 
 func isXMLWhitespace(ch byte) bool {
@@ -485,19 +510,40 @@ func genericXMLTargetLocaleForAttr(attrValue, targetLocale string) string {
 }
 
 func genericXMLKeyAttr(attrs []xml.Attr) string {
-	for _, wanted := range []string{"key", "id", "name"} {
-		for _, attr := range attrs {
-			if attr.Name.Space == "" && strings.EqualFold(attr.Name.Local, wanted) {
-				if v := strings.TrimSpace(attr.Value); v != "" {
-					return v
-				}
+	// BOLT OPTIMIZATION: Single-pass attribute scan with priority (key > id > name).
+	var id, name string
+	for _, attr := range attrs {
+		if attr.Name.Space != "" {
+			continue
+		}
+		local := attr.Name.Local
+		if strings.EqualFold(local, "key") {
+			if v := strings.TrimSpace(attr.Value); v != "" {
+				return v
+			}
+		} else if id == "" && strings.EqualFold(local, "id") {
+			if v := strings.TrimSpace(attr.Value); v != "" {
+				id = v
+			}
+		} else if name == "" && strings.EqualFold(local, "name") {
+			if v := strings.TrimSpace(attr.Value); v != "" {
+				name = v
 			}
 		}
 	}
-	return ""
+	if id != "" {
+		return id
+	}
+	return name
 }
 
 func isGenericXMLMetadataElement(name string) bool {
+	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed element names.
+	switch name {
+	case "meta", "metadata", "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment", "resheader", "assembly":
+		return true
+	}
+
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "meta", "metadata", "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment", "resheader", "assembly":
 		return true
@@ -507,6 +553,12 @@ func isGenericXMLMetadataElement(name string) bool {
 }
 
 func isGenericXMLKeyedMetadataConflict(name string) bool {
+	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed element names.
+	switch name {
+	case "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment":
+		return true
+	}
+
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment":
 		return true
@@ -516,6 +568,11 @@ func isGenericXMLKeyedMetadataConflict(name string) bool {
 }
 
 func isGenericXMLValueElement(name string) bool {
+	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed element names.
+	if name == "value" {
+		return true
+	}
+
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "value":
 		return true
@@ -525,6 +582,12 @@ func isGenericXMLValueElement(name string) bool {
 }
 
 func isGenericXMLSpecializedRoot(name string) bool {
+	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed element names.
+	switch name {
+	case "resources", "xliff", "plist":
+		return true
+	}
+
 	switch strings.ToLower(strings.TrimSpace(name)) {
 	case "resources", "xliff", "plist":
 		return true
