@@ -11,7 +11,7 @@ import {
   handleSubscribedMessage,
   wrapThreadPost,
 } from "./bot";
-import { getSlackRepositoryContextKey } from "./repository-session";
+import { getSlackRepositoryContextKey, type SlackBotThreadState } from "./repository-session";
 
 function createMockClassification(
   overrides: Partial<ConversationClassification> = {},
@@ -136,12 +136,24 @@ vi.mock("@/lib/agent-runtime/workspaces/repository-sandbox", () => ({
 }));
 
 vi.mock("@/lib/file-storage/records", () => ({
-  createStoredFile: vi.fn(async (input: { filename: string; contentType: string }) => ({
-    id: "file_123",
-    filename: input.filename,
-    contentType: input.contentType,
-    downloadUrl: null,
-    storageUrl: "https://files.example/file_123",
+  createStoredFile: vi.fn(
+    async (input: { filename: string; contentType: string; role?: string }) => ({
+      id: input.role === "output" ? "file_output_123" : "file_123",
+      filename: input.filename,
+      contentType: input.contentType,
+      downloadUrl: null,
+      storageUrl: "https://files.example/file_123",
+      storageKey: "organizations/org/files/file_123/banner.png",
+    }),
+  ),
+  getStoredFileContent: vi.fn(async () => ({
+    file: {
+      id: "file_123",
+      filename: "banner.png",
+      contentType: "image/png",
+      storageKey: "organizations/org/files/file_123/banner.png",
+    },
+    content: Buffer.from("source-image"),
   })),
 }));
 
@@ -206,7 +218,7 @@ vi.mock("@/lib/database", () => {
 
 import { generateText } from "ai";
 import { findSlackConnector, lookupMembership } from "@/lib/agents/slack/helpers";
-import { createStoredFile } from "@/lib/file-storage/records";
+import { createStoredFile, getStoredFileContent } from "@/lib/file-storage/records";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
 import {
   addInteractionMessage,
@@ -1374,6 +1386,15 @@ describe("handleSubscribedMessage", () => {
         content: fileData,
       }),
     );
+    expect(createStoredFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "source",
+        filename: "banner.png",
+        metadata: expect.objectContaining({
+          imageLocalizationSource: true,
+        }),
+      }),
+    );
     expect(generateText).toHaveBeenCalledOnce();
     expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
       imageData,
@@ -1497,7 +1518,18 @@ describe("handleSubscribedMessage", () => {
 
     await handleSubscribedMessage(thread, message);
 
-    expect(createStoredFile).not.toHaveBeenCalled();
+    expect(createStoredFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "source",
+        filename: "banner.png",
+      }),
+    );
+    expect(createStoredFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "output",
+        filename: "banner-fr.webp",
+      }),
+    );
     expect(agentGenerateMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
       { markdown: expect.stringContaining("brief.pdf") },
@@ -1645,6 +1677,189 @@ describe("handleSubscribedMessage", () => {
     expect(posts).toEqual([
       SLACK_PROCESSING_ACK_POST,
       expect.stringContaining("I need the target language"),
+    ]);
+    expect(createStoredFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "source",
+        filename: "banner.png",
+        metadata: expect.objectContaining({
+          imageLocalizationSource: true,
+        }),
+      }),
+    );
+  });
+
+  it("localizes a stored image when the user replies with a target language", async () => {
+    const { thread, posts, getState } = createThread({
+      pendingSlackImageTask: {
+        sourceAssets: [
+          {
+            sourceFileId: "file_123",
+            filename: "banner.png",
+            contentType: "image/png",
+          },
+        ],
+      },
+      imageSourceAssets: [
+        {
+          sourceFileId: "file_123",
+          filename: "banner.png",
+          contentType: "image/png",
+          localizedOutputs: [],
+        },
+      ],
+    });
+    const generatedImage = Buffer.from("generated-image");
+    const message = createMessage({ text: "Localize to French" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(generateText).mockResolvedValueOnce({
+      output: {
+        targetLocale: "fr",
+        instructions: null,
+        confidence: 0.98,
+        missingFields: [],
+      },
+    } as never);
+    vi.mocked(regenerateImageFromAttachment).mockResolvedValueOnce({
+      image: generatedImage,
+      mimeType: "image/webp",
+      prompt: "prompt",
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(getStoredFileContent).toHaveBeenCalledWith({
+      organizationId: "org-123",
+      projectId: null,
+      fileId: "file_123",
+    });
+    expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
+      Buffer.from("source-image"),
+      "image/png",
+      expect.stringContaining("Target locale: fr"),
+    );
+    expect(createStoredFile).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "output",
+        metadata: expect.objectContaining({
+          imageLocalizationOutput: true,
+          sourceFileId: "file_123",
+          targetLocale: "fr",
+        }),
+      }),
+    );
+    expect(agentGenerateMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      {
+        raw: expect.stringContaining("localized version of banner.png for fr"),
+        files: [
+          {
+            data: generatedImage,
+            filename: "banner-fr.webp",
+            mimeType: "image/webp",
+          },
+        ],
+      },
+    ]);
+    const state = getState() as SlackBotThreadState | null;
+    expect(state?.pendingSlackImageTask).toBeUndefined();
+    expect(state?.imageSourceAssets?.[0]?.localizedOutputs).toEqual([
+      expect.objectContaining({
+        fileId: "file_output_123",
+        targetLocale: "fr",
+      }),
+    ]);
+  });
+
+  it("re-localizes a stored image to another locale without a new upload", async () => {
+    const { thread, posts } = createThread({
+      imageSourceAssets: [
+        {
+          sourceFileId: "file_123",
+          filename: "banner.png",
+          contentType: "image/png",
+          localizedOutputs: [
+            {
+              fileId: "file_output_fr",
+              filename: "banner-fr.webp",
+              contentType: "image/webp",
+              targetLocale: "fr",
+              instructions: null,
+              createdAt: "2026-06-01T00:00:00.000Z",
+            },
+          ],
+        },
+      ],
+    });
+    const generatedImage = Buffer.from("generated-image-ja");
+    const message = createMessage({ text: "Now localize it to Japanese" });
+
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    vi.mocked(generateText).mockResolvedValueOnce({
+      output: {
+        targetLocale: "ja",
+        instructions: null,
+        confidence: 0.98,
+        missingFields: [],
+      },
+    } as never);
+    vi.mocked(regenerateImageFromAttachment).mockResolvedValueOnce({
+      image: generatedImage,
+      mimeType: "image/webp",
+      prompt: "prompt",
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(getStoredFileContent).toHaveBeenCalled();
+    expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
+      Buffer.from("source-image"),
+      "image/png",
+      expect.stringContaining("Target locale: ja"),
+    );
+    expect(agentGenerateMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([
+      SLACK_PROCESSING_ACK_POST,
+      {
+        raw: expect.stringContaining("localized version of banner.png for ja"),
+        files: [
+          {
+            data: generatedImage,
+            filename: "banner-ja.webp",
+            mimeType: "image/webp",
+          },
+        ],
+      },
     ]);
   });
 

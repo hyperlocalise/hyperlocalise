@@ -45,7 +45,12 @@ import {
   getUnsupportedSlackFileAttachments,
   storeSlackFileAttachments,
 } from "./file-attachments";
-import { getSlackImageAttachments, handleSlackImageAttachments } from "./image-attachments";
+import {
+  getSlackImageAttachments,
+  handleSlackImageAttachments,
+  handleSlackImageFollowUp,
+} from "./image-attachments";
+import { threadHasStoredSlackImages } from "./image-session";
 import { getSlackRepositoryContextKey, type SlackBotThreadState } from "./repository-session";
 
 type SlackBotState = SlackBotThreadState;
@@ -346,11 +351,19 @@ async function processSlackMessage(
     }
 
     const hasTranslationAttachments = await interactionHasTranslationAttachments(interactionId);
+    const threadState = (await thread.state) as SlackBotThreadState | null;
+    const imageStorageContext = {
+      organizationId,
+      projectId,
+      createdByUserId: membership.localUserId,
+      interactionId,
+    };
     const shouldPostProcessingAck =
       options.isNewInteraction === true ||
       storedFileAttachments.length > 0 ||
       imageAttachments.length > 0 ||
-      hasTranslationAttachments;
+      hasTranslationAttachments ||
+      (imageAttachments.length === 0 && threadHasStoredSlackImages(threadState));
 
     if (shouldPostProcessingAck) {
       await postSlackProcessingAck(thread);
@@ -358,7 +371,15 @@ async function processSlackMessage(
 
     const loadedMessages = await loadInteractionModelMessages(interactionId);
     const conversationText = getRecentUserConversationText(loadedMessages, persistedUserText);
-    const threadState = (await thread.state) as SlackBotThreadState | null;
+    const imageIntentMessages = loadedMessages.flatMap((chatMessage) => {
+      if (
+        (chatMessage.role !== "user" && chatMessage.role !== "assistant") ||
+        typeof chatMessage.content !== "string"
+      ) {
+        return [];
+      }
+      return [{ role: chatMessage.role, content: chatMessage.content }];
+    });
     const storedRepositoryContext = threadState?.repositoryGitHubContext ?? null;
     const classification = await classifyConversation({
       currentMessage: message.text,
@@ -467,27 +488,36 @@ async function processSlackMessage(
     );
 
     if (imageAttachments.length > 0) {
-      const imageIntentMessages = chatMessages.flatMap((chatMessage) => {
-        if (
-          (chatMessage.role !== "user" && chatMessage.role !== "assistant") ||
-          typeof chatMessage.content !== "string"
-        ) {
-          return [];
-        }
-        return [{ role: chatMessage.role, content: chatMessage.content }];
-      });
-
       await removeEyesReaction(thread, message);
       wrapThreadPost(thread, interactionId);
       await handleSlackImageAttachments(thread, message, {
         imageAttachments,
         conversationMessages: imageIntentMessages,
+        threadState,
+        storage: imageStorageContext,
         beforePostGeneratedImage: async () => {
           await removeEyesReaction(thread, message);
         },
       });
 
       if (storedFileAttachments.length === 0) {
+        return;
+      }
+    } else if (threadHasStoredSlackImages(threadState)) {
+      await removeEyesReaction(thread, message);
+      const followUpResult = await handleSlackImageFollowUp(thread, message, {
+        conversationMessages: imageIntentMessages,
+        threadState,
+        storage: imageStorageContext,
+        beforeLocalize: () => {
+          wrapThreadPost(thread, interactionId);
+        },
+        beforePostGeneratedImage: async () => {
+          await removeEyesReaction(thread, message);
+        },
+      });
+
+      if (followUpResult.handled) {
         return;
       }
     }

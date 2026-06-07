@@ -20,8 +20,34 @@ export type SlackRepositorySandboxSession = {
   lastUsedAt: string;
 };
 
+export type SlackImageLocalizationOutput = {
+  fileId: string;
+  filename: string;
+  contentType: string;
+  targetLocale: string;
+  instructions: string | null;
+  createdAt: string;
+};
+
+export type SlackImageSourceAsset = {
+  sourceFileId: string;
+  filename: string;
+  contentType: string;
+  localizedOutputs: SlackImageLocalizationOutput[];
+};
+
+export type PendingSlackImageTask = {
+  sourceAssets: Array<{
+    sourceFileId: string;
+    filename: string;
+    contentType: string;
+  }>;
+};
+
 export type SlackBotThreadState = {
   warnedNonMemberUsers?: string[];
   repositoryGitHubContext?: RepositoryAgentGitHubContext;
   repositorySandboxSession?: SlackRepositorySandboxSession;
+  pendingSlackImageTask?: PendingSlackImageTask;
+  imageSourceAssets?: SlackImageSourceAsset[];
 };
