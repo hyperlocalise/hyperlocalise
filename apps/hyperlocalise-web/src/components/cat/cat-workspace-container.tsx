@@ -1,8 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 
-import type { CatWorkspaceDependencies, PartialCatWorkspaceDependencies } from "./dependencies";
+import type {
+  CatWorkspaceDependencies,
+  CatWorkspaceEditing,
+  CatWorkspaceNavigation,
+  CatWorkspaceReview,
+  CatWorkspaceServices,
+  PartialCatWorkspaceDependencies,
+} from "./dependencies";
 import { CatWorkspaceView } from "./cat-workspace";
 import type { CatSegment, CatWorkspaceState } from "./types";
 
@@ -41,40 +48,66 @@ function countReviewed(segments: CatSegment[]) {
 export interface CatWorkspaceContainerProps {
   initialState: CatWorkspaceState;
   dependencies?: PartialCatWorkspaceDependencies;
+  navigation?: Partial<CatWorkspaceNavigation>;
+  editing?: Partial<CatWorkspaceEditing>;
+  review?: Partial<CatWorkspaceReview>;
+  services?: CatWorkspaceServices;
   className?: string;
 }
 
 export function CatWorkspaceContainer({
   initialState,
   dependencies: dependencyOverrides,
+  navigation: navigationOverrides = dependencyOverrides?.navigation,
+  editing: editingOverrides = dependencyOverrides?.editing,
+  review: reviewOverrides = dependencyOverrides?.review,
+  services: serviceOverrides = dependencyOverrides?.services,
   className,
 }: CatWorkspaceContainerProps) {
   const [state, setState] = useState(initialState);
   const [isBusy, setIsBusy] = useState(false);
+  const validationSequenceRef = useRef(0);
+  const validateFormat = serviceOverrides?.validateFormat;
+  const runQaChecks = serviceOverrides?.runQaChecks;
+  const onSelectSegment = navigationOverrides?.onSelectSegment;
+  const onPreviousSegment = navigationOverrides?.onPreviousSegment;
+  const onNextSegment = navigationOverrides?.onNextSegment;
+  const onReviewInSequence = navigationOverrides?.onReviewInSequence;
+  const onTargetChange = editingOverrides?.onTargetChange;
+  const onUseAiSuggestion = editingOverrides?.onUseAiSuggestion;
+  const onApprove = reviewOverrides?.onApprove;
+  const onAskQuestion = reviewOverrides?.onAskQuestion;
+  const onSkip = reviewOverrides?.onSkip;
 
   const runFormatValidation = useCallback(
     async (segment: CatSegment, value: string) => {
-      const service = dependencyOverrides?.services?.validateFormat;
-      if (!service) {
+      if (!validateFormat) {
         return;
       }
 
+      const sequence = validationSequenceRef.current + 1;
+      validationSequenceRef.current = sequence;
       setIsBusy(true);
       try {
-        const checks = await service(segment, value);
+        const checks = await validateFormat(segment, value);
+        if (validationSequenceRef.current !== sequence) {
+          return;
+        }
         setState((current) => ({ ...current, formatChecks: checks }));
       } finally {
-        setIsBusy(false);
+        if (validationSequenceRef.current === sequence) {
+          setIsBusy(false);
+        }
       }
     },
-    [dependencyOverrides?.services],
+    [validateFormat],
   );
 
   const dependencies = useMemo<CatWorkspaceDependencies>(() => {
     const navigation = {
       onSelectSegment: (segmentId: string) => {
         setState((current) => ({ ...current, selectedSegmentId: segmentId }));
-        dependencyOverrides?.navigation?.onSelectSegment?.(segmentId);
+        onSelectSegment?.(segmentId);
       },
       onPreviousSegment: () => {
         setState((current) => {
@@ -84,7 +117,7 @@ export function CatWorkspaceContainer({
           }
           return { ...current, selectedSegmentId: previousId };
         });
-        dependencyOverrides?.navigation?.onPreviousSegment?.();
+        onPreviousSegment?.();
       },
       onNextSegment: () => {
         setState((current) => {
@@ -94,10 +127,10 @@ export function CatWorkspaceContainer({
           }
           return { ...current, selectedSegmentId: nextId };
         });
-        dependencyOverrides?.navigation?.onNextSegment?.();
+        onNextSegment?.();
       },
       onReviewInSequence: () => {
-        dependencyOverrides?.navigation?.onReviewInSequence?.();
+        onReviewInSequence?.();
       },
     };
 
@@ -111,7 +144,7 @@ export function CatWorkspaceContainer({
           }
           return { ...current, segments };
         });
-        dependencyOverrides?.editing?.onTargetChange?.(segmentId, value);
+        onTargetChange?.(segmentId, value);
       },
       onUseAiSuggestion: (segmentId: string) => {
         const aiSuggestion = state.intelligence.aiSuggestion;
@@ -119,7 +152,7 @@ export function CatWorkspaceContainer({
           return;
         }
         editing.onTargetChange(segmentId, aiSuggestion);
-        dependencyOverrides?.editing?.onUseAiSuggestion?.(segmentId);
+        onUseAiSuggestion?.(segmentId);
       },
     };
 
@@ -131,22 +164,22 @@ export function CatWorkspaceContainer({
             ...current,
             segments,
             queueSummary: {
-              total: segments.length,
+              total: current.queueSummary.total,
               reviewed: countReviewed(segments),
             },
           };
         });
-        dependencyOverrides?.review?.onApprove?.(segmentId);
+        onApprove?.(segmentId);
       },
       onAskQuestion: (segmentId: string) => {
-        dependencyOverrides?.review?.onAskQuestion?.(segmentId);
+        onAskQuestion?.(segmentId);
       },
       onSkip: (segmentId: string) => {
         setState((current) => {
           const segments = updateSegmentStatus(current.segments, segmentId, "skipped");
           return { ...current, segments };
         });
-        dependencyOverrides?.review?.onSkip?.(segmentId);
+        onSkip?.(segmentId);
       },
     };
 
@@ -154,9 +187,26 @@ export function CatWorkspaceContainer({
       navigation,
       editing,
       review,
-      services: dependencyOverrides?.services,
+      services: {
+        validateFormat,
+        runQaChecks,
+      },
     };
-  }, [dependencyOverrides, runFormatValidation, state.intelligence.aiSuggestion]);
+  }, [
+    onApprove,
+    onAskQuestion,
+    onNextSegment,
+    onPreviousSegment,
+    onReviewInSequence,
+    onSelectSegment,
+    onSkip,
+    onTargetChange,
+    onUseAiSuggestion,
+    runQaChecks,
+    runFormatValidation,
+    state.intelligence.aiSuggestion,
+    validateFormat,
+  ]);
 
   return (
     <CatWorkspaceView

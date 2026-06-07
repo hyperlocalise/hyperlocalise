@@ -5,11 +5,6 @@ import { expect, userEvent, within } from "storybook/test";
 import { CatWorkspaceContainer } from "./cat-workspace-container";
 import { catWorkspaceFixture, createCatWorkspaceState, mockValidateFormat } from "./cat.fixture";
 
-const actionLog = {
-  onSelectSegment: fn(),
-  onApprove: fn(),
-};
-
 const meta = {
   title: "CAT/Workspace",
   component: CatWorkspaceContainer,
@@ -31,25 +26,23 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   args: {
     initialState: catWorkspaceFixture,
-    dependencies: {
-      navigation: {
-        onSelectSegment: actionLog.onSelectSegment,
-        onPreviousSegment: fn(),
-        onNextSegment: fn(),
-        onReviewInSequence: fn(),
-      },
-      editing: {
-        onTargetChange: fn(),
-        onUseAiSuggestion: fn(),
-      },
-      review: {
-        onApprove: actionLog.onApprove,
-        onAskQuestion: fn(),
-        onSkip: fn(),
-      },
-      services: {
-        validateFormat: mockValidateFormat,
-      },
+    navigation: {
+      onSelectSegment: fn(),
+      onPreviousSegment: fn(),
+      onNextSegment: fn(),
+      onReviewInSequence: fn(),
+    },
+    editing: {
+      onTargetChange: fn(),
+      onUseAiSuggestion: fn(),
+    },
+    review: {
+      onApprove: fn(),
+      onAskQuestion: fn(),
+      onSkip: fn(),
+    },
+    services: {
+      validateFormat: mockValidateFormat,
     },
   },
   play: async ({ canvasElement }) => {
@@ -73,17 +66,19 @@ export const EmptyQueue: Story = {
 export const InteractiveReview: Story = {
   args: {
     initialState: createCatWorkspaceState(),
-    dependencies: {
-      services: { validateFormat: mockValidateFormat },
-      review: { onApprove: actionLog.onApprove },
-    },
+    services: { validateFormat: mockValidateFormat },
+    review: { onApprove: fn() },
   },
-  play: async ({ canvasElement }) => {
+  play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     const approveButton = canvas.getByRole("button", { name: "Approve" });
+    const onApprove = args.review?.onApprove;
+    if (!onApprove) {
+      throw new Error("InteractiveReview requires an onApprove spy.");
+    }
 
     await userEvent.click(approveButton);
-    await expect(actionLog.onApprove).toHaveBeenCalled();
+    await expect(onApprove).toHaveBeenCalled();
     await expect(canvas.getByText("Reviewed")).toBeInTheDocument();
   },
 };
