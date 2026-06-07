@@ -1,4 +1,4 @@
-import { slugifyTeamName } from "@/api/routes/team/team.shared";
+import { slugifyTeamName } from "@/api/routes/team/team-slug";
 import type { CreateTeamBody, UpdateTeamBody } from "@/api/routes/team/team.schema";
 
 import type { TeamSummaryRow } from "./teams-api";
