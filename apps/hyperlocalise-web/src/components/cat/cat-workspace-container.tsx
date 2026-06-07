@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
   CatWorkspaceDependencies,
@@ -66,6 +66,7 @@ export function CatWorkspaceContainer({
 }: CatWorkspaceContainerProps) {
   const [state, setState] = useState(initialState);
   const [isBusy, setIsBusy] = useState(false);
+  const stateRef = useRef(state);
   const validationSequenceRef = useRef(0);
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
@@ -79,9 +80,13 @@ export function CatWorkspaceContainer({
   const onAskQuestion = reviewOverrides?.onAskQuestion;
   const onSkip = reviewOverrides?.onSkip;
 
-  const runFormatValidation = useCallback(
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
+  const runSegmentChecks = useCallback(
     async (segment: CatSegment, value: string) => {
-      if (!validateFormat) {
+      if (!validateFormat && !runQaChecks) {
         return;
       }
 
@@ -89,18 +94,21 @@ export function CatWorkspaceContainer({
       validationSequenceRef.current = sequence;
       setIsBusy(true);
       try {
-        const checks = await validateFormat(segment, value);
+        const [formatChecks, qaChecks] = await Promise.all([
+          validateFormat ? validateFormat(segment, value) : Promise.resolve([]),
+          runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
+        ]);
         if (validationSequenceRef.current !== sequence) {
           return;
         }
-        setState((current) => ({ ...current, formatChecks: checks }));
+        setState((current) => ({ ...current, formatChecks: [...formatChecks, ...qaChecks] }));
       } finally {
         if (validationSequenceRef.current === sequence) {
           setIsBusy(false);
         }
       }
     },
-    [validateFormat],
+    [runQaChecks, validateFormat],
   );
 
   const dependencies = useMemo<CatWorkspaceDependencies>(() => {
@@ -136,14 +144,15 @@ export function CatWorkspaceContainer({
 
     const editing = {
       onTargetChange: (segmentId: string, value: string) => {
+        const segmentsToValidate = updateSegmentTarget(stateRef.current.segments, segmentId, value);
+        const segmentToValidate = segmentsToValidate.find((item) => item.id === segmentId);
         setState((current) => {
           const segments = updateSegmentTarget(current.segments, segmentId, value);
-          const segment = segments.find((item) => item.id === segmentId);
-          if (segment) {
-            void runFormatValidation(segment, value);
-          }
           return { ...current, segments };
         });
+        if (segmentToValidate) {
+          void runSegmentChecks(segmentToValidate, value);
+        }
         onTargetChange?.(segmentId, value);
       },
       onUseAiSuggestion: (segmentId: string) => {
@@ -203,7 +212,7 @@ export function CatWorkspaceContainer({
     onTargetChange,
     onUseAiSuggestion,
     runQaChecks,
-    runFormatValidation,
+    runSegmentChecks,
     state.intelligence.aiSuggestion,
     validateFormat,
   ]);

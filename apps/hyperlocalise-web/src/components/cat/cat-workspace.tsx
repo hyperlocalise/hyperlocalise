@@ -86,7 +86,10 @@ export function CatWorkspaceView({
         </div>
 
         <div className="min-w-0 overflow-hidden">
-          <CatIntelligencePanel intelligence={state.intelligence} />
+          <CatIntelligencePanel
+            intelligence={state.intelligence}
+            segmentStatus={selectedSegment.status}
+          />
         </div>
       </div>
     </div>
