@@ -14,7 +14,10 @@ type Story = StoryObj<typeof meta>;
 export const Overview: Story = {
   render: () => (
     <div className="flex items-center gap-3 p-6">
-      <Kbd>Ctrl+K</Kbd>
+      <div className="flex items-center gap-1">
+        <Kbd>Ctrl</Kbd>
+        <Kbd>K</Kbd>
+      </div>
       <div className="flex items-center gap-1">
         <Kbd>G</Kbd>
         <Kbd>P</Kbd>
@@ -23,6 +26,7 @@ export const Overview: Story = {
     </div>
   ),
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Ctrl+K")).toHaveAttribute("data-slot", "kbd");
+    await expect(canvas.getByText("Ctrl")).toHaveAttribute("data-slot", "kbd");
+    await expect(canvas.getByText("K")).toHaveAttribute("data-slot", "kbd");
   },
 };

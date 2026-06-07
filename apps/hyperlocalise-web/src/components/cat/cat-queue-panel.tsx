@@ -8,7 +8,6 @@ import {
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Button } from "@/components/ui/button";
-import { Kbd } from "@/components/ui/kbd";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/primitives/cn";
@@ -32,13 +31,11 @@ export function CatQueuePanel({
   selectedSegmentId,
   summary,
   onSelectSegment,
-  onReviewInSequence,
 }: {
   segments: CatSegment[];
   selectedSegmentId: string;
   summary: CatQueueSummary;
   onSelectSegment: (segmentId: string) => void;
-  onReviewInSequence: () => void;
 }) {
   const progressValue =
     summary.total > 0 ? Math.round((summary.reviewed / summary.total) * 100) : 0;
@@ -66,7 +63,11 @@ export function CatQueuePanel({
         <Progress value={progressValue} className="h-1.5" />
       </div>
 
-      <ScrollArea className="min-h-0 flex-1">
+      <ScrollArea
+        className="min-h-0 flex-1"
+        maskHeight={44}
+        maskClassName="before:via-background/90 before:backdrop-blur-[1px] after:via-background/90 after:backdrop-blur-[1px]"
+      >
         <ul className="space-y-1 px-2 pb-2">
           {segments.map((segment) => {
             const selected = segment.id === selectedSegmentId;
@@ -101,13 +102,6 @@ export function CatQueuePanel({
           })}
         </ul>
       </ScrollArea>
-
-      <div className="border-t border-foreground/8 p-3">
-        <Button variant="outline" className="w-full justify-between" onClick={onReviewInSequence}>
-          Review in sequence
-          <Kbd>⌘J</Kbd>
-        </Button>
-      </div>
     </div>
   );
 }

@@ -29,8 +29,9 @@ export const Overview: Story = {
           <HugeiconsIcon icon={SearchIcon} strokeWidth={2} />
         </InputGroupAddon>
         <InputGroupInput aria-label="Search strings" placeholder="Search source strings" />
-        <InputGroupAddon align="inline-end">
-          <Kbd>⌘K</Kbd>
+        <InputGroupAddon align="inline-end" className="gap-1">
+          <Kbd>⌘</Kbd>
+          <Kbd>K</Kbd>
         </InputGroupAddon>
       </InputGroup>
       <InputGroup>

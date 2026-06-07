@@ -3,7 +3,13 @@ import { fn } from "storybook/test";
 import { expect, userEvent, within } from "storybook/test";
 
 import { CatWorkspaceContainer } from "./cat-workspace-container";
-import { catWorkspaceFixture, createCatWorkspaceState, mockValidateFormat } from "./cat.fixture";
+import {
+  catSegmentsFixture,
+  catWorkspaceFixture,
+  createCatWorkspaceState,
+  mockValidateFormat,
+} from "./cat.fixture";
+import type { CatFormatCheck } from "./types";
 
 const meta = {
   title: "CAT/Workspace",
@@ -39,7 +45,6 @@ export const Default: Story = {
     review: {
       onApprove: fn(),
       onAskQuestion: fn(),
-      onSkip: fn(),
     },
     services: {
       validateFormat: mockValidateFormat,
@@ -50,10 +55,12 @@ export const Default: Story = {
 
     await expect(canvas.getByText("Queue")).toBeInTheDocument();
     await expect(canvas.getByText("Translation Intelligence")).toBeInTheDocument();
+    await expect(canvas.getByText("Translation memory")).toBeInTheDocument();
     await expect(
       canvas.getByText("Dashboard card showing how many reviews still need approval."),
     ).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Approve" })).toBeInTheDocument();
+    await expect(canvasElement.querySelectorAll('[data-slot="kbd"]')).toHaveLength(8);
   },
 };
 
@@ -79,6 +86,74 @@ export const InteractiveReview: Story = {
 
     await userEvent.click(approveButton);
     await expect(onApprove).toHaveBeenCalled();
-    await expect(canvas.getByText("Reviewed")).toBeInTheDocument();
+    await expect(canvas.getByText("50 total · 32 reviewed")).toBeInTheDocument();
+  },
+};
+
+export const PluralIcuSegment: Story = {
+  args: {
+    initialState: createCatWorkspaceState({
+      selectedSegmentId: "seg-06",
+      formatChecks: [
+        {
+          id: "check-icu",
+          label: "Placeholders & ICU",
+          status: "pass",
+          message: "Target keeps the required placeholders and ICU structure.",
+          category: "icu",
+          relatedTokens: ["{count, plural}"],
+        } satisfies CatFormatCheck,
+      ],
+    }),
+    services: { validateFormat: mockValidateFormat },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText("ICU structure")).toBeInTheDocument();
+    await expect(canvas.getAllByText("count").at(0)).toBeInTheDocument();
+    await expect(canvas.getByText("plural")).toBeInTheDocument();
+    await expect(canvas.getAllByText("one").at(0)).toBeInTheDocument();
+    await expect(canvas.getAllByText("other").at(0)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "{count, plural}" })).toBeInTheDocument();
+  },
+};
+
+const placeholderSegments = catSegmentsFixture.map((segment) =>
+  segment.id === "seg-13"
+    ? {
+        ...segment,
+        targetText: "Bản dịch thiếu biến giữ chỗ.",
+      }
+    : segment,
+);
+
+export const MissingPlaceholderSegment: Story = {
+  args: {
+    initialState: createCatWorkspaceState({
+      segments: placeholderSegments,
+      selectedSegmentId: "seg-13",
+      formatChecks: [
+        {
+          id: "check-format-missing-token",
+          label: "Missing placeholders",
+          status: "fail",
+          message: "Target is missing {name} from the source string.",
+          category: "placeholder",
+          relatedTokens: ["{name}"],
+        } satisfies CatFormatCheck,
+      ],
+    }),
+    services: { validateFormat: mockValidateFormat },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText("Required tokens")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "{name}" })).toBeInTheDocument();
+    await expect(canvas.getByText("Missing placeholders")).toBeInTheDocument();
+    await expect(
+      canvas.getByText("Target is missing {name} from the source string."),
+    ).toBeInTheDocument();
   },
 };

@@ -33,6 +33,8 @@ export interface CatFormatCheck {
   label: string;
   status: CatFormatCheckStatus;
   message: string;
+  category?: "length" | "placeholder" | "icu" | "syntax" | "terminology" | "glossary" | "qa";
+  relatedTokens?: string[];
 }
 
 export interface CatGlossaryTerm {
@@ -40,6 +42,14 @@ export interface CatGlossaryTerm {
   source: string;
   target: string;
   approved: boolean;
+}
+
+export interface CatTranslationMemoryMatch {
+  id: string;
+  sourceText: string;
+  targetText: string;
+  matchPercent: number;
+  contextLabel?: string;
 }
 
 export interface CatQaRisk {
@@ -59,6 +69,7 @@ export interface CatSegmentIntelligence {
   reviewerPreference?: string;
   constraints?: string;
   glossaryTerms: CatGlossaryTerm[];
+  translationMemoryMatches?: CatTranslationMemoryMatch[];
   qaRisks: CatQaRisk[];
   githubEvidence?: Array<{ label: string; href: string }>;
   relatedStringCount?: number;

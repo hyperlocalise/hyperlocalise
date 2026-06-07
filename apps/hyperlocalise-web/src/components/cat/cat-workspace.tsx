@@ -5,7 +5,6 @@ import { cn } from "@/lib/primitives/cn";
 import { CatEditorPanel } from "./cat-editor-panel";
 import { CatIntelligencePanel } from "./cat-intelligence-panel";
 import { CatQueuePanel } from "./cat-queue-panel";
-import { CatSuggestionsTabs } from "./cat-suggestions-tabs";
 import type { CatWorkspaceViewProps } from "./dependencies";
 
 export function CatWorkspaceView({
@@ -14,8 +13,11 @@ export function CatWorkspaceView({
   isBusy = false,
   className,
 }: CatWorkspaceViewProps) {
+  const selectedSegmentIndex = state.segments.findIndex(
+    (segment) => segment.id === state.selectedSegmentId || segment.key === state.selectedSegmentId,
+  );
   const selectedSegment =
-    state.segments.find((segment) => segment.id === state.selectedSegmentId) ?? state.segments[0];
+    selectedSegmentIndex >= 0 ? state.segments[selectedSegmentIndex] : state.segments[0];
 
   if (!selectedSegment) {
     return (
@@ -30,11 +32,10 @@ export function CatWorkspaceView({
     );
   }
 
-  const segmentPosition = selectedSegment.index;
+  const segmentPosition = selectedSegmentIndex >= 0 ? selectedSegmentIndex + 1 : 1;
+  const hasPreviousSegment = segmentPosition > 1;
+  const hasNextSegment = segmentPosition < state.segments.length;
   const { navigation, editing, review } = dependencies;
-  const tmMatchBasisCount = state.suggestions.filter(
-    (suggestion) => suggestion.source === "tm",
-  ).length;
 
   return (
     <div
@@ -50,7 +51,6 @@ export function CatWorkspaceView({
             selectedSegmentId={selectedSegment.id}
             summary={state.queueSummary}
             onSelectSegment={navigation.onSelectSegment}
-            onReviewInSequence={navigation.onReviewInSequence}
           />
         </div>
 
@@ -67,29 +67,16 @@ export function CatWorkspaceView({
               onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
               onApprove={() => review.onApprove(selectedSegment.id)}
               onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
-              onSkip={() => review.onSkip(selectedSegment.id)}
               onPrevious={navigation.onPreviousSegment}
               onNext={navigation.onNextSegment}
-            />
-          </div>
-          <div className="flex h-72 min-h-56 flex-col border-t border-foreground/8">
-            <CatSuggestionsTabs
-              suggestions={state.suggestions}
-              historyCount={state.intelligence.relatedStringCount}
-              glossaryMatchCount={state.intelligence.glossaryTerms.length}
-              tmMatchBasisCount={tmMatchBasisCount}
-              onUseSuggestion={(suggestion) =>
-                editing.onTargetChange(selectedSegment.id, suggestion.text)
-              }
+              hasPreviousSegment={hasPreviousSegment}
+              hasNextSegment={hasNextSegment}
             />
           </div>
         </div>
 
         <div className="min-w-0 overflow-hidden">
-          <CatIntelligencePanel
-            intelligence={state.intelligence}
-            segmentStatus={selectedSegment.status}
-          />
+          <CatIntelligencePanel intelligence={state.intelligence} />
         </div>
       </div>
     </div>

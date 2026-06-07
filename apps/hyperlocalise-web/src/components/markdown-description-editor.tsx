@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { EditorContent, type Editor, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
+import type { Extensions } from "@tiptap/core";
 
 import { cn } from "@/lib/primitives/cn";
 
@@ -22,6 +23,20 @@ const markdownDescriptionContentClassName = cn(
   "[&_pre]:my-3 [&_pre]:overflow-x-auto [&_pre]:rounded-md [&_pre]:bg-foreground/8 [&_pre]:p-3",
   "[&_pre_code]:bg-transparent [&_pre_code]:p-0",
 );
+
+type MarkdownCommandChain = ReturnType<Editor["chain"]> & {
+  toggleBold: () => MarkdownCommandChain;
+  toggleItalic: () => MarkdownCommandChain;
+  toggleHeading: (attributes: { level: 2 | 3 }) => MarkdownCommandChain;
+  toggleBlockquote: () => MarkdownCommandChain;
+  toggleCode: () => MarkdownCommandChain;
+};
+
+const markdownExtensions = [StarterKit, Markdown] as unknown as Extensions;
+
+function markdownCommandChain(editor: Editor): MarkdownCommandChain {
+  return editor.chain().focus() as unknown as MarkdownCommandChain;
+}
 
 function MarkdownToolbarButton({
   label,
@@ -70,28 +85,28 @@ function MarkdownDescriptionToolbar({ editor, disabled }: { editor: Editor; disa
         title="Bold"
         pressed={editor.isActive("bold")}
         disabled={isDisabled}
-        onClick={() => editor.chain().focus().toggleBold().run()}
+        onClick={() => markdownCommandChain(editor).toggleBold().run()}
       />
       <MarkdownToolbarButton
         label="I"
         title="Italic"
         pressed={editor.isActive("italic")}
         disabled={isDisabled}
-        onClick={() => editor.chain().focus().toggleItalic().run()}
+        onClick={() => markdownCommandChain(editor).toggleItalic().run()}
       />
       <MarkdownToolbarButton
         label="H2"
         title="Heading 2"
         pressed={editor.isActive("heading", { level: 2 })}
         disabled={isDisabled}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+        onClick={() => markdownCommandChain(editor).toggleHeading({ level: 2 }).run()}
       />
       <MarkdownToolbarButton
         label="H3"
         title="Heading 3"
         pressed={editor.isActive("heading", { level: 3 })}
         disabled={isDisabled}
-        onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
+        onClick={() => markdownCommandChain(editor).toggleHeading({ level: 3 }).run()}
       />
       <MarkdownToolbarButton
         label="• List"
@@ -112,14 +127,14 @@ function MarkdownDescriptionToolbar({ editor, disabled }: { editor: Editor; disa
         title="Blockquote"
         pressed={editor.isActive("blockquote")}
         disabled={isDisabled}
-        onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        onClick={() => markdownCommandChain(editor).toggleBlockquote().run()}
       />
       <MarkdownToolbarButton
         label="Code"
         title="Inline code"
         pressed={editor.isActive("code")}
         disabled={isDisabled}
-        onClick={() => editor.chain().focus().toggleCode().run()}
+        onClick={() => markdownCommandChain(editor).toggleCode().run()}
       />
     </div>
   );
@@ -139,7 +154,7 @@ export function MarkdownDescriptionEditor({
   placeholder?: string;
 }) {
   const editor = useEditor({
-    extensions: [StarterKit, Markdown],
+    extensions: markdownExtensions,
     content: value,
     contentType: "markdown",
     editable: !disabled,
@@ -224,7 +239,7 @@ export function MarkdownDescriptionPreview({
   emptyMessage?: string;
 }) {
   const editor = useEditor({
-    extensions: [StarterKit, Markdown],
+    extensions: markdownExtensions,
     content: value,
     contentType: "markdown",
     editable: false,

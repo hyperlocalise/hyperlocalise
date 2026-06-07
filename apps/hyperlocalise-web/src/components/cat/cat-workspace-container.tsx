@@ -13,15 +13,29 @@ import type {
 import { CatWorkspaceView } from "./cat-workspace";
 import type { CatSegment, CatWorkspaceState } from "./types";
 
+function getSegmentQueueIndex(segments: CatSegment[], segmentIdOrKey: string) {
+  return segments.findIndex(
+    (segment) => segment.id === segmentIdOrKey || segment.key === segmentIdOrKey,
+  );
+}
+
+function getSegmentId(segments: CatSegment[], segmentIdOrKey: string) {
+  const segment = segments.find(
+    (item) => item.id === segmentIdOrKey || item.key === segmentIdOrKey,
+  );
+
+  return segment?.id;
+}
+
 function getAdjacentSegmentId(segments: CatSegment[], currentId: string, direction: -1 | 1) {
-  const currentIndex = segments.findIndex((segment) => segment.id === currentId);
+  const currentIndex = getSegmentQueueIndex(segments, currentId);
   if (currentIndex < 0) {
     return segments[0]?.id;
   }
 
   const nextIndex = currentIndex + direction;
   if (nextIndex < 0 || nextIndex >= segments.length) {
-    return segments[currentIndex]?.id;
+    return undefined;
   }
 
   return segments[nextIndex]?.id;
@@ -65,7 +79,6 @@ export function CatWorkspaceContainer({
   className,
 }: CatWorkspaceContainerProps) {
   const [state, setState] = useState(initialState);
-  const [isBusy, setIsBusy] = useState(false);
   const stateRef = useRef(state);
   const validationSequenceRef = useRef(0);
   const validateFormat = serviceOverrides?.validateFormat;
@@ -92,21 +105,14 @@ export function CatWorkspaceContainer({
 
       const sequence = validationSequenceRef.current + 1;
       validationSequenceRef.current = sequence;
-      setIsBusy(true);
-      try {
-        const [formatChecks, qaChecks] = await Promise.all([
-          validateFormat ? validateFormat(segment, value) : Promise.resolve([]),
-          runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
-        ]);
-        if (validationSequenceRef.current !== sequence) {
-          return;
-        }
-        setState((current) => ({ ...current, formatChecks: [...formatChecks, ...qaChecks] }));
-      } finally {
-        if (validationSequenceRef.current === sequence) {
-          setIsBusy(false);
-        }
+      const [formatChecks, qaChecks] = await Promise.all([
+        validateFormat ? validateFormat(segment, value) : Promise.resolve([]),
+        runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
+      ]);
+      if (validationSequenceRef.current !== sequence) {
+        return;
       }
+      setState((current) => ({ ...current, formatChecks: [...formatChecks, ...qaChecks] }));
     },
     [runQaChecks, validateFormat],
   );
@@ -114,7 +120,10 @@ export function CatWorkspaceContainer({
   const dependencies = useMemo<CatWorkspaceDependencies>(() => {
     const navigation = {
       onSelectSegment: (segmentId: string) => {
-        setState((current) => ({ ...current, selectedSegmentId: segmentId }));
+        setState((current) => {
+          const selectedSegmentId = getSegmentId(current.segments, segmentId) ?? segmentId;
+          return { ...current, selectedSegmentId };
+        });
         onSelectSegment?.(segmentId);
       },
       onPreviousSegment: () => {
@@ -217,12 +226,5 @@ export function CatWorkspaceContainer({
     validateFormat,
   ]);
 
-  return (
-    <CatWorkspaceView
-      state={state}
-      dependencies={dependencies}
-      isBusy={isBusy}
-      className={className}
-    />
-  );
+  return <CatWorkspaceView state={state} dependencies={dependencies} className={className} />;
 }
