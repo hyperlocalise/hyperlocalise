@@ -4,9 +4,9 @@ import { useMemo, useState } from "react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH2 } from "@/components/ui/typography";
-import { cn } from "@/lib/primitives/cn";
+import { TypographyH4 } from "@/components/ui/typography";
 
+import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";
 import { ProjectFileDetailPanel } from "../../../../files/_components/project-file-detail-panel";
 
 function sortFilesByPath(files: ProjectFileRecord[]) {
@@ -45,15 +45,13 @@ export function JobSourceFilesPanel({
   const activeSourcePath = selectedFile?.sourcePath ?? null;
 
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-        Source files
-      </TypographyH2>
+    <section className="rounded-lg border border-border bg-card p-5">
+      <TypographyH4>Source files</TypographyH4>
 
       {isLoading ? (
         <div className="mt-4 space-y-3">
-          <Skeleton className="h-10 w-full bg-foreground/8" />
-          <Skeleton className="h-48 w-full bg-foreground/8" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-48 w-full" />
         </div>
       ) : null}
 
@@ -64,37 +62,19 @@ export function JobSourceFilesPanel({
       ) : null}
 
       {!isLoading && !isError && sortedFiles.length === 0 ? (
-        <p className="mt-4 text-sm text-foreground/48">{emptyMessage}</p>
+        <p className="mt-4 text-sm text-muted-foreground">{emptyMessage}</p>
       ) : null}
 
       {!isLoading && !isError && sortedFiles.length > 0 ? (
-        <div className="mt-4 overflow-hidden rounded-lg border border-foreground/8 bg-background/40 lg:grid lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
-          <ul className="max-h-[min(28rem,60vh)] divide-y divide-foreground/8 overflow-y-auto border-b border-foreground/8 lg:border-r lg:border-b-0">
-            {sortedFiles.map((file) => {
-              const isSelected = file.sourcePath === activeSourcePath;
-
-              return (
-                <li key={file.sourcePath}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSourcePath(file.sourcePath)}
-                    className={cn(
-                      "flex w-full flex-col gap-1 px-3 py-2.5 text-left transition-colors hover:bg-foreground/4",
-                      isSelected && "bg-primary/8",
-                    )}
-                  >
-                    <span className="truncate text-sm font-medium text-foreground/82">
-                      {file.filename}
-                    </span>
-                    <span className="truncate font-mono text-xs text-foreground/48">
-                      {file.sourcePath}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-
+        <div className="mt-4 overflow-hidden rounded-lg border border-border bg-background lg:grid lg:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
+          <aside className="min-h-80 border-b border-border p-2 lg:border-r lg:border-b-0">
+            <ProjectFilesTree
+              ariaLabel="Job source files"
+              files={sortedFiles}
+              selectedSourcePath={activeSourcePath}
+              onSelectFile={setSelectedSourcePath}
+            />
+          </aside>
           <div className="min-h-[min(20rem,50vh)] overflow-y-auto">
             <ProjectFileDetailPanel
               organizationSlug={organizationSlug}

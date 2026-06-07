@@ -1,11 +1,13 @@
 "use client";
 
+import type { ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 import type {
   ProjectFileDetailResponse,
   ProjectFileRecord,
+  ProjectSourceStringsPreview,
 } from "@/api/routes/project/project.schema";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
@@ -15,6 +17,16 @@ import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { parseSourceStringsFromFileContent } from "@/lib/projects/project-file-source-strings";
 import { cn } from "@/lib/primitives/cn";
+
+type ProjectFileDetail = ProjectFileDetailResponse["file"];
+
+export type ProjectFileSourceStringsPreviewRenderer = (props: {
+  organizationSlug: string;
+  projectId: string;
+  sourcePath: string;
+  sourceStrings: ProjectSourceStringsPreview;
+  canFindInRepo: boolean;
+}) => ReactNode;
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
@@ -83,6 +95,28 @@ function truncatePreview(text: string) {
   };
 }
 
+function defaultRenderSourceStringsPreview({
+  organizationSlug,
+  projectId,
+  sourcePath,
+  sourceStrings,
+  canFindInRepo,
+}: Parameters<ProjectFileSourceStringsPreviewRenderer>[0]) {
+  if (!sourceStrings) {
+    return null;
+  }
+
+  return (
+    <ProjectFileSourceStringsPreview
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      sourcePath={sourcePath}
+      sourceStrings={sourceStrings}
+      canFindInRepo={canFindInRepo}
+    />
+  );
+}
+
 export function ProjectFileDetailPanel({
   organizationSlug,
   projectId,
@@ -143,15 +177,55 @@ export function ProjectFileDetailPanel({
     },
   });
 
+  return (
+    <ProjectFileDetailPanelView
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      file={file}
+      requestedSourcePath={requestedSourcePath}
+      highlightLocale={highlightLocale}
+      canFindInRepo={canFindInRepo}
+      isLoading={detailQuery.isLoading}
+      error={detailQuery.isError ? detailQuery.error : undefined}
+      detail={detailQuery.data}
+    />
+  );
+}
+
+export function ProjectFileDetailPanelView({
+  organizationSlug,
+  projectId,
+  file,
+  requestedSourcePath,
+  highlightLocale,
+  canFindInRepo,
+  isLoading,
+  error,
+  detail,
+  renderSourceStringsPreview = defaultRenderSourceStringsPreview,
+}: {
+  organizationSlug: string;
+  projectId: string;
+  file: ProjectFileRecord | null;
+  requestedSourcePath: string | null;
+  highlightLocale: string | null;
+  canFindInRepo: boolean;
+  isLoading: boolean;
+  error?: unknown;
+  detail?: ProjectFileDetail;
+  renderSourceStringsPreview?: ProjectFileSourceStringsPreviewRenderer;
+}) {
+  const sourcePath = file?.sourcePath ?? null;
+
   if (!file || !sourcePath) {
     if (requestedSourcePath) {
       return (
         <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
           <TypographyP className="text-sm font-medium text-foreground">File not found</TypographyP>
-          <TypographyP className="max-w-sm font-mono text-sm text-foreground/52">
+          <TypographyP className="max-w-sm font-mono text-sm text-muted-foreground">
             {requestedSourcePath}
           </TypographyP>
-          <TypographyP className="max-w-sm text-sm text-foreground/52">
+          <TypographyP className="max-w-sm text-sm text-muted-foreground">
             This path is not in the project file list. It may have been removed or the link is
             outdated.
           </TypographyP>
@@ -162,35 +236,32 @@ export function ProjectFileDetailPanel({
     return (
       <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
         <TypographyP className="text-sm font-medium text-foreground">Select a file</TypographyP>
-        <TypographyP className="max-w-sm text-sm text-foreground/52">
+        <TypographyP className="max-w-sm text-sm text-muted-foreground">
           Choose a file from the list to preview its source content and related jobs.
         </TypographyP>
       </div>
     );
   }
 
-  if (detailQuery.isLoading) {
+  if (isLoading) {
     return (
       <div className="flex h-full min-h-48 items-center justify-center gap-2 px-6 py-10">
         <Spinner />
-        <TypographyP className="text-sm text-foreground/52">Loading file…</TypographyP>
+        <TypographyP className="text-sm text-muted-foreground">Loading file…</TypographyP>
       </div>
     );
   }
 
-  if (detailQuery.isError) {
+  if (error) {
     return (
       <div className="flex h-full min-h-48 flex-col justify-center gap-2 px-6 py-10">
         <TypographyP className="text-sm text-flame-100">
-          {detailQuery.error instanceof Error
-            ? detailQuery.error.message
-            : "Failed to load file details."}
+          {error instanceof Error ? error.message : "Failed to load file details."}
         </TypographyP>
       </div>
     );
   }
 
-  const detail = detailQuery.data;
   const latestVersion = detail?.versions[0];
   const latestContent = latestVersion?.content ?? null;
   const sourceStringsPreview = parseSourceStringsFromFileContent(latestContent);
@@ -208,7 +279,7 @@ export function ProjectFileDetailPanel({
 
   return (
     <div className="flex min-h-0 flex-col gap-6 px-5 py-4">
-      <header className="space-y-2 border-b border-foreground/8 pb-4">
+      <header className="space-y-2 border-b border-border pb-4">
         <TypographyP className="font-mono text-sm font-medium text-foreground">
           {sourcePath}
         </TypographyP>
@@ -226,43 +297,43 @@ export function ProjectFileDetailPanel({
               Uploaded
             </Badge>
           )}
-          <TypographyP className="text-xs text-foreground/42">
+          <TypographyP className="text-xs text-muted-foreground">
             {fileMetadataLine(displayByteSize, latestVersion?.revision, file.uploadedAt)}
           </TypographyP>
         </div>
         {latestVersion?.sourceHash ? (
-          <TypographyP className="font-mono text-xs text-foreground/42">
+          <TypographyP className="font-mono text-xs text-muted-foreground">
             Hash {latestVersion.sourceHash}
           </TypographyP>
         ) : null}
       </header>
 
       <section className="space-y-2">
-        <TypographyP className="text-xs font-medium tracking-wide text-foreground/52 uppercase">
+        <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
           Source preview
         </TypographyP>
         {sourceStringsPreview ? (
-          <ProjectFileSourceStringsPreview
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourcePath={sourcePath}
-            sourceStrings={sourceStringsPreview}
-            canFindInRepo={canFindInRepo}
-          />
+          renderSourceStringsPreview({
+            organizationSlug,
+            projectId,
+            sourcePath,
+            sourceStrings: sourceStringsPreview,
+            canFindInRepo,
+          })
         ) : textPreview ? (
-          <div className="overflow-hidden rounded-md border border-foreground/8 bg-background">
-            <pre className="max-h-[min(24rem,50vh)] overflow-auto p-3 font-mono text-xs leading-relaxed text-foreground/82 whitespace-pre-wrap wrap-break-word">
+          <div className="overflow-hidden rounded-md border border-border bg-background">
+            <pre className="max-h-[min(24rem,50vh)] overflow-auto p-3 font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap wrap-break-word">
               {textPreview.text}
             </pre>
             {textPreview.truncated ? (
-              <TypographyP className="border-t border-foreground/8 px-3 py-2 text-xs text-foreground/42">
+              <TypographyP className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
                 Preview truncated. Download the full file from a completed job output when
                 available.
               </TypographyP>
             ) : null}
           </div>
         ) : (
-          <TypographyP className="text-sm text-foreground/52">
+          <TypographyP className="text-sm text-muted-foreground">
             No text preview is available for this file yet.
           </TypographyP>
         )}
@@ -270,7 +341,7 @@ export function ProjectFileDetailPanel({
 
       {orderedJobsByLocale.length > 0 ? (
         <section className="space-y-3">
-          <TypographyP className="text-xs font-medium tracking-wide text-foreground/52 uppercase">
+          <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             Jobs by locale
           </TypographyP>
           <div className="flex flex-col gap-3">
@@ -278,8 +349,8 @@ export function ProjectFileDetailPanel({
               <div
                 key={group.locale}
                 className={cn(
-                  "rounded-md border border-foreground/8 bg-background/60 p-3",
-                  highlightLocale === group.locale && "border-primary/40 bg-primary/5",
+                  "rounded-md border border-border bg-background p-3",
+                  highlightLocale === group.locale && "border-primary bg-muted",
                 )}
               >
                 <TypographyP className="mb-2 text-sm font-medium text-foreground">
@@ -290,9 +361,9 @@ export function ProjectFileDetailPanel({
                     <li key={job.id}>
                       <Link
                         href={`/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}`}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-foreground/5"
+                        className="flex flex-wrap items-center justify-between gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted"
                       >
-                        <span className="font-mono text-xs text-foreground/72">{job.id}</span>
+                        <span className="font-mono text-xs text-foreground">{job.id}</span>
                         <Badge variant="outline" className="rounded-full text-[10px]">
                           {job.status}
                         </Badge>

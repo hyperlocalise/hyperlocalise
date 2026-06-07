@@ -1,7 +1,8 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
+  ArrowDown01Icon,
   Clock01Icon,
   File01Icon,
   LanguageSquareIcon,
@@ -13,9 +14,10 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
+import { TypographyH1, TypographyH4 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 import type {
   TmsProviderLiveJobComment,
@@ -23,7 +25,6 @@ import type {
 } from "@/lib/providers/tms-provider-live";
 
 import { toneClass } from "../../../../../_components/workspace-resource-shared";
-import { JobDetailRow } from "../../../../../jobs/_components/provider-crowdin-job-detail-rows";
 import {
   formatReadinessProgress,
   formatLocaleList,
@@ -34,7 +35,6 @@ import {
   getCrowdinTaskTypeLabel,
   getProviderPayloadString,
   getReadinessNumber,
-  getReadinessWords,
 } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
 import { buildJobsListHref, formatJobDetailDate } from "./job-detail-types";
@@ -104,8 +104,12 @@ function MetricItem({
   label: string;
 }) {
   return (
-    <span className="inline-flex min-w-0 items-center gap-2 text-sm text-foreground/58">
-      <HugeiconsIcon icon={icon} strokeWidth={1.8} className="size-4 shrink-0 text-foreground/42" />
+    <span className="inline-flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
+      <HugeiconsIcon
+        icon={icon}
+        strokeWidth={1.8}
+        className="size-4 shrink-0 text-muted-foreground"
+      />
       <span className="truncate">{label}</span>
     </span>
   );
@@ -118,24 +122,17 @@ function getProgressValue(job: TmsProviderLiveJobDetail) {
   return Math.max(0, Math.min(100, Math.round(translationProgress ?? approvalProgress ?? 0)));
 }
 
-function getWordsProgress(job: TmsProviderLiveJobDetail) {
-  const readiness = getCrowdinLocaleReadiness(job.externalProviderPayload);
-  const words = getReadinessWords(readiness);
-  const total = getReadinessNumber(words, "total");
-  const translated = getReadinessNumber(words, "translated");
-  const approved = getReadinessNumber(words, "approved");
-
-  if (total === null) {
-    return null;
-  }
-
-  return {
-    completed: Math.max(0, translated ?? approved ?? 0),
-    total,
-  };
+function CompactPropertyRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[7.5rem_minmax(0,1fr)] items-start gap-3 py-2">
+      <dt className="text-sm text-muted-foreground">{label}</dt>
+      <dd className="min-w-0 wrap-break-word text-sm leading-5 text-foreground">{value ?? "—"}</dd>
+    </div>
+  );
 }
 
-function StatusSummaryCard({ job }: { job: TmsProviderLiveJobDetail }) {
+function TaskDetailsCard({ job }: { job: TmsProviderLiveJobDetail }) {
+  const [showMore, setShowMore] = useState(false);
   const readiness = getCrowdinLocaleReadiness(job.externalProviderPayload);
   const hasReadiness = readiness !== null;
   const progress = hasReadiness ? getProgressValue(job) : null;
@@ -143,53 +140,6 @@ function StatusSummaryCard({ job }: { job: TmsProviderLiveJobDetail }) {
     hasReadiness && progress !== null
       ? (formatReadinessProgress(readiness) ?? `${progress}% translated`)
       : null;
-  const wordsProgress = hasReadiness ? getWordsProgress(job) : null;
-
-  return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-        Status
-      </TypographyH2>
-      <Badge
-        variant="outline"
-        className={cn("mt-5 w-fit rounded-full capitalize", toneClass(statusTone(job.status)))}
-      >
-        {job.status}
-      </Badge>
-      {progress !== null && progressLabel !== null ? (
-        <div className="mt-7">
-          <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-semibold text-foreground">{progress}%</span>
-            <span className="text-sm text-foreground/58">
-              {progressLabel.replace(/^\d+%\s*/, "")}
-            </span>
-          </div>
-          <div
-            className="mt-4 h-1.5 overflow-hidden rounded-full bg-foreground/10"
-            role="progressbar"
-            aria-label="Translation progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={progress}
-          >
-            <div className="h-full rounded-full bg-primary" style={{ width: `${progress}%` }} />
-          </div>
-          {wordsProgress ? (
-            <p className="mt-3 text-sm text-foreground/52">
-              {wordsProgress.completed} / {wordsProgress.total} words
-            </p>
-          ) : null}
-        </div>
-      ) : (
-        <p className="mt-5 text-sm text-foreground/58">
-          Provider status: {job.externalStatus || job.status}
-        </p>
-      )}
-    </section>
-  );
-}
-
-function TaskDetailsCard({ job }: { job: TmsProviderLiveJobDetail }) {
   const providerName = formatProviderKind(job.externalProviderKind);
   const targetLocales = formatLocaleList(
     getCrowdinTargetLocales(job.externalProviderPayload, job.externalTargetLocales),
@@ -198,29 +148,63 @@ function TaskDetailsCard({ job }: { job: TmsProviderLiveJobDetail }) {
   const wordsToDo = formatWordsToDo(getCrowdinLocaleReadiness(job.externalProviderPayload));
 
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-        Details
-      </TypographyH2>
-      <dl className="mt-3 divide-y divide-foreground/8">
-        <JobDetailRow label="Provider" value={providerName} />
-        <JobDetailRow label="Task type" value={taskType} />
-        <JobDetailRow label="Project" value={job.projectName ?? job.projectId} />
-        <JobDetailRow
-          label="Language"
-          value={getCrowdinLanguageLabel(job.externalProviderPayload) ?? "—"}
-        />
-        <JobDetailRow label="Target locales" value={targetLocales} />
-        <JobDetailRow
-          label="Assignees"
-          value={job.externalAssignedUsers.length > 0 ? job.externalAssignedUsers.join(", ") : "—"}
-        />
-        <JobDetailRow label="Due date" value={formatJobDetailDate(job.externalDueDate)} />
-        <JobDetailRow label="Last sync" value={formatJobDetailDate(job.updatedAt)} />
-        {wordsToDo ? <JobDetailRow label="Words to do" value={wordsToDo} /> : null}
-        <JobDetailRow label="External job ID" value={job.externalJobId} />
-        <JobDetailRow label="External task ID" value={job.externalTaskId} />
-      </dl>
+    <section className="rounded-lg border border-border bg-card p-5 xl:sticky xl:top-5">
+      <div className="flex items-center justify-between gap-3">
+        <TypographyH4>Properties</TypographyH4>
+      </div>
+      <Collapsible open={showMore} onOpenChange={setShowMore}>
+        <dl className="mt-5">
+          <CompactPropertyRow
+            label="Status"
+            value={
+              <Badge
+                variant="outline"
+                className={cn("rounded-full capitalize", toneClass(statusTone(job.status)))}
+              >
+                {job.status}
+              </Badge>
+            }
+          />
+          <CompactPropertyRow
+            label="Progress"
+            value={progressLabel ?? `Provider status: ${job.externalStatus || job.status}`}
+          />
+          <CompactPropertyRow label="Provider" value={providerName} />
+          <CompactPropertyRow label="Task type" value={taskType} />
+          <CompactPropertyRow label="Target locales" value={targetLocales} />
+          <CompactPropertyRow
+            label="Assignees"
+            value={
+              job.externalAssignedUsers.length > 0 ? job.externalAssignedUsers.join(", ") : "—"
+            }
+          />
+          <CompactPropertyRow label="Due date" value={formatJobDetailDate(job.externalDueDate)} />
+          {wordsToDo ? <CompactPropertyRow label="Words to do" value={wordsToDo} /> : null}
+          <CollapsibleContent>
+            <CompactPropertyRow label="Project" value={job.projectName ?? job.projectId} />
+            <CompactPropertyRow
+              label="Language"
+              value={getCrowdinLanguageLabel(job.externalProviderPayload) ?? "—"}
+            />
+            <CompactPropertyRow label="Last sync" value={formatJobDetailDate(job.updatedAt)} />
+            <CompactPropertyRow label="External job ID" value={job.externalJobId} />
+            <CompactPropertyRow label="External task ID" value={job.externalTaskId} />
+          </CollapsibleContent>
+        </dl>
+        <CollapsibleTrigger
+          className="mt-3 inline-flex items-center gap-1.5 rounded-md py-1 text-sm font-medium text-muted-foreground outline-hidden transition-colors hover:text-foreground focus-visible:text-foreground"
+          aria-label={
+            showMore ? "Hide secondary task properties" : "Show secondary task properties"
+          }
+        >
+          {showMore ? "Show less" : "Show more"}
+          <HugeiconsIcon
+            icon={ArrowDown01Icon}
+            strokeWidth={1.8}
+            className={cn("size-4 transition-transform", showMore && "rotate-180")}
+          />
+        </CollapsibleTrigger>
+      </Collapsible>
     </section>
   );
 }
@@ -235,15 +219,13 @@ function TaskCommentsSection({
   isLoading: boolean;
 }) {
   return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-        Task comments
-      </TypographyH2>
+    <section>
+      <TypographyH4>Comments</TypographyH4>
 
       {isLoading ? (
         <div className="mt-4 space-y-3">
-          <Skeleton className="h-16 w-full bg-foreground/8" />
-          <Skeleton className="h-16 w-full bg-foreground/8" />
+          <Skeleton className="h-16 w-full" />
+          <Skeleton className="h-16 w-full" />
         </div>
       ) : null}
 
@@ -252,11 +234,11 @@ function TaskCommentsSection({
       ) : null}
 
       {!isLoading && !isError && comments.length === 0 ? (
-        <p className="mt-4 text-sm text-foreground/52">No task comments yet.</p>
+        <p className="mt-4 text-sm text-muted-foreground">No comments yet.</p>
       ) : null}
 
       {!isLoading && !isError && comments.length > 0 ? (
-        <ul className="mt-4 divide-y divide-foreground/8 rounded-md border border-foreground/8 bg-background/50">
+        <ul className="mt-4 divide-y divide-border rounded-md border border-border bg-card">
           {comments.map((comment) => {
             const timeSpent = formatTimeSpent(comment.timeSpentSeconds);
 
@@ -264,42 +246,21 @@ function TaskCommentsSection({
               <li key={comment.id} className="px-3 py-3">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span className="text-sm font-medium text-foreground">User {comment.userId}</span>
-                  <span className="text-xs text-foreground/42">
+                  <span className="text-xs text-muted-foreground">
                     {formatJobDetailDate(comment.createdAt)}
                   </span>
                 </div>
-                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground/74">
+                <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
                   {comment.text}
                 </p>
                 {timeSpent ? (
-                  <p className="mt-2 text-xs text-foreground/42">Time spent: {timeSpent}</p>
+                  <p className="mt-2 text-xs text-muted-foreground">Time spent: {timeSpent}</p>
                 ) : null}
               </li>
             );
           })}
         </ul>
       ) : null}
-    </section>
-  );
-}
-
-function TaskActivitySection({ job }: { job: TmsProviderLiveJobDetail }) {
-  return (
-    <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-      <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-        Activity
-      </TypographyH2>
-      <ul className="mt-4 divide-y divide-foreground/8 rounded-md border border-foreground/8 bg-background/50">
-        <li className="px-3 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span className="text-sm font-medium text-foreground">Task refreshed</span>
-            <span className="text-xs text-foreground/42">{formatJobDetailDate(job.updatedAt)}</span>
-          </div>
-          <p className="mt-2 text-sm leading-6 text-foreground/58">
-            Latest provider status is {job.status}.
-          </p>
-        </li>
-      </ul>
     </section>
   );
 }
@@ -358,9 +319,7 @@ export function ProviderLiveJobDetailView({
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           {renderBackLink({ href: jobsListHref, children: "Jobs" })}
-          <TypographyH1 className="wrap-break-word font-heading text-3xl font-semibold text-foreground md:text-4xl">
-            {job?.externalTitle ?? jobId}
-          </TypographyH1>
+          <TypographyH1>{job?.externalTitle ?? jobId}</TypographyH1>
           {job ? (
             <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2">
               <MetricItem
@@ -435,9 +394,9 @@ export function ProviderLiveJobDetailView({
       </div>
 
       {isLoading ? (
-        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-          <Skeleton className="h-5 w-48 bg-foreground/8" />
-          <Skeleton className="mt-4 h-40 w-full bg-foreground/8" />
+        <div className="rounded-lg border border-border bg-card p-5">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="mt-4 h-40 w-full" />
         </div>
       ) : null}
 
@@ -447,10 +406,8 @@ export function ProviderLiveJobDetailView({
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-5">
             {showTaskDescriptionSection && renderDescriptionField ? (
-              <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-                <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-                  Task description
-                </TypographyH2>
+              <section>
+                <TypographyH4>Description</TypographyH4>
                 <div className="mt-4">
                   {renderDescriptionField({
                     description: providerDescription,
@@ -464,22 +421,18 @@ export function ProviderLiveJobDetailView({
             {job.externalProviderKind === "crowdin" && renderFilesSection
               ? renderFilesSection({ job, jobId, organizationSlug, projectId })
               : null}
+
+            {job.externalProviderKind === "crowdin" ? (
+              <TaskCommentsSection
+                comments={comments}
+                isError={Boolean(commentsError)}
+                isLoading={commentsLoading}
+              />
+            ) : null}
           </div>
           <aside className="flex min-w-0 flex-col gap-5">
-            <StatusSummaryCard job={job} />
             <TaskDetailsCard job={job} />
           </aside>
-        </div>
-      ) : null}
-
-      {job?.externalProviderKind === "crowdin" ? (
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
-          <TaskCommentsSection
-            comments={comments}
-            isError={Boolean(commentsError)}
-            isLoading={commentsLoading}
-          />
-          <TaskActivitySection job={job} />
         </div>
       ) : null}
     </main>
