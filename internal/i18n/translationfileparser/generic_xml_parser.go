@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"slices"
 	"strings"
+	"unicode"
 )
 
 // GenericXMLParser parses non-Android XML locale files whose translatable
@@ -445,6 +446,15 @@ func isGenericXMLLocaleAttrName(name string) bool {
 
 func isAllXMLWhitespace(data []byte) bool {
 	for _, b := range data {
+		if b >= 0x80 {
+			// Non-ASCII byte: fall back to rune-aware Unicode whitespace check.
+			for _, r := range string(data) {
+				if !unicode.IsSpace(r) {
+					return false
+				}
+			}
+			return true
+		}
 		if b != ' ' && b != '\t' && b != '\n' && b != '\r' {
 			return false
 		}
@@ -507,15 +517,15 @@ func genericXMLKeyAttr(attrs []xml.Attr) string {
 			continue
 		}
 		local := attr.Name.Local
-		if local == "key" || (len(local) == 3 && strings.EqualFold(local, "key")) {
+		if local == "key" || strings.EqualFold(local, "key") {
 			if v := strings.TrimSpace(attr.Value); v != "" {
 				return v
 			}
-		} else if id == "" && (local == "id" || (len(local) == 2 && strings.EqualFold(local, "id"))) {
+		} else if id == "" && (local == "id" || strings.EqualFold(local, "id")) {
 			if v := strings.TrimSpace(attr.Value); v != "" {
 				id = v
 			}
-		} else if name == "" && (local == "name" || (len(local) == 4 && strings.EqualFold(local, "name"))) {
+		} else if name == "" && (local == "name" || strings.EqualFold(local, "name")) {
 			if v := strings.TrimSpace(attr.Value); v != "" {
 				name = v
 			}
