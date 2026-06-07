@@ -2,6 +2,7 @@ package translationfileparser
 
 import (
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -175,6 +176,56 @@ msgstr "Hello "
 	// Check that indentation of continuation lines is preserved when cleared
 	if !strings.Contains(content, `  ""`) {
 		t.Errorf("expected indented cleared continuation lines, got:\n%s", content)
+	}
+}
+
+func TestMarshalPOFileEscapesNonPrintableBytes(t *testing.T) {
+	tests := []struct {
+		name        string
+		msgid       string
+		replacement string
+	}{
+		{
+			name:        "control bytes NUL/US/DEL",
+			msgid:       "binary-control",
+			replacement: "prefix\x00middle\x1fsuffix\x7f",
+		},
+		{
+			name:        "invalid UTF-8",
+			msgid:       "binary-control",
+			replacement: "bad\xff\xfeutf8",
+		},
+		{
+			name:        "backslash",
+			msgid:       "binary-control",
+			replacement: `back\slash`,
+		},
+		{
+			name:        "double quote",
+			msgid:       "binary-control",
+			replacement: `say "hello"`,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			template := []byte("msgid \"" + tc.msgid + "\"\nmsgstr \"\"\n")
+			out, err := MarshalPOFile(template, map[string]string{
+				tc.msgid: tc.replacement,
+			})
+			if err != nil {
+				t.Fatalf("MarshalPOFile() error = %v", err)
+			}
+
+			expectedLine := "msgstr " + strconv.Quote(tc.replacement)
+			content := string(out)
+			if !strings.Contains(content, expectedLine) {
+				t.Fatalf("expected value to be escaped as %q, got:\n%s", expectedLine, content)
+			}
+			if tc.name == "control bytes NUL/US/DEL" && strings.Contains(content, tc.replacement) {
+				t.Fatalf("expected raw control bytes to be escaped, got:\n%s", content)
+			}
+		})
 	}
 }
 

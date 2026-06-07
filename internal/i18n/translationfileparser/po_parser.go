@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 )
 
 // POFileParser parses GNU gettext .po translation files.
@@ -307,15 +308,25 @@ func writePOQuotedSuffix(w *strings.Builder, raw, field, value string) {
 	w.WriteString(preserveIndent(raw))
 	w.WriteString(field)
 	w.WriteByte(' ')
-	// BOLT OPTIMIZATION: Fast-path for simple values to avoid strconv.Quote allocations.
-	// Must cover every byte strconv.Quote would escape: \a \b \f \v \t \n \r \\ \"
-	if !strings.ContainsAny(value, "\\\"\a\b\f\v\n\r\t") {
+	if canWriteSimplePOQuoted(value) {
 		w.WriteByte('"')
 		w.WriteString(value)
 		w.WriteByte('"')
 	} else {
 		w.WriteString(strconv.Quote(value))
 	}
+}
+
+func canWriteSimplePOQuoted(value string) bool {
+	if !utf8.ValidString(value) {
+		return false
+	}
+	for _, r := range value {
+		if r == '\\' || r == '"' || !strconv.IsPrint(r) {
+			return false
+		}
+	}
+	return true
 }
 
 func preserveIndent(raw string) string {
