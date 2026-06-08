@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import { randomInt } from "node:crypto";
+
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -17,17 +19,20 @@ async function createStoredGithubInstallation(enabled: boolean) {
     throw new Error("missing auth context");
   }
 
+  const githubInstallationId = String(randomInt(100_000, 999_999_999));
+  const githubRepositoryId = String(randomInt(100_000, 999_999_999));
+
   await db.insert(schema.githubInstallations).values({
     organizationId: auth.organization.localOrganizationId,
-    githubInstallationId: "54321",
+    githubInstallationId,
     githubAppId: "123",
     accountLogin: "hyperlocalise",
     accountType: "Organization",
   });
   await db.insert(schema.githubInstallationRepositories).values({
     organizationId: auth.organization.localOrganizationId,
-    githubInstallationId: "54321",
-    githubRepositoryId: "9001",
+    githubInstallationId,
+    githubRepositoryId,
     owner: "hyperlocalise",
     name: "hyperlocalise",
     fullName: "hyperlocalise/hyperlocalise",
@@ -37,7 +42,7 @@ async function createStoredGithubInstallation(enabled: boolean) {
     enabled,
   });
 
-  return auth;
+  return { auth, githubInstallationId, githubRepositoryId };
 }
 
 describe("githubWebhookRoutes", () => {
@@ -51,7 +56,7 @@ describe("githubWebhookRoutes", () => {
   });
 
   it("delegates enabled repository webhooks to the Chat SDK bot handler", async () => {
-    await createStoredGithubInstallation(true);
+    const installation = await createStoredGithubInstallation(true);
     let called = false;
     const app = createGithubWebhookRoutes({
       githubWebhookHandler: async (request) => {
@@ -69,8 +74,8 @@ describe("githubWebhookRoutes", () => {
       },
       body: JSON.stringify({
         action: "created",
-        installation: { id: 54321 },
-        repository: { id: 9001 },
+        installation: { id: Number(installation.githubInstallationId) },
+        repository: { id: Number(installation.githubRepositoryId) },
       }),
     });
 
@@ -107,7 +112,7 @@ describe("githubWebhookRoutes", () => {
   });
 
   it("ignores disabled repositories without delegating to the bot handler", async () => {
-    await createStoredGithubInstallation(false);
+    const installation = await createStoredGithubInstallation(false);
     let called = false;
     const app = createGithubWebhookRoutes({
       githubWebhookHandler: async () => {
@@ -124,8 +129,8 @@ describe("githubWebhookRoutes", () => {
       },
       body: JSON.stringify({
         action: "created",
-        installation: { id: 54321 },
-        repository: { id: 9001 },
+        installation: { id: Number(installation.githubInstallationId) },
+        repository: { id: Number(installation.githubRepositoryId) },
       }),
     });
 
@@ -135,7 +140,7 @@ describe("githubWebhookRoutes", () => {
   });
 
   it("syncs installation repository webhook additions", async () => {
-    const auth = await createStoredGithubInstallation(false);
+    const { auth, githubInstallationId } = await createStoredGithubInstallation(false);
     const app = createGithubWebhookRoutes({
       githubWebhookHandler: async () => Response.json({ ok: true }),
     });
@@ -148,7 +153,7 @@ describe("githubWebhookRoutes", () => {
       },
       body: JSON.stringify({
         action: "added",
-        installation: { id: 54321 },
+        installation: { id: Number(githubInstallationId) },
         repositories_added: [
           {
             id: 9002,

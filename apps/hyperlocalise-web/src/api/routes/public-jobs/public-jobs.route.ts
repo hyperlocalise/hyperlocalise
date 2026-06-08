@@ -1,17 +1,21 @@
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
-import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import {
   apiKeyAuthMiddleware,
   requireApiKeyPermission,
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
-import { buildAccessibleJobsWhere, canAccessStoredFile } from "@/api/auth/team-access";
+import type { ApiAuthContext } from "@/api/auth/workos";
+import {
+  buildAccessibleJobsWhere,
+  getAccessibleProjectIds,
+  hasOrganizationWideProjectAccess,
+} from "@/api/auth/team-access";
 import { badRequestResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import {
@@ -79,6 +83,87 @@ type PublicJobOutputFile = {
   filename: string;
 };
 
+type ApiKeyProjectAccessScope = {
+  organizationId: string;
+  accessibleProjectIds: string[] | null;
+};
+
+async function resolveApiKeyProjectAccessScope(
+  teamAccess: ApiAuthContext,
+): Promise<ApiKeyProjectAccessScope> {
+  const organizationId = teamAccess.organization.localOrganizationId;
+  return {
+    organizationId,
+    accessibleProjectIds: hasOrganizationWideProjectAccess(teamAccess)
+      ? null
+      : await getAccessibleProjectIds(teamAccess),
+  };
+}
+
+async function getProjectForAccessScope(scope: ApiKeyProjectAccessScope, projectId: string) {
+  if (scope.accessibleProjectIds && !scope.accessibleProjectIds.includes(projectId)) {
+    return null;
+  }
+
+  const [project] = await db
+    .select()
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, projectId),
+        eq(schema.projects.organizationId, scope.organizationId),
+      ),
+    )
+    .limit(1);
+
+  return project ?? null;
+}
+
+function canAccessStoredFileWithProjectScope(
+  teamAccess: ApiAuthContext,
+  scope: ApiKeyProjectAccessScope,
+  input: {
+    organizationId: string;
+    projectId: string | null;
+    createdByUserId?: string | null;
+  },
+) {
+  if (input.organizationId !== scope.organizationId) {
+    return false;
+  }
+
+  if (input.projectId) {
+    return (
+      scope.accessibleProjectIds === null || scope.accessibleProjectIds.includes(input.projectId)
+    );
+  }
+
+  if (scope.accessibleProjectIds === null) {
+    return true;
+  }
+
+  const uploaderId = input.createdByUserId ?? null;
+  if (uploaderId === null) {
+    return true;
+  }
+
+  return uploaderId === teamAccess.user.localUserId;
+}
+
+function buildAccessibleJobsWhereFromProjectScope(scope: ApiKeyProjectAccessScope): SQL {
+  const organizationScope = eq(schema.jobs.organizationId, scope.organizationId);
+
+  if (scope.accessibleProjectIds === null) {
+    return organizationScope;
+  }
+
+  if (scope.accessibleProjectIds.length === 0) {
+    return sql`false`;
+  }
+
+  return and(organizationScope, inArray(schema.jobs.projectId, scope.accessibleProjectIds))!;
+}
+
 function hasValue(value: unknown): value is string {
   return typeof value === "string" && value.trim() !== "";
 }
@@ -131,11 +216,9 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
       async (c) => {
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
+        const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
 
-        const project = await getAccessibleProjectForApiKey(
-          c.var.auth.teamAccess,
-          payload.projectId,
-        );
+        const project = await getProjectForAccessScope(projectAccessScope, payload.projectId);
 
         if (!project) {
           return projectNotFoundResponse(c);
@@ -165,11 +248,11 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
 
           if (
             !sourceFile ||
-            !(await canAccessStoredFile(c.var.auth.teamAccess, {
+            !canAccessStoredFileWithProjectScope(c.var.auth.teamAccess, projectAccessScope, {
               organizationId: sourceFile.organizationId,
               projectId: sourceFile.projectId,
               createdByUserId: sourceFile.createdByUserId,
-            }))
+            })
           ) {
             return sourceFileNotFoundResponse(c);
           }
@@ -267,13 +350,14 @@ export function createPublicJobRoutes(options: CreatePublicJobRoutesOptions = {}
         const query = c.req.valid("query");
         const organizationId = c.var.auth.organization.localOrganizationId;
         const sourcePath = normalizeSourcePath(query.sourcePath);
-        const project = await getAccessibleProjectForApiKey(c.var.auth.teamAccess, query.projectId);
+        const projectAccessScope = await resolveApiKeyProjectAccessScope(c.var.auth.teamAccess);
+        const project = await getProjectForAccessScope(projectAccessScope, query.projectId);
 
         if (!project) {
           return projectNotFoundResponse(c);
         }
 
-        const accessibleJobsWhere = await buildAccessibleJobsWhere(c.var.auth.teamAccess);
+        const accessibleJobsWhere = buildAccessibleJobsWhereFromProjectScope(projectAccessScope);
 
         const [job] = await db
           .select({
