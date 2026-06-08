@@ -49,5 +49,14 @@ describe("ContentfulManagementClient", () => {
 
     expect(updated.sys.version).toBe(2);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+    const successfulPut = fetchImpl.mock.calls.find(
+      ([url, init]) =>
+        typeof url === "string" &&
+        url.endsWith("/entries/entry-1") &&
+        init?.method === "PUT" &&
+        init.headers instanceof Headers &&
+        init.headers.get("x-contentful-version") === "2",
+    );
+    expect(successfulPut).toBeDefined();
   });
 });

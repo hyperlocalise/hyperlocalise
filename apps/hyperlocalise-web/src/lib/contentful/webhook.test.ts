@@ -2,7 +2,9 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   hashContentfulWebhookSecret,
+  isPublishFromHyperlocaliseWriteback,
   parseContentfulWebhookPayload,
+  shouldDispatchContentfulWebhookEvent,
   verifyContentfulWebhookSecret,
 } from "./webhook";
 
@@ -36,6 +38,7 @@ describe("contentful webhook helpers", () => {
           id: "entry-1",
           type: "Entry",
           revision: 7,
+          publishedVersion: 12,
           contentType: { sys: { id: "helpCenterArticle" } },
           space: { sys: { id: "space-1" } },
           environment: { sys: { id: "master" } },
@@ -53,7 +56,66 @@ describe("contentful webhook helpers", () => {
       entryId: "entry-1",
       contentTypeId: "helpCenterArticle",
       revision: 7,
+      publishedVersion: 12,
     });
     expect(JSON.stringify(event.redactedPayload)).not.toContain("Do not persist");
+  });
+
+  it("dispatches publish events only", () => {
+    const publishHeaders = new Headers({
+      "x-contentful-topic": "ContentManagement.Entry.publish",
+    });
+    const saveHeaders = new Headers({
+      "x-contentful-topic": "ContentManagement.Entry.save",
+    });
+
+    expect(
+      shouldDispatchContentfulWebhookEvent(
+        parseContentfulWebhookPayload({
+          headers: publishHeaders,
+          body: { sys: { id: "entry-1" } },
+        }),
+      ),
+    ).toBe(true);
+
+    expect(
+      shouldDispatchContentfulWebhookEvent(
+        parseContentfulWebhookPayload({
+          headers: saveHeaders,
+          body: { sys: { id: "entry-1" } },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("detects publish events that match a recent Hyperlocalise writeback version", () => {
+    const completedAt = new Date("2026-06-08T12:00:00.000Z");
+
+    expect(
+      isPublishFromHyperlocaliseWriteback({
+        publishedVersion: 12,
+        writebackContentfulVersion: 12,
+        writebackCompletedAt: completedAt,
+        now: new Date("2026-06-08T12:05:00.000Z"),
+      }),
+    ).toBe(true);
+
+    expect(
+      isPublishFromHyperlocaliseWriteback({
+        publishedVersion: 13,
+        writebackContentfulVersion: 12,
+        writebackCompletedAt: completedAt,
+        now: new Date("2026-06-08T12:05:00.000Z"),
+      }),
+    ).toBe(false);
+
+    expect(
+      isPublishFromHyperlocaliseWriteback({
+        publishedVersion: 12,
+        writebackContentfulVersion: 12,
+        writebackCompletedAt: completedAt,
+        now: new Date("2026-06-08T12:20:00.000Z"),
+      }),
+    ).toBe(false);
   });
 });

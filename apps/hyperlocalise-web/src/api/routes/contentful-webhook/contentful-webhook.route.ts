@@ -4,10 +4,14 @@ import { validator } from "hono/validator";
 import { badRequestResponse, unauthorizedResponse } from "@/api/response.schema";
 import { dispatchWorkspaceAutomationsForContentfulWebhook } from "@/lib/agents/workspace-automation-dispatcher";
 import { getContentfulWebhookSubscription } from "@/lib/contentful/connections";
-import { recordContentfulWebhookEvent } from "@/lib/contentful/events";
+import {
+  isContentfulPublishFromRecentHyperlocaliseWriteback,
+  recordContentfulWebhookEvent,
+} from "@/lib/contentful/events";
 import {
   parseContentfulWebhookPayload,
   readContentfulWebhookSecret,
+  shouldDispatchContentfulWebhookEvent,
   verifyContentfulWebhookSecret,
 } from "@/lib/contentful/webhook";
 import { db, schema } from "@/lib/database";
@@ -59,6 +63,37 @@ export function createContentfulWebhookRoutes(
       body,
       headers: c.req.raw.headers,
     });
+    if (!shouldDispatchContentfulWebhookEvent(parsedEvent)) {
+      return c.json(
+        {
+          ok: true,
+          ignored: true,
+          eventType: parsedEvent.eventType,
+        },
+        202,
+      );
+    }
+
+    if (
+      parsedEvent.entryId &&
+      (await isContentfulPublishFromRecentHyperlocaliseWriteback({
+        organizationId: subscription.subscription.organizationId,
+        connectionId: subscription.subscription.connectionId,
+        entryId: parsedEvent.entryId,
+        publishedVersion: parsedEvent.publishedVersion,
+      }))
+    ) {
+      return c.json(
+        {
+          ok: true,
+          ignored: true,
+          eventType: parsedEvent.eventType,
+          reason: "hyperlocalise_writeback_loop",
+        },
+        202,
+      );
+    }
+
     const record = await recordContentfulWebhookEvent({
       organizationId: subscription.subscription.organizationId,
       connectionId: subscription.subscription.connectionId,

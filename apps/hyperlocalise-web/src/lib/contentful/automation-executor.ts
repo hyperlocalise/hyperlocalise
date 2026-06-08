@@ -87,6 +87,10 @@ function collectBasicQaFindings(input: {
   return findings;
 }
 
+export function contentfulQaFindingsContainError(findings: Array<Record<string, unknown>>) {
+  return findings.some((finding) => finding.severity === "error");
+}
+
 async function createRunItem(input: {
   runId: string;
   unit: ContentfulTranslatableUnit;
@@ -194,20 +198,23 @@ async function translateUnit(input: {
         })
       : [];
     qaFindings.push(...findings);
-    translations.push({
-      fieldId: input.unit.fieldId,
-      locale: translation.locale,
-      value: formatTranslatedValueForContentful({
-        sourceValue: input.unit.sourceValue,
-        translatedText: translation.text,
-        valueKind: input.unit.contentfulValueKind,
-      }),
-    });
+    const hasQaError = contentfulQaFindingsContainError(findings);
+    if (!hasQaError) {
+      translations.push({
+        fieldId: input.unit.fieldId,
+        locale: translation.locale,
+        value: formatTranslatedValueForContentful({
+          sourceValue: input.unit.sourceValue,
+          translatedText: translation.text,
+          valueKind: input.unit.contentfulValueKind,
+        }),
+      });
+    }
     await createRunItem({
       runId: input.runId,
       unit: input.unit,
       locale: translation.locale,
-      status: findings.some((finding) => finding.severity === "error") ? "qa_failed" : "translated",
+      status: hasQaError ? "qa_failed" : "translated",
       translatedText: translation.text,
       qaFindings: findings,
     });
@@ -371,16 +378,16 @@ export async function executeContentfulAutomation(
         ? await client.updateEntryDraft({ entry, translations })
         : entry;
     const completedAt = new Date();
+    const qaErrorCount = qaFindings.filter((finding) => finding.severity === "error").length;
+    const qaWarningCount = qaFindings.filter((finding) => finding.severity === "warning").length;
     await db
       .update(schema.contentfulTranslationRuns)
       .set({
-        status: qaFindings.some((finding) => finding.severity === "error")
-          ? "succeeded_with_warnings"
-          : "succeeded",
+        status: qaErrorCount > 0 ? "succeeded_with_warnings" : "succeeded",
         qaSummary: {
           total: qaFindings.length,
-          errors: qaFindings.filter((finding) => finding.severity === "error").length,
-          warnings: qaFindings.filter((finding) => finding.severity === "warning").length,
+          errors: qaErrorCount,
+          warnings: qaWarningCount,
         },
         writebackSummary: {
           fieldsWritten:
@@ -390,6 +397,7 @@ export async function executeContentfulAutomation(
           localeValuesWritten: run.writeDrafts !== false ? translations.length : 0,
           contentfulVersion:
             translations.length > 0 && run.writeDrafts !== false ? updatedEntry.sys.version : null,
+          blockedByQaErrors: qaErrorCount,
         },
         completedAt,
         updatedAt: completedAt,
