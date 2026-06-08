@@ -82,10 +82,17 @@ function createCatMessageFormatExtension() {
                 posStart: number;
               }> = [];
               let offset = 0;
+              let prevNodeEnd = -1;
 
               state.doc.descendants((node, pos) => {
                 if (!node.isText || !node.text) {
                   return;
+                }
+
+                // Account for the "\n" block separator that textBetween inserts
+                // between consecutive text nodes that belong to different blocks.
+                if (prevNodeEnd !== -1 && pos !== prevNodeEnd) {
+                  offset += 1;
                 }
 
                 textRanges.push({
@@ -94,6 +101,7 @@ function createCatMessageFormatExtension() {
                   posStart: pos,
                 });
                 offset += node.text.length;
+                prevNodeEnd = pos + node.text.length;
               });
 
               const text = state.doc.textBetween(0, state.doc.content.size, "\n", "\n");
