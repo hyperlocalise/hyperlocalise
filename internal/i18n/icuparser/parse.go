@@ -480,13 +480,13 @@ func (p *astParser) tryParseTag(ctx parseCtx) (TagElement, bool, error) {
 
 func (p *astParser) skipTagAttributeQuotedLiteral(quote byte) {
 	p.pos++ // opening quote
-	for p.pos < len(p.src) {
-		if p.src[p.pos] == quote {
-			p.pos++
-			return
-		}
-		p.pos++
+	// BOLT OPTIMIZATION: Use strings.IndexByte to skip non-quote characters.
+	idx := strings.IndexByte(p.src[p.pos:], quote)
+	if idx < 0 {
+		p.pos = len(p.src)
+		return
 	}
+	p.pos += idx + 1
 }
 
 func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, error) {
@@ -504,7 +504,7 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 		// BOLT OPTIMIZATION: Literal text chunking using strings.IndexAny to skip
 		// ahead to the next special character.
 		// We must stop at '}' to correctly detect the closing tag or nested structure boundaries.
-		idx := strings.IndexAny(p.src[p.pos:], "{#<'}")
+		idx := strings.IndexAny(p.src[p.pos:], "{#<}'}")
 		if idx == -1 {
 			text.WriteString(p.src[p.pos:])
 			p.pos = len(p.src)
@@ -613,12 +613,21 @@ func (p *astParser) consumeQuotedInto(b *strings.Builder) {
 		p.pos++
 		return
 	}
+
 	for p.pos < len(p.src) {
-		if p.src[p.pos] != '\'' {
-			b.WriteByte(p.src[p.pos])
-			p.pos++
-			continue
+		// BOLT OPTIMIZATION: Use strings.IndexByte to skip non-quote characters.
+		idx := strings.IndexByte(p.src[p.pos:], '\'')
+		if idx == -1 {
+			b.WriteString(p.src[p.pos:])
+			p.pos = len(p.src)
+			break
 		}
+		if idx > 0 {
+			b.WriteString(p.src[p.pos : p.pos+idx])
+			p.pos += idx
+		}
+
+		// idx is at an apostrophe.
 		if p.pos+1 < len(p.src) && p.src[p.pos+1] == '\'' {
 			b.WriteByte('\'')
 			p.pos += 2
@@ -752,10 +761,15 @@ func (p *astParser) readTagName() (string, bool) {
 func (p *astParser) skipQuotedLiteral() {
 	p.pos++
 	for p.pos < len(p.src) {
-		if p.src[p.pos] != '\'' {
-			p.pos++
-			continue
+		// BOLT OPTIMIZATION: Use strings.IndexByte to skip non-quote characters.
+		idx := strings.IndexByte(p.src[p.pos:], '\'')
+		if idx == -1 {
+			p.pos = len(p.src)
+			break
 		}
+		p.pos += idx
+
+		// p.pos is at an apostrophe.
 		if p.pos+1 < len(p.src) && p.src[p.pos+1] == '\'' {
 			p.pos += 2
 			continue
