@@ -26,7 +26,7 @@
   },
   "devDependencies": {
     "@canva/cli": "^2.0.0",
-    "@formatjs/cli": "6.16.7",
+    "@formatjs/cli": "6.16.8",
     "@formatjs/ts-transformer": "3.14.2",
     "@ngrok/ngrok": "1.7.0",
     "@pmmmwh/react-refresh-webpack-plugin": "0.6.2",
@@ -78,5 +78,5 @@
   "engines": {
     "node": "^22 || ^24"
   },
-  "packageManager": "pnpm@11.5.1"
+  "packageManager": "pnpm@11.5.2"
 }
