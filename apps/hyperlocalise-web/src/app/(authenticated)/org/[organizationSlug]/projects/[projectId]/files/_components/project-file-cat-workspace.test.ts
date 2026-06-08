@@ -69,4 +69,31 @@ describe("mergeCatWorkspaceRows", () => {
     });
     expect(merged.rowErrors).toEqual({ dirty: "Still local" });
   });
+
+  it("keeps failed drafts and row errors when refreshed CAT data arrives", () => {
+    const merged = mergeCatWorkspaceRows(
+      catFileWithSegments([{ externalStringId: "failed", text: "Serveur" }]),
+      {
+        drafts: {
+          failed: "Draft that failed to save",
+        },
+        saveStates: {
+          failed: "failed",
+        },
+        rowErrors: {
+          failed: "Crowdin rejected the update",
+        },
+      },
+    );
+
+    expect(merged.drafts).toEqual({
+      failed: "Draft that failed to save",
+    });
+    expect(merged.saveStates).toEqual({
+      failed: "failed",
+    });
+    expect(merged.rowErrors).toEqual({
+      failed: "Crowdin rejected the update",
+    });
+  });
 });

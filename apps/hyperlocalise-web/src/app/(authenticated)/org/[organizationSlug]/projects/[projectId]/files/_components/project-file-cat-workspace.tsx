@@ -81,7 +81,7 @@ export function mergeCatWorkspaceRows(
     const id = segment.externalStringId;
     const state = current.saveStates[id] ?? "unchanged";
 
-    if (state === "dirty" || state === "saving") {
+    if (state === "dirty" || state === "saving" || state === "failed") {
       drafts[id] = current.drafts[id] ?? "";
       saveStates[id] = state;
       if (current.rowErrors[id]) {

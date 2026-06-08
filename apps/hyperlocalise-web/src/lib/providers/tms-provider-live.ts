@@ -847,14 +847,15 @@ async function buildCrowdinLiveCatFile(input: {
     const approvals: CrowdinTranslationApproval[] = [];
     for (let index = 0; index < sourceStringIds.length; index += 25) {
       const chunk = sourceStringIds.slice(index, index + 25);
-      const translations = await client.listLanguageTranslations(projectId, input.targetLocale, {
-        stringIds: chunk,
-      });
-      approvals.push(
-        ...(await client.listTranslationApprovals(projectId, input.targetLocale, {
+      const [translations, chunkApprovals] = await Promise.all([
+        client.listLanguageTranslations(projectId, input.targetLocale, {
           stringIds: chunk,
-        })),
-      );
+        }),
+        client.listTranslationApprovals(projectId, input.targetLocale, {
+          stringIds: chunk,
+        }),
+      ]);
+      approvals.push(...chunkApprovals);
 
       for (const translation of translations) {
         const existing = translationsByStringId.get(translation.stringId) ?? [];
