@@ -52,23 +52,43 @@ func TestParseASTPluralHasPound(t *testing.T) {
 }
 
 func TestParseASTPluralNegativeSelector(t *testing.T) {
-	msg := "{n, plural, =-1 {minus one} other {other}}"
-	elems, err := Parse(msg, nil)
-	if err != nil {
-		t.Fatalf("parse negative plural selector: %v", err)
+	tests := []struct {
+		name    string
+		msg     string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "single digit negative",
+			msg:  "{n, plural, =-1 {minus one} other {other}}",
+			want: "=-1",
+		},
+		{
+			name: "multi digit negative",
+			msg:  "{n, plural, =-10 {minus ten} other {other}}",
+			want: "=-10",
+		},
+		{
+			name:    "degenerate minus only",
+			msg:     "{n, plural, =- {error} other {other}}",
+			wantErr: true,
+		},
 	}
-	if len(elems) != 1 {
-		t.Fatalf("expected 1 element, got %d", len(elems))
-	}
-	pl, ok := elems[0].(PluralElement)
-	if !ok {
-		t.Fatalf("expected plural element, got %T", elems[0])
-	}
-	if len(pl.Options) != 2 {
-		t.Fatalf("expected 2 plural options, got %d", len(pl.Options))
-	}
-	if pl.Options[0].Selector != "=-1" {
-		t.Errorf("expected selector =-1, got %q", pl.Options[0].Selector)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Parse(%q) error = %v, wantErr %v", tt.msg, err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			pl := elems[0].(PluralElement)
+			if pl.Options[0].Selector != tt.want {
+				t.Errorf("expected selector %q, got %q", tt.want, pl.Options[0].Selector)
+			}
+		})
 	}
 }
 
