@@ -79,6 +79,7 @@ export function CatWorkspaceContainer({
   className,
 }: CatWorkspaceContainerProps) {
   const [state, setState] = useState(initialState);
+  const [isBusy, setIsBusy] = useState(false);
   const stateRef = useRef(state);
   const validationSequenceRef = useRef(0);
   const validateFormat = serviceOverrides?.validateFormat;
@@ -105,14 +106,21 @@ export function CatWorkspaceContainer({
 
       const sequence = validationSequenceRef.current + 1;
       validationSequenceRef.current = sequence;
-      const [formatChecks, qaChecks] = await Promise.all([
-        validateFormat ? validateFormat(segment, value) : Promise.resolve([]),
-        runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
-      ]);
-      if (validationSequenceRef.current !== sequence) {
-        return;
+      setIsBusy(true);
+      try {
+        const [formatChecks, qaChecks] = await Promise.all([
+          validateFormat ? validateFormat(segment, value) : Promise.resolve([]),
+          runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
+        ]);
+        if (validationSequenceRef.current !== sequence) {
+          return;
+        }
+        setState((current) => ({ ...current, formatChecks: [...formatChecks, ...qaChecks] }));
+      } finally {
+        if (validationSequenceRef.current === sequence) {
+          setIsBusy(false);
+        }
       }
-      setState((current) => ({ ...current, formatChecks: [...formatChecks, ...qaChecks] }));
     },
     [runQaChecks, validateFormat],
   );
@@ -165,7 +173,7 @@ export function CatWorkspaceContainer({
         onTargetChange?.(segmentId, value);
       },
       onUseAiSuggestion: (segmentId: string) => {
-        const aiSuggestion = state.intelligence.aiSuggestion;
+        const aiSuggestion = stateRef.current.intelligence.aiSuggestion;
         if (!aiSuggestion) {
           return;
         }
@@ -222,9 +230,15 @@ export function CatWorkspaceContainer({
     onUseAiSuggestion,
     runQaChecks,
     runSegmentChecks,
-    state.intelligence.aiSuggestion,
     validateFormat,
   ]);
 
-  return <CatWorkspaceView state={state} dependencies={dependencies} className={className} />;
+  return (
+    <CatWorkspaceView
+      state={state}
+      dependencies={dependencies}
+      isBusy={isBusy}
+      className={className}
+    />
+  );
 }

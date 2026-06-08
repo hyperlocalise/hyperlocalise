@@ -32,15 +32,25 @@ describe("cat message format utilities", () => {
     );
   });
 
-  it("reports ICU plural option mismatches", () => {
+  it("accepts locale-appropriate ICU plural categories", () => {
     const issues = compare(
       "{count, plural, one {# file} other {# files}}",
-      "{count, plural, one {# tệp} few {# tệp} other {# tệp}}",
+      "{count, plural, one {# tệp} few {# tệp} many {# tệp} other {# tệp}}",
+    );
+
+    expect(issues.filter((issue) => issue.kind === "icu-mismatch")).toHaveLength(0);
+  });
+
+  it("reports missing ICU blocks when argument name or type differs", () => {
+    const issues = compare(
+      "{count, plural, one {# file} other {# files}}",
+      "{items, plural, one {# tệp} other {# tệp}}",
     );
 
     expect(issues).toContainEqual(
       expect.objectContaining({
         kind: "icu-mismatch",
+        tokens: ["{count, plural}"],
       }),
     );
   });

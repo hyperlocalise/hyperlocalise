@@ -214,7 +214,7 @@ export function analyzeCatMessageFormat(message: string): CatMessageAnalysis {
 
 function tokenSignature(token: CatMessageToken) {
   if (token.kind === "icu") {
-    return `${token.kind}:${token.name}:${token.type}:${(token.options ?? []).join("|")}`;
+    return `${token.kind}:${token.name}:${token.type}`;
   }
 
   return `${token.kind}:${token.name}`;
