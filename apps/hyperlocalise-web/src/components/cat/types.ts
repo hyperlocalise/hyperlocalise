@@ -52,12 +52,6 @@ export interface CatTranslationMemoryMatch {
   contextLabel?: string;
 }
 
-export interface CatQaRisk {
-  id: string;
-  label: string;
-  level: CatRiskLevel;
-}
-
 export interface CatSegmentIntelligence {
   reviewReason?: string;
   reviewRisk?: CatRiskLevel;
@@ -70,9 +64,6 @@ export interface CatSegmentIntelligence {
   constraints?: string;
   glossaryTerms: CatGlossaryTerm[];
   translationMemoryMatches?: CatTranslationMemoryMatch[];
-  qaRisks: CatQaRisk[];
-  githubEvidence?: Array<{ label: string; href: string }>;
-  relatedStringCount?: number;
   aiSuggestion?: string;
   aiReasoning?: string;
 }

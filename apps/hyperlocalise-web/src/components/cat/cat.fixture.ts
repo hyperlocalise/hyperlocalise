@@ -525,21 +525,6 @@ export const catIntelligenceFixture: CatSegmentIntelligence = {
       contextLabel: "Review queue",
     },
   ],
-  qaRisks: [
-    { id: "risk-1", label: "Ambiguous noun (review)", level: "medium" },
-    { id: "risk-2", label: "Length on mobile", level: "good" },
-  ],
-  githubEvidence: [
-    {
-      label: "PR #482 — Dashboard card copy refresh",
-      href: "https://github.com/example/repo/pull/482",
-    },
-    {
-      label: "Commit a91f2c — Add review queue metric",
-      href: "https://github.com/example/repo/commit/a91f2c",
-    },
-  ],
-  relatedStringCount: 3,
   aiSuggestion: "Thẻ trên bảng điều khiển hiển thị số lượng đánh giá cần phê duyệt.",
   aiReasoning: "Direct, natural, and commonly used phrasing in Vietnamese product UI.",
 };
