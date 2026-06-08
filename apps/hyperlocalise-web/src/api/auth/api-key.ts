@@ -4,6 +4,8 @@ import { eq } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
+import { resolveApiKeyTeamAccessContext } from "@/api/auth/api-key-access";
+import type { ApiAuthContext } from "@/api/auth/workos";
 import { forbiddenResponse, unauthorizedResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 
@@ -16,6 +18,7 @@ export type ApiKeyAuthVariables = EvlogVariables["Variables"] & {
       id: string;
       permissions: string[];
     };
+    teamAccess: ApiAuthContext;
   };
 };
 
@@ -38,6 +41,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
         id: schema.organizationApiKeys.id,
         organizationId: schema.organizationApiKeys.organizationId,
         permissions: schema.organizationApiKeys.permissions,
+        createdByUserId: schema.organizationApiKeys.createdByUserId,
         revokedAt: schema.organizationApiKeys.revokedAt,
         lifecycleStatus: schema.organizations.lifecycleStatus,
       })
@@ -57,6 +61,19 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
       return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
     }
 
+    const teamAccess = await resolveApiKeyTeamAccessContext({
+      organizationId: keyRecord.organizationId,
+      createdByUserId: keyRecord.createdByUserId,
+    });
+
+    if (!teamAccess) {
+      return forbiddenResponse(
+        c,
+        "forbidden",
+        "API key creator is not authorized for this workspace",
+      );
+    }
+
     // Update lastUsedAt asynchronously — don't block the request.
     db.update(schema.organizationApiKeys)
       .set({ lastUsedAt: new Date() })
@@ -72,6 +89,7 @@ export const apiKeyAuthMiddleware = createMiddleware<{ Variables: ApiKeyAuthVari
         id: keyRecord.id,
         permissions: keyRecord.permissions,
       },
+      teamAccess,
     });
     c.get("log").set({
       auth: {

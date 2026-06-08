@@ -1,3 +1,5 @@
+import { randomInt } from "node:crypto";
+
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
@@ -22,10 +24,11 @@ async function seedRepositoryAutomation(input: {
   githubRepositoryId?: string;
 }) {
   const githubRepositoryId = input.githubRepositoryId ?? "9001";
+  const githubInstallationId = String(randomInt(100_000, 999_999_999));
 
   await db.insert(schema.githubInstallations).values({
     organizationId: input.organizationId,
-    githubInstallationId: "54321",
+    githubInstallationId,
     githubAppId: "123",
     accountLogin: "hyperlocalise",
     accountType: "Organization",
@@ -35,7 +38,7 @@ async function seedRepositoryAutomation(input: {
     .insert(schema.githubInstallationRepositories)
     .values({
       organizationId: input.organizationId,
-      githubInstallationId: "54321",
+      githubInstallationId,
       githubRepositoryId,
       owner: "hyperlocalise",
       name: "hyperlocalise",
@@ -107,7 +110,7 @@ describe("github repository automation dispatch", () => {
     const result = await dispatchGithubRepositoryAutomationForPush({
       deliveryId: "delivery-skip-branch",
       organizationId: auth.organization.localOrganizationId,
-      githubInstallationId: "54321",
+      githubInstallationId: repository.githubInstallationId,
       githubInstallationRepositoryId: repository.id,
       githubRepositoryId: repository.githubRepositoryId,
       branch: "feature/unconfigured",
@@ -124,7 +127,7 @@ describe("github repository automation dispatch", () => {
     const duplicate = await dispatchGithubRepositoryAutomationForPush({
       deliveryId: "delivery-skip-branch",
       organizationId: auth.organization.localOrganizationId,
-      githubInstallationId: "54321",
+      githubInstallationId: repository.githubInstallationId,
       githubInstallationRepositoryId: repository.id,
       githubRepositoryId: repository.githubRepositoryId,
       branch: "feature/unconfigured",
@@ -173,7 +176,7 @@ describe("github repository automation dispatch", () => {
     const input = {
       deliveryId: "delivery-enqueue",
       organizationId: auth.organization.localOrganizationId,
-      githubInstallationId: "54321",
+      githubInstallationId: repository.githubInstallationId,
       githubInstallationRepositoryId: repository.id,
       githubRepositoryId: repository.githubRepositoryId,
       branch: "main",
@@ -242,7 +245,7 @@ describe("github repository automation dispatch", () => {
       githubInstallationRepositoryId: repository.id,
       organizationId: auth.organization.localOrganizationId,
       githubRepositoryId: repository.githubRepositoryId,
-      githubInstallationId: "54321",
+      githubInstallationId: repository.githubInstallationId,
       triggerMode: "scheduled" as const,
       workflows: {
         pushSource: false,
@@ -255,7 +258,7 @@ describe("github repository automation dispatch", () => {
 
     const first = await dispatchGithubRepositoryAutomationForSchedule({
       organizationId: auth.organization.localOrganizationId,
-      githubInstallationId: "54321",
+      githubInstallationId: repository.githubInstallationId,
       githubInstallationRepositoryId: repository.id,
       githubRepositoryId: repository.githubRepositoryId,
       configVersion: settingsRecord.configVersion,
@@ -264,7 +267,7 @@ describe("github repository automation dispatch", () => {
     });
     const second = await dispatchGithubRepositoryAutomationForSchedule({
       organizationId: auth.organization.localOrganizationId,
-      githubInstallationId: "54321",
+      githubInstallationId: repository.githubInstallationId,
       githubInstallationRepositoryId: repository.id,
       githubRepositoryId: repository.githubRepositoryId,
       configVersion: settingsRecord.configVersion,

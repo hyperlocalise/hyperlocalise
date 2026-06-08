@@ -50,6 +50,7 @@ const {
   createWorkosIdentityForOrganization,
   authHeadersFor,
   createApiKeyViaApi,
+  getLocalUserId,
   insertApiKey,
 } = apiKeyFixture;
 const { createProjectViaApi } = projectFixture;
@@ -212,6 +213,7 @@ describe("publicJobRoutes", () => {
     const { plainKey } = await insertApiKey({
       organizationId: org.id,
       name: "Test Key",
+      createdByUserId: await getLocalUserId(identity.user.workosUserId),
     });
 
     const response = await client.api.v1.jobs.$post(
@@ -254,6 +256,7 @@ describe("publicJobRoutes", () => {
     const { plainKey } = await insertApiKey({
       organizationId: org.id,
       name: "Test Key",
+      createdByUserId: await getLocalUserId(identity.user.workosUserId),
     });
 
     const createResponse = await client.api.v1.jobs.$post(
@@ -362,6 +365,7 @@ describe("publicJobRoutes", () => {
     const { plainKey } = await insertApiKey({
       organizationId: org.id,
       name: "Readonly Key",
+      createdByUserId: await getLocalUserId(identity.user.workosUserId),
       permissions: ["jobs:read"],
     });
 
@@ -403,6 +407,7 @@ describe("publicJobRoutes", () => {
     const { plainKey: keyA } = await insertApiKey({
       organizationId: orgA.id,
       name: "Key A",
+      createdByUserId: await getLocalUserId(identityA.user.workosUserId),
     });
 
     const createResponse = await client.api.v1.jobs.$post(
@@ -438,6 +443,7 @@ describe("publicJobRoutes", () => {
     const { plainKey: keyB } = await insertApiKey({
       organizationId: orgB!.id,
       name: "Key B",
+      createdByUserId: await getLocalUserId(identityB.user.workosUserId),
     });
 
     const getResponse = await client.api.v1.jobs[":jobId"].$get(
