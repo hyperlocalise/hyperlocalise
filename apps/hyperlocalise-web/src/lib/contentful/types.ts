@@ -45,6 +45,7 @@ export type ContentfulWebhookEvent = {
   entryId: string | null;
   contentTypeId: string | null;
   revision: number | null;
+  publishedVersion: number | null;
   redactedPayload: Record<string, unknown>;
 };
 

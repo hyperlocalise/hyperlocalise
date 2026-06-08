@@ -2,7 +2,6 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import { ContentfulManagementClient } from "./client";
 import type { ContentfulEntry } from "./types";
-import { HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER } from "./webhook";
 
 function entry(version: number): ContentfulEntry {
   return {
@@ -58,10 +57,6 @@ describe("ContentfulManagementClient", () => {
         init.headers instanceof Headers &&
         init.headers.get("x-contentful-version") === "2",
     );
-    const successfulPutHeaders = successfulPut?.[1]?.headers;
-    expect(successfulPutHeaders).toBeInstanceOf(Headers);
-    expect((successfulPutHeaders as Headers).get(HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER)).toBe(
-      "true",
-    );
+    expect(successfulPut).toBeDefined();
   });
 });

@@ -383,7 +383,7 @@ export async function executeContentfulAutomation(
     await db
       .update(schema.contentfulTranslationRuns)
       .set({
-        status: qaErrorCount > 0 || qaWarningCount > 0 ? "succeeded_with_warnings" : "succeeded",
+        status: qaErrorCount > 0 ? "succeeded_with_warnings" : "succeeded",
         qaSummary: {
           total: qaFindings.length,
           errors: qaErrorCount,

@@ -1,5 +1,4 @@
 import type { ContentfulContentType, ContentfulDraftTranslation, ContentfulEntry } from "./types";
-import { HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER } from "./webhook";
 
 const CONTENTFUL_CMA_BASE_URL = "https://api.contentful.com";
 
@@ -101,7 +100,6 @@ export class ContentfulManagementClient {
       {
         method: "PUT",
         headers: {
-          [HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER]: "true",
           "x-contentful-version": String(entry.sys.version),
         },
         body: JSON.stringify({ fields }),

@@ -1,8 +1,9 @@
-import { and, eq } from "drizzle-orm";
+import { and, desc, eq, gte, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
 import type { ContentfulWebhookEvent } from "./types";
+import { isPublishFromHyperlocaliseWriteback } from "./webhook";
 
 export async function recordContentfulWebhookEvent(input: {
   organizationId: string;
@@ -53,6 +54,57 @@ export async function recordContentfulWebhookEvent(input: {
   }
 
   return { event: existing, inserted: false };
+}
+
+type ContentfulWritebackSummary = {
+  contentfulVersion?: number | null;
+  localeValuesWritten?: number;
+};
+
+export async function isContentfulPublishFromRecentHyperlocaliseWriteback(input: {
+  organizationId: string;
+  connectionId: string;
+  entryId: string;
+  publishedVersion: number | null;
+}) {
+  if (input.publishedVersion === null) {
+    return false;
+  }
+
+  const cutoff = new Date(Date.now() - 15 * 60 * 1000);
+  const recentRuns = await db
+    .select({
+      writebackSummary: schema.contentfulTranslationRuns.writebackSummary,
+      completedAt: schema.contentfulTranslationRuns.completedAt,
+    })
+    .from(schema.contentfulTranslationRuns)
+    .where(
+      and(
+        eq(schema.contentfulTranslationRuns.organizationId, input.organizationId),
+        eq(schema.contentfulTranslationRuns.connectionId, input.connectionId),
+        eq(schema.contentfulTranslationRuns.entryId, input.entryId),
+        gte(schema.contentfulTranslationRuns.completedAt, cutoff),
+        or(
+          eq(schema.contentfulTranslationRuns.status, "succeeded"),
+          eq(schema.contentfulTranslationRuns.status, "succeeded_with_warnings"),
+        ),
+      ),
+    )
+    .orderBy(desc(schema.contentfulTranslationRuns.completedAt))
+    .limit(5);
+
+  return recentRuns.some((run) => {
+    const summary = run.writebackSummary as ContentfulWritebackSummary;
+    if ((summary.localeValuesWritten ?? 0) === 0) {
+      return false;
+    }
+    return isPublishFromHyperlocaliseWriteback({
+      publishedVersion: input.publishedVersion,
+      writebackContentfulVersion:
+        typeof summary.contentfulVersion === "number" ? summary.contentfulVersion : null,
+      writebackCompletedAt: run.completedAt,
+    });
+  });
 }
 
 const CONTENTFUL_TRANSLATION_RUN_IN_PROGRESS_STATUSES = new Set(["queued", "running"]);

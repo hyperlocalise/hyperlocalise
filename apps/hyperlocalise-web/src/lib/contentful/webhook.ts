@@ -5,7 +5,8 @@ import { z } from "zod";
 import type { ContentfulWebhookEvent } from "./types";
 
 export const CONTENTFUL_ENTRY_PUBLISH_TOPIC = "ContentManagement.Entry.publish";
-export const HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER = "x-hyperlocalise-contentful-writeback";
+
+const WRITEABACK_LOOP_GUARD_WINDOW_MS = 15 * 60 * 1000;
 
 const contentfulWebhookPayloadSchema = z.object({
   sys: z
@@ -13,6 +14,7 @@ const contentfulWebhookPayloadSchema = z.object({
       id: z.string().optional(),
       type: z.string().optional(),
       revision: z.number().int().optional(),
+      publishedVersion: z.number().int().optional(),
       contentType: z
         .object({
           sys: z
@@ -78,18 +80,28 @@ export function readContentfulWebhookSecret(headers: Headers) {
   );
 }
 
-export function isHyperlocaliseContentfulWriteback(headers: Headers) {
-  return readHeader(headers, HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER) === "true";
+export function shouldDispatchContentfulWebhookEvent(event: ContentfulWebhookEvent) {
+  return event.eventType === CONTENTFUL_ENTRY_PUBLISH_TOPIC;
 }
 
-export function shouldDispatchContentfulWebhookEvent(input: {
-  event: ContentfulWebhookEvent;
-  headers: Headers;
+export function isPublishFromHyperlocaliseWriteback(input: {
+  publishedVersion: number | null;
+  writebackContentfulVersion: number | null;
+  writebackCompletedAt: Date | null;
+  now?: Date;
 }) {
-  return (
-    input.event.eventType === CONTENTFUL_ENTRY_PUBLISH_TOPIC &&
-    !isHyperlocaliseContentfulWriteback(input.headers)
-  );
+  if (
+    input.publishedVersion === null ||
+    input.writebackContentfulVersion === null ||
+    input.writebackCompletedAt === null
+  ) {
+    return false;
+  }
+  if (input.publishedVersion !== input.writebackContentfulVersion) {
+    return false;
+  }
+  const now = input.now ?? new Date();
+  return now.getTime() - input.writebackCompletedAt.getTime() <= WRITEABACK_LOOP_GUARD_WINDOW_MS;
 }
 
 export function parseContentfulWebhookPayload(input: {
@@ -103,6 +115,7 @@ export function parseContentfulWebhookPayload(input: {
   const entryId = sys?.id ?? null;
   const contentTypeId = sys?.contentType?.sys?.id ?? null;
   const revision = sys?.revision ?? null;
+  const publishedVersion = sys?.publishedVersion ?? null;
   const providerEventId = deliveryId ?? null;
   const dedupeKey =
     providerEventId ??
@@ -120,11 +133,13 @@ export function parseContentfulWebhookPayload(input: {
     entryId,
     contentTypeId,
     revision,
+    publishedVersion,
     redactedPayload: {
       eventType: topic,
       entryId,
       contentTypeId,
       revision,
+      publishedVersion,
       spaceId: sys?.space?.sys?.id ?? null,
       environmentId: sys?.environment?.sys?.id ?? null,
     },

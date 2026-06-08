@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
-  HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER,
   hashContentfulWebhookSecret,
+  isPublishFromHyperlocaliseWriteback,
   parseContentfulWebhookPayload,
   shouldDispatchContentfulWebhookEvent,
   verifyContentfulWebhookSecret,
@@ -38,6 +38,7 @@ describe("contentful webhook helpers", () => {
           id: "entry-1",
           type: "Entry",
           revision: 7,
+          publishedVersion: 12,
           contentType: { sys: { id: "helpCenterArticle" } },
           space: { sys: { id: "space-1" } },
           environment: { sys: { id: "master" } },
@@ -55,6 +56,7 @@ describe("contentful webhook helpers", () => {
       entryId: "entry-1",
       contentTypeId: "helpCenterArticle",
       revision: 7,
+      publishedVersion: 12,
     });
     expect(JSON.stringify(event.redactedPayload)).not.toContain("Do not persist");
   });
@@ -68,39 +70,51 @@ describe("contentful webhook helpers", () => {
     });
 
     expect(
-      shouldDispatchContentfulWebhookEvent({
-        headers: publishHeaders,
-        event: parseContentfulWebhookPayload({
+      shouldDispatchContentfulWebhookEvent(
+        parseContentfulWebhookPayload({
           headers: publishHeaders,
           body: { sys: { id: "entry-1" } },
         }),
+      ),
+    ).toBe(true);
+
+    expect(
+      shouldDispatchContentfulWebhookEvent(
+        parseContentfulWebhookPayload({
+          headers: saveHeaders,
+          body: { sys: { id: "entry-1" } },
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("detects publish events that match a recent Hyperlocalise writeback version", () => {
+    const completedAt = new Date("2026-06-08T12:00:00.000Z");
+
+    expect(
+      isPublishFromHyperlocaliseWriteback({
+        publishedVersion: 12,
+        writebackContentfulVersion: 12,
+        writebackCompletedAt: completedAt,
+        now: new Date("2026-06-08T12:05:00.000Z"),
       }),
     ).toBe(true);
 
     expect(
-      shouldDispatchContentfulWebhookEvent({
-        headers: saveHeaders,
-        event: parseContentfulWebhookPayload({
-          headers: saveHeaders,
-          body: { sys: { id: "entry-1" } },
-        }),
+      isPublishFromHyperlocaliseWriteback({
+        publishedVersion: 13,
+        writebackContentfulVersion: 12,
+        writebackCompletedAt: completedAt,
+        now: new Date("2026-06-08T12:05:00.000Z"),
       }),
     ).toBe(false);
-  });
-
-  it("does not dispatch self-originated writeback events", () => {
-    const headers = new Headers({
-      "x-contentful-topic": "ContentManagement.Entry.publish",
-      [HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER]: "true",
-    });
 
     expect(
-      shouldDispatchContentfulWebhookEvent({
-        headers,
-        event: parseContentfulWebhookPayload({
-          headers,
-          body: { sys: { id: "entry-1" } },
-        }),
+      isPublishFromHyperlocaliseWriteback({
+        publishedVersion: 12,
+        writebackContentfulVersion: 12,
+        writebackCompletedAt: completedAt,
+        now: new Date("2026-06-08T12:20:00.000Z"),
       }),
     ).toBe(false);
   });
