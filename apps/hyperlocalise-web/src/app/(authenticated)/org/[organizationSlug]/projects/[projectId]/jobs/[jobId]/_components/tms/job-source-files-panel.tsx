@@ -62,9 +62,9 @@ export function JobSourceFilesPanel({
     sortedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? sortedFiles[0] ?? null;
   const activeSourcePath = selectedFile?.sourcePath ?? null;
   const targetLocale =
-    highlightLocale && selectedFile?.provider?.targetLocales.includes(highlightLocale)
+    highlightLocale && selectedFile?.provider?.targetLocales?.includes(highlightLocale)
       ? highlightLocale
-      : (selectedFile?.provider?.targetLocales[0] ?? highlightLocale);
+      : (selectedFile?.provider?.targetLocales?.[0] ?? highlightLocale);
   const canViewStrings = Boolean(
     encodedJobId && selectedFile?.provider && activeSourcePath && targetLocale,
   );

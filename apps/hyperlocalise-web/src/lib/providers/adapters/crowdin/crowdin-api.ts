@@ -668,6 +668,7 @@ export class CrowdinApiClient {
     projectId: number,
     options?: {
       stringId?: number;
+      languageId?: string;
       type?: "comment" | "issue";
       issueStatus?: "resolved" | "unresolved";
     },
@@ -678,6 +679,9 @@ export class CrowdinApiClient {
     }
     if (options?.type) {
       params.set("type", options.type);
+    }
+    if (options?.languageId) {
+      params.set("languageId", options.languageId);
     }
     if (options?.issueStatus) {
       params.set("issueStatus", options.issueStatus);

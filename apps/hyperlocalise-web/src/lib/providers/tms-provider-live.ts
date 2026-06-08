@@ -860,8 +860,12 @@ async function buildCrowdinLiveCatFile(input: {
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
 
     const [plainComments, unresolvedIssues] = await Promise.all([
-      client.listStringComments(projectId, { type: "comment" }),
-      client.listStringComments(projectId, { type: "issue", issueStatus: "unresolved" }),
+      client.listStringComments(projectId, { type: "comment", languageId: input.targetLocale }),
+      client.listStringComments(projectId, {
+        type: "issue",
+        languageId: input.targetLocale,
+        issueStatus: "unresolved",
+      }),
     ]);
     const commentsByStringId = relevantCrowdinCatComments({
       comments: [...plainComments, ...unresolvedIssues],
@@ -951,15 +955,11 @@ async function saveCrowdinLiveCatTranslation(input: {
             text: input.text,
           });
     const translationId = saved.id ?? existing?.translationId ?? null;
-    const approvals = await client.listTranslationApprovals(projectId, input.targetLocale);
-    const isApproved =
-      translationId != null &&
-      approvals.some((approval) => approval.translationId === translationId);
 
     return {
       text: saved.text,
       externalTranslationId: translationId != null ? String(translationId) : null,
-      isApproved,
+      isApproved: false,
     };
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {

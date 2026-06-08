@@ -65,6 +65,38 @@ function saveStatesFor(catFile: CatFile | null) {
   );
 }
 
+export function mergeCatWorkspaceRows(
+  catFile: CatFile | null,
+  current: {
+    drafts: Record<string, string>;
+    saveStates: Record<string, SaveState>;
+    rowErrors: Record<string, string>;
+  },
+) {
+  const drafts: Record<string, string> = {};
+  const saveStates: Record<string, SaveState> = {};
+  const rowErrors: Record<string, string> = {};
+
+  for (const segment of catFile?.segments ?? []) {
+    const id = segment.externalStringId;
+    const state = current.saveStates[id] ?? "unchanged";
+
+    if (state === "dirty" || state === "saving") {
+      drafts[id] = current.drafts[id] ?? "";
+      saveStates[id] = state;
+      if (current.rowErrors[id]) {
+        rowErrors[id] = current.rowErrors[id];
+      }
+      continue;
+    }
+
+    drafts[id] = segment.target?.text ?? "";
+    saveStates[id] = "unchanged";
+  }
+
+  return { drafts, saveStates, rowErrors };
+}
+
 export function ProjectFileCatWorkspace({
   organizationSlug,
   projectId,
@@ -188,9 +220,10 @@ export function ProjectFileCatWorkspaceView({
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    setDrafts(draftValuesFor(catFile));
-    setSaveStates(saveStatesFor(catFile));
-    setRowErrors({});
+    const merged = mergeCatWorkspaceRows(catFile, { drafts, saveStates, rowErrors });
+    setDrafts(merged.drafts);
+    setSaveStates(merged.saveStates);
+    setRowErrors(merged.rowErrors);
   }, [catFile]);
 
   const segments = catFile?.segments ?? [];
