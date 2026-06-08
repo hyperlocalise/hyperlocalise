@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER,
   hashContentfulWebhookSecret,
   parseContentfulWebhookPayload,
+  shouldDispatchContentfulWebhookEvent,
   verifyContentfulWebhookSecret,
 } from "./webhook";
 
@@ -55,5 +57,51 @@ describe("contentful webhook helpers", () => {
       revision: 7,
     });
     expect(JSON.stringify(event.redactedPayload)).not.toContain("Do not persist");
+  });
+
+  it("dispatches publish events only", () => {
+    const publishHeaders = new Headers({
+      "x-contentful-topic": "ContentManagement.Entry.publish",
+    });
+    const saveHeaders = new Headers({
+      "x-contentful-topic": "ContentManagement.Entry.save",
+    });
+
+    expect(
+      shouldDispatchContentfulWebhookEvent({
+        headers: publishHeaders,
+        event: parseContentfulWebhookPayload({
+          headers: publishHeaders,
+          body: { sys: { id: "entry-1" } },
+        }),
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldDispatchContentfulWebhookEvent({
+        headers: saveHeaders,
+        event: parseContentfulWebhookPayload({
+          headers: saveHeaders,
+          body: { sys: { id: "entry-1" } },
+        }),
+      }),
+    ).toBe(false);
+  });
+
+  it("does not dispatch self-originated writeback events", () => {
+    const headers = new Headers({
+      "x-contentful-topic": "ContentManagement.Entry.publish",
+      [HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER]: "true",
+    });
+
+    expect(
+      shouldDispatchContentfulWebhookEvent({
+        headers,
+        event: parseContentfulWebhookPayload({
+          headers,
+          body: { sys: { id: "entry-1" } },
+        }),
+      }),
+    ).toBe(false);
   });
 });

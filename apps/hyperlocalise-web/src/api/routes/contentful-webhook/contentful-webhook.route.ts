@@ -8,6 +8,7 @@ import { recordContentfulWebhookEvent } from "@/lib/contentful/events";
 import {
   parseContentfulWebhookPayload,
   readContentfulWebhookSecret,
+  shouldDispatchContentfulWebhookEvent,
   verifyContentfulWebhookSecret,
 } from "@/lib/contentful/webhook";
 import { db, schema } from "@/lib/database";
@@ -59,6 +60,17 @@ export function createContentfulWebhookRoutes(
       body,
       headers: c.req.raw.headers,
     });
+    if (!shouldDispatchContentfulWebhookEvent({ event: parsedEvent, headers: c.req.raw.headers })) {
+      return c.json(
+        {
+          ok: true,
+          ignored: true,
+          eventType: parsedEvent.eventType,
+        },
+        202,
+      );
+    }
+
     const record = await recordContentfulWebhookEvent({
       organizationId: subscription.subscription.organizationId,
       connectionId: subscription.subscription.connectionId,

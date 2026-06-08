@@ -4,6 +4,9 @@ import { z } from "zod";
 
 import type { ContentfulWebhookEvent } from "./types";
 
+export const CONTENTFUL_ENTRY_PUBLISH_TOPIC = "ContentManagement.Entry.publish";
+export const HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER = "x-hyperlocalise-contentful-writeback";
+
 const contentfulWebhookPayloadSchema = z.object({
   sys: z
     .object({
@@ -72,6 +75,20 @@ export function readContentfulWebhookSecret(headers: Headers) {
   return (
     readHeader(headers, "x-hyperlocalise-webhook-secret") ??
     readHeader(headers, "x-contentful-webhook-secret")
+  );
+}
+
+export function isHyperlocaliseContentfulWriteback(headers: Headers) {
+  return readHeader(headers, HYPERLOCALISE_CONTENTFUL_WRITEBACK_HEADER) === "true";
+}
+
+export function shouldDispatchContentfulWebhookEvent(input: {
+  event: ContentfulWebhookEvent;
+  headers: Headers;
+}) {
+  return (
+    input.event.eventType === CONTENTFUL_ENTRY_PUBLISH_TOPIC &&
+    !isHyperlocaliseContentfulWriteback(input.headers)
   );
 }
 

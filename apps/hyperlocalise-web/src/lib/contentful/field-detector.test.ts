@@ -91,6 +91,21 @@ describe("contentful field detector", () => {
     expect(units[0]?.existingTranslations).toEqual([]);
   });
 
+  it("skips non-localized fields even when explicitly configured", () => {
+    const units = detectContentfulTranslatableFields({
+      entry,
+      contentType,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fieldConfig: {
+        fieldMode: "configured",
+        fieldsByContentType: { helpCenterArticle: ["internalNotes"] },
+      },
+    });
+
+    expect(units).toEqual([]);
+  });
+
   it("formats tag-like arrays back into Contentful arrays", () => {
     expect(
       formatTranslatedValueForContentful({

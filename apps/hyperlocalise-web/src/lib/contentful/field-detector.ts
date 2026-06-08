@@ -73,6 +73,10 @@ function shouldTranslateField(input: {
   contentTypeId: string;
   config: ContentfulConnectionFieldConfig;
 }) {
+  if (input.field.localized !== true) {
+    return false;
+  }
+
   const configuredFields = input.config.fieldsByContentType?.[input.contentTypeId];
   if (configuredFields && configuredFields.length > 0) {
     return configuredFields.includes(input.field.id);
