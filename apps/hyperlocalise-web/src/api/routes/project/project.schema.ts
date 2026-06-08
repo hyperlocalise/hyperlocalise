@@ -209,6 +209,18 @@ export const projectFileDetailQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
 });
 
+export const projectFileCatQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+});
+
+export const projectFileCatTranslationBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  externalStringId: z.string().trim().min(1).max(128),
+  text: z.string().max(100_000),
+});
+
 export const maxProjectFileUploadBytes = 25 * 1024 * 1024;
 
 export const projectFileUploadBodySchema = z.object({
@@ -328,6 +340,47 @@ export const projectFileDetailResponseSchema = z.object({
   }),
 });
 
+export const projectFileCatCommentSchema = z.object({
+  externalCommentId: z.string(),
+  type: z.enum(["comment", "issue"]),
+  status: z.string().nullable(),
+  text: z.string(),
+  createdAt: z.string(),
+  locale: z.string().nullable(),
+});
+
+export const projectFileCatTranslationSchema = z.object({
+  text: z.string(),
+  externalTranslationId: z.string().nullable(),
+  isApproved: z.boolean(),
+});
+
+export const projectFileCatSegmentSchema = z.object({
+  externalStringId: z.string(),
+  key: z.string(),
+  sourceText: z.string(),
+  context: z.string().nullable(),
+  type: z.string().nullable(),
+  target: projectFileCatTranslationSchema.nullable(),
+  comments: z.array(projectFileCatCommentSchema),
+});
+
+export const projectFileCatResponseSchema = z.object({
+  catFile: z.object({
+    sourcePath: z.string(),
+    filename: z.string(),
+    provider: projectFileRecordSchema.shape.provider,
+    targetLocale: z.string(),
+    canEditTranslations: z.boolean(),
+    truncated: z.boolean(),
+    segments: z.array(projectFileCatSegmentSchema),
+  }),
+});
+
+export const projectFileCatTranslationResponseSchema = z.object({
+  translation: projectFileCatTranslationSchema,
+});
+
 export type ProjectIdParams = z.infer<typeof projectIdParamsSchema>;
 export type CreateProjectBody = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
@@ -338,6 +391,8 @@ export type ProjectFileRecord = z.infer<typeof projectFileRecordSchema>;
 export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
+export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
+export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
 export type ProjectSourceStringEntry = z.infer<typeof projectSourceStringEntrySchema>;
 export type ProjectSourceStringsPreview = z.infer<typeof projectSourceStringsPreviewSchema>;
 export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
@@ -350,5 +405,12 @@ export type ProjectFileOutputRecord = z.infer<typeof projectFileOutputRecordSche
 export type ProjectFileJobRecord = z.infer<typeof projectFileJobRecordSchema>;
 export type ProjectFileProviderJobRecord = z.infer<typeof projectFileProviderJobRecordSchema>;
 export type ProjectFileDetailResponse = z.infer<typeof projectFileDetailResponseSchema>;
+export type ProjectFileCatComment = z.infer<typeof projectFileCatCommentSchema>;
+export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
+export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
+export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;
+export type ProjectFileCatTranslationResponse = z.infer<
+  typeof projectFileCatTranslationResponseSchema
+>;
 export type WorkspaceFileRecord = z.infer<typeof workspaceFileRecordSchema>;
 export type WorkspaceFilesResponse = z.infer<typeof workspaceFilesResponseSchema>;

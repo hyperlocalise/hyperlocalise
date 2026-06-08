@@ -139,6 +139,8 @@ export interface CrowdinStringTranslation {
   id: number;
   text: string;
   createdAt: string;
+  stringId?: number;
+  languageId?: string;
 }
 
 export interface CrowdinTranslationApproval {
@@ -819,6 +821,43 @@ export class CrowdinApiClient {
     }
 
     return translations;
+  }
+
+  async addTranslation(
+    projectId: number,
+    request: {
+      stringId: number;
+      languageId: string;
+      text: string;
+    },
+  ): Promise<CrowdinStringTranslation> {
+    const response = await this.post<CrowdinGetResponse<CrowdinStringTranslation>>(
+      `/projects/${projectId}/translations`,
+      request,
+    );
+    return response.data;
+  }
+
+  async updateTranslation(
+    projectId: number,
+    translationId: number,
+    text: string,
+  ): Promise<CrowdinStringTranslation> {
+    const response = await this.patch<CrowdinListResponse<CrowdinStringTranslation>>(
+      `/projects/${projectId}/translations`,
+      [{ op: "replace", path: `/${translationId}/text`, value: text }],
+    );
+    return response.data[0]?.data ?? (await this.getTranslation(projectId, translationId));
+  }
+
+  async getTranslation(
+    projectId: number,
+    translationId: number,
+  ): Promise<CrowdinStringTranslation> {
+    const response = await this.get<CrowdinGetResponse<CrowdinStringTranslation>>(
+      `/projects/${projectId}/translations/${translationId}`,
+    );
+    return response.data;
   }
 
   /**

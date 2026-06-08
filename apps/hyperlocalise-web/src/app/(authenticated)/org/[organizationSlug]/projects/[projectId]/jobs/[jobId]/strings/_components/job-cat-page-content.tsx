@@ -1,0 +1,128 @@
+"use client";
+
+import Link from "next/link";
+import { TranslationIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeftIcon } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { TypographyP } from "@/components/ui/typography";
+import { apiClient } from "@/lib/api-client-instance";
+import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+
+import { ProjectPageShell, ProjectSectionHeader } from "../../../../_components/project-page-shell";
+import { ProjectFileCatWorkspace } from "../../../../files/_components/project-file-cat-workspace";
+import { tmsLiveFileToProjectFileRecord } from "../../_components/tms/job-source-file-mappers";
+
+function tmsLiveJobFilesQueryKey(organizationSlug: string, encodedJobId: string) {
+  return ["tms-provider-job-files", organizationSlug, encodedJobId] as const;
+}
+
+export function JobCatPageContent({
+  organizationSlug,
+  projectId,
+  jobId,
+  sourcePath,
+  targetLocale,
+}: {
+  organizationSlug: string;
+  projectId: string;
+  jobId: string;
+  sourcePath: string | null;
+  targetLocale: string | null;
+}) {
+  const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
+  const filesQuery = useQuery({
+    queryKey: tmsLiveJobFilesQueryKey(organizationSlug, jobId),
+    enabled: Boolean(sourcePath),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+        ":encodedJobId"
+      ].files.$get({
+        param: { organizationSlug, encodedJobId: jobId },
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to load task files (${response.status})`);
+      }
+
+      const body = (await response.json()) as { files: TmsProviderLiveFile[] };
+      return body.files.map(tmsLiveFileToProjectFileRecord);
+    },
+  });
+
+  const selectedFile = sourcePath
+    ? (filesQuery.data ?? []).find((file) => file.sourcePath === sourcePath)
+    : null;
+  const targetLocales =
+    selectedFile?.provider?.targetLocales ?? (targetLocale ? [targetLocale] : []);
+
+  return (
+    <ProjectPageShell>
+      <ProjectSectionHeader
+        icon={TranslationIcon}
+        section="Strings"
+        description="Edit task source strings and write translations back to the provider."
+        actions={
+          <Button variant="outline" size="sm" render={<Link href={taskHref} />}>
+            <ArrowLeftIcon />
+            Task
+          </Button>
+        }
+      />
+
+      {!sourcePath ? (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-muted-foreground">
+            Choose a source file from the task, then open View strings.
+          </TypographyP>
+        </div>
+      ) : filesQuery.isLoading ? (
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">Loading task file…</TypographyP>
+        </div>
+      ) : filesQuery.isError ? (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-flame-100">
+            {filesQuery.error instanceof Error
+              ? filesQuery.error.message
+              : "Unable to load task files."}
+          </TypographyP>
+        </div>
+      ) : !selectedFile ? (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="font-mono text-sm text-foreground">{sourcePath}</TypographyP>
+          <TypographyP className="mt-2 text-sm text-muted-foreground">
+            This source file is not linked to the task anymore.
+          </TypographyP>
+        </div>
+      ) : !selectedFile.provider ? (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-muted-foreground">
+            String editing is only available for provider task files.
+          </TypographyP>
+        </div>
+      ) : (
+        <section className="rounded-lg border border-border bg-card p-5">
+          <div className="mb-4 space-y-1">
+            <TypographyP className="font-mono text-sm font-medium text-foreground">
+              {selectedFile.sourcePath}
+            </TypographyP>
+            <TypographyP className="text-xs text-muted-foreground">
+              {selectedFile.provider.kind} · {selectedFile.provider.format ?? "file"}
+            </TypographyP>
+          </div>
+          <ProjectFileCatWorkspace
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourcePath={selectedFile.sourcePath}
+            targetLocales={targetLocales}
+            highlightLocale={targetLocale}
+          />
+        </section>
+      )}
+    </ProjectPageShell>
+  );
+}

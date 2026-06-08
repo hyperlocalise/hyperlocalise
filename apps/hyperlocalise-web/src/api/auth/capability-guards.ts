@@ -51,6 +51,10 @@ export function isWriteBackApproveAllowed(role: OrganizationMembershipRole): boo
   return hasCapability(role, "write_back:approve");
 }
 
+export function isWriteBackTranslationAllowed(role: OrganizationMembershipRole): boolean {
+  return hasCapability(role, "write_back:translation");
+}
+
 export function isIntegrationsReadAllowed(role: OrganizationMembershipRole): boolean {
   return hasCapability(role, "integrations:read");
 }

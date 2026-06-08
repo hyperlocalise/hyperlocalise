@@ -26,10 +26,13 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "lokalise_user_connection_required":
       return 401;
     case "invalid_encoded_job_id":
+    case "invalid_crowdin_project_or_file_id":
+    case "invalid_crowdin_project_or_string_id":
       return 400;
     case "provider_fetcher_unavailable":
     case "provider_description_edit_unsupported":
     case "provider_comments_read_unsupported":
+    case "provider_cat_unsupported":
       return 501;
     default:
       return 500;
