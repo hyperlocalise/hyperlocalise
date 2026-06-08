@@ -157,7 +157,7 @@ function presentTokenSignatures(analysis: CatMessageAnalysis) {
   return new Set(
     analysis.tokens.map((token) =>
       token.kind === "icu"
-        ? `${token.kind}:${token.name}:${token.type}:${(token.options ?? []).join("|")}`
+        ? `${token.kind}:${token.name}:${token.type}`
         : `${token.kind}:${token.name}`,
     ),
   );
@@ -371,7 +371,7 @@ export function CatTargetEditor({
             const isMissing = missingTokens.some((missingToken) => missingToken.id === token.id);
             const isPresent = targetSignatures.has(
               token.kind === "icu"
-                ? `${token.kind}:${token.name}:${token.type}:${(token.options ?? []).join("|")}`
+                ? `${token.kind}:${token.name}:${token.type}`
                 : `${token.kind}:${token.name}`,
             );
 
