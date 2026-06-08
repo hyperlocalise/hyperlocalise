@@ -1,0 +1,12 @@
+<svg width="1040" height="520" viewBox="0 0 1040 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <rect width="1040" height="520" fill="#171A1F"/>
+  <rect x="1" y="1" width="1038" height="518" rx="47" stroke="#3A3F47" stroke-width="2"/>
+  <path d="M0 104H1040M0 208H1040M0 312H1040M0 416H1040M208 0V520M416 0V520M624 0V520M832 0V520" stroke="#2A2D33" stroke-width="2"/>
+  <rect x="84" y="86" width="396" height="58" rx="18" fill="#242832" stroke="#3A3F47"/>
+  <rect x="84" y="166" width="286" height="38" rx="14" fill="#242832"/>
+  <rect x="84" y="386" width="152" height="48" rx="24" fill="#F8FAFC"/>
+  <rect x="626" y="76" width="282" height="320" rx="44" fill="#242832" stroke="#3A3F47"/>
+  <circle cx="766" cy="238" r="78" fill="#2F343D" stroke="#3A3F47"/>
+  <text x="84" y="300" fill="#94A3B8" font-family="Open Sans, Arial, sans-serif" font-size="34" font-weight="700">Localised asset placeholder</text>
+  <text x="84" y="338" fill="#64748B" font-family="Open Sans, Arial, sans-serif" font-size="22">Replace public/banner-after.svg with the supplied image</text>
+</svg>

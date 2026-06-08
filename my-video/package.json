@@ -1,0 +1,38 @@
+{
+  "name": "my-video",
+  "version": "1.0.0",
+  "description": "My Remotion video",
+  "repository": {},
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "@fontsource/open-sans": "^5.2.7",
+    "@remotion/cli": "4.0.460",
+    "@remotion/tailwind-v4": "4.0.460",
+    "react": "19.2.3",
+    "react-dom": "19.2.3",
+    "remotion": "4.0.460",
+    "tailwindcss": "4.0.0"
+  },
+  "devDependencies": {
+    "@remotion/eslint-config-flat": "4.0.460",
+    "@types/react": "19.2.7",
+    "@types/web": "0.0.166",
+    "eslint": "9.19.0",
+    "prettier": "3.8.1",
+    "typescript": "5.9.3"
+  },
+  "scripts": {
+    "dev": "remotion studio",
+    "music": "node scripts/generate-ambient-audio.mjs",
+    "render": "remotion render HyperlocaliseLaunch out/hyperlocalise-launch.mp4",
+    "still": "remotion still HyperlocaliseLaunch --scale=0.5 --frame=930 out/final-frame.png",
+    "build": "remotion bundle",
+    "upgrade": "remotion upgrade",
+    "lint": "eslint src && tsc",
+    "format": "prettier --write src remotion.config.ts package.json scripts README.md"
+  },
+  "sideEffects": [
+    "*.css"
+  ]
+}
