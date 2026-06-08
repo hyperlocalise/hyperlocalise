@@ -6,6 +6,7 @@ import { db, schema } from "@/lib/database";
 import { isContentfulPublishFromRecentHyperlocaliseWriteback } from "./events";
 
 const organizationIds: string[] = [];
+const userIds: string[] = [];
 
 async function seedContentfulWritebackScope() {
   const organizationId = crypto.randomUUID();
@@ -22,6 +23,7 @@ async function seedContentfulWritebackScope() {
     .returning()
     .then(async () => {
       organizationIds.push(organizationId);
+      userIds.push(userId);
 
       await db.insert(schema.users).values({
         id: userId,
@@ -90,6 +92,9 @@ describe("contentful webhook events", () => {
     for (const organizationId of organizationIds.splice(0)) {
       await db.delete(schema.organizations).where(eq(schema.organizations.id, organizationId));
     }
+    for (const userId of userIds.splice(0)) {
+      await db.delete(schema.users).where(eq(schema.users.id, userId));
+    }
   });
 
   it("detects recent Contentful publishes caused by Hyperlocalise writeback", async () => {
@@ -97,6 +102,25 @@ describe("contentful webhook events", () => {
 
     await seedTranslationRun({
       ...scope,
+      completedAt: new Date(Date.now() - 5 * 60 * 1000),
+      writebackSummary: { contentfulVersion: 12, localeValuesWritten: 2 },
+    });
+
+    await expect(
+      isContentfulPublishFromRecentHyperlocaliseWriteback({
+        ...scope,
+        entryId: "entry-1",
+        publishedVersion: 12,
+      }),
+    ).resolves.toBe(true);
+  });
+
+  it("detects recent writebacks with succeeded_with_warnings status", async () => {
+    const scope = await seedContentfulWritebackScope();
+
+    await seedTranslationRun({
+      ...scope,
+      status: "succeeded_with_warnings",
       completedAt: new Date(Date.now() - 5 * 60 * 1000),
       writebackSummary: { contentfulVersion: 12, localeValuesWritten: 2 },
     });
@@ -128,7 +152,7 @@ describe("contentful webhook events", () => {
     ).resolves.toBe(false);
   });
 
-  it("ignores stale and failed writeback runs", async () => {
+  it("ignores stale writeback runs", async () => {
     const scope = await seedContentfulWritebackScope();
 
     await seedTranslationRun({
@@ -136,6 +160,19 @@ describe("contentful webhook events", () => {
       completedAt: new Date(Date.now() - 16 * 60 * 1000),
       writebackSummary: { contentfulVersion: 12, localeValuesWritten: 2 },
     });
+
+    await expect(
+      isContentfulPublishFromRecentHyperlocaliseWriteback({
+        ...scope,
+        entryId: "entry-1",
+        publishedVersion: 12,
+      }),
+    ).resolves.toBe(false);
+  });
+
+  it("ignores failed writeback runs", async () => {
+    const scope = await seedContentfulWritebackScope();
+
     await seedTranslationRun({
       ...scope,
       status: "failed",
