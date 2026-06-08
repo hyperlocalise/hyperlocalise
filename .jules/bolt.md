@@ -140,3 +140,7 @@
 ## 2026-08-30 - Optimizing PO parser and marshaler via fast-paths and deferred allocations
 **Learning:** strconv.Unquote and strconv.Quote always perform heap allocations even for simple strings. Implementing fast-paths for strings without escape sequences or special characters significantly reduces allocations. Additionally, using a utility struct to defer strings.Builder initialization until multiple string segments (continuations) are encountered avoids builder overhead for the common single-line case. Reusing the builder via Reset() across entries further reduces GC pressure.
 **Action:** Refactored POFileParser and MarshalPOFile in internal/i18n/translationfileparser/po_parser.go with fast-paths and a deferred-allocation poValue struct, resulting in a ~98-99% reduction in allocations and measurable speedups.
+
+## 2026-09-05 - Optimizing ICU parser scanning via IndexByte and IndexAny
+**Learning:** Manual byte-by-byte loops in parsers are significant bottlenecks for long literal segments, quoted text, or tags with many attributes. Leveraging Go's optimized `strings.IndexByte` and `strings.IndexAny` (which often use SIMD) for "pure literal" scanning provides a significant performance boost for these inputs while maintaining correctness for escape sequences like doubled apostrophes (\'\').
+**Action:** Replaced manual loops in `skipTagAttributeQuotedLiteral`, `consumeQuotedInto`, `skipQuotedLiteral`, and `parseUntilClosingTag` with standard library scanning functions.
