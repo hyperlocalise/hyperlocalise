@@ -1,11 +1,15 @@
 import "dotenv/config";
 
 import { testClient } from "hono/testing";
+import { evlog } from "evlog/hono";
 import { Hono } from "hono";
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { createWorkosAuthMiddleware } from "../../auth/workos";
-import type { ApiAuthContext } from "../../auth/workos";
+import {
+  createWorkosAuthMiddleware,
+  workosAuthMiddleware,
+  type ApiAuthContext,
+} from "../../auth/workos";
 import { enrichAuthContextWithCapabilities, getCapabilitiesForRole } from "../../auth/policy";
 
 type SessionAuthContextInput = Omit<ApiAuthContext, "capabilities">;
@@ -15,78 +19,57 @@ const { resolveApiAuthContextFromSessionMock, withAuthMock } = vi.hoisted(() => 
   withAuthMock: vi.fn(),
 }));
 
-async function createClient(
-  options: {
-    sessionAuthContext?: SessionAuthContextInput | null;
-    mockProjectRoutes?: boolean;
-  } = {},
-) {
-  vi.resetModules();
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
 
-  vi.doMock("../health", async () => {
-    const { Hono } = await import("hono");
+vi.mock("@workos-inc/authkit-nextjs", () => ({
+  withAuth: withAuthMock,
+}));
 
-    return {
-      healthRoutes: new Hono().get("/", (c) => c.json({ ok: true }, 200)),
-    };
-  });
+import { authRoutes } from "./auth.route";
 
-  if (options.mockProjectRoutes) {
-    vi.doMock("../project/project.route", async () => {
-      const { Hono } = await import("hono");
-      const { workosAuthMiddleware } = await import("@/api/auth/workos");
+const authClient = testClient(new Hono().use("*", evlog()).route("/", authRoutes));
 
-      return {
-        createProjectRoutes: () =>
+function createOrgScopedClient() {
+  return testClient(
+    new Hono()
+      .use("*", evlog())
+      .basePath("/api")
+      .route(
+        "/orgs/:organizationSlug",
+        new Hono().route(
+          "/projects",
           new Hono().use("*", workosAuthMiddleware).get("/", (c) => c.json({ projects: [] }, 200)),
-      };
-    });
-  }
-
-  resolveApiAuthContextFromSessionMock.mockResolvedValue(
-    options.sessionAuthContext
-      ? enrichAuthContextWithCapabilities(options.sessionAuthContext)
-      : null,
+        ),
+      ),
   );
+}
 
-  vi.doMock("@/api/auth/workos-session", async () => {
-    const actual = await vi.importActual<typeof import("@/api/auth/workos-session")>(
-      "@/api/auth/workos-session",
-    );
-    return {
-      ...actual,
-      resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-    };
-  });
-
-  withAuthMock.mockResolvedValue({
-    user: {
-      id: "user_123",
-      email: "user@example.com",
-    },
-  });
-  vi.doMock("@workos-inc/authkit-nextjs", () => ({
-    withAuth: withAuthMock,
-  }));
-
-  const { app } = await import("../../app");
-
-  return testClient(app);
+function mockSessionAuthContext(sessionAuthContext: SessionAuthContextInput) {
+  resolveApiAuthContextFromSessionMock.mockResolvedValue(
+    enrichAuthContextWithCapabilities(sessionAuthContext),
+  );
 }
 
 describe("authRoutes", () => {
   afterEach(() => {
-    vi.resetModules();
-    vi.doUnmock("../health");
-    vi.doUnmock("../project/project.route");
-    vi.doUnmock("@workos-inc/authkit-nextjs");
-    resolveApiAuthContextFromSessionMock.mockClear();
-    withAuthMock.mockClear();
+    resolveApiAuthContextFromSessionMock.mockReset();
+    withAuthMock.mockReset();
+    withAuthMock.mockResolvedValue({
+      user: {
+        id: "user_123",
+        email: "user@example.com",
+      },
+    });
   });
 
   it("returns 401 when auth context is missing", async () => {
-    const client = await createClient();
-    const response = await client.api.auth.context.$get();
+    const response = await authClient.context.$get();
 
     expect(response.status).toBe(401);
     const responseBody = await response.json();
@@ -94,9 +77,7 @@ describe("authRoutes", () => {
   });
 
   it("ignores forged auth headers without a session", async () => {
-    const client = await createClient();
-
-    const response = await client.api.auth.context.$get(
+    const response = await authClient.context.$get(
       {},
       {
         headers: {
@@ -126,22 +107,20 @@ describe("authRoutes", () => {
         accessSource: "workos_authoritative" as const,
       },
     };
-    const client = await createClient({
-      sessionAuthContext: {
-        user: {
-          workosUserId: "user_123",
-          localUserId: "user_local_123",
-          email: "user@example.com",
-        },
-        organizations: [activeOrganization],
-        organization: activeOrganization,
-        activeOrganization,
-        membership: activeOrganization.membership,
-        activeTeam: null,
+    mockSessionAuthContext({
+      user: {
+        workosUserId: "user_123",
+        localUserId: "user_local_123",
+        email: "user@example.com",
       },
+      organizations: [activeOrganization],
+      organization: activeOrganization,
+      activeOrganization,
+      membership: activeOrganization.membership,
+      activeTeam: null,
     });
 
-    const response = await client.api.auth.context.$get(
+    const response = await authClient.context.$get(
       {},
       {
         headers: {
@@ -217,7 +196,7 @@ describe("authRoutes", () => {
       },
     };
 
-    const authContext = enrichAuthContextWithCapabilities({
+    mockSessionAuthContext({
       user: {
         workosUserId: "user_123",
         localUserId: "user_local_123",
@@ -230,8 +209,7 @@ describe("authRoutes", () => {
       activeTeam: null,
     });
 
-    const client = await createClient({ sessionAuthContext: authContext, mockProjectRoutes: true });
-
+    const client = createOrgScopedClient();
     const response = await client.api.orgs[":organizationSlug"].projects.$get(
       { param: { organizationSlug: "target-org" } },
       { headers: { cookie: "wos-session=test" } },
@@ -244,11 +222,11 @@ describe("authRoutes", () => {
   });
 
   it("returns 403 for org-scoped routes when requested organization slug is not accessible", async () => {
-    const client = await createClient();
     resolveApiAuthContextFromSessionMock.mockRejectedValueOnce(
       new Error("organization_access_denied"),
     );
 
+    const client = createOrgScopedClient();
     const response = await client.api.orgs[":organizationSlug"].projects.$get(
       { param: { organizationSlug: "forbidden-org" } },
       { headers: { cookie: "wos-session=test" } },
@@ -270,33 +248,28 @@ describe("authRoutes", () => {
       membership: {
         workosMembershipId: "membership_123",
         role: "admin" as const,
+        accessSource: "workos_authoritative" as const,
       },
     };
-    vi.resetModules();
-    resolveApiAuthContextFromSessionMock.mockResolvedValue(
-      enrichAuthContextWithCapabilities({
-        user: {
-          workosUserId: "user_123",
-          localUserId: "user_local_123",
-          email: "user@example.com",
-        },
-        organizations: [activeOrganization],
-        organization: activeOrganization,
-        activeOrganization,
-        membership: {
-          workosMembershipId: "membership_123",
-          role: "admin",
-        },
-        activeTeam: null,
-      }),
-    );
-    vi.doMock("@/api/auth/workos-session", () => ({
-      resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
-    }));
-
-    const app = new Hono().use("*", createWorkosAuthMiddleware()).get("/", () => {
-      throw new Error("membership_sync_failed");
+    mockSessionAuthContext({
+      user: {
+        workosUserId: "user_123",
+        localUserId: "user_local_123",
+        email: "user@example.com",
+      },
+      organizations: [activeOrganization],
+      organization: activeOrganization,
+      activeOrganization,
+      membership: activeOrganization.membership,
+      activeTeam: null,
     });
+
+    const app = new Hono()
+      .use("*", evlog())
+      .use("*", createWorkosAuthMiddleware())
+      .get("/", () => {
+        throw new Error("membership_sync_failed");
+      });
     const response = await app.request("http://localhost/", {
       headers: {
         cookie: "wos-session=test",
