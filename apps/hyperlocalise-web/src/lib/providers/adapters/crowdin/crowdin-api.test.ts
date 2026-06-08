@@ -668,6 +668,19 @@ describe("CrowdinApiClient", () => {
     expect(updated).toMatchObject({ id: 9001, text: "Salut" });
   });
 
+  it("fails translation updates when Crowdin returns no updated item", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ data: [] }), { status: 200 }),
+    );
+    const client = createClient(fetchMock as unknown as typeof fetch);
+
+    await expect(client.updateTranslation(1, 9001, "Salut")).rejects.toMatchObject({
+      name: "CrowdinApiError",
+      status: 502,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("lists glossaries and translation memories with pagination", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);

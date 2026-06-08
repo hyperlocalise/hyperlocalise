@@ -178,7 +178,11 @@ describe("getTmsProviderLiveCatFile", () => {
         );
       }
 
-      if (path.includes("/projects/42/approvals?") && path.includes("languageId=fr")) {
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("stringIds=1001%2C1002")
+      ) {
         return new Response(
           JSON.stringify({
             data: [{ data: { id: 1, translationId: 9001, stringId: 1001, languageId: "fr" } }],
@@ -272,6 +276,12 @@ describe("getTmsProviderLiveCatFile", () => {
           path.includes("/projects/42/comments?") &&
           path.includes("type=comment") &&
           path.includes("languageId=fr"),
+      ),
+    ).toBe(true);
+    expect(
+      requestedPaths.some(
+        (path) =>
+          path.includes("/projects/42/approvals?") && path.includes("stringIds=1001%2C1002"),
       ),
     ).toBe(true);
     expect(

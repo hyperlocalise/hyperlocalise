@@ -851,7 +851,12 @@ export class CrowdinApiClient {
       `/projects/${projectId}/translations`,
       [{ op: "replace", path: `/${translationId}/text`, value: text }],
     );
-    return response.data[0]?.data ?? (await this.getTranslation(projectId, translationId));
+    const updatedTranslation = response.data[0]?.data;
+    if (!updatedTranslation) {
+      throw new CrowdinApiError("Crowdin translation update returned no data", 502, response);
+    }
+
+    return updatedTranslation;
   }
 
   async getTranslation(
@@ -870,6 +875,7 @@ export class CrowdinApiClient {
   async listTranslationApprovals(
     projectId: number,
     languageId?: string,
+    options?: { stringIds?: number[] },
   ): Promise<CrowdinTranslationApproval[]> {
     const approvals: CrowdinTranslationApproval[] = [];
     let offset = 0;
@@ -879,6 +885,9 @@ export class CrowdinApiClient {
       const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
       if (languageId) {
         params.append("languageId", languageId);
+      }
+      if (options?.stringIds?.length) {
+        params.append("stringIds", options.stringIds.join(","));
       }
 
       const response = await this.get<CrowdinListResponse<CrowdinTranslationApproval>>(

@@ -245,6 +245,7 @@ describe("project file CAT routes", () => {
           sourcePath: "crowdin/home.json",
           targetLocale: "fr",
           externalStringId: "1001",
+          externalResourceId: "101",
           text: "Bonjour",
         },
       },
@@ -258,7 +259,7 @@ describe("project file CAT routes", () => {
       expect.any(String),
       "42",
       "crowdin/home.json",
-      { targetLocale: "fr", externalStringId: "1001", text: "Bonjour" },
+      { targetLocale: "fr", externalStringId: "1001", externalResourceId: "101", text: "Bonjour" },
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );
   });

@@ -497,6 +497,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             {
               targetLocale: body.targetLocale,
               externalStringId: body.externalStringId,
+              externalResourceId: body.externalResourceId,
               text: body.text,
             },
             { actorUserId: c.var.auth.user.localUserId },

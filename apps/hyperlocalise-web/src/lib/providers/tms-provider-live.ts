@@ -16,6 +16,7 @@ import {
   type CrowdinLanguageTranslation,
   type CrowdinSourceString,
   type CrowdinStringComment,
+  type CrowdinTranslationApproval,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { mapCrowdinTaskToJobTaskMetadata } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
 import {
@@ -843,11 +844,17 @@ async function buildCrowdinLiveCatFile(input: {
     const sourceStringIdSet = new Set(sourceStringIds);
 
     const translationsByStringId = new Map<number, CrowdinLanguageTranslation[]>();
+    const approvals: CrowdinTranslationApproval[] = [];
     for (let index = 0; index < sourceStringIds.length; index += 25) {
       const chunk = sourceStringIds.slice(index, index + 25);
       const translations = await client.listLanguageTranslations(projectId, input.targetLocale, {
         stringIds: chunk,
       });
+      approvals.push(
+        ...(await client.listTranslationApprovals(projectId, input.targetLocale, {
+          stringIds: chunk,
+        })),
+      );
 
       for (const translation of translations) {
         const existing = translationsByStringId.get(translation.stringId) ?? [];
@@ -856,7 +863,6 @@ async function buildCrowdinLiveCatFile(input: {
       }
     }
 
-    const approvals = await client.listTranslationApprovals(projectId, input.targetLocale);
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
 
     const [plainComments, unresolvedIssues] = await Promise.all([
@@ -1368,17 +1374,30 @@ export async function saveTmsProviderLiveCatTranslation(
     targetLocale: string;
     externalStringId: string;
     text: string;
+    externalResourceId?: string | null;
   },
   options?: { actorUserId?: string | null },
 ): Promise<ProjectFileCatTranslation | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
-  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
-    context,
-    limit: 1000,
-  });
-  const file = files.find((item) => item.sourcePath === sourcePath);
+  const file =
+    input.externalResourceId && context.providerKind === "crowdin"
+      ? mapLiveFile({
+          providerKind: context.providerKind,
+          externalProjectId,
+          file: {
+            resourceType: "file",
+            externalResourceId: input.externalResourceId,
+            sourcePath,
+          },
+        })
+      : (
+          await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
+            context,
+            limit: 1000,
+          })
+        ).find((item) => item.sourcePath === sourcePath);
   if (!file) {
     return null;
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircleIcon, CheckIcon, SaveIcon } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -156,6 +156,7 @@ export function ProjectFileCatWorkspace({
           sourcePath,
           targetLocale,
           externalStringId: input.externalStringId,
+          externalResourceId: catQuery.data?.provider?.externalResourceId,
           text: input.text,
         },
       });
@@ -218,9 +219,14 @@ export function ProjectFileCatWorkspaceView({
     saveStatesFor(catFile),
   );
   const [rowErrors, setRowErrors] = useState<Record<string, string>>({});
+  const rowStateRef = useRef({ drafts, saveStates, rowErrors });
 
   useEffect(() => {
-    const merged = mergeCatWorkspaceRows(catFile, { drafts, saveStates, rowErrors });
+    rowStateRef.current = { drafts, saveStates, rowErrors };
+  }, [drafts, saveStates, rowErrors]);
+
+  useEffect(() => {
+    const merged = mergeCatWorkspaceRows(catFile, rowStateRef.current);
     setDrafts(merged.drafts);
     setSaveStates(merged.saveStates);
     setRowErrors(merged.rowErrors);
