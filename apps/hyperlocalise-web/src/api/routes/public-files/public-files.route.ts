@@ -2,11 +2,13 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
+import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
 import {
   apiKeyAuthMiddleware,
   requireApiKeyPermission,
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
+import { canAccessStoredFile } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
@@ -69,16 +71,10 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
         }
 
         const organizationId = c.var.auth.organization.localOrganizationId;
-        const [project] = await db
-          .select({ id: schema.projects.id })
-          .from(schema.projects)
-          .where(
-            and(
-              eq(schema.projects.id, parsed.data.projectId),
-              eq(schema.projects.organizationId, organizationId),
-            ),
-          )
-          .limit(1);
+        const project = await getAccessibleProjectForApiKey(
+          c.var.auth.teamAccess,
+          parsed.data.projectId,
+        );
 
         if (!project) {
           return projectNotFoundResponse(c);
@@ -154,6 +150,8 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
         .select({
           id: schema.storedFiles.id,
           organizationId: schema.storedFiles.organizationId,
+          projectId: schema.storedFiles.projectId,
+          createdByUserId: schema.storedFiles.createdByUserId,
           storageKey: schema.storedFiles.storageKey,
           filename: schema.storedFiles.filename,
           contentType: schema.storedFiles.contentType,
@@ -167,7 +165,14 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
         )
         .limit(1);
 
-      if (!file) {
+      if (
+        !file ||
+        !(await canAccessStoredFile(c.var.auth.teamAccess, {
+          organizationId: file.organizationId,
+          projectId: file.projectId,
+          createdByUserId: file.createdByUserId,
+        }))
+      ) {
         return fileNotFoundResponse(c);
       }
 

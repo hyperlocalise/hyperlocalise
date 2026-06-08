@@ -37,6 +37,13 @@ export async function createPublicApiFixture() {
     })
     .returning();
 
+  await db.insert(schema.organizationMemberships).values({
+    organizationId: organization.id,
+    userId: user.id,
+    role: "admin",
+    workosMembershipId: `om_${suffix}`,
+  });
+
   const [project] = await db
     .insert(schema.projects)
     .values({
