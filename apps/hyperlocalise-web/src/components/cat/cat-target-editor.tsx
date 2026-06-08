@@ -136,6 +136,11 @@ function createCatMessageFormatExtension() {
   });
 }
 
+const catTargetEditorExtensions = [
+  StarterKit.configure({ heading: false }),
+  createCatMessageFormatExtension(),
+] as unknown as Extensions;
+
 function tokenLabel(token: CatMessageToken) {
   if (token.kind === "icu") {
     return `{${token.name}, ${token.type}}`;
@@ -276,10 +281,7 @@ export function CatTargetEditor({
   const sourceTokens = sourceAnalysis.tokens.filter((token) => token.kind !== "pound");
 
   const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ heading: false }),
-      createCatMessageFormatExtension(),
-    ] as unknown as Extensions,
+    extensions: catTargetEditorExtensions,
     content: textDocFromValue(value),
     editable: !disabled,
     immediatelyRender: false,
