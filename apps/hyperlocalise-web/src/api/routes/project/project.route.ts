@@ -14,10 +14,12 @@ import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
   getTmsProviderConnection,
+  getTmsProviderLiveCatFile,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
   listTmsProviderLiveProjects,
+  saveTmsProviderLiveCatTranslation,
 } from "@/lib/providers/tms-provider-live";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
@@ -29,6 +31,8 @@ import { createTranslationJobEventQueue } from "@/workflows/adapters";
 import {
   createProjectBodySchema,
   maxProjectFileUploadBytes,
+  projectFileCatQuerySchema,
+  projectFileCatTranslationBodySchema,
   projectFileDetailQuerySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
@@ -43,7 +47,7 @@ import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
-import { isAiActionAllowed } from "@/api/auth/capability-guards";
+import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
   forbiddenResponse,
@@ -275,6 +279,26 @@ const validateProjectFileDetailQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileCatQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
+  const parsed = projectFileCatTranslationBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileStringContextBody = validator("json", (value, c) => {
   const parsed = projectFileStringContextBodySchema.safeParse(value);
 
@@ -400,6 +424,94 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
+    .get(
+      "/:projectId/files/detail/cat",
+      validateProjectParams,
+      validateProjectFileCatQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "CAT editing is only available for provider files.",
+          );
+        }
+
+        try {
+          const catFile = await getTmsProviderLiveCatFile(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            query.sourcePath,
+            query.targetLocale,
+            {
+              actorUserId: c.var.auth.user.localUserId,
+              canEditTranslations: isWriteBackTranslationAllowed(c.var.auth.membership.role),
+            },
+          );
+          if (!catFile) {
+            return projectNotFoundResponse(c);
+          }
+
+          return c.json({ catFile }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/translations",
+      validateProjectParams,
+      validateProjectFileCatTranslationBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "CAT editing is only available for provider files.",
+          );
+        }
+
+        try {
+          const translation = await saveTmsProviderLiveCatTranslation(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            body.sourcePath,
+            {
+              targetLocale: body.targetLocale,
+              externalStringId: body.externalStringId,
+              externalResourceId: body.externalResourceId,
+              text: body.text,
+            },
+            { actorUserId: c.var.auth.user.localUserId },
+          );
+          if (!translation) {
+            return projectNotFoundResponse(c);
+          }
+
+          return c.json({ translation }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
     .get(
       "/:projectId/files/detail",
       validateProjectParams,

@@ -139,6 +139,8 @@ export interface CrowdinStringTranslation {
   id: number;
   text: string;
   createdAt: string;
+  stringId?: number;
+  languageId?: string;
 }
 
 export interface CrowdinTranslationApproval {
@@ -666,6 +668,7 @@ export class CrowdinApiClient {
     projectId: number,
     options?: {
       stringId?: number;
+      languageId?: string;
       type?: "comment" | "issue";
       issueStatus?: "resolved" | "unresolved";
     },
@@ -676,6 +679,9 @@ export class CrowdinApiClient {
     }
     if (options?.type) {
       params.set("type", options.type);
+    }
+    if (options?.languageId) {
+      params.set("languageId", options.languageId);
     }
     if (options?.issueStatus) {
       params.set("issueStatus", options.issueStatus);
@@ -821,12 +827,55 @@ export class CrowdinApiClient {
     return translations;
   }
 
+  async addTranslation(
+    projectId: number,
+    request: {
+      stringId: number;
+      languageId: string;
+      text: string;
+    },
+  ): Promise<CrowdinStringTranslation> {
+    const response = await this.post<CrowdinGetResponse<CrowdinStringTranslation>>(
+      `/projects/${projectId}/translations`,
+      request,
+    );
+    return response.data;
+  }
+
+  async updateTranslation(
+    projectId: number,
+    translationId: number,
+    text: string,
+  ): Promise<CrowdinStringTranslation> {
+    const response = await this.patch<CrowdinListResponse<CrowdinStringTranslation>>(
+      `/projects/${projectId}/translations`,
+      [{ op: "replace", path: `/${translationId}/text`, value: text }],
+    );
+    const updatedTranslation = response.data[0]?.data;
+    if (!updatedTranslation) {
+      throw new CrowdinApiError("Crowdin translation update returned no data", 502, response);
+    }
+
+    return updatedTranslation;
+  }
+
+  async getTranslation(
+    projectId: number,
+    translationId: number,
+  ): Promise<CrowdinStringTranslation> {
+    const response = await this.get<CrowdinGetResponse<CrowdinStringTranslation>>(
+      `/projects/${projectId}/translations/${translationId}`,
+    );
+    return response.data;
+  }
+
   /**
    * List translation approvals, optionally filtered by language.
    */
   async listTranslationApprovals(
     projectId: number,
     languageId?: string,
+    options?: { stringIds?: number[] },
   ): Promise<CrowdinTranslationApproval[]> {
     const approvals: CrowdinTranslationApproval[] = [];
     let offset = 0;
@@ -836,6 +885,9 @@ export class CrowdinApiClient {
       const params = new URLSearchParams({ limit: String(limit), offset: String(offset) });
       if (languageId) {
         params.append("languageId", languageId);
+      }
+      if (options?.stringIds?.length) {
+        params.append("stringIds", options.stringIds.join(","));
       }
 
       const response = await this.get<CrowdinListResponse<CrowdinTranslationApproval>>(

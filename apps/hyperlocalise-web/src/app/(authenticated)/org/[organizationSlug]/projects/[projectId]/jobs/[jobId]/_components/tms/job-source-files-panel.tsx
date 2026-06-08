@@ -1,10 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
+import { ListIcon } from "lucide-react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TypographyH4 } from "@/components/ui/typography";
+import { TypographyH4, TypographyP } from "@/components/ui/typography";
 
 import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";
 import { ProjectFileDetailPanel } from "../../../../files/_components/project-file-detail-panel";
@@ -13,6 +16,21 @@ function sortFilesByPath(files: ProjectFileRecord[]) {
   return [...files].toSorted((a, b) =>
     a.sourcePath.localeCompare(b.sourcePath, undefined, { sensitivity: "base" }),
   );
+}
+
+function stringsHref(input: {
+  organizationSlug: string;
+  projectId: string;
+  encodedJobId: string;
+  sourcePath: string;
+  targetLocale: string;
+}) {
+  const params = new URLSearchParams({
+    sourcePath: input.sourcePath,
+    targetLocale: input.targetLocale,
+  });
+
+  return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.encodedJobId)}/strings?${params.toString()}`;
 }
 
 export function JobSourceFilesPanel({
@@ -43,6 +61,13 @@ export function JobSourceFilesPanel({
   const selectedFile =
     sortedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? sortedFiles[0] ?? null;
   const activeSourcePath = selectedFile?.sourcePath ?? null;
+  const targetLocale =
+    highlightLocale && selectedFile?.provider?.targetLocales?.includes(highlightLocale)
+      ? highlightLocale
+      : (selectedFile?.provider?.targetLocales?.[0] ?? highlightLocale);
+  const canViewStrings = Boolean(
+    encodedJobId && selectedFile?.provider && activeSourcePath && targetLocale,
+  );
 
   return (
     <section className="rounded-lg border border-border bg-card p-5">
@@ -76,6 +101,41 @@ export function JobSourceFilesPanel({
             />
           </aside>
           <div className="min-h-[min(20rem,50vh)] overflow-y-auto">
+            {selectedFile?.provider ? (
+              <div className="flex flex-col gap-2 border-b border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <TypographyP className="font-mono text-xs text-foreground">
+                    {selectedFile.sourcePath}
+                  </TypographyP>
+                  <TypographyP className="text-xs text-muted-foreground">
+                    {targetLocale
+                      ? `Edit ${targetLocale} strings in the CAT workspace.`
+                      : "No target locale is available for this task file."}
+                  </TypographyP>
+                </div>
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={!canViewStrings}
+                  render={
+                    canViewStrings ? (
+                      <Link
+                        href={stringsHref({
+                          organizationSlug,
+                          projectId,
+                          encodedJobId: encodedJobId as string,
+                          sourcePath: activeSourcePath as string,
+                          targetLocale: targetLocale as string,
+                        })}
+                      />
+                    ) : undefined
+                  }
+                >
+                  <ListIcon />
+                  View strings
+                </Button>
+              </div>
+            ) : null}
             <ProjectFileDetailPanel
               organizationSlug={organizationSlug}
               projectId={projectId}
