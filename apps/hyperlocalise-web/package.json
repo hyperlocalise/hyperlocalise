@@ -121,7 +121,7 @@
     "vite-plus": "0.1.24",
     "vitest": "catalog:"
   },
-  "packageManager": "pnpm@11.5.1",
+  "packageManager": "pnpm@11.5.2",
   "msw": {
     "workerDirectory": [
       "public"
