@@ -39,6 +39,7 @@ jobs:
           --health-retries 12
     env:
       CI: "true"
+      NODE_OPTIONS: --max-old-space-size=8192
       DATABASE_URL: postgres://hyperlocalise:hyperlocalise@127.0.0.1:5432/hyperlocalise?sslmode=disable
       OPENAI_API_KEY: test-openai-api-key
       NEXT_PUBLIC_WAITLIST_URL: https://example.com/waitlist
