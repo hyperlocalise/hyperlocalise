@@ -51,6 +51,27 @@ func TestParseASTPluralHasPound(t *testing.T) {
 	}
 }
 
+func TestParseASTPluralNegativeSelector(t *testing.T) {
+	msg := "{n, plural, =-1 {minus one} other {other}}"
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("parse negative plural selector: %v", err)
+	}
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(elems))
+	}
+	pl, ok := elems[0].(PluralElement)
+	if !ok {
+		t.Fatalf("expected plural element, got %T", elems[0])
+	}
+	if len(pl.Options) != 2 {
+		t.Fatalf("expected 2 plural options, got %d", len(pl.Options))
+	}
+	if pl.Options[0].Selector != "=-1" {
+		t.Errorf("expected selector =-1, got %q", pl.Options[0].Selector)
+	}
+}
+
 func TestParseASTTags(t *testing.T) {
 	elems, err := Parse("Click <b>{name}</b> now", nil)
 	if err != nil {
