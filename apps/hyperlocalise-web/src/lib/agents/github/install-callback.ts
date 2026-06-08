@@ -1,5 +1,7 @@
 import { and, eq, gt, isNull } from "drizzle-orm";
 
+import { isWorkspaceOperatorRole } from "@/api/auth/roles";
+import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
@@ -20,6 +22,7 @@ export type GitHubInstallCallbackInput = {
   setupAction?: string;
   state?: string;
   code?: string;
+  cookie?: string;
 };
 
 export type GitHubInstallCallbackResult = {
@@ -99,8 +102,8 @@ async function resolveOrganizationFromState(verified: { slug: string }) {
  * with `installation_id` and signed `state`.
  *
  * Authorization is enforced when the install URL is minted (admin-only API route
- * that writes `github_installation_states`). The callback only needs the signed
- * `state` GitHub echoes back plus `installation_id` from GitHub.
+ * that writes `github_installation_states`) and again at callback time: the
+ * signed-in workspace operator who started the flow must consume the state.
  */
 export async function handleGitHubInstallCallback(
   input: GitHubInstallCallbackInput,
@@ -202,6 +205,27 @@ export async function handleGitHubInstallCallback(
     organizationSlug: org.slug,
   };
 
+  const auth = await resolveApiAuthContextFromSession({
+    cookie: input.cookie,
+    organizationSlug: org.slug ?? undefined,
+  });
+  const authOrganization = auth?.organizations.find((item) => item.localOrganizationId === org.id);
+  if (!auth || !authOrganization) {
+    return finish(
+      "/dashboard?error=unauthorized",
+      orgContext,
+      "github install callback rejected: missing authenticated session",
+    );
+  }
+
+  if (!isWorkspaceOperatorRole(authOrganization.membership.role)) {
+    return finish(
+      "/dashboard?error=forbidden",
+      orgContext,
+      "github install callback rejected: caller lacks workspace operator role",
+    );
+  }
+
   const now = new Date();
   const consumedStates = await db
     .update(schema.githubInstallationStates)
@@ -210,6 +234,7 @@ export async function handleGitHubInstallCallback(
       and(
         eq(schema.githubInstallationStates.nonce, verified.nonce),
         eq(schema.githubInstallationStates.organizationId, org.id),
+        eq(schema.githubInstallationStates.userId, auth.user.localUserId),
         gt(schema.githubInstallationStates.expiresAt, now),
         isNull(schema.githubInstallationStates.consumedAt),
       ),

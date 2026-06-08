@@ -59,6 +59,29 @@ vi.mock("@/lib/agents/github/repositories", () => ({
   syncInstallationRepositories: syncInstallationRepositoriesMock,
 }));
 
+const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+  resolveApiAuthContextFromSessionMock: vi.fn(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  ),
+}));
+
+vi.mock("@/api/auth/workos-session", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
+  return {
+    ...actual,
+    resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("next/headers", () => ({
+  cookies: vi.fn(async () => ({
+    toString: (): string => "test-cookie",
+  })),
+}));
+
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import {
   GITHUB_STATE_TTL_MS,
@@ -257,8 +280,8 @@ describe("GitHubCallbackPage", () => {
     expect(syncInstallationRepositoriesMock).not.toHaveBeenCalled();
   });
 
-  it("allows another org admin to complete an installation started by someone else", async () => {
-    const { auth, state, slug } = await createCallbackState({ role: "admin" });
+  it("rejects when a different org admin completes an installation started by someone else", async () => {
+    const { auth, nonce, state, slug } = await createCallbackState({ role: "admin" });
     const organization = globalThis.__testApiAuthContext?.organization;
     const otherAdminIdentity = fixture.createWorkosIdentityForOrganization(
       {
@@ -271,36 +294,63 @@ describe("GitHubCallbackPage", () => {
     await fixture.authHeadersFor(otherAdminIdentity);
 
     await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/integrations?github_connected=1`,
+      `redirect:/org/${slug}/integrations?error=invalid_state`,
     );
 
-    const [installation] = await db
+    const installations = await db
       .select()
       .from(schema.githubInstallations)
-      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId))
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(installations).toHaveLength(0);
+
+    const [stateRecord] = await db
+      .select()
+      .from(schema.githubInstallationStates)
+      .where(eq(schema.githubInstallationStates.nonce, nonce))
       .limit(1);
-    expect(installation).toMatchObject({
-      githubInstallationId: "123456",
-    });
-    expect(getGitHubAppMock).toHaveBeenCalled();
+    expect(stateRecord?.consumedAt).toBeNull();
+    expect(getGitHubAppMock).not.toHaveBeenCalled();
   });
 
-  it("persists an installation without requiring a Hyperlocalise session on callback", async () => {
-    const { auth, slug, state } = await createCallbackState({ role: "admin" });
+  it("rejects the callback when no Hyperlocalise session is present", async () => {
+    const { auth, nonce, state } = await createCallbackState({ role: "admin" });
     globalThis.__testApiAuthContext = undefined;
 
-    await expect(runCallback(state)).rejects.toThrow(
-      `redirect:/org/${slug}/integrations?github_connected=1`,
-    );
+    await expect(runCallback(state)).rejects.toThrow("redirect:/dashboard?error=unauthorized");
 
-    const [installation] = await db
+    const installations = await db
       .select()
       .from(schema.githubInstallations)
-      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId))
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(installations).toHaveLength(0);
+
+    const [stateRecord] = await db
+      .select()
+      .from(schema.githubInstallationStates)
+      .where(eq(schema.githubInstallationStates.nonce, nonce))
       .limit(1);
-    expect(installation).toMatchObject({
-      githubInstallationId: "123456",
-    });
+    expect(stateRecord?.consumedAt).toBeNull();
+    expect(getGitHubAppMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects the callback for org members without workspace operator role", async () => {
+    const { auth, nonce, state } = await createCallbackState({ role: "member" });
+
+    await expect(runCallback(state)).rejects.toThrow("redirect:/dashboard?error=forbidden");
+
+    const installations = await db
+      .select()
+      .from(schema.githubInstallations)
+      .where(eq(schema.githubInstallations.organizationId, auth.organization.localOrganizationId));
+    expect(installations).toHaveLength(0);
+
+    const [stateRecord] = await db
+      .select()
+      .from(schema.githubInstallationStates)
+      .where(eq(schema.githubInstallationStates.nonce, nonce))
+      .limit(1);
+    expect(stateRecord?.consumedAt).toBeNull();
+    expect(getGitHubAppMock).not.toHaveBeenCalled();
   });
 
   it("redirects when GitHub returns setup_action=request without installation_id", async () => {

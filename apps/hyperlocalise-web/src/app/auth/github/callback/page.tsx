@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { handleGitHubInstallCallback } from "@/lib/agents/github/install-callback";
@@ -28,11 +29,14 @@ export default async function GitHubCallbackPage({ searchParams }: GitHubCallbac
     "github install callback page hit",
   );
 
+  const cookieStore = await cookies();
+
   const result = await handleGitHubInstallCallback({
     installationId: params.installation_id,
     setupAction: params.setup_action,
     state: params.state,
     code: params.code,
+    cookie: cookieStore.toString(),
   });
 
   redirect(result.redirectTo);
