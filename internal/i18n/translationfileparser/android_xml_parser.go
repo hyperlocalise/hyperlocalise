@@ -111,7 +111,13 @@ func (d androidResourceDocument) render(values map[string]string) []byte {
 
 func parseAndroidResourceDocument(content []byte) (androidResourceDocument, error) {
 	text := string(content)
-	doc := androidResourceDocument{template: text, entries: []androidResourceEntry{}}
+	// BOLT OPTIMIZATION: Hint capacity for entries based on content size.
+	// Typically an Android resource entry is at least 60-80 bytes.
+	capacity := len(content) / 80
+	if capacity < 4 {
+		capacity = 4
+	}
+	doc := androidResourceDocument{template: text, entries: make([]androidResourceEntry, 0, capacity)}
 
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	depth := 0
@@ -340,25 +346,51 @@ func androidXMLFragmentWellFormed(value, namespaceAttrs string) bool {
 }
 
 func androidNamespaceAttrs(attrs []xml.Attr) string {
-	var b strings.Builder
+	// BOLT OPTIMIZATION: Avoid double iteration and builder allocation until needed.
+	var b *strings.Builder
 	for _, attr := range attrs {
+		isNamespace := false
 		switch {
 		case attr.Name.Space == "xmlns":
-			b.WriteString(" xmlns:")
-			b.WriteString(attr.Name.Local)
+			isNamespace = true
+		case attr.Name.Space == "" && attr.Name.Local == "xmlns":
+			isNamespace = true
+		}
+
+		if isNamespace {
+			if b == nil {
+				b = &strings.Builder{}
+				b.Grow(128) // Typical namespace string size
+			}
+
+			if attr.Name.Space == "xmlns" {
+				b.WriteString(" xmlns:")
+				b.WriteString(attr.Name.Local)
+			} else {
+				b.WriteString(" xmlns")
+			}
 			b.WriteString("=\"")
 			b.WriteString(escapeXMLAttr(attr.Value))
 			b.WriteString("\"")
-		case attr.Name.Space == "" && attr.Name.Local == "xmlns":
-			b.WriteString(" xmlns=\"")
-			b.WriteString(escapeXMLAttr(attr.Value))
-			b.WriteString("\"")
 		}
+	}
+
+	if b == nil {
+		return ""
 	}
 	return b.String()
 }
 
 func isAndroidStringResourcePath(path string) bool {
+	// BOLT OPTIMIZATION: Fast-path suffix check to skip expensive filepath/string ops.
+	if len(path) < 11 { // "strings.xml" is 11 chars
+		return false
+	}
+	// Case-insensitive check for ".xml" at the end without full string lowering or cleaning.
+	if !strings.EqualFold(path[len(path)-4:], ".xml") {
+		return false
+	}
+
 	normalized := filepath.ToSlash(filepath.Clean(strings.TrimSpace(path)))
 	// BOLT OPTIMIZATION: Avoid strings.Split while remaining case-insensitive.
 	// Android string resources are always in a "strings.xml" file.

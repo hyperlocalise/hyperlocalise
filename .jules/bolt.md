@@ -144,3 +144,7 @@
 ## 2026-09-05 - Optimizing ICU parser scanning via IndexByte and IndexAny
 **Learning:** Manual byte-by-byte loops in parsers are significant bottlenecks for long literal segments, quoted text, or tags with many attributes. Leveraging Go's optimized `strings.IndexByte` and `strings.IndexAny` (which often use SIMD) for "pure literal" scanning provides a significant performance boost for these inputs while maintaining correctness for escape sequences like doubled apostrophes (\'\').
 **Action:** Replaced manual loops in `skipTagAttributeQuotedLiteral`, `consumeQuotedInto`, `skipQuotedLiteral`, and `parseUntilClosingTag` with standard library scanning functions.
+
+## 2026-09-10 - Optimizing Android XML parser and marshaler
+**Learning:** For XML parsing and marshaling: 1) `io.MultiReader` can be slower than simple string concatenation when feeding `xml.NewDecoder` due to increased call overhead and potential loss of internal buffering optimizations; 2) Lazy `strings.Builder` initialization combined with single-pass loops is superior to multi-pass "fast-path" checks when the common case is a lack of the target feature (e.g., namespaces); 3) Heuristic slice capacity hints (e.g., `len(input)/80`) effectively reduce reallocations in tree-based parsers.
+**Action:** Refined `AndroidXMLResourcesParser` to use lazy builder initialization, single-pass namespace scanning, and slice capacity hinting, while reverting a counter-productive `io.MultiReader` optimization.
