@@ -705,11 +705,16 @@ func (p *astParser) readSelector() (string, bool) {
 	start := p.pos
 	if p.pos < len(p.src) && p.src[p.pos] == '=' {
 		p.pos++
+		if p.pos < len(p.src) && p.src[p.pos] == '-' {
+			p.pos++
+		}
+		digitStart := p.pos
 		for p.pos < len(p.src) && isASCIIDigit(p.src[p.pos]) {
 			p.pos++
 		}
 		// BOLT OPTIMIZATION: break on first non-digit, no TrimSpace needed.
-		return p.src[start:p.pos], p.pos > start+1
+		// Valid selector must have at least one digit after = or =-.
+		return p.src[start:p.pos], p.pos > digitStart
 	}
 	for p.pos < len(p.src) {
 		// BOLT OPTIMIZATION: Fast-path for ASCII to avoid utf8 decoding and unicode checks.

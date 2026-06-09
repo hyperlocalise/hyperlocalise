@@ -59,3 +59,7 @@
 ## 2025-06-12 - [Structural Validation of Complex Identifiers]
 **Learning:** ICU placeholders often use flattened JSON paths (dots and array indices). Validation must ensure structural integrity: a closing bracket `]` must either end the identifier or be immediately followed by a path separator (`.`) or another index (`[`). Failing to enforce this allows malformed strings like `{items[0]suffix}` to be collected as valid placeholders.
 **Action:** When testing identifier validation, include "tail" cases where valid segments are followed by invalid characters to ensure the state machine or regex correctly terminates or rejects the input.
+
+## 2025-06-18 - [ICU Plural Negative Selectors]
+**Learning:** ICU plural exact-value selectors (e.g., `=-1`) can include negative numbers. A naive selector parser that only expects digits after the `=` prefix will fail on these valid selectors. Additionally, when parsing sequences that require at least one element (like digits after a sign), using an explicit starting position marker (`digitStart`) to verify consumption is clearer and more robust than checking the last character's properties.
+**Action:** Ensure plural selector parsing explicitly handles an optional minus sign following the `=` prefix before consuming digits, and use explicit position markers to validate that at least one digit was consumed.

@@ -51,6 +51,47 @@ func TestParseASTPluralHasPound(t *testing.T) {
 	}
 }
 
+func TestParseASTPluralNegativeSelector(t *testing.T) {
+	tests := []struct {
+		name    string
+		msg     string
+		want    string
+		wantErr bool
+	}{
+		{
+			name: "single digit negative",
+			msg:  "{n, plural, =-1 {minus one} other {other}}",
+			want: "=-1",
+		},
+		{
+			name: "multi digit negative",
+			msg:  "{n, plural, =-10 {minus ten} other {other}}",
+			want: "=-10",
+		},
+		{
+			name:    "degenerate minus only",
+			msg:     "{n, plural, =- {error} other {other}}",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("Parse(%q) error = %v, wantErr %v", tt.msg, err, tt.wantErr)
+			}
+			if tt.wantErr {
+				return
+			}
+			pl := elems[0].(PluralElement)
+			if pl.Options[0].Selector != tt.want {
+				t.Errorf("expected selector %q, got %q", tt.want, pl.Options[0].Selector)
+			}
+		})
+	}
+}
+
 func TestParseASTTags(t *testing.T) {
 	elems, err := Parse("Click <b>{name}</b> now", nil)
 	if err != nil {
