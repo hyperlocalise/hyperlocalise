@@ -13,6 +13,7 @@ import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import {
   isInvitedPlaceholderWorkosUserId,
+  isLiveWorkosApiKey,
   REPLACING_WORKOS_MEMBERSHIP_ID,
 } from "@/lib/workos/constants";
 import { membershipRoleFromUnknownRoleField } from "@/lib/workos/membership-role";
@@ -51,7 +52,7 @@ type ReconcileWorkosMembershipsInput = {
 };
 
 function isWorkosMembershipApiEnabled() {
-  if (env.WORKOS_API_KEY === "test-workos-api-key") {
+  if (!isLiveWorkosApiKey(env.WORKOS_API_KEY)) {
     return false;
   }
 

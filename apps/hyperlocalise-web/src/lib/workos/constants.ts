@@ -28,3 +28,20 @@ export function isInvitedPlaceholderWorkosUserId(workosUserId: string) {
 export function shouldCleanupPlaceholderUserOnMemberRemoval(workosUserId: string) {
   return isInvitedPlaceholderWorkosUserId(workosUserId);
 }
+
+/** True when WORKOS_API_KEY is configured for live WorkOS API calls. */
+export function isLiveWorkosApiKey(apiKey: string | undefined) {
+  if (!apiKey) {
+    return false;
+  }
+
+  if (apiKey === "test-workos-api-key") {
+    return false;
+  }
+
+  if (apiKey.includes("placeholder")) {
+    return false;
+  }
+
+  return apiKey.startsWith("sk_");
+}
