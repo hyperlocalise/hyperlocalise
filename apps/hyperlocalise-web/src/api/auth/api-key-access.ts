@@ -56,16 +56,7 @@ export async function resolveApiKeyTeamAccessContext(input: {
   });
 
   if (reconcileResult.status === "lookup_failed") {
-    const [reconcileState] = await db
-      .select({ workosMembershipsReconciledAt: schema.users.workosMembershipsReconciledAt })
-      .from(schema.users)
-      .where(eq(schema.users.workosUserId, creator.workosUserId))
-      .limit(1);
-
-    const lastReconciledAt =
-      reconcileResult.lastReconciledAt ?? reconcileState?.workosMembershipsReconciledAt ?? null;
-
-    if (!isMembershipReconcileFresh(lastReconciledAt)) {
+    if (!isMembershipReconcileFresh(reconcileResult.lastReconciledAt)) {
       return null;
     }
   }

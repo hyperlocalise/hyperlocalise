@@ -40,6 +40,12 @@ export const env = createEnv({
     /** WorkOS API key for authentication and organization management. */
     WORKOS_API_KEY: z.string().min(1).optional(),
 
+    /** Enables live WorkOS API calls such as membership reconciliation. */
+    WORKOS_ENABLED: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
+
     /** WorkOS client ID for OAuth flows. */
     WORKOS_CLIENT_ID: z.string().min(1).optional(),
 
@@ -213,6 +219,7 @@ export const env = createEnv({
       (isTestEnv ? "test-github-oauth-state-secret" : undefined),
     CHAT_STATE_DATABASE_URL: process.env.CHAT_STATE_DATABASE_URL,
     WORKOS_API_KEY: process.env.WORKOS_API_KEY ?? (isTestEnv ? "test-workos-api-key" : undefined),
+    WORKOS_ENABLED: process.env.WORKOS_ENABLED ?? "false",
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),
     WORKOS_REDIRECT_URI:
       process.env.WORKOS_REDIRECT_URI ?? (isTestEnv ? "http://localhost:3000/callback" : undefined),

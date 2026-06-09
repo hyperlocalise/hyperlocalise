@@ -29,8 +29,16 @@ export function shouldCleanupPlaceholderUserOnMemberRemoval(workosUserId: string
   return isInvitedPlaceholderWorkosUserId(workosUserId);
 }
 
-/** True when WORKOS_API_KEY is configured for live WorkOS API calls. */
-export function isLiveWorkosApiKey(apiKey: string | undefined) {
+/** True when WorkOS API calls are explicitly enabled and a non-placeholder key is configured. */
+export function isLiveWorkosApiKey(input: {
+  workosEnabled: boolean;
+  apiKey: string | undefined;
+}) {
+  if (!input.workosEnabled) {
+    return false;
+  }
+
+  const apiKey = input.apiKey;
   if (!apiKey) {
     return false;
   }
@@ -43,5 +51,5 @@ export function isLiveWorkosApiKey(apiKey: string | undefined) {
     return false;
   }
 
-  return apiKey.startsWith("sk_");
+  return true;
 }

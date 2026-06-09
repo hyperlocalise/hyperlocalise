@@ -22,6 +22,10 @@ vi.mock("@/lib/env", async (importOriginal) => {
           return "sk_test_reconcile";
         }
 
+        if (property === "WORKOS_ENABLED") {
+          return true;
+        }
+
         return Reflect.get(target, property, receiver);
       },
     }),

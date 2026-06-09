@@ -52,7 +52,12 @@ type ReconcileWorkosMembershipsInput = {
 };
 
 function isWorkosMembershipApiEnabled() {
-  if (!isLiveWorkosApiKey(env.WORKOS_API_KEY)) {
+  if (
+    !isLiveWorkosApiKey({
+      workosEnabled: env.WORKOS_ENABLED,
+      apiKey: env.WORKOS_API_KEY,
+    })
+  ) {
     return false;
   }
 

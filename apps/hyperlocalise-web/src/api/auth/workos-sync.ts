@@ -3,7 +3,7 @@ import { and, eq, inArray, isNull, like, sql } from "drizzle-orm";
 import * as schema from "@/lib/database/schema";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 
-import type { DatabaseClient } from "@/lib/database";
+import { db, type DatabaseClient } from "@/lib/database";
 import {
   INVITED_WORKOS_USER_ID_PREFIX,
   isInvitedPlaceholderWorkosUserId,
@@ -542,6 +542,10 @@ async function revokeMembershipAccessForTarget(
   };
 }
 
+function isRootDatabaseClient(database: DatabaseClient): database is typeof db {
+  return "transaction" in database && typeof database.transaction === "function";
+}
+
 export async function revokeOrganizationMembershipAccess(
   database: DatabaseClient,
   input: {
@@ -559,6 +563,10 @@ export async function revokeOrganizationMembershipAccess(
       mcpSessionsDeleted: 0,
       apiKeysRevoked: 0,
     };
+  }
+
+  if (isRootDatabaseClient(database)) {
+    return database.transaction((tx) => revokeMembershipAccessForTarget(tx, target));
   }
 
   return revokeMembershipAccessForTarget(database, target);
