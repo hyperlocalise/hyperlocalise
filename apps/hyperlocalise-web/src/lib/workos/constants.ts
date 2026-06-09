@@ -28,3 +28,25 @@ export function isInvitedPlaceholderWorkosUserId(workosUserId: string) {
 export function shouldCleanupPlaceholderUserOnMemberRemoval(workosUserId: string) {
   return isInvitedPlaceholderWorkosUserId(workosUserId);
 }
+
+/** True when WorkOS API calls are explicitly enabled and a non-placeholder key is configured. */
+export function isLiveWorkosApiKey(input: { workosEnabled: boolean; apiKey: string | undefined }) {
+  if (!input.workosEnabled) {
+    return false;
+  }
+
+  const apiKey = input.apiKey;
+  if (!apiKey) {
+    return false;
+  }
+
+  if (apiKey === "test-workos-api-key" || apiKey === "your-workos-api-key") {
+    return false;
+  }
+
+  if (apiKey.includes("placeholder")) {
+    return false;
+  }
+
+  return apiKey.startsWith("sk_");
+}

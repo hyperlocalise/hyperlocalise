@@ -36,6 +36,10 @@ vi.mock("@/lib/env", async (importOriginal) => {
           return "sk_test_identity_regression";
         }
 
+        if (property === "WORKOS_ENABLED") {
+          return true;
+        }
+
         return Reflect.get(target, property, receiver);
       },
     }),

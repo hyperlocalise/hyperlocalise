@@ -142,6 +142,7 @@ describe("revokeOrganizationMembershipAccess", () => {
       organizationMembershipsDeleted: 0,
       teamMembershipsDeleted: 0,
       mcpSessionsDeleted: 0,
+      apiKeysRevoked: 0,
     });
   });
 });
