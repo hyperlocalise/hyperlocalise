@@ -844,18 +844,14 @@ async function buildCrowdinLiveCatFile(input: {
     const sourceStringIdSet = new Set(sourceStringIds);
 
     const translationsByStringId = new Map<number, CrowdinLanguageTranslation[]>();
-    const approvals: CrowdinTranslationApproval[] = [];
+    const approvalsPromise = client.listTranslationApprovals(projectId, input.targetLocale, {
+      fileId,
+    });
     for (let index = 0; index < sourceStringIds.length; index += 25) {
       const chunk = sourceStringIds.slice(index, index + 25);
-      const [translations, chunkApprovals] = await Promise.all([
-        client.listLanguageTranslations(projectId, input.targetLocale, {
-          stringIds: chunk,
-        }),
-        client.listTranslationApprovals(projectId, input.targetLocale, {
-          stringIds: chunk,
-        }),
-      ]);
-      approvals.push(...chunkApprovals);
+      const translations = await client.listLanguageTranslations(projectId, input.targetLocale, {
+        stringIds: chunk,
+      });
 
       for (const translation of translations) {
         const existing = translationsByStringId.get(translation.stringId) ?? [];
@@ -864,6 +860,7 @@ async function buildCrowdinLiveCatFile(input: {
       }
     }
 
+    const approvals = await approvalsPromise;
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
 
     const [plainComments, unresolvedIssues] = await Promise.all([

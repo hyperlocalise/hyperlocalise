@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { TranslationIcon } from "@hugeicons/core-free-icons";
 import { ArrowLeftIcon } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 
@@ -11,7 +10,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
 
-import { ProjectPageShell, ProjectSectionHeader } from "../../../../_components/project-page-shell";
+import { ProjectPageShell } from "../../../../_components/project-page-shell";
 import { ProjectFileCatWorkspace } from "../../../../files/_components/project-file-cat-workspace";
 import { tmsLiveFileToProjectFileRecord } from "../../_components/tms/job-source-file-mappers";
 
@@ -58,32 +57,32 @@ export function JobCatPageContent({
   const targetLocales =
     selectedFile?.provider?.targetLocales ?? (targetLocale ? [targetLocale] : []);
 
-  return (
-    <ProjectPageShell>
-      <ProjectSectionHeader
-        icon={TranslationIcon}
-        section="Strings"
-        description="Edit task source strings and write translations back to the provider."
-        actions={
-          <Button variant="outline" size="sm" render={<Link href={taskHref} />}>
-            <ArrowLeftIcon />
-            Task
-          </Button>
-        }
-      />
-
-      {!sourcePath ? (
+  if (!sourcePath) {
+    return (
+      <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
             Choose a source file from the task, then open View strings.
           </TypographyP>
         </div>
-      ) : filesQuery.isLoading ? (
+      </ProjectPageShell>
+    );
+  }
+
+  if (filesQuery.isLoading) {
+    return (
+      <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
           <TypographyP className="text-sm text-muted-foreground">Loading task file…</TypographyP>
         </div>
-      ) : filesQuery.isError ? (
+      </ProjectPageShell>
+    );
+  }
+
+  if (filesQuery.isError) {
+    return (
+      <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
             {filesQuery.error instanceof Error
@@ -91,38 +90,64 @@ export function JobCatPageContent({
               : "Unable to load task files."}
           </TypographyP>
         </div>
-      ) : !selectedFile ? (
+      </ProjectPageShell>
+    );
+  }
+
+  if (!selectedFile) {
+    return (
+      <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="font-mono text-sm text-foreground">{sourcePath}</TypographyP>
           <TypographyP className="mt-2 text-sm text-muted-foreground">
             This source file is not linked to the task anymore.
           </TypographyP>
         </div>
-      ) : !selectedFile.provider ? (
+      </ProjectPageShell>
+    );
+  }
+
+  if (!selectedFile.provider) {
+    return (
+      <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
             String editing is only available for provider task files.
           </TypographyP>
         </div>
-      ) : (
-        <section className="rounded-lg border border-border bg-card p-5">
-          <div className="mb-4 space-y-1">
-            <TypographyP className="font-mono text-sm font-medium text-foreground">
+      </ProjectPageShell>
+    );
+  }
+
+  return (
+    <main className="-mx-4 -my-5 flex min-h-[calc(100svh-3.5rem)] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+      <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
+        <div className="flex min-w-0 items-center gap-3">
+          <Button variant="outline" size="sm" render={<Link href={taskHref} />}>
+            <ArrowLeftIcon />
+            Task
+          </Button>
+          <div className="min-w-0">
+            <TypographyP className="truncate font-mono text-sm font-medium text-foreground">
               {selectedFile.sourcePath}
             </TypographyP>
-            <TypographyP className="text-xs text-muted-foreground">
+            <TypographyP className="truncate text-xs text-muted-foreground">
               {selectedFile.provider.kind} · {selectedFile.provider.format ?? "file"}
             </TypographyP>
           </div>
-          <ProjectFileCatWorkspace
-            organizationSlug={organizationSlug}
-            projectId={projectId}
-            sourcePath={selectedFile.sourcePath}
-            targetLocales={targetLocales}
-            highlightLocale={targetLocale}
-          />
-        </section>
-      )}
-    </ProjectPageShell>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
+        <ProjectFileCatWorkspace
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourcePath={selectedFile.sourcePath}
+          targetLocales={targetLocales}
+          highlightLocale={targetLocale}
+          layout="fullscreen"
+        />
+      </div>
+    </main>
   );
 }
