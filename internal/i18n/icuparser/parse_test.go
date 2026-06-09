@@ -92,6 +92,89 @@ func TestParseASTPluralNegativeSelector(t *testing.T) {
 	}
 }
 
+func TestParseASTPluralWithNonASCIIWhitespace(t *testing.T) {
+	msg := "{\u00a0count\u00a0,\u00a0plural\u00a0,\u00a0Offset:2\u00a0=0\u00a0{nobody}\u00a0other\u00a0{# items}}"
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(elems))
+	}
+
+	pl, ok := elems[0].(PluralElement)
+	if !ok {
+		t.Fatalf("expected plural element, got %T", elems[0])
+	}
+	if pl.Value != "count" {
+		t.Fatalf("expected argument %q, got %q", "count", pl.Value)
+	}
+	if pl.Offset != 2 {
+		t.Fatalf("expected offset 2, got %d", pl.Offset)
+	}
+	if len(pl.Options) != 2 {
+		t.Fatalf("expected 2 options, got %d", len(pl.Options))
+	}
+	if got := pl.Options[0].Selector; got != "=0" {
+		t.Fatalf("expected exact selector %q, got %q", "=0", got)
+	}
+	if got := pl.Options[1].Selector; got != "other" {
+		t.Fatalf("expected fallback selector %q, got %q", "other", got)
+	}
+	if len(pl.Options[0].Value) != 1 {
+		t.Fatalf("expected 1 element in first option body, got %#v", pl.Options[0].Value)
+	}
+	lit, ok := pl.Options[0].Value[0].(LiteralElement)
+	if !ok || lit.Value != "nobody" {
+		t.Fatalf("expected nobody literal in first option, got %#v", pl.Options[0].Value[0])
+	}
+	if len(pl.Options[1].Value) == 0 {
+		t.Fatalf("expected non-empty second option body, got %#v", pl.Options[1].Value)
+	}
+	if _, ok := pl.Options[1].Value[0].(PoundElement); !ok {
+		t.Fatalf("expected pound in second option body, got %#v", pl.Options[1].Value)
+	}
+}
+
+func TestParseASTQuotedPoundInsidePluralTagIsLiteral(t *testing.T) {
+	elems, err := Parse("{count, plural, one {<b>'#'</b>} other {#}}", nil)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(elems))
+	}
+
+	pl, ok := elems[0].(PluralElement)
+	if !ok {
+		t.Fatalf("expected plural element, got %T", elems[0])
+	}
+	if len(pl.Options) != 2 {
+		t.Fatalf("expected 2 plural options, got %d", len(pl.Options))
+	}
+
+	if len(pl.Options[0].Value) == 0 {
+		t.Fatalf("expected non-empty first plural option value, got %#v", pl.Options[0].Value)
+	}
+	tag, ok := pl.Options[0].Value[0].(TagElement)
+	if !ok {
+		t.Fatalf("expected tag in first plural option, got %#v", pl.Options[0].Value)
+	}
+	if len(tag.Children) != 1 {
+		t.Fatalf("expected one tag child, got %#v", tag.Children)
+	}
+	lit, ok := tag.Children[0].(LiteralElement)
+	if !ok || lit.Value != "#" {
+		t.Fatalf("expected quoted pound to remain literal, got %#v", tag.Children[0])
+	}
+	if len(pl.Options[1].Value) == 0 {
+		t.Fatalf("expected non-empty second plural option value, got %#v", pl.Options[1].Value)
+	}
+	if _, ok := pl.Options[1].Value[0].(PoundElement); !ok {
+		t.Fatalf("expected unquoted pound to parse as PoundElement, got %#v", pl.Options[1].Value)
+	}
+}
+
 func TestParseASTTags(t *testing.T) {
 	elems, err := Parse("Click <b>{name}</b> now", nil)
 	if err != nil {
