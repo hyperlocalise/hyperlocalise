@@ -16,7 +16,6 @@ import {
   type CrowdinLanguageTranslation,
   type CrowdinSourceString,
   type CrowdinStringComment,
-  type CrowdinTranslationApproval,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { mapCrowdinTaskToJobTaskMetadata } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
 import {

@@ -248,11 +248,7 @@ export function ProjectFileCatWorkspaceView({
   const isFullscreen = layout === "fullscreen";
 
   return (
-    <div
-      className={cn(
-        isFullscreen ? "flex h-full min-h-0 flex-col gap-3" : "space-y-3",
-      )}
-    >
+    <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-3" : "space-y-3")}>
       <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="rounded-full text-[10px]">
@@ -332,7 +328,12 @@ export function ProjectFileCatWorkspaceView({
             isFullscreen && "flex min-h-0 flex-1 flex-col",
           )}
         >
-          <div className={cn("overflow-auto", isFullscreen ? "min-h-0 flex-1" : "max-h-[min(38rem,62vh)]")}>
+          <div
+            className={cn(
+              "overflow-auto",
+              isFullscreen ? "min-h-0 flex-1" : "max-h-[min(38rem,62vh)]",
+            )}
+          >
             <table className="w-full min-w-[56rem] border-collapse text-left text-xs">
               <thead className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
                 <tr>
