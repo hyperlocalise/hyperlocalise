@@ -219,7 +219,7 @@ export const env = createEnv({
       (isTestEnv ? "test-github-oauth-state-secret" : undefined),
     CHAT_STATE_DATABASE_URL: process.env.CHAT_STATE_DATABASE_URL,
     WORKOS_API_KEY: process.env.WORKOS_API_KEY ?? (isTestEnv ? "test-workos-api-key" : undefined),
-    WORKOS_ENABLED: process.env.WORKOS_ENABLED ?? "false",
+    WORKOS_ENABLED: isTestEnv ? "false" : (process.env.WORKOS_ENABLED ?? "false"),
     WORKOS_CLIENT_ID: process.env.WORKOS_CLIENT_ID ?? (isTestEnv ? "client_test" : undefined),
     WORKOS_REDIRECT_URI:
       process.env.WORKOS_REDIRECT_URI ?? (isTestEnv ? "http://localhost:3000/callback" : undefined),

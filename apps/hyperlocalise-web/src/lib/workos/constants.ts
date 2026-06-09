@@ -40,7 +40,7 @@ export function isLiveWorkosApiKey(input: { workosEnabled: boolean; apiKey: stri
     return false;
   }
 
-  if (apiKey === "test-workos-api-key") {
+  if (apiKey === "test-workos-api-key" || apiKey === "your-workos-api-key") {
     return false;
   }
 
@@ -48,5 +48,5 @@ export function isLiveWorkosApiKey(input: { workosEnabled: boolean; apiKey: stri
     return false;
   }
 
-  return true;
+  return apiKey.startsWith("sk_");
 }
