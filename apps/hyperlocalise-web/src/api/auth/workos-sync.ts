@@ -407,6 +407,7 @@ export type RevokeOrganizationMembershipAccessResult = {
   organizationMembershipsDeleted: number;
   teamMembershipsDeleted: number;
   mcpSessionsDeleted: number;
+  apiKeysRevoked: number;
 };
 
 async function resolveRevocationTarget(
@@ -463,6 +464,26 @@ async function resolveRevocationTarget(
   };
 }
 
+async function revokeOrganizationApiKeysForUser(
+  database: DatabaseClient,
+  target: RevocationTarget,
+): Promise<Pick<RevokeOrganizationMembershipAccessResult, "apiKeysRevoked">> {
+  const apiKeysRevoked = await database
+    .update(schema.organizationApiKeys)
+    .set({ revokedAt: new Date() })
+    .where(
+      and(
+        eq(schema.organizationApiKeys.organizationId, target.organizationId),
+        eq(schema.organizationApiKeys.createdByUserId, target.userId),
+        isNull(schema.organizationApiKeys.revokedAt),
+      ),
+    );
+
+  return {
+    apiKeysRevoked: Number(apiKeysRevoked.rowCount ?? 0),
+  };
+}
+
 async function deleteTeamMembershipsAndMcpSessions(
   database: DatabaseClient,
   target: RevocationTarget,
@@ -512,10 +533,12 @@ async function revokeMembershipAccessForTarget(
     );
 
   const dependentDeletes = await deleteTeamMembershipsAndMcpSessions(database, target);
+  const apiKeyRevocation = await revokeOrganizationApiKeysForUser(database, target);
 
   return {
     organizationMembershipsDeleted: Number(organizationMembershipsDeleted.rowCount ?? 0),
     ...dependentDeletes,
+    ...apiKeyRevocation,
   };
 }
 
@@ -534,6 +557,7 @@ export async function revokeOrganizationMembershipAccess(
       organizationMembershipsDeleted: 0,
       teamMembershipsDeleted: 0,
       mcpSessionsDeleted: 0,
+      apiKeysRevoked: 0,
     };
   }
 
