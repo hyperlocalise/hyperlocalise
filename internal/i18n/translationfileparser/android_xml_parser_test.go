@@ -105,6 +105,28 @@ func TestAndroidXMLResourcesParserRejectsUnsupportedTranslatableConstructs(t *te
 	}
 }
 
+func TestIsAndroidStringResourcePath(t *testing.T) {
+	for _, tc := range []struct {
+		path string
+		want bool
+	}{
+		{"res/values/strings.xml", true},
+		{"app/src/main/res/values-en-rUS/strings.xml", true},
+		{"strings.xml", true},
+		{"  strings.xml  ", true},
+		{"STRINGS.XML", true},
+		{"res/values/STRINGS.XML", true},
+		{"res/layout/activity_main.xml", false},
+		{"strings.xml.bak", false},
+		{"not-strings.xml", false},
+		{"s.xml", false},
+	} {
+		if got := IsAndroidStringResourcePath(tc.path); got != tc.want {
+			t.Errorf("IsAndroidStringResourcePath(%q) = %v, want %v", tc.path, got, tc.want)
+		}
+	}
+}
+
 func TestAndroidXMLResourcesParserRejectsInvalidPlurals(t *testing.T) {
 	content := []byte(`<resources>
   <plurals name="item_count">
