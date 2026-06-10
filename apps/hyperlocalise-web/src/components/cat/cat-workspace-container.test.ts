@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import { createCatWorkspaceState } from "./cat.fixture";
-import { mergeCatWorkspaceState } from "./cat-workspace-container";
+import {
+  addSaveFailureFormatCheck,
+  getAiSuggestionForSegment,
+  mergeCatWorkspaceState,
+} from "./cat-workspace-container";
 
 describe("mergeCatWorkspaceState", () => {
   it("preserves selected segment and unsaved target edits across server refreshes", () => {
@@ -90,5 +94,77 @@ describe("mergeCatWorkspaceState", () => {
     expect(merged.segmentFormatChecks?.["seg-02"]?.[0]).toMatchObject({
       id: "edited-check",
     });
+  });
+});
+
+describe("addSaveFailureFormatCheck", () => {
+  it("adds the save failure to file-level and selected segment format checks", () => {
+    const state = createCatWorkspaceState({
+      formatChecks: [
+        {
+          id: "save-failed-old",
+          label: "Save failed",
+          status: "fail",
+          message: "Previous failure.",
+          category: "qa",
+        },
+        {
+          id: "file-check",
+          label: "File check",
+          status: "warn",
+          message: "Visible through the file-level fallback.",
+        },
+      ],
+      segmentFormatChecks: {
+        "seg-02": [
+          {
+            id: "segment-check",
+            label: "Segment check",
+            status: "warn",
+            message: "Visible for the selected segment.",
+          },
+        ],
+      },
+    });
+
+    const next = addSaveFailureFormatCheck(state, "seg-02", "Provider rejected the update.");
+
+    expect(next.formatChecks).toMatchObject([
+      {
+        id: "save-failed-seg-02",
+        message: "Provider rejected the update.",
+      },
+      {
+        id: "file-check",
+      },
+    ]);
+    expect(next.segmentFormatChecks?.["seg-02"]).toMatchObject([
+      {
+        id: "save-failed-seg-02",
+        message: "Provider rejected the update.",
+      },
+      {
+        id: "segment-check",
+      },
+    ]);
+  });
+});
+
+describe("getAiSuggestionForSegment", () => {
+  it("prefers segment-level AI suggestions over the file-level fallback", () => {
+    const state = createCatWorkspaceState({
+      intelligence: {
+        ...createCatWorkspaceState().intelligence,
+        aiSuggestion: "Use the file-level suggestion.",
+      },
+      segmentIntelligence: {
+        "seg-02": {
+          ...createCatWorkspaceState().intelligence,
+          aiSuggestion: "Use the segment-level suggestion.",
+        },
+      },
+    });
+
+    expect(getAiSuggestionForSegment(state, "seg-02")).toBe("Use the segment-level suggestion.");
   });
 });

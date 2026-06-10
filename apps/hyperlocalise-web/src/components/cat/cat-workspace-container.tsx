@@ -11,7 +11,7 @@ import type {
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
 import { CatWorkspaceView } from "./cat-workspace";
-import type { CatSegment, CatWorkspaceState } from "./types";
+import type { CatFormatCheck, CatSegment, CatWorkspaceState } from "./types";
 
 function getSegmentQueueIndex(segments: CatSegment[], segmentIdOrKey: string) {
   return segments.findIndex(
@@ -61,6 +61,37 @@ function countReviewed(segments: CatSegment[]) {
 
 function getSegmentsById(state: CatWorkspaceState) {
   return new Map(state.segments.map((segment) => [segment.id, segment]));
+}
+
+function withoutSaveFailureChecks(checks: CatFormatCheck[]) {
+  return checks.filter((check) => !check.id.startsWith("save-failed-"));
+}
+
+export function addSaveFailureFormatCheck(
+  state: CatWorkspaceState,
+  segmentId: string,
+  message: string,
+): Pick<CatWorkspaceState, "formatChecks" | "segmentFormatChecks"> {
+  const saveFailureCheck: CatFormatCheck = {
+    id: `save-failed-${segmentId}`,
+    label: "Save failed",
+    status: "fail",
+    message,
+    category: "qa",
+  };
+  const segmentChecks = state.segmentFormatChecks?.[segmentId] ?? state.formatChecks;
+
+  return {
+    formatChecks: [saveFailureCheck, ...withoutSaveFailureChecks(state.formatChecks)],
+    segmentFormatChecks: {
+      ...state.segmentFormatChecks,
+      [segmentId]: [saveFailureCheck, ...withoutSaveFailureChecks(segmentChecks)],
+    },
+  };
+}
+
+export function getAiSuggestionForSegment(state: CatWorkspaceState, segmentId: string) {
+  return state.segmentIntelligence?.[segmentId]?.aiSuggestion ?? state.intelligence.aiSuggestion;
 }
 
 export function mergeCatWorkspaceState(
@@ -253,7 +284,7 @@ export function CatWorkspaceContainer({
         onTargetChange?.(segmentId, value);
       },
       onUseAiSuggestion: (segmentId: string) => {
-        const aiSuggestion = stateRef.current.intelligence.aiSuggestion;
+        const aiSuggestion = getAiSuggestionForSegment(stateRef.current, segmentId);
         if (!aiSuggestion) {
           return;
         }
@@ -282,16 +313,7 @@ export function CatWorkspaceContainer({
           const message = error instanceof Error ? error.message : "Failed to save translation.";
           setState((current) => ({
             ...current,
-            formatChecks: [
-              {
-                id: `save-failed-${segmentId}`,
-                label: "Save failed",
-                status: "fail",
-                message,
-                category: "qa",
-              },
-              ...current.formatChecks.filter((check) => !check.id.startsWith("save-failed-")),
-            ],
+            ...addSaveFailureFormatCheck(current, segmentId, message),
           }));
         } finally {
           setIsBusy(false);

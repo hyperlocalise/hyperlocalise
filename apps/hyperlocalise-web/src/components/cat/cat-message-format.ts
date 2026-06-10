@@ -249,6 +249,14 @@ export function compareCatMessageFormats(
       label: "Source message syntax",
       message: source.parseError.message,
     });
+    if (target.parseError) {
+      issues.push({
+        kind: "parse-error",
+        label: "Target message syntax",
+        message: target.parseError.message,
+      });
+    }
+    return issues;
   }
 
   if (target.parseError) {
@@ -257,10 +265,6 @@ export function compareCatMessageFormats(
       label: "Target message syntax",
       message: target.parseError.message,
     });
-    return issues;
-  }
-
-  if (source.parseError) {
     return issues;
   }
 
