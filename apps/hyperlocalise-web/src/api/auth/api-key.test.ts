@@ -13,6 +13,7 @@ import {
 } from "@/api/routes/public-jobs/public-jobs.fixture";
 import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
 import { db, schema } from "@/lib/database";
+import type { TranslationJobEventData } from "@/lib/workflow/types";
 
 const { reconcileWorkosMembershipsForUserMock } = vi.hoisted(() => ({
   reconcileWorkosMembershipsForUserMock: vi.fn(),
@@ -27,7 +28,17 @@ vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
   };
 });
 
-const client = testClient(createApp());
+const enqueueJob = vi.fn(async (event: TranslationJobEventData) => ({
+  ids: [event.jobId],
+}));
+
+const client = testClient(
+  createApp({
+    jobQueue: {
+      enqueue: enqueueJob,
+    },
+  }),
+);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -39,6 +50,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   reconcileWorkosMembershipsForUserMock.mockReset();
+  enqueueJob.mockClear();
   await cleanupPublicApiFixture();
 });
 
