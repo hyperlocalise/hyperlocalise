@@ -104,7 +104,8 @@ type FieldResponse struct {
 // FieldsListResponse defines the structure of a response when
 // getting a list of fields.
 type FieldsListResponse struct {
-	Data []*FieldResponse `json:"data"`
+	Data       []*FieldResponse `json:"data"`
+	Pagination *Pagination      `json:"pagination"`
 }
 
 // FieldsListOptions specifies the optional parameters to the

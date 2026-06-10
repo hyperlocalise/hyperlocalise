@@ -21,7 +21,8 @@ type LabelResponse struct {
 // LabelsListResponse defines the structure of a response when
 // getting a list of labels.
 type LabelsListResponse struct {
-	Data []*LabelResponse `json:"data"`
+	Data       []*LabelResponse `json:"data"`
+	Pagination *Pagination      `json:"pagination"`
 }
 
 // LabelsListOptions specifies the optional parameters to the

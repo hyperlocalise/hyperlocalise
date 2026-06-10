@@ -94,7 +94,8 @@ type ProjectMemberResponse struct {
 // ProjectMembersListResponse defines the structure of the response
 // when getting a list of project members.
 type ProjectMembersListResponse struct {
-	Data []*ProjectMemberResponse `json:"data"`
+	Data       []*ProjectMemberResponse `json:"data"`
+	Pagination *Pagination              `json:"pagination"`
 }
 
 // ProjectMembersListOptions specifies the optional parameters to the
@@ -254,7 +255,8 @@ type UserResponse struct {
 // UsersListResponse defines the structure of the response
 // when getting a list of users.
 type UsersListResponse struct {
-	Data []*UserResponse `json:"data"`
+	Data       []*UserResponse `json:"data"`
+	Pagination *Pagination     `json:"pagination"`
 }
 
 // UsersListOptions specifies the optional parameters to the

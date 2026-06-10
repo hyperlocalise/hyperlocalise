@@ -42,7 +42,8 @@ type SourceStringsGetResponse struct {
 // SourceStringsListResponse describes the response when getting
 // a list of source strings.
 type SourceStringsListResponse struct {
-	Data []*SourceStringsGetResponse `json:"data"`
+	Data       []*SourceStringsGetResponse `json:"data"`
+	Pagination *Pagination                 `json:"pagination"`
 }
 
 // SourceStringsListOptions specifies the optional parameters

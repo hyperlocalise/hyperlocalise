@@ -23,7 +23,8 @@ type DistributionResponse struct {
 // DistributionsListResponse defines the structure of the response when
 // getting a list of distributions.
 type DistributionsListResponse struct {
-	Data []*DistributionResponse `json:"data"`
+	Data       []*DistributionResponse `json:"data"`
+	Pagination *Pagination             `json:"pagination"`
 }
 
 // ExportMode is a type representing the export mode of a distribution.

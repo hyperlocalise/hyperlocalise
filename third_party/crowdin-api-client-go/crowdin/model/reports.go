@@ -105,7 +105,8 @@ type ReportArchiveResponse struct {
 // ReportArchiveListResponse defines the structure of a response
 // when getting a list of report archives.
 type ReportArchiveListResponse struct {
-	Data []*ReportArchiveResponse `json:"data"`
+	Data       []*ReportArchiveResponse `json:"data"`
+	Pagination *Pagination              `json:"pagination"`
 }
 
 // ReportArchivesListOptions specifies the optional parameters to
@@ -847,7 +848,8 @@ type ReportSettingsTemplateResponse struct {
 // ReportSettingsTemplateListResponse defines the structure of a response
 // when getting a list of report settings templates.
 type ReportSettingsTemplateListResponse struct {
-	Data []*ReportSettingsTemplateResponse `json:"data"`
+	Data       []*ReportSettingsTemplateResponse `json:"data"`
+	Pagination *Pagination                       `json:"pagination"`
 }
 
 // ReportSettingsTemplatesListOptions specifies the optional parameters to

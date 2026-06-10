@@ -17,7 +17,8 @@ type DictionaryResponse struct {
 // DictionariesListResponse defines the structure of the response
 // when getting a list of dictionaries.
 type DictionariesListResponse struct {
-	Data []*DictionaryResponse `json:"data"`
+	Data       []*DictionaryResponse `json:"data"`
+	Pagination *Pagination           `json:"pagination"`
 }
 
 // DictionariesListOptions specifies the optional parameters to the

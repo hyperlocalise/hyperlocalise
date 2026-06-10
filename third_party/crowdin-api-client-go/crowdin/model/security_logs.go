@@ -26,7 +26,8 @@ type SecurityLogResponse struct {
 // SecurityLogsListResponse defines the structure of a response when
 // getting a list of security logs.
 type SecurityLogsListResponse struct {
-	Data []*SecurityLogResponse `json:"data"`
+	Data       []*SecurityLogResponse `json:"data"`
+	Pagination *Pagination            `json:"pagination"`
 }
 
 // LogEvent is a type representing a security log event.

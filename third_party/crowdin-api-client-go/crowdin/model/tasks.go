@@ -92,7 +92,8 @@ type TaskResponse struct {
 // TasksListResponse defines the structure of the response
 // when getting a list of tasks.
 type TasksListResponse struct {
-	Data []*TaskResponse `json:"data"`
+	Data       []*TaskResponse `json:"data"`
+	Pagination *Pagination     `json:"pagination"`
 }
 
 // TasksListOptions specifies the optional parameters to the
@@ -1004,7 +1005,8 @@ type TaskSettingsTemplateResponse struct {
 // TaskSettingsTemplatesListResponse defines the structure of the response
 // when getting a list of task settings templates.
 type TaskSettingsTemplatesListResponse struct {
-	Data []*TaskSettingsTemplateResponse `json:"data"`
+	Data       []*TaskSettingsTemplateResponse `json:"data"`
+	Pagination *Pagination                    `json:"pagination"`
 }
 
 // TaskSettingsTemplateAddRequest defines the structure of the request
@@ -1053,7 +1055,8 @@ type TaskCommentResponse struct {
 // TaskCommentsListResponse defines the structure of the response
 // when getting a list of task comments.
 type TaskCommentsListResponse struct {
-	Data []*TaskCommentResponse `json:"data"`
+	Data       []*TaskCommentResponse `json:"data"`
+	Pagination *Pagination            `json:"pagination"`
 }
 
 // TaskCommentAddRequest defines the structure of the request

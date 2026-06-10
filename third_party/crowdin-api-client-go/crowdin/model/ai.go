@@ -89,6 +89,7 @@ type FineTuningEventsListResponse struct {
 	Data []struct {
 		Data *FineTuningEvent `json:"data"`
 	} `json:"data"`
+	Pagination *Pagination `json:"pagination"`
 }
 
 type (
@@ -171,7 +172,8 @@ type FineTuningJobResponse struct {
 // FineTuningJobsListResponse defines the structure of a response when
 // getting a list of fine-tuning jobs.
 type FineTuningJobsListResponse struct {
-	Data []*FineTuningJobResponse `json:"data"`
+	Data       []*FineTuningJobResponse `json:"data"`
+	Pagination *Pagination              `json:"pagination"`
 }
 
 // FineTuningJobsListOptions specifies the optional parameters to the
@@ -294,7 +296,8 @@ type PromptResponse struct {
 // PromptsListResponse defines the structure of a response when
 // getting a list of AI prompts.
 type PromptsListResponse struct {
-	Data []*PromptResponse `json:"data"`
+	Data       []*PromptResponse `json:"data"`
+	Pagination *Pagination       `json:"pagination"`
 }
 
 // AIPromptsListOptions specifies the optional parameters to the
@@ -414,7 +417,8 @@ type ProviderResponse struct {
 // ProvidersListResponse defines the structure of a response when
 // getting a list of AI providers.
 type ProvidersListResponse struct {
-	Data []*ProviderResponse `json:"data"`
+	Data       []*ProviderResponse `json:"data"`
+	Pagination *Pagination         `json:"pagination"`
 }
 
 // ProviderAddRequest defines the structure of a request to add an AI provider.
@@ -481,7 +485,8 @@ type ProviderModelResponse struct {
 // ProviderModelsListResponse defines the structure of a response when
 // getting a list of AI provider models.
 type ProviderModelsListResponse struct {
-	Data []*ProviderModelResponse `json:"data"`
+	Data       []*ProviderModelResponse `json:"data"`
+	Pagination *Pagination              `json:"pagination"`
 }
 
 // ProxyChatCompletion represents an AI proxy chat completion.

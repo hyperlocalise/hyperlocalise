@@ -146,7 +146,8 @@ type WebhookResponse struct {
 // WebhooksListResponse defines the structure of the response
 // when getting a list of webhooks.
 type WebhooksListResponse struct {
-	Data []*WebhookResponse `json:"data"`
+	Data       []*WebhookResponse `json:"data"`
+	Pagination *Pagination        `json:"pagination"`
 }
 
 // WebhookAddRequest defines the structure of the request
