@@ -1,8 +1,9 @@
 import type { Thread } from "chat";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 
 import { addInteractionMessage } from "@/lib/conversations/interactions";
 import { db, schema } from "@/lib/database";
+import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 
 type AddAgentMessage = (input: {
@@ -87,7 +88,7 @@ async function persistPostFiles(interactionId: string, files: PostableFile[]) {
     return [];
   }
 
-  const storedFiles = await Promise.all(
+  const uploadResults = await Promise.allSettled(
     files.map(async (file) =>
       createStoredFile({
         organizationId: interaction.organizationId,
@@ -106,6 +107,17 @@ async function persistPostFiles(interactionId: string, files: PostableFile[]) {
       }),
     ),
   );
+  const storedFiles = uploadResults
+    .filter((result) => result.status === "fulfilled")
+    .map((result) => result.value);
+  const failedUpload = uploadResults.find((result) => result.status === "rejected");
+
+  if (failedUpload) {
+    await cleanupStoredFiles(storedFiles);
+    throw failedUpload.reason instanceof Error
+      ? failedUpload.reason
+      : new Error("failed to store agent post file");
+  }
 
   return storedFiles.map((file) => ({
     id: file.id,
@@ -113,6 +125,23 @@ async function persistPostFiles(interactionId: string, files: PostableFile[]) {
     contentType: file.contentType,
     url: file.downloadUrl ?? file.storageUrl,
   }));
+}
+
+async function cleanupStoredFiles(storedFiles: Array<typeof schema.storedFiles.$inferSelect>) {
+  if (storedFiles.length === 0) {
+    return;
+  }
+
+  await db.delete(schema.storedFiles).where(
+    inArray(
+      schema.storedFiles.id,
+      storedFiles.map((file) => file.id),
+    ),
+  );
+  const adapter = getFileStorageAdapter();
+  await Promise.allSettled(
+    storedFiles.map((file) => adapter.delete({ keyOrUrl: file.storageKey })),
+  );
 }
 
 export function wrapThreadPostForInteraction<TState>(

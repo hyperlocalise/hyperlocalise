@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { Thread } from "chat";
 
-const { createStoredFileMock, whereMock } = vi.hoisted(() => ({
+const { createStoredFileMock, deleteStoredObjectMock, whereMock } = vi.hoisted(() => ({
   createStoredFileMock: vi.fn(),
+  deleteStoredObjectMock: vi.fn(),
   whereMock: vi.fn(),
 }));
 
@@ -12,6 +13,9 @@ vi.mock("@/lib/conversations/interactions", () => ({
 
 vi.mock("@/lib/database", () => ({
   db: {
+    delete: vi.fn(() => ({
+      where: vi.fn(async () => {}),
+    })),
     select: vi.fn(() => ({
       from: vi.fn(() => ({
         where: whereMock,
@@ -24,7 +28,16 @@ vi.mock("@/lib/database", () => ({
       organizationId: "organization_id",
       projectId: "project_id",
     },
+    storedFiles: {
+      id: "stored_file_id",
+    },
   },
+}));
+
+vi.mock("@/lib/file-storage", () => ({
+  getFileStorageAdapter: vi.fn(() => ({
+    delete: deleteStoredObjectMock,
+  })),
 }));
 
 vi.mock("@/lib/file-storage/records", () => ({
@@ -60,9 +73,11 @@ describe("wrapThreadPostForInteraction", () => {
       id: "file_123",
       filename: "banner-fr.webp",
       contentType: "image/webp",
+      storageKey: "stored/banner-fr.webp",
       storageUrl: "https://files.example/banner-fr.webp",
       downloadUrl: "https://files.example/banner-fr.webp?download=1",
     });
+    deleteStoredObjectMock.mockResolvedValue(undefined);
   });
 
   it("persists string agent posts", async () => {
@@ -155,6 +170,40 @@ describe("wrapThreadPostForInteraction", () => {
       interactionId: "interaction_123",
       senderType: "agent",
       text: "Here is the localized image",
+    });
+  });
+
+  it("cleans up persisted files when a later agent post file upload fails", async () => {
+    const addMessage = vi.fn(async () => ({ id: "msg_123" }));
+    const { thread } = createThread();
+    const uploadError = new Error("storage unavailable");
+    createStoredFileMock
+      .mockResolvedValueOnce({
+        id: "file_uploaded",
+        filename: "banner-fr.webp",
+        contentType: "image/webp",
+        storageKey: "stored/banner-fr.webp",
+        storageUrl: "https://files.example/banner-fr.webp",
+        downloadUrl: "https://files.example/banner-fr.webp?download=1",
+      })
+      .mockRejectedValueOnce(uploadError);
+
+    wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
+    await thread.post({
+      raw: "Here are the localized images",
+      files: [
+        { data: Buffer.from("image"), filename: "banner-fr.webp", mimeType: "image/webp" },
+        { data: Buffer.from("image"), filename: "banner-es.webp", mimeType: "image/webp" },
+      ],
+    });
+
+    expect(deleteStoredObjectMock).toHaveBeenCalledWith({
+      keyOrUrl: "stored/banner-fr.webp",
+    });
+    expect(addMessage).toHaveBeenCalledWith({
+      interactionId: "interaction_123",
+      senderType: "agent",
+      text: "Here are the localized images",
     });
   });
 

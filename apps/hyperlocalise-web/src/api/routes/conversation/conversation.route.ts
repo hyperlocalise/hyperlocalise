@@ -6,6 +6,7 @@ import { validator } from "hono/validator";
 import { buildAccessibleInteractionsWhere, canAccessInteraction } from "@/api/auth/team-access";
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
+import { badRequestResponse } from "@/api/response.schema";
 import { normalizeProjectId } from "@/lib/projects/project-id";
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
@@ -29,12 +30,10 @@ function notFoundResponse(c: { json(body: { error: string }, status: 404): Respo
   return c.json({ error: "not_found" }, 404);
 }
 
-function badRequestResponse(c: { json(body: { error: string }, status: 400): Response }) {
+function invalidMessagePayloadResponse(c: {
+  json(body: { error: string }, status: 400): Response;
+}) {
   return c.json({ error: "invalid_message_payload" }, 400);
-}
-
-function invalidConversationResponse(c: { json(body: { error: string }, status: 400): Response }) {
-  return c.json({ error: "invalid_conversation_payload" }, 400);
 }
 
 async function cleanupStoredFiles(
@@ -60,15 +59,6 @@ function tooManyFilesResponse(c: {
   json(body: { error: string; maxFiles: number }, status: 400): Response;
 }) {
   return c.json({ error: "too_many_files", maxFiles: maxMessageUploadFiles }, 400);
-}
-
-function unsupportedTranslationSourceFileResponse(
-  c: {
-    json(body: { error: string; filename: string }, status: 400): Response;
-  },
-  filename: string,
-) {
-  return c.json({ error: "unsupported_translation_source_file", filename }, 400);
 }
 
 const validateConversationParams = validator("param", (value, c) => {
@@ -216,12 +206,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         });
 
         if (!parsed.success) {
-          return invalidConversationResponse(c);
+          return badRequestResponse(c, "invalid_conversation_payload");
         }
 
         const files = asFiles(body.files);
         if (!parsed.data.text && files.length === 0) {
-          return invalidConversationResponse(c);
+          return badRequestResponse(c, "invalid_conversation_payload");
         }
         const messageText = parsed.data.text || "Please translate the attached source file.";
 
@@ -231,7 +221,9 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
 
         for (const file of files) {
           if (!inferSupportedFileTranslationFileFormat(file.name)) {
-            return unsupportedTranslationSourceFileResponse(c, file.name);
+            return badRequestResponse(c, "unsupported_translation_source_file", undefined, {
+              filename: file.name,
+            });
           }
         }
 
@@ -386,7 +378,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           typeof normalizedProjectId === "string" ? normalizedProjectId : undefined;
 
         if (!text.trim() && files.length === 0) {
-          return badRequestResponse(c);
+          return invalidMessagePayloadResponse(c);
         }
 
         if (files.length > maxMessageUploadFiles) {
