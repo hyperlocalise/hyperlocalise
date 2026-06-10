@@ -313,8 +313,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             })),
           });
         } catch (error) {
-          await cleanupStoredFiles(storedFiles, adapter);
-          await db.delete(schema.interactions).where(eq(schema.interactions.id, conversation.id));
+          try {
+            await cleanupStoredFiles(storedFiles, adapter);
+            await db.delete(schema.interactions).where(eq(schema.interactions.id, conversation.id));
+          } catch {
+            // Best-effort cleanup; do not mask the original error.
+          }
           throw error;
         }
 
