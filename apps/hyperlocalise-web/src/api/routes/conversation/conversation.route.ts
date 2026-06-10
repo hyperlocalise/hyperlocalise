@@ -247,12 +247,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         }
 
         const orgId = c.var.auth.activeOrganization.localOrganizationId;
-        const conversation = await createInteraction({
-          organizationId: orgId,
-          source: "chat_ui",
-          title: messageText.slice(0, 120),
-          projectId,
-        });
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
         const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
 
@@ -264,7 +258,6 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
               createdByUserId: c.var.auth.user.localUserId,
               role: "source",
               sourceKind: "chat_upload",
-              sourceInteractionId: conversation.id,
               filename: file.name,
               contentType: file.type || "application/octet-stream",
               content: await file.arrayBuffer(),
@@ -288,8 +281,31 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             : new Error("failed to store uploaded file");
         }
 
+        const conversation = await createInteraction({
+          organizationId: orgId,
+          source: "chat_ui",
+          title: messageText.slice(0, 120),
+          projectId,
+        });
+        let responseFiles = storedFiles;
         let message;
         try {
+          if (storedFiles.length > 0) {
+            await db
+              .update(schema.storedFiles)
+              .set({ sourceInteractionId: conversation.id })
+              .where(
+                inArray(
+                  schema.storedFiles.id,
+                  storedFiles.map((file) => file.id),
+                ),
+              );
+            responseFiles = storedFiles.map((file) => ({
+              ...file,
+              sourceInteractionId: conversation.id,
+            }));
+          }
+
           message = await addInteractionMessage({
             interactionId: conversation.id,
             senderType: "user",
@@ -306,10 +322,11 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
           });
         } catch (error) {
           await cleanupStoredFiles(storedFiles, adapter);
+          await db.delete(schema.interactions).where(eq(schema.interactions.id, conversation.id));
           throw error;
         }
 
-        return c.json({ conversation, message, files: storedFiles }, 201);
+        return c.json({ conversation, message, files: responseFiles }, 201);
       },
     )
     .get("/:conversationId", validateConversationParams, async (c) => {

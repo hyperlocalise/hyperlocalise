@@ -6,6 +6,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { db, schema } from "@/lib/database";
+import type { FileStorageAdapter } from "@/lib/file-storage";
 import { createMemoryFileStorageAdapter } from "../file/file.fixture";
 import { createProjectTestFixture } from "../project/project.fixture";
 
@@ -113,6 +114,61 @@ describe("conversation creation", () => {
         contentType: "application/json",
       }),
     ]);
+  });
+
+  it("does not leave an inbox conversation when initial file upload fails", async () => {
+    const failingAdapter: FileStorageAdapter = {
+      provider: "vercel_blob",
+      put: vi.fn(async () => {
+        throw new Error("storage unavailable");
+      }),
+      get: vi.fn(async () => null),
+      delete: vi.fn(async () => {}),
+      getSignedUrl: vi.fn(async () => "https://blob.example/signed"),
+    };
+    const failingApp = createApp({ fileStorageAdapter: failingAdapter });
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Translate the attached file");
+    formData.append(
+      "files",
+      new File([JSON.stringify({ hello: "Hello" })], "source.json", {
+        type: "application/json",
+      }),
+    );
+
+    const response = await failingApp.request(
+      `/api/orgs/${identity.organization.slug}/conversations`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBe(500);
+
+    const organizationId = globalThis.__testApiAuthContext?.activeOrganization.localOrganizationId;
+    if (!organizationId) {
+      throw new Error("Expected test auth context to include an active organization");
+    }
+    const conversations = await db
+      .select()
+      .from(schema.interactions)
+      .where(eq(schema.interactions.organizationId, organizationId));
+    const inboxItems = await db
+      .select()
+      .from(schema.inboxItems)
+      .where(eq(schema.inboxItems.organizationId, organizationId));
+    const storedFiles = await db
+      .select()
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.organizationId, organizationId));
+
+    expect(conversations).toHaveLength(0);
+    expect(inboxItems).toHaveLength(0);
+    expect(storedFiles).toHaveLength(0);
   });
 
   it("rejects conversations linked to another organization's project", async () => {

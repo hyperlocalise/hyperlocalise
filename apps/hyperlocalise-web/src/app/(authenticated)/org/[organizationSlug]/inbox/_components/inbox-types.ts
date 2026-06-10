@@ -16,13 +16,20 @@ export type Conversation = {
   } | null;
 };
 
+export type ConversationMessageAttachment = {
+  id: string;
+  filename: string;
+  contentType: string;
+  url: string;
+};
+
 export type ConversationMessage = {
   id: string;
   conversationId: string;
   senderType: "user" | "agent";
   senderEmail: string | null;
   text: string;
-  attachments: Array<{ id: string; filename: string; contentType: string; url: string }> | null;
+  attachments: ConversationMessageAttachment[] | null;
   createdAt: string;
 };
 
