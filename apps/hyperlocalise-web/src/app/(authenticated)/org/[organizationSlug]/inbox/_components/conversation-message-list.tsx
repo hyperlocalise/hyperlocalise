@@ -8,6 +8,7 @@ import type {
   ToolUIPart,
   UIMessage,
 } from "ai";
+import { DownloadIcon, FileTextIcon } from "lucide-react";
 import { memo, type ReactNode } from "react";
 
 import {
@@ -34,6 +35,7 @@ import {
   formatRelativeTime,
   initialsFor,
   type ConversationMessage,
+  type ConversationMessageAttachment,
   type InboxCurrentUser,
   type StreamedAssistantMessage,
 } from "./inbox-types";
@@ -147,14 +149,70 @@ const PersistedMessage = memo(function PersistedMessage({
       avatarLabel={userAvatar?.label}
       createdAt={message.createdAt}
     >
-      {message.senderType === "user" ? (
-        <TypographyP className="whitespace-pre-wrap leading-6">{message.text}</TypographyP>
-      ) : (
-        <MessageResponse>{message.text}</MessageResponse>
-      )}
+      <div className="flex flex-col gap-3">
+        {message.senderType === "user" ? (
+          <TypographyP className="whitespace-pre-wrap leading-6">{message.text}</TypographyP>
+        ) : (
+          <MessageResponse>{message.text}</MessageResponse>
+        )}
+        <MessageAttachments attachments={message.attachments} />
+      </div>
     </MessageFrame>
   );
 });
+
+function MessageAttachments({ attachments }: { attachments: ConversationMessage["attachments"] }) {
+  if (!attachments?.length) {
+    return null;
+  }
+
+  const imageAttachments = attachments.filter(isImageAttachment);
+  const fileAttachments = attachments.filter((attachment) => !isImageAttachment(attachment));
+
+  return (
+    <div className="flex max-w-full flex-col gap-2">
+      {imageAttachments.length > 0 ? (
+        <div className="grid max-w-full grid-cols-1 gap-2 sm:grid-cols-2">
+          {imageAttachments.map((attachment) => (
+            <a
+              key={attachment.id}
+              href={attachment.url}
+              target="_blank"
+              rel="noreferrer"
+              className="group overflow-hidden rounded-md border border-border bg-muted/35"
+            >
+              <img
+                src={attachment.url}
+                alt={attachment.filename}
+                className="aspect-video w-full object-contain"
+              />
+              <span className="block truncate border-t border-border px-2 py-1.5 text-xs text-muted-foreground group-hover:text-foreground">
+                {attachment.filename}
+              </span>
+            </a>
+          ))}
+        </div>
+      ) : null}
+      {fileAttachments.map((attachment) => (
+        <a
+          key={attachment.id}
+          href={attachment.url}
+          target="_blank"
+          rel="noreferrer"
+          className="flex max-w-full items-center gap-2 rounded-md border border-border bg-muted/35 px-3 py-2 text-sm text-foreground hover:bg-muted"
+        >
+          <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+          <span className="min-w-0 flex-1 truncate">{attachment.filename}</span>
+          <DownloadIcon className="size-4 shrink-0 text-muted-foreground" />
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function isImageAttachment(attachment: ConversationMessageAttachment) {
+  return attachment.contentType.toLowerCase().startsWith("image/");
+}
 
 function AssistantStreamMessage({
   createdAt,

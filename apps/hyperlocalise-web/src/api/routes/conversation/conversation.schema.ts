@@ -1,7 +1,14 @@
 import { z } from "zod";
 
+import { optionalProjectIdSchema } from "@/lib/projects/project-id";
+
 export const conversationIdParamsSchema = z.object({
   conversationId: z.uuid(),
+});
+
+export const createConversationRequestSchema = z.object({
+  text: z.string().trim().max(10000).default(""),
+  projectId: optionalProjectIdSchema,
 });
 
 export const listConversationsQuerySchema = z.object({

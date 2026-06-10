@@ -169,7 +169,10 @@ function createOrgScopedAppRoutes(
     .route("/files", createFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
     .route("/workspace-files", createWorkspaceFilesRoutes())
     .route("/automations", createWorkspaceAutomationRoutes())
-    .route("/conversations", createConversationRoutes())
+    .route(
+      "/conversations",
+      createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
+    )
     .route(
       "/chat-requests",
       createChatRequestRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
