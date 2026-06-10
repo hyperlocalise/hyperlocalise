@@ -478,8 +478,11 @@ describe("CrowdinApiClient", () => {
     );
   });
 
-  it("lists source strings", async () => {
-    const fetchMock = vi.fn(async () => {
+  it("lists source strings by fileId", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      expect(String(url)).toContain("/projects/1/strings?");
+      expect(String(url)).toContain("fileId=101");
+      expect(String(url)).not.toContain("stringIds=");
       return new Response(
         JSON.stringify({
           data: [
@@ -504,10 +507,95 @@ describe("CrowdinApiClient", () => {
     }) as unknown as typeof fetch;
 
     const client = createClient(fetchMock);
-    const strings = await client.listSourceStrings(1, 101);
+    const strings = await client.listSourceStrings(1, { fileId: 101 });
 
     expect(strings).toHaveLength(1);
     expect(strings[0]).toMatchObject({ id: 1001, identifier: "hello", fileId: 101 });
+  });
+
+  it("lists source strings by taskId", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      expect(String(url)).toContain("/projects/1/strings?");
+      expect(String(url)).toContain("taskId=9");
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listSourceStrings(1, { taskId: 9 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists source strings by croql", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      expect(String(url)).toContain("croql=id+in+%281001%2C1002%29");
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listSourceStrings(1, { croql: "id in (1001,1002)" });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("lists string comments for strings without languageId", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/projects/1/comments?stringId=1001&type=comment");
+      expect(path).not.toContain("languageId=");
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listStringCommentsForStrings(1, [1001], { type: "comment" });
+  });
+
+  it("lists translation approvals with fileId and languageId", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/projects/1/approvals?");
+      expect(path).toContain("languageId=fr");
+      expect(path).toContain("fileId=101");
+      expect(path).not.toContain("stringIds=");
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listTranslationApprovals(1, "fr", { fileId: 101 });
+  });
+
+  it("scopes translation approvals to source string files", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("languageId=fr");
+      expect(path).toContain("fileId=101");
+      return new Response(
+        JSON.stringify({
+          data: [{ data: { id: 1, translationId: 9001, stringId: 1001, languageId: "fr" } }],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const approvals = await client.listTranslationApprovalsForSourceStrings(1, "fr", [
+      { id: 1001, fileId: 101 },
+    ]);
+
+    expect(approvals).toHaveLength(1);
+    expect(approvals[0]?.translationId).toBe(9001);
+  });
+
+  it("skips translation approvals when there are no source strings", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const approvals = await client.listTranslationApprovalsForSourceStrings(1, "fr", []);
+
+    expect(approvals).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("lists tasks", async () => {

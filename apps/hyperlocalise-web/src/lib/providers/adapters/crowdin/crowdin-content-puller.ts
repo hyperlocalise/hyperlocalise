@@ -50,23 +50,13 @@ export const pullCrowdinTaskContent: ExternalTmsContentPuller = async ({
     throw new Error("crowdin_task_missing_target_language");
   }
 
-  const fileIds = task.fileIds ?? [];
-  const stringIds = task.stringIds ?? [];
-  const sourceStrings: Awaited<ReturnType<typeof client.listSourceStrings>> = [];
+  const sourceStrings = await client.listSourceStrings(projectId, { taskId });
 
-  if (stringIds.length > 0) {
-    for (const chunk of chunkArray(stringIds, 25)) {
-      sourceStrings.push(...(await client.listSourceStrings(projectId, undefined, chunk)));
-    }
-  } else if (fileIds.length > 0) {
-    for (const fileId of fileIds) {
-      sourceStrings.push(...(await client.listSourceStrings(projectId, fileId)));
-    }
-  } else {
-    sourceStrings.push(...(await client.listSourceStrings(projectId)));
-  }
-
-  const approvals = await client.listTranslationApprovals(projectId, targetLanguageId);
+  const approvals = await client.listTranslationApprovalsForSourceStrings(
+    projectId,
+    targetLanguageId,
+    sourceStrings,
+  );
   const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
 
   const translationsByStringId = new Map<
