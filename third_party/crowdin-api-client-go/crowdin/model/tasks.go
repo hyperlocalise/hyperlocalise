@@ -1006,7 +1006,7 @@ type TaskSettingsTemplateResponse struct {
 // when getting a list of task settings templates.
 type TaskSettingsTemplatesListResponse struct {
 	Data       []*TaskSettingsTemplateResponse `json:"data"`
-	Pagination *Pagination                    `json:"pagination"`
+	Pagination *Pagination                     `json:"pagination"`
 }
 
 // TaskSettingsTemplateAddRequest defines the structure of the request
