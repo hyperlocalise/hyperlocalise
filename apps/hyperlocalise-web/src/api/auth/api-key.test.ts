@@ -169,11 +169,15 @@ describe("apiKeyAuthMiddleware", () => {
     const response = await createStringJob(apiKey, project.id);
 
     expect(response.status).toBe(201);
-    const body = (await response.json()) as { job: { projectId: string; status: string } };
+    const body = (await response.json()) as { job: { status: string } };
     expect(body.job).toMatchObject({
-      projectId: project.id,
       status: "queued",
     });
+    expect(enqueueJob).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: project.id,
+      }),
+    );
   });
 
   it("rejects API keys when the creator lacks an authoritative WorkOS membership", async () => {
