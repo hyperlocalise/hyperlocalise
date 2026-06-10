@@ -318,7 +318,7 @@ describe("getTmsProviderLiveCatFile", () => {
       baseUrl: "https://api.crowdin.test/api/v2",
     });
 
-    const fetchMock = vi.fn(async (url, init) => {
+    const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
       if (path.includes("/projects?")) {
@@ -578,7 +578,9 @@ describe("getTmsProviderLiveCatFile", () => {
 
       if (path.includes("/projects/42/translations") && init?.method === "PATCH") {
         const patchBody = JSON.parse(String(init?.body));
-        expect(patchBody).toEqual([{ op: "replace", path: "/9001/text", value: "Bonjour amélioré" }]);
+        expect(patchBody).toEqual([
+          { op: "replace", path: "/9001/text", value: "Bonjour amélioré" },
+        ]);
         return new Response(
           JSON.stringify({
             data: [
