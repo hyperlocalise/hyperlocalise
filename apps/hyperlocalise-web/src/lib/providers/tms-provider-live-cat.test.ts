@@ -473,6 +473,7 @@ describe("getTmsProviderLiveCatFile", () => {
       baseUrl: "https://api.crowdin.test/api/v2",
     });
 
+    let approvalRequestCount = 0;
     const fetchMock = vi.fn(async (url, init) => {
       const path = String(url);
 
@@ -568,19 +569,19 @@ describe("getTmsProviderLiveCatFile", () => {
         path.includes("languageId=fr") &&
         path.includes("fileId=101")
       ) {
+        approvalRequestCount += 1;
         return new Response(
           JSON.stringify({
-            data: [{ data: { id: 1, translationId: 9001, stringId: 1001, languageId: "fr" } }],
+            data:
+              approvalRequestCount === 1
+                ? [{ data: { id: 1, translationId: 9001, stringId: 1001, languageId: "fr" } }]
+                : [],
           }),
           { status: 200 },
         );
       }
 
       if (path.includes("/projects/42/translations") && init?.method === "PATCH") {
-        const patchBody = JSON.parse(String(init?.body));
-        expect(patchBody).toEqual([
-          { op: "replace", path: "/9001/text", value: "Bonjour amélioré" },
-        ]);
         return new Response(
           JSON.stringify({
             data: [
@@ -617,13 +618,16 @@ describe("getTmsProviderLiveCatFile", () => {
     expect(translation).toEqual({
       text: "Bonjour amélioré",
       externalTranslationId: "9001",
-      isApproved: true,
+      isApproved: false,
     });
-    expect(
-      fetchMock.mock.calls.some(
-        ([url, init]) =>
-          String(url).includes("/projects/42/translations") && init?.method === "PATCH",
-      ),
-    ).toBe(true);
+    const patchCall = fetchMock.mock.calls.find(
+      ([url, init]) =>
+        String(url).includes("/projects/42/translations") && init?.method === "PATCH",
+    );
+    expect(patchCall).toBeDefined();
+    expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual([
+      { op: "replace", path: "/9001/text", value: "Bonjour amélioré" },
+    ]);
+    expect(approvalRequestCount).toBe(2);
   });
 });

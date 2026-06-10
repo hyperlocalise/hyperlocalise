@@ -987,11 +987,21 @@ async function saveCrowdinLiveCatTranslation(input: {
             text: input.text,
           });
     const translationId = saved.id ?? existing?.translationId ?? null;
+    const didUpdateExisting = existing?.translationId != null;
+    let isApproved = false;
+    if (didUpdateExisting && translationId != null) {
+      const postSaveApprovals = await client.listTranslationApprovals(
+        projectId,
+        input.targetLocale,
+        Number.isNaN(fileId) ? { stringId } : { fileId },
+      );
+      isApproved = postSaveApprovals.some((approval) => approval.translationId === translationId);
+    }
 
     return {
       text: saved.text,
       externalTranslationId: translationId != null ? String(translationId) : null,
-      isApproved: translationId != null && approvedTranslationIds.has(translationId),
+      isApproved,
     };
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
