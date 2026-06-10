@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { Thread } from "chat";
 
-const { createStoredFileMock, deleteStoredObjectMock, whereMock } = vi.hoisted(() => ({
-  createStoredFileMock: vi.fn(),
-  deleteStoredObjectMock: vi.fn(),
-  whereMock: vi.fn(),
-}));
+const { createStoredFileMock, deleteStoredObjectMock, loggerWarnMock, whereMock } = vi.hoisted(
+  () => ({
+    createStoredFileMock: vi.fn(),
+    deleteStoredObjectMock: vi.fn(),
+    loggerWarnMock: vi.fn(),
+    whereMock: vi.fn(),
+  }),
+);
 
 vi.mock("@/lib/conversations/interactions", () => ({
   addInteractionMessage: vi.fn(),
@@ -42,6 +45,19 @@ vi.mock("@/lib/file-storage", () => ({
 
 vi.mock("@/lib/file-storage/records", () => ({
   createStoredFile: createStoredFileMock,
+}));
+
+vi.mock("@/lib/log", () => ({
+  createLogger: vi.fn(() => ({
+    child: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warn: loggerWarnMock,
+  })),
+  serializeErrorForLog: vi.fn((error: unknown) => ({
+    message: error instanceof Error ? error.message : String(error),
+  })),
 }));
 
 import { postThreadMessageWithoutTracking, wrapThreadPostForInteraction } from "./agent-run-events";
@@ -205,6 +221,29 @@ describe("wrapThreadPostForInteraction", () => {
       senderType: "agent",
       text: "Here are the localized images",
     });
+  });
+
+  it("logs when a files-only agent post cannot persist uploaded files", async () => {
+    const addMessage = vi.fn(async () => ({ id: "msg_123" }));
+    const { thread } = createThread();
+    const uploadError = new Error("storage unavailable");
+    createStoredFileMock.mockRejectedValueOnce(uploadError);
+
+    wrapThreadPostForInteraction(thread, "interaction_123", addMessage);
+    await thread.post({
+      files: [{ data: Buffer.from("image"), filename: "banner-fr.webp", mimeType: "image/webp" }],
+      raw: "",
+    });
+
+    expect(addMessage).not.toHaveBeenCalled();
+    expect(loggerWarnMock).toHaveBeenCalledWith(
+      {
+        err: { message: "storage unavailable" },
+        fileCount: 1,
+        interactionId: "interaction_123",
+      },
+      "agent post file persistence failed",
+    );
   });
 
   it("posts without persisting when tracking is enabled", async () => {

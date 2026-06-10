@@ -86,6 +86,7 @@ describe("conversation creation", () => {
 
   it("stores initial translation source files on the conversation message", async () => {
     const identity = createWorkosIdentity();
+    identity.organization.slug = "example org+東京";
     const headers = await authHeadersFor(identity);
     const formData = new FormData();
     formData.set("text", "Translate the attached file");
@@ -96,11 +97,14 @@ describe("conversation creation", () => {
       }),
     );
 
-    const response = await app.request(`/api/orgs/${identity.organization.slug}/conversations`, {
-      method: "POST",
-      headers,
-      body: formData,
-    });
+    const response = await app.request(
+      `/api/orgs/${encodeURIComponent(identity.organization.slug)}/conversations`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
 
     expect(response.status).toBe(201);
     const body = (await response.json()) as {
@@ -124,6 +128,56 @@ describe("conversation creation", () => {
         id: body.files[0]!.id,
         filename: "source.json",
         contentType: "application/json",
+        url: `/api/orgs/${encodeURIComponent(identity.organization.slug)}/files/${body.files[0]!.id}`,
+      }),
+    ]);
+  });
+
+  it("stores reply attachment URLs with an encoded organization slug", async () => {
+    const identity = createWorkosIdentity();
+    identity.organization.slug = "example org+東京";
+    const headers = await authHeadersFor(identity);
+    const encodedOrganizationSlug = encodeURIComponent(identity.organization.slug);
+    const conversationFormData = new FormData();
+    conversationFormData.set("text", "Translate this first");
+
+    const conversationResponse = await app.request(
+      `/api/orgs/${encodedOrganizationSlug}/conversations`,
+      {
+        method: "POST",
+        headers,
+        body: conversationFormData,
+      },
+    );
+    expect(conversationResponse.status).toBe(201);
+    const conversationBody = (await conversationResponse.json()) as {
+      conversation: { id: string };
+    };
+    const replyFormData = new FormData();
+    replyFormData.set("text", "Here is another source file");
+    replyFormData.append(
+      "files",
+      new File([JSON.stringify({ goodbye: "Goodbye" })], "reply.json", {
+        type: "application/json",
+      }),
+    );
+
+    const replyResponse = await app.request(
+      `/api/orgs/${encodedOrganizationSlug}/conversations/${conversationBody.conversation.id}/messages`,
+      {
+        method: "POST",
+        headers,
+        body: replyFormData,
+      },
+    );
+
+    expect(replyResponse.status).toBe(201);
+    const replyBody = (await replyResponse.json()) as {
+      message: { attachments: Array<{ id: string; url: string }> };
+    };
+    expect(replyBody.message.attachments).toEqual([
+      expect.objectContaining({
+        url: `/api/orgs/${encodedOrganizationSlug}/files/${replyBody.message.attachments[0]!.id}`,
       }),
     ]);
   });

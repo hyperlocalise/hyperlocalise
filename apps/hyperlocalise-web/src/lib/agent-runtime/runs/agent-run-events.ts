@@ -5,6 +5,9 @@ import { addInteractionMessage } from "@/lib/conversations/interactions";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
+
+const logger = createLogger("agent-run-events");
 
 type AddAgentMessage = (input: {
   attachments?: Array<{ id: string; filename: string; contentType: string; url: string }>;
@@ -165,10 +168,20 @@ export function wrapThreadPostForInteraction<TState>(
 
     try {
       const text = getPostText(args[0]);
-      const attachments = await persistPostFiles(
-        trackedState.interactionId,
-        getPostFiles(args[0]),
-      ).catch(() => []);
+      const postFiles = getPostFiles(args[0]);
+      const attachments = await persistPostFiles(trackedState.interactionId, postFiles).catch(
+        (error) => {
+          logger.warn(
+            {
+              err: serializeErrorForLog(error),
+              fileCount: postFiles.length,
+              interactionId: trackedState.interactionId,
+            },
+            "agent post file persistence failed",
+          );
+          return [];
+        },
+      );
       if (text || attachments.length > 0) {
         await trackedState.addMessage({
           ...(attachments.length > 0 ? { attachments } : {}),

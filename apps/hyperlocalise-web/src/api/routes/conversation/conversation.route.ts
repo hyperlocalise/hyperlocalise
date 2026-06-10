@@ -61,6 +61,10 @@ function tooManyFilesResponse(c: {
   return c.json({ error: "too_many_files", maxFiles: maxMessageUploadFiles }, 400);
 }
 
+function buildOrganizationFileUrl(organizationSlug: string, fileId: string) {
+  return `/api/orgs/${encodeURIComponent(organizationSlug)}/files/${fileId}`;
+}
+
 const validateConversationParams = validator("param", (value, c) => {
   const parsed = conversationIdParamsSchema.safeParse(value);
   if (!parsed.success) {
@@ -311,7 +315,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
               filename: file.filename,
               contentType: file.contentType,
               url: organizationSlug
-                ? `/api/orgs/${organizationSlug}/files/${file.id}`
+                ? buildOrganizationFileUrl(organizationSlug, file.id)
                 : (file.downloadUrl ?? file.storageUrl),
             })),
           });
@@ -468,7 +472,7 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
               filename: file.filename,
               contentType: file.contentType,
               url: organizationSlug
-                ? `/api/orgs/${organizationSlug}/files/${file.id}`
+                ? buildOrganizationFileUrl(organizationSlug, file.id)
                 : (file.downloadUrl ?? file.storageUrl),
             })),
           });
