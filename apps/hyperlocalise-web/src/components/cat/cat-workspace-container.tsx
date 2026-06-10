@@ -59,6 +59,53 @@ function countReviewed(segments: CatSegment[]) {
   return segments.filter((segment) => segment.status === "reviewed").length;
 }
 
+function getSegmentsById(state: CatWorkspaceState) {
+  return new Map(state.segments.map((segment) => [segment.id, segment]));
+}
+
+export function mergeCatWorkspaceState(
+  previousInitialState: CatWorkspaceState,
+  currentState: CatWorkspaceState,
+  nextInitialState: CatWorkspaceState,
+): CatWorkspaceState {
+  const previousSegments = getSegmentsById(previousInitialState);
+  const currentSegments = getSegmentsById(currentState);
+  const segments = nextInitialState.segments.map((nextSegment) => {
+    const previousSegment = previousSegments.get(nextSegment.id);
+    const currentSegment = currentSegments.get(nextSegment.id);
+    if (!previousSegment || !currentSegment) {
+      return nextSegment;
+    }
+
+    if (currentSegment.targetText === previousSegment.targetText) {
+      return nextSegment;
+    }
+
+    return {
+      ...nextSegment,
+      targetText: currentSegment.targetText,
+    };
+  });
+  const nextSegmentIds = new Set(segments.map((segment) => segment.id));
+  const selectedSegmentId = nextSegmentIds.has(currentState.selectedSegmentId)
+    ? currentState.selectedSegmentId
+    : (nextInitialState.selectedSegmentId ?? segments[0]?.id ?? "");
+
+  return {
+    ...nextInitialState,
+    segments,
+    selectedSegmentId,
+    queueSummary: {
+      total: segments.length,
+      reviewed: countReviewed(segments),
+    },
+    formatChecks:
+      selectedSegmentId === currentState.selectedSegmentId
+        ? currentState.formatChecks
+        : nextInitialState.formatChecks,
+  };
+}
+
 export interface CatWorkspaceContainerProps {
   initialState: CatWorkspaceState;
   dependencies?: PartialCatWorkspaceDependencies;
@@ -81,6 +128,7 @@ export function CatWorkspaceContainer({
   const [state, setState] = useState(initialState);
   const [isBusy, setIsBusy] = useState(false);
   const stateRef = useRef(state);
+  const previousInitialStateRef = useRef(initialState);
   const validationSequenceRef = useRef(0);
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
@@ -99,7 +147,10 @@ export function CatWorkspaceContainer({
   }, [state]);
 
   useEffect(() => {
-    setState(initialState);
+    setState((current) =>
+      mergeCatWorkspaceState(previousInitialStateRef.current, current, initialState),
+    );
+    previousInitialStateRef.current = initialState;
   }, [initialState]);
 
   const runSegmentChecks = useCallback(
@@ -209,7 +260,7 @@ export function CatWorkspaceContainer({
             formatChecks: [
               {
                 id: `save-failed-${segmentId}`,
-                label: "Crowdin write-back",
+                label: "Save failed",
                 status: "fail",
                 message,
                 category: "qa",

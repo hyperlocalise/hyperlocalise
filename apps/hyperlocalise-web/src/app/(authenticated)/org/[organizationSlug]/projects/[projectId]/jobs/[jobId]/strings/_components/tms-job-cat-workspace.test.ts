@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
-import { projectFileCatToWorkspaceState } from "./tms-job-cat-workspace";
+import {
+  projectFileCatToWorkspaceState,
+  requireProviderExternalResourceId,
+} from "./tms-job-cat-workspace";
 
 function catFile(): ProjectFileCatResponse["catFile"] {
   return {
@@ -82,5 +85,15 @@ describe("projectFileCatToWorkspaceState", () => {
     });
     expect(state.intelligence.filePath).toBe("en-US.json");
     expect(state.breadcrumbs).toEqual(["crowdin", "en-US.json", "vi"]);
+  });
+});
+
+describe("requireProviderExternalResourceId", () => {
+  it("throws a clear error when a CAT save has no provider file identifier", () => {
+    const file = { ...catFile(), provider: null };
+
+    expect(() => requireProviderExternalResourceId(file)).toThrow(
+      "Cannot save translation because the provider file identifier is missing.",
+    );
   });
 });

@@ -28,6 +28,15 @@ import { cn } from "@/lib/primitives/cn";
 
 type CatFile = ProjectFileCatResponse["catFile"];
 
+export function requireProviderExternalResourceId(catFile: CatFile | null | undefined) {
+  const externalResourceId = catFile?.provider?.externalResourceId;
+  if (!externalResourceId) {
+    throw new Error("Cannot save translation because the provider file identifier is missing.");
+  }
+
+  return externalResourceId;
+}
+
 function projectFileCatQueryKey(
   organizationSlug: string,
   projectId: string,
@@ -205,6 +214,8 @@ export function TmsJobCatWorkspace({
 
   const saveMutation = useMutation({
     mutationFn: async (input: { externalStringId: string; text: string }) => {
+      const externalResourceId = requireProviderExternalResourceId(catQuery.data);
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat.translations.$post({
@@ -213,7 +224,7 @@ export function TmsJobCatWorkspace({
           sourcePath,
           targetLocale,
           externalStringId: input.externalStringId,
-          externalResourceId: catQuery.data?.provider?.externalResourceId,
+          externalResourceId,
           text: input.text,
         },
       });
