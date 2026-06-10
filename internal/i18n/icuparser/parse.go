@@ -424,35 +424,20 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 					return 0, nil, fmt.Errorf("expected ':' after offset keyword at %d", p.pos)
 				}
 				p.skipSpaces()
-				numStart := p.pos
-				if p.pos < len(p.src) && p.src[p.pos] == '-' {
-					p.pos++
+				var err error
+				val, err = p.readOffsetNumber()
+				if err != nil {
+					return 0, nil, err
 				}
-				digitStart := p.pos
-				for p.pos < len(p.src) && isASCIIDigit(p.src[p.pos]) {
-					p.pos++
-				}
-				if p.pos == digitStart {
-					return 0, nil, fmt.Errorf("expected offset number at %d", p.pos)
-				}
-				val = p.src[numStart:p.pos]
 			} else {
 				// sel is "offset:..."
 				val = sel[7:]
 				if val == "" {
-					p.skipSpaces()
-					numStart := p.pos
-					if p.pos < len(p.src) && p.src[p.pos] == '-' {
-						p.pos++
+					var err error
+					val, err = p.readOffsetNumber()
+					if err != nil {
+						return 0, nil, err
 					}
-					digitStart := p.pos
-					for p.pos < len(p.src) && isASCIIDigit(p.src[p.pos]) {
-						p.pos++
-					}
-					if p.pos == digitStart {
-						return 0, nil, fmt.Errorf("expected offset number at %d", p.pos)
-					}
-					val = p.src[numStart:p.pos]
 				}
 			}
 			n, err := strconv.Atoi(val)
@@ -737,6 +722,21 @@ func (p *astParser) readIdentifierLike() (string, bool) {
 	// BOLT OPTIMIZATION: Internal callers (parseArgumentLike, parseSelectOptions, parsePluralOptions)
 	// always call skipSpaces() before, and we break on whitespace, so TrimSpace is redundant.
 	return p.src[start:p.pos], true
+}
+
+func (p *astParser) readOffsetNumber() (string, error) {
+	numStart := p.pos
+	if p.pos < len(p.src) && p.src[p.pos] == '-' {
+		p.pos++
+	}
+	digitStart := p.pos
+	for p.pos < len(p.src) && isASCIIDigit(p.src[p.pos]) {
+		p.pos++
+	}
+	if p.pos == digitStart {
+		return "", fmt.Errorf("expected offset number at %d", p.pos)
+	}
+	return p.src[numStart:p.pos], nil
 }
 
 func (p *astParser) readSelector() (string, bool) {

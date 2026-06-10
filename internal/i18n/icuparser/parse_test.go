@@ -369,24 +369,29 @@ func TestParseTypedFormatterShouldParseSkeletons(t *testing.T) {
 
 func TestParsePluralWithSpaceInOffset(t *testing.T) {
 	tests := []struct {
-		name string
-		msg  string
+		name           string
+		msg            string
+		expectedOffset int
 	}{
 		{
-			name: "no space",
-			msg:  "{count, plural, offset:1 one {# item} other {# items}}",
+			name:           "no space",
+			msg:            "{count, plural, offset:1 one {# item} other {# items}}",
+			expectedOffset: 1,
 		},
 		{
-			name: "space after colon",
-			msg:  "{count, plural, offset: 1 one {# item} other {# items}}",
+			name:           "space after colon",
+			msg:            "{count, plural, offset: 1 one {# item} other {# items}}",
+			expectedOffset: 1,
 		},
 		{
-			name: "space before colon",
-			msg:  "{count, plural, offset : 1 one {# item} other {# items}}",
+			name:           "space before colon",
+			msg:            "{count, plural, offset : 1 one {# item} other {# items}}",
+			expectedOffset: 1,
 		},
 		{
-			name: "multiple spaces",
-			msg:  "{count, plural, offset  :  2 one {# item} other {# items}}",
+			name:           "multiple spaces",
+			msg:            "{count, plural, offset  :  2 one {# item} other {# items}}",
+			expectedOffset: 2,
 		},
 	}
 
@@ -397,12 +402,8 @@ func TestParsePluralWithSpaceInOffset(t *testing.T) {
 				t.Fatalf("Parse() failed: %v", err)
 			}
 			pl := elems[0].(PluralElement)
-			expectedOffset := 1
-			if tt.name == "multiple spaces" {
-				expectedOffset = 2
-			}
-			if pl.Offset != expectedOffset {
-				t.Errorf("expected offset %d, got %d", expectedOffset, pl.Offset)
+			if pl.Offset != tt.expectedOffset {
+				t.Errorf("expected offset %d, got %d", tt.expectedOffset, pl.Offset)
 			}
 		})
 	}
