@@ -586,6 +586,18 @@ describe("CrowdinApiClient", () => {
     expect(approvals[0]?.translationId).toBe(9001);
   });
 
+  it("skips translation approvals when there are no source strings", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const approvals = await client.listTranslationApprovalsForSourceStrings(1, "fr", []);
+
+    expect(approvals).toEqual([]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("lists tasks", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(

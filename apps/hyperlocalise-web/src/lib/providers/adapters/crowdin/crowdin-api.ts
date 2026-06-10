@@ -956,6 +956,10 @@ export class CrowdinApiClient {
     languageId: string,
     sourceStrings: Array<Pick<CrowdinSourceString, "id" | "fileId">>,
   ): Promise<CrowdinTranslationApproval[]> {
+    if (sourceStrings.length === 0) {
+      return [];
+    }
+
     const fileIds = [
       ...new Set(
         sourceStrings
@@ -973,24 +977,17 @@ export class CrowdinApiClient {
     }
 
     const stringIds = sourceStrings.map((sourceString) => sourceString.id);
-    if (stringIds.length > 0) {
-      const approvals: CrowdinTranslationApproval[] = [];
-      for (let index = 0; index < stringIds.length; index += 25) {
-        const chunk = stringIds.slice(index, index + 25);
-        const chunkResults = await Promise.all(
-          chunk.map((stringId) =>
-            this.listTranslationApprovals(projectId, languageId, { stringId }),
-          ),
-        );
-        for (const page of chunkResults) {
-          approvals.push(...page);
-        }
+    const approvals: CrowdinTranslationApproval[] = [];
+    for (let index = 0; index < stringIds.length; index += 25) {
+      const chunk = stringIds.slice(index, index + 25);
+      const chunkResults = await Promise.all(
+        chunk.map((stringId) => this.listTranslationApprovals(projectId, languageId, { stringId })),
+      );
+      for (const page of chunkResults) {
+        approvals.push(...page);
       }
-      return approvals;
     }
-
-    const allApprovals = await this.listTranslationApprovals(projectId);
-    return allApprovals.filter((approval) => approval.languageId === languageId);
+    return approvals;
   }
 
   /**
