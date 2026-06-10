@@ -78,8 +78,10 @@ export interface CatWorkspaceState {
   selectedSegmentId: string;
   queueSummary: CatQueueSummary;
   formatChecks: CatFormatCheck[];
+  segmentFormatChecks?: Record<string, CatFormatCheck[]>;
   suggestions: CatSuggestion[];
   intelligence: CatSegmentIntelligence;
+  segmentIntelligence?: Record<string, CatSegmentIntelligence>;
   jobTitle?: string;
   breadcrumbs?: string[];
   primaryActionLabel?: string;

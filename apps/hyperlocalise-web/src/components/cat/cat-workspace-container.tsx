@@ -11,7 +11,7 @@ import type {
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
 import { CatWorkspaceView } from "./cat-workspace";
-import type { CatSegment, CatWorkspaceState } from "./types";
+import type { CatFormatCheck, CatSegment, CatWorkspaceState } from "./types";
 
 function getSegmentQueueIndex(segments: CatSegment[], segmentIdOrKey: string) {
   return segments.findIndex(
@@ -63,6 +63,41 @@ function getSegmentsById(state: CatWorkspaceState) {
   return new Map(state.segments.map((segment) => [segment.id, segment]));
 }
 
+function withoutSaveFailureChecks(checks: CatFormatCheck[]) {
+  return checks.filter((check) => !check.id.startsWith("save-failed-"));
+}
+
+function hasSaveFailureCheck(checks: CatFormatCheck[]) {
+  return checks.some((check) => check.id.startsWith("save-failed-"));
+}
+
+export function addSaveFailureFormatCheck(
+  state: CatWorkspaceState,
+  segmentId: string,
+  message: string,
+): Pick<CatWorkspaceState, "formatChecks" | "segmentFormatChecks"> {
+  const saveFailureCheck: CatFormatCheck = {
+    id: `save-failed-${segmentId}`,
+    label: "Save failed",
+    status: "fail",
+    message,
+    category: "qa",
+  };
+  const segmentChecks = state.segmentFormatChecks?.[segmentId] ?? state.formatChecks;
+
+  return {
+    formatChecks: [saveFailureCheck, ...withoutSaveFailureChecks(state.formatChecks)],
+    segmentFormatChecks: {
+      ...state.segmentFormatChecks,
+      [segmentId]: [saveFailureCheck, ...withoutSaveFailureChecks(segmentChecks)],
+    },
+  };
+}
+
+export function getAiSuggestionForSegment(state: CatWorkspaceState, segmentId: string) {
+  return state.segmentIntelligence?.[segmentId]?.aiSuggestion ?? state.intelligence.aiSuggestion;
+}
+
 export function mergeCatWorkspaceState(
   previousInitialState: CatWorkspaceState,
   currentState: CatWorkspaceState,
@@ -90,6 +125,23 @@ export function mergeCatWorkspaceState(
   const selectedSegmentId = nextSegmentIds.has(currentState.selectedSegmentId)
     ? currentState.selectedSegmentId
     : (nextInitialState.selectedSegmentId ?? segments[0]?.id ?? "");
+  const segmentFormatChecks: CatWorkspaceState["segmentFormatChecks"] = {
+    ...nextInitialState.segmentFormatChecks,
+  };
+  for (const segment of segments) {
+    const previousSegment = previousSegments.get(segment.id);
+    const currentSegment = currentSegments.get(segment.id);
+    const currentChecks = currentState.segmentFormatChecks?.[segment.id];
+    if (
+      previousSegment &&
+      currentSegment &&
+      currentChecks &&
+      (currentSegment.targetText !== previousSegment.targetText ||
+        hasSaveFailureCheck(currentChecks))
+    ) {
+      segmentFormatChecks[segment.id] = currentChecks;
+    }
+  }
 
   return {
     ...nextInitialState,
@@ -103,6 +155,7 @@ export function mergeCatWorkspaceState(
       selectedSegmentId === currentState.selectedSegmentId
         ? currentState.formatChecks
         : nextInitialState.formatChecks,
+    segmentFormatChecks,
   };
 }
 
@@ -170,7 +223,15 @@ export function CatWorkspaceContainer({
         if (validationSequenceRef.current !== sequence) {
           return;
         }
-        setState((current) => ({ ...current, formatChecks: [...formatChecks, ...qaChecks] }));
+        const checks = [...formatChecks, ...qaChecks];
+        setState((current) => ({
+          ...current,
+          formatChecks: checks,
+          segmentFormatChecks: {
+            ...current.segmentFormatChecks,
+            [segment.id]: checks,
+          },
+        }));
       } finally {
         if (validationSequenceRef.current === sequence) {
           setIsBusy(false);
@@ -228,7 +289,7 @@ export function CatWorkspaceContainer({
         onTargetChange?.(segmentId, value);
       },
       onUseAiSuggestion: (segmentId: string) => {
-        const aiSuggestion = stateRef.current.intelligence.aiSuggestion;
+        const aiSuggestion = getAiSuggestionForSegment(stateRef.current, segmentId);
         if (!aiSuggestion) {
           return;
         }
@@ -257,16 +318,7 @@ export function CatWorkspaceContainer({
           const message = error instanceof Error ? error.message : "Failed to save translation.";
           setState((current) => ({
             ...current,
-            formatChecks: [
-              {
-                id: `save-failed-${segmentId}`,
-                label: "Save failed",
-                status: "fail",
-                message,
-                category: "qa",
-              },
-              ...current.formatChecks.filter((check) => !check.id.startsWith("save-failed-")),
-            ],
+            ...addSaveFailureFormatCheck(current, segmentId, message),
           }));
         } finally {
           setIsBusy(false);

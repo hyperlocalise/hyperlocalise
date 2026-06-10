@@ -68,7 +68,7 @@ export function CatQueuePanel({
         maskHeight={44}
         maskClassName="before:via-background/90 before:backdrop-blur-[1px] after:via-background/90 after:backdrop-blur-[1px]"
       >
-        <ul className="space-y-1 px-2 pb-2">
+        <ul className="space-y-1 px-4 pb-3">
           {segments.map((segment) => {
             const selected = segment.id === selectedSegmentId;
 
@@ -79,7 +79,9 @@ export function CatQueuePanel({
                   onClick={() => onSelectSegment(segment.id)}
                   className={cn(
                     "flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
-                    selected ? "bg-grove-500/10 ring-1 ring-grove-400/25" : "hover:bg-foreground/4",
+                    selected
+                      ? "bg-grove-500/10 ring-1 ring-inset ring-grove-400/25"
+                      : "hover:bg-foreground/4",
                   )}
                 >
                   <span className="mt-0.5 w-5 shrink-0 font-mono text-xs text-muted-foreground">
