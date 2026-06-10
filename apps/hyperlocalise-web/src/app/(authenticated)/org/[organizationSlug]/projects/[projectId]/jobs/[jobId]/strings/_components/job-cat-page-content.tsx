@@ -12,6 +12,7 @@ import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
 
 import { ProjectPageShell } from "../../../../_components/project-page-shell";
 import { tmsLiveFileToProjectFileRecord } from "../../_components/tms/job-source-file-mappers";
+import { selectJobCatTargetLocale } from "./job-cat-target-locale";
 import { TmsJobCatWorkspace } from "./tms-job-cat-workspace";
 
 function tmsLiveJobFilesQueryKey(organizationSlug: string, encodedJobId: string) {
@@ -54,8 +55,6 @@ export function JobCatPageContent({
   const selectedFile = sourcePath
     ? (filesQuery.data ?? []).find((file) => file.sourcePath === sourcePath)
     : null;
-  const targetLocales =
-    selectedFile?.provider?.targetLocales ?? (targetLocale ? [targetLocale] : []);
 
   if (!sourcePath) {
     return (
@@ -119,7 +118,12 @@ export function JobCatPageContent({
     );
   }
 
-  if (targetLocales.length === 0) {
+  const selectedTargetLocale = selectJobCatTargetLocale({
+    requestedTargetLocale: targetLocale,
+    providerTargetLocales: selectedFile.provider.targetLocales,
+  });
+
+  if (!selectedTargetLocale) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
@@ -155,7 +159,7 @@ export function JobCatPageContent({
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourcePath={selectedFile.sourcePath}
-          targetLocale={targetLocales[0]}
+          targetLocale={selectedTargetLocale}
         />
       </div>
     </main>

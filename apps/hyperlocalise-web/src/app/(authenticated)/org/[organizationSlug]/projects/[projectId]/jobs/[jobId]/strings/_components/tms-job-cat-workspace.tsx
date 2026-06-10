@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
@@ -107,6 +107,10 @@ function formatCheckForSegment(segment: CatSegment, value: string): CatFormatChe
   }
 
   return checks;
+}
+
+async function validateSegmentFormat(segment: CatSegment, value: string) {
+  return formatCheckForSegment(segment, value);
 }
 
 function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
@@ -240,10 +244,25 @@ export function TmsJobCatWorkspace({
       await queryClient.invalidateQueries({ queryKey });
     },
   });
+  const saveTranslation = saveMutation.mutateAsync;
 
   const workspaceState = useMemo(
     () => (catQuery.data ? projectFileCatToWorkspaceState(catQuery.data) : null),
     [catQuery.data],
+  );
+  const handleApprove = useCallback(
+    async (segmentId: string, targetText: string) => {
+      if (!catQuery.data?.canEditTranslations) {
+        throw new Error("Your role cannot write translations back.");
+      }
+
+      const translation = await saveTranslation({
+        externalStringId: segmentId,
+        text: targetText,
+      });
+      return translation.isApproved ? "reviewed" : "needs_review";
+    },
+    [catQuery.data?.canEditTranslations, saveTranslation],
   );
 
   if (catQuery.isLoading) {
@@ -283,20 +302,10 @@ export function TmsJobCatWorkspace({
       initialState={workspaceState}
       className={cn("min-h-0 flex-1", className)}
       services={{
-        validateFormat: async (segment, value) => formatCheckForSegment(segment, value),
+        validateFormat: validateSegmentFormat,
       }}
       review={{
-        onApprove: async (segmentId, targetText) => {
-          if (!catQuery.data?.canEditTranslations) {
-            throw new Error("Your role cannot write translations back.");
-          }
-
-          const translation = await saveMutation.mutateAsync({
-            externalStringId: segmentId,
-            text: targetText,
-          });
-          return translation.isApproved ? "reviewed" : "needs_review";
-        },
+        onApprove: handleApprove,
       }}
     />
   );
