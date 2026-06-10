@@ -416,10 +416,33 @@ func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 		}
 		p.skipSpaces()
 		// BOLT OPTIMIZATION: Quick check for 'o' or 'O' to avoid strings.EqualFold for most selectors.
-		if len(sel) >= 7 && (sel[0] == 'o' || sel[0] == 'O') && strings.EqualFold(sel[:7], "offset:") {
-			n, err := strconv.Atoi(sel[7:])
+		if (sel[0] == 'o' || sel[0] == 'O') && (strings.EqualFold(sel, "offset") || (len(sel) >= 7 && strings.EqualFold(sel[:7], "offset:"))) {
+			var val string
+			if strings.EqualFold(sel, "offset") {
+				p.skipSpaces()
+				if !p.consume(':') {
+					return 0, nil, fmt.Errorf("expected ':' after offset keyword at %d", p.pos)
+				}
+				p.skipSpaces()
+				var err error
+				val, err = p.readOffsetNumber()
+				if err != nil {
+					return 0, nil, err
+				}
+			} else {
+				// sel is "offset:..."
+				val = sel[7:]
+				if val == "" {
+					var err error
+					val, err = p.readOffsetNumber()
+					if err != nil {
+						return 0, nil, err
+					}
+				}
+			}
+			n, err := strconv.Atoi(val)
 			if err != nil {
-				return 0, nil, fmt.Errorf("invalid plural offset %q", sel)
+				return 0, nil, fmt.Errorf("invalid plural offset %q", val)
 			}
 			offset = n
 			continue
@@ -699,6 +722,21 @@ func (p *astParser) readIdentifierLike() (string, bool) {
 	// BOLT OPTIMIZATION: Internal callers (parseArgumentLike, parseSelectOptions, parsePluralOptions)
 	// always call skipSpaces() before, and we break on whitespace, so TrimSpace is redundant.
 	return p.src[start:p.pos], true
+}
+
+func (p *astParser) readOffsetNumber() (string, error) {
+	numStart := p.pos
+	if p.pos < len(p.src) && p.src[p.pos] == '-' {
+		p.pos++
+	}
+	digitStart := p.pos
+	for p.pos < len(p.src) && isASCIIDigit(p.src[p.pos]) {
+		p.pos++
+	}
+	if p.pos == digitStart {
+		return "", fmt.Errorf("expected offset number at %d", p.pos)
+	}
+	return p.src[numStart:p.pos], nil
 }
 
 func (p *astParser) readSelector() (string, bool) {

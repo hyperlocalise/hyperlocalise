@@ -366,3 +366,45 @@ func TestParseTypedFormatterShouldParseSkeletons(t *testing.T) {
 		t.Fatalf("parsed date options: %#v", de.Skeleton.ParsedOptions)
 	}
 }
+
+func TestParsePluralWithSpaceInOffset(t *testing.T) {
+	tests := []struct {
+		name           string
+		msg            string
+		expectedOffset int
+	}{
+		{
+			name:           "no space",
+			msg:            "{count, plural, offset:1 one {# item} other {# items}}",
+			expectedOffset: 1,
+		},
+		{
+			name:           "space after colon",
+			msg:            "{count, plural, offset: 1 one {# item} other {# items}}",
+			expectedOffset: 1,
+		},
+		{
+			name:           "space before colon",
+			msg:            "{count, plural, offset : 1 one {# item} other {# items}}",
+			expectedOffset: 1,
+		},
+		{
+			name:           "multiple spaces",
+			msg:            "{count, plural, offset  :  2 one {# item} other {# items}}",
+			expectedOffset: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if err != nil {
+				t.Fatalf("Parse() failed: %v", err)
+			}
+			pl := elems[0].(PluralElement)
+			if pl.Offset != tt.expectedOffset {
+				t.Errorf("expected offset %d, got %d", tt.expectedOffset, pl.Offset)
+			}
+		})
+	}
+}
