@@ -49,7 +49,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  reconcileWorkosMembershipsForUserMock.mockReset();
+  reconcileWorkosMembershipsForUserMock.mockClear();
   enqueueJob.mockClear();
   await cleanupPublicApiFixture();
 });
@@ -154,7 +154,7 @@ describe("apiKeyAuthMiddleware", () => {
     expect(reconcileWorkosMembershipsForUserMock).toHaveBeenCalledWith(
       db,
       expect.objectContaining({
-        workosOrganizationId: expect.any(String),
+        workosUserId: expect.any(String),
       }),
     );
   });
