@@ -122,7 +122,7 @@ export function AppShellClient({
 
       <SidebarInset className="min-h-svh bg-background">
         <div className="sticky top-0 z-20 border-b border-border bg-background/96 backdrop-blur">
-          <div className="flex h-14 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          <div className="flex h-[var(--app-shell-header-height)] items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3">
               <SidebarTrigger className="-ms-1" />
               <Separator

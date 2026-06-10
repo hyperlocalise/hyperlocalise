@@ -103,12 +103,14 @@ export function ProjectFileCatWorkspace({
   sourcePath,
   targetLocales,
   highlightLocale,
+  layout = "default",
 }: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
   targetLocales: string[];
   highlightLocale: string | null;
+  layout?: "default" | "fullscreen";
 }) {
   const [targetLocale, setTargetLocale] = useState(() =>
     initialTargetLocale(targetLocales, highlightLocale),
@@ -189,6 +191,7 @@ export function ProjectFileCatWorkspace({
       onTargetLocaleChange={setTargetLocale}
       isLoading={catQuery.isLoading}
       error={catQuery.isError ? catQuery.error : undefined}
+      layout={layout}
       onSave={async (externalStringId, text) => {
         const result = await saveMutation.mutateAsync({ externalStringId, text });
         return result.translation;
@@ -205,6 +208,7 @@ export function ProjectFileCatWorkspaceView({
   isLoading,
   error,
   onSave,
+  layout = "default",
 }: {
   catFile: CatFile | null;
   targetLocales: string[];
@@ -213,6 +217,7 @@ export function ProjectFileCatWorkspaceView({
   isLoading: boolean;
   error?: unknown;
   onSave?: (externalStringId: string, text: string) => Promise<ProjectFileCatTranslation>;
+  layout?: "default" | "fullscreen";
 }) {
   const [drafts, setDrafts] = useState<Record<string, string>>(() => draftValuesFor(catFile));
   const [saveStates, setSaveStates] = useState<Record<string, SaveState>>(() =>
@@ -240,9 +245,11 @@ export function ProjectFileCatWorkspaceView({
     return { translated, approved, withComments };
   }, [segments]);
 
+  const isFullscreen = layout === "fullscreen";
+
   return (
-    <div className="space-y-3">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <div className={cn(isFullscreen ? "flex h-full min-h-0 flex-col gap-3" : "space-y-3")}>
+      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="rounded-full text-[10px]">
             CAT
@@ -287,14 +294,24 @@ export function ProjectFileCatWorkspaceView({
       </div>
 
       {isLoading ? (
-        <div className="flex min-h-40 items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-8">
+        <div
+          className={cn(
+            "flex items-center justify-center gap-2 rounded-md border border-border bg-background px-4 py-8",
+            isFullscreen ? "min-h-0 flex-1" : "min-h-40",
+          )}
+        >
           <Spinner />
           <TypographyP className="text-sm text-muted-foreground">
             Loading CAT workspace…
           </TypographyP>
         </div>
       ) : error ? (
-        <div className="flex min-h-40 items-center gap-2 rounded-md border border-border bg-background px-4 py-8 text-flame-100">
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-md border border-border bg-background px-4 py-8 text-flame-100",
+            isFullscreen ? "min-h-0 flex-1" : "min-h-40",
+          )}
+        >
           <AlertCircleIcon className="size-4" />
           <TypographyP className="text-sm">
             {error instanceof Error ? error.message : "Failed to load CAT workspace."}
@@ -305,8 +322,18 @@ export function ProjectFileCatWorkspaceView({
           No source strings are available for this file.
         </TypographyP>
       ) : (
-        <div className="overflow-hidden rounded-md border border-border bg-background">
-          <div className="max-h-[min(38rem,62vh)] overflow-auto">
+        <div
+          className={cn(
+            "overflow-hidden rounded-md border border-border bg-background",
+            isFullscreen && "flex min-h-0 flex-1 flex-col",
+          )}
+        >
+          <div
+            className={cn(
+              "overflow-auto",
+              isFullscreen ? "min-h-0 flex-1" : "max-h-[min(38rem,62vh)]",
+            )}
+          >
             <table className="w-full min-w-[56rem] border-collapse text-left text-xs">
               <thead className="sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm">
                 <tr>

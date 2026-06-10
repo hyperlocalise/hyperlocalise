@@ -875,7 +875,7 @@ export class CrowdinApiClient {
   async listTranslationApprovals(
     projectId: number,
     languageId?: string,
-    options?: { stringIds?: number[] },
+    options?: { fileId?: number; stringId?: number },
   ): Promise<CrowdinTranslationApproval[]> {
     const approvals: CrowdinTranslationApproval[] = [];
     let offset = 0;
@@ -886,8 +886,11 @@ export class CrowdinApiClient {
       if (languageId) {
         params.append("languageId", languageId);
       }
-      if (options?.stringIds?.length) {
-        params.append("stringIds", options.stringIds.join(","));
+      if (options?.fileId !== undefined) {
+        params.append("fileId", String(options.fileId));
+      }
+      if (options?.stringId !== undefined) {
+        params.append("stringId", String(options.stringId));
       }
 
       const response = await this.get<CrowdinListResponse<CrowdinTranslationApproval>>(

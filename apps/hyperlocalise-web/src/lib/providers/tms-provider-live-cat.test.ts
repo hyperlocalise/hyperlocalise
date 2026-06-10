@@ -181,7 +181,7 @@ describe("getTmsProviderLiveCatFile", () => {
       if (
         path.includes("/projects/42/approvals?") &&
         path.includes("languageId=fr") &&
-        path.includes("stringIds=1001%2C1002")
+        path.includes("fileId=101")
       ) {
         return new Response(
           JSON.stringify({
@@ -281,7 +281,9 @@ describe("getTmsProviderLiveCatFile", () => {
     expect(
       requestedPaths.some(
         (path) =>
-          path.includes("/projects/42/approvals?") && path.includes("stringIds=1001%2C1002"),
+          path.includes("/projects/42/approvals?") &&
+          path.includes("languageId=fr") &&
+          path.includes("fileId=101"),
       ),
     ).toBe(true);
     expect(
