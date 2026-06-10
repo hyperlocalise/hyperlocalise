@@ -69,6 +69,9 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 	var b strings.Builder
 	b.Grow(len(d.template))
 	cursor := 0
+
+	// Note: We assume d.entries are ordered by their position in the template
+	// (valueStart), which is guaranteed by the linear scan in the parser.
 	for _, entry := range d.entries {
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
 			continue
