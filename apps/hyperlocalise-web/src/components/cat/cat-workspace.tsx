@@ -65,7 +65,10 @@ export function CatWorkspaceView({
               isBusy={isBusy}
               onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
               onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
-              onApprove={() => review.onApprove(selectedSegment.id)}
+              onApprove={() =>
+                void review.onApprove(selectedSegment.id, selectedSegment.targetText)
+              }
+              primaryActionLabel={state.primaryActionLabel}
               onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
               onPrevious={navigation.onPreviousSegment}
               onNext={navigation.onNextSegment}

@@ -98,6 +98,10 @@ export function CatWorkspaceContainer({
     stateRef.current = state;
   }, [state]);
 
+  useEffect(() => {
+    setState(initialState);
+  }, [initialState]);
+
   const runSegmentChecks = useCallback(
     async (segment: CatSegment, value: string) => {
       if (!validateFormat && !runQaChecks) {
@@ -183,19 +187,39 @@ export function CatWorkspaceContainer({
     };
 
     const review = {
-      onApprove: (segmentId: string) => {
-        setState((current) => {
-          const segments = updateSegmentStatus(current.segments, segmentId, "reviewed");
-          return {
+      onApprove: async (segmentId: string, targetText: string) => {
+        setIsBusy(true);
+        try {
+          const nextStatus = (await onApprove?.(segmentId, targetText)) ?? "reviewed";
+          setState((current) => {
+            const segments = updateSegmentStatus(current.segments, segmentId, nextStatus);
+            return {
+              ...current,
+              segments,
+              queueSummary: {
+                total: current.queueSummary.total,
+                reviewed: countReviewed(segments),
+              },
+            };
+          });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : "Failed to save translation.";
+          setState((current) => ({
             ...current,
-            segments,
-            queueSummary: {
-              total: current.queueSummary.total,
-              reviewed: countReviewed(segments),
-            },
-          };
-        });
-        onApprove?.(segmentId);
+            formatChecks: [
+              {
+                id: `save-failed-${segmentId}`,
+                label: "Crowdin write-back",
+                status: "fail",
+                message,
+                category: "qa",
+              },
+              ...current.formatChecks.filter((check) => !check.id.startsWith("save-failed-")),
+            ],
+          }));
+        } finally {
+          setIsBusy(false);
+        }
       },
       onAskQuestion: (segmentId: string) => {
         onAskQuestion?.(segmentId);

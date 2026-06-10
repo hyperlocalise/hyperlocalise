@@ -1,4 +1,4 @@
-import type { CatFormatCheck, CatSegment, CatWorkspaceState } from "./types";
+import type { CatFormatCheck, CatSegment, CatSegmentStatus, CatWorkspaceState } from "./types";
 
 export interface CatWorkspaceNavigation {
   onSelectSegment: (segmentId: string) => void;
@@ -13,7 +13,10 @@ export interface CatWorkspaceEditing {
 }
 
 export interface CatWorkspaceReview {
-  onApprove: (segmentId: string) => void;
+  onApprove: (
+    segmentId: string,
+    targetText: string,
+  ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
   onAskQuestion: (segmentId: string) => void;
   onSkip: (segmentId: string) => void;
 }

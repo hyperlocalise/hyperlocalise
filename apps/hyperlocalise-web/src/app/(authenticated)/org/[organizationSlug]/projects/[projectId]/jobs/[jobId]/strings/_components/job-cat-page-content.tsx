@@ -11,8 +11,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
 
 import { ProjectPageShell } from "../../../../_components/project-page-shell";
-import { ProjectFileCatWorkspace } from "../../../../files/_components/project-file-cat-workspace";
 import { tmsLiveFileToProjectFileRecord } from "../../_components/tms/job-source-file-mappers";
+import { TmsJobCatWorkspace } from "./tms-job-cat-workspace";
 
 function tmsLiveJobFilesQueryKey(organizationSlug: string, encodedJobId: string) {
   return ["tms-provider-job-files", organizationSlug, encodedJobId] as const;
@@ -119,6 +119,18 @@ export function JobCatPageContent({
     );
   }
 
+  if (targetLocales.length === 0) {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="text-sm text-muted-foreground">
+            No target locale is available for this provider task file.
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
   return (
     <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
       <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
@@ -139,13 +151,11 @@ export function JobCatPageContent({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
-        <ProjectFileCatWorkspace
+        <TmsJobCatWorkspace
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourcePath={selectedFile.sourcePath}
-          targetLocales={targetLocales}
-          highlightLocale={targetLocale}
-          layout="fullscreen"
+          targetLocale={targetLocales[0]}
         />
       </div>
     </main>
