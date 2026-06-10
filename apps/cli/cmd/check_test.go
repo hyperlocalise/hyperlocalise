@@ -138,17 +138,81 @@ func TestNormalizeCheckSourceEntriesRejectsPrefixIDCollisions(t *testing.T) {
 		"src.foo.app-header.button.label": "Save settings",
 		"src.bar.app-header.button.label": "Start trial",
 	}
-	_, err := normalizeCheckSourceEntries(entries, packPrefixIndex{})
+	_, _, err := normalizeCheckSourceEntries(entries, packPrefixIndex{})
 	if err == nil {
 		t.Fatalf("expected prefix-id collision error")
 	}
 	assertPackPrefixIDCollisionError(t, err, "src.bar.app-header.button.label", "src.foo.app-header.button.label", "button.label")
 }
 
-func TestStripCheckPrefixIDLeavesPackedKeysUntouched(t *testing.T) {
+func TestStripCheckPrefixIDMatchesPackFallback(t *testing.T) {
 	got := stripCheckPrefixID("button.label", packPrefixIndex{})
-	if got != "button.label" {
-		t.Fatalf("stripCheckPrefixID() = %q, want %q", got, "button.label")
+	if got != "label" {
+		t.Fatalf("stripCheckPrefixID() = %q, want %q", got, "label")
+	}
+}
+
+func TestStripCheckPrefixIDStripsLastSegmentWithoutHyphenatedPrefix(t *testing.T) {
+	got := stripCheckPrefixID("src.components.appheader.title", packPrefixIndex{})
+	if got != "title" {
+		t.Fatalf("stripCheckPrefixID() = %q, want %q", got, "title")
+	}
+}
+
+func TestNormalizeCheckChangedKeysRejectsPrefixIDCollisions(t *testing.T) {
+	changed := map[string]struct{}{
+		"src.foo.app-header.button.label": {},
+		"src.bar.app-header.button.label": {},
+	}
+	_, err := normalizeCheckChangedKeys(changed, packPrefixIndex{})
+	if err == nil {
+		t.Fatalf("expected prefix-id collision error")
+	}
+	assertPackPrefixIDCollisionError(t, err, "src.bar.app-header.button.label", "src.foo.app-header.button.label", "button.label")
+}
+
+func TestCheckFixPrefixIDUsesOriginalSourceEntryKey(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"src.components.app-header.title":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"title":""}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	orig := runCheckFixSvc
+	t.Cleanup(func() { runCheckFixSvc = orig })
+	var captured runsvc.Input
+	runCheckFixSvc = func(ctx context.Context, in runsvc.Input) (runsvc.Report, error) {
+		captured = in
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--prefix-id", "--fix", "--fix-dry-run", "--no-fail", "--format", "json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --fix --prefix-id --fix-dry-run: %v", err)
+	}
+	if len(captured.FixTargets) != 1 {
+		t.Fatalf("expected 1 fix target, got %+v", captured.FixTargets)
+	}
+	if captured.FixTargets[0].EntryKey != "src.components.app-header.title" {
+		t.Fatalf("expected original source entry key, got %+v", captured.FixTargets[0])
 	}
 }
 

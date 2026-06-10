@@ -118,6 +118,10 @@ type checkReport struct {
 	Checks   []string       `json:"checks"`
 	Findings []checkFinding `json:"findings"`
 	Summary  checkSummary   `json:"summary"`
+
+	// sourceEntryKeysByPacked maps source file path -> packed key -> original source key.
+	// Populated when --prefix-id is active so --fix can look up entries in prefixed source files.
+	sourceEntryKeysByPacked map[string]map[string]string
 }
 
 type checkTargetDescriptor struct {
@@ -410,7 +414,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	}
 
 	_, collectSpan := tr.Start(ctx, "check.collect_findings")
-	findings, err := collectCheckFindings(index, enabledChecks, selection, o.prefixID, prefixIndex)
+	collected, err := collectCheckFindings(index, enabledChecks, selection, o.prefixID, prefixIndex)
 	if err != nil {
 		collectSpan.SetStatus(codes.Error, "collect_findings")
 		collectSpan.End()
@@ -418,8 +422,13 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	}
 	collectSpan.End()
 
-	sortCheckFindings(findings)
-	return checkReport{Checks: enabledChecks, Findings: findings, Summary: summarizeCheckFindings(findings)}, nil
+	sortCheckFindings(collected.Findings)
+	return checkReport{
+		Checks:                  enabledChecks,
+		Findings:                collected.Findings,
+		Summary:                 summarizeCheckFindings(collected.Findings),
+		sourceEntryKeysByPacked: collected.sourceEntryKeysByPacked,
+	}, nil
 }
 
 func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string) (*checkConfigIndex, error) {
@@ -520,7 +529,11 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 		changedKeys := changed.keys
 		if prefixID {
 			if _, isSource := index.sourceByPath[changedPath]; isSource {
-				changedKeys = normalizeCheckChangedKeys(changed.keys, prefixIndex)
+				var err error
+				changedKeys, err = normalizeCheckChangedKeys(changed.keys, prefixIndex)
+				if err != nil {
+					return checkSelection{}, err
+				}
 			}
 		}
 		if sourceDesc, ok := index.sourceByPath[changedPath]; ok {
@@ -612,7 +625,7 @@ func filterCheckReportErrorsOnly(r checkReport) checkReport {
 }
 
 func executeCheckFix(cmd *cobra.Command, parentCtx context.Context, o checkOptions, initial checkReport) (*checkReport, error) {
-	targets := buildFixTargetsFromFindings(initial.Findings)
+	targets := buildFixTargetsFromFindings(initial.Findings, initial.sourceEntryKeysByPacked)
 	mdScopes := buildFixMarkdownScopesFromFindings(initial.Findings)
 	if len(targets) == 0 && len(mdScopes) == 0 {
 		_, _ = fmt.Fprintln(cmd.ErrOrStderr(), "check fix: no fixable findings (skipped)")
@@ -730,14 +743,20 @@ func executeCheckFix(cmd *cobra.Command, parentCtx context.Context, o checkOptio
 	return &after, nil
 }
 
-func buildFixTargetsFromFindings(findings []checkFinding) []runsvc.FixTarget {
+func buildFixTargetsFromFindings(findings []checkFinding, sourceEntryKeysByPacked map[string]map[string]string) []runsvc.FixTarget {
 	seen := make(map[string]struct{})
 	var out []runsvc.FixTarget
 	for _, f := range findings {
 		if !isFixableFindingType(f.Type) || strings.TrimSpace(f.Key) == "" {
 			continue
 		}
-		k := fixTargetDedupeKey(f.SourceFile, f.TargetFile, f.Locale, f.Key)
+		entryKey := f.Key
+		if packedToSource := sourceEntryKeysByPacked[filepath.Clean(f.SourceFile)]; packedToSource != nil {
+			if sourceKey, ok := packedToSource[f.Key]; ok {
+				entryKey = sourceKey
+			}
+		}
+		k := fixTargetDedupeKey(f.SourceFile, f.TargetFile, f.Locale, entryKey)
 		if _, ok := seen[k]; ok {
 			continue
 		}
@@ -746,7 +765,7 @@ func buildFixTargetsFromFindings(findings []checkFinding) []runsvc.FixTarget {
 			SourcePath:   f.SourceFile,
 			TargetPath:   f.TargetFile,
 			TargetLocale: f.Locale,
-			EntryKey:     f.Key,
+			EntryKey:     entryKey,
 		})
 	}
 	return out
@@ -871,32 +890,16 @@ func resolveEnabledChecks(includes, excludes []string) ([]string, error) {
 }
 
 func stripCheckPrefixID(id string, prefixIndex packPrefixIndex) string {
-	if originalID, ok := prefixIndex.originalIDs[id]; ok {
-		return originalID
-	}
-
-	for dot := strings.LastIndex(id, "."); dot > 0; dot = strings.LastIndex(id[:dot], ".") {
-		if dot == len(id)-1 {
-			continue
-		}
-		if _, ok := prefixIndex.prefixes[id[:dot]]; ok {
-			return id[dot+1:]
-		}
-	}
-	if stripped, ok := stripPackHyphenatedPrefixID(id); ok {
-		return stripped
-	}
-
-	return id
+	return stripPackPrefixID(id, prefixIndex)
 }
 
-func normalizeCheckSourceEntries(entries map[string]string, prefixIndex packPrefixIndex) (map[string]string, error) {
+func normalizeCheckSourceEntries(entries map[string]string, prefixIndex packPrefixIndex) (map[string]string, map[string]string, error) {
 	if len(entries) == 0 {
-		return entries, nil
+		return entries, nil, nil
 	}
 
 	out := make(map[string]string, len(entries))
-	sourceByPackedID := make(map[string]string, len(entries))
+	packedToSource := make(map[string]string, len(entries))
 	ids := make([]string, 0, len(entries))
 	for id := range entries {
 		ids = append(ids, id)
@@ -905,28 +908,40 @@ func normalizeCheckSourceEntries(entries map[string]string, prefixIndex packPref
 
 	for _, id := range ids {
 		packedID := stripCheckPrefixID(id, prefixIndex)
-		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
-			return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
+		if existingSourceID, ok := packedToSource[packedID]; ok {
+			return nil, nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
 		}
-		sourceByPackedID[packedID] = id
+		packedToSource[packedID] = id
 		out[packedID] = entries[id]
 	}
 
+	return out, packedToSource, nil
+}
+
+func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPrefixIndex) (map[string]struct{}, error) {
+	if len(changed) == 0 {
+		return changed, nil
+	}
+	out := make(map[string]struct{}, len(changed))
+	sourceByPackedID := make(map[string]string, len(changed))
+	keys := make([]string, 0, len(changed))
+	for key := range changed {
+		keys = append(keys, key)
+	}
+	slices.Sort(keys)
+
+	for _, key := range keys {
+		packedID := stripCheckPrefixID(key, prefixIndex)
+		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			return nil, packPrefixIDCollisionError(existingSourceID, key, packedID)
+		}
+		sourceByPackedID[packedID] = key
+		out[packedID] = struct{}{}
+	}
 	return out, nil
 }
 
-func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPrefixIndex) map[string]struct{} {
-	if len(changed) == 0 {
-		return changed
-	}
-	out := make(map[string]struct{}, len(changed))
-	for key := range changed {
-		out[stripCheckPrefixID(key, prefixIndex)] = struct{}{}
-	}
-	return out
-}
-
-func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID bool, prefixIndex packPrefixIndex) ([]checkFinding, error) {
+func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID bool, prefixIndex packPrefixIndex) (checkReport, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	resolver := checkLocationResolver{content: make(map[string][]byte)}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
@@ -935,18 +950,23 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 	}
 
 	var findings []checkFinding
+	sourceEntryKeysByPacked := make(map[string]map[string]string)
 	for _, sourceDesc := range index.sources {
 		if !selection.allowsSource(sourceDesc.sourcePath) {
 			continue
 		}
 		sourceEntries, err := readEntriesForStatus(parser, sourceDesc.sourcePath)
 		if err != nil {
-			return nil, err
+			return checkReport{}, err
 		}
 		if prefixID {
-			sourceEntries, err = normalizeCheckSourceEntries(sourceEntries, prefixIndex)
+			var packedToSource map[string]string
+			sourceEntries, packedToSource, err = normalizeCheckSourceEntries(sourceEntries, prefixIndex)
 			if err != nil {
-				return nil, err
+				return checkReport{}, err
+			}
+			if len(packedToSource) > 0 {
+				sourceEntryKeysByPacked[filepath.Clean(sourceDesc.sourcePath)] = packedToSource
 			}
 		}
 		for _, target := range sourceDesc.targets {
@@ -956,7 +976,7 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 
 			targetEntries, sourceContent, targetContent, targetExists, err := readCheckTargetEntries(parser, sourceDesc.sourcePath, target.targetPath, target.locale)
 			if err != nil {
-				return nil, err
+				return checkReport{}, err
 			}
 			if !targetExists {
 				if selection.shouldRunFileScopedChecks() {
@@ -985,7 +1005,10 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 		}
 	}
 
-	return findings, nil
+	return checkReport{
+		Findings:                findings,
+		sourceEntryKeysByPacked: sourceEntryKeysByPacked,
+	}, nil
 }
 
 func readCheckTargetEntries(parser *translationfileparser.Strategy, sourcePath, targetPath, locale string) (map[string]string, []byte, []byte, bool, error) {
