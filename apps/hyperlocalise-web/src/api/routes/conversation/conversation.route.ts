@@ -273,19 +273,22 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
             : new Error("failed to store uploaded file");
         }
 
-        const conversation = await createInteraction({
-          organizationId: orgId,
-          source: "chat_ui",
-          title: messageText.slice(0, 120),
-          projectId,
-        });
+        let conversation: Awaited<ReturnType<typeof createInteraction>> | undefined;
         let responseFiles = storedFiles;
         let message;
         try {
+          const createdConversation = await createInteraction({
+            organizationId: orgId,
+            source: "chat_ui",
+            title: messageText.slice(0, 120),
+            projectId,
+          });
+          conversation = createdConversation;
+
           if (storedFiles.length > 0) {
             await db
               .update(schema.storedFiles)
-              .set({ sourceInteractionId: conversation.id })
+              .set({ sourceInteractionId: createdConversation.id })
               .where(
                 inArray(
                   schema.storedFiles.id,
@@ -294,12 +297,12 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
               );
             responseFiles = storedFiles.map((file) => ({
               ...file,
-              sourceInteractionId: conversation.id,
+              sourceInteractionId: createdConversation.id,
             }));
           }
 
           message = await addInteractionMessage({
-            interactionId: conversation.id,
+            interactionId: createdConversation.id,
             senderType: "user",
             senderEmail: c.var.auth.user.email,
             text: messageText,
@@ -315,7 +318,11 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         } catch (error) {
           try {
             await cleanupStoredFiles(storedFiles, adapter);
-            await db.delete(schema.interactions).where(eq(schema.interactions.id, conversation.id));
+            if (conversation) {
+              await db
+                .delete(schema.interactions)
+                .where(eq(schema.interactions.id, conversation.id));
+            }
           } catch {
             // Best-effort cleanup; do not mask the original error.
           }

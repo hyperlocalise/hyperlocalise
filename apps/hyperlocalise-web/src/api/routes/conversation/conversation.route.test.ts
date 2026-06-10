@@ -18,12 +18,24 @@ const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
       null,
   ),
 }));
+const { createInteractionMock } = vi.hoisted(() => ({
+  createInteractionMock: vi.fn(),
+}));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("@/lib/conversations/interactions", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/conversations/interactions")>();
+  createInteractionMock.mockImplementation(actual.createInteraction);
+  return {
+    ...actual,
+    createInteraction: createInteractionMock,
   };
 });
 
@@ -169,6 +181,50 @@ describe("conversation creation", () => {
     expect(conversations).toHaveLength(0);
     expect(inboxItems).toHaveLength(0);
     expect(storedFiles).toHaveLength(0);
+  });
+
+  it("cleans up initial uploads when conversation creation fails", async () => {
+    const adapter = createMemoryFileStorageAdapter();
+    const deleteFile = vi.spyOn(adapter, "delete");
+    const failingApp = createApp({ fileStorageAdapter: adapter });
+    const identity = createWorkosIdentity();
+    const headers = await authHeadersFor(identity);
+    const formData = new FormData();
+    formData.set("text", "Translate the attached file");
+    formData.append(
+      "files",
+      new File([JSON.stringify({ hello: "Hello" })], "source.json", {
+        type: "application/json",
+      }),
+    );
+
+    createInteractionMock.mockRejectedValueOnce(new Error("database unavailable"));
+
+    const response = await failingApp.request(
+      `/api/orgs/${identity.organization.slug}/conversations`,
+      {
+        method: "POST",
+        headers,
+        body: formData,
+      },
+    );
+
+    expect(response.status).toBe(500);
+
+    const organizationId = globalThis.__testApiAuthContext?.activeOrganization.localOrganizationId;
+    if (!organizationId) {
+      throw new Error("Expected test auth context to include an active organization");
+    }
+    const storedFiles = await db
+      .select()
+      .from(schema.storedFiles)
+      .where(eq(schema.storedFiles.organizationId, organizationId));
+
+    expect(storedFiles).toHaveLength(0);
+    expect(deleteFile).toHaveBeenCalledOnce();
+    const deletedFile = deleteFile.mock.calls[0]?.[0];
+    expect(deletedFile?.keyOrUrl).toBeTruthy();
+    await expect(adapter.get({ keyOrUrl: deletedFile?.keyOrUrl ?? "" })).resolves.toBeNull();
   });
 
   it("rejects conversations linked to another organization's project", async () => {
