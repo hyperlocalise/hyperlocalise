@@ -20,6 +20,202 @@ import (
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/translationfileparser"
 )
 
+func TestCheckCommandPrefixIDAlignsSourceAndTargetKeys(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{
+  "src.components.app-header.title": "Dashboard",
+  "src.components.app-header.cta": "Create project"
+}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{
+  "title": "Tableau de bord",
+  "cta": "Créer un projet"
+}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--prefix-id"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command with --prefix-id: %v", err)
+	}
+	if !strings.Contains(out.String(), "No problems.") {
+		t.Fatalf("expected no-findings stylish output, got %q", out.String())
+	}
+}
+
+func TestCheckCommandWithoutPrefixIDReportsPrefixedSourceMismatch(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"src.components.app-header.title":"Dashboard"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"title":"Tableau de bord"}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--format", "json", "--no-fail"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check command without --prefix-id: %v", err)
+	}
+	var report checkReport
+	if err := json.Unmarshal(out.Bytes(), &report); err != nil {
+		t.Fatalf("parse json output: %v\noutput=%s", err, out.String())
+	}
+	assertFindingType(t, report.Findings, checkNotLocalized)
+	assertFindingType(t, report.Findings, checkOrphanedKey)
+}
+
+func TestCheckCommandPrefixIDDiffStdinStripsSourceKeys(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte("{\n  \"src.components.app-header.title\": \"Dashboard\",\n  \"src.components.app-header.cta\": \"Create project\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte("{\n  \"title\": \"\",\n  \"cta\": \"Créer un projet\"\n}\n"), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	report := executeCheckJSON(t, configPath, unifiedDiffForPath(sourcePath, `@@ -1,4 +1,4 @@
+ {
+-  "src.components.app-header.title": "Old",
++  "src.components.app-header.title": "Dashboard",
+   "src.components.app-header.cta": "Create project"
+ }
+`), "--diff-stdin", "--no-fail", "--prefix-id")
+
+	if len(report.Findings) != 1 {
+		t.Fatalf("expected 1 diff-scoped finding for stripped title key, got %+v", report.Findings)
+	}
+	if report.Findings[0].Key != "title" || report.Findings[0].Type != checkNotLocalized {
+		t.Fatalf("unexpected finding: %+v", report.Findings[0])
+	}
+}
+
+func TestNormalizeCheckSourceEntriesRejectsPrefixIDCollisions(t *testing.T) {
+	entries := map[string]string{
+		"src.foo.app-header.button.label": "Save settings",
+		"src.bar.app-header.button.label": "Start trial",
+	}
+	_, _, err := normalizeCheckSourceEntries(entries, packPrefixIndex{})
+	if err == nil {
+		t.Fatalf("expected prefix-id collision error")
+	}
+	assertPackPrefixIDCollisionError(t, err, "src.bar.app-header.button.label", "src.foo.app-header.button.label", "button.label")
+}
+
+func TestStripCheckPrefixIDMatchesPackFallback(t *testing.T) {
+	got := stripCheckPrefixID("button.label", packPrefixIndex{})
+	if got != "label" {
+		t.Fatalf("stripCheckPrefixID() = %q, want %q", got, "label")
+	}
+}
+
+func TestStripCheckPrefixIDStripsLastSegmentWithoutHyphenatedPrefix(t *testing.T) {
+	got := stripCheckPrefixID("src.components.appheader.title", packPrefixIndex{})
+	if got != "title" {
+		t.Fatalf("stripCheckPrefixID() = %q, want %q", got, "title")
+	}
+}
+
+func TestNormalizeCheckChangedKeysRejectsPrefixIDCollisions(t *testing.T) {
+	changed := map[string]struct{}{
+		"src.foo.app-header.button.label": {},
+		"src.bar.app-header.button.label": {},
+	}
+	_, err := normalizeCheckChangedKeys(changed, packPrefixIndex{})
+	if err == nil {
+		t.Fatalf("expected prefix-id collision error")
+	}
+	assertPackPrefixIDCollisionError(t, err, "src.bar.app-header.button.label", "src.foo.app-header.button.label", "button.label")
+}
+
+func TestCheckFixPrefixIDUsesOriginalSourceEntryKey(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "i18n.jsonc")
+	sourcePath := filepath.Join(dir, "content", "en", "strings.json")
+	targetPath := filepath.Join(dir, "dist", "fr", "strings.json")
+
+	if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+		t.Fatalf("create source dir: %v", err)
+	}
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("create target dir: %v", err)
+	}
+	if err := os.WriteFile(sourcePath, []byte(`{"src.components.app-header.title":"Hello"}`), 0o600); err != nil {
+		t.Fatalf("write source file: %v", err)
+	}
+	if err := os.WriteFile(targetPath, []byte(`{"title":""}`), 0o600); err != nil {
+		t.Fatalf("write target file: %v", err)
+	}
+	writeCheckConfig(t, configPath, sourcePath, targetPath, []string{"fr"})
+
+	orig := runCheckFixSvc
+	t.Cleanup(func() { runCheckFixSvc = orig })
+	var captured runsvc.Input
+	runCheckFixSvc = func(ctx context.Context, in runsvc.Input) (runsvc.Report, error) {
+		captured = in
+		return runsvc.Report{}, nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetErr(out)
+	cmd.SetArgs([]string{"check", "--config", configPath, "--prefix-id", "--fix", "--fix-dry-run", "--no-fail", "--format", "json"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("check --fix --prefix-id --fix-dry-run: %v", err)
+	}
+	if len(captured.FixTargets) != 1 {
+		t.Fatalf("expected 1 fix target, got %+v", captured.FixTargets)
+	}
+	if captured.FixTargets[0].EntryKey != "src.components.app-header.title" {
+		t.Fatalf("expected original source entry key, got %+v", captured.FixTargets[0])
+	}
+}
+
 func TestCheckCommandNoFindings(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "i18n.jsonc")
