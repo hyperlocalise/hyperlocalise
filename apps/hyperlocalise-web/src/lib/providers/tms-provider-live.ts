@@ -846,17 +846,22 @@ async function buildCrowdinLiveCatFile(input: {
     const approvalsPromise = client.listTranslationApprovals(projectId, input.targetLocale, {
       fileId,
     });
-    for (let index = 0; index < sourceStringIds.length; index += 25) {
-      const chunk = sourceStringIds.slice(index, index + 25);
-      const translations = await client.listLanguageTranslations(projectId, input.targetLocale, {
-        stringIds: chunk,
-      });
+    try {
+      for (let index = 0; index < sourceStringIds.length; index += 25) {
+        const chunk = sourceStringIds.slice(index, index + 25);
+        const translations = await client.listLanguageTranslations(projectId, input.targetLocale, {
+          stringIds: chunk,
+        });
 
-      for (const translation of translations) {
-        const existing = translationsByStringId.get(translation.stringId) ?? [];
-        existing.push(translation);
-        translationsByStringId.set(translation.stringId, existing);
+        for (const translation of translations) {
+          const existing = translationsByStringId.get(translation.stringId) ?? [];
+          existing.push(translation);
+          translationsByStringId.set(translation.stringId, existing);
+        }
       }
+    } catch (loopError) {
+      await approvalsPromise.catch(() => undefined);
+      throw loopError;
     }
 
     const approvals = await approvalsPromise;
