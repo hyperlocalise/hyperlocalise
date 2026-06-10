@@ -777,18 +777,32 @@ async function downloadCrowdinSourceStringPreview(input: {
   };
 }
 
-function latestLanguageTranslation(
+function sortTranslationsByNewest(
   translations: CrowdinLanguageTranslation[],
+): CrowdinLanguageTranslation[] {
+  return translations.toSorted((a, b) => {
+    const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
+function preferredLanguageTranslation(
+  translations: CrowdinLanguageTranslation[],
+  approvedTranslationIds: ReadonlySet<number>,
 ): CrowdinLanguageTranslation | null {
-  return (
-    translations
-      .filter((translation) => translation.text != null)
-      .toSorted((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-        return bTime - aTime;
-      })[0] ?? null
+  const withText = translations.filter((translation) => translation.text != null);
+  const approved = sortTranslationsByNewest(
+    withText.filter(
+      (translation) =>
+        translation.translationId != null && approvedTranslationIds.has(translation.translationId),
+    ),
   );
+  if (approved.length > 0) {
+    return approved[0];
+  }
+
+  return sortTranslationsByNewest(withText)[0] ?? null;
 }
 
 function relevantCrowdinCatComments(input: {
@@ -890,7 +904,10 @@ async function buildCrowdinLiveCatFile(input: {
       canEditTranslations: input.canEditTranslations,
       truncated: strings.length > maxLiveProviderStringPreviewItems,
       segments: visibleStrings.map((sourceString) => {
-        const target = latestLanguageTranslation(translationsByStringId.get(sourceString.id) ?? []);
+        const target = preferredLanguageTranslation(
+          translationsByStringId.get(sourceString.id) ?? [],
+          approvedTranslationIds,
+        );
         return {
           externalStringId: String(sourceString.id),
           key: sourceString.identifier,
@@ -950,11 +967,17 @@ async function saveCrowdinLiveCatTranslation(input: {
   });
 
   try {
-    const existing = latestLanguageTranslation(
-      await client.listLanguageTranslations(projectId, input.targetLocale, {
+    const fileId = Number(input.file.provider?.externalResourceId);
+    const [translations, approvals] = await Promise.all([
+      client.listLanguageTranslations(projectId, input.targetLocale, {
         stringIds: [stringId],
       }),
-    );
+      Number.isNaN(fileId)
+        ? client.listTranslationApprovals(projectId, input.targetLocale, { stringId })
+        : client.listTranslationApprovals(projectId, input.targetLocale, { fileId }),
+    ]);
+    const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
+    const existing = preferredLanguageTranslation(translations, approvedTranslationIds);
     const saved =
       existing?.translationId != null
         ? await client.updateTranslation(projectId, existing.translationId, input.text)
@@ -968,7 +991,7 @@ async function saveCrowdinLiveCatTranslation(input: {
     return {
       text: saved.text,
       externalTranslationId: translationId != null ? String(translationId) : null,
-      isApproved: false,
+      isApproved: translationId != null && approvedTranslationIds.has(translationId),
     };
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
