@@ -43,6 +43,7 @@ export function CatEditorPanel({
   onTargetChange,
   onUseAiSuggestion,
   onApprove,
+  primaryActionLabel = "Approve",
   onAskQuestion,
   onPrevious,
   onNext,
@@ -58,6 +59,7 @@ export function CatEditorPanel({
   onTargetChange: (value: string) => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
+  primaryActionLabel?: string;
   onAskQuestion: () => void;
   onPrevious: () => void;
   onNext: () => void;
@@ -221,7 +223,7 @@ export function CatEditorPanel({
               onClick={onApprove}
               disabled={isBusy}
             >
-              Approve
+              {primaryActionLabel}
               <ShortcutKbd keys={["⌘", "↵"]} className="bg-white/15 text-white" />
             </Button>
             <Button variant="outline" onClick={onAskQuestion} disabled={isBusy}>

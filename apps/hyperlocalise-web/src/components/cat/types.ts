@@ -82,4 +82,5 @@ export interface CatWorkspaceState {
   intelligence: CatSegmentIntelligence;
   jobTitle?: string;
   breadcrumbs?: string[];
+  primaryActionLabel?: string;
 }
