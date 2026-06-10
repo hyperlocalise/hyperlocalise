@@ -158,7 +158,7 @@ function segmentIntelligenceFor(
     productMeaning:
       context ||
       (comments > 0
-        ? `${comments} Crowdin comment${comments === 1 ? "" : "s"} are attached to this string, including ${issues} issue${issues === 1 ? "" : "s"}.`
+        ? `${comments} Crowdin comment${comments === 1 ? "" : "s"} ${comments === 1 ? "is" : "are"} attached to this string, including ${issues} issue${issues === 1 ? "" : "s"}.`
         : "Crowdin did not return context, comments, or issues for this string."),
     reviewerPreference: catFile.canEditTranslations
       ? "Approve writes the current target text back to Crowdin."

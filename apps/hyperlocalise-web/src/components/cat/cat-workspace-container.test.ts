@@ -95,6 +95,65 @@ describe("mergeCatWorkspaceState", () => {
       id: "edited-check",
     });
   });
+
+  it("preserves save failure checks for unedited segments across server refreshes", () => {
+    const previousInitialState = createCatWorkspaceState({
+      selectedSegmentId: "seg-02",
+      segments: [
+        {
+          id: "seg-02",
+          index: 2,
+          key: "second",
+          sourceText: "Second",
+          targetText: "Old second",
+          sourceLocale: "en-US",
+          targetLocale: "vi",
+          status: "pending",
+        },
+      ],
+    });
+    const saveFailureCheck = {
+      id: "save-failed-seg-02",
+      label: "Save failed",
+      status: "fail" as const,
+      message: "Provider rejected the update.",
+      category: "qa" as const,
+    };
+    const currentState = {
+      ...previousInitialState,
+      formatChecks: [saveFailureCheck],
+      segmentFormatChecks: {
+        "seg-02": [saveFailureCheck],
+      },
+    };
+    const nextInitialState = createCatWorkspaceState({
+      selectedSegmentId: "seg-02",
+      segments: [
+        {
+          id: "seg-02",
+          index: 2,
+          key: "second",
+          sourceText: "Second",
+          targetText: "Old second",
+          sourceLocale: "en-US",
+          targetLocale: "vi",
+          status: "pending",
+        },
+      ],
+      segmentFormatChecks: {
+        "seg-02": [],
+      },
+    });
+
+    const merged = mergeCatWorkspaceState(previousInitialState, currentState, nextInitialState);
+
+    expect(merged.segmentFormatChecks?.["seg-02"]).toContainEqual(
+      expect.objectContaining({
+        id: "save-failed-seg-02",
+        message: "Provider rejected the update.",
+      }),
+    );
+  });
 });
 
 describe("addSaveFailureFormatCheck", () => {

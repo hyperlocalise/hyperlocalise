@@ -67,6 +67,10 @@ function withoutSaveFailureChecks(checks: CatFormatCheck[]) {
   return checks.filter((check) => !check.id.startsWith("save-failed-"));
 }
 
+function hasSaveFailureCheck(checks: CatFormatCheck[]) {
+  return checks.some((check) => check.id.startsWith("save-failed-"));
+}
+
 export function addSaveFailureFormatCheck(
   state: CatWorkspaceState,
   segmentId: string,
@@ -132,7 +136,8 @@ export function mergeCatWorkspaceState(
       previousSegment &&
       currentSegment &&
       currentChecks &&
-      currentSegment.targetText !== previousSegment.targetText
+      (currentSegment.targetText !== previousSegment.targetText ||
+        hasSaveFailureCheck(currentChecks))
     ) {
       segmentFormatChecks[segment.id] = currentChecks;
     }
