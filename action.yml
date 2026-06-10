@@ -36,6 +36,9 @@ inputs:
   github-diff:
     description: "For check mode, fetch the GitHub pull request diff and pass it to hyperlocalise check --diff-stdin so only changed translation keys are checked."
     default: "false"
+  prefix-id:
+    description: "For check mode, pass --prefix-id so source keys stripped by extract/pack --prefix-id are compared against packed target ids."
+    default: "false"
   summary-format:
     description: "Control the GitHub job summary verbosity. Supported values: 'compact' and 'detailed'."
     default: compact
@@ -77,6 +80,7 @@ runs:
       env:
         CHECK: ${{ inputs.check }}
         GITHUB_DIFF: ${{ inputs.github-diff }}
+        PREFIX_ID: ${{ inputs.prefix-id }}
         PR_NUMBER: ${{ github.event.pull_request.number }}
         SEVERITY_THRESHOLD: ${{ inputs.severity-threshold }}
       run: |
@@ -102,6 +106,15 @@ runs:
         if [[ "${SEVERITY_THRESHOLD}" != "warning" && "${SEVERITY_THRESHOLD}" != "error" ]]; then
           echo "Unsupported severity threshold: ${SEVERITY_THRESHOLD}" >&2
           echo "Supported values are 'warning' and 'error'." >&2
+          exit 1
+        fi
+        if [[ "${PREFIX_ID}" != "true" && "${PREFIX_ID}" != "false" ]]; then
+          echo "Unsupported prefix-id value: ${PREFIX_ID}" >&2
+          echo "Supported values are 'true' and 'false'." >&2
+          exit 1
+        fi
+        if [[ "${PREFIX_ID}" == "true" && "${CHECK}" != "check" ]]; then
+          echo "prefix-id is only supported when check is 'check'." >&2
           exit 1
         fi
 
@@ -163,6 +176,7 @@ runs:
         CONFIG_PATH: ${{ inputs.config-path }}
         GITHUB_DIFF: ${{ inputs.github-diff }}
         GITHUB_DIFF_PATH: ${{ steps.prepare.outputs.github-diff-path }}
+        PREFIX_ID: ${{ inputs.prefix-id }}
         WORKING_DIRECTORY: ${{ inputs.working-directory }}
         REPORT_PATH: ${{ steps.prepare.outputs.report-path }}
       run: |
@@ -175,6 +189,9 @@ runs:
           args=(check --no-fail --json-report "${REPORT_PATH}")
           if [[ "${GITHUB_DIFF}" == "true" ]]; then
             args+=(--diff-stdin)
+          fi
+          if [[ "${PREFIX_ID}" == "true" ]]; then
+            args+=(--prefix-id)
           fi
         fi
         if [[ -n "${CONFIG_PATH}" ]]; then

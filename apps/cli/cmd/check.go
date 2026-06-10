@@ -74,6 +74,7 @@ type checkOptions struct {
 	bucket        string
 	file          string
 	key           string
+	prefixID      bool
 	diffStdin     bool
 	diffContent   []byte
 	checks        []string
@@ -292,6 +293,7 @@ func newCheckLikeCmd(use, short string, fixDefault bool) *cobra.Command {
 	cmd.Flags().StringVar(&o.bucket, "bucket", "", "filter by bucket name")
 	cmd.Flags().StringVar(&o.file, "file", "", "filter by source file path")
 	cmd.Flags().StringVar(&o.key, "key", "", "filter by translation key")
+	cmd.Flags().BoolVar(&o.prefixID, "prefix-id", false, "strip extract --prefix-id filename prefixes from source keys before comparing with targets (same rules as pack --prefix-id)")
 	cmd.Flags().BoolVar(&o.diffStdin, "diff-stdin", false, "read a unified diff from stdin and validate changed keys only for supported key-value files")
 	cmd.Flags().StringSliceVar(&o.checks, "check", nil, "check(s) to run")
 	cmd.Flags().StringSliceVar(&o.excludeChecks, "exclude-check", nil, "default check(s) to skip")
@@ -390,12 +392,17 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 		return checkReport{}, err
 	}
 
-	selection, err := buildCheckSelection(index, o.file, o.key)
+	var prefixIndex packPrefixIndex
+	if o.prefixID {
+		prefixIndex = collectPackPrefixIndex()
+	}
+
+	selection, err := buildCheckSelection(index, o.file, o.key, o.prefixID, prefixIndex)
 	if err != nil {
 		return checkReport{}, err
 	}
 	if o.diffStdin {
-		selection, err = buildCheckSelectionFromDiff(index, o.diffContent, o.key)
+		selection, err = buildCheckSelectionFromDiff(index, o.diffContent, o.key, o.prefixID, prefixIndex)
 		if err != nil {
 			return checkReport{}, err
 		}
@@ -403,7 +410,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	}
 
 	_, collectSpan := tr.Start(ctx, "check.collect_findings")
-	findings, err := collectCheckFindings(index, enabledChecks, selection)
+	findings, err := collectCheckFindings(index, enabledChecks, selection, o.prefixID, prefixIndex)
 	if err != nil {
 		collectSpan.SetStatus(codes.Error, "collect_findings")
 		collectSpan.End()
@@ -463,11 +470,14 @@ func buildCheckConfigIndex(cfg *config.I18NConfig, buckets, locales []string) (*
 	return index, nil
 }
 
-func buildCheckSelection(index *checkConfigIndex, sourceFileFilter, keyFilter string) (checkSelection, error) {
+func buildCheckSelection(index *checkConfigIndex, sourceFileFilter, keyFilter string, prefixID bool, prefixIndex packPrefixIndex) (checkSelection, error) {
 	selection := checkSelection{}
 
 	trimmedKey := strings.TrimSpace(keyFilter)
 	if trimmedKey != "" {
+		if prefixID {
+			trimmedKey = stripCheckPrefixID(trimmedKey, prefixIndex)
+		}
 		selection.globalKeys = map[string]struct{}{trimmedKey: {}}
 	}
 
@@ -490,7 +500,7 @@ func buildCheckSelection(index *checkConfigIndex, sourceFileFilter, keyFilter st
 	return selection, nil
 }
 
-func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, keyFilter string) (checkSelection, error) {
+func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, keyFilter string, prefixID bool, prefixIndex packPrefixIndex) (checkSelection, error) {
 	changedFiles, err := parseUnifiedDiffChangedFiles(diffContent)
 	if err != nil {
 		return checkSelection{}, err
@@ -501,12 +511,21 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 		diffMode: true,
 	}
 	filterKey := strings.TrimSpace(keyFilter)
+	if prefixID && filterKey != "" {
+		filterKey = stripCheckPrefixID(filterKey, prefixIndex)
+	}
 
 	for _, changed := range changedFiles {
 		changedPath := filepath.Clean(changed.path)
+		changedKeys := changed.keys
+		if prefixID {
+			if _, isSource := index.sourceByPath[changedPath]; isSource {
+				changedKeys = normalizeCheckChangedKeys(changed.keys, prefixIndex)
+			}
+		}
 		if sourceDesc, ok := index.sourceByPath[changedPath]; ok {
 			scope := selection.bySource[filepath.Clean(sourceDesc.sourcePath)]
-			scope.keys = intersectChangedKeys(scope.keys, changed.keys, filterKey)
+			scope.keys = intersectChangedKeys(scope.keys, changedKeys, filterKey)
 			scope.sourceInDiff = true
 			scope.locales = nil
 			selection.bySource[filepath.Clean(sourceDesc.sourcePath)] = scope
@@ -517,7 +536,7 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 			continue
 		}
 		scope := selection.bySource[filepath.Clean(targetLookup.sourcePath)]
-		scope.keys = intersectChangedKeys(scope.keys, changed.keys, filterKey)
+		scope.keys = intersectChangedKeys(scope.keys, changedKeys, filterKey)
 		if !scope.sourceInDiff {
 			if scope.locales == nil {
 				scope.locales = make(map[string]struct{})
@@ -851,7 +870,63 @@ func resolveEnabledChecks(includes, excludes []string) ([]string, error) {
 	return enabled, nil
 }
 
-func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selection checkSelection) ([]checkFinding, error) {
+func stripCheckPrefixID(id string, prefixIndex packPrefixIndex) string {
+	if originalID, ok := prefixIndex.originalIDs[id]; ok {
+		return originalID
+	}
+
+	for dot := strings.LastIndex(id, "."); dot > 0; dot = strings.LastIndex(id[:dot], ".") {
+		if dot == len(id)-1 {
+			continue
+		}
+		if _, ok := prefixIndex.prefixes[id[:dot]]; ok {
+			return id[dot+1:]
+		}
+	}
+	if stripped, ok := stripPackHyphenatedPrefixID(id); ok {
+		return stripped
+	}
+
+	return id
+}
+
+func normalizeCheckSourceEntries(entries map[string]string, prefixIndex packPrefixIndex) (map[string]string, error) {
+	if len(entries) == 0 {
+		return entries, nil
+	}
+
+	out := make(map[string]string, len(entries))
+	sourceByPackedID := make(map[string]string, len(entries))
+	ids := make([]string, 0, len(entries))
+	for id := range entries {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+
+	for _, id := range ids {
+		packedID := stripCheckPrefixID(id, prefixIndex)
+		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			return nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
+		}
+		sourceByPackedID[packedID] = id
+		out[packedID] = entries[id]
+	}
+
+	return out, nil
+}
+
+func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPrefixIndex) map[string]struct{} {
+	if len(changed) == 0 {
+		return changed
+	}
+	out := make(map[string]struct{}, len(changed))
+	for key := range changed {
+		out[stripCheckPrefixID(key, prefixIndex)] = struct{}{}
+	}
+	return out
+}
+
+func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID bool, prefixIndex packPrefixIndex) ([]checkFinding, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	resolver := checkLocationResolver{content: make(map[string][]byte)}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
@@ -867,6 +942,12 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 		sourceEntries, err := readEntriesForStatus(parser, sourceDesc.sourcePath)
 		if err != nil {
 			return nil, err
+		}
+		if prefixID {
+			sourceEntries, err = normalizeCheckSourceEntries(sourceEntries, prefixIndex)
+			if err != nil {
+				return nil, err
+			}
 		}
 		for _, target := range sourceDesc.targets {
 			if !selection.allowsLocale(sourceDesc.sourcePath, target.locale) {
