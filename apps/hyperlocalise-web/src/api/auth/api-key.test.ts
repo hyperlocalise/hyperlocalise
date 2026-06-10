@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createApp } from "@/api/app";
 import { revokeOrganizationMembershipAccess } from "@/api/auth/workos-sync";
@@ -14,15 +14,50 @@ import {
 import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
 import { db, schema } from "@/lib/database";
 
+const { reconcileWorkosMembershipsForUserMock } = vi.hoisted(() => ({
+  reconcileWorkosMembershipsForUserMock: vi.fn(),
+}));
+
+vi.mock("@/api/auth/workos-membership-reconcile", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-membership-reconcile")>();
+
+  return {
+    ...actual,
+    reconcileWorkosMembershipsForUser: reconcileWorkosMembershipsForUserMock,
+  };
+});
+
 const client = testClient(createApp());
 
 beforeAll(async () => {
   await db.$client.query("select 1");
 });
 
+beforeEach(() => {
+  reconcileWorkosMembershipsForUserMock.mockResolvedValue({ status: "skipped" });
+});
+
 afterEach(async () => {
+  reconcileWorkosMembershipsForUserMock.mockReset();
   await cleanupPublicApiFixture();
 });
+
+function createStringJob(apiKey: string, projectId: string) {
+  return client.api.v1.jobs.$post(
+    {
+      json: {
+        type: "string",
+        projectId,
+        stringInput: {
+          sourceText: "Hello",
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+    },
+    { headers: { "x-api-key": apiKey } },
+  );
+}
 
 describe("apiKeyAuthMiddleware", () => {
   it("rejects API keys for archived workspaces", async () => {
@@ -90,6 +125,43 @@ describe("apiKeyAuthMiddleware", () => {
     expect(response.status).toBe(403);
     const body = (await response.json()) as { error: string };
     expect(body.error).toBe("forbidden");
+  });
+
+  it("fails closed when WorkOS membership lookup fails without a fresh reconcile timestamp", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    reconcileWorkosMembershipsForUserMock.mockResolvedValueOnce({
+      status: "lookup_failed",
+      lastReconciledAt: null,
+    });
+
+    const response = await createStringJob(apiKey, project.id);
+
+    expect(response.status).toBe(403);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("forbidden");
+    expect(reconcileWorkosMembershipsForUserMock).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        workosOrganizationId: expect.any(String),
+      }),
+    );
+  });
+
+  it("allows API keys when WorkOS lookup fails but the reconcile timestamp is fresh", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    reconcileWorkosMembershipsForUserMock.mockResolvedValueOnce({
+      status: "lookup_failed",
+      lastReconciledAt: new Date(),
+    });
+
+    const response = await createStringJob(apiKey, project.id);
+
+    expect(response.status).toBe(201);
+    const body = (await response.json()) as { job: { projectId: string; status: string } };
+    expect(body.job).toMatchObject({
+      projectId: project.id,
+      status: "queued",
+    });
   });
 
   it("rejects API keys when the creator lacks an authoritative WorkOS membership", async () => {
