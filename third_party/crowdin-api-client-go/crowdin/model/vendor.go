@@ -18,5 +18,6 @@ type VendorResponse struct {
 // VendorsListResponse defines the structure of the response when
 // getting a list of vendors.
 type VendorsListResponse struct {
-	Data []*VendorResponse `json:"data"`
+	Data       []*VendorResponse `json:"data"`
+	Pagination *Pagination       `json:"pagination"`
 }

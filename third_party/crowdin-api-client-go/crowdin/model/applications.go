@@ -80,7 +80,8 @@ type InstallationResponse struct {
 // InstallationsListResponse defines the structure of the response
 // when getting a list of installations.
 type InstallationsListResponse struct {
-	Data []*InstallationResponse `json:"data"`
+	Data       []*InstallationResponse `json:"data"`
+	Pagination *Pagination             `json:"pagination"`
 }
 
 // InstallApplicationRequest defines the structure of the request

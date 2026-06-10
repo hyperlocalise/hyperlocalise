@@ -401,7 +401,8 @@ type ProjectsFileFormatSettingsResponse struct {
 // ProjectsFileFormatSettingsListResponse defines the structure of a response when
 // getting a list of project file format settings.
 type ProjectsFileFormatSettingsListResponse struct {
-	Data []*ProjectsFileFormatSettingsResponse `json:"data"`
+	Data       []*ProjectsFileFormatSettingsResponse `json:"data"`
+	Pagination *Pagination                           `json:"pagination"`
 }
 
 type FileFormatSettings interface {
@@ -633,7 +634,8 @@ type ProjectsStringsExporterSettingsResponse struct {
 // ProjectsStringsExporterSettingsListResponse defines the structure of a response when
 // getting a list of project strings exporter settings.
 type ProjectsStringsExporterSettingsListResponse struct {
-	Data []*ProjectsStringsExporterSettingsResponse `json:"data"`
+	Data       []*ProjectsStringsExporterSettingsResponse `json:"data"`
+	Pagination *Pagination                                `json:"pagination"`
 }
 
 // ProjectsStringsExporterSettingsRequest defines the structure of a request

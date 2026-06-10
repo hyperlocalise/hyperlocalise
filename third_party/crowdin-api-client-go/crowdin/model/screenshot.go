@@ -33,7 +33,8 @@ type ScreenshotResponse struct {
 // ScreenshotListResponse defines the structure of a response
 // to list screenshots.
 type ScreenshotListResponse struct {
-	Data []*ScreenshotResponse `json:"data"`
+	Data       []*ScreenshotResponse `json:"data"`
+	Pagination *Pagination           `json:"pagination"`
 }
 
 // Tag represents a tag on a screenshot.
@@ -60,7 +61,8 @@ type TagResponse struct {
 
 // TagListResponse defines the structure of a response to list tags.
 type TagListResponse struct {
-	Data []*TagResponse `json:"data"`
+	Data       []*TagResponse `json:"data"`
+	Pagination *Pagination    `json:"pagination"`
 }
 
 // ScreenshotListOptions specifies the optional parameters

@@ -43,7 +43,8 @@ type ConceptResponse struct {
 // ConceptsListResponse defines the structure of a response when
 // getting a list of concepts.
 type ConceptsListResponse struct {
-	Data []*ConceptResponse `json:"data"`
+	Data       []*ConceptResponse `json:"data"`
+	Pagination *Pagination        `json:"pagination"`
 }
 
 // ConceptsListOptions specifies the optional parameters to the
@@ -139,7 +140,8 @@ type GlossaryResponse struct {
 // GlossariesListResponse defines the structure of a response when
 // getting a list of glossaries.
 type GlossariesListResponse struct {
-	Data []*GlossaryResponse `json:"data"`
+	Data       []*GlossaryResponse `json:"data"`
+	Pagination *Pagination         `json:"pagination"`
 }
 
 // GlossariesListOptions specifies the optional parameters to the
@@ -414,7 +416,8 @@ type TermResponse struct {
 // TermsListResponse defines the structure of a response when
 // getting a list of terms.
 type TermsListResponse struct {
-	Data []*TermResponse `json:"data"`
+	Data       []*TermResponse `json:"data"`
+	Pagination *Pagination     `json:"pagination"`
 }
 
 // TermsListOptions specifies the optional parameters to the

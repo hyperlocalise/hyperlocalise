@@ -26,7 +26,8 @@ type ApprovalsGetResponse struct {
 // ApprovalsListResponse defines the structure of the response when
 // getting a list of translation approvals.
 type ApprovalsListResponse struct {
-	Data []*ApprovalsGetResponse `json:"data"`
+	Data       []*ApprovalsGetResponse `json:"data"`
+	Pagination *Pagination             `json:"pagination"`
 }
 
 // ApprovalsListOptions specifies the optional parameters to the
@@ -176,6 +177,7 @@ type LanguageTranslationsListResponse struct {
 	Data []struct {
 		Data *LanguageTranslation `json:"data"`
 	} `json:"data"`
+	Pagination *Pagination `json:"pagination"`
 }
 
 // LanguageTranslationsListOptions specifies the optional parameters to the
@@ -270,7 +272,8 @@ type TranslationGetResponse struct {
 // TranslationsListResponse defines the structure of the response when
 // getting a list of translations.
 type TranslationsListResponse struct {
-	Data []*TranslationGetResponse `json:"data"`
+	Data       []*TranslationGetResponse `json:"data"`
+	Pagination *Pagination               `json:"pagination"`
 }
 
 // TranslationGetOptions specifies the optional parameters to the
@@ -397,7 +400,8 @@ type VoteGetResponse struct {
 // VotesListResponse defines the structure of the response when
 // getting a list of translation votes.
 type VotesListResponse struct {
-	Data []*VoteGetResponse `json:"data"`
+	Data       []*VoteGetResponse `json:"data"`
+	Pagination *Pagination        `json:"pagination"`
 }
 
 // VotesListOptions specifies the optional parameters to the

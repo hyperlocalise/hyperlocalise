@@ -53,7 +53,8 @@ type StringCommentsResponse struct {
 // StringCommentsListResponse defines the structure of the response when
 // getting a list of string comments.
 type StringCommentsListResponse struct {
-	Data []*StringCommentsResponse `json:"data"`
+	Data       []*StringCommentsResponse `json:"data"`
+	Pagination *Pagination               `json:"pagination"`
 }
 
 // StringCommentsListOptions specifies the optional parameters to the
