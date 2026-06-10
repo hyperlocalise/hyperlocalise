@@ -12,10 +12,15 @@ import type { FileStorageAdapter } from "@/lib/file-storage";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createStoredFile } from "@/lib/file-storage/records";
 import { getOwnedProject } from "@/api/routes/project/project.shared";
-import { addInteractionMessage } from "@/lib/conversations/interactions";
+import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { createChatStreamRoutes } from "./chat-stream.route";
-import { conversationIdParamsSchema, listConversationsQuerySchema } from "./conversation.schema";
+import {
+  conversationIdParamsSchema,
+  createConversationRequestSchema,
+  listConversationsQuerySchema,
+} from "./conversation.schema";
 
 const maxMessageUploadBytes = 25 * 1024 * 1024;
 const maxMessageUploadFiles = 5;
@@ -26,6 +31,10 @@ function notFoundResponse(c: { json(body: { error: string }, status: 404): Respo
 
 function badRequestResponse(c: { json(body: { error: string }, status: 400): Response }) {
   return c.json({ error: "invalid_message_payload" }, 400);
+}
+
+function invalidConversationResponse(c: { json(body: { error: string }, status: 400): Response }) {
+  return c.json({ error: "invalid_conversation_payload" }, 400);
 }
 
 async function cleanupStoredFiles(
@@ -51,6 +60,15 @@ function tooManyFilesResponse(c: {
   json(body: { error: string; maxFiles: number }, status: 400): Response;
 }) {
   return c.json({ error: "too_many_files", maxFiles: maxMessageUploadFiles }, 400);
+}
+
+function unsupportedTranslationSourceFileResponse(
+  c: {
+    json(body: { error: string; filename: string }, status: 400): Response;
+  },
+  filename: string,
+) {
+  return c.json({ error: "unsupported_translation_source_file", filename }, 400);
 }
 
 const validateConversationParams = validator("param", (value, c) => {
@@ -184,6 +202,116 @@ export function createConversationRoutes(options: CreateConversationRoutesOption
         200,
       );
     })
+    .post(
+      "/",
+      bodyLimit({
+        maxSize: maxMessageUploadBytes,
+        onError: (c) => c.json({ error: "upload_too_large" }, 413),
+      }),
+      async (c) => {
+        const body = await c.req.parseBody({ all: true });
+        const parsed = createConversationRequestSchema.safeParse({
+          text: asString(body.text),
+          projectId: asString(body.projectId),
+        });
+
+        if (!parsed.success) {
+          return invalidConversationResponse(c);
+        }
+
+        const files = asFiles(body.files);
+        if (!parsed.data.text && files.length === 0) {
+          return invalidConversationResponse(c);
+        }
+        const messageText = parsed.data.text || "Please translate the attached source file.";
+
+        if (files.length > maxMessageUploadFiles) {
+          return tooManyFilesResponse(c);
+        }
+
+        for (const file of files) {
+          if (!inferSupportedFileTranslationFileFormat(file.name)) {
+            return unsupportedTranslationSourceFileResponse(c, file.name);
+          }
+        }
+
+        const projectId = parsed.data.projectId
+          ? normalizeProjectId(parsed.data.projectId)
+          : undefined;
+
+        if (projectId) {
+          const project = await getOwnedProject(c.var.auth, projectId);
+          if (!project) {
+            return c.json({ error: "project_not_found" }, 400);
+          }
+        }
+
+        const orgId = c.var.auth.activeOrganization.localOrganizationId;
+        const conversation = await createInteraction({
+          organizationId: orgId,
+          source: "chat_ui",
+          title: messageText.slice(0, 120),
+          projectId,
+        });
+        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+        const organizationSlug = c.var.auth.activeOrganization.slug ?? "";
+
+        const uploadResults = await Promise.allSettled(
+          files.map(async (file) =>
+            createStoredFile({
+              organizationId: orgId,
+              projectId,
+              createdByUserId: c.var.auth.user.localUserId,
+              role: "source",
+              sourceKind: "chat_upload",
+              sourceInteractionId: conversation.id,
+              filename: file.name,
+              contentType: file.type || "application/octet-stream",
+              content: await file.arrayBuffer(),
+              metadata: {
+                uploadSurface: "chat",
+                translationSource: true,
+              },
+              adapter,
+            }),
+          ),
+        );
+        const storedFiles = uploadResults
+          .filter((result) => result.status === "fulfilled")
+          .map((result) => result.value);
+        const failedUpload = uploadResults.find((result) => result.status === "rejected");
+
+        if (failedUpload) {
+          await cleanupStoredFiles(storedFiles, adapter);
+          throw failedUpload.reason instanceof Error
+            ? failedUpload.reason
+            : new Error("failed to store uploaded file");
+        }
+
+        let message;
+        try {
+          message = await addInteractionMessage({
+            interactionId: conversation.id,
+            senderType: "user",
+            senderEmail: c.var.auth.user.email,
+            text: messageText,
+            attachments: storedFiles.map((file) => ({
+              id: file.id,
+              filename: file.filename,
+              contentType: file.contentType,
+              url: organizationSlug
+                ? `/api/orgs/${organizationSlug}/files/${file.id}`
+                : (file.downloadUrl ?? file.storageUrl),
+            })),
+          });
+        } catch (error) {
+          await cleanupStoredFiles(storedFiles, adapter);
+          throw error;
+        }
+
+        return c.json({ conversation, message, files: storedFiles }, 201);
+      },
+    )
     .get("/:conversationId", validateConversationParams, async (c) => {
       const { conversationId } = c.req.valid("param");
 

@@ -117,35 +117,24 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
     projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
   const projectTriggerLabel = selectedProject?.name ?? "Project";
 
-  const chatRequestMutation = useMutation({
+  const createConversationMutation = useMutation({
     mutationFn: async () => {
-      if (files.length > 0) {
-        const formData = new FormData();
-        formData.set("text", text.trim() || "Please translate the attached source file.");
-        if (selectedProject?.id) {
-          formData.set("projectId", selectedProject.id);
-        }
-        for (const file of files) {
-          formData.append("files", file);
-        }
-
-        const response = await fetch(`/api/orgs/${organizationSlug}/chat-requests/upload`, {
-          method: "POST",
-          body: formData,
-        });
-        if (!response.ok) {
-          throw new Error(`Failed to send request (${response.status})`);
-        }
-        return response.json() as Promise<{ conversation: { id: string } }>;
+      const formData = new FormData();
+      formData.set("text", text.trim() || "Please translate the attached source file.");
+      if (selectedProject?.id) {
+        formData.set("projectId", selectedProject.id);
+      }
+      for (const file of files) {
+        formData.append("files", file);
       }
 
-      const response = await apiClient.api.orgs[":organizationSlug"]["chat-requests"].$post({
-        param: { organizationSlug },
-        json: {
-          text,
-          projectId: selectedProject?.id,
+      const response = await fetch(
+        `/api/orgs/${encodeURIComponent(organizationSlug)}/conversations`,
+        {
+          method: "POST",
+          body: formData,
         },
-      });
+      );
       if (!response.ok) {
         throw new Error(`Failed to send request (${response.status})`);
       }
@@ -155,7 +144,8 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
       router.push(`/org/${organizationSlug}/inbox/${data.conversation.id}`);
     },
   });
-  const canSubmit = Boolean(text.trim() || files.length > 0) && !chatRequestMutation.isPending;
+  const canSubmit =
+    Boolean(text.trim() || files.length > 0) && !createConversationMutation.isPending;
 
   return (
     <main className="mx-auto flex min-h-[calc(100svh-7rem)] w-full max-w-6xl flex-col items-center justify-center px-4 py-8 sm:px-6">
@@ -170,7 +160,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
           onSubmit={(e) => {
             e.preventDefault();
             if (canSubmit) {
-              chatRequestMutation.mutate();
+              createConversationMutation.mutate();
             }
           }}
           className="overflow-hidden rounded-[1.35rem] bg-muted text-foreground shadow-2xl shadow-black/10 transition-all focus-within:border-ring focus-within:ring-[3px] focus-within:ring-ring/50"
@@ -186,7 +176,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
                 if (canSubmit) {
-                  chatRequestMutation.mutate();
+                  createConversationMutation.mutate();
                 }
               }
             }}
@@ -365,7 +355,7 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
                       className="rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
                       aria-label="Send translation request"
                     >
-                      {chatRequestMutation.isPending ? (
+                      {createConversationMutation.isPending ? (
                         <Spinner className="text-primary-foreground" />
                       ) : (
                         <HugeiconsIcon icon={SentIcon} strokeWidth={2} />
