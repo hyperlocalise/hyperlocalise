@@ -142,6 +142,33 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
   };
 }
 
+function segmentIntelligenceFor(
+  catFile: CatFile,
+  segment: ProjectFileCatSegment,
+): CatSegmentIntelligence {
+  const comments = segment.comments.length;
+  const issues = segment.comments.filter((comment) => comment.type === "issue").length;
+  const context = segment.context?.trim();
+
+  return {
+    intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
+    locationBreadcrumb: segment.key,
+    filePath: catFile.sourcePath,
+    componentName: segment.type ?? catFile.provider?.format ?? catFile.provider?.kind ?? undefined,
+    productMeaning:
+      context ||
+      (comments > 0
+        ? `${comments} Crowdin comment${comments === 1 ? "" : "s"} are attached to this string, including ${issues} issue${issues === 1 ? "" : "s"}.`
+        : "Crowdin did not return context, comments, or issues for this string."),
+    reviewerPreference: catFile.canEditTranslations
+      ? "Approve writes the current target text back to Crowdin."
+      : "This role can inspect strings but cannot write translations back.",
+    constraints: catFile.truncated ? "Showing the visible Crowdin segment window." : undefined,
+    glossaryTerms: [],
+    translationMemoryMatches: [],
+  };
+}
+
 export function projectFileCatToWorkspaceState(catFile: CatFile): CatWorkspaceState {
   const sourceLocale = catFile.provider?.sourceLocale ?? "source";
   const segments = catFile.segments.map((segment, index): CatSegment => {
@@ -175,8 +202,17 @@ export function projectFileCatToWorkspaceState(catFile: CatFile): CatWorkspaceSt
       reviewed: segments.filter((segment) => segment.status === "reviewed").length,
     },
     formatChecks: segments[0] ? formatCheckForSegment(segments[0], segments[0].targetText) : [],
+    segmentFormatChecks: Object.fromEntries(
+      segments.map((segment) => [segment.id, formatCheckForSegment(segment, segment.targetText)]),
+    ),
     suggestions: [],
     intelligence: intelligenceFor(catFile),
+    segmentIntelligence: Object.fromEntries(
+      catFile.segments.map((segment) => [
+        segment.externalStringId,
+        segmentIntelligenceFor(catFile, segment),
+      ]),
+    ),
     breadcrumbs: [catFile.provider?.kind ?? "provider", catFile.filename, catFile.targetLocale],
     primaryActionLabel: "Save to Crowdin",
   };

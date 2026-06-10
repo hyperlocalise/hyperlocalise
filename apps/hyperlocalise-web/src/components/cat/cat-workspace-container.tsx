@@ -90,6 +90,22 @@ export function mergeCatWorkspaceState(
   const selectedSegmentId = nextSegmentIds.has(currentState.selectedSegmentId)
     ? currentState.selectedSegmentId
     : (nextInitialState.selectedSegmentId ?? segments[0]?.id ?? "");
+  const segmentFormatChecks: CatWorkspaceState["segmentFormatChecks"] = {
+    ...nextInitialState.segmentFormatChecks,
+  };
+  for (const segment of segments) {
+    const previousSegment = previousSegments.get(segment.id);
+    const currentSegment = currentSegments.get(segment.id);
+    const currentChecks = currentState.segmentFormatChecks?.[segment.id];
+    if (
+      previousSegment &&
+      currentSegment &&
+      currentChecks &&
+      currentSegment.targetText !== previousSegment.targetText
+    ) {
+      segmentFormatChecks[segment.id] = currentChecks;
+    }
+  }
 
   return {
     ...nextInitialState,
@@ -103,6 +119,7 @@ export function mergeCatWorkspaceState(
       selectedSegmentId === currentState.selectedSegmentId
         ? currentState.formatChecks
         : nextInitialState.formatChecks,
+    segmentFormatChecks,
   };
 }
 
@@ -170,7 +187,15 @@ export function CatWorkspaceContainer({
         if (validationSequenceRef.current !== sequence) {
           return;
         }
-        setState((current) => ({ ...current, formatChecks: [...formatChecks, ...qaChecks] }));
+        const checks = [...formatChecks, ...qaChecks];
+        setState((current) => ({
+          ...current,
+          formatChecks: checks,
+          segmentFormatChecks: {
+            ...current.segmentFormatChecks,
+            [segment.id]: checks,
+          },
+        }));
       } finally {
         if (validationSequenceRef.current === sequence) {
           setIsBusy(false);

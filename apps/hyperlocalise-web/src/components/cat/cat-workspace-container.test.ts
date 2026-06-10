@@ -35,6 +35,16 @@ describe("mergeCatWorkspaceState", () => {
       segments: previousInitialState.segments.map((segment) =>
         segment.id === "seg-02" ? { ...segment, targetText: "Unsaved second" } : segment,
       ),
+      segmentFormatChecks: {
+        "seg-02": [
+          {
+            id: "edited-check",
+            label: "Edited format",
+            status: "pass" as const,
+            message: "Edited segment checks are still current.",
+          },
+        ],
+      },
     };
     const nextInitialState = createCatWorkspaceState({
       selectedSegmentId: "seg-01",
@@ -77,5 +87,8 @@ describe("mergeCatWorkspaceState", () => {
         status: "pending",
       },
     ]);
+    expect(merged.segmentFormatChecks?.["seg-02"]?.[0]).toMatchObject({
+      id: "edited-check",
+    });
   });
 });

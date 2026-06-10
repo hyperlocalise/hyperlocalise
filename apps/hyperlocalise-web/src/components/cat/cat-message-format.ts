@@ -243,12 +243,24 @@ export function compareCatMessageFormats(
 ): CatMessageParityIssue[] {
   const issues: CatMessageParityIssue[] = [];
 
+  if (source.parseError) {
+    issues.push({
+      kind: "parse-error",
+      label: "Source message syntax",
+      message: source.parseError.message,
+    });
+  }
+
   if (target.parseError) {
     issues.push({
       kind: "parse-error",
-      label: "Message syntax",
+      label: "Target message syntax",
       message: target.parseError.message,
     });
+    return issues;
+  }
+
+  if (source.parseError) {
     return issues;
   }
 

@@ -36,6 +36,10 @@ export function CatWorkspaceView({
   const hasPreviousSegment = segmentPosition > 1;
   const hasNextSegment = segmentPosition < state.segments.length;
   const { navigation, editing, review } = dependencies;
+  const selectedSegmentIntelligence =
+    state.segmentIntelligence?.[selectedSegment.id] ?? state.intelligence;
+  const selectedSegmentFormatChecks =
+    state.segmentFormatChecks?.[selectedSegment.id] ?? state.formatChecks;
 
   return (
     <div
@@ -60,8 +64,8 @@ export function CatWorkspaceView({
               segment={selectedSegment}
               segmentPosition={segmentPosition}
               totalSegments={state.segments.length}
-              formatChecks={state.formatChecks}
-              intelligence={state.intelligence}
+              formatChecks={selectedSegmentFormatChecks}
+              intelligence={selectedSegmentIntelligence}
               isBusy={isBusy}
               onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
               onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
@@ -79,7 +83,7 @@ export function CatWorkspaceView({
         </div>
 
         <div className="min-w-0 overflow-hidden">
-          <CatIntelligencePanel intelligence={state.intelligence} />
+          <CatIntelligencePanel intelligence={selectedSegmentIntelligence} />
         </div>
       </div>
     </div>

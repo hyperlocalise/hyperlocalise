@@ -60,4 +60,15 @@ describe("cat message format utilities", () => {
 
     expect(analysis.parseError?.message).toBeTruthy();
   });
+
+  it("does not pass format checks when source ICU syntax cannot be parsed", () => {
+    const issues = compare("{count, plural, one {# file}}", "1 file");
+
+    expect(issues).toContainEqual(
+      expect.objectContaining({
+        kind: "parse-error",
+        label: "Source message syntax",
+      }),
+    );
+  });
 });

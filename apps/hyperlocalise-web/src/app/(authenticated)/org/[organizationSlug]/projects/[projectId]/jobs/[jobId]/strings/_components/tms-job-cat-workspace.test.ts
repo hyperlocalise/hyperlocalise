@@ -83,7 +83,21 @@ describe("projectFileCatToWorkspaceState", () => {
       status: "needs_review",
       tags: ["icu", "1 comment", "1 issue"],
     });
+    expect(state.segmentFormatChecks?.["issue-string"]).toContainEqual(
+      expect.objectContaining({
+        label: "ICU structure",
+        status: "fail",
+      }),
+    );
     expect(state.intelligence.filePath).toBe("en-US.json");
+    expect(state.segmentIntelligence?.["approved-string"]).toMatchObject({
+      productMeaning: "Heading on the sign-in screen",
+      locationBreadcrumb: "auth.signIn.title",
+      filePath: "en-US.json",
+    });
+    expect(state.segmentIntelligence?.["issue-string"]?.productMeaning).toContain(
+      "1 Crowdin comment",
+    );
     expect(state.breadcrumbs).toEqual(["crowdin", "en-US.json", "vi"]);
   });
 });
