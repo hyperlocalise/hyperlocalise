@@ -1,9 +1,7 @@
 package translationfileparser
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 )
@@ -68,12 +66,13 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 		return []byte(d.template)
 	}
 
-	entries := append([]phpArrayEntry(nil), d.entries...)
-	slices.SortFunc(entries, func(a, b phpArrayEntry) int { return cmp.Compare(a.valueStart, b.valueStart) })
-
 	var b strings.Builder
+	b.Grow(len(d.template))
 	cursor := 0
-	for _, entry := range entries {
+
+	// Note: We assume d.entries are ordered by their position in the template
+	// (valueStart), which is guaranteed by the linear scan in the parser.
+	for _, entry := range d.entries {
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
 			continue
 		}
@@ -240,8 +239,23 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 	quote := s.text[s.pos]
 	start := s.pos
 	i := start + 1
+
+	stopChars := "\\" + string(quote)
+	if quote == '"' {
+		stopChars += "$"
+	}
+
 	var b strings.Builder
 	for i < len(s.text) {
+		idx := strings.IndexAny(s.text[i:], stopChars)
+		if idx < 0 {
+			break
+		}
+		if idx > 0 {
+			b.WriteString(s.text[i : i+idx])
+			i += idx
+		}
+
 		ch := s.text[i]
 		if ch == quote {
 			end := i + 1
@@ -252,11 +266,8 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 		if quote == '"' && ch == '$' {
 			return phpStringToken{}, fmt.Errorf("php locale array: dynamic interpolation is not supported in double-quoted strings at line %d", lineNumberAt(s.text, i))
 		}
-		if ch != '\\' {
-			b.WriteByte(ch)
-			i++
-			continue
-		}
+
+		// Must be backslash
 		if i+1 >= len(s.text) {
 			return phpStringToken{}, fmt.Errorf("php locale array: dangling string escape at line %d", lineNumberAt(s.text, i))
 		}
@@ -432,25 +443,27 @@ func isPHPOctalDigit(ch byte) bool {
 	return ch >= '0' && ch <= '7'
 }
 
-func encodePHPStringLiteral(value string, quote byte) string {
-	if quote == '"' {
-		escaped := strings.NewReplacer(
-			"\\", "\\\\",
-			"\n", "\\n",
-			"\r", "\\r",
-			"\t", "\\t",
-			"\v", "\\v",
-			"\x1b", "\\e",
-			"\f", "\\f",
-			"\"", "\\\"",
-			"$", "\\$",
-		).Replace(value)
-		return `"` + escaped + `"`
-	}
-
-	escaped := strings.NewReplacer(
+var (
+	phpDoubleQuoteReplacer = strings.NewReplacer(
+		"\\", "\\\\",
+		"\n", "\\n",
+		"\r", "\\r",
+		"\t", "\\t",
+		"\v", "\\v",
+		"\x1b", "\\e",
+		"\f", "\\f",
+		"\"", "\\\"",
+		"$", "\\$",
+	)
+	phpSingleQuoteReplacer = strings.NewReplacer(
 		"\\", "\\\\",
 		"'", "\\'",
-	).Replace(value)
-	return "'" + escaped + "'"
+	)
+)
+
+func encodePHPStringLiteral(value string, quote byte) string {
+	if quote == '"' {
+		return `"` + phpDoubleQuoteReplacer.Replace(value) + `"`
+	}
+	return "'" + phpSingleQuoteReplacer.Replace(value) + "'"
 }

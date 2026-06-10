@@ -148,3 +148,7 @@
 ## 2026-09-10 - Optimizing Android XML parser and marshaler
 **Learning:** For XML parsing and marshaling: 1) `io.MultiReader` can be slower than simple string concatenation when feeding `xml.NewDecoder` due to increased call overhead and potential loss of internal buffering optimizations; 2) Lazy `strings.Builder` initialization combined with single-pass loops is superior to multi-pass "fast-path" checks when the common case is a lack of the target feature (e.g., namespaces); 3) Heuristic slice capacity hints (e.g., `len(input)/80`) effectively reduce reallocations in tree-based parsers.
 **Action:** Refined `AndroidXMLResourcesParser` to use lazy builder initialization, single-pass namespace scanning, and slice capacity hinting, while reverting a counter-productive `io.MultiReader` optimization.
+
+## 2026-06-10 - Optimizing PHP array parsing and marshaling
+**Learning:** Re-creating `strings.NewReplacer` in a hot loop is extremely expensive due to internal trie construction. Additionally, redundant `slices.Sort` calls on segments that are already in document order and missing `strings.Builder.Grow` hints in renderers are significant avoidable overheads.
+**Action:** Move `strings.NewReplacer` to package-level variables for static rules. Use `strings.Builder.Grow` in renderers. Remove redundant sorting by ensuring parsers produce ordered segments.
