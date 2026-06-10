@@ -33,7 +33,8 @@ type TranslationMemoryResponse struct {
 // TranslationMemoriesListResponse defines the structure of the response
 // when getting a list of Translation Memories.
 type TranslationMemoriesListResponse struct {
-	Data []*TranslationMemoryResponse `json:"data"`
+	Data       []*TranslationMemoryResponse `json:"data"`
+	Pagination *Pagination                  `json:"pagination"`
 }
 
 // TranslationMemoriesListOptions specifies the optional parameters to the
@@ -317,7 +318,8 @@ type TMSegmentResponse struct {
 // TMSegmentsListResponse defines the structure of the response
 // when getting a list of Translation Memory segments.
 type TMSegmentsListResponse struct {
-	Data []*TMSegmentResponse `json:"data"`
+	Data       []*TMSegmentResponse `json:"data"`
+	Pagination *Pagination          `json:"pagination"`
 }
 
 // TMSegmentsListOptions specifies the optional parameters to the

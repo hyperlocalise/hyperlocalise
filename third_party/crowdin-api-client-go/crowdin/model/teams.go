@@ -24,7 +24,8 @@ type TeamResponse struct {
 // TeamsListResponse defines the structure of the response when
 // getting a list of teams.
 type TeamsListResponse struct {
-	Data []*TeamResponse `json:"data"`
+	Data       []*TeamResponse `json:"data"`
+	Pagination *Pagination     `json:"pagination"`
 }
 
 // TeamsListOptions specifies the optional parameters to the
@@ -126,7 +127,8 @@ type TeamMemberResponse struct {
 // TeamMembersListResponse defines the structure of the response when
 // getting a list of team members.
 type TeamMembersListResponse struct {
-	Data []*TeamMemberResponse `json:"data"`
+	Data       []*TeamMemberResponse `json:"data"`
+	Pagination *Pagination           `json:"pagination"`
 }
 
 // TeamMemberAddRequest defines the structure of the request when

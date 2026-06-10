@@ -28,7 +28,8 @@ type BundleResponse struct {
 // BundlesListResponse defines the structure of a response
 // when getting a list of bundles.
 type BundlesListResponse struct {
-	Data []*BundleResponse `json:"data"`
+	Data       []*BundleResponse `json:"data"`
+	Pagination *Pagination       `json:"pagination"`
 }
 
 // BundleAddRequest defines the structure of a request

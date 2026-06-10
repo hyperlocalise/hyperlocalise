@@ -72,7 +72,8 @@ type WorkflowTemplateResponse struct {
 // WorkflowTemplatesListResponse defines the structure of the response when
 // getting a list of workflow templates.
 type WorkflowTemplatesListResponse struct {
-	Data []*WorkflowTemplateResponse `json:"data"`
+	Data       []*WorkflowTemplateResponse `json:"data"`
+	Pagination *Pagination                 `json:"pagination"`
 }
 
 // WorkflowStepStringsListOptions specifies the optional parameters to the

@@ -85,7 +85,8 @@ type PreTranslationsResponse struct {
 // PreTranslationsListResponse defines the structure of a response when
 // getting a list of pre-translations.
 type PreTranslationsListResponse struct {
-	Data []*PreTranslationsResponse `json:"data"`
+	Data       []*PreTranslationsResponse `json:"data"`
+	Pagination *Pagination                `json:"pagination"`
 }
 
 // PreTranslationReportResponse defines the structure of a response when
@@ -392,7 +393,8 @@ type TranslationsProjectBuildResponse struct {
 // TranslationsProjectBuildsListResponse defines the structure of a response when
 // getting a list of project builds.
 type TranslationsProjectBuildsListResponse struct {
-	Data []*TranslationsProjectBuildResponse `json:"data"`
+	Data       []*TranslationsProjectBuildResponse `json:"data"`
+	Pagination *Pagination                         `json:"pagination"`
 }
 
 type (

@@ -25,7 +25,8 @@ type BranchesGetResponse struct {
 
 // BranchesListResponse describes a response with a list of branches.
 type BranchesListResponse struct {
-	Data []*BranchesGetResponse `json:"data"`
+	Data       []*BranchesGetResponse `json:"data"`
+	Pagination *Pagination            `json:"pagination"`
 }
 
 // BranchesListOptions specifies the optional parameters to the

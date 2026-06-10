@@ -31,7 +31,8 @@ type DirectoryGetResponse struct {
 
 // DirectoryListResponse describes a response with a list of directories.
 type DirectoryListResponse struct {
-	Data []*DirectoryGetResponse `json:"data"`
+	Data       []*DirectoryGetResponse `json:"data"`
+	Pagination *Pagination             `json:"pagination"`
 }
 
 // DirectoryListOptions specifies the optional parameters to the
@@ -160,7 +161,8 @@ type FileGetResponse struct {
 
 // FileListResponse describes a response with a list of files.
 type FileListResponse struct {
-	Data []*FileGetResponse `json:"data"`
+	Data       []*FileGetResponse `json:"data"`
+	Pagination *Pagination        `json:"pagination"`
 }
 
 // FileListOptions specifies the optional parameters to the
@@ -541,7 +543,8 @@ type FileRevisionResponse struct {
 // FileRevisionListResponse describes a response with
 // a list of file revisions.
 type FileRevisionListResponse struct {
-	Data []*FileRevisionResponse `json:"data"`
+	Data       []*FileRevisionResponse `json:"data"`
+	Pagination *Pagination             `json:"pagination"`
 }
 
 // ReviewedBuild represents a reviewed source file build.
@@ -563,7 +566,8 @@ type ReviewedBuildResponse struct {
 
 // ReviewedBuildListResponse describes a response with a list of reviewed builds.
 type ReviewedBuildListResponse struct {
-	Data []*ReviewedBuildResponse `json:"data"`
+	Data       []*ReviewedBuildResponse `json:"data"`
+	Pagination *Pagination              `json:"pagination"`
 }
 
 // ReviewedBuildListOptions specifies the optional parameters to the
