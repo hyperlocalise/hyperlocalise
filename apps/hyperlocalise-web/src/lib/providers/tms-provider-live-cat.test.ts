@@ -193,6 +193,7 @@ describe("getTmsProviderLiveCatFile", () => {
 
       if (
         path.includes("/projects/42/comments?") &&
+        path.includes("stringId=1001") &&
         path.includes("type=comment") &&
         init?.method !== "POST"
       ) {
@@ -217,7 +218,11 @@ describe("getTmsProviderLiveCatFile", () => {
         );
       }
 
-      if (path.includes("/projects/42/comments?") && path.includes("type=issue")) {
+      if (
+        path.includes("/projects/42/comments?") &&
+        path.includes("stringId=1002") &&
+        path.includes("type=issue")
+      ) {
         return new Response(
           JSON.stringify({
             data: [
@@ -274,8 +279,9 @@ describe("getTmsProviderLiveCatFile", () => {
       requestedPaths.some(
         (path) =>
           path.includes("/projects/42/comments?") &&
+          path.includes("stringId=1001") &&
           path.includes("type=comment") &&
-          path.includes("languageId=fr"),
+          !path.includes("languageId="),
       ),
     ).toBe(true);
     expect(
@@ -290,8 +296,9 @@ describe("getTmsProviderLiveCatFile", () => {
       requestedPaths.some(
         (path) =>
           path.includes("/projects/42/comments?") &&
+          path.includes("stringId=1002") &&
           path.includes("type=issue") &&
-          path.includes("languageId=fr") &&
+          !path.includes("languageId=") &&
           path.includes("issueStatus=unresolved"),
       ),
     ).toBe(true);

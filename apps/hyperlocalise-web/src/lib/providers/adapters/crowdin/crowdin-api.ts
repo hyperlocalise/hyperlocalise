@@ -563,13 +563,18 @@ export class CrowdinApiClient {
   }
 
   /**
-   * List source strings for a given project, optionally filtered by file.
+   * List source strings for a given project.
+   *
+   * Supported filters: `fileId`, `taskId`, or `croql` (mutually exclusive with each other).
    */
   async listSourceStrings(
     projectId: number,
-    fileId?: number,
-    stringIds?: number[],
-    options?: { maxItems?: number },
+    options?: {
+      fileId?: number;
+      taskId?: number;
+      croql?: string;
+      maxItems?: number;
+    },
   ): Promise<CrowdinSourceString[]> {
     const strings: CrowdinSourceString[] = [];
     let offset = 0;
@@ -588,11 +593,14 @@ export class CrowdinApiClient {
         limit: String(pageLimit),
         offset: String(offset),
       });
-      if (fileId !== undefined) {
-        params.append("fileId", String(fileId));
+      if (options?.fileId !== undefined) {
+        params.append("fileId", String(options.fileId));
       }
-      if (stringIds?.length) {
-        params.append("stringIds", stringIds.join(","));
+      if (options?.taskId !== undefined) {
+        params.append("taskId", String(options.taskId));
+      }
+      if (options?.croql) {
+        params.append("croql", options.croql);
       }
 
       const response = await this.get<CrowdinListResponse<CrowdinSourceString>>(
@@ -609,6 +617,39 @@ export class CrowdinApiClient {
     }
 
     return strings;
+  }
+
+  /**
+   * List string comments for a set of strings, chunking requests to stay within API limits.
+   */
+  async listStringCommentsForStrings(
+    projectId: number,
+    stringIds: number[],
+    filter: {
+      type?: "comment" | "issue";
+      issueStatus?: "resolved" | "unresolved";
+    },
+  ): Promise<CrowdinStringComment[]> {
+    const comments: CrowdinStringComment[] = [];
+
+    for (let index = 0; index < stringIds.length; index += 25) {
+      const chunk = stringIds.slice(index, index + 25);
+      const chunkResults = await Promise.all(
+        chunk.map((stringId) =>
+          this.listStringComments(projectId, {
+            stringId,
+            type: filter.type,
+            issueStatus: filter.issueStatus,
+          }),
+        ),
+      );
+
+      for (const page of chunkResults) {
+        comments.push(...page);
+      }
+    }
+
+    return comments;
   }
 
   /**
@@ -668,7 +709,6 @@ export class CrowdinApiClient {
     projectId: number,
     options?: {
       stringId?: number;
-      languageId?: string;
       type?: "comment" | "issue";
       issueStatus?: "resolved" | "unresolved";
     },
@@ -679,9 +719,6 @@ export class CrowdinApiClient {
     }
     if (options?.type) {
       params.set("type", options.type);
-    }
-    if (options?.languageId) {
-      params.set("languageId", options.languageId);
     }
     if (options?.issueStatus) {
       params.set("issueStatus", options.issueStatus);
@@ -870,7 +907,9 @@ export class CrowdinApiClient {
   }
 
   /**
-   * List translation approvals, optionally filtered by language.
+   * List translation approvals.
+   *
+   * When `languageId` is set, Crowdin requires `fileId` or `stringId` in the same request.
    */
   async listTranslationApprovals(
     projectId: number,
@@ -907,6 +946,51 @@ export class CrowdinApiClient {
     }
 
     return approvals;
+  }
+
+  /**
+   * List approvals for task/file strings, scoping requests by file or string identifiers.
+   */
+  async listTranslationApprovalsForSourceStrings(
+    projectId: number,
+    languageId: string,
+    sourceStrings: Array<Pick<CrowdinSourceString, "id" | "fileId">>,
+  ): Promise<CrowdinTranslationApproval[]> {
+    const fileIds = [
+      ...new Set(
+        sourceStrings
+          .map((sourceString) => sourceString.fileId)
+          .filter((fileId): fileId is number => fileId != null),
+      ),
+    ];
+
+    if (fileIds.length > 0) {
+      const approvals: CrowdinTranslationApproval[] = [];
+      for (const fileId of fileIds) {
+        approvals.push(...(await this.listTranslationApprovals(projectId, languageId, { fileId })));
+      }
+      return approvals;
+    }
+
+    const stringIds = sourceStrings.map((sourceString) => sourceString.id);
+    if (stringIds.length > 0) {
+      const approvals: CrowdinTranslationApproval[] = [];
+      for (let index = 0; index < stringIds.length; index += 25) {
+        const chunk = stringIds.slice(index, index + 25);
+        const chunkResults = await Promise.all(
+          chunk.map((stringId) =>
+            this.listTranslationApprovals(projectId, languageId, { stringId }),
+          ),
+        );
+        for (const page of chunkResults) {
+          approvals.push(...page);
+        }
+      }
+      return approvals;
+    }
+
+    const allApprovals = await this.listTranslationApprovals(projectId);
+    return allApprovals.filter((approval) => approval.languageId === languageId);
   }
 
   /**

@@ -41,7 +41,7 @@ describe("pullCrowdinTaskContent", () => {
         );
       }
 
-      if (path.includes("/projects/42/strings?") && path.includes("fileId=101")) {
+      if (path.includes("/projects/42/strings?") && path.includes("taskId=2001")) {
         return new Response(
           JSON.stringify({
             data: [
@@ -65,7 +65,11 @@ describe("pullCrowdinTaskContent", () => {
         );
       }
 
-      if (path.includes("/projects/42/approvals?")) {
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("fileId=101")
+      ) {
         return new Response(
           JSON.stringify({
             data: [{ data: { id: 1, translationId: 9001, stringId: 1001, languageId: "fr" } }],
@@ -126,6 +130,13 @@ describe("pullCrowdinTaskContent", () => {
       sourceText: "Hello",
       translations: [{ locale: "fr", text: "Bonjour", isApproved: true }],
     });
+
+    expect(
+      fetchMock.mock.calls.some(
+        ([url]) =>
+          String(url).includes("/projects/42/strings?") && String(url).includes("taskId=2001"),
+      ),
+    ).toBe(true);
 
     const languageTranslationCalls = fetchMock.mock.calls.filter(([url]) =>
       String(url).includes("/projects/42/languages/fr/translations?"),

@@ -756,7 +756,8 @@ async function downloadCrowdinSourceStringPreview(input: {
   content: ProjectFileContent | null;
   contentType: string | null;
 } | null> {
-  const strings = await input.client.listSourceStrings(input.projectId, input.fileId, undefined, {
+  const strings = await input.client.listSourceStrings(input.projectId, {
+    fileId: input.fileId,
     maxItems: maxLiveProviderStringPreviewItems + 1,
   });
   const previewContent = buildCrowdinSourceStringsPreviewContent({
@@ -835,7 +836,8 @@ async function buildCrowdinLiveCatFile(input: {
   });
 
   try {
-    const strings = await client.listSourceStrings(projectId, fileId, undefined, {
+    const strings = await client.listSourceStrings(projectId, {
+      fileId,
       maxItems: maxLiveProviderStringPreviewItems + 1,
     });
     const visibleStrings = strings.slice(0, maxLiveProviderStringPreviewItems);
@@ -868,10 +870,9 @@ async function buildCrowdinLiveCatFile(input: {
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
 
     const [plainComments, unresolvedIssues] = await Promise.all([
-      client.listStringComments(projectId, { type: "comment", languageId: input.targetLocale }),
-      client.listStringComments(projectId, {
+      client.listStringCommentsForStrings(projectId, sourceStringIds, { type: "comment" }),
+      client.listStringCommentsForStrings(projectId, sourceStringIds, {
         type: "issue",
-        languageId: input.targetLocale,
         issueStatus: "unresolved",
       }),
     ]);
