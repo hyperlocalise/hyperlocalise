@@ -2,6 +2,7 @@ package model
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,27 +54,45 @@ func TestListOptionsValues(t *testing.T) {
 }
 
 func TestPaginationUnmarshaling(t *testing.T) {
-	jsonResp := `{
-		"data": [
-			{
-				"data": {
-					"id": 1,
-					"projectId": 2,
-					"title": "label1"
+	tests := []struct {
+		name   string
+		offset int
+	}{
+		{
+			name:   "first page",
+			offset: 0,
+		},
+		{
+			name:   "later page",
+			offset: 10,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			jsonResp := `{
+				"data": [
+					{
+						"data": {
+							"id": 1,
+							"projectId": 2,
+							"title": "label1"
+						}
+					}
+				],
+				"pagination": {
+					"offset": ` + strconv.Itoa(tt.offset) + `,
+					"limit": 25
 				}
-			}
-		],
-		"pagination": {
-			"offset": 10,
-			"limit": 25
-		}
-	}`
+			}`
 
-	var resp LabelsListResponse
-	err := json.Unmarshal([]byte(jsonResp), &resp)
-	assert.NoError(t, err)
+			var resp LabelsListResponse
+			err := json.Unmarshal([]byte(jsonResp), &resp)
+			assert.NoError(t, err)
 
-	assert.NotNil(t, resp.Pagination)
-	assert.Equal(t, 10, resp.Pagination.Offset)
-	assert.Equal(t, 25, resp.Pagination.Limit)
+			assert.NotNil(t, resp.Pagination)
+			assert.Equal(t, tt.offset, resp.Pagination.Offset)
+			assert.Equal(t, 25, resp.Pagination.Limit)
+		})
+	}
 }
