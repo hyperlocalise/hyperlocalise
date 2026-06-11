@@ -316,11 +316,12 @@ func isARBMetadataKey(key string) bool {
 }
 
 // isSimpleJSONString reports whether s contains only characters that do not
-// require escaping in a JSON string.
+// require escaping in a JSON string. To maintain parity with Go's default
+// json.Marshal, we also exclude HTML-sensitive characters.
 func isSimpleJSONString(s string) bool {
 	for i := 0; i < len(s); i++ {
 		ch := s[i]
-		if ch < 0x20 || ch == '"' || ch == '\\' || ch > 0x7E {
+		if ch < 0x20 || ch == '"' || ch == '\\' || ch == '<' || ch == '>' || ch == '&' || ch > 0x7E {
 			return false
 		}
 	}
@@ -335,6 +336,9 @@ func marshalJSONString(s string) []byte {
 		b = append(b, '"')
 		return b
 	}
-	encoded, _ := json.Marshal(s)
+	encoded, err := json.Marshal(s)
+	if err != nil {
+		return []byte(`""`)
+	}
 	return encoded
 }
