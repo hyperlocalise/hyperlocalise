@@ -185,6 +185,7 @@ export function CatWorkspaceContainer({
   const validationSequenceRef = useRef(0);
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
+  const lookupSegmentContext = serviceOverrides?.lookupSegmentContext;
   const onSelectSegment = navigationOverrides?.onSelectSegment;
   const onPreviousSegment = navigationOverrides?.onPreviousSegment;
   const onNextSegment = navigationOverrides?.onNextSegment;
@@ -324,8 +325,76 @@ export function CatWorkspaceContainer({
           setIsBusy(false);
         }
       },
-      onAskQuestion: (segmentId: string) => {
-        onAskQuestion?.(segmentId);
+      onAskQuestion: async (segmentId: string) => {
+        await onAskQuestion?.(segmentId);
+        if (!lookupSegmentContext) {
+          return;
+        }
+
+        const segment = stateRef.current.segments.find((item) => item.id === segmentId);
+        if (!segment) {
+          return;
+        }
+
+        setIsBusy(true);
+        try {
+          const productMeaning = await lookupSegmentContext(segment);
+          setState((current) => {
+            const currentIntelligence =
+              current.segmentIntelligence?.[segmentId] ?? current.intelligence;
+            const currentChecks = current.segmentFormatChecks?.[segmentId] ?? current.formatChecks;
+            const nextChecks = currentChecks.filter(
+              (check) => check.id !== `context-lookup-failed-${segmentId}`,
+            );
+
+            return {
+              ...current,
+              formatChecks:
+                current.selectedSegmentId === segmentId ? nextChecks : current.formatChecks,
+              segmentFormatChecks: {
+                ...current.segmentFormatChecks,
+                [segmentId]: nextChecks,
+              },
+              segmentIntelligence: {
+                ...current.segmentIntelligence,
+                [segmentId]: {
+                  ...currentIntelligence,
+                  productMeaning,
+                },
+              },
+            };
+          });
+        } catch (error) {
+          const message =
+            error instanceof Error ? error.message : "Failed to look up repository context.";
+          const lookupFailureCheck: CatFormatCheck = {
+            id: `context-lookup-failed-${segmentId}`,
+            label: "Context lookup",
+            status: "fail",
+            message,
+            category: "qa",
+          };
+
+          setState((current) => {
+            const currentChecks = current.segmentFormatChecks?.[segmentId] ?? current.formatChecks;
+            const nextChecks = [
+              lookupFailureCheck,
+              ...currentChecks.filter((check) => check.id !== lookupFailureCheck.id),
+            ];
+
+            return {
+              ...current,
+              formatChecks:
+                current.selectedSegmentId === segmentId ? nextChecks : current.formatChecks,
+              segmentFormatChecks: {
+                ...current.segmentFormatChecks,
+                [segmentId]: nextChecks,
+              },
+            };
+          });
+        } finally {
+          setIsBusy(false);
+        }
       },
       onSkip: (segmentId: string) => {
         setState((current) => {
@@ -355,6 +424,7 @@ export function CatWorkspaceContainer({
     onSkip,
     onTargetChange,
     onUseAiSuggestion,
+    lookupSegmentContext,
     runQaChecks,
     runSegmentChecks,
     validateFormat,

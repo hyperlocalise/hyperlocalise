@@ -300,6 +300,29 @@ export function TmsJobCatWorkspace({
     },
     [catQuery.data?.canEditTranslations, saveTranslation],
   );
+  const lookupSegmentContext = useCallback(
+    async (segment: CatSegment) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files[
+        "string-context"
+      ].$post({
+        param: { organizationSlug, projectId },
+        json: {
+          sourcePath,
+          key: segment.key,
+          text: segment.sourceText,
+          context: segment.contextLabel ?? null,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to look up repository context"));
+      }
+
+      const body = (await response.json()) as { stringContext: { summary: string } };
+      return body.stringContext.summary;
+    },
+    [organizationSlug, projectId, sourcePath],
+  );
 
   if (catQuery.isLoading) {
     return (
@@ -339,6 +362,7 @@ export function TmsJobCatWorkspace({
       className={cn("min-h-0 flex-1", className)}
       services={{
         validateFormat: validateSegmentFormat,
+        lookupSegmentContext,
       }}
       review={{
         onApprove: handleApprove,

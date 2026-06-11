@@ -17,13 +17,14 @@ export interface CatWorkspaceReview {
     segmentId: string,
     targetText: string,
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
-  onAskQuestion: (segmentId: string) => void;
+  onAskQuestion: (segmentId: string) => void | Promise<void>;
   onSkip: (segmentId: string) => void;
 }
 
 export interface CatWorkspaceServices {
   validateFormat?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   runQaChecks?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
+  lookupSegmentContext?: (segment: CatSegment) => Promise<string>;
 }
 
 export interface CatWorkspaceDependencies {
