@@ -42,7 +42,6 @@ export function JobSourceFilesPanel({
   isError,
   errorMessage,
   emptyMessage = "No source files linked to this job.",
-  canFindInRepo = false,
   highlightLocale = null,
 }: {
   organizationSlug: string;
@@ -53,7 +52,6 @@ export function JobSourceFilesPanel({
   isError?: boolean;
   errorMessage?: string;
   emptyMessage?: string;
-  canFindInRepo?: boolean;
   highlightLocale?: string | null;
 }) {
   const sortedFiles = useMemo(() => sortFilesByPath(files), [files]);
@@ -143,7 +141,6 @@ export function JobSourceFilesPanel({
               file={selectedFile}
               requestedSourcePath={activeSourcePath}
               highlightLocale={highlightLocale}
-              canFindInRepo={canFindInRepo}
             />
           </div>
         </div>

@@ -362,7 +362,7 @@ export function TmsJobCatWorkspace({
       className={cn("min-h-0 flex-1", className)}
       services={{
         validateFormat: validateSegmentFormat,
-        lookupSegmentContext,
+        lookupSegmentContext: catQuery.data?.canEditTranslations ? lookupSegmentContext : undefined,
       }}
       review={{
         onApprove: handleApprove,

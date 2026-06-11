@@ -6,11 +6,7 @@ import { TypographyP } from "@/components/ui/typography";
 export function ProjectFileSourceStringsPreview({
   sourceStrings,
 }: {
-  organizationSlug: string;
-  projectId: string;
-  sourcePath: string;
   sourceStrings: ProjectSourceStringsPreview;
-  canFindInRepo: boolean;
 }) {
   if (sourceStrings.entries.length === 0) {
     return null;

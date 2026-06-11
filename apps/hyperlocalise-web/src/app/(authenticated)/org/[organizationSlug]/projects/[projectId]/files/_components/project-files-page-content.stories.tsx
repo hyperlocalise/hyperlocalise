@@ -23,7 +23,6 @@ const meta = {
   args: {
     organizationSlug: "acme",
     projectId: "project_website",
-    canFindInRepo: true,
     files: projectFilesFixture,
     isFilesLoading: false,
     isFilesFetching: false,

@@ -47,7 +47,6 @@ const meta = {
     file: selectedFile,
     requestedSourcePath: selectedFile.sourcePath,
     highlightLocale: "fr-FR",
-    canFindInRepo: true,
     isLoading: false,
     detail: createProjectFileDetail(selectedFile),
     renderSourceStringsPreview: sourceStringsPreview,
