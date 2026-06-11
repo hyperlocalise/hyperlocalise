@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 
-import { hasCapability } from "@/api/auth/policy";
 import { TypographyP } from "@/components/ui/typography";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
@@ -12,17 +11,13 @@ export default async function ProjectFilesPage({
   params: Promise<{ organizationSlug: string; projectId: string }>;
 }) {
   const { organizationSlug, projectId } = await params;
-  const auth = await requireAppAuthContext({ organizationSlug });
+  await requireAppAuthContext({ organizationSlug });
 
   return (
     <Suspense
       fallback={<TypographyP className="text-sm text-foreground/52">Loading files...</TypographyP>}
     >
-      <ProjectFilesPageContent
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        canFindInRepo={hasCapability(auth.membership.role, "ai_actions:run")}
-      />
+      <ProjectFilesPageContent organizationSlug={organizationSlug} projectId={projectId} />
     </Suspense>
   );
 }

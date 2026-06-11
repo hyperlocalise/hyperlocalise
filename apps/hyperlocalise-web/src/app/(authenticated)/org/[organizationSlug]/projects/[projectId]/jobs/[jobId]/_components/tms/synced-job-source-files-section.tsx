@@ -39,7 +39,6 @@ export function SyncedJobSourceFilesSection({
       projectId={projectId}
       files={files}
       emptyMessage="No synced source files linked to this job."
-      canFindInRepo
       highlightLocale={highlightLocale ?? null}
     />
   );

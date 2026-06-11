@@ -116,13 +116,13 @@ export function CatIntelligencePanel({ intelligence }: { intelligence: CatSegmen
                 label="Meaning in product"
                 icon={<HugeiconsIcon icon={InformationCircleIcon} className="size-3.5" />}
               >
-                <p className="text-pretty text-sm leading-relaxed text-foreground/88">
+                <p className="whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-foreground/88">
                   {intelligence.productMeaning ??
                     intelligence.intent ??
                     "No product context provided."}
                 </p>
                 {intelligence.productMeaning && intelligence.intent ? (
-                  <p className="mt-2 text-pretty text-xs leading-relaxed text-muted-foreground">
+                  <p className="mt-2 whitespace-pre-wrap break-words text-pretty text-xs leading-relaxed text-muted-foreground">
                     {intelligence.intent}
                   </p>
                 ) : null}

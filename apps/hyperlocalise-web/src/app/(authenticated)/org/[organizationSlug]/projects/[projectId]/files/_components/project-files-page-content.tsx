@@ -65,7 +65,6 @@ export type ProjectFilesDetailPanelRenderer = (props: {
   file: ProjectFileRecord | null;
   requestedSourcePath: string | null;
   highlightLocale: string | null;
-  canFindInRepo: boolean;
 }) => ReactNode;
 
 export type ProjectFilesErrorRenderer = (props: {
@@ -93,7 +92,6 @@ function defaultRenderDetailPanel({
   file,
   requestedSourcePath,
   highlightLocale,
-  canFindInRepo,
 }: Parameters<ProjectFilesDetailPanelRenderer>[0]) {
   return (
     <ProjectFileDetailPanel
@@ -102,7 +100,6 @@ function defaultRenderDetailPanel({
       file={file}
       requestedSourcePath={requestedSourcePath}
       highlightLocale={highlightLocale}
-      canFindInRepo={canFindInRepo}
     />
   );
 }
@@ -136,11 +133,9 @@ function defaultRenderFilesError({
 export function ProjectFilesPageContent({
   organizationSlug,
   projectId,
-  canFindInRepo,
 }: {
   organizationSlug: string;
   projectId: string;
-  canFindInRepo: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -233,7 +228,6 @@ export function ProjectFilesPageContent({
     <ProjectFilesPageContentView
       organizationSlug={organizationSlug}
       projectId={projectId}
-      canFindInRepo={canFindInRepo}
       files={files}
       isFilesLoading={filesQuery.isLoading}
       isFilesFetching={filesQuery.isFetching}
@@ -253,7 +247,6 @@ export function ProjectFilesPageContent({
 export function ProjectFilesPageContentView({
   organizationSlug,
   projectId,
-  canFindInRepo,
   files,
   isFilesLoading,
   isFilesFetching,
@@ -272,7 +265,6 @@ export function ProjectFilesPageContentView({
 }: {
   organizationSlug: string;
   projectId: string;
-  canFindInRepo: boolean;
   files: ProjectFileRecord[];
   isFilesLoading: boolean;
   isFilesFetching: boolean;
@@ -434,7 +426,6 @@ export function ProjectFilesPageContentView({
               file: selectedFile,
               requestedSourcePath: selectedSourcePath,
               highlightLocale,
-              canFindInRepo,
             })}
           </main>
         </div>

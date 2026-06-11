@@ -590,7 +590,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         const result = await lookupProjectFileStringRepositoryContext({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
-          repositoryFullName: body.repositoryFullName,
+          repositoryFullName: body.repositoryFullName ?? null,
           sourcePath: body.sourcePath,
           key: body.key,
           text: body.text,

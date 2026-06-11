@@ -1,5 +1,7 @@
 import { randomUUID } from "node:crypto";
 
+import { and, eq } from "drizzle-orm";
+
 import {
   buildRepositoryGitHubContextInstructions,
   resolveWebProjectRepositoryGitHubContext,
@@ -9,19 +11,58 @@ import { createRepositorySandbox } from "@/lib/agent-runtime/workspaces/reposito
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 export type ProjectFileStringContextError =
   | { code: "repository_not_enabled"; message: string }
+  | { code: "repository_context_ambiguous"; message: string }
   | { code: "repository_access_failed"; message: string }
   | { code: "agent_failed"; message: string };
+
+async function resolveRepositoryFullName(input: {
+  organizationId: string;
+  repositoryFullName: string | null;
+}): Promise<Result<string, ProjectFileStringContextError>> {
+  if (input.repositoryFullName) {
+    return ok(input.repositoryFullName);
+  }
+
+  const repositories = await db
+    .select({ fullName: schema.githubInstallationRepositories.fullName })
+    .from(schema.githubInstallationRepositories)
+    .where(
+      and(
+        eq(schema.githubInstallationRepositories.organizationId, input.organizationId),
+        eq(schema.githubInstallationRepositories.enabled, true),
+        eq(schema.githubInstallationRepositories.archived, false),
+      ),
+    )
+    .limit(2);
+
+  if (repositories.length === 0) {
+    return err({
+      code: "repository_not_enabled",
+      message: "Enable one GitHub repository in Agent → GitHub before looking up string context.",
+    });
+  }
+
+  if (repositories.length > 1) {
+    return err({
+      code: "repository_context_ambiguous",
+      message:
+        "More than one GitHub repository is enabled. Disable the extra repositories or specify the repository before looking up string context.",
+    });
+  }
+
+  return ok(repositories[0].fullName);
+}
 
 export async function lookupProjectFileStringRepositoryContext(input: {
   organizationId: string;
   projectId: string;
-  repositoryFullName: string;
+  repositoryFullName: string | null;
   sourcePath: string;
   key: string;
   text: string;
@@ -31,9 +72,17 @@ export async function lookupProjectFileStringRepositoryContext(input: {
   displayName: string | null;
   email: string | null;
 }): Promise<Result<{ summary: string }, ProjectFileStringContextError>> {
-  const resolution = await resolveWebProjectRepositoryGitHubContext({
+  const repositoryResult = await resolveRepositoryFullName({
     organizationId: input.organizationId,
     repositoryFullName: input.repositoryFullName,
+  });
+  if (isErr(repositoryResult)) {
+    return repositoryResult;
+  }
+
+  const resolution = await resolveWebProjectRepositoryGitHubContext({
+    organizationId: input.organizationId,
+    repositoryFullName: repositoryResult.value,
   });
 
   if (resolution.status === "unresolved") {

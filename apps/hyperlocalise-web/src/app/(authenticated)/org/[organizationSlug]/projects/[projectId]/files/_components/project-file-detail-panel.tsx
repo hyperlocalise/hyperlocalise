@@ -22,11 +22,7 @@ import { formatBytes } from "./project-files-shared";
 type ProjectFileDetail = ProjectFileDetailResponse["file"];
 
 export type ProjectFileSourceStringsPreviewRenderer = (props: {
-  organizationSlug: string;
-  projectId: string;
-  sourcePath: string;
   sourceStrings: ProjectSourceStringsPreview;
-  canFindInRepo: boolean;
 }) => ReactNode;
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -88,25 +84,13 @@ function truncatePreview(text: string) {
 }
 
 function defaultRenderSourceStringsPreview({
-  organizationSlug,
-  projectId,
-  sourcePath,
   sourceStrings,
-  canFindInRepo,
 }: Parameters<ProjectFileSourceStringsPreviewRenderer>[0]) {
   if (!sourceStrings) {
     return null;
   }
 
-  return (
-    <ProjectFileSourceStringsPreview
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      sourcePath={sourcePath}
-      sourceStrings={sourceStrings}
-      canFindInRepo={canFindInRepo}
-    />
-  );
+  return <ProjectFileSourceStringsPreview sourceStrings={sourceStrings} />;
 }
 
 export function ProjectFileDetailPanel({
@@ -115,7 +99,6 @@ export function ProjectFileDetailPanel({
   file,
   requestedSourcePath,
   highlightLocale,
-  canFindInRepo,
   encodedJobId,
 }: {
   organizationSlug: string;
@@ -123,7 +106,6 @@ export function ProjectFileDetailPanel({
   file: ProjectFileRecord | null;
   requestedSourcePath: string | null;
   highlightLocale: string | null;
-  canFindInRepo: boolean;
   encodedJobId?: string | null;
 }) {
   const sourcePath = file?.sourcePath ?? null;
@@ -176,7 +158,6 @@ export function ProjectFileDetailPanel({
       file={file}
       requestedSourcePath={requestedSourcePath}
       highlightLocale={highlightLocale}
-      canFindInRepo={canFindInRepo}
       isLoading={detailQuery.isLoading}
       error={detailQuery.isError ? detailQuery.error : undefined}
       detail={detailQuery.data}
@@ -190,7 +171,6 @@ export function ProjectFileDetailPanelView({
   file,
   requestedSourcePath,
   highlightLocale,
-  canFindInRepo,
   isLoading,
   error,
   detail,
@@ -201,7 +181,6 @@ export function ProjectFileDetailPanelView({
   file: ProjectFileRecord | null;
   requestedSourcePath: string | null;
   highlightLocale: string | null;
-  canFindInRepo: boolean;
   isLoading: boolean;
   error?: unknown;
   detail?: ProjectFileDetail;
@@ -306,11 +285,7 @@ export function ProjectFileDetailPanelView({
         </TypographyP>
         {sourceStringsPreview ? (
           renderSourceStringsPreview({
-            organizationSlug,
-            projectId,
-            sourcePath,
             sourceStrings: sourceStringsPreview,
-            canFindInRepo,
           })
         ) : textPreview ? (
           <div className="overflow-hidden rounded-md border border-border bg-background">

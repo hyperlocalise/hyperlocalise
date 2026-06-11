@@ -251,7 +251,7 @@ export const projectFileContentSchema = z.object({
 });
 
 export const projectFileStringContextBodySchema = z.object({
-  repositoryFullName: z.string().trim().min(1).max(256),
+  repositoryFullName: z.string().trim().min(1).max(256).optional(),
   sourcePath: z.string().trim().min(1).max(2048),
   key: z.string().trim().min(1).max(2048),
   text: z.string().trim().max(16_384),
