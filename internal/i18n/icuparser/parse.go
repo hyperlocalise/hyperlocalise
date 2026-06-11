@@ -483,6 +483,7 @@ func (p *astParser) tryParseTag(ctx parseCtx) (TagElement, bool, error) {
 			continue
 		}
 		if p.consume('/') {
+			p.skipSpaces()
 			if p.consume('>') {
 				return TagElement{Value: name, SelfClosing: true}, true, nil
 			}
