@@ -92,6 +92,52 @@ func TestParseASTPluralNegativeSelector(t *testing.T) {
 	}
 }
 
+func TestParseSelfClosingTagsWithWhitespace(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+	}{
+		{
+			name: "no space",
+			msg:  "Hello<br/>world",
+		},
+		{
+			name: "space before slash",
+			msg:  "Hello<br />world",
+		},
+		{
+			name: "space after slash",
+			msg:  "Hello<br/ >world",
+		},
+		{
+			name: "multiple spaces",
+			msg:  "Hello<br  /  >world",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tt.msg, err)
+			}
+			if len(elems) != 3 {
+				t.Fatalf("expected 3 elements, got %d", len(elems))
+			}
+			tag, ok := elems[1].(TagElement)
+			if !ok {
+				t.Fatalf("expected tag element, got %T", elems[1])
+			}
+			if tag.Value != "br" {
+				t.Errorf("expected tag name %q, got %q", "br", tag.Value)
+			}
+			if !tag.SelfClosing {
+				t.Errorf("expected tag to be self-closing")
+			}
+		})
+	}
+}
+
 func TestParseASTPluralWithNonASCIIWhitespace(t *testing.T) {
 	msg := "{\u00a0count\u00a0,\u00a0plural\u00a0,\u00a0Offset:2\u00a0=0\u00a0{nobody}\u00a0other\u00a0{# items}}"
 	elems, err := Parse(msg, nil)

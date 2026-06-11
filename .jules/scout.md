@@ -63,3 +63,7 @@
 ## 2025-06-18 - [ICU Plural Negative Selectors]
 **Learning:** ICU plural exact-value selectors (e.g., `=-1`) can include negative numbers. A naive selector parser that only expects digits after the `=` prefix will fail on these valid selectors. Additionally, when parsing sequences that require at least one element (like digits after a sign), using an explicit starting position marker (`digitStart`) to verify consumption is clearer and more robust than checking the last character's properties.
 **Action:** Ensure plural selector parsing explicitly handles an optional minus sign following the `=` prefix before consuming digits, and use explicit position markers to validate that at least one digit was consumed.
+
+## 2025-06-19 - [Flexible Whitespace in Self-Closing Tags]
+**Learning:** ICU and HTML-style tag parsers must handle flexible whitespace in self-closing tags (e.g., `<br / >`). Standard XML is strict about `/>`, but real-world localization strings often contain these variations. Failing to support them leads to "unclosed tag" errors during parsing.
+**Action:** Always allow whitespace after the slash in self-closing tag detection to improve compatibility with common HTML formatting.
