@@ -1,6 +1,6 @@
 import { start } from "workflow/api";
 
-import type { TranslationJobEventData, JobQueue } from "@/lib/workflow/types";
+import type { TranslationJobEventData, ReviewJobEventData, JobQueue } from "@/lib/workflow/types";
 
 export function createTranslationJobEventQueue(): JobQueue<TranslationJobEventData> {
   return {
@@ -13,6 +13,16 @@ export function createTranslationJobEventQueue(): JobQueue<TranslationJobEventDa
       return {
         ids: [run.runId],
       };
+    },
+  };
+}
+
+export function createReviewJobEventQueue(): JobQueue<ReviewJobEventData> {
+  return {
+    async enqueue(event) {
+      const { reviewJobWorkflow } = await import("@/workflows/review-job");
+      const run = await start(reviewJobWorkflow, [event]);
+      return { ids: [run.runId] };
     },
   };
 }

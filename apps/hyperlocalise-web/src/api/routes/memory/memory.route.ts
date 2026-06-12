@@ -8,12 +8,13 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { conflictResponse } from "@/api/errors";
+import { conflictResponse, badRequestResponse } from "@/api/errors";
 import { parseCsvRows } from "@/lib/csv/parse-csv-rows";
 import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
 import { toMemoryRecord } from "@/lib/memory/memory-records";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
+import { promoteApprovedProjectTranslationsToMemory } from "@/lib/projects/promote-project-translations";
 
 import { getOwnedProject, projectNotFoundResponse } from "../project/project.shared";
 import {
@@ -21,6 +22,7 @@ import {
   createMemoryEntryBodySchema,
   createMemoryBodySchema,
   importMemoryEntriesBodySchema,
+  promoteMemoryFromProjectBodySchema,
   listMemoryEntriesQuerySchema,
   listMemoryQuerySchema,
   memoryEntryIdParamsSchema,
@@ -32,6 +34,7 @@ import {
   type CreateMemoryEntryBody,
   type CreateMemoryBody,
   type ImportMemoryEntriesBody,
+  type PromoteMemoryFromProjectBody,
   type ListMemoryEntriesQuery,
   type ListMemoryQuery,
   type UpdateMemoryEntryBody,
@@ -420,6 +423,16 @@ const validateImportMemoryEntriesBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validatePromoteMemoryFromProjectBody = validator("json", (value, c) => {
+  const parsed = promoteMemoryFromProjectBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidMemoryPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateAttachMemoryProjectBody = validator("json", (value, c) => {
   const parsed = attachMemoryProjectBodySchema.safeParse(value);
 
@@ -534,6 +547,66 @@ export function createMemoryRoutes() {
         return c.json(
           { memoryEntries: created.map(toMemoryEntryRecord), imported: created.length, skipped },
           201,
+        );
+      },
+    )
+    .post(
+      "/:memoryId/entries/promote-from-project",
+      validateMemoryParams,
+      validatePromoteMemoryFromProjectBody,
+      async (c) => {
+        if (!isMemoryMutationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const payload: PromoteMemoryFromProjectBody = c.req.valid("json");
+        const memory = await memoryStore.getById(c.var.auth, params.memoryId);
+
+        if (!memory) {
+          return memoryNotFoundResponse(c);
+        }
+        if (memory.source === "external_tms") {
+          return externalTmsMemoryImmutableResponse(c);
+        }
+
+        const project = await getOwnedProject(c.var.auth, payload.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const result = await promoteApprovedProjectTranslationsToMemory({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: payload.projectId,
+          memoryId: params.memoryId,
+          sourceLocale: payload.sourceLocale,
+          targetLocale: payload.targetLocale,
+          sourcePath: payload.sourcePath,
+        });
+
+        if (result.reason === "memory_not_found") {
+          return memoryNotFoundResponse(c);
+        }
+
+        if (result.reason === "memory_not_attached") {
+          return badRequestResponse(
+            c,
+            "memory_not_attached_to_project",
+            "Attach this translation memory to the project before promoting translations",
+          );
+        }
+
+        if (result.reason === "source_file_not_found") {
+          return badRequestResponse(c, "source_file_not_found", "Source file was not found");
+        }
+
+        return c.json(
+          {
+            promoted: result.promoted,
+            skipped: result.skipped,
+            reason: result.reason,
+          },
+          200,
         );
       },
     )

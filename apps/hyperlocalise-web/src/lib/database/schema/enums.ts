@@ -285,3 +285,21 @@ export const usageEventStatusEnum = pgEnum("usage_event_status", [
   "tracking_succeeded",
   "tracking_failed",
 ]);
+/**
+ * Tracks review lifecycle for native project translation segments.
+ */
+export const projectTranslationStatusEnum = pgEnum("project_translation_status", [
+  "draft",
+  "needs_review",
+  "approved",
+  "rejected",
+]);
+/**
+ * Records how a native project translation was created or updated.
+ */
+export const projectTranslationProvenanceEnum = pgEnum("project_translation_provenance", [
+  "manual",
+  "translation_job",
+  "import",
+  "agent",
+]);

@@ -18,7 +18,7 @@ import {
   inferSupportedFileTranslationFileFormat,
   supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
-import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
+import { createReviewJobEventQueue, createTranslationJobEventQueue } from "@/lib/workflow/queues";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -61,6 +61,7 @@ function queuedJobUsageBilling(kind: JobKind) {
 }
 
 const jobQueue = createTranslationJobEventQueue();
+const reviewJobQueue = createReviewJobEventQueue();
 
 type JobCreationError =
   | { code: "job_permission_denied"; message: string }
@@ -714,6 +715,16 @@ export function createReviewJobTool(ctx: ToolContext) {
       }
 
       const job = jobResult.value;
+      const projectId = getJobProjectId(ctx);
+      if (projectId) {
+        await reviewJobQueue.enqueue({
+          kind: "review",
+          type: "native",
+          jobId: job.id,
+          projectId,
+        });
+      }
+
       return { success: true, jobId: job.id, status: job.status };
     },
   });

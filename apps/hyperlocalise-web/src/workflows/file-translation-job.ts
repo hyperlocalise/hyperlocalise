@@ -34,6 +34,7 @@ import {
   getProjectOrganizationStep,
   getStoredFileContentStep,
   getStoredFileStep,
+  persistFileProjectTranslationsStep,
   persistFileTranslationMemoryEntriesStep,
   reuseFileTranslationMemoryEntriesStep,
   storeOutputFileStep,
@@ -466,6 +467,16 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
             targetLocale,
             sourcePath: sourceFile.filename,
             sourceFileHash: sourceFile.sha256,
+            sourceEntries,
+            targetEntries,
+          });
+          await persistFileProjectTranslationsStep({
+            organizationId,
+            projectId: claim.job.projectId,
+            jobId: claim.job.id,
+            sourcePath: sourceFile.filename,
+            sourceLocale: parsedInput.sourceLocale,
+            targetLocale,
             sourceEntries,
             targetEntries,
           });

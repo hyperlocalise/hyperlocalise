@@ -10,4 +10,5 @@ export * from "./contentful";
 export * from "./jobs";
 export * from "./agents";
 export * from "./files";
+export * from "./project-strings";
 export * from "./repo-tms";

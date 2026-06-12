@@ -34,6 +34,7 @@ export const stringTranslationJobInputSchema = z.object({
   metadata: metadataSchema,
   context: z.string().max(20_000).optional(),
   maxLength: z.int().positive().max(100_000).optional(),
+  translationKeyId: z.string().uuid().optional(),
 });
 
 export const fileTranslationJobInputSchema = z.object({

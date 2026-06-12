@@ -3,6 +3,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
+import { persistStringJobTranslations } from "@/lib/projects/promote-project-translations";
 import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -451,6 +452,29 @@ export async function completeTranslationJob(input: {
     throw new Error(
       `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
     );
+  }
+
+  const parsedInput = stringTranslationJobInputSchema.safeParse(
+    (await getStoredJob(input.jobId, input.projectId))?.inputPayload,
+  );
+
+  if (parsedInput.success) {
+    const [project] = await db
+      .select({ organizationId: schema.projects.organizationId })
+      .from(schema.projects)
+      .where(eq(schema.projects.id, input.projectId))
+      .limit(1);
+
+    if (project?.organizationId) {
+      await persistStringJobTranslations({
+        organizationId: project.organizationId,
+        projectId: input.projectId,
+        jobId: input.jobId,
+        sourceLocale: parsedInput.data.sourceLocale,
+        translations: input.result.translations,
+        translationKeyId: parsedInput.data.translationKeyId,
+      });
+    }
   }
 
   const operationKey = `job:${input.jobId}:translation_jobs`;

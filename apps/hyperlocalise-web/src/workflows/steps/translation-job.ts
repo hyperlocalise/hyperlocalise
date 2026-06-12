@@ -330,6 +330,22 @@ export async function persistFileTranslationMemoryEntriesStep(input: {
   return persistFileTranslationMemoryEntries(input);
 }
 
+export async function persistFileProjectTranslationsStep(input: {
+  organizationId: string;
+  projectId: string;
+  jobId: string;
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+  sourceEntries: Record<string, string>;
+  targetEntries: Record<string, string>;
+}) {
+  "use step";
+  const { persistFileJobTranslations } =
+    await import("@/lib/projects/promote-project-translations");
+  return persistFileJobTranslations(input);
+}
+
 export async function completeFileTranslationJobStep(input: {
   jobId: string;
   projectId: string;

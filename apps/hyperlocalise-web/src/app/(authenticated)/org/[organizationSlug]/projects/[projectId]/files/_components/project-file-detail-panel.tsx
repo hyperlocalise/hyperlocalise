@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { ProjectFileSourceStringsPreview } from "./project-file-source-strings-preview";
+import { ProjectFileCatWorkspace } from "./project-file-cat-workspace";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { parseSourceStringsFromFileContent } from "@/lib/projects/project-file-source-strings";
@@ -151,6 +152,23 @@ export function ProjectFileDetailPanel({
     },
   });
 
+  const projectQuery = useQuery({
+    queryKey: ["project", organizationSlug, projectId],
+    enabled: Boolean(file && !file.provider && !encodedJobId),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
+        param: { organizationSlug, projectId },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to load project"));
+      }
+
+      const body = (await response.json()) as { project: { targetLocales: string[] } };
+      return body.project;
+    },
+  });
+
   return (
     <ProjectFileDetailPanelView
       organizationSlug={organizationSlug}
@@ -158,6 +176,7 @@ export function ProjectFileDetailPanel({
       file={file}
       requestedSourcePath={requestedSourcePath}
       highlightLocale={highlightLocale}
+      targetLocales={projectQuery.data?.targetLocales ?? []}
       isLoading={detailQuery.isLoading}
       error={detailQuery.isError ? detailQuery.error : undefined}
       detail={detailQuery.data}
@@ -171,6 +190,7 @@ export function ProjectFileDetailPanelView({
   file,
   requestedSourcePath,
   highlightLocale,
+  targetLocales = [],
   isLoading,
   error,
   detail,
@@ -181,6 +201,7 @@ export function ProjectFileDetailPanelView({
   file: ProjectFileRecord | null;
   requestedSourcePath: string | null;
   highlightLocale: string | null;
+  targetLocales?: string[];
   isLoading: boolean;
   error?: unknown;
   detail?: ProjectFileDetail;
@@ -305,6 +326,21 @@ export function ProjectFileDetailPanelView({
           </TypographyP>
         )}
       </section>
+
+      {!file.provider && sourcePath ? (
+        <section className="space-y-3">
+          <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            CAT workspace
+          </TypographyP>
+          <ProjectFileCatWorkspace
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourcePath={sourcePath}
+            targetLocales={targetLocales}
+            highlightLocale={highlightLocale}
+          />
+        </section>
+      ) : null}
 
       {orderedJobsByLocale.length > 0 ? (
         <section className="space-y-3">
