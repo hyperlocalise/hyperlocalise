@@ -221,6 +221,9 @@ func (r *SourceStringsAddRequest) Validate() error {
 	if r.FileID == 0 && r.BranchID == 0 && r.DirectoryID == 0 {
 		return errors.New("fileId, branchId or directoryId is required")
 	}
+	if (r.FileID != 0 && r.BranchID != 0) || (r.FileID != 0 && r.DirectoryID != 0) || (r.BranchID != 0 && r.DirectoryID != 0) {
+		return errors.New("only one of fileId, branchId or directoryId may be set")
+	}
 
 	return nil
 }
@@ -321,6 +324,9 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	}
 	if o.BranchID == 0 && o.DirectoryID == 0 {
 		return errors.New("branchId or directoryId is required")
+	}
+	if o.BranchID != 0 && o.DirectoryID != 0 {
+		return errors.New("only one of branchId or directoryId may be set")
 	}
 	if o.UpdateOption != "" && !(*o.UpdateStrings) {
 		return errors.New("updateStrings must be set to true to use updateOption")

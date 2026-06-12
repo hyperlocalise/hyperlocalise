@@ -168,6 +168,11 @@ func TestSourceStringsAddRequestValidate(t *testing.T) {
 			valid: true,
 		},
 		{
+			name: "multi-set identifiers",
+			req:  &SourceStringsAddRequest{Text: "text", FileID: 1, BranchID: 1},
+			err:  "only one of fileId, branchId or directoryId may be set",
+		},
+		{
 			name: "valid request with all fields",
 			req: &SourceStringsAddRequest{
 				Text: map[string]string{
@@ -246,6 +251,11 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 				},
 			},
 			valid: true,
+		},
+		{
+			name: "multi-set identifiers",
+			req:  &SourceStringsUploadRequest{StorageID: 1, BranchID: 1, DirectoryID: 1},
+			err:  "only one of branchId or directoryId may be set",
 		},
 		{
 			name: "valid request with directoryId",
