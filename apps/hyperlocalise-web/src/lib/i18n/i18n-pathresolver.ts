@@ -16,7 +16,7 @@ function resolve(pattern: string, sourceLocale: string, targetLocale: string): s
   path = path.replaceAll(TOKEN_LOCALE_DIR, localeDir);
   path = path.replaceAll(LEGACY_LOCALE, targetLocale);
 
-  path = normalizeRepositoryRelativePath(path);
+  path = normalizeRepositoryRelativePath(path.replace(/\/+/g, "/"));
 
   if (!isSafeRepositoryRelativePath(path)) {
     throw new Error(`Unsafe repository path: ${path}`);

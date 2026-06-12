@@ -71,3 +71,11 @@
 ## 2025-06-25 - [Path Resolution with Empty Tokens]
 **Learning:** Path resolution patterns using tokens like {{localeDir}} can produce leading slashes if the token is at the start of the pattern and resolves to an empty string (e.g., when source and target locales match). These leading slashes can cause downstream safety checks that expect strictly relative paths to fail.
 **Action:** Always apply repository-relative path normalization after token substitution and before safety validation to ensure consistent handling of relative paths regardless of token resolution.
+
+## 2025-06-25 - [Slash Collapsing in Path Resolution]
+**Learning:**  may only handle leading/trailing slashes and specific segments (like  or ). It might not collapse internal multiple slashes (e.g., ).
+**Action:** When performing token substitution that might result in empty segments, explicitly collapse multiple slashes using a regex (e.g., ) before applying repository-wide normalization.
+
+## 2025-06-25 - [Slash Collapsing in Path Resolution]
+**Learning:** `normalizeRepositoryRelativePath` may only handle leading/trailing slashes and specific segments (like `.` or `..`). It might not collapse internal multiple slashes (e.g., `a//b`).
+**Action:** When performing token substitution that might result in empty segments, explicitly collapse multiple slashes using a regex (e.g., `path.replace(/\/+/g, "/")`) before applying repository-wide normalization.
