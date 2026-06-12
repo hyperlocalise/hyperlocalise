@@ -93,6 +93,39 @@ func TestMarshalARBPreservesMetadataAndICUContent(t *testing.T) {
 	}
 }
 
+func TestMarshalARBProducesValidJSONForComplexKeysAndValues(t *testing.T) {
+	key := "cta\"copy\\final"
+	value := "Click <Save> & continue\nPath C:\\tmp\\file \"quoted\""
+
+	out, err := MarshalARB([]byte(`{}`), []byte(`{}`), map[string]string{
+		key: value,
+	}, "fr<CA>&")
+	if err != nil {
+		t.Fatalf("marshal arb: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(out, &payload); err != nil {
+		t.Fatalf("decode marshaled arb: %v\noutput:\n%s", err, out)
+	}
+	if payload["@@locale"] != "fr<CA>&" {
+		t.Fatalf("expected complex locale round trip, got %#v", payload["@@locale"])
+	}
+	if payload[key] != value {
+		t.Fatalf("expected complex value round trip, got %#v", payload[key])
+	}
+
+	rendered := string(out)
+	for _, fragment := range []string{
+		`"@@locale": "fr\u003cCA\u003e\u0026"`,
+		`"cta\"copy\\final": "Click \u003cSave\u003e \u0026 continue\nPath C:\\tmp\\file \"quoted\""`,
+	} {
+		if !strings.Contains(rendered, fragment) {
+			t.Fatalf("expected output to contain %q, got %q", fragment, rendered)
+		}
+	}
+}
+
 func TestARBParserParseWithContextIncludesDescriptions(t *testing.T) {
 	content := []byte(`{
   "hello": "Hello",
