@@ -282,6 +282,7 @@ export async function executeNativeReviewJob(input: {
     eq(schema.projectTranslations.organizationId, project.organizationId),
     eq(schema.projectTranslations.projectId, input.projectId),
     eq(schema.projectTranslations.targetLocale, targetLocale),
+    eq(schema.projectTranslations.status, "needs_review"),
   ];
 
   if (input.config.translationKeyIds?.length) {

@@ -182,33 +182,37 @@ export async function persistStringJobTranslations(input: {
     return;
   }
 
-  for (const translation of input.translations) {
-    await db
-      .insert(schema.projectTranslations)
-      .values({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        translationKeyId: key.id,
-        targetLocale: translation.locale,
-        text: translation.text,
-        status: "needs_review",
-        provenance: "translation_job",
-        sourceJobId: input.jobId,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: translation.text,
-          status: "needs_review",
-          provenance: "translation_job",
-          sourceJobId: input.jobId,
-          updatedAt: new Date(),
-        },
-      });
+  const translationValues = input.translations.map((translation) => ({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    translationKeyId: key.id,
+    targetLocale: translation.locale,
+    text: translation.text,
+    status: "needs_review" as const,
+    provenance: "translation_job" as const,
+    sourceJobId: input.jobId,
+  }));
+
+  if (translationValues.length === 0) {
+    return;
   }
+
+  await db
+    .insert(schema.projectTranslations)
+    .values(translationValues)
+    .onConflictDoUpdate({
+      target: [
+        schema.projectTranslations.translationKeyId,
+        schema.projectTranslations.targetLocale,
+      ],
+      set: {
+        text: sql`excluded.text`,
+        status: sql`excluded.status`,
+        provenance: sql`excluded.provenance`,
+        sourceJobId: sql`excluded.source_job_id`,
+        updatedAt: sql`now()`,
+      },
+    });
 }
 
 export async function persistFileJobTranslations(input: {
@@ -251,36 +255,44 @@ export async function persistFileJobTranslations(input: {
       ),
     );
 
-  for (const key of keys) {
+  const translationValues = keys.flatMap((key) => {
     const targetText = input.targetEntries[key.key];
     if (!targetText?.trim()) {
-      continue;
+      return [];
     }
 
-    await db
-      .insert(schema.projectTranslations)
-      .values({
+    return [
+      {
         organizationId: input.organizationId,
         projectId: input.projectId,
         translationKeyId: key.id,
         targetLocale: input.targetLocale,
         text: targetText,
-        status: "needs_review",
-        provenance: "translation_job",
+        status: "needs_review" as const,
+        provenance: "translation_job" as const,
         sourceJobId: input.jobId,
-      })
-      .onConflictDoUpdate({
-        target: [
-          schema.projectTranslations.translationKeyId,
-          schema.projectTranslations.targetLocale,
-        ],
-        set: {
-          text: targetText,
-          status: "needs_review",
-          provenance: "translation_job",
-          sourceJobId: input.jobId,
-          updatedAt: new Date(),
-        },
-      });
+      },
+    ];
+  });
+
+  if (translationValues.length === 0) {
+    return;
   }
+
+  await db
+    .insert(schema.projectTranslations)
+    .values(translationValues)
+    .onConflictDoUpdate({
+      target: [
+        schema.projectTranslations.translationKeyId,
+        schema.projectTranslations.targetLocale,
+      ],
+      set: {
+        text: sql`excluded.text`,
+        status: sql`excluded.status`,
+        provenance: sql`excluded.provenance`,
+        sourceJobId: sql`excluded.source_job_id`,
+        updatedAt: sql`now()`,
+      },
+    });
 }

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
@@ -53,7 +53,6 @@ export async function upsertProjectTranslationKeysFromEntries(input: {
 
   const existing = await db
     .select({
-      id: schema.projectTranslationKeys.id,
       key: schema.projectTranslationKeys.key,
     })
     .from(schema.projectTranslationKeys)
@@ -68,40 +67,45 @@ export async function upsertProjectTranslationKeysFromEntries(input: {
       ),
     );
 
-  const existingByKey = new Map(existing.map((row) => [row.key, row.id]));
-  let imported = 0;
+  const existingKeys = new Set(existing.map((row) => row.key));
   let updated = 0;
-
   for (const entry of entries) {
-    const existingId = existingByKey.get(entry.key);
-    if (existingId) {
-      await db
-        .update(schema.projectTranslationKeys)
-        .set({
-          sourceText: entry.sourceText,
-          normalizedSourceText: entry.normalizedSourceText,
-          context: entry.context,
-          type: entry.type,
-          sourceFileVersionId: input.sourceFileVersionId,
-        })
-        .where(eq(schema.projectTranslationKeys.id, existingId));
+    if (existingKeys.has(entry.key)) {
       updated += 1;
-      continue;
     }
-
-    await db.insert(schema.projectTranslationKeys).values({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      repositorySourceFileId: input.repositorySourceFileId,
-      key: entry.key,
-      sourceText: entry.sourceText,
-      normalizedSourceText: entry.normalizedSourceText,
-      context: entry.context,
-      type: entry.type,
-      sourceFileVersionId: input.sourceFileVersionId,
-    });
-    imported += 1;
   }
+  const imported = entries.length - updated;
+
+  await db
+    .insert(schema.projectTranslationKeys)
+    .values(
+      entries.map((entry) => ({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        repositorySourceFileId: input.repositorySourceFileId,
+        key: entry.key,
+        sourceText: entry.sourceText,
+        normalizedSourceText: entry.normalizedSourceText,
+        context: entry.context,
+        type: entry.type,
+        sourceFileVersionId: input.sourceFileVersionId,
+      })),
+    )
+    .onConflictDoUpdate({
+      target: [
+        schema.projectTranslationKeys.projectId,
+        schema.projectTranslationKeys.repositorySourceFileId,
+        schema.projectTranslationKeys.key,
+      ],
+      set: {
+        sourceText: sql`excluded.source_text`,
+        normalizedSourceText: sql`excluded.normalized_source_text`,
+        context: sql`excluded.context`,
+        type: sql`excluded.type`,
+        sourceFileVersionId: sql`excluded.source_file_version_id`,
+        updatedAt: sql`now()`,
+      },
+    });
 
   return { imported, updated };
 }
