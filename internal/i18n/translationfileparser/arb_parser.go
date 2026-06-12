@@ -110,7 +110,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		}
 	}
 
-	writtenFields := make(map[string]struct{}, len(values))
+	writtenFields := make(map[string]struct{}, len(values)*2)
 	var out bytes.Buffer
 	// Heuristic pre-allocation: template + values overhead.
 	out.Grow(len(template) + len(values)*32)
@@ -124,11 +124,17 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		first = false
 
 		out.WriteString("  ")
-		encodedKey, err := json.Marshal(key)
-		if err != nil {
-			return err
+		if isSimpleJSONString(key) {
+			out.WriteByte('"')
+			out.WriteString(key)
+			out.WriteByte('"')
+		} else {
+			encodedKey, err := json.Marshal(key)
+			if err != nil {
+				return err
+			}
+			out.Write(encodedKey)
 		}
-		out.Write(encodedKey)
 		out.WriteString(": ")
 
 		// Fast-path: if value is a simple JSON string (starts with "), skip json.Indent
@@ -144,11 +150,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	}
 
 	if !hasLocaleField && normalizedTargetLocale != "" {
-		encodedLocale, err := json.Marshal(normalizedTargetLocale)
-		if err != nil {
-			return nil, fmt.Errorf("arb encode: %w", err)
-		}
-		if err := writeField("@@locale", encodedLocale); err != nil {
+		if err := writeField("@@locale", marshalJSONString(normalizedTargetLocale)); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields["@@locale"] = struct{}{}
@@ -157,11 +159,7 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	for _, field := range fields {
 		if isARBMetadataKey(field.Key) {
 			if field.Key == "@@locale" && normalizedTargetLocale != "" {
-				encodedLocale, err := json.Marshal(normalizedTargetLocale)
-				if err != nil {
-					return nil, fmt.Errorf("arb encode: %w", err)
-				}
-				if err := writeField(field.Key, encodedLocale); err != nil {
+				if err := writeField(field.Key, marshalJSONString(normalizedTargetLocale)); err != nil {
 					return nil, fmt.Errorf("arb encode: %w", err)
 				}
 				writtenFields[field.Key] = struct{}{}
@@ -183,25 +181,22 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 		if !ok {
 			continue
 		}
-		encodedValue, err := json.Marshal(value)
-		if err != nil {
-			return nil, fmt.Errorf("arb encode: %w", err)
-		}
-		if err := writeField(field.Key, encodedValue); err != nil {
+		if err := writeField(field.Key, marshalJSONString(value)); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields[field.Key] = struct{}{}
 	}
 
-	for _, key := range sortedMapKeys(values) {
-		if _, ok := writtenFields[key]; ok {
-			continue
+	var newKeys []string
+	for key := range values {
+		if _, ok := writtenFields[key]; !ok {
+			newKeys = append(newKeys, key)
 		}
-		encodedValue, err := json.Marshal(values[key])
-		if err != nil {
-			return nil, fmt.Errorf("arb encode: %w", err)
-		}
-		if err := writeField(key, encodedValue); err != nil {
+	}
+	slices.Sort(newKeys)
+
+	for _, key := range newKeys {
+		if err := writeField(key, marshalJSONString(values[key])); err != nil {
 			return nil, fmt.Errorf("arb encode: %w", err)
 		}
 		writtenFields[key] = struct{}{}
@@ -239,7 +234,8 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 		return nil, fmt.Errorf("expected object")
 	}
 
-	var fields []arbObjectField
+	// Heuristic pre-allocation: approx 1 field per 100 bytes of content.
+	fields := make([]arbObjectField, 0, len(content)/100)
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
@@ -319,11 +315,30 @@ func isARBMetadataKey(key string) bool {
 	return len(key) > 0 && key[0] == '@'
 }
 
-func sortedMapKeys[V any](m map[string]V) []string {
-	keys := make([]string, 0, len(m))
-	for key := range m {
-		keys = append(keys, key)
+// isSimpleJSONString reports whether s contains only characters that do not
+// require escaping in a JSON string. To maintain parity with Go's default
+// json.Marshal, we also exclude HTML-sensitive characters.
+func isSimpleJSONString(s string) bool {
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		if ch < 0x20 || ch == '"' || ch == '\\' || ch == '<' || ch == '>' || ch == '&' || ch > 0x7E {
+			return false
+		}
 	}
-	slices.Sort(keys)
-	return keys
+	return true
+}
+
+func marshalJSONString(s string) []byte {
+	if isSimpleJSONString(s) {
+		b := make([]byte, 0, len(s)+2)
+		b = append(b, '"')
+		b = append(b, s...)
+		b = append(b, '"')
+		return b
+	}
+	encoded, err := json.Marshal(s)
+	if err != nil {
+		return []byte(`""`)
+	}
+	return encoded
 }
