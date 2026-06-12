@@ -266,7 +266,9 @@ export function MarkdownContent({
   }, [editor, value]);
 
   if (!editor) {
-    return <div className={className} />;
+    return (
+      <div className={cn(className, contentClassName)} aria-busy="true" aria-label={ariaLabel} />
+    );
   }
 
   return (

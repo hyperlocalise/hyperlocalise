@@ -134,21 +134,20 @@ export function CatIntelligencePanel({
                     <span>Looking up repository context…</span>
                   </div>
                 ) : (
-                  <>
+                  <div className="min-h-[1.25rem] space-y-2">
                     <MarkdownContent
                       value={productMeaning}
-                      contentClassName="min-h-0 px-0 py-0 text-sm leading-relaxed text-foreground/88"
+                      contentClassName="min-h-[1.25rem] px-0 py-0 text-sm leading-relaxed text-foreground/88"
                       ariaLabel="Product context"
                     />
                     {showIntent ? (
                       <MarkdownContent
                         value={intelligence.intent ?? ""}
-                        className="mt-2"
-                        contentClassName="min-h-0 px-0 py-0 text-xs leading-relaxed text-muted-foreground"
+                        contentClassName="min-h-[1rem] px-0 py-0 text-xs leading-relaxed text-muted-foreground"
                         ariaLabel="Translation intent"
                       />
                     ) : null}
-                  </>
+                  </div>
                 )}
               </InsightCard>
 
