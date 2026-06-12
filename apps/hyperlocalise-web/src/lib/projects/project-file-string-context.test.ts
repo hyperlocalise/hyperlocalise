@@ -129,6 +129,7 @@ describe("lookupProjectFileStringRepositoryContext", () => {
         }),
       }),
     );
+    expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
   });
 
   it("returns repository_not_enabled when no repository is specified and none are enabled", async () => {
@@ -185,6 +186,16 @@ describe("lookupProjectFileStringRepositoryContext", () => {
       organizationId: organization.id,
       repositoryFullName: "hyperlocalise/selected",
     });
+    expect(runSubagentMock).toHaveBeenCalledWith(
+      "repository",
+      expect.objectContaining({
+        toolContext: expect.objectContaining({
+          githubContext: expect.objectContaining({
+            repositoryFullName: "hyperlocalise/selected",
+          }),
+        }),
+      }),
+    );
     expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sandbox-test");
   });
 
