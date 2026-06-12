@@ -179,13 +179,16 @@ export function CatWorkspaceContainer({
   className,
 }: CatWorkspaceContainerProps) {
   const [state, setState] = useState(initialState);
-  const [isBusy, setIsBusy] = useState(false);
+  const [isValidating, setIsValidating] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isLookingUpContext, setIsLookingUpContext] = useState(false);
   const stateRef = useRef(state);
   const previousInitialStateRef = useRef(initialState);
   const validationSequenceRef = useRef(0);
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
   const lookupSegmentContext = serviceOverrides?.lookupSegmentContext;
+  const canLookupContext = Boolean(lookupSegmentContext);
   const onSelectSegment = navigationOverrides?.onSelectSegment;
   const onPreviousSegment = navigationOverrides?.onPreviousSegment;
   const onNextSegment = navigationOverrides?.onNextSegment;
@@ -215,7 +218,7 @@ export function CatWorkspaceContainer({
 
       const sequence = validationSequenceRef.current + 1;
       validationSequenceRef.current = sequence;
-      setIsBusy(true);
+      setIsValidating(true);
       try {
         const [formatChecks, qaChecks] = await Promise.all([
           validateFormat ? validateFormat(segment, value) : Promise.resolve([]),
@@ -235,7 +238,7 @@ export function CatWorkspaceContainer({
         }));
       } finally {
         if (validationSequenceRef.current === sequence) {
-          setIsBusy(false);
+          setIsValidating(false);
         }
       }
     },
@@ -301,7 +304,7 @@ export function CatWorkspaceContainer({
 
     const review = {
       onApprove: async (segmentId: string, targetText: string) => {
-        setIsBusy(true);
+        setIsApproving(true);
         try {
           const nextStatus = (await onApprove?.(segmentId, targetText)) ?? "reviewed";
           setState((current) => {
@@ -322,7 +325,7 @@ export function CatWorkspaceContainer({
             ...addSaveFailureFormatCheck(current, segmentId, message),
           }));
         } finally {
-          setIsBusy(false);
+          setIsApproving(false);
         }
       },
       onAskQuestion: async (segmentId: string) => {
@@ -336,7 +339,7 @@ export function CatWorkspaceContainer({
           return;
         }
 
-        setIsBusy(true);
+        setIsLookingUpContext(true);
         try {
           const productMeaning = await lookupSegmentContext(segment);
           setState((current) => {
@@ -393,7 +396,7 @@ export function CatWorkspaceContainer({
             };
           });
         } finally {
-          setIsBusy(false);
+          setIsLookingUpContext(false);
         }
       },
       onSkip: (segmentId: string) => {
@@ -434,7 +437,10 @@ export function CatWorkspaceContainer({
     <CatWorkspaceView
       state={state}
       dependencies={dependencies}
-      isBusy={isBusy}
+      isValidating={isValidating}
+      isApproving={isApproving}
+      isLookingUpContext={isLookingUpContext}
+      canLookupContext={canLookupContext}
       className={className}
     />
   );

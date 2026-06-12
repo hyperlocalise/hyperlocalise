@@ -215,6 +215,7 @@ export function projectFileCatToWorkspaceState(catFile: CatFile): CatWorkspaceSt
     ),
     breadcrumbs: [catFile.provider?.kind ?? "provider", catFile.filename, catFile.targetLocale],
     primaryActionLabel: "Save to Crowdin",
+    canEditTranslations: catFile.canEditTranslations,
   };
 }
 
@@ -362,7 +363,7 @@ export function TmsJobCatWorkspace({
       className={cn("min-h-0 flex-1", className)}
       services={{
         validateFormat: validateSegmentFormat,
-        lookupSegmentContext: catQuery.data?.canEditTranslations ? lookupSegmentContext : undefined,
+        lookupSegmentContext,
       }}
       review={{
         onApprove: handleApprove,

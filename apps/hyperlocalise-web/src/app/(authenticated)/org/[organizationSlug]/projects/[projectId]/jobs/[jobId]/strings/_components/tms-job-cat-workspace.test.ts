@@ -99,6 +99,16 @@ describe("projectFileCatToWorkspaceState", () => {
       "1 Crowdin comment is attached",
     );
     expect(state.breadcrumbs).toEqual(["crowdin", "en-US.json", "vi"]);
+    expect(state.canEditTranslations).toBe(true);
+  });
+
+  it("maps canEditTranslations from the CAT file payload", () => {
+    const readOnlyState = projectFileCatToWorkspaceState({
+      ...catFile(),
+      canEditTranslations: false,
+    });
+
+    expect(readOnlyState.canEditTranslations).toBe(false);
   });
 });
 
