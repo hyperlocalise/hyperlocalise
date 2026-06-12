@@ -36,13 +36,18 @@ func TestSourceStringsListOptionsValues(t *testing.T) {
 			out:  "excludeLabelIds=4%2C5",
 		},
 		{
+			name: "with OrderBy",
+			opts: &SourceStringsListOptions{OrderBy: "createdAt desc,identifier"},
+			out:  "orderBy=createdAt+desc%2Cidentifier",
+		},
+		{
 			name: "with all options",
 			opts: &SourceStringsListOptions{
 				DenormalizePlaceholders: toPtr(1), LabelIDs: []int{1, 2, 3}, ExcludeLabelIDs: []int{4, 5},
 				FileID: 1, BranchID: 1, DirectoryID: 1, TaskID: 2, CroQL: "croql", Filter: "text", Scope: "identifier",
-				IsIcu: toPtr(0),
+				IsIcu: toPtr(0), OrderBy: "id",
 			},
-			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&excludeLabelIds=4%2C5&fileId=1&filter=text&isIcu=0&labelIds=1%2C2%2C3&scope=identifier&taskId=2",
+			out: "branchId=1&croql=croql&denormalizePlaceholders=1&directoryId=1&excludeLabelIds=4%2C5&fileId=1&filter=text&isIcu=0&labelIds=1%2C2%2C3&orderBy=id&scope=identifier&taskId=2",
 		},
 	}
 
@@ -138,13 +143,23 @@ func TestSourceStringsAddRequestValidate(t *testing.T) {
 			err:  "text cannot be empty",
 		},
 		{
-			name: "empty fileID",
+			name: "missing identifiers",
 			req:  &SourceStringsAddRequest{Text: "Not all videos are shown to users.", Identifier: "name"},
-			err:  "fileId or branchId is required",
+			err:  "fileId, branchId or directoryId is required",
 		},
 		{
-			name:  "valid request",
+			name:  "valid request with fileId",
 			req:   &SourceStringsAddRequest{Text: "Not all videos are shown to users.", Identifier: "name", FileID: 1},
+			valid: true,
+		},
+		{
+			name:  "valid request with branchId",
+			req:   &SourceStringsAddRequest{Text: "Not all videos are shown to users.", Identifier: "name", BranchID: 1},
+			valid: true,
+		},
+		{
+			name:  "valid request with directoryId",
+			req:   &SourceStringsAddRequest{Text: "Not all videos are shown to users.", Identifier: "name", DirectoryID: 1},
 			valid: true,
 		},
 		{
@@ -153,7 +168,7 @@ func TestSourceStringsAddRequestValidate(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "valid request",
+			name: "valid request with all fields",
 			req: &SourceStringsAddRequest{
 				Text: map[string]string{
 					"one":   "string",
@@ -204,9 +219,9 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 			err:  "storageId is required",
 		},
 		{
-			name: "missing branchId",
+			name: "missing identifiers",
 			req:  &SourceStringsUploadRequest{StorageID: 1},
-			err:  "branchId is required",
+			err:  "branchId or directoryId is required",
 		},
 		{
 			name: "invalid request",
@@ -221,9 +236,21 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 			err: "updateStrings must be set to true to use updateOption",
 		},
 		{
-			name: "valid request",
+			name: "valid request with branchId",
 			req: &SourceStringsUploadRequest{
 				StorageID: 1, BranchID: 1, Type: "xlsx", ParserVersion: 1,
+				LabelIDs: []int{1, 2, 3}, UpdateStrings: toPtr(false), CleanupMode: toPtr(false),
+				ImportOptions: &SourceStringsImportOptions{
+					FirstLineContainsHeader: toPtr(true),
+					ImportTranslations:      toPtr(true), Scheme: map[string]int{"key": 0},
+				},
+			},
+			valid: true,
+		},
+		{
+			name: "valid request with directoryId",
+			req: &SourceStringsUploadRequest{
+				StorageID: 1, DirectoryID: 1, Type: "xlsx", ParserVersion: 1,
 				LabelIDs: []int{1, 2, 3}, UpdateStrings: toPtr(false), CleanupMode: toPtr(false),
 				ImportOptions: &SourceStringsImportOptions{
 					FirstLineContainsHeader: toPtr(true),

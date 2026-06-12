@@ -80,6 +80,11 @@ type SourceStringsListOptions struct {
 	// Specify field to be the target of filtering. It can be one scope or
 	// a list of comma-separated scopes. Enum: identifier, text, context.
 	Scope string `json:"scope,omitempty"`
+	// OrderBy is used to sort source strings.
+	// Enum: id, identifier, text, createdAt, updatedAt.
+	// Default: id.
+	// Example: orderBy=createdAt desc,identifier.
+	OrderBy string `json:"orderBy,omitempty"`
 
 	ListOptions
 }
@@ -92,6 +97,9 @@ func (o *SourceStringsListOptions) Values() (url.Values, bool) {
 	}
 
 	v, _ := o.ListOptions.Values()
+	if o.OrderBy != "" {
+		v.Add("orderBy", o.OrderBy)
+	}
 	if o.DenormalizePlaceholders != nil &&
 		(*o.DenormalizePlaceholders == 0 || *o.DenormalizePlaceholders == 1) {
 		v.Add("denormalizePlaceholders", strconv.Itoa(*o.DenormalizePlaceholders))
@@ -169,6 +177,8 @@ type SourceStringsAddRequest struct {
 	FileID int `json:"fileId,omitempty"`
 	// Branch identifier.
 	BranchID int `json:"branchId,omitempty"`
+	// Directory identifier.
+	DirectoryID int `json:"directoryId,omitempty"`
 	// Defines unique string identifier.
 	Identifier string `json:"identifier,omitempty"`
 	// Use to provide additional information for better source text understanding.
@@ -208,8 +218,8 @@ func (r *SourceStringsAddRequest) Validate() error {
 		return errors.New("text must be a string or map of strings")
 	}
 
-	if r.FileID == 0 && r.BranchID == 0 {
-		return errors.New("fileId or branchId is required")
+	if r.FileID == 0 && r.BranchID == 0 && r.DirectoryID == 0 {
+		return errors.New("fileId, branchId or directoryId is required")
 	}
 
 	return nil
@@ -222,6 +232,7 @@ type SourceStringsUpload struct {
 	Progress   int    `json:"progress"`
 	Attributes struct {
 		BranchID      int    `json:"branchId"`
+		DirectoryID   int    `json:"directoryId"`
 		StorageID     int    `json:"storageId"`
 		FileType      string `json:"fileType"`
 		ParserVersion int    `json:"parserVersion"`
@@ -253,7 +264,10 @@ type SourceStringsUploadRequest struct {
 	StorageID int `json:"storageId"`
 	// Branch Identifier.
 	// Defines branch to which file will be added.
-	BranchID int `json:"branchId"`
+	BranchID int `json:"branchId,omitempty"`
+	// Directory Identifier.
+	// Defines directory to which file will be added.
+	DirectoryID int `json:"directoryId,omitempty"`
 	// Default: auto
 	// Enum: auto, android, macosx, arb, csv, json, xlsx, xliff, xliff_two
 	// - empty value or `auto` — Try to detect file type by extension or MIME type
@@ -305,8 +319,8 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	if o.StorageID == 0 {
 		return errors.New("storageId is required")
 	}
-	if o.BranchID == 0 {
-		return errors.New("branchId is required")
+	if o.BranchID == 0 && o.DirectoryID == 0 {
+		return errors.New("branchId or directoryId is required")
 	}
 	if o.UpdateOption != "" && !(*o.UpdateStrings) {
 		return errors.New("updateStrings must be set to true to use updateOption")
