@@ -6,7 +6,7 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 
 import { apiClient } from "@/lib/api-client-instance";
 
-import { createInboxApi } from "./inbox-api";
+import { createInboxApi, type InboxApi } from "./inbox-api";
 import { InboxPageView } from "./inbox-page-view";
 import type { InboxCurrentUser } from "./inbox-types";
 import { useConversationStream } from "./use-conversation-stream";
@@ -32,7 +32,7 @@ export function InboxPageContent({
 }: {
   currentUser: InboxCurrentUser;
   organizationSlug: string;
-  inboxApi?: typeof inboxApi;
+  inboxApi?: InboxApi;
 }) {
   const router = useRouter();
   const params = useParams();

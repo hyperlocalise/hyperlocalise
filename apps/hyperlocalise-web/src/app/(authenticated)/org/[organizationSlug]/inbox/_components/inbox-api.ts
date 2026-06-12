@@ -21,7 +21,7 @@ export type InboxApi = {
     organizationSlug: string,
     conversationId: string,
     input: SendConversationMessageInput,
-  ): Promise<unknown>;
+  ): Promise<void>;
 };
 
 type ApiClient = ReturnType<typeof createApiClient>;
@@ -96,8 +96,6 @@ export function createInboxApi(client: ApiClient): InboxApi {
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to send message");
       }
-
-      return response.json();
     },
   };
 }

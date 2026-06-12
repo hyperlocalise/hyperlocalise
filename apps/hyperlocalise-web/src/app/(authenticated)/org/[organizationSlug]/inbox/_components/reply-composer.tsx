@@ -45,7 +45,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 
-import { createInboxApi, type InboxProjectSummary } from "./inbox-api";
+import { createInboxApi, type InboxApi, type InboxProjectSummary } from "./inbox-api";
 
 const inboxApi = createInboxApi(apiClient);
 
@@ -298,7 +298,7 @@ type ReplyComposerProps = Omit<
   "projects" | "projectsIsError" | "projectsIsLoading"
 > & {
   organizationSlug: string;
-  inboxApi?: typeof inboxApi;
+  inboxApi?: InboxApi;
 };
 
 export const ReplyComposer = memo(function ReplyComposer({
