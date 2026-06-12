@@ -45,6 +45,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
 
+import { createInboxApi, type InboxApi, type InboxProjectSummary } from "./inbox-api";
+
+const inboxApi = createInboxApi(apiClient);
+
 function dataUrlToFile(dataUrl: string, filename: string, mediaType?: string): File {
   const arr = dataUrl.split(",");
   if (arr.length < 2) {
@@ -75,29 +79,25 @@ const attachOptions = [
   },
 ] as const;
 
-type ReplyComposerProps = {
+type ReplyComposerViewProps = {
   conversationProjectId: string | null;
   disabled: boolean;
   isStreaming: boolean;
   onSend: (text: string, files: File[], projectId?: string) => void | Promise<void>;
-  organizationSlug: string;
+  projects: InboxProjectSummary[];
+  projectsIsError: boolean;
+  projectsIsLoading: boolean;
 };
 
-export const ReplyComposer = memo(function ReplyComposer(props: ReplyComposerProps) {
-  return (
-    <PromptInputProvider>
-      <ReplyComposerContent {...props} />
-    </PromptInputProvider>
-  );
-});
-
-function ReplyComposerContent({
+export function ReplyComposerView({
   conversationProjectId,
   disabled,
   isStreaming,
   onSend,
-  organizationSlug,
-}: ReplyComposerProps) {
+  projects,
+  projectsIsError,
+  projectsIsLoading,
+}: ReplyComposerViewProps) {
   const [replyText, setReplyText] = useState("");
   const [selectedProjectId, setSelectedProjectId] = useState(conversationProjectId ?? "");
 
@@ -105,23 +105,6 @@ function ReplyComposerContent({
     setSelectedProjectId(conversationProjectId ?? "");
   }, [conversationProjectId]);
 
-  const projectsQuery = useQuery({
-    queryKey: ["translation-projects", organizationSlug],
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      if (response.status !== 200) {
-        throw new Error(`Failed to load projects (${response.status})`);
-      }
-
-      const body = await response.json();
-      return body.projects;
-    },
-  });
-
-  const projects = projectsQuery.data ?? [];
   const selectedProject =
     projects.find((project) => project.id === selectedProjectId) ?? projects[0] ?? null;
   const projectTriggerLabel = selectedProject?.name ?? "Project";
@@ -235,7 +218,7 @@ function ReplyComposerContent({
                         strokeWidth={1.8}
                         className="size-4"
                       />
-                      {projectsQuery.isLoading ? (
+                      {projectsIsLoading ? (
                         <Skeleton className="h-3.5 w-24 rounded-full bg-muted-foreground/20" />
                       ) : (
                         projectTriggerLabel
@@ -251,7 +234,7 @@ function ReplyComposerContent({
                 <DropdownMenuContent className="min-w-56" align="end">
                   <DropdownMenuGroup>
                     <DropdownMenuLabel>Projects</DropdownMenuLabel>
-                    {projectsQuery.isLoading ? (
+                    {projectsIsLoading ? (
                       <>
                         <DropdownMenuItem disabled>
                           <Skeleton className="size-4 rounded-md bg-muted-foreground/20" />
@@ -267,10 +250,10 @@ function ReplyComposerContent({
                         </DropdownMenuItem>
                       </>
                     ) : null}
-                    {projectsQuery.isError ? (
+                    {projectsIsError ? (
                       <DropdownMenuItem disabled>Unable to load projects</DropdownMenuItem>
                     ) : null}
-                    {projectsQuery.isSuccess && projects.length === 0 ? (
+                    {!projectsIsLoading && !projectsIsError && projects.length === 0 ? (
                       <DropdownMenuItem disabled>No projects found</DropdownMenuItem>
                     ) : null}
                     {projects.map((project) => (
@@ -309,3 +292,33 @@ function ReplyComposerContent({
     </section>
   );
 }
+
+type ReplyComposerProps = Omit<
+  ReplyComposerViewProps,
+  "projects" | "projectsIsError" | "projectsIsLoading"
+> & {
+  organizationSlug: string;
+  inboxApi?: InboxApi;
+};
+
+export const ReplyComposer = memo(function ReplyComposer({
+  organizationSlug,
+  inboxApi: injectedInboxApi = inboxApi,
+  ...viewProps
+}: ReplyComposerProps) {
+  const projectsQuery = useQuery({
+    queryKey: ["translation-projects", organizationSlug],
+    queryFn: () => injectedInboxApi.listProjects(organizationSlug),
+  });
+
+  return (
+    <PromptInputProvider>
+      <ReplyComposerView
+        {...viewProps}
+        projects={projectsQuery.data ?? []}
+        projectsIsError={projectsQuery.isError}
+        projectsIsLoading={projectsQuery.isLoading}
+      />
+    </PromptInputProvider>
+  );
+});
