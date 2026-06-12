@@ -7,6 +7,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 
 import { CatFormatChecks } from "./cat-format-checks";
@@ -39,7 +40,11 @@ export function CatEditorPanel({
   totalSegments,
   formatChecks,
   intelligence,
-  isBusy,
+  isEditorBusy,
+  isApproving = false,
+  isLookingUpContext = false,
+  canApprove = true,
+  canLookupContext = false,
   onTargetChange,
   onUseAiSuggestion,
   onApprove,
@@ -55,7 +60,11 @@ export function CatEditorPanel({
   totalSegments: number;
   formatChecks: CatFormatCheck[];
   intelligence: CatSegmentIntelligence;
-  isBusy?: boolean;
+  isEditorBusy?: boolean;
+  isApproving?: boolean;
+  isLookingUpContext?: boolean;
+  canApprove?: boolean;
+  canLookupContext?: boolean;
   onTargetChange: (value: string) => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
@@ -187,7 +196,7 @@ export function CatEditorPanel({
               sourceText={segment.sourceText}
               value={segment.targetText}
               onChange={onTargetChange}
-              disabled={isBusy}
+              disabled={isEditorBusy}
             />
             <CatIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
           </section>
@@ -221,20 +230,39 @@ export function CatEditorPanel({
             <Button
               className="bg-grove-500 text-white hover:bg-grove-400"
               onClick={onApprove}
-              disabled={isBusy}
+              disabled={!canApprove || isApproving || isLookingUpContext}
             >
+              {isApproving ? <Spinner className="size-4 text-white" /> : null}
               {primaryActionLabel}
               <ShortcutKbd keys={["⌘", "↵"]} className="bg-white/15 text-white" />
             </Button>
-            <Button variant="outline" onClick={onAskQuestion} disabled={isBusy}>
-              Find context
+            <Button
+              variant="outline"
+              onClick={onAskQuestion}
+              disabled={!canLookupContext || isApproving || isLookingUpContext}
+              title={
+                canLookupContext
+                  ? "Look up where this string appears in the connected repository"
+                  : "Repository context lookup is not available"
+              }
+            >
+              {isLookingUpContext ? <Spinner className="size-4" /> : null}
+              {isLookingUpContext ? "Finding context…" : "Find context"}
               <ShortcutKbd keys={["⌘", "K"]} />
             </Button>
-            <Button variant="ghost" onClick={onPrevious} disabled={isBusy || !hasPreviousSegment}>
+            <Button
+              variant="ghost"
+              onClick={onPrevious}
+              disabled={isApproving || isLookingUpContext || !hasPreviousSegment}
+            >
               Previous
               <ShortcutKbd keys={["⌘", "←"]} />
             </Button>
-            <Button variant="ghost" onClick={onNext} disabled={isBusy || !hasNextSegment}>
+            <Button
+              variant="ghost"
+              onClick={onNext}
+              disabled={isApproving || isLookingUpContext || !hasNextSegment}
+            >
               Next
               <ShortcutKbd keys={["⌘", "→"]} />
             </Button>

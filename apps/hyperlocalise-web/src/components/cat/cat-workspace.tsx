@@ -10,7 +10,10 @@ import type { CatWorkspaceViewProps } from "./dependencies";
 export function CatWorkspaceView({
   state,
   dependencies,
-  isBusy = false,
+  isValidating = false,
+  isApproving = false,
+  isLookingUpContext = false,
+  canLookupContext = false,
   className,
 }: CatWorkspaceViewProps) {
   const selectedSegmentIndex = state.segments.findIndex(
@@ -40,6 +43,8 @@ export function CatWorkspaceView({
     state.segmentIntelligence?.[selectedSegment.id] ?? state.intelligence;
   const selectedSegmentFormatChecks =
     state.segmentFormatChecks?.[selectedSegment.id] ?? state.formatChecks;
+  const isEditorBusy = isValidating || isApproving || isLookingUpContext;
+  const canApprove = state.canEditTranslations !== false;
 
   return (
     <div
@@ -66,7 +71,11 @@ export function CatWorkspaceView({
               totalSegments={state.segments.length}
               formatChecks={selectedSegmentFormatChecks}
               intelligence={selectedSegmentIntelligence}
-              isBusy={isBusy}
+              isEditorBusy={isEditorBusy}
+              isApproving={isApproving}
+              isLookingUpContext={isLookingUpContext}
+              canApprove={canApprove}
+              canLookupContext={canLookupContext}
               onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
               onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
               onApprove={() =>
@@ -83,7 +92,10 @@ export function CatWorkspaceView({
         </div>
 
         <div className="min-w-0 overflow-hidden">
-          <CatIntelligencePanel intelligence={selectedSegmentIntelligence} />
+          <CatIntelligencePanel
+            intelligence={selectedSegmentIntelligence}
+            isLookingUpContext={isLookingUpContext}
+          />
         </div>
       </div>
     </div>

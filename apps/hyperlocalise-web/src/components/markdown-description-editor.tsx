@@ -227,16 +227,16 @@ export function MarkdownDescriptionEditor({
   );
 }
 
-export function MarkdownDescriptionPreview({
+export function MarkdownContent({
   value,
   className,
   contentClassName,
-  emptyMessage = "No description",
+  ariaLabel = "Markdown content",
 }: {
   value: string;
   className?: string;
   contentClassName?: string;
-  emptyMessage?: string;
+  ariaLabel?: string;
 }) {
   const editor = useEditor({
     extensions: markdownExtensions,
@@ -246,8 +246,8 @@ export function MarkdownDescriptionPreview({
     immediatelyRender: false,
     editorProps: {
       attributes: {
-        class: cn(markdownDescriptionContentClassName, "min-h-[5rem]", contentClassName),
-        "aria-label": "Task description preview",
+        class: cn(markdownDescriptionContentClassName, contentClassName),
+        "aria-label": ariaLabel,
       },
     },
   });
@@ -265,6 +265,28 @@ export function MarkdownDescriptionPreview({
     editor.commands.setContent(value, { contentType: "markdown", emitUpdate: false });
   }, [editor, value]);
 
+  if (!editor) {
+    return <div className={className} />;
+  }
+
+  return (
+    <div className={className}>
+      <EditorContent editor={editor} />
+    </div>
+  );
+}
+
+export function MarkdownDescriptionPreview({
+  value,
+  className,
+  contentClassName,
+  emptyMessage = "No description",
+}: {
+  value: string;
+  className?: string;
+  contentClassName?: string;
+  emptyMessage?: string;
+}) {
   if (!value.trim()) {
     return (
       <div
@@ -278,20 +300,12 @@ export function MarkdownDescriptionPreview({
     );
   }
 
-  if (!editor) {
-    return (
-      <div
-        className={cn(
-          "min-h-[5rem] rounded-lg border border-foreground/8 bg-foreground/2.5",
-          className,
-        )}
-      />
-    );
-  }
-
   return (
-    <div className={cn("rounded-lg border border-foreground/8 bg-foreground/2.5", className)}>
-      <EditorContent editor={editor} />
-    </div>
+    <MarkdownContent
+      value={value}
+      className={cn("rounded-lg border border-foreground/8 bg-foreground/2.5", className)}
+      contentClassName={cn("min-h-[5rem]", contentClassName)}
+      ariaLabel="Task description preview"
+    />
   );
 }

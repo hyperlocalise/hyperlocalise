@@ -44,7 +44,10 @@ export type PartialCatWorkspaceDependencies = {
 export interface CatWorkspaceViewProps {
   state: CatWorkspaceState;
   dependencies: CatWorkspaceDependencies;
-  isBusy?: boolean;
+  isValidating?: boolean;
+  isApproving?: boolean;
+  isLookingUpContext?: boolean;
+  canLookupContext?: boolean;
   className?: string;
 }
 

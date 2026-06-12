@@ -4,7 +4,9 @@ import type { ReactNode } from "react";
 import { BulbIcon, CheckmarkCircle02Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
+import { MarkdownContent } from "@/components/markdown-description-editor";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Spinner } from "@/components/ui/spinner";
 
 import type { CatGlossaryTerm, CatSegmentIntelligence, CatTranslationMemoryMatch } from "./types";
 
@@ -89,12 +91,22 @@ function TranslationMemoryRow({ match }: { match: CatTranslationMemoryMatch }) {
   );
 }
 
-export function CatIntelligencePanel({ intelligence }: { intelligence: CatSegmentIntelligence }) {
+export function CatIntelligencePanel({
+  intelligence,
+  isLookingUpContext = false,
+}: {
+  intelligence: CatSegmentIntelligence;
+  isLookingUpContext?: boolean;
+}) {
   const contextChips = [
     intelligence.locationBreadcrumb,
     intelligence.componentName,
     intelligence.filePath,
   ].filter(Boolean);
+  const productMeaning =
+    intelligence.productMeaning ?? intelligence.intent ?? "No product context provided.";
+  const showIntent =
+    Boolean(intelligence.productMeaning && intelligence.intent) && !isLookingUpContext;
 
   return (
     <div className="flex h-full min-h-0 flex-col border-l border-foreground/8 bg-background">
@@ -116,16 +128,28 @@ export function CatIntelligencePanel({ intelligence }: { intelligence: CatSegmen
                 label="Meaning in product"
                 icon={<HugeiconsIcon icon={InformationCircleIcon} className="size-3.5" />}
               >
-                <p className="whitespace-pre-wrap break-words text-pretty text-sm leading-relaxed text-foreground/88">
-                  {intelligence.productMeaning ??
-                    intelligence.intent ??
-                    "No product context provided."}
-                </p>
-                {intelligence.productMeaning && intelligence.intent ? (
-                  <p className="mt-2 whitespace-pre-wrap break-words text-pretty text-xs leading-relaxed text-muted-foreground">
-                    {intelligence.intent}
-                  </p>
-                ) : null}
+                {isLookingUpContext ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Spinner className="size-4" />
+                    <span>Looking up repository context…</span>
+                  </div>
+                ) : (
+                  <>
+                    <MarkdownContent
+                      value={productMeaning}
+                      contentClassName="min-h-0 px-0 py-0 text-sm leading-relaxed text-foreground/88"
+                      ariaLabel="Product context"
+                    />
+                    {showIntent ? (
+                      <MarkdownContent
+                        value={intelligence.intent ?? ""}
+                        className="mt-2"
+                        contentClassName="min-h-0 px-0 py-0 text-xs leading-relaxed text-muted-foreground"
+                        ariaLabel="Translation intent"
+                      />
+                    ) : null}
+                  </>
+                )}
               </InsightCard>
 
               {contextChips.length > 0 ? (

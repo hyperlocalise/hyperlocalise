@@ -85,4 +85,5 @@ export interface CatWorkspaceState {
   jobTitle?: string;
   breadcrumbs?: string[];
   primaryActionLabel?: string;
+  canEditTranslations?: boolean;
 }
