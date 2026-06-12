@@ -2,7 +2,6 @@ import { randomBytes } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
 
-import { env } from "@/lib/env";
 import { db, schema } from "@/lib/database";
 import {
   decryptProviderCredential,
@@ -15,6 +14,11 @@ import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
 import { hashContentfulWebhookSecret } from "./webhook";
+import {
+  contentfulWebhookCallbackUrl,
+  deleteContentfulProviderWebhook,
+  syncContentfulProviderWebhook,
+} from "./webhook-provider";
 import type {
   ContentfulConnectionFieldConfig,
   ContentfulConnectionSecretResult,
@@ -31,10 +35,7 @@ function normalizeFieldConfig(value: Record<string, unknown>): ContentfulConnect
 }
 
 function webhookUrl(subscriptionId: string) {
-  if (!env.HYPERLOCALISE_PUBLIC_APP_URL) {
-    return null;
-  }
-  return `${env.HYPERLOCALISE_PUBLIC_APP_URL}/api/webhooks/contentful/${subscriptionId}`;
+  return contentfulWebhookCallbackUrl(subscriptionId);
 }
 
 function serializeConnection(
@@ -112,6 +113,25 @@ export async function ensureContentfulWebhookSubscription(input: {
   }
 
   return { row, webhookSecret };
+}
+
+async function syncConnectionProviderWebhook(input: {
+  connection: ContentfulConnectionRow;
+  subscription: ContentfulWebhookSubscriptionRow;
+  accessToken: string;
+  webhookSecret?: string | null;
+}): Promise<ContentfulConnectionSecretResult> {
+  const synced = await syncContentfulProviderWebhook({
+    connection: input.connection,
+    subscription: input.subscription,
+    accessToken: input.accessToken,
+    webhookSecret: input.webhookSecret,
+  });
+
+  return {
+    connection: serializeConnection(input.connection, synced.subscription),
+    webhookSecret: synced.webhookSecret,
+  };
 }
 
 export async function listContentfulConnections(input: {
@@ -264,10 +284,12 @@ export async function createContentfulConnection(input: {
     connectionId: connection.id,
   });
 
-  return {
-    connection: serializeConnection(connection, webhook.row),
+  return syncConnectionProviderWebhook({
+    connection,
+    subscription: webhook.row,
+    accessToken: input.accessToken,
     webhookSecret: webhook.webhookSecret,
-  };
+  });
 }
 
 export async function updateContentfulConnection(input: {
@@ -296,6 +318,59 @@ export async function updateContentfulConnection(input: {
     ? unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken))
     : null;
   const shouldResetValidation = !!(input.accessToken || input.spaceId || input.environmentId);
+
+  const [previousConnection] = await db
+    .select()
+    .from(schema.contentfulConnections)
+    .where(
+      and(
+        eq(schema.contentfulConnections.organizationId, input.organizationId),
+        eq(schema.contentfulConnections.id, input.connectionId),
+      ),
+    )
+    .limit(1);
+
+  if (!previousConnection) {
+    return null;
+  }
+
+  const [previousSubscription] = await db
+    .select()
+    .from(schema.contentfulWebhookSubscriptions)
+    .where(eq(schema.contentfulWebhookSubscriptions.connectionId, input.connectionId))
+    .limit(1);
+
+  const previousToken = encrypted
+    ? input.accessToken!
+    : unwrapProviderCredentialCrypto(
+        decryptProviderCredential({
+          algorithm: previousConnection.encryptionAlgorithm,
+          keyVersion: previousConnection.keyVersion,
+          ciphertext: previousConnection.ciphertext,
+          iv: previousConnection.iv,
+          authTag: previousConnection.authTag,
+        }),
+      );
+
+  const spaceChanged = input.spaceId !== undefined && input.spaceId !== previousConnection.spaceId;
+  if (spaceChanged && previousSubscription?.providerWebhookId && previousConnection.spaceId) {
+    await deleteContentfulProviderWebhook({
+      accessToken: previousToken,
+      spaceId: previousConnection.spaceId,
+      environmentId: previousConnection.environmentId,
+      providerWebhookId: previousSubscription.providerWebhookId,
+    });
+    await db
+      .update(schema.contentfulWebhookSubscriptions)
+      .set({
+        providerWebhookId: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.contentfulWebhookSubscriptions.id, previousSubscription.id));
+    if (previousSubscription) {
+      previousSubscription.providerWebhookId = null;
+    }
+  }
 
   const [connection] = await db
     .update(schema.contentfulConnections)
@@ -346,16 +421,38 @@ export async function updateContentfulConnection(input: {
     connectionId: connection.id,
   });
 
-  return {
-    connection: serializeConnection(connection, webhook.row),
+  const accessToken = encrypted ? input.accessToken! : previousToken;
+
+  return syncConnectionProviderWebhook({
+    connection,
+    subscription: webhook.row,
+    accessToken,
     webhookSecret: webhook.webhookSecret,
-  };
+  });
 }
 
 export async function deleteContentfulConnection(input: {
   organizationId: string;
   connectionId: string;
 }) {
+  const loaded = await loadContentfulConnectionWithToken(input);
+  const [subscription] = loaded
+    ? await db
+        .select()
+        .from(schema.contentfulWebhookSubscriptions)
+        .where(eq(schema.contentfulWebhookSubscriptions.connectionId, input.connectionId))
+        .limit(1)
+    : [];
+
+  if (loaded && subscription?.providerWebhookId) {
+    await deleteContentfulProviderWebhook({
+      accessToken: loaded.token,
+      spaceId: loaded.connection.spaceId,
+      environmentId: loaded.connection.environmentId,
+      providerWebhookId: subscription.providerWebhookId,
+    });
+  }
+
   const [deleted] = await db
     .delete(schema.contentfulConnections)
     .where(
@@ -395,6 +492,21 @@ export async function validateContentfulConnection(input: {
         updatedAt: new Date(),
       })
       .where(eq(schema.contentfulConnections.id, loaded.connection.id));
+
+    const [subscription] = await db
+      .select()
+      .from(schema.contentfulWebhookSubscriptions)
+      .where(eq(schema.contentfulWebhookSubscriptions.connectionId, loaded.connection.id))
+      .limit(1);
+
+    if (subscription) {
+      await syncContentfulProviderWebhook({
+        connection: loaded.connection,
+        subscription,
+        accessToken: loaded.token,
+      });
+    }
+
     return ok(validation);
   } catch (error) {
     const message = isContentfulClientError(error)

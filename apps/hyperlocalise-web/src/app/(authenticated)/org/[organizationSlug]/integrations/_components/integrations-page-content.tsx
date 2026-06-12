@@ -303,6 +303,7 @@ type ContentfulConnectionSummary = {
   webhook: {
     id: string;
     status: string;
+    providerWebhookId: string | null;
     url: string | null;
     lastDeliveryId: string | null;
     lastDeliveredAt: string | null;
@@ -1420,8 +1421,17 @@ function useSaveContentfulConnection(organizationSlug: string) {
       });
       toast.success("Contentful connection saved");
       if (result.webhookSecret) {
-        toast.message("Contentful webhook secret generated", {
-          description: "Use the displayed secret when creating the Contentful webhook.",
+        toast.message("Contentful webhook registered", {
+          description:
+            "Hyperlocalise created the Contentful webhook automatically. Save the secret below if you need to re-register manually.",
+        });
+      } else if (result.contentfulConnection.webhook?.providerWebhookId) {
+        toast.message("Contentful webhook synced", {
+          description: "Hyperlocalise updated the Contentful webhook configuration.",
+        });
+      } else if (result.contentfulConnection.webhook?.lastError) {
+        toast.message("Contentful webhook needs attention", {
+          description: result.contentfulConnection.webhook.lastError,
         });
       }
     },
@@ -1536,22 +1546,35 @@ function ContentfulConnectionPanel({
 
       {connection?.webhook ? (
         <div className="text-sm">
-          <h4 className="font-medium">Webhook setup</h4>
+          <h4 className="font-medium">Webhook</h4>
           <p className="mt-1 text-xs text-muted-foreground">
-            In Contentful, create a webhook for entry publish/save events and add a custom header
-            named <code>x-hyperlocalise-webhook-secret</code>.
+            Hyperlocalise registers a Contentful webhook for entry publish events when you save or
+            validate this connection. Automations with a Contentful trigger use it to start
+            translation runs.
           </p>
           <div className="mt-3 grid gap-2 rounded-lg bg-muted/50 p-3 text-xs">
+            <span>
+              Registration:{" "}
+              {connection.webhook.providerWebhookId
+                ? "Registered in Contentful"
+                : connection.webhook.lastError
+                  ? "Not registered"
+                  : "Pending registration"}
+            </span>
             <span className="font-mono break-all">
               URL: {connection.webhook.url ?? "Set HYPERLOCALISE_PUBLIC_APP_URL"}
             </span>
+            {connection.webhook.providerWebhookId ? (
+              <span className="font-mono break-all">
+                Contentful webhook ID: {connection.webhook.providerWebhookId}
+              </span>
+            ) : null}
             {lastWebhookSecret ? (
               <span className="font-mono break-all">Secret: {lastWebhookSecret}</span>
-            ) : (
-              <span className="text-muted-foreground">
-                Secret is only shown when the webhook subscription is first created.
-              </span>
-            )}
+            ) : null}
+            {connection.webhook.lastError ? (
+              <span className="text-destructive">{connection.webhook.lastError}</span>
+            ) : null}
             <span>Last delivery: {connection.webhook.lastDeliveredAt ?? "No deliveries yet"}</span>
           </div>
         </div>

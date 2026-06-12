@@ -2,6 +2,25 @@ import type { ContentfulContentType, ContentfulDraftTranslation, ContentfulEntry
 
 const CONTENTFUL_CMA_BASE_URL = "https://api.contentful.com";
 
+export const CONTENTFUL_WEBHOOK_SECRET_HEADER = "x-hyperlocalise-webhook-secret";
+export const CONTENTFUL_WEBHOOK_PUBLISH_TOPIC = "Entry.publish";
+
+export type ContentfulWebhookDefinition = {
+  sys: {
+    id: string;
+    version?: number;
+  };
+  name: string;
+  url: string;
+  topics: string[];
+  filters: Array<Record<string, unknown>>;
+  headers: Array<{
+    key: string;
+    value?: string;
+    secret?: boolean;
+  }>;
+};
+
 export type ContentfulClientError = {
   code: "contentful_request_failed";
   status: number;
@@ -37,13 +56,26 @@ export class ContentfulManagementClient {
       } satisfies ContentfulClientError;
     }
 
-    return (await response.json()) as T;
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    const text = await response.text();
+    if (!text) {
+      return undefined as T;
+    }
+
+    return JSON.parse(text) as T;
   }
 
   private environmentPath(path: string) {
     return `/spaces/${encodeURIComponent(this.options.spaceId)}/environments/${encodeURIComponent(
       this.options.environmentId,
     )}${path}`;
+  }
+
+  private spacePath(path: string) {
+    return `/spaces/${encodeURIComponent(this.options.spaceId)}${path}`;
   }
 
   async validateConnection() {
@@ -77,6 +109,70 @@ export class ContentfulManagementClient {
   async getContentType(contentTypeId: string) {
     return this.request<ContentfulContentType>(
       this.environmentPath(`/content_types/${encodeURIComponent(contentTypeId)}`),
+    );
+  }
+
+  async listWebhooks() {
+    const response = await this.request<{ items: ContentfulWebhookDefinition[] }>(
+      this.spacePath("/webhook_definitions"),
+    );
+    return response.items;
+  }
+
+  async getWebhook(webhookId: string) {
+    return this.request<ContentfulWebhookDefinition>(
+      this.spacePath(`/webhook_definitions/${encodeURIComponent(webhookId)}`),
+    );
+  }
+
+  async createWebhook(input: {
+    name: string;
+    url: string;
+    topics: string[];
+    filters: Array<Record<string, unknown>>;
+    headers: ContentfulWebhookDefinition["headers"];
+  }) {
+    return this.request<ContentfulWebhookDefinition>(this.spacePath("/webhook_definitions"), {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  async updateWebhook(
+    webhookId: string,
+    input: {
+      version: number;
+      name: string;
+      url: string;
+      topics: string[];
+      filters: Array<Record<string, unknown>>;
+      headers: ContentfulWebhookDefinition["headers"];
+    },
+  ) {
+    return this.request<ContentfulWebhookDefinition>(
+      this.spacePath(`/webhook_definitions/${encodeURIComponent(webhookId)}`),
+      {
+        method: "PUT",
+        headers: {
+          "x-contentful-version": String(input.version),
+        },
+        body: JSON.stringify({
+          name: input.name,
+          url: input.url,
+          topics: input.topics,
+          filters: input.filters,
+          headers: input.headers,
+        }),
+      },
+    );
+  }
+
+  async deleteWebhook(webhookId: string) {
+    await this.request<void>(
+      this.spacePath(`/webhook_definitions/${encodeURIComponent(webhookId)}`),
+      {
+        method: "DELETE",
+      },
     );
   }
 
