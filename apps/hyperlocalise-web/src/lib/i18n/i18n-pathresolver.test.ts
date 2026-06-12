@@ -18,4 +18,14 @@ describe("i18n-pathresolver", () => {
       "locales/de/messages.json",
     );
   });
+
+  it("handles empty {{localeDir}} at the start of a pattern when source matches target", () => {
+    expect(resolveTargetPath("{{localeDir}}/messages.json", "en", "en")).toBe("messages.json");
+  });
+
+  it("collapses internal double slashes when {{localeDir}} is empty", () => {
+    expect(resolveTargetPath("locales/{{localeDir}}/messages.json", "en", "en")).toBe(
+      "locales/messages.json",
+    );
+  });
 });

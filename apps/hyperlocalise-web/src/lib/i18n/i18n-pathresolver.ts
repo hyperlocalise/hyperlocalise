@@ -1,4 +1,7 @@
-import { isSafeRepositoryRelativePath } from "./safe-repository-path";
+import {
+  isSafeRepositoryRelativePath,
+  normalizeRepositoryRelativePath,
+} from "./safe-repository-path";
 
 const TOKEN_SOURCE = "{{source}}";
 const TOKEN_TARGET = "{{target}}";
@@ -13,9 +16,7 @@ function resolve(pattern: string, sourceLocale: string, targetLocale: string): s
   path = path.replaceAll(TOKEN_LOCALE_DIR, localeDir);
   path = path.replaceAll(LEGACY_LOCALE, targetLocale);
 
-  while (path.includes("//")) {
-    path = path.replaceAll("//", "/");
-  }
+  path = normalizeRepositoryRelativePath(path.replace(/\/+/g, "/"));
 
   if (!isSafeRepositoryRelativePath(path)) {
     throw new Error(`Unsafe repository path: ${path}`);
