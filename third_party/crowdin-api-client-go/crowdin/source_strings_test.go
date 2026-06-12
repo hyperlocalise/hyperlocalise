@@ -525,12 +525,12 @@ func TestSourceStringsService_AddWithValidationErrors(t *testing.T) {
 			"text cannot be empty",
 		},
 		{
-			"empty fileID and branchID",
+			"empty fileID, branchID and directoryID",
 			&model.SourceStringsAddRequest{
 				Text:       "Not all videos are shown to users.",
 				Identifier: "name",
 			},
-			"fileId or branchId is required",
+			"fileId, branchId or directoryId is required",
 		},
 	}
 
@@ -798,6 +798,7 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 		Progress:   100,
 		Attributes: struct {
 			BranchID      int    `json:"branchId"`
+			DirectoryID   int    `json:"directoryId"`
 			StorageID     int    `json:"storageId"`
 			FileType      string `json:"fileType"`
 			ParserVersion int    `json:"parserVersion"`
@@ -921,6 +922,7 @@ func TestSourceStringsService_Upload(t *testing.T) {
 		Progress:   100,
 		Attributes: struct {
 			BranchID      int    `json:"branchId"`
+			DirectoryID   int    `json:"directoryId"`
 			StorageID     int    `json:"storageId"`
 			FileType      string `json:"fileType"`
 			ParserVersion int    `json:"parserVersion"`
@@ -995,7 +997,7 @@ func TestSourceStringsService_UploadWithValidationError(t *testing.T) {
 	}{
 		{"nil request", nil, "request cannot be nil"},
 		{"empty storageId", &model.SourceStringsUploadRequest{BranchID: 34}, "storageId is required"},
-		{"empty branchId", &model.SourceStringsUploadRequest{StorageID: 61}, "branchId is required"},
+		{"empty branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61}, "branchId or directoryId is required"},
 		{"misconfigured updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: ToPtr(false), UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},
 	}
 
