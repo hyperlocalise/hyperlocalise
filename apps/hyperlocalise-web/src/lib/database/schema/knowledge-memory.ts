@@ -3,8 +3,6 @@ import { check, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 import { organizations, users } from "./organizations";
 
-export const KNOWLEDGE_MEMORY_CONTENT_MAX_LENGTH = 2048;
-
 /**
  * Stores one short workspace-level memory note that translation agents can use as durable context.
  */

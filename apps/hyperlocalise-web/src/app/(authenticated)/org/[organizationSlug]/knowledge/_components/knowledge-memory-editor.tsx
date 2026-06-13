@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { FloppyDiskIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -66,17 +66,6 @@ export function KnowledgeMemoryEditor({
     setContent(knowledgeMemoryQuery.data.content);
     setSavedContent(knowledgeMemoryQuery.data.content);
   }, [knowledgeMemoryQuery.data]);
-
-  const editorState = useMemo(
-    () =>
-      getKnowledgeMemoryEditorState({
-        content,
-        savedContent,
-        canUpdateKnowledgeMemory,
-        isSaving: false,
-      }),
-    [canUpdateKnowledgeMemory, content, savedContent],
-  );
 
   const saveKnowledgeMemory = useMutation({
     mutationFn: async () => {
@@ -158,7 +147,7 @@ export function KnowledgeMemoryEditor({
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-xs text-foreground/48">
-              {editorState.characterCount}/{editorState.characterLimit} characters
+              {currentEditorState.characterCount}/{currentEditorState.characterLimit} characters
             </p>
             {canUpdateKnowledgeMemory ? (
               <Button type="submit" disabled={!currentEditorState.canSave}>
