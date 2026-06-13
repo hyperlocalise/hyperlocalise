@@ -137,29 +137,39 @@ export async function runProviderSyncWorker(input?: {
   let failed = 0;
 
   for (const intent of intents) {
-    const result = await executeProviderSyncIntent(intent);
-    if (isErr(result)) {
-      failed += 1;
-      await markIntentFailed(intent, result.error.message);
-      logReconciliationFailed({
+    try {
+      const result = await executeProviderSyncIntent(intent);
+      if (isErr(result)) {
+        failed += 1;
+        await markIntentFailed(intent, result.error.message);
+        logReconciliationFailed({
+          providerKind: intent.providerKind,
+          organizationId: intent.organizationId,
+          providerSyncIntentId: intent.id,
+          syncKind: intent.syncKind,
+          reason: result.error.code,
+        });
+        continue;
+      }
+
+      succeeded += 1;
+      await markIntentSucceeded(intent, result.value.runId);
+      logReconciliationSucceeded({
         providerKind: intent.providerKind,
         organizationId: intent.organizationId,
         providerSyncIntentId: intent.id,
+        providerSyncRunId: result.value.runId,
         syncKind: intent.syncKind,
-        reason: result.error.code,
       });
-      continue;
+    } catch (error) {
+      failed += 1;
+      const message = error instanceof Error ? error.message : "unknown_error";
+      await markIntentFailed(intent, message);
+      logger.error(
+        { intentId: intent.id, syncKind: intent.syncKind, error: message },
+        "unexpected error executing sync intent",
+      );
     }
-
-    succeeded += 1;
-    await markIntentSucceeded(intent, result.value.runId);
-    logReconciliationSucceeded({
-      providerKind: intent.providerKind,
-      organizationId: intent.organizationId,
-      providerSyncIntentId: intent.id,
-      providerSyncRunId: result.value.runId,
-      syncKind: intent.syncKind,
-    });
   }
 
   logger.info(
