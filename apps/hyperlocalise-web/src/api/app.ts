@@ -20,7 +20,6 @@ import { createAgentEmailRoutes } from "./routes/agent-email/agent-email.route";
 import { createAgentSlackRoutes } from "./routes/agent-slack/agent-slack.route";
 import { createApiKeyRoutes } from "./routes/api-key/api-key.route";
 import { authRoutes } from "./routes/auth/auth.route";
-import { createChatRequestRoutes } from "./routes/chat-request/chat-request.route";
 import { createConversationRoutes } from "./routes/conversation/conversation.route";
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
@@ -172,10 +171,6 @@ function createOrgScopedAppRoutes(
     .route(
       "/conversations",
       createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
-    )
-    .route(
-      "/chat-requests",
-      createChatRequestRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
     .route(
       "/github-installation",

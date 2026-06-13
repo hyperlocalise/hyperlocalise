@@ -24,10 +24,7 @@ import { searchRepositoriesSchema } from "./github-installation/github-installat
 import { apiKeyIdParamsSchema } from "./api-key/api-key.schema";
 import { fileParamsSchema } from "./file/file.schema";
 import { glossaryIdParamsSchema } from "./glossary/glossary.schema";
-import {
-  chatRequestBodySchema,
-  multipartChatRequestSchema,
-} from "./chat-request/chat-request.schema";
+import { createConversationRequestSchema } from "./conversation/conversation.schema";
 
 describe("Identifier Schema length limits", () => {
   const longId = "a".repeat(129);
@@ -109,11 +106,10 @@ describe("Identifier Schema length limits", () => {
     expect(glossaryIdParamsSchema.safeParse({ glossaryId: longId }).success).toBe(false);
   });
 
-  it("should enforce max length on projectId in chat-request", () => {
-    expect(chatRequestBodySchema.safeParse({ text: "a", projectId: longId }).success).toBe(false);
-    expect(multipartChatRequestSchema.safeParse({ text: "a", projectId: longId }).success).toBe(
-      false,
-    );
+  it("should enforce max length on projectId in conversation creation", () => {
+    expect(
+      createConversationRequestSchema.safeParse({ text: "a", projectId: longId }).success,
+    ).toBe(false);
   });
 
   it("should enforce max length on translations in externalTmsTranslationPushBodySchema", () => {

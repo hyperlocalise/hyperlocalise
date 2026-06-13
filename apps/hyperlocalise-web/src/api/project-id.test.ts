@@ -5,10 +5,7 @@ import {
   optionalProjectIdSchema,
   projectIdSchema,
 } from "@/lib/projects/project-id";
-import {
-  chatRequestBodySchema,
-  multipartChatRequestSchema,
-} from "@/api/routes/chat-request/chat-request.schema";
+import { createConversationRequestSchema } from "@/api/routes/conversation/conversation.schema";
 import { createContentfulConnectionBodySchema } from "@/api/routes/contentful-connection/contentful-connection.schema";
 import { providerSyncObservabilityQuerySchema } from "@/api/routes/external-tms-provider-credential/external-tms-provider-credential.schema";
 import { upsertGithubRepositoryAutomationSettingsBodySchema } from "@/api/routes/github-installation/github-installation.schema";
@@ -62,10 +59,7 @@ describe("project id schemas", () => {
     expect(
       latestPublicJobQuerySchema.parse({ projectId: encoded, sourcePath: "src/en.json" }).projectId,
     ).toBe(decoded);
-    expect(
-      chatRequestBodySchema.parse({ text: "Translate this", projectId: encoded }).projectId,
-    ).toBe(decoded);
-    expect(multipartChatRequestSchema.parse({ text: "", projectId: encoded }).projectId).toBe(
+    expect(createConversationRequestSchema.parse({ text: "", projectId: encoded }).projectId).toBe(
       decoded,
     );
     expect(
