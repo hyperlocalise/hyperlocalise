@@ -7,7 +7,10 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 
 import { CatFormatChecks } from "./cat-format-checks";
@@ -17,7 +20,7 @@ import type { CatFormatCheck, CatSegment, CatSegmentIntelligence } from "./types
 
 function ShortcutKbd({ keys, className }: { keys: string[]; className?: string }) {
   return (
-    <KbdGroup aria-hidden="true" className="ms-2 inline-flex items-center gap-1">
+    <KbdGroup aria-hidden="true" className="ms-2 hidden items-center gap-1 lg:inline-flex">
       {keys.map((key) => (
         <Kbd key={key} className={className}>
           {key}
@@ -43,13 +46,18 @@ export function CatEditorPanel({
   isEditorBusy,
   isApproving = false,
   isLookingUpContext = false,
+  isAiSuggestionLoading = false,
+  isFormatChecksLoading = false,
   canApprove = true,
   canLookupContext = false,
+  canUseAiRecommendation = false,
+  isAiRecommendationEnabled = true,
   onTargetChange,
   onUseAiSuggestion,
   onApprove,
   primaryActionLabel = "Approve",
   onAskQuestion,
+  onAiRecommendationEnabledChange,
   onPrevious,
   onNext,
   hasPreviousSegment,
@@ -63,13 +71,18 @@ export function CatEditorPanel({
   isEditorBusy?: boolean;
   isApproving?: boolean;
   isLookingUpContext?: boolean;
+  isAiSuggestionLoading?: boolean;
+  isFormatChecksLoading?: boolean;
   canApprove?: boolean;
   canLookupContext?: boolean;
+  canUseAiRecommendation?: boolean;
+  isAiRecommendationEnabled?: boolean;
   onTargetChange: (value: string) => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
+  onAiRecommendationEnabledChange: (enabled: boolean) => void;
   onPrevious: () => void;
   onNext: () => void;
   hasPreviousSegment: boolean;
@@ -145,7 +158,7 @@ export function CatEditorPanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/8 px-5 py-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3 lg:px-5">
         <div className="flex items-center">
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
             {String(segmentPosition).padStart(2, "0")} / {String(totalSegments).padStart(2, "0")}
@@ -176,12 +189,30 @@ export function CatEditorPanel({
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-3xl space-y-7 px-8 py-8">
+        <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 lg:space-y-7 lg:px-8 lg:py-8">
           <section className="space-y-3">
-            <h3 className="text-xs font-medium text-muted-foreground">
-              Source ({segment.sourceLocale})
-            </h3>
-            <p className="text-pretty text-lg leading-relaxed text-foreground/92">
+            <div className="flex items-center justify-between gap-3">
+              <h3 className="text-xs font-medium text-muted-foreground">
+                Source ({segment.sourceLocale})
+              </h3>
+              {canUseAiRecommendation ? (
+                <div className="flex items-center gap-2">
+                  <Label
+                    htmlFor={`ai-recommendation-${segment.id}`}
+                    className="text-xs font-normal text-muted-foreground"
+                  >
+                    AI recommendations
+                  </Label>
+                  <Switch
+                    id={`ai-recommendation-${segment.id}`}
+                    checked={isAiRecommendationEnabled}
+                    onCheckedChange={onAiRecommendationEnabledChange}
+                    aria-label="AI recommendations"
+                  />
+                </div>
+              ) : null}
+            </div>
+            <p className="text-pretty text-base leading-relaxed text-foreground/92 lg:text-lg">
               <CatMessagePreview message={segment.sourceText} />
             </p>
           </section>
@@ -201,7 +232,76 @@ export function CatEditorPanel({
             <CatIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
           </section>
 
-          {intelligence.aiSuggestion ? (
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              className="min-h-11 flex-1 bg-grove-500 text-white hover:bg-grove-400 sm:flex-none lg:min-h-0"
+              onClick={onApprove}
+              disabled={
+                !canApprove ||
+                isApproving ||
+                isLookingUpContext ||
+                isAiSuggestionLoading ||
+                isFormatChecksLoading
+              }
+            >
+              {isApproving ? <Spinner className="size-4 text-white" /> : null}
+              {primaryActionLabel}
+              <ShortcutKbd keys={["⌘", "↵"]} className="bg-white/15 text-white" />
+            </Button>
+            <Button
+              variant="outline"
+              className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
+              onClick={onAskQuestion}
+              disabled={
+                !canLookupContext ||
+                isApproving ||
+                isLookingUpContext ||
+                isAiSuggestionLoading ||
+                isFormatChecksLoading
+              }
+              title={
+                canLookupContext
+                  ? "Look up where this string appears in the connected repository"
+                  : "Repository context lookup is not available"
+              }
+            >
+              {isLookingUpContext ? <Spinner className="size-4" /> : null}
+              {isLookingUpContext ? "Finding context…" : "Find context"}
+              <ShortcutKbd keys={["⌘", "K"]} />
+            </Button>
+            <Button
+              variant="ghost"
+              className="hidden lg:inline-flex"
+              onClick={onPrevious}
+              disabled={isApproving || isLookingUpContext || !hasPreviousSegment}
+            >
+              Previous
+              <ShortcutKbd keys={["⌘", "←"]} />
+            </Button>
+            <Button
+              variant="ghost"
+              className="hidden lg:inline-flex"
+              onClick={onNext}
+              disabled={isApproving || isLookingUpContext || !hasNextSegment}
+            >
+              Next
+              <ShortcutKbd keys={["⌘", "→"]} />
+            </Button>
+          </div>
+
+          {isAiRecommendationEnabled && isAiSuggestionLoading ? (
+            <aside className="space-y-3 rounded-xl border border-foreground/8 bg-foreground/2 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <Skeleton className="h-3 w-28 rounded-full bg-foreground/8" />
+                <Skeleton className="h-8 w-12 rounded-md bg-foreground/8" />
+              </div>
+              <div className="space-y-2">
+                <Skeleton className="h-4 w-11/12 rounded-full bg-foreground/8" />
+                <Skeleton className="h-4 w-8/12 rounded-full bg-foreground/8" />
+              </div>
+              <Skeleton className="h-3 w-10/12 rounded-full bg-foreground/8" />
+            </aside>
+          ) : isAiRecommendationEnabled && intelligence.aiSuggestion ? (
             <aside className="border-l border-grove-300/40 pl-4">
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-xs font-medium text-muted-foreground">AI recommendation</p>
@@ -223,50 +323,25 @@ export function CatEditorPanel({
 
           <section className="space-y-3">
             <h3 className="text-xs font-medium text-muted-foreground">Format & QA checks</h3>
-            <CatFormatChecks checks={formatChecks} />
+            {isFormatChecksLoading ? (
+              <div className="space-y-0 divide-y divide-foreground/8 rounded-xl border border-foreground/8 bg-foreground/2">
+                {[0, 1, 2].map((item) => (
+                  <div key={item} className="flex items-start gap-3 px-3 py-3">
+                    <Skeleton className="size-4 shrink-0 rounded-full bg-foreground/8" />
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <Skeleton className="h-4 w-36 rounded-full bg-foreground/8" />
+                        <Skeleton className="h-3 w-12 rounded-full bg-foreground/8" />
+                      </div>
+                      <Skeleton className="h-3 w-10/12 rounded-full bg-foreground/8" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <CatFormatChecks checks={formatChecks} />
+            )}
           </section>
-
-          <div className="flex flex-wrap items-center gap-2 border-t border-foreground/8 pt-5">
-            <Button
-              className="bg-grove-500 text-white hover:bg-grove-400"
-              onClick={onApprove}
-              disabled={!canApprove || isApproving || isLookingUpContext}
-            >
-              {isApproving ? <Spinner className="size-4 text-white" /> : null}
-              {primaryActionLabel}
-              <ShortcutKbd keys={["⌘", "↵"]} className="bg-white/15 text-white" />
-            </Button>
-            <Button
-              variant="outline"
-              onClick={onAskQuestion}
-              disabled={!canLookupContext || isApproving || isLookingUpContext}
-              title={
-                canLookupContext
-                  ? "Look up where this string appears in the connected repository"
-                  : "Repository context lookup is not available"
-              }
-            >
-              {isLookingUpContext ? <Spinner className="size-4" /> : null}
-              {isLookingUpContext ? "Finding context…" : "Find context"}
-              <ShortcutKbd keys={["⌘", "K"]} />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={onPrevious}
-              disabled={isApproving || isLookingUpContext || !hasPreviousSegment}
-            >
-              Previous
-              <ShortcutKbd keys={["⌘", "←"]} />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={onNext}
-              disabled={isApproving || isLookingUpContext || !hasNextSegment}
-            >
-              Next
-              <ShortcutKbd keys={["⌘", "→"]} />
-            </Button>
-          </div>
 
           <section className="space-y-3 border-t border-foreground/8 pt-5">
             <div className="flex items-center justify-between gap-2">

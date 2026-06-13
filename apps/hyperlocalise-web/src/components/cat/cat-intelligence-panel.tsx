@@ -5,8 +5,9 @@ import { BulbIcon, CheckmarkCircle02Icon, InformationCircleIcon } from "@hugeico
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { MarkdownContent } from "@/components/markdown-description-editor";
+import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Spinner } from "@/components/ui/spinner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import type { CatGlossaryTerm, CatSegmentIntelligence, CatTranslationMemoryMatch } from "./types";
 
@@ -16,14 +17,6 @@ function PanelSection({ title, children }: { title: string; children: ReactNode 
       <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
       {children}
     </section>
-  );
-}
-
-function ContextChip({ children }: { children: ReactNode }) {
-  return (
-    <span className="inline-flex min-w-0 max-w-full items-center rounded-md border border-foreground/8 bg-background px-2 py-1 font-mono text-[11px] text-foreground/68">
-      <span className="truncate">{children}</span>
-    </span>
   );
 }
 
@@ -45,6 +38,23 @@ function InsightCard({
         {label}
       </div>
       {children}
+    </div>
+  );
+}
+
+function AgentContextSkeleton() {
+  return (
+    <div className="space-y-3 rounded-2xl bg-foreground/3 p-3.5">
+      <div className="space-y-2">
+        <Skeleton className="h-3 w-28 rounded-full bg-foreground/8" />
+        <Skeleton className="h-4 w-full rounded-full bg-foreground/8" />
+        <Skeleton className="h-4 w-10/12 rounded-full bg-foreground/8" />
+      </div>
+      <div className="flex flex-wrap gap-1.5">
+        <Skeleton className="h-5 w-28 rounded-lg bg-foreground/8" />
+        <Skeleton className="h-5 w-20 rounded-lg bg-foreground/8" />
+        <Skeleton className="h-5 w-36 rounded-lg bg-foreground/8" />
+      </div>
     </div>
   );
 }
@@ -94,22 +104,23 @@ function TranslationMemoryRow({ match }: { match: CatTranslationMemoryMatch }) {
 export function CatIntelligencePanel({
   intelligence,
   isLookingUpContext = false,
+  showAgentContext = false,
 }: {
   intelligence: CatSegmentIntelligence;
   isLookingUpContext?: boolean;
+  showAgentContext?: boolean;
 }) {
-  const contextChips = [
+  const hasFileContext = Boolean(intelligence.productMeaning?.trim());
+  const agentBadges = [
     intelligence.locationBreadcrumb,
     intelligence.componentName,
     intelligence.filePath,
   ].filter(Boolean);
-  const productMeaning =
-    intelligence.productMeaning ?? intelligence.intent ?? "No product context provided.";
-  const showIntent =
-    Boolean(intelligence.productMeaning && intelligence.intent) && !isLookingUpContext;
+  const hasAgentInsight = Boolean(intelligence.agentContext?.trim());
+  const hasAgentContext = hasAgentInsight || agentBadges.length > 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-l border-foreground/8 bg-background">
+    <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-foreground/8">
       <div className="border-b border-foreground/8 px-4 py-3">
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={BulbIcon} className="size-4 text-bud-300" />
@@ -122,50 +133,74 @@ export function CatIntelligencePanel({
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-4">
-          <PanelSection title="Decision context">
-            <div className="space-y-3">
-              <InsightCard
-                label="Meaning in product"
-                icon={<HugeiconsIcon icon={InformationCircleIcon} className="size-3.5" />}
-              >
-                {isLookingUpContext ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Spinner className="size-4" />
-                    <span>Looking up repository context…</span>
-                  </div>
-                ) : (
-                  <div className="min-h-[1.25rem] space-y-2">
-                    <MarkdownContent
-                      value={productMeaning}
-                      contentClassName="min-h-[1.25rem] px-0 py-0 text-sm leading-relaxed text-foreground/88"
-                      ariaLabel="Product context"
-                    />
-                    {showIntent ? (
-                      <MarkdownContent
-                        value={intelligence.intent ?? ""}
-                        contentClassName="min-h-[1rem] px-0 py-0 text-xs leading-relaxed text-muted-foreground"
-                        ariaLabel="Translation intent"
-                      />
-                    ) : null}
-                  </div>
-                )}
-              </InsightCard>
+          <PanelSection title="Context attached in the file">
+            {hasFileContext ? (
+              <MarkdownContent
+                value={intelligence.productMeaning ?? ""}
+                contentClassName="px-0 py-0 text-sm leading-relaxed text-foreground/88"
+                ariaLabel="File context"
+              />
+            ) : (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                No context is attached to this string in the source file.
+              </p>
+            )}
+          </PanelSection>
 
-              {contextChips.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {intelligence.locationBreadcrumb ? (
-                    <ContextChip>{intelligence.locationBreadcrumb}</ContextChip>
+          {showAgentContext ? (
+            <PanelSection title="Context found by agent">
+              {isLookingUpContext ? (
+                <AgentContextSkeleton />
+              ) : hasAgentContext ? (
+                <div className="space-y-3">
+                  {hasAgentInsight ? (
+                    <InsightCard
+                      label="Meaning in product"
+                      icon={<HugeiconsIcon icon={InformationCircleIcon} className="size-3.5" />}
+                    >
+                      <div className="min-h-[1.25rem] space-y-2">
+                        <MarkdownContent
+                          value={intelligence.agentContext ?? ""}
+                          contentClassName="min-h-[1.25rem] px-0 py-0 text-sm leading-relaxed text-foreground/88"
+                          ariaLabel="Agent context"
+                        />
+                        {intelligence.intent ? (
+                          <MarkdownContent
+                            value={intelligence.intent}
+                            contentClassName="min-h-[1rem] px-0 py-0 text-xs leading-relaxed text-muted-foreground"
+                            ariaLabel="Translation intent"
+                          />
+                        ) : null}
+                      </div>
+                    </InsightCard>
                   ) : null}
-                  {intelligence.componentName ? (
-                    <ContextChip>{intelligence.componentName}</ContextChip>
-                  ) : null}
-                  {intelligence.filePath ? (
-                    <ContextChip>{intelligence.filePath}</ContextChip>
+                  {agentBadges.length > 0 ? (
+                    <div className="flex flex-wrap gap-1.5">
+                      {intelligence.locationBreadcrumb ? (
+                        <Badge variant="outline" className="max-w-full font-normal">
+                          <span className="truncate">{intelligence.locationBreadcrumb}</span>
+                        </Badge>
+                      ) : null}
+                      {intelligence.componentName ? (
+                        <Badge variant="outline" className="max-w-full font-normal">
+                          <span className="truncate">{intelligence.componentName}</span>
+                        </Badge>
+                      ) : null}
+                      {intelligence.filePath ? (
+                        <Badge variant="outline" className="max-w-full font-mono font-normal">
+                          <span className="truncate">{intelligence.filePath}</span>
+                        </Badge>
+                      ) : null}
+                    </div>
                   ) : null}
                 </div>
-              ) : null}
-            </div>
-          </PanelSection>
+              ) : (
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  No repository context was found for this string.
+                </p>
+              )}
+            </PanelSection>
+          ) : null}
 
           {intelligence.glossaryTerms.length > 0 ? (
             <PanelSection title="Glossary guidance">

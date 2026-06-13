@@ -182,13 +182,22 @@ export function CatWorkspaceContainer({
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isLookingUpContext, setIsLookingUpContext] = useState(false);
+  const [revealedAgentContextSegmentIds, setRevealedAgentContextSegmentIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  const [isGeneratingAiRecommendation, setIsGeneratingAiRecommendation] = useState(false);
+  const [isAiRecommendationEnabled, setIsAiRecommendationEnabled] = useState(true);
   const stateRef = useRef(state);
   const previousInitialStateRef = useRef(initialState);
   const validationSequenceRef = useRef(0);
+  const isAiRecommendationEnabledRef = useRef(isAiRecommendationEnabled);
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
   const lookupSegmentContext = serviceOverrides?.lookupSegmentContext;
+  const generateAiRecommendation = serviceOverrides?.generateAiRecommendation;
   const canLookupContext = Boolean(lookupSegmentContext);
+  const canUseAiRecommendation = Boolean(generateAiRecommendation);
+  const canRunSegmentReview = Boolean(generateAiRecommendation || validateFormat || runQaChecks);
   const onSelectSegment = navigationOverrides?.onSelectSegment;
   const onPreviousSegment = navigationOverrides?.onPreviousSegment;
   const onNextSegment = navigationOverrides?.onNextSegment;
@@ -197,11 +206,16 @@ export function CatWorkspaceContainer({
   const onUseAiSuggestion = editingOverrides?.onUseAiSuggestion;
   const onApprove = reviewOverrides?.onApprove;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
+  const onReviewWithAi = reviewOverrides?.onReviewWithAi;
   const onSkip = reviewOverrides?.onSkip;
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  useEffect(() => {
+    isAiRecommendationEnabledRef.current = isAiRecommendationEnabled;
+  }, [isAiRecommendationEnabled]);
 
   useEffect(() => {
     setState((current) =>
@@ -244,6 +258,88 @@ export function CatWorkspaceContainer({
     },
     [runQaChecks, validateFormat],
   );
+
+  const runSegmentReview = useCallback(
+    async (segmentId: string, options?: { includeAi?: boolean }) => {
+      await onReviewWithAi?.(segmentId);
+
+      const segment = stateRef.current.segments.find((item) => item.id === segmentId);
+      if (!segment) {
+        return;
+      }
+
+      const includeAi =
+        (options?.includeAi ?? isAiRecommendationEnabledRef.current) &&
+        Boolean(generateAiRecommendation);
+      const includeFormatChecks = Boolean(validateFormat || runQaChecks);
+
+      if (!includeAi && !includeFormatChecks) {
+        return;
+      }
+
+      setIsGeneratingAiRecommendation(true);
+      try {
+        const [recommendation, formatChecks, qaChecks] = await Promise.all([
+          includeAi && generateAiRecommendation
+            ? generateAiRecommendation(segment, segment.targetText)
+            : Promise.resolve(undefined),
+          includeFormatChecks && validateFormat
+            ? validateFormat(segment, segment.targetText)
+            : Promise.resolve([]),
+          includeFormatChecks && runQaChecks
+            ? runQaChecks(segment, segment.targetText)
+            : Promise.resolve([]),
+        ]);
+        const checks = recommendation?.formatChecks ?? [...formatChecks, ...qaChecks];
+
+        setState((current) => {
+          const currentIntelligence =
+            current.segmentIntelligence?.[segmentId] ?? current.intelligence;
+
+          return {
+            ...current,
+            formatChecks: current.selectedSegmentId === segmentId ? checks : current.formatChecks,
+            segmentFormatChecks: {
+              ...current.segmentFormatChecks,
+              [segmentId]: checks,
+            },
+            segmentIntelligence: recommendation
+              ? {
+                  ...current.segmentIntelligence,
+                  [segmentId]: {
+                    ...currentIntelligence,
+                    aiSuggestion: recommendation.aiSuggestion,
+                    aiReasoning: recommendation.aiReasoning,
+                  },
+                }
+              : current.segmentIntelligence,
+          };
+        });
+      } finally {
+        setIsGeneratingAiRecommendation(false);
+      }
+    },
+    [generateAiRecommendation, onReviewWithAi, runQaChecks, validateFormat],
+  );
+
+  const runSegmentReviewRef = useRef(runSegmentReview);
+  runSegmentReviewRef.current = runSegmentReview;
+
+  useEffect(() => {
+    const segmentId = state.selectedSegmentId;
+    if (!segmentId || !canRunSegmentReview) {
+      return;
+    }
+
+    void runSegmentReviewRef.current(segmentId);
+  }, [state.selectedSegmentId, canRunSegmentReview]);
+
+  function handleAiRecommendationEnabledChange(enabled: boolean) {
+    setIsAiRecommendationEnabled(enabled);
+    if (enabled && state.selectedSegmentId && canUseAiRecommendation) {
+      void runSegmentReview(state.selectedSegmentId, { includeAi: true });
+    }
+  }
 
   const dependencies = useMemo<CatWorkspaceDependencies>(() => {
     const navigation = {
@@ -309,9 +405,12 @@ export function CatWorkspaceContainer({
           const nextStatus = (await onApprove?.(segmentId, targetText)) ?? "reviewed";
           setState((current) => {
             const segments = updateSegmentStatus(current.segments, segmentId, nextStatus);
+            const nextSelectedSegmentId =
+              getAdjacentSegmentId(current.segments, segmentId, 1) ?? current.selectedSegmentId;
             return {
               ...current,
               segments,
+              selectedSegmentId: nextSelectedSegmentId,
               queueSummary: {
                 total: current.queueSummary.total,
                 reviewed: countReviewed(segments),
@@ -339,9 +438,10 @@ export function CatWorkspaceContainer({
           return;
         }
 
+        setRevealedAgentContextSegmentIds((current) => new Set(current).add(segmentId));
         setIsLookingUpContext(true);
         try {
-          const productMeaning = await lookupSegmentContext(segment);
+          const agentContext = await lookupSegmentContext(segment);
           setState((current) => {
             const currentIntelligence =
               current.segmentIntelligence?.[segmentId] ?? current.intelligence;
@@ -362,7 +462,7 @@ export function CatWorkspaceContainer({
                 ...current.segmentIntelligence,
                 [segmentId]: {
                   ...currentIntelligence,
-                  productMeaning,
+                  agentContext,
                 },
               },
             };
@@ -399,6 +499,9 @@ export function CatWorkspaceContainer({
           setIsLookingUpContext(false);
         }
       },
+      onReviewWithAi: async (segmentId: string) => {
+        await runSegmentReview(segmentId);
+      },
       onSkip: (segmentId: string) => {
         setState((current) => {
           const segments = updateSegmentStatus(current.segments, segmentId, "skipped");
@@ -423,11 +526,13 @@ export function CatWorkspaceContainer({
     onNextSegment,
     onPreviousSegment,
     onReviewInSequence,
+    onReviewWithAi,
     onSelectSegment,
     onSkip,
     onTargetChange,
     onUseAiSuggestion,
     lookupSegmentContext,
+    runSegmentReview,
     runQaChecks,
     runSegmentChecks,
     validateFormat,
@@ -440,7 +545,15 @@ export function CatWorkspaceContainer({
       isValidating={isValidating}
       isApproving={isApproving}
       isLookingUpContext={isLookingUpContext}
+      isAiSuggestionLoading={
+        isGeneratingAiRecommendation && isAiRecommendationEnabled && canUseAiRecommendation
+      }
+      isFormatChecksLoading={isGeneratingAiRecommendation || isValidating}
       canLookupContext={canLookupContext}
+      showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
+      canUseAiRecommendation={canUseAiRecommendation}
+      isAiRecommendationEnabled={isAiRecommendationEnabled}
+      onAiRecommendationEnabledChange={handleAiRecommendationEnabledChange}
       className={className}
     />
   );
