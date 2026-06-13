@@ -58,7 +58,6 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 					captureDepth--
 					continue
 				}
-
 				if token.Name.Local == captureName {
 					// BOLT OPTIMIZATION: Use raw slicing instead of re-encoding tokens via xml.Encoder.
 					// decoder.InputOffset() points after the EndElement '>'. We search back for the '</'
@@ -89,11 +88,9 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 			}
 		}
 	}
-
 	if current != nil {
 		finalizeXLIFFUnit(out, *current)
 	}
-
 	return out, nil
 }
 
@@ -162,7 +159,6 @@ func finalizeXLIFFUnit(out map[string]string, unit xliffUnit) {
 	if key == "" {
 		return
 	}
-
 	value := unit.target.String()
 	if strings.TrimSpace(value) == "" {
 		value = unit.source.String()
@@ -170,10 +166,8 @@ func finalizeXLIFFUnit(out map[string]string, unit xliffUnit) {
 	if value == "" {
 		return
 	}
-
 	out[key] = value
 }
-
 
 // MarshalXLIFF rewrites XLIFF source/target text using values keyed by unit id/name/resname.
 // If a unit has <target>, only target text is updated; otherwise source text is updated.
