@@ -24,17 +24,21 @@ function asset(version = 1): ContentfulAsset {
 describe("ContentfulManagementClient asset helpers", () => {
   it("downloads asset files and creates localized assets from uploaded buffers", async () => {
     const createdAssets: Array<Record<string, unknown>> = [];
+    let assetCreateRequestInit: RequestInit | undefined;
     let processRequestInit: RequestInit | undefined;
+    let uploadRequestInit: RequestInit | undefined;
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "https://images.ctfassets.net/space/asset-source/hero.png") {
         return new Response(Buffer.from("source-image"), { status: 200 });
       }
 
       if (url.endsWith("/uploads") && init?.method === "POST") {
+        uploadRequestInit = init;
         return Response.json({ sys: { id: "upload-1" } });
       }
 
       if (url.endsWith("/assets") && init?.method === "POST") {
+        assetCreateRequestInit = init;
         const requestBody = init?.body;
         const body = JSON.parse(typeof requestBody === "string" ? requestBody : "") as Record<
           string,
@@ -91,6 +95,12 @@ describe("ContentfulManagementClient asset helpers", () => {
     }
 
     expect(localizedResult.value.sys.id).toBe("asset-localized");
+    expect(new Headers(uploadRequestInit?.headers).get("content-type")).toBe(
+      "application/octet-stream",
+    );
+    expect(new Headers(assetCreateRequestInit?.headers).get("content-type")).toBe(
+      "application/vnd.contentful.management.v1+json",
+    );
     expect(new Headers(processRequestInit?.headers).get("X-Contentful-Version")).toBe("1");
     expect(createdAssets[0]).toMatchObject({
       fields: {

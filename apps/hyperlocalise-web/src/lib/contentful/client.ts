@@ -62,7 +62,9 @@ export class ContentfulManagementClient {
     const fetchImpl = this.options.fetchImpl ?? fetch;
     const headers = new Headers(init.headers);
     headers.set("authorization", `Bearer ${this.options.accessToken}`);
-    headers.set("content-type", "application/vnd.contentful.management.v1+json");
+    if (!headers.has("content-type")) {
+      headers.set("content-type", "application/vnd.contentful.management.v1+json");
+    }
 
     let response: Response;
     try {
