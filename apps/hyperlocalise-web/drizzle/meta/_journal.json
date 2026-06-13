@@ -330,6 +330,13 @@
       "when": 1781342197977,
       "tag": "0046_dry_alex_power",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1781387356042,
+      "tag": "0047_shallow_mojo",
+      "breakpoints": true
     }
   ]
 }

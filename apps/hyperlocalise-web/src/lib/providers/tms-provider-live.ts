@@ -527,6 +527,7 @@ function buildLiveProviderProject(input: {
     organizationId: input.organizationId,
     teamId: null,
     createdByUserId: null,
+    updatedByUserId: null,
     name: input.name,
     description: "",
     translationContext: "",

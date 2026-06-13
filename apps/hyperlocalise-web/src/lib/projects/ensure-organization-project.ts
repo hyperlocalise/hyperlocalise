@@ -21,7 +21,8 @@ export type EnsureOrganizationProjectError = {
     | "invalid_external_project_id"
     | "tms_provider_unavailable"
     | "tms_provider_mismatch"
-    | "external_project_unavailable";
+    | "external_project_unavailable"
+    | "external_project_id_collision";
   organizationId: string;
   projectId?: string;
   providerKind?: string;
@@ -137,6 +138,23 @@ export async function ensureOrganizationProjectRecord(input: {
 
   const canonicalProjectId = encodeProviderProjectId(encodedProject);
 
+  const [existingProjectOwner] = await db
+    .select({ organizationId: schema.projects.organizationId })
+    .from(schema.projects)
+    .where(eq(schema.projects.id, canonicalProjectId))
+    .limit(1);
+
+  if (existingProjectOwner && existingProjectOwner.organizationId !== input.organizationId) {
+    const error = projectNotFound("external_project_id_collision", {
+      organizationId: input.organizationId,
+      projectId,
+      providerKind: encodedProject.providerKind,
+      externalProjectId: encodedProject.externalProjectId,
+    });
+    logger.warn(error, "organization project resolution failed");
+    return err(error);
+  }
+
   await db
     .insert(schema.projects)
     .values({
@@ -144,6 +162,7 @@ export async function ensureOrganizationProjectRecord(input: {
       organizationId: input.organizationId,
       teamId: null,
       createdByUserId: input.userId ?? null,
+      updatedByUserId: input.userId ?? null,
       name: liveProject.name,
       description: "",
       translationContext: "",
@@ -158,7 +177,7 @@ export async function ensureOrganizationProjectRecord(input: {
       lastSyncedAt: new Date(),
     })
     .onConflictDoUpdate({
-      target: schema.projects.id,
+      target: [schema.projects.id, schema.projects.organizationId],
       set: {
         name: liveProject.name,
         sourceLocale: liveProject.sourceLocale,
@@ -166,6 +185,7 @@ export async function ensureOrganizationProjectRecord(input: {
         externalProjectUrl: liveProject.externalProjectUrl,
         isActive: liveProject.isActive,
         externalProviderCredentialId: credential.id,
+        updatedByUserId: input.userId ?? null,
         lastSyncedAt: new Date(),
         updatedAt: new Date(),
       },
@@ -189,7 +209,23 @@ export function unwrapOrganizationProjectRecord(
   result: Result<string, EnsureOrganizationProjectError>,
 ): string {
   if (isErr(result)) {
-    throw new Error(result.error.code);
+    const {
+      code,
+      reason,
+      organizationId,
+      projectId,
+      providerKind,
+      externalProjectId,
+      activeProviderKind,
+    } = result.error;
+    throw Object.assign(new Error(code), {
+      reason,
+      organizationId,
+      projectId,
+      providerKind,
+      externalProjectId,
+      activeProviderKind,
+    });
   }
 
   return result.value;

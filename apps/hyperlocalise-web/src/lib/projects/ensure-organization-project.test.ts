@@ -12,7 +12,10 @@ import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-i
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { ensureOrganizationProjectRecord } from "./ensure-organization-project";
+import {
+  ensureOrganizationProjectRecord,
+  unwrapOrganizationProjectRecord,
+} from "./ensure-organization-project";
 
 const { getTmsProviderLiveProjectMock } = vi.hoisted(() => ({
   getTmsProviderLiveProjectMock: vi.fn(),
@@ -170,6 +173,65 @@ describe("ensureOrganizationProjectRecord", () => {
     });
   });
 
+  it("rejects cross-organization external project id collisions", async () => {
+    const firstOrg = await seedExternalTmsOrganization();
+    const secondOrg = await seedExternalTmsOrganization();
+
+    getTmsProviderLiveProjectMock.mockResolvedValue({
+      id: firstOrg.projectId,
+      name: "Help Center",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      externalProjectUrl: "https://crowdin.com/project/help-center",
+      isActive: true,
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId: firstOrg.externalProjectId,
+      description: null,
+      translationContext: null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      openJobCount: 0,
+    });
+
+    await db.insert(schema.projects).values({
+      id: firstOrg.projectId,
+      organizationId: firstOrg.organizationId,
+      createdByUserId: firstOrg.userId,
+      name: "Org A Project",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProviderCredentialId: firstOrg.credentialId,
+      externalProjectId: firstOrg.externalProjectId,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+    });
+
+    const result = await ensureOrganizationProjectRecord({
+      organizationId: secondOrg.organizationId,
+      projectId: firstOrg.projectId,
+      userId: secondOrg.userId,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error).toMatchObject({
+        code: "project_not_found",
+        reason: "external_project_id_collision",
+        organizationId: secondOrg.organizationId,
+        projectId: firstOrg.projectId,
+      });
+    }
+
+    const [orgAProject] = await db
+      .select()
+      .from(schema.projects)
+      .where(eq(schema.projects.id, firstOrg.projectId))
+      .limit(1);
+
+    expect(orgAProject?.externalProviderCredentialId).toBe(firstOrg.credentialId);
+  });
+
   it("rejects unknown native project ids", async () => {
     const scope = await seedExternalTmsOrganization();
 
@@ -183,6 +245,33 @@ describe("ensureOrganizationProjectRecord", () => {
     if (isErr(result)) {
       expect(result.error).toMatchObject({
         code: "project_not_found",
+        reason: "native_project_missing",
+        organizationId: scope.organizationId,
+        projectId: "missing-project",
+      });
+    }
+  });
+
+  it("preserves structured error context when unwrapping failures", async () => {
+    const scope = await seedExternalTmsOrganization();
+
+    const result = await ensureOrganizationProjectRecord({
+      organizationId: scope.organizationId,
+      projectId: "missing-project",
+      userId: scope.userId,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) {
+      return;
+    }
+
+    try {
+      unwrapOrganizationProjectRecord(result);
+      expect.fail("expected unwrapOrganizationProjectRecord to throw");
+    } catch (error) {
+      expect(error).toMatchObject({
+        message: "project_not_found",
         reason: "native_project_missing",
         organizationId: scope.organizationId,
         projectId: "missing-project",

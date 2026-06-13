@@ -32,6 +32,10 @@ export const projects = pgTable(
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    // User who last updated project metadata, stored as an internal user ID.
+    updatedByUserId: uuid("updated_by_user_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     // Human-readable project name shown in app lists and settings.
     name: text("name").notNull(),
     // Optional long-form description for operator context.
