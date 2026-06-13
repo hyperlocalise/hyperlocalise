@@ -413,6 +413,27 @@ func TestParseTypedFormatterShouldParseSkeletons(t *testing.T) {
 	}
 }
 
+func TestParseASTTagsWithDotsAndNumbers(t *testing.T) {
+	msg := `Click <My.Component.v1 id="1"><b>{name}</b></My.Component.v1> now`
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	if len(elems) != 3 {
+		t.Fatalf("expected 3 top-level elements, got %d", len(elems))
+	}
+	tag, ok := elems[1].(TagElement)
+	if !ok {
+		t.Fatalf("expected tag element, got %T", elems[1])
+	}
+	if tag.Value != "My.Component.v1" {
+		t.Fatalf("unexpected tag value: %q", tag.Value)
+	}
+	if len(tag.Children) != 1 {
+		t.Fatalf("expected 1 child for My.Component.v1, got %d", len(tag.Children))
+	}
+}
+
 func TestParsePluralWithSpaceInOffset(t *testing.T) {
 	tests := []struct {
 		name           string
@@ -438,6 +459,11 @@ func TestParsePluralWithSpaceInOffset(t *testing.T) {
 			name:           "multiple spaces",
 			msg:            "{count, plural, offset  :  2 one {# item} other {# items}}",
 			expectedOffset: 2,
+		},
+		{
+			name:           "negative offset",
+			msg:            "{count, plural, offset:-1 one {# item} other {# items}}",
+			expectedOffset: -1,
 		},
 	}
 
