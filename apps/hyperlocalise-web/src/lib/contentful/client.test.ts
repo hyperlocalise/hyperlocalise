@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { isErr } from "@/lib/primitives/result/results";
+
 import {
   ContentfulManagementClient,
   CONTENTFUL_WEBHOOK_PUBLISH_TOPIC,
@@ -53,12 +55,15 @@ describe("ContentfulManagementClient", () => {
       fetchImpl: fetchImpl as typeof fetch,
     });
 
-    const updated = await client.updateEntryDraft({
+    const updatedResult = await client.updateEntryDraft({
       entry: entry(1),
       translations: [{ fieldId: "title", locale: "fr-FR", value: "Bonjour" }],
     });
+    if (isErr(updatedResult)) {
+      throw new Error("expected draft update");
+    }
 
-    expect(updated.sys.version).toBe(2);
+    expect(updatedResult.value.sys.version).toBe(2);
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     const successfulPut = fetchImpl.mock.calls.find(
       ([url, init]) =>
@@ -134,7 +139,7 @@ describe("ContentfulManagementClient", () => {
       fetchImpl: fetchImpl as typeof fetch,
     });
 
-    const created = await client.createWebhook({
+    const createdResult = await client.createWebhook({
       name: "Hyperlocalise: Help Center",
       url: "https://app.example.com/api/webhooks/contentful/sub-1",
       topics: [CONTENTFUL_WEBHOOK_PUBLISH_TOPIC],
@@ -147,23 +152,39 @@ describe("ContentfulManagementClient", () => {
         },
       ],
     });
+    if (isErr(createdResult)) {
+      throw new Error("expected webhook creation");
+    }
 
-    expect(created.sys.id).toBe("webhook-1");
+    expect(createdResult.value.sys.id).toBe("webhook-1");
 
-    const listed = await client.listWebhooks();
-    expect(listed).toHaveLength(1);
+    const listedResult = await client.listWebhooks();
+    if (isErr(listedResult)) {
+      throw new Error("expected webhook list");
+    }
+    expect(listedResult.value).toHaveLength(1);
 
-    const updated = await client.updateWebhook("webhook-1", {
+    const updatedResult = await client.updateWebhook("webhook-1", {
       version: 1,
       name: "Hyperlocalise: Docs",
-      url: created.url,
-      topics: created.topics,
-      filters: created.filters,
+      url: createdResult.value.url,
+      topics: createdResult.value.topics,
+      filters: createdResult.value.filters,
       headers: [{ key: CONTENTFUL_WEBHOOK_SECRET_HEADER, secret: true }],
     });
-    expect(updated.name).toBe("Hyperlocalise: Docs");
+    if (isErr(updatedResult)) {
+      throw new Error("expected webhook update");
+    }
+    expect(updatedResult.value.name).toBe("Hyperlocalise: Docs");
 
-    await client.deleteWebhook("webhook-1");
-    expect(await client.listWebhooks()).toHaveLength(0);
+    const deleteResult = await client.deleteWebhook("webhook-1");
+    if (isErr(deleteResult)) {
+      throw new Error("expected webhook deletion");
+    }
+    const emptyListResult = await client.listWebhooks();
+    if (isErr(emptyListResult)) {
+      throw new Error("expected empty webhook list");
+    }
+    expect(emptyListResult.value).toHaveLength(0);
   });
 });

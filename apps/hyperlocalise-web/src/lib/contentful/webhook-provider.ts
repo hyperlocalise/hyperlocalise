@@ -5,12 +5,14 @@ import { eq } from "drizzle-orm";
 import { env } from "@/lib/env";
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
   ContentfulManagementClient,
   CONTENTFUL_WEBHOOK_PUBLISH_TOPIC,
   CONTENTFUL_WEBHOOK_SECRET_HEADER,
   isContentfulClientError,
+  type ContentfulClientError,
   type ContentfulWebhookDefinition,
 } from "./client";
 import { hashContentfulWebhookSecret } from "./webhook";
@@ -130,9 +132,12 @@ function formatContentfulWebhookSyncError(error: unknown) {
 async function findProviderWebhookByUrl(
   client: ContentfulManagementClient,
   url: string,
-): Promise<ContentfulWebhookDefinition | null> {
-  const webhooks = await client.listWebhooks();
-  return webhooks.find((webhook) => webhook.url === url) ?? null;
+): Promise<Result<ContentfulWebhookDefinition | null, ContentfulClientError>> {
+  const webhooksResult = await client.listWebhooks();
+  if (isErr(webhooksResult)) {
+    return err(webhooksResult.error);
+  }
+  return ok(webhooksResult.value.find((webhook) => webhook.url === url) ?? null);
 }
 
 export async function deleteContentfulProviderWebhook(input: {
@@ -147,14 +152,13 @@ export async function deleteContentfulProviderWebhook(input: {
     environmentId: input.environmentId,
   });
 
-  try {
-    await client.deleteWebhook(input.providerWebhookId);
-  } catch (error) {
+  const deleteResult = await client.deleteWebhook(input.providerWebhookId);
+  if (isErr(deleteResult)) {
     logger.warn(
       {
         providerWebhookId: input.providerWebhookId,
         spaceId: input.spaceId,
-        error: error instanceof Error ? error.message : String(error),
+        error: deleteResult.error.message,
       },
       "contentful provider webhook delete failed",
     );
@@ -206,29 +210,35 @@ export async function syncContentfulProviderWebhook(input: {
     let providerWebhook: ContentfulWebhookDefinition | null = null;
 
     if (input.subscription.providerWebhookId) {
-      try {
-        providerWebhook = await client.getWebhook(input.subscription.providerWebhookId);
-      } catch (error) {
-        if (isContentfulClientError(error) && error.status === 404) {
-          providerWebhook = null;
-        } else {
-          throw error;
+      const providerWebhookResult = await client.getWebhook(input.subscription.providerWebhookId);
+      if (isErr(providerWebhookResult)) {
+        if (providerWebhookResult.error.status !== 404) {
+          throw providerWebhookResult.error;
         }
+      } else {
+        providerWebhook = providerWebhookResult.value;
       }
     }
 
     if (!providerWebhook) {
-      providerWebhook = await findProviderWebhookByUrl(client, callbackUrl);
+      const providerWebhookResult = await findProviderWebhookByUrl(client, callbackUrl);
+      if (isErr(providerWebhookResult)) {
+        throw providerWebhookResult.error;
+      }
+      providerWebhook = providerWebhookResult.value;
     }
 
     if (providerWebhook) {
-      const updated = await client.updateWebhook(providerWebhook.sys.id, {
+      const updatedResult = await client.updateWebhook(providerWebhook.sys.id, {
         version: providerWebhook.sys.version ?? 1,
         ...payload,
       });
+      if (isErr(updatedResult)) {
+        throw updatedResult.error;
+      }
       const subscription = await persistWebhookSubscriptionState({
         subscriptionId: input.subscription.id,
-        providerWebhookId: updated.sys.id,
+        providerWebhookId: updatedResult.value.sys.id,
         lastError: null,
         ...(shouldPersistPendingSecret && pendingSecret
           ? { secretHash: hashContentfulWebhookSecret(pendingSecret) }
@@ -238,13 +248,16 @@ export async function syncContentfulProviderWebhook(input: {
     }
 
     const createSecret = pendingSecret ?? generateWebhookSecret();
-    const created = await client.createWebhook({
+    const createdResult = await client.createWebhook({
       ...payload,
       headers: buildWebhookHeaders(createSecret),
     });
+    if (isErr(createdResult)) {
+      throw createdResult.error;
+    }
     const subscription = await persistWebhookSubscriptionState({
       subscriptionId: input.subscription.id,
-      providerWebhookId: created.sys.id,
+      providerWebhookId: createdResult.value.sys.id,
       lastError: null,
       secretHash: hashContentfulWebhookSecret(createSecret),
     });

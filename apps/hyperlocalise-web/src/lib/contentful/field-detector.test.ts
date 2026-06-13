@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  collectRichTextEmbeddedAssetIds,
   detectContentfulTranslatableFields,
   formatTranslatedValueForContentful,
+  replaceRichTextEmbeddedAssetIds,
 } from "./field-detector";
 import type { ContentfulContentType, ContentfulEntry } from "./types";
 
@@ -70,7 +72,9 @@ describe("contentful field detector", () => {
     });
 
     expect(units.map((unit) => unit.fieldId)).toEqual(["body"]);
-    expect(units[0]?.sourceText).toContain("https://example.com/reset");
+    expect(units[0]?.kind === "text" ? units[0].sourceText : "").toContain(
+      "https://example.com/reset",
+    );
   });
 
   it("allows overwrite mode for populated target locales", () => {
@@ -88,7 +92,7 @@ describe("contentful field detector", () => {
     });
 
     expect(units.map((unit) => unit.fieldId)).toEqual(["title"]);
-    expect(units[0]?.existingTranslations).toEqual([]);
+    expect(units[0]?.kind === "text" ? units[0].existingTranslations : []).toEqual([]);
   });
 
   it("skips non-localized fields even when explicitly configured", () => {
@@ -164,6 +168,144 @@ describe("contentful field detector", () => {
         { content: [{ value: "Premier paragraphe." }] },
         { content: [{ value: "Deuxième paragraphe." }] },
         { content: [{ value: "Troisième paragraphe." }] },
+      ],
+    });
+  });
+
+  it("detects localized asset link fields for image translation", () => {
+    const imageContentType: ContentfulContentType = {
+      sys: { id: "marketingPage" },
+      fields: [
+        { id: "heroImage", name: "Hero Image", type: "Link", linkType: "Asset", localized: true },
+        { id: "title", name: "Title", type: "Symbol", localized: true },
+      ],
+    };
+    const imageEntry: ContentfulEntry = {
+      sys: {
+        id: "entry-2",
+        version: 1,
+        contentType: { sys: { id: "marketingPage" } },
+      },
+      fields: {
+        heroImage: {
+          "en-US": {
+            sys: { type: "Link", linkType: "Asset", id: "asset-source" },
+          },
+        },
+        title: {
+          "en-US": "Launch campaign",
+        },
+      },
+    };
+
+    const units = detectContentfulTranslatableFields({
+      entry: imageEntry,
+      contentType: imageContentType,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fieldConfig: { fieldMode: "auto" },
+    });
+
+    expect(units).toHaveLength(2);
+    expect(units.find((unit) => unit.kind === "image")?.fieldId).toBe("heroImage");
+    expect(units.find((unit) => unit.kind === "text")?.fieldId).toBe("title");
+  });
+
+  it("does not detect localized asset arrays as image units", () => {
+    const imageContentType: ContentfulContentType = {
+      sys: { id: "marketingPage" },
+      fields: [
+        {
+          id: "gallery",
+          name: "Gallery",
+          type: "Array",
+          localized: true,
+          items: { type: "Link", linkType: "Asset" },
+        },
+      ],
+    };
+    const imageEntry: ContentfulEntry = {
+      sys: {
+        id: "entry-2",
+        version: 1,
+        contentType: { sys: { id: "marketingPage" } },
+      },
+      fields: {
+        gallery: {
+          "en-US": [{ sys: { type: "Link", linkType: "Asset", id: "asset-source" } }],
+        },
+      },
+    };
+
+    const units = detectContentfulTranslatableFields({
+      entry: imageEntry,
+      contentType: imageContentType,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fieldConfig: { fieldMode: "auto" },
+    });
+
+    expect(units).toEqual([]);
+  });
+
+  it("collects embedded asset ids from rich text and replaces them during writeback", () => {
+    const richTextValue = {
+      nodeType: "document",
+      data: {},
+      content: [
+        {
+          nodeType: "embedded-asset-block",
+          data: {
+            target: {
+              sys: { type: "Link", linkType: "Asset", id: "asset-inline" },
+            },
+          },
+          content: [],
+        },
+        {
+          nodeType: "paragraph",
+          data: {},
+          content: [{ nodeType: "text", value: "Caption text.", marks: [], data: {} }],
+        },
+      ],
+    };
+
+    expect(collectRichTextEmbeddedAssetIds(richTextValue)).toEqual(["asset-inline"]);
+
+    const replaced = replaceRichTextEmbeddedAssetIds(
+      richTextValue,
+      new Map([["asset-inline", "asset-localized"]]),
+    ) as { content: Array<Record<string, unknown>> };
+
+    expect(replaced.content[0]).toMatchObject({
+      nodeType: "embedded-asset-block",
+      data: {
+        target: {
+          sys: { type: "Link", linkType: "Asset", id: "asset-localized" },
+        },
+      },
+    });
+
+    const formatted = formatTranslatedValueForContentful({
+      sourceValue: richTextValue,
+      translatedText: JSON.stringify(["Texte de légende."]),
+      valueKind: "rich_text",
+      localizedAssetIdsBySourceId: new Map([["asset-inline", "asset-localized"]]),
+    });
+
+    expect(formatted).toMatchObject({
+      content: [
+        {
+          nodeType: "embedded-asset-block",
+          data: {
+            target: {
+              sys: { type: "Link", linkType: "Asset", id: "asset-localized" },
+            },
+          },
+        },
+        {
+          content: [{ value: "Texte de légende." }],
+        },
       ],
     });
   });

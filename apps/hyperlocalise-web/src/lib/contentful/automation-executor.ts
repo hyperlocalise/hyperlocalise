@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
 import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
@@ -17,11 +17,14 @@ import {
   formatTranslatedValueForContentful,
 } from "./field-detector";
 import { syncContentfulWebhookEventStatus } from "./events";
+import { localizeContentfulAssetForLocale } from "./image-localization";
 import type {
   ContentfulAutomationExecutionError,
   ContentfulAutomationExecutionSuccess,
   ContentfulConnectionFieldConfig,
   ContentfulDraftTranslation,
+  ContentfulImageUnit,
+  ContentfulTranslatableFieldUnit,
   ContentfulTranslatableUnit,
 } from "./types";
 
@@ -91,7 +94,80 @@ export function contentfulQaFindingsContainError(findings: Array<Record<string, 
   return findings.some((finding) => finding.severity === "error");
 }
 
-async function createRunItem(input: {
+function localizedAssetCacheKey(sourceAssetId: string, targetLocale: string) {
+  return `${sourceAssetId}:${targetLocale}`;
+}
+
+export type LocalizedAssetCache = Map<string, Promise<string>>;
+
+export function createLocalizedAssetCache(): LocalizedAssetCache {
+  return new Map();
+}
+
+async function getLocalizedAssetId(input: {
+  client: ContentfulManagementClient;
+  sourceLocale: string;
+  targetLocale: string;
+  fieldName: string;
+  assetId: string;
+  cache: LocalizedAssetCache;
+}) {
+  const cacheKey = localizedAssetCacheKey(input.assetId, input.targetLocale);
+  const cached = input.cache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const localizedAssetIdPromise = localizeContentfulAssetForLocale({
+    client: input.client,
+    assetId: input.assetId,
+    sourceLocale: input.sourceLocale,
+    targetLocale: input.targetLocale,
+    fieldName: input.fieldName,
+  }).then((localizedResult) => {
+    if (isErr(localizedResult)) {
+      throw localizedResult.error;
+    }
+    return localizedResult.value.localizedAssetId;
+  });
+  input.cache.set(cacheKey, localizedAssetIdPromise);
+
+  try {
+    return await localizedAssetIdPromise;
+  } catch (error) {
+    input.cache.delete(cacheKey);
+    throw error;
+  }
+}
+
+export async function ensureLocalizedAssets(input: {
+  client: ContentfulManagementClient;
+  sourceLocale: string;
+  targetLocale: string;
+  fieldName: string;
+  assetIds: string[];
+  cache: LocalizedAssetCache;
+}) {
+  const localizedBySourceId = new Map<string, string>();
+  for (const assetId of input.assetIds) {
+    const localizedAssetId = await getLocalizedAssetId({
+      client: input.client,
+      assetId,
+      sourceLocale: input.sourceLocale,
+      targetLocale: input.targetLocale,
+      fieldName: input.fieldName,
+      cache: input.cache,
+    });
+    localizedBySourceId.set(assetId, localizedAssetId);
+  }
+  return localizedBySourceId;
+}
+
+function getContentfulAutomationErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+async function createTextRunItem(input: {
   runId: string;
   unit: ContentfulTranslatableUnit;
   locale: string;
@@ -114,7 +190,31 @@ async function createRunItem(input: {
   });
 }
 
-async function translateUnit(input: {
+async function createImageRunItem(input: {
+  runId: string;
+  unit: ContentfulImageUnit;
+  locale: string;
+  status: string;
+  localizedAssetId?: string;
+  error?: Record<string, unknown>;
+}) {
+  await db.insert(schema.contentfulTranslationRunItems).values({
+    runId: input.runId,
+    fieldId: input.unit.fieldId,
+    fieldName: input.unit.fieldName,
+    locale: input.locale,
+    status: input.status,
+    sourceHash: sha256(input.unit.assetId),
+    sourcePreview: `asset:${input.unit.assetId}`.slice(0, 160),
+    translationPreview: input.localizedAssetId
+      ? `asset:${input.localizedAssetId}`.slice(0, 160)
+      : null,
+    qaFindings: [],
+    error: input.error ?? null,
+  });
+}
+
+export async function translateTextUnit(input: {
   organizationId: string;
   projectId: string;
   projectName: string;
@@ -124,6 +224,8 @@ async function translateUnit(input: {
   targetLocales: string[];
   translateStringJob: StringTranslationGenerator;
   runQa: boolean;
+  client: ContentfulManagementClient;
+  localizedAssetCache: LocalizedAssetCache;
 }) {
   const existingLocales = new Set(
     input.unit.existingTranslations.map((translation) => translation.locale),
@@ -161,7 +263,7 @@ async function translateUnit(input: {
   if (!contextSnapshot.ok) {
     await Promise.all(
       targetLocales.map((locale) =>
-        createRunItem({
+        createTextRunItem({
           runId: input.runId,
           unit: input.unit,
           locale,
@@ -200,6 +302,36 @@ async function translateUnit(input: {
     qaFindings.push(...findings);
     const hasQaError = contentfulQaFindingsContainError(findings);
     if (!hasQaError) {
+      let localizedAssetIdsBySourceId: Map<string, string> | undefined;
+      if (input.unit.embeddedAssetIds && input.unit.embeddedAssetIds.length > 0) {
+        try {
+          localizedAssetIdsBySourceId = await ensureLocalizedAssets({
+            client: input.client,
+            sourceLocale: input.unit.sourceLocale,
+            targetLocale: translation.locale,
+            fieldName: input.unit.fieldName,
+            assetIds: input.unit.embeddedAssetIds,
+            cache: input.localizedAssetCache,
+          });
+        } catch (error) {
+          await createTextRunItem({
+            runId: input.runId,
+            unit: input.unit,
+            locale: translation.locale,
+            status: "failed",
+            translatedText: translation.text,
+            qaFindings: findings,
+            error: {
+              message: getContentfulAutomationErrorMessage(
+                error,
+                "contentful_embedded_asset_localization_failed",
+              ),
+            },
+          });
+          continue;
+        }
+      }
+
       translations.push({
         fieldId: input.unit.fieldId,
         locale: translation.locale,
@@ -207,10 +339,11 @@ async function translateUnit(input: {
           sourceValue: input.unit.sourceValue,
           translatedText: translation.text,
           valueKind: input.unit.contentfulValueKind,
+          localizedAssetIdsBySourceId,
         }),
       });
     }
-    await createRunItem({
+    await createTextRunItem({
       runId: input.runId,
       unit: input.unit,
       locale: translation.locale,
@@ -225,6 +358,112 @@ async function translateUnit(input: {
     qaFindings,
     skipped: 0,
   };
+}
+
+async function translateImageUnit(input: {
+  runId: string;
+  unit: ContentfulImageUnit;
+  targetLocales: string[];
+  client: ContentfulManagementClient;
+  localizedAssetCache: LocalizedAssetCache;
+}) {
+  const existingLocales = new Set(input.unit.existingLocales);
+  const targetLocales = input.targetLocales.filter((locale) => !existingLocales.has(locale));
+  if (targetLocales.length === 0) {
+    return {
+      translations: [] as ContentfulDraftTranslation[],
+      qaFindings: [] as Array<Record<string, unknown>>,
+      skipped: input.targetLocales.length,
+    };
+  }
+
+  const translations: ContentfulDraftTranslation[] = [];
+  for (const locale of targetLocales) {
+    try {
+      const localizedAssetId = await getLocalizedAssetId({
+        client: input.client,
+        assetId: input.unit.assetId,
+        sourceLocale: input.unit.sourceLocale,
+        targetLocale: locale,
+        fieldName: input.unit.fieldName,
+        cache: input.localizedAssetCache,
+      });
+      translations.push({
+        fieldId: input.unit.fieldId,
+        locale,
+        value: {
+          sys: {
+            type: "Link",
+            linkType: "Asset",
+            id: localizedAssetId,
+          },
+        },
+      });
+      await createImageRunItem({
+        runId: input.runId,
+        unit: input.unit,
+        locale,
+        status: "translated",
+        localizedAssetId,
+      });
+    } catch (error) {
+      const message = getContentfulAutomationErrorMessage(
+        error,
+        "contentful_image_localization_failed",
+      );
+      await createImageRunItem({
+        runId: input.runId,
+        unit: input.unit,
+        locale,
+        status: "failed",
+        error: { message },
+      });
+    }
+  }
+
+  return {
+    translations,
+    qaFindings: [] as Array<Record<string, unknown>>,
+    skipped: 0,
+  };
+}
+
+async function translateFieldUnit(input: {
+  organizationId: string;
+  projectId: string;
+  projectName: string;
+  projectTranslationContext: string;
+  runId: string;
+  unit: ContentfulTranslatableFieldUnit;
+  targetLocales: string[];
+  translateStringJob: StringTranslationGenerator;
+  runQa: boolean;
+  client: ContentfulManagementClient;
+  localizedAssetCache: LocalizedAssetCache;
+}) {
+  if (input.unit.kind === "image") {
+    return translateImageUnit({
+      runId: input.runId,
+      unit: input.unit,
+      targetLocales: input.targetLocales,
+      client: input.client,
+      localizedAssetCache: input.localizedAssetCache,
+    });
+  }
+
+  return translateTextUnit({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    projectName: input.projectName,
+    projectTranslationContext: input.projectTranslationContext,
+    runId: input.runId,
+    unit: input.unit,
+    targetLocales: input.targetLocales,
+    translateStringJob: input.translateStringJob,
+    runQa: input.runQa,
+    client: input.client,
+    localizedAssetCache: input.localizedAssetCache,
+  });
 }
 
 export async function createContentfulTranslationRun(input: {
@@ -323,13 +562,21 @@ export async function executeContentfulAutomation(
       runTargetLocales: run.targetLocales,
       connectionTargetLocales: loaded.connection.targetLocales,
     });
-    const entry = await client.getEntry(run.entryId);
+    const entryResult = await client.getEntry(run.entryId);
+    if (isErr(entryResult)) {
+      throw entryResult.error;
+    }
+    const entry = entryResult.value;
     const contentTypeId =
       entry.sys.contentType?.sys?.id ?? run.contentTypeId ?? loaded.connection.contentTypeIds[0];
     if (!contentTypeId) {
       throw new Error("contentful_content_type_not_found");
     }
-    const contentType = await client.getContentType(contentTypeId);
+    const contentTypeResult = await client.getContentType(contentTypeId);
+    if (isErr(contentTypeResult)) {
+      throw contentTypeResult.error;
+    }
+    const contentType = contentTypeResult.value;
     const fieldConfig = loaded.connection.fieldConfig as ContentfulConnectionFieldConfig;
     const units = detectContentfulTranslatableFields({
       entry,
@@ -348,17 +595,20 @@ export async function executeContentfulAutomation(
           fieldId: unit.fieldId,
           fieldName: unit.fieldName,
           key: unit.key,
-          sourceHash: sha256(unit.sourceText),
+          kind: unit.kind,
+          sourceHash:
+            unit.kind === "text" ? sha256(unit.sourceText) : sha256(`asset:${unit.assetId}`),
         })),
         updatedAt: new Date(),
       })
       .where(eq(schema.contentfulTranslationRuns.id, run.id));
 
+    const localizedAssetCache = createLocalizedAssetCache();
     const results = await mapWithConcurrency(
       units,
       MAX_CONCURRENT_CONTENTFUL_TRANSLATIONS,
       async (unit) =>
-        translateUnit({
+        translateFieldUnit({
           organizationId: input.organizationId,
           projectId: loaded.connection.projectId,
           projectName: generator.project.name,
@@ -368,15 +618,21 @@ export async function executeContentfulAutomation(
           targetLocales,
           translateStringJob: generator.translateStringJob,
           runQa: run.runQa,
+          client,
+          localizedAssetCache,
         }),
     );
     const translations = results.flatMap((result) => result.translations);
     const qaFindings = results.flatMap((result) => result.qaFindings);
 
-    const updatedEntry =
-      translations.length > 0 && run.writeDrafts !== false
-        ? await client.updateEntryDraft({ entry, translations })
-        : entry;
+    let updatedEntry = entry;
+    if (translations.length > 0 && run.writeDrafts !== false) {
+      const updatedEntryResult = await client.updateEntryDraft({ entry, translations });
+      if (isErr(updatedEntryResult)) {
+        throw updatedEntryResult.error;
+      }
+      updatedEntry = updatedEntryResult.value;
+    }
     const completedAt = new Date();
     const qaErrorCount = qaFindings.filter((finding) => finding.severity === "error").length;
     const qaWarningCount = qaFindings.filter((finding) => finding.severity === "warning").length;

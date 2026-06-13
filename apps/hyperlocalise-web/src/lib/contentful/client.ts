@@ -1,4 +1,11 @@
-import type { ContentfulContentType, ContentfulDraftTranslation, ContentfulEntry } from "./types";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+
+import type {
+  ContentfulAsset,
+  ContentfulContentType,
+  ContentfulDraftTranslation,
+  ContentfulEntry,
+} from "./types";
 
 const CONTENTFUL_CMA_BASE_URL = "https://api.contentful.com";
 
@@ -27,6 +34,17 @@ export type ContentfulClientError = {
   message: string;
 };
 
+type ContentfulLocale = { code: string; name: string; default: boolean };
+type ContentfulConnectionValidation = {
+  environmentId: string;
+  locales: ContentfulLocale[];
+};
+type ContentfulAssetFileDownload = {
+  buffer: Buffer;
+  fileName: string;
+  contentType: string;
+};
+
 export class ContentfulManagementClient {
   constructor(
     private readonly options: {
@@ -37,35 +55,67 @@ export class ContentfulManagementClient {
     },
   ) {}
 
-  private async request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  private async request<T>(
+    path: string,
+    init: RequestInit = {},
+  ): Promise<Result<T, ContentfulClientError>> {
     const fetchImpl = this.options.fetchImpl ?? fetch;
     const headers = new Headers(init.headers);
     headers.set("authorization", `Bearer ${this.options.accessToken}`);
-    headers.set("content-type", "application/vnd.contentful.management.v1+json");
+    if (!headers.has("content-type")) {
+      headers.set("content-type", "application/vnd.contentful.management.v1+json");
+    }
 
-    const response = await fetchImpl(`${CONTENTFUL_CMA_BASE_URL}${path}`, {
-      ...init,
-      headers,
-    });
+    let response: Response;
+    try {
+      response = await fetchImpl(`${CONTENTFUL_CMA_BASE_URL}${path}`, {
+        ...init,
+        headers,
+      });
+    } catch {
+      return err({
+        code: "contentful_request_failed",
+        status: 0,
+        message: "Contentful request failed before receiving a response",
+      });
+    }
 
     if (!response.ok) {
-      throw {
+      return err({
         code: "contentful_request_failed",
         status: response.status,
         message: `Contentful request failed with status ${response.status}`,
-      } satisfies ContentfulClientError;
+      });
     }
 
     if (response.status === 204) {
-      return undefined as T;
+      return ok(undefined as T);
     }
 
-    const text = await response.text();
+    let text: string;
+    try {
+      text = await response.text();
+    } catch {
+      return err({
+        code: "contentful_request_failed",
+        status: response.status,
+        message: "Contentful response body could not be read",
+      });
+    }
+
     if (!text) {
-      return undefined as T;
+      return ok(undefined as T);
     }
 
-    return JSON.parse(text) as T;
+    try {
+      return ok(JSON.parse(text) as T);
+    } catch {
+      return err({
+        code: "contentful_request_failed",
+        status: response.status,
+        message: "Contentful response body was not valid JSON",
+      });
+    }
   }
 
   private environmentPath(path: string) {
@@ -78,48 +128,189 @@ export class ContentfulManagementClient {
     return `/spaces/${encodeURIComponent(this.options.spaceId)}${path}`;
   }
 
-  async validateConnection() {
-    const [environment, locales] = await Promise.all([
+  async validateConnection(): Promise<
+    Result<ContentfulConnectionValidation, ContentfulClientError>
+  > {
+    const [environmentResult, localesResult] = await Promise.all([
       this.request<{ sys: { id: string } }>(this.environmentPath("")),
       this.listLocales(),
     ]);
-    return {
-      environmentId: environment.sys.id,
-      locales,
-    };
+    if (isErr(environmentResult)) {
+      return err(environmentResult.error);
+    }
+    if (isErr(localesResult)) {
+      return err(localesResult.error);
+    }
+    return ok({
+      environmentId: environmentResult.value.sys.id,
+      locales: localesResult.value,
+    });
   }
 
-  async listLocales() {
-    const response = await this.request<{
+  async listLocales(): Promise<Result<ContentfulLocale[], ContentfulClientError>> {
+    const responseResult = await this.request<{
       items: Array<{ code: string; name: string; default?: boolean }>;
     }>(this.environmentPath("/locales"));
-    return response.items.map((locale) => ({
-      code: locale.code,
-      name: locale.name,
-      default: Boolean(locale.default),
-    }));
+    if (isErr(responseResult)) {
+      return err(responseResult.error);
+    }
+    return ok(
+      responseResult.value.items.map((locale) => ({
+        code: locale.code,
+        name: locale.name,
+        default: Boolean(locale.default),
+      })),
+    );
   }
 
-  async getEntry(entryId: string) {
+  async getEntry(entryId: string): Promise<Result<ContentfulEntry, ContentfulClientError>> {
     return this.request<ContentfulEntry>(
       this.environmentPath(`/entries/${encodeURIComponent(entryId)}`),
     );
   }
 
-  async getContentType(contentTypeId: string) {
+  async getContentType(
+    contentTypeId: string,
+  ): Promise<Result<ContentfulContentType, ContentfulClientError>> {
     return this.request<ContentfulContentType>(
       this.environmentPath(`/content_types/${encodeURIComponent(contentTypeId)}`),
     );
   }
 
-  async listWebhooks() {
-    const response = await this.request<{ items: ContentfulWebhookDefinition[] }>(
-      this.spacePath("/webhook_definitions"),
+  async getAsset(assetId: string): Promise<Result<ContentfulAsset, ContentfulClientError>> {
+    return this.request<ContentfulAsset>(
+      this.environmentPath(`/assets/${encodeURIComponent(assetId)}`),
     );
-    return response.items;
   }
 
-  async getWebhook(webhookId: string) {
+  async downloadAssetFile(input: {
+    asset: ContentfulAsset;
+    locale: string;
+  }): Promise<Result<ContentfulAssetFileDownload, ContentfulClientError>> {
+    const fetchImpl = this.options.fetchImpl ?? fetch;
+    const file = input.asset.fields.file?.[input.locale];
+    if (!file?.url) {
+      return err({
+        code: "contentful_request_failed",
+        status: 404,
+        message: `Contentful asset ${input.asset.sys.id} has no file for locale ${input.locale}`,
+      });
+    }
+
+    const fileUrl = file.url.startsWith("//") ? `https:${file.url}` : file.url;
+    let response: Response;
+    try {
+      response = await fetchImpl(fileUrl);
+    } catch {
+      return err({
+        code: "contentful_request_failed",
+        status: 0,
+        message: "Failed to download Contentful asset file before receiving a response",
+      });
+    }
+    if (!response.ok) {
+      return err({
+        code: "contentful_request_failed",
+        status: response.status,
+        message: `Failed to download Contentful asset file with status ${response.status}`,
+      });
+    }
+
+    let arrayBuffer: ArrayBuffer;
+    try {
+      arrayBuffer = await response.arrayBuffer();
+    } catch {
+      return err({
+        code: "contentful_request_failed",
+        status: response.status,
+        message: "Contentful asset file response body could not be read",
+      });
+    }
+
+    const buffer = Buffer.from(arrayBuffer);
+    return ok({
+      buffer,
+      fileName: file.fileName,
+      contentType: file.contentType,
+    });
+  }
+
+  async createLocalizedAsset(input: {
+    locale: string;
+    fileName: string;
+    contentType: string;
+    buffer: Buffer;
+    title?: string;
+    description?: string;
+  }): Promise<Result<ContentfulAsset, ContentfulClientError>> {
+    const uploadResult = await this.request<{ sys: { id: string } }>(this.spacePath("/uploads"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/octet-stream",
+      },
+      body: new Uint8Array(input.buffer),
+    });
+    if (isErr(uploadResult)) {
+      return err(uploadResult.error);
+    }
+
+    const assetResult = await this.request<ContentfulAsset>(this.environmentPath("/assets"), {
+      method: "POST",
+      body: JSON.stringify({
+        fields: {
+          title: { [input.locale]: input.title ?? input.fileName },
+          ...(input.description ? { description: { [input.locale]: input.description } } : {}),
+          file: {
+            [input.locale]: {
+              contentType: input.contentType,
+              fileName: input.fileName,
+              uploadFrom: {
+                sys: {
+                  type: "Link",
+                  linkType: "Upload",
+                  id: uploadResult.value.sys.id,
+                },
+              },
+            },
+          },
+        },
+      }),
+    });
+    if (isErr(assetResult)) {
+      return err(assetResult.error);
+    }
+
+    const processResult = await this.request<void>(
+      this.environmentPath(
+        `/assets/${encodeURIComponent(assetResult.value.sys.id)}/files/${encodeURIComponent(input.locale)}/process`,
+      ),
+      {
+        method: "PUT",
+        headers: {
+          "X-Contentful-Version": String(assetResult.value.sys.version),
+        },
+      },
+    );
+    if (isErr(processResult)) {
+      return err(processResult.error);
+    }
+
+    return ok(assetResult.value);
+  }
+
+  async listWebhooks(): Promise<Result<ContentfulWebhookDefinition[], ContentfulClientError>> {
+    const responseResult = await this.request<{ items: ContentfulWebhookDefinition[] }>(
+      this.spacePath("/webhook_definitions"),
+    );
+    if (isErr(responseResult)) {
+      return err(responseResult.error);
+    }
+    return ok(responseResult.value.items);
+  }
+
+  async getWebhook(
+    webhookId: string,
+  ): Promise<Result<ContentfulWebhookDefinition, ContentfulClientError>> {
     return this.request<ContentfulWebhookDefinition>(
       this.spacePath(`/webhook_definitions/${encodeURIComponent(webhookId)}`),
     );
@@ -131,7 +322,7 @@ export class ContentfulManagementClient {
     topics: string[];
     filters: Array<Record<string, unknown>>;
     headers: ContentfulWebhookDefinition["headers"];
-  }) {
+  }): Promise<Result<ContentfulWebhookDefinition, ContentfulClientError>> {
     return this.request<ContentfulWebhookDefinition>(this.spacePath("/webhook_definitions"), {
       method: "POST",
       body: JSON.stringify(input),
@@ -148,7 +339,7 @@ export class ContentfulManagementClient {
       filters: Array<Record<string, unknown>>;
       headers: ContentfulWebhookDefinition["headers"];
     },
-  ) {
+  ): Promise<Result<ContentfulWebhookDefinition, ContentfulClientError>> {
     return this.request<ContentfulWebhookDefinition>(
       this.spacePath(`/webhook_definitions/${encodeURIComponent(webhookId)}`),
       {
@@ -167,8 +358,8 @@ export class ContentfulManagementClient {
     );
   }
 
-  async deleteWebhook(webhookId: string) {
-    await this.request<void>(
+  async deleteWebhook(webhookId: string): Promise<Result<void, ContentfulClientError>> {
+    return this.request<void>(
       this.spacePath(`/webhook_definitions/${encodeURIComponent(webhookId)}`),
       {
         method: "DELETE",
@@ -190,7 +381,10 @@ export class ContentfulManagementClient {
     return fields;
   }
 
-  private putEntryDraft(entry: ContentfulEntry, fields: ContentfulEntry["fields"]) {
+  private putEntryDraft(
+    entry: ContentfulEntry,
+    fields: ContentfulEntry["fields"],
+  ): Promise<Result<ContentfulEntry, ContentfulClientError>> {
     return this.request<ContentfulEntry>(
       this.environmentPath(`/entries/${encodeURIComponent(entry.sys.id)}`),
       {
@@ -207,31 +401,36 @@ export class ContentfulManagementClient {
     entry: ContentfulEntry;
     translations: ContentfulDraftTranslation[];
     maxVersionConflictRetries?: number;
-  }) {
+  }): Promise<Result<ContentfulEntry, ContentfulClientError>> {
     const maxRetries = input.maxVersionConflictRetries ?? 5;
     let entry = input.entry;
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
-      try {
-        return await this.putEntryDraft(
-          entry,
-          this.applyDraftTranslations(entry, input.translations),
-        );
-      } catch (error) {
-        const isVersionConflict =
-          isContentfulClientError(error) && error.status === 409 && attempt < maxRetries;
-        if (!isVersionConflict) {
-          throw error;
-        }
-        entry = await this.getEntry(entry.sys.id);
+      const updateResult = await this.putEntryDraft(
+        entry,
+        this.applyDraftTranslations(entry, input.translations),
+      );
+      if (!isErr(updateResult)) {
+        return updateResult;
       }
+
+      const isVersionConflict = updateResult.error.status === 409 && attempt < maxRetries;
+      if (!isVersionConflict) {
+        return updateResult;
+      }
+
+      const entryResult = await this.getEntry(entry.sys.id);
+      if (isErr(entryResult)) {
+        return entryResult;
+      }
+      entry = entryResult.value;
     }
 
-    throw {
+    return err({
       code: "contentful_request_failed",
       status: 409,
       message: "Contentful entry version conflict persisted after retries",
-    } satisfies ContentfulClientError;
+    });
   }
 }
 

@@ -54,9 +54,37 @@ export type ContentfulFieldDefinition = {
   name: string;
   type: string;
   localized?: boolean;
+  linkType?: string;
   items?: {
     type?: string;
     linkType?: string;
+  };
+};
+
+export type ContentfulAssetLink = {
+  sys: {
+    type: "Link";
+    linkType: "Asset";
+    id: string;
+  };
+};
+
+export type ContentfulAsset = {
+  sys: {
+    id: string;
+    version: number;
+  };
+  fields: {
+    title?: Record<string, string>;
+    description?: Record<string, string>;
+    file?: Record<
+      string,
+      {
+        url: string;
+        fileName: string;
+        contentType: string;
+      }
+    >;
   };
 };
 
@@ -81,6 +109,7 @@ export type ContentfulEntry = {
 };
 
 export type ContentfulTranslatableUnit = {
+  kind: "text";
   externalStringId: string;
   key: string;
   fieldId: string;
@@ -94,7 +123,22 @@ export type ContentfulTranslatableUnit = {
     value: unknown;
   }>;
   contentfulValueKind: "string" | "array" | "rich_text" | "json";
+  embeddedAssetIds?: string[];
 };
+
+export type ContentfulImageUnit = {
+  kind: "image";
+  externalStringId: string;
+  key: string;
+  fieldId: string;
+  fieldName: string;
+  sourceLocale: string;
+  sourceValue: unknown;
+  assetId: string;
+  existingLocales: string[];
+};
+
+export type ContentfulTranslatableFieldUnit = ContentfulTranslatableUnit | ContentfulImageUnit;
 
 export type ContentfulDraftTranslation = {
   fieldId: string;
