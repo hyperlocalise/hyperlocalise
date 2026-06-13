@@ -39,7 +39,6 @@ import {
   listOrganizationJobs,
   listOrganizationProjectJobs,
 } from "@/lib/projects/list-organization-jobs";
-import { enqueueProviderSyncIntent } from "@/lib/providers/provider-sync-intent";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -59,7 +58,6 @@ import {
   providerProjectUnavailableResponse,
   resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
-  tmsProviderLiveErrorResponse,
 } from "./project.shared";
 import {
   applyAgentRunProposalReviewUpdates,
@@ -352,20 +350,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         }
       }
 
-      if (target.kind === "provider") {
-        const projectRecord = await getOwnedProjectRecord(c.var.auth, params.projectId);
-        if (projectRecord?.externalProviderCredentialId) {
-          void enqueueProviderSyncIntent({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            providerCredentialId: projectRecord.externalProviderCredentialId,
-            providerKind: target.providerKind,
-            projectId: params.projectId,
-            syncKind: "job_task_scan",
-            cause: "manual",
-          }).catch(() => undefined);
-        }
-      }
-
       const jobs = await listOrganizationProjectJobs(c.var.auth, params.projectId, query);
       return c.json({ jobs }, 200);
     })
@@ -579,13 +563,8 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     .use("*", workosAuthMiddleware)
     .get("/", validateJobListQuery, async (c) => {
       const query = c.req.valid("query");
-
-      try {
-        const jobs = await listOrganizationJobs(c.var.auth, query);
-        return c.json({ jobs }, 200);
-      } catch (error) {
-        return tmsProviderLiveErrorResponse(c, error);
-      }
+      const jobs = await listOrganizationJobs(c.var.auth, query);
+      return c.json({ jobs }, 200);
     })
     .get("/:jobId", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");

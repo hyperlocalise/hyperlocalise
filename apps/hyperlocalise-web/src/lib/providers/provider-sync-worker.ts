@@ -11,6 +11,7 @@ import {
 import { isErr } from "@/lib/primitives/result/results";
 
 import { executeProviderSyncIntent } from "./provider-sync-executor";
+import { enqueueProviderCatalogSyncIntent } from "./provider-sync-intent";
 
 const logger = createLogger("provider-sync-worker");
 
@@ -190,8 +191,6 @@ export async function scheduleIncrementalProviderSyncIntents(input?: {
     })
     .from(schema.organizationExternalTmsProviderCredentials)
     .limit(limit);
-
-  const { enqueueProviderCatalogSyncIntent } = await import("./provider-sync-intent");
 
   let enqueued = 0;
   let skipped = 0;

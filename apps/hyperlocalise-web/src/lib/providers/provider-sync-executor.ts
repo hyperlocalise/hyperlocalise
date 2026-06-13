@@ -51,6 +51,10 @@ async function startProviderSyncRun(intent: ProviderSyncIntentRow) {
     })
     .returning({ id: schema.providerSyncRuns.id });
 
+  if (!run) {
+    throw new Error("Failed to create provider sync run.");
+  }
+
   return run.id;
 }
 
@@ -152,6 +156,15 @@ export async function executeProviderSyncIntent(
         runId,
         status: "succeeded",
         counts: { fileKeys: 0 },
+      });
+      return ok({ runId });
+    }
+    case "job_task_scan": {
+      const runId = await startProviderSyncRun(intent);
+      await completeProviderSyncRun({
+        runId,
+        status: "succeeded",
+        counts: { jobs: 0 },
       });
       return ok({ runId });
     }
