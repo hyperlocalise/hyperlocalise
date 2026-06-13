@@ -379,12 +379,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
-      try {
-        const projects = await listOrganizationProjects(c.var.auth);
-        return c.json({ projects }, 200);
-      } catch (error) {
-        return tmsProviderLiveErrorResponse(c, error);
-      }
+      const projects = await listOrganizationProjects(c.var.auth);
+      return c.json({ projects }, 200);
     })
     .post("/", validateCreateProjectBody, async (c) => {
       if (!isProjectCreateAllowed(c.var.auth.membership.role)) {
