@@ -1,8 +1,10 @@
 import type {
+  ContentfulAssetLink,
   ContentfulConnectionFieldConfig,
   ContentfulContentType,
   ContentfulEntry,
   ContentfulFieldDefinition,
+  ContentfulTranslatableFieldUnit,
   ContentfulTranslatableUnit,
 } from "./types";
 
@@ -30,9 +32,132 @@ function isTextArrayField(field: ContentfulFieldDefinition) {
   return field.type === "Array" && field.items?.type === "Symbol";
 }
 
-function fieldNameLooksTextual(field: ContentfulFieldDefinition) {
-  const haystack = `${field.id} ${field.name}`.toLowerCase();
-  return TEXTUAL_FIELD_NAME_HINTS.some((hint) => haystack.includes(hint));
+function isAssetLinkField(field: ContentfulFieldDefinition) {
+  return field.type === "Link" && field.linkType === "Asset";
+}
+
+function isAssetArrayField(field: ContentfulFieldDefinition) {
+  return field.type === "Array" && field.items?.linkType === "Asset";
+}
+
+function readAssetLink(value: unknown): ContentfulAssetLink | null {
+  if (!isRecord(value)) {
+    return null;
+  }
+  const sys = value.sys;
+  if (
+    isRecord(sys) &&
+    sys.type === "Link" &&
+    sys.linkType === "Asset" &&
+    typeof sys.id === "string"
+  ) {
+    return value as ContentfulAssetLink;
+  }
+  return null;
+}
+
+export function collectRichTextEmbeddedAssetIds(value: unknown): string[] {
+  const assetIds: string[] = [];
+
+  function visit(node: unknown) {
+    if (Array.isArray(node)) {
+      for (const item of node) {
+        visit(item);
+      }
+      return;
+    }
+
+    if (!isRecord(node)) {
+      return;
+    }
+
+    if (node.nodeType === "embedded-asset-block" || node.nodeType === "asset-hyperlink") {
+      const target = isRecord(node.data) ? node.data.target : null;
+      const assetLink = readAssetLink(target);
+      if (assetLink) {
+        assetIds.push(assetLink.sys.id);
+      }
+    }
+
+    if (Array.isArray(node.content)) {
+      visit(node.content);
+    }
+  }
+
+  visit(value);
+  return [...new Set(assetIds)];
+}
+
+export function replaceRichTextEmbeddedAssetIds(
+  value: unknown,
+  assetIdBySourceId: ReadonlyMap<string, string>,
+): unknown {
+  function visit(node: unknown): unknown {
+    if (Array.isArray(node)) {
+      return node.map(visit);
+    }
+
+    if (!isRecord(node)) {
+      return node;
+    }
+
+    if (node.nodeType === "embedded-asset-block" || node.nodeType === "asset-hyperlink") {
+      const target = isRecord(node.data) ? node.data.target : null;
+      const assetLink = readAssetLink(target);
+      if (assetLink) {
+        const localizedAssetId = assetIdBySourceId.get(assetLink.sys.id);
+        if (localizedAssetId) {
+          return {
+            ...node,
+            data: {
+              ...(isRecord(node.data) ? node.data : {}),
+              target: {
+                sys: {
+                  type: "Link",
+                  linkType: "Asset",
+                  id: localizedAssetId,
+                },
+              },
+            },
+          };
+        }
+      }
+    }
+
+    if (Array.isArray(node.content)) {
+      return { ...node, content: visit(node.content) };
+    }
+
+    return node;
+  }
+
+  return visit(value);
+}
+
+function shouldTranslateImageField(input: {
+  field: ContentfulFieldDefinition;
+  contentTypeId: string;
+  config: ContentfulConnectionFieldConfig;
+}) {
+  if (input.field.localized !== true) {
+    return false;
+  }
+
+  const isAssetField = isAssetLinkField(input.field) || isAssetArrayField(input.field);
+  if (!isAssetField) {
+    return false;
+  }
+
+  const configuredFields = input.config.fieldsByContentType?.[input.contentTypeId];
+  if (configuredFields && configuredFields.length > 0) {
+    return configuredFields.includes(input.field.id);
+  }
+
+  if (input.config.fieldMode === "configured") {
+    return false;
+  }
+
+  return true;
 }
 
 function collectRichTextTextValues(value: unknown): string[] {
@@ -68,7 +193,12 @@ function stringValuesToSourceText(values: string[]) {
   return values.length > 0 ? JSON.stringify(values) : "";
 }
 
-function shouldTranslateField(input: {
+function fieldNameLooksTextual(field: ContentfulFieldDefinition) {
+  const haystack = `${field.id} ${field.name}`.toLowerCase();
+  return TEXTUAL_FIELD_NAME_HINTS.some((hint) => haystack.includes(hint));
+}
+
+function shouldTranslateTextField(input: {
   field: ContentfulFieldDefinition;
   contentTypeId: string;
   config: ContentfulConnectionFieldConfig;
@@ -206,6 +336,17 @@ function existingTranslationForLocale(input: {
   return { locale: input.locale, text, value };
 }
 
+function existingImageLocalesForField(input: {
+  entry: ContentfulEntry;
+  fieldId: string;
+  targetLocales: string[];
+}) {
+  return input.targetLocales.filter((locale) => {
+    const value = readLocaleValue(input.entry, input.fieldId, locale);
+    return readAssetLink(value) !== null;
+  });
+}
+
 export function detectContentfulTranslatableFields(input: {
   entry: ContentfulEntry;
   contentType: ContentfulContentType;
@@ -213,12 +354,45 @@ export function detectContentfulTranslatableFields(input: {
   targetLocales: string[];
   fieldConfig: ContentfulConnectionFieldConfig;
   overwriteDraftLocales?: boolean;
-}): ContentfulTranslatableUnit[] {
+}): ContentfulTranslatableFieldUnit[] {
   const contentTypeId = input.contentType.sys.id;
-  const units: ContentfulTranslatableUnit[] = [];
+  const units: ContentfulTranslatableFieldUnit[] = [];
 
   for (const field of input.contentType.fields) {
-    if (!shouldTranslateField({ field, contentTypeId, config: input.fieldConfig })) {
+    if (shouldTranslateImageField({ field, contentTypeId, config: input.fieldConfig })) {
+      const sourceValue = readLocaleValue(input.entry, field.id, input.sourceLocale);
+      const assetLink = readAssetLink(sourceValue);
+      if (!assetLink) {
+        continue;
+      }
+
+      const existingLocales = input.overwriteDraftLocales
+        ? []
+        : existingImageLocalesForField({
+            entry: input.entry,
+            fieldId: field.id,
+            targetLocales: input.targetLocales,
+          });
+
+      if (!input.overwriteDraftLocales && existingLocales.length === input.targetLocales.length) {
+        continue;
+      }
+
+      units.push({
+        kind: "image",
+        externalStringId: `${input.entry.sys.id}:${field.id}`,
+        key: `${contentTypeId}.${field.id}`,
+        fieldId: field.id,
+        fieldName: field.name,
+        sourceLocale: input.sourceLocale,
+        sourceValue,
+        assetId: assetLink.sys.id,
+        existingLocales,
+      });
+      continue;
+    }
+
+    if (!shouldTranslateTextField({ field, contentTypeId, config: input.fieldConfig })) {
       continue;
     }
 
@@ -244,7 +418,13 @@ export function detectContentfulTranslatableFields(input: {
       continue;
     }
 
+    const embeddedAssetIds =
+      detectValueKind(sourceValue) === "rich_text"
+        ? collectRichTextEmbeddedAssetIds(sourceValue)
+        : [];
+
     units.push({
+      kind: "text",
       externalStringId: `${input.entry.sys.id}:${field.id}`,
       key: `${contentTypeId}.${field.id}`,
       fieldId: field.id,
@@ -254,6 +434,7 @@ export function detectContentfulTranslatableFields(input: {
       sourceText,
       existingTranslations: input.overwriteDraftLocales ? [] : existingTranslations,
       contentfulValueKind: detectValueKind(sourceValue),
+      embeddedAssetIds: embeddedAssetIds.length > 0 ? embeddedAssetIds : undefined,
     });
   }
 
@@ -264,6 +445,7 @@ export function formatTranslatedValueForContentful(input: {
   sourceValue: unknown;
   translatedText: string;
   valueKind: ContentfulTranslatableUnit["contentfulValueKind"];
+  localizedAssetIdsBySourceId?: ReadonlyMap<string, string>;
 }) {
   if (input.valueKind === "array") {
     return (
@@ -277,7 +459,11 @@ export function formatTranslatedValueForContentful(input: {
   }
 
   if (input.valueKind === "rich_text" && isRecord(input.sourceValue)) {
-    return replaceRichTextTextNodes(input.sourceValue, input.translatedText);
+    const withText = replaceRichTextTextNodes(input.sourceValue, input.translatedText);
+    if (input.localizedAssetIdsBySourceId && input.localizedAssetIdsBySourceId.size > 0) {
+      return replaceRichTextEmbeddedAssetIds(withText, input.localizedAssetIdsBySourceId);
+    }
+    return withText;
   }
 
   return input.translatedText;

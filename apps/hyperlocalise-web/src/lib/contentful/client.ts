@@ -1,4 +1,9 @@
-import type { ContentfulContentType, ContentfulDraftTranslation, ContentfulEntry } from "./types";
+import type {
+  ContentfulAsset,
+  ContentfulContentType,
+  ContentfulDraftTranslation,
+  ContentfulEntry,
+} from "./types";
 
 const CONTENTFUL_CMA_BASE_URL = "https://api.contentful.com";
 
@@ -110,6 +115,93 @@ export class ContentfulManagementClient {
     return this.request<ContentfulContentType>(
       this.environmentPath(`/content_types/${encodeURIComponent(contentTypeId)}`),
     );
+  }
+
+  async getAsset(assetId: string) {
+    return this.request<ContentfulAsset>(
+      this.environmentPath(`/assets/${encodeURIComponent(assetId)}`),
+    );
+  }
+
+  async downloadAssetFile(input: { asset: ContentfulAsset; locale: string }) {
+    const fetchImpl = this.options.fetchImpl ?? fetch;
+    const file =
+      input.asset.fields.file?.[input.locale] ?? Object.values(input.asset.fields.file ?? {})[0];
+    if (!file?.url) {
+      throw {
+        code: "contentful_request_failed",
+        status: 404,
+        message: `Contentful asset ${input.asset.sys.id} has no file for locale ${input.locale}`,
+      } satisfies ContentfulClientError;
+    }
+
+    const fileUrl = file.url.startsWith("//") ? `https:${file.url}` : file.url;
+    const response = await fetchImpl(fileUrl);
+    if (!response.ok) {
+      throw {
+        code: "contentful_request_failed",
+        status: response.status,
+        message: `Failed to download Contentful asset file with status ${response.status}`,
+      } satisfies ContentfulClientError;
+    }
+
+    const buffer = Buffer.from(await response.arrayBuffer());
+    return {
+      buffer,
+      fileName: file.fileName,
+      contentType: file.contentType,
+    };
+  }
+
+  async createLocalizedAsset(input: {
+    locale: string;
+    fileName: string;
+    contentType: string;
+    buffer: Buffer;
+    title?: string;
+    description?: string;
+  }) {
+    const upload = await this.request<{ sys: { id: string } }>(this.spacePath("/uploads"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/octet-stream",
+      },
+      body: new Uint8Array(input.buffer),
+    });
+
+    const asset = await this.request<ContentfulAsset>(this.environmentPath("/assets"), {
+      method: "POST",
+      body: JSON.stringify({
+        fields: {
+          title: { [input.locale]: input.title ?? input.fileName },
+          ...(input.description ? { description: { [input.locale]: input.description } } : {}),
+          file: {
+            [input.locale]: {
+              contentType: input.contentType,
+              fileName: input.fileName,
+              uploadFrom: {
+                sys: {
+                  type: "Link",
+                  linkType: "Upload",
+                  id: upload.sys.id,
+                },
+              },
+            },
+          },
+        },
+      }),
+    });
+
+    const processed = await this.request<ContentfulAsset>(
+      this.environmentPath(
+        `/assets/${encodeURIComponent(asset.sys.id)}/files/${encodeURIComponent(input.locale)}/process`,
+      ),
+      {
+        method: "PUT",
+      },
+    );
+
+    return processed;
   }
 
   async listWebhooks() {
