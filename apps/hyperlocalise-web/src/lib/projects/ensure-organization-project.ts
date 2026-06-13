@@ -9,6 +9,8 @@ import {
   encodeProviderProjectId,
   parseProviderProjectId,
 } from "@/lib/providers/tms-provider-resource-id";
+import { upsertExternalTmsProjectRecord } from "@/lib/projects/upsert-external-tms-project-record";
+import { enqueueProviderProjectMaterializationSyncIntents } from "@/lib/providers/provider-sync-intent";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 const logger = createLogger("ensure-organization-project");
@@ -155,41 +157,12 @@ export async function ensureOrganizationProjectRecord(input: {
     return err(error);
   }
 
-  await db
-    .insert(schema.projects)
-    .values({
-      id: canonicalProjectId,
-      organizationId: input.organizationId,
-      teamId: null,
-      createdByUserId: input.userId ?? null,
-      updatedByUserId: input.userId ?? null,
-      name: liveProject.name,
-      description: "",
-      translationContext: "",
-      source: "external_tms",
-      externalProviderKind: encodedProject.providerKind,
-      externalProviderCredentialId: credential.id,
-      externalProjectId: encodedProject.externalProjectId,
-      sourceLocale: liveProject.sourceLocale,
-      targetLocales: liveProject.targetLocales,
-      externalProjectUrl: liveProject.externalProjectUrl,
-      isActive: liveProject.isActive,
-      lastSyncedAt: new Date(),
-    })
-    .onConflictDoUpdate({
-      target: [schema.projects.id, schema.projects.organizationId],
-      set: {
-        name: liveProject.name,
-        sourceLocale: liveProject.sourceLocale,
-        targetLocales: liveProject.targetLocales,
-        externalProjectUrl: liveProject.externalProjectUrl,
-        isActive: liveProject.isActive,
-        externalProviderCredentialId: credential.id,
-        updatedByUserId: input.userId ?? null,
-        lastSyncedAt: new Date(),
-        updatedAt: new Date(),
-      },
-    });
+  await upsertExternalTmsProjectRecord({
+    organizationId: input.organizationId,
+    providerCredentialId: credential.id,
+    liveProject,
+    userId: input.userId,
+  });
 
   logger.info(
     {
@@ -201,6 +174,22 @@ export async function ensureOrganizationProjectRecord(input: {
     },
     "organization project materialized from external TMS provider",
   );
+
+  void enqueueProviderProjectMaterializationSyncIntents({
+    organizationId: input.organizationId,
+    providerCredentialId: credential.id,
+    providerKind: encodedProject.providerKind,
+    projectId: canonicalProjectId,
+  }).catch((error) => {
+    logger.warn(
+      {
+        organizationId: input.organizationId,
+        projectId: canonicalProjectId,
+        error: error instanceof Error ? error.message : "unknown_error",
+      },
+      "failed to enqueue provider materialization sync intents",
+    );
+  });
 
   return ok(canonicalProjectId);
 }

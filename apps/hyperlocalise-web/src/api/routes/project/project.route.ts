@@ -13,14 +13,13 @@ import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-stora
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
-  getTmsProviderConnection,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
-  listTmsProviderLiveProjects,
   saveTmsProviderLiveCatTranslation,
 } from "@/lib/providers/tms-provider-live";
+import { listOrganizationProjects } from "@/lib/projects/list-organization-projects";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
@@ -380,52 +379,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
-      const connection = await getTmsProviderConnection(
-        c.var.auth.organization.localOrganizationId,
-      );
-      if (connection) {
-        try {
-          const projects = await listTmsProviderLiveProjects(
-            c.var.auth.organization.localOrganizationId,
-            { actorUserId: c.var.auth.user.localUserId },
-          );
-          return c.json({ projects }, 200);
-        } catch (error) {
-          return tmsProviderLiveErrorResponse(c, error);
-        }
-      }
-
-      const projects = await projectStore.list(c.var.auth);
-
-      const projectIds = projects.map((p) => p.id);
-      const openJobCounts =
-        projectIds.length > 0
-          ? await db
-              .select({
-                projectId: schema.jobs.projectId,
-                count: sql<number>`count(*)`.mapWith(Number),
-              })
-              .from(schema.jobs)
-              .where(
-                and(
-                  eq(schema.jobs.organizationId, c.var.auth.organization.localOrganizationId),
-                  inArray(schema.jobs.projectId, projectIds),
-                  inArray(schema.jobs.status, ["queued", "running", "waiting_for_review"]),
-                ),
-              )
-              .groupBy(schema.jobs.projectId)
-          : [];
-
-      const openJobCountByProjectId = new Map(
-        openJobCounts.map((row) => [row.projectId, row.count]),
-      );
-
-      const projectsWithJobCounts = projects.map((project) => ({
-        ...project,
-        openJobCount: openJobCountByProjectId.get(project.id) ?? 0,
-      }));
-
-      return c.json({ projects: projectsWithJobCounts }, 200);
+      const projects = await listOrganizationProjects(c.var.auth);
+      return c.json({ projects }, 200);
     })
     .post("/", validateCreateProjectBody, async (c) => {
       if (!isProjectCreateAllowed(c.var.auth.membership.role)) {
