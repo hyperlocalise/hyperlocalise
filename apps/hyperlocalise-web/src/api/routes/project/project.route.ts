@@ -13,7 +13,6 @@ import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-stora
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
-  getTmsProviderConnection,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
