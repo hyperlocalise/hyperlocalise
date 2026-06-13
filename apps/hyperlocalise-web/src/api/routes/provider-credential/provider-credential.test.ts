@@ -50,14 +50,14 @@ describe("providerCredentialRoutes", () => {
     const response = await fixture.upsertProviderCredentialViaApi(identity, {
       provider: "openai",
       apiKey: "sk-live-provider-key",
-      defaultModel: "gpt-4.1-mini",
+      defaultModel: "gpt-5.5",
     });
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
       providerCredential: {
         provider: "openai",
-        defaultModel: "gpt-4.1-mini",
+        defaultModel: "gpt-5.5",
         maskedApiKeySuffix: "••••-key",
       },
     });
@@ -82,7 +82,7 @@ describe("providerCredentialRoutes", () => {
     const response = await fixture.upsertProviderCredentialViaApi(identity, {
       provider: "openai",
       apiKey: "sk-member-key",
-      defaultModel: "gpt-4.1-mini",
+      defaultModel: "gpt-5.5",
     });
 
     expect(response.status).toBe(403);
@@ -101,7 +101,7 @@ describe("providerCredentialRoutes", () => {
     const response = await fixture.upsertProviderCredentialViaApi(identity, {
       provider: "openai",
       apiKey: "sk-manager-key",
-      defaultModel: "gpt-4.1-mini",
+      defaultModel: "gpt-5.5",
     });
 
     expect(response.status).toBe(200);
@@ -112,7 +112,7 @@ describe("providerCredentialRoutes", () => {
     const response = await fixture.upsertProviderCredentialViaApi(identity, {
       provider: "openai",
       apiKey: "sk-translator-key",
-      defaultModel: "gpt-4.1-mini",
+      defaultModel: "gpt-5.5",
     });
 
     expect(response.status).toBe(403);
@@ -137,7 +137,7 @@ describe("providerCredentialRoutes", () => {
     await fixture.upsertProviderCredentialViaApi(ownerIdentity, {
       provider: "openai",
       apiKey: "sk-owner-key",
-      defaultModel: "gpt-4.1-mini",
+      defaultModel: "gpt-5.5",
     });
 
     const response = await client.api.orgs[":organizationSlug"]["provider-credential"].$get(
@@ -164,7 +164,7 @@ describe("providerCredentialRoutes", () => {
     await fixture.upsertProviderCredentialViaApi(identity, {
       provider: "openai",
       apiKey: "sk-reveal-provider-key",
-      defaultModel: "gpt-4.1-mini",
+      defaultModel: "gpt-5.5",
     });
 
     const revealResponse = await client.api.orgs[":organizationSlug"]["provider-credential"][
@@ -185,7 +185,7 @@ describe("providerCredentialRoutes", () => {
         apiKey: "sk-reveal-provider-key",
         summary: {
           provider: "openai",
-          defaultModel: "gpt-4.1-mini",
+          defaultModel: "gpt-5.5",
         },
       },
     });
