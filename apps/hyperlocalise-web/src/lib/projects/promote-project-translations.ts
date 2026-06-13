@@ -210,6 +210,8 @@ export async function persistStringJobTranslations(input: {
         status: sql`excluded.status`,
         provenance: sql`excluded.provenance`,
         sourceJobId: sql`excluded.source_job_id`,
+        reviewedAt: null,
+        reviewedByUserId: null,
         updatedAt: sql`now()`,
       },
     });
@@ -292,6 +294,8 @@ export async function persistFileJobTranslations(input: {
         status: sql`excluded.status`,
         provenance: sql`excluded.provenance`,
         sourceJobId: sql`excluded.source_job_id`,
+        reviewedAt: null,
+        reviewedByUserId: null,
         updatedAt: sql`now()`,
       },
     });
