@@ -814,6 +814,7 @@ export function IntegrationsPageContent({
   const [apiKey, setApiKey] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
   const [showApiKey, setShowApiKey] = useState(false);
+  const [expandedContentful, setExpandedContentful] = useState(false);
 
   const modelFieldId = useId();
   const apiKeyFieldId = useId();
@@ -825,7 +826,7 @@ export function IntegrationsPageContent({
   const { data: contentfulConnections, isLoading: isLoadingContentful } =
     useContentfulConnections(organizationSlug);
   const { data: contentfulProjectOptions, isLoading: isLoadingContentfulProjects } =
-    useProjectOptions(organizationSlug);
+    useProjectOptions(organizationSlug, expandedContentful);
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
   const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug);
   const savePhraseOAuthApp = useSavePhraseOAuthApp(organizationSlug);
@@ -854,7 +855,6 @@ export function IntegrationsPageContent({
     accessToken: "",
   });
   const [lastContentfulWebhookSecret, setLastContentfulWebhookSecret] = useState("");
-  const [expandedContentful, setExpandedContentful] = useState(false);
 
   const tmsDisplayNameFieldId = useId();
   const tmsSecretFieldId = useId();
@@ -1200,24 +1200,31 @@ export function IntegrationsPageContent({
                     isSaving={saveContentfulConnection.isPending}
                     onSave={() => {
                       const accessToken = contentfulForm.accessToken.trim();
+                      const existingConnection = contentfulConnections?.[0];
+                      const payload = {
+                        projectId: contentfulForm.projectId.trim(),
+                        displayName: contentfulForm.displayName.trim(),
+                        spaceId: contentfulForm.spaceId.trim(),
+                        environmentId: contentfulForm.environmentId.trim() || "master",
+                        sourceLocale: contentfulForm.sourceLocale.trim(),
+                        targetLocales: contentfulForm.targetLocales
+                          .split(",")
+                          .map((value) => value.trim())
+                          .filter(Boolean),
+                        contentTypeIds: contentfulForm.contentTypeIds
+                          .split(",")
+                          .map((value) => value.trim())
+                          .filter(Boolean),
+                      };
+
                       saveContentfulConnection.mutate(
-                        {
-                          connectionId: contentfulConnections?.[0]?.id,
-                          projectId: contentfulForm.projectId.trim(),
-                          displayName: contentfulForm.displayName.trim(),
-                          spaceId: contentfulForm.spaceId.trim(),
-                          environmentId: contentfulForm.environmentId.trim() || "master",
-                          sourceLocale: contentfulForm.sourceLocale.trim(),
-                          targetLocales: contentfulForm.targetLocales
-                            .split(",")
-                            .map((value) => value.trim())
-                            .filter(Boolean),
-                          contentTypeIds: contentfulForm.contentTypeIds
-                            .split(",")
-                            .map((value) => value.trim())
-                            .filter(Boolean),
-                          ...(accessToken ? { accessToken } : {}),
-                        },
+                        existingConnection
+                          ? {
+                              ...payload,
+                              connectionId: existingConnection.id,
+                              ...(accessToken ? { accessToken } : {}),
+                            }
+                          : { ...payload, accessToken },
                         {
                           onSuccess: (result) => {
                             setContentfulForm((current) => ({ ...current, accessToken: "" }));

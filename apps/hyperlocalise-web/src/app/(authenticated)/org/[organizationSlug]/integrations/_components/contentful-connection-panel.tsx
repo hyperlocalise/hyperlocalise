@@ -54,6 +54,26 @@ export type ContentfulConnectionForm = {
   accessToken: string;
 };
 
+type SaveContentfulConnectionPayloadBase = {
+  projectId: string;
+  displayName: string;
+  spaceId: string;
+  environmentId: string;
+  sourceLocale: string;
+  targetLocales: string[];
+  contentTypeIds: string[];
+};
+
+type SaveContentfulConnectionPayload =
+  | (SaveContentfulConnectionPayloadBase & {
+      connectionId: string;
+      accessToken?: string;
+    })
+  | (SaveContentfulConnectionPayloadBase & {
+      connectionId?: undefined;
+      accessToken: string;
+    });
+
 export function useContentfulConnections(organizationSlug: string) {
   return useQuery({
     queryKey: ["contentful-connections", organizationSlug],
@@ -70,9 +90,10 @@ export function useContentfulConnections(organizationSlug: string) {
   });
 }
 
-export function useProjectOptions(organizationSlug: string) {
+export function useProjectOptions(organizationSlug: string, enabled = true) {
   return useQuery({
     queryKey: ["contentful-project-options", organizationSlug],
+    enabled,
     queryFn: async () => {
       const res = await api.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
@@ -93,54 +114,46 @@ export function useSaveContentfulConnection(organizationSlug: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: {
-      connectionId?: string;
-      projectId: string;
-      displayName: string;
-      spaceId: string;
-      environmentId: string;
-      sourceLocale: string;
-      targetLocales: string[];
-      contentTypeIds: string[];
-      accessToken?: string;
-    }) => {
-      const { connectionId, ...connectionPayload } = payload;
+    mutationFn: async (payload: SaveContentfulConnectionPayload) => {
       const fieldConfig = { fieldMode: "auto" as const, overwriteDraftLocales: false };
-      const res = connectionId
-        ? await api.api.orgs[":organizationSlug"]["contentful-connections"][":connectionId"].$patch(
-            {
-              param: { organizationSlug, connectionId },
-              json: {
-                projectId: connectionPayload.projectId,
-                displayName: connectionPayload.displayName,
-                spaceId: connectionPayload.spaceId,
-                environmentId: connectionPayload.environmentId,
-                sourceLocale: connectionPayload.sourceLocale,
-                targetLocales: connectionPayload.targetLocales,
-                contentTypeIds: connectionPayload.contentTypeIds,
-                fieldConfig,
-                enabled: true,
-                ...(connectionPayload.accessToken
-                  ? { accessToken: connectionPayload.accessToken }
-                  : {}),
-              },
-            },
-          )
-        : await api.api.orgs[":organizationSlug"]["contentful-connections"].$post({
-            param: { organizationSlug },
+      const accessToken = payload.accessToken?.trim();
+
+      const res = await (payload.connectionId
+        ? api.api.orgs[":organizationSlug"]["contentful-connections"][":connectionId"].$patch({
+            param: { organizationSlug, connectionId: payload.connectionId },
             json: {
-              projectId: connectionPayload.projectId,
-              displayName: connectionPayload.displayName,
-              spaceId: connectionPayload.spaceId,
-              environmentId: connectionPayload.environmentId,
-              sourceLocale: connectionPayload.sourceLocale,
-              targetLocales: connectionPayload.targetLocales,
-              contentTypeIds: connectionPayload.contentTypeIds,
+              projectId: payload.projectId,
+              displayName: payload.displayName,
+              spaceId: payload.spaceId,
+              environmentId: payload.environmentId,
+              sourceLocale: payload.sourceLocale,
+              targetLocales: payload.targetLocales,
+              contentTypeIds: payload.contentTypeIds,
               fieldConfig,
               enabled: true,
-              accessToken: payload.accessToken ?? "",
+              ...(accessToken ? { accessToken } : {}),
             },
-          });
+          })
+        : (() => {
+            if (!accessToken) {
+              throw new Error("accessToken is required for new Contentful connections");
+            }
+            return api.api.orgs[":organizationSlug"]["contentful-connections"].$post({
+              param: { organizationSlug },
+              json: {
+                projectId: payload.projectId,
+                displayName: payload.displayName,
+                spaceId: payload.spaceId,
+                environmentId: payload.environmentId,
+                sourceLocale: payload.sourceLocale,
+                targetLocales: payload.targetLocales,
+                contentTypeIds: payload.contentTypeIds,
+                fieldConfig,
+                enabled: true,
+                accessToken,
+              },
+            });
+          })());
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "contentful_connection_failed" }));
         throw new Error(
