@@ -156,3 +156,7 @@
 ## 2026-09-15 - Optimizing ARB marshaling via string fast-paths and partial sorting
 **Learning:** For JSON-based formats like ARB, bypassing `json.Marshal` for simple ASCII strings and avoiding full map sorts when only a few keys are new provides significant efficiency gains. Heuristic capacity hints for maps and slices also minimize GC pressure during large file processing.
 **Action:** Implemented `isSimpleJSONString` fast-path and refactored `MarshalARB` to sort only new keys, resulting in ~11-18% speedup and reduced allocations.
+
+## 2026-09-20 - Optimizing XML attribute lookup priority
+**Learning:** Functions that need to find one of several attributes with a specific priority (e.g., id > name > resname) are often implemented using multiple passes over the attribute slice. A single-pass scan with priority tracking is more efficient as it reduces iterations and potentially redundant string operations like TrimSpace.
+**Action:** Use single-pass attribute scanning for priority-based lookups and centralize common XML helpers to avoid redundant processing.

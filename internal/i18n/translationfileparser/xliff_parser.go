@@ -58,7 +58,6 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 					captureDepth--
 					continue
 				}
-
 				if token.Name.Local == captureName {
 					// BOLT OPTIMIZATION: Use raw slicing instead of re-encoding tokens via xml.Encoder.
 					// decoder.InputOffset() points after the EndElement '>'. We search back for the '</'
@@ -89,11 +88,9 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 			}
 		}
 	}
-
 	if current != nil {
 		finalizeXLIFFUnit(out, *current)
 	}
-
 	return out, nil
 }
 
@@ -102,12 +99,28 @@ func isEOFError(err error) bool {
 }
 
 func resolveXLIFFUnitKey(attrs []xml.Attr) string {
-	for _, name := range []string{"id", "name", "resname"} {
-		if value := attrValue(attrs, name); value != "" {
-			return value
+	// BOLT OPTIMIZATION: Single-pass attribute scan with priority (id > name > resname).
+	var name, resname string
+	for _, attr := range attrs {
+		switch attr.Name.Local {
+		case "id":
+			if v := strings.TrimSpace(attr.Value); v != "" {
+				return v
+			}
+		case "name":
+			if name == "" {
+				name = strings.TrimSpace(attr.Value)
+			}
+		case "resname":
+			if resname == "" {
+				resname = strings.TrimSpace(attr.Value)
+			}
 		}
 	}
-	return ""
+	if name != "" {
+		return name
+	}
+	return resname
 }
 
 type xliffUnit struct {
@@ -146,7 +159,6 @@ func finalizeXLIFFUnit(out map[string]string, unit xliffUnit) {
 	if key == "" {
 		return
 	}
-
 	value := unit.target.String()
 	if strings.TrimSpace(value) == "" {
 		value = unit.source.String()
@@ -154,17 +166,7 @@ func finalizeXLIFFUnit(out map[string]string, unit xliffUnit) {
 	if value == "" {
 		return
 	}
-
 	out[key] = value
-}
-
-func attrValue(attrs []xml.Attr, name string) string {
-	for _, attr := range attrs {
-		if attr.Name.Local == name {
-			return strings.TrimSpace(attr.Value)
-		}
-	}
-	return ""
 }
 
 // MarshalXLIFF rewrites XLIFF source/target text using values keyed by unit id/name/resname.

@@ -300,7 +300,8 @@ func androidRequiredAttr(token xml.StartElement, name string) (string, error) {
 }
 
 func androidResourceTranslatable(attrs []xml.Attr) bool {
-	return !strings.EqualFold(strings.TrimSpace(attrValue(attrs, "translatable")), "false")
+	// BOLT OPTIMIZATION: attrValue already performs strings.TrimSpace.
+	return !strings.EqualFold(attrValue(attrs, "translatable"), "false")
 }
 
 func androidValidPluralQuantity(quantity string) bool {
