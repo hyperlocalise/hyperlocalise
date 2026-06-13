@@ -158,6 +158,10 @@ export async function ensureLocalizedAssets(input: {
   return localizedBySourceId;
 }
 
+function getContentfulAutomationErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
 async function createTextRunItem(input: {
   runId: string;
   unit: ContentfulTranslatableUnit;
@@ -205,7 +209,7 @@ async function createImageRunItem(input: {
   });
 }
 
-async function translateTextUnit(input: {
+export async function translateTextUnit(input: {
   organizationId: string;
   projectId: string;
   projectName: string;
@@ -295,14 +299,32 @@ async function translateTextUnit(input: {
     if (!hasQaError) {
       let localizedAssetIdsBySourceId: Map<string, string> | undefined;
       if (input.unit.embeddedAssetIds && input.unit.embeddedAssetIds.length > 0) {
-        localizedAssetIdsBySourceId = await ensureLocalizedAssets({
-          client: input.client,
-          sourceLocale: input.unit.sourceLocale,
-          targetLocale: translation.locale,
-          fieldName: input.unit.fieldName,
-          assetIds: input.unit.embeddedAssetIds,
-          cache: input.localizedAssetCache,
-        });
+        try {
+          localizedAssetIdsBySourceId = await ensureLocalizedAssets({
+            client: input.client,
+            sourceLocale: input.unit.sourceLocale,
+            targetLocale: translation.locale,
+            fieldName: input.unit.fieldName,
+            assetIds: input.unit.embeddedAssetIds,
+            cache: input.localizedAssetCache,
+          });
+        } catch (error) {
+          await createTextRunItem({
+            runId: input.runId,
+            unit: input.unit,
+            locale: translation.locale,
+            status: "failed",
+            translatedText: translation.text,
+            qaFindings: findings,
+            error: {
+              message: getContentfulAutomationErrorMessage(
+                error,
+                "contentful_embedded_asset_localization_failed",
+              ),
+            },
+          });
+          continue;
+        }
       }
 
       translations.push({
@@ -380,8 +402,10 @@ async function translateImageUnit(input: {
         localizedAssetId,
       });
     } catch (error) {
-      const message =
-        error instanceof Error ? error.message : "contentful_image_localization_failed";
+      const message = getContentfulAutomationErrorMessage(
+        error,
+        "contentful_image_localization_failed",
+      );
       await createImageRunItem({
         runId: input.runId,
         unit: input.unit,
