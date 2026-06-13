@@ -226,7 +226,7 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 		{
 			name: "missing identifiers",
 			req:  &SourceStringsUploadRequest{StorageID: 1},
-			err:  "branchId or directoryId is required",
+			err:  "branchId, directoryId or fileId is required",
 		},
 		{
 			name: "invalid request",
@@ -255,7 +255,7 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 		{
 			name: "multi-set identifiers",
 			req:  &SourceStringsUploadRequest{StorageID: 1, BranchID: 1, DirectoryID: 1},
-			err:  "only one of branchId or directoryId may be set",
+			err:  "only one of branchId, directoryId or fileId may be set",
 		},
 		{
 			name: "valid request with directoryId",
@@ -280,6 +280,16 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 				}, UpdateOption: "clear_translations_and_approvals",
 			},
 			valid: true,
+		},
+		{
+			name:  "valid request with fileId",
+			req:   &SourceStringsUploadRequest{StorageID: 1, FileID: 1},
+			valid: true,
+		},
+		{
+			name: "multi-set identifiers with fileId",
+			req:  &SourceStringsUploadRequest{StorageID: 1, FileID: 1, BranchID: 1},
+			err:  "only one of branchId, directoryId or fileId may be set",
 		},
 	}
 

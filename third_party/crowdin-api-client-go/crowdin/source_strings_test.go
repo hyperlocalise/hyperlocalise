@@ -799,6 +799,7 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 		Attributes: struct {
 			BranchID      int    `json:"branchId"`
 			DirectoryID   int    `json:"directoryId"`
+			FileID        int    `json:"fileId"`
 			StorageID     int    `json:"storageId"`
 			FileType      string `json:"fileType"`
 			ParserVersion int    `json:"parserVersion"`
@@ -812,6 +813,7 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 			CleanupMode   bool `json:"cleanupMode"`
 		}{
 			BranchID:      38,
+			FileID:        0,
 			StorageID:     38,
 			FileType:      "android",
 			ParserVersion: 8,
@@ -923,6 +925,7 @@ func TestSourceStringsService_Upload(t *testing.T) {
 		Attributes: struct {
 			BranchID      int    `json:"branchId"`
 			DirectoryID   int    `json:"directoryId"`
+			FileID        int    `json:"fileId"`
 			StorageID     int    `json:"storageId"`
 			FileType      string `json:"fileType"`
 			ParserVersion int    `json:"parserVersion"`
@@ -936,6 +939,7 @@ func TestSourceStringsService_Upload(t *testing.T) {
 			CleanupMode   bool `json:"cleanupMode"`
 		}{
 			BranchID:      38,
+			FileID:        0,
 			StorageID:     38,
 			FileType:      "android",
 			ParserVersion: 8,
@@ -997,8 +1001,10 @@ func TestSourceStringsService_UploadWithValidationError(t *testing.T) {
 	}{
 		{"nil request", nil, "request cannot be nil"},
 		{"empty storageId", &model.SourceStringsUploadRequest{BranchID: 34}, "storageId is required"},
-		{"empty branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61}, "branchId or directoryId is required"},
+		{"empty branchId, directoryId or fileId", &model.SourceStringsUploadRequest{StorageID: 61}, "branchId, directoryId or fileId is required"},
 		{"misconfigured updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: ToPtr(false), UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},
+		{"updateOption with nil updateStrings", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: nil, UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},
+		{"multiple location identifiers", &model.SourceStringsUploadRequest{StorageID: 61, BranchID: 34, DirectoryID: 38}, "only one of branchId, directoryId or fileId may be set"},
 	}
 
 	for _, tt := range cases {

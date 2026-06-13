@@ -901,6 +901,30 @@ func TestTranslationsService_UploadTranslations(t *testing.T) {
 		AddToTM:             ToPtr(false),
 		MarkAddedAsDone:     ToPtr(true),
 	}
+	assert.NoError(t, req.Validate())
+
+	t.Run("validation error", func(t *testing.T) {
+		req := &model.UploadTranslationsRequest{
+			StorageID: 34,
+			FileID:    56,
+			BranchID:  78,
+		}
+		assert.Error(t, req.Validate())
+
+		req = &model.UploadTranslationsRequest{
+			StorageID:   34,
+			FileID:      56,
+			DirectoryID: 90,
+		}
+		assert.Error(t, req.Validate())
+
+		req = &model.UploadTranslationsRequest{
+			StorageID:   34,
+			BranchID:    78,
+			DirectoryID: 90,
+		}
+		assert.NoError(t, req.Validate())
+	})
 	uploadTranslations, resp, err := client.Translations.UploadTranslations(context.Background(), 1, "uk", req)
 	require.NoError(t, err)
 

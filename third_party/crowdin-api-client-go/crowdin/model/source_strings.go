@@ -236,6 +236,7 @@ type SourceStringsUpload struct {
 	Attributes struct {
 		BranchID      int    `json:"branchId"`
 		DirectoryID   int    `json:"directoryId"`
+		FileID        int    `json:"fileId"`
 		StorageID     int    `json:"storageId"`
 		FileType      string `json:"fileType"`
 		ParserVersion int    `json:"parserVersion"`
@@ -271,6 +272,9 @@ type SourceStringsUploadRequest struct {
 	// Directory Identifier.
 	// Defines directory to which file will be added.
 	DirectoryID int `json:"directoryId,omitempty"`
+	// File Identifier.
+	// Defines file to which strings will be added.
+	FileID int `json:"fileId,omitempty"`
 	// Default: auto
 	// Enum: auto, android, macosx, arb, csv, json, xlsx, xliff, xliff_two
 	// - empty value or `auto` — Try to detect file type by extension or MIME type
@@ -322,13 +326,13 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	if o.StorageID == 0 {
 		return errors.New("storageId is required")
 	}
-	if o.BranchID == 0 && o.DirectoryID == 0 {
-		return errors.New("branchId or directoryId is required")
+	if o.BranchID == 0 && o.DirectoryID == 0 && o.FileID == 0 {
+		return errors.New("branchId, directoryId or fileId is required")
 	}
-	if o.BranchID != 0 && o.DirectoryID != 0 {
-		return errors.New("only one of branchId or directoryId may be set")
+	if (o.BranchID != 0 && o.DirectoryID != 0) || (o.BranchID != 0 && o.FileID != 0) || (o.DirectoryID != 0 && o.FileID != 0) {
+		return errors.New("only one of branchId, directoryId or fileId may be set")
 	}
-	if o.UpdateOption != "" && !(*o.UpdateStrings) {
+	if o.UpdateOption != "" && (o.UpdateStrings == nil || !(*o.UpdateStrings)) {
 		return errors.New("updateStrings must be set to true to use updateOption")
 	}
 

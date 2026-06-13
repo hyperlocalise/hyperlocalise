@@ -432,7 +432,7 @@ type (
 		ExportStringsThatPassedWorkflow *bool `json:"exportStringsThatPassedWorkflow,omitempty"`
 	}
 
-	// PsuedoBuildProjectRequest defines the structure of a request to build a project
+	// PseudoBuildProjectRequest defines the structure of a request to build a project
 	// with pseudo translations.
 	PseudoBuildProjectRequest struct {
 		// Flag for detecting pseudo translation. Default: false.
@@ -541,6 +541,9 @@ type UploadTranslationsRequest struct {
 	// Branch Identifier for import.
 	// Note: Required for string based API.
 	BranchID int `json:"branchId,omitempty"`
+	// Directory Identifier for import.
+	// Note: Optional for string based API.
+	DirectoryID int `json:"directoryId,omitempty"`
 	// Defines whether to add translation if it's the same as the source string.
 	// Default: false.
 	ImportEqSuggestions *bool `json:"importEqSuggestions,omitempty"`
@@ -566,6 +569,10 @@ func (r *UploadTranslationsRequest) Validate() error {
 	if r.FileID > 0 && r.BranchID > 0 {
 		return errors.New("fileId and branchId can not be used at the same request")
 	}
+	if r.FileID > 0 && r.DirectoryID > 0 {
+		return errors.New("fileId and directoryId can not be used at the same request")
+	}
+
 	return nil
 }
 
