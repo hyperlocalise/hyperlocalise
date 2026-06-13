@@ -10,6 +10,8 @@ import {
 } from "@/lib/security/provider-credential-crypto";
 import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
+import { isErr, isOk } from "@/lib/primitives/result/results";
+
 import { ensureOrganizationProjectRecord } from "./ensure-organization-project";
 
 const { getTmsProviderLiveProjectMock } = vi.hoisted(() => ({
@@ -107,7 +109,10 @@ describe("ensureOrganizationProjectRecord", () => {
       userId: scope.userId,
     });
 
-    expect(resolved).toBe(nativeProjectId);
+    expect(isOk(resolved)).toBe(true);
+    if (isOk(resolved)) {
+      expect(resolved.value).toBe(nativeProjectId);
+    }
     expect(getTmsProviderLiveProjectMock).not.toHaveBeenCalled();
   });
 
@@ -137,7 +142,10 @@ describe("ensureOrganizationProjectRecord", () => {
       userId: scope.userId,
     });
 
-    expect(resolved).toBe(scope.projectId);
+    expect(isOk(resolved)).toBe(true);
+    if (isOk(resolved)) {
+      expect(resolved.value).toBe(scope.projectId);
+    }
     expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith(
       scope.organizationId,
       scope.externalProjectId,
@@ -165,12 +173,20 @@ describe("ensureOrganizationProjectRecord", () => {
   it("rejects unknown native project ids", async () => {
     const scope = await seedExternalTmsOrganization();
 
-    await expect(
-      ensureOrganizationProjectRecord({
+    const result = await ensureOrganizationProjectRecord({
+      organizationId: scope.organizationId,
+      projectId: "missing-project",
+      userId: scope.userId,
+    });
+
+    expect(isErr(result)).toBe(true);
+    if (isErr(result)) {
+      expect(result.error).toMatchObject({
+        code: "project_not_found",
+        reason: "native_project_missing",
         organizationId: scope.organizationId,
         projectId: "missing-project",
-        userId: scope.userId,
-      }),
-    ).rejects.toThrow("project_not_found");
+      });
+    }
   });
 });

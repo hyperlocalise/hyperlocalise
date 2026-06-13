@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import { createLogger } from "@/lib/log";
 import { normalizeProjectId } from "@/lib/projects/project-id";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
@@ -8,6 +9,36 @@ import {
   encodeProviderProjectId,
   parseProviderProjectId,
 } from "@/lib/providers/tms-provider-resource-id";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+
+const logger = createLogger("ensure-organization-project");
+
+export type EnsureOrganizationProjectError = {
+  code: "project_not_found";
+  reason:
+    | "invalid_project_id"
+    | "native_project_missing"
+    | "invalid_external_project_id"
+    | "tms_provider_unavailable"
+    | "tms_provider_mismatch"
+    | "external_project_unavailable";
+  organizationId: string;
+  projectId?: string;
+  providerKind?: string;
+  externalProjectId?: string;
+  activeProviderKind?: string;
+};
+
+function projectNotFound(
+  reason: EnsureOrganizationProjectError["reason"],
+  details: Omit<EnsureOrganizationProjectError, "code" | "reason">,
+): EnsureOrganizationProjectError {
+  return {
+    code: "project_not_found",
+    reason,
+    ...details,
+  };
+}
 
 /**
  * Resolves a project id for org-scoped writes that require a `projects` row.
@@ -18,10 +49,15 @@ export async function ensureOrganizationProjectRecord(input: {
   organizationId: string;
   projectId: string;
   userId?: string | null;
-}): Promise<string> {
+}): Promise<Result<string, EnsureOrganizationProjectError>> {
   const projectId = normalizeProjectId(input.projectId);
   if (typeof projectId !== "string" || projectId.length === 0) {
-    throw new Error("project_not_found");
+    const error = projectNotFound("invalid_project_id", {
+      organizationId: input.organizationId,
+      projectId: typeof input.projectId === "string" ? input.projectId : undefined,
+    });
+    logger.warn(error, "organization project resolution failed");
+    return err(error);
   }
 
   const [existing] = await db
@@ -36,19 +72,51 @@ export async function ensureOrganizationProjectRecord(input: {
     .limit(1);
 
   if (existing) {
-    return existing.id;
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        projectId: existing.id,
+        resolution: "existing_record",
+      },
+      "organization project resolved from database",
+    );
+    return ok(existing.id);
   }
 
   const encodedProject = parseProviderProjectId(projectId);
   if (!encodedProject) {
-    throw new Error("project_not_found");
+    const error = projectNotFound("native_project_missing", {
+      organizationId: input.organizationId,
+      projectId,
+    });
+    logger.warn(error, "organization project resolution failed");
+    return err(error);
   }
 
   const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
     input.organizationId,
   );
-  if (!credential || credential.providerKind !== encodedProject.providerKind) {
-    throw new Error("project_not_found");
+  if (!credential) {
+    const error = projectNotFound("tms_provider_unavailable", {
+      organizationId: input.organizationId,
+      projectId,
+      providerKind: encodedProject.providerKind,
+      externalProjectId: encodedProject.externalProjectId,
+    });
+    logger.warn(error, "organization project resolution failed");
+    return err(error);
+  }
+
+  if (credential.providerKind !== encodedProject.providerKind) {
+    const error = projectNotFound("tms_provider_mismatch", {
+      organizationId: input.organizationId,
+      projectId,
+      providerKind: encodedProject.providerKind,
+      externalProjectId: encodedProject.externalProjectId,
+      activeProviderKind: credential.providerKind,
+    });
+    logger.warn(error, "organization project resolution failed");
+    return err(error);
   }
 
   const liveProject = await getTmsProviderLiveProject(
@@ -57,7 +125,14 @@ export async function ensureOrganizationProjectRecord(input: {
     { actorUserId: input.userId },
   );
   if (!liveProject) {
-    throw new Error("project_not_found");
+    const error = projectNotFound("external_project_unavailable", {
+      organizationId: input.organizationId,
+      projectId,
+      providerKind: encodedProject.providerKind,
+      externalProjectId: encodedProject.externalProjectId,
+    });
+    logger.warn(error, "organization project resolution failed");
+    return err(error);
   }
 
   const canonicalProjectId = encodeProviderProjectId(encodedProject);
@@ -96,5 +171,26 @@ export async function ensureOrganizationProjectRecord(input: {
       },
     });
 
-  return canonicalProjectId;
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      projectId: canonicalProjectId,
+      providerKind: encodedProject.providerKind,
+      externalProjectId: encodedProject.externalProjectId,
+      resolution: "materialized_external_tms",
+    },
+    "organization project materialized from external TMS provider",
+  );
+
+  return ok(canonicalProjectId);
+}
+
+export function unwrapOrganizationProjectRecord(
+  result: Result<string, EnsureOrganizationProjectError>,
+): string {
+  if (isErr(result)) {
+    throw new Error(result.error.code);
+  }
+
+  return result.value;
 }

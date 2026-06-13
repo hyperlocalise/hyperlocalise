@@ -10,7 +10,10 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
-import { ensureOrganizationProjectRecord } from "@/lib/projects/ensure-organization-project";
+import {
+  ensureOrganizationProjectRecord,
+  unwrapOrganizationProjectRecord,
+} from "@/lib/projects/ensure-organization-project";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
@@ -196,11 +199,13 @@ export async function createContentfulConnection(input: {
   accessToken: string;
   enabled?: boolean;
 }): Promise<ContentfulConnectionSecretResult> {
-  const projectId = await ensureOrganizationProjectRecord({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    userId: input.userId,
-  });
+  const projectId = unwrapOrganizationProjectRecord(
+    await ensureOrganizationProjectRecord({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      userId: input.userId,
+    }),
+  );
 
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken));
   const [connection] = await db
@@ -261,11 +266,13 @@ export async function updateContentfulConnection(input: {
   enabled?: boolean;
 }): Promise<ContentfulConnectionSecretResult | null> {
   const resolvedProjectId = input.projectId
-    ? await ensureOrganizationProjectRecord({
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        userId: input.userId,
-      })
+    ? unwrapOrganizationProjectRecord(
+        await ensureOrganizationProjectRecord({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          userId: input.userId,
+        }),
+      )
     : undefined;
 
   const encrypted = input.accessToken
