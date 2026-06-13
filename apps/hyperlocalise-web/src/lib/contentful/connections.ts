@@ -10,6 +10,10 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
+import {
+  ensureOrganizationProjectRecord,
+  unwrapOrganizationProjectRecord,
+} from "@/lib/projects/ensure-organization-project";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
@@ -181,26 +185,6 @@ export async function getContentfulConnection(input: {
 
 export { loadContentfulConnectionWithToken } from "./contentful-connection-access";
 
-async function assertProjectBelongsToOrganization(input: {
-  organizationId: string;
-  projectId: string;
-}) {
-  const [project] = await db
-    .select({ id: schema.projects.id })
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.organizationId, input.organizationId),
-        eq(schema.projects.id, input.projectId),
-      ),
-    )
-    .limit(1);
-
-  if (!project) {
-    throw new Error("project_not_found");
-  }
-}
-
 export async function createContentfulConnection(input: {
   organizationId: string;
   userId: string;
@@ -215,17 +199,20 @@ export async function createContentfulConnection(input: {
   accessToken: string;
   enabled?: boolean;
 }): Promise<ContentfulConnectionSecretResult> {
-  await assertProjectBelongsToOrganization({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-  });
+  const projectId = unwrapOrganizationProjectRecord(
+    await ensureOrganizationProjectRecord({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      userId: input.userId,
+    }),
+  );
 
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken));
   const [connection] = await db
     .insert(schema.contentfulConnections)
     .values({
       organizationId: input.organizationId,
-      projectId: input.projectId,
+      projectId,
       createdByUserId: input.userId,
       updatedByUserId: input.userId,
       displayName: input.displayName,
@@ -278,12 +265,15 @@ export async function updateContentfulConnection(input: {
   accessToken?: string;
   enabled?: boolean;
 }): Promise<ContentfulConnectionSecretResult | null> {
-  if (input.projectId) {
-    await assertProjectBelongsToOrganization({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-    });
-  }
+  const resolvedProjectId = input.projectId
+    ? unwrapOrganizationProjectRecord(
+        await ensureOrganizationProjectRecord({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          userId: input.userId,
+        }),
+      )
+    : undefined;
 
   const encrypted = input.accessToken
     ? unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken))
@@ -345,7 +335,7 @@ export async function updateContentfulConnection(input: {
     .update(schema.contentfulConnections)
     .set({
       updatedByUserId: input.userId,
-      ...(input.projectId !== undefined ? { projectId: input.projectId } : {}),
+      ...(resolvedProjectId !== undefined ? { projectId: resolvedProjectId } : {}),
       ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
       ...(input.spaceId !== undefined ? { spaceId: input.spaceId } : {}),
       ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
