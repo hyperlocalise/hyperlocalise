@@ -39,8 +39,6 @@ import {
   listOrganizationJobs,
   listOrganizationProjectJobs,
 } from "@/lib/projects/list-organization-jobs";
-import { listTmsProviderLiveJobsForProject } from "@/lib/providers/tms-provider-live";
-import { isTmsHybridSyncEnabled } from "@/lib/providers/tms-hybrid-sync-mode";
 import { enqueueProviderSyncIntent } from "@/lib/providers/provider-sync-intent";
 import type {
   JobQueue,
@@ -341,23 +339,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return providerProjectUnavailableResponse(c, target);
       }
 
-      if (target.kind === "provider" && !isTmsHybridSyncEnabled()) {
-        try {
-          const jobs = await listTmsProviderLiveJobsForProject(
-            c.var.auth.organization.localOrganizationId,
-            target.externalProjectId,
-            {
-              mine: query.mine,
-              assignee: c.var.auth.user.email,
-              actorUserId: c.var.auth.user.localUserId,
-            },
-          );
-          return c.json({ jobs }, 200);
-        } catch (error) {
-          return tmsProviderLiveErrorResponse(c, error);
-        }
-      }
-
       if (target.kind === "native") {
         const project = await getOwnedProject(c.var.auth, params.projectId);
 
@@ -371,7 +352,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         }
       }
 
-      if (target.kind === "provider" && isTmsHybridSyncEnabled()) {
+      if (target.kind === "provider") {
         const projectRecord = await getOwnedProjectRecord(c.var.auth, params.projectId);
         if (projectRecord?.externalProviderCredentialId) {
           void enqueueProviderSyncIntent({

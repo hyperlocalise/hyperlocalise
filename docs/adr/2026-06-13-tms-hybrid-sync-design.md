@@ -151,7 +151,7 @@ Multiple triggers for the same project scan within a window collapse to one inte
 
 #### Cron worker
 
-Add `POST /api/cron/tms-reconciliation-dispatch` (same auth pattern as `github-repository-automation-dispatch`):
+Add `POST /api/cron/tms-scheduled-reconciliation` (same auth pattern as `github-repository-automation-dispatch`):
 
 1. Select pending/retryable intents where `next_attempt_at <= now()`, up to `TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK`.
 2. Lease intents with `lease_token` + `leased_until`.
@@ -218,15 +218,9 @@ This is the bridge between "live browsing" and "durable automation."
 
 `projects.last_synced_at` / `last_sync_error_*` track project-level health (already on schema).
 
-### Feature flags and rollout
+### Rollout
 
-| Flag | Phase | Behavior |
-| --- | --- | --- |
-| `TMS_PROVIDER_SHELL_MODE` | Current | Live reads, sync off |
-| `TMS_HYBRID_SYNC_ENABLED` (new) | Phase 1 | Read-through + background sync for materialized projects |
-| Default after rollout | Phase 2 | Hybrid on by default; deprecate shell-only mode |
-
-Shell mode UI copy ("background sync is not enabled yet") updates when hybrid sync ships.
+Background TMS reconciliation is always on when a TMS credential is connected. List endpoints read from the local database; the Vercel cron at `/api/cron/tms-scheduled-reconciliation` runs every 15 minutes to enqueue catalog scans and process sync intents.
 
 ### Observability
 
@@ -244,7 +238,7 @@ Update `docs/storage/tms-webhook-sync.mdx` to describe hybrid reconciliation as 
 
 - `enqueueProviderSyncIntent()` with lease_key coalescing
 - `executeProviderSyncStep` for `project_scan` and `file_key_scan`
-- Cron route `tms-reconciliation-dispatch`
+- Cron route `tms-scheduled-reconciliation` (wired in `vercel.json`, every 15 minutes)
 - Hook `ensureOrganizationProjectRecord` to enqueue scans on materialize
 - Read-through enqueue on project view (API middleware or route handler)
 - Wire telemetry

@@ -10,7 +10,6 @@ import {
   parseProviderProjectId,
 } from "@/lib/providers/tms-provider-resource-id";
 import { upsertExternalTmsProjectRecord } from "@/lib/projects/upsert-external-tms-project-record";
-import { isTmsHybridSyncEnabled } from "@/lib/providers/tms-hybrid-sync-mode";
 import { enqueueProviderProjectMaterializationSyncIntents } from "@/lib/providers/provider-sync-intent";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -176,23 +175,21 @@ export async function ensureOrganizationProjectRecord(input: {
     "organization project materialized from external TMS provider",
   );
 
-  if (isTmsHybridSyncEnabled()) {
-    void enqueueProviderProjectMaterializationSyncIntents({
-      organizationId: input.organizationId,
-      providerCredentialId: credential.id,
-      providerKind: encodedProject.providerKind,
-      projectId: canonicalProjectId,
-    }).catch((error) => {
-      logger.warn(
-        {
-          organizationId: input.organizationId,
-          projectId: canonicalProjectId,
-          error: error instanceof Error ? error.message : "unknown_error",
-        },
-        "failed to enqueue provider materialization sync intents",
-      );
-    });
-  }
+  void enqueueProviderProjectMaterializationSyncIntents({
+    organizationId: input.organizationId,
+    providerCredentialId: credential.id,
+    providerKind: encodedProject.providerKind,
+    projectId: canonicalProjectId,
+  }).catch((error) => {
+    logger.warn(
+      {
+        organizationId: input.organizationId,
+        projectId: canonicalProjectId,
+        error: error instanceof Error ? error.message : "unknown_error",
+      },
+      "failed to enqueue provider materialization sync intents",
+    );
+  });
 
   return ok(canonicalProjectId);
 }

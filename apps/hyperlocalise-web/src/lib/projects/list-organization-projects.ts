@@ -6,7 +6,6 @@ import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { createLogger } from "@/lib/log";
 import { getTmsProviderConnection } from "@/lib/providers/tms-provider-live";
-import { isTmsHybridSyncEnabled } from "@/lib/providers/tms-hybrid-sync-mode";
 import { enqueueProviderCatalogSyncIntent } from "@/lib/providers/provider-sync-intent";
 
 import type { OrganizationProjectListItem } from "./organization-project-list-item";
@@ -51,10 +50,6 @@ function maybeEnqueueCatalogSync(input: {
   providerKind: (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
   providerCredentialId: string;
 }) {
-  if (!isTmsHybridSyncEnabled()) {
-    return;
-  }
-
   void enqueueProviderCatalogSyncIntent({
     organizationId: input.organizationId,
     providerCredentialId: input.providerCredentialId,

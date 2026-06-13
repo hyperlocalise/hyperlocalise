@@ -18,7 +18,6 @@ import {
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
-  listTmsProviderLiveProjects,
   saveTmsProviderLiveCatTranslation,
 } from "@/lib/providers/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/list-organization-projects";

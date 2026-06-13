@@ -51,7 +51,7 @@ import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
-import { createTmsReconciliationDispatchRoutes } from "./routes/cron/tms-reconciliation-dispatch.route";
+import { createTmsScheduledReconciliationRoutes } from "./routes/cron/tms-scheduled-reconciliation.route";
 import {
   createTranslationJobEventQueue,
   createProviderAgentCommentQueue,
@@ -127,7 +127,7 @@ function createInternalRoutes() {
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
     )
-    .route("/cron/tms-reconciliation-dispatch", createTmsReconciliationDispatchRoutes());
+    .route("/cron/tms-scheduled-reconciliation", createTmsScheduledReconciliationRoutes());
 }
 
 function createAuthRoutes() {

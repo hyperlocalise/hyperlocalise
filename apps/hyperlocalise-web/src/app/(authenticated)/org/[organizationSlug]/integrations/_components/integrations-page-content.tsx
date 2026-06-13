@@ -21,8 +21,6 @@ import type {
   ExternalTmsProviderCredentialSummary,
   ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
-import { isTmsHybridSyncEnabled } from "@/lib/providers/tms-hybrid-sync-mode";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -243,11 +241,8 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
     providerKind: "crowdin",
     logo: "/images/tms/crowdin.png",
     icon: siCrowdin,
-    detail: isTmsHybridSyncEnabled()
-      ? "Connect to browse Crowdin projects alongside native Hyperlocalise projects. Lists read from your local workspace copy while background sync keeps data current."
-      : isTmsProviderShellModeEnabled()
-        ? "Connect to browse Crowdin projects and tasks in Hyperlocalise. Data is loaded live; background sync is not enabled yet."
-        : "Route reviewed output into Crowdin projects.",
+    detail:
+      "Connect to browse Crowdin projects alongside native Hyperlocalise projects. Lists read from your local workspace copy while background sync keeps data current.",
   },
   {
     name: "Lokalise",
