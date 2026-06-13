@@ -24,6 +24,7 @@ import { createConversationRoutes } from "./routes/conversation/conversation.rou
 import { createContentfulConnectionRoutes } from "./routes/contentful-connection/contentful-connection.route";
 import { createContentfulWebhookRoutes } from "./routes/contentful-webhook/contentful-webhook.route";
 import { createGlossaryRoutes } from "./routes/glossary/glossary.route";
+import { createKnowledgeMemoryRoutes } from "./routes/knowledge-memory/knowledge-memory.route";
 import { createMemoryRoutes } from "./routes/memory/memory.route";
 import { createGithubInstallationRoutes } from "./routes/github-installation/github-installation.route";
 import { createGithubWebhookRoutes } from "./routes/github-webhook/github-webhook.route";
@@ -144,6 +145,7 @@ function createOrgScopedAppRoutes(
 ) {
   return new Hono()
     .route("/glossaries", createGlossaryRoutes())
+    .route("/knowledge-memory", createKnowledgeMemoryRoutes())
     .route("/translation-memories", createMemoryRoutes())
     .route("/projects", createProjectRoutes(options))
     .route(
