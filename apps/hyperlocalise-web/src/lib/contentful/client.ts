@@ -180,17 +180,33 @@ export class ContentfulManagementClient {
   async listContentTypes(): Promise<
     Result<Array<{ id: string; name: string }>, ContentfulClientError>
   > {
-    const responseResult = await this.request<{
-      items: Array<{
-        sys: { id: string };
-        name?: string;
-      }>;
-    }>(this.environmentPath("/content_types"));
-    if (isErr(responseResult)) {
-      return err(responseResult.error);
+    const pageSize = 100;
+    const items: Array<{
+      sys: { id: string };
+      name?: string;
+    }> = [];
+    let skip = 0;
+    let total = Number.POSITIVE_INFINITY;
+
+    while (skip < total) {
+      const responseResult = await this.request<{
+        total: number;
+        items: Array<{
+          sys: { id: string };
+          name?: string;
+        }>;
+      }>(this.environmentPath(`/content_types?limit=${pageSize}&skip=${skip}`));
+      if (isErr(responseResult)) {
+        return err(responseResult.error);
+      }
+
+      items.push(...responseResult.value.items);
+      total = responseResult.value.total;
+      skip += pageSize;
     }
+
     return ok(
-      responseResult.value.items.map((contentType) => ({
+      items.map((contentType) => ({
         id: contentType.sys.id,
         name: contentType.name ?? contentType.sys.id,
       })),

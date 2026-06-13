@@ -190,8 +190,9 @@ describe("ContentfulManagementClient", () => {
 
   it("lists content types for the configured environment", async () => {
     const fetchImpl = vi.fn(async (url: string) => {
-      if (url.endsWith("/content_types")) {
+      if (url.includes("/content_types?limit=100&skip=0")) {
         return Response.json({
+          total: 2,
           items: [
             { sys: { id: "helpCenterArticle" }, name: "Help Center Article" },
             { sys: { id: "blogPost" }, name: "Blog Post" },
@@ -218,5 +219,45 @@ describe("ContentfulManagementClient", () => {
       { id: "helpCenterArticle", name: "Help Center Article" },
       { id: "blogPost", name: "Blog Post" },
     ]);
+  });
+
+  it("paginates content types when a space has more than one page", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.includes("/content_types?limit=100&skip=0")) {
+        return Response.json({
+          total: 101,
+          items: Array.from({ length: 100 }, (_, index) => ({
+            sys: { id: `contentType${index}` },
+            name: `Content Type ${index}`,
+          })),
+        });
+      }
+
+      if (url.includes("/content_types?limit=100&skip=100")) {
+        return Response.json({
+          total: 101,
+          items: [{ sys: { id: "contentType100" }, name: "Content Type 100" }],
+        });
+      }
+
+      return new Response(null, { status: 404 });
+    });
+
+    const client = new ContentfulManagementClient({
+      accessToken: "token",
+      spaceId: "space",
+      environmentId: "master",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const result = await client.listContentTypes();
+    if (isErr(result)) {
+      throw new Error("expected paginated content type list");
+    }
+
+    expect(result.value).toHaveLength(101);
+    expect(result.value[0]).toEqual({ id: "contentType0", name: "Content Type 0" });
+    expect(result.value[100]).toEqual({ id: "contentType100", name: "Content Type 100" });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 });

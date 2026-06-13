@@ -142,7 +142,7 @@ function useDiscoverContentfulSpace(input: {
       trimmedSpaceId,
       trimmedEnvironmentId,
       input.connectionId ?? null,
-      trimmedAccessToken ? "token" : "stored",
+      trimmedAccessToken || "stored",
     ],
     enabled: canDiscover,
     queryFn: async () => {
@@ -293,6 +293,7 @@ function ContentTypePicker({
   disabled,
   isLoading,
   loadError,
+  labelledBy,
   selectedIds,
   onChange,
   requiresCredentials,
@@ -301,11 +302,11 @@ function ContentTypePicker({
   disabled: boolean;
   isLoading: boolean;
   loadError: string | null;
+  labelledBy: string;
   selectedIds: string[];
   onChange: (contentTypeIds: string[]) => void;
   requiresCredentials: boolean;
 }) {
-  const fieldId = useId();
   const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
 
   function toggleContentType(contentTypeId: string) {
@@ -337,7 +338,7 @@ function ContentTypePicker({
   }
 
   return (
-    <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={fieldId}>
+    <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={labelledBy}>
       {contentTypes.map((contentType) => {
         const isSelected = selected.has(contentType.id);
         return (
@@ -381,6 +382,7 @@ export function ContentfulConnectionPanel({
   isLoadingProjects: boolean;
   organizationSlug: string;
 }) {
+  const contentTypesFieldId = useId();
   const [isReplacingToken, setIsReplacingToken] = useState(false);
   const selectedProject = projects.find((project) => project.id === form.projectId);
   const projectLabel =
@@ -544,12 +546,13 @@ export function ContentfulConnectionPanel({
           </Field>
         )}
         <Field className="gap-2 lg:col-span-2">
-          <FieldLabel>Content types</FieldLabel>
+          <FieldLabel id={contentTypesFieldId}>Content types</FieldLabel>
           <ContentTypePicker
             contentTypes={discoveredContentTypes}
             disabled={disabled}
             isLoading={discoveryQuery.isFetching}
             loadError={discoveryQuery.error?.message ?? null}
+            labelledBy={contentTypesFieldId}
             selectedIds={form.contentTypeIds}
             onChange={(contentTypeIds) => onFormChange({ ...form, contentTypeIds })}
             requiresCredentials={!canDiscoverContentTypes}
