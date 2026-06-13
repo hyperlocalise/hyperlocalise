@@ -24,7 +24,6 @@ import {
   type StringTranslationGenerator,
   type StringTranslationJobResult,
 } from "@/lib/translation/string-job-executor";
-import { userFacingFailureReason } from "@/lib/translation/sandbox-translation";
 
 type ClaimTranslationJobInput = {
   event: TranslationJobEventData;
@@ -482,7 +481,7 @@ export async function completeTranslationJob(input: {
           projectId: input.projectId,
           organizationId: project.organizationId,
           translationKeyId: parsedInput.data.translationKeyId,
-          error: userFacingFailureReason(error),
+          error,
         });
       }
     }
