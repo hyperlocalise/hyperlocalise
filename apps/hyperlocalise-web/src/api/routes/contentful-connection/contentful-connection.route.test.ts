@@ -74,6 +74,7 @@ describe("contentfulConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           spaceId: " space-id ",
+          environmentId: " master ",
           accessToken: " cma_test_token ",
         },
       },
@@ -105,6 +106,7 @@ describe("contentfulConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           spaceId: "space-id",
+          environmentId: "master",
         },
       },
       { headers },
@@ -129,6 +131,7 @@ describe("contentfulConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           spaceId: "space-id",
+          environmentId: "master",
           accessToken: "cma_test_token",
         },
       },
@@ -161,6 +164,7 @@ describe("contentfulConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           spaceId: "space-id",
+          environmentId: "master",
           connectionId,
         },
       },
@@ -193,6 +197,7 @@ describe("contentfulConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           spaceId: "space-id",
+          environmentId: "master",
           accessToken: "cma_test_token",
         },
       },
@@ -225,6 +230,7 @@ describe("contentfulConnectionRoutes", () => {
         param: { organizationSlug },
         json: {
           spaceId: "space-id",
+          environmentId: "master",
           accessToken: "cma_test_token",
         },
       },
