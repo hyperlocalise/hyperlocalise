@@ -1,7 +1,8 @@
 import { localizedImageOutputFilename } from "@/lib/agents/image-localization";
 import { regenerateImageFromAttachment } from "@/lib/agents/image-generation";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
-import type { ContentfulManagementClient } from "./client";
+import type { ContentfulClientError, ContentfulManagementClient } from "./client";
 
 function buildContentfulImageLocalizationPrompt(input: {
   fieldName: string;
@@ -24,39 +25,58 @@ export async function localizeContentfulAssetForLocale(input: {
   sourceLocale: string;
   targetLocale: string;
   fieldName: string;
-}) {
-  const sourceAsset = await input.client.getAsset(input.assetId);
-  const downloaded = await input.client.downloadAssetFile({
-    asset: sourceAsset,
+}): Promise<
+  Result<
+    {
+      sourceAssetId: string;
+      localizedAssetId: string;
+      fileName: string;
+    },
+    ContentfulClientError
+  >
+> {
+  const sourceAssetResult = await input.client.getAsset(input.assetId);
+  if (isErr(sourceAssetResult)) {
+    return err(sourceAssetResult.error);
+  }
+
+  const downloadedResult = await input.client.downloadAssetFile({
+    asset: sourceAssetResult.value,
     locale: input.sourceLocale,
   });
+  if (isErr(downloadedResult)) {
+    return err(downloadedResult.error);
+  }
   const prompt = buildContentfulImageLocalizationPrompt({
     fieldName: input.fieldName,
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
   });
   const localized = await regenerateImageFromAttachment(
-    downloaded.buffer,
-    downloaded.contentType,
+    downloadedResult.value.buffer,
+    downloadedResult.value.contentType,
     prompt,
   );
   const localizedFileName = localizedImageOutputFilename(
-    downloaded.fileName,
+    downloadedResult.value.fileName,
     input.targetLocale,
     localized.mimeType,
   );
-  const createdAsset = await input.client.createLocalizedAsset({
+  const createdAssetResult = await input.client.createLocalizedAsset({
     locale: input.targetLocale,
     fileName: localizedFileName,
     contentType: localized.mimeType,
     buffer: localized.image,
-    title: sourceAsset.fields.title?.[input.sourceLocale] ?? localizedFileName,
-    description: sourceAsset.fields.description?.[input.sourceLocale],
+    title: sourceAssetResult.value.fields.title?.[input.sourceLocale] ?? localizedFileName,
+    description: sourceAssetResult.value.fields.description?.[input.sourceLocale],
   });
+  if (isErr(createdAssetResult)) {
+    return err(createdAssetResult.error);
+  }
 
-  return {
+  return ok({
     sourceAssetId: input.assetId,
-    localizedAssetId: createdAsset.sys.id,
+    localizedAssetId: createdAssetResult.value.sys.id,
     fileName: localizedFileName,
-  };
+  });
 }

@@ -5,7 +5,7 @@ import { and, eq } from "drizzle-orm";
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
 import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
@@ -124,7 +124,12 @@ async function getLocalizedAssetId(input: {
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
     fieldName: input.fieldName,
-  }).then((localized) => localized.localizedAssetId);
+  }).then((localizedResult) => {
+    if (isErr(localizedResult)) {
+      throw localizedResult.error;
+    }
+    return localizedResult.value.localizedAssetId;
+  });
   input.cache.set(cacheKey, localizedAssetIdPromise);
 
   try {
@@ -557,13 +562,21 @@ export async function executeContentfulAutomation(
       runTargetLocales: run.targetLocales,
       connectionTargetLocales: loaded.connection.targetLocales,
     });
-    const entry = await client.getEntry(run.entryId);
+    const entryResult = await client.getEntry(run.entryId);
+    if (isErr(entryResult)) {
+      throw entryResult.error;
+    }
+    const entry = entryResult.value;
     const contentTypeId =
       entry.sys.contentType?.sys?.id ?? run.contentTypeId ?? loaded.connection.contentTypeIds[0];
     if (!contentTypeId) {
       throw new Error("contentful_content_type_not_found");
     }
-    const contentType = await client.getContentType(contentTypeId);
+    const contentTypeResult = await client.getContentType(contentTypeId);
+    if (isErr(contentTypeResult)) {
+      throw contentTypeResult.error;
+    }
+    const contentType = contentTypeResult.value;
     const fieldConfig = loaded.connection.fieldConfig as ContentfulConnectionFieldConfig;
     const units = detectContentfulTranslatableFields({
       entry,
@@ -612,10 +625,14 @@ export async function executeContentfulAutomation(
     const translations = results.flatMap((result) => result.translations);
     const qaFindings = results.flatMap((result) => result.qaFindings);
 
-    const updatedEntry =
-      translations.length > 0 && run.writeDrafts !== false
-        ? await client.updateEntryDraft({ entry, translations })
-        : entry;
+    let updatedEntry = entry;
+    if (translations.length > 0 && run.writeDrafts !== false) {
+      const updatedEntryResult = await client.updateEntryDraft({ entry, translations });
+      if (isErr(updatedEntryResult)) {
+        throw updatedEntryResult.error;
+      }
+      updatedEntry = updatedEntryResult.value;
+    }
     const completedAt = new Date();
     const qaErrorCount = qaFindings.filter((finding) => finding.severity === "error").length;
     const qaWarningCount = qaFindings.filter((finding) => finding.severity === "warning").length;

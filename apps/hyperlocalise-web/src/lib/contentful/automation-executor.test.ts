@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
+import { ok } from "@/lib/primitives/result/results";
+
 import { resolveAggregatedContentfulWebhookProcessingStatus } from "./events";
 import { localizeContentfulAssetForLocale } from "./image-localization";
 import {
@@ -97,11 +99,11 @@ describe("contentful automation executor", () => {
   it("shares in-flight localized asset creation across concurrent callers", async () => {
     vi.mocked(localizeContentfulAssetForLocale).mockImplementation(async (input) => {
       await new Promise((resolve) => setTimeout(resolve, 10));
-      return {
+      return ok({
         sourceAssetId: input.assetId,
         localizedAssetId: "asset-localized",
         fileName: "hero-fr-fr.png",
-      };
+      });
     });
 
     const cache = createLocalizedAssetCache();
@@ -142,11 +144,11 @@ describe("contentful automation executor", () => {
       if (input.targetLocale === "de-DE") {
         throw new Error("Contentful asset upload failed");
       }
-      return {
+      return ok({
         sourceAssetId: input.assetId,
         localizedAssetId: "asset-fr-fr",
         fileName: "hero-fr-fr.png",
-      };
+      });
     });
 
     const sourceValue = {

@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { isErr } from "@/lib/primitives/result/results";
+
 import { ContentfulManagementClient } from "./client";
 import type { ContentfulAsset } from "./types";
 
@@ -51,10 +53,7 @@ describe("ContentfulManagementClient asset helpers", () => {
 
       if (url.endsWith("/assets/asset-localized/files/fr-FR/process") && init?.method === "PUT") {
         processRequestInit = init;
-        return Response.json({
-          sys: { id: "asset-localized", version: 2 },
-          fields: createdAssets[0]?.fields,
-        });
+        return new Response(null, { status: 204 });
       }
 
       return new Response(null, { status: 404 });
@@ -67,22 +66,31 @@ describe("ContentfulManagementClient asset helpers", () => {
       fetchImpl: fetchImpl as typeof fetch,
     });
 
-    const sourceAsset = await client.getAsset("asset-source");
-    const downloaded = await client.downloadAssetFile({
-      asset: sourceAsset,
+    const sourceAssetResult = await client.getAsset("asset-source");
+    if (isErr(sourceAssetResult)) {
+      throw new Error("expected source asset");
+    }
+    const downloadedResult = await client.downloadAssetFile({
+      asset: sourceAssetResult.value,
       locale: "en-US",
     });
-    expect(downloaded.buffer.toString()).toBe("source-image");
+    if (isErr(downloadedResult)) {
+      throw new Error("expected downloaded asset file");
+    }
+    expect(downloadedResult.value.buffer.toString()).toBe("source-image");
 
-    const localized = await client.createLocalizedAsset({
+    const localizedResult = await client.createLocalizedAsset({
       locale: "fr-FR",
       fileName: "hero-fr-fr.png",
       contentType: "image/png",
       buffer: Buffer.from("localized-image"),
       title: "Hero banner",
     });
+    if (isErr(localizedResult)) {
+      throw new Error("expected localized asset");
+    }
 
-    expect(localized.sys.id).toBe("asset-localized");
+    expect(localizedResult.value.sys.id).toBe("asset-localized");
     expect(new Headers(processRequestInit?.headers).get("X-Contentful-Version")).toBe("1");
     expect(createdAssets[0]).toMatchObject({
       fields: {
@@ -106,12 +114,15 @@ describe("ContentfulManagementClient asset helpers", () => {
       fetchImpl: fetchImpl as typeof fetch,
     });
 
-    await expect(
-      client.downloadAssetFile({
-        asset: asset(),
-        locale: "de-DE",
-      }),
-    ).rejects.toMatchObject({
+    const result = await client.downloadAssetFile({
+      asset: asset(),
+      locale: "de-DE",
+    });
+    expect(isErr(result)).toBe(true);
+    if (!isErr(result)) {
+      throw new Error("expected missing locale error");
+    }
+    expect(result.error).toMatchObject({
       code: "contentful_request_failed",
       status: 404,
       message: "Contentful asset asset-source has no file for locale de-DE",

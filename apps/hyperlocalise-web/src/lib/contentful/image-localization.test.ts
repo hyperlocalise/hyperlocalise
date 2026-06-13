@@ -8,6 +8,8 @@ vi.mock("@/lib/agents/image-generation", () => ({
   regenerateImageFromAttachment,
 }));
 
+import { isErr } from "@/lib/primitives/result/results";
+
 import { ContentfulManagementClient } from "./client";
 import { localizeContentfulAssetForLocale } from "./image-localization";
 
@@ -55,10 +57,7 @@ describe("contentful image localization", () => {
       }
 
       if (url.endsWith("/assets/asset-localized/files/fr-FR/process") && init?.method === "PUT") {
-        return Response.json({
-          sys: { id: "asset-localized", version: 2 },
-          fields: {},
-        });
+        return new Response(null, { status: 204 });
       }
 
       return new Response(null, { status: 404 });
@@ -79,7 +78,10 @@ describe("contentful image localization", () => {
       fieldName: "Hero Image",
     });
 
-    expect(result).toEqual({
+    if (isErr(result)) {
+      throw new Error("expected localized asset");
+    }
+    expect(result.value).toEqual({
       sourceAssetId: "asset-source",
       localizedAssetId: "asset-localized",
       fileName: "hero-fr-fr.png",

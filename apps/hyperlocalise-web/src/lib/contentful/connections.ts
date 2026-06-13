@@ -10,7 +10,7 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
-import { err, ok, type Result } from "@/lib/primitives/result/results";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
 import { hashContentfulWebhookSecret } from "./webhook";
@@ -479,8 +479,24 @@ export async function validateContentfulConnection(input: {
     environmentId: loaded.connection.environmentId,
   });
 
+  const validationResult = await client.validateConnection();
+  if (isErr(validationResult)) {
+    await db
+      .update(schema.contentfulConnections)
+      .set({
+        validationStatus: "error",
+        validationMessage: validationResult.error.message,
+        lastValidatedAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.contentfulConnections.id, loaded.connection.id));
+    return err({
+      code: "contentful_connection_validation_failed",
+      message: validationResult.error.message,
+    });
+  }
+
   try {
-    const validation = await client.validateConnection();
     await db
       .update(schema.contentfulConnections)
       .set({
@@ -505,7 +521,7 @@ export async function validateContentfulConnection(input: {
       });
     }
 
-    return ok(validation);
+    return ok(validationResult.value);
   } catch (error) {
     const message = isContentfulClientError(error)
       ? error.message
