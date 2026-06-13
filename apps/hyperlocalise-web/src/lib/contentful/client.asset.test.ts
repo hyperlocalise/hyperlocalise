@@ -22,6 +22,7 @@ function asset(version = 1): ContentfulAsset {
 describe("ContentfulManagementClient asset helpers", () => {
   it("downloads asset files and creates localized assets from uploaded buffers", async () => {
     const createdAssets: Array<Record<string, unknown>> = [];
+    let processRequestInit: RequestInit | undefined;
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "https://images.ctfassets.net/space/asset-source/hero.png") {
         return new Response(Buffer.from("source-image"), { status: 200 });
@@ -49,6 +50,7 @@ describe("ContentfulManagementClient asset helpers", () => {
       }
 
       if (url.endsWith("/assets/asset-localized/files/fr-FR/process") && init?.method === "PUT") {
+        processRequestInit = init;
         return Response.json({
           sys: { id: "asset-localized", version: 2 },
           fields: createdAssets[0]?.fields,
@@ -81,6 +83,7 @@ describe("ContentfulManagementClient asset helpers", () => {
     });
 
     expect(localized.sys.id).toBe("asset-localized");
+    expect(new Headers(processRequestInit?.headers).get("X-Contentful-Version")).toBe("1");
     expect(createdAssets[0]).toMatchObject({
       fields: {
         title: { "fr-FR": "Hero banner" },
@@ -92,5 +95,27 @@ describe("ContentfulManagementClient asset helpers", () => {
         },
       },
     });
+  });
+
+  it("fails when the requested asset locale has no file", async () => {
+    const fetchImpl = vi.fn();
+    const client = new ContentfulManagementClient({
+      accessToken: "token",
+      spaceId: "space",
+      environmentId: "master",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    await expect(
+      client.downloadAssetFile({
+        asset: asset(),
+        locale: "de-DE",
+      }),
+    ).rejects.toMatchObject({
+      code: "contentful_request_failed",
+      status: 404,
+      message: "Contentful asset asset-source has no file for locale de-DE",
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 });

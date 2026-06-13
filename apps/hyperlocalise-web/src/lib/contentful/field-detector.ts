@@ -36,10 +36,6 @@ function isAssetLinkField(field: ContentfulFieldDefinition) {
   return field.type === "Link" && field.linkType === "Asset";
 }
 
-function isAssetArrayField(field: ContentfulFieldDefinition) {
-  return field.type === "Array" && field.items?.linkType === "Asset";
-}
-
 function readAssetLink(value: unknown): ContentfulAssetLink | null {
   if (!isRecord(value)) {
     return null;
@@ -143,8 +139,7 @@ function shouldTranslateImageField(input: {
     return false;
   }
 
-  const isAssetField = isAssetLinkField(input.field) || isAssetArrayField(input.field);
-  if (!isAssetField) {
+  if (!isAssetLinkField(input.field)) {
     return false;
   }
 

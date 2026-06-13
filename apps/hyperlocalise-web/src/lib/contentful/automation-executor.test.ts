@@ -1,10 +1,18 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import { resolveAggregatedContentfulWebhookProcessingStatus } from "./events";
+import { localizeContentfulAssetForLocale } from "./image-localization";
 import {
   contentfulQaFindingsContainError,
+  createLocalizedAssetCache,
+  ensureLocalizedAssets,
   resolveContentfulExecutionTargetLocales,
 } from "./automation-executor";
+import type { ContentfulManagementClient } from "./client";
+
+vi.mock("./image-localization", () => ({
+  localizeContentfulAssetForLocale: vi.fn(),
+}));
 
 describe("contentful automation executor", () => {
   it("aggregates webhook event status only after all sibling runs finish", () => {
@@ -49,5 +57,41 @@ describe("contentful automation executor", () => {
         { severity: "error", checkType: "placeholder_mismatch" },
       ]),
     ).toBe(true);
+  });
+
+  it("shares in-flight localized asset creation across concurrent callers", async () => {
+    vi.mocked(localizeContentfulAssetForLocale).mockImplementation(async (input) => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      return {
+        sourceAssetId: input.assetId,
+        localizedAssetId: "asset-localized",
+        fileName: "hero-fr-fr.png",
+      };
+    });
+
+    const cache = createLocalizedAssetCache();
+    const client = {} as ContentfulManagementClient;
+    const [first, second] = await Promise.all([
+      ensureLocalizedAssets({
+        client,
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+        fieldName: "Hero image",
+        assetIds: ["asset-source"],
+        cache,
+      }),
+      ensureLocalizedAssets({
+        client,
+        sourceLocale: "en-US",
+        targetLocale: "fr-FR",
+        fieldName: "Hero image",
+        assetIds: ["asset-source"],
+        cache,
+      }),
+    ]);
+
+    expect(localizeContentfulAssetForLocale).toHaveBeenCalledTimes(1);
+    expect(first.get("asset-source")).toBe("asset-localized");
+    expect(second.get("asset-source")).toBe("asset-localized");
   });
 });

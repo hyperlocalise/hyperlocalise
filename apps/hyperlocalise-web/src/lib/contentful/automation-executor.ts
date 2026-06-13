@@ -98,9 +98,44 @@ function localizedAssetCacheKey(sourceAssetId: string, targetLocale: string) {
   return `${sourceAssetId}:${targetLocale}`;
 }
 
-type LocalizedAssetCache = Map<string, string>;
+export type LocalizedAssetCache = Map<string, Promise<string>>;
 
-async function ensureLocalizedAssets(input: {
+export function createLocalizedAssetCache(): LocalizedAssetCache {
+  return new Map();
+}
+
+async function getLocalizedAssetId(input: {
+  client: ContentfulManagementClient;
+  sourceLocale: string;
+  targetLocale: string;
+  fieldName: string;
+  assetId: string;
+  cache: LocalizedAssetCache;
+}) {
+  const cacheKey = localizedAssetCacheKey(input.assetId, input.targetLocale);
+  const cached = input.cache.get(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  const localizedAssetIdPromise = localizeContentfulAssetForLocale({
+    client: input.client,
+    assetId: input.assetId,
+    sourceLocale: input.sourceLocale,
+    targetLocale: input.targetLocale,
+    fieldName: input.fieldName,
+  }).then((localized) => localized.localizedAssetId);
+  input.cache.set(cacheKey, localizedAssetIdPromise);
+
+  try {
+    return await localizedAssetIdPromise;
+  } catch (error) {
+    input.cache.delete(cacheKey);
+    throw error;
+  }
+}
+
+export async function ensureLocalizedAssets(input: {
   client: ContentfulManagementClient;
   sourceLocale: string;
   targetLocale: string;
@@ -110,22 +145,15 @@ async function ensureLocalizedAssets(input: {
 }) {
   const localizedBySourceId = new Map<string, string>();
   for (const assetId of input.assetIds) {
-    const cacheKey = localizedAssetCacheKey(assetId, input.targetLocale);
-    const cached = input.cache.get(cacheKey);
-    if (cached) {
-      localizedBySourceId.set(assetId, cached);
-      continue;
-    }
-
-    const localized = await localizeContentfulAssetForLocale({
+    const localizedAssetId = await getLocalizedAssetId({
       client: input.client,
       assetId,
       sourceLocale: input.sourceLocale,
       targetLocale: input.targetLocale,
       fieldName: input.fieldName,
+      cache: input.cache,
     });
-    input.cache.set(cacheKey, localized.localizedAssetId);
-    localizedBySourceId.set(assetId, localized.localizedAssetId);
+    localizedBySourceId.set(assetId, localizedAssetId);
   }
   return localizedBySourceId;
 }
@@ -325,20 +353,14 @@ async function translateImageUnit(input: {
   const translations: ContentfulDraftTranslation[] = [];
   for (const locale of targetLocales) {
     try {
-      const cacheKey = localizedAssetCacheKey(input.unit.assetId, locale);
-      let localizedAssetId = input.localizedAssetCache.get(cacheKey);
-      if (!localizedAssetId) {
-        const localized = await localizeContentfulAssetForLocale({
-          client: input.client,
-          assetId: input.unit.assetId,
-          sourceLocale: input.unit.sourceLocale,
-          targetLocale: locale,
-          fieldName: input.unit.fieldName,
-        });
-        localizedAssetId = localized.localizedAssetId;
-        input.localizedAssetCache.set(cacheKey, localizedAssetId);
-      }
-
+      const localizedAssetId = await getLocalizedAssetId({
+        client: input.client,
+        assetId: input.unit.assetId,
+        sourceLocale: input.unit.sourceLocale,
+        targetLocale: locale,
+        fieldName: input.unit.fieldName,
+        cache: input.localizedAssetCache,
+      });
       translations.push({
         fieldId: input.unit.fieldId,
         locale,
@@ -544,7 +566,7 @@ export async function executeContentfulAutomation(
       })
       .where(eq(schema.contentfulTranslationRuns.id, run.id));
 
-    const localizedAssetCache: LocalizedAssetCache = new Map();
+    const localizedAssetCache = createLocalizedAssetCache();
     const results = await mapWithConcurrency(
       units,
       MAX_CONCURRENT_CONTENTFUL_TRANSLATIONS,

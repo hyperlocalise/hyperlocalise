@@ -211,6 +211,43 @@ describe("contentful field detector", () => {
     expect(units.find((unit) => unit.kind === "text")?.fieldId).toBe("title");
   });
 
+  it("does not detect localized asset arrays as image units", () => {
+    const imageContentType: ContentfulContentType = {
+      sys: { id: "marketingPage" },
+      fields: [
+        {
+          id: "gallery",
+          name: "Gallery",
+          type: "Array",
+          localized: true,
+          items: { type: "Link", linkType: "Asset" },
+        },
+      ],
+    };
+    const imageEntry: ContentfulEntry = {
+      sys: {
+        id: "entry-2",
+        version: 1,
+        contentType: { sys: { id: "marketingPage" } },
+      },
+      fields: {
+        gallery: {
+          "en-US": [{ sys: { type: "Link", linkType: "Asset", id: "asset-source" } }],
+        },
+      },
+    };
+
+    const units = detectContentfulTranslatableFields({
+      entry: imageEntry,
+      contentType: imageContentType,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fieldConfig: { fieldMode: "auto" },
+    });
+
+    expect(units).toEqual([]);
+  });
+
   it("collects embedded asset ids from rich text and replaces them during writeback", () => {
     const richTextValue = {
       nodeType: "document",

@@ -125,8 +125,7 @@ export class ContentfulManagementClient {
 
   async downloadAssetFile(input: { asset: ContentfulAsset; locale: string }) {
     const fetchImpl = this.options.fetchImpl ?? fetch;
-    const file =
-      input.asset.fields.file?.[input.locale] ?? Object.values(input.asset.fields.file ?? {})[0];
+    const file = input.asset.fields.file?.[input.locale];
     if (!file?.url) {
       throw {
         code: "contentful_request_failed",
@@ -198,6 +197,9 @@ export class ContentfulManagementClient {
       ),
       {
         method: "PUT",
+        headers: {
+          "X-Contentful-Version": String(asset.sys.version),
+        },
       },
     );
 
