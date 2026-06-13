@@ -367,9 +367,7 @@ export async function updateContentfulConnection(input: {
         updatedAt: new Date(),
       })
       .where(eq(schema.contentfulWebhookSubscriptions.id, previousSubscription.id));
-    if (previousSubscription) {
-      previousSubscription.providerWebhookId = null;
-    }
+    previousSubscription.providerWebhookId = null;
   }
 
   const [connection] = await db

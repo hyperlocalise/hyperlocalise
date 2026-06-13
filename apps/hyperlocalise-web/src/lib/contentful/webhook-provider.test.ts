@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import { env } from "@/lib/env";
+
 import {
   buildContentfulProviderWebhookFilters,
   buildContentfulProviderWebhookName,
@@ -9,7 +11,7 @@ import {
 describe("contentful webhook provider helpers", () => {
   it("builds callback URLs from the public app base", () => {
     expect(contentfulWebhookCallbackUrl("subscription-1")).toBe(
-      "https://app.example.com/api/webhooks/contentful/subscription-1",
+      `${env.HYPERLOCALISE_PUBLIC_APP_URL}/api/webhooks/contentful/subscription-1`,
     );
   });
 

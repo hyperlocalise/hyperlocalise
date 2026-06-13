@@ -10,6 +10,7 @@ import {
   ContentfulManagementClient,
   CONTENTFUL_WEBHOOK_PUBLISH_TOPIC,
   CONTENTFUL_WEBHOOK_SECRET_HEADER,
+  isContentfulClientError,
   type ContentfulWebhookDefinition,
 } from "./client";
 import { hashContentfulWebhookSecret } from "./webhook";
@@ -100,14 +101,30 @@ function generateWebhookSecret() {
   return randomBytes(32).toString("base64url");
 }
 
-async function rotateWebhookSubscriptionSecret(subscriptionId: string) {
-  const webhookSecret = generateWebhookSecret();
-  await persistWebhookSubscriptionState({
-    subscriptionId,
-    secretHash: hashContentfulWebhookSecret(webhookSecret),
-    lastError: null,
-  });
-  return webhookSecret;
+function resolvePendingWebhookSecret(input: {
+  webhookSecret?: string | null;
+  providerWebhookId: string | null;
+}) {
+  if (input.webhookSecret) {
+    return input.webhookSecret;
+  }
+  if (!input.providerWebhookId) {
+    return generateWebhookSecret();
+  }
+  return null;
+}
+
+function formatContentfulWebhookSyncError(error: unknown) {
+  if (isContentfulClientError(error)) {
+    if (error.status === 403) {
+      return "Contentful token lacks permission to manage webhooks in this space.";
+    }
+    return error.message;
+  }
+  if (error instanceof Error) {
+    return error.message;
+  }
+  return "Contentful webhook registration failed.";
 }
 
 async function findProviderWebhookByUrl(
@@ -170,14 +187,14 @@ export async function syncContentfulProviderWebhook(input: {
 
   const name = buildContentfulProviderWebhookName(input.connection.displayName);
   const filters = buildContentfulProviderWebhookFilters(input.connection.contentTypeIds);
-  let webhookSecret = input.webhookSecret ?? null;
+  const pendingSecret = resolvePendingWebhookSecret({
+    webhookSecret: input.webhookSecret,
+    providerWebhookId: input.subscription.providerWebhookId,
+  });
+  const shouldPersistPendingSecret = pendingSecret !== null && !input.webhookSecret;
 
   try {
-    if (!webhookSecret && !input.subscription.providerWebhookId) {
-      webhookSecret = await rotateWebhookSubscriptionSecret(input.subscription.id);
-    }
-
-    const headers = buildWebhookHeaders(webhookSecret);
+    const headers = buildWebhookHeaders(pendingSecret);
     const payload = {
       name,
       url: callbackUrl,
@@ -191,8 +208,12 @@ export async function syncContentfulProviderWebhook(input: {
     if (input.subscription.providerWebhookId) {
       try {
         providerWebhook = await client.getWebhook(input.subscription.providerWebhookId);
-      } catch {
-        providerWebhook = null;
+      } catch (error) {
+        if (isContentfulClientError(error) && error.status === 404) {
+          providerWebhook = null;
+        } else {
+          throw error;
+        }
       }
     }
 
@@ -209,27 +230,30 @@ export async function syncContentfulProviderWebhook(input: {
         subscriptionId: input.subscription.id,
         providerWebhookId: updated.sys.id,
         lastError: null,
+        ...(shouldPersistPendingSecret && pendingSecret
+          ? { secretHash: hashContentfulWebhookSecret(pendingSecret) }
+          : {}),
       });
-      return { subscription, webhookSecret };
+      return { subscription, webhookSecret: pendingSecret };
     }
 
-    if (!webhookSecret) {
-      webhookSecret = await rotateWebhookSubscriptionSecret(input.subscription.id);
-    }
-
+    const createSecret = pendingSecret ?? generateWebhookSecret();
     const created = await client.createWebhook({
       ...payload,
-      headers: buildWebhookHeaders(webhookSecret),
+      headers: buildWebhookHeaders(createSecret),
     });
     const subscription = await persistWebhookSubscriptionState({
       subscriptionId: input.subscription.id,
       providerWebhookId: created.sys.id,
       lastError: null,
+      secretHash: hashContentfulWebhookSecret(createSecret),
     });
-    return { subscription, webhookSecret };
+    return {
+      subscription,
+      webhookSecret: input.webhookSecret ?? createSecret,
+    };
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Contentful webhook registration failed.";
+    const message = formatContentfulWebhookSyncError(error);
     logger.error(
       {
         connectionId: input.connection.id,
@@ -243,7 +267,7 @@ export async function syncContentfulProviderWebhook(input: {
       subscriptionId: input.subscription.id,
       lastError: message,
     });
-    return { subscription, webhookSecret };
+    return { subscription, webhookSecret: pendingSecret };
   }
 }
 
