@@ -15,7 +15,7 @@ export function createProviderCredentialTestFixture(client?: Client) {
     input: UpdateProviderCredentialBody = {
       provider: "openai",
       apiKey: "sk-live-provider-key",
-      defaultModel: "gpt-4.1-mini",
+      defaultModel: "gpt-5.5",
     },
   ) {
     if (!client) {

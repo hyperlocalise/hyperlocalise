@@ -15,15 +15,32 @@ export const llmProviderSchema = z.enum(curatedLlmProviders);
 export const llmProviderCatalog = {
   openai: {
     label: "OpenAI",
-    models: ["gpt-4.1-mini", "gpt-4.1", "gpt-4o-mini"],
+    models: ["gpt-5.5", "gpt-5.5-pro", "gpt-5.4", "gpt-5.4-mini", "gpt-5.4-nano"],
   },
   anthropic: {
     label: "Anthropic",
-    models: ["claude-3-5-haiku-20241022", "claude-3-7-sonnet-20250219"],
+    models: [
+      "claude-sonnet-4.6",
+      "claude-opus-4.8",
+      "claude-opus-4.7",
+      "claude-opus-4.6",
+      "claude-haiku-4.5",
+      "claude-sonnet-4.5",
+      "claude-opus-4.5",
+    ],
   },
   gemini: {
     label: "Gemini",
-    models: ["gemini-2.0-flash", "gemini-2.5-flash-preview-04-17"],
+    models: [
+      "gemini-3.5-flash",
+      "gemini-3.1-pro-preview",
+      "gemini-3.1-flash-lite",
+      "gemini-3-flash",
+      "gemini-3-pro-preview",
+      "gemini-2.5-pro",
+      "gemini-2.5-flash",
+      "gemini-2.5-flash-lite",
+    ],
   },
   groq: {
     label: "Groq",
