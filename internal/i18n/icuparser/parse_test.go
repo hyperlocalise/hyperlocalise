@@ -422,15 +422,28 @@ func TestParseASTTagsWithDotsAndNumbers(t *testing.T) {
 	if len(elems) != 3 {
 		t.Fatalf("expected 3 top-level elements, got %d", len(elems))
 	}
+	if lit, ok := elems[0].(LiteralElement); !ok || lit.Value != "Click " {
+		t.Errorf("expected leading literal 'Click ', got %+v", elems[0])
+	}
 	tag, ok := elems[1].(TagElement)
 	if !ok {
 		t.Fatalf("expected tag element, got %T", elems[1])
 	}
 	if tag.Value != "My.Component.v1" {
-		t.Fatalf("unexpected tag value: %q", tag.Value)
+		t.Errorf("expected tag value %q, got %q", "My.Component.v1", tag.Value)
 	}
 	if len(tag.Children) != 1 {
 		t.Fatalf("expected 1 child for My.Component.v1, got %d", len(tag.Children))
+	}
+	innerTag, ok := tag.Children[0].(TagElement)
+	if !ok || innerTag.Value != "b" {
+		t.Fatalf("expected inner <b> tag, got %+v", tag.Children[0])
+	}
+	if len(innerTag.Children) != 1 || innerTag.Children[0].Type() != TypeArgument {
+		t.Fatalf("expected argument child for <b>, got %+v", innerTag.Children)
+	}
+	if lit, ok := elems[2].(LiteralElement); !ok || lit.Value != " now" {
+		t.Errorf("expected trailing literal ' now', got %+v", elems[2])
 	}
 }
 
