@@ -8,12 +8,22 @@ import type { ContentfulDiscoveryError, ContentfulSpaceDiscovery } from "./types
 const logger = createLogger("contentful-discovery");
 
 function mapContentfulClientError(error: ContentfulClientError): ContentfulDiscoveryError {
-  if (error.status === 401 || error.status === 403) {
+  if (error.status === 401) {
     return {
       code: "contentful_discovery_invalid_credentials",
       message:
         error.message ||
         "Contentful rejected the Management API token. Use a Content Management API personal access token, not Content Delivery or Preview keys.",
+      contentfulStatus: error.status,
+    };
+  }
+
+  if (error.status === 403) {
+    return {
+      code: "contentful_discovery_invalid_credentials",
+      message:
+        error.message ||
+        "The token does not have access to this space. Use a Content Management API token that can manage the space you entered.",
       contentfulStatus: error.status,
     };
   }
@@ -88,7 +98,7 @@ export async function discoverContentfulSpace(input: {
         organizationId: input.organizationId,
         spaceId,
         environmentId,
-        credentialSource: "missing",
+        credentialSource: "stored_connection",
         connectionId: input.connectionId,
         error: discoveryError,
       });

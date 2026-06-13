@@ -108,6 +108,8 @@ function mapDiscoveryErrorResponse(
       return notFoundResponse(c, error.code, error.message);
     case "contentful_discovery_invalid_credentials":
       return unauthorizedResponse(c, error.code, error.message);
+    case "contentful_discovery_space_unavailable":
+      return notFoundResponse(c, error.code, error.message);
     default:
       return badRequestResponse(
         c,
