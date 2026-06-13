@@ -260,4 +260,34 @@ describe("ContentfulManagementClient", () => {
     expect(result.value[100]).toEqual({ id: "contentType100", name: "Content Type 100" });
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
+
+  it("surfaces Contentful management API error messages from response bodies", async () => {
+    const fetchImpl = vi.fn(async () =>
+      Response.json(
+        {
+          sys: { type: "Error", id: "AccessTokenInvalid" },
+          message: "The access token you sent could not be found or is invalid.",
+        },
+        { status: 401 },
+      ),
+    );
+
+    const client = new ContentfulManagementClient({
+      accessToken: "token",
+      spaceId: "space",
+      environmentId: "master",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const result = await client.listContentTypes();
+    if (!isErr(result)) {
+      throw new Error("expected content type list failure");
+    }
+
+    expect(result.error.status).toBe(401);
+    expect(result.error.message).toBe(
+      "The access token you sent could not be found or is invalid.",
+    );
+    expect(result.error.contentfulErrorId).toBe("AccessTokenInvalid");
+  });
 });

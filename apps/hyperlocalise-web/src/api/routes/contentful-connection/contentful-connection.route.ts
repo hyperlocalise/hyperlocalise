@@ -3,17 +3,24 @@ import { validator } from "hono/validator";
 
 import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  forbiddenResponse,
+  notFoundResponse,
+  unauthorizedResponse,
+} from "@/api/response.schema";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   createContentfulConnection,
   deleteContentfulConnection,
-  discoverContentfulSpace,
   getContentfulConnection,
   listContentfulConnections,
   updateContentfulConnection,
   validateContentfulConnection,
 } from "@/lib/contentful/connections";
+import { discoverContentfulSpace } from "@/lib/contentful/discover-contentful-space";
+import type { ContentfulDiscoveryError } from "@/lib/contentful/types";
+import { createLogger } from "@/lib/log";
 
 import {
   contentfulConnectionIdParamSchema,
@@ -21,6 +28,8 @@ import {
   discoverContentfulSpaceBodySchema,
   updateContentfulConnectionBodySchema,
 } from "./contentful-connection.schema";
+
+const logger = createLogger("contentful-connection");
 
 const validateConnectionParams = validator("param", (value, c) => {
   const parsed = contentfulConnectionIdParamSchema.safeParse(value);
@@ -59,6 +68,12 @@ const validateUpdateBody = validator("json", (value, c) => {
 const validateDiscoverBody = validator("json", (value, c) => {
   const parsed = discoverContentfulSpaceBodySchema.safeParse(value);
   if (!parsed.success) {
+    logger.warn(
+      {
+        issues: parsed.error.flatten(),
+      },
+      "contentful discovery payload invalid",
+    );
     return badRequestResponse(
       c,
       "invalid_contentful_discovery_payload",
@@ -82,6 +97,27 @@ function mapContentfulError(c: Parameters<typeof badRequestResponse>[0], error: 
     return notFoundResponse(c, "project_not_found");
   }
   throw error;
+}
+
+function mapDiscoveryErrorResponse(
+  c: Parameters<typeof badRequestResponse>[0],
+  error: ContentfulDiscoveryError,
+) {
+  switch (error.code) {
+    case "contentful_discovery_connection_not_found":
+      return notFoundResponse(c, error.code, error.message);
+    case "contentful_discovery_invalid_credentials":
+      return unauthorizedResponse(c, error.code, error.message);
+    case "contentful_discovery_space_unavailable":
+      return notFoundResponse(c, error.code, error.message);
+    default:
+      return badRequestResponse(
+        c,
+        error.code,
+        error.message,
+        "contentfulStatus" in error ? { contentfulStatus: error.contentfulStatus } : undefined,
+      );
+  }
 }
 
 export function createContentfulConnectionRoutes() {
@@ -113,7 +149,7 @@ export function createContentfulConnectionRoutes() {
       });
 
       if (isErr(result)) {
-        return badRequestResponse(c, result.error.code, result.error.message);
+        return mapDiscoveryErrorResponse(c, result.error);
       }
 
       return c.json({ contentfulSpaceDiscovery: result.value }, 200);
