@@ -66,9 +66,10 @@ export function HeroSection() {
           }}
         >
           <Button
-            className="rounded-full px-5"
             nativeButton={false}
-            render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} target="__blank" />}
+            render={
+              <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
+            }
           >
             Join waitlist
           </Button>

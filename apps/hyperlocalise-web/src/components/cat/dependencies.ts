@@ -1,5 +1,11 @@
 import type { CatFormatCheck, CatSegment, CatSegmentStatus, CatWorkspaceState } from "./types";
 
+export interface CatAiRecommendationResult {
+  aiSuggestion: string;
+  aiReasoning?: string;
+  formatChecks?: CatFormatCheck[];
+}
+
 export interface CatWorkspaceNavigation {
   onSelectSegment: (segmentId: string) => void;
   onPreviousSegment: () => void;
@@ -18,6 +24,7 @@ export interface CatWorkspaceReview {
     targetText: string,
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
   onAskQuestion: (segmentId: string) => void | Promise<void>;
+  onReviewWithAi: (segmentId: string) => void | Promise<void>;
   onSkip: (segmentId: string) => void;
 }
 
@@ -25,6 +32,10 @@ export interface CatWorkspaceServices {
   validateFormat?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   runQaChecks?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   lookupSegmentContext?: (segment: CatSegment) => Promise<string>;
+  generateAiRecommendation?: (
+    segment: CatSegment,
+    targetText: string,
+  ) => Promise<CatAiRecommendationResult>;
 }
 
 export interface CatWorkspaceDependencies {
@@ -47,7 +58,13 @@ export interface CatWorkspaceViewProps {
   isValidating?: boolean;
   isApproving?: boolean;
   isLookingUpContext?: boolean;
+  isAiSuggestionLoading?: boolean;
+  isFormatChecksLoading?: boolean;
   canLookupContext?: boolean;
+  canUseAiRecommendation?: boolean;
+  showAgentContext?: boolean;
+  isAiRecommendationEnabled?: boolean;
+  onAiRecommendationEnabledChange: (enabled: boolean) => void;
   className?: string;
 }
 
@@ -65,6 +82,7 @@ export const noopCatDependencies: CatWorkspaceDependencies = {
   review: {
     onApprove: () => undefined,
     onAskQuestion: () => undefined,
+    onReviewWithAi: () => undefined,
     onSkip: () => undefined,
   },
 };

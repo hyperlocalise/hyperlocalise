@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { fn } from "storybook/test";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { CatWorkspaceContainer } from "./cat-workspace-container";
 import {
@@ -70,6 +70,69 @@ export const EmptyQueue: Story = {
   },
 };
 
+export const MobileReview: Story = {
+  parameters: {
+    viewport: {
+      defaultViewport: "mobile1",
+    },
+  },
+  args: {
+    initialState: createCatWorkspaceState(),
+    services: {
+      validateFormat: mockValidateFormat,
+      lookupSegmentContext: async () => "Found this string in the dashboard review card.",
+    },
+    review: { onApprove: fn() },
+    editing: { onUseAiSuggestion: fn() },
+  },
+  play: async ({ args, canvasElement }) => {
+    window.resizeTo(390, 844);
+    window.dispatchEvent(new Event("resize"));
+
+    const canvas = within(canvasElement);
+
+    await waitFor(() => expect(canvas.getByRole("tab", { name: "Edit" })).toBeInTheDocument());
+    await expect(canvas.getByRole("tab", { name: "Queue" })).toBeInTheDocument();
+    await expect(canvas.getByRole("tab", { name: "AI" })).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Find context" }));
+    await userEvent.click(canvas.getByRole("tab", { name: "AI" }));
+    await expect(
+      await canvas.findByText("Found this string in the dashboard review card."),
+    ).toBeInTheDocument();
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Edit" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Use" }));
+    await expect(args.editing?.onUseAiSuggestion).toHaveBeenCalled();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Approve" }));
+    await expect(args.review?.onApprove).toHaveBeenCalled();
+
+    await userEvent.click(canvas.getByRole("tab", { name: "Queue" }));
+    await userEvent.click(canvas.getByText("dashboard.reviews.pending.card"));
+    await expect(canvas.getByRole("tab", { name: "Edit" })).toHaveAttribute("data-active");
+  },
+};
+
+export const MobileEmptyQueue: Story = {
+  parameters: {
+    viewport: {
+      defaultViewport: "mobile1",
+    },
+  },
+  args: {
+    initialState: createCatWorkspaceState({ segments: [], selectedSegmentId: "" }),
+  },
+  play: async ({ canvasElement }) => {
+    window.resizeTo(390, 844);
+    window.dispatchEvent(new Event("resize"));
+
+    const canvas = within(canvasElement);
+
+    await expect(canvas.getByText("No segments in queue.")).toBeInTheDocument();
+  },
+};
+
 export const InteractiveReview: Story = {
   args: {
     initialState: createCatWorkspaceState(),
@@ -87,6 +150,7 @@ export const InteractiveReview: Story = {
     await userEvent.click(approveButton);
     await expect(onApprove).toHaveBeenCalled();
     await expect(canvas.getByText("50 total · 32 reviewed")).toBeInTheDocument();
+    await expect(canvas.getByText("Your review is ready for approval")).toBeInTheDocument();
   },
 };
 

@@ -19,7 +19,7 @@ function DetailPill({
         tone === "light"
           ? "inline-flex items-center rounded-full border border-background/16 bg-background/12 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-background/78"
           : tone === "slack"
-            ? "inline-flex items-center rounded-full border border-slate-300/80 bg-background/72 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-slate-500"
+            ? "inline-flex items-center rounded-full border border-slate-300/80 bg-white/95 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-slate-700"
             : "inline-flex items-center rounded-full border border-foreground/8 bg-foreground/5 px-2.5 py-1 font-sans text-[0.68rem] font-medium tracking-[0.08em] uppercase text-foreground/55"
       }
     >

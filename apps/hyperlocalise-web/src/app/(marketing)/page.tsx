@@ -9,7 +9,6 @@ import {
   ChangelogSection,
   FinalCtaSection,
   HeroSection,
-  LogoStripSection,
   PrinciplesSection,
 } from "@/components/marketing";
 
@@ -61,12 +60,6 @@ export default function Home() {
           <section className=" px-5 pb-14 pt-8 sm:px-8 lg:px-10 lg:pt-10">
             <HeroSection />
           </section>
-
-          <div className="border-y border-border/70">
-            <section className="px-5 py-6 sm:px-8 lg:px-10">
-              <LogoStripSection />
-            </section>
-          </div>
 
           <section className="px-5 py-16 sm:px-8 lg:px-10">
             <PrinciplesSection />

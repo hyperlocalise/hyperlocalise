@@ -41,7 +41,7 @@ export function CatQueuePanel({
     summary.total > 0 ? Math.round((summary.reviewed / summary.total) * 100) : 0;
 
   return (
-    <div className="flex h-full min-h-0 flex-col border-r border-foreground/8 bg-background">
+    <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-foreground/8">
       <div className="flex items-center justify-between gap-2 border-b border-foreground/8 px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">Queue</h2>
@@ -78,7 +78,7 @@ export function CatQueuePanel({
                   type="button"
                   onClick={() => onSelectSegment(segment.id)}
                   className={cn(
-                    "flex w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
+                    "flex min-h-11 w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
                     selected
                       ? "bg-grove-500/10 ring-1 ring-inset ring-grove-400/25"
                       : "hover:bg-foreground/4",

@@ -14,8 +14,6 @@ const tmsLogos: readonly TmsLogo[] = [
   { id: "lokalise", src: "/images/tms/lokalise.webp" },
   { id: "phrase", src: "/images/tms/phrase.png" },
   { id: "smartling", src: "/images/tms/smartling.png" },
-  { id: "transifex", src: "/images/tms/transifex.webp" },
-  { id: "poeditor", src: "/images/tms/poeditor.png" },
 ] as const;
 
 function TmsLogoMarquee() {

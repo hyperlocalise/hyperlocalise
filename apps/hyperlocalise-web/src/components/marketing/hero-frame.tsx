@@ -1,360 +1,560 @@
 "use client";
 
-import { DotFlow, DotMatrix } from "dot-anime-react";
 import { motion, useReducedMotion } from "motion/react";
-import { useIsMobile } from "@/hooks/use-mobile";
 
-const DESKTOP_DIMENSION = 45;
-const MOBILE_DIMENSION = 31;
-const GAME_OF_LIFE_FRAMES = 512;
-const INITIAL_DENSITY = 0.34;
-const RANDOM_SEED = 0x51f15e;
-const RECENT_FRAME_WINDOW = 48;
-const MIN_ACTIVE_RATIO = 0.06;
-const RESEED_CLEAR_RATIO = 0.14;
+import { CatWorkspaceContainer } from "@/components/cat";
+import type { CatFormatCheck, CatSegment, CatWorkspaceState } from "@/components/cat";
 
-type Cell = readonly [row: number, col: number];
-type Pattern = readonly Cell[];
-
-const RESEED_PATTERNS: readonly Pattern[] = [
-  [
-    [0, 1],
-    [1, 2],
-    [2, 0],
-    [2, 1],
-    [2, 2],
-  ],
-  [
-    [0, 1],
-    [0, 2],
-    [1, 0],
-    [1, 1],
-    [2, 1],
-  ],
-  [
-    [0, 1],
-    [1, 2],
-    [2, 0],
-    [2, 1],
-    [2, 2],
-    [3, 1],
-  ],
-  [
-    [0, 0],
-    [0, 1],
-    [1, 0],
-    [1, 2],
-    [2, 1],
-    [2, 2],
-  ],
-] as const;
-
-function toIndex(row: number, col: number, cols: number) {
-  return row * cols + col;
-}
-
-function toCell(index: number, cols: number): Cell {
-  return [Math.floor(index / cols), index % cols];
-}
-
-function getNeighborCount(
-  row: number,
-  col: number,
-  liveCells: ReadonlySet<number>,
-  cols: number,
-  rows: number,
-) {
-  let neighbors = 0;
-
-  for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
-    for (let colOffset = -1; colOffset <= 1; colOffset += 1) {
-      if (rowOffset === 0 && colOffset === 0) {
-        continue;
-      }
-
-      const nextRow = row + rowOffset;
-      const nextCol = col + colOffset;
-
-      if (nextRow < 0 || nextRow >= rows || nextCol < 0 || nextCol >= cols) {
-        continue;
-      }
-
-      if (liveCells.has(toIndex(nextRow, nextCol, cols))) {
-        neighbors += 1;
-      }
-    }
-  }
-
-  return neighbors;
-}
-
-function createRandomNumberGenerator(seed: number) {
-  let state = seed >>> 0;
-
-  return () => {
-    state = (state * 1664525 + 1013904223) >>> 0;
-    return state / 2 ** 32;
-  };
-}
-
-function createChaoticSeed(cols: number, rows: number, random: () => number) {
-  const liveCells = new Set<number>();
-  const bandTop = Math.max(0, Math.floor(rows * 0.125));
-  const bandBottom = Math.min(rows, Math.ceil(rows * 0.875));
-  const bandLeft = Math.max(0, Math.floor(cols * 0.1));
-  const bandRight = Math.min(cols, Math.ceil(cols * 0.9));
-
-  for (let row = bandTop; row < bandBottom; row += 1) {
-    for (let col = bandLeft; col < bandRight; col += 1) {
-      if (random() < INITIAL_DENSITY) {
-        liveCells.add(toIndex(row, col, cols));
-      }
-    }
-  }
-
-  if (liveCells.size === 0) {
-    liveCells.add(toIndex(Math.floor(rows / 2), Math.floor(cols / 2), cols));
-  }
-
-  return liveCells;
-}
-
-function computePopulationFloor(cols: number, rows: number) {
-  return Math.max(6, Math.floor(cols * rows * MIN_ACTIVE_RATIO));
-}
-
-function createWindowedFrameTracker(limit: number) {
-  const queue: string[] = [];
-  const frames = new Set<string>();
-
-  return {
-    has(key: string) {
-      return frames.has(key);
-    },
-    add(key: string) {
-      queue.push(key);
-      frames.add(key);
-
-      if (queue.length > limit) {
-        const removed = queue.shift();
-
-        if (removed !== undefined) {
-          frames.delete(removed);
-        }
-      }
-    },
-  };
-}
-
-function reseedCluster(
-  liveCells: ReadonlySet<number>,
-  cols: number,
-  rows: number,
-  random: () => number,
-) {
-  const reseededCells = new Set<number>();
-  const shouldBlendWithExisting = liveCells.size <= Math.floor(cols * rows * RESEED_CLEAR_RATIO);
-
-  if (shouldBlendWithExisting) {
-    for (const cell of liveCells) {
-      reseededCells.add(cell);
-    }
-  }
-
-  const pattern =
-    RESEED_PATTERNS[Math.floor(random() * RESEED_PATTERNS.length)] ?? RESEED_PATTERNS[0];
-  const patternHeight = Math.max(...pattern.map(([row]) => row)) + 1;
-  const patternWidth = Math.max(...pattern.map(([, col]) => col)) + 1;
-  const maxAnchorRow = Math.max(0, rows - patternHeight);
-  const maxAnchorCol = Math.max(0, cols - patternWidth);
-  const centerBiasRow = Math.max(0, Math.floor((rows - patternHeight) / 2));
-  const centerBiasCol = Math.max(0, Math.floor((cols - patternWidth) / 2));
-  const rowJitter = Math.max(1, Math.floor(rows / 3));
-  const colJitter = Math.max(1, Math.floor(cols / 5));
-  const anchorRow = Math.min(
-    maxAnchorRow,
-    Math.max(0, centerBiasRow + Math.floor((random() - 0.5) * rowJitter)),
-  );
-  const anchorCol = Math.min(
-    maxAnchorCol,
-    Math.max(0, centerBiasCol + Math.floor((random() - 0.5) * colJitter)),
-  );
-
-  for (const [rowOffset, colOffset] of pattern) {
-    reseededCells.add(toIndex(anchorRow + rowOffset, anchorCol + colOffset, cols));
-  }
-
-  if (reseededCells.size === 0) {
-    reseededCells.add(toIndex(Math.floor(rows / 2), Math.floor(cols / 2), cols));
-  }
-
-  return reseededCells;
-}
-
-function nextGeneration(liveCells: ReadonlySet<number>, cols: number, rows: number) {
-  const nextCells = new Set<number>();
-  const candidates = new Set<number>();
-
-  for (const index of liveCells) {
-    const [row, col] = toCell(index, cols);
-
-    candidates.add(index);
-
-    for (let rowOffset = -1; rowOffset <= 1; rowOffset += 1) {
-      for (let colOffset = -1; colOffset <= 1; colOffset += 1) {
-        const nextRow = row + rowOffset;
-        const nextCol = col + colOffset;
-
-        if (nextRow < 0 || nextRow >= rows || nextCol < 0 || nextCol >= cols) {
-          continue;
-        }
-
-        candidates.add(toIndex(nextRow, nextCol, cols));
-      }
-    }
-  }
-
-  for (const index of candidates) {
-    const [row, col] = toCell(index, cols);
-    const neighbors = getNeighborCount(row, col, liveCells, cols, rows);
-    const isAlive = liveCells.has(index);
-
-    if (neighbors === 3 || (isAlive && neighbors === 2)) {
-      nextCells.add(index);
-    }
-  }
-
-  return nextCells;
-}
-
-function generateGameOfLifeSequence(dimension: number) {
-  const cols = dimension;
-  const rows = Math.max(1, Math.floor(dimension / 4));
-  const frames: number[][] = [];
-  const random = createRandomNumberGenerator(RANDOM_SEED + dimension);
-  const recentFrames = createWindowedFrameTracker(RECENT_FRAME_WINDOW);
-  const populationFloor = computePopulationFloor(cols, rows);
-  let liveCells = createChaoticSeed(cols, rows, random);
-
-  for (let frame = 0; frame < GAME_OF_LIFE_FRAMES; frame += 1) {
-    const currentFrame = [...liveCells].sort((left, right) => left - right);
-    const currentKey = currentFrame.join(",");
-
-    frames.push(currentFrame);
-    recentFrames.add(currentKey);
-
-    const nextCells = nextGeneration(liveCells, cols, rows);
-    const nextFrame = [...nextCells].sort((left, right) => left - right);
-    const nextKey = nextFrame.join(",");
-    const isRepeating = nextKey === currentKey || recentFrames.has(nextKey);
-    const isTooSparse = nextCells.size < populationFloor;
-
-    liveCells =
-      isRepeating || isTooSparse ? reseedCluster(nextCells, cols, rows, random) : nextCells;
-  }
-
-  return frames;
-}
-
-const desktopMatrix = {
-  cols: DESKTOP_DIMENSION,
-  rows: Math.max(1, Math.floor(DESKTOP_DIMENSION / 4)),
-  dotSize: 24,
-  gap: 11,
-  sequence: generateGameOfLifeSequence(DESKTOP_DIMENSION),
-} as const;
-
-const mobileMatrix = {
-  cols: MOBILE_DIMENSION,
-  rows: Math.max(1, Math.floor(MOBILE_DIMENSION / 4)),
-  dotSize: 18,
-  gap: 8,
-  sequence: generateGameOfLifeSequence(MOBILE_DIMENSION),
-} as const;
-
-const sharedFlipDotFrames: number[][] = [
-  [0, 4, 7, 8, 10, 11, 15],
-  [0, 4, 5, 7, 8, 11, 15],
-  [4, 5, 7, 8, 11, 12, 15],
-  [3, 4, 5, 7, 8, 11, 12],
-  [2, 3, 4, 7, 8, 11, 12],
-  [3, 4, 7, 8, 11, 12, 13],
-  [4, 7, 8, 11, 12, 13, 15],
-  [4, 7, 8, 10, 11, 12, 15],
+const heroDemoSegments: CatSegment[] = [
+  {
+    id: "hero-title",
+    index: 1,
+    key: "home.hero.title",
+    sourceText: "Launch globally in days, not quarters.",
+    targetText: "Lancez-vous à l'international en quelques jours, pas en quelques trimestres.",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Homepage hero",
+    status: "needs_review",
+    tags: ["marketing", "headline"],
+    maxLength: 78,
+  },
+  {
+    id: "hero-cta",
+    index: 2,
+    key: "home.hero.cta",
+    sourceText: "Join the waitlist",
+    targetText: "Rejoindre la liste d'attente",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Primary CTA",
+    status: "pending",
+    tags: ["cta"],
+    maxLength: 34,
+  },
+  {
+    id: "usage-limit",
+    index: 3,
+    key: "billing.usage.remaining",
+    sourceText: "{count, plural, one {# string left} other {# strings left}}",
+    targetText: "{count, plural, one {# chaîne restante} other {# chaînes restantes}}",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Usage meter",
+    status: "reviewed",
+    tags: ["icu", "billing"],
+  },
+  {
+    id: "qa-warning",
+    index: 4,
+    key: "reviews.pending.banner",
+    sourceText: "Reviews waiting for approval",
+    targetText: "Révisions en attente d'approbation",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Review queue",
+    status: "pending",
+    tags: ["review"],
+    maxLength: 42,
+  },
+  {
+    id: "hero-subtitle",
+    index: 5,
+    key: "home.hero.subtitle",
+    sourceText:
+      "Ship localized releases with agent workflows, TMS sync, and regression checks in one pipeline.",
+    targetText:
+      "Déployez des versions localisées avec des workflows d'agents, la synchro TMS et des contrôles de régression dans un seul pipeline.",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Homepage hero",
+    status: "needs_review",
+    tags: ["marketing"],
+    maxLength: 120,
+  },
+  {
+    id: "nav-product",
+    index: 6,
+    key: "nav.product",
+    sourceText: "Product",
+    targetText: "Produit",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Site navigation",
+    status: "reviewed",
+    tags: ["nav"],
+    maxLength: 16,
+  },
+  {
+    id: "nav-pricing",
+    index: 7,
+    key: "nav.pricing",
+    sourceText: "Pricing",
+    targetText: "Tarifs",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Site navigation",
+    status: "pending",
+    tags: ["nav"],
+    maxLength: 16,
+  },
+  {
+    id: "features-agents-title",
+    index: 8,
+    key: "features.agents.title",
+    sourceText: "Assign agents to translate, review, and sync",
+    targetText: "Assignez des agents pour traduire, relire et synchroniser",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Features section",
+    status: "needs_review",
+    tags: ["marketing", "feature"],
+    maxLength: 56,
+  },
+  {
+    id: "features-tms-body",
+    index: 9,
+    key: "features.tms.description",
+    sourceText: "Keep your TMS while adding AI-assisted workflows on top.",
+    targetText: "Conservez votre TMS tout en ajoutant des workflows assistés par IA.",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Features section",
+    status: "pending",
+    tags: ["marketing"],
+    maxLength: 72,
+  },
+  {
+    id: "onboarding-welcome",
+    index: 10,
+    key: "onboarding.welcome.title",
+    sourceText: "Connect your first repository",
+    targetText: "Connectez votre premier dépôt",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Onboarding",
+    status: "reviewed",
+    tags: ["onboarding"],
+    maxLength: 40,
+  },
+  {
+    id: "onboarding-locale",
+    index: 11,
+    key: "onboarding.locale.prompt",
+    sourceText: "Which locales do you ship today?",
+    targetText: "Quelles locales publiez-vous aujourd'hui ?",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Onboarding",
+    status: "needs_review",
+    tags: ["onboarding"],
+    maxLength: 48,
+  },
+  {
+    id: "projects-empty-title",
+    index: 12,
+    key: "projects.empty.title",
+    sourceText: "No projects yet",
+    targetText: "Aucun projet pour le moment",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Projects list",
+    status: "pending",
+    tags: ["empty-state"],
+    maxLength: 28,
+  },
+  {
+    id: "projects-empty-body",
+    index: 13,
+    key: "projects.empty.description",
+    sourceText: "Create a project to start syncing source strings from GitHub.",
+    targetText: "Créez un projet pour commencer à synchroniser les chaînes source depuis GitHub.",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Projects list",
+    status: "pending",
+    tags: ["empty-state"],
+    maxLength: 80,
+  },
+  {
+    id: "sync-running",
+    index: 14,
+    key: "sync.status.running",
+    sourceText: "Syncing {localeCount, plural, one {# locale} other {# locales}}…",
+    targetText: "Synchronisation de {localeCount, plural, one {# locale} other {# locales}}…",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Sync progress",
+    status: "reviewed",
+    tags: ["icu", "status"],
+  },
+  {
+    id: "sync-complete",
+    index: 15,
+    key: "sync.status.complete",
+    sourceText:
+      "Sync finished with {issueCount, plural, =0 {no issues} one {# issue} other {# issues}}",
+    targetText:
+      "Synchronisation terminée avec {issueCount, plural, =0 {aucun problème} one {# problème} other {# problèmes}}",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Sync progress",
+    status: "needs_review",
+    tags: ["icu", "status"],
+  },
+  {
+    id: "error-network-title",
+    index: 16,
+    key: "errors.network.title",
+    sourceText: "Connection lost",
+    targetText: "Connexion perdue",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Error banner",
+    status: "pending",
+    tags: ["error"],
+    maxLength: 24,
+  },
+  {
+    id: "error-network-retry",
+    index: 17,
+    key: "errors.network.retry",
+    sourceText: "Try again",
+    targetText: "Réessayer",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Error action",
+    status: "reviewed",
+    tags: ["cta", "error"],
+    maxLength: 20,
+  },
+  {
+    id: "settings-team-invite",
+    index: 18,
+    key: "settings.team.invite",
+    sourceText: "Invite teammate",
+    targetText: "Inviter un collègue",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Team settings",
+    status: "needs_review",
+    tags: ["settings"],
+    maxLength: 24,
+  },
+  {
+    id: "settings-api-keys",
+    index: 19,
+    key: "settings.api.keys.label",
+    sourceText: "API keys",
+    targetText: "Clés API",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Settings",
+    status: "pending",
+    tags: ["settings"],
+    maxLength: 20,
+  },
+  {
+    id: "toast-saved",
+    index: 20,
+    key: "toast.translation.saved",
+    sourceText: "Translation saved",
+    targetText: "Traduction enregistrée",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Toast",
+    status: "reviewed",
+    tags: ["toast"],
+    maxLength: 28,
+  },
+  {
+    id: "pricing-pro-name",
+    index: 21,
+    key: "pricing.plan.pro.name",
+    sourceText: "Pro",
+    targetText: "Pro",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Pricing",
+    status: "skipped",
+    tags: ["pricing", "do-not-translate"],
+    maxLength: 12,
+  },
+  {
+    id: "pricing-pro-cta",
+    index: 22,
+    key: "pricing.plan.pro.cta",
+    sourceText: "Start free trial",
+    targetText: "Commencer l'essai gratuit",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Pricing CTA",
+    status: "needs_review",
+    tags: ["cta", "pricing"],
+    maxLength: 32,
+  },
+  {
+    id: "github-checks-passed",
+    index: 23,
+    key: "github.checks.passed",
+    sourceText: "Localization checks passed",
+    targetText: "Contrôles de localisation réussis",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "GitHub check",
+    status: "reviewed",
+    tags: ["github", "status"],
+    maxLength: 36,
+  },
+  {
+    id: "eval-drift-warning",
+    index: 24,
+    key: "eval.drift.warning",
+    sourceText: "Translation drift detected in {fileName}",
+    targetText: "Dérive de traduction détectée dans {fileName}",
+    sourceLocale: "en-US",
+    targetLocale: "fr-FR",
+    contextLabel: "Eval gate",
+    status: "needs_review",
+    tags: ["eval", "placeholder"],
+    maxLength: 52,
+  },
 ];
 
-const flipDotItems = [
-  "Reviewing the source copy",
-  "KFC Christmas in Japan",
-  "Refining the tone",
-  "Singles' Day in Shanghai",
-  "Localizing key phrases",
-  "Ramadan menus in Dubai",
-  "Finalizing the locale",
-  "Diwali offers in Mumbai",
-  "7-Eleven onigiri in Hawaii",
-].map((title) => ({
-  title,
-  frames: sharedFlipDotFrames,
-}));
+const heroDemoChecks: CatFormatCheck[] = [
+  {
+    id: "check-tone",
+    label: "Launch tone",
+    status: "pass",
+    message: "Target keeps the concise, confident product positioning.",
+    category: "qa",
+  },
+  {
+    id: "check-length",
+    label: "Hero fit",
+    status: "warn",
+    message: "Translation is close to the button and hero layout limits.",
+    category: "length",
+  },
+  {
+    id: "check-placeholders",
+    label: "Placeholders",
+    status: "pass",
+    message: "No required placeholders are missing.",
+    category: "placeholder",
+  },
+];
+
+const heroDemoState: CatWorkspaceState = {
+  segments: heroDemoSegments,
+  selectedSegmentId: "hero-title",
+  queueSummary: {
+    total: heroDemoSegments.length,
+    reviewed: heroDemoSegments.filter((segment) => segment.status === "reviewed").length,
+  },
+  formatChecks: heroDemoChecks,
+  segmentFormatChecks: {
+    "hero-title": [],
+    "usage-limit": [
+      {
+        id: "check-icu",
+        label: "ICU structure",
+        status: "pass",
+        message: "Plural branches and the {count} token match the source.",
+        category: "icu",
+        relatedTokens: ["{count, plural}"],
+      },
+    ],
+  },
+  suggestions: [],
+  intelligence: {
+    productMeaning: "Marketing hero headline shown above the primary waitlist call to action.",
+    intent: "Position speed as release confidence, not shortcut automation.",
+    locationBreadcrumb: "Marketing site / Hero",
+    filePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
+    componentName: "HeroSection",
+    reviewerPreference: "Prefer concise French that still feels executive.",
+    constraints: "Hero title · Max 2 lines on tablet",
+    glossaryTerms: [
+      {
+        id: "term-global",
+        source: "globally",
+        target: "à l'international",
+        approved: true,
+      },
+      {
+        id: "term-launch",
+        source: "launch",
+        target: "lancer",
+        approved: true,
+      },
+    ],
+    translationMemoryMatches: [
+      {
+        id: "tm-launch",
+        sourceText: "Launch every market from one workflow.",
+        targetText: "Lancez chaque marché depuis un seul workflow.",
+        matchPercent: 84,
+        contextLabel: "Product overview",
+      },
+    ],
+  },
+  segmentIntelligence: {
+    "hero-cta": {
+      productMeaning: "Waitlist CTA button label on the marketing homepage.",
+      intent: "Keep it short and action-oriented.",
+      locationBreadcrumb: "Marketing site / Hero / CTA",
+      filePath: "apps/hyperlocalise-web/src/components/marketing/hero-section.tsx",
+      componentName: "Button",
+      constraints: "Button label · Must stay compact on mobile",
+      glossaryTerms: [],
+      translationMemoryMatches: [],
+      aiSuggestion: "Rejoindre la liste d'attente",
+      aiReasoning: "Direct and familiar French SaaS CTA phrasing.",
+    },
+    "usage-limit": {
+      productMeaning: "Billing usage meter string with ICU plural branches.",
+      intent: "Preserve ICU syntax exactly.",
+      locationBreadcrumb: "Billing / Usage meter",
+      filePath: "apps/hyperlocalise-web/src/app/(authenticated)/billing/usage-card.tsx",
+      componentName: "UsageCard",
+      constraints: "ICU plural · Preserve {count}",
+      glossaryTerms: [],
+      translationMemoryMatches: [],
+      aiSuggestion: "{count, plural, one {# chaîne restante} other {# chaînes restantes}}",
+      aiReasoning: "Keeps both plural branches and the required count placeholder.",
+    },
+    "qa-warning": {
+      productMeaning: "Banner label for pending translation approvals in the review queue.",
+      intent: "Avoid wording that implies public customer reviews.",
+      locationBreadcrumb: "CAT workspace / Review queue",
+      filePath: "apps/hyperlocalise-web/src/components/cat/cat-queue-panel.tsx",
+      componentName: "CatQueuePanel",
+      constraints: "Short label · Avoid ambiguity around reviews",
+      glossaryTerms: [
+        {
+          id: "term-review",
+          source: "review",
+          target: "validation",
+          approved: true,
+        },
+      ],
+      translationMemoryMatches: [
+        {
+          id: "tm-review",
+          sourceText: "Approve translation review",
+          targetText: "Valider la traduction",
+          matchPercent: 79,
+          contextLabel: "CAT action",
+        },
+      ],
+      aiSuggestion: "Validations en attente d'approbation",
+      aiReasoning: "Clarifies this is an internal translation review queue.",
+    },
+  },
+  breadcrumbs: ["Marketing", "Homepage", "French launch"],
+  primaryActionLabel: "Approve",
+  canEditTranslations: true,
+};
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+async function lookupHeroDemoContext(segment: CatSegment) {
+  await wait(1700);
+
+  if (segment.id === "hero-title") {
+    return "Homepage headline for a launch-focused localization platform. Keep the claim direct and outcome-led.";
+  }
+
+  if (segment.id === "hero-cta") {
+    return "Primary conversion button for the public waitlist.";
+  }
+
+  if (segment.id === "usage-limit") {
+    return "Usage meter copy shown in billing and review dashboards.";
+  }
+
+  if (segment.id === "qa-warning") {
+    return "Queue banner for translation reviews that still need human approval.";
+  }
+
+  return `Repository context: ${segment.key} is part of the product UI and should keep tone, placeholders, and layout constraints intact.`;
+}
+
+async function generateHeroAiRecommendation(
+  segment: CatSegment,
+): Promise<{ aiSuggestion: string; aiReasoning: string; formatChecks: CatFormatCheck[] }> {
+  await wait(1200);
+
+  if (segment.id === "hero-title") {
+    return {
+      aiSuggestion: "Déployez à l'international en quelques jours, pas en quelques trimestres.",
+      aiReasoning:
+        "Uses deployment language that fits a B2B product launch while staying short enough for the hero layout.",
+      formatChecks: heroDemoChecks,
+    };
+  }
+
+  const segmentIntelligence = heroDemoState.segmentIntelligence?.[segment.id];
+
+  return {
+    aiSuggestion: segmentIntelligence?.aiSuggestion ?? segment.targetText,
+    aiReasoning:
+      segmentIntelligence?.aiReasoning ??
+      "Keeps terminology, placeholders, and layout constraints aligned with the source.",
+    formatChecks: heroDemoState.segmentFormatChecks?.[segment.id] ?? heroDemoChecks,
+  };
+}
+
+async function validateHeroDemoFormat(
+  segment: CatSegment,
+  value: string,
+): Promise<CatFormatCheck[]> {
+  const checks = [...(heroDemoState.segmentFormatChecks?.[segment.id] ?? heroDemoChecks)];
+
+  if (segment.maxLength && value.length > segment.maxLength) {
+    return [
+      {
+        id: "check-length-over",
+        label: "Layout length",
+        status: "warn",
+        message: `Translation exceeds the recommended ${segment.maxLength} characters.`,
+        category: "length",
+      },
+      ...checks.filter((check) => check.id !== "check-length"),
+    ];
+  }
+
+  return checks;
+}
 
 export function HeroFrame() {
   const shouldReduceMotion = useReducedMotion();
-  const isMobile = useIsMobile();
-  const matrix = isMobile ? mobileMatrix : desktopMatrix;
 
   return (
-    <motion.div
-      className="mx-auto space-y-1.5 overflow-hidden text-center"
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{
-        duration: shouldReduceMotion ? 0 : 0.72,
-        ease: [0.19, 1, 0.22, 1],
-      }}
-    >
+    <div className="relative left-1/2 w-screen max-w-[calc(100vw-2.5rem)] -translate-x-1/2 lg:max-w-[min(92rem,calc(100vw-5rem))]">
       <motion.div
-        aria-hidden
-        className="pointer-events-none absolute -left-[20%] top-[16%] h-[56%] w-[56%] rounded-full blur-3xl"
-        initial={shouldReduceMotion ? false : { opacity: 0, x: -40 }}
-        animate={shouldReduceMotion ? { opacity: 0.45 } : { opacity: 0.45, x: 0 }}
+        className="relative overflow-hidden rounded-2xl border border-foreground/10 bg-background shadow-2xl shadow-foreground/8"
+        initial={shouldReduceMotion ? false : { opacity: 0, y: 24, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{
-          duration: shouldReduceMotion ? 0 : 1.1,
-          delay: shouldReduceMotion ? 0 : 0.3,
+          duration: shouldReduceMotion ? 0 : 0.72,
           ease: [0.19, 1, 0.22, 1],
         }}
-      />
-
-      <DotMatrix
-        sequence={matrix.sequence}
-        cols={matrix.cols}
-        rows={matrix.rows}
-        dotSize={matrix.dotSize}
-        gap={matrix.gap}
-        shape="rounded"
-        interval={150}
-        color="var(--color-neutral)"
-        inactiveColor="color-mix(in srgb, var(--color-neutral) 18%, transparent)"
-        activeDotStyle={{
-          boxShadow: "0 0 8px color-mix(in srgb, var(--color-neutral) 20%, transparent)",
-        }}
-      />
-
-      <DotFlow
-        items={flipDotItems}
-        direction="horizontal"
-        spacing={12}
-        autoPlay={4000}
-        matrix={{
-          interval: 180,
-          cols: 4,
-          rows: 4,
-          dotSize: 4,
-          gap: 1,
-          color: "#ff8dd0",
-          inactiveColor: "rgba(244, 114, 182, 0.1)",
-        }}
-      />
-    </motion.div>
+      >
+        <div className="flex h-[min(42rem,78svh)] min-h-[34rem] flex-col lg:h-[44rem] xl:h-[46rem]">
+          <CatWorkspaceContainer
+            initialState={heroDemoState}
+            services={{
+              validateFormat: validateHeroDemoFormat,
+              lookupSegmentContext: lookupHeroDemoContext,
+              generateAiRecommendation: generateHeroAiRecommendation,
+            }}
+          />
+        </div>
+      </motion.div>
+    </div>
   );
 }

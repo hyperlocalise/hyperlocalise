@@ -7,6 +7,7 @@ export { CatIntelligencePanel } from "./cat-intelligence-panel";
 export { CatFormatChecks } from "./cat-format-checks";
 export { CatSuggestionsTabs } from "./cat-suggestions-tabs";
 export type {
+  CatAiRecommendationResult,
   CatWorkspaceDependencies,
   CatWorkspaceEditing,
   CatWorkspaceNavigation,
