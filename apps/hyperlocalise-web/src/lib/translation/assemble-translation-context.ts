@@ -10,6 +10,7 @@ import {
   type ContextGlossaryMatch,
 } from "@/lib/translation/glossary-match";
 import { loadGlossaryMatchesForContext } from "@/lib/translation/load-glossary-matches";
+import { getKnowledgeMemoryForOrganization } from "@/lib/knowledge-memory/knowledge-memory";
 import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
 import {
   toContextTranslationMemoryMatch,
@@ -23,6 +24,7 @@ export type StringTranslationContextSnapshot = {
     name: string;
     translationContext: string;
   };
+  knowledgeMemory?: string;
   job: StringTranslationJobInput;
   glossaryTerms: ContextGlossaryMatch[];
   translationMemoryMatches: ContextTranslationMemoryMatch[];
@@ -95,7 +97,10 @@ export async function assembleStringTranslationContextSnapshot(
 
   const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
-  const [glossaryTerms, translationMemoryMatches] = await Promise.all([
+  const [knowledgeMemory, glossaryTerms, translationMemoryMatches] = await Promise.all([
+    getKnowledgeMemoryForOrganization(project.organizationId).then((memory) =>
+      memory.content.trim(),
+    ),
     loadGlossaryMatchesForContext({
       projectId,
       organizationId: options?.organizationId,
@@ -129,6 +134,7 @@ export async function assembleStringTranslationContextSnapshot(
       job: jobInput,
       glossaryTerms,
       translationMemoryMatches,
+      ...(knowledgeMemory ? { knowledgeMemory } : {}),
     } satisfies StringTranslationContextSnapshot,
   } as const;
 }

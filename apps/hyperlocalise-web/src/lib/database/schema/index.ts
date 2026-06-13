@@ -12,3 +12,4 @@ export * from "./agents";
 export * from "./files";
 export * from "./project-strings";
 export * from "./repo-tms";
+export * from "./knowledge-memory";

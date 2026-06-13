@@ -36,6 +36,7 @@ export type StringTranslationGeneratorInput = {
   projectTranslationContext: string;
   jobInput: StringTranslationJobInput;
   contextSnapshot?: {
+    knowledgeMemory?: string;
     glossaryTerms?: Array<{
       sourceTerm: string;
       targetTerm: string;
@@ -85,14 +86,16 @@ function getDefaultTranslationModel() {
 function buildSystemPrompt(input: StringTranslationGeneratorInput) {
   const glossaryTerms = input.contextSnapshot?.glossaryTerms ?? [];
   const translationMemoryMatches = input.contextSnapshot?.translationMemoryMatches ?? [];
+  const knowledgeMemory = input.contextSnapshot?.knowledgeMemory?.trim();
   const instructions = [
     "You are an expert software localization engine.",
     "Translate the provided source text into every requested target locale.",
     "Preserve meaning, tone, placeholders, HTML, Markdown, punctuation, whitespace, and line breaks.",
     "Follow the project translation context and job context as binding style and usage guidance.",
+    "Follow workspace knowledge memory when present.",
     "Use glossary terms exactly for their target locale. Do not use forbidden glossary terms.",
     "Use approved translation memory matches as consistency references when they apply.",
-    "If constraints conflict, prioritize placeholder and markup preservation first, then glossary rules, then project and job context, then translation memory examples.",
+    "If constraints conflict, prioritize placeholder and markup preservation first, then glossary rules, then project context, job context, workspace knowledge memory, then translation memory examples.",
     "Do not explain your work.",
     "Return one translation for each requested locale.",
   ];
@@ -107,6 +110,7 @@ function buildSystemPrompt(input: StringTranslationGeneratorInput) {
     "",
     `Project translation context: ${input.projectTranslationContext || "(none)"}`,
     `Job context: ${input.jobInput.context || "(none)"}`,
+    `Workspace knowledge memory: ${knowledgeMemory || "(none)"}`,
     glossaryTerms.length > 0
       ? [
           "Glossary terms:",
