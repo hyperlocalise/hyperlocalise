@@ -63,6 +63,7 @@ import {
   ContentfulConnectionPanel,
   type ContentfulConnectionForm,
   type ContentfulConnectionSummary,
+  getProjectLocales,
   useContentfulConnections,
   useProjectOptions,
   useSaveContentfulConnection,
@@ -849,9 +850,7 @@ export function IntegrationsPageContent({
     projectId: "",
     spaceId: "",
     environmentId: "master",
-    sourceLocale: "en-US",
-    targetLocales: "",
-    contentTypeIds: "helpCenterArticle",
+    contentTypeIds: [],
     accessToken: "",
   });
   const [lastContentfulWebhookSecret, setLastContentfulWebhookSecret] = useState("");
@@ -915,9 +914,7 @@ export function IntegrationsPageContent({
       projectId: existingConnection?.projectId ?? "",
       spaceId: existingConnection?.spaceId ?? "",
       environmentId: existingConnection?.environmentId ?? "master",
-      sourceLocale: existingConnection?.sourceLocale ?? "en-US",
-      targetLocales: existingConnection?.targetLocales.join(", ") ?? "",
-      contentTypeIds: existingConnection?.contentTypeIds.join(", ") ?? "helpCenterArticle",
+      contentTypeIds: existingConnection?.contentTypeIds ?? [],
       accessToken: "",
     });
   }
@@ -1198,23 +1195,27 @@ export function IntegrationsPageContent({
                     isLoadingProjects={isLoadingContentfulProjects}
                     lastWebhookSecret={lastContentfulWebhookSecret}
                     isSaving={saveContentfulConnection.isPending}
+                    organizationSlug={organizationSlug}
                     onSave={() => {
                       const accessToken = contentfulForm.accessToken.trim();
                       const existingConnection = contentfulConnections?.[0];
+                      const selectedProject = contentfulProjectOptions?.find(
+                        (project) => project.id === contentfulForm.projectId.trim(),
+                      );
+                      const projectLocales = getProjectLocales(selectedProject);
+                      if (!projectLocales) {
+                        toast.error("Selected project is missing source or target locales.");
+                        return;
+                      }
+
                       const payload = {
                         projectId: contentfulForm.projectId.trim(),
                         displayName: contentfulForm.displayName.trim(),
                         spaceId: contentfulForm.spaceId.trim(),
                         environmentId: contentfulForm.environmentId.trim() || "master",
-                        sourceLocale: contentfulForm.sourceLocale.trim(),
-                        targetLocales: contentfulForm.targetLocales
-                          .split(",")
-                          .map((value) => value.trim())
-                          .filter(Boolean),
-                        contentTypeIds: contentfulForm.contentTypeIds
-                          .split(",")
-                          .map((value) => value.trim())
-                          .filter(Boolean),
+                        sourceLocale: projectLocales.sourceLocale,
+                        targetLocales: projectLocales.targetLocales,
+                        contentTypeIds: contentfulForm.contentTypeIds,
                       };
 
                       saveContentfulConnection.mutate(

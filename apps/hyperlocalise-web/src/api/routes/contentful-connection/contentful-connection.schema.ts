@@ -43,3 +43,20 @@ export const updateContentfulConnectionBodySchema = z.object({
   accessToken: z.string().trim().min(1).max(4096).optional(),
   enabled: z.boolean().optional(),
 });
+
+export const discoverContentfulSpaceBodySchema = z
+  .object({
+    spaceId: z.string().trim().min(1).max(128),
+    environmentId: z.string().trim().min(1).max(128).default("master"),
+    accessToken: z.string().trim().min(1).max(4096).optional(),
+    connectionId: z.string().uuid().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (!value.accessToken && !value.connectionId) {
+      ctx.addIssue({
+        code: "custom",
+        message: "accessToken or connectionId is required",
+        path: ["accessToken"],
+      });
+    }
+  });

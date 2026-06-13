@@ -187,4 +187,36 @@ describe("ContentfulManagementClient", () => {
     }
     expect(emptyListResult.value).toHaveLength(0);
   });
+
+  it("lists content types for the configured environment", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.endsWith("/content_types")) {
+        return Response.json({
+          items: [
+            { sys: { id: "helpCenterArticle" }, name: "Help Center Article" },
+            { sys: { id: "blogPost" }, name: "Blog Post" },
+          ],
+        });
+      }
+
+      return new Response(null, { status: 404 });
+    });
+
+    const client = new ContentfulManagementClient({
+      accessToken: "token",
+      spaceId: "space",
+      environmentId: "master",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const result = await client.listContentTypes();
+    if (isErr(result)) {
+      throw new Error("expected content type list");
+    }
+
+    expect(result.value).toEqual([
+      { id: "helpCenterArticle", name: "Help Center Article" },
+      { id: "blogPost", name: "Blog Post" },
+    ]);
+  });
 });

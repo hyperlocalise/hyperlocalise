@@ -155,6 +155,21 @@ export type ContentfulConnectionValidation = {
   }>;
 };
 
+export type ContentfulContentTypeSummary = {
+  id: string;
+  name: string;
+};
+
+export type ContentfulSpaceDiscovery = {
+  environmentId: string;
+  locales: Array<{
+    code: string;
+    name: string;
+    default: boolean;
+  }>;
+  contentTypes: ContentfulContentTypeSummary[];
+};
+
 export type ContentfulConnectionValidationError = {
   code: "contentful_connection_validation_failed";
   message: string;

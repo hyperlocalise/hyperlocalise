@@ -177,6 +177,26 @@ export class ContentfulManagementClient {
     );
   }
 
+  async listContentTypes(): Promise<
+    Result<Array<{ id: string; name: string }>, ContentfulClientError>
+  > {
+    const responseResult = await this.request<{
+      items: Array<{
+        sys: { id: string };
+        name?: string;
+      }>;
+    }>(this.environmentPath("/content_types"));
+    if (isErr(responseResult)) {
+      return err(responseResult.error);
+    }
+    return ok(
+      responseResult.value.items.map((contentType) => ({
+        id: contentType.sys.id,
+        name: contentType.name ?? contentType.sys.id,
+      })),
+    );
+  }
+
   async getAsset(assetId: string): Promise<Result<ContentfulAsset, ContentfulClientError>> {
     return this.request<ContentfulAsset>(
       this.environmentPath(`/assets/${encodeURIComponent(assetId)}`),
