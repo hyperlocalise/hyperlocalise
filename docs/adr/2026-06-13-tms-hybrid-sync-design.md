@@ -89,37 +89,15 @@ After hybrid sync, external projects gain a **materialized** `projects` row (via
 
 ### Read-through cache policy
 
-Every external TMS read goes through a single resolver:
+List endpoints (`GET /projects`, `GET /jobs`, project-scoped job lists) return **local database rows only** so pagination, sorting, and counts stay consistent. Live API data is never merged into list responses.
 
-```typescript
-type TmsReadFreshness = "prefer_synced" | "require_live" | "synced_only";
+Background sync keeps the local copy fresh:
 
-async function resolveTmsProjectRead(input: {
-  organizationId: string;
-  projectId: string;
-  actorUserId?: string;
-  freshness?: TmsReadFreshness;
-}): Promise<ResolvedProject>;
-```
+1. `GET /projects` enqueues an org-level catalog `project_scan` when TMS is connected.
+2. The reconciliation worker materializes provider projects into `projects`.
+3. Native (`source: native`) and external (`source: external_tms`) rows coexist in the same table.
 
-**Default (`prefer_synced`) behavior:**
-
-1. If a materialized `projects` row exists and `lastSyncedAt` is within the resource TTL → return DB projection.
-2. Otherwise call `getTmsProviderLiveProject()` (or jobs/files equivalents).
-3. Return live data to the caller immediately.
-4. Enqueue a coalesced `provider_sync_intent` for background persistence (non-blocking).
-5. On live API failure, fall back to stale DB data if available and mark `sync_state: stale` in the response metadata.
-
-**TTL defaults (configurable per resource type):**
-
-| Resource | TTL | Rationale |
-| --- | --- | --- |
-| Project metadata | 5 min | Low churn; cheap to refresh |
-| Job list | 2 min | Moderate churn during active work |
-| File list / CAT content | 0 (always live for edits) | User expects write path to be current |
-| TM / glossary search | 60 min | Large corpora; background import is expensive |
-
-CAT editing and write-back always use live API paths (`getTmsProviderLiveCatFile`, `saveTmsProviderLiveCatTranslation`). Background sync **confirms** remote state after approved write-back; it does not replace the live write path.
+Detail views and CAT editing still use live provider APIs where needed.
 
 ### Background sync pipeline
 
@@ -201,15 +179,7 @@ Steps call existing `tms-provider-fetcher-registry` adapters — the same code p
 
 #### Project listing
 
-`GET /projects` returns a **merged view**:
-
-```text
-native projects (from DB, source = native)
-  ∪ external projects (live list when TMS connected)
-  ∪ materialized external projects (from DB, source = external_tms)
-```
-
-Deduplicate by `(organization_id, external_provider_kind, external_project_id)`. Prefer the materialized row when both exist (carries sync status).
+`GET /projects` returns **database rows only** (native + materialized external). When TMS is connected, the handler enqueues an org-level catalog `project_scan` so external projects appear locally after background sync — live rows are not merged into the response.
 
 #### Jobs and files
 

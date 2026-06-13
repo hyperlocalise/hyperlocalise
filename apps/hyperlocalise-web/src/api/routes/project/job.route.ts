@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { Hono } from "hono";
 import { validator } from "hono/validator";
 
@@ -35,11 +35,13 @@ import {
 import { isErr } from "@/lib/primitives/result/results";
 import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
 import {
-  listTmsProviderLiveJobs,
-  tryLoadActiveTmsProviderContext,
-  listTmsProviderLiveJobsForProject,
-  type TmsProviderLiveJob,
-} from "@/lib/providers/tms-provider-live";
+  getOrganizationJobById,
+  listOrganizationJobs,
+  listOrganizationProjectJobs,
+} from "@/lib/projects/list-organization-jobs";
+import { listTmsProviderLiveJobsForProject } from "@/lib/providers/tms-provider-live";
+import { isTmsHybridSyncEnabled } from "@/lib/providers/tms-hybrid-sync-mode";
+import { enqueueProviderSyncIntent } from "@/lib/providers/provider-sync-intent";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,
@@ -175,67 +177,6 @@ async function getOwnedJob(projectId: string, jobId: string) {
     .limit(1);
 
   return job ?? null;
-}
-
-function jobListFilters(input: {
-  organizationId?: string;
-  projectId?: string;
-  kind?: "translation" | "research" | "review" | "sync" | "asset_management";
-  type?: "string" | "file";
-  status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
-  mine?: boolean;
-  userId?: string;
-}) {
-  const filters = [];
-
-  if (input.organizationId) {
-    filters.push(eq(schema.jobs.organizationId, input.organizationId));
-  }
-
-  if (input.projectId) {
-    filters.push(eq(schema.jobs.projectId, input.projectId));
-  }
-
-  if (input.kind) {
-    filters.push(eq(schema.jobs.kind, input.kind));
-  }
-
-  if (input.type) {
-    filters.push(eq(schema.translationJobDetails.type, input.type));
-  }
-
-  if (input.status) {
-    filters.push(eq(schema.jobs.status, input.status));
-  }
-
-  if (input.mine && input.userId) {
-    filters.push(eq(schema.jobs.createdByUserId, input.userId));
-  }
-
-  return filters;
-}
-
-function filterLiveProviderJobs(
-  jobs: TmsProviderLiveJob[],
-  query: {
-    kind?: "translation" | "research" | "review" | "sync" | "asset_management";
-    status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
-    limit: number;
-  },
-) {
-  let filtered = jobs;
-
-  if (query.kind) {
-    filtered = filtered.filter((job) => job.kind === query.kind);
-  }
-
-  if (query.status) {
-    filtered = filtered.filter((job) => job.status === query.status);
-  }
-
-  return filtered
-    .toSorted((left, right) => right.updatedAt.localeCompare(left.updatedAt))
-    .slice(0, query.limit);
 }
 
 async function retryableJobWhere(auth: ApiAuthContext, jobId: string) {
@@ -400,7 +341,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return providerProjectUnavailableResponse(c, target);
       }
 
-      if (target.kind === "provider") {
+      if (target.kind === "provider" && !isTmsHybridSyncEnabled()) {
         try {
           const jobs = await listTmsProviderLiveJobsForProject(
             c.var.auth.organization.localOrganizationId,
@@ -417,44 +358,34 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         }
       }
 
-      const project = await getOwnedProject(c.var.auth, params.projectId);
+      if (target.kind === "native") {
+        const project = await getOwnedProject(c.var.auth, params.projectId);
 
-      if (!project) {
-        scheduleProjectNotFoundDiagnostics({
-          auth: c.var.auth,
-          projectId: params.projectId,
-          route: "project.jobs.list",
-        });
-        return projectNotFoundResponse(c);
+        if (!project) {
+          scheduleProjectNotFoundDiagnostics({
+            auth: c.var.auth,
+            projectId: params.projectId,
+            route: "project.jobs.list",
+          });
+          return projectNotFoundResponse(c);
+        }
       }
 
-      const filters = jobListFilters({
-        projectId: params.projectId,
-        kind: query.kind,
-        type: query.type,
-        status: query.status,
-        mine: query.mine,
-        userId: c.var.auth.user.localUserId,
-      });
+      if (target.kind === "provider" && isTmsHybridSyncEnabled()) {
+        const projectRecord = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (projectRecord?.externalProviderCredentialId) {
+          void enqueueProviderSyncIntent({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            providerCredentialId: projectRecord.externalProviderCredentialId,
+            providerKind: target.providerKind,
+            projectId: params.projectId,
+            syncKind: "job_task_scan",
+            cause: "manual",
+          }).catch(() => undefined);
+        }
+      }
 
-      const jobs = await db
-        .select(jobSelect)
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
-        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
-        .leftJoin(
-          schema.assetManagementJobDetails,
-          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .where(and(...filters))
-        .orderBy(desc(schema.jobs.createdAt))
-        .limit(query.limit);
-
+      const jobs = await listOrganizationProjectJobs(c.var.auth, params.projectId, query);
       return c.json({ jobs }, 200);
     })
     .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
@@ -667,95 +598,17 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     .use("*", workosAuthMiddleware)
     .get("/", validateJobListQuery, async (c) => {
       const query = c.req.valid("query");
-      const organizationId = c.var.auth.organization.localOrganizationId;
 
       try {
-        const context = await tryLoadActiveTmsProviderContext(organizationId, {
-          actorUserId: c.var.auth.user.localUserId,
-        });
-        if (context) {
-          const jobs = filterLiveProviderJobs(
-            await listTmsProviderLiveJobs(organizationId, {
-              mine: query.mine,
-              assignee: c.var.auth.user.email,
-              actorUserId: c.var.auth.user.localUserId,
-              context,
-            }),
-            {
-              kind: query.kind,
-              status: query.status,
-              limit: query.limit,
-            },
-          );
-          return c.json({ jobs }, 200);
-        }
+        const jobs = await listOrganizationJobs(c.var.auth, query);
+        return c.json({ jobs }, 200);
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }
-
-      const filters = [
-        await buildAccessibleJobsWhere(c.var.auth),
-        ...jobListFilters({
-          kind: query.kind,
-          type: query.type,
-          status: query.status,
-          mine: query.mine,
-          userId: c.var.auth.user.localUserId,
-        }),
-      ];
-
-      const jobs = await db
-        .select(jobWithProjectSelect)
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
-        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
-        .leftJoin(
-          schema.assetManagementJobDetails,
-          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .leftJoin(
-          schema.projects,
-          and(
-            eq(schema.projects.id, schema.jobs.projectId),
-            eq(schema.projects.organizationId, schema.jobs.organizationId),
-          ),
-        )
-        .where(and(...filters))
-        .orderBy(desc(schema.jobs.updatedAt))
-        .limit(query.limit);
-
-      return c.json({ jobs }, 200);
     })
     .get("/:jobId", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");
-      const [job] = await db
-        .select(jobWithProjectSelect)
-        .from(schema.jobs)
-        .leftJoin(
-          schema.translationJobDetails,
-          eq(schema.translationJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
-        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
-        .leftJoin(
-          schema.assetManagementJobDetails,
-          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
-        )
-        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-        .leftJoin(
-          schema.projects,
-          and(
-            eq(schema.projects.id, schema.jobs.projectId),
-            eq(schema.projects.organizationId, schema.jobs.organizationId),
-          ),
-        )
-        .where(and(await buildAccessibleJobsWhere(c.var.auth), eq(schema.jobs.id, params.jobId)))
-        .limit(1);
+      const job = await getOrganizationJobById(c.var.auth, params.jobId);
 
       if (!job) {
         return notFoundResponse(c, "job_not_found", "Job not found");

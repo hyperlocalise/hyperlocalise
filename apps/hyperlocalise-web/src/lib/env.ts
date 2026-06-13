@@ -183,6 +183,14 @@ export const env = createEnv({
      * Prefer NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE for client-visible behavior.
      */
     TMS_PROVIDER_SHELL_MODE: z.enum(["true", "false"]).transform((value) => value === "true"),
+
+    /**
+     * Enables background TMS reconciliation while keeping live API reads for fresh data.
+     */
+    TMS_HYBRID_SYNC_ENABLED: z
+      .enum(["true", "false"])
+      .default("true")
+      .transform((value) => value === "true"),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -196,6 +204,11 @@ export const env = createEnv({
 
     /** Exposes TMS provider shell mode to client components. Falls back to TMS_PROVIDER_SHELL_MODE. */
     NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE: z
+      .enum(["true", "false"])
+      .transform((value) => value === "true"),
+
+    /** Exposes hybrid TMS sync to client components. Falls back to TMS_HYBRID_SYNC_ENABLED. */
+    NEXT_PUBLIC_TMS_HYBRID_SYNC_ENABLED: z
       .enum(["true", "false"])
       .transform((value) => value === "true"),
   },
@@ -282,9 +295,14 @@ export const env = createEnv({
       process.env.TMS_PROVIDER_SHELL_MODE ??
       process.env.NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE ??
       "true",
+    TMS_HYBRID_SYNC_ENABLED: process.env.TMS_HYBRID_SYNC_ENABLED ?? "true",
     NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE:
       process.env.NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE ??
       process.env.TMS_PROVIDER_SHELL_MODE ??
+      "true",
+    NEXT_PUBLIC_TMS_HYBRID_SYNC_ENABLED:
+      process.env.NEXT_PUBLIC_TMS_HYBRID_SYNC_ENABLED ??
+      process.env.TMS_HYBRID_SYNC_ENABLED ??
       "true",
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
