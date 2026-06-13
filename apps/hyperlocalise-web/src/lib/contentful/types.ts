@@ -175,6 +175,31 @@ export type ContentfulConnectionValidationError = {
   message: string;
 };
 
+export type ContentfulDiscoveryError =
+  | {
+      code: "contentful_discovery_missing_credentials";
+      message: string;
+    }
+  | {
+      code: "contentful_discovery_connection_not_found";
+      message: string;
+    }
+  | {
+      code: "contentful_discovery_invalid_credentials";
+      message: string;
+      contentfulStatus: number;
+    }
+  | {
+      code: "contentful_discovery_space_unavailable";
+      message: string;
+      contentfulStatus: number;
+    }
+  | {
+      code: "contentful_discovery_request_failed";
+      message: string;
+      contentfulStatus: number;
+    };
+
 export type ContentfulAutomationExecutionSuccess = {
   runId: string;
 };

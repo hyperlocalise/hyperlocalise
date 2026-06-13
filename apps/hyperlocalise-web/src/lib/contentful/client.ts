@@ -32,7 +32,40 @@ export type ContentfulClientError = {
   code: "contentful_request_failed";
   status: number;
   message: string;
+  contentfulErrorId?: string;
 };
+
+function parseContentfulManagementError(text: string): {
+  message?: string;
+  contentfulErrorId?: string;
+} {
+  try {
+    const body = JSON.parse(text) as {
+      message?: string;
+      sys?: { id?: string };
+    };
+    return {
+      message: typeof body.message === "string" ? body.message : undefined,
+      contentfulErrorId: typeof body.sys?.id === "string" ? body.sys.id : undefined,
+    };
+  } catch {
+    return {};
+  }
+}
+
+function buildContentfulClientError(input: {
+  status: number;
+  fallbackMessage: string;
+  responseText?: string;
+}): ContentfulClientError {
+  const parsed = input.responseText ? parseContentfulManagementError(input.responseText) : {};
+  return {
+    code: "contentful_request_failed",
+    status: input.status,
+    message: parsed.message ?? input.fallbackMessage,
+    ...(parsed.contentfulErrorId ? { contentfulErrorId: parsed.contentfulErrorId } : {}),
+  };
+}
 
 type ContentfulLocale = { code: string; name: string; default: boolean };
 type ContentfulConnectionValidation = {
@@ -73,19 +106,34 @@ export class ContentfulManagementClient {
         headers,
       });
     } catch {
-      return err({
-        code: "contentful_request_failed",
-        status: 0,
-        message: "Contentful request failed before receiving a response",
-      });
+      return err(
+        buildContentfulClientError({
+          status: 0,
+          fallbackMessage: "Contentful request failed before receiving a response",
+        }),
+      );
     }
 
     if (!response.ok) {
-      return err({
-        code: "contentful_request_failed",
-        status: response.status,
-        message: `Contentful request failed with status ${response.status}`,
-      });
+      let responseText = "";
+      try {
+        responseText = await response.text();
+      } catch {
+        return err(
+          buildContentfulClientError({
+            status: response.status,
+            fallbackMessage: `Contentful request failed with status ${response.status}`,
+          }),
+        );
+      }
+
+      return err(
+        buildContentfulClientError({
+          status: response.status,
+          fallbackMessage: `Contentful request failed with status ${response.status}`,
+          responseText,
+        }),
+      );
     }
 
     if (response.status === 204) {
@@ -96,11 +144,12 @@ export class ContentfulManagementClient {
     try {
       text = await response.text();
     } catch {
-      return err({
-        code: "contentful_request_failed",
-        status: response.status,
-        message: "Contentful response body could not be read",
-      });
+      return err(
+        buildContentfulClientError({
+          status: response.status,
+          fallbackMessage: "Contentful response body could not be read",
+        }),
+      );
     }
 
     if (!text) {
@@ -110,11 +159,13 @@ export class ContentfulManagementClient {
     try {
       return ok(JSON.parse(text) as T);
     } catch {
-      return err({
-        code: "contentful_request_failed",
-        status: response.status,
-        message: "Contentful response body was not valid JSON",
-      });
+      return err(
+        buildContentfulClientError({
+          status: response.status,
+          fallbackMessage: "Contentful response body was not valid JSON",
+          responseText: text,
+        }),
+      );
     }
   }
 

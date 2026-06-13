@@ -13,6 +13,7 @@ import {
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
+import { loadContentfulConnectionWithToken } from "./contentful-connection-access";
 import { hashContentfulWebhookSecret } from "./webhook";
 import {
   contentfulWebhookCallbackUrl,
@@ -25,7 +26,6 @@ import type {
   ContentfulConnectionSummary,
   ContentfulConnectionValidation,
   ContentfulConnectionValidationError,
-  ContentfulSpaceDiscovery,
 } from "./types";
 
 type ContentfulConnectionRow = typeof schema.contentfulConnections.$inferSelect;
@@ -179,37 +179,7 @@ export async function getContentfulConnection(input: {
   return row ? serializeConnection(row.connection, row.webhook) : null;
 }
 
-export async function loadContentfulConnectionWithToken(input: {
-  organizationId: string;
-  connectionId: string;
-}) {
-  const [connection] = await db
-    .select()
-    .from(schema.contentfulConnections)
-    .where(
-      and(
-        eq(schema.contentfulConnections.organizationId, input.organizationId),
-        eq(schema.contentfulConnections.id, input.connectionId),
-      ),
-    )
-    .limit(1);
-
-  if (!connection) {
-    return null;
-  }
-
-  const token = unwrapProviderCredentialCrypto(
-    decryptProviderCredential({
-      algorithm: connection.encryptionAlgorithm,
-      keyVersion: connection.keyVersion,
-      ciphertext: connection.ciphertext,
-      iv: connection.iv,
-      authTag: connection.authTag,
-    }),
-  );
-
-  return { connection, token };
-}
+export { loadContentfulConnectionWithToken } from "./contentful-connection-access";
 
 async function assertProjectBelongsToOrganization(input: {
   organizationId: string;
@@ -465,64 +435,7 @@ export async function deleteContentfulConnection(input: {
   return Boolean(deleted);
 }
 
-export async function discoverContentfulSpace(input: {
-  organizationId: string;
-  spaceId: string;
-  environmentId: string;
-  accessToken?: string;
-  connectionId?: string;
-}): Promise<Result<ContentfulSpaceDiscovery, ContentfulConnectionValidationError>> {
-  let accessToken = input.accessToken?.trim();
-  if (!accessToken && input.connectionId) {
-    const loaded = await loadContentfulConnectionWithToken({
-      organizationId: input.organizationId,
-      connectionId: input.connectionId,
-    });
-    if (!loaded) {
-      return err({
-        code: "contentful_connection_validation_failed",
-        message: "Contentful connection not found.",
-      });
-    }
-    accessToken = loaded.token;
-  }
-
-  if (!accessToken) {
-    return err({
-      code: "contentful_connection_validation_failed",
-      message: "A Management API token is required to load Contentful metadata.",
-    });
-  }
-
-  const client = new ContentfulManagementClient({
-    accessToken,
-    spaceId: input.spaceId,
-    environmentId: input.environmentId,
-  });
-
-  const [validationResult, contentTypesResult] = await Promise.all([
-    client.validateConnection(),
-    client.listContentTypes(),
-  ]);
-  if (isErr(validationResult)) {
-    return err({
-      code: "contentful_connection_validation_failed",
-      message: validationResult.error.message,
-    });
-  }
-  if (isErr(contentTypesResult)) {
-    return err({
-      code: "contentful_connection_validation_failed",
-      message: contentTypesResult.error.message,
-    });
-  }
-
-  return ok({
-    environmentId: validationResult.value.environmentId,
-    locales: validationResult.value.locales,
-    contentTypes: contentTypesResult.value,
-  });
-}
+export { discoverContentfulSpace } from "./discover-contentful-space";
 
 export async function validateContentfulConnection(input: {
   organizationId: string;

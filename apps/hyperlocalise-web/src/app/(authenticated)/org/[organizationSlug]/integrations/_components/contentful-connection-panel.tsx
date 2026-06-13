@@ -10,7 +10,7 @@ import { createApiClient } from "@/lib/api-client";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 
@@ -159,9 +159,20 @@ function useDiscoverContentfulSpace(input: {
         const error = await res
           .json()
           .catch(() => ({ message: "Unable to load Contentful metadata" }));
-        throw new Error(
-          "message" in error ? String(error.message) : "Unable to load Contentful metadata",
-        );
+        const message =
+          typeof error === "object" &&
+          error !== null &&
+          "message" in error &&
+          typeof error.message === "string" &&
+          error.message.length > 0
+            ? error.message
+            : typeof error === "object" &&
+                error !== null &&
+                "error" in error &&
+                typeof error.error === "string"
+              ? error.error.replaceAll("_", " ")
+              : "Unable to load Contentful metadata";
+        throw new Error(message);
       }
       const data = await res.json();
       return data.contentfulSpaceDiscovery as {
@@ -251,6 +262,16 @@ export function useSaveContentfulConnection(organizationSlug: string) {
   });
 }
 
+function ContentfulTokenGuidance() {
+  return (
+    <FieldDescription>
+      Use a Content Management API personal access token from Contentful Settings → Content
+      management tokens. Do not use Content Delivery or Preview API keys — those are read-only and
+      cannot write draft translations or register webhooks.
+    </FieldDescription>
+  );
+}
+
 function ProjectLocalesSummary({ project }: { project: ProjectOption | undefined }) {
   if (!project) {
     return (
@@ -320,7 +341,7 @@ function ContentTypePicker({
   if (requiresCredentials) {
     return (
       <p className="text-sm text-muted-foreground">
-        Enter your Space ID and Management API token to load content types from Contentful.
+        Enter your Space ID and Content Management API token to load content types from Contentful.
       </p>
     );
   }
@@ -507,7 +528,8 @@ export function ContentfulConnectionPanel({
         </Field>
         {!connection || isReplacingToken ? (
           <Field className="gap-2 lg:col-span-2">
-            <FieldLabel>Management API token</FieldLabel>
+            <FieldLabel>Content Management API token</FieldLabel>
+            <ContentfulTokenGuidance />
             <div className="flex gap-2">
               <Input
                 type="password"
@@ -533,7 +555,8 @@ export function ContentfulConnectionPanel({
           </Field>
         ) : (
           <Field className="gap-2 lg:col-span-2">
-            <FieldLabel>Management API token</FieldLabel>
+            <FieldLabel>Content Management API token</FieldLabel>
+            <ContentfulTokenGuidance />
             <Button
               type="button"
               variant="outline"
