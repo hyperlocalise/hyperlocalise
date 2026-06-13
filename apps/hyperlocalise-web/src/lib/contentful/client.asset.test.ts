@@ -33,9 +33,10 @@ describe("ContentfulManagementClient asset helpers", () => {
 
       if (url.endsWith("/assets") && init?.method === "POST") {
         const requestBody = init?.body;
-        const body = JSON.parse(
-          typeof requestBody === "string" ? requestBody : "",
-        ) as Record<string, unknown>;
+        const body = JSON.parse(typeof requestBody === "string" ? requestBody : "") as Record<
+          string,
+          unknown
+        >;
         createdAssets.push(body);
         return Response.json({
           sys: { id: "asset-localized", version: 1 },
