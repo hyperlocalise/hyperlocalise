@@ -16,7 +16,9 @@ const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
 type CatWorkspacePanel = "edit" | "queue" | "ai";
 
 function useIsCompactWorkspace() {
-  const [isCompact, setIsCompact] = useState(false);
+  const [isCompact, setIsCompact] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(COMPACT_WORKSPACE_QUERY).matches,
+  );
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(COMPACT_WORKSPACE_QUERY);
@@ -24,10 +26,8 @@ function useIsCompactWorkspace() {
 
     sync();
     mediaQuery.addEventListener("change", sync);
-    window.addEventListener("resize", sync);
     return () => {
       mediaQuery.removeEventListener("change", sync);
-      window.removeEventListener("resize", sync);
     };
   }, []);
 

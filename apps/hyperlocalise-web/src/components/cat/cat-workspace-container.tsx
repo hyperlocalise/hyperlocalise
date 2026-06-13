@@ -190,6 +190,7 @@ export function CatWorkspaceContainer({
   const stateRef = useRef(state);
   const previousInitialStateRef = useRef(initialState);
   const validationSequenceRef = useRef(0);
+  const reviewSequenceRef = useRef(0);
   const isAiRecommendationEnabledRef = useRef(isAiRecommendationEnabled);
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
@@ -277,6 +278,8 @@ export function CatWorkspaceContainer({
         return;
       }
 
+      const sequence = reviewSequenceRef.current + 1;
+      reviewSequenceRef.current = sequence;
       setIsGeneratingAiRecommendation(true);
       try {
         const [recommendation, formatChecks, qaChecks] = await Promise.all([
@@ -290,6 +293,9 @@ export function CatWorkspaceContainer({
             ? runQaChecks(segment, segment.targetText)
             : Promise.resolve([]),
         ]);
+        if (reviewSequenceRef.current !== sequence) {
+          return;
+        }
         const checks = recommendation?.formatChecks ?? [...formatChecks, ...qaChecks];
 
         setState((current) => {
@@ -316,7 +322,9 @@ export function CatWorkspaceContainer({
           };
         });
       } finally {
-        setIsGeneratingAiRecommendation(false);
+        if (reviewSequenceRef.current === sequence) {
+          setIsGeneratingAiRecommendation(false);
+        }
       }
     },
     [generateAiRecommendation, onReviewWithAi, runQaChecks, validateFormat],
