@@ -1,6 +1,9 @@
 package translationfileparser
 
-import "strings"
+import (
+	"encoding/xml"
+	"strings"
+)
 
 var (
 	xmlTextEscaper = strings.NewReplacer(
@@ -69,6 +72,15 @@ func isXMLDecimalCharacterReference(s string) bool {
 		}
 	}
 	return true
+}
+
+func attrValue(attrs []xml.Attr, name string) string {
+	for _, attr := range attrs {
+		if attr.Name.Local == name {
+			return strings.TrimSpace(attr.Value)
+		}
+	}
+	return ""
 }
 
 func isXMLHexCharacterReference(s string) bool {
