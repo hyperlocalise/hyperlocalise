@@ -22,6 +22,14 @@ const mocks = vi.hoisted(() => ({
   getAdapterMock: vi.fn(),
   getInstallationMock: vi.fn().mockResolvedValue({ botToken: "xoxb-token" }),
   fetchMock: vi.fn(),
+  loggerErrorMock: vi.fn(),
+}));
+
+vi.mock("@/lib/log", () => ({
+  createLogger: vi.fn(() => ({
+    error: mocks.loggerErrorMock,
+  })),
+  serializeErrorForLog: (error: unknown) => error,
 }));
 
 vi.mock("@/lib/agents/slack/bot", () => ({
@@ -71,17 +79,55 @@ async function createStoredSlackConnector(input: {
   return connector;
 }
 
+function restoreDefaultMocks() {
+  mocks.resolveApiAuthContextFromSessionMock.mockImplementation(
+    (options) =>
+      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+      globalThis.__testApiAuthContext ??
+      null,
+  );
+  mocks.initializeMock.mockResolvedValue(undefined);
+  mocks.getInstallationMock.mockResolvedValue({ botToken: "xoxb-token" });
+  mocks.getAdapterMock.mockReturnValue({
+    getInstallation: mocks.getInstallationMock,
+  });
+  mocks.getSlackBotMock.mockResolvedValue({
+    initialize: mocks.initializeMock,
+    getAdapter: mocks.getAdapterMock,
+  });
+}
+
+async function setupEnabledSlackConnector() {
+  const identity = fixture.createWorkosIdentityWithRole("admin");
+  const organizationSlug = identity.organization.slug ?? "missing-slug";
+  const headers = await fixture.authHeadersFor(identity);
+  const auth = globalThis.__testApiAuthContext;
+  if (!auth) {
+    throw new Error("missing auth context");
+  }
+
+  await createStoredSlackConnector({
+    organizationId: auth.organization.localOrganizationId,
+    enabled: true,
+    teamId: "T123",
+    teamName: "My Team",
+  });
+
+  return { organizationSlug, headers, auth };
+}
+
 describe("agentSlackRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
   });
 
   beforeEach(() => {
+    restoreDefaultMocks();
     vi.spyOn(globalThis, "fetch").mockImplementation(mocks.fetchMock);
   });
 
   afterEach(async () => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     vi.unstubAllGlobals();
     await fixture.cleanup();
   });
@@ -143,20 +189,7 @@ describe("agentSlackRoutes", () => {
   });
 
   it("lists Slack channels for an enabled connector", async () => {
-    const identity = fixture.createWorkosIdentityWithRole("admin");
-    const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const headers = await fixture.authHeadersFor(identity);
-    const auth = globalThis.__testApiAuthContext;
-    if (!auth) {
-      throw new Error("missing auth context");
-    }
-
-    await createStoredSlackConnector({
-      organizationId: auth.organization.localOrganizationId,
-      enabled: true,
-      teamId: "T123",
-      teamName: "My Team",
-    });
+    const { organizationSlug, headers } = await setupEnabledSlackConnector();
 
     mocks.fetchMock.mockResolvedValue({
       ok: true,
@@ -193,6 +226,100 @@ describe("agentSlackRoutes", () => {
       expect.objectContaining({
         headers: { authorization: "Bearer xoxb-token" },
       }),
+    );
+  });
+
+  it("returns 404 when the Slack installation is missing", async () => {
+    const { organizationSlug, headers } = await setupEnabledSlackConnector();
+    mocks.getInstallationMock.mockResolvedValue(null);
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+      {
+        param: { organizationSlug },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: "slack_installation_not_found" });
+    expect(mocks.loggerErrorMock).not.toHaveBeenCalled();
+  });
+
+  it("returns 502 when Slack responds with a non-2xx status", async () => {
+    const { organizationSlug, headers, auth } = await setupEnabledSlackConnector();
+    mocks.fetchMock.mockResolvedValue({
+      ok: false,
+      status: 503,
+    } as Response);
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+      {
+        param: { organizationSlug },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: "slack_channels_unavailable" });
+    expect(mocks.loggerErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: "slack_http_error",
+        status: 503,
+        organizationId: auth.organization.localOrganizationId,
+        teamId: "T123",
+      }),
+      "slack channel list failed",
+    );
+  });
+
+  it("returns 502 when Slack returns an API error", async () => {
+    const { organizationSlug, headers, auth } = await setupEnabledSlackConnector();
+    mocks.fetchMock.mockResolvedValue({
+      ok: true,
+      json: vi.fn().mockResolvedValue({ ok: false, error: "invalid_auth" }),
+    } as unknown as Response);
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+      {
+        param: { organizationSlug },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: "slack_channels_unavailable" });
+    expect(mocks.loggerErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: "slack_api_error",
+        slackError: "invalid_auth",
+        organizationId: auth.organization.localOrganizationId,
+        teamId: "T123",
+      }),
+      "slack channel list failed",
+    );
+  });
+
+  it("returns 502 when the Slack bot is unavailable", async () => {
+    const { organizationSlug, headers, auth } = await setupEnabledSlackConnector();
+    mocks.fetchMock.mockRejectedValue(new Error("network unavailable"));
+
+    const response = await client.api.orgs[":organizationSlug"]["agent-slack"].channels.$get(
+      {
+        param: { organizationSlug },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({ error: "slack_channels_unavailable" });
+    expect(mocks.loggerErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: "bot_unavailable",
+        err: expect.any(Error),
+        organizationId: auth.organization.localOrganizationId,
+        teamId: "T123",
+      }),
+      "slack channel list failed",
     );
   });
 
