@@ -18,7 +18,7 @@ import {
   inferSupportedFileTranslationFileFormat,
   supportedFileTranslationFileFormats,
 } from "@/lib/translation/file-formats";
-import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
+import { createReviewJobEventQueue, createTranslationJobEventQueue } from "@/lib/workflow/queues";
 import {
   formatUsageControlError,
   reserveUsageEvent,
@@ -61,6 +61,7 @@ function queuedJobUsageBilling(kind: JobKind) {
 }
 
 const jobQueue = createTranslationJobEventQueue();
+const reviewJobQueue = createReviewJobEventQueue();
 
 type JobCreationError =
   | { code: "job_permission_denied"; message: string }
@@ -75,6 +76,8 @@ type CreateTranslationJobToolError =
   | { code: "translation_job_source_file_missing"; message: string }
   | { code: "translation_job_source_file_format_unsupported"; message: string }
   | { code: "translation_job_queue_unavailable"; message: string }
+  | { code: "review_job_project_missing"; message: string }
+  | { code: "review_job_queue_unavailable"; message: string }
   | JobCreationError;
 
 class JobCreationRollbackError extends Error {
@@ -687,6 +690,51 @@ async function createReviewJobRecord(
   }
 }
 
+async function enqueueReviewJob(input: {
+  ctx: ToolContext;
+  job: JobRecord;
+  projectId: string;
+}): Promise<Result<void, CreateTranslationJobToolError>> {
+  try {
+    const result = await reviewJobQueue.enqueue({
+      kind: "review",
+      type: "native",
+      jobId: input.job.id,
+      projectId: input.projectId,
+    });
+
+    await input.ctx.db
+      .update(schema.jobs)
+      .set({ workflowRunId: result.ids[0] ?? null })
+      .where(
+        and(
+          eq(schema.jobs.id, input.job.id),
+          eq(schema.jobs.organizationId, input.ctx.organizationId),
+        ),
+      );
+
+    return ok(undefined);
+  } catch (error) {
+    await input.ctx.db
+      .update(schema.jobs)
+      .set({
+        status: "failed",
+        lastError: error instanceof Error ? error.message : "review job queue unavailable",
+      })
+      .where(
+        and(
+          eq(schema.jobs.id, input.job.id),
+          eq(schema.jobs.organizationId, input.ctx.organizationId),
+        ),
+      );
+
+    return err({
+      code: "review_job_queue_unavailable",
+      message: "Review job queue unavailable.",
+    });
+  }
+}
+
 export function createReviewJobTool(ctx: ToolContext) {
   return tool({
     description:
@@ -705,6 +753,18 @@ export function createReviewJobTool(ctx: ToolContext) {
         .describe("Optional linked translation job ID to review."),
     }),
     execute: async (input) => {
+      const projectId = getJobProjectId(ctx);
+      if (!projectId) {
+        return {
+          success: false,
+          error: formatCreateTranslationJobToolError({
+            code: "review_job_project_missing",
+            message:
+              "No project is attached to this conversation. Attach a project before creating a review job.",
+          }),
+        };
+      }
+
       const jobResult = await createReviewJobRecord(ctx, input);
       if (isErr(jobResult)) {
         return {
@@ -714,6 +774,16 @@ export function createReviewJobTool(ctx: ToolContext) {
       }
 
       const job = jobResult.value;
+      const enqueueResult = await enqueueReviewJob({ ctx, job, projectId });
+      if (isErr(enqueueResult)) {
+        return {
+          success: false,
+          jobId: job.id,
+          status: "failed",
+          error: formatCreateTranslationJobToolError(enqueueResult.error),
+        };
+      }
+
       return { success: true, jobId: job.id, status: job.status };
     },
   });

@@ -24,6 +24,16 @@ import {
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
+import {
+  getNativeProjectCatFile,
+  saveNativeProjectCatTranslation,
+  updateNativeProjectTranslationStatus,
+} from "@/lib/projects/native-project-cat";
+import { parseTranslationFileEntries } from "@/lib/projects/parse-translation-file-entries";
+import {
+  getRepositorySourceFileByPath,
+  upsertProjectTranslationKeysFromEntries,
+} from "@/lib/projects/project-translation-keys";
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createTranslationJobEventQueue } from "@/workflows/adapters";
@@ -32,6 +42,7 @@ import {
   createProjectBodySchema,
   maxProjectFileUploadBytes,
   projectFileCatQuerySchema,
+  projectFileCatStatusBodySchema,
   projectFileCatTranslationBodySchema,
   projectFileDetailQuerySchema,
   projectFileStringContextBodySchema,
@@ -299,6 +310,16 @@ const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileCatStatusBody = validator("json", (value, c) => {
+  const parsed = projectFileCatStatusBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileStringContextBody = validator("json", (value, c) => {
   const parsed = projectFileStringContextBodySchema.safeParse(value);
 
@@ -437,11 +458,28 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (target.kind !== "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "CAT editing is only available for provider files.",
-          );
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          const catFile = await getNativeProjectCatFile({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: query.sourcePath,
+            targetLocale: query.targetLocale,
+            canEditTranslations: isWriteBackTranslationAllowed(c.var.auth.membership.role),
+          });
+
+          if (!catFile) {
+            return badRequestResponse(
+              c,
+              "source_file_not_found",
+              "Source file not found for the given path",
+            );
+          }
+
+          return c.json({ catFile }, 200);
         }
 
         try {
@@ -482,11 +520,41 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (target.kind !== "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "CAT editing is only available for provider files.",
-          );
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          const sourceFile = await getRepositorySourceFileByPath({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+          });
+
+          if (!sourceFile) {
+            return badRequestResponse(
+              c,
+              "source_file_not_found",
+              "Source file not found for the given path",
+            );
+          }
+
+          const translation = await saveNativeProjectCatTranslation({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+            translationKeyId: body.externalStringId,
+            text: body.text,
+            approve: body.approve,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+
+          if (!translation) {
+            return badRequestResponse(c, "translation_key_not_found", "Translation key not found");
+          }
+
+          return c.json({ translation }, 200);
         }
 
         try {
@@ -510,6 +578,51 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/translations/status",
+      validateProjectParams,
+      validateProjectFileCatStatusBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "Native translation status updates are only available for workspace files.",
+          );
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const translation = await updateNativeProjectTranslationStatus({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          translationKeyId: body.externalStringId,
+          targetLocale: body.targetLocale,
+          status: body.status,
+          actorUserId: c.var.auth.user.localUserId,
+        });
+
+        if (!translation) {
+          return badRequestResponse(c, "translation_not_found", "Translation not found");
+        }
+
+        return c.json({ translation }, 200);
       },
     )
     .get(
@@ -708,6 +821,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
         let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
+        const fileText = await file.text();
 
         const { storedFile, version } = await db
           .transaction(async (tx) => {
@@ -750,6 +864,54 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             }
             throw error;
           });
+
+        const parseResult = parseTranslationFileEntries({
+          filename: parsed.data.sourcePath,
+          text: fileText,
+        });
+
+        if (isErr(parseResult)) {
+          console.warn("[file-upload] translation key parse failed, skipping import", {
+            projectId: params.projectId,
+            code: parseResult.error.code,
+          });
+        }
+
+        const entries = isErr(parseResult) ? [] : parseResult.value;
+
+        if (entries.length > 0) {
+          try {
+            const [sourceFile] = await db
+              .select({ id: schema.repositorySourceFiles.id })
+              .from(schema.repositorySourceFiles)
+              .where(
+                and(
+                  eq(
+                    schema.repositorySourceFiles.organizationId,
+                    c.var.auth.organization.localOrganizationId,
+                  ),
+                  eq(schema.repositorySourceFiles.projectId, params.projectId),
+                  eq(schema.repositorySourceFiles.sourcePath, parsed.data.sourcePath),
+                ),
+              )
+              .limit(1);
+
+            if (sourceFile) {
+              await upsertProjectTranslationKeysFromEntries({
+                organizationId: c.var.auth.organization.localOrganizationId,
+                projectId: params.projectId,
+                repositorySourceFileId: sourceFile.id,
+                sourceFileVersionId: version.id,
+                entries,
+              });
+            }
+          } catch (keyImportError) {
+            console.warn("[file-upload] key import failed, continuing", {
+              projectId: params.projectId,
+              error: keyImportError instanceof Error ? keyImportError.message : "unknown",
+            });
+          }
+        }
 
         return c.json(
           {

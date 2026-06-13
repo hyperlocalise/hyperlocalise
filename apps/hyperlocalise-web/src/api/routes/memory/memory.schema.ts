@@ -71,6 +71,13 @@ export const updateMemoryEntryBodySchema = z
     { message: "at least one field must be provided" },
   );
 
+export const promoteMemoryFromProjectBodySchema = z.object({
+  projectId: projectIdSchema,
+  sourceLocale: z.string().trim().min(1).max(50),
+  targetLocale: z.string().trim().max(50).optional(),
+  sourcePath: z.string().trim().min(1).max(2048).optional(),
+});
+
 export const importMemoryEntriesBodySchema = z.object({
   format: z.enum(["csv", "tmx"]),
   content: z.string().min(1).max(10_000_000),
@@ -159,6 +166,7 @@ export type CreateMemoryBody = z.infer<typeof createMemoryBodySchema>;
 export type UpdateMemoryBody = z.infer<typeof updateMemoryBodySchema>;
 export type CreateMemoryEntryBody = z.infer<typeof createMemoryEntryBodySchema>;
 export type UpdateMemoryEntryBody = z.infer<typeof updateMemoryEntryBodySchema>;
+export type PromoteMemoryFromProjectBody = z.infer<typeof promoteMemoryFromProjectBodySchema>;
 export type ImportMemoryEntriesBody = z.infer<typeof importMemoryEntriesBodySchema>;
 export type AttachMemoryProjectBody = z.infer<typeof attachMemoryProjectBodySchema>;
 export type MemoryRecord = z.infer<typeof memoryRecordSchema>;

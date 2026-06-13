@@ -206,6 +206,21 @@ export async function getStoredFileStep(fileId: string, organizationId: string) 
   return file;
 }
 
+export async function getRepositorySourcePathForStoredFileStep(
+  fileId: string,
+  organizationId: string,
+) {
+  "use step";
+  const { getRepositorySourceFileVersionForStoredFile } =
+    await import("@/lib/file-storage/records");
+  const version = await getRepositorySourceFileVersionForStoredFile({
+    fileId,
+    organizationId,
+  });
+
+  return version?.sourcePath ?? null;
+}
+
 export async function getStoredFileContentStep(fileId: string, organizationId: string) {
   "use step";
   const { get } = await import("@vercel/blob");
@@ -328,6 +343,22 @@ export async function persistFileTranslationMemoryEntriesStep(input: {
   const { persistFileTranslationMemoryEntries } =
     await import("@/lib/translation/file-translation-memory");
   return persistFileTranslationMemoryEntries(input);
+}
+
+export async function persistFileProjectTranslationsStep(input: {
+  organizationId: string;
+  projectId: string;
+  jobId: string;
+  sourcePath: string;
+  sourceLocale: string;
+  targetLocale: string;
+  sourceEntries: Record<string, string>;
+  targetEntries: Record<string, string>;
+}) {
+  "use step";
+  const { persistFileJobTranslations } =
+    await import("@/lib/projects/promote-project-translations");
+  return persistFileJobTranslations(input);
 }
 
 export async function completeFileTranslationJobStep(input: {

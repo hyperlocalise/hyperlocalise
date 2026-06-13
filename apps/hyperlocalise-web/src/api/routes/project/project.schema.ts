@@ -220,6 +220,14 @@ export const projectFileCatTranslationBodySchema = z.object({
   externalStringId: z.string().trim().min(1).max(128),
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   text: z.string().max(100_000),
+  approve: z.boolean().optional(),
+});
+
+export const projectFileCatStatusBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  externalStringId: z.string().trim().min(1).max(128),
+  status: z.enum(["needs_review", "approved", "rejected"]),
 });
 
 export const maxProjectFileUploadBytes = 25 * 1024 * 1024;

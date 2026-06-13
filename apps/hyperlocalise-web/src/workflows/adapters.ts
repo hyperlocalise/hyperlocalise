@@ -23,7 +23,7 @@ import type {
   RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
 
-export { createTranslationJobEventQueue } from "@/lib/workflow/queues";
+export { createTranslationJobEventQueue, createReviewJobEventQueue } from "@/lib/workflow/queues";
 
 export function createGitHubFixQueue(): GitHubFixQueue {
   return {

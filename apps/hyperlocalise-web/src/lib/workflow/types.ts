@@ -7,6 +7,8 @@ export type JobEventData<Kind extends string, Type extends string = string> = {
 
 export type TranslationJobEventData = JobEventData<"translation", "string" | "file">;
 
+export type ReviewJobEventData = JobEventData<"review", "native">;
+
 export type GitHubReviewTriggerType = "pull_request" | "mention";
 
 export type GitHubFixScope =
