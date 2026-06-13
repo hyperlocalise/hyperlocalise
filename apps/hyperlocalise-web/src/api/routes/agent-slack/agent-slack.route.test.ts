@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { and, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
-import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
@@ -21,7 +21,7 @@ const mocks = vi.hoisted(() => ({
   initializeMock: vi.fn().mockResolvedValue(undefined),
   getAdapterMock: vi.fn(),
   getInstallationMock: vi.fn().mockResolvedValue({ botToken: "xoxb-token" }),
-  providerSafeFetchMock: vi.fn(),
+  fetchMock: vi.fn(),
 }));
 
 vi.mock("@/lib/agents/slack/bot", () => ({
@@ -40,10 +40,6 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
     resolveApiAuthContextFromSession: mocks.resolveApiAuthContextFromSessionMock,
   };
 });
-
-vi.mock("@/lib/providers/provider-safe-fetch", () => ({
-  providerSafeFetch: mocks.providerSafeFetchMock,
-}));
 
 const client = testClient(app);
 const fixture = createProjectTestFixture(client);
@@ -78,6 +74,10 @@ async function createStoredSlackConnector(input: {
 describe("agentSlackRoutes", () => {
   beforeAll(async () => {
     await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    vi.spyOn(globalThis, "fetch").mockImplementation(mocks.fetchMock);
   });
 
   afterEach(async () => {
@@ -158,7 +158,7 @@ describe("agentSlackRoutes", () => {
       teamName: "My Team",
     });
 
-    mocks.providerSafeFetchMock.mockResolvedValue({
+    mocks.fetchMock.mockResolvedValue({
       ok: true,
       json: vi.fn().mockResolvedValue({
         ok: true,
@@ -186,7 +186,7 @@ describe("agentSlackRoutes", () => {
       ],
     });
     expect(mocks.getInstallationMock).toHaveBeenCalledWith("T123");
-    expect(mocks.providerSafeFetchMock).toHaveBeenCalledWith(
+    expect(mocks.fetchMock).toHaveBeenCalledWith(
       expect.objectContaining({
         href: expect.stringContaining("https://slack.com/api/conversations.list"),
       }),

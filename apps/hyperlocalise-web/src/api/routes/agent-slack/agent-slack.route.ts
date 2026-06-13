@@ -16,7 +16,8 @@ import {
 } from "@/lib/agents/slack/oauth-state";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
+import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assertProviderCredentialAdmin } from "@/lib/providers/organization-provider-credentials";
 
 import { updateSlackAgentBodySchema } from "./agent-slack.schema";
@@ -30,6 +31,15 @@ type SlackConversationsListResponse = {
   channels?: SlackChannel[];
   response_metadata?: { next_cursor?: string };
 };
+
+type SlackChannelListItem = { id: string; name: string; private: boolean };
+type SlackChannelListError =
+  | { code: "installation_not_found" }
+  | { code: "bot_unavailable"; cause: unknown }
+  | { code: "slack_http_error"; status: number }
+  | { code: "slack_api_error"; slackError: string };
+
+const logger = createLogger("agent-slack");
 
 const validateUpdateSlackAgentBody = validator("json", (value, c) => {
   const parsed = updateSlackAgentBodySchema.safeParse(value);
@@ -59,18 +69,36 @@ async function getSlackConnector(organizationId: string) {
   return connector ?? null;
 }
 
-async function getSlackInstallation(teamId: string): Promise<SlackInstallation | null> {
-  const bot = await getSlackBot();
-  await bot.initialize();
-  const adapter = bot.getAdapter("slack") as {
-    getInstallation: (teamId: string) => Promise<SlackInstallation | null>;
-  };
+async function getSlackInstallation(
+  teamId: string,
+): Promise<Result<SlackInstallation, SlackChannelListError>> {
+  const installationResult = await fromThrowableAsync(
+    (async () => {
+      const bot = await getSlackBot();
+      await bot.initialize();
+      const adapter = bot.getAdapter("slack") as {
+        getInstallation: (teamId: string) => Promise<SlackInstallation | null>;
+      };
 
-  return adapter.getInstallation(teamId);
+      return adapter.getInstallation(teamId);
+    })(),
+  );
+
+  if (isErr(installationResult)) {
+    return err({ code: "bot_unavailable", cause: installationResult.error });
+  }
+
+  if (!installationResult.value?.botToken) {
+    return err({ code: "installation_not_found" });
+  }
+
+  return ok(installationResult.value);
 }
 
-async function listSlackChannels(botToken: string) {
-  const channels: Array<{ id: string; name: string; private: boolean }> = [];
+async function listSlackChannels(
+  botToken: string,
+): Promise<Result<SlackChannelListItem[], SlackChannelListError>> {
+  const channels: SlackChannelListItem[] = [];
   let cursor = "";
 
   do {
@@ -82,17 +110,31 @@ async function listSlackChannels(botToken: string) {
       url.searchParams.set("cursor", cursor);
     }
 
-    // Use providerSafeFetch to prevent SSRF when calling Slack API
-    const response = await providerSafeFetch(url, {
-      headers: { authorization: `Bearer ${botToken}` },
-    });
-    if (!response.ok) {
-      throw new Error("Slack channel list request failed");
+    const responseResult = await fromThrowableAsync(
+      fetch(url, {
+        headers: { authorization: `Bearer ${botToken}` },
+        redirect: "error",
+      }),
+    );
+    if (isErr(responseResult)) {
+      return err({ code: "bot_unavailable", cause: responseResult.error });
     }
 
-    const body = (await response.json()) as SlackConversationsListResponse;
+    const response = responseResult.value;
+    if (!response.ok) {
+      return err({ code: "slack_http_error", status: response.status });
+    }
+
+    const bodyResult = await fromThrowableAsync(
+      response.json() as Promise<SlackConversationsListResponse>,
+    );
+    if (isErr(bodyResult)) {
+      return err({ code: "bot_unavailable", cause: bodyResult.error });
+    }
+
+    const body = bodyResult.value;
     if (!body.ok) {
-      throw new Error(body.error ?? "Slack channel list request failed");
+      return err({ code: "slack_api_error", slackError: body.error ?? "unknown" });
     }
 
     for (const channel of body.channels ?? []) {
@@ -109,7 +151,31 @@ async function listSlackChannels(botToken: string) {
     cursor = body.response_metadata?.next_cursor ?? "";
   } while (cursor);
 
-  return channels.sort((left, right) => left.name.localeCompare(right.name));
+  return ok(channels.sort((left, right) => left.name.localeCompare(right.name)));
+}
+
+async function loadSlackChannelsForTeam(
+  teamId: string,
+): Promise<Result<SlackChannelListItem[], SlackChannelListError>> {
+  const installationResult = await getSlackInstallation(teamId);
+  if (isErr(installationResult)) {
+    return installationResult;
+  }
+
+  return listSlackChannels(installationResult.value.botToken);
+}
+
+function slackChannelListErrorLogFields(error: SlackChannelListError) {
+  switch (error.code) {
+    case "installation_not_found":
+      return {};
+    case "slack_api_error":
+      return { slackError: error.slackError };
+    case "slack_http_error":
+      return { status: error.status };
+    case "bot_unavailable":
+      return { err: serializeErrorForLog(error.cause) };
+  }
 }
 
 export function createAgentSlackRoutes() {
@@ -147,17 +213,25 @@ export function createAgentSlackRoutes() {
         return c.json({ channels: [] }, 200);
       }
 
-      try {
-        const installation = await getSlackInstallation(config.teamId);
-        if (!installation?.botToken) {
+      const channelsResult = await loadSlackChannelsForTeam(config.teamId);
+      if (isErr(channelsResult)) {
+        if (channelsResult.error.code === "installation_not_found") {
           return c.json({ error: "slack_installation_not_found" as const }, 404);
         }
 
-        const channels = await listSlackChannels(installation.botToken);
-        return c.json({ channels }, 200);
-      } catch {
+        logger.error(
+          {
+            ...slackChannelListErrorLogFields(channelsResult.error),
+            organizationId: c.var.auth.organization.localOrganizationId,
+            teamId: config.teamId,
+            errorCode: channelsResult.error.code,
+          },
+          "slack channel list failed",
+        );
         return c.json({ error: "slack_channels_unavailable" as const }, 502);
       }
+
+      return c.json({ channels: channelsResult.value }, 200);
     })
     .get("/install-url", async (c) => {
       try {
