@@ -24,6 +24,7 @@ import {
   type StringTranslationGenerator,
   type StringTranslationJobResult,
 } from "@/lib/translation/string-job-executor";
+import { userFacingFailureReason } from "@/lib/translation/sandbox-translation";
 
 type ClaimTranslationJobInput = {
   event: TranslationJobEventData;
@@ -466,14 +467,24 @@ export async function completeTranslationJob(input: {
       .limit(1);
 
     if (project?.organizationId) {
-      await persistStringJobTranslations({
-        organizationId: project.organizationId,
-        projectId: input.projectId,
-        jobId: input.jobId,
-        sourceLocale: parsedInput.data.sourceLocale,
-        translations: input.result.translations,
-        translationKeyId: parsedInput.data.translationKeyId,
-      });
+      try {
+        await persistStringJobTranslations({
+          organizationId: project.organizationId,
+          projectId: input.projectId,
+          jobId: input.jobId,
+          sourceLocale: parsedInput.data.sourceLocale,
+          translations: input.result.translations,
+          translationKeyId: parsedInput.data.translationKeyId,
+        });
+      } catch (error) {
+        console.warn("[translation-job] string translation persistence failed", {
+          jobId: input.jobId,
+          projectId: input.projectId,
+          organizationId: project.organizationId,
+          translationKeyId: parsedInput.data.translationKeyId,
+          error: userFacingFailureReason(error),
+        });
+      }
     }
   }
 
