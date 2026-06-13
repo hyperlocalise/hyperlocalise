@@ -65,7 +65,8 @@ describe("contentfulConnectionRoutes", () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
-    const organizationId = globalThis.__testApiAuthContext?.organization.localOrganizationId ?? "";
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
 
     const response = await client.api.orgs[":organizationSlug"][
       "contentful-connections"
@@ -175,6 +176,41 @@ describe("contentfulConnectionRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: "contentful_discovery_connection_not_found",
       message: "Contentful connection not found.",
+    });
+  });
+
+  it("maps unavailable Contentful spaces to not found responses", async () => {
+    mocks.discoverContentfulSpaceMock.mockResolvedValue(
+      err({
+        code: "contentful_discovery_space_unavailable",
+        message:
+          "Contentful could not find the requested space or environment. Check the Space ID and Environment ID.",
+        contentfulStatus: 404,
+      }),
+    );
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "contentful-connections"
+    ].discover.$post(
+      {
+        param: { organizationSlug },
+        json: {
+          spaceId: "space-id",
+          environmentId: "master",
+          accessToken: "cma_test_token",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "contentful_discovery_space_unavailable",
+      message:
+        "Contentful could not find the requested space or environment. Check the Space ID and Environment ID.",
     });
   });
 
