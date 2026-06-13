@@ -25,6 +25,7 @@ import type {
   ContentfulConnectionSummary,
   ContentfulConnectionValidation,
   ContentfulConnectionValidationError,
+  ContentfulSpaceDiscovery,
 } from "./types";
 
 type ContentfulConnectionRow = typeof schema.contentfulConnections.$inferSelect;
@@ -462,6 +463,65 @@ export async function deleteContentfulConnection(input: {
     .returning({ id: schema.contentfulConnections.id });
 
   return Boolean(deleted);
+}
+
+export async function discoverContentfulSpace(input: {
+  organizationId: string;
+  spaceId: string;
+  environmentId: string;
+  accessToken?: string;
+  connectionId?: string;
+}): Promise<Result<ContentfulSpaceDiscovery, ContentfulConnectionValidationError>> {
+  let accessToken = input.accessToken?.trim();
+  if (!accessToken && input.connectionId) {
+    const loaded = await loadContentfulConnectionWithToken({
+      organizationId: input.organizationId,
+      connectionId: input.connectionId,
+    });
+    if (!loaded) {
+      return err({
+        code: "contentful_connection_validation_failed",
+        message: "Contentful connection not found.",
+      });
+    }
+    accessToken = loaded.token;
+  }
+
+  if (!accessToken) {
+    return err({
+      code: "contentful_connection_validation_failed",
+      message: "A Management API token is required to load Contentful metadata.",
+    });
+  }
+
+  const client = new ContentfulManagementClient({
+    accessToken,
+    spaceId: input.spaceId,
+    environmentId: input.environmentId,
+  });
+
+  const [validationResult, contentTypesResult] = await Promise.all([
+    client.validateConnection(),
+    client.listContentTypes(),
+  ]);
+  if (isErr(validationResult)) {
+    return err({
+      code: "contentful_connection_validation_failed",
+      message: validationResult.error.message,
+    });
+  }
+  if (isErr(contentTypesResult)) {
+    return err({
+      code: "contentful_connection_validation_failed",
+      message: contentTypesResult.error.message,
+    });
+  }
+
+  return ok({
+    environmentId: validationResult.value.environmentId,
+    locales: validationResult.value.locales,
+    contentTypes: contentTypesResult.value,
+  });
 }
 
 export async function validateContentfulConnection(input: {

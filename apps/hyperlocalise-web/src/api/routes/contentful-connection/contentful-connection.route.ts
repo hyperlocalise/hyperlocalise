@@ -8,6 +8,7 @@ import { isErr } from "@/lib/primitives/result/results";
 import {
   createContentfulConnection,
   deleteContentfulConnection,
+  discoverContentfulSpace,
   getContentfulConnection,
   listContentfulConnections,
   updateContentfulConnection,
@@ -17,6 +18,7 @@ import {
 import {
   contentfulConnectionIdParamSchema,
   createContentfulConnectionBodySchema,
+  discoverContentfulSpaceBodySchema,
   updateContentfulConnectionBodySchema,
 } from "./contentful-connection.schema";
 
@@ -54,6 +56,19 @@ const validateUpdateBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateDiscoverBody = validator("json", (value, c) => {
+  const parsed = discoverContentfulSpaceBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(
+      c,
+      "invalid_contentful_discovery_payload",
+      "Contentful discovery payload is invalid.",
+      parsed.error.flatten(),
+    );
+  }
+  return parsed.data;
+});
+
 function canReadContentful(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "integrations:read");
 }
@@ -82,6 +97,26 @@ export function createContentfulConnectionRoutes() {
       });
 
       return c.json({ contentfulConnections }, 200);
+    })
+    .post("/discover", validateDiscoverBody, async (c) => {
+      if (!canReadContentful(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const payload = c.req.valid("json");
+      const result = await discoverContentfulSpace({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        spaceId: payload.spaceId,
+        environmentId: payload.environmentId,
+        accessToken: payload.accessToken,
+        connectionId: payload.connectionId,
+      });
+
+      if (isErr(result)) {
+        return badRequestResponse(c, result.error.code, result.error.message);
+      }
+
+      return c.json({ contentfulSpaceDiscovery: result.value }, 200);
     })
     .post("/", validateCreateBody, async (c) => {
       if (!canWriteContentful(c.var.auth.membership.role)) {

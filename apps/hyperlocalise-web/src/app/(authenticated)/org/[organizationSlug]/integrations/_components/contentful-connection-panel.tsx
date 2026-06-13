@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { SaveIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { createApiClient } from "@/lib/api-client";
+import { getLocaleLabel } from "@/lib/i18n/locales";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldLabel } from "@/components/ui/field";
@@ -41,6 +42,8 @@ export type ContentfulConnectionSummary = {
 export type ProjectOption = {
   id: string;
   name: string;
+  sourceLocale: string | null;
+  targetLocales: string[];
 };
 
 export type ContentfulConnectionForm = {
@@ -48,10 +51,13 @@ export type ContentfulConnectionForm = {
   projectId: string;
   spaceId: string;
   environmentId: string;
-  sourceLocale: string;
-  targetLocales: string;
-  contentTypeIds: string;
+  contentTypeIds: string[];
   accessToken: string;
+};
+
+type ContentfulContentTypeOption = {
+  id: string;
+  name: string;
 };
 
 type SaveContentfulConnectionPayloadBase = {
@@ -105,7 +111,64 @@ export function useProjectOptions(organizationSlug: string, enabled = true) {
       return data.projects.map((project) => ({
         id: project.id,
         name: project.name,
+        sourceLocale: project.sourceLocale ?? null,
+        targetLocales: project.targetLocales ?? [],
       })) as ProjectOption[];
+    },
+  });
+}
+
+function useDiscoverContentfulSpace(input: {
+  organizationSlug: string;
+  spaceId: string;
+  environmentId: string;
+  accessToken: string;
+  connectionId?: string;
+  enabled: boolean;
+}) {
+  const trimmedSpaceId = input.spaceId.trim();
+  const trimmedEnvironmentId = input.environmentId.trim() || "master";
+  const trimmedAccessToken = input.accessToken.trim();
+  const canDiscover =
+    input.enabled &&
+    trimmedSpaceId.length > 0 &&
+    trimmedEnvironmentId.length > 0 &&
+    (trimmedAccessToken.length > 0 || Boolean(input.connectionId));
+
+  return useQuery({
+    queryKey: [
+      "contentful-space-discovery",
+      input.organizationSlug,
+      trimmedSpaceId,
+      trimmedEnvironmentId,
+      input.connectionId ?? null,
+      trimmedAccessToken || "stored",
+    ],
+    enabled: canDiscover,
+    queryFn: async () => {
+      const res = await api.api.orgs[":organizationSlug"]["contentful-connections"].discover.$post({
+        param: { organizationSlug: input.organizationSlug },
+        json: {
+          spaceId: trimmedSpaceId,
+          environmentId: trimmedEnvironmentId,
+          ...(trimmedAccessToken ? { accessToken: trimmedAccessToken } : {}),
+          ...(input.connectionId ? { connectionId: input.connectionId } : {}),
+        },
+      });
+      if (!res.ok) {
+        const error = await res
+          .json()
+          .catch(() => ({ message: "Unable to load Contentful metadata" }));
+        throw new Error(
+          "message" in error ? String(error.message) : "Unable to load Contentful metadata",
+        );
+      }
+      const data = await res.json();
+      return data.contentfulSpaceDiscovery as {
+        environmentId: string;
+        locales: Array<{ code: string; name: string; default: boolean }>;
+        contentTypes: ContentfulContentTypeOption[];
+      };
     },
   });
 }
@@ -188,6 +251,114 @@ export function useSaveContentfulConnection(organizationSlug: string) {
   });
 }
 
+function ProjectLocalesSummary({ project }: { project: ProjectOption | undefined }) {
+  if (!project) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Select a Hyperlocalise project to use its source and target locales.
+      </p>
+    );
+  }
+
+  if (!project.sourceLocale || project.targetLocales.length === 0) {
+    return (
+      <p className="text-sm text-destructive">
+        This project does not have locales configured yet. Set them in project settings before
+        connecting Contentful.
+      </p>
+    );
+  }
+
+  return (
+    <div className="grid gap-2 rounded-lg bg-muted/50 p-3 text-sm">
+      <div>
+        <span className="text-muted-foreground">Source: </span>
+        <span>
+          {getLocaleLabel(project.sourceLocale)} ({project.sourceLocale})
+        </span>
+      </div>
+      <div>
+        <span className="text-muted-foreground">Targets: </span>
+        <span>{project.targetLocales.join(", ")}</span>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Locales come from the selected Hyperlocalise project.
+      </p>
+    </div>
+  );
+}
+
+function ContentTypePicker({
+  contentTypes,
+  disabled,
+  isLoading,
+  loadError,
+  labelledBy,
+  selectedIds,
+  onChange,
+  requiresCredentials,
+}: {
+  contentTypes: ContentfulContentTypeOption[];
+  disabled: boolean;
+  isLoading: boolean;
+  loadError: string | null;
+  labelledBy: string;
+  selectedIds: string[];
+  onChange: (contentTypeIds: string[]) => void;
+  requiresCredentials: boolean;
+}) {
+  const selected = useMemo(() => new Set(selectedIds), [selectedIds]);
+
+  function toggleContentType(contentTypeId: string) {
+    if (selected.has(contentTypeId)) {
+      onChange(selectedIds.filter((id) => id !== contentTypeId));
+      return;
+    }
+    onChange([...selectedIds, contentTypeId].toSorted());
+  }
+
+  if (requiresCredentials) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Enter your Space ID and Management API token to load content types from Contentful.
+      </p>
+    );
+  }
+
+  if (isLoading) {
+    return <p className="text-sm text-muted-foreground">Loading content types...</p>;
+  }
+
+  if (loadError) {
+    return <p className="text-sm text-destructive">{loadError}</p>;
+  }
+
+  if (contentTypes.length === 0) {
+    return <p className="text-sm text-muted-foreground">No content types found in this space.</p>;
+  }
+
+  return (
+    <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={labelledBy}>
+      {contentTypes.map((contentType) => {
+        const isSelected = selected.has(contentType.id);
+        return (
+          <Button
+            key={contentType.id}
+            type="button"
+            size="sm"
+            variant={isSelected ? "default" : "outline"}
+            disabled={disabled}
+            onClick={() => toggleContentType(contentType.id)}
+            className="h-7 px-2.5 text-xs"
+          >
+            {contentType.name}
+          </Button>
+        );
+      })}
+    </div>
+  );
+}
+
 export function ContentfulConnectionPanel({
   connection,
   disabled,
@@ -198,6 +369,7 @@ export function ContentfulConnectionPanel({
   onFormChange,
   projects,
   isLoadingProjects,
+  organizationSlug,
 }: {
   connection?: ContentfulConnectionSummary;
   disabled: boolean;
@@ -208,33 +380,57 @@ export function ContentfulConnectionPanel({
   onFormChange: (form: ContentfulConnectionForm) => void;
   projects: ProjectOption[];
   isLoadingProjects: boolean;
+  organizationSlug: string;
 }) {
+  const contentTypesFieldId = useId();
   const [isReplacingToken, setIsReplacingToken] = useState(false);
   const selectedProject = projects.find((project) => project.id === form.projectId);
   const projectLabel =
     selectedProject?.name ?? (form.projectId ? "Unknown project" : "Select project");
-  const targetLocales = form.targetLocales
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
-  const contentTypeIds = form.contentTypeIds
-    .split(",")
-    .map((value) => value.trim())
-    .filter(Boolean);
+  const projectLocalesReady = Boolean(
+    selectedProject?.sourceLocale && selectedProject.targetLocales.length > 0,
+  );
   const tokenRequired = !connection || isReplacingToken;
+  const canDiscoverContentTypes =
+    form.spaceId.trim().length > 0 &&
+    (form.accessToken.trim().length > 0 || Boolean(connection?.id));
+  const discoveryQuery = useDiscoverContentfulSpace({
+    organizationSlug,
+    spaceId: form.spaceId,
+    environmentId: form.environmentId,
+    accessToken: form.accessToken,
+    connectionId: connection?.id,
+    enabled: canDiscoverContentTypes,
+  });
+  const discoveredContentTypes = discoveryQuery.data?.contentTypes ?? [];
   const canSaveContentfulConnection =
     form.displayName.trim().length > 0 &&
     form.projectId.trim().length > 0 &&
+    projectLocalesReady &&
     form.spaceId.trim().length > 0 &&
     form.environmentId.trim().length > 0 &&
-    form.sourceLocale.trim().length > 0 &&
-    targetLocales.length > 0 &&
-    contentTypeIds.length > 0 &&
+    form.contentTypeIds.length > 0 &&
     (!tokenRequired || form.accessToken.trim().length > 0);
 
   useEffect(() => {
     setIsReplacingToken(false);
   }, [connection?.id]);
+
+  useEffect(() => {
+    if (!discoveryQuery.data || form.contentTypeIds.length === 0) {
+      return;
+    }
+
+    const availableIds = new Set(
+      discoveryQuery.data.contentTypes.map((contentType) => contentType.id),
+    );
+    const nextIds = form.contentTypeIds.filter((id) => availableIds.has(id));
+    if (nextIds.length !== form.contentTypeIds.length) {
+      onFormChange({ ...form, contentTypeIds: nextIds });
+    }
+    // Prune stale selections only when Contentful metadata is refreshed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: avoid loops on selection changes
+  }, [discoveryQuery.data]);
 
   return (
     <div className="flex flex-col gap-5">
@@ -288,6 +484,10 @@ export function ContentfulConnectionPanel({
             </SelectContent>
           </Select>
         </Field>
+        <Field className="gap-2 lg:col-span-2">
+          <FieldLabel>Project locales</FieldLabel>
+          <ProjectLocalesSummary project={selectedProject} />
+        </Field>
         <Field className="gap-2">
           <FieldLabel>Space ID</FieldLabel>
           <Input
@@ -305,35 +505,8 @@ export function ContentfulConnectionPanel({
             onChange={(event) => onFormChange({ ...form, environmentId: event.target.value })}
           />
         </Field>
-        <Field className="gap-2">
-          <FieldLabel>Source locale</FieldLabel>
-          <Input
-            value={form.sourceLocale}
-            disabled={disabled}
-            placeholder="en-US"
-            onChange={(event) => onFormChange({ ...form, sourceLocale: event.target.value })}
-          />
-        </Field>
-        <Field className="gap-2">
-          <FieldLabel>Target locales</FieldLabel>
-          <Input
-            value={form.targetLocales}
-            disabled={disabled}
-            placeholder="fr-FR, de-DE"
-            onChange={(event) => onFormChange({ ...form, targetLocales: event.target.value })}
-          />
-        </Field>
-        <Field className="gap-2">
-          <FieldLabel>Content type IDs</FieldLabel>
-          <Input
-            value={form.contentTypeIds}
-            disabled={disabled}
-            placeholder="helpCenterArticle"
-            onChange={(event) => onFormChange({ ...form, contentTypeIds: event.target.value })}
-          />
-        </Field>
         {!connection || isReplacingToken ? (
-          <Field className="gap-2">
+          <Field className="gap-2 lg:col-span-2">
             <FieldLabel>Management API token</FieldLabel>
             <div className="flex gap-2">
               <Input
@@ -359,7 +532,7 @@ export function ContentfulConnectionPanel({
             </div>
           </Field>
         ) : (
-          <Field className="gap-2">
+          <Field className="gap-2 lg:col-span-2">
             <FieldLabel>Management API token</FieldLabel>
             <Button
               type="button"
@@ -372,6 +545,19 @@ export function ContentfulConnectionPanel({
             </Button>
           </Field>
         )}
+        <Field className="gap-2 lg:col-span-2">
+          <FieldLabel id={contentTypesFieldId}>Content types</FieldLabel>
+          <ContentTypePicker
+            contentTypes={discoveredContentTypes}
+            disabled={disabled}
+            isLoading={discoveryQuery.isFetching}
+            loadError={discoveryQuery.error?.message ?? null}
+            labelledBy={contentTypesFieldId}
+            selectedIds={form.contentTypeIds}
+            onChange={(contentTypeIds) => onFormChange({ ...form, contentTypeIds })}
+            requiresCredentials={!canDiscoverContentTypes}
+          />
+        </Field>
       </div>
 
       {connection?.webhook ? (
@@ -422,4 +608,15 @@ export function ContentfulConnectionPanel({
       </div>
     </div>
   );
+}
+
+export function getProjectLocales(project: ProjectOption | undefined) {
+  if (!project?.sourceLocale || project.targetLocales.length === 0) {
+    return null;
+  }
+
+  return {
+    sourceLocale: project.sourceLocale,
+    targetLocales: project.targetLocales,
+  };
 }
