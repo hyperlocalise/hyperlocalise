@@ -291,6 +291,11 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 			req:  &SourceStringsUploadRequest{StorageID: 1, FileID: 1, BranchID: 1},
 			err:  "only one of branchId, directoryId or fileId may be set",
 		},
+		{
+			name: "multi-set identifiers: file and directory",
+			req:  &SourceStringsUploadRequest{StorageID: 1, FileID: 1, DirectoryID: 1},
+			err:  "only one of branchId, directoryId or fileId may be set",
+		},
 	}
 
 	for _, tt := range tests {
