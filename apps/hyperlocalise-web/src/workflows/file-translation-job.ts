@@ -18,6 +18,7 @@ import {
   getStoredFileContentStep,
   getStoredFileStep,
   getRepositorySourcePathForStoredFileStep,
+  loadProjectTranslationsAsPrefilledEntriesStep,
   persistFileProjectTranslationsStep,
   persistFileTranslationMemoryEntriesStep,
   reuseFileTranslationMemoryEntriesStep,
@@ -413,24 +414,56 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
     for (const targetLocale of parsedInput.targetLocales) {
       const outputFilename = getSandboxOutputFilename(sourceFile.filename, targetLocale);
-      let reusedEntries: Record<string, string> = {};
+      let tmPrefilled: Record<string, string> = {};
       if (sourceEntries) {
-        reusedEntries = await reuseFileTranslationMemoryEntriesStep({
+        tmPrefilled = await reuseFileTranslationMemoryEntriesStep({
           projectId: claim.job.projectId,
           sourceLocale: parsedInput.sourceLocale,
           targetLocale,
           sourceEntries,
         });
-        if (Object.keys(reusedEntries).length > 0) {
+        if (Object.keys(tmPrefilled).length > 0) {
           console.info("[file-translation-workflow] matched reusable translation memory entries", {
             jobId: claim.job.id,
             projectId: claim.job.projectId,
             targetLocale,
-            reusedEntryCount: Object.keys(reusedEntries).length,
+            reusedEntryCount: Object.keys(tmPrefilled).length,
             sourceEntryCount: Object.keys(sourceEntries).length,
           });
         }
       }
+
+      let existingPrefilled: Record<string, string> = {};
+      if (repositorySourcePath) {
+        const projectPrefill = await loadProjectTranslationsAsPrefilledEntriesStep({
+          organizationId,
+          projectId: claim.job.projectId,
+          sourcePath: repositorySourcePath,
+          targetLocale,
+        });
+        existingPrefilled = projectPrefill.prefilled;
+        if (projectPrefill.truncated) {
+          console.warn("[file-translation-workflow] project translation prefill truncated", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            sourcePath: repositorySourcePath,
+            loadedKeyCount: projectPrefill.loadedKeyCount,
+            maxKeyCount: projectPrefill.maxKeyCount,
+          });
+        }
+        if (Object.keys(existingPrefilled).length > 0) {
+          console.info("[file-translation-workflow] loaded existing project translations", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            prefilledEntryCount: Object.keys(existingPrefilled).length,
+            sourcePath: repositorySourcePath,
+          });
+        }
+      }
+
+      const prefilledEntries = { ...tmPrefilled, ...existingPrefilled };
       const localeContext = context.glossaryTerms
         ? {
             ...context,
@@ -449,7 +482,7 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
           targetLocale,
           retryFeedback ? [instructions, retryFeedback].filter(Boolean).join("\n\n") : instructions,
           localeContext,
-          reusedEntries,
+          prefilledEntries,
         );
 
         if (translation.exitCode !== 0) {

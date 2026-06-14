@@ -165,3 +165,70 @@ export async function getProjectTranslationsByKeyIds(input: {
       ),
     );
 }
+
+export async function loadProjectTranslationsAsPrefilledEntries(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+}): Promise<{
+  prefilled: Record<string, string>;
+  truncated: boolean;
+  loadedKeyCount: number;
+  maxKeyCount: number;
+}> {
+  const sourceFile = await getRepositorySourceFileByPath({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+  });
+
+  if (!sourceFile) {
+    return { prefilled: {}, truncated: false, loadedKeyCount: 0, maxKeyCount: maxKeysPerImport };
+  }
+
+  const keys = await listProjectTranslationKeysForFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    repositorySourceFileId: sourceFile.id,
+    limit: maxKeysPerImport + 1,
+  });
+
+  const truncated = keys.length > maxKeysPerImport;
+  const visibleKeys = truncated ? keys.slice(0, maxKeysPerImport) : keys;
+
+  if (visibleKeys.length === 0) {
+    return {
+      prefilled: {},
+      truncated,
+      loadedKeyCount: 0,
+      maxKeyCount: maxKeysPerImport,
+    };
+  }
+
+  const translations = await getProjectTranslationsByKeyIds({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    translationKeyIds: visibleKeys.map((key) => key.id),
+    targetLocale: input.targetLocale,
+  });
+  const translationByKeyId = new Map(
+    translations.map((translation) => [translation.translationKeyId, translation]),
+  );
+
+  const prefilled: Record<string, string> = {};
+  for (const key of visibleKeys) {
+    const translation = translationByKeyId.get(key.id);
+    if (!translation?.text?.trim() || translation.status === "rejected") {
+      continue;
+    }
+    prefilled[key.key] = translation.text;
+  }
+
+  return {
+    prefilled,
+    truncated,
+    loadedKeyCount: visibleKeys.length,
+    maxKeyCount: maxKeysPerImport,
+  };
+}

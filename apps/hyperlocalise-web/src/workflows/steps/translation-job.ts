@@ -329,6 +329,18 @@ export async function reuseFileTranslationMemoryEntriesStep(input: {
   return reuseFileTranslationMemoryEntries(input);
 }
 
+export async function loadProjectTranslationsAsPrefilledEntriesStep(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+}) {
+  "use step";
+  const { loadProjectTranslationsAsPrefilledEntries } =
+    await import("@/lib/projects/project-translation-keys");
+  return loadProjectTranslationsAsPrefilledEntries(input);
+}
+
 export async function persistFileTranslationMemoryEntriesStep(input: {
   projectId: string;
   jobId: string;
