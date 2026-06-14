@@ -38,7 +38,8 @@ export const Loading: Story = {
     isLoading: true,
   },
   play: async ({ canvas }) => {
-    await expect(canvas.getByText("Loading automations...")).toBeInTheDocument();
+    const loadingRegion = canvas.getByLabelText("Loading automations");
+    await expect(loadingRegion.children).toHaveLength(5);
   },
 };
 
