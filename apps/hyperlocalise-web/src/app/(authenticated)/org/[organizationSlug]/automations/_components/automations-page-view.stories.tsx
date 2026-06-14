@@ -1,0 +1,78 @@
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+import { expect } from "storybook/test";
+
+import { automationsFixture } from "./automations.fixture";
+import { AutomationsPageView } from "./automations-page-view";
+
+const fixedNow = Date.UTC(2026, 5, 7, 12, 0, 0);
+
+const meta = {
+  title: "App/Automations/Page",
+  component: AutomationsPageView,
+  parameters: {
+    layout: "fullscreen",
+  },
+  args: {
+    organizationSlug: "acme",
+    automations: automationsFixture,
+    isLoading: false,
+    now: fixedNow,
+  },
+} satisfies Meta<typeof AutomationsPageView>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("heading", { name: "Automations" })).toBeInTheDocument();
+    await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
+    await expect(canvas.getByText("Weekly translation sync")).toBeInTheDocument();
+    await expect(canvas.getByText("Translate Contentful article")).toBeInTheDocument();
+  },
+};
+
+export const Loading: Story = {
+  args: {
+    automations: [],
+    isLoading: true,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Loading automations...")).toBeInTheDocument();
+  },
+};
+
+export const Empty: Story = {
+  args: {
+    automations: [],
+    isLoading: false,
+  },
+  play: async ({ canvas }) => {
+    await expect(
+      canvas.getByText(
+        "No automations yet. Start from a template below or create a new automation.",
+      ),
+    ).toBeInTheDocument();
+  },
+};
+
+export const LoadError: Story = {
+  args: {
+    automations: [],
+    error: new Error("The automations API returned a 500."),
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Automations failed to load.")).toBeInTheDocument();
+  },
+};
+
+export const ActiveAndPaused: Story = {
+  args: {
+    automations: automationsFixture,
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("3")).toBeInTheDocument();
+    await expect(canvas.getAllByText("active")).toHaveLength(2);
+    await expect(canvas.getByText("paused")).toBeInTheDocument();
+  },
+};
