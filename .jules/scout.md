@@ -79,3 +79,7 @@
 ## 2025-06-25 - [Slash Collapsing in Path Resolution]
 **Learning:** `normalizeRepositoryRelativePath` may only handle leading/trailing slashes and specific segments (like `.` or `..`). It might not collapse internal multiple slashes (e.g., `a//b`).
 **Action:** When performing token substitution that might result in empty segments, explicitly collapse multiple slashes using a regex (e.g., `path.replace(/\/+/g, "/")`) before applying repository-wide normalization.
+
+## 2025-06-25 - [Extended Markup Tag Recognition]
+**Learning:** The `isLikelyMarkupTag` function was missing support for common modern markup patterns like tags containing dots (MDX components), underscores, or numbers. This caused these tags to be ignored by parity checks if they were lowercase and lacked attributes, potentially leading to broken translations.
+**Action:** Use `strings.ContainsAny(tag, "-:._0123456789")` in tag recognition logic to ensure dots, underscores, and digits correctly trigger markup identification, and always add regression tests for these patterns.

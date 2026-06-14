@@ -127,6 +127,24 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			tgt:  `<div title="something">content</div>`,
 			want: false,
 		},
+		{
+			name: "lowercase dot tags are treated as markup",
+			src:  "Hello <my.component>world</my.component>",
+			tgt:  "Bonjour world",
+			want: true,
+		},
+		{
+			name: "lowercase underscore tags are treated as markup",
+			src:  "Hello <my_tag>world</my_tag>",
+			tgt:  "Bonjour world",
+			want: true,
+		},
+		{
+			name: "lowercase tags with numbers are treated as markup",
+			src:  "Hello <tag1>world</tag1>",
+			tgt:  "Bonjour world",
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
