@@ -310,6 +310,8 @@ async function syncProviderJobTasksFromLive(
     tasks,
   });
 
+  const automationFailures: Array<{ hyperlocaliseJobId: string; message: string }> = [];
+
   if (newlySyncedJobIds.length > 0) {
     const automationQueues = {
       providerAgentTranslationQueue: createProviderAgentTranslationQueue(),
@@ -334,25 +336,35 @@ async function syncProviderJobTasksFromLive(
         continue;
       }
 
-      await runTmsAgentAutomationForSyncedJob({
-        organizationId: intent.organizationId,
-        projectId: intent.projectId!,
-        providerKind: intent.providerKind,
-        providerCredentialId: intent.providerCredentialId,
-        hyperlocaliseJobId,
-        externalJobId: task.externalJobId,
-        externalTaskId: task.externalTaskId ?? null,
-        targetLocales: task.targetLocales ?? [],
-        isNewlySynced: true,
-        queues: automationQueues,
-      });
+      try {
+        await runTmsAgentAutomationForSyncedJob({
+          organizationId: intent.organizationId,
+          projectId: intent.projectId!,
+          providerKind: intent.providerKind,
+          providerCredentialId: intent.providerCredentialId,
+          hyperlocaliseJobId,
+          externalJobId: task.externalJobId,
+          externalTaskId: task.externalTaskId ?? null,
+          targetLocales: task.targetLocales ?? [],
+          isNewlySynced: true,
+          queues: automationQueues,
+        });
+      } catch (error) {
+        automationFailures.push({
+          hyperlocaliseJobId,
+          message: error instanceof Error ? error.message : "agent automation failed",
+        });
+      }
     }
   }
 
   await completeProviderSyncRun({
     runId,
     status: "succeeded",
-    counts: { jobs: upserted },
+    counts: {
+      jobs: upserted,
+      ...(automationFailures.length > 0 ? { automationFailures: automationFailures.length } : {}),
+    },
   });
 
   return ok({ runId });

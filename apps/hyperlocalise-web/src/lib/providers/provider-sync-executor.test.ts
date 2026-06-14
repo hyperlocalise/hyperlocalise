@@ -20,7 +20,9 @@ const {
   fetchCrowdinJobTasksMock: vi.fn(),
   listTmsProviderLiveProjectsMock: vi.fn(),
   resolveSecretMaterialForActorMock: vi.fn(),
-  runTmsAgentAutomationForSyncedJobMock: vi.fn(async () => ({ triggered: [] })),
+  runTmsAgentAutomationForSyncedJobMock: vi.fn(
+    async (): Promise<{ triggered: string[] }> => ({ triggered: [] }),
+  ),
   upsertExternalTmsJobRecordsMock: vi.fn(),
 }));
 
@@ -309,6 +311,80 @@ describe("executeProviderSyncIntent", () => {
         isNewlySynced: true,
       }),
     );
+  });
+
+  it("continues agent automation for remaining jobs when one job fails", async () => {
+    const project = {
+      id: "ext:crowdin:902807",
+      organizationId: "org_123",
+      externalProviderKind: "crowdin",
+      externalProjectId: "902807",
+      source: "external_tms",
+    };
+    const credential = {
+      id: "credential_123",
+      organizationId: "org_123",
+      providerKind: "crowdin",
+      authMode: "api_token",
+    };
+    const tasks = [
+      {
+        externalJobId: "task-1",
+        externalStatus: "in_progress",
+        title: "Homepage",
+        targetLocales: ["fr"],
+      },
+      {
+        externalJobId: "task-2",
+        externalStatus: "in_progress",
+        title: "About",
+        targetLocales: ["fr"],
+      },
+    ];
+    const jobId1 = "ext:crowdin:902807:task-1";
+    const jobId2 = "ext:crowdin:902807:task-2";
+
+    dbSelectMock
+      .mockReturnValueOnce({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [project]),
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [credential]),
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [
+              {
+                createdByUserId: "user_created",
+                updatedByUserId: "user_updated",
+              },
+            ]),
+          })),
+        })),
+      });
+    fetchCrowdinJobTasksMock.mockResolvedValue(tasks);
+    upsertExternalTmsJobRecordsMock.mockResolvedValue({
+      upserted: 2,
+      newlySyncedJobIds: [jobId1, jobId2],
+    });
+    runTmsAgentAutomationForSyncedJobMock
+      .mockRejectedValueOnce(new Error("queue unavailable"))
+      .mockResolvedValueOnce({ triggered: ["translate_with_agent"] });
+
+    const result = await executeProviderSyncIntent(createJobTaskIntent());
+
+    expect(isOk(result)).toBe(true);
+    expect(runTmsAgentAutomationForSyncedJobMock).toHaveBeenCalledTimes(2);
+    expect(dbUpdateMock).toHaveBeenCalled();
   });
 
   it("does not trigger agent automation when no jobs were newly synced", async () => {

@@ -144,7 +144,7 @@ describe("executeProviderAgentTranslation", () => {
       ok: true,
       proposedCount: 1,
       unitsProcessed: 2,
-      skippedApprovedLocales: 1,
+      skippedExistingLocales: 1,
       pullRunId: "pull-run-1",
     });
 
@@ -171,7 +171,7 @@ describe("executeProviderAgentTranslation", () => {
       pullRunId: "pull-run-1",
       proposedCount: 1,
       unitsProcessed: 2,
-      skippedApprovedLocales: 1,
+      skippedExistingLocales: 1,
     });
   });
 
@@ -405,7 +405,7 @@ describe("executeProviderAgentTranslation", () => {
         pullRunId: "pull-run-done",
         proposedCount: 2,
         unitsProcessed: 3,
-        skippedApprovedLocales: 1,
+        skippedExistingLocales: 1,
       },
     });
 
@@ -419,7 +419,7 @@ describe("executeProviderAgentTranslation", () => {
       alreadyCompleted: true,
       proposedCount: 2,
       unitsProcessed: 3,
-      skippedApprovedLocales: 1,
+      skippedExistingLocales: 1,
       pullRunId: "pull-run-done",
     });
     expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();

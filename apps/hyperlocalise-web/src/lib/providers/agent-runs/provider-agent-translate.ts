@@ -44,7 +44,7 @@ export type ProviderAgentTranslationResult =
       agentRunId: string;
       proposedCount: number;
       unitsProcessed: number;
-      skippedApprovedLocales: number;
+      skippedExistingLocales: number;
       pullRunId: string;
       alreadyCompleted?: boolean;
     }
@@ -76,6 +76,14 @@ function readProjectIdFromInputSnapshot(inputSnapshot: Record<string, unknown>):
 function readOutputSummaryNumber(outputSummary: Record<string, unknown>, key: string): number {
   const value = outputSummary[key];
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readSkippedExistingLocalesCount(outputSummary: Record<string, unknown>): number {
+  if ("skippedExistingLocales" in outputSummary) {
+    return readOutputSummaryNumber(outputSummary, "skippedExistingLocales");
+  }
+
+  return readOutputSummaryNumber(outputSummary, "skippedApprovedLocales");
 }
 
 function readOutputSummaryString(outputSummary: Record<string, unknown>, key: string): string {
@@ -136,7 +144,7 @@ async function translateProviderUnits(input: {
     matches: AgentRunGlossaryMatchUsage[];
   }> = [];
   let unitsProcessed = 0;
-  let skippedApprovedLocales = 0;
+  let skippedExistingLocales = 0;
 
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
@@ -145,7 +153,7 @@ async function translateProviderUnits(input: {
       changedItems,
       warnings: [`Translation project ${input.projectId} was not found`],
       unitsProcessed: 0,
-      skippedApprovedLocales: 0,
+      skippedExistingLocales: 0,
       translationMemoryUsageByUnit: [],
       glossaryUsageByUnit: [],
     };
@@ -160,7 +168,7 @@ async function translateProviderUnits(input: {
     const targetLocales = input.content.targetLocales.filter((locale) => {
       const existing = existingTranslationForLocale(unit, locale);
       if (shouldSkipExistingTranslation(existing)) {
-        skippedApprovedLocales += 1;
+        skippedExistingLocales += 1;
         return false;
       }
       return true;
@@ -329,7 +337,7 @@ async function translateProviderUnits(input: {
     changedItems,
     warnings,
     unitsProcessed,
-    skippedApprovedLocales,
+    skippedExistingLocales,
     translationMemoryUsageByUnit,
     glossaryUsageByUnit,
   };
@@ -370,7 +378,7 @@ export async function executeProviderAgentTranslation(input: {
       agentRunId: input.agentRunId,
       proposedCount: readOutputSummaryNumber(outputSummary, "proposedCount"),
       unitsProcessed: readOutputSummaryNumber(outputSummary, "unitsProcessed"),
-      skippedApprovedLocales: readOutputSummaryNumber(outputSummary, "skippedApprovedLocales"),
+      skippedExistingLocales: readSkippedExistingLocalesCount(outputSummary),
       pullRunId: readOutputSummaryString(outputSummary, "pullRunId"),
       alreadyCompleted: true,
     };
@@ -514,7 +522,6 @@ export async function executeProviderAgentTranslation(input: {
       content: filteredContent,
       sourceFiles,
       actorUserId: run.actorUserId,
-      targetLocales: automationLocales ?? undefined,
     });
 
     await completeAgentRun({
@@ -525,7 +532,7 @@ export async function executeProviderAgentTranslation(input: {
         unitsDiscovered: pullResult.counts.unitsDiscovered,
         unitsProcessed: fileTranslationResult.unitsProcessed,
         proposedCount: fileTranslationResult.changedItems.length,
-        skippedApprovedLocales: fileTranslationResult.skippedExistingLocales,
+        skippedExistingLocales: fileTranslationResult.skippedExistingLocales,
         filesProcessed: fileTranslationResult.filesProcessed,
         translationMode: "file",
         targetLocales: filteredContent.targetLocales,
@@ -540,7 +547,7 @@ export async function executeProviderAgentTranslation(input: {
       agentRunId: input.agentRunId,
       proposedCount: fileTranslationResult.changedItems.length,
       unitsProcessed: fileTranslationResult.unitsProcessed,
-      skippedApprovedLocales: fileTranslationResult.skippedExistingLocales,
+      skippedExistingLocales: fileTranslationResult.skippedExistingLocales,
       pullRunId: pullResult.runId,
     };
   }
@@ -632,7 +639,7 @@ export async function executeProviderAgentTranslation(input: {
       unitsDiscovered: pullResult.counts.unitsDiscovered,
       unitsProcessed: translationResult.unitsProcessed,
       proposedCount: translationResult.changedItems.length,
-      skippedApprovedLocales: translationResult.skippedApprovedLocales,
+      skippedExistingLocales: translationResult.skippedExistingLocales,
       targetLocales: filteredContent.targetLocales,
       sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
       translationMemoryUsage: translationResult.translationMemoryUsageByUnit,
@@ -647,7 +654,7 @@ export async function executeProviderAgentTranslation(input: {
     agentRunId: input.agentRunId,
     proposedCount: translationResult.changedItems.length,
     unitsProcessed: translationResult.unitsProcessed,
-    skippedApprovedLocales: translationResult.skippedApprovedLocales,
+    skippedExistingLocales: translationResult.skippedExistingLocales,
     pullRunId: pullResult.runId,
   };
 }
