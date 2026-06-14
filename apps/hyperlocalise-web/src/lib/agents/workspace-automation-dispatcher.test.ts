@@ -438,6 +438,55 @@ describe("workspace automation dispatcher", () => {
     expect(missingLocaleRuns[0]?.outputSummary).toEqual({
       skipReason: "contentful_source_locale_missing",
     });
+
+    const missingTargetLocalesAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Scheduled Contentful without target locales",
+        instructions: "Translate on schedule.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 8,
+            timezone: "UTC",
+          },
+        },
+        repositoryTarget: { kind: "none" },
+        toolConfig: { contentful: baseToolConfig },
+        nextRunAt: scheduledRunAt,
+      }),
+    );
+    const missingTargetLocalesAutomationRecord = {
+      ...missingTargetLocalesAutomation,
+      toolConfig: {
+        contentful: {
+          ...baseToolConfig,
+          targetLocales: [],
+        },
+      },
+    };
+
+    const missingTargetLocalesResult = await dispatchContentfulWorkspaceAutomationForSchedule({
+      automation: missingTargetLocalesAutomationRecord,
+      scheduledRunAt,
+    });
+
+    expect(missingTargetLocalesResult?.outcome).toBe("skipped");
+    if (missingTargetLocalesResult?.outcome === "skipped") {
+      expect(missingTargetLocalesResult.skipReason).toBe("contentful_target_locales_missing");
+    }
+
+    const missingTargetLocalesRuns = await listWorkspaceAutomationRuns({
+      automationId: missingTargetLocalesAutomation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(missingTargetLocalesRuns).toHaveLength(1);
+    expect(missingTargetLocalesRuns[0]?.status).toBe("skipped");
+    expect(missingTargetLocalesRuns[0]?.outputSummary).toEqual({
+      skipReason: "contentful_target_locales_missing",
+    });
   });
 
   it("does not manually dispatch non-manual Contentful automations", async () => {

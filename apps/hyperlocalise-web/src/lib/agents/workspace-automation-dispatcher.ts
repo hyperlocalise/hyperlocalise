@@ -95,7 +95,9 @@ async function enqueueWorkspaceContentfulAutomation(input: {
       ? "contentful_source_locale_missing"
       : !input.entryId
         ? "contentful_entry_id_missing"
-        : null;
+        : !targetLocales.length
+          ? "contentful_target_locales_missing"
+          : null;
 
   const run = await createWorkspaceAutomationRun({
     automationId: input.automation.id,
