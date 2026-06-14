@@ -182,6 +182,7 @@ export async function runProviderSyncIntentById(input: {
     intentId: input.intentId,
     organizationId: input.organizationId,
     leasedBy,
+    now: input.now,
   });
 
   if (!intent) {

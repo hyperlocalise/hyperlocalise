@@ -108,7 +108,11 @@ describe("runProviderSyncWorker", () => {
       set: vi.fn((value: unknown) => {
         persistedUpdates.push(value);
         return {
-          where: vi.fn(async () => {}),
+          where: vi.fn(() =>
+            Object.assign(Promise.resolve(undefined), {
+              returning: vi.fn(async () => []),
+            }),
+          ),
         };
       }),
     }));
@@ -126,6 +130,13 @@ describe("runProviderSyncWorker", () => {
 
     expect(executeProviderSyncIntentMock).toHaveBeenCalledTimes(2);
     expect(persistedUpdates).toEqual([
+      expect.objectContaining({
+        status: "retryable",
+        lastError: "lease_expired",
+        leasedUntil: null,
+        leasedBy: null,
+        leaseToken: null,
+      }),
       expect.objectContaining({
         status: "retryable",
         lastError: "rate_limited",

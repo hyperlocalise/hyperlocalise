@@ -77,8 +77,6 @@ export async function reclaimExpiredProviderSyncIntentLeases(now = new Date()) {
 export async function enqueueProviderSyncIntent(
   input: EnqueueProviderSyncIntentInput,
 ): Promise<EnqueueProviderSyncIntentResult> {
-  await reclaimExpiredProviderSyncIntentLeases();
-
   const leaseKey = buildProviderSyncLeaseKey({
     organizationId: input.organizationId,
     providerKind: input.providerKind,
@@ -145,6 +143,8 @@ export async function enqueueProviderCatalogSyncIntent(input: {
   providerKind: ExternalTmsProviderKind;
   cause: ProviderSyncIntentCause;
 }) {
+  await reclaimExpiredProviderSyncIntentLeases();
+
   return enqueueProviderSyncIntent({
     organizationId: input.organizationId,
     providerCredentialId: input.providerCredentialId,
@@ -163,6 +163,8 @@ export async function enqueueProviderProjectMaterializationSyncIntents(input: {
   cause?: ProviderSyncIntentCause;
 }) {
   const cause = input.cause ?? "manual";
+
+  await reclaimExpiredProviderSyncIntentLeases();
 
   await Promise.all([
     enqueueProviderSyncIntent({
@@ -202,6 +204,8 @@ export async function enqueueProviderProjectJobSyncIntent(input: {
   projectId: string;
   cause: ProviderSyncIntentCause;
 }) {
+  await reclaimExpiredProviderSyncIntentLeases();
+
   return enqueueProviderSyncIntent({
     organizationId: input.organizationId,
     providerCredentialId: input.providerCredentialId,
