@@ -160,3 +160,7 @@
 ## 2026-09-20 - Optimizing XML attribute lookup priority
 **Learning:** Functions that need to find one of several attributes with a specific priority (e.g., id > name > resname) are often implemented using multiple passes over the attribute slice. A single-pass scan with priority tracking is more efficient as it reduces iterations and potentially redundant string operations like TrimSpace.
 **Action:** Use single-pass attribute scanning for priority-based lookups and centralize common XML helpers to avoid redundant processing.
+
+## 2026-06-14 - Optimizing multiline string normalization in Fluent parser
+**Learning:** Sequential use of `strings.ReplaceAll`, `strings.Split`, and `strings.Join` for line-by-line processing of multiline strings (e.g., CRLF normalization and indentation removal) creates excessive intermediate heap allocations. A manual scanning approach that tracks line boundaries via indices and uses `strings.Builder` for final assembly is much more memory-efficient.
+**Action:** Refactored `normalizeFluentValue` in `internal/i18n/translationfileparser/fluent_parser.go` to use manual line scanning, reducing allocations and improving performance for large Fluent files.

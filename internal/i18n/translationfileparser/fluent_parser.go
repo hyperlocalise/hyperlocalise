@@ -442,28 +442,92 @@ func normalizeFluentValue(raw string) string {
 		return strings.TrimRight(raw, " \t")
 	}
 
-	raw = strings.ReplaceAll(raw, "\r\n", "\n")
-	raw = strings.ReplaceAll(raw, "\r", "\n")
-	lines := strings.Split(raw, "\n")
-	for len(lines) > 0 && strings.TrimSpace(lines[0]) == "" {
+	// BOLT OPTIMIZATION: Use a more efficient approach to avoid multiple
+	// ReplaceAll, Split, and Join allocations.
+	type line struct {
+		start, end int
+	}
+	// Pre-allocate lines slice based on newline count.
+	lines := make([]line, 0, strings.Count(raw, "\n")+1)
+	for i := 0; i < len(raw); {
+		idx := strings.IndexAny(raw[i:], "\n\r")
+		if idx < 0 {
+			lines = append(lines, line{i, len(raw)})
+			break
+		}
+		lineEnd := i + idx
+		lines = append(lines, line{i, lineEnd})
+		if raw[lineEnd] == '\r' && lineEnd+1 < len(raw) && raw[lineEnd+1] == '\n' {
+			i = lineEnd + 2
+		} else {
+			i = lineEnd + 1
+		}
+	}
+
+	// Trim leading blank lines.
+	for len(lines) > 0 {
+		isBlank := true
+		l := lines[0]
+		for j := l.start; j < l.end; j++ {
+			if !isFluentWhitespace(raw[j]) {
+				isBlank = false
+				break
+			}
+		}
+		if !isBlank {
+			break
+		}
 		lines = lines[1:]
 	}
-	for len(lines) > 0 && strings.TrimSpace(lines[len(lines)-1]) == "" {
+
+	// Trim trailing blank lines.
+	for len(lines) > 0 {
+		isBlank := true
+		l := lines[len(lines)-1]
+		for j := l.start; j < l.end; j++ {
+			if !isFluentWhitespace(raw[j]) {
+				isBlank = false
+				break
+			}
+		}
+		if !isBlank {
+			break
+		}
 		lines = lines[:len(lines)-1]
 	}
+
+	if len(lines) == 0 {
+		return ""
+	}
+
 	// Inline multiline values start beside "=", so derive structural indent
 	// from continuation lines and let encodeFluentValue add it back once.
 	indentFrom := 0
-	if len(lines) > 1 && !fluentLineIndented(lines[0]) {
-		indentFrom = 1
+	if len(lines) > 1 {
+		firstLine := lines[0]
+		if firstLine.start == firstLine.end || (raw[firstLine.start] != ' ' && raw[firstLine.start] != '\t') {
+			indentFrom = 1
+		}
 	}
 
 	commonIndent := -1
-	for _, line := range lines[indentFrom:] {
-		if strings.TrimSpace(line) == "" {
+	for i := indentFrom; i < len(lines); i++ {
+		l := lines[i]
+		isBlank := true
+		for j := l.start; j < l.end; j++ {
+			if raw[j] != ' ' && raw[j] != '\t' {
+				isBlank = false
+				break
+			}
+		}
+		if isBlank {
 			continue
 		}
-		indent := len(line) - len(strings.TrimLeft(line, " \t"))
+
+		indent := 0
+		for j := l.start; j < l.end && (raw[j] == ' ' || raw[j] == '\t'); j++ {
+			indent++
+		}
 		if commonIndent < 0 || indent < commonIndent {
 			commonIndent = indent
 		}
@@ -472,18 +536,30 @@ func normalizeFluentValue(raw string) string {
 		commonIndent = 0
 	}
 
-	if indentFrom > 0 {
-		lines[0] = strings.TrimRight(lines[0], " \t")
-	}
-	for i := indentFrom; i < len(lines); i++ {
-		line := lines[i]
-		if len(line) >= commonIndent {
-			lines[i] = strings.TrimRight(line[commonIndent:], " \t")
-		} else {
-			lines[i] = strings.TrimRight(line, " \t")
+	var b strings.Builder
+	b.Grow(len(raw))
+	for i, l := range lines {
+		if i > 0 {
+			b.WriteByte('\n')
 		}
+		lStart := l.start
+		if i >= indentFrom {
+			lStart += commonIndent
+			if lStart > l.end {
+				lStart = l.end
+			}
+		}
+		lEnd := l.end
+		for lEnd > lStart && (raw[lEnd-1] == ' ' || raw[lEnd-1] == '\t') {
+			lEnd--
+		}
+		b.WriteString(raw[lStart:lEnd])
 	}
-	return strings.Join(lines, "\n")
+	return b.String()
+}
+
+func isFluentWhitespace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r' || b == '\v' || b == '\f'
 }
 
 func validateFluentValue(key, value string) error {
