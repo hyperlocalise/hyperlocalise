@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, lte } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncIntentCause, ProviderSyncRunKind } from "@/lib/database/types";
@@ -42,9 +42,43 @@ export type EnqueueProviderSyncIntentResult = {
   created: boolean;
 };
 
+export async function reclaimExpiredProviderSyncIntentLeases(now = new Date()) {
+  const reclaimed = await db
+    .update(schema.providerSyncIntents)
+    .set({
+      status: "retryable",
+      leasedUntil: null,
+      leasedBy: null,
+      leaseToken: null,
+      nextAttemptAt: now,
+      lastError: "lease_expired",
+    })
+    .where(
+      and(
+        eq(schema.providerSyncIntents.status, "running"),
+        lte(schema.providerSyncIntents.leasedUntil, now),
+      ),
+    )
+    .returning({ id: schema.providerSyncIntents.id });
+
+  if (reclaimed.length > 0) {
+    logger.warn(
+      {
+        reclaimedCount: reclaimed.length,
+        intentIds: reclaimed.map((intent) => intent.id),
+      },
+      "reclaimed expired provider sync intent leases",
+    );
+  }
+
+  return reclaimed.length;
+}
+
 export async function enqueueProviderSyncIntent(
   input: EnqueueProviderSyncIntentInput,
 ): Promise<EnqueueProviderSyncIntentResult> {
+  await reclaimExpiredProviderSyncIntentLeases();
+
   const leaseKey = buildProviderSyncLeaseKey({
     organizationId: input.organizationId,
     providerKind: input.providerKind,

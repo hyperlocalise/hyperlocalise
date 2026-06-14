@@ -3,6 +3,7 @@ import { and, inArray, isNull, lte, or, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
 import type { ProviderSyncQueue } from "@/lib/workflow/types";
+import { reclaimExpiredProviderSyncIntentLeases } from "@/lib/providers/provider-sync-intent";
 import { createProviderSyncQueue } from "@/workflows/adapters";
 
 const logger = createLogger("provider-sync-workflow-dispatcher");
@@ -56,6 +57,7 @@ export async function runProviderSyncWorkflowDispatcher(input?: {
 }): Promise<ProviderSyncWorkflowDispatcherResult> {
   const limit = input?.limit ?? 25;
   const queue = input?.queue ?? createProviderSyncQueue();
+  await reclaimExpiredProviderSyncIntentLeases(input?.now);
   const intents = await listDueProviderSyncWorkflowIntents({ limit, now: input?.now });
 
   let started = 0;

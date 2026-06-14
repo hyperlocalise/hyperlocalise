@@ -14,6 +14,7 @@ import { executeProviderSyncIntent } from "./provider-sync-executor";
 import {
   enqueueProviderCatalogSyncIntent,
   enqueueProviderProjectJobSyncIntent,
+  reclaimExpiredProviderSyncIntentLeases,
 } from "./provider-sync-intent";
 
 const logger = createLogger("provider-sync-worker");
@@ -167,6 +168,7 @@ export async function runProviderSyncIntentById(input: {
   intentId: string;
   organizationId: string;
   leasedBy?: string;
+  now?: Date;
 }): Promise<{
   processed: boolean;
   succeeded: boolean;
@@ -175,6 +177,7 @@ export async function runProviderSyncIntentById(input: {
   error?: string;
 }> {
   const leasedBy = input.leasedBy ?? "provider-sync-workflow";
+  await reclaimExpiredProviderSyncIntentLeases(input.now);
   const intent = await leaseProviderSyncIntentById({
     intentId: input.intentId,
     organizationId: input.organizationId,
@@ -248,10 +251,12 @@ export async function runProviderSyncIntentById(input: {
 export async function runProviderSyncWorker(input?: {
   limit?: number;
   leasedBy?: string;
+  now?: Date;
 }): Promise<ProviderSyncWorkerResult> {
   const limit = input?.limit ?? 25;
   const leasedBy = input?.leasedBy ?? "provider-sync-worker";
-  const intents = await leaseProviderSyncIntents({ limit, leasedBy });
+  await reclaimExpiredProviderSyncIntentLeases(input?.now);
+  const intents = await leaseProviderSyncIntents({ limit, leasedBy, now: input?.now });
 
   let succeeded = 0;
   let failed = 0;
