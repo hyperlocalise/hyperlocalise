@@ -5,6 +5,7 @@ import {
   ArrowRight01Icon,
   Alert02Icon,
   CheckmarkCircle02Icon,
+  DatabaseSyncIcon,
   TranslationIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -14,6 +15,7 @@ import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-con
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { ProjectListRow } from "./project-list";
@@ -121,7 +123,11 @@ export function ProjectsTable({
   projectsQuery,
   isSavingProject,
   isDeletingProject,
+  hasActiveTmsConnection,
+  isCheckingTmsConnection,
+  isSyncingProviderProjects,
   organizationSlug,
+  onSyncProviderProjects,
   onEditProject,
   onDeleteProject,
 }: {
@@ -129,7 +135,11 @@ export function ProjectsTable({
   projectsQuery: UseQueryResult<ProjectListRow[], Error>;
   isSavingProject: boolean;
   isDeletingProject: boolean;
+  hasActiveTmsConnection: boolean;
+  isCheckingTmsConnection: boolean;
+  isSyncingProviderProjects: boolean;
   organizationSlug: string;
+  onSyncProviderProjects: () => void;
   onEditProject: (project: ProjectListRow) => void;
   onDeleteProject: (project: ProjectListRow) => void;
 }) {
@@ -164,21 +174,58 @@ export function ProjectsTable({
       ) : null}
       {projectsQuery.isSuccess && projects.length === 0 ? (
         <div className="max-w-xl space-y-3 py-10">
-          <TypographyP className="text-sm font-medium text-foreground">
-            Create your first localization project
-          </TypographyP>
-          <TypographyP className="text-sm leading-6 text-foreground/52">
-            Track source content, release ownership, and translation context before work moves into
-            translation jobs. Or connect a TMS provider to import existing projects.
-          </TypographyP>
-          <Button
-            nativeButton={false}
-            render={<Link href={`/org/${organizationSlug}/integrations`} />}
-            variant="outline"
-            size="sm"
-          >
-            Connect a provider
-          </Button>
+          {isCheckingTmsConnection ? (
+            <>
+              <TypographyP className="text-sm font-medium text-foreground">
+                Checking TMS connection
+              </TypographyP>
+              <TypographyP className="text-sm leading-6 text-foreground/52">
+                Looking for an active provider connection before showing project setup actions.
+              </TypographyP>
+            </>
+          ) : hasActiveTmsConnection ? (
+            <>
+              <TypographyP className="text-sm font-medium text-foreground">
+                No synced projects yet
+              </TypographyP>
+              <TypographyP className="text-sm leading-6 text-foreground/52">
+                Your TMS connection is active, but no projects have been imported yet. Run a sync to
+                check for available projects.
+              </TypographyP>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={onSyncProviderProjects}
+                disabled={isSyncingProviderProjects}
+              >
+                {isSyncingProviderProjects ? (
+                  <Spinner className="size-3.5" />
+                ) : (
+                  <HugeiconsIcon icon={DatabaseSyncIcon} strokeWidth={1.8} />
+                )}
+                Sync now
+              </Button>
+            </>
+          ) : (
+            <>
+              <TypographyP className="text-sm font-medium text-foreground">
+                Create your first localization project
+              </TypographyP>
+              <TypographyP className="text-sm leading-6 text-foreground/52">
+                Track source content, release ownership, and translation context before work moves
+                into translation jobs. Or connect a TMS provider to import existing projects.
+              </TypographyP>
+              <Button
+                nativeButton={false}
+                render={<Link href={`/org/${organizationSlug}/integrations`} />}
+                variant="outline"
+                size="sm"
+              >
+                Connect a provider
+              </Button>
+            </>
+          )}
         </div>
       ) : null}
       {projectsQuery.isSuccess && projects.length > 0 ? (

@@ -28,7 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
-import { readApiError } from "@/lib/api-error";
+import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 
@@ -254,8 +254,8 @@ export function GlossariesPageContent({
         param: { organizationSlug },
       });
 
-      if (response.status !== 200) {
-        throw new Error(`Failed to load projects (${response.status})`);
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to load projects");
       }
 
       const body = await response.json();

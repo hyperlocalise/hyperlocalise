@@ -36,6 +36,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { TypographyH2, TypographyMuted } from "@/components/ui/typography";
+import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 const suggestedRequests = [
@@ -104,8 +105,8 @@ export function ChatPageContent({ organizationSlug }: { organizationSlug: string
         param: { organizationSlug },
       });
 
-      if (response.status !== 200) {
-        throw new Error(`Failed to load projects (${response.status})`);
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to load projects");
       }
 
       const body = await response.json();
