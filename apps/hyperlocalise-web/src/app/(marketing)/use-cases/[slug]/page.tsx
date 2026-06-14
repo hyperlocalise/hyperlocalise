@@ -4,52 +4,52 @@ import { notFound } from "next/navigation";
 import { UseCasePage, useCasePagesBySlug, useCaseSlugs } from "@/components/marketing/use-case";
 
 type UseCaseRouteParams = {
-    slug: string;
+  slug: string;
 };
 
 type UseCaseRouteProps = {
-    params: Promise<UseCaseRouteParams>;
+  params: Promise<UseCaseRouteParams>;
 };
 
 export function generateStaticParams() {
-    return useCaseSlugs.map((slug) => ({ slug }));
+  return useCaseSlugs.map((slug) => ({ slug }));
 }
 
 export async function generateMetadata({ params }: UseCaseRouteProps): Promise<Metadata> {
-    const { slug } = await params;
-    const content = useCasePagesBySlug[slug];
+  const { slug } = await params;
+  const content = useCasePagesBySlug[slug];
 
-    if (!content) {
-        return {};
-    }
+  if (!content) {
+    return {};
+  }
 
-    return {
-        title: content.metadata.title,
-        description: content.metadata.description,
-        keywords: content.metadata.keywords,
-        openGraph: {
-            title: content.metadata.title,
-            description: content.metadata.description,
-            type: "website",
-            images: [
-                {
-                    url: "https://www.hyperlocalise.com/images/logo.png",
-                    width: 512,
-                    height: 512,
-                    alt: "Hyperlocalise",
-                },
-            ],
+  return {
+    title: content.metadata.title,
+    description: content.metadata.description,
+    keywords: content.metadata.keywords,
+    openGraph: {
+      title: content.metadata.title,
+      description: content.metadata.description,
+      type: "website",
+      images: [
+        {
+          url: "https://www.hyperlocalise.com/images/logo.png",
+          width: 512,
+          height: 512,
+          alt: "Hyperlocalise",
         },
-    };
+      ],
+    },
+  };
 }
 
 export default async function UseCaseRoutePage({ params }: UseCaseRouteProps) {
-    const { slug } = await params;
-    const content = useCasePagesBySlug[slug];
+  const { slug } = await params;
+  const content = useCasePagesBySlug[slug];
 
-    if (!content) {
-        notFound();
-    }
+  if (!content) {
+    notFound();
+  }
 
-    return <UseCasePage content={content} />;
+  return <UseCasePage content={content} />;
 }
