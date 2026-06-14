@@ -21,7 +21,11 @@ import {
 } from "@/lib/providers/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/list-organization-projects";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
-import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
+import {
+  lookupProjectFileStringRepositoryContext,
+  resolveProjectFileStringRepositoryFullName,
+} from "@/lib/projects/project-file-string-context";
+import { attachProjectFileCatAgentContexts } from "@/lib/projects/attach-project-file-cat-agent-contexts";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import {
   getNativeProjectCatFile,
@@ -338,6 +342,24 @@ function asFile(value: unknown) {
   return values.find((item): item is File => item instanceof File && item.size > 0) ?? null;
 }
 
+async function hydrateProjectFileCatAgentContexts(input: {
+  organizationId: string;
+  projectId: string;
+  catFile: NonNullable<Awaited<ReturnType<typeof getTmsProviderLiveCatFile>>>;
+}) {
+  const repositoryResult = await resolveProjectFileStringRepositoryFullName({
+    organizationId: input.organizationId,
+    repositoryFullName: null,
+  });
+
+  return attachProjectFileCatAgentContexts({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    catFile: input.catFile,
+    preferredRepositoryFullName: repositoryResult.ok ? repositoryResult.value : null,
+  });
+}
+
 const validateProjectFilesQuery = validator("query", (value, c) => {
   const parsed = projectFilesQuerySchema.safeParse(value);
 
@@ -436,7 +458,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
           }
 
-          return c.json({ catFile }, 200);
+          const hydratedCatFile = await hydrateProjectFileCatAgentContexts({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            catFile,
+          });
+
+          return c.json({ catFile: hydratedCatFile }, 200);
         }
 
         try {
@@ -454,7 +482,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
-          return c.json({ catFile }, 200);
+          const hydratedCatFile = await hydrateProjectFileCatAgentContexts({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            catFile,
+          });
+
+          return c.json({ catFile: hydratedCatFile }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
@@ -669,6 +703,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           membershipRole: c.var.auth.membership.role,
           displayName: null,
           email: c.var.auth.user.email,
+          forceRefresh: body.forceRefresh ?? false,
         });
 
         if (isErr(result)) {

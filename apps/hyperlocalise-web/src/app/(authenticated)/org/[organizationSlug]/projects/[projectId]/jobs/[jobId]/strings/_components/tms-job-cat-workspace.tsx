@@ -149,6 +149,7 @@ function segmentIntelligenceFor(
   const comments = segment.comments.length;
   const issues = segment.comments.filter((comment) => comment.type === "issue").length;
   const context = segment.context?.trim();
+  const repositoryContext = segment.repositoryContext?.trim();
 
   return {
     intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
@@ -160,6 +161,7 @@ function segmentIntelligenceFor(
       (comments > 0
         ? `${comments} Crowdin comment${comments === 1 ? "" : "s"} ${comments === 1 ? "is" : "are"} attached to this string, including ${issues} issue${issues === 1 ? "" : "s"}.`
         : "Crowdin did not return context, comments, or issues for this string."),
+    agentContext: repositoryContext || undefined,
     reviewerPreference: catFile.canEditTranslations
       ? "Approve writes the current target text back to Crowdin."
       : "This role can inspect strings but cannot write translations back.",

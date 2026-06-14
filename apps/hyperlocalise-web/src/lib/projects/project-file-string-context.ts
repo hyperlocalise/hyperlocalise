@@ -15,11 +15,23 @@ import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
+import {
+  getCachedProjectFileStringRepositoryContext,
+  saveProjectFileStringRepositoryContext,
+} from "./project-file-string-context-store";
+
 export type ProjectFileStringContextError =
   | { code: "repository_not_enabled"; message: string }
   | { code: "repository_context_ambiguous"; message: string }
   | { code: "repository_access_failed"; message: string }
   | { code: "agent_failed"; message: string };
+
+export async function resolveProjectFileStringRepositoryFullName(input: {
+  organizationId: string;
+  repositoryFullName: string | null;
+}): Promise<Result<string, ProjectFileStringContextError>> {
+  return resolveRepositoryFullName(input);
+}
 
 async function resolveRepositoryFullName(input: {
   organizationId: string;
@@ -71,7 +83,8 @@ export async function lookupProjectFileStringRepositoryContext(input: {
   membershipRole: OrganizationMembershipRole;
   displayName: string | null;
   email: string | null;
-}): Promise<Result<{ summary: string }, ProjectFileStringContextError>> {
+  forceRefresh?: boolean;
+}): Promise<Result<{ summary: string; cached: boolean }, ProjectFileStringContextError>> {
   const repositoryResult = await resolveRepositoryFullName({
     organizationId: input.organizationId,
     repositoryFullName: input.repositoryFullName,
@@ -80,9 +93,26 @@ export async function lookupProjectFileStringRepositoryContext(input: {
     return repositoryResult;
   }
 
+  const repositoryFullName = repositoryResult.value;
+
+  if (!input.forceRefresh) {
+    const cachedSummary = await getCachedProjectFileStringRepositoryContext({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      stringKey: input.key,
+      repositoryFullName,
+      sourceText: input.text,
+    });
+
+    if (cachedSummary) {
+      return ok({ summary: cachedSummary, cached: true });
+    }
+  }
+
   const resolution = await resolveWebProjectRepositoryGitHubContext({
     organizationId: input.organizationId,
-    repositoryFullName: repositoryResult.value,
+    repositoryFullName,
   });
 
   if (resolution.status === "unresolved") {
@@ -163,7 +193,18 @@ export async function lookupProjectFileStringRepositoryContext(input: {
       });
     }
 
-    return ok({ summary });
+    await saveProjectFileStringRepositoryContext({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+      stringKey: input.key,
+      repositoryFullName,
+      sourceText: input.text,
+      summary,
+      createdByUserId: input.localUserId,
+    });
+
+    return ok({ summary, cached: false });
   } catch {
     return err({
       code: "agent_failed",

@@ -264,11 +264,13 @@ export const projectFileStringContextBodySchema = z.object({
   key: z.string().trim().min(1).max(2048),
   text: z.string().trim().max(16_384),
   context: z.string().trim().max(16_384).nullable().optional(),
+  forceRefresh: z.boolean().optional(),
 });
 
 export const projectFileStringContextResponseSchema = z.object({
   stringContext: z.object({
     summary: z.string(),
+    cached: z.boolean(),
   }),
 });
 
@@ -372,6 +374,7 @@ export const projectFileCatSegmentSchema = z.object({
   type: z.string().nullable(),
   target: projectFileCatTranslationSchema.nullable(),
   comments: z.array(projectFileCatCommentSchema),
+  repositoryContext: z.string().nullable().optional(),
 });
 
 export const projectFileCatResponseSchema = z.object({

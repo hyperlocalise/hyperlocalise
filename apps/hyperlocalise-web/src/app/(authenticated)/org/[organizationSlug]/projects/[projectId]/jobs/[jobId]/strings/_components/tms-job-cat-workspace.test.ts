@@ -102,6 +102,23 @@ describe("projectFileCatToWorkspaceState", () => {
     expect(state.canEditTranslations).toBe(true);
   });
 
+  it("maps persisted repository context into segment intelligence", () => {
+    const state = projectFileCatToWorkspaceState({
+      ...catFile(),
+      segments: [
+        {
+          ...catFile().segments[0],
+          repositoryContext: "Hero title on the sign-in page.",
+        },
+        catFile().segments[1],
+      ],
+    });
+
+    expect(state.segmentIntelligence?.["approved-string"]?.agentContext).toBe(
+      "Hero title on the sign-in page.",
+    );
+  });
+
   it("maps canEditTranslations from the CAT file payload", () => {
     const readOnlyState = projectFileCatToWorkspaceState({
       ...catFile(),
