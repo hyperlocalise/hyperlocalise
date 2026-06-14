@@ -212,6 +212,7 @@ export const projectFileDetailQuerySchema = z.object({
 export const projectFileCatQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
+  repositoryFullName: z.string().trim().min(1).max(256).optional(),
 });
 
 export const projectFileCatTranslationBodySchema = z.object({

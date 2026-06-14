@@ -347,6 +347,7 @@ async function hydrateProjectFileCatAgentContexts(input: {
   organizationId: string;
   projectId: string;
   catFile: NonNullable<Awaited<ReturnType<typeof getTmsProviderLiveCatFile>>>;
+  preferredRepositoryFullName?: string | null;
 }) {
   const log = catContextHydrationLogger.child({
     organizationId: input.organizationId,
@@ -359,7 +360,7 @@ async function hydrateProjectFileCatAgentContexts(input: {
       organizationId: input.organizationId,
       projectId: input.projectId,
       catFile: input.catFile,
-      preferredRepositoryFullName: null,
+      preferredRepositoryFullName: input.preferredRepositoryFullName ?? null,
     });
   } catch (error) {
     log.warn(
@@ -472,6 +473,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             catFile,
+            preferredRepositoryFullName: query.repositoryFullName ?? null,
           });
 
           return c.json({ catFile: hydratedCatFile }, 200);
@@ -496,6 +498,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             catFile,
+            preferredRepositoryFullName: query.repositoryFullName ?? null,
           });
 
           return c.json({ catFile: hydratedCatFile }, 200);
