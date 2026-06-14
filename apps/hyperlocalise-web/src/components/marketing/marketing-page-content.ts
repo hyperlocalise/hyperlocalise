@@ -1,3 +1,5 @@
+import { useCaseFooterLinks } from "@/components/marketing/use-case";
+
 export const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
 export const githubActionUrl = "https://github.com/marketplace/actions/hyperlocalise-ci";
 export const githubReleasesUrl = "https://github.com/hyperlocalise/hyperlocalise/releases";
@@ -188,6 +190,10 @@ export const footerColumns: MarketingFooterColumn[] = [
       { label: "Monitor", href: "#monitor" },
       { label: "Pricing", href: "#waitlist" },
     ],
+  },
+  {
+    title: "Use cases",
+    links: useCaseFooterLinks,
   },
   {
     title: "Features",

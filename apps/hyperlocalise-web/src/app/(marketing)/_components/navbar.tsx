@@ -48,7 +48,7 @@ function GitHubMark({ className = "size-4" }: { className?: string }) {
 
 function Logo() {
   return (
-    <Link href="#" className="flex items-center gap-2.5">
+    <Link href="/" className="flex items-center gap-2.5">
       <Image
         src="/images/logo.png"
         className="size-8"
