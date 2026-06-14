@@ -10,6 +10,8 @@ import { assembleStringTranslationContextSnapshot } from "@/lib/translation/asse
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
+import { createLogger, serializeErrorForLog } from "@/lib/log";
+
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
 import {
   collectEntryLocaleKeys,
@@ -32,6 +34,8 @@ import type {
   ContentfulTranslatableFieldUnit,
   ContentfulTranslatableUnit,
 } from "./types";
+
+const logger = createLogger("contentful-automation-executor");
 
 const MAX_CONCURRENT_CONTENTFUL_TRANSLATIONS = 3;
 const URL_REGEX = /https?:\/\/[^\s)]+/g;
@@ -512,6 +516,14 @@ export async function createContentfulTranslationRun(input: {
 export async function executeContentfulAutomation(
   input: ContentfulAutomationExecutionEvent,
 ): Promise<Result<ContentfulAutomationExecutionSuccess, ContentfulAutomationExecutionError>> {
+  const executionContext = {
+    contentfulTranslationRunId: input.contentfulTranslationRunId,
+    workspaceAutomationRunId: input.workspaceAutomationRunId,
+    organizationId: input.organizationId,
+  };
+
+  logger.info(executionContext, "contentful automation execution started");
+
   const [run] = await db
     .select()
     .from(schema.contentfulTranslationRuns)
@@ -524,6 +536,7 @@ export async function executeContentfulAutomation(
     .limit(1);
 
   if (!run) {
+    logger.error(executionContext, "contentful translation run not found");
     throw new Error("contentful_translation_run_not_found");
   }
 
@@ -609,6 +622,19 @@ export async function executeContentfulAutomation(
       overwriteDraftLocales: run.overwriteDraftLocales,
       defaultLocale,
     });
+
+    logger.info(
+      {
+        ...executionContext,
+        runId: run.id,
+        entryId: run.entryId,
+        contentTypeId,
+        sourceLocale,
+        targetLocaleCount: resolvedTargetLocales.length,
+        detectedFieldCount: units.length,
+      },
+      "contentful automation detected translatable fields",
+    );
 
     await db
       .update(schema.contentfulTranslationRuns)
@@ -709,6 +735,19 @@ export async function executeContentfulAutomation(
       });
     }
 
+    logger.info(
+      {
+        ...executionContext,
+        runId: run.id,
+        localeValuesWritten: translations.length,
+        qaFindingCount: qaFindings.length,
+        qaErrorCount,
+        qaWarningCount,
+        writeDrafts: run.writeDrafts !== false,
+      },
+      "contentful automation execution succeeded",
+    );
+
     return ok({ runId: run.id });
   } catch (error) {
     const completedAt = new Date();
@@ -717,6 +756,15 @@ export async function executeContentfulAutomation(
       : error instanceof Error
         ? error.message
         : "contentful_automation_failed";
+    logger.error(
+      {
+        ...executionContext,
+        runId: run.id,
+        message,
+        err: serializeErrorForLog(error),
+      },
+      "contentful automation execution failed",
+    );
     await db
       .update(schema.contentfulTranslationRuns)
       .set({

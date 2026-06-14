@@ -1,6 +1,5 @@
 import { getWorkflowMetadata } from "workflow";
 
-import { isErr } from "@/lib/primitives/result/results";
 import type { ContentfulAutomationExecutionEventData } from "@/lib/workflow/types";
 
 import { executeContentfulAutomationStep } from "./steps/contentful-automation-execution";
@@ -13,7 +12,7 @@ export async function contentfulAutomationExecutionWorkflow(
   const { workflowRunId } = getWorkflowMetadata();
   const result = await executeContentfulAutomationStep(event);
 
-  if (isErr(result)) {
+  if (!result.ok) {
     return {
       workflowRunId,
       ok: false as const,
