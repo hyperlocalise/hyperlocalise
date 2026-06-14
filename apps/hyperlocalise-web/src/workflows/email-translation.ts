@@ -1,11 +1,6 @@
-import { Sandbox } from "@vercel/sandbox";
-import { Resend } from "resend";
 import { getWorkflowMetadata } from "workflow";
 
 import { env } from "@/lib/env";
-import { inferAttachmentContentType, toBase64AttachmentContent } from "@/lib/resend/attachments";
-import { getTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
-import { createConfiguredVercelSandbox } from "@/lib/vercel-sandbox-config";
 import type { EmailAgentTask, EmailAgentTaskAttachment } from "@/lib/workflow/types";
 import {
   markEmailTranslationJobFailed,
@@ -18,6 +13,7 @@ const sandboxTimeoutMs = 10 * 60 * 1000;
 async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
   "use step";
 
+  const { createConfiguredVercelSandbox } = await import("@/lib/vercel-sandbox-config");
   const sandbox = await createConfiguredVercelSandbox({
     timeout: sandboxTimeoutMs,
   });
@@ -28,6 +24,7 @@ async function createTranslationSandbox(): Promise<{ sandboxId: string }> {
 async function stopTranslationSandbox(sandboxId: string): Promise<void> {
   "use step";
 
+  const { Sandbox } = await import("@vercel/sandbox");
   const sandbox = await Sandbox.get({ name: sandboxId });
   await sandbox.stop();
 }
@@ -38,6 +35,7 @@ async function runSandboxCommand(
   args: string[],
   options?: { env?: Record<string, string> },
 ): Promise<{ exitCode: number; output: string }> {
+  const { Sandbox } = await import("@vercel/sandbox");
   const sandbox = await Sandbox.get({ name: sandboxId });
   const result = await sandbox.runCommand({
     cmd: command,
@@ -124,6 +122,7 @@ async function writeTempConfig(
 ): Promise<void> {
   "use step";
 
+  const { Sandbox } = await import("@vercel/sandbox");
   const sandbox = await Sandbox.get({ name: sandboxId });
   await sandbox.writeFiles([{ path: configPath, content: configContent }]);
 }
@@ -158,6 +157,7 @@ async function runTranslationCommand(
 async function readTranslatedFile(sandboxId: string, outputFile: string): Promise<Buffer> {
   "use step";
 
+  const { Sandbox } = await import("@vercel/sandbox");
   const sandbox = await Sandbox.get({ name: sandboxId });
   const content = await sandbox.readFileToBuffer({ path: outputFile });
   if (!content) {
@@ -174,6 +174,7 @@ async function logTranslatedFileDiagnostics(
 ): Promise<void> {
   "use step";
 
+  const { getTranslatedFileDiagnostics } = await import("@/lib/translation/diagnostics");
   const diagnostics = await getTranslatedFileDiagnostics(translatedContent, outputFilename);
 
   console.info("[email-translation-workflow] translated email attachment diagnostics", {
@@ -206,6 +207,10 @@ async function sendReplyEmail(
   outputFilename: string,
 ): Promise<void> {
   "use step";
+
+  const { Resend } = await import("resend");
+  const { inferAttachmentContentType, toBase64AttachmentContent } =
+    await import("@/lib/resend/attachments");
 
   if (!env.RESEND_API_KEY) {
     throw new Error("Resend is not configured");
@@ -257,6 +262,8 @@ async function sendFailureReplyEmail(
   reason: string,
 ): Promise<void> {
   "use step";
+
+  const { Resend } = await import("resend");
 
   if (!env.RESEND_API_KEY) {
     throw new Error("Resend is not configured");

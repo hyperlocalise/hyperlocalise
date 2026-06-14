@@ -1,24 +1,9 @@
-import { ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 import { getWorkflowMetadata } from "workflow";
 
 import type {
   RepositoryAgentGitHubContext,
   RepositoryAgentTask,
 } from "@/lib/agents/repository-agent-task";
-import {
-  buildHyperlocaliseAgentInstructions,
-  getHyperlocaliseAgentModel,
-} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
-import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
-import { buildRepositoryGitHubContextInstructions } from "@/lib/agents/repository-context";
-import {
-  filterToolSetByNames,
-  repositoryWorkspaceToolNames,
-} from "@/lib/agent-runtime/tools/manifest";
-import { buildTools } from "@/lib/agent-runtime/tools/registry";
-import { ensureAgentSession } from "@/lib/tools/types";
-import type { ToolContext } from "@/lib/tools/types";
-import { db } from "@/lib/database";
 
 export type RepositoryWorkflowResult = {
   ok: boolean;
@@ -50,13 +35,85 @@ async function stopRepositorySandboxStep(sandboxId: string): Promise<void> {
   return stopRepositorySandbox(sandboxId);
 }
 
+async function runRepositoryAgentStep(input: {
+  task: RepositoryAgentTask;
+  workflowRunId: string;
+  sandboxId: string | null;
+}): Promise<string> {
+  "use step";
+
+  const { ToolLoopAgent } = await import("ai");
+  const { db } = await import("@/lib/database");
+  const { buildHyperlocaliseAgentInstructions, getHyperlocaliseAgentModel } =
+    await import("@/lib/agent-runtime/loops/hyperlocalise-agent");
+  const { WORKFLOW_AGENT_TIMEOUT } = await import("@/lib/agent-runtime/subagents/constants");
+  const { buildRepositoryGitHubContextInstructions } =
+    await import("@/lib/agents/repository-context");
+  const { filterToolSetByNames, repositoryWorkspaceToolNames } =
+    await import("@/lib/agent-runtime/tools/manifest");
+  const { buildTools } = await import("@/lib/agent-runtime/tools/registry");
+  const { ensureAgentSession } = await import("@/lib/tools/types");
+
+  const { task, workflowRunId, sandboxId } = input;
+  const localUserId = task.actor.userId?.trim() || "repository_agent";
+
+  const toolContext = {
+    conversationId: task.id,
+    agentSession: { todos: [] },
+    workflowRunId,
+    organizationId: task.organizationId,
+    localUserId,
+    membershipRole: task.actor.role ?? "member",
+    projectId: task.projectId,
+    db,
+    workMode: "read_only" as const,
+    repositorySource: task.source,
+    actor: task.actor,
+    sandboxId,
+    githubContext: task.githubContext && task.githubContext.resolved ? task.githubContext : null,
+  };
+
+  ensureAgentSession(toolContext);
+  const tools = filterToolSetByNames(buildTools(toolContext), [...repositoryWorkspaceToolNames]);
+  const agent = new ToolLoopAgent({
+    model: getHyperlocaliseAgentModel(),
+    tools,
+    stopWhen: [(step) => step.steps.length >= agentStepLimit],
+    timeout: WORKFLOW_AGENT_TIMEOUT,
+    instructions: buildHyperlocaliseAgentInstructions({
+      surface: task.source === "slack" ? "slack" : task.source === "github" ? "github" : "web",
+      projectId: task.projectId,
+      additionalInstructions: [
+        sandboxId
+          ? `Sandbox id available to tools: ${sandboxId}. Access repo only via tools.`
+          : "No repository sandbox required for this task.",
+        task.githubContext?.resolved
+          ? buildRepositoryGitHubContextInstructions(task.githubContext)
+          : null,
+        sandboxId
+          ? "Use glob to find candidate files, grep to locate literal strings, and read to inspect surrounding lines. Use todoWrite for multi-step investigations."
+          : null,
+        readOnlyRepoInstructions,
+      ]
+        .filter((instruction): instruction is string => instruction !== null)
+        .join("\n\n"),
+    }),
+    experimental_context: { sandboxId, repositoryTaskId: task.id },
+  });
+
+  const result = await agent.generate({
+    messages: [{ role: "user", content: task.instructions }],
+  });
+
+  return result.text.trim() || "Completed repository agent task.";
+}
+
 export async function repositoryAgentWorkflow(
   task: RepositoryAgentTask,
 ): Promise<RepositoryWorkflowResult> {
   "use workflow";
 
   const { workflowRunId } = getWorkflowMetadata();
-  const localUserId = task.actor.userId?.trim() || "repository_agent";
 
   let sandboxId: string | null = null;
 
@@ -65,61 +122,17 @@ export async function repositoryAgentWorkflow(
       sandboxId = await createRepositorySandboxStep(task.githubContext);
     }
 
-    const toolContext: ToolContext = {
-      conversationId: task.id,
-      agentSession: { todos: [] },
+    const summary = await runRepositoryAgentStep({
+      task,
       workflowRunId,
-      organizationId: task.organizationId,
-      localUserId,
-      membershipRole: task.actor.role ?? "member",
-      projectId: task.projectId,
-      db,
-      workMode: "read_only",
-      repositorySource: task.source,
-      actor: task.actor,
-      sandboxId: sandboxId ?? null,
-      githubContext: task.githubContext && task.githubContext.resolved ? task.githubContext : null,
-    };
-
-    ensureAgentSession(toolContext);
-    const tools = filterToolSetByNames(buildTools(toolContext), [
-      ...repositoryWorkspaceToolNames,
-    ]) as ToolSet;
-    const agent = new ToolLoopAgent({
-      model: getHyperlocaliseAgentModel(),
-      tools,
-      stopWhen: [(step) => step.steps.length >= agentStepLimit],
-      timeout: WORKFLOW_AGENT_TIMEOUT,
-      instructions: buildHyperlocaliseAgentInstructions({
-        surface: task.source === "slack" ? "slack" : task.source === "github" ? "github" : "web",
-        projectId: task.projectId,
-        additionalInstructions: [
-          sandboxId
-            ? `Sandbox id available to tools: ${sandboxId}. Access repo only via tools.`
-            : "No repository sandbox required for this task.",
-          task.githubContext?.resolved
-            ? buildRepositoryGitHubContextInstructions(task.githubContext)
-            : null,
-          sandboxId
-            ? "Use glob to find candidate files, grep to locate literal strings, and read to inspect surrounding lines. Use todoWrite for multi-step investigations."
-            : null,
-          readOnlyRepoInstructions,
-        ]
-          .filter((instruction): instruction is string => instruction !== null)
-          .join("\n\n"),
-      }),
-      experimental_context: { sandboxId, repositoryTaskId: task.id },
-    });
-
-    const result = await agent.generate({
-      messages: [{ role: "user", content: task.instructions }] as ModelMessage[],
+      sandboxId,
     });
 
     return {
       ok: true,
       workflowRunId,
       sourceReplyTarget: { source: task.source, threadId: task.sourceThreadId },
-      summary: result.text.trim() || "Completed repository agent task.",
+      summary,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

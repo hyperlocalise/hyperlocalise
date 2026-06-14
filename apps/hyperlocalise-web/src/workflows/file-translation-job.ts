@@ -1,31 +1,14 @@
 import { getWorkflowMetadata } from "workflow";
-import { and, asc, eq, inArray } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
-import { logTranslatedFileDiagnostics } from "@/lib/translation/diagnostics";
-import {
-  isImageTranslationFileFormat,
-  type SupportedTranslationFileFormat,
-} from "@/lib/translation/file-formats";
-import {
-  buildTempConfig,
-  createTranslationSandbox,
-  getSandboxInputFilename,
-  getSandboxOutputFilename,
-  getSandboxTranslationEnv,
-  prepareSandbox,
-  readTranslatedFile,
-  runSandboxCommand,
-  type SandboxTranslationContext,
-  stopTranslationSandbox,
-  userFacingFailureReason,
-  writeFileToSandbox,
-  writeTempConfig,
-} from "@/lib/translation/sandbox-translation";
 import {
   sourceContainsTerm,
   validateGlossaryTermsInTranslation,
 } from "@/lib/glossary/validate-glossary-terms-in-translation";
+import {
+  isImageTranslationFileFormat,
+  type SupportedTranslationFileFormat,
+} from "@/lib/translation/file-formats";
+import type { SandboxTranslationContext } from "@/lib/translation/sandbox-translation";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
 import {
   claimTranslationJobStep,
@@ -45,18 +28,67 @@ function shellSingleQuote(value: string) {
   return value.replaceAll("'", "'\\''");
 }
 
+function sanitizeSandboxFilename(filename: string): string {
+  return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+}
+
+function getSandboxInputFilename(attachmentFilename: string): string {
+  return sanitizeSandboxFilename(attachmentFilename);
+}
+
+function getSandboxOutputFilename(attachmentFilename: string, targetLocale: string): string {
+  const inputFilename = sanitizeSandboxFilename(attachmentFilename);
+  const lastDot = inputFilename.lastIndexOf(".");
+  if (lastDot === -1) {
+    return `${inputFilename}-${targetLocale}`;
+  }
+
+  const name = inputFilename.slice(0, lastDot);
+  const ext = inputFilename.slice(lastDot);
+  return `${name}-${targetLocale}${ext}`;
+}
+
+function userFacingFailureReason(error: unknown): string {
+  const message = error instanceof Error ? error.message : "Unknown translation failure";
+
+  if (message.startsWith("glossary validation failed")) {
+    return message;
+  }
+
+  if (message.includes("hyperlocalise CLI installation failed")) {
+    return "something went wrong while setting up the translation environment on our end.";
+  }
+
+  if (message.includes("failed to download attachment")) {
+    return "the attachment couldn't be retrieved. It may have been too large or the link expired.";
+  }
+
+  if (message.includes("translation failed")) {
+    return "the file format may not be supported, or the content didn't match what the translator expected.";
+  }
+
+  if (message.includes("failed to read translated file")) {
+    return "the translation finished, but the output file couldn't be read back. This is usually temporary.";
+  }
+
+  return "the translation failed before it could finish. This is usually temporary.";
+}
+
 async function createSandboxStep() {
   "use step";
+  const { createTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
   return createTranslationSandbox();
 }
 
 async function prepareSandboxStep(sandboxId: string) {
   "use step";
+  const { prepareSandbox } = await import("@/lib/translation/sandbox-translation");
   return prepareSandbox(sandboxId);
 }
 
 async function writeSourceFileStep(sandboxId: string, filename: string, content: Buffer) {
   "use step";
+  const { writeFileToSandbox } = await import("@/lib/translation/sandbox-translation");
   return writeFileToSandbox(sandboxId, filename, content);
 }
 
@@ -71,6 +103,14 @@ async function runTranslationStep(
   prefilledEntries: Record<string, string>,
 ) {
   "use step";
+
+  const {
+    buildTempConfig,
+    getSandboxTranslationEnv,
+    runSandboxCommand,
+    writeFileToSandbox,
+    writeTempConfig,
+  } = await import("@/lib/translation/sandbox-translation");
 
   const configPath = "/tmp/hyperlocalise-file.yml";
   const config = buildTempConfig(
@@ -109,6 +149,8 @@ async function runTranslationStep(
 
 async function extractEntriesStep(sandboxId: string, path: string) {
   "use step";
+  const { getSandboxTranslationEnv, runSandboxCommand } =
+    await import("@/lib/translation/sandbox-translation");
   const result = await runSandboxCommand(
     sandboxId,
     "bash",
@@ -122,11 +164,13 @@ async function extractEntriesStep(sandboxId: string, path: string) {
 }
 async function readOutputStep(sandboxId: string, outputFile: string, _attempt: 1 | 2) {
   "use step";
+  const { readTranslatedFile } = await import("@/lib/translation/sandbox-translation");
   return readTranslatedFile(sandboxId, outputFile);
 }
 
 async function stopSandboxStep(sandboxId: string) {
   "use step";
+  const { stopTranslationSandbox } = await import("@/lib/translation/sandbox-translation");
   return stopTranslationSandbox(sandboxId);
 }
 
@@ -138,6 +182,8 @@ async function logDiagnosticsStep(
   outputFilename: string,
 ) {
   "use step";
+
+  const { logTranslatedFileDiagnostics } = await import("@/lib/translation/diagnostics");
   return logTranslatedFileDiagnostics(
     jobId,
     "file-translation",
@@ -157,6 +203,9 @@ async function assembleFileTranslationContextStep(input: {
   metadata?: Record<string, string>;
 }) {
   "use step";
+
+  const { and, asc, eq, inArray } = await import("drizzle-orm");
+  const { db, schema } = await import("@/lib/database");
 
   const [project] = await db
     .select({
