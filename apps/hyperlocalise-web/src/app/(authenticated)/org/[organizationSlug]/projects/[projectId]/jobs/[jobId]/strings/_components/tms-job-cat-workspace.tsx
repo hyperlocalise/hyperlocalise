@@ -42,8 +42,16 @@ function projectFileCatQueryKey(
   projectId: string,
   sourcePath: string,
   targetLocale: string,
+  repositoryFullName: string | null,
 ) {
-  return ["project-file-cat", organizationSlug, projectId, sourcePath, targetLocale] as const;
+  return [
+    "project-file-cat",
+    organizationSlug,
+    projectId,
+    sourcePath,
+    targetLocale,
+    repositoryFullName,
+  ] as const;
 }
 
 function segmentStatusFor(segment: ProjectFileCatSegment): CatSegment["status"] {
@@ -226,16 +234,24 @@ export function TmsJobCatWorkspace({
   projectId,
   sourcePath,
   targetLocale,
+  repositoryFullName = null,
   className,
 }: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
   targetLocale: string;
+  repositoryFullName?: string | null;
   className?: string;
 }) {
   const queryClient = useQueryClient();
-  const queryKey = projectFileCatQueryKey(organizationSlug, projectId, sourcePath, targetLocale);
+  const queryKey = projectFileCatQueryKey(
+    organizationSlug,
+    projectId,
+    sourcePath,
+    targetLocale,
+    repositoryFullName,
+  );
   const catQuery = useQuery({
     queryKey,
     queryFn: async () => {
@@ -243,7 +259,11 @@ export function TmsJobCatWorkspace({
         ":projectId"
       ].files.detail.cat.$get({
         param: { organizationSlug, projectId },
-        query: { sourcePath, targetLocale },
+        query: {
+          sourcePath,
+          targetLocale,
+          ...(repositoryFullName ? { repositoryFullName } : {}),
+        },
       });
 
       if (!response.ok) {
@@ -305,12 +325,17 @@ export function TmsJobCatWorkspace({
   );
   const lookupSegmentContext = useCallback(
     async (segment: CatSegment) => {
+      if (!repositoryFullName) {
+        throw new Error("Select a GitHub repository before looking up string context.");
+      }
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].files[
         "string-context"
       ].$post({
         param: { organizationSlug, projectId },
         json: {
           sourcePath,
+          repositoryFullName,
           key: segment.key,
           text: segment.sourceText,
           context: segment.contextLabel ?? null,
@@ -324,7 +349,7 @@ export function TmsJobCatWorkspace({
       const body = (await response.json()) as { stringContext: { summary: string } };
       return body.stringContext.summary;
     },
-    [organizationSlug, projectId, sourcePath],
+    [organizationSlug, projectId, repositoryFullName, sourcePath],
   );
 
   if (catQuery.isLoading) {
@@ -365,7 +390,7 @@ export function TmsJobCatWorkspace({
       className={cn("min-h-0 flex-1", className)}
       services={{
         validateFormat: validateSegmentFormat,
-        lookupSegmentContext,
+        ...(repositoryFullName ? { lookupSegmentContext } : {}),
       }}
       review={{
         onApprove: handleApprove,
