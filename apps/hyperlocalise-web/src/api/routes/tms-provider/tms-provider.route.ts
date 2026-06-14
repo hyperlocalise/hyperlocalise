@@ -164,7 +164,7 @@ export function createTmsProviderRoutes() {
       }
     })
     .post("/projects/sync", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
+      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
         return c.json({ error: "forbidden" }, 403);
       }
 

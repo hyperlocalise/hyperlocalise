@@ -71,6 +71,19 @@ function createCatalogIntent(): ProviderSyncIntentInput {
   };
 }
 
+function mockCredentialActor(input: {
+  createdByUserId: string | null;
+  updatedByUserId: string | null;
+}) {
+  dbSelectMock.mockReturnValue({
+    from: vi.fn(() => ({
+      where: vi.fn(() => ({
+        limit: vi.fn(async () => [input]),
+      })),
+    })),
+  });
+}
+
 describe("executeProviderSyncIntent", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -85,17 +98,9 @@ describe("executeProviderSyncIntent", () => {
         where: vi.fn(async () => {}),
       })),
     });
-    dbSelectMock.mockReturnValue({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn(async () => [
-            {
-              createdByUserId: "user_created",
-              updatedByUserId: "user_updated",
-            },
-          ]),
-        })),
-      })),
+    mockCredentialActor({
+      createdByUserId: "user_created",
+      updatedByUserId: "user_updated",
     });
     listTmsProviderLiveProjectsMock.mockResolvedValue([]);
   });
@@ -106,6 +111,20 @@ describe("executeProviderSyncIntent", () => {
     expect(isOk(result)).toBe(true);
     expect(listTmsProviderLiveProjectsMock).toHaveBeenCalledWith("org_123", {
       actorUserId: "user_updated",
+    });
+  });
+
+  it("falls back to the credential creator when the updater is missing", async () => {
+    mockCredentialActor({
+      createdByUserId: "user_created",
+      updatedByUserId: null,
+    });
+
+    const result = await executeProviderSyncIntent(createCatalogIntent());
+
+    expect(isOk(result)).toBe(true);
+    expect(listTmsProviderLiveProjectsMock).toHaveBeenCalledWith("org_123", {
+      actorUserId: "user_created",
     });
   });
 });
