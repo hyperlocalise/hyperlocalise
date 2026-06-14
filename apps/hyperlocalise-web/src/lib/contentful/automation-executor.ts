@@ -47,6 +47,12 @@ export type ContentfulAutomationExecutionEvent = {
   organizationId: string;
 };
 
+type ContentfulAutomationFieldLogContext = ContentfulAutomationExecutionEvent & {
+  runId: string;
+  fieldId: string;
+  fieldKind: ContentfulTranslatableFieldUnit["kind"];
+};
+
 function sha256(value: string) {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
@@ -235,12 +241,24 @@ export async function translateTextUnit(input: {
   runQa: boolean;
   client: ContentfulManagementClient;
   localizedAssetCache: LocalizedAssetCache;
+  logContext?: ContentfulAutomationFieldLogContext;
 }) {
   const existingLocales = new Set(
     input.unit.existingTranslations.map((translation) => translation.locale),
   );
   const targetLocales = input.targetLocales.filter((locale) => !existingLocales.has(locale));
   if (targetLocales.length === 0) {
+    if (input.logContext) {
+      logger.warn(
+        {
+          ...input.logContext,
+          reason: "target_locales_already_populated",
+          configuredTargetLocales: input.targetLocales,
+          existingLocales: [...existingLocales],
+        },
+        "contentful automation skipped text field translation",
+      );
+    }
     return {
       translations: [] as ContentfulDraftTranslation[],
       qaFindings: [] as Array<Record<string, unknown>>,
@@ -270,6 +288,17 @@ export async function translateTextUnit(input: {
   );
 
   if (!contextSnapshot.ok) {
+    if (input.logContext) {
+      logger.warn(
+        {
+          ...input.logContext,
+          reason: "translation_context_assembly_failed",
+          code: contextSnapshot.code,
+          targetLocales,
+        },
+        "contentful automation text field translation failed before model call",
+      );
+    }
     await Promise.all(
       targetLocales.map((locale) =>
         createTextRunItem({
@@ -310,7 +339,19 @@ export async function translateTextUnit(input: {
       : [];
     qaFindings.push(...findings);
     const hasQaError = contentfulQaFindingsContainError(findings);
-    if (!hasQaError) {
+    if (hasQaError) {
+      if (input.logContext) {
+        logger.warn(
+          {
+            ...input.logContext,
+            reason: "qa_blocked_writeback",
+            locale: translation.locale,
+            qaErrorCount: findings.filter((finding) => finding.severity === "error").length,
+          },
+          "contentful automation blocked draft writeback after QA failure",
+        );
+      }
+    } else {
       let localizedAssetIdsBySourceId: Map<string, string> | undefined;
       if (input.unit.embeddedAssetIds && input.unit.embeddedAssetIds.length > 0) {
         try {
@@ -323,6 +364,21 @@ export async function translateTextUnit(input: {
             cache: input.localizedAssetCache,
           });
         } catch (error) {
+          if (input.logContext) {
+            logger.warn(
+              {
+                ...input.logContext,
+                reason: "embedded_asset_localization_failed",
+                locale: translation.locale,
+                embeddedAssetCount: input.unit.embeddedAssetIds.length,
+                message: getContentfulAutomationErrorMessage(
+                  error,
+                  "contentful_embedded_asset_localization_failed",
+                ),
+              },
+              "contentful automation blocked draft writeback after embedded asset localization failed",
+            );
+          }
           await createTextRunItem({
             runId: input.runId,
             unit: input.unit,
@@ -375,10 +431,22 @@ async function translateImageUnit(input: {
   targetLocales: string[];
   client: ContentfulManagementClient;
   localizedAssetCache: LocalizedAssetCache;
+  logContext?: ContentfulAutomationFieldLogContext;
 }) {
   const existingLocales = new Set(input.unit.existingLocales);
   const targetLocales = input.targetLocales.filter((locale) => !existingLocales.has(locale));
   if (targetLocales.length === 0) {
+    if (input.logContext) {
+      logger.warn(
+        {
+          ...input.logContext,
+          reason: "target_locales_already_populated",
+          configuredTargetLocales: input.targetLocales,
+          existingLocales: [...existingLocales],
+        },
+        "contentful automation skipped image field translation",
+      );
+    }
     return {
       translations: [] as ContentfulDraftTranslation[],
       qaFindings: [] as Array<Record<string, unknown>>,
@@ -420,6 +488,17 @@ async function translateImageUnit(input: {
         error,
         "contentful_image_localization_failed",
       );
+      if (input.logContext) {
+        logger.warn(
+          {
+            ...input.logContext,
+            reason: "image_localization_failed",
+            locale,
+            message,
+          },
+          "contentful automation image field localization failed",
+        );
+      }
       await createImageRunItem({
         runId: input.runId,
         unit: input.unit,
@@ -449,6 +528,7 @@ async function translateFieldUnit(input: {
   runQa: boolean;
   client: ContentfulManagementClient;
   localizedAssetCache: LocalizedAssetCache;
+  logContext: ContentfulAutomationFieldLogContext;
 }) {
   if (input.unit.kind === "image") {
     return translateImageUnit({
@@ -457,6 +537,7 @@ async function translateFieldUnit(input: {
       targetLocales: input.targetLocales,
       client: input.client,
       localizedAssetCache: input.localizedAssetCache,
+      logContext: input.logContext,
     });
   }
 
@@ -472,6 +553,7 @@ async function translateFieldUnit(input: {
     runQa: input.runQa,
     client: input.client,
     localizedAssetCache: input.localizedAssetCache,
+    logContext: input.logContext,
   });
 }
 
@@ -630,8 +712,25 @@ export async function executeContentfulAutomation(
         entryId: run.entryId,
         contentTypeId,
         sourceLocale,
+        targetLocales: resolvedTargetLocales,
         targetLocaleCount: resolvedTargetLocales.length,
+        overwriteDraftLocales: run.overwriteDraftLocales ?? false,
+        writeDrafts: run.writeDrafts !== false,
+        runQa: run.runQa,
         detectedFieldCount: units.length,
+        detectedFields: units.map((unit) => ({
+          fieldId: unit.fieldId,
+          kind: unit.kind,
+          pendingTargetLocaleCount:
+            unit.kind === "text"
+              ? resolvedTargetLocales.filter(
+                  (locale) =>
+                    !unit.existingTranslations.some((translation) => translation.locale === locale),
+                ).length
+              : resolvedTargetLocales.filter((locale) => !unit.existingLocales.includes(locale))
+                  .length,
+          embeddedAssetCount: unit.kind === "text" ? (unit.embeddedAssetIds?.length ?? 0) : 0,
+        })),
       },
       "contentful automation detected translatable fields",
     );
@@ -669,10 +768,36 @@ export async function executeContentfulAutomation(
           runQa: run.runQa,
           client,
           localizedAssetCache,
+          logContext: {
+            ...executionContext,
+            runId: run.id,
+            fieldId: unit.fieldId,
+            fieldKind: unit.kind,
+          },
         }),
     );
     const translations = results.flatMap((result) => result.translations);
     const qaFindings = results.flatMap((result) => result.qaFindings);
+    const skippedLocaleCount = results.reduce((total, result) => total + result.skipped, 0);
+
+    for (const [index, unit] of units.entries()) {
+      const result = results[index];
+      if (!result) {
+        continue;
+      }
+      logger.info(
+        {
+          ...executionContext,
+          runId: run.id,
+          fieldId: unit.fieldId,
+          fieldKind: unit.kind,
+          localeValuesProduced: result.translations.length,
+          skippedLocaleCount: result.skipped,
+          qaFindingCount: result.qaFindings.length,
+        },
+        "contentful automation field translation finished",
+      );
+    }
 
     let updatedEntry = entry;
     if (translations.length > 0 && run.writeDrafts !== false) {
@@ -681,6 +806,19 @@ export async function executeContentfulAutomation(
         throw updatedEntryResult.error;
       }
       updatedEntry = updatedEntryResult.value;
+    } else if (units.length > 0 && run.writeDrafts !== false && translations.length === 0) {
+      logger.warn(
+        {
+          ...executionContext,
+          runId: run.id,
+          entryId: run.entryId,
+          detectedFieldCount: units.length,
+          skippedLocaleCount,
+          qaFindingCount: qaFindings.length,
+          writeDrafts: true,
+        },
+        "contentful automation produced no draft writebacks despite detected fields",
+      );
     }
     const completedAt = new Date();
     const qaErrorCount = qaFindings.filter((finding) => finding.severity === "error").length;
