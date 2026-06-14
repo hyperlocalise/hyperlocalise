@@ -7,14 +7,19 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 
-import { and, eq, gt, isNull, lt } from "drizzle-orm";
+import { and, eq, gt, isNotNull, isNull, lt, ne } from "drizzle-orm";
 import { createMiddleware } from "hono/factory";
 import type { EvlogVariables } from "evlog/hono";
 
 import { forbiddenResponse } from "@/api/errors";
+import {
+  isMembershipReconcileFresh,
+  reconcileWorkosMembershipsForUser,
+} from "@/api/auth/workos-membership-reconcile";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { env } from "@/lib/env";
+import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
 
 export type McpAuthVariables = EvlogVariables["Variables"] & {
   mcpAuth: {
@@ -293,6 +298,94 @@ export function getMcpTokenExpiry() {
   };
 }
 
+type McpSessionRecord = {
+  id: string;
+  userId: string;
+  workosUserId: string;
+  email: string;
+  organizationId: string;
+  workosOrganizationId: string;
+  organizationName: string;
+  organizationSlug: string | null;
+  lifecycleStatus: string;
+};
+
+export type ResolveAuthoritativeMcpSessionAuthResult =
+  | { status: "authorized"; auth: McpAuthVariables["mcpAuth"] }
+  | { status: "unauthorized" }
+  | { status: "workspace_archived" };
+
+async function revokeMcpSession(sessionId: string) {
+  await db.delete(schema.mcpSessions).where(eq(schema.mcpSessions.id, sessionId));
+}
+
+export async function resolveAuthoritativeMcpSessionAuth(
+  session: McpSessionRecord,
+): Promise<ResolveAuthoritativeMcpSessionAuthResult> {
+  if (session.lifecycleStatus !== "active") {
+    await revokeMcpSession(session.id);
+    return { status: "workspace_archived" };
+  }
+
+  const reconcileResult = await reconcileWorkosMembershipsForUser(db, {
+    workosUserId: session.workosUserId,
+    email: session.email,
+    workosOrganizationId: session.workosOrganizationId,
+    refreshReconcileTtl: true,
+  });
+
+  if (reconcileResult.status === "lookup_failed") {
+    if (!isMembershipReconcileFresh(reconcileResult.lastReconciledAt)) {
+      return { status: "unauthorized" };
+    }
+  }
+
+  const [membership] = await db
+    .select({
+      workosMembershipId: schema.organizationMemberships.workosMembershipId,
+      role: schema.organizationMemberships.role,
+    })
+    .from(schema.organizationMemberships)
+    .where(
+      and(
+        eq(schema.organizationMemberships.userId, session.userId),
+        eq(schema.organizationMemberships.organizationId, session.organizationId),
+        isNotNull(schema.organizationMemberships.workosMembershipId),
+        ne(schema.organizationMemberships.workosMembershipId, REPLACING_WORKOS_MEMBERSHIP_ID),
+      ),
+    )
+    .limit(1);
+
+  if (!membership) {
+    await revokeMcpSession(session.id);
+    return { status: "unauthorized" };
+  }
+
+  return {
+    status: "authorized",
+    auth: {
+      user: {
+        localUserId: session.userId,
+        workosUserId: session.workosUserId,
+        email: session.email,
+      },
+      organization: {
+        localOrganizationId: session.organizationId,
+        workosOrganizationId: session.workosOrganizationId,
+        name: session.organizationName,
+        slug: session.organizationSlug,
+      },
+      membership: {
+        workosMembershipId: membership.workosMembershipId,
+        role: membership.role,
+      },
+      session: {
+        id: session.id,
+      },
+    },
+  };
+}
+
 export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVariables }>(
   async (c, next) => {
     if (!env.MCP_AUTH_ENABLED) {
@@ -321,21 +414,12 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
         organizationName: schema.organizations.name,
         organizationSlug: schema.organizations.slug,
         lifecycleStatus: schema.organizations.lifecycleStatus,
-        membershipRole: schema.organizationMemberships.role,
-        workosMembershipId: schema.organizationMemberships.workosMembershipId,
       })
       .from(schema.mcpSessions)
       .innerJoin(schema.users, eq(schema.mcpSessions.userId, schema.users.id))
       .innerJoin(
         schema.organizations,
         eq(schema.mcpSessions.organizationId, schema.organizations.id),
-      )
-      .innerJoin(
-        schema.organizationMemberships,
-        and(
-          eq(schema.organizationMemberships.userId, schema.mcpSessions.userId),
-          eq(schema.organizationMemberships.organizationId, schema.mcpSessions.organizationId),
-        ),
       )
       .where(
         and(
@@ -350,35 +434,22 @@ export const mcpBearerAuthMiddleware = createMiddleware<{ Variables: McpAuthVari
       return c.json({ error: "unauthorized" }, 401);
     }
 
-    if (session.lifecycleStatus !== "active") {
+    const authResult = await resolveAuthoritativeMcpSessionAuth(session);
+
+    if (authResult.status === "unauthorized") {
+      return c.json({ error: "unauthorized" }, 401);
+    }
+
+    if (authResult.status === "workspace_archived") {
       return forbiddenResponse(c, "workspace_archived", "This workspace has been archived");
     }
 
-    c.set("mcpAuth", {
-      user: {
-        localUserId: session.userId,
-        workosUserId: session.workosUserId,
-        email: session.email,
-      },
-      organization: {
-        localOrganizationId: session.organizationId,
-        workosOrganizationId: session.workosOrganizationId,
-        name: session.organizationName,
-        slug: session.organizationSlug,
-      },
-      membership: {
-        workosMembershipId: session.workosMembershipId,
-        role: session.membershipRole,
-      },
-      session: {
-        id: session.id,
-      },
-    });
+    c.set("mcpAuth", authResult.auth);
     c.get("log").set({
       auth: {
-        mcpSessionId: session.id,
-        localUserId: session.userId,
-        localOrganizationId: session.organizationId,
+        mcpSessionId: authResult.auth.session.id,
+        localUserId: authResult.auth.user.localUserId,
+        localOrganizationId: authResult.auth.organization.localOrganizationId,
       },
     });
 

@@ -2,7 +2,7 @@ import "dotenv/config";
 
 import { createHash } from "node:crypto";
 
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import {
@@ -111,5 +111,111 @@ describe("mcpBearerAuthMiddleware", () => {
     expect(response.status).toBe(403);
     const body = (await response.json()) as { error: string };
     expect(body.error).toBe("workspace_archived");
+
+    const remainingSessions = await db
+      .select({ id: schema.mcpSessions.id })
+      .from(schema.mcpSessions)
+      .where(eq(schema.mcpSessions.userId, auth.user.localUserId));
+
+    expect(remainingSessions).toEqual([]);
+  });
+
+  it("rejects bearer tokens when membership is no longer authoritative", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    const code = createAuthorizationCode({
+      clientId: "test-client",
+      redirectUri: "http://localhost:8787/callback",
+      codeChallenge: pkceChallenge(verifier),
+      codeChallengeMethod: "S256",
+      scope: "mcp",
+      userId: auth.user.localUserId,
+      organizationId: auth.organization.localOrganizationId,
+    });
+
+    const tokenResponse = await exchangeCode({ code, verifier });
+    expect(tokenResponse.status).toBe(200);
+    const { access_token: accessToken } = (await tokenResponse.json()) as { access_token: string };
+
+    await db
+      .delete(schema.organizationMemberships)
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, auth.user.localUserId),
+          eq(schema.organizationMemberships.organizationId, auth.organization.localOrganizationId),
+        ),
+      );
+
+    const response = await app.request("http://localhost/api/mcp/sse", {
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.status).toBe(401);
+
+    const remainingSessions = await db
+      .select({ id: schema.mcpSessions.id })
+      .from(schema.mcpSessions)
+      .where(eq(schema.mcpSessions.userId, auth.user.localUserId));
+
+    expect(remainingSessions).toEqual([]);
+  });
+
+  it("rejects bearer tokens when membership is pending", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await fixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext;
+
+    if (!auth) {
+      throw new Error("expected test auth context");
+    }
+
+    const verifier = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~";
+    const code = createAuthorizationCode({
+      clientId: "test-client",
+      redirectUri: "http://localhost:8787/callback",
+      codeChallenge: pkceChallenge(verifier),
+      codeChallengeMethod: "S256",
+      scope: "mcp",
+      userId: auth.user.localUserId,
+      organizationId: auth.organization.localOrganizationId,
+    });
+
+    const tokenResponse = await exchangeCode({ code, verifier });
+    expect(tokenResponse.status).toBe(200);
+    const { access_token: accessToken } = (await tokenResponse.json()) as { access_token: string };
+
+    await db
+      .update(schema.organizationMemberships)
+      .set({ workosMembershipId: null })
+      .where(
+        and(
+          eq(schema.organizationMemberships.userId, auth.user.localUserId),
+          eq(schema.organizationMemberships.organizationId, auth.organization.localOrganizationId),
+        ),
+      );
+
+    const response = await app.request("http://localhost/api/mcp/sse", {
+      headers: {
+        authorization: `Bearer ${accessToken}`,
+      },
+    });
+
+    expect(response.status).toBe(401);
+
+    const remainingSessions = await db
+      .select({ id: schema.mcpSessions.id })
+      .from(schema.mcpSessions)
+      .where(eq(schema.mcpSessions.userId, auth.user.localUserId));
+
+    expect(remainingSessions).toEqual([]);
   });
 });

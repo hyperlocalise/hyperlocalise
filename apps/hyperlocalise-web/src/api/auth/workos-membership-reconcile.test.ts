@@ -211,6 +211,48 @@ describe("reconcileWorkosMembershipsForUser", () => {
     expect(user?.workosMembershipsReconciledAt).toEqual(existingReconciledAt);
   });
 
+  it("refreshes global reconcile TTL for scoped reconcile when refreshReconcileTtl is set", async () => {
+    const identity = createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    const existingReconciledAt = new Date("2020-01-01T00:00:00.000Z");
+    await db
+      .update(schema.users)
+      .set({ workosMembershipsReconciledAt: existingReconciledAt })
+      .where(eq(schema.users.workosUserId, identity.user.workosUserId));
+
+    listMembershipsMock.mockResolvedValue({
+      autoPagination: async () => [
+        {
+          id: identity.membership.workosMembershipId,
+          organizationId: identity.organization.workosOrganizationId,
+          status: "active",
+          role: { slug: "admin" },
+        },
+      ],
+    });
+
+    const { reconcileWorkosMembershipsForUser } = await import("./workos-membership-reconcile");
+    await reconcileWorkosMembershipsForUser(db, {
+      workosUserId: identity.user.workosUserId,
+      email: identity.user.email,
+      workosOrganizationId: identity.organization.workosOrganizationId,
+      refreshReconcileTtl: true,
+      force: true,
+    });
+
+    const [user] = await db
+      .select({ workosMembershipsReconciledAt: schema.users.workosMembershipsReconciledAt })
+      .from(schema.users)
+      .where(eq(schema.users.workosUserId, identity.user.workosUserId))
+      .limit(1);
+
+    expect(user?.workosMembershipsReconciledAt).not.toEqual(existingReconciledAt);
+    expect(user?.workosMembershipsReconciledAt?.getTime()).toBeGreaterThan(
+      existingReconciledAt.getTime(),
+    );
+  });
+
   it("returns lookup_failed when WorkOS membership listing errors", async () => {
     const identity = createWorkosIdentity();
     await syncWorkosIdentity(db, identity);
