@@ -57,6 +57,7 @@ import {
   AUTOMATION_WEEKDAY_OPTIONS,
   addBranchPattern,
 } from "@/app/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
+import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import { workspaceAutomationFormCanActivate } from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
@@ -936,6 +937,68 @@ function AddToolMenu({
   );
 }
 
+function ContentfulTargetLocalesPicker({
+  availableLocales,
+  disabled,
+  error,
+  labelledBy,
+  selectedLocales,
+  onChange,
+}: {
+  availableLocales: string[];
+  disabled?: boolean;
+  error?: string;
+  labelledBy: string;
+  selectedLocales: string[];
+  onChange: (locales: string[]) => void;
+}) {
+  const selected = useMemo(
+    () => new Set(selectedLocales.map((locale) => locale.toLowerCase())),
+    [selectedLocales],
+  );
+
+  function toggleLocale(locale: string) {
+    const key = locale.toLowerCase();
+    if (selected.has(key)) {
+      onChange(selectedLocales.filter((entry) => entry.toLowerCase() !== key));
+      return;
+    }
+    onChange([...selectedLocales, locale].toSorted());
+  }
+
+  if (availableLocales.length === 0) {
+    return (
+      <p className="text-sm text-muted-foreground">
+        Select a Contentful connection to choose target locales.
+      </p>
+    );
+  }
+
+  return (
+    <>
+      <div className="flex flex-wrap gap-1.5" role="group" aria-labelledby={labelledBy}>
+        {availableLocales.map((locale) => {
+          const isSelected = selected.has(locale.toLowerCase());
+          return (
+            <Button
+              key={locale}
+              type="button"
+              size="sm"
+              variant={isSelected ? "default" : "outline"}
+              disabled={disabled}
+              onClick={() => toggleLocale(locale)}
+              className="h-8 px-2.5 text-xs"
+            >
+              {getLocaleLabel(locale)} ({locale})
+            </Button>
+          );
+        })}
+      </div>
+      <FieldError message={error} />
+    </>
+  );
+}
+
 function ToolsSettings({
   contentfulConnections,
   disabled,
@@ -966,6 +1029,12 @@ function ToolsSettings({
   slackConnected: boolean;
 }) {
   const contentfulConnected = contentfulConnections.length > 0;
+  const contentfulTargetLocalesFieldId = "contentful-target-locales";
+  const selectedContentfulConnection = contentfulConnections.find(
+    (connection) => connection.id === form.contentfulConnectionId,
+  );
+  const contentfulAvailableTargetLocales = selectedContentfulConnection?.targetLocales ?? [];
+  const showContentfulEntryId = form.triggerMode === "scheduled";
 
   return (
     <EditorSection title="Tools">
@@ -1257,7 +1326,12 @@ function ToolsSettings({
                 </Select>
                 <FieldError message={errors.contentfulConnectionId} />
               </div>
-              <div className="grid gap-2 md:grid-cols-2">
+              <div
+                className={cn(
+                  "grid gap-2",
+                  showContentfulEntryId ? "md:grid-cols-2" : "md:grid-cols-1",
+                )}
+              >
                 <div className="grid gap-1.5">
                   <Label className="text-xs text-muted-foreground">Project</Label>
                   <Select
@@ -1286,47 +1360,42 @@ function ToolsSettings({
                   </Select>
                   <FieldError message={errors.contentfulProjectId} />
                 </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="contentful-entry-id" className="text-xs text-muted-foreground">
-                    Entry ID for manual or scheduled runs
-                  </Label>
-                  <Input
-                    id="contentful-entry-id"
-                    value={form.contentfulEntryId}
-                    disabled={disabled}
-                    className="h-8 rounded-lg text-sm"
-                    placeholder="Contentful entry ID"
-                    onChange={(event) =>
-                      onChange({ ...form, contentfulEntryId: event.target.value })
-                    }
-                  />
-                  <FieldError message={errors.contentfulEntryId} />
-                </div>
+                {showContentfulEntryId ? (
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="contentful-entry-id" className="text-xs text-muted-foreground">
+                      Entry ID
+                    </Label>
+                    <Input
+                      id="contentful-entry-id"
+                      value={form.contentfulEntryId}
+                      disabled={disabled}
+                      className="h-8 rounded-lg text-sm"
+                      placeholder="Contentful entry ID"
+                      onChange={(event) =>
+                        onChange({ ...form, contentfulEntryId: event.target.value })
+                      }
+                    />
+                    <FieldError message={errors.contentfulEntryId} />
+                  </div>
+                ) : null}
               </div>
               <div className="grid gap-1.5">
                 <Label
-                  htmlFor="contentful-target-locales"
+                  id={contentfulTargetLocalesFieldId}
                   className="text-xs text-muted-foreground"
                 >
                   Target locales
                 </Label>
-                <Input
-                  id="contentful-target-locales"
-                  value={form.contentfulTargetLocales.join(", ")}
+                <ContentfulTargetLocalesPicker
+                  availableLocales={contentfulAvailableTargetLocales}
                   disabled={disabled}
-                  className="h-8 rounded-lg text-sm"
-                  placeholder="fr-FR, de-DE"
-                  onChange={(event) =>
-                    onChange({
-                      ...form,
-                      contentfulTargetLocales: event.target.value
-                        .split(",")
-                        .map((value) => value.trim())
-                        .filter(Boolean),
-                    })
+                  error={errors.contentfulTargetLocales}
+                  labelledBy={contentfulTargetLocalesFieldId}
+                  selectedLocales={form.contentfulTargetLocales}
+                  onChange={(contentfulTargetLocales) =>
+                    onChange({ ...form, contentfulTargetLocales })
                   }
                 />
-                <FieldError message={errors.contentfulTargetLocales} />
               </div>
               <div className="grid gap-2 md:grid-cols-3">
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
