@@ -49,6 +49,11 @@ type ReconcileWorkosMembershipsInput = {
   workosOrganizationId?: string;
   /** Bypass the per-user reconcile TTL. */
   force?: boolean;
+  /**
+   * When true, update workosMembershipsReconciledAt after a scoped reconcile completes.
+   * Use for high-frequency scoped auth (for example MCP bearer) to avoid WorkOS API churn.
+   */
+  refreshReconcileTtl?: boolean;
 };
 
 function isWorkosMembershipApiEnabled() {
@@ -276,7 +281,7 @@ export async function reconcileWorkosMembershipsForUser(
     .limit(1);
 
   if (!localUser) {
-    if (!input.workosOrganizationId) {
+    if (!input.workosOrganizationId || input.refreshReconcileTtl) {
       await markMembershipsReconciled(database, input.workosUserId);
     }
     return { status: "reconciled", added, updated, revoked: 0 };
@@ -325,9 +330,10 @@ export async function reconcileWorkosMembershipsForUser(
     }
   }
 
-  // Scoped reconcile only checks one organization. Do not refresh the global TTL or
-  // session bootstrap may skip full membership revocation for other workspaces.
-  if (!input.workosOrganizationId) {
+  // Scoped reconcile only checks one organization. Do not refresh the global TTL unless
+  // explicitly requested, or session bootstrap may skip full membership revocation for
+  // other workspaces.
+  if (!input.workosOrganizationId || input.refreshReconcileTtl) {
     await markMembershipsReconciled(database, input.workosUserId);
   }
 

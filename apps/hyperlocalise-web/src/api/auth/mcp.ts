@@ -323,6 +323,7 @@ export async function resolveAuthoritativeMcpSessionAuth(
   session: McpSessionRecord,
 ): Promise<ResolveAuthoritativeMcpSessionAuthResult> {
   if (session.lifecycleStatus !== "active") {
+    await revokeMcpSession(session.id);
     return { status: "workspace_archived" };
   }
 
@@ -330,6 +331,7 @@ export async function resolveAuthoritativeMcpSessionAuth(
     workosUserId: session.workosUserId,
     email: session.email,
     workosOrganizationId: session.workosOrganizationId,
+    refreshReconcileTtl: true,
   });
 
   if (reconcileResult.status === "lookup_failed") {

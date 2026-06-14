@@ -111,6 +111,13 @@ describe("mcpBearerAuthMiddleware", () => {
     expect(response.status).toBe(403);
     const body = (await response.json()) as { error: string };
     expect(body.error).toBe("workspace_archived");
+
+    const remainingSessions = await db
+      .select({ id: schema.mcpSessions.id })
+      .from(schema.mcpSessions)
+      .where(eq(schema.mcpSessions.userId, auth.user.localUserId));
+
+    expect(remainingSessions).toEqual([]);
   });
 
   it("rejects bearer tokens when membership is no longer authoritative", async () => {
@@ -203,5 +210,12 @@ describe("mcpBearerAuthMiddleware", () => {
     });
 
     expect(response.status).toBe(401);
+
+    const remainingSessions = await db
+      .select({ id: schema.mcpSessions.id })
+      .from(schema.mcpSessions)
+      .where(eq(schema.mcpSessions.userId, auth.user.localUserId));
+
+    expect(remainingSessions).toEqual([]);
   });
 });
