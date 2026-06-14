@@ -149,3 +149,9 @@
 **Learning:** Test fixtures that only use zero values (like `false` for booleans) may pass even if JSON struct tags are missing or incorrect, as the unmarshaler defaults to the zero value. Using non-zero values in tests ensures that tags like `json:"hasPlurals"` are actually working.
 
 **Action:** Updated `string_comments_test.go` to use `true` for `hasPlurals` and `isIcu` in both the JSON mock and the expected struct. This confirms that these new fields are correctly unmarshaled from Crowdin API responses.
+
+## 2026-06-14 - Correct EditArchivedStatus endpoint path
+
+**Learning:** The Crowdin API v2 endpoint for editing a task's archived status is located under `/api/v2/user/tasks/{taskId}`, not the standard project-specific `/api/v2/projects/{projectId}/tasks/{taskId}` or the incorrect `/api/v2/tasks/{taskId}` path.
+
+**Action:** Updated `EditArchivedStatus` in `tasks.go` to use the correct `/api/v2/user/tasks/%d?projectId=%d` path. Adjusted `TestTasksService_EditArchivedStatus` in `tasks_test.go` to verify the correct URL is called. Verified with `make test`.

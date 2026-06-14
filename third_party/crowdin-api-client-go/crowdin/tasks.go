@@ -130,7 +130,7 @@ func (s *TasksService) EditArchivedStatus(ctx context.Context, projectID, taskID
 	*model.Task, *Response, error,
 ) {
 	res := new(model.TaskResponse)
-	resp, err := s.client.Patch(ctx, fmt.Sprintf("/api/v2/tasks/%d?projectId=%d", taskID, projectID), req, res)
+	resp, err := s.client.Patch(ctx, fmt.Sprintf("/api/v2/user/tasks/%d?projectId=%d", taskID, projectID), req, res)
 
 	return res.Data, resp, err
 }
