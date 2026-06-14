@@ -2,8 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { UseCasePage, useCasePagesBySlug, useCaseSlugs } from "@/components/marketing/use-case";
+import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
 
 type UseCaseRouteParams = {
+  lang: string;
   slug: string;
 };
 
@@ -12,7 +14,7 @@ type UseCaseRouteProps = {
 };
 
 export function generateStaticParams() {
-  return useCaseSlugs.map((slug) => ({ slug }));
+  return SUPPORTED_APP_LOCALES.flatMap((lang) => useCaseSlugs.map((slug) => ({ lang, slug })));
 }
 
 export async function generateMetadata({ params }: UseCaseRouteProps): Promise<Metadata> {

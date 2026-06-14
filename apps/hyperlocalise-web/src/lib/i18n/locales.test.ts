@@ -11,8 +11,9 @@ import {
 } from "./locales";
 
 describe("locales", () => {
-  it("exposes 40 common locales", () => {
-    expect(COMMON_LOCALES).toHaveLength(40);
+  it("exposes common locales with language-only English first", () => {
+    expect(COMMON_LOCALES).toHaveLength(41);
+    expect(COMMON_LOCALES[0]).toBe("en");
     expect(COMMON_LOCALES).toContain("en-US");
     expect(COMMON_LOCALES).toContain("zh-TW");
   });

@@ -416,7 +416,7 @@ const heroDemoState: CatWorkspaceState = {
       productMeaning: "Billing usage meter string with ICU plural branches.",
       intent: "Preserve ICU syntax exactly.",
       locationBreadcrumb: "Billing / Usage meter",
-      filePath: "apps/hyperlocalise-web/src/app/(authenticated)/billing/usage-card.tsx",
+      filePath: "apps/hyperlocalise-web/src/app/[lang]/(authenticated)/billing/usage-card.tsx",
       componentName: "UsageCard",
       constraints: "ICU plural · Preserve {count}",
       glossaryTerms: [],

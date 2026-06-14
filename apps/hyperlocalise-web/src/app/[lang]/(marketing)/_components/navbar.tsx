@@ -22,10 +22,9 @@ import Link from "next/link";
 import ThemeToggle from "@/components/theme-toggle";
 
 const navigationLinks: { href: string; label: string; active?: boolean }[] = [
-  // { href: "#home", label: "Home", active: true },
-  // { href: "#overview", label: "Overview" },
-  // { href: "#workflow", label: "Workflow" },
-  // { href: "#changelog", label: "Changelog" },
+  { href: "/product/agents-automation", label: "Agents" },
+  { href: "/product/next-gen-cat-tool", label: "CAT Tool" },
+  { href: "/product/self-evolving-knowledge", label: "Knowledge" },
 ];
 const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
 
