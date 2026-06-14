@@ -1,10 +1,14 @@
+"use client";
+
 import Image from "next/image";
+import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { InfiniteSlider } from "@/components/ui/infinite-slider";
 import { TypographyH2, TypographyP } from "@/components/ui/typography";
 
 import { type MarketingChapter } from "./marketing-page-content";
+import { marketingPageMessages } from "./marketing-page-content.messages";
 import { ChapterPlaceholder } from "./chapter-placeholder";
 
 type TmsLogo = { id: string; src: string };
@@ -43,13 +47,15 @@ export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
     <section>
       <div className="max-w-2xl space-y-1.5">
         <div className="mt-6 text-sm text-muted-foreground/60">
-          {chapter.id} {chapter.label}
+          {chapter.id} <FormattedMessage {...marketingPageMessages[chapter.labelKey]} />
         </div>
-        <TypographyH2 className="text-4xl sm:text-5xl">{chapter.title}</TypographyH2>
+        <TypographyH2 className="text-4xl sm:text-5xl">
+          <FormattedMessage {...marketingPageMessages[chapter.titleKey]} />
+        </TypographyH2>
         <TypographyP className="mt-5 max-w-xl text-muted-foreground">
-          {chapter.description}
+          <FormattedMessage {...marketingPageMessages[chapter.descriptionKey]} />
         </TypographyP>
-        {chapter.cta ? (
+        {"cta" in chapter && chapter.cta ? (
           <div className="mt-5">
             <Button
               variant="secondary"
@@ -57,7 +63,7 @@ export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
               nativeButton={false}
               render={<a href={chapter.cta.href} target="_blank" rel="noopener noreferrer" />}
             >
-              {chapter.cta.label}
+              <FormattedMessage {...marketingPageMessages[chapter.cta.labelKey]} />
             </Button>
           </div>
         ) : null}{" "}
@@ -68,9 +74,9 @@ export function ChapterSection({ chapter }: { chapter: MarketingChapter }) {
       </div>
 
       <div className="mt-8 grid gap-4 text-sm text-muted-foreground/75 sm:grid-cols-2 lg:grid-cols-4">
-        {chapter.links.map((link, index) => (
-          <div key={link}>
-            {chapter.id}.{index + 1} {link}
+        {chapter.linkKeys.map((linkKey, index) => (
+          <div key={linkKey}>
+            {chapter.id}.{index + 1} <FormattedMessage {...marketingPageMessages[linkKey]} />
           </div>
         ))}
       </div>

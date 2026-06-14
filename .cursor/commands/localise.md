@@ -61,57 +61,56 @@ For each target file, scan for:
 
 ### 3. Apply react-intl (ICU)
 
-**react-intl v10 splits server and client.** The main `react-intl` entry is `"use client"`. Do **not** import `createIntl`, `defineMessages`, or `useIntl` from `react-intl` in Server Components, `generateMetadata`, route handlers, or any module they import.
+**react-intl v10 splits server and client.** The main `react-intl` entry is `"use client"`. Do **not** import `defineMessages`, or `useIntl` from `react-intl` in Server Components, `generateMetadata`, route handlers, or any module they import.
 
-| Context | Import from | API |
-|---|---|---|
-| Server Components, `generateMetadata`, JSON-LD | `@/lib/app-i18n/intl` → `getIntlShape(locale)` | `intl.formatMessage(descriptor)` |
-| Client Components (`"use client"`) | `react-intl` | `<FormattedMessage />`, `useIntl()` |
-| Shared `*.messages.ts` (imported by server **or** client) | `@formatjs/intl` type only | Plain `MessageDescriptor` objects — **no** `defineMessages` |
+| Context | Import from | API | Message storage |
+|---|---|---|---|
+| Server Components, `generateMetadata`, JSON-LD | `@/lib/app-i18n/intl` → `getIntlShape(locale)` | `intl.formatMessage({ defaultMessage, description })` | **Inline** at the call site — no `*.messages.ts` |
+| Client Components (`"use client"`) | `react-intl` | `<FormattedMessage />`, `useIntl()` | Colocated `*.messages.ts` with `defineMessages` |
+| Client `*.messages.ts` | `react-intl` → `defineMessages` | Exported descriptors for `<FormattedMessage {...messages.key} />` | `"use client"` at top of file |
 
 `getIntlShape` uses `@formatjs/intl` (`createIntl`) and is safe on the server. `I18nProvider` reuses the same helper and passes `intl.messages` into `react-intl`'s `<IntlProvider>`.
 
-**In JSX (client only)** — use `<FormattedMessage />`:
+**Why this split:** `eslint-plugin-formatjs` (`enforce-id` via `lint.jsPlugins` in `vite.config.ts`) only analyzes message descriptors it can see statically — inline JSX/`formatMessage` objects and `defineMessages({ ... })` calls. Plain objects in `*.messages.ts` (or spread props like `<FormattedMessage {...messages.foo} />`) are invisible to the linter, so IDs are not enforced or auto-fixed.
+
+**In JSX (client only)** — prefer `<FormattedMessage {...messages.key} />` from a `defineMessages` module, or inline descriptors for one-offs:
 
 ```tsx
 import { FormattedMessage } from 'react-intl';
+import { deleteButtonMessages } from './delete-button.messages';
 
 <Button>
-  <FormattedMessage
-    defaultMessage="Save changes"
-    description="Primary action to persist edits"
-  />
+  <FormattedMessage {...deleteButtonMessages.label} />
 </Button>;
 ```
 
-**Outside JSX in client components** (toasts, `aria-label`, object fields) — use `useIntl()`:
+**Outside JSX in client components** (toasts, `aria-label`, object fields) — use `useIntl()` with `defineMessages` or an inline descriptor:
 
 ```tsx
 import { useIntl } from 'react-intl';
+import { saveToastMessages } from './save-toast.messages';
 
 const intl = useIntl();
 
 toast({
-  title: intl.formatMessage({
-    defaultMessage: 'Saved successfully',
-    description: 'Toast after successful save',
-  }),
+  title: intl.formatMessage(saveToastMessages.success),
 });
 ```
 
-**Outside JSX on the server** (`generateMetadata`, JSON-LD, server actions that return localized strings) — use `getIntlShape`:
+**Outside JSX on the server** (`generateMetadata`, JSON-LD, server actions that return localized strings) — use `getIntlShape` with **inline** descriptors (do not import `*.messages.ts`):
 
 ```tsx
 import { getIntlShape } from '@/lib/app-i18n/intl';
-import { marketingHomeMessages } from './homepage.messages';
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { lang } = await params;
   const intl = getIntlShape(lang);
 
   return {
-    title: intl.formatMessage(marketingHomeMessages.metadataTitle),
-    description: intl.formatMessage(marketingHomeMessages.metadataDescription),
+    title: intl.formatMessage({
+      defaultMessage: 'Hyperlocalise | Localisation Platform for the Agentic Era',
+      description: 'Page title for the marketing homepage',
+    }),
   };
 }
 ```
@@ -132,31 +131,35 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 **ICU escaping** — `{`, `}`, `<`, `>`, and `#` are syntax; to show them literally, wrap in **single quotes** in `defaultMessage` (literal `'` as `''`)
 
-### Message modules (`*.messages.ts`)
+### Message modules (`*.messages.ts`) — client only
 
-When you need to **reuse** the same copy across several components in a feature, or **structure** messages (for example labels keyed by an enum or category id), use a colocated **`*.messages.ts`** file next to the components that consume it — still within the feature or design-system slice, not a repo-wide “strings” barrel.
+Use colocated **`*.messages.ts`** files **only for client components**. Server code must **not** import them — put server copy inline in `intl.formatMessage({ defaultMessage, description })` at the call site.
 
-- Name the file **`{featureOrComponent}.messages.ts`** (for example `hero-section.messages.ts`).
-- Export **plain descriptor objects** typed with `MessageDescriptor` from `@formatjs/intl` so the file is safe for both server and client importers.
+When a client feature needs to **reuse** copy across components, or **structure** messages (for example labels keyed by an enum or category id), add a colocated **`{featureOrComponent}.messages.ts`** next to the client components that consume it.
+
+- Add **`"use client"`** as the first line of every `*.messages.ts` file.
+- Use **`defineMessages`** from `react-intl` — not plain `MessageDescriptor` objects from `@formatjs/intl`.
 - Use **stable object keys** (for example `headline`, `joinWaitlist`) as the internal identifiers; translators work from `defaultMessage` and `description`.
-- Do **not** use `defineMessages` from `react-intl` in shared message modules — it is client-only and breaks Server Components that import the file.
-- At call sites: `intl.formatMessage(myMessages.someKey)` (server or client) or `<FormattedMessage {...myMessages.someKey} values={{ ... }} />` (client only).
+- `defineMessages` must be **one level deep** (flat keys). For grouped copy (for example changelog entries), use prefixed keys (`v1813Title`, `v1813Body`) and map them in the component.
+- At call sites: `<FormattedMessage {...myMessages.someKey} values={{ ... }} />` or `intl.formatMessage(myMessages.someKey)`.
 
 ```ts
-import type { MessageDescriptor } from '@formatjs/intl';
+'use client';
 
-export const heroSectionMessages = {
+import { defineMessages } from 'react-intl';
+
+export const heroSectionMessages = defineMessages({
   headline: {
     defaultMessage: 'The localization platform to launch globally in days',
     description: 'Marketing homepage hero headline',
   },
-} as const satisfies Record<string, MessageDescriptor>;
+});
 ```
 
 ### 4. Authoring rules (must follow)
 
 - Write a clear **English `defaultMessage`** and a **`description`** when it helps translators.
-- **Do not hand-write `id`.** Omit `id` initially; run **`vp check --fix`** (or `vp lint --fix <path>`) so `eslint-plugin-formatjs` (`enforce-id`, via `lint.jsPlugins` in `vite.config.ts`) sets the content hash. Re-run until clean.
+- **Do not hand-write `id`.** Omit `id` initially; run **`vp check --fix`** (or `vp lint --fix <path>`) so `eslint-plugin-formatjs` (`enforce-id`, via `lint.jsPlugins` in `vite.config.ts`) sets the content hash on `defineMessages`, inline `<FormattedMessage>`, and `intl.formatMessage({ ... })` calls. Re-run until clean.
 - **Prefer typographic quotes** in copy (`’` `“` `”`) per localization.md — not straight quotes in user-visible English, except where ICU escaping needs straight quotes. **Never** fake curly quotes with Unicode escapes (`\u2019`, etc.) — they hurt readability and can change the content hash.
 - **One complete sentence per message** — do not split a sentence across multiple `FormattedMessage` calls.
 - Prefer **separate messages** for distinct UI slots over a single `select` when variants are not one grammatical sentence.
@@ -184,11 +187,10 @@ After processing, summarize:
 
 ### Approach
 
-- Client JSX: `<FormattedMessage />` with ICU where needed
-- Client non-JSX: `useIntl().formatMessage`
-- Server (`generateMetadata`, JSON-LD): `getIntlShape(locale).formatMessage` via `@formatjs/intl`
-- Shared `*.messages.ts`: plain `MessageDescriptor` objects (no `defineMessages` from `react-intl`)
-- ESLint `--fix` for formatjs message IDs when ESLint is configured in the app
+- Client JSX: `<FormattedMessage {...messages.key} />` from `defineMessages` modules
+- Client non-JSX: `useIntl().formatMessage(messages.key)` from `defineMessages` modules
+- Server (`generateMetadata`, JSON-LD): `getIntlShape(locale).formatMessage({ defaultMessage, description })` inline — no `*.messages.ts`
+- Client `*.messages.ts`: `"use client"` + `defineMessages` from `react-intl`
 - **`vp check --fix`** / **`vp lint --fix`** for formatjs message IDs in `apps/hyperlocalise-web` (Oxlint `jsPlugins`)
 
 ### Notes
@@ -213,18 +215,33 @@ export function DeleteButton() {
 **After:**
 
 ```tsx
+'use client';
+
 import { FormattedMessage } from 'react-intl';
+import { deleteButtonMessages } from './delete-button.messages';
 
 export function DeleteButton() {
   return (
     <Button variant="destructive">
-      <FormattedMessage
-        defaultMessage="Delete"
-        description="Destructive action to remove an item"
-      />
+      <FormattedMessage {...deleteButtonMessages.label} />
     </Button>
   );
 }
+```
+
+With `delete-button.messages.ts`:
+
+```ts
+'use client';
+
+import { defineMessages } from 'react-intl';
+
+export const deleteButtonMessages = defineMessages({
+  label: {
+    defaultMessage: 'Delete',
+    description: 'Destructive action to remove an item',
+  },
+});
 ```
 
 ### Toast (non-JSX)
@@ -239,15 +256,13 @@ toast({ variant: 'success', title: 'Item deleted successfully' });
 
 ```tsx
 import { useIntl } from 'react-intl';
+import { deleteToastMessages } from './delete-toast.messages';
 
 const intl = useIntl();
 
 toast({
   variant: 'success',
-  title: intl.formatMessage({
-    defaultMessage: 'Item deleted successfully',
-    description: 'Toast after deleting an item',
-  }),
+  title: intl.formatMessage(deleteToastMessages.success),
 });
 ```
 
@@ -271,6 +286,6 @@ toast({
 
 ### Message modules (`*.messages.ts`)
 
-When you need to **reuse** the same copy across several components in a feature, or **structure** messages (for example labels keyed by an enum or category id), use a colocated **`*.messages.ts`** file — see step 3 above for the server-safe pattern with `@formatjs/intl` `MessageDescriptor` objects.
+Client-only — see step 3 above. Use `"use client"` + `defineMessages` from `react-intl`. Server copy stays inline in `intl.formatMessage({ ... })` at the call site.
 
-- At call sites: `intl.formatMessage(myMessages.someKey)` or `<FormattedMessage {...myMessages.someKey} values={{ ... }} />` when placeholders are needed.
+- At call sites: `<FormattedMessage {...myMessages.someKey} values={{ ... }} />` or `intl.formatMessage(myMessages.someKey)` when placeholders are needed.

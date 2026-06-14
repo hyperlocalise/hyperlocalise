@@ -1,10 +1,24 @@
+"use client";
+
 import type { MarketingFooterColumn } from "@/components/marketing/marketing-page-content";
 import Image from "next/image";
 import Link from "next/link";
+import { FormattedMessage } from "react-intl";
+
+import { marketingPageMessages } from "./marketing-page-content.messages";
+import type { MarketingPageMessageKey } from "./marketing-page-content.messages";
 
 type MarketingFooterProps = {
   columns: MarketingFooterColumn[];
 };
+
+function FooterLinkLabel({ label, labelKey }: { label?: string; labelKey?: string }) {
+  if (labelKey) {
+    return <FormattedMessage {...marketingPageMessages[labelKey as MarketingPageMessageKey]} />;
+  }
+
+  return label;
+}
 
 export function MarketingFooter({ columns }: MarketingFooterProps) {
   const isExternalHref = (href: string) =>
@@ -20,11 +34,19 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
 
       <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
         {columns.map((column) => (
-          <div key={column.title}>
-            <div className="text-sm font-medium text-foreground">{column.title}</div>
+          <div key={column.titleKey ?? column.title}>
+            <div className="text-sm font-medium text-foreground">
+              {column.titleKey ? (
+                <FormattedMessage
+                  {...marketingPageMessages[column.titleKey as MarketingPageMessageKey]}
+                />
+              ) : (
+                column.title
+              )}
+            </div>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               {column.links.map((link) => (
-                <li key={link.label}>
+                <li key={link.labelKey ?? link.label ?? link.href}>
                   {isExternalHref(link.href) ? (
                     <a
                       href={link.href}
@@ -32,14 +54,14 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
                       rel="noopener noreferrer"
                       className="inline-flex rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                      {link.label}
+                      <FooterLinkLabel label={link.label} labelKey={link.labelKey} />
                     </a>
                   ) : (
                     <Link
                       href={link.href}
                       className="inline-flex rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                      {link.label}
+                      <FooterLinkLabel label={link.label} labelKey={link.labelKey} />
                     </Link>
                   )}
                 </li>

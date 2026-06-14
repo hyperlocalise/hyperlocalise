@@ -13,8 +13,6 @@ import {
 } from "@/components/marketing";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
-import { marketingHomeMessages } from "./homepage.messages";
-
 const metadataKeywords = [
   "localisation",
   "translation",
@@ -33,12 +31,29 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
   const { lang } = await params;
   const intl = getIntlShape(lang);
 
-  const title = intl.formatMessage(marketingHomeMessages.metadataTitle);
-  const description = intl.formatMessage(marketingHomeMessages.metadataDescription);
-  const openGraphDescription = intl.formatMessage(
-    marketingHomeMessages.metadataDescriptionOpenGraph,
-  );
-  const logoAlt = intl.formatMessage(marketingHomeMessages.logoAlt);
+  const title = intl.formatMessage({
+    defaultMessage: "Hyperlocalise | Localisation Platform for the Agentic Era",
+    id: "RZBs1fe1V3",
+    description: "Page title for the marketing homepage",
+  });
+  const description = intl.formatMessage({
+    defaultMessage:
+      "Assign AI agents to translate, review, and sync content while keeping human review first-class. Stay flexible across LLM providers and TMS platforms.",
+    id: "9/pQQpDU+H",
+    description: "Meta description for the marketing homepage",
+  });
+  const openGraphDescription = intl.formatMessage({
+    defaultMessage:
+      "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
+    id: "D3VzMQGhqa",
+    description:
+      "Open Graph meta description for the marketing homepage (shorter than the main description)",
+  });
+  const logoAlt = intl.formatMessage({
+    defaultMessage: "Hyperlocalise",
+    id: "MTfbpjI4dY",
+    description: "Alt text for the Hyperlocalise logo in Open Graph metadata",
+  });
 
   return {
     title,
@@ -71,7 +86,11 @@ function buildJsonLd(locale: string): WithContext<WebApplication> & object {
     operatingSystem: "Cloud",
     offers: {
       "@type": "Offer",
-      category: intl.formatMessage(marketingHomeMessages.offerCategoryFree),
+      category: intl.formatMessage({
+        defaultMessage: "Free",
+        id: "8FzJDvElQ4",
+        description: "Schema.org offer category indicating a free tier on the marketing homepage",
+      }),
       availability: "https://schema.org/PreOrder",
     },
     provider: {
