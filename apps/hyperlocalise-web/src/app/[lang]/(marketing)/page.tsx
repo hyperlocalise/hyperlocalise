@@ -11,47 +11,100 @@ import {
   HeroSection,
   PrinciplesSection,
 } from "@/components/marketing";
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
-export const metadata: Metadata = {
-  title: "Hyperlocalise | Localisation Platform for the Agentic Era",
-  description:
-    "Assign AI agents to translate, review, and sync content while keeping human review first-class. Stay flexible across LLM providers and TMS platforms.",
-  keywords: ["localisation", "translation", "AI", "agentic", "TMS", "localization", "GitHub"],
-  openGraph: {
-    title: "Hyperlocalise | Localisation Platform for the Agentic Era",
-    description:
+const metadataKeywords = [
+  "localisation",
+  "translation",
+  "AI",
+  "agentic",
+  "TMS",
+  "localization",
+  "GitHub",
+] as const;
+
+type HomePageProps = {
+  params: Promise<{ lang: string }>;
+};
+
+export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {
+  const { lang } = await params;
+  const intl = getIntlShape(lang);
+
+  const title = intl.formatMessage({
+    defaultMessage: "Hyperlocalise | Localisation Platform for the Agentic Era",
+    id: "RZBs1fe1V3",
+    description: "Page title for the marketing homepage",
+  });
+  const description = intl.formatMessage({
+    defaultMessage:
+      "Assign AI agents to translate, review, and sync content while keeping human review first-class. Stay flexible across LLM providers and TMS platforms.",
+    id: "9/pQQpDU+H",
+    description: "Meta description for the marketing homepage",
+  });
+  const openGraphDescription = intl.formatMessage({
+    defaultMessage:
       "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
-    type: "website",
-    images: [
-      {
-        url: "https://www.hyperlocalise.com/images/logo.png",
-        width: 512,
-        height: 512,
-        alt: "Hyperlocalise",
-      },
-    ],
-  },
-};
+    id: "D3VzMQGhqa",
+    description:
+      "Open Graph meta description for the marketing homepage (shorter than the main description)",
+  });
+  const logoAlt = intl.formatMessage({
+    defaultMessage: "Hyperlocalise",
+    id: "MTfbpjI4dY",
+    description: "Alt text for the Hyperlocalise logo in Open Graph metadata",
+  });
 
-const jsonLd: WithContext<WebApplication> & object = {
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  name: "Hyperlocalise",
-  applicationCategory: "DeveloperApplication",
-  operatingSystem: "Cloud",
-  offers: {
-    "@type": "Offer",
-    category: "Free",
-    availability: "https://schema.org/PreOrder",
-  },
-  provider: {
-    "@type": "Organization",
+  return {
+    title,
+    description,
+    keywords: [...metadataKeywords],
+    openGraph: {
+      title,
+      description: openGraphDescription,
+      type: "website",
+      images: [
+        {
+          url: "https://www.hyperlocalise.com/images/logo.png",
+          width: 512,
+          height: 512,
+          alt: logoAlt,
+        },
+      ],
+    },
+  };
+}
+
+function buildJsonLd(locale: string): WithContext<WebApplication> & object {
+  const intl = getIntlShape(locale);
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
     name: "Hyperlocalise",
-    url: "https://hyperlocalise.com",
-  },
-};
+    applicationCategory: "DeveloperApplication",
+    operatingSystem: "Cloud",
+    offers: {
+      "@type": "Offer",
+      category: intl.formatMessage({
+        defaultMessage: "Free",
+        id: "8FzJDvElQ4",
+        description: "Schema.org offer category indicating a free tier on the marketing homepage",
+      }),
+      availability: "https://schema.org/PreOrder",
+    },
+    provider: {
+      "@type": "Organization",
+      name: "Hyperlocalise",
+      url: "https://hyperlocalise.com",
+    },
+  };
+}
 
-export default function Home() {
+export default async function Home({ params }: HomePageProps) {
+  const { lang } = await params;
+  const jsonLd = buildJsonLd(lang);
+
   return (
     <>
       <JsonLd data={jsonLd} />

@@ -1,28 +1,66 @@
-import { cn } from "@/lib/primitives/cn";
-import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
+"use client";
 
-import { changelog } from "./marketing-page-content";
+import { FormattedMessage } from "react-intl";
+
+import { changelogEntryMessages, changelogSectionMessages } from "./changelog-section.messages";
+import { githubReleasesUrl } from "./marketing-page-content";
+import { TypographyH2, TypographyH3, TypographyP } from "@/components/ui/typography";
+import { cn } from "@/lib/primitives/cn";
+
+const changelogEntries = [
+  {
+    fields: {
+      title: changelogEntryMessages.v1813Title,
+      body: changelogEntryMessages.v1813Body,
+      meta: changelogEntryMessages.v1813Meta,
+    },
+    href: `${githubReleasesUrl}/tag/v1.8.13`,
+  },
+  {
+    fields: {
+      title: changelogEntryMessages.v1812Title,
+      body: changelogEntryMessages.v1812Body,
+      meta: changelogEntryMessages.v1812Meta,
+    },
+    href: `${githubReleasesUrl}/tag/v1.8.12`,
+  },
+  {
+    fields: {
+      title: changelogEntryMessages.v1811Title,
+      body: changelogEntryMessages.v1811Body,
+      meta: changelogEntryMessages.v1811Meta,
+    },
+    href: `${githubReleasesUrl}/tag/v1.8.11`,
+  },
+  {
+    fields: {
+      title: changelogEntryMessages.v1810Title,
+      body: changelogEntryMessages.v1810Body,
+      meta: changelogEntryMessages.v1810Meta,
+    },
+    href: `${githubReleasesUrl}/tag/v1.8.10`,
+  },
+] as const;
 
 export function ChangelogSection() {
   return (
     <section id="changelog" className="relative">
       <div className="max-w-2xl">
         <TypographyP className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-muted-foreground">
-          Recent releases
+          <FormattedMessage {...changelogSectionMessages.eyebrow} />
         </TypographyP>
         <TypographyH2 className="pt-3 pb-0 text-4xl font-semibold tracking-[-0.04em] normal-case text-foreground sm:text-5xl md:text-5xl">
-          Changelog
+          <FormattedMessage {...changelogSectionMessages.heading} />
         </TypographyH2>
         <TypographyP className="mt-4 max-w-xl text-pretty text-sm leading-6 text-muted-foreground sm:text-[0.95rem]">
-          Product updates that tighten release confidence, reduce localization drift, and make sync
-          runs easier to trust.
+          <FormattedMessage {...changelogSectionMessages.description} />
         </TypographyP>
       </div>
 
       <div className="mt-10 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {changelog.map((entry, index) => (
+        {changelogEntries.map((entry, index) => (
           <article
-            key={entry.title}
+            key={entry.href}
             className={cn(
               "group flex h-full flex-col justify-between rounded-[1.75rem] border p-6 transition-all duration-300 ease-out",
               "bg-[color-mix(in_oklch,var(--background)_96%,var(--muted)_4%)]",
@@ -53,35 +91,37 @@ export function ChangelogSection() {
                         "bg-[color-mix(in_oklch,var(--chart-2)_84%,white_16%)] shadow-[0_0_0_5px_color-mix(in_oklch,var(--chart-2)_20%,transparent)]",
                     )}
                   />
-                  {index === 0 ? "Latest" : "Release"}
+                  {index === 0 ? (
+                    <FormattedMessage {...changelogSectionMessages.latestBadge} />
+                  ) : (
+                    <FormattedMessage {...changelogSectionMessages.releaseBadge} />
+                  )}
                 </span>
                 <span className="text-[0.68rem] uppercase tracking-[0.16em] text-[color-mix(in_oklch,var(--foreground)_68%,var(--muted-foreground)_32%)]">
-                  {entry.meta}
+                  <FormattedMessage {...entry.fields.meta} />
                 </span>
               </div>
               <div className="h-px bg-[color-mix(in_oklch,var(--border)_84%,var(--chart-1)_16%)]" />
               <div className="space-y-3">
                 <TypographyH3 className="text-lg font-medium normal-case text-foreground md:text-lg">
-                  {entry.title}
+                  <FormattedMessage {...entry.fields.title} />
                 </TypographyH3>
                 <TypographyP className="max-w-sm text-sm leading-6 text-muted-foreground">
-                  {entry.body}
+                  <FormattedMessage {...entry.fields.body} />
                 </TypographyP>
               </div>
             </div>
 
-            {"href" in entry && entry.href ? (
-              <div className="mt-6 pt-1">
-                <a
-                  href={entry.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex min-h-11 items-center rounded-full text-sm font-medium text-[color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)] transition-colors duration-200 ease-out hover:text-[color-mix(in_oklch,var(--foreground)_68%,var(--chart-4)_32%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklch,var(--ring)_55%,var(--chart-2)_45%)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
-                >
-                  {entry.ctaLabel}
-                </a>
-              </div>
-            ) : null}
+            <div className="mt-6 pt-1">
+              <a
+                href={entry.href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex min-h-11 items-center rounded-full text-sm font-medium text-[color-mix(in_oklch,var(--foreground)_88%,var(--chart-4)_12%)] transition-colors duration-200 ease-out hover:text-[color-mix(in_oklch,var(--foreground)_68%,var(--chart-4)_32%)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[color-mix(in_oklch,var(--ring)_55%,var(--chart-2)_45%)] focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+              >
+                <FormattedMessage {...changelogSectionMessages.readRelease} />
+              </a>
+            </div>
           </article>
         ))}
       </div>

@@ -8,195 +8,160 @@ export const docsUrl = "https://hyperlocalise.dev";
 export const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
 
 export type MarketingFooterLink = {
-  label: string;
+  labelKey?: string;
+  label?: string;
   href: string;
 };
 
 export type MarketingFooterColumn = {
-  title: string;
+  titleKey?: string;
+  title?: string;
   links: MarketingFooterLink[];
 };
 
 export const principles = [
   {
-    title: "Agent-native workflows",
-    description:
-      "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
+    titleKey: "principleAgentNativeTitle",
+    descriptionKey: "principleAgentNativeDescription",
   },
   {
-    title: "Bring your LLMs. Keep your TMS.",
-    description:
-      "Stay flexible across model providers and existing TMS platforms without redesigning your operating model.",
+    titleKey: "principleBringYourLlmsTitle",
+    descriptionKey: "principleBringYourLlmsDescription",
   },
   {
-    title: "Designed for release confidence",
-    description:
-      "Carry shared context, evals, and regression checks through every sync so quality does not quietly drift.",
+    titleKey: "principleReleaseConfidenceTitle",
+    descriptionKey: "principleReleaseConfidenceDescription",
   },
-];
+] as const;
 
-export type MarketingChapter = {
-  id: string;
-  anchorId: string;
-  label: string;
-  title: string;
-  description: string;
-  links: string[];
-  cta?: {
-    label: string;
-    href: string;
-  };
-  placeholderType?: "product" | "illustration";
-  placeholderTitle?: string;
-  placeholderDescription?: string;
-};
-
-export const chapters: MarketingChapter[] = [
+export const chapters = [
   {
     id: "01",
     anchorId: "sources",
-    label: "Sources",
-    title: "Localization begins in the tools teams already use",
-    description:
-      "Pull requests, launch requests, and campaign assets become structured localization work with source context attached from the start.",
-    links: ["GitHub changes", "Slack requests", "Claude briefs", "Context attached"],
+    labelKey: "chapter01Label",
+    titleKey: "chapter01Title",
+    descriptionKey: "chapter01Description",
+    linkKeys: [
+      "chapter01LinkGitHubChanges",
+      "chapter01LinkSlackRequests",
+      "chapter01LinkClaudeBriefs",
+      "chapter01LinkContextAttached",
+    ],
     cta: {
-      label: "View GitHub Action",
+      labelKey: "viewGitHubAction",
       href: githubActionUrl,
     },
     placeholderType: "product",
-    placeholderTitle: "Intake illustration",
-    placeholderDescription:
-      "Sources feed into a single intake layer that prepares changed strings, context, and sync-ready jobs.",
+    placeholderTitleKey: "chapter01PlaceholderTitle",
+    placeholderDescriptionKey: "chapter01PlaceholderDescription",
   },
   {
     id: "02",
     anchorId: "translate-task",
-    label: "Translate Task",
-    title: "Move translation work across agents, reviewers and systems",
-    description:
-      "Assign agents to translation, review, and sync tasks while keeping human reviewers in the loop through the TMS your team already uses.",
-    links: [
-      "AI translation + review",
-      "TMS Agnostic",
-      "Regression Evals",
-      "Context Auto-discovery",
+    labelKey: "chapter02Label",
+    titleKey: "chapter02Title",
+    descriptionKey: "chapter02Description",
+    linkKeys: [
+      "chapter02LinkAiTranslationReview",
+      "chapter02LinkTmsAgnostic",
+      "chapter02LinkRegressionEvals",
+      "chapter02LinkContextAutoDiscovery",
     ],
   },
   {
     id: "03",
     anchorId: "providers",
-    label: "Providers",
-    title: "Stay flexible across providers and platforms",
-    description:
-      "Hyperlocalise sits between LLM providers and TMS tools, giving teams one workflow even as models, vendors, and review systems change underneath it.",
-    links: ["LLM-agnostic", "TMS-agnostic", "Provider switching", "Workflow continuity"],
+    labelKey: "chapter03Label",
+    titleKey: "chapter03Title",
+    descriptionKey: "chapter03Description",
+    linkKeys: [
+      "chapter03LinkLlmAgnostic",
+      "chapter03LinkTmsAgnostic",
+      "chapter03LinkProviderSwitching",
+      "chapter03LinkWorkflowContinuity",
+    ],
     placeholderType: "illustration",
-    placeholderTitle: "Illustration placeholder",
-    placeholderDescription:
-      "Future illustration: ecosystem map showing repositories, LLM providers, TMS tools, and release control.",
+    placeholderTitleKey: "chapter03PlaceholderTitle",
+    placeholderDescriptionKey: "chapter03PlaceholderDescription",
   },
   {
     id: "04",
     anchorId: "evaluations",
-    label: "Evaluations",
-    title: "Review PRs and translation regressions before merge",
-    description:
-      "Run GitHub Actions for localization drift, compare outputs, and keep release checks visible in pull requests before broken sync reaches production.",
-    links: ["Drift checks", "Eval gates", "PR visibility", "Release blocking"],
+    labelKey: "chapter04Label",
+    titleKey: "chapter04Title",
+    descriptionKey: "chapter04Description",
+    linkKeys: [
+      "chapter04LinkDriftChecks",
+      "chapter04LinkEvalGates",
+      "chapter04LinkPrVisibility",
+      "chapter04LinkReleaseBlocking",
+    ],
     cta: {
-      label: "View GitHub Action",
+      labelKey: "viewGitHubAction",
       href: githubActionUrl,
     },
     placeholderType: "illustration",
-    placeholderTitle: "Review PR illustration",
-    placeholderDescription:
-      "Pull request diff with Hyperlocalise review comments highlighting translation errors before merge.",
+    placeholderTitleKey: "chapter04PlaceholderTitle",
+    placeholderDescriptionKey: "chapter04PlaceholderDescription",
   },
   {
     id: "05",
     anchorId: "monitor",
-    label: "Monitor",
-    title: "Understand translation quality at scale",
-    description:
-      "Track locale health, review coverage, and eval history in one place so localization PMs and engineering teams can see what is safe to ship.",
-    links: ["Locale health", "Eval history", "Review coverage", "Release readiness"],
+    labelKey: "chapter05Label",
+    titleKey: "chapter05Title",
+    descriptionKey: "chapter05Description",
+    linkKeys: [
+      "chapter05LinkLocaleHealth",
+      "chapter05LinkEvalHistory",
+      "chapter05LinkReviewCoverage",
+      "chapter05LinkReleaseReadiness",
+    ],
     placeholderType: "product",
-    placeholderTitle: "Product image placeholder",
-    placeholderDescription:
-      "Future screenshot: dashboard for locale status, quality trends, and release confidence.",
+    placeholderTitleKey: "chapter05PlaceholderTitle",
+    placeholderDescriptionKey: "chapter05PlaceholderDescription",
   },
-];
+] as const;
 
-export const changelog = [
-  {
-    title: "v1.8.13",
-    body: "Hardened Crowdin CAT workflows with approved translations, richer segment context, repository lookup fixes, and ICU parser improvements.",
-    meta: "Jun 11, 2026",
-    href: `${githubReleasesUrl}/tag/v1.8.13`,
-    ctaLabel: "Read release",
-  },
-  {
-    title: "v1.8.12",
-    body: "Launched the next-gen CAT workspace with Storybook coverage, added teams UI for member assignment, and optimized XML parsing hot paths.",
-    meta: "Jun 8, 2026",
-    href: `${githubReleasesUrl}/tag/v1.8.12`,
-    ctaLabel: "Read release",
-  },
-  {
-    title: "v1.8.11",
-    body: "Added multi-intent Slack agent routing so localization requests are classified and routed to the right workflow automatically.",
-    meta: "Jun 2, 2026",
-    href: `${githubReleasesUrl}/tag/v1.8.11`,
-    ctaLabel: "Read release",
-  },
-  {
-    title: "v1.8.10",
-    body: "Optimized XLIFF parsing and marshaling for faster sync runs on large translation files.",
-    meta: "Jun 1, 2026",
-    href: `${githubReleasesUrl}/tag/v1.8.10`,
-    ctaLabel: "Read release",
-  },
-];
+export type MarketingChapter = (typeof chapters)[number];
 
 export const testimonials = [
   {
-    quote: "We need one workflow across AI drafts, TMS review, and release checks.",
-    name: "Localization PM",
-    company: "Early design partner",
+    quoteKey: "testimonial0Quote",
+    nameKey: "testimonial0Name",
+    companyKey: "testimonial0Company",
     tone: "bg-[#dfe6ff] text-slate-950",
   },
   {
-    quote: "Keeping our TMS while adding agent workflows is the difference.",
-    name: "Product lead",
-    company: "Early design partner",
+    quoteKey: "testimonial1Quote",
+    nameKey: "testimonial1Name",
+    companyKey: "testimonial1Company",
     tone: "bg-[#f4ff1e] text-slate-950",
   },
   {
-    quote: "The GitHub and regression layer is what makes this usable for engineering.",
-    name: "Engineering manager",
-    company: "Early design partner",
+    quoteKey: "testimonial2Quote",
+    nameKey: "testimonial2Name",
+    companyKey: "testimonial2Company",
     tone: "bg-[#2b87e8] text-slate-950",
   },
-];
+] as const;
 
 export const footerColumns: MarketingFooterColumn[] = [
   {
-    title: "Product",
+    titleKey: "footerProductTitle",
     links: productLinks,
   },
   {
-    title: "Use cases",
+    titleKey: "footerUseCasesTitle",
     links: useCaseFooterLinks,
   },
   {
-    title: "Resources",
+    titleKey: "footerResourcesTitle",
     links: [
-      { label: "Documentation", href: docsUrl },
-      { label: "CLI docs", href: cliDocsUrl },
-      { label: "GitHub Action", href: githubActionUrl },
-      { label: "GitHub", href: githubRepoUrl },
-      { label: "Contact", href: "mailto:minh@hyperlocalise.com" },
+      { labelKey: "footerDocumentation", href: docsUrl },
+      { labelKey: "footerCliDocs", href: cliDocsUrl },
+      { labelKey: "footerGitHubAction", href: githubActionUrl },
+      { labelKey: "footerGitHub", href: githubRepoUrl },
+      { labelKey: "footerContact", href: "mailto:minh@hyperlocalise.com" },
     ],
   },
 ];

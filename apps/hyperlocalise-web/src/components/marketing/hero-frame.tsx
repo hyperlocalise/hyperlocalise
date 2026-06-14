@@ -544,7 +544,7 @@ export function HeroFrame() {
           ease: [0.19, 1, 0.22, 1],
         }}
       >
-        <div className="flex h-[min(42rem,78svh)] min-h-[34rem] flex-col lg:h-[44rem] xl:h-[46rem]">
+        <div className="flex h-[min(42rem,78svh)] min-h-136 flex-col lg:h-176 xl:h-184">
           <CatWorkspaceContainer
             initialState={heroDemoState}
             services={{

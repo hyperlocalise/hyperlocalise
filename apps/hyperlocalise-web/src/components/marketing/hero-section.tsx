@@ -1,8 +1,10 @@
 "use client";
 
 import { motion, useReducedMotion } from "motion/react";
+import { FormattedMessage } from "react-intl";
 
 import { HeroFrame } from "./hero-frame";
+import { heroSectionMessages } from "./hero-section.messages";
 import { Button } from "@/components/ui/button";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { env } from "@/lib/env";
@@ -38,7 +40,7 @@ export function HeroSection() {
           transition={headlineTransition}
         >
           <TypographyH1 className="text-left">
-            The localization platform to launch globally in days
+            <FormattedMessage {...heroSectionMessages.headline} />
           </TypographyH1>
         </motion.div>
         <motion.div
@@ -52,7 +54,12 @@ export function HeroSection() {
           }}
         >
           <TypographyP className="max-w-5xl text-muted-foreground">
-            Purpose-built for localization in the AI era. <br /> Designed for human-in-the-loop.
+            <FormattedMessage
+              {...heroSectionMessages.body}
+              values={{
+                lineBreak: () => <br />,
+              }}
+            />
           </TypographyP>
         </motion.div>
         <motion.div
@@ -71,7 +78,7 @@ export function HeroSection() {
               <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
             }
           >
-            Join waitlist
+            <FormattedMessage {...heroSectionMessages.joinWaitlist} />
           </Button>
         </motion.div>
       </motion.div>
