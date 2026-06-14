@@ -21,10 +21,7 @@ import {
 } from "@/lib/providers/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/list-organization-projects";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
-import {
-  lookupProjectFileStringRepositoryContext,
-  resolveProjectFileStringRepositoryFullName,
-} from "@/lib/projects/project-file-string-context";
+import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
 import { attachProjectFileCatAgentContexts } from "@/lib/projects/attach-project-file-cat-agent-contexts";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import {
@@ -347,16 +344,11 @@ async function hydrateProjectFileCatAgentContexts(input: {
   projectId: string;
   catFile: NonNullable<Awaited<ReturnType<typeof getTmsProviderLiveCatFile>>>;
 }) {
-  const repositoryResult = await resolveProjectFileStringRepositoryFullName({
-    organizationId: input.organizationId,
-    repositoryFullName: null,
-  });
-
   return attachProjectFileCatAgentContexts({
     organizationId: input.organizationId,
     projectId: input.projectId,
     catFile: input.catFile,
-    preferredRepositoryFullName: repositoryResult.ok ? repositoryResult.value : null,
+    preferredRepositoryFullName: null,
   });
 }
 
@@ -462,7 +454,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             catFile,
-          });
+          }).catch(() => catFile);
 
           return c.json({ catFile: hydratedCatFile }, 200);
         }
@@ -486,7 +478,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             catFile,
-          });
+          }).catch(() => catFile);
 
           return c.json({ catFile: hydratedCatFile }, 200);
         } catch (error) {

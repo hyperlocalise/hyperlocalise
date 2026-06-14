@@ -65,6 +65,11 @@ export async function listCachedProjectFileStringRepositoryContexts(input: {
     return new Map();
   }
 
+  const sourceTextHashByKey = new Map<string, string>();
+  for (const [stringKey, sourceText] of input.sourceTextByKey) {
+    sourceTextHashByKey.set(stringKey, hashProjectFileStringSourceText(sourceText));
+  }
+
   const rows = await db
     .select({
       stringKey: schema.projectFileStringRepositoryContexts.stringKey,
@@ -85,12 +90,11 @@ export async function listCachedProjectFileStringRepositoryContexts(input: {
 
   const matchesByKey = new Map<string, ProjectFileStringRepositoryContextRecord[]>();
   for (const row of rows) {
-    const sourceText = input.sourceTextByKey.get(row.stringKey);
-    if (!sourceText) {
+    const sourceTextHash = sourceTextHashByKey.get(row.stringKey);
+    if (!sourceTextHash) {
       continue;
     }
 
-    const sourceTextHash = hashProjectFileStringSourceText(sourceText);
     if (row.sourceTextHash !== sourceTextHash) {
       continue;
     }
