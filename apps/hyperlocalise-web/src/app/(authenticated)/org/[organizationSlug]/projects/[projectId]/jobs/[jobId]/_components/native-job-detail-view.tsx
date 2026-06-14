@@ -2,7 +2,12 @@
 
 import { useState, type ReactNode } from "react";
 import Link from "next/link";
-import { ArrowLeft02Icon, RefreshIcon, StopCircleIcon } from "@hugeicons/core-free-icons";
+import {
+  ArrowLeft02Icon,
+  AiMagicIcon,
+  RefreshIcon,
+  StopCircleIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import {
@@ -26,6 +31,7 @@ import {
   buildJobsListHref,
   canMarkJobFailed,
   canRetryJob,
+  canRunAgentOnNativeFileJob,
   formatJobDetailDate,
   formatJobDetailKind,
   isProviderBackedJob,
@@ -92,12 +98,14 @@ export function NativeJobDetailView({
   isLoading,
   isMarkFailedPending = false,
   isRetryPending = false,
+  isRunAgentPending = false,
   job,
   jobId,
   markFailedDialogOpen: controlledMarkFailedDialogOpen,
   onMarkFailed,
   onMarkFailedDialogOpenChange,
   onRetry,
+  onRunAgent,
   organizationSlug,
   projectId,
   renderBackLink = defaultRenderBackLink,
@@ -109,12 +117,14 @@ export function NativeJobDetailView({
   isLoading: boolean;
   isMarkFailedPending?: boolean;
   isRetryPending?: boolean;
+  isRunAgentPending?: boolean;
   job?: JobDetailRecord;
   jobId: string;
   markFailedDialogOpen?: boolean;
   onMarkFailed?: () => void;
   onMarkFailedDialogOpenChange?: (open: boolean) => void;
   onRetry?: () => void;
+  onRunAgent?: () => void;
   organizationSlug: string;
   projectId: string;
   renderBackLink?: JobDetailBackLinkRenderer;
@@ -126,7 +136,9 @@ export function NativeJobDetailView({
   const setMarkFailedDialogOpen =
     onMarkFailedDialogOpenChange ?? setUncontrolledMarkFailedDialogOpen;
 
-  const showActions = job ? canRetryJob(job) || canMarkJobFailed(job) : false;
+  const showActions = job
+    ? canRetryJob(job) || canMarkJobFailed(job) || canRunAgentOnNativeFileJob(job)
+    : false;
   const jobsListHref = buildJobsListHrefProp(organizationSlug, projectId);
 
   return (
@@ -151,6 +163,16 @@ export function NativeJobDetailView({
             </Badge>
             {showActions ? (
               <div className="flex flex-wrap gap-2 sm:justify-end">
+                {canRunAgentOnNativeFileJob(job) && onRunAgent ? (
+                  <Button
+                    size="sm"
+                    disabled={isRunAgentPending || isRetryPending || isMarkFailedPending}
+                    onClick={onRunAgent}
+                  >
+                    <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
+                    {isRunAgentPending ? "Starting agent..." : "Translate with agent"}
+                  </Button>
+                ) : null}
                 {canRetryJob(job) && onRetry ? (
                   <Button
                     size="sm"
