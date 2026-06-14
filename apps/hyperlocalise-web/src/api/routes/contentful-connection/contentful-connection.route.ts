@@ -92,13 +92,6 @@ function canWriteContentful(role: AuthVariables["auth"]["membership"]["role"]) {
   return hasCapability(role, "provider_credentials:write");
 }
 
-function mapContentfulError(c: Parameters<typeof badRequestResponse>[0], error: unknown) {
-  if (error instanceof Error && error.message === "project_not_found") {
-    return notFoundResponse(c, "project_not_found");
-  }
-  throw error;
-}
-
 function mapDiscoveryErrorResponse(
   c: Parameters<typeof badRequestResponse>[0],
   error: ContentfulDiscoveryError,
@@ -159,33 +152,26 @@ export function createContentfulConnectionRoutes() {
         return forbiddenResponse(c);
       }
 
-      try {
-        const payload = c.req.valid("json");
-        const result = await createContentfulConnection({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          userId: c.var.auth.user.localUserId,
-          projectId: payload.projectId,
-          displayName: payload.displayName,
-          spaceId: payload.spaceId,
-          environmentId: payload.environmentId,
-          sourceLocale: payload.sourceLocale,
-          targetLocales: payload.targetLocales,
-          contentTypeIds: payload.contentTypeIds,
-          fieldConfig: payload.fieldConfig,
-          accessToken: payload.accessToken,
-          enabled: payload.enabled,
-        });
+      const payload = c.req.valid("json");
+      const result = await createContentfulConnection({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        displayName: payload.displayName,
+        spaceId: payload.spaceId,
+        environmentId: payload.environmentId,
+        contentTypeIds: payload.contentTypeIds,
+        fieldConfig: payload.fieldConfig,
+        accessToken: payload.accessToken,
+        enabled: payload.enabled,
+      });
 
-        return c.json(
-          {
-            contentfulConnection: result.connection,
-            webhookSecret: result.webhookSecret,
-          },
-          201,
-        );
-      } catch (error) {
-        return mapContentfulError(c, error);
-      }
+      return c.json(
+        {
+          contentfulConnection: result.connection,
+          webhookSecret: result.webhookSecret,
+        },
+        201,
+      );
     })
     .get("/:connectionId", validateConnectionParams, async (c) => {
       if (!canReadContentful(c.var.auth.membership.role)) {
@@ -208,38 +194,31 @@ export function createContentfulConnectionRoutes() {
         return forbiddenResponse(c);
       }
 
-      try {
-        const { connectionId } = c.req.valid("param");
-        const payload = c.req.valid("json");
-        const result = await updateContentfulConnection({
-          organizationId: c.var.auth.organization.localOrganizationId,
-          userId: c.var.auth.user.localUserId,
-          connectionId,
-          projectId: payload.projectId,
-          displayName: payload.displayName,
-          spaceId: payload.spaceId,
-          environmentId: payload.environmentId,
-          sourceLocale: payload.sourceLocale,
-          targetLocales: payload.targetLocales,
-          contentTypeIds: payload.contentTypeIds,
-          fieldConfig: payload.fieldConfig,
-          accessToken: payload.accessToken,
-          enabled: payload.enabled,
-        });
-        if (!result) {
-          return notFoundResponse(c, "contentful_connection_not_found");
-        }
-
-        return c.json(
-          {
-            contentfulConnection: result.connection,
-            webhookSecret: result.webhookSecret,
-          },
-          200,
-        );
-      } catch (error) {
-        return mapContentfulError(c, error);
+      const { connectionId } = c.req.valid("param");
+      const payload = c.req.valid("json");
+      const result = await updateContentfulConnection({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        connectionId,
+        displayName: payload.displayName,
+        spaceId: payload.spaceId,
+        environmentId: payload.environmentId,
+        contentTypeIds: payload.contentTypeIds,
+        fieldConfig: payload.fieldConfig,
+        accessToken: payload.accessToken,
+        enabled: payload.enabled,
+      });
+      if (!result) {
+        return notFoundResponse(c, "contentful_connection_not_found");
       }
+
+      return c.json(
+        {
+          contentfulConnection: result.connection,
+          webhookSecret: result.webhookSecret,
+        },
+        200,
+      );
     })
     .delete("/:connectionId", validateConnectionParams, async (c) => {
       if (!canWriteContentful(c.var.auth.membership.role)) {

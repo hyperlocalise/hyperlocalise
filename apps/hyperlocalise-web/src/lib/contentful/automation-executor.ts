@@ -57,11 +57,8 @@ function sha256(value: string) {
   return createHash("sha256").update(value, "utf8").digest("hex");
 }
 
-export function resolveContentfulExecutionTargetLocales(input: {
-  runTargetLocales: string[];
-  connectionTargetLocales: string[];
-}) {
-  return input.runTargetLocales.length > 0 ? input.runTargetLocales : input.connectionTargetLocales;
+export function resolveContentfulExecutionTargetLocales(input: { runTargetLocales: string[] }) {
+  return input.runTargetLocales;
 }
 
 function extractMatches(text: string, regex: RegExp) {
@@ -560,6 +557,7 @@ async function translateFieldUnit(input: {
 export async function createContentfulTranslationRun(input: {
   organizationId: string;
   connectionId: string;
+  projectId: string;
   workspaceAutomationRunId?: string | null;
   webhookEventId?: string | null;
   entryId: string;
@@ -575,6 +573,7 @@ export async function createContentfulTranslationRun(input: {
     .values({
       organizationId: input.organizationId,
       connectionId: input.connectionId,
+      projectId: input.projectId,
       workspaceAutomationRunId: input.workspaceAutomationRunId ?? null,
       webhookEventId: input.webhookEventId ?? null,
       entryId: input.entryId,
@@ -648,7 +647,7 @@ export async function executeContentfulAutomation(
       throw new Error("contentful_connection_disabled");
     }
 
-    const generator = await loadOrganizationTranslationGenerator(loaded.connection.projectId);
+    const generator = await loadOrganizationTranslationGenerator(run.projectId);
     if (!generator.ok) {
       throw new Error(generator.message);
     }
@@ -660,7 +659,6 @@ export async function executeContentfulAutomation(
     });
     const targetLocales = resolveContentfulExecutionTargetLocales({
       runTargetLocales: run.targetLocales,
-      connectionTargetLocales: loaded.connection.targetLocales,
     });
     const entryResult = await client.getEntry(run.entryId);
     if (isErr(entryResult)) {
@@ -673,7 +671,7 @@ export async function executeContentfulAutomation(
     const spaceLocaleCodes = spaceLocales.map((locale) => locale.code);
     const entryLocaleKeys = collectEntryLocaleKeys(entry);
     const sourceLocale = resolveContentfulSourceLocale({
-      preferredSourceLocale: loaded.connection.sourceLocale,
+      preferredSourceLocale: run.sourceLocale,
       spaceLocaleCodes,
       entryLocaleKeys,
       defaultLocale,
@@ -758,7 +756,7 @@ export async function executeContentfulAutomation(
       async (unit) =>
         translateFieldUnit({
           organizationId: input.organizationId,
-          projectId: loaded.connection.projectId,
+          projectId: run.projectId,
           projectName: generator.project.name,
           projectTranslationContext: generator.project.translationContext,
           runId: run.id,

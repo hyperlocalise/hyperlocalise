@@ -17,7 +17,8 @@ import { projects } from "./projects";
 
 /**
  * Stores encrypted Contentful Management API connections for an organization.
- * A connection maps one Contentful space/environment to one Hyperlocalise project.
+ * A connection maps one Contentful space/environment to workspace credentials.
+ * Hyperlocalise project and locale settings live on the automation, not here.
  */
 export const contentfulConnections = pgTable(
   "contentful_connections",
@@ -26,9 +27,10 @@ export const contentfulConnections = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
-    projectId: text("project_id")
-      .notNull()
-      .references(() => projects.id, { onDelete: "cascade" }),
+    /**
+     * @deprecated Project configuration lives on automations. Retained for backward compatibility.
+     */
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -38,10 +40,15 @@ export const contentfulConnections = pgTable(
     displayName: text("display_name").notNull(),
     spaceId: text("space_id").notNull(),
     environmentId: text("environment_id").notNull().default("master"),
-    sourceLocale: text("source_locale").notNull(),
+    /**
+     * @deprecated Locale configuration lives on automations. Retained for backward compatibility.
+     */
+    sourceLocale: text("source_locale"),
+    /**
+     * @deprecated Locale configuration lives on automations. Retained for backward compatibility.
+     */
     targetLocales: jsonb("target_locales")
       .$type<string[]>()
-      .notNull()
       .default(sql`'[]'::jsonb`),
     contentTypeIds: jsonb("content_type_ids")
       .$type<string[]>()
@@ -164,6 +171,9 @@ export const contentfulTranslationRuns = pgTable(
     connectionId: uuid("connection_id")
       .notNull()
       .references(() => contentfulConnections.id, { onDelete: "cascade" }),
+    projectId: text("project_id")
+      .notNull()
+      .references(() => projects.id, { onDelete: "cascade" }),
     workspaceAutomationRunId: uuid("workspace_automation_run_id").references(
       () => workspaceAutomationRuns.id,
       { onDelete: "set null" },
@@ -210,6 +220,7 @@ export const contentfulTranslationRuns = pgTable(
   (table) => [
     index("idx_contentful_translation_runs_org_created").on(table.organizationId, table.createdAt),
     index("idx_contentful_translation_runs_connection").on(table.connectionId),
+    index("idx_contentful_translation_runs_project").on(table.projectId),
     index("idx_contentful_translation_runs_status").on(table.status),
     index("idx_contentful_translation_runs_automation_run").on(table.workspaceAutomationRunId),
     index("idx_contentful_translation_runs_webhook_event_org").on(

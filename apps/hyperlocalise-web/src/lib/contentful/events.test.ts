@@ -42,13 +42,10 @@ async function seedContentfulWritebackScope() {
         .insert(schema.contentfulConnections)
         .values({
           organizationId,
-          projectId,
           createdByUserId: userId,
           displayName: "Contentful Help Center",
           spaceId: `space-${organizationId.slice(0, 8)}`,
           environmentId: "master",
-          sourceLocale: "en-US",
-          targetLocales: ["fr-FR"],
           contentTypeIds: ["helpCenterArticle"],
           fieldConfig: { fieldMode: "auto" },
           encryptionAlgorithm: "aes-256-gcm",
@@ -64,12 +61,13 @@ async function seedContentfulWritebackScope() {
     throw new Error("failed to seed contentful connection");
   }
 
-  return { organizationId, connectionId: connection.id };
+  return { organizationId, connectionId: connection.id, projectId };
 }
 
 async function seedTranslationRun(input: {
   organizationId: string;
   connectionId: string;
+  projectId: string;
   entryId?: string;
   status?: string;
   completedAt: Date;
@@ -78,6 +76,7 @@ async function seedTranslationRun(input: {
   await db.insert(schema.contentfulTranslationRuns).values({
     organizationId: input.organizationId,
     connectionId: input.connectionId,
+    projectId: input.projectId,
     entryId: input.entryId ?? "entry-1",
     status: input.status ?? "succeeded",
     sourceLocale: "en-US",

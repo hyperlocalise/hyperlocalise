@@ -62,9 +62,7 @@ import {
   ContentfulConnectionPanel,
   type ContentfulConnectionForm,
   type ContentfulConnectionSummary,
-  getProjectLocales,
   useContentfulConnections,
-  useProjectOptions,
   useSaveContentfulConnection,
 } from "./contentful-connection-panel";
 import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./integration-row";
@@ -824,8 +822,6 @@ export function IntegrationsPageContent({
   const activeExternalTmsProviderCredential = externalTmsCredentialState?.activeCredential ?? null;
   const { data: contentfulConnections, isLoading: isLoadingContentful } =
     useContentfulConnections(organizationSlug);
-  const { data: contentfulProjectOptions, isLoading: isLoadingContentfulProjects } =
-    useProjectOptions(organizationSlug, expandedContentful);
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
   const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug);
   const savePhraseOAuthApp = useSavePhraseOAuthApp(organizationSlug);
@@ -845,7 +841,6 @@ export function IntegrationsPageContent({
     useState<ExternalTmsProviderKind | null>(null);
   const [contentfulForm, setContentfulForm] = useState<ContentfulConnectionForm>({
     displayName: "Contentful Help Center",
-    projectId: "",
     spaceId: "",
     environmentId: "master",
     contentTypeIds: [],
@@ -909,7 +904,6 @@ export function IntegrationsPageContent({
   function loadContentfulForm(existingConnection?: ContentfulConnectionSummary) {
     setContentfulForm({
       displayName: existingConnection?.displayName ?? "Contentful Help Center",
-      projectId: existingConnection?.projectId ?? "",
       spaceId: existingConnection?.spaceId ?? "",
       environmentId: existingConnection?.environmentId ?? "master",
       contentTypeIds: existingConnection?.contentTypeIds ?? [],
@@ -1189,30 +1183,17 @@ export function IntegrationsPageContent({
                     disabled={!userIsAdmin}
                     form={contentfulForm}
                     onFormChange={setContentfulForm}
-                    projects={contentfulProjectOptions ?? []}
-                    isLoadingProjects={isLoadingContentfulProjects}
                     lastWebhookSecret={lastContentfulWebhookSecret}
                     isSaving={saveContentfulConnection.isPending}
                     organizationSlug={organizationSlug}
                     onSave={() => {
                       const accessToken = contentfulForm.accessToken.trim();
                       const existingConnection = contentfulConnections?.[0];
-                      const selectedProject = contentfulProjectOptions?.find(
-                        (project) => project.id === contentfulForm.projectId.trim(),
-                      );
-                      const projectLocales = getProjectLocales(selectedProject);
-                      if (!projectLocales) {
-                        toast.error("Selected project is missing source or target locales.");
-                        return;
-                      }
 
                       const payload = {
-                        projectId: contentfulForm.projectId.trim(),
                         displayName: contentfulForm.displayName.trim(),
                         spaceId: contentfulForm.spaceId.trim(),
                         environmentId: contentfulForm.environmentId.trim() || "master",
-                        sourceLocale: projectLocales.sourceLocale,
-                        targetLocales: projectLocales.targetLocales,
                         contentTypeIds: contentfulForm.contentTypeIds,
                       };
 

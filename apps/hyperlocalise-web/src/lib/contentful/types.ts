@@ -7,11 +7,14 @@ export type ContentfulConnectionFieldConfig = {
 export type ContentfulConnectionSummary = {
   id: string;
   organizationId: string;
-  projectId: string;
+  /** @deprecated Project configuration lives on automations. */
+  projectId: string | null;
   displayName: string;
   spaceId: string;
   environmentId: string;
-  sourceLocale: string;
+  /** @deprecated Locale configuration lives on automations. */
+  sourceLocale: string | null;
+  /** @deprecated Locale configuration lives on automations. */
   targetLocales: string[];
   contentTypeIds: string[];
   fieldConfig: ContentfulConnectionFieldConfig;
