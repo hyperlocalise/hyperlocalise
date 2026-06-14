@@ -1,7 +1,6 @@
 import { and, eq, lt, or } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
-import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
 export type GitHubAgentRequestClaim =
   | {
@@ -23,26 +22,6 @@ type GitHubAgentRequestInput = {
   scopeType: string;
   scopeKey: string;
 };
-
-function buildFixScopeKey(event: GitHubFixRequestedEventData) {
-  if (event.scope.type === "pull_request") {
-    return "pull_request";
-  }
-
-  return JSON.stringify({
-    type: event.scope.type,
-    path: event.scope.path,
-    line: event.scope.line,
-    originalLine: event.scope.originalLine,
-    side: event.scope.side,
-    commitSha: event.scope.commitSha,
-    locale: event.scope.locale,
-  });
-}
-
-function buildCommentId(event: GitHubFixRequestedEventData) {
-  return String(event.trigger.commentId ?? 0);
-}
 
 /** Max age for an enqueued row before it is purged and the idempotency key can be reused. */
 export const GITHUB_AGENT_REQUEST_ENQUEUED_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -74,36 +53,6 @@ export async function purgeExpiredGitHubAgentRequests() {
     );
 }
 
-export async function deleteGitHubAgentRequestForEvent(event: GitHubFixRequestedEventData) {
-  const values = buildGitHubFixRequestInput(event);
-  await db
-    .delete(schema.githubAgentRequests)
-    .where(
-      and(
-        eq(schema.githubAgentRequests.requestKind, values.requestKind),
-        eq(schema.githubAgentRequests.githubInstallationId, values.githubInstallationId),
-        eq(schema.githubAgentRequests.repositoryFullName, values.repositoryFullName),
-        eq(schema.githubAgentRequests.pullRequestNumber, values.pullRequestNumber),
-        eq(schema.githubAgentRequests.commentId, values.commentId),
-        eq(schema.githubAgentRequests.scopeKey, values.scopeKey),
-      ),
-    );
-}
-
-export function buildGitHubFixRequestInput(
-  event: GitHubFixRequestedEventData,
-): GitHubAgentRequestInput {
-  return {
-    requestKind: "fix",
-    githubInstallationId: String(event.installationId),
-    repositoryFullName: event.repositoryFullName,
-    pullRequestNumber: event.pullRequestNumber,
-    commentId: buildCommentId(event),
-    scopeType: event.scope.type,
-    scopeKey: buildFixScopeKey(event),
-  };
-}
-
 export function buildGitHubRepositoryRequestInput(input: {
   installationId: number;
   repositoryFullName: string;
@@ -121,6 +70,7 @@ export function buildGitHubRepositoryRequestInput(input: {
     scopeKey: input.instructions,
   };
 }
+
 export async function claimGitHubAgentRequest(
   values: GitHubAgentRequestInput,
 ): Promise<GitHubAgentRequestClaim> {

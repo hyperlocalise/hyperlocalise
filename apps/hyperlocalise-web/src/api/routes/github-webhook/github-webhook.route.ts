@@ -17,20 +17,17 @@ import {
   type GitHubPushWebhookPayload,
 } from "@/lib/agents/github/github-push-webhook";
 import { safeJsonParse } from "@/lib/primitives/safeJsonParse/safeJsonParse";
-import type { GitHubFixQueue } from "@/lib/workflow/types";
-import { createGitHubFixQueue } from "@/workflows/adapters";
 
 const logger = createLogger("github-webhook");
 
 type GithubWebhookHandler = (request: Request) => Promise<Response>;
 
 type CreateGithubWebhookRoutesOptions = {
-  githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: GithubWebhookHandler;
 };
 
-async function defaultGithubWebhookHandler(queue: GitHubFixQueue) {
-  const bot = await getGitHubBot({ githubFixQueue: queue });
+async function defaultGithubWebhookHandler() {
+  const bot = await getGitHubBot();
   const handler = bot.webhooks.github;
   if (!handler) {
     return null;
@@ -316,9 +313,7 @@ export function createGithubWebhookRoutes(options: CreateGithubWebhookRoutesOpti
         );
       }
 
-      const handler =
-        options.githubWebhookHandler ??
-        (await defaultGithubWebhookHandler(options.githubFixQueue ?? createGitHubFixQueue()));
+      const handler = options.githubWebhookHandler ?? (await defaultGithubWebhookHandler());
 
       if (!handler) {
         log.error("github adapter not configured");

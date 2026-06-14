@@ -11,20 +11,6 @@ export type ReviewJobEventData = JobEventData<"review", "native">;
 
 export type GitHubReviewTriggerType = "pull_request" | "mention";
 
-export type GitHubFixScope =
-  | {
-      type: "pull_request";
-    }
-  | {
-      type: "review_comment";
-      path: string;
-      line: number | null;
-      originalLine: number | null;
-      side: "LEFT" | "RIGHT" | null;
-      commitSha: string | null;
-      locale: string | null;
-    };
-
 export type GitHubReviewRequestedEventData = {
   checkRunName: string;
   reviewKey: string;
@@ -44,27 +30,9 @@ export type GitHubReviewRequestedEventData = {
   };
 };
 
-export type GitHubFixRequestedEventData = {
-  installationId: number;
-  repositoryOwner: string;
-  repositoryName: string;
-  repositoryFullName: string;
-  pullRequestNumber: number;
-  trigger: {
-    event: "issue_comment" | "pull_request_review_comment";
-    action: string;
-    deliveryId: string | null;
-    commentId: number | null;
-    requesterLogin: string;
-  };
-  scope: GitHubFixScope;
-};
-
 export type JobQueue<Event> = {
   enqueue(event: Event): Promise<{ ids: string[] }>;
 };
-
-export type GitHubFixQueue = JobQueue<GitHubFixRequestedEventData>;
 
 export type EmailAgentTaskAttachment = {
   id: string;

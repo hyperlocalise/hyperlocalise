@@ -1,6 +1,5 @@
-export type HyperlocaliseFixCommand = {
-  command: "fix";
-  locale: string | null;
+export type HyperlocaliseUnsupportedFixCommand = {
+  command: "unsupported_fix";
 };
 
 export type HyperlocaliseRepositoryCommand = {
@@ -8,7 +7,9 @@ export type HyperlocaliseRepositoryCommand = {
   instructions: string;
 };
 
-export type HyperlocaliseCommand = HyperlocaliseFixCommand | HyperlocaliseRepositoryCommand;
+export type HyperlocaliseCommand =
+  | HyperlocaliseRepositoryCommand
+  | HyperlocaliseUnsupportedFixCommand;
 
 export function parseHyperlocaliseCommand(text: string): HyperlocaliseCommand | null {
   const mentionIndex = text.toLowerCase().indexOf("@hyperlocalise");
@@ -22,10 +23,7 @@ export function parseHyperlocaliseCommand(text: string): HyperlocaliseCommand | 
     .filter(Boolean);
 
   if (parts[0]?.toLowerCase() === "fix") {
-    return {
-      command: "fix",
-      locale: parts[1] ?? null,
-    };
+    return { command: "unsupported_fix" };
   }
 
   if (parts.length === 0) {

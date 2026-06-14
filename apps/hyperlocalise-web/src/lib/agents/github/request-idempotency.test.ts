@@ -4,42 +4,26 @@ import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
-import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
 import {
-  buildGitHubFixRequestInput,
+  buildGitHubRepositoryRequestInput,
   claimGitHubAgentRequest,
-  deleteGitHubAgentRequestForEvent,
   GITHUB_AGENT_REQUEST_ENQUEUED_TTL_MS,
   markGitHubAgentRequestEnqueued,
   purgeExpiredGitHubAgentRequests,
 } from "./request-idempotency";
 
-function createEvent(
-  overrides: Partial<GitHubFixRequestedEventData> = {},
-): GitHubFixRequestedEventData {
+function createRepositoryRequest(
+  overrides: Partial<ReturnType<typeof buildGitHubRepositoryRequestInput>> = {},
+) {
   return {
-    installationId: 54321,
-    repositoryOwner: "hyperlocalise",
-    repositoryName: "hyperlocalise",
-    repositoryFullName: "hyperlocalise/hyperlocalise",
-    pullRequestNumber: 42,
-    trigger: {
-      event: "pull_request_review_comment",
-      action: "created",
-      deliveryId: "delivery_123",
+    ...buildGitHubRepositoryRequestInput({
+      installationId: 54321,
+      repositoryFullName: "hyperlocalise/hyperlocalise",
+      pullRequestNumber: 42,
       commentId: 123,
-      requesterLogin: "octocat",
-    },
-    scope: {
-      type: "review_comment",
-      path: "app.ts",
-      line: 10,
-      originalLine: 10,
-      side: "RIGHT",
-      commitSha: "abc123",
-      locale: "vi",
-    },
+      instructions: "sync repo translations",
+    }),
     ...overrides,
   };
 }
@@ -54,7 +38,7 @@ describe("GitHub agent request idempotency", () => {
   });
 
   it("returns the existing claim for the same kind, installation, PR, comment, and scope", async () => {
-    const request = buildGitHubFixRequestInput(createEvent());
+    const request = createRepositoryRequest();
 
     const first = await claimGitHubAgentRequest(request);
     expect(first.alreadyQueued).toBe(false);
@@ -76,7 +60,7 @@ describe("GitHub agent request idempotency", () => {
   });
 
   it("does not treat a claimed request as already queued", async () => {
-    const request = buildGitHubFixRequestInput(createEvent());
+    const request = createRepositoryRequest();
 
     const first = await claimGitHubAgentRequest(request);
     expect(first.alreadyQueued).toBe(false);
@@ -87,37 +71,15 @@ describe("GitHub agent request idempotency", () => {
   });
 
   it("allows a different comment, scope, or request kind to claim a new request", async () => {
-    const first = await claimGitHubAgentRequest(buildGitHubFixRequestInput(createEvent()));
+    const first = await claimGitHubAgentRequest(createRepositoryRequest());
     const differentComment = await claimGitHubAgentRequest(
-      buildGitHubFixRequestInput(
-        createEvent({
-          trigger: {
-            event: "pull_request_review_comment",
-            action: "created",
-            deliveryId: "delivery_456",
-            commentId: 456,
-            requesterLogin: "octocat",
-          },
-        }),
-      ),
+      createRepositoryRequest({ commentId: "456" }),
     );
     const differentScope = await claimGitHubAgentRequest(
-      buildGitHubFixRequestInput(
-        createEvent({
-          scope: {
-            type: "review_comment",
-            path: "app.ts",
-            line: 11,
-            originalLine: 11,
-            side: "RIGHT",
-            commitSha: "abc123",
-            locale: "vi",
-          },
-        }),
-      ),
+      createRepositoryRequest({ scopeKey: "translate missing keys" }),
     );
     const differentKind = await claimGitHubAgentRequest({
-      ...buildGitHubFixRequestInput(createEvent()),
+      ...createRepositoryRequest(),
       requestKind: "review",
     });
 
@@ -128,39 +90,19 @@ describe("GitHub agent request idempotency", () => {
   });
 
   it("uses a numeric fallback comment id when webhook ids are missing", () => {
-    const request = buildGitHubFixRequestInput(
-      createEvent({
-        trigger: {
-          event: "pull_request_review_comment",
-          action: "created",
-          deliveryId: null,
-          commentId: null,
-          requesterLogin: "octocat",
-        },
-      }),
-    );
-
-    expect(request.commentId).toBe("0");
-  });
-
-  it("ignores non-numeric delivery ids when comment id is missing", () => {
-    const request = buildGitHubFixRequestInput(
-      createEvent({
-        trigger: {
-          event: "pull_request_review_comment",
-          action: "created",
-          deliveryId: "delivery_abc123",
-          commentId: null,
-          requesterLogin: "octocat",
-        },
-      }),
-    );
+    const request = buildGitHubRepositoryRequestInput({
+      installationId: 54321,
+      repositoryFullName: "hyperlocalise/hyperlocalise",
+      pullRequestNumber: 42,
+      commentId: null,
+      instructions: "sync repo translations",
+    });
 
     expect(request.commentId).toBe("0");
   });
 
   it("throws when promoting a deleted request to enqueued", async () => {
-    const request = buildGitHubFixRequestInput(createEvent());
+    const request = createRepositoryRequest();
     const claim = await claimGitHubAgentRequest(request);
     if (claim.alreadyQueued) {
       throw new Error("expected first claim to be new");
@@ -177,7 +119,7 @@ describe("GitHub agent request idempotency", () => {
   });
 
   it("purges expired enqueued requests so the idempotency key can be reclaimed", async () => {
-    const request = buildGitHubFixRequestInput(createEvent());
+    const request = createRepositoryRequest();
     const first = await claimGitHubAgentRequest(request);
     if (first.alreadyQueued) {
       throw new Error("expected first claim to be new");
@@ -195,24 +137,6 @@ describe("GitHub agent request idempotency", () => {
       .where(eq(schema.githubAgentRequests.id, first.requestId));
 
     await purgeExpiredGitHubAgentRequests();
-
-    const reclaimed = await claimGitHubAgentRequest(request);
-    expect(reclaimed.alreadyQueued).toBe(false);
-  });
-
-  it("deletes the idempotency row for a completed workflow event", async () => {
-    const event = createEvent();
-    const request = buildGitHubFixRequestInput(event);
-    const claim = await claimGitHubAgentRequest(request);
-    if (claim.alreadyQueued) {
-      throw new Error("expected first claim to be new");
-    }
-    await markGitHubAgentRequestEnqueued({
-      requestId: claim.requestId,
-      workflowRunIds: ["run_123"],
-    });
-
-    await deleteGitHubAgentRequestForEvent(event);
 
     const reclaimed = await claimGitHubAgentRequest(request);
     expect(reclaimed.alreadyQueued).toBe(false);

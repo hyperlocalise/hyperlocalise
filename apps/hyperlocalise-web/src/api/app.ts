@@ -5,7 +5,6 @@ import { secureHeaders } from "hono/secure-headers";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import type {
   EmailAgentTaskQueue,
-  GitHubFixQueue,
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
@@ -64,7 +63,6 @@ import {
 
 type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
-  githubFixQueue?: GitHubFixQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   jobQueue?: JobQueue<TranslationJobEventData>;
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
@@ -198,7 +196,6 @@ function createWebhookRoutes(options: CreateAppOptions) {
     .route(
       "/github",
       createGithubWebhookRoutes({
-        githubFixQueue: options.githubFixQueue,
         githubWebhookHandler: options.githubWebhookHandler,
       }),
     )

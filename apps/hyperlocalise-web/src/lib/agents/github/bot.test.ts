@@ -3,14 +3,10 @@ import type { Message, Thread } from "chat";
 
 const {
   addInteractionMessageMock,
-  agentGenerateMock,
-  createHyperlocaliseAgentMock,
-  createInteractionMock,
-  findInteractionBySourceThreadIdMock,
-  buildGitHubFixRequestInputMock,
   buildGitHubRepositoryRequestInputMock,
   claimGitHubAgentRequestMock,
-  loadMessagesMock,
+  createInteractionMock,
+  findInteractionBySourceThreadIdMock,
   markGitHubAgentRequestEnqueuedMock,
   createRepositoryAgentTaskQueueMock,
   getInstallationOctokitMock,
@@ -18,21 +14,10 @@ const {
   repositoryQueueEnqueueMock,
   selectMock,
 } = vi.hoisted(() => {
-  const agentGenerateMock = vi.fn();
   const repositoryQueueEnqueueMock = vi.fn();
 
   return {
     addInteractionMessageMock: vi.fn(),
-    agentGenerateMock,
-    buildGitHubFixRequestInputMock: vi.fn((event: unknown) => ({
-      requestKind: "fix",
-      githubInstallationId: "54321",
-      repositoryFullName: "owner/repo",
-      pullRequestNumber: 42,
-      commentId: "123",
-      scopeType: "review_comment",
-      scopeKey: JSON.stringify(event),
-    })),
     buildGitHubRepositoryRequestInputMock: vi.fn((input: unknown) => ({
       requestKind: "repository",
       githubInstallationId: "54321",
@@ -43,15 +28,11 @@ const {
       scopeKey: JSON.stringify(input),
     })),
     claimGitHubAgentRequestMock: vi.fn(),
-    createHyperlocaliseAgentMock: vi.fn((_settings: unknown) => ({
-      generate: agentGenerateMock,
-    })),
     createInteractionMock: vi.fn(),
     createRepositoryAgentTaskQueueMock: vi.fn(() => ({
       enqueue: repositoryQueueEnqueueMock,
     })),
     findInteractionBySourceThreadIdMock: vi.fn(),
-    loadMessagesMock: vi.fn(async () => [{ role: "user", content: "@hyperlocalise fix" }]),
     markGitHubAgentRequestEnqueuedMock: vi.fn(),
     getInstallationOctokitMock: vi.fn(async () => ({
       rest: {
@@ -78,13 +59,6 @@ const {
   };
 });
 
-vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => {
-  return {
-    createHyperlocaliseAgent: createHyperlocaliseAgentMock,
-    loadInteractionModelMessages: loadMessagesMock,
-  };
-});
-
 vi.mock("@/lib/database", () => ({
   db: {
     select: selectMock,
@@ -104,7 +78,6 @@ vi.mock("@/lib/conversations/interactions", () => ({
 }));
 
 vi.mock("@/lib/agents/github/request-idempotency", () => ({
-  buildGitHubFixRequestInput: buildGitHubFixRequestInputMock,
   buildGitHubRepositoryRequestInput: buildGitHubRepositoryRequestInputMock,
   claimGitHubAgentRequest: claimGitHubAgentRequestMock,
   markGitHubAgentRequestEnqueued: markGitHubAgentRequestEnqueuedMock,
@@ -138,28 +111,26 @@ function createThread() {
   const addReactionMock = vi.fn(async () => undefined);
   const getInstallationIdMock = vi.fn(async (): Promise<string | null> => "54321");
   const posts: unknown[] = [];
-  const setStateMock = vi.fn(async () => undefined);
   const thread = {
     id: "github:owner/repo:pull/42",
     post: vi.fn(async (message: unknown) => {
       posts.push(message);
       return { id: "sent_123" };
     }),
-    setState: setStateMock,
     adapter: {
       addReaction: addReactionMock,
       getInstallationId: getInstallationIdMock,
     },
-  } as unknown as Thread<Record<string, unknown>>;
+  } as unknown as Thread<Record<string, never>>;
 
-  return { addReactionMock, getInstallationIdMock, posts, setStateMock, thread };
+  return { addReactionMock, getInstallationIdMock, posts, thread };
 }
 
 function createMessage(input: { text?: string; raw?: Record<string, unknown> } = {}): Message {
   return {
     id: "comment_123",
     threadId: "github:owner/repo:pull/42",
-    text: input.text ?? "@hyperlocalise fix vi",
+    text: input.text ?? "@hyperlocalise sync repo translations",
     raw:
       input.raw ??
       ({
@@ -201,7 +172,6 @@ describe("GitHub command routing", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockOrganizationLookup("org_123");
-    agentGenerateMock.mockResolvedValue({ text: "Queued the fix workflow." });
     addInteractionMessageMock.mockResolvedValue({ id: "msg_123" });
     claimGitHubAgentRequestMock.mockResolvedValue({
       alreadyQueued: false,
@@ -219,44 +189,46 @@ describe("GitHub command routing", () => {
 
   it("ignores unknown commands", async () => {
     const { addReactionMock, thread } = createThread();
-    const queue = { enqueue: vi.fn() };
 
-    await handleMention(thread, createMessage({ text: "@octocat status" }), { queue });
+    await handleMention(thread, createMessage({ text: "@octocat status" }));
 
-    expect(createHyperlocaliseAgentMock).not.toHaveBeenCalled();
-    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
     expect(addReactionMock).not.toHaveBeenCalled();
   });
 
   it("ignores an empty hyperlocalise mention", async () => {
     const { addReactionMock, thread } = createThread();
-    const queue = { enqueue: vi.fn() };
 
-    await handleMention(thread, createMessage({ text: "@hyperlocalise" }), { queue });
+    await handleMention(thread, createMessage({ text: "@hyperlocalise" }));
 
-    expect(createHyperlocaliseAgentMock).not.toHaveBeenCalled();
-    expect(queue.enqueue).not.toHaveBeenCalled();
     expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
     expect(addReactionMock).not.toHaveBeenCalled();
   });
 
+  it("rejects fix commands", async () => {
+    const { addReactionMock, posts, thread } = createThread();
+
+    await handleMention(thread, createMessage({ text: "@hyperlocalise fix vi" }));
+
+    expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
+    expect(addReactionMock).not.toHaveBeenCalled();
+    expect(posts).toEqual([
+      "The `@hyperlocalise fix` command is not available right now. Use `@hyperlocalise` with instructions to run a read-only repository workflow instead.",
+    ]);
+  });
+
   it("uses a command-neutral message when GitHub App installation is missing", async () => {
     const { getInstallationIdMock, posts, thread } = createThread();
-    const queue = { enqueue: vi.fn() };
     getInstallationIdMock.mockResolvedValueOnce(null);
 
-    await handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }), {
-      queue,
-    });
+    await handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }));
 
-    expect(createHyperlocaliseAgentMock).not.toHaveBeenCalled();
-    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
     expect(posts).toEqual(["GitHub App installation is not configured for `@hyperlocalise`."]);
   });
 
   it("validates PR context before invoking the agent", async () => {
     const { posts, thread } = createThread();
-    const queue = { enqueue: vi.fn() };
 
     await handleMention(
       thread,
@@ -269,46 +241,16 @@ describe("GitHub command routing", () => {
           comment: { id: 123 },
         },
       }),
-      { queue },
     );
 
-    expect(createHyperlocaliseAgentMock).not.toHaveBeenCalled();
-    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
     expect(posts).toEqual([
       "I can only run `@hyperlocalise` from pull request comments or inline pull request review comments.",
     ]);
   });
 
-  it("denies fix commands when collaborator permission lookup fails", async () => {
-    const { posts, thread } = createThread();
-    const queue = { enqueue: vi.fn() };
-    getInstallationOctokitMock.mockResolvedValueOnce({
-      rest: {
-        pulls: {
-          get: vi.fn(async () => ({
-            data: { head: { ref: "feature/i18n", sha: "head-sha" } },
-          })),
-        },
-        repos: {
-          getCollaboratorPermissionLevel: vi.fn(async () => {
-            throw Object.assign(new Error("not found"), { status: 404 });
-          }),
-        },
-      },
-    });
-
-    await handleMention(thread, createMessage(), { queue });
-
-    expect(createHyperlocaliseAgentMock).not.toHaveBeenCalled();
-    expect(queue.enqueue).not.toHaveBeenCalled();
-    expect(posts).toEqual([
-      "I can only run `@hyperlocalise` commands for repository collaborators with write access.",
-    ]);
-  });
-
   it("denies repository commands when collaborator permission lookup fails", async () => {
     const { posts, thread } = createThread();
-    const queue = { enqueue: vi.fn() };
     getInstallationOctokitMock.mockResolvedValueOnce({
       rest: {
         pulls: {
@@ -324,9 +266,7 @@ describe("GitHub command routing", () => {
       },
     });
 
-    await handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }), {
-      queue,
-    });
+    await handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }));
 
     expect(createRepositoryAgentTaskQueueMock).not.toHaveBeenCalled();
     expect(repositoryQueueEnqueueMock).not.toHaveBeenCalled();
@@ -337,12 +277,9 @@ describe("GitHub command routing", () => {
 
   it("does not add the repository reaction when the workspace cannot be resolved", async () => {
     const { addReactionMock, posts, thread } = createThread();
-    const queue = { enqueue: vi.fn() };
     mockOrganizationLookup(null);
 
-    await handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }), {
-      queue,
-    });
+    await handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }));
 
     expect(repositoryQueueEnqueueMock).not.toHaveBeenCalled();
     expect(addReactionMock).not.toHaveBeenCalled();
@@ -353,13 +290,10 @@ describe("GitHub command routing", () => {
 
   it("reports repository claim failures before adding the reaction", async () => {
     const { addReactionMock, posts, thread } = createThread();
-    const queue = { enqueue: vi.fn() };
     claimGitHubAgentRequestMock.mockRejectedValueOnce(new Error("claimed"));
 
     await expect(
-      handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }), {
-        queue,
-      }),
+      handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" })),
     ).rejects.toThrow("claimed");
 
     expect(repositoryQueueEnqueueMock).not.toHaveBeenCalled();
@@ -369,162 +303,23 @@ describe("GitHub command routing", () => {
     ]);
   });
 
-  it("routes fix through a restricted ToolLoopAgent tool", async () => {
-    const { addReactionMock, posts, setStateMock, thread } = createThread();
-    const queue = { enqueue: vi.fn(async () => ({ ids: ["run_123"] })) };
-    createHyperlocaliseAgentMock.mockImplementationOnce((settings: unknown) => {
-      const { tools } = settings as {
-        tools: {
-          enqueueGitHubFix: { execute?: (input: Record<string, never>) => Promise<unknown> };
-        };
-      };
-      return {
-        generate: vi.fn(async () => {
-          await tools.enqueueGitHubFix.execute?.({});
-          return { text: "Queued the fix workflow." };
-        }),
-      };
-    });
+  it("queues repository workflows", async () => {
+    const { addReactionMock, posts, thread } = createThread();
 
-    await handleMention(thread, createMessage(), { queue });
+    await handleMention(thread, createMessage({ text: "@hyperlocalise sync repo translations" }));
 
-    expect(createHyperlocaliseAgentMock).toHaveBeenCalledWith(
+    expect(repositoryQueueEnqueueMock).toHaveBeenCalledWith(
       expect.objectContaining({
-        surface: "github",
-        projectId: null,
-        activeTools: ["enqueueGitHubFix"],
-      }),
-    );
-    const agentSettings = createHyperlocaliseAgentMock.mock.calls[0]?.[0] as
-      | { tools?: unknown }
-      | undefined;
-    expect(agentSettings?.tools).toEqual(
-      expect.objectContaining({
-        enqueueGitHubFix: expect.objectContaining({
-          description: expect.stringContaining("Queue the validated GitHub"),
-        }),
-      }),
-    );
-    expect(queue.enqueue).toHaveBeenCalledWith(
-      expect.objectContaining({
-        repositoryFullName: "owner/repo",
-        pullRequestNumber: 42,
-        scope: expect.objectContaining({
-          type: "review_comment",
-          locale: "vi",
-        }),
-      }),
-    );
-    expect(buildGitHubFixRequestInputMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        repositoryFullName: "owner/repo",
-        pullRequestNumber: 42,
-        trigger: expect.objectContaining({ commentId: 123 }),
-        scope: expect.objectContaining({
-          type: "review_comment",
-          locale: "vi",
-        }),
-      }),
-    );
-    expect(claimGitHubAgentRequestMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        requestKind: "fix",
-        githubInstallationId: "54321",
-        repositoryFullName: "owner/repo",
-        pullRequestNumber: 42,
+        source: "github",
+        instructions: "sync repo translations",
+        organizationId: "org_123",
       }),
     );
     expect(markGitHubAgentRequestEnqueuedMock).toHaveBeenCalledWith({
       requestId: "request_123",
-      workflowRunIds: ["run_123"],
+      workflowRunIds: ["repository_run_123"],
     });
     expect(addReactionMock).toHaveBeenCalledWith(thread.id, "comment_123", expect.anything());
-    expect(setStateMock).toHaveBeenCalledWith({
-      lastFixEvent: expect.objectContaining({
-        repositoryFullName: "owner/repo",
-      }),
-    });
-    expect(addInteractionMessageMock).toHaveBeenCalledWith({
-      interactionId: "interaction_123",
-      senderType: "user",
-      text: "@hyperlocalise fix vi",
-    });
-    expect(posts).toEqual(["Queued the fix workflow."]);
-  });
-
-  it("does not enqueue again when the persistent GitHub fix claim already exists", async () => {
-    const { posts, thread } = createThread();
-    const queue = { enqueue: vi.fn(async () => ({ ids: ["run_new"] })) };
-    claimGitHubAgentRequestMock.mockResolvedValueOnce({
-      alreadyQueued: true,
-      requestId: "request_123",
-      workflowRunIds: ["run_existing"],
-    });
-    createHyperlocaliseAgentMock.mockImplementationOnce((settings: unknown) => {
-      const { tools } = settings as {
-        tools: {
-          enqueueGitHubFix: { execute?: (input: Record<string, never>) => Promise<unknown> };
-        };
-      };
-      return {
-        generate: vi.fn(async () => {
-          const toolResult = await tools.enqueueGitHubFix.execute?.({});
-          expect(toolResult).toEqual(
-            expect.objectContaining({
-              alreadyQueued: true,
-              workflowRunIds: ["run_existing"],
-            }),
-          );
-          return { text: "This fix request is already queued." };
-        }),
-      };
-    });
-
-    await handleMention(thread, createMessage(), { queue });
-
-    expect(queue.enqueue).not.toHaveBeenCalled();
-    expect(markGitHubAgentRequestEnqueuedMock).not.toHaveBeenCalled();
-    expect(posts).toEqual(["This fix request is already queued."]);
-  });
-
-  it("does not set the in-memory enqueue guard when queueing fails", async () => {
-    const { posts, thread } = createThread();
-    const queueError = new Error("queue unavailable");
-    const queue = {
-      enqueue: vi
-        .fn()
-        .mockRejectedValueOnce(queueError)
-        .mockResolvedValueOnce({ ids: ["run_retry"] }),
-    };
-    createHyperlocaliseAgentMock.mockImplementationOnce((settings: unknown) => {
-      const { tools } = settings as {
-        tools: {
-          enqueueGitHubFix: { execute?: (input: Record<string, never>) => Promise<unknown> };
-        };
-      };
-      return {
-        generate: vi.fn(async () => {
-          await expect(tools.enqueueGitHubFix.execute?.({})).rejects.toThrow("queue unavailable");
-          const toolResult = await tools.enqueueGitHubFix.execute?.({});
-          expect(toolResult).toEqual(
-            expect.objectContaining({
-              workflowRunIds: ["run_retry"],
-            }),
-          );
-          return { text: "Queued the fix workflow." };
-        }),
-      };
-    });
-
-    await handleMention(thread, createMessage(), { queue });
-
-    expect(claimGitHubAgentRequestMock).toHaveBeenCalledTimes(2);
-    expect(queue.enqueue).toHaveBeenCalledTimes(2);
-    expect(releaseGitHubAgentRequestClaimMock).toHaveBeenCalledWith("request_123");
-    expect(markGitHubAgentRequestEnqueuedMock).toHaveBeenCalledWith({
-      requestId: "request_123",
-      workflowRunIds: ["run_retry"],
-    });
-    expect(posts).toEqual(["Queued the fix workflow."]);
+    expect(posts).toEqual([expect.stringContaining("Queued your repository workflow.")]);
   });
 });

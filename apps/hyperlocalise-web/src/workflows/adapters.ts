@@ -2,7 +2,6 @@ import { start } from "workflow/api";
 
 import { emailTranslationWorkflow } from "./email-translation";
 import { contentfulAutomationExecutionWorkflow } from "./contentful-automation-execution";
-import { githubFixWorkflow } from "./github-fix";
 import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
 import { providerAgentCommentWorkflow } from "./provider-agent-comment";
 import { providerAgentQaWorkflow } from "./provider-agent-qa";
@@ -12,7 +11,6 @@ import { providerSyncWorkflow } from "./provider-sync";
 import { repositoryAgentWorkflow } from "./repository-agent";
 import type {
   EmailAgentTaskQueue,
-  GitHubFixQueue,
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
@@ -24,18 +22,6 @@ import type {
 } from "@/lib/workflow/types";
 
 export { createTranslationJobEventQueue, createReviewJobEventQueue } from "@/lib/workflow/queues";
-
-export function createGitHubFixQueue(): GitHubFixQueue {
-  return {
-    async enqueue(event) {
-      const run = await start(githubFixWorkflow, [event]);
-
-      return {
-        ids: [run.runId],
-      };
-    },
-  };
-}
 
 export function createEmailAgentTaskQueue(): EmailAgentTaskQueue {
   return {

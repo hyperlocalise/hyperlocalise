@@ -2,57 +2,41 @@ import type { GitHubAdapter, GitHubRawMessage } from "@chat-adapter/github";
 import { createGitHubAdapter } from "@chat-adapter/github";
 import { Chat, emoji } from "chat";
 import type { Message, Thread } from "chat";
+import { randomUUID } from "node:crypto";
 
-import {
-  createHyperlocaliseAgent,
-  loadInteractionModelMessages,
-} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
-import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import { wrapThreadPostForInteraction } from "@/lib/agent-runtime/runs/agent-run-events";
 import {
   buildRepositoryGitHubContextInstructions,
   resolveGitHubRepositoryGitHubContext,
 } from "@/lib/agents/repository-context";
-import { env } from "@/lib/env";
+import { buildRepositoryTaskIdempotencyKey } from "@/lib/agents/repository-agent-task";
 import {
   addInteractionMessage,
   createInteraction,
   findInteractionBySourceThreadId,
 } from "@/lib/conversations/interactions";
 import { db, schema } from "@/lib/database";
+import { env } from "@/lib/env";
+import type { RepositoryAgentTaskQueue } from "@/lib/workflow/types";
 import { eq } from "drizzle-orm";
-import type {
-  GitHubFixRequestedEventData,
-  GitHubFixQueue,
-  RepositoryAgentTaskQueue,
-} from "@/lib/workflow/types";
+import { createRepositoryAgentTaskQueue } from "@/workflows/adapters";
 
 import { getGitHubAppPrivateKey } from "./app";
 import { parseHyperlocaliseCommand } from "./commands";
-import { buildFixEvent } from "./events";
-import { requesterCanRunFix } from "./permissions";
-import { createGitHubFixTools } from "./tools";
-import { createRepositoryAgentTaskQueue } from "@/workflows/adapters";
-import { buildRepositoryTaskIdempotencyKey } from "@/lib/agents/repository-agent-task";
-import { randomUUID } from "node:crypto";
+import { buildGitHubMentionContext } from "./events";
+import { requesterCanRunGitHubCommand } from "./permissions";
 import {
   buildGitHubRepositoryRequestInput,
   claimGitHubAgentRequest,
   markGitHubAgentRequestEnqueued,
   releaseGitHubAgentRequestClaim,
 } from "./request-idempotency";
+import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 
-type GitHubBotOptions = {
-  githubFixQueue: GitHubFixQueue;
-};
-
-type GitHubBotState = {
-  lastFixEvent?: GitHubFixRequestedEventData;
-};
-
-let botInstance: Chat<{ github: ReturnType<typeof createGitHubAdapter> }, GitHubBotState> | null =
-  null;
-let botQueue: GitHubFixQueue | null = null;
+let botInstance: Chat<
+  { github: ReturnType<typeof createGitHubAdapter> },
+  Record<string, never>
+> | null = null;
 
 async function getOrganizationIdByInstallationId(installationId: string) {
   const [installation] = await db
@@ -63,31 +47,16 @@ async function getOrganizationIdByInstallationId(installationId: string) {
   return installation?.organizationId ?? null;
 }
 
-function buildGitHubFixInstructions(event: GitHubFixRequestedEventData) {
-  return [
-    "The GitHub command router already validated this request.",
-    "Call enqueueGitHubFix exactly once before replying.",
-    "After the tool succeeds, tell the user the fix workflow has been queued.",
-    "If the tool returns alreadyQueued, tell the user this fix request is already queued.",
-    "",
-    `Repository: ${event.repositoryFullName}`,
-    `Pull request: #${event.pullRequestNumber}`,
-    `Scope: ${event.scope.type}`,
-  ].join("\n");
-}
-
-export async function handleMention(
-  thread: Thread<GitHubBotState>,
-  message: Message,
-  options: { queue?: GitHubFixQueue } = {},
-) {
-  const queue = options.queue ?? botQueue;
-  if (!queue) {
+export async function handleMention(thread: Thread<Record<string, never>>, message: Message) {
+  const command = parseHyperlocaliseCommand(message.text);
+  if (!command) {
     return;
   }
 
-  const command = parseHyperlocaliseCommand(message.text);
-  if (!command) {
+  if (command.command === "unsupported_fix") {
+    await thread.post(
+      "The `@hyperlocalise fix` command is not available right now. Use `@hyperlocalise` with instructions to run a read-only repository workflow instead.",
+    );
     return;
   }
 
@@ -98,20 +67,25 @@ export async function handleMention(
   }
   const githubInstallationId = String(installationId);
 
-  const event = buildFixEvent({
+  const mentionContext = buildGitHubMentionContext({
     raw: message.raw as GitHubRawMessage,
-    command,
     installationId: Number.parseInt(githubInstallationId, 10),
-    requesterLogin: message.author.userId,
   });
-  if (!event) {
+  if (!mentionContext) {
     await thread.post(
       "I can only run `@hyperlocalise` from pull request comments or inline pull request review comments.",
     );
     return;
   }
 
-  if (!(await requesterCanRunFix(event))) {
+  if (
+    !(await requesterCanRunGitHubCommand({
+      installationId: mentionContext.installationId,
+      repositoryOwner: mentionContext.repositoryOwner,
+      repositoryName: mentionContext.repositoryName,
+      requesterLogin: message.author.userId,
+    }))
+  ) {
     await thread.post(
       "I can only run `@hyperlocalise` commands for repository collaborators with write access.",
     );
@@ -129,8 +103,6 @@ export async function handleMention(
 
   const organizationId = await getOrganizationIdByInstallationId(githubInstallationId);
 
-  // Conversation tracking
-  let conversationId: string | undefined;
   try {
     if (organizationId) {
       const existing = await findInteractionBySourceThreadId({
@@ -138,13 +110,12 @@ export async function handleMention(
         source: "github_agent",
         sourceThreadId: thread.id,
       });
-      if (existing) {
-        conversationId = existing.id;
-      } else {
+      let conversationId = existing?.id;
+      if (!conversationId) {
         const raw = message.raw as GitHubRawMessage;
         const title = raw?.repository?.full_name
           ? `${raw.repository.full_name}#${raw.prNumber ?? ""}`
-          : "GitHub fix request";
+          : "GitHub repository request";
         const created = await createInteraction({
           organizationId,
           source: "github_agent",
@@ -165,129 +136,90 @@ export async function handleMention(
     // Best-effort tracking
   }
 
-  if (command.command === "repository") {
-    if (githubContextResolution.status !== "resolved") {
-      await thread.post(
-        "I need a pull request context for this GitHub request. Please run the command from a PR comment or an inline PR review comment.",
-      );
-      return;
-    }
-    if (!organizationId) {
-      await thread.post(
-        "I could not resolve the Hyperlocalise workspace for this GitHub installation.",
-      );
-      return;
-    }
-    const taskQueue: RepositoryAgentTaskQueue = createRepositoryAgentTaskQueue();
-    const githubContext = githubContextResolution.context;
-    let claim: Awaited<ReturnType<typeof claimGitHubAgentRequest>>;
-    try {
-      claim = await claimGitHubAgentRequest(
-        buildGitHubRepositoryRequestInput({
-          installationId: event.installationId,
-          repositoryFullName: event.repositoryFullName,
-          pullRequestNumber: event.pullRequestNumber,
-          commentId: event.trigger.commentId,
-          instructions: command.instructions,
-        }),
-      );
-    } catch (error) {
-      await thread.post(
-        "I could not queue this repository workflow right now. Please try again in a moment.",
-      );
-      throw error;
-    }
-    if (claim.alreadyQueued) {
-      await thread.post("This repository request is already queued.");
-      return;
-    }
+  if (githubContextResolution.status !== "resolved") {
+    await thread.post(
+      "I need a pull request context for this GitHub request. Please run the command from a PR comment or an inline PR review comment.",
+    );
+    return;
+  }
+  if (!organizationId) {
+    await thread.post(
+      "I could not resolve the Hyperlocalise workspace for this GitHub installation.",
+    );
+    return;
+  }
 
-    await thread.adapter.addReaction(thread.id, message.id, emoji.eyes);
-    try {
-      const result = await taskQueue.enqueue({
-        id: randomUUID(),
-        source: "github",
-        sourceThreadId: thread.id,
-        actor: {
-          sourceUserId: message.author.userId,
-          displayName: message.author.fullName ?? message.author.userName,
-        },
-        organizationId,
-        projectId: null,
-        workMode: "read_only",
+  const taskQueue: RepositoryAgentTaskQueue = createRepositoryAgentTaskQueue();
+  const githubContext = githubContextResolution.context;
+  let claim: Awaited<ReturnType<typeof claimGitHubAgentRequest>>;
+  try {
+    claim = await claimGitHubAgentRequest(
+      buildGitHubRepositoryRequestInput({
+        installationId: mentionContext.installationId,
+        repositoryFullName: mentionContext.repositoryFullName,
+        pullRequestNumber: mentionContext.pullRequestNumber,
+        commentId: mentionContext.commentId,
         instructions: command.instructions,
-        githubContext: githubContext,
-        createdAt: new Date().toISOString(),
-        idempotencyKey: buildRepositoryTaskIdempotencyKey({
-          source: "github",
-          sourceThreadId: thread.id,
-          organizationId,
-          instructions: command.instructions,
-          githubContext,
-        }),
-      });
-      await markGitHubAgentRequestEnqueued({
-        requestId: claim.requestId,
-        workflowRunIds: result.ids,
-      });
-      await thread.post(
-        "Queued your repository workflow. I will post progress and completion updates on this pull request.",
-      );
-    } catch (error) {
-      await releaseGitHubAgentRequestClaim(claim.requestId);
-      await thread.post(
-        "I could not queue this repository workflow right now. Please try again in a moment.",
-      );
-      throw error;
-    }
+      }),
+    );
+  } catch (error) {
+    await thread.post(
+      "I could not queue this repository workflow right now. Please try again in a moment.",
+    );
+    throw error;
+  }
+  if (claim.alreadyQueued) {
+    await thread.post("This repository request is already queued.");
     return;
   }
 
   await thread.adapter.addReaction(thread.id, message.id, emoji.eyes);
-  await thread.setState({ lastFixEvent: event });
-
-  const tools = createGitHubFixTools({ event, queue });
-  const agent = createHyperlocaliseAgent({
-    surface: "github",
-    projectId: null,
-    tools,
-    activeTools: ["enqueueGitHubFix"],
-    additionalInstructions: [
-      buildGitHubFixInstructions(event),
-      githubContextResolution.status === "resolved"
-        ? buildRepositoryGitHubContextInstructions(githubContextResolution.context)
-        : null,
-    ]
-      .filter((instruction): instruction is string => instruction !== null)
-      .join("\n\n"),
-    prepareStep: ({ stepNumber }) => {
-      if (stepNumber === 0) {
-        return {
-          activeTools: ["enqueueGitHubFix"],
-          toolChoice: { type: "tool", toolName: "enqueueGitHubFix" },
-        };
-      }
-
-      return {
-        toolChoice: "none",
-      };
-    },
-  });
-  const messages = conversationId
-    ? await loadInteractionModelMessages(conversationId)
-    : [{ role: "user" as const, content: message.text }];
-  const result = await agent.generate({ messages });
-
-  if (result.text.trim()) {
-    await thread.post(result.text);
+  try {
+    const result = await taskQueue.enqueue({
+      id: randomUUID(),
+      source: "github",
+      sourceThreadId: thread.id,
+      actor: {
+        sourceUserId: message.author.userId,
+        displayName: message.author.fullName ?? message.author.userName,
+      },
+      organizationId,
+      projectId: null,
+      workMode: "read_only",
+      instructions: command.instructions,
+      githubContext,
+      createdAt: new Date().toISOString(),
+      idempotencyKey: buildRepositoryTaskIdempotencyKey({
+        source: "github",
+        sourceThreadId: thread.id,
+        organizationId,
+        instructions: command.instructions,
+        githubContext,
+      }),
+    });
+    await markGitHubAgentRequestEnqueued({
+      requestId: claim.requestId,
+      workflowRunIds: result.ids,
+    });
+    await thread.post(
+      [
+        "Queued your repository workflow. I will post progress and completion updates on this pull request.",
+        buildRepositoryGitHubContextInstructions(githubContext),
+      ].join("\n\n"),
+    );
+  } catch (error) {
+    await releaseGitHubAgentRequestClaim(claim.requestId);
+    await thread.post(
+      "I could not queue this repository workflow right now. Please try again in a moment.",
+    );
+    throw error;
   }
 }
 
-export async function getGitHubBot(options: GitHubBotOptions) {
+export async function getGitHubBot() {
   if (botInstance) {
     return botInstance;
   }
-  botQueue = options.githubFixQueue;
   if (!env.GITHUB_APP_ID || !env.GITHUB_APP_PRIVATE_KEY || !env.GITHUB_APP_WEBHOOK_SECRET) {
     throw new Error("missing GitHub App bot configuration");
   }

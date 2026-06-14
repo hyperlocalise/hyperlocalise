@@ -28,9 +28,6 @@ apps/hyperlocalise-web/src/workflows/adapters.ts
         +-- createRepositoryAgentTaskQueue()
         |       `---------------> repositoryAgentWorkflow
         |
-        +-- createGitHubFixQueue()
-        |       `---------------> githubFixWorkflow
-        |
         `-- provider/TMS queues
                 +-- providerAgentTranslationWorkflow
                 +-- providerAgentQaWorkflow
@@ -198,47 +195,6 @@ workflow error
         +-- mark email translation job failed
         |
         `-- stop sandbox
-```
-
-## GitHub Fix Agent
-
-`githubFixWorkflow` is the legacy write-capable PR fix path behind `@hyperlocalise fix`. It is separate from the read-only repository context agent.
-
-```text
-GitHub PR comment: @hyperlocalise fix
-        |
-        v
-GitHub bot validates command + permissions
-        |
-        v
-createGitHubFixQueue
-        |
-        v
-githubFixWorkflow
-        |
-        +-- requesterCanRunFix
-        |
-        +-- load PR metadata
-        |
-        +-- skip if no push permission or stale inline comment
-        |
-        +-- create git sandbox at PR head
-        |
-        +-- prepare git credentials + hl CLI
-        |
-        +-- optionally map inline review comment to one fixable entry
-        |
-        +-- hl fix --no-fail --json-report ...
-        |
-        +-- inspect git status
-        |
-        +-- commit and push changed localized files
-        |
-        +-- post PR summary comment
-        |
-        +-- stop sandbox
-        |
-        `-- delete idempotency request record
 ```
 
 ## Provider/TMS Workflows

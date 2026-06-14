@@ -1,16 +1,20 @@
 import { getInstallationOctokit } from "@/lib/agents/github/app";
-import type { GitHubFixRequestedEventData } from "@/lib/workflow/types";
 
-const fixRequesterWritePermissions = new Set(["admin", "maintain", "write"]);
+const githubCommandWritePermissions = new Set(["admin", "maintain", "write"]);
 
-export async function requesterCanRunFix(event: GitHubFixRequestedEventData) {
+export async function requesterCanRunGitHubCommand(input: {
+  installationId: number;
+  repositoryOwner: string;
+  repositoryName: string;
+  requesterLogin: string;
+}) {
   let data: { permission?: string };
   try {
-    const octokit = await getInstallationOctokit(event.installationId);
+    const octokit = await getInstallationOctokit(input.installationId);
     ({ data } = await octokit.rest.repos.getCollaboratorPermissionLevel({
-      owner: event.repositoryOwner,
-      repo: event.repositoryName,
-      username: event.trigger.requesterLogin,
+      owner: input.repositoryOwner,
+      repo: input.repositoryName,
+      username: input.requesterLogin,
     }));
   } catch (error) {
     if (isPermissionLookupDenial(error)) {
@@ -19,7 +23,7 @@ export async function requesterCanRunFix(event: GitHubFixRequestedEventData) {
     throw error;
   }
 
-  return data.permission ? fixRequesterWritePermissions.has(data.permission) : false;
+  return data.permission ? githubCommandWritePermissions.has(data.permission) : false;
 }
 
 function isPermissionLookupDenial(error: unknown) {
