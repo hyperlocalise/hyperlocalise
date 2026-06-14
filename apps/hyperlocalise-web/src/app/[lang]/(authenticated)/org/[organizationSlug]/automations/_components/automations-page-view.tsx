@@ -8,6 +8,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
 import type { WorkspaceAutomationTemplateCategory } from "@/lib/agents/workspace-automation-templates";
@@ -27,6 +28,33 @@ import {
 
 const TEMPLATE_FILTER_TABS_CLASS =
   "h-auto flex-none rounded-full border-transparent px-3 py-1.5 text-muted-foreground shadow-none after:hidden hover:text-foreground data-active:bg-foreground/10 data-active:text-foreground dark:data-active:border-transparent dark:data-active:bg-foreground/10";
+
+const AUTOMATION_LIST_GRID_CLASS =
+  "grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] gap-4";
+
+function AutomationListSkeleton() {
+  return (
+    <div aria-busy="true" aria-label="Loading automations">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div
+          key={index}
+          className={`${AUTOMATION_LIST_GRID_CLASS} border-b border-foreground/10 px-4 py-4 last:border-b-0`}
+        >
+          <div className="flex min-w-0 flex-col gap-2">
+            <Skeleton className="h-4 w-3/5 rounded-full bg-muted" />
+            <Skeleton className="h-3 w-2/5 rounded-full bg-muted" />
+          </div>
+          <div className="flex flex-wrap gap-1">
+            <Skeleton className="h-5 w-14 rounded-full bg-muted" />
+            <Skeleton className="h-5 w-12 rounded-full bg-muted" />
+          </div>
+          <Skeleton className="h-5 w-16 rounded-full bg-muted" />
+          <Skeleton className="h-4 w-8 rounded-full bg-muted" />
+        </div>
+      ))}
+    </div>
+  );
+}
 
 export type AutomationsLinkRenderer = (props: {
   href: string;
@@ -153,14 +181,16 @@ export function AutomationsPageView({
 
       <section className="flex flex-col gap-4">
         <div className="overflow-hidden rounded-xl border border-foreground/10">
-          <div className="grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] gap-4 border-b border-foreground/10 px-4 py-3 text-xs font-medium text-muted-foreground">
+          <div
+            className={`${AUTOMATION_LIST_GRID_CLASS} border-b border-foreground/10 px-4 py-3 text-xs font-medium text-muted-foreground`}
+          >
             <span>Automation</span>
             <span>Tools</span>
             <span>Status</span>
             <span>Created</span>
           </div>
           {isLoading ? (
-            <div className="px-4 py-10 text-sm text-muted-foreground">Loading automations...</div>
+            <AutomationListSkeleton />
           ) : error ? (
             <div className="px-4 py-10">
               <TypographyP className="text-sm font-medium text-flame-100">
@@ -179,8 +209,7 @@ export function AutomationsPageView({
               <Fragment key={automation.id}>
                 {renderAutomationLink({
                   href: `/org/${organizationSlug}/automations/${automation.id}`,
-                  className:
-                    "grid grid-cols-[minmax(0,1.6fr)_minmax(0,0.8fr)_minmax(0,0.8fr)_minmax(0,0.5fr)] gap-4 border-b border-foreground/10 px-4 py-4 transition-colors last:border-b-0 hover:bg-foreground/5",
+                  className: `${AUTOMATION_LIST_GRID_CLASS} border-b border-foreground/10 px-4 py-4 transition-colors last:border-b-0 hover:bg-foreground/5`,
                   children: (
                     <>
                       <div className="min-w-0">
