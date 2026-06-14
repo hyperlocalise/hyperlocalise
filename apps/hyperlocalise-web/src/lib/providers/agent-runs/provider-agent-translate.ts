@@ -17,6 +17,11 @@ import type {
   ExternalTmsTranslationUnit,
 } from "@/lib/providers/tms-provider-types";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
+import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
+import {
+  shouldUseProviderFileTranslation,
+  translateProviderJobFiles,
+} from "@/lib/providers/agent-runs/provider-agent-file-translate";
 import {
   assembleStringTranslationContextSnapshot,
   loadTranslationContextProject,
@@ -39,7 +44,7 @@ export type ProviderAgentTranslationResult =
       agentRunId: string;
       proposedCount: number;
       unitsProcessed: number;
-      skippedApprovedLocales: number;
+      skippedExistingLocales: number;
       pullRunId: string;
       alreadyCompleted?: boolean;
     }
@@ -52,6 +57,17 @@ export type ProviderAgentTranslationResult =
 
 const defaultSourceLocale = "en";
 
+function readAutomationLocales(inputSnapshot: Record<string, unknown>): string[] | null {
+  const automationLocales = inputSnapshot.automationLocales;
+  if (!Array.isArray(automationLocales)) {
+    return null;
+  }
+
+  return automationLocales.filter(
+    (locale): locale is string => typeof locale === "string" && locale.trim().length > 0,
+  );
+}
+
 function readProjectIdFromInputSnapshot(inputSnapshot: Record<string, unknown>): string | null {
   const projectId = inputSnapshot.projectId;
   return typeof projectId === "string" && projectId.length > 0 ? projectId : null;
@@ -60,6 +76,14 @@ function readProjectIdFromInputSnapshot(inputSnapshot: Record<string, unknown>):
 function readOutputSummaryNumber(outputSummary: Record<string, unknown>, key: string): number {
   const value = outputSummary[key];
   return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function readSkippedExistingLocalesCount(outputSummary: Record<string, unknown>): number {
+  if ("skippedExistingLocales" in outputSummary) {
+    return readOutputSummaryNumber(outputSummary, "skippedExistingLocales");
+  }
+
+  return readOutputSummaryNumber(outputSummary, "skippedApprovedLocales");
 }
 
 function readOutputSummaryString(outputSummary: Record<string, unknown>, key: string): string {
@@ -71,10 +95,10 @@ function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: 
   return unit.translations.find((translation) => translation.locale === locale) ?? null;
 }
 
-function shouldSkipApprovedTranslation(
+function shouldSkipExistingTranslation(
   translation: ExternalTmsTranslationUnit["translations"][number] | null,
 ) {
-  return translation?.isApproved === true;
+  return Boolean(translation?.text?.trim());
 }
 
 function buildJobInputForUnit(input: {
@@ -120,7 +144,7 @@ async function translateProviderUnits(input: {
     matches: AgentRunGlossaryMatchUsage[];
   }> = [];
   let unitsProcessed = 0;
-  let skippedApprovedLocales = 0;
+  let skippedExistingLocales = 0;
 
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
@@ -129,7 +153,7 @@ async function translateProviderUnits(input: {
       changedItems,
       warnings: [`Translation project ${input.projectId} was not found`],
       unitsProcessed: 0,
-      skippedApprovedLocales: 0,
+      skippedExistingLocales: 0,
       translationMemoryUsageByUnit: [],
       glossaryUsageByUnit: [],
     };
@@ -143,8 +167,8 @@ async function translateProviderUnits(input: {
     unitsProcessed += 1;
     const targetLocales = input.content.targetLocales.filter((locale) => {
       const existing = existingTranslationForLocale(unit, locale);
-      if (shouldSkipApprovedTranslation(existing)) {
-        skippedApprovedLocales += 1;
+      if (shouldSkipExistingTranslation(existing)) {
+        skippedExistingLocales += 1;
         return false;
       }
       return true;
@@ -313,7 +337,7 @@ async function translateProviderUnits(input: {
     changedItems,
     warnings,
     unitsProcessed,
-    skippedApprovedLocales,
+    skippedExistingLocales,
     translationMemoryUsageByUnit,
     glossaryUsageByUnit,
   };
@@ -354,7 +378,7 @@ export async function executeProviderAgentTranslation(input: {
       agentRunId: input.agentRunId,
       proposedCount: readOutputSummaryNumber(outputSummary, "proposedCount"),
       unitsProcessed: readOutputSummaryNumber(outputSummary, "unitsProcessed"),
-      skippedApprovedLocales: readOutputSummaryNumber(outputSummary, "skippedApprovedLocales"),
+      skippedExistingLocales: readSkippedExistingLocalesCount(outputSummary),
       pullRunId: readOutputSummaryString(outputSummary, "pullRunId"),
       alreadyCompleted: true,
     };
@@ -456,6 +480,78 @@ export async function executeProviderAgentTranslation(input: {
     };
   }
 
+  const automationLocales = readAutomationLocales(run.inputSnapshot);
+  const filteredContent =
+    automationLocales && automationLocales.length > 0
+      ? {
+          ...pullResult.content,
+          targetLocales: pullResult.content.targetLocales.filter((locale) =>
+            automationLocales.includes(locale),
+          ),
+        }
+      : pullResult.content;
+
+  const [jobDetails] = run.hyperlocaliseJobId
+    ? await (async () => {
+        const { db, schema } = await import("@/lib/database");
+        const { eq } = await import("drizzle-orm");
+        return db
+          .select({
+            providerPayload: schema.externalJobDetails.providerPayload,
+          })
+          .from(schema.externalJobDetails)
+          .where(eq(schema.externalJobDetails.jobId, run.hyperlocaliseJobId!))
+          .limit(1);
+      })()
+    : [null];
+
+  const sourceFiles = jobDetails?.providerPayload
+    ? await resolveProviderSourceFiles({
+        organizationId: input.organizationId,
+        projectId,
+        providerKind: run.providerKind,
+        providerPayload: jobDetails.providerPayload,
+      })
+    : [];
+
+  if (shouldUseProviderFileTranslation({ sourceFiles })) {
+    const fileTranslationResult = await translateProviderJobFiles({
+      organizationId: input.organizationId,
+      projectId,
+      providerKind: run.providerKind,
+      content: filteredContent,
+      sourceFiles,
+      actorUserId: run.actorUserId,
+    });
+
+    await completeAgentRun({
+      runId: run.id,
+      organizationId: input.organizationId,
+      outputSummary: {
+        pullRunId: pullResult.runId,
+        unitsDiscovered: pullResult.counts.unitsDiscovered,
+        unitsProcessed: fileTranslationResult.unitsProcessed,
+        proposedCount: fileTranslationResult.changedItems.length,
+        skippedExistingLocales: fileTranslationResult.skippedExistingLocales,
+        filesProcessed: fileTranslationResult.filesProcessed,
+        translationMode: "file",
+        targetLocales: filteredContent.targetLocales,
+        sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
+      },
+      changedItems: fileTranslationResult.changedItems,
+      warnings: fileTranslationResult.warnings,
+    });
+
+    return {
+      ok: true,
+      agentRunId: input.agentRunId,
+      proposedCount: fileTranslationResult.changedItems.length,
+      unitsProcessed: fileTranslationResult.unitsProcessed,
+      skippedExistingLocales: fileTranslationResult.skippedExistingLocales,
+      pullRunId: pullResult.runId,
+    };
+  }
+
   const organizationGenerator = await loadOrganizationTranslationGenerator(projectId);
 
   if (!organizationGenerator.ok && !input.translateStringJobOverride) {
@@ -505,7 +601,7 @@ export async function executeProviderAgentTranslation(input: {
     organizationId: input.organizationId,
     projectId,
     providerKind: run.providerKind,
-    content: pullResult.content,
+    content: filteredContent,
     translateStringJob,
     projectName: organizationGenerator.ok ? organizationGenerator.project.name : "Provider job",
     projectTranslationContext: organizationGenerator.ok
@@ -543,9 +639,9 @@ export async function executeProviderAgentTranslation(input: {
       unitsDiscovered: pullResult.counts.unitsDiscovered,
       unitsProcessed: translationResult.unitsProcessed,
       proposedCount: translationResult.changedItems.length,
-      skippedApprovedLocales: translationResult.skippedApprovedLocales,
-      targetLocales: pullResult.content.targetLocales,
-      sourceLocale: pullResult.content.sourceLocale ?? defaultSourceLocale,
+      skippedExistingLocales: translationResult.skippedExistingLocales,
+      targetLocales: filteredContent.targetLocales,
+      sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
       translationMemoryUsage: translationResult.translationMemoryUsageByUnit,
       glossaryUsage: translationResult.glossaryUsageByUnit,
     },
@@ -558,7 +654,7 @@ export async function executeProviderAgentTranslation(input: {
     agentRunId: input.agentRunId,
     proposedCount: translationResult.changedItems.length,
     unitsProcessed: translationResult.unitsProcessed,
-    skippedApprovedLocales: translationResult.skippedApprovedLocales,
+    skippedExistingLocales: translationResult.skippedExistingLocales,
     pullRunId: pullResult.runId,
   };
 }

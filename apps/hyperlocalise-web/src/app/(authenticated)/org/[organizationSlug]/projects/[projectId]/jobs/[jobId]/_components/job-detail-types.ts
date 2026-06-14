@@ -144,6 +144,15 @@ export function formatJobDetailDate(value: string | null | undefined) {
   return DATE_FORMATTER.format(date);
 }
 
+export function canRunAgentOnNativeFileJob(job: JobDetailRecord) {
+  return (
+    !isProviderBackedJob(job) &&
+    job.kind === "translation" &&
+    job.type === "file" &&
+    (job.status === "succeeded" || job.status === "failed")
+  );
+}
+
 export function canRetryJob(job: JobDetailRecord) {
   return job.kind === "translation" && (job.status === "queued" || job.status === "failed");
 }

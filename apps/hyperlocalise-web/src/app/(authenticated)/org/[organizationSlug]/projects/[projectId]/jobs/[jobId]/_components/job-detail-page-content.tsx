@@ -109,6 +109,30 @@ function NativeJobDetailPageContent({
     },
   });
 
+  const runAgentJob = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"][
+        "run-agent"
+      ].$post({
+        param: { organizationSlug, jobId },
+      });
+
+      if (!response.ok) {
+        throw new Error(await parseActionError(response, "Failed to start agent on job"));
+      }
+
+      await response.json();
+    },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: jobQueryKey });
+      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
+      toast.success("File translation agent queued");
+    },
+    onError: (error) => {
+      toast.error(error instanceof Error ? error.message : "Failed to start agent on job");
+    },
+  });
+
   const retryJob = useMutation({
     mutationFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].retry.$post({
@@ -167,10 +191,12 @@ function NativeJobDetailPageContent({
       isLoading={jobQuery.isLoading}
       error={jobQuery.isError ? jobQuery.error : undefined}
       isRetryPending={retryJob.isPending}
+      isRunAgentPending={runAgentJob.isPending}
       isMarkFailedPending={markJobFailed.isPending}
       markFailedDialogOpen={markFailedDialogOpen}
       onMarkFailedDialogOpenChange={setMarkFailedDialogOpen}
       onRetry={() => retryJob.mutate()}
+      onRunAgent={() => runAgentJob.mutate()}
       onMarkFailed={() => markJobFailed.mutate()}
       renderProviderDetailSection={(props) => (
         <JobProviderDetailSection

@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
@@ -39,6 +39,23 @@ export async function upsertExternalTmsJobRecords(input: {
 }) {
   const now = new Date();
   let upserted = 0;
+  const newlySyncedJobIds: string[] = [];
+
+  const candidateJobIds = input.tasks.map((task) =>
+    encodeProviderJobId({
+      providerKind: input.providerKind,
+      externalProjectId: input.externalProjectId,
+      externalJobId: task.externalJobId,
+    }),
+  );
+  const existingJobRows =
+    candidateJobIds.length > 0
+      ? await db
+          .select({ id: schema.jobs.id })
+          .from(schema.jobs)
+          .where(inArray(schema.jobs.id, candidateJobIds))
+      : [];
+  const existingJobIds = new Set(existingJobRows.map((row) => row.id));
 
   for (const task of input.tasks) {
     const jobId = encodeProviderJobId({
@@ -46,6 +63,7 @@ export async function upsertExternalTmsJobRecords(input: {
       externalProjectId: input.externalProjectId,
       externalJobId: task.externalJobId,
     });
+    const isNewlySynced = !existingJobIds.has(jobId);
     const status = mapProviderStatusToNormalized(input.providerKind, task.externalStatus);
     const completedAt =
       status === "succeeded" || status === "failed" ? normalizeDate(task.completedAt) : null;
@@ -122,6 +140,9 @@ export async function upsertExternalTmsJobRecords(input: {
     });
 
     upserted += 1;
+    if (isNewlySynced) {
+      newlySyncedJobIds.push(jobId);
+    }
   }
 
   if (upserted > 0) {
@@ -139,5 +160,5 @@ export async function upsertExternalTmsJobRecords(input: {
       );
   }
 
-  return { upserted };
+  return { upserted, newlySyncedJobIds };
 }

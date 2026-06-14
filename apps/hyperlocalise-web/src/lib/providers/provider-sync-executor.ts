@@ -8,12 +8,22 @@ import {
   listTmsProviderLiveProjects,
 } from "@/lib/providers/tms-provider-live";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import {
+  encodeProviderJobId,
+  parseProviderProjectId,
+} from "@/lib/providers/tms-provider-resource-id";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/upsert-external-tms-job-records";
 import { upsertExternalTmsProjectRecord } from "@/lib/projects/upsert-external-tms-project-record";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import { enqueueProviderProjectJobSyncIntent } from "./provider-sync-intent";
+import { runTmsAgentAutomationForSyncedJob } from "./agent-runs/tms-agent-automation-runner";
+import {
+  createProviderAgentCommentQueue,
+  createProviderAgentQaQueue,
+  createProviderAgentTranslationQueue,
+  createProviderAgentWritebackQueue,
+} from "@/workflows/adapters";
 
 type ProviderSyncIntentRow = typeof schema.providerSyncIntents.$inferSelect;
 
@@ -292,7 +302,7 @@ async function syncProviderJobTasksFromLive(
     project: context.value.project,
     secretMaterial,
   });
-  const { upserted } = await upsertExternalTmsJobRecords({
+  const { upserted, newlySyncedJobIds } = await upsertExternalTmsJobRecords({
     organizationId: intent.organizationId,
     projectId: intent.projectId!,
     providerKind: intent.providerKind,
@@ -300,10 +310,61 @@ async function syncProviderJobTasksFromLive(
     tasks,
   });
 
+  const automationFailures: Array<{ hyperlocaliseJobId: string; message: string }> = [];
+
+  if (newlySyncedJobIds.length > 0) {
+    const automationQueues = {
+      providerAgentTranslationQueue: createProviderAgentTranslationQueue(),
+      providerAgentQaQueue: createProviderAgentQaQueue(),
+      providerAgentWritebackQueue: createProviderAgentWritebackQueue(),
+      providerAgentCommentQueue: createProviderAgentCommentQueue(),
+    };
+    const tasksByJobId = new Map(
+      tasks.map((task) => [
+        encodeProviderJobId({
+          providerKind: intent.providerKind,
+          externalProjectId: context.value.externalProjectId,
+          externalJobId: task.externalJobId,
+        }),
+        task,
+      ]),
+    );
+
+    for (const hyperlocaliseJobId of newlySyncedJobIds) {
+      const task = tasksByJobId.get(hyperlocaliseJobId);
+      if (!task) {
+        continue;
+      }
+
+      try {
+        await runTmsAgentAutomationForSyncedJob({
+          organizationId: intent.organizationId,
+          projectId: intent.projectId!,
+          providerKind: intent.providerKind,
+          providerCredentialId: intent.providerCredentialId,
+          hyperlocaliseJobId,
+          externalJobId: task.externalJobId,
+          externalTaskId: task.externalTaskId ?? null,
+          targetLocales: task.targetLocales ?? [],
+          isNewlySynced: true,
+          queues: automationQueues,
+        });
+      } catch (error) {
+        automationFailures.push({
+          hyperlocaliseJobId,
+          message: error instanceof Error ? error.message : "agent automation failed",
+        });
+      }
+    }
+  }
+
   await completeProviderSyncRun({
     runId,
     status: "succeeded",
-    counts: { jobs: upserted },
+    counts: {
+      jobs: upserted,
+      ...(automationFailures.length > 0 ? { automationFailures: automationFailures.length } : {}),
+    },
   });
 
   return ok({ runId });

@@ -1121,6 +1121,135 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return badRequestResponse(c, "provider_qa_failed", message);
       }
     })
+    .post("/:jobId/run-agent", validateWorkspaceJobParams, async (c) => {
+      if (!isAiActionAllowed(c.var.auth.membership.role)) {
+        return forbiddenResponse(c);
+      }
+
+      const params = c.req.valid("param");
+      const [job] = await db
+        .select({
+          id: schema.jobs.id,
+          projectId: schema.jobs.projectId,
+          kind: schema.jobs.kind,
+          type: schema.translationJobDetails.type,
+          status: schema.jobs.status,
+          externalProviderKind: schema.externalJobDetails.providerKind,
+        })
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .where(and(eq(schema.jobs.id, params.jobId), await buildAccessibleJobsWhere(c.var.auth)))
+        .limit(1);
+
+      if (!job) {
+        return notFoundResponse(c, "job_not_found", "Job not found");
+      }
+
+      if (job.externalProviderKind) {
+        return conflictResponse(
+          c,
+          "native_job_required",
+          "Use agent runs for provider-backed jobs",
+        );
+      }
+
+      if (job.kind !== "translation" || job.type !== "file" || !job.projectId) {
+        return conflictResponse(
+          c,
+          "file_translation_job_required",
+          "Agent runs are only available for native file translation jobs",
+        );
+      }
+
+      if (job.status === "running" || job.status === "queued") {
+        return conflictResponse(c, "job_already_running", "Job is already queued or running");
+      }
+
+      const projectId = job.projectId;
+      const type = job.type;
+
+      const restartedJob = await db.transaction(async (tx) => {
+        const [updatedJob] = await tx
+          .update(schema.jobs)
+          .set({
+            status: "queued",
+            workflowRunId: null,
+            lastError: null,
+            completedAt: null,
+          })
+          .where(
+            and(
+              eq(schema.jobs.id, params.jobId),
+              await buildAccessibleJobsWhere(c.var.auth),
+              or(eq(schema.jobs.status, "failed"), eq(schema.jobs.status, "succeeded")),
+            ),
+          )
+          .returning({ id: schema.jobs.id, projectId: schema.jobs.projectId });
+
+        if (!updatedJob) {
+          return null;
+        }
+
+        await tx
+          .update(schema.translationJobDetails)
+          .set({ outcomeKind: null })
+          .where(eq(schema.translationJobDetails.jobId, params.jobId));
+
+        return { id: updatedJob.id, projectId, type };
+      });
+
+      if (!restartedJob) {
+        return conflictResponse(c, "job_action_unavailable", "Job action is not available");
+      }
+
+      try {
+        const result = await options.jobQueue.enqueue({
+          kind: "translation",
+          jobId: restartedJob.id,
+          projectId: restartedJob.projectId,
+          type: restartedJob.type,
+        });
+
+        await db
+          .update(schema.jobs)
+          .set({ workflowRunId: result.ids[0] ?? null })
+          .where(eq(schema.jobs.id, restartedJob.id));
+      } catch (error) {
+        await db
+          .update(schema.jobs)
+          .set({
+            status: "failed",
+            lastError: error instanceof Error ? error.message : "translation job queue unavailable",
+            completedAt: new Date(),
+          })
+          .where(eq(schema.jobs.id, restartedJob.id));
+
+        return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
+      }
+
+      const [updatedJob] = await db
+        .select(jobWithProjectSelect)
+        .from(schema.jobs)
+        .leftJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+        .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+        .leftJoin(
+          schema.assetManagementJobDetails,
+          eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+        )
+        .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+        .where(eq(schema.jobs.id, restartedJob.id))
+        .limit(1);
+
+      return c.json({ job: updatedJob ?? restartedJob }, 200);
+    })
     .post("/:jobId/retry", validateWorkspaceJobParams, async (c) => {
       if (!isJobMutationAllowed(c.var.auth.membership.role)) {
         return forbiddenResponse(c);
