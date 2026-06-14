@@ -1,10 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { dbSelectMock, loggerWarnMock, queueEnqueueMock } = vi.hoisted(() => ({
-  dbSelectMock: vi.fn(),
-  loggerWarnMock: vi.fn(),
-  queueEnqueueMock: vi.fn(),
-}));
+const { dbSelectMock, loggerWarnMock, queueEnqueueMock, reclaimExpiredLeasesMock } = vi.hoisted(
+  () => ({
+    dbSelectMock: vi.fn(),
+    loggerWarnMock: vi.fn(),
+    queueEnqueueMock: vi.fn(),
+    reclaimExpiredLeasesMock: vi.fn(async () => 0),
+  }),
+);
 
 vi.mock("@/lib/database", () => ({
   db: {
@@ -30,6 +33,10 @@ vi.mock("@/lib/log", () => ({
   })),
 }));
 
+vi.mock("@/lib/providers/provider-sync-intent", () => ({
+  reclaimExpiredProviderSyncIntentLeases: reclaimExpiredLeasesMock,
+}));
+
 vi.mock("@/workflows/adapters", () => ({
   createProviderSyncQueue: vi.fn(() => ({
     enqueue: queueEnqueueMock,
@@ -53,6 +60,16 @@ function mockDueIntents(intents: Array<{ id: string; organizationId: string }>) 
 describe("runProviderSyncWorkflowDispatcher", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    reclaimExpiredLeasesMock.mockResolvedValue(0);
+  });
+
+  it("reclaims expired leases before dispatching due intents", async () => {
+    mockDueIntents([]);
+    const now = new Date("2026-06-14T12:00:00.000Z");
+
+    await runProviderSyncWorkflowDispatcher({ limit: 1, now });
+
+    expect(reclaimExpiredLeasesMock).toHaveBeenCalledWith(now);
   });
 
   it("starts a provider sync workflow for each due intent", async () => {

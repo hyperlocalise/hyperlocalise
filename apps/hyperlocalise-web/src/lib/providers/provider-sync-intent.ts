@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, lte } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { ProviderSyncIntentCause, ProviderSyncRunKind } from "@/lib/database/types";
@@ -41,6 +41,38 @@ export type EnqueueProviderSyncIntentResult = {
   intentId: string;
   created: boolean;
 };
+
+export async function reclaimExpiredProviderSyncIntentLeases(now = new Date()) {
+  const reclaimed = await db
+    .update(schema.providerSyncIntents)
+    .set({
+      status: "retryable",
+      leasedUntil: null,
+      leasedBy: null,
+      leaseToken: null,
+      nextAttemptAt: now,
+      lastError: "lease_expired",
+    })
+    .where(
+      and(
+        eq(schema.providerSyncIntents.status, "running"),
+        lte(schema.providerSyncIntents.leasedUntil, now),
+      ),
+    )
+    .returning({ id: schema.providerSyncIntents.id });
+
+  if (reclaimed.length > 0) {
+    logger.warn(
+      {
+        reclaimedCount: reclaimed.length,
+        intentIds: reclaimed.map((intent) => intent.id),
+      },
+      "reclaimed expired provider sync intent leases",
+    );
+  }
+
+  return reclaimed.length;
+}
 
 export async function enqueueProviderSyncIntent(
   input: EnqueueProviderSyncIntentInput,
@@ -111,6 +143,8 @@ export async function enqueueProviderCatalogSyncIntent(input: {
   providerKind: ExternalTmsProviderKind;
   cause: ProviderSyncIntentCause;
 }) {
+  await reclaimExpiredProviderSyncIntentLeases();
+
   return enqueueProviderSyncIntent({
     organizationId: input.organizationId,
     providerCredentialId: input.providerCredentialId,
@@ -129,6 +163,8 @@ export async function enqueueProviderProjectMaterializationSyncIntents(input: {
   cause?: ProviderSyncIntentCause;
 }) {
   const cause = input.cause ?? "manual";
+
+  await reclaimExpiredProviderSyncIntentLeases();
 
   await Promise.all([
     enqueueProviderSyncIntent({
@@ -168,6 +204,8 @@ export async function enqueueProviderProjectJobSyncIntent(input: {
   projectId: string;
   cause: ProviderSyncIntentCause;
 }) {
+  await reclaimExpiredProviderSyncIntentLeases();
+
   return enqueueProviderSyncIntent({
     organizationId: input.organizationId,
     providerCredentialId: input.providerCredentialId,

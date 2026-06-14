@@ -206,13 +206,13 @@ export async function persistStringJobTranslations(input: {
         schema.projectTranslations.targetLocale,
       ],
       set: {
-        text: sql`excluded.text`,
-        status: sql`excluded.status`,
-        provenance: sql`excluded.provenance`,
-        sourceJobId: sql`excluded.source_job_id`,
-        reviewedAt: null,
-        reviewedByUserId: null,
-        updatedAt: sql`now()`,
+        text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
+        status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
+        provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+        sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
+        reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
+        reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
+        updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
       },
     });
 }
@@ -290,13 +290,13 @@ export async function persistFileJobTranslations(input: {
         schema.projectTranslations.targetLocale,
       ],
       set: {
-        text: sql`excluded.text`,
-        status: sql`excluded.status`,
-        provenance: sql`excluded.provenance`,
-        sourceJobId: sql`excluded.source_job_id`,
-        reviewedAt: null,
-        reviewedByUserId: null,
-        updatedAt: sql`now()`,
+        text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
+        status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
+        provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+        sourceJobId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.source_job_id ELSE excluded.source_job_id END`,
+        reviewedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_at ELSE NULL END`,
+        reviewedByUserId: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.reviewed_by_user_id ELSE NULL END`,
+        updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
       },
     });
 }
