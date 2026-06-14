@@ -791,7 +791,7 @@ func TestTasksService_EditArchivedStatus(t *testing.T) {
 
 	const (
 		projectID = 123
-		path      = "/api/v2/tasks/2"
+		path      = "/api/v2/user/tasks/2"
 	)
 
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
