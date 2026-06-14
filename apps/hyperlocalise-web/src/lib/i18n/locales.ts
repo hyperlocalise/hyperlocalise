@@ -2,6 +2,7 @@ import { z } from "zod";
 
 /** Curated locales for fast project setup; any valid BCP-47 tag is still accepted. */
 export const COMMON_LOCALES = [
+  "en",
   "en-US",
   "en-GB",
   "en-AU",

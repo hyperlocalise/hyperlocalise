@@ -22,7 +22,7 @@ import {
   siSemrush,
 } from "simple-icons";
 
-import { SimpleBrandIcon } from "@/app/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
+import { SimpleBrandIcon } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/simple-brand-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +56,7 @@ import { createApiClient } from "@/lib/api-client";
 import {
   AUTOMATION_WEEKDAY_OPTIONS,
   addBranchPattern,
-} from "@/app/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
+} from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
 import { workspaceAutomationFormCanActivate } from "@/lib/agents/workspace-automation-view-model";

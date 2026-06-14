@@ -1,4 +1,5 @@
 import { useCaseFooterLinks } from "@/components/marketing/use-case";
+import { productLinks } from "@/components/marketing/product/product-page-content";
 
 export const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
 export const githubActionUrl = "https://github.com/marketplace/actions/hyperlocalise-ci";
@@ -182,29 +183,11 @@ export const testimonials = [
 export const footerColumns: MarketingFooterColumn[] = [
   {
     title: "Product",
-    links: [
-      { label: "Sources", href: "#sources" },
-      { label: "Translate Task", href: "#translate-task" },
-      { label: "Providers", href: "#providers" },
-      { label: "Evaluations", href: "#evaluations" },
-      { label: "Monitor", href: "#monitor" },
-      { label: "Pricing", href: "#waitlist" },
-    ],
+    links: productLinks,
   },
   {
     title: "Use cases",
     links: useCaseFooterLinks,
-  },
-  {
-    title: "Features",
-    links: [
-      { label: "Agents", href: "#workflow" },
-      { label: "TMS sync", href: "#workflow" },
-      { label: "GitHub checks", href: "#workflow" },
-      { label: "Evals", href: "#workflow" },
-      { label: "Shared context", href: "#overview" },
-      { label: "Changelog", href: "#changelog" },
-    ],
   },
   {
     title: "Resources",

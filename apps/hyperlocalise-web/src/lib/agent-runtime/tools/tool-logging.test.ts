@@ -67,7 +67,7 @@ describe("wrapToolSetWithLogging", () => {
         filesWithMatches: 1,
         matches: [
           {
-            path: "src/app/(authenticated)/org/[organizationSlug]/integrations/_components/integrations-page-content.tsx",
+            path: "src/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/integrations-page-content.tsx",
             line: 241,
             content: matchedLine,
             matchedText: input.pattern,
@@ -84,7 +84,7 @@ describe("wrapToolSetWithLogging", () => {
     await wrappedGrep.execute!(
       {
         pattern: sourceText,
-        path: "src/app/(authenticated)/org/[organizationSlug]/integrations/_components",
+        path: "src/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components",
         regex: false,
       },
       { toolCallId: "call_123", messages: [] },

@@ -18,7 +18,7 @@ import ThemeToggle from "@/components/theme-toggle";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { TmsUserConnectButton } from "./tms-user-connect-button";
 import type { TmsUserConnectCta } from "@/lib/providers/tms-user-connection-shared";
-import { useTmsUserConnectCta } from "@/app/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
+import { useTmsUserConnectCta } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-tms-user-connect-cta";
 import { NavUser } from "./nav-user";
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
