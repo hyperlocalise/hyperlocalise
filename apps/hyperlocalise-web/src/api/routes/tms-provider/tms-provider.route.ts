@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
+import { serviceUnavailableResponse } from "@/api/response.schema";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { enqueueProviderCatalogSyncIntent } from "@/lib/providers/provider-sync-intent";
 import type { ProviderSyncQueue } from "@/lib/workflow/types";
@@ -203,12 +204,10 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
           organizationId,
         });
       } catch {
-        return c.json(
-          {
-            error: "provider_sync_queue_unavailable",
-            message: "Provider sync workflow could not be started.",
-          },
-          503,
+        return serviceUnavailableResponse(
+          c,
+          "provider_sync_queue_unavailable",
+          "Provider sync workflow could not be started.",
         );
       }
 
