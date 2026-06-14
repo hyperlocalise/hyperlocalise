@@ -319,7 +319,7 @@ describe("translation job workflow helpers", () => {
     ).rejects.toThrow("is not owned by workflow run run_stale");
   });
 
-  it("fails when the organization has no OpenAI provider credential", async () => {
+  it("uses managed translation when the organization has no BYOK provider credential", async () => {
     const { project, user } = await projectFixture.createStoredProjectFixture();
     const job = await insertJob({
       organizationId: project.organizationId,
@@ -342,28 +342,29 @@ describe("translation job workflow helpers", () => {
         projectId: project.id,
         type: "string",
       },
+      async translateStringJob() {
+        return {
+          translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+        };
+      },
     });
 
     expect(result).toEqual(
       expect.objectContaining({
         id: job.id,
-        status: "failed",
-        outcomeKind: "error",
-        outcomePayload: {
-          code: "provider_credential_missing",
-          message: "organization OpenAI provider credential is not configured",
-        },
+        status: "succeeded",
+        outcomeKind: "string_result",
       }),
     );
   });
 
-  it("fails when the organization provider credential is not OpenAI", async () => {
+  it("uses the organization BYOK provider credential when configured", async () => {
     const { organization, project, user } = await projectFixture.createStoredProjectFixture();
     await insertProviderCredential({
       organizationId: organization.id,
       userId: user.id,
       provider: "gemini",
-      defaultModel: "gemini-2.0-flash",
+      defaultModel: "gemini-2.5-flash",
     });
     const job = await insertJob({
       organizationId: project.organizationId,
@@ -386,17 +387,18 @@ describe("translation job workflow helpers", () => {
         projectId: project.id,
         type: "string",
       },
+      async translateStringJob() {
+        return {
+          translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+        };
+      },
     });
 
     expect(result).toEqual(
       expect.objectContaining({
         id: job.id,
-        status: "failed",
-        outcomeKind: "error",
-        outcomePayload: {
-          code: "unsupported_provider",
-          message: "translation jobs support OpenAI provider credentials only, got gemini",
-        },
+        status: "succeeded",
+        outcomeKind: "string_result",
       }),
     );
   });

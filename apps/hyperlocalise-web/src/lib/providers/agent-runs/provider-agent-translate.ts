@@ -27,7 +27,7 @@ import {
 } from "@/lib/providers/match-resolution";
 import type { AgentRunGlossaryMatchUsage } from "@/lib/providers/contracts/glossary-match";
 import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contracts/translation-memory-match";
-import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
@@ -456,7 +456,7 @@ export async function executeProviderAgentTranslation(input: {
     };
   }
 
-  const organizationGenerator = await loadOrganizationOpenAITranslationGenerator(projectId);
+  const organizationGenerator = await loadOrganizationTranslationGenerator(projectId);
 
   if (!organizationGenerator.ok && !input.translateStringJobOverride) {
     await failAgentRun({

@@ -1,8 +1,11 @@
+import { createAnthropic } from "@ai-sdk/anthropic";
 import { createOpenAI, openai } from "@ai-sdk/openai";
 import { generateText, Output, type LanguageModel } from "ai";
 import { z } from "zod";
 
 import type { StringTranslationJobInput } from "@/api/routes/project/job.schema";
+import type { LlmProvider } from "@/lib/database/types";
+import { hyperlocaliseAgentModelId } from "@/lib/agent-runtime/loops/model";
 import { env } from "@/lib/env";
 
 /**
@@ -65,9 +68,8 @@ type CreateStringTranslationGeneratorOptions = {
 /**
  * Builds the legacy app-level OpenAI model.
  *
- * New production workflow execution should prefer
- * `createOpenAIStringTranslationGenerator()` so each organization uses its
- * own encrypted provider credential and configured default model.
+ * New production workflow execution should prefer organization-scoped credentials
+ * via `loadOrganizationTranslationGenerator()` or `createProviderStringTranslationGenerator()`.
  */
 function getDefaultTranslationModel() {
   if (!env.OPENAI_API_KEY) {
@@ -246,21 +248,75 @@ export const translateStringJobWithOpenAI: StringTranslationGenerator = async (i
 };
 
 /**
- * Creates a string translation generator backed by an organization OpenAI key.
- *
- * Later provider work should add sibling factories for Anthropic, Gemini, Groq,
- * and Mistral rather than expanding this OpenAI-specific factory. That keeps
- * provider differences isolated from prompt and normalization logic.
+ * Creates a string translation generator backed by an organization provider key.
  */
 export function createOpenAIStringTranslationGenerator(input: {
   apiKey: string;
   model: string;
 }): StringTranslationGenerator {
-  const provider = createOpenAI({
+  return createProviderStringTranslationGenerator({
+    provider: "openai",
     apiKey: input.apiKey,
+    model: input.model,
   });
+}
+
+const openAiCompatibleBaseUrlByProvider = {
+  gemini: "https://generativelanguage.googleapis.com/v1beta/openai",
+  groq: "https://api.groq.com/openai/v1",
+  mistral: "https://api.mistral.ai/v1",
+} as const satisfies Partial<Record<LlmProvider, string>>;
+
+export function createProviderStringTranslationGenerator(input: {
+  provider: LlmProvider;
+  apiKey: string;
+  model: string;
+}): StringTranslationGenerator {
+  switch (input.provider) {
+    case "anthropic": {
+      const provider = createAnthropic({
+        apiKey: input.apiKey,
+      });
+
+      return createStringTranslationGenerator({
+        model: provider(input.model),
+      });
+    }
+    case "openai": {
+      const provider = createOpenAI({
+        apiKey: input.apiKey,
+      });
+
+      return createStringTranslationGenerator({
+        model: provider(input.model),
+      });
+    }
+    case "gemini":
+    case "groq":
+    case "mistral": {
+      const baseURL = openAiCompatibleBaseUrlByProvider[input.provider];
+      const provider = createOpenAI({
+        apiKey: input.apiKey,
+        ...(baseURL ? { baseURL } : {}),
+      });
+
+      return createStringTranslationGenerator({
+        model: provider(input.model),
+      });
+    }
+  }
+}
+
+export function createManagedStringTranslationGenerator(): StringTranslationGenerator {
+  if (!env.OPENAI_API_KEY) {
+    throw new Error("OPENAI_API_KEY is not configured");
+  }
 
   return createStringTranslationGenerator({
-    model: provider(input.model),
+    model: openai(hyperlocaliseAgentModelId),
   });
+}
+
+export function isManagedTranslationModelAvailable() {
+  return Boolean(env.OPENAI_API_KEY);
 }

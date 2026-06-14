@@ -7,7 +7,7 @@ import { db, schema } from "@/lib/database";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { assembleStringTranslationContextSnapshot } from "@/lib/translation/assemble-translation-context";
-import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
+import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
@@ -553,7 +553,7 @@ export async function executeContentfulAutomation(
       throw new Error("contentful_connection_disabled");
     }
 
-    const generator = await loadOrganizationOpenAITranslationGenerator(loaded.connection.projectId);
+    const generator = await loadOrganizationTranslationGenerator(loaded.connection.projectId);
     if (!generator.ok) {
       throw new Error(generator.message);
     }

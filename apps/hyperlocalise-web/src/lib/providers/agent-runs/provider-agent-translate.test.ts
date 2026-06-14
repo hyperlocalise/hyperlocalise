@@ -18,7 +18,7 @@ import { executeProviderAgentTranslation } from "./provider-agent-translate";
 
 const projectFixture = createProjectTestFixture();
 const pullExternalTmsTaskContentMock = vi.fn();
-const loadOrganizationOpenAITranslationGeneratorMock = vi.fn();
+const loadOrganizationTranslationGeneratorMock = vi.fn();
 
 const providerContentPullerMocks = vi.hoisted(() => {
   type GetProviderContentPuller = (
@@ -57,8 +57,8 @@ vi.mock("@/lib/providers/tms-provider-content", async (importOriginal) => {
 });
 
 vi.mock("@/lib/translation/load-organization-translation-generator", () => ({
-  loadOrganizationOpenAITranslationGenerator: (...args: unknown[]) =>
-    loadOrganizationOpenAITranslationGeneratorMock(...args),
+  loadOrganizationTranslationGenerator: (...args: unknown[]) =>
+    loadOrganizationTranslationGeneratorMock(...args),
 }));
 
 beforeAll(async () => {
@@ -68,7 +68,7 @@ beforeAll(async () => {
 afterEach(async () => {
   await projectFixture.cleanup();
   pullExternalTmsTaskContentMock.mockReset();
-  loadOrganizationOpenAITranslationGeneratorMock.mockReset();
+  loadOrganizationTranslationGeneratorMock.mockReset();
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     providerContentPullerMocks.state.actual,
   );
@@ -119,7 +119,7 @@ describe("executeProviderAgentTranslation", () => {
       content: pulledContent,
     });
 
-    loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+    loadOrganizationTranslationGeneratorMock.mockResolvedValue({
       ok: true,
       project: { name: project.name, translationContext: project.translationContext },
       translateStringJob: vi.fn(async () => ({
@@ -231,7 +231,7 @@ describe("executeProviderAgentTranslation", () => {
       failures: [],
     });
 
-    loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+    loadOrganizationTranslationGeneratorMock.mockResolvedValue({
       ok: true,
       project: { name: project.name, translationContext: project.translationContext },
       translateStringJob: vi.fn(async () => ({
@@ -341,7 +341,7 @@ describe("executeProviderAgentTranslation", () => {
       },
     });
 
-    loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+    loadOrganizationTranslationGeneratorMock.mockResolvedValue({
       ok: true,
       project: { name: project.name, translationContext: project.translationContext },
       translateStringJob: vi.fn(async () => ({
@@ -446,7 +446,7 @@ describe("executeProviderAgentTranslation", () => {
       },
     });
 
-    loadOrganizationOpenAITranslationGeneratorMock.mockResolvedValue({
+    loadOrganizationTranslationGeneratorMock.mockResolvedValue({
       ok: true,
       project: { name: project.name, translationContext: project.translationContext },
       translateStringJob: vi.fn(async () => ({

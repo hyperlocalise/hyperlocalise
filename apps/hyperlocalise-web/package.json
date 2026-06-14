@@ -14,6 +14,7 @@
     "workos:setup": "bun --env-file=.env src/lib/workos/run-workos-setup.ts"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "3.0.68",
     "@ai-sdk/openai": "3.0.68",
     "@ai-sdk/react": "^3.0.176",
     "@base-ui/react": "1.5.0",
