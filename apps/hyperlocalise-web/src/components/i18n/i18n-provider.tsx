@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { IntlProvider } from "react-intl";
 
 import { getIntlShape } from "@/lib/app-i18n/intl";
@@ -11,7 +12,7 @@ type I18nProviderProps = {
 };
 
 export function I18nProvider({ locale, children }: I18nProviderProps) {
-  const intl = getIntlShape(locale);
+  const intl = useMemo(() => getIntlShape(locale), [locale]);
 
   return (
     <IntlProvider locale={locale} defaultLocale={DEFAULT_APP_LOCALE} messages={intl.messages}>
