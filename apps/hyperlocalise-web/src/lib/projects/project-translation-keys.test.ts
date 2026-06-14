@@ -66,7 +66,12 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       targetLocale: "fr",
     });
 
-    expect(result).toEqual({});
+    expect(result).toEqual({
+      prefilled: {},
+      truncated: false,
+      loadedKeyCount: 0,
+      maxKeyCount: 5_000,
+    });
     expect(selectMock).toHaveBeenCalledTimes(1);
   });
 
@@ -102,9 +107,83 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     });
 
     expect(result).toEqual({
-      greeting: "Bonjour",
-      farewell: "Au revoir",
+      prefilled: {
+        greeting: "Bonjour",
+        farewell: "Au revoir",
+      },
+      truncated: false,
+      loadedKeyCount: 3,
+      maxKeyCount: 5_000,
     });
     expect(selectMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("excludes rejected translations even when text is present", async () => {
+    limitMock
+      .mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }])
+      .mockResolvedValueOnce([{ id: "key_1", key: "greeting", sourceText: "Hello" }]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: limitMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: limitMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          {
+            id: "translation_1",
+            translationKeyId: "key_1",
+            text: "Mauvais",
+            status: "rejected",
+          },
+        ]) as unknown as { limit: typeof limitMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+    });
+
+    expect(result.prefilled).toEqual({});
+    expect(result.truncated).toBe(false);
+    expect(result.loadedKeyCount).toBe(1);
+  });
+
+  it("reports truncation when the source file exceeds the prefill key cap", async () => {
+    const overLimitKeys = Array.from({ length: 5_001 }, (_, index) => ({
+      id: `key_${index}`,
+      key: `entry_${index}`,
+      sourceText: `Source ${index}`,
+    }));
+
+    limitMock
+      .mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }])
+      .mockResolvedValueOnce(overLimitKeys);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: limitMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: limitMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () => Promise.resolve([]) as unknown as { limit: typeof limitMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+    });
+
+    expect(result.truncated).toBe(true);
+    expect(result.loadedKeyCount).toBe(5_000);
+    expect(result.maxKeyCount).toBe(5_000);
+    expect(Object.keys(result.prefilled)).toHaveLength(0);
   });
 });

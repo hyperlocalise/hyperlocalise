@@ -435,12 +435,23 @@ export async function fileTranslationJobWorkflow(event: TranslationJobEventData)
 
       let existingPrefilled: Record<string, string> = {};
       if (repositorySourcePath) {
-        existingPrefilled = await loadProjectTranslationsAsPrefilledEntriesStep({
+        const projectPrefill = await loadProjectTranslationsAsPrefilledEntriesStep({
           organizationId,
           projectId: claim.job.projectId,
           sourcePath: repositorySourcePath,
           targetLocale,
         });
+        existingPrefilled = projectPrefill.prefilled;
+        if (projectPrefill.truncated) {
+          console.warn("[file-translation-workflow] project translation prefill truncated", {
+            jobId: claim.job.id,
+            projectId: claim.job.projectId,
+            targetLocale,
+            sourcePath: repositorySourcePath,
+            loadedKeyCount: projectPrefill.loadedKeyCount,
+            maxKeyCount: projectPrefill.maxKeyCount,
+          });
+        }
         if (Object.keys(existingPrefilled).length > 0) {
           console.info("[file-translation-workflow] loaded existing project translations", {
             jobId: claim.job.id,
