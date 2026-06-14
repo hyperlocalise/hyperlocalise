@@ -13,6 +13,8 @@ import { upsertExternalTmsJobRecords } from "@/lib/projects/upsert-external-tms-
 import { upsertExternalTmsProjectRecord } from "@/lib/projects/upsert-external-tms-project-record";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
+import { enqueueProviderProjectJobSyncIntent } from "./provider-sync-intent";
+
 type ProviderSyncIntentRow = typeof schema.providerSyncIntents.$inferSelect;
 
 export type ProviderSyncExecutionError = {
@@ -196,10 +198,18 @@ async function refreshMaterializedProjectFromLive(
     });
   }
 
-  await upsertExternalTmsProjectRecord({
+  const projectId = await upsertExternalTmsProjectRecord({
     organizationId: intent.organizationId,
     providerCredentialId: intent.providerCredentialId,
     liveProject,
+  });
+
+  await enqueueProviderProjectJobSyncIntent({
+    organizationId: intent.organizationId,
+    providerCredentialId: intent.providerCredentialId,
+    providerKind: intent.providerKind,
+    projectId,
+    cause: intent.cause,
   });
 
   await completeProviderSyncRun({
@@ -227,10 +237,17 @@ async function syncProjectCatalogFromLive(
   let syncedCount = 0;
 
   for (const liveProject of liveProjects) {
-    await upsertExternalTmsProjectRecord({
+    const projectId = await upsertExternalTmsProjectRecord({
       organizationId: intent.organizationId,
       providerCredentialId: intent.providerCredentialId,
       liveProject,
+    });
+    await enqueueProviderProjectJobSyncIntent({
+      organizationId: intent.organizationId,
+      providerCredentialId: intent.providerCredentialId,
+      providerKind: intent.providerKind,
+      projectId,
+      cause: intent.cause,
     });
     syncedCount += 1;
   }

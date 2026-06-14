@@ -11,7 +11,10 @@ import {
 import { isErr } from "@/lib/primitives/result/results";
 
 import { executeProviderSyncIntent } from "./provider-sync-executor";
-import { enqueueProviderCatalogSyncIntent } from "./provider-sync-intent";
+import {
+  enqueueProviderCatalogSyncIntent,
+  enqueueProviderProjectJobSyncIntent,
+} from "./provider-sync-intent";
 
 const logger = createLogger("provider-sync-worker");
 
@@ -323,17 +326,46 @@ export async function scheduleIncrementalProviderSyncIntents(input?: {
   let skipped = 0;
 
   for (const credential of credentials) {
-    const result = await enqueueProviderCatalogSyncIntent({
+    const catalogResult = await enqueueProviderCatalogSyncIntent({
       organizationId: credential.organizationId,
       providerCredentialId: credential.providerCredentialId,
       providerKind: credential.providerKind,
       cause: "scheduled",
     });
 
-    if (result.created) {
+    if (catalogResult.created) {
       enqueued += 1;
     } else {
       skipped += 1;
+    }
+
+    const materializedProjects = await db
+      .select({ id: schema.projects.id })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.organizationId, credential.organizationId),
+          eq(schema.projects.source, "external_tms"),
+          eq(schema.projects.externalProviderKind, credential.providerKind),
+          eq(schema.projects.isActive, true),
+        ),
+      )
+      .limit(limit);
+
+    for (const project of materializedProjects) {
+      const jobSyncResult = await enqueueProviderProjectJobSyncIntent({
+        organizationId: credential.organizationId,
+        providerCredentialId: credential.providerCredentialId,
+        providerKind: credential.providerKind,
+        projectId: project.id,
+        cause: "scheduled",
+      });
+
+      if (jobSyncResult.created) {
+        enqueued += 1;
+      } else {
+        skipped += 1;
+      }
     }
   }
 

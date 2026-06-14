@@ -126,7 +126,10 @@ export async function enqueueProviderProjectMaterializationSyncIntents(input: {
   providerCredentialId: string;
   providerKind: ExternalTmsProviderKind;
   projectId: string;
+  cause?: ProviderSyncIntentCause;
 }) {
+  const cause = input.cause ?? "manual";
+
   await Promise.all([
     enqueueProviderSyncIntent({
       organizationId: input.organizationId,
@@ -134,7 +137,7 @@ export async function enqueueProviderProjectMaterializationSyncIntents(input: {
       providerKind: input.providerKind,
       projectId: input.projectId,
       syncKind: "project_scan",
-      cause: "manual",
+      cause,
       priority: 10,
     }),
     enqueueProviderSyncIntent({
@@ -143,7 +146,7 @@ export async function enqueueProviderProjectMaterializationSyncIntents(input: {
       providerKind: input.providerKind,
       projectId: input.projectId,
       syncKind: "file_key_scan",
-      cause: "manual",
+      cause,
       priority: 5,
     }),
     enqueueProviderSyncIntent({
@@ -152,7 +155,7 @@ export async function enqueueProviderProjectMaterializationSyncIntents(input: {
       providerKind: input.providerKind,
       projectId: input.projectId,
       syncKind: "job_task_scan",
-      cause: "manual",
+      cause,
       priority: 5,
     }),
   ]);
@@ -173,5 +176,30 @@ export async function enqueueProviderProjectJobSyncIntent(input: {
     syncKind: "job_task_scan",
     cause: input.cause,
     priority: 10,
+  });
+}
+
+export function maybeEnqueueProviderProjectJobSync(input: {
+  organizationId: string;
+  providerCredentialId: string;
+  providerKind: ExternalTmsProviderKind;
+  projectId: string;
+}) {
+  void enqueueProviderProjectJobSyncIntent({
+    organizationId: input.organizationId,
+    providerCredentialId: input.providerCredentialId,
+    providerKind: input.providerKind,
+    projectId: input.projectId,
+    cause: "manual",
+  }).catch((error) => {
+    logger.warn(
+      {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        providerKind: input.providerKind,
+        error: error instanceof Error ? error.message : "unknown_error",
+      },
+      "failed to enqueue provider project job sync intent",
+    );
   });
 }

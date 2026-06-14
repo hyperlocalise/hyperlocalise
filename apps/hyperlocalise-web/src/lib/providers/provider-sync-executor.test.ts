@@ -4,6 +4,7 @@ const {
   dbInsertMock,
   dbSelectMock,
   dbUpdateMock,
+  enqueueProviderProjectJobSyncIntentMock,
   fetchCrowdinJobTasksMock,
   listTmsProviderLiveProjectsMock,
   resolveSecretMaterialForActorMock,
@@ -12,6 +13,7 @@ const {
   dbInsertMock: vi.fn(),
   dbSelectMock: vi.fn(),
   dbUpdateMock: vi.fn(),
+  enqueueProviderProjectJobSyncIntentMock: vi.fn(),
   fetchCrowdinJobTasksMock: vi.fn(),
   listTmsProviderLiveProjectsMock: vi.fn(),
   resolveSecretMaterialForActorMock: vi.fn(),
@@ -51,7 +53,11 @@ vi.mock("@/lib/providers/tms-provider-live", () => ({
 }));
 
 vi.mock("@/lib/projects/upsert-external-tms-project-record", () => ({
-  upsertExternalTmsProjectRecord: vi.fn(),
+  upsertExternalTmsProjectRecord: vi.fn(async () => "ext:crowdin:902807"),
+}));
+
+vi.mock("./provider-sync-intent", () => ({
+  enqueueProviderProjectJobSyncIntent: enqueueProviderProjectJobSyncIntentMock,
 }));
 
 vi.mock("@/lib/providers/tms-provider-fetcher-registry", () => ({
@@ -145,17 +151,39 @@ describe("executeProviderSyncIntent", () => {
       updatedByUserId: "user_updated",
     });
     listTmsProviderLiveProjectsMock.mockResolvedValue([]);
+    enqueueProviderProjectJobSyncIntentMock.mockResolvedValue({
+      intentId: "intent_job",
+      created: true,
+    });
     resolveSecretMaterialForActorMock.mockResolvedValue("secret");
     fetchCrowdinJobTasksMock.mockResolvedValue([]);
     upsertExternalTmsJobRecordsMock.mockResolvedValue({ upserted: 0 });
   });
 
   it("uses the credential user when executing a catalog project scan", async () => {
+    listTmsProviderLiveProjectsMock.mockResolvedValue([
+      {
+        externalProviderKind: "crowdin",
+        externalProjectId: "902807",
+        name: "Demo",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        isActive: true,
+      },
+    ]);
+
     const result = await executeProviderSyncIntent(createCatalogIntent());
 
     expect(isOk(result)).toBe(true);
     expect(listTmsProviderLiveProjectsMock).toHaveBeenCalledWith("org_123", {
       actorUserId: "user_updated",
+    });
+    expect(enqueueProviderProjectJobSyncIntentMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      providerCredentialId: "credential_123",
+      providerKind: "crowdin",
+      projectId: "ext:crowdin:902807",
+      cause: "manual",
     });
   });
 
