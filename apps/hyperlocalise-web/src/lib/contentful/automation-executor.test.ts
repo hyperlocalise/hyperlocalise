@@ -206,6 +206,15 @@ describe("contentful automation executor", () => {
       localizedAssetCache: createLocalizedAssetCache(),
     });
 
+    expect(mocks.assembleStringTranslationContextSnapshot).toHaveBeenCalledWith(
+      "project-1",
+      expect.objectContaining({
+        sourceLocale: "en-US",
+        targetLocales: ["fr-FR", "de-DE"],
+      }),
+      undefined,
+      { organizationId: "org-1" },
+    );
     expect(result.translations).toHaveLength(1);
     expect(result.translations[0]).toMatchObject({
       fieldId: "body",

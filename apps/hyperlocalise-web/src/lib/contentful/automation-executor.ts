@@ -278,7 +278,7 @@ export async function translateTextUnit(input: {
   const contextSnapshot = await assembleStringTranslationContextSnapshot(
     input.projectId,
     jobInput,
-    null,
+    undefined,
     {
       organizationId: input.organizationId,
     },
