@@ -85,11 +85,23 @@ async function enqueueWorkspaceContentfulAutomation(input: {
   scheduledRunAt?: Date | null;
   queue?: ContentfulAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult> {
+  const contentful = input.automation.toolConfig.contentful;
+  const projectId = contentful?.projectId;
+  const sourceLocale = contentful?.sourceLocale?.trim();
+  const targetLocales = contentful?.targetLocales ?? [];
+  const configSkipReason = input.entryId
+    ? !projectId
+      ? "contentful_project_missing"
+      : !sourceLocale
+        ? "contentful_source_locale_missing"
+        : null
+    : null;
+
   const run = await createWorkspaceAutomationRun({
     automationId: input.automation.id,
     organizationId: input.organizationId,
     triggerSource: input.triggerSource,
-    status: input.entryId ? "queued" : "skipped",
+    status: configSkipReason || !input.entryId ? "skipped" : "queued",
     idempotencyKey: input.idempotencyKey,
     inputSnapshot: {
       automationConfigVersion: input.automation.configVersion,
@@ -101,9 +113,23 @@ async function enqueueWorkspaceContentfulAutomation(input: {
       ...(input.webhookEventId ? { contentfulWebhookEventId: input.webhookEventId } : {}),
       ...(input.scheduledRunAt ? { scheduledRunAt: input.scheduledRunAt.toISOString() } : {}),
     },
-    completedAt: input.entryId ? null : new Date(),
-    outputSummary: input.entryId ? {} : { skipReason: "contentful_entry_id_missing" },
+    completedAt: configSkipReason || !input.entryId ? new Date() : null,
+    outputSummary: configSkipReason
+      ? { skipReason: configSkipReason }
+      : input.entryId
+        ? {}
+        : { skipReason: "contentful_entry_id_missing" },
   });
+
+  if (configSkipReason) {
+    return {
+      outcome: "skipped",
+      runId: run.id,
+      contentfulTranslationRunId: null,
+      inserted: true,
+      skipReason: configSkipReason,
+    };
+  }
 
   if (
     input.entryId &&
@@ -128,22 +154,15 @@ async function enqueueWorkspaceContentfulAutomation(input: {
     };
   }
 
-  const contentful = input.automation.toolConfig.contentful;
-  const targetLocales = contentful?.targetLocales ?? [];
-  const sourceLocale = contentful?.sourceLocale ?? "en";
-  const projectId = contentful?.projectId;
-  if (!projectId) {
-    throw new Error("contentful_project_required");
-  }
   const translationRun = await createContentfulTranslationRun({
     organizationId: input.organizationId,
     connectionId: input.connectionId,
-    projectId,
+    projectId: projectId!,
     workspaceAutomationRunId: run.id,
     webhookEventId: input.webhookEventId ?? null,
     entryId: input.entryId,
     contentTypeId: input.contentTypeId ?? null,
-    sourceLocale,
+    sourceLocale: sourceLocale!,
     targetLocales,
     runQa: contentful?.runQa ?? true,
     writeDrafts: contentful?.writeDrafts ?? true,
@@ -614,6 +633,9 @@ export async function dispatchContentfulWorkspaceAutomationForSchedule(input: {
   if (!contentful?.connectionId) {
     return null;
   }
+  if (!contentful.projectId || !contentful.sourceLocale?.trim()) {
+    return null;
+  }
 
   return enqueueWorkspaceContentfulAutomation({
     organizationId: input.automation.organizationId,
@@ -649,6 +671,9 @@ export async function dispatchContentfulWorkspaceAutomationForManual(input: {
 
   const contentful = input.automation.toolConfig.contentful;
   if (!contentful?.connectionId) {
+    return null;
+  }
+  if (!contentful.projectId || !contentful.sourceLocale?.trim()) {
     return null;
   }
 

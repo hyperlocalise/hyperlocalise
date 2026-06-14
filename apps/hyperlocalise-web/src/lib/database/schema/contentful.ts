@@ -27,6 +27,10 @@ export const contentfulConnections = pgTable(
     organizationId: uuid("organization_id")
       .notNull()
       .references(() => organizations.id, { onDelete: "cascade" }),
+    /**
+     * @deprecated Project configuration lives on automations. Retained for backward compatibility.
+     */
+    projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -36,6 +40,16 @@ export const contentfulConnections = pgTable(
     displayName: text("display_name").notNull(),
     spaceId: text("space_id").notNull(),
     environmentId: text("environment_id").notNull().default("master"),
+    /**
+     * @deprecated Locale configuration lives on automations. Retained for backward compatibility.
+     */
+    sourceLocale: text("source_locale"),
+    /**
+     * @deprecated Locale configuration lives on automations. Retained for backward compatibility.
+     */
+    targetLocales: jsonb("target_locales")
+      .$type<string[]>()
+      .default(sql`'[]'::jsonb`),
     contentTypeIds: jsonb("content_type_ids")
       .$type<string[]>()
       .notNull()
@@ -67,6 +81,7 @@ export const contentfulConnections = pgTable(
       table.environmentId,
     ),
     index("idx_contentful_connections_org").on(table.organizationId),
+    index("idx_contentful_connections_project").on(table.projectId),
   ],
 );
 

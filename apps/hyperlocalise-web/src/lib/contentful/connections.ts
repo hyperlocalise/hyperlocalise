@@ -45,9 +45,12 @@ function serializeConnection(
   return {
     id: connection.id,
     organizationId: connection.organizationId,
+    projectId: connection.projectId,
     displayName: connection.displayName,
     spaceId: connection.spaceId,
     environmentId: connection.environmentId,
+    sourceLocale: connection.sourceLocale,
+    targetLocales: connection.targetLocales ?? [],
     contentTypeIds: connection.contentTypeIds,
     fieldConfig: normalizeFieldConfig(connection.fieldConfig),
     enabled: connection.enabled,

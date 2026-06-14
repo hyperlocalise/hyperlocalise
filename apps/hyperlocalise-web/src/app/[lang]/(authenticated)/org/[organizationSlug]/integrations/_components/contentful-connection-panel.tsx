@@ -17,8 +17,14 @@ const api = createApiClient();
 export type ContentfulConnectionSummary = {
   id: string;
   displayName: string;
+  /** @deprecated Project configuration lives on automations. */
+  projectId: string | null;
   spaceId: string;
   environmentId: string;
+  /** @deprecated Locale configuration lives on automations. */
+  sourceLocale: string | null;
+  /** @deprecated Locale configuration lives on automations. */
+  targetLocales: string[];
   contentTypeIds: string[];
   validationStatus: string;
   validationMessage: string | null;
