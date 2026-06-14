@@ -60,6 +60,7 @@ describe("executeContentfulAutomationStep", () => {
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
     expect("map" in result).toBe(false);
     expect(JSON.parse(JSON.stringify(result))).toEqual(result);
+    expect(executeContentfulAutomationMock).toHaveBeenCalledWith(event);
   });
 
   it("rethrows unexpected executor failures", async () => {
