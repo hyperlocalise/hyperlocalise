@@ -327,6 +327,19 @@ describe("workspace automation dispatcher", () => {
       accessToken: "cma_test_token",
     });
     const scheduledRunAt = new Date("2026-06-01T08:00:00.000Z");
+    const baseToolConfig = {
+      enabled: true,
+      connectionId: contentfulConnection.connection.id,
+      projectId: scope.projectId,
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      contentTypeIds: ["helpCenterArticle"],
+      fieldMode: "auto" as const,
+      overwriteDraftLocales: false,
+      runQa: true,
+      writeDrafts: true,
+      entryId: "entry-1",
+    };
 
     const missingProjectAutomation = expectOk(
       await createWorkspaceAutomation({
@@ -343,31 +356,29 @@ describe("workspace automation dispatcher", () => {
           },
         },
         repositoryTarget: { kind: "none" },
-        toolConfig: {
-          contentful: {
-            enabled: true,
-            connectionId: contentfulConnection.connection.id,
-            sourceLocale: "en-US",
-            targetLocales: ["fr-FR"],
-            contentTypeIds: ["helpCenterArticle"],
-            fieldMode: "auto",
-            overwriteDraftLocales: false,
-            runQa: true,
-            writeDrafts: true,
-            entryId: "entry-1",
-          },
-        },
+        toolConfig: { contentful: baseToolConfig },
         nextRunAt: scheduledRunAt,
       }),
     );
+    const missingProjectAutomationRecord = {
+      ...missingProjectAutomation,
+      toolConfig: {
+        contentful: {
+          ...baseToolConfig,
+          projectId: undefined,
+        },
+      },
+    };
 
     const missingProjectResult = await dispatchContentfulWorkspaceAutomationForSchedule({
-      automation: missingProjectAutomation,
+      automation: missingProjectAutomationRecord,
       scheduledRunAt,
     });
 
     expect(missingProjectResult?.outcome).toBe("skipped");
-    expect(missingProjectResult?.skipReason).toBe("contentful_project_missing");
+    if (missingProjectResult?.outcome === "skipped") {
+      expect(missingProjectResult.skipReason).toBe("contentful_project_missing");
+    }
 
     const missingProjectRuns = await listWorkspaceAutomationRuns({
       automationId: missingProjectAutomation.id,
@@ -394,31 +405,29 @@ describe("workspace automation dispatcher", () => {
           },
         },
         repositoryTarget: { kind: "none" },
-        toolConfig: {
-          contentful: {
-            enabled: true,
-            connectionId: contentfulConnection.connection.id,
-            projectId: scope.projectId,
-            targetLocales: ["fr-FR"],
-            contentTypeIds: ["helpCenterArticle"],
-            fieldMode: "auto",
-            overwriteDraftLocales: false,
-            runQa: true,
-            writeDrafts: true,
-            entryId: "entry-1",
-          },
-        },
+        toolConfig: { contentful: baseToolConfig },
         nextRunAt: scheduledRunAt,
       }),
     );
+    const missingLocaleAutomationRecord = {
+      ...missingLocaleAutomation,
+      toolConfig: {
+        contentful: {
+          ...baseToolConfig,
+          sourceLocale: "",
+        },
+      },
+    };
 
     const missingLocaleResult = await dispatchContentfulWorkspaceAutomationForSchedule({
-      automation: missingLocaleAutomation,
+      automation: missingLocaleAutomationRecord,
       scheduledRunAt,
     });
 
     expect(missingLocaleResult?.outcome).toBe("skipped");
-    expect(missingLocaleResult?.skipReason).toBe("contentful_source_locale_missing");
+    if (missingLocaleResult?.outcome === "skipped") {
+      expect(missingLocaleResult.skipReason).toBe("contentful_source_locale_missing");
+    }
 
     const missingLocaleRuns = await listWorkspaceAutomationRuns({
       automationId: missingLocaleAutomation.id,

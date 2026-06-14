@@ -146,7 +146,7 @@ async function enqueueWorkspaceContentfulAutomation(input: {
     projectId: projectId!,
     workspaceAutomationRunId: run.id,
     webhookEventId: input.webhookEventId ?? null,
-    entryId: input.entryId,
+    entryId: input.entryId!,
     contentTypeId: input.contentTypeId ?? null,
     sourceLocale: sourceLocale!,
     targetLocales,
