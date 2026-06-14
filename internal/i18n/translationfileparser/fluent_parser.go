@@ -448,7 +448,7 @@ func normalizeFluentValue(raw string) string {
 		start, end int
 	}
 	// Pre-allocate lines slice based on newline count.
-	lines := make([]line, 0, strings.Count(raw, "\n")+1)
+	lines := make([]line, 0, strings.Count(raw, "\n")+strings.Count(raw, "\r")+1)
 	for i := 0; i < len(raw); {
 		idx := strings.IndexAny(raw[i:], "\n\r")
 		if idx < 0 {
@@ -515,7 +515,7 @@ func normalizeFluentValue(raw string) string {
 		l := lines[i]
 		isBlank := true
 		for j := l.start; j < l.end; j++ {
-			if raw[j] != ' ' && raw[j] != '\t' {
+			if !isFluentWhitespace(raw[j]) {
 				isBlank = false
 				break
 			}
