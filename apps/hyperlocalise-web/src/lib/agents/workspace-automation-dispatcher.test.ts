@@ -18,6 +18,7 @@ function expectOk<T, E>(result: Result<T, E>): T {
 }
 import {
   dispatchContentfulWorkspaceAutomationForManual,
+  dispatchContentfulWorkspaceAutomationForSchedule,
   dispatchWorkspaceAutomationForSchedule,
   dispatchWorkspaceAutomationsForContentfulWebhook,
 } from "./workspace-automation-dispatcher";
@@ -311,6 +312,123 @@ describe("workspace automation dispatcher", () => {
     expect(translationRuns[0]?.targetLocales).toEqual(["fr-FR"]);
     expect(translationRuns[0]?.runQa).toBe(true);
     expect(translationRuns[0]?.overwriteDraftLocales).toBe(false);
+  });
+
+  it("creates skipped scheduled Contentful runs when project or source locale is missing", async () => {
+    const scope = await seedDispatchScope();
+    const contentfulConnection = await createContentfulConnection({
+      organizationId: scope.organizationId,
+      userId: scope.userId,
+      displayName: "Contentful Help Center",
+      spaceId: `space-${scope.organizationId.slice(0, 8)}`,
+      environmentId: "master",
+      contentTypeIds: ["helpCenterArticle"],
+      fieldConfig: { fieldMode: "auto" },
+      accessToken: "cma_test_token",
+    });
+    const scheduledRunAt = new Date("2026-06-01T08:00:00.000Z");
+
+    const missingProjectAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Scheduled Contentful without project",
+        instructions: "Translate on schedule.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 8,
+            timezone: "UTC",
+          },
+        },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          contentful: {
+            enabled: true,
+            connectionId: contentfulConnection.connection.id,
+            sourceLocale: "en-US",
+            targetLocales: ["fr-FR"],
+            contentTypeIds: ["helpCenterArticle"],
+            fieldMode: "auto",
+            overwriteDraftLocales: false,
+            runQa: true,
+            writeDrafts: true,
+            entryId: "entry-1",
+          },
+        },
+        nextRunAt: scheduledRunAt,
+      }),
+    );
+
+    const missingProjectResult = await dispatchContentfulWorkspaceAutomationForSchedule({
+      automation: missingProjectAutomation,
+      scheduledRunAt,
+    });
+
+    expect(missingProjectResult?.outcome).toBe("skipped");
+    expect(missingProjectResult?.skipReason).toBe("contentful_project_missing");
+
+    const missingProjectRuns = await listWorkspaceAutomationRuns({
+      automationId: missingProjectAutomation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(missingProjectRuns).toHaveLength(1);
+    expect(missingProjectRuns[0]?.status).toBe("skipped");
+    expect(missingProjectRuns[0]?.outputSummary).toEqual({
+      skipReason: "contentful_project_missing",
+    });
+
+    const missingLocaleAutomation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Scheduled Contentful without source locale",
+        instructions: "Translate on schedule.",
+        triggerConfig: {
+          mode: "scheduled",
+          schedule: {
+            cadence: "daily",
+            hourUtc: 8,
+            timezone: "UTC",
+          },
+        },
+        repositoryTarget: { kind: "none" },
+        toolConfig: {
+          contentful: {
+            enabled: true,
+            connectionId: contentfulConnection.connection.id,
+            projectId: scope.projectId,
+            targetLocales: ["fr-FR"],
+            contentTypeIds: ["helpCenterArticle"],
+            fieldMode: "auto",
+            overwriteDraftLocales: false,
+            runQa: true,
+            writeDrafts: true,
+            entryId: "entry-1",
+          },
+        },
+        nextRunAt: scheduledRunAt,
+      }),
+    );
+
+    const missingLocaleResult = await dispatchContentfulWorkspaceAutomationForSchedule({
+      automation: missingLocaleAutomation,
+      scheduledRunAt,
+    });
+
+    expect(missingLocaleResult?.outcome).toBe("skipped");
+    expect(missingLocaleResult?.skipReason).toBe("contentful_source_locale_missing");
+
+    const missingLocaleRuns = await listWorkspaceAutomationRuns({
+      automationId: missingLocaleAutomation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(missingLocaleRuns).toHaveLength(1);
+    expect(missingLocaleRuns[0]?.status).toBe("skipped");
+    expect(missingLocaleRuns[0]?.outputSummary).toEqual({
+      skipReason: "contentful_source_locale_missing",
+    });
   });
 
   it("does not manually dispatch non-manual Contentful automations", async () => {
