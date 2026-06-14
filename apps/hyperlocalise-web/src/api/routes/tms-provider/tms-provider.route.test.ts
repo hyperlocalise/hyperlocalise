@@ -37,6 +37,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
+vi.mock("workflow/api", () => ({
+  start: vi.fn(async () => ({ runId: "wrun_provider_sync_test" })),
+}));
+
 const client = testClient(app);
 const fixture = createProviderCredentialTestFixture(client);
 
@@ -154,6 +158,7 @@ describe("tmsProviderRoutes", () => {
     await expect(response.json()).resolves.toMatchObject({
       providerProjectSync: {
         created: true,
+        workflowRunIds: ["wrun_provider_sync_test"],
       },
     });
 

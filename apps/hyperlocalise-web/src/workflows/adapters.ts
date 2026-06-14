@@ -9,6 +9,7 @@ import { providerAgentCommentWorkflow } from "./provider-agent-comment";
 import { providerAgentQaWorkflow } from "./provider-agent-qa";
 import { providerAgentTranslationWorkflow } from "./provider-agent-translation";
 import { providerAgentWritebackWorkflow } from "./provider-agent-writeback";
+import { providerSyncWorkflow } from "./provider-sync";
 import { repositoryAgentWorkflow } from "./repository-agent";
 import type {
   EmailAgentTaskQueue,
@@ -16,6 +17,7 @@ import type {
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
+  ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
   I18nSetupQueue,
@@ -118,6 +120,15 @@ export function createContentfulAutomationExecutionQueue(): ContentfulAutomation
   return {
     async enqueue(event) {
       const run = await start(contentfulAutomationExecutionWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createProviderSyncQueue(): ProviderSyncQueue {
+  return {
+    async enqueue(event) {
+      const run = await start(providerSyncWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

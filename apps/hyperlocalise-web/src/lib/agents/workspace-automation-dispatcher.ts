@@ -522,35 +522,58 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
   contentTypeId?: string | null;
   queue?: ContentfulAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult[]> {
-  const automations = (
-    await listWorkspaceAutomations({
+  const candidateAutomations = await listWorkspaceAutomations({
+    organizationId: input.organizationId,
+    status: "active",
+    contentfulWebhookConnectionId: input.connectionId,
+    contentfulWebhookContentTypeId: input.contentTypeId,
+    limit: 100,
+  });
+  const automations = candidateAutomations.filter((automation) =>
+    hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig),
+  );
+
+  logger.info(
+    {
       organizationId: input.organizationId,
-      status: "active",
-      contentfulWebhookConnectionId: input.connectionId,
-      contentfulWebhookContentTypeId: input.contentTypeId,
-      limit: 100,
-    })
-  ).filter((automation) => hasWorkspaceAutomationContentfulWorkflow(automation.toolConfig));
+      connectionId: input.connectionId,
+      contentfulWebhookEventId: input.contentfulWebhookEventId,
+      hasEntryId: Boolean(input.entryId),
+      hasContentTypeId: Boolean(input.contentTypeId),
+      candidateAutomationCount: candidateAutomations.length,
+      runnableAutomationCount: automations.length,
+    },
+    "workspace automation contentful webhook automations resolved",
+  );
 
   const results: WorkspaceAutomationDispatchResult[] = [];
   for (const automation of automations) {
     try {
-      results.push(
-        await enqueueWorkspaceContentfulAutomation({
-          organizationId: input.organizationId,
-          automation,
-          triggerSource: "contentful",
-          idempotencyKey: buildWorkspaceContentfulWebhookAutomationIdempotencyKey({
-            automationId: automation.id,
-            configVersion: automation.configVersion,
-            contentfulWebhookEventId: input.contentfulWebhookEventId,
-          }),
-          connectionId: input.connectionId,
-          entryId: input.entryId,
-          contentTypeId: input.contentTypeId,
-          webhookEventId: input.contentfulWebhookEventId,
-          queue: input.queue,
+      const result = await enqueueWorkspaceContentfulAutomation({
+        organizationId: input.organizationId,
+        automation,
+        triggerSource: "contentful",
+        idempotencyKey: buildWorkspaceContentfulWebhookAutomationIdempotencyKey({
+          automationId: automation.id,
+          configVersion: automation.configVersion,
+          contentfulWebhookEventId: input.contentfulWebhookEventId,
         }),
+        connectionId: input.connectionId,
+        entryId: input.entryId,
+        contentTypeId: input.contentTypeId,
+        webhookEventId: input.contentfulWebhookEventId,
+        queue: input.queue,
+      });
+      results.push(result);
+      logger.info(
+        {
+          organizationId: input.organizationId,
+          automationId: automation.id,
+          contentfulWebhookEventId: input.contentfulWebhookEventId,
+          outcome: result.outcome,
+          inserted: result.inserted,
+        },
+        "workspace automation contentful webhook automation dispatched",
       );
     } catch (error) {
       logger.error(

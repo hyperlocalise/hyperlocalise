@@ -34,8 +34,8 @@ import {
   upsertProjectTranslationKeysFromEntries,
 } from "@/lib/projects/project-translation-keys";
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
-import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
-import { createTranslationJobEventQueue } from "@/workflows/adapters";
+import type { JobQueue, ProviderSyncQueue, TranslationJobEventData } from "@/lib/workflow/types";
+import { createProviderSyncQueue, createTranslationJobEventQueue } from "@/workflows/adapters";
 
 import {
   createProjectBodySchema,
@@ -370,11 +370,13 @@ const validateUpdateProjectBody = validator("json", (value, c) => {
 
 type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
+  providerSyncQueue?: ProviderSyncQueue;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
+  const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
 
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -399,7 +401,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         throw error;
       }
     })
-    .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
+    .route("/:projectId/jobs", createJobRoutes({ jobQueue, providerSyncQueue }))
     .get(
       "/:projectId/files/detail/cat",
       validateProjectParams,

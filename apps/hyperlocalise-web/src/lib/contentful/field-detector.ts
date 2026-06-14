@@ -1,3 +1,4 @@
+import { resolveContentfulLocaleKey } from "./contentful-locale";
 import type {
   ContentfulAssetLink,
   ContentfulConnectionFieldConfig,
@@ -314,31 +315,77 @@ function replaceRichTextTextNodes(value: unknown, translatedText: string): unkno
   return visit(value);
 }
 
-function readLocaleValue(entry: ContentfulEntry, fieldId: string, locale: string) {
-  return entry.fields[fieldId]?.[locale];
+function listFieldLocaleKeys(entry: ContentfulEntry, fieldId: string) {
+  return Object.keys(entry.fields[fieldId] ?? {});
+}
+
+function resolveFieldLocaleKey(input: {
+  preferredLocale: string;
+  entry: ContentfulEntry;
+  fieldId: string;
+  defaultLocale?: string | null;
+}) {
+  return resolveContentfulLocaleKey(
+    input.preferredLocale,
+    listFieldLocaleKeys(input.entry, input.fieldId),
+    {
+      defaultLocale: input.defaultLocale,
+    },
+  );
+}
+
+function readLocaleValue(input: {
+  entry: ContentfulEntry;
+  fieldId: string;
+  preferredLocale: string;
+  defaultLocale?: string | null;
+}) {
+  const resolvedLocale = resolveFieldLocaleKey(input);
+  if (!resolvedLocale) {
+    return undefined;
+  }
+  return input.entry.fields[input.fieldId]?.[resolvedLocale];
 }
 
 function existingTranslationForLocale(input: {
   entry: ContentfulEntry;
   fieldId: string;
   locale: string;
+  defaultLocale?: string | null;
 }) {
-  const value = readLocaleValue(input.entry, input.fieldId, input.locale);
+  const resolvedLocale =
+    resolveFieldLocaleKey({
+      preferredLocale: input.locale,
+      entry: input.entry,
+      fieldId: input.fieldId,
+      defaultLocale: input.defaultLocale,
+    }) ?? input.locale;
+  const value = input.entry.fields[input.fieldId]?.[resolvedLocale];
   const text = valueToSourceText(value);
   if (!text.trim()) {
     return null;
   }
-  return { locale: input.locale, text, value };
+  return { locale: resolvedLocale, text, value };
 }
 
 function existingImageLocalesForField(input: {
   entry: ContentfulEntry;
   fieldId: string;
   targetLocales: string[];
+  defaultLocale?: string | null;
 }) {
-  return input.targetLocales.filter((locale) => {
-    const value = readLocaleValue(input.entry, input.fieldId, locale);
-    return readAssetLink(value) !== null;
+  return input.targetLocales.flatMap((locale) => {
+    const resolvedLocale = resolveFieldLocaleKey({
+      preferredLocale: locale,
+      entry: input.entry,
+      fieldId: input.fieldId,
+      defaultLocale: input.defaultLocale,
+    });
+    if (!resolvedLocale) {
+      return [];
+    }
+    const value = input.entry.fields[input.fieldId]?.[resolvedLocale];
+    return readAssetLink(value) !== null ? [resolvedLocale] : [];
   });
 }
 
@@ -349,13 +396,26 @@ export function detectContentfulTranslatableFields(input: {
   targetLocales: string[];
   fieldConfig: ContentfulConnectionFieldConfig;
   overwriteDraftLocales?: boolean;
+  defaultLocale?: string | null;
 }): ContentfulTranslatableFieldUnit[] {
   const contentTypeId = input.contentType.sys.id;
   const units: ContentfulTranslatableFieldUnit[] = [];
 
   for (const field of input.contentType.fields) {
     if (shouldTranslateImageField({ field, contentTypeId, config: input.fieldConfig })) {
-      const sourceValue = readLocaleValue(input.entry, field.id, input.sourceLocale);
+      const resolvedSourceLocale =
+        resolveFieldLocaleKey({
+          preferredLocale: input.sourceLocale,
+          entry: input.entry,
+          fieldId: field.id,
+          defaultLocale: input.defaultLocale,
+        }) ?? input.sourceLocale;
+      const sourceValue = readLocaleValue({
+        entry: input.entry,
+        fieldId: field.id,
+        preferredLocale: input.sourceLocale,
+        defaultLocale: input.defaultLocale,
+      });
       const assetLink = readAssetLink(sourceValue);
       if (!assetLink) {
         continue;
@@ -367,6 +427,7 @@ export function detectContentfulTranslatableFields(input: {
             entry: input.entry,
             fieldId: field.id,
             targetLocales: input.targetLocales,
+            defaultLocale: input.defaultLocale,
           });
 
       if (!input.overwriteDraftLocales && existingLocales.length === input.targetLocales.length) {
@@ -379,7 +440,7 @@ export function detectContentfulTranslatableFields(input: {
         key: `${contentTypeId}.${field.id}`,
         fieldId: field.id,
         fieldName: field.name,
-        sourceLocale: input.sourceLocale,
+        sourceLocale: resolvedSourceLocale,
         sourceValue,
         assetId: assetLink.sys.id,
         existingLocales,
@@ -391,7 +452,19 @@ export function detectContentfulTranslatableFields(input: {
       continue;
     }
 
-    const sourceValue = readLocaleValue(input.entry, field.id, input.sourceLocale);
+    const resolvedSourceLocale =
+      resolveFieldLocaleKey({
+        preferredLocale: input.sourceLocale,
+        entry: input.entry,
+        fieldId: field.id,
+        defaultLocale: input.defaultLocale,
+      }) ?? input.sourceLocale;
+    const sourceValue = readLocaleValue({
+      entry: input.entry,
+      fieldId: field.id,
+      preferredLocale: input.sourceLocale,
+      defaultLocale: input.defaultLocale,
+    });
     const sourceText = valueToSourceText(sourceValue);
     if (!sourceText.trim()) {
       continue;
@@ -402,6 +475,7 @@ export function detectContentfulTranslatableFields(input: {
         entry: input.entry,
         fieldId: field.id,
         locale,
+        defaultLocale: input.defaultLocale,
       });
       return translation ? [translation] : [];
     });
@@ -424,7 +498,7 @@ export function detectContentfulTranslatableFields(input: {
       key: `${contentTypeId}.${field.id}`,
       fieldId: field.id,
       fieldName: field.name,
-      sourceLocale: input.sourceLocale,
+      sourceLocale: resolvedSourceLocale,
       sourceValue,
       sourceText,
       existingTranslations: input.overwriteDraftLocales ? [] : existingTranslations,

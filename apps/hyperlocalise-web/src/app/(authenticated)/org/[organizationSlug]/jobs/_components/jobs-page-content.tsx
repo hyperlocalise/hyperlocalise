@@ -3,12 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
 
 import {
@@ -85,11 +87,14 @@ export function JobsPageContent({
   scope?: JobsScope;
   projectId?: string;
 }) {
+  const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() => readInitialStatusFilter(searchParams));
+  const jobsQueryKey = ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"];
+  const isProviderProject = Boolean(parseProviderProjectId(projectId));
 
   const jobsQuery = useQuery({
-    queryKey: ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"],
+    queryKey: jobsQueryKey,
     queryFn: async () => {
       if (projectId) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -120,12 +125,42 @@ export function JobsPageContent({
       return body.jobs;
     },
   });
+  const syncProviderJobs = useMutation({
+    mutationFn: async () => {
+      if (!projectId) {
+        throw new Error("Project job sync requires a project.");
+      }
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].jobs.sync.$post({
+        param: { organizationSlug, projectId },
+      });
+
+      if (response.status !== 202) {
+        throw await readApiResponseError(response, "Unable to sync provider jobs");
+      }
+
+      return response.json();
+    },
+    onSuccess: async (body) => {
+      await queryClient.invalidateQueries({ queryKey: jobsQueryKey });
+      toast.success(
+        body.providerJobSync.created ? "Job sync queued" : "Job sync is already queued",
+      );
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
 
   return (
     <JobsPageView
       error={jobsQuery.error}
       isLoading={jobsQuery.isLoading}
+      isSyncingProviderJobs={syncProviderJobs.isPending}
       jobs={jobsQuery.data ?? []}
+      onSyncProviderJobs={isProviderProject ? syncProviderJobs.mutate : undefined}
       onStatusFilterChange={setStatusFilter}
       organizationSlug={organizationSlug}
       projectId={projectId}

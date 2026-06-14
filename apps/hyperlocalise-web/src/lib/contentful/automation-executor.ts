@@ -11,6 +11,11 @@ import { loadOrganizationOpenAITranslationGenerator } from "@/lib/translation/lo
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
 
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
+import {
+  collectEntryLocaleKeys,
+  resolveContentfulLocaleKeys,
+  resolveContentfulSourceLocale,
+} from "./contentful-locale";
 import { loadContentfulConnectionWithToken } from "./connections";
 import {
   detectContentfulTranslatableFields,
@@ -567,6 +572,23 @@ export async function executeContentfulAutomation(
       throw entryResult.error;
     }
     const entry = entryResult.value;
+    const localesResult = await client.listLocales();
+    const spaceLocales = isErr(localesResult) ? [] : localesResult.value;
+    const defaultLocale = spaceLocales.find((locale) => locale.default)?.code ?? null;
+    const spaceLocaleCodes = spaceLocales.map((locale) => locale.code);
+    const entryLocaleKeys = collectEntryLocaleKeys(entry);
+    const sourceLocale = resolveContentfulSourceLocale({
+      preferredSourceLocale: loaded.connection.sourceLocale,
+      spaceLocaleCodes,
+      entryLocaleKeys,
+      defaultLocale,
+    });
+    const resolvedTargetLocales = resolveContentfulLocaleKeys({
+      preferredLocales: targetLocales,
+      spaceLocaleCodes,
+      entryLocaleKeys,
+      defaultLocale,
+    });
     const contentTypeId =
       entry.sys.contentType?.sys?.id ?? run.contentTypeId ?? loaded.connection.contentTypeIds[0];
     if (!contentTypeId) {
@@ -581,10 +603,11 @@ export async function executeContentfulAutomation(
     const units = detectContentfulTranslatableFields({
       entry,
       contentType,
-      sourceLocale: loaded.connection.sourceLocale,
-      targetLocales,
+      sourceLocale,
+      targetLocales: resolvedTargetLocales,
       fieldConfig,
       overwriteDraftLocales: run.overwriteDraftLocales,
+      defaultLocale,
     });
 
     await db
@@ -615,7 +638,7 @@ export async function executeContentfulAutomation(
           projectTranslationContext: generator.project.translationContext,
           runId: run.id,
           unit,
-          targetLocales,
+          targetLocales: resolvedTargetLocales,
           translateStringJob: generator.translateStringJob,
           runQa: run.runQa,
           client,

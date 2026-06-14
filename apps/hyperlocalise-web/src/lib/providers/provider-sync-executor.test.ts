@@ -1,13 +1,22 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { dbInsertMock, dbSelectMock, dbUpdateMock, listTmsProviderLiveProjectsMock } = vi.hoisted(
-  () => ({
-    dbInsertMock: vi.fn(),
-    dbSelectMock: vi.fn(),
-    dbUpdateMock: vi.fn(),
-    listTmsProviderLiveProjectsMock: vi.fn(),
-  }),
-);
+const {
+  dbInsertMock,
+  dbSelectMock,
+  dbUpdateMock,
+  fetchCrowdinJobTasksMock,
+  listTmsProviderLiveProjectsMock,
+  resolveSecretMaterialForActorMock,
+  upsertExternalTmsJobRecordsMock,
+} = vi.hoisted(() => ({
+  dbInsertMock: vi.fn(),
+  dbSelectMock: vi.fn(),
+  dbUpdateMock: vi.fn(),
+  fetchCrowdinJobTasksMock: vi.fn(),
+  listTmsProviderLiveProjectsMock: vi.fn(),
+  resolveSecretMaterialForActorMock: vi.fn(),
+  upsertExternalTmsJobRecordsMock: vi.fn(),
+}));
 
 vi.mock("@/lib/database", () => ({
   db: {
@@ -18,8 +27,17 @@ vi.mock("@/lib/database", () => ({
   schema: {
     organizationExternalTmsProviderCredentials: {
       id: "credential_id",
+      organizationId: "credential_organization_id",
+      providerKind: "credential_provider_kind",
       createdByUserId: "created_by_user_id",
       updatedByUserId: "updated_by_user_id",
+    },
+    projects: {
+      id: "project_id",
+      organizationId: "project_organization_id",
+      externalProviderKind: "project_external_provider_kind",
+      externalProjectId: "project_external_project_id",
+      source: "project_source",
     },
     providerSyncRuns: {
       id: "id",
@@ -34,6 +52,20 @@ vi.mock("@/lib/providers/tms-provider-live", () => ({
 
 vi.mock("@/lib/projects/upsert-external-tms-project-record", () => ({
   upsertExternalTmsProjectRecord: vi.fn(),
+}));
+
+vi.mock("@/lib/providers/tms-provider-fetcher-registry", () => ({
+  tmsProviderJobTaskFetchers: {
+    crowdin: fetchCrowdinJobTasksMock,
+  },
+}));
+
+vi.mock("@/lib/providers/tms-provider-content", () => ({
+  resolveExternalTmsSecretMaterialForActor: resolveSecretMaterialForActorMock,
+}));
+
+vi.mock("@/lib/projects/upsert-external-tms-job-records", () => ({
+  upsertExternalTmsJobRecords: upsertExternalTmsJobRecordsMock,
 }));
 
 import { isOk } from "@/lib/primitives/result/results";
@@ -71,6 +103,16 @@ function createCatalogIntent(): ProviderSyncIntentInput {
   };
 }
 
+function createJobTaskIntent(): ProviderSyncIntentInput {
+  return {
+    ...createCatalogIntent(),
+    projectId: "ext:crowdin:902807",
+    syncKind: "job_task_scan",
+    leaseKey: "org_123:crowdin:job_task_scan:ext:crowdin:902807:",
+    priority: 10,
+  };
+}
+
 function mockCredentialActor(input: {
   createdByUserId: string | null;
   updatedByUserId: string | null;
@@ -103,6 +145,9 @@ describe("executeProviderSyncIntent", () => {
       updatedByUserId: "user_updated",
     });
     listTmsProviderLiveProjectsMock.mockResolvedValue([]);
+    resolveSecretMaterialForActorMock.mockResolvedValue("secret");
+    fetchCrowdinJobTasksMock.mockResolvedValue([]);
+    upsertExternalTmsJobRecordsMock.mockResolvedValue({ upserted: 0 });
   });
 
   it("uses the credential user when executing a catalog project scan", async () => {
@@ -125,6 +170,85 @@ describe("executeProviderSyncIntent", () => {
     expect(isOk(result)).toBe(true);
     expect(listTmsProviderLiveProjectsMock).toHaveBeenCalledWith("org_123", {
       actorUserId: "user_created",
+    });
+  });
+
+  it("fetches and upserts provider job tasks for a project job scan", async () => {
+    const project = {
+      id: "ext:crowdin:902807",
+      organizationId: "org_123",
+      externalProviderKind: "crowdin",
+      externalProjectId: "902807",
+      source: "external_tms",
+    };
+    const credential = {
+      id: "credential_123",
+      organizationId: "org_123",
+      providerKind: "crowdin",
+      authMode: "api_token",
+    };
+    const tasks = [
+      {
+        externalJobId: "task-1",
+        externalStatus: "in_progress",
+        title: "Homepage",
+        targetLocales: ["fr"],
+      },
+    ];
+
+    dbSelectMock
+      .mockReturnValueOnce({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [project]),
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [credential]),
+          })),
+        })),
+      })
+      .mockReturnValueOnce({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(async () => [
+              {
+                createdByUserId: "user_created",
+                updatedByUserId: "user_updated",
+              },
+            ]),
+          })),
+        })),
+      });
+    fetchCrowdinJobTasksMock.mockResolvedValue(tasks);
+    upsertExternalTmsJobRecordsMock.mockResolvedValue({ upserted: 1 });
+
+    const result = await executeProviderSyncIntent(createJobTaskIntent());
+
+    expect(isOk(result)).toBe(true);
+    expect(resolveSecretMaterialForActorMock).toHaveBeenCalledWith({
+      credential,
+      organizationId: "org_123",
+      actorUserId: "user_updated",
+    });
+    expect(fetchCrowdinJobTasksMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      projectId: "ext:crowdin:902807",
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+      credential,
+      project,
+      secretMaterial: "secret",
+    });
+    expect(upsertExternalTmsJobRecordsMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      projectId: "ext:crowdin:902807",
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+      tasks,
     });
   });
 });

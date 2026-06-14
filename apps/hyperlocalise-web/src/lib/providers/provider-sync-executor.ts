@@ -1,18 +1,27 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import type { ExternalTmsCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { tmsProviderJobTaskFetchers } from "@/lib/providers/tms-provider-fetcher-registry";
 import {
   getTmsProviderLiveProject,
   listTmsProviderLiveProjects,
 } from "@/lib/providers/tms-provider-live";
+import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { upsertExternalTmsJobRecords } from "@/lib/projects/upsert-external-tms-job-records";
 import { upsertExternalTmsProjectRecord } from "@/lib/projects/upsert-external-tms-project-record";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 type ProviderSyncIntentRow = typeof schema.providerSyncIntents.$inferSelect;
 
 export type ProviderSyncExecutionError = {
-  code: "intent_project_missing" | "provider_project_unavailable" | "unsupported_sync_kind";
+  code:
+    | "intent_project_missing"
+    | "provider_credential_missing"
+    | "provider_fetcher_unavailable"
+    | "provider_project_unavailable"
+    | "unsupported_sync_kind";
   message: string;
 };
 
@@ -73,6 +82,80 @@ async function resolveProviderSyncActorUserId(intent: ProviderSyncIntentRow) {
     .limit(1);
 
   return credential?.updatedByUserId ?? credential?.createdByUserId ?? null;
+}
+
+async function loadProviderSyncProjectContext(intent: ProviderSyncIntentRow): Promise<
+  Result<
+    {
+      actorUserId: string | null;
+      credential: ExternalTmsCredential;
+      externalProjectId: string;
+      project: typeof schema.projects.$inferSelect;
+    },
+    ProviderSyncExecutionError
+  >
+> {
+  if (!intent.projectId || !intent.providerCredentialId) {
+    return err({
+      code: "intent_project_missing",
+      message: "Sync intent is missing project scope.",
+    });
+  }
+
+  const encodedProject = parseProviderProjectId(intent.projectId);
+  if (!encodedProject) {
+    return err({
+      code: "intent_project_missing",
+      message: "Sync intent project id is not an external TMS project.",
+    });
+  }
+
+  const [project] = await db
+    .select()
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, intent.projectId),
+        eq(schema.projects.organizationId, intent.organizationId),
+        eq(schema.projects.externalProviderKind, intent.providerKind),
+        eq(schema.projects.externalProjectId, encodedProject.externalProjectId),
+        eq(schema.projects.source, "external_tms"),
+      ),
+    )
+    .limit(1);
+
+  if (!project) {
+    return err({
+      code: "provider_project_unavailable",
+      message: "Provider project is unavailable.",
+    });
+  }
+
+  const [credential] = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.id, intent.providerCredentialId),
+        eq(schema.organizationExternalTmsProviderCredentials.organizationId, intent.organizationId),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, intent.providerKind),
+      ),
+    )
+    .limit(1);
+
+  if (!credential) {
+    return err({
+      code: "provider_credential_missing",
+      message: "Provider credential is unavailable.",
+    });
+  }
+
+  return ok({
+    actorUserId: await resolveProviderSyncActorUserId(intent),
+    credential,
+    externalProjectId: encodedProject.externalProjectId,
+    project,
+  });
 }
 
 async function refreshMaterializedProjectFromLive(
@@ -161,6 +244,54 @@ async function syncProjectCatalogFromLive(
   return ok({ runId });
 }
 
+async function syncProviderJobTasksFromLive(
+  intent: ProviderSyncIntentRow,
+): Promise<Result<{ runId: string }, ProviderSyncExecutionError>> {
+  const context = await loadProviderSyncProjectContext(intent);
+  if (context.ok === false) {
+    return context;
+  }
+
+  const fetcher = tmsProviderJobTaskFetchers[intent.providerKind];
+  if (!fetcher) {
+    return err({
+      code: "provider_fetcher_unavailable",
+      message: `Job sync is not available for ${intent.providerKind}.`,
+    });
+  }
+
+  const runId = await startProviderSyncRun(intent);
+  const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+    credential: context.value.credential,
+    organizationId: intent.organizationId,
+    actorUserId: context.value.actorUserId,
+  });
+  const tasks = await fetcher({
+    organizationId: intent.organizationId,
+    projectId: intent.projectId!,
+    providerKind: intent.providerKind,
+    externalProjectId: context.value.externalProjectId,
+    credential: context.value.credential,
+    project: context.value.project,
+    secretMaterial,
+  });
+  const { upserted } = await upsertExternalTmsJobRecords({
+    organizationId: intent.organizationId,
+    projectId: intent.projectId!,
+    providerKind: intent.providerKind,
+    externalProjectId: context.value.externalProjectId,
+    tasks,
+  });
+
+  await completeProviderSyncRun({
+    runId,
+    status: "succeeded",
+    counts: { jobs: upserted },
+  });
+
+  return ok({ runId });
+}
+
 export async function executeProviderSyncIntent(
   intent: ProviderSyncIntentRow,
 ): Promise<Result<{ runId: string }, ProviderSyncExecutionError>> {
@@ -180,13 +311,7 @@ export async function executeProviderSyncIntent(
       return ok({ runId });
     }
     case "job_task_scan": {
-      const runId = await startProviderSyncRun(intent);
-      await completeProviderSyncRun({
-        runId,
-        status: "succeeded",
-        counts: { jobs: 0 },
-      });
-      return ok({ runId });
+      return syncProviderJobTasksFromLive(intent);
     }
     default:
       return err({

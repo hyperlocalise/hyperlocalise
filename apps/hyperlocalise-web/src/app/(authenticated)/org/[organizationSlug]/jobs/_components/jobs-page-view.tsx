@@ -1,12 +1,18 @@
 "use client";
 
 import { useId, useMemo, useState, type ReactNode } from "react";
-import { SearchIcon, Task01Icon, WorkHistoryIcon } from "@hugeicons/core-free-icons";
+import {
+  DatabaseSyncIcon,
+  SearchIcon,
+  Task01Icon,
+  WorkHistoryIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -391,8 +397,10 @@ export function JobsPageView({
   initialSearch = "",
   initialStatusFilter = "all",
   isLoading,
+  isSyncingProviderJobs = false,
   jobs,
   now,
+  onSyncProviderJobs,
   onStatusFilterChange,
   organizationSlug,
   projectId,
@@ -406,8 +414,10 @@ export function JobsPageView({
   initialSearch?: string;
   initialStatusFilter?: JobsStatusFilter;
   isLoading: boolean;
+  isSyncingProviderJobs?: boolean;
   jobs: JobRow[];
   now?: number;
+  onSyncProviderJobs?: () => void;
   onStatusFilterChange?: (statusFilter: JobsStatusFilter) => void;
   organizationSlug: string;
   projectId?: string;
@@ -447,10 +457,27 @@ export function JobsPageView({
 
   const isMyWork = scope === "mine";
   const emptyLabel = projectId
-    ? "No jobs found for this project."
+    ? "No jobs synced for this project yet. Sync jobs from your TMS to populate this list."
     : scope === "mine"
       ? "No work items found for your account."
       : "No jobs found for this workspace.";
+  const syncJobsAction =
+    projectId && onSyncProviderJobs ? (
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full sm:w-fit"
+        onClick={onSyncProviderJobs}
+        disabled={isSyncingProviderJobs}
+      >
+        {isSyncingProviderJobs ? (
+          <Spinner className="size-4" />
+        ) : (
+          <HugeiconsIcon icon={DatabaseSyncIcon} strokeWidth={1.8} />
+        )}
+        Sync jobs
+      </Button>
+    ) : null;
 
   const jobsSection = (
     <section className="space-y-5">
@@ -516,6 +543,7 @@ export function JobsPageView({
           icon={Task01Icon}
           section="Jobs"
           description="Translation, review, QA, and sync work."
+          actions={syncJobsAction}
         />
         {jobsSection}
       </ProjectPageShell>

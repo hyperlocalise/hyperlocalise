@@ -15,6 +15,7 @@ import {
   verifyContentfulWebhookSecret,
 } from "@/lib/contentful/webhook";
 import { db, schema } from "@/lib/database";
+import { createLogger } from "@/lib/log";
 import type { ContentfulAutomationExecutionQueue } from "@/lib/workflow/types";
 import { eq } from "drizzle-orm";
 
@@ -27,6 +28,8 @@ const validateWebhookParams = validator("param", (value, c) => {
   }
   return parsed.data;
 });
+
+const logger = createLogger("contentful-webhook");
 
 export function createContentfulWebhookRoutes(
   options: {
@@ -41,6 +44,15 @@ export function createContentfulWebhookRoutes(
       !subscription.connection.enabled ||
       subscription.subscription.status !== "active"
     ) {
+      logger.info(
+        {
+          subscriptionId,
+          subscriptionFound: Boolean(subscription),
+          connectionEnabled: subscription?.connection.enabled ?? null,
+          subscriptionStatus: subscription?.subscription.status ?? null,
+        },
+        "contentful webhook ignored because subscription is unavailable",
+      );
       return c.json({ ok: true, ignored: true }, 202);
     }
 
@@ -56,6 +68,13 @@ export function createContentfulWebhookRoutes(
 
     const body = await c.req.json().catch(() => null);
     if (!body) {
+      logger.warn(
+        {
+          subscriptionId: subscription.subscription.id,
+          organizationId: subscription.subscription.organizationId,
+        },
+        "contentful webhook rejected invalid payload",
+      );
       return badRequestResponse(c, "invalid_contentful_webhook_payload");
     }
 
@@ -64,6 +83,16 @@ export function createContentfulWebhookRoutes(
       headers: c.req.raw.headers,
     });
     if (!shouldDispatchContentfulWebhookEvent(parsedEvent)) {
+      logger.info(
+        {
+          subscriptionId: subscription.subscription.id,
+          organizationId: subscription.subscription.organizationId,
+          eventType: parsedEvent.eventType,
+          hasEntryId: Boolean(parsedEvent.entryId),
+          hasContentTypeId: Boolean(parsedEvent.contentTypeId),
+        },
+        "contentful webhook ignored unsupported event type",
+      );
       return c.json(
         {
           ok: true,
@@ -83,6 +112,16 @@ export function createContentfulWebhookRoutes(
         publishedVersion: parsedEvent.publishedVersion,
       }))
     ) {
+      logger.info(
+        {
+          subscriptionId: subscription.subscription.id,
+          organizationId: subscription.subscription.organizationId,
+          eventType: parsedEvent.eventType,
+          hasContentTypeId: Boolean(parsedEvent.contentTypeId),
+          publishedVersion: parsedEvent.publishedVersion,
+        },
+        "contentful webhook ignored recent hyperlocalise writeback",
+      );
       return c.json(
         {
           ok: true,
@@ -112,8 +151,29 @@ export function createContentfulWebhookRoutes(
       .where(eq(schema.contentfulWebhookSubscriptions.id, subscription.subscription.id));
 
     if (!record.inserted) {
+      logger.info(
+        {
+          subscriptionId: subscription.subscription.id,
+          organizationId: subscription.subscription.organizationId,
+          eventId: record.event.id,
+          eventType: parsedEvent.eventType,
+        },
+        "contentful webhook ignored duplicate delivery",
+      );
       return c.json({ ok: true, duplicate: true }, 202);
     }
+
+    logger.info(
+      {
+        subscriptionId: subscription.subscription.id,
+        organizationId: subscription.subscription.organizationId,
+        eventId: record.event.id,
+        eventType: parsedEvent.eventType,
+        hasEntryId: Boolean(parsedEvent.entryId),
+        hasContentTypeId: Boolean(parsedEvent.contentTypeId),
+      },
+      "contentful webhook dispatch started",
+    );
 
     const results = await dispatchWorkspaceAutomationsForContentfulWebhook({
       organizationId: subscription.subscription.organizationId,
@@ -123,12 +183,26 @@ export function createContentfulWebhookRoutes(
       contentTypeId: parsedEvent.contentTypeId,
       queue: options.contentfulAutomationExecutionQueue,
     });
+    const enqueued = results.filter((result) => result.outcome === "enqueued").length;
+    const skipped = results.filter((result) => result.outcome === "skipped").length;
+
+    logger.info(
+      {
+        subscriptionId: subscription.subscription.id,
+        organizationId: subscription.subscription.organizationId,
+        eventId: record.event.id,
+        resultCount: results.length,
+        enqueued,
+        skipped,
+      },
+      "contentful webhook dispatch completed",
+    );
 
     return c.json(
       {
         ok: true,
         eventId: record.event.id,
-        dispatched: results.filter((result) => result.outcome === "enqueued").length,
+        dispatched: enqueued,
       },
       202,
     );

@@ -89,6 +89,41 @@ async function leaseProviderSyncIntents(input: {
   });
 }
 
+async function leaseProviderSyncIntentById(input: {
+  intentId: string;
+  organizationId: string;
+  leasedBy: string;
+  now?: Date;
+}): Promise<ProviderSyncIntentRow | null> {
+  const now = input.now ?? new Date();
+  const leaseUntil = new Date(now.getTime() + LEASE_DURATION_MS);
+  const leaseToken = randomUUID();
+
+  const [updated] = await db
+    .update(schema.providerSyncIntents)
+    .set({
+      status: "running",
+      leasedUntil: leaseUntil,
+      leasedBy: input.leasedBy,
+      leaseToken,
+      attempts: sql`${schema.providerSyncIntents.attempts} + 1`,
+    })
+    .where(
+      and(
+        eq(schema.providerSyncIntents.id, input.intentId),
+        eq(schema.providerSyncIntents.organizationId, input.organizationId),
+        inArray(schema.providerSyncIntents.status, [...ACTIVE_INTENT_STATUSES]),
+        or(
+          isNull(schema.providerSyncIntents.leasedUntil),
+          lte(schema.providerSyncIntents.leasedUntil, now),
+        ),
+      ),
+    )
+    .returning();
+
+  return updated ?? null;
+}
+
 async function markIntentSucceeded(intent: ProviderSyncIntentRow, runId: string) {
   await db
     .update(schema.providerSyncIntents)
@@ -123,6 +158,88 @@ async function markIntentFailed(intent: ProviderSyncIntentRow, message: string) 
       leaseToken: null,
     })
     .where(eq(schema.providerSyncIntents.id, intent.id));
+}
+
+export async function runProviderSyncIntentById(input: {
+  intentId: string;
+  organizationId: string;
+  leasedBy?: string;
+}): Promise<{
+  processed: boolean;
+  succeeded: boolean;
+  runId: string | null;
+  skippedReason?: string;
+  error?: string;
+}> {
+  const leasedBy = input.leasedBy ?? "provider-sync-workflow";
+  const intent = await leaseProviderSyncIntentById({
+    intentId: input.intentId,
+    organizationId: input.organizationId,
+    leasedBy,
+  });
+
+  if (!intent) {
+    logger.info(
+      {
+        intentId: input.intentId,
+        organizationId: input.organizationId,
+      },
+      "provider sync workflow found no claimable intent",
+    );
+    return {
+      processed: false,
+      succeeded: false,
+      runId: null,
+      skippedReason: "intent_not_claimable",
+    };
+  }
+
+  try {
+    const result = await executeProviderSyncIntent(intent);
+    if (isErr(result)) {
+      await markIntentFailed(intent, result.error.message);
+      logReconciliationFailed({
+        providerKind: intent.providerKind,
+        organizationId: intent.organizationId,
+        providerSyncIntentId: intent.id,
+        syncKind: intent.syncKind,
+        reason: result.error.code,
+      });
+      return {
+        processed: true,
+        succeeded: false,
+        runId: null,
+        error: result.error.message,
+      };
+    }
+
+    await markIntentSucceeded(intent, result.value.runId);
+    logReconciliationSucceeded({
+      providerKind: intent.providerKind,
+      organizationId: intent.organizationId,
+      providerSyncIntentId: intent.id,
+      providerSyncRunId: result.value.runId,
+      syncKind: intent.syncKind,
+    });
+    return {
+      processed: true,
+      succeeded: true,
+      runId: result.value.runId,
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "unknown_error";
+    await markIntentFailed(intent, message);
+    logger.error(
+      { intentId: intent.id, syncKind: intent.syncKind, error: message },
+      "unexpected error executing provider sync workflow intent",
+    );
+    return {
+      processed: true,
+      succeeded: false,
+      runId: null,
+      error: message,
+    };
+  }
 }
 
 export async function runProviderSyncWorker(input?: {
