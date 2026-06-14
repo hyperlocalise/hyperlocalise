@@ -7,23 +7,18 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { createApiClient } from "@/lib/api-client";
-import { getLocaleLabel } from "@/lib/i18n/locales";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 
 const api = createApiClient();
 
 export type ContentfulConnectionSummary = {
   id: string;
   displayName: string;
-  projectId: string;
   spaceId: string;
   environmentId: string;
-  sourceLocale: string;
-  targetLocales: string[];
   contentTypeIds: string[];
   validationStatus: string;
   validationMessage: string | null;
@@ -39,16 +34,8 @@ export type ContentfulConnectionSummary = {
   } | null;
 };
 
-export type ProjectOption = {
-  id: string;
-  name: string;
-  sourceLocale: string | null;
-  targetLocales: string[];
-};
-
 export type ContentfulConnectionForm = {
   displayName: string;
-  projectId: string;
   spaceId: string;
   environmentId: string;
   contentTypeIds: string[];
@@ -61,12 +48,9 @@ type ContentfulContentTypeOption = {
 };
 
 type SaveContentfulConnectionPayloadBase = {
-  projectId: string;
   displayName: string;
   spaceId: string;
   environmentId: string;
-  sourceLocale: string;
-  targetLocales: string[];
   contentTypeIds: string[];
 };
 
@@ -92,28 +76,6 @@ export function useContentfulConnections(organizationSlug: string) {
       }
       const data = await res.json();
       return data.contentfulConnections as ContentfulConnectionSummary[];
-    },
-  });
-}
-
-export function useProjectOptions(organizationSlug: string, enabled = true) {
-  return useQuery({
-    queryKey: ["contentful-project-options", organizationSlug],
-    enabled,
-    queryFn: async () => {
-      const res = await api.api.orgs[":organizationSlug"].projects.$get({
-        param: { organizationSlug },
-      });
-      if (!res.ok) {
-        throw new Error("Failed to fetch projects");
-      }
-      const data = await res.json();
-      return data.projects.map((project) => ({
-        id: project.id,
-        name: project.name,
-        sourceLocale: project.sourceLocale ?? null,
-        targetLocales: project.targetLocales ?? [],
-      })) as ProjectOption[];
     },
   });
 }
@@ -196,12 +158,9 @@ export function useSaveContentfulConnection(organizationSlug: string) {
         ? api.api.orgs[":organizationSlug"]["contentful-connections"][":connectionId"].$patch({
             param: { organizationSlug, connectionId: payload.connectionId },
             json: {
-              projectId: payload.projectId,
               displayName: payload.displayName,
               spaceId: payload.spaceId,
               environmentId: payload.environmentId,
-              sourceLocale: payload.sourceLocale,
-              targetLocales: payload.targetLocales,
               contentTypeIds: payload.contentTypeIds,
               fieldConfig,
               enabled: true,
@@ -215,12 +174,9 @@ export function useSaveContentfulConnection(organizationSlug: string) {
             return api.api.orgs[":organizationSlug"]["contentful-connections"].$post({
               param: { organizationSlug },
               json: {
-                projectId: payload.projectId,
                 displayName: payload.displayName,
                 spaceId: payload.spaceId,
                 environmentId: payload.environmentId,
-                sourceLocale: payload.sourceLocale,
-                targetLocales: payload.targetLocales,
                 contentTypeIds: payload.contentTypeIds,
                 fieldConfig,
                 enabled: true,
@@ -269,43 +225,6 @@ function ContentfulTokenGuidance() {
       management tokens. Do not use Content Delivery or Preview API keys — those are read-only and
       cannot write draft translations or register webhooks.
     </FieldDescription>
-  );
-}
-
-function ProjectLocalesSummary({ project }: { project: ProjectOption | undefined }) {
-  if (!project) {
-    return (
-      <p className="text-sm text-muted-foreground">
-        Select a Hyperlocalise project to use its source and target locales.
-      </p>
-    );
-  }
-
-  if (!project.sourceLocale || project.targetLocales.length === 0) {
-    return (
-      <p className="text-sm text-destructive">
-        This project does not have locales configured yet. Set them in project settings before
-        connecting Contentful.
-      </p>
-    );
-  }
-
-  return (
-    <div className="grid gap-2 rounded-lg bg-muted/50 p-3 text-sm">
-      <div>
-        <span className="text-muted-foreground">Source: </span>
-        <span>
-          {getLocaleLabel(project.sourceLocale)} ({project.sourceLocale})
-        </span>
-      </div>
-      <div>
-        <span className="text-muted-foreground">Targets: </span>
-        <span>{project.targetLocales.join(", ")}</span>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Locales come from the selected Hyperlocalise project.
-      </p>
-    </div>
   );
 }
 
@@ -388,8 +307,6 @@ export function ContentfulConnectionPanel({
   isSaving,
   form,
   onFormChange,
-  projects,
-  isLoadingProjects,
   organizationSlug,
 }: {
   connection?: ContentfulConnectionSummary;
@@ -399,18 +316,10 @@ export function ContentfulConnectionPanel({
   isSaving: boolean;
   form: ContentfulConnectionForm;
   onFormChange: (form: ContentfulConnectionForm) => void;
-  projects: ProjectOption[];
-  isLoadingProjects: boolean;
   organizationSlug: string;
 }) {
   const contentTypesFieldId = useId();
   const [isReplacingToken, setIsReplacingToken] = useState(false);
-  const selectedProject = projects.find((project) => project.id === form.projectId);
-  const projectLabel =
-    selectedProject?.name ?? (form.projectId ? "Unknown project" : "Select project");
-  const projectLocalesReady = Boolean(
-    selectedProject?.sourceLocale && selectedProject.targetLocales.length > 0,
-  );
   const tokenRequired = !connection || isReplacingToken;
   const canDiscoverContentTypes =
     form.spaceId.trim().length > 0 &&
@@ -426,8 +335,6 @@ export function ContentfulConnectionPanel({
   const discoveredContentTypes = discoveryQuery.data?.contentTypes ?? [];
   const canSaveContentfulConnection =
     form.displayName.trim().length > 0 &&
-    form.projectId.trim().length > 0 &&
-    projectLocalesReady &&
     form.spaceId.trim().length > 0 &&
     form.environmentId.trim().length > 0 &&
     form.contentTypeIds.length > 0 &&
@@ -465,7 +372,7 @@ export function ContentfulConnectionPanel({
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Field className="gap-2">
+        <Field className="gap-2 lg:col-span-2">
           <FieldLabel>Display name</FieldLabel>
           <Input
             value={form.displayName}
@@ -473,41 +380,6 @@ export function ContentfulConnectionPanel({
             placeholder="Contentful Help Center"
             onChange={(event) => onFormChange({ ...form, displayName: event.target.value })}
           />
-        </Field>
-        <Field className="gap-2">
-          <FieldLabel>Project</FieldLabel>
-          <Select
-            value={form.projectId || undefined}
-            disabled={disabled || isLoadingProjects || projects.length === 0}
-            onValueChange={(value) => {
-              if (!value) {
-                return;
-              }
-              onFormChange({ ...form, projectId: value });
-            }}
-          >
-            <SelectTrigger className="w-full">
-              <span className="truncate">
-                {isLoadingProjects ? "Loading projects..." : projectLabel}
-              </span>
-            </SelectTrigger>
-            <SelectContent>
-              {projects.length === 0 ? (
-                <SelectItem value="__empty" disabled>
-                  No projects found
-                </SelectItem>
-              ) : null}
-              {projects.map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field className="gap-2 lg:col-span-2">
-          <FieldLabel>Project locales</FieldLabel>
-          <ProjectLocalesSummary project={selectedProject} />
         </Field>
         <Field className="gap-2">
           <FieldLabel>Space ID</FieldLabel>
@@ -622,7 +494,7 @@ export function ContentfulConnectionPanel({
       <div className="flex justify-end">
         <Button
           type="button"
-          disabled={disabled || isSaving || isLoadingProjects || !canSaveContentfulConnection}
+          disabled={disabled || isSaving || !canSaveContentfulConnection}
           onClick={onSave}
         >
           <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
@@ -631,15 +503,4 @@ export function ContentfulConnectionPanel({
       </div>
     </div>
   );
-}
-
-export function getProjectLocales(project: ProjectOption | undefined) {
-  if (!project?.sourceLocale || project.targetLocales.length === 0) {
-    return null;
-  }
-
-  return {
-    sourceLocale: project.sourceLocale,
-    targetLocales: project.targetLocales,
-  };
 }

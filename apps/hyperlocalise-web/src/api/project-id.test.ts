@@ -72,15 +72,12 @@ describe("project id schemas", () => {
     expect(attachMemoryProjectBodySchema.parse({ projectId: encoded }).projectId).toBe(decoded);
     expect(
       createContentfulConnectionBodySchema.parse({
-        projectId: encoded,
         displayName: "Contentful",
         spaceId: "space",
-        sourceLocale: "en",
-        targetLocales: ["fr"],
         fieldConfig: {},
         accessToken: "token",
-      }).projectId,
-    ).toBe(decoded);
+      }).displayName,
+    ).toBe("Contentful");
     expect(providerSyncObservabilityQuerySchema.parse({ projectId: encoded }).projectId).toBe(
       decoded,
     );

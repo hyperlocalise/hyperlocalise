@@ -65,7 +65,12 @@ import { cn } from "@/lib/primitives/cn";
 
 const api = createApiClient();
 
-type ProjectOption = { id: string; name: string };
+type ProjectOption = {
+  id: string;
+  name: string;
+  sourceLocale: string | null;
+  targetLocales: string[];
+};
 type GithubRepositoryOption = {
   id: string;
   fullName: string;
@@ -77,9 +82,6 @@ type SlackChannelOption = { id: string; name: string; private: boolean };
 type ContentfulConnectionOption = {
   id: string;
   displayName: string;
-  projectId: string;
-  sourceLocale: string;
-  targetLocales: string[];
   contentTypeIds: string[];
   enabled: boolean;
 };
@@ -1030,10 +1032,10 @@ function ToolsSettings({
 }) {
   const contentfulConnected = contentfulConnections.length > 0;
   const contentfulTargetLocalesFieldId = "contentful-target-locales";
-  const selectedContentfulConnection = contentfulConnections.find(
-    (connection) => connection.id === form.contentfulConnectionId,
+  const selectedContentfulProject = projects.find(
+    (project) => project.id === form.contentfulProjectId,
   );
-  const contentfulAvailableTargetLocales = selectedContentfulConnection?.targetLocales ?? [];
+  const contentfulAvailableTargetLocales = selectedContentfulProject?.targetLocales ?? [];
   const showContentfulEntryId = form.triggerMode === "scheduled";
 
   return (
@@ -1297,11 +1299,6 @@ function ToolsSettings({
                     onChange({
                       ...form,
                       contentfulConnectionId: value,
-                      contentfulProjectId: connection?.projectId ?? form.contentfulProjectId,
-                      contentfulSourceLocale:
-                        connection?.sourceLocale ?? form.contentfulSourceLocale,
-                      contentfulTargetLocales:
-                        connection?.targetLocales ?? form.contentfulTargetLocales,
                       contentfulContentTypeIds:
                         connection?.contentTypeIds ?? form.contentfulContentTypeIds,
                     });
@@ -1341,7 +1338,19 @@ function ToolsSettings({
                       if (!value) {
                         return;
                       }
-                      onChange({ ...form, contentfulProjectId: value });
+                      const project = projects.find((entry) => entry.id === value);
+                      onChange({
+                        ...form,
+                        contentfulProjectId: value,
+                        contentfulSourceLocale:
+                          project?.sourceLocale ?? form.contentfulSourceLocale,
+                        contentfulTargetLocales:
+                          project?.targetLocales && form.contentfulTargetLocales.length === 0
+                            ? project.targetLocales
+                            : form.contentfulTargetLocales.filter((locale) =>
+                                project?.targetLocales.includes(locale),
+                              ),
+                      });
                     }}
                   >
                     <SelectTrigger className="h-8 w-full rounded-lg">

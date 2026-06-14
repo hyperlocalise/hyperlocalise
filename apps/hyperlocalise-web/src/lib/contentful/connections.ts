@@ -10,12 +10,6 @@ import {
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
 
-import {
-  ensureOrganizationProjectRecord,
-  unwrapOrganizationProjectRecord,
-} from "@/lib/projects/ensure-organization-project";
-import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-
 import { ContentfulManagementClient, isContentfulClientError } from "./client";
 import { loadContentfulConnectionWithToken } from "./contentful-connection-access";
 import { hashContentfulWebhookSecret } from "./webhook";
@@ -24,6 +18,7 @@ import {
   deleteContentfulProviderWebhook,
   syncContentfulProviderWebhook,
 } from "./webhook-provider";
+import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import type {
   ContentfulConnectionFieldConfig,
   ContentfulConnectionSecretResult,
@@ -50,12 +45,9 @@ function serializeConnection(
   return {
     id: connection.id,
     organizationId: connection.organizationId,
-    projectId: connection.projectId,
     displayName: connection.displayName,
     spaceId: connection.spaceId,
     environmentId: connection.environmentId,
-    sourceLocale: connection.sourceLocale,
-    targetLocales: connection.targetLocales,
     contentTypeIds: connection.contentTypeIds,
     fieldConfig: normalizeFieldConfig(connection.fieldConfig),
     enabled: connection.enabled,
@@ -188,38 +180,24 @@ export { loadContentfulConnectionWithToken } from "./contentful-connection-acces
 export async function createContentfulConnection(input: {
   organizationId: string;
   userId: string;
-  projectId: string;
   displayName: string;
   spaceId: string;
   environmentId: string;
-  sourceLocale: string;
-  targetLocales: string[];
   contentTypeIds: string[];
   fieldConfig: ContentfulConnectionFieldConfig;
   accessToken: string;
   enabled?: boolean;
 }): Promise<ContentfulConnectionSecretResult> {
-  const projectId = unwrapOrganizationProjectRecord(
-    await ensureOrganizationProjectRecord({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      userId: input.userId,
-    }),
-  );
-
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken));
   const [connection] = await db
     .insert(schema.contentfulConnections)
     .values({
       organizationId: input.organizationId,
-      projectId,
       createdByUserId: input.userId,
       updatedByUserId: input.userId,
       displayName: input.displayName,
       spaceId: input.spaceId,
       environmentId: input.environmentId,
-      sourceLocale: input.sourceLocale,
-      targetLocales: input.targetLocales,
       contentTypeIds: input.contentTypeIds,
       fieldConfig: input.fieldConfig,
       enabled: input.enabled ?? true,
@@ -254,27 +232,14 @@ export async function updateContentfulConnection(input: {
   organizationId: string;
   userId: string;
   connectionId: string;
-  projectId?: string;
   displayName?: string;
   spaceId?: string;
   environmentId?: string;
-  sourceLocale?: string;
-  targetLocales?: string[];
   contentTypeIds?: string[];
   fieldConfig?: ContentfulConnectionFieldConfig;
   accessToken?: string;
   enabled?: boolean;
 }): Promise<ContentfulConnectionSecretResult | null> {
-  const resolvedProjectId = input.projectId
-    ? unwrapOrganizationProjectRecord(
-        await ensureOrganizationProjectRecord({
-          organizationId: input.organizationId,
-          projectId: input.projectId,
-          userId: input.userId,
-        }),
-      )
-    : undefined;
-
   const encrypted = input.accessToken
     ? unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken))
     : null;
@@ -335,12 +300,9 @@ export async function updateContentfulConnection(input: {
     .update(schema.contentfulConnections)
     .set({
       updatedByUserId: input.userId,
-      ...(resolvedProjectId !== undefined ? { projectId: resolvedProjectId } : {}),
       ...(input.displayName !== undefined ? { displayName: input.displayName } : {}),
       ...(input.spaceId !== undefined ? { spaceId: input.spaceId } : {}),
       ...(input.environmentId !== undefined ? { environmentId: input.environmentId } : {}),
-      ...(input.sourceLocale !== undefined ? { sourceLocale: input.sourceLocale } : {}),
-      ...(input.targetLocales !== undefined ? { targetLocales: input.targetLocales } : {}),
       ...(input.contentTypeIds !== undefined ? { contentTypeIds: input.contentTypeIds } : {}),
       ...(input.fieldConfig !== undefined ? { fieldConfig: input.fieldConfig } : {}),
       ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),

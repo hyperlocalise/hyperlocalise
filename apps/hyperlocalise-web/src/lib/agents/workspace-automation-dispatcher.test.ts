@@ -176,12 +176,9 @@ describe("workspace automation dispatcher", () => {
     const contentfulConnection = await createContentfulConnection({
       organizationId: scope.organizationId,
       userId: scope.userId,
-      projectId: scope.projectId,
       displayName: "Contentful Help Center",
       spaceId: `space-${scope.organizationId.slice(0, 8)}`,
       environmentId: "master",
-      sourceLocale: "en-US",
-      targetLocales: ["fr-FR", "de-DE"],
       contentTypeIds: ["helpCenterArticle"],
       fieldConfig: { fieldMode: "auto" },
       accessToken: "cma_test_token",
@@ -309,6 +306,7 @@ describe("workspace automation dispatcher", () => {
       .where(eq(schema.contentfulTranslationRuns.organizationId, scope.organizationId));
     expect(translationRuns).toHaveLength(1);
     expect(translationRuns[0]?.entryId).toBe("entry-1");
+    expect(translationRuns[0]?.projectId).toBe(scope.projectId);
     expect(translationRuns[0]?.sourceLocale).toBe("de-DE");
     expect(translationRuns[0]?.targetLocales).toEqual(["fr-FR"]);
     expect(translationRuns[0]?.runQa).toBe(true);
@@ -320,12 +318,9 @@ describe("workspace automation dispatcher", () => {
     const contentfulConnection = await createContentfulConnection({
       organizationId: scope.organizationId,
       userId: scope.userId,
-      projectId: scope.projectId,
       displayName: "Contentful Help Center",
       spaceId: `space-${scope.organizationId.slice(0, 8)}`,
       environmentId: "master",
-      sourceLocale: "en-US",
-      targetLocales: ["fr-FR"],
       contentTypeIds: ["helpCenterArticle"],
       fieldConfig: { fieldMode: "auto" },
       accessToken: "cma_test_token",
@@ -387,12 +382,9 @@ describe("workspace automation dispatcher", () => {
     const contentfulConnection = await createContentfulConnection({
       organizationId: scope.organizationId,
       userId: scope.userId,
-      projectId: scope.projectId,
       displayName: "Contentful Help Center",
       spaceId: `space-${scope.organizationId.slice(0, 8)}`,
       environmentId: "master",
-      sourceLocale: "en-US",
-      targetLocales: ["fr-FR"],
       contentTypeIds: ["article", "blogPost"],
       fieldConfig: { fieldMode: "auto" },
       accessToken: "cma_test_token",

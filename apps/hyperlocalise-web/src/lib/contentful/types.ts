@@ -7,12 +7,9 @@ export type ContentfulConnectionFieldConfig = {
 export type ContentfulConnectionSummary = {
   id: string;
   organizationId: string;
-  projectId: string;
   displayName: string;
   spaceId: string;
   environmentId: string;
-  sourceLocale: string;
-  targetLocales: string[];
   contentTypeIds: string[];
   fieldConfig: ContentfulConnectionFieldConfig;
   enabled: boolean;

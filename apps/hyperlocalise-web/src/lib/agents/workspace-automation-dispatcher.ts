@@ -131,9 +131,14 @@ async function enqueueWorkspaceContentfulAutomation(input: {
   const contentful = input.automation.toolConfig.contentful;
   const targetLocales = contentful?.targetLocales ?? [];
   const sourceLocale = contentful?.sourceLocale ?? "en";
+  const projectId = contentful?.projectId;
+  if (!projectId) {
+    throw new Error("contentful_project_required");
+  }
   const translationRun = await createContentfulTranslationRun({
     organizationId: input.organizationId,
     connectionId: input.connectionId,
+    projectId,
     workspaceAutomationRunId: run.id,
     webhookEventId: input.webhookEventId ?? null,
     entryId: input.entryId,

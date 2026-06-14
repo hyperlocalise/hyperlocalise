@@ -64,20 +64,18 @@ describe("contentful automation executor", () => {
     );
   });
 
-  it("uses the translation run target locales before falling back to the connection locales", () => {
+  it("uses the translation run target locales", () => {
     expect(
       resolveContentfulExecutionTargetLocales({
         runTargetLocales: ["fr-FR"],
-        connectionTargetLocales: ["fr-FR", "de-DE"],
       }),
     ).toEqual(["fr-FR"]);
 
     expect(
       resolveContentfulExecutionTargetLocales({
         runTargetLocales: [],
-        connectionTargetLocales: ["fr-FR", "de-DE"],
       }),
-    ).toEqual(["fr-FR", "de-DE"]);
+    ).toEqual([]);
   });
 
   it("detects QA errors separately from warnings", () => {
