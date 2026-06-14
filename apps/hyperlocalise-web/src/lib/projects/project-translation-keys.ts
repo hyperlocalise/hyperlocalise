@@ -165,3 +165,51 @@ export async function getProjectTranslationsByKeyIds(input: {
       ),
     );
 }
+
+export async function loadProjectTranslationsAsPrefilledEntries(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  targetLocale: string;
+}): Promise<Record<string, string>> {
+  const sourceFile = await getRepositorySourceFileByPath({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    sourcePath: input.sourcePath,
+  });
+
+  if (!sourceFile) {
+    return {};
+  }
+
+  const keys = await listProjectTranslationKeysForFile({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    repositorySourceFileId: sourceFile.id,
+  });
+
+  if (keys.length === 0) {
+    return {};
+  }
+
+  const translations = await getProjectTranslationsByKeyIds({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    translationKeyIds: keys.map((key) => key.id),
+    targetLocale: input.targetLocale,
+  });
+  const translationByKeyId = new Map(
+    translations.map((translation) => [translation.translationKeyId, translation]),
+  );
+
+  const prefilled: Record<string, string> = {};
+  for (const key of keys) {
+    const translation = translationByKeyId.get(key.id);
+    if (!translation?.text?.trim()) {
+      continue;
+    }
+    prefilled[key.key] = translation.text;
+  }
+
+  return prefilled;
+}
