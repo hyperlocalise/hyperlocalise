@@ -58,6 +58,23 @@ async function startProviderSyncRun(intent: ProviderSyncIntentRow) {
   return run.id;
 }
 
+async function resolveProviderSyncActorUserId(intent: ProviderSyncIntentRow) {
+  if (!intent.providerCredentialId) {
+    return null;
+  }
+
+  const [credential] = await db
+    .select({
+      createdByUserId: schema.organizationExternalTmsProviderCredentials.createdByUserId,
+      updatedByUserId: schema.organizationExternalTmsProviderCredentials.updatedByUserId,
+    })
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(eq(schema.organizationExternalTmsProviderCredentials.id, intent.providerCredentialId))
+    .limit(1);
+
+  return credential?.updatedByUserId ?? credential?.createdByUserId ?? null;
+}
+
 async function refreshMaterializedProjectFromLive(
   intent: ProviderSyncIntentRow,
 ): Promise<Result<{ runId: string }, ProviderSyncExecutionError>> {
@@ -77,9 +94,11 @@ async function refreshMaterializedProjectFromLive(
   }
 
   const runId = await startProviderSyncRun(intent);
+  const actorUserId = await resolveProviderSyncActorUserId(intent);
   const liveProject = await getTmsProviderLiveProject(
     intent.organizationId,
     encodedProject.externalProjectId,
+    { actorUserId },
   );
 
   if (!liveProject) {
@@ -120,7 +139,8 @@ async function syncProjectCatalogFromLive(
   }
 
   const runId = await startProviderSyncRun(intent);
-  const liveProjects = await listTmsProviderLiveProjects(intent.organizationId);
+  const actorUserId = await resolveProviderSyncActorUserId(intent);
+  const liveProjects = await listTmsProviderLiveProjects(intent.organizationId, { actorUserId });
   let syncedCount = 0;
 
   for (const liveProject of liveProjects) {

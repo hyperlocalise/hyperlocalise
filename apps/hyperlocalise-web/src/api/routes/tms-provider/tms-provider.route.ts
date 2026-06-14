@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
+import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { enqueueProviderCatalogSyncIntent } from "@/lib/providers/provider-sync-intent";
 import {
   getTmsProviderConnection,
   getTmsProviderLiveJobFileDetail,
@@ -160,6 +162,41 @@ export function createTmsProviderRoutes() {
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }
+    })
+    .post("/projects/sync", async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "projects:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const credential =
+        await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
+      if (!credential) {
+        return c.json(
+          {
+            error: "no_active_tms_provider",
+            message: "Connect a TMS provider before syncing projects.",
+          },
+          404,
+        );
+      }
+
+      const result = await enqueueProviderCatalogSyncIntent({
+        organizationId,
+        providerCredentialId: credential.id,
+        providerKind: credential.providerKind,
+        cause: "manual",
+      });
+
+      return c.json(
+        {
+          providerProjectSync: {
+            intentId: result.intentId,
+            created: result.created,
+          },
+        },
+        202,
+      );
     })
     .get("/projects/:externalProjectId", async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {

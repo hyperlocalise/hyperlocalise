@@ -129,6 +129,49 @@ describe("tmsProviderRoutes", () => {
     });
   });
 
+  it("queues a manual project sync for the active provider", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: globalThis.__testApiAuthContext!.user.localUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects.sync.$post(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({
+      providerProjectSync: {
+        created: true,
+      },
+    });
+
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, organizationId))
+      .limit(1);
+
+    expect(intent).toMatchObject({
+      providerCredentialId: credential.id,
+      providerKind: "crowdin",
+      syncKind: "project_scan",
+      cause: "manual",
+      status: "pending",
+    });
+  });
+
   it("returns 401 when Crowdin OAuth refresh fails while loading live projects", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

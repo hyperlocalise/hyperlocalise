@@ -28,6 +28,10 @@ import { mapProjectToListRow, type ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
 
 const projectQueryKey = (organizationSlug: string) => ["translation-projects", organizationSlug];
+const tmsConnectionQueryKey = (organizationSlug: string) => [
+  "tms-provider-connection",
+  organizationSlug,
+];
 
 function useProjectSearch(projects: ProjectListRow[]) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -68,6 +72,28 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
 
       const body = await response.json();
       return body.projects.map(mapProjectToListRow);
+    },
+  });
+  const tmsConnectionQuery = useQuery({
+    queryKey: tmsConnectionQueryKey(organizationSlug),
+    enabled: projectsQuery.isSuccess && (projectsQuery.data ?? []).length === 0,
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"][
+        "tms-provider"
+      ].connection.$get({
+        param: { organizationSlug },
+      });
+
+      if (response.status === 404) {
+        return null;
+      }
+
+      if (response.status !== 200) {
+        throw await readApiResponseError(response, "Failed to load TMS provider connection");
+      }
+
+      const body = await response.json();
+      return body.connection;
     },
   });
   const createProject = useMutation({
@@ -134,6 +160,30 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
       setDeleteProject(null);
       toast.success("Project deleted");
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
+  const syncProviderProjects = useMutation({
+    mutationFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"][
+        "tms-provider"
+      ].projects.sync.$post({
+        param: { organizationSlug },
+      });
+
+      if (response.status !== 202) {
+        throw await readApiResponseError(response, "Unable to sync provider projects");
+      }
+
+      return response.json();
+    },
+    onSuccess: async (body) => {
+      await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
+      toast.success(
+        body.providerProjectSync.created ? "Project sync queued" : "Project sync is already queued",
+      );
     },
     onError: (error) => {
       toast.error(error.message);
@@ -241,7 +291,11 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           projectsQuery={projectsQuery}
           isSavingProject={isSavingProject}
           isDeletingProject={deleteProjectMutation.isPending}
+          hasActiveTmsConnection={Boolean(tmsConnectionQuery.data)}
+          isCheckingTmsConnection={tmsConnectionQuery.isLoading}
+          isSyncingProviderProjects={syncProviderProjects.isPending}
           organizationSlug={organizationSlug}
+          onSyncProviderProjects={syncProviderProjects.mutate}
           onEditProject={openEditProjectDialog}
           onDeleteProject={setDeleteProject}
         />
