@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { config as loadDotenv } from "dotenv";
+import pluginFormatjs from "eslint-plugin-formatjs";
 import { defineConfig } from "vite-plus";
 
 const rootDir = path.dirname(fileURLToPath(import.meta.url));
@@ -15,6 +16,22 @@ export default defineConfig({
   lint: {
     ignorePatterns: ["drizzle/**", "pnpm-*.yaml"],
     options: { typeAware: true, typeCheck: true },
+    jsPlugins: ["eslint-plugin-formatjs"],
+    rules: {
+      ...pluginFormatjs.configs.strict.rules,
+      // Most UI is not localized yet; re-enable as /localise coverage grows.
+      "formatjs/no-literal-string-in-jsx": "off",
+    },
+    overrides: [
+      {
+        files: ["**/*.stories.ts", "**/*.stories.tsx"],
+        rules: {
+          "formatjs/enforce-id": "off",
+          "formatjs/enforce-description": "off",
+          "formatjs/no-emoji": "off",
+        },
+      },
+    ],
   },
   test: {
     server: {

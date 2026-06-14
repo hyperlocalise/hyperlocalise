@@ -11,47 +11,81 @@ import {
   HeroSection,
   PrinciplesSection,
 } from "@/components/marketing";
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
-export const metadata: Metadata = {
-  title: "Hyperlocalise | Localisation Platform for the Agentic Era",
-  description:
-    "Assign AI agents to translate, review, and sync content while keeping human review first-class. Stay flexible across LLM providers and TMS platforms.",
-  keywords: ["localisation", "translation", "AI", "agentic", "TMS", "localization", "GitHub"],
-  openGraph: {
-    title: "Hyperlocalise | Localisation Platform for the Agentic Era",
-    description:
-      "Assign AI agents to translate, review, and sync content while keeping human review first-class.",
-    type: "website",
-    images: [
-      {
-        url: "https://www.hyperlocalise.com/images/logo.png",
-        width: 512,
-        height: 512,
-        alt: "Hyperlocalise",
-      },
-    ],
-  },
+import { marketingHomeMessages } from "./homepage.messages";
+
+const metadataKeywords = [
+  "localisation",
+  "translation",
+  "AI",
+  "agentic",
+  "TMS",
+  "localization",
+  "GitHub",
+] as const;
+
+type HomePageProps = {
+  params: Promise<{ lang: string }>;
 };
 
-const jsonLd: WithContext<WebApplication> & object = {
-  "@context": "https://schema.org",
-  "@type": "WebApplication",
-  name: "Hyperlocalise",
-  applicationCategory: "DeveloperApplication",
-  operatingSystem: "Cloud",
-  offers: {
-    "@type": "Offer",
-    category: "Free",
-    availability: "https://schema.org/PreOrder",
-  },
-  provider: {
-    "@type": "Organization",
+export async function generateMetadata({ params }: HomePageProps): Promise<Metadata> {
+  const { lang } = await params;
+  const intl = getIntlShape(lang);
+
+  const title = intl.formatMessage(marketingHomeMessages.metadataTitle);
+  const description = intl.formatMessage(marketingHomeMessages.metadataDescription);
+  const openGraphDescription = intl.formatMessage(
+    marketingHomeMessages.metadataDescriptionOpenGraph,
+  );
+  const logoAlt = intl.formatMessage(marketingHomeMessages.logoAlt);
+
+  return {
+    title,
+    description,
+    keywords: [...metadataKeywords],
+    openGraph: {
+      title,
+      description: openGraphDescription,
+      type: "website",
+      images: [
+        {
+          url: "https://www.hyperlocalise.com/images/logo.png",
+          width: 512,
+          height: 512,
+          alt: logoAlt,
+        },
+      ],
+    },
+  };
+}
+
+function buildJsonLd(locale: string): WithContext<WebApplication> & object {
+  const intl = getIntlShape(locale);
+
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
     name: "Hyperlocalise",
-    url: "https://hyperlocalise.com",
-  },
-};
+    applicationCategory: "DeveloperApplication",
+    operatingSystem: "Cloud",
+    offers: {
+      "@type": "Offer",
+      category: intl.formatMessage(marketingHomeMessages.offerCategoryFree),
+      availability: "https://schema.org/PreOrder",
+    },
+    provider: {
+      "@type": "Organization",
+      name: "Hyperlocalise",
+      url: "https://hyperlocalise.com",
+    },
+  };
+}
 
-export default function Home() {
+export default async function Home({ params }: HomePageProps) {
+  const { lang } = await params;
+  const jsonLd = buildJsonLd(lang);
+
   return (
     <>
       <JsonLd data={jsonLd} />
