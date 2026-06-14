@@ -31,6 +31,7 @@ import {
   parseAuthorizationCode,
   parseMcpAuthorizationRequest,
   parseMcpConsentGrant,
+  resolveAuthoritativeMcpSessionAuth,
   verifyPkceChallenge,
   type McpAuthVariables,
 } from "@/api/auth/mcp";
@@ -753,14 +754,23 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
         }
 
         const [session] = await db
-          .select({ id: schema.mcpSessions.id, scope: schema.mcpSessions.scope })
+          .select({
+            id: schema.mcpSessions.id,
+            scope: schema.mcpSessions.scope,
+            userId: schema.users.id,
+            workosUserId: schema.users.workosUserId,
+            email: schema.users.email,
+            organizationId: schema.organizations.id,
+            workosOrganizationId: schema.organizations.workosOrganizationId,
+            organizationName: schema.organizations.name,
+            organizationSlug: schema.organizations.slug,
+            lifecycleStatus: schema.organizations.lifecycleStatus,
+          })
           .from(schema.mcpSessions)
+          .innerJoin(schema.users, eq(schema.mcpSessions.userId, schema.users.id))
           .innerJoin(
-            schema.organizationMemberships,
-            and(
-              eq(schema.organizationMemberships.userId, schema.mcpSessions.userId),
-              eq(schema.organizationMemberships.organizationId, schema.mcpSessions.organizationId),
-            ),
+            schema.organizations,
+            eq(schema.mcpSessions.organizationId, schema.organizations.id),
           )
           .where(
             and(
@@ -772,6 +782,11 @@ export function createMcpRoutes(options: { apiBasePath?: string } = {}) {
           .limit(1);
 
         if (!session) {
+          return c.json({ error: "invalid_grant" }, 400);
+        }
+
+        const authResult = await resolveAuthoritativeMcpSessionAuth(session);
+        if (authResult.status !== "authorized") {
           return c.json({ error: "invalid_grant" }, 400);
         }
 
