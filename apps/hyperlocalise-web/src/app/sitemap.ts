@@ -1,6 +1,15 @@
 import { MetadataRoute } from "next";
 
+import { useCaseSlugs } from "@/components/marketing/use-case";
+
 export default function sitemap(): MetadataRoute.Sitemap {
+  const useCaseEntries: MetadataRoute.Sitemap = useCaseSlugs.map((slug) => ({
+    url: `https://www.hyperlocalise.com/use-cases/${slug}`,
+    lastModified: new Date(),
+    changeFrequency: "monthly",
+    priority: 0.8,
+  }));
+
   return [
     {
       url: "https://www.hyperlocalise.com",
@@ -26,5 +35,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: "weekly",
       priority: 0.8,
     },
+    ...useCaseEntries,
   ];
 }

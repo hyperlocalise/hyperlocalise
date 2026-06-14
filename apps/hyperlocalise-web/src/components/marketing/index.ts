@@ -6,3 +6,11 @@ export { IntakeSourcesIllustration } from "./intake-sources-illustration";
 export { LogoStripSection } from "./logo-strip-section";
 export { MonitorO11yBento } from "./monitor-o11y-bento";
 export { PrinciplesSection } from "./principles-section";
+export {
+  UseCasePage,
+  useCaseFooterLinks,
+  useCasePages,
+  useCasePagesBySlug,
+  useCaseSlugs,
+  type UseCasePageContent,
+} from "./use-case";
