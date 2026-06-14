@@ -13,12 +13,15 @@ import { ensureAgentSession } from "@/lib/tools/types";
 import type { ToolContext } from "@/lib/tools/types";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 import {
   getCachedProjectFileStringRepositoryContext,
   saveProjectFileStringRepositoryContext,
 } from "./project-file-string-context-store";
+
+const logger = createLogger("project-file-string-context");
 
 export type ProjectFileStringContextError =
   | { code: "repository_not_enabled"; message: string }
@@ -85,11 +88,23 @@ export async function lookupProjectFileStringRepositoryContext(input: {
   email: string | null;
   forceRefresh?: boolean;
 }): Promise<Result<{ summary: string; cached: boolean }, ProjectFileStringContextError>> {
+  const log = logger.child({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    stringKey: input.key,
+    forceRefresh: input.forceRefresh ?? false,
+  });
+  log.debug("project file string context lookup started");
+
   const repositoryResult = await resolveRepositoryFullName({
     organizationId: input.organizationId,
     repositoryFullName: input.repositoryFullName,
   });
   if (isErr(repositoryResult)) {
+    log.warn(
+      { code: repositoryResult.error.code },
+      "project file string context repository resolution failed",
+    );
     return repositoryResult;
   }
 
@@ -106,9 +121,14 @@ export async function lookupProjectFileStringRepositoryContext(input: {
     });
 
     if (cachedSummary) {
+      log.info({ cached: true }, "project file string context lookup completed");
       return ok({ summary: cachedSummary, cached: true });
     }
+  } else {
+    log.debug({ forceRefresh: true }, "project file string context cache bypassed");
   }
+
+  log.info({ cached: false }, "project file string context cache miss; running repository agent");
 
   const resolution = await resolveWebProjectRepositoryGitHubContext({
     organizationId: input.organizationId,
@@ -116,6 +136,10 @@ export async function lookupProjectFileStringRepositoryContext(input: {
   });
 
   if (resolution.status === "unresolved") {
+    log.warn(
+      { code: "repository_not_enabled" },
+      "project file string context github context unresolved",
+    );
     return err({
       code: "repository_not_enabled",
       message: resolution.followUp,
@@ -123,6 +147,10 @@ export async function lookupProjectFileStringRepositoryContext(input: {
   }
 
   if (resolution.status !== "resolved" || !resolution.context.resolved) {
+    log.warn(
+      { code: "repository_not_enabled" },
+      "project file string context github context not resolved",
+    );
     return err({
       code: "repository_not_enabled",
       message:
@@ -135,7 +163,11 @@ export async function lookupProjectFileStringRepositoryContext(input: {
 
   try {
     sandboxId = await createRepositorySandbox(githubContext);
-  } catch {
+  } catch (error) {
+    log.warn(
+      { code: "repository_access_failed", err: serializeErrorForLog(error) },
+      "project file string context sandbox creation failed",
+    );
     return err({
       code: "repository_access_failed",
       message:
@@ -166,6 +198,7 @@ export async function lookupProjectFileStringRepositoryContext(input: {
   };
 
   ensureAgentSession(toolContext);
+  log.debug({ conversationId, sandboxId }, "project file string context repository agent starting");
 
   const instructions = [
     buildRepositoryGitHubContextInstructions(githubContext),
@@ -187,6 +220,10 @@ export async function lookupProjectFileStringRepositoryContext(input: {
 
     const summary = result.text.trim();
     if (!summary) {
+      log.warn(
+        { code: "agent_failed" },
+        "project file string context agent returned empty summary",
+      );
       return err({
         code: "agent_failed",
         message: "The repository agent did not return any context for this string.",
@@ -204,8 +241,16 @@ export async function lookupProjectFileStringRepositoryContext(input: {
       createdByUserId: input.localUserId,
     });
 
+    log.info(
+      { cached: false, summaryLength: summary.length },
+      "project file string context lookup completed",
+    );
     return ok({ summary, cached: false });
-  } catch {
+  } catch (error) {
+    log.error(
+      { code: "agent_failed", err: serializeErrorForLog(error) },
+      "project file string context agent lookup failed",
+    );
     return err({
       code: "agent_failed",
       message: "Failed to look up repository context. Try again in a moment.",

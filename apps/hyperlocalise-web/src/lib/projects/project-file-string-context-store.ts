@@ -3,6 +3,9 @@ import { createHash } from "node:crypto";
 import { and, eq, inArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import { createLogger } from "@/lib/log";
+
+const logger = createLogger("project-file-string-context-store");
 
 export function hashProjectFileStringSourceText(text: string): string {
   return createHash("sha256").update(text.trim()).digest("hex");
@@ -42,13 +45,41 @@ export async function getCachedProjectFileStringRepositoryContext(input: {
     .limit(1);
 
   if (!row) {
+    logger.debug(
+      {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        stringKey: input.stringKey,
+        outcome: "miss",
+      },
+      "project file string context cache lookup",
+    );
     return null;
   }
 
   const sourceTextHash = hashProjectFileStringSourceText(input.sourceText);
   if (row.sourceTextHash !== sourceTextHash) {
+    logger.debug(
+      {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        stringKey: input.stringKey,
+        outcome: "stale",
+      },
+      "project file string context cache lookup",
+    );
     return null;
   }
+
+  logger.debug(
+    {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      stringKey: input.stringKey,
+      outcome: "hit",
+    },
+    "project file string context cache lookup",
+  );
 
   return row.summary;
 }
@@ -64,6 +95,13 @@ export async function listCachedProjectFileStringRepositoryContexts(input: {
   if (input.stringKeys.length === 0) {
     return new Map();
   }
+
+  const log = logger.child({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    requestedKeyCount: input.stringKeys.length,
+  });
+  log.debug("listing cached project file string contexts");
 
   const sourceTextHashByKey = new Map<string, string>();
   for (const [stringKey, sourceText] of input.sourceTextByKey) {
@@ -117,6 +155,14 @@ export async function listCachedProjectFileStringRepositoryContexts(input: {
     }
   }
 
+  log.debug(
+    {
+      rowCount: rows.length,
+      matchedKeyCount: summaries.size,
+    },
+    "listed cached project file string contexts",
+  );
+
   return summaries;
 }
 
@@ -162,4 +208,14 @@ export async function saveProjectFileStringRepositoryContext(input: {
         updatedAt: now,
       },
     });
+
+  logger.debug(
+    {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      stringKey: input.stringKey,
+      summaryLength: input.summary.length,
+    },
+    "saved project file string context cache entry",
+  );
 }

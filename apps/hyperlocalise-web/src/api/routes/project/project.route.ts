@@ -23,6 +23,7 @@ import { listOrganizationProjects } from "@/lib/projects/list-organization-proje
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
 import { attachProjectFileCatAgentContexts } from "@/lib/projects/attach-project-file-cat-agent-contexts";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import {
   getNativeProjectCatFile,
@@ -339,17 +340,34 @@ function asFile(value: unknown) {
   return values.find((item): item is File => item instanceof File && item.size > 0) ?? null;
 }
 
+const catContextHydrationLogger = createLogger("project-file-cat-context-route");
+const stringContextRouteLogger = createLogger("project-file-string-context-route");
+
 async function hydrateProjectFileCatAgentContexts(input: {
   organizationId: string;
   projectId: string;
   catFile: NonNullable<Awaited<ReturnType<typeof getTmsProviderLiveCatFile>>>;
 }) {
-  return attachProjectFileCatAgentContexts({
+  const log = catContextHydrationLogger.child({
     organizationId: input.organizationId,
     projectId: input.projectId,
-    catFile: input.catFile,
-    preferredRepositoryFullName: null,
+    segmentCount: input.catFile.segments.length,
   });
+
+  try {
+    return await attachProjectFileCatAgentContexts({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      catFile: input.catFile,
+      preferredRepositoryFullName: null,
+    });
+  } catch (error) {
+    log.warn(
+      { err: serializeErrorForLog(error) },
+      "CAT context hydration failed; returning unhydrated file",
+    );
+    return input.catFile;
+  }
 }
 
 const validateProjectFilesQuery = validator("query", (value, c) => {
@@ -454,7 +472,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             catFile,
-          }).catch(() => catFile);
+          });
 
           return c.json({ catFile: hydratedCatFile }, 200);
         }
@@ -478,7 +496,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             catFile,
-          }).catch(() => catFile);
+          });
 
           return c.json({ catFile: hydratedCatFile }, 200);
         } catch (error) {
@@ -699,8 +717,28 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         });
 
         if (isErr(result)) {
+          stringContextRouteLogger.warn(
+            {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              stringKey: body.key,
+              code: result.error.code,
+            },
+            "project file string context lookup rejected",
+          );
           return badRequestResponse(c, result.error.code, result.error.message);
         }
+
+        stringContextRouteLogger.debug(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            stringKey: body.key,
+            cached: result.value.cached,
+            summaryLength: result.value.summary.length,
+          },
+          "project file string context lookup served",
+        );
 
         return c.json({ stringContext: result.value }, 200);
       },
