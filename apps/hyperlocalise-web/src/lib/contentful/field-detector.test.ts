@@ -110,6 +110,57 @@ describe("contentful field detector", () => {
     expect(units).toEqual([]);
   });
 
+  it("resolves language-only source locales against regional entry locales", () => {
+    const units = detectContentfulTranslatableFields({
+      entry: {
+        sys: {
+          id: "1a5gC3DK3qscb3ngqj1hki",
+          version: 1,
+          contentType: { sys: { id: "helpDeskArticle" } },
+        },
+        fields: {
+          title: {
+            "en-US": "How to create translation",
+          },
+          content: {
+            "en-US": {
+              nodeType: "document",
+              data: {},
+              content: [
+                {
+                  nodeType: "paragraph",
+                  data: {},
+                  content: [
+                    {
+                      nodeType: "text",
+                      value: "Here is an example of translation",
+                      marks: [],
+                      data: {},
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        },
+      },
+      contentType: {
+        sys: { id: "helpDeskArticle" },
+        fields: [
+          { id: "title", name: "Title", type: "Symbol", localized: true },
+          { id: "content", name: "Content", type: "RichText", localized: true },
+        ],
+      },
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      fieldConfig: { fieldMode: "auto" },
+      defaultLocale: "en-US",
+    });
+
+    expect(units.map((unit) => unit.fieldId)).toEqual(["title", "content"]);
+    expect(units.every((unit) => unit.sourceLocale === "en-US")).toBe(true);
+  });
+
   it("formats tag-like arrays back into Contentful arrays", () => {
     expect(
       formatTranslatedValueForContentful({
