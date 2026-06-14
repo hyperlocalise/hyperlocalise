@@ -22,6 +22,8 @@ import {
 import { listOrganizationProjects } from "@/lib/projects/list-organization-projects";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
+import { attachProjectFileCatAgentContexts } from "@/lib/projects/attach-project-file-cat-agent-contexts";
+import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import {
   getNativeProjectCatFile,
@@ -338,6 +340,36 @@ function asFile(value: unknown) {
   return values.find((item): item is File => item instanceof File && item.size > 0) ?? null;
 }
 
+const catContextHydrationLogger = createLogger("project-file-cat-context-route");
+const stringContextRouteLogger = createLogger("project-file-string-context-route");
+
+async function hydrateProjectFileCatAgentContexts(input: {
+  organizationId: string;
+  projectId: string;
+  catFile: NonNullable<Awaited<ReturnType<typeof getTmsProviderLiveCatFile>>>;
+}) {
+  const log = catContextHydrationLogger.child({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    segmentCount: input.catFile.segments.length,
+  });
+
+  try {
+    return await attachProjectFileCatAgentContexts({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      catFile: input.catFile,
+      preferredRepositoryFullName: null,
+    });
+  } catch (error) {
+    log.warn(
+      { err: serializeErrorForLog(error) },
+      "CAT context hydration failed; returning unhydrated file",
+    );
+    return input.catFile;
+  }
+}
+
 const validateProjectFilesQuery = validator("query", (value, c) => {
   const parsed = projectFilesQuerySchema.safeParse(value);
 
@@ -436,7 +468,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
           }
 
-          return c.json({ catFile }, 200);
+          const hydratedCatFile = await hydrateProjectFileCatAgentContexts({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            catFile,
+          });
+
+          return c.json({ catFile: hydratedCatFile }, 200);
         }
 
         try {
@@ -454,7 +492,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
-          return c.json({ catFile }, 200);
+          const hydratedCatFile = await hydrateProjectFileCatAgentContexts({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            catFile,
+          });
+
+          return c.json({ catFile: hydratedCatFile }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
@@ -669,11 +713,32 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           membershipRole: c.var.auth.membership.role,
           displayName: null,
           email: c.var.auth.user.email,
+          forceRefresh: body.forceRefresh ?? false,
         });
 
         if (isErr(result)) {
+          stringContextRouteLogger.warn(
+            {
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              stringKey: body.key,
+              code: result.error.code,
+            },
+            "project file string context lookup rejected",
+          );
           return badRequestResponse(c, result.error.code, result.error.message);
         }
+
+        stringContextRouteLogger.debug(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            stringKey: body.key,
+            cached: result.value.cached,
+            summaryLength: result.value.summary.length,
+          },
+          "project file string context lookup served",
+        );
 
         return c.json({ stringContext: result.value }, 200);
       },

@@ -128,6 +128,9 @@ export function mergeCatWorkspaceState(
   const segmentFormatChecks: CatWorkspaceState["segmentFormatChecks"] = {
     ...nextInitialState.segmentFormatChecks,
   };
+  const segmentIntelligence: CatWorkspaceState["segmentIntelligence"] = {
+    ...nextInitialState.segmentIntelligence,
+  };
   for (const segment of segments) {
     const previousSegment = previousSegments.get(segment.id);
     const currentSegment = currentSegments.get(segment.id);
@@ -140,6 +143,16 @@ export function mergeCatWorkspaceState(
         hasSaveFailureCheck(currentChecks))
     ) {
       segmentFormatChecks[segment.id] = currentChecks;
+    }
+
+    const nextAgentContext = nextInitialState.segmentIntelligence?.[segment.id]?.agentContext;
+    const currentAgentContext = currentState.segmentIntelligence?.[segment.id]?.agentContext;
+    if (!nextAgentContext?.trim() && currentAgentContext?.trim()) {
+      segmentIntelligence[segment.id] = {
+        ...(segmentIntelligence[segment.id] ?? nextInitialState.intelligence),
+        ...currentState.segmentIntelligence?.[segment.id],
+        agentContext: currentAgentContext,
+      };
     }
   }
 
@@ -156,6 +169,7 @@ export function mergeCatWorkspaceState(
         ? currentState.formatChecks
         : nextInitialState.formatChecks,
     segmentFormatChecks,
+    segmentIntelligence,
   };
 }
 
@@ -167,6 +181,14 @@ export interface CatWorkspaceContainerProps {
   review?: Partial<CatWorkspaceReview>;
   services?: CatWorkspaceServices;
   className?: string;
+}
+
+function collectSegmentsWithAgentContext(state: CatWorkspaceState): ReadonlySet<string> {
+  return new Set(
+    state.segments
+      .filter((segment) => Boolean(state.segmentIntelligence?.[segment.id]?.agentContext?.trim()))
+      .map((segment) => segment.id),
+  );
 }
 
 export function CatWorkspaceContainer({
@@ -184,7 +206,7 @@ export function CatWorkspaceContainer({
   const [isLookingUpContext, setIsLookingUpContext] = useState(false);
   const [revealedAgentContextSegmentIds, setRevealedAgentContextSegmentIds] = useState<
     ReadonlySet<string>
-  >(() => new Set());
+  >(() => collectSegmentsWithAgentContext(initialState));
   const [isGeneratingAiRecommendation, setIsGeneratingAiRecommendation] = useState(false);
   const [isAiRecommendationEnabled, setIsAiRecommendationEnabled] = useState(true);
   const stateRef = useRef(state);
@@ -223,6 +245,10 @@ export function CatWorkspaceContainer({
       mergeCatWorkspaceState(previousInitialStateRef.current, current, initialState),
     );
     previousInitialStateRef.current = initialState;
+    setRevealedAgentContextSegmentIds((current) => {
+      const next = collectSegmentsWithAgentContext(initialState);
+      return new Set([...current, ...next]);
+    });
   }, [initialState]);
 
   const runSegmentChecks = useCallback(
@@ -446,7 +472,13 @@ export function CatWorkspaceContainer({
           return;
         }
 
+        const existingAgentContext =
+          stateRef.current.segmentIntelligence?.[segmentId]?.agentContext?.trim();
         setRevealedAgentContextSegmentIds((current) => new Set(current).add(segmentId));
+        if (existingAgentContext) {
+          return;
+        }
+
         setIsLookingUpContext(true);
         try {
           const agentContext = await lookupSegmentContext(segment);

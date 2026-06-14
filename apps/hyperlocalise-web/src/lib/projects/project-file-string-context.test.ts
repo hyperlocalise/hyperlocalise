@@ -102,6 +102,47 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     await fixture.cleanup();
   });
 
+  it("returns cached repository context without invoking the repository agent", async () => {
+    const { organization, project, user } = await fixture.createStoredProjectFixture();
+    await insertRepository({
+      organizationId: organization.id,
+      githubRepositoryId: "1001",
+      fullName: "hyperlocalise/selected",
+    });
+
+    const { saveProjectFileStringRepositoryContext } =
+      await import("./project-file-string-context-store");
+    await saveProjectFileStringRepositoryContext({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath: "locales/en.json",
+      stringKey: "home.hero.title",
+      repositoryFullName: "hyperlocalise/selected",
+      sourceText: "Ship localized product experiences",
+      summary: "Cached hero headline context.",
+      createdByUserId: user.id,
+    });
+
+    const result = await lookupProjectFileStringRepositoryContext(
+      baseInput({
+        organizationId: organization.id,
+        projectId: project.id,
+        localUserId: user.id,
+      }),
+    );
+
+    expect(isErr(result)).toBe(false);
+    if (!result.ok) {
+      throw new Error("expected cached lookup to succeed");
+    }
+    expect(result.value).toEqual({
+      summary: "Cached hero headline context.",
+      cached: true,
+    });
+    expect(resolveWebProjectRepositoryGitHubContextMock).not.toHaveBeenCalled();
+    expect(runSubagentMock).not.toHaveBeenCalled();
+  });
+
   it("uses an explicit repository name without auto-selecting from enabled repositories", async () => {
     const { organization, project, user } = await fixture.createStoredProjectFixture();
 
@@ -115,6 +156,10 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     );
 
     expect(isErr(result)).toBe(false);
+    if (!result.ok) {
+      throw new Error("expected lookup to succeed");
+    }
+    expect(result.value.cached).toBe(false);
     expect(resolveWebProjectRepositoryGitHubContextMock).toHaveBeenCalledWith({
       organizationId: organization.id,
       repositoryFullName: "hyperlocalise/explicit",
@@ -182,6 +227,10 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     );
 
     expect(isErr(result)).toBe(false);
+    if (!result.ok) {
+      throw new Error("expected lookup to succeed");
+    }
+    expect(result.value.cached).toBe(false);
     expect(resolveWebProjectRepositoryGitHubContextMock).toHaveBeenCalledWith({
       organizationId: organization.id,
       repositoryFullName: "hyperlocalise/selected",
