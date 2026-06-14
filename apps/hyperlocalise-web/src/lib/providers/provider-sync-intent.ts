@@ -146,5 +146,32 @@ export async function enqueueProviderProjectMaterializationSyncIntents(input: {
       cause: "manual",
       priority: 5,
     }),
+    enqueueProviderSyncIntent({
+      organizationId: input.organizationId,
+      providerCredentialId: input.providerCredentialId,
+      providerKind: input.providerKind,
+      projectId: input.projectId,
+      syncKind: "job_task_scan",
+      cause: "manual",
+      priority: 5,
+    }),
   ]);
+}
+
+export async function enqueueProviderProjectJobSyncIntent(input: {
+  organizationId: string;
+  providerCredentialId: string;
+  providerKind: ExternalTmsProviderKind;
+  projectId: string;
+  cause: ProviderSyncIntentCause;
+}) {
+  return enqueueProviderSyncIntent({
+    organizationId: input.organizationId,
+    providerCredentialId: input.providerCredentialId,
+    providerKind: input.providerKind,
+    projectId: input.projectId,
+    syncKind: "job_task_scan",
+    cause: input.cause,
+    priority: 10,
+  });
 }

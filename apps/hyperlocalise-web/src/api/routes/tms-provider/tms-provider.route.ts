@@ -6,6 +6,8 @@ import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { enqueueProviderCatalogSyncIntent } from "@/lib/providers/provider-sync-intent";
+import type { ProviderSyncQueue } from "@/lib/workflow/types";
+import { createProviderSyncQueue } from "@/workflows/adapters";
 import {
   getTmsProviderConnection,
   getTmsProviderLiveJobFileDetail,
@@ -127,7 +129,13 @@ async function getCurrentUserProviderAssigneeCandidates(auth: AuthVariables["aut
   return candidates.filter((candidate) => candidate.trim().length > 0);
 }
 
-export function createTmsProviderRoutes() {
+type CreateTmsProviderRoutesOptions = {
+  providerSyncQueue?: ProviderSyncQueue;
+};
+
+export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions = {}) {
+  const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
+
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/connection", async (c) => {
@@ -188,11 +196,28 @@ export function createTmsProviderRoutes() {
         cause: "manual",
       });
 
+      let workflowRun: { ids: string[] };
+      try {
+        workflowRun = await providerSyncQueue.enqueue({
+          providerSyncIntentId: result.intentId,
+          organizationId,
+        });
+      } catch {
+        return c.json(
+          {
+            error: "provider_sync_queue_unavailable",
+            message: "Provider sync workflow could not be started.",
+          },
+          503,
+        );
+      }
+
       return c.json(
         {
           providerProjectSync: {
             intentId: result.intentId,
             created: result.created,
+            workflowRunIds: workflowRun.ids,
           },
         },
         202,

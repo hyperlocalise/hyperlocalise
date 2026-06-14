@@ -9,6 +9,11 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { addInteractionMessage, createInteraction } from "@/lib/conversations/interactions";
+import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import {
+  encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -33,6 +38,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   };
 });
 
+vi.mock("workflow/api", () => ({
+  start: vi.fn(async () => ({ runId: "wrun_provider_sync_test" })),
+}));
+
 const client = testClient(app);
 const projectFixture = createProjectTestFixture(client);
 const teamFixture = createTeamTestFixture(client);
@@ -53,6 +62,89 @@ afterEach(async () => {
 });
 
 describe("team-scoped project access", () => {
+  it("queues a provider job sync for an external TMS project", async () => {
+    const admin = createWorkosIdentityWithRole("admin");
+    const headers = await authHeadersFor(admin);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential("crowdin-secret"));
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "902807",
+    });
+
+    const [credential] = await db
+      .insert(schema.organizationExternalTmsProviderCredentials)
+      .values({
+        organizationId,
+        createdByUserId: userId,
+        updatedByUserId: userId,
+        providerKind: "crowdin",
+        displayName: "Crowdin",
+        authMode: "api_token",
+        maskedSecretSuffix: "••••-cret",
+        encryptionAlgorithm: encrypted.algorithm,
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        keyVersion: encrypted.keyVersion,
+      })
+      .returning();
+
+    await db.insert(schema.projects).values({
+      id: projectId,
+      organizationId,
+      teamId: null,
+      createdByUserId: userId,
+      updatedByUserId: userId,
+      name: "Crowdin project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProviderCredentialId: credential.id,
+      externalProjectId: "902807",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      isActive: true,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].jobs.sync.$post(
+      {
+        param: {
+          organizationSlug: admin.organization.slug ?? "missing-slug",
+          projectId,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toMatchObject({
+      providerJobSync: {
+        created: true,
+        workflowRunIds: ["wrun_provider_sync_test"],
+      },
+    });
+
+    const [intent] = await db
+      .select()
+      .from(schema.providerSyncIntents)
+      .where(eq(schema.providerSyncIntents.organizationId, organizationId))
+      .limit(1);
+
+    expect(intent).toMatchObject({
+      providerCredentialId: credential.id,
+      providerKind: "crowdin",
+      projectId,
+      syncKind: "job_task_scan",
+      cause: "manual",
+      status: "pending",
+    });
+  });
+
   it("denies cross-team project access for non-admin members", async () => {
     const admin = createWorkosIdentityWithRole("admin");
     const member = createWorkosIdentityForOrganization(admin.organization, "member");

@@ -3,10 +3,8 @@ import { Hono } from "hono";
 import { verifyCronRequest } from "@/api/routes/cron/cron-auth";
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
-import {
-  runProviderSyncWorker,
-  scheduleIncrementalProviderSyncIntents,
-} from "@/lib/providers/provider-sync-worker";
+import { scheduleIncrementalProviderSyncIntents } from "@/lib/providers/provider-sync-worker";
+import { runProviderSyncWorkflowDispatcher } from "@/lib/providers/provider-sync-workflow-dispatcher";
 
 const logger = createLogger("cron-tms-scheduled-reconciliation");
 
@@ -38,14 +36,14 @@ export function createTmsScheduledReconciliationRoutes() {
     const schedulerResults = await scheduleIncrementalProviderSyncIntents({
       limit: env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
     });
-    const workerResults = await runProviderSyncWorker({
+    const dispatcherResults = await runProviderSyncWorkflowDispatcher({
       limit: env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
     });
 
     logger.info(
       {
         scheduler: schedulerResults,
-        worker: workerResults,
+        dispatcher: dispatcherResults,
       },
       "tms scheduled reconciliation cron tick completed",
     );
@@ -54,7 +52,7 @@ export function createTmsScheduledReconciliationRoutes() {
       {
         results: {
           scheduler: schedulerResults,
-          worker: workerResults,
+          dispatcher: dispatcherResults,
         },
       },
       200,

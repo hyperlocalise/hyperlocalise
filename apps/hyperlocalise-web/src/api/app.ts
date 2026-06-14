@@ -10,6 +10,7 @@ import type {
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
+  ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
   ContentfulAutomationExecutionQueue,
@@ -60,6 +61,7 @@ import {
   createProviderAgentWritebackQueue,
   createI18nSetupQueue,
   createContentfulAutomationExecutionQueue,
+  createProviderSyncQueue,
 } from "@/workflows/adapters";
 
 type CreateAppOptions = {
@@ -72,6 +74,7 @@ type CreateAppOptions = {
   providerAgentQaQueue?: ProviderAgentQaQueue;
   providerAgentCommentQueue?: ProviderAgentCommentQueue;
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
+  providerSyncQueue?: ProviderSyncQueue;
   contentfulAutomationExecutionQueue?: ContentfulAutomationExecutionQueue;
   fileStorageAdapter?: FileStorageAdapter;
 };
@@ -85,6 +88,7 @@ export function createApp(options: CreateAppOptions = {}) {
     options.providerAgentCommentQueue ?? createProviderAgentCommentQueue();
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
+  const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
   const i18nSetupQueue = options.i18nSetupQueue ?? createI18nSetupQueue();
   const contentfulAutomationExecutionQueue =
     options.contentfulAutomationExecutionQueue ?? createContentfulAutomationExecutionQueue();
@@ -107,6 +111,7 @@ export function createApp(options: CreateAppOptions = {}) {
         providerAgentQaQueue,
         providerAgentCommentQueue,
         providerAgentWritebackQueue,
+        providerSyncQueue,
         i18nSetupQueue,
         contentfulAutomationExecutionQueue,
       }),
@@ -141,6 +146,7 @@ function createOrgScopedAppRoutes(
     providerAgentQaQueue: ProviderAgentQaQueue;
     providerAgentCommentQueue: ProviderAgentCommentQueue;
     providerAgentWritebackQueue: ProviderAgentWritebackQueue;
+    providerSyncQueue: ProviderSyncQueue;
     i18nSetupQueue: I18nSetupQueue;
     contentfulAutomationExecutionQueue: ContentfulAutomationExecutionQueue;
   },
@@ -163,7 +169,10 @@ function createOrgScopedAppRoutes(
     .route("/provider-credential", createProviderCredentialRoutes())
     .route("/contentful-connections", createContentfulConnectionRoutes())
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
-    .route("/tms-provider", createTmsProviderRoutes())
+    .route(
+      "/tms-provider",
+      createTmsProviderRoutes({ providerSyncQueue: options.providerSyncQueue }),
+    )
     .route("/tms-agent-automation", createTmsAgentAutomationRoutes())
     .route("/tms-dashboard-summary", createTmsDashboardSummaryRoutes())
     .route("/agent-email", createAgentEmailRoutes())

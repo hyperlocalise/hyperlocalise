@@ -26,7 +26,11 @@ export function contentfulWebhookCallbackUrl(subscriptionId: string) {
   if (!env.HYPERLOCALISE_PUBLIC_APP_URL) {
     return null;
   }
-  return `${env.HYPERLOCALISE_PUBLIC_APP_URL}/api/webhooks/contentful/${subscriptionId}`;
+  return buildContentfulWebhookCallbackUrl(env.HYPERLOCALISE_PUBLIC_APP_URL, subscriptionId);
+}
+
+export function buildContentfulWebhookCallbackUrl(baseUrl: string, subscriptionId: string) {
+  return `${baseUrl.replace(/\/+$/, "")}/api/webhooks/contentful/${subscriptionId}`;
 }
 
 export function buildContentfulProviderWebhookName(displayName: string) {
