@@ -6,7 +6,6 @@ import type { FileStorageAdapter } from "@/lib/file-storage";
 import type {
   EmailAgentTaskQueue,
   GitHubFixQueue,
-  I18nSetupQueue,
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
@@ -59,7 +58,6 @@ import {
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
-  createI18nSetupQueue,
   createContentfulAutomationExecutionQueue,
   createProviderSyncQueue,
 } from "@/workflows/adapters";
@@ -67,7 +65,6 @@ import {
 type CreateAppOptions = {
   emailAgentTaskQueue?: EmailAgentTaskQueue;
   githubFixQueue?: GitHubFixQueue;
-  i18nSetupQueue?: I18nSetupQueue;
   githubWebhookHandler?: (request: Request) => Promise<Response>;
   jobQueue?: JobQueue<TranslationJobEventData>;
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
@@ -89,7 +86,6 @@ export function createApp(options: CreateAppOptions = {}) {
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
   const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
-  const i18nSetupQueue = options.i18nSetupQueue ?? createI18nSetupQueue();
   const contentfulAutomationExecutionQueue =
     options.contentfulAutomationExecutionQueue ?? createContentfulAutomationExecutionQueue();
 
@@ -112,7 +108,6 @@ export function createApp(options: CreateAppOptions = {}) {
         providerAgentCommentQueue,
         providerAgentWritebackQueue,
         providerSyncQueue,
-        i18nSetupQueue,
         contentfulAutomationExecutionQueue,
       }),
     )
@@ -147,7 +142,6 @@ function createOrgScopedAppRoutes(
     providerAgentCommentQueue: ProviderAgentCommentQueue;
     providerAgentWritebackQueue: ProviderAgentWritebackQueue;
     providerSyncQueue: ProviderSyncQueue;
-    i18nSetupQueue: I18nSetupQueue;
     contentfulAutomationExecutionQueue: ContentfulAutomationExecutionQueue;
   },
 ) {
@@ -185,10 +179,7 @@ function createOrgScopedAppRoutes(
       "/conversations",
       createConversationRoutes({ fileStorageAdapter: options.fileStorageAdapter }),
     )
-    .route(
-      "/github-installation",
-      createGithubInstallationRoutes({ i18nSetupQueue: options.i18nSetupQueue }),
-    )
+    .route("/github-installation", createGithubInstallationRoutes())
     .route("/api-keys", createApiKeyRoutes())
     .route("/members", createMemberRoutes())
     .route("/workspace", createWorkspaceRoutes());

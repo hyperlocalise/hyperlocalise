@@ -4,7 +4,6 @@ import { emailTranslationWorkflow } from "./email-translation";
 import { contentfulAutomationExecutionWorkflow } from "./contentful-automation-execution";
 import { githubFixWorkflow } from "./github-fix";
 import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
-import { i18nSetupWorkflow } from "./i18n-setup";
 import { providerAgentCommentWorkflow } from "./provider-agent-comment";
 import { providerAgentQaWorkflow } from "./provider-agent-qa";
 import { providerAgentTranslationWorkflow } from "./provider-agent-translation";
@@ -20,7 +19,6 @@ import type {
   ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
-  I18nSetupQueue,
   ContentfulAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
@@ -35,15 +33,6 @@ export function createGitHubFixQueue(): GitHubFixQueue {
       return {
         ids: [run.runId],
       };
-    },
-  };
-}
-
-export function createI18nSetupQueue(): I18nSetupQueue {
-  return {
-    async enqueue(event) {
-      const run = await start(i18nSetupWorkflow, [event]);
-      return { ids: [run.runId] };
     },
   };
 }

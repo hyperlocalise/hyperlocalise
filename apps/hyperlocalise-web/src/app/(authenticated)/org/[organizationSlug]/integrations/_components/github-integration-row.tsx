@@ -10,7 +10,6 @@ import { toast } from "sonner";
 
 import { IntegrationRow } from "./integration-row";
 import { RepositoryAutomationSettingsAction } from "./repository-automation-settings-action";
-import { RepositoryI18nSetupAction } from "./repository-i18n-setup-action";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -554,12 +553,6 @@ export function GitHubIntegrationRow({
                             repositoryFullName={repository.fullName}
                             enabled={checked}
                             archived={repository.archived}
-                            userCanManage={userCanManage}
-                          />
-                          <RepositoryI18nSetupAction
-                            organizationSlug={organizationSlug}
-                            githubRepositoryId={repository.githubRepositoryId}
-                            enabled={checked}
                             userCanManage={userCanManage}
                           />
                         </div>

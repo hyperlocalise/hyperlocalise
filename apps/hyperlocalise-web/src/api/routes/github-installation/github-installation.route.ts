@@ -11,14 +11,6 @@ import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/r
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 import {
-  cancelI18nSetupRun,
-  findActiveI18nSetupRun,
-  getI18nSetupRun,
-  getLatestI18nSetupRun,
-  serializeI18nSetupRun,
-} from "@/lib/agents/i18n-setup/i18n-setup-runs";
-import type { I18nSetupRequestedEventData } from "@/lib/agents/i18n-setup/i18n-setup-task";
-import {
   GITHUB_STATE_TTL_MS,
   getGitHubStateSecret,
   signGitHubState,
@@ -26,8 +18,6 @@ import {
 import { getGitHubApp } from "@/lib/agents/github/app";
 import { syncInstallationRepositories } from "@/lib/agents/github/repositories";
 import { createLogger } from "@/lib/log";
-import type { I18nSetupQueue } from "@/lib/workflow/types";
-import { createI18nSetupQueue } from "@/workflows/adapters";
 
 import { parseGithubRepositoryAutomationSettingsPartial } from "@/lib/agents/github/github-repository-automation-settings";
 import {
@@ -38,7 +28,6 @@ import {
 
 import {
   githubRepositoryIdParamSchema,
-  i18nSetupRunIdParamSchema,
   searchRepositoriesSchema,
   updateRepositoriesSchema,
   upsertGithubRepositoryAutomationSettingsBodySchema,
@@ -119,13 +108,7 @@ function mapAutomationSettingsError(c: Parameters<typeof badRequestResponse>[0],
   throw error;
 }
 
-type GithubInstallationRouteOptions = {
-  i18nSetupQueue?: I18nSetupQueue;
-};
-
-export function createGithubInstallationRoutes(options: GithubInstallationRouteOptions = {}) {
-  const i18nSetupQueue = options.i18nSetupQueue ?? createI18nSetupQueue();
-
+export function createGithubInstallationRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/", async (c) => {
@@ -239,195 +222,6 @@ export function createGithubInstallationRoutes(options: GithubInstallationRouteO
         .orderBy(schema.githubInstallationRepositories.fullName);
 
       return c.json({ repositories }, 200);
-    })
-    .post("/repositories/:githubRepositoryId/i18n-setup", async (c) => {
-      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
-        return c.json({ error: "forbidden" }, 403);
-      }
-
-      const parsedParams = githubRepositoryIdParamSchema.safeParse(c.req.param());
-      if (!parsedParams.success) {
-        return badRequestResponse(c, "invalid_github_repository_id");
-      }
-
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const { githubRepositoryId } = parsedParams.data;
-
-      const [installation] = await db
-        .select()
-        .from(schema.githubInstallations)
-        .where(eq(schema.githubInstallations.organizationId, organizationId))
-        .limit(1);
-
-      if (!installation) {
-        return notFoundResponse(c, "github_installation_not_found");
-      }
-
-      const [repository] = await db
-        .select()
-        .from(schema.githubInstallationRepositories)
-        .where(
-          and(
-            eq(schema.githubInstallationRepositories.organizationId, organizationId),
-            eq(schema.githubInstallationRepositories.githubRepositoryId, githubRepositoryId),
-          ),
-        )
-        .limit(1);
-
-      if (!repository) {
-        return notFoundResponse(c, "github_repository_not_found");
-      }
-
-      if (!repository.enabled) {
-        return badRequestResponse(
-          c,
-          "github_repository_not_enabled",
-          "Enable this repository before running the i18n setup wizard.",
-        );
-      }
-
-      if (repository.archived) {
-        return badRequestResponse(
-          c,
-          "github_repository_archived",
-          "Cannot run the i18n setup wizard on an archived repository.",
-        );
-      }
-
-      const activeRun = await findActiveI18nSetupRun({
-        organizationId,
-        githubRepositoryId,
-      });
-
-      if (activeRun) {
-        return c.json({ i18nSetupRun: activeRun }, 200);
-      }
-
-      const baseBranch = repository.defaultBranch ?? "main";
-      const runId = randomUUID();
-      const [owner, repoName] = repository.fullName.split("/");
-      if (!owner || !repoName) {
-        return badRequestResponse(c, "invalid_repository_full_name");
-      }
-
-      const [createdRun] = await db
-        .insert(schema.githubI18nSetupRuns)
-        .values({
-          id: runId,
-          organizationId,
-          actorUserId: c.var.auth.user.localUserId,
-          githubInstallationId: installation.githubInstallationId,
-          githubRepositoryId: repository.githubRepositoryId,
-          repositoryFullName: repository.fullName,
-          baseBranch,
-          status: "queued",
-        })
-        .returning();
-
-      const event: I18nSetupRequestedEventData = {
-        runId,
-        organizationId,
-        actorUserId: c.var.auth.user.localUserId,
-        installationId: Number.parseInt(installation.githubInstallationId, 10),
-        repositoryOwner: owner,
-        repositoryName: repoName,
-        repositoryFullName: repository.fullName,
-        githubRepositoryId: repository.githubRepositoryId,
-        baseBranch,
-      };
-
-      try {
-        const queued = await i18nSetupQueue.enqueue(event);
-        const [updatedRun] = await db
-          .update(schema.githubI18nSetupRuns)
-          .set({
-            workflowRunId: queued.ids[0] ?? null,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.githubI18nSetupRuns.id, runId))
-          .returning();
-
-        return c.json({ i18nSetupRun: serializeI18nSetupRun(updatedRun ?? createdRun) }, 202);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        await db
-          .update(schema.githubI18nSetupRuns)
-          .set({
-            status: "failed",
-            errorCode: "i18n_setup_enqueue_failed",
-            errorMessage: message,
-            updatedAt: new Date(),
-          })
-          .where(eq(schema.githubI18nSetupRuns.id, runId));
-
-        return c.json(
-          {
-            error: "i18n_setup_enqueue_failed",
-            message: "Could not start the i18n setup wizard.",
-          },
-          502,
-        );
-      }
-    })
-    .get("/repositories/:githubRepositoryId/i18n-setup-runs/latest", async (c) => {
-      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
-        return c.json({ error: "forbidden" }, 403);
-      }
-
-      const parsedParams = githubRepositoryIdParamSchema.safeParse(c.req.param());
-      if (!parsedParams.success) {
-        return badRequestResponse(c, "invalid_github_repository_id");
-      }
-
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const latestRun = await getLatestI18nSetupRun({
-        organizationId,
-        githubRepositoryId: parsedParams.data.githubRepositoryId,
-      });
-
-      return c.json({ i18nSetupRun: latestRun }, 200);
-    })
-    .get("/i18n-setup-runs/:runId", async (c) => {
-      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
-        return c.json({ error: "forbidden" }, 403);
-      }
-
-      const parsedParams = i18nSetupRunIdParamSchema.safeParse(c.req.param());
-      if (!parsedParams.success) {
-        return badRequestResponse(c, "invalid_i18n_setup_run_id");
-      }
-
-      const run = await getI18nSetupRun({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        runId: parsedParams.data.runId,
-      });
-
-      if (!run) {
-        return notFoundResponse(c, "i18n_setup_run_not_found");
-      }
-
-      return c.json({ i18nSetupRun: run }, 200);
-    })
-    .post("/i18n-setup-runs/:runId/cancel", async (c) => {
-      if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {
-        return c.json({ error: "forbidden" }, 403);
-      }
-
-      const parsedParams = i18nSetupRunIdParamSchema.safeParse(c.req.param());
-      if (!parsedParams.success) {
-        return badRequestResponse(c, "invalid_i18n_setup_run_id");
-      }
-
-      const run = await cancelI18nSetupRun({
-        organizationId: c.var.auth.organization.localOrganizationId,
-        runId: parsedParams.data.runId,
-      });
-
-      if (!run) {
-        return notFoundResponse(c, "i18n_setup_run_not_found");
-      }
-
-      return c.json({ i18nSetupRun: run }, 200);
     })
     .get("/repositories/:githubRepositoryId/automation-settings", async (c) => {
       if (!isWorkspaceOperatorRole(c.var.auth.membership.role)) {

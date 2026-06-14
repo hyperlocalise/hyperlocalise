@@ -15,10 +15,6 @@ export const githubRepositoryIdParamSchema = z.object({
   githubRepositoryId: z.string().regex(/^\d+$/),
 });
 
-export const i18nSetupRunIdParamSchema = z.object({
-  runId: z.string().uuid(),
-});
-
 const githubRepositoryAutomationSettingsPartialSchema = z.object({
   workflows: z
     .object({

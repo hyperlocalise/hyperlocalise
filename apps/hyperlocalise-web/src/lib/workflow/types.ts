@@ -66,10 +66,6 @@ export type JobQueue<Event> = {
 
 export type GitHubFixQueue = JobQueue<GitHubFixRequestedEventData>;
 
-export type I18nSetupQueue = JobQueue<
-  import("@/lib/agents/i18n-setup/i18n-setup-task").I18nSetupRequestedEventData
->;
-
 export type EmailAgentTaskAttachment = {
   id: string;
   filename: string;
