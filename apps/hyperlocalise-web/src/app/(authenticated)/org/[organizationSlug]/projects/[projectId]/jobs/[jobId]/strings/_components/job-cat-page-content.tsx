@@ -113,14 +113,14 @@ export function JobCatPageContent({
     },
   });
 
-  const providerFiles = useMemo(
-    () => sortJobCatProviderFiles((filesQuery.data ?? []).filter((file) => file.provider)),
+  const taskFiles = useMemo(
+    () => sortJobCatProviderFiles(filesQuery.data ?? []),
     [filesQuery.data],
   );
 
-  const selectedFile = sourcePath
-    ? providerFiles.find((file) => file.sourcePath === sourcePath)
-    : null;
+  const providerFiles = useMemo(() => taskFiles.filter((file) => file.provider), [taskFiles]);
+
+  const selectedFile = sourcePath ? taskFiles.find((file) => file.sourcePath === sourcePath) : null;
 
   const enabledRepositoryFullNames = useMemo(
     () =>
@@ -134,21 +134,24 @@ export function JobCatPageContent({
     ? catFileRepositoryPreferenceKey(organizationSlug, projectId, selectedFile.sourcePath)
     : null;
 
-  const [selectedRepositoryFullName, setSelectedRepositoryFullName] = useState<string | null>(null);
+  const [repositoryOverride, setRepositoryOverride] = useState<string | null>(null);
 
   useEffect(() => {
+    setRepositoryOverride(null);
+  }, [repositoryPreferenceKey]);
+
+  const autoSelectedRepositoryFullName = useMemo(() => {
     if (!repositoryPreferenceKey) {
-      setSelectedRepositoryFullName(null);
-      return;
+      return null;
     }
 
-    setSelectedRepositoryFullName(
-      selectJobCatRepository({
-        enabledRepositoryFullNames,
-        savedRepositoryFullName: readCatFileRepositoryPreference(repositoryPreferenceKey),
-      }),
-    );
+    return selectJobCatRepository({
+      enabledRepositoryFullNames,
+      savedRepositoryFullName: readCatFileRepositoryPreference(repositoryPreferenceKey),
+    });
   }, [enabledRepositoryFullNames, repositoryPreferenceKey]);
+
+  const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
 
   if (!sourcePath) {
     return (
@@ -167,7 +170,7 @@ export function JobCatPageContent({
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
           <Spinner />
-          <TypographyP className="text-sm text-muted-foreground">Loading task file…</TypographyP>
+          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
         </div>
       </ProjectPageShell>
     );
@@ -265,7 +268,7 @@ export function JobCatPageContent({
     }
 
     writeCatFileRepositoryPreference(repositoryPreferenceKey, nextRepositoryFullName);
-    setSelectedRepositoryFullName(nextRepositoryFullName);
+    setRepositoryOverride(nextRepositoryFullName);
   };
 
   return (
@@ -314,13 +317,7 @@ export function JobCatPageContent({
                 onValueChange={handleRepositoryChange}
               >
                 <SelectTrigger className="h-9 w-full font-mono text-xs">
-                  <SelectValue
-                    placeholder={
-                      enabledRepositoryFullNames.length > 1
-                        ? "Select repository"
-                        : "No repository selected"
-                    }
-                  />
+                  <SelectValue placeholder="Select repository" />
                 </SelectTrigger>
                 <SelectContent>
                   {enabledRepositoryFullNames.map((repositoryFullName) => (
