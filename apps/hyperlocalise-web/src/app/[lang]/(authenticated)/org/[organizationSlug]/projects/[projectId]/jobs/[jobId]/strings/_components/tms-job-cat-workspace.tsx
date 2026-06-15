@@ -21,7 +21,7 @@ import type {
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/types";
-import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/load-cat-segment-concordance";
+import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/map-cat-concordance-for-ai-recommendation";
 import { AlertCircleIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
@@ -379,7 +379,7 @@ export function TmsJobCatWorkspace({
   const generateAiRecommendation = useCallback(
     async (segment: CatSegment, targetText: string, intelligence?: CatSegmentIntelligence) => {
       const concordancePayload =
-        intelligence?.glossaryTerms || intelligence?.translationMemoryMatches
+        intelligence != null
           ? mapCatConcordanceForAiRecommendation(
               {
                 glossaryTerms: intelligence.glossaryTerms ?? [],

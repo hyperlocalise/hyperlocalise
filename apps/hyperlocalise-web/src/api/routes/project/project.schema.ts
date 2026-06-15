@@ -395,6 +395,7 @@ export const projectFileCatConcordanceGlossaryTermSchema = z.object({
   source: z.string(),
   target: z.string(),
   approved: z.boolean(),
+  forbidden: z.boolean(),
 });
 
 export const projectFileCatConcordanceTranslationMemoryMatchSchema = z.object({

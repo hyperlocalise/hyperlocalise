@@ -81,7 +81,13 @@ describe("project file CAT routes", () => {
     });
     loadCatSegmentConcordanceMock.mockResolvedValue({
       glossaryTerms: [
-        { id: "glossary-1", source: "workspace", target: "espace de travail", approved: true },
+        {
+          id: "glossary-1",
+          source: "workspace",
+          target: "espace de travail",
+          approved: true,
+          forbidden: false,
+        },
       ],
       translationMemoryMatches: [
         {

@@ -42,6 +42,7 @@ export interface CatGlossaryTerm {
   source: string;
   target: string;
   approved: boolean;
+  forbidden: boolean;
 }
 
 export interface CatTranslationMemoryMatch {

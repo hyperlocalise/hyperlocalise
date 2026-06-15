@@ -16,7 +16,8 @@ import {
 import { loadGlossaryMatchesForContext } from "@/lib/translation/load-glossary-matches";
 import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
 
-import type { CatAiRecommendationInput } from "./generate-cat-ai-recommendation";
+export type { CatConcordanceForAiRecommendation } from "./map-cat-concordance-for-ai-recommendation";
+export { mapCatConcordanceForAiRecommendation } from "./map-cat-concordance-for-ai-recommendation";
 
 export type CatSegmentConcordance = {
   glossaryTerms: CatGlossaryTerm[];
@@ -29,6 +30,7 @@ function toCatGlossaryTerm(match: NormalizedGlossaryMatch): CatGlossaryTerm {
     source: match.sourceTerm,
     target: match.targetTerm,
     approved: match.termStatus.preferred,
+    forbidden: match.termStatus.forbidden,
   };
 }
 
@@ -137,25 +139,5 @@ export async function loadCatSegmentConcordance(input: {
     translationMemoryMatches: translationMemoryMatches.map((match) =>
       toCatTranslationMemoryMatch(match),
     ),
-  };
-}
-
-export function mapCatConcordanceForAiRecommendation(
-  concordance: CatSegmentConcordance,
-  targetLocale: string,
-): Pick<CatAiRecommendationInput, "glossaryTerms" | "translationMemoryMatches"> {
-  return {
-    glossaryTerms: concordance.glossaryTerms.map((term) => ({
-      sourceTerm: term.source,
-      targetTerm: term.target,
-      targetLocale,
-      forbidden: term.approved ? false : null,
-      description: null,
-    })),
-    translationMemoryMatches: concordance.translationMemoryMatches.map((match) => ({
-      sourceText: match.sourceText,
-      targetText: match.targetText,
-      targetLocale,
-    })),
   };
 }

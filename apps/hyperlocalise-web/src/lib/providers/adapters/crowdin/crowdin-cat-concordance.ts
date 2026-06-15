@@ -4,8 +4,36 @@ import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary
 import { normalizeProviderGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
 import { normalizeProviderTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
+import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
+
+function rethrowCrowdinConcordanceApiError(error: unknown): never {
+  if (error instanceof CrowdinApiError) {
+    if (error.status === 401 || error.status === 403) {
+      throw new TmsProviderLiveError(
+        "crowdin_auth_invalid",
+        "Crowdin credentials are invalid or lack permission for this project.",
+      );
+    }
+    if (error.status === 404) {
+      throw new TmsProviderLiveError(
+        "invalid_crowdin_project_or_file_id",
+        "The Crowdin project could not be found.",
+      );
+    }
+    throw new TmsProviderLiveError(
+      "provider_fetch_failed",
+      "Failed to fetch glossary and translation memory from Crowdin.",
+    );
+  }
+
+  if (error instanceof Error && error.message === "crowdin_auth_invalid") {
+    throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+  }
+
+  throw error;
+}
 
 function stableConcordanceTermId(
   glossaryId: string,
@@ -72,10 +100,7 @@ export async function searchCrowdinCatConcordance(input: {
       }),
     ]);
   } catch (error) {
-    if (error instanceof CrowdinApiError && error.status === 401) {
-      throw new Error("crowdin_auth_invalid");
-    }
-    throw error;
+    rethrowCrowdinConcordanceApiError(error);
   }
 
   const glossaryTerms: NormalizedGlossaryMatch[] = [];

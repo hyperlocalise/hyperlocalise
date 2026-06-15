@@ -64,4 +64,39 @@ describe("searchCrowdinCatConcordance", () => {
       memoryName: "Website TM",
     });
   });
+
+  it("maps forbidden Crowdin glossary term status into normalized term flags", async () => {
+    const client = {
+      glossaryConcordanceSearch: vi.fn().mockResolvedValue([
+        {
+          glossary: { id: 7, name: "Product terms" },
+          concept: {
+            id: 1,
+            subject: "",
+            definition: "",
+            translatable: true,
+            note: "",
+            url: "",
+            figure: "",
+          },
+          sourceTerms: [{ id: 11, languageId: "en", text: "workspace", status: "preferred" }],
+          targetTerms: [{ id: 12, languageId: "fr", text: "espace", status: "forbidden" }],
+        },
+      ]),
+      concordanceSearch: vi.fn().mockResolvedValue([]),
+    } as unknown as CrowdinApiClient;
+
+    const result = await searchCrowdinCatConcordance({
+      client,
+      externalProjectId: "42",
+      sourceLocale: "en",
+      targetLocale: "fr",
+      sourceText: "workspace",
+    });
+
+    expect(result.glossaryTerms[0]?.termStatus).toEqual({
+      forbidden: true,
+      preferred: false,
+    });
+  });
 });
