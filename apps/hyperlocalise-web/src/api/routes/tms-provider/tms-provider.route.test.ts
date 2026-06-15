@@ -547,6 +547,130 @@ describe("tmsProviderRoutes", () => {
     });
   });
 
+  it("accepts URL-encoded project ids when starting translate_with_agent", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+
+    const credential = await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    const projectId = "ext:crowdin:902807";
+    await db.insert(schema.projects).values({
+      id: projectId,
+      organizationId,
+      teamId: null,
+      createdByUserId: userId,
+      updatedByUserId: userId,
+      name: "Crowdin project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProviderCredentialId: credential.id,
+      externalProjectId: "902807",
+      sourceLocale: "en",
+      targetLocales: ["fr"],
+      isActive: true,
+    });
+
+    vi.spyOn(tmsProviderLive, "getTmsProviderLiveJobDetail").mockResolvedValue({
+      id: "ext:crowdin:902807:99",
+      projectId,
+      projectName: "Crowdin project",
+      createdByUserId: null,
+      kind: "translation",
+      type: null,
+      status: "running",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      completedAt: null,
+      workflowRunId: null,
+      lastError: null,
+      inputPayload: null,
+      outcomeKind: null,
+      outcomePayload: null,
+      reviewCriteria: null,
+      reviewTargetLocale: null,
+      syncConnectorKind: null,
+      syncDirection: null,
+      assetType: null,
+      assetOperation: null,
+      externalProviderKind: "crowdin",
+      externalTaskId: "99",
+      externalStatus: "in_progress",
+      externalTitle: "Translate homepage",
+      externalDueDate: null,
+      externalTargetLocales: ["fr"],
+      externalAssignedUsers: [],
+      externalSyncState: null,
+      externalJobId: "99",
+      externalUrl: "https://crowdin.com/task/99",
+      externalProviderPayload: { type: 0 },
+    });
+
+    vi.spyOn(tmsProviderLive, "listTmsProviderLiveJobFiles").mockResolvedValue([
+      {
+        origin: "provider",
+        sourcePath: "locales/en.json",
+        sourceHash: null,
+        commitSha: null,
+        workflowRunId: null,
+        uploadedAt: new Date().toISOString(),
+        storedFileId: null,
+        metadata: {},
+        filename: "en.json",
+        byteSize: null,
+        provider: {
+          kind: "crowdin",
+          resourceType: "file",
+          externalProjectId: "902807",
+          externalResourceId: "12",
+          externalUrl: "https://crowdin.com/file/12",
+          syncState: "synced",
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          localeReadiness: {},
+          revision: "1",
+          format: "json",
+          lastSyncedAt: new Date().toISOString(),
+        },
+        latestJob: null,
+      },
+    ]);
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].jobs[
+      ":encodedJobId"
+    ]["agent-runs"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          encodedJobId: "ext:crowdin:902807:99",
+        },
+        json: {
+          projectId: "ext%3Acrowdin%3A902807",
+          action: "translate_with_agent",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      agentRun: {
+        kind: "translate",
+        status: "queued",
+      },
+    });
+  });
+
   it("returns 401 when the stored Crowdin OAuth token bundle is invalid", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

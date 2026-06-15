@@ -41,6 +41,7 @@ import {
 import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
 import { getCrowdinUserConnectionSummary } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 import { getPhraseUserConnectionSummary } from "@/lib/providers/adapters/phrase/phrase-user-connections";
+import { projectIdSchema } from "@/lib/projects/project-id";
 
 const mineQuerySchema = z.object({
   mine: z
@@ -62,7 +63,7 @@ const updateJobDescriptionBodySchema = z.object({
 });
 
 const createTmsProviderJobAgentRunBodySchema = z.object({
-  projectId: z.string().min(1),
+  projectId: projectIdSchema,
   action: z.literal("translate_with_agent"),
 });
 
