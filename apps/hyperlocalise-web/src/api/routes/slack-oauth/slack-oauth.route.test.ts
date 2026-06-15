@@ -10,7 +10,7 @@ import {
   createSlackState as createSignedSlackState,
   SLACK_STATE_TTL_MS,
 } from "@/lib/agents/slack/oauth-state";
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseTransaction } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createSlackOAuthRoutes } from "./slack-oauth.route";
 
@@ -202,6 +202,9 @@ describe("slackOAuthRoutes", () => {
     const insertSpy = vi.spyOn(db, "insert").mockImplementationOnce(() => {
       throw new Error("db unavailable");
     });
+    const transactionSpy = vi.spyOn(db, "transaction").mockImplementationOnce(async (callback) =>
+      callback(db as DatabaseTransaction),
+    );
 
     try {
       const app = createSlackOAuthRoutes();
@@ -215,6 +218,7 @@ describe("slackOAuthRoutes", () => {
       expect(mocks.handleOAuthCallback).toHaveBeenCalled();
     } finally {
       insertSpy.mockRestore();
+      transactionSpy.mockRestore();
     }
   });
 
