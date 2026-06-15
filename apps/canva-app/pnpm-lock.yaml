@@ -16,7 +16,7 @@ importers:
         version: 1.2.0(@formatjs/intl@3.1.8(typescript@5.9.3))(intl-messageformat@10.7.18)(react-dom@19.2.7(react@19.2.7))(react-intl@7.1.14(react@19.2.7)(typescript@5.9.3))(react@19.2.7)
       '@canva/app-ui-kit':
         specifier: ^5.10.0
-        version: 5.10.0(@types/react@19.2.16)(mobx@6.16.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 5.10.0(@types/react@19.2.17)(mobx@6.16.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@canva/asset':
         specifier: ^2.3.0
         version: 2.3.0(@canva/error@2.2.1)
@@ -28,7 +28,7 @@ importers:
         version: 2.2.1
       '@canva/intents':
         specifier: ^2.5.0
-        version: 2.5.0(@canva/error@2.2.1)
+        version: 2.6.0(@canva/error@2.2.1)
       '@canva/platform':
         specifier: ^2.2.2
         version: 2.2.2(@canva/error@2.2.1)
@@ -47,10 +47,10 @@ importers:
     devDependencies:
       '@canva/cli':
         specifier: ^2.0.0
-        version: 2.2.0(@types/react@19.2.16)(supports-color@5.5.0)(typescript@5.9.3)(zod@4.4.3)
+        version: 2.3.0(@types/react@19.2.17)(typescript@5.9.3)(zod@4.4.3)
       '@formatjs/cli':
-        specifier: 6.16.8
-        version: 6.16.8
+        specifier: 6.16.11
+        version: 6.16.11
       '@formatjs/ts-transformer':
         specifier: 3.14.2
         version: 3.14.2
@@ -65,7 +65,7 @@ importers:
         version: 8.1.0(supports-color@5.5.0)(typescript@5.9.3)
       '@testing-library/react':
         specifier: 16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.16))(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@types/debug':
         specifier: 4.1.13
         version: 4.1.13
@@ -76,8 +76,8 @@ importers:
         specifier: 9.0.10
         version: 9.0.10
       '@types/node':
-        specifier: 24.13.0
-        version: 24.13.0
+        specifier: 24.13.2
+        version: 24.13.2
       '@types/node-fetch':
         specifier: 2.6.13
         version: 2.6.13
@@ -88,11 +88,11 @@ importers:
         specifier: 3.1.1
         version: 3.1.1
       '@types/react':
-        specifier: 19.2.16
-        version: 19.2.16
+        specifier: 19.2.17
+        version: 19.2.17
       '@types/react-dom':
         specifier: 19.2.3
-        version: 19.2.3(@types/react@19.2.16)
+        version: 19.2.3(@types/react@19.2.17)
       '@types/webpack-env':
         specifier: 1.18.8
         version: 1.18.8
@@ -179,7 +179,7 @@ importers:
         version: 4.1.1(webpack@5.107.2)
       vite-plus:
         specifier: 0.1.24
-        version: 0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
+        version: 0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
       webpack:
         specifier: 5.107.2
         version: 5.107.2(cssnano@7.1.9(postcss@8.5.15))(esbuild@0.28.0)(postcss@8.5.15)(webpack-cli@6.0.1)
@@ -814,8 +814,8 @@ packages:
     peerDependencies:
       '@canva/error': ^2.0.0
 
-  '@canva/cli@2.2.0':
-    resolution: {integrity: sha512-eDVRZBkrL2H/sHOmwLTs3GL3j2vL8bEU9CRTAw1ZJJAvEg21vJCekle4CSi5ZXJ8fwpigC5hGeNuexrJ7spdlQ==}
+  '@canva/cli@2.3.0':
+    resolution: {integrity: sha512-6r4zxL/t9Vqd+eI8esZz0xYKI0Ipto707maj1hP9cxgEMxUQagWDfNsQN7s9VLcmNTFosnWQ3yJO5u8ENB3NkA==}
     engines: {node: '>=22.0.0'}
     hasBin: true
 
@@ -827,8 +827,8 @@ packages:
   '@canva/error@2.2.1':
     resolution: {integrity: sha512-b5GQMggNaLqtQdN4ENXx2PifFNTO9Ulw8TEwbMZjbPmLS7cAQPfQvXqb0SwPcQ2LQhCIanErrcpOPxQ4s60QNA==}
 
-  '@canva/intents@2.5.0':
-    resolution: {integrity: sha512-3Z7XqOg1y4J4+qMQ/eiEj8QisjIMFVDi8Y0HrAVzuLwoJwRB2BrGcsIa83SJAeqyyasuyUA/tVrGAZeCrZjLHg==}
+  '@canva/intents@2.6.0':
+    resolution: {integrity: sha512-DMWDB2NK5wnPyWbfPb7javu8RvQVz/V2NgtJNUx+90CPYxBENZdS6c7X5Hh3wWCPRL9sxaGdo12/qQDaGeOX8g==}
     peerDependencies:
       '@canva/error': ^2.0.0
 
@@ -1084,30 +1084,42 @@ packages:
   '@floating-ui/utils@0.2.11':
     resolution: {integrity: sha512-RiB/yIh78pcIxl6lLMG0CgBXAZ2Y0eVHqMPYugu+9U0AeT6YBeiJpf7lbdJNIugFP5SIjwNRgo4DhR1Qxi26Gg==}
 
-  '@formatjs/cli-native-darwin-arm64@1.1.2':
-    resolution: {integrity: sha512-Pddp6/djcU0wJDS5xcCHVMTq+u6wrYQ5hJpXsMrA8cNeviIBVadQOUx/ATmNNHC3nuJUX9lYvI3gEvH/4zB//g==}
+  '@formatjs/cli-native-darwin-arm64@1.1.5':
+    resolution: {integrity: sha512-zGt7OenQakyh8a+eAgCx/zUInbQXYT0UNzeOaYlnaKmU9yr78wsVAGGhPc85gchnQ7gIXSWOKhwIzvfSMFGU7w==}
     cpu: [arm64]
     os: [darwin]
 
-  '@formatjs/cli-native-linux-arm64@1.2.2':
-    resolution: {integrity: sha512-CFbbp8IS9S7ROM8RA6h52pGzRK6gX5QjJmSLGbXSO1Mw3qtrFQyqZCHsJ4/Yn+ppLSquD1FnzI0ghsdTUC4WZg==}
+  '@formatjs/cli-native-linux-arm64-musl@1.0.3':
+    resolution: {integrity: sha512-1qq9EZIY87cnptTd2PywI41s/DlkJBzNID6AofHCYm8sunXfj+vYAIQOSZnctNm7/u1ZlSJ/VjxHSS1NIC4tTw==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@formatjs/cli-native-linux-arm64@1.2.5':
+    resolution: {integrity: sha512-G1Ou5CFDM2hfqmD2jfXJJpHL7DL7f7OxlMXf6VPWvUYu+jcvpEj0KdEtmz5poh8rWzfHbOf4MfqC6WNhExJD5A==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@formatjs/cli-native-linux-x64@1.1.2':
-    resolution: {integrity: sha512-2soO6RPCBl7XGL9ZhRY/upAlM+cNPWDJy54Cf0M1mNAvV97n3sdvzcXSdcHrv8Wo4opNTlpHFb+PpnrbeFC27Q==}
+  '@formatjs/cli-native-linux-x64-musl@1.0.3':
+    resolution: {integrity: sha512-wb90O1S7cad8QKmHQ2I5glN9O9m+y+V29mrvvxFbKAVmVbKB7oyjhoau/jtuHQ/Yv2tfah3CYCj+1iaDNlJmYg==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@formatjs/cli-native-linux-x64@1.1.5':
+    resolution: {integrity: sha512-v/EtDIMC7C3cOpYpRJDvUImQFHBveFP+PTggZJbi88zXCeMMEL6eMwbMlJezUIwvYjgH1FWQargCgwOnI3lVdg==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@formatjs/cli-native-win32-x64@1.1.3':
-    resolution: {integrity: sha512-ZVdDfYtcSxCUngPilFysXWFZ6wuTQanDZZOEhAp+KAggGZbPg7EFj2KYXcPuev0a/fbjNpiuA6nC/zE83EG8Og==}
+  '@formatjs/cli-native-win32-x64@1.1.6':
+    resolution: {integrity: sha512-fsPOUB4JePy6VJfQV+oorLfozbb9IfYRAncGZ54VZg77Uj2aOP2h/KLhQmgippNlgi0Q77EB8QDMzNQfaKpVAA==}
     cpu: [x64]
     os: [win32]
 
-  '@formatjs/cli@6.16.8':
-    resolution: {integrity: sha512-9a4za6iPj8yql6GlK+sRimRn1rkFPwsSAVJu9sSdwhetXpMnz1QzeK4W0aTH9VBUpctl4nzVuWnny1tELiAgBQ==}
+  '@formatjs/cli@6.16.11':
+    resolution: {integrity: sha512-O3tTFavGK3zOhW4i2/ONWfMUgbU7fapxNbIsdFuF9eTMtQZFnKFdoBDdiBHj7d2W4ULVyeWd4b3qw2XHYpmuBg==}
     engines: {node: '>= 20.12.0'}
     hasBin: true
     peerDependencies:
@@ -1323,8 +1335,8 @@ packages:
       '@cfworker/json-schema':
         optional: true
 
-  '@napi-rs/wasm-runtime@1.1.4':
-    resolution: {integrity: sha512-3NQNNgA1YSlJb/kMH1ildASP9HW7/7kYnRI2szWJaofaS1hWmbGI4H+d3+22aGzXXN9IJ+n+GiFVcGipJP18ow==}
+  '@napi-rs/wasm-runtime@1.1.5':
+    resolution: {integrity: sha512-AWPoBRJ9tsnVhor4sjO7rkni+7p+2IAEFj6cx06UgP10jkQHqay/36uRV/bFkgrh18D9vb4cr8Q0Pthskgzy+Q==}
     peerDependencies:
       '@emnapi/core': ^1.7.1
       '@emnapi/runtime': ^1.7.1
@@ -2038,6 +2050,9 @@ packages:
   '@types/node@24.13.0':
     resolution: {integrity: sha512-5vtOqGQr4NJKeEzV441FcOi2MeG9UTWq9LqVLGneDdu4vlX17H8kQ2PA2UmNwCUGPVDj4oBjNhS7ReVEIWJJrg==}
 
+  '@types/node@24.13.2':
+    resolution: {integrity: sha512-fRa09kZTgu8o71KFcDjUFuc7F+dEbZYZmkI0mg5YBTRs0yMKjYHsq/c0urDKeDb+D5qVgXOdFcuu+DZPKOITwA==}
+
   '@types/nodemon@3.1.1':
     resolution: {integrity: sha512-q29nOOLwcTTPzp6VABHTybbLYdPF5aW6FZARvax8JGhYdQvLtZXX3z2MPP1KkaBDxVsNp7ehl2OSuTbIpsTihg==}
     deprecated: This is a stub types definition. nodemon provides its own type definitions, so you do not need this installed.
@@ -2056,8 +2071,8 @@ packages:
   '@types/react@19.2.16':
     resolution: {integrity: sha512-esJiCAnl0kfpNdE69f3So4WJUXy95dLZydX0KwK46riIHDzHM7O9Vtf9xCHW0PXIqvgqNrswl522kA/5yx+F4w==}
 
-  '@types/react@19.2.2':
-    resolution: {integrity: sha512-6mDvHUFSjyT2B2yeNx2nUgMxh9LtOWvkhIU3uePn2I2oyNymUAX1NIsdgviM4CH+JSrp2D2hsMvJOkxY+0wNRA==}
+  '@types/react@19.2.17':
+    resolution: {integrity: sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw==}
 
   '@types/retry@0.12.2':
     resolution: {integrity: sha512-XISRgDJ2Tc5q4TRqvgJtzsRkFYNJzZrhTdtMoGVBttwzzQJkPnS3WWTFc7kuDRoPtPakl+T+OfdEUjYJj7Jbow==}
@@ -2950,8 +2965,8 @@ packages:
     resolution: {integrity: sha512-j6vWzfrGVfyXxge+O0x5sh6cvxAog0a/4Rdd2K36zCMV5eJ+/+tOAngRO8cODMNWbVRdVlmGZQL2YS3yR8bIUA==}
     engines: {node: '>= 0.4'}
 
-  es-toolkit@1.47.0:
-    resolution: {integrity: sha512-n1GuoD0WEQZMBk5tttoZSqwgyLx01oqa5XsBmCHwPyNe1S9jPBEmtR2pSgp2kJuWE3ciFZ6yRHmY4pM4C3OOkw==}
+  es-toolkit@1.47.1:
+    resolution: {integrity: sha512-5RAqEwf4P4E17p+W75KLOWw/nOvKZzSQpxM32IpI2KZLaVonjTrZ0Ai5ghMaVI9eKC2p8eoQgcBdkEDgzFk6+Q==}
 
   esbuild-register@3.6.0:
     resolution: {integrity: sha512-H2/S7Pm8a9CL1uhp9OvjwrBh5Pvx0H8qVOxNu8Wed9Y7qv56MPtq+GGM8RJpq6glYJn9Wspr8uw7l55uyinNeg==}
@@ -3189,8 +3204,8 @@ packages:
   hoist-non-react-statics@3.3.2:
     resolution: {integrity: sha512-/gGivxi8JPKWNm/W0jSmzcMPpfpPLc3dY/6GxhX2hQ9iGj3aDfklV4ET7NjKpSinLpJ5vafa9iiGIEZg10SfBw==}
 
-  hono@4.12.23:
-    resolution: {integrity: sha512-eIaZ9qDgu7XV0pxOCrg7/WhnQ6Ivm22UcxhXx/A3dcbqbbYgBEkc6e/J/s7j2tS96zoB0S9VBdLwQNCWwUo4LA==}
+  hono@4.12.25:
+    resolution: {integrity: sha512-2NFaIyNVgJmBs/ecmtGzlmluTFs5cHEWGTdu0t1HBwYzoGXOL5nUQBRMXsXWla5i4KkG//QMzVP88m1+I3fdAQ==}
     engines: {node: '>=16.9.0'}
 
   hpack.js@2.1.6:
@@ -5869,7 +5884,7 @@ snapshots:
       react-dom: 19.2.7(react@19.2.7)
       react-intl: 7.1.14(react@19.2.7)(typescript@5.9.3)
 
-  '@canva/app-ui-kit@5.10.0(@types/react@19.2.16)(mobx@6.16.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@canva/app-ui-kit@5.10.0(@types/react@19.2.17)(mobx@6.16.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@floating-ui/react': 0.26.28(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       classnames: 2.5.1
@@ -5879,7 +5894,7 @@ snapshots:
       mobx-utils: 6.1.1(mobx@6.16.0)
       normalize-scroll-left: 0.2.1
       react: 19.2.7
-      react-dnd: 7.7.0(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      react-dnd: 7.7.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       react-dnd-html5-backend: 7.7.0
       react-dom: 19.2.7(react@19.2.7)
       react-measure: 2.5.2(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -5896,10 +5911,10 @@ snapshots:
     dependencies:
       '@canva/error': 2.2.1
 
-  '@canva/cli@2.2.0(@types/react@19.2.16)(supports-color@5.5.0)(typescript@5.9.3)(zod@4.4.3)':
+  '@canva/cli@2.3.0(@types/react@19.2.17)(typescript@5.9.3)(zod@4.4.3)':
     dependencies:
-      '@modelcontextprotocol/sdk': 1.27.1(supports-color@5.5.0)(zod@4.4.3)
-      ink: 6.3.1(@types/react@19.2.16)(react@19.2.7)
+      '@modelcontextprotocol/sdk': 1.27.1(zod@4.4.3)
+      ink: 6.3.1(@types/react@19.2.17)(react@19.2.7)
       react: 19.2.7
       react-docgen-typescript: 2.4.0(typescript@5.9.3)
     transitivePeerDependencies:
@@ -5918,7 +5933,7 @@ snapshots:
 
   '@canva/error@2.2.1': {}
 
-  '@canva/intents@2.5.0(@canva/error@2.2.1)':
+  '@canva/intents@2.6.0(@canva/error@2.2.1)':
     dependencies:
       '@canva/error': 2.2.1
 
@@ -6082,24 +6097,32 @@ snapshots:
 
   '@floating-ui/utils@0.2.11': {}
 
-  '@formatjs/cli-native-darwin-arm64@1.1.2':
+  '@formatjs/cli-native-darwin-arm64@1.1.5':
     optional: true
 
-  '@formatjs/cli-native-linux-arm64@1.2.2':
+  '@formatjs/cli-native-linux-arm64-musl@1.0.3':
     optional: true
 
-  '@formatjs/cli-native-linux-x64@1.1.2':
+  '@formatjs/cli-native-linux-arm64@1.2.5':
     optional: true
 
-  '@formatjs/cli-native-win32-x64@1.1.3':
+  '@formatjs/cli-native-linux-x64-musl@1.0.3':
     optional: true
 
-  '@formatjs/cli@6.16.8':
+  '@formatjs/cli-native-linux-x64@1.1.5':
+    optional: true
+
+  '@formatjs/cli-native-win32-x64@1.1.6':
+    optional: true
+
+  '@formatjs/cli@6.16.11':
     optionalDependencies:
-      '@formatjs/cli-native-darwin-arm64': 1.1.2
-      '@formatjs/cli-native-linux-arm64': 1.2.2
-      '@formatjs/cli-native-linux-x64': 1.1.2
-      '@formatjs/cli-native-win32-x64': 1.1.3
+      '@formatjs/cli-native-darwin-arm64': 1.1.5
+      '@formatjs/cli-native-linux-arm64': 1.2.5
+      '@formatjs/cli-native-linux-arm64-musl': 1.0.3
+      '@formatjs/cli-native-linux-x64': 1.1.5
+      '@formatjs/cli-native-linux-x64-musl': 1.0.3
+      '@formatjs/cli-native-win32-x64': 1.1.6
 
   '@formatjs/ecma402-abstract@2.3.6':
     dependencies:
@@ -6146,9 +6169,9 @@ snapshots:
       tslib: 2.8.1
       typescript: 5.9.2
 
-  '@hono/node-server@1.19.14(hono@4.12.23)':
+  '@hono/node-server@1.19.14(hono@4.12.25)':
     dependencies:
-      hono: 4.12.23
+      hono: 4.12.25
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -6303,9 +6326,9 @@ snapshots:
 
   '@leichtgewicht/ip-codec@2.0.5': {}
 
-  '@modelcontextprotocol/sdk@1.27.1(supports-color@5.5.0)(zod@4.4.3)':
+  '@modelcontextprotocol/sdk@1.27.1(zod@4.4.3)':
     dependencies:
-      '@hono/node-server': 1.19.14(hono@4.12.23)
+      '@hono/node-server': 1.19.14(hono@4.12.25)
       ajv: 8.20.0
       ajv-formats: 3.0.1(ajv@8.20.0)
       content-type: 1.0.5
@@ -6313,9 +6336,9 @@ snapshots:
       cross-spawn: 7.0.6
       eventsource: 3.0.7
       eventsource-parser: 3.1.0
-      express: 5.2.1(supports-color@5.5.0)
-      express-rate-limit: 8.5.2(express@5.2.1(supports-color@5.5.0))
-      hono: 4.12.23
+      express: 5.2.1
+      express-rate-limit: 8.5.2(express@5.2.1)
+      hono: 4.12.25
       jose: 6.2.3
       json-schema-typed: 8.0.2
       pkce-challenge: 5.0.1
@@ -6325,7 +6348,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  '@napi-rs/wasm-runtime@1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
+  '@napi-rs/wasm-runtime@1.1.5(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)':
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.10.0
@@ -6677,7 +6700,7 @@ snapshots:
     dependencies:
       '@emnapi/core': 1.10.0
       '@emnapi/runtime': 1.10.0
-      '@napi-rs/wasm-runtime': 1.1.4(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
+      '@napi-rs/wasm-runtime': 1.1.5(@emnapi/core@1.10.0)(@emnapi/runtime@1.10.0)
     optional: true
 
   '@rolldown/binding-win32-arm64-msvc@1.0.3':
@@ -6794,15 +6817,15 @@ snapshots:
       picocolors: 1.1.1
       pretty-format: 27.5.1
 
-  '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.16))(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
+  '@testing-library/react@16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.17))(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@babel/runtime': 7.29.7
       '@testing-library/dom': 10.4.1
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
     optionalDependencies:
-      '@types/react': 19.2.16
-      '@types/react-dom': 19.2.3(@types/react@19.2.16)
+      '@types/react': 19.2.17
+      '@types/react-dom': 19.2.3(@types/react@19.2.17)
 
   '@tybys/wasm-util@0.10.2':
     dependencies:
@@ -6814,11 +6837,11 @@ snapshots:
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/bonjour@3.5.13':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/chai@5.2.3':
     dependencies:
@@ -6828,11 +6851,11 @@ snapshots:
   '@types/connect-history-api-fallback@1.5.4':
     dependencies:
       '@types/express-serve-static-core': 4.19.8
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/debug@4.1.13':
     dependencies:
@@ -6844,7 +6867,7 @@ snapshots:
 
   '@types/express-serve-static-core@4.19.8':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
       '@types/qs': 6.15.1
       '@types/range-parser': 1.2.7
       '@types/send': 1.2.1
@@ -6861,23 +6884,23 @@ snapshots:
       '@types/react': 19.2.16
       hoist-non-react-statics: 3.3.2
 
-  '@types/hoist-non-react-statics@3.3.7(@types/react@19.2.2)':
+  '@types/hoist-non-react-statics@3.3.7(@types/react@19.2.17)':
     dependencies:
-      '@types/react': 19.2.2
+      '@types/react': 19.2.17
       hoist-non-react-statics: 3.3.2
 
   '@types/http-errors@2.0.5': {}
 
   '@types/http-proxy@1.17.17':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/json-schema@7.0.15': {}
 
   '@types/jsonwebtoken@9.0.10':
     dependencies:
       '@types/ms': 2.1.0
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/mime@1.3.5': {}
 
@@ -6885,18 +6908,22 @@ snapshots:
 
   '@types/node-fetch@2.6.13':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
       form-data: 4.0.5
 
   '@types/node-forge@1.3.14':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/node@22.19.19':
     dependencies:
       undici-types: 6.21.0
 
   '@types/node@24.13.0':
+    dependencies:
+      undici-types: 7.18.2
+
+  '@types/node@24.13.2':
     dependencies:
       undici-types: 7.18.2
 
@@ -6908,15 +6935,15 @@ snapshots:
 
   '@types/range-parser@1.2.7': {}
 
-  '@types/react-dom@19.2.3(@types/react@19.2.16)':
+  '@types/react-dom@19.2.3(@types/react@19.2.17)':
     dependencies:
-      '@types/react': 19.2.16
+      '@types/react': 19.2.17
 
   '@types/react@19.2.16':
     dependencies:
       csstype: 3.2.3
 
-  '@types/react@19.2.2':
+  '@types/react@19.2.17':
     dependencies:
       csstype: 3.2.3
 
@@ -6925,11 +6952,11 @@ snapshots:
   '@types/send@0.17.6':
     dependencies:
       '@types/mime': 1.3.5
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/serve-index@1.9.4':
     dependencies:
@@ -6938,27 +6965,27 @@ snapshots:
   '@types/serve-static@1.15.10':
     dependencies:
       '@types/http-errors': 2.0.5
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
       '@types/send': 0.17.6
 
   '@types/sockjs@0.3.36':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
   '@types/webpack-env@1.18.8': {}
 
   '@types/ws@8.18.1':
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
 
-  '@voidzero-dev/vite-plus-core@0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)':
+  '@voidzero-dev/vite-plus-core@0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)':
     dependencies:
       '@oxc-project/runtime': 0.133.0
       '@oxc-project/types': 0.133.0
       lightningcss: 1.32.0
       postcss: 8.5.15
     optionalDependencies:
-      '@types/node': 24.13.0
+      '@types/node': 24.13.2
       esbuild: 0.28.0
       fsevents: 2.3.3
       jiti: 2.7.0
@@ -6984,11 +7011,11 @@ snapshots:
   '@voidzero-dev/vite-plus-linux-x64-musl@0.1.24':
     optional: true
 
-  '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))':
+  '@voidzero-dev/vite-plus-test@0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))':
     dependencies:
       '@standard-schema/spec': 1.1.0
       '@types/chai': 5.2.3
-      '@voidzero-dev/vite-plus-core': 0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)
+      '@voidzero-dev/vite-plus-core': 0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)
       es-module-lexer: 1.7.0
       obug: 2.1.2
       pixelmatch: 7.2.0
@@ -6998,10 +7025,10 @@ snapshots:
       tinybench: 2.9.0
       tinyexec: 1.2.4
       tinyglobby: 0.2.17
-      vite: 8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)
+      vite: 8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)
       ws: 8.21.0
     optionalDependencies:
-      '@types/node': 24.13.0
+      '@types/node': 24.13.2
       jsdom: 29.1.1
     transitivePeerDependencies:
       - '@arethetypeswrong/core'
@@ -7281,7 +7308,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  body-parser@2.2.2(supports-color@5.5.0):
+  body-parser@2.2.2:
     dependencies:
       bytes: 3.1.2
       content-type: 1.0.5
@@ -7770,7 +7797,7 @@ snapshots:
       has-tostringtag: 1.0.2
       hasown: 2.0.4
 
-  es-toolkit@1.47.0: {}
+  es-toolkit@1.47.1: {}
 
   esbuild-register@3.6.0(esbuild@0.28.0)(supports-color@5.5.0):
     dependencies:
@@ -7845,9 +7872,9 @@ snapshots:
     dependencies:
       basic-auth: 2.0.1
 
-  express-rate-limit@8.5.2(express@5.2.1(supports-color@5.5.0)):
+  express-rate-limit@8.5.2(express@5.2.1):
     dependencies:
-      express: 5.2.1(supports-color@5.5.0)
+      express: 5.2.1
       ip-address: 10.2.0
 
   express@4.22.2:
@@ -7886,10 +7913,10 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  express@5.2.1(supports-color@5.5.0):
+  express@5.2.1:
     dependencies:
       accepts: 2.0.0
-      body-parser: 2.2.2(supports-color@5.5.0)
+      body-parser: 2.2.2
       content-disposition: 1.1.0
       content-type: 1.0.5
       cookie: 0.7.2
@@ -7899,7 +7926,7 @@ snapshots:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       etag: 1.8.1
-      finalhandler: 2.1.1(supports-color@5.5.0)
+      finalhandler: 2.1.1
       fresh: 2.0.0
       http-errors: 2.0.1
       merge-descriptors: 2.0.0
@@ -7910,8 +7937,8 @@ snapshots:
       proxy-addr: 2.0.7
       qs: 6.15.2
       range-parser: 1.2.1
-      router: 2.2.0(supports-color@5.5.0)
-      send: 1.2.1(supports-color@5.5.0)
+      router: 2.2.0
+      send: 1.2.1
       serve-static: 2.2.1
       statuses: 2.0.2
       type-is: 2.1.0
@@ -7956,7 +7983,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  finalhandler@2.1.1(supports-color@5.5.0):
+  finalhandler@2.1.1:
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       encodeurl: 2.0.0
@@ -8065,7 +8092,7 @@ snapshots:
     dependencies:
       react-is: 16.13.1
 
-  hono@4.12.23: {}
+  hono@4.12.25: {}
 
   hpack.js@2.1.6:
     dependencies:
@@ -8152,7 +8179,7 @@ snapshots:
 
   inherits@2.0.4: {}
 
-  ink@6.3.1(@types/react@19.2.16)(react@19.2.7):
+  ink@6.3.1(@types/react@19.2.17)(react@19.2.7):
     dependencies:
       '@alcalzone/ansi-tokenize': 0.2.5
       ansi-escapes: 7.3.0
@@ -8163,7 +8190,7 @@ snapshots:
       cli-cursor: 4.0.0
       cli-truncate: 4.0.0
       code-excerpt: 4.0.0
-      es-toolkit: 1.47.0
+      es-toolkit: 1.47.1
       indent-string: 5.0.0
       is-in-ci: 2.0.0
       patch-console: 2.0.0
@@ -8179,7 +8206,7 @@ snapshots:
       ws: 8.21.0
       yoga-layout: 3.2.1
     optionalDependencies:
-      '@types/react': 19.2.16
+      '@types/react': 19.2.17
     transitivePeerDependencies:
       - bufferutil
       - utf-8-validate
@@ -8269,7 +8296,7 @@ snapshots:
 
   jest-worker@27.5.1:
     dependencies:
-      '@types/node': 22.19.19
+      '@types/node': 24.13.0
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
@@ -8686,7 +8713,7 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  oxfmt@0.52.0(vite-plus@0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))):
+  oxfmt@0.52.0(vite-plus@0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))):
     dependencies:
       tinypool: 2.1.0
     optionalDependencies:
@@ -8709,7 +8736,7 @@ snapshots:
       '@oxfmt/binding-win32-arm64-msvc': 0.52.0
       '@oxfmt/binding-win32-ia32-msvc': 0.52.0
       '@oxfmt/binding-win32-x64-msvc': 0.52.0
-      vite-plus: 0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
+      vite-plus: 0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
 
   oxlint-tsgolint@0.23.0:
     optionalDependencies:
@@ -8720,7 +8747,7 @@ snapshots:
       '@oxlint-tsgolint/win32-arm64': 0.23.0
       '@oxlint-tsgolint/win32-x64': 0.23.0
 
-  oxlint@1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))):
+  oxlint@1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))):
     optionalDependencies:
       '@oxlint/binding-android-arm-eabi': 1.67.0
       '@oxlint/binding-android-arm64': 1.67.0
@@ -8742,7 +8769,7 @@ snapshots:
       '@oxlint/binding-win32-ia32-msvc': 1.67.0
       '@oxlint/binding-win32-x64-msvc': 1.67.0
       oxlint-tsgolint: 0.23.0
-      vite-plus: 0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
+      vite-plus: 0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
 
   p-limit@2.3.0:
     dependencies:
@@ -9067,9 +9094,9 @@ snapshots:
     dependencies:
       dnd-core: 7.7.0
 
-  react-dnd@7.7.0(@types/react@19.2.16)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
+  react-dnd@7.7.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7):
     dependencies:
-      '@types/hoist-non-react-statics': 3.3.7(@types/react@19.2.16)
+      '@types/hoist-non-react-statics': 3.3.7(@types/react@19.2.17)
       dnd-core: 7.7.0
       hoist-non-react-statics: 3.3.2
       invariant: 2.2.4
@@ -9093,8 +9120,8 @@ snapshots:
       '@formatjs/ecma402-abstract': 2.3.6
       '@formatjs/icu-messageformat-parser': 2.11.4
       '@formatjs/intl': 3.1.8(typescript@5.9.3)
-      '@types/hoist-non-react-statics': 3.3.7(@types/react@19.2.2)
-      '@types/react': 19.2.2
+      '@types/hoist-non-react-statics': 3.3.7(@types/react@19.2.16)
+      '@types/react': 19.2.16
       hoist-non-react-statics: 3.3.2
       intl-messageformat: 10.7.18
       react: 19.2.7
@@ -9235,7 +9262,7 @@ snapshots:
       '@rolldown/binding-win32-arm64-msvc': 1.0.3
       '@rolldown/binding-win32-x64-msvc': 1.0.3
 
-  router@2.2.0(supports-color@5.5.0):
+  router@2.2.0:
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       depd: 2.0.0
@@ -9307,7 +9334,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  send@1.2.1(supports-color@5.5.0):
+  send@1.2.1:
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       encodeurl: 2.0.0
@@ -9349,7 +9376,7 @@ snapshots:
       encodeurl: 2.0.0
       escape-html: 1.0.3
       parseurl: 1.3.3
-      send: 1.2.1(supports-color@5.5.0)
+      send: 1.2.1
     transitivePeerDependencies:
       - supports-color
 
@@ -9724,14 +9751,14 @@ snapshots:
 
   vary@1.1.2: {}
 
-  vite-plus@0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)):
+  vite-plus@0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)):
     dependencies:
       '@oxc-project/types': 0.133.0
       '@oxlint/plugins': 1.61.0
-      '@voidzero-dev/vite-plus-core': 0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)
-      '@voidzero-dev/vite-plus-test': 0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
-      oxfmt: 0.52.0(vite-plus@0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)))
-      oxlint: 1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.24(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)))
+      '@voidzero-dev/vite-plus-core': 0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)
+      '@voidzero-dev/vite-plus-test': 0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4))
+      oxfmt: 0.52.0(vite-plus@0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)))
+      oxlint: 1.67.0(oxlint-tsgolint@0.23.0)(vite-plus@0.1.24(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(jsdom@29.1.1)(terser@5.48.0)(tsx@4.22.4)(typescript@5.9.3)(vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4)))
       oxlint-tsgolint: 0.23.0
     optionalDependencies:
       '@voidzero-dev/vite-plus-darwin-arm64': 0.1.24
@@ -9774,7 +9801,7 @@ snapshots:
       - vite
       - yaml
 
-  vite@8.0.16(@types/node@24.13.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4):
+  vite@8.0.16(@types/node@24.13.2)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.48.0)(tsx@4.22.4):
     dependencies:
       lightningcss: 1.32.0
       picomatch: 4.0.4
@@ -9782,7 +9809,7 @@ snapshots:
       rolldown: 1.0.3
       tinyglobby: 0.2.17
     optionalDependencies:
-      '@types/node': 24.13.0
+      '@types/node': 24.13.2
       esbuild: 0.28.0
       fsevents: 2.3.3
       jiti: 2.7.0
