@@ -158,7 +158,7 @@ beforeEach(() => {
     hello: "Salut TM",
   });
   mocks.runSandboxCommandMock.mockImplementation(async (_sandboxId, _command, args: string[]) => {
-    const script = args[2] ?? "";
+    const script = args[1] ?? "";
     if (script.includes("hl run")) {
       return { exitCode: 0, output: "translated" };
     }
