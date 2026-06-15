@@ -7,14 +7,12 @@ export const marketingOgImageSize = { width: 1200, height: 630 } as const;
 export const marketingOgImageContentType = "image/png";
 
 const logoPromise = readFile(join(process.cwd(), "public/images/logo.png"));
-
-const domineFontPromise = fetch(
-  "https://cdn.jsdelivr.net/fontsource/fonts/domine@5.2.5/latin-700-normal.woff",
-).then((response) => response.arrayBuffer());
-
-const openSansFontPromise = fetch(
-  "https://cdn.jsdelivr.net/fontsource/fonts/open-sans@5.2.5/latin-400-normal.woff",
-).then((response) => response.arrayBuffer());
+const domineFontPromise = readFile(
+  join(process.cwd(), "public/fonts/domine-latin-700-normal.woff"),
+);
+const openSansFontPromise = readFile(
+  join(process.cwd(), "public/fonts/open-sans-latin-400-normal.woff"),
+);
 
 type CreateMarketingOgImageOptions = {
   heading: string;
