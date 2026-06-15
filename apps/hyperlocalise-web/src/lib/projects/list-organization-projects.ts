@@ -80,7 +80,7 @@ export async function listOrganizationProjects(
   const databaseProjects = await db
     .select()
     .from(schema.projects)
-    .where(await buildAccessibleProjectsWhere(auth))
+    .where(and(await buildAccessibleProjectsWhere(auth), eq(schema.projects.isActive, true)))
     .orderBy(desc(schema.projects.updatedAt));
 
   const projects = await attachOpenJobCounts(organizationId, databaseProjects);
