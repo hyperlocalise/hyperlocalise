@@ -25,19 +25,21 @@ const mocks = vi.hoisted(() => {
 
   return {
     dbSelectMock: vi.fn(() => glossaryQuery),
-    downloadProviderSourceFileMock: vi.fn(),
+    downloadProviderSourceFileMock: vi.fn((..._args: unknown[]) => undefined),
     glossaryLimitMock,
-    loadTranslationContextProjectMock: vi.fn(),
-    reuseFileTranslationMemoryEntriesMock: vi.fn(),
-    buildTempConfigMock: vi.fn(() => "locales: []"),
-    createTranslationSandboxMock: vi.fn(),
-    getSandboxTranslationEnvMock: vi.fn(() => ({})),
-    prepareSandboxMock: vi.fn(async () => undefined),
-    readTranslatedFileMock: vi.fn(async () => Buffer.from("translated file", "utf8")),
-    runSandboxCommandMock: vi.fn(),
-    stopTranslationSandboxMock: vi.fn(async () => undefined),
-    writeFileToSandboxMock: vi.fn(async () => undefined),
-    writeTempConfigMock: vi.fn(async () => undefined),
+    loadTranslationContextProjectMock: vi.fn((..._args: unknown[]) => undefined),
+    reuseFileTranslationMemoryEntriesMock: vi.fn((..._args: unknown[]) => undefined),
+    buildTempConfigMock: vi.fn((..._args: unknown[]) => "locales: []"),
+    createTranslationSandboxMock: vi.fn((..._args: unknown[]) => undefined),
+    getSandboxTranslationEnvMock: vi.fn((..._args: unknown[]) => ({})),
+    prepareSandboxMock: vi.fn(async (..._args: unknown[]) => undefined),
+    readTranslatedFileMock: vi.fn(async (..._args: unknown[]) =>
+      Buffer.from("translated file", "utf8"),
+    ),
+    runSandboxCommandMock: vi.fn((..._args: unknown[]) => undefined),
+    stopTranslationSandboxMock: vi.fn(async (..._args: unknown[]) => undefined),
+    writeFileToSandboxMock: vi.fn(async (..._args: unknown[]) => undefined),
+    writeTempConfigMock: vi.fn(async (..._args: unknown[]) => undefined),
   };
 });
 
@@ -77,8 +79,7 @@ vi.mock("@/lib/database", () => ({
 }));
 
 vi.mock("@/lib/providers/download-provider-source-file", () => ({
-  downloadProviderSourceFile: (...args: unknown[]) =>
-    mocks.downloadProviderSourceFileMock(...args),
+  downloadProviderSourceFile: (...args: unknown[]) => mocks.downloadProviderSourceFileMock(...args),
 }));
 
 vi.mock("@/lib/translation/assemble-translation-context", () => ({
@@ -93,10 +94,8 @@ vi.mock("@/lib/translation/file-translation-memory", () => ({
 
 vi.mock("@/lib/translation/sandbox-translation", () => ({
   buildTempConfig: (...args: unknown[]) => mocks.buildTempConfigMock(...args),
-  createTranslationSandbox: (...args: unknown[]) =>
-    mocks.createTranslationSandboxMock(...args),
-  getSandboxTranslationEnv: (...args: unknown[]) =>
-    mocks.getSandboxTranslationEnvMock(...args),
+  createTranslationSandbox: (...args: unknown[]) => mocks.createTranslationSandboxMock(...args),
+  getSandboxTranslationEnv: (...args: unknown[]) => mocks.getSandboxTranslationEnvMock(...args),
   prepareSandbox: (...args: unknown[]) => mocks.prepareSandboxMock(...args),
   readTranslatedFile: (...args: unknown[]) => mocks.readTranslatedFileMock(...args),
   runSandboxCommand: (...args: unknown[]) => mocks.runSandboxCommandMock(...args),
@@ -157,8 +156,9 @@ beforeEach(() => {
   mocks.reuseFileTranslationMemoryEntriesMock.mockResolvedValue({
     hello: "Salut TM",
   });
-  mocks.runSandboxCommandMock.mockImplementation(async (_sandboxId, _command, args: string[]) => {
-    const script = args[1] ?? "";
+  mocks.runSandboxCommandMock.mockImplementation(async (...args: unknown[]) => {
+    const commandArgs = args[2];
+    const script = Array.isArray(commandArgs) ? String(commandArgs[1] ?? "") : "";
     if (script.includes("hl run")) {
       return { exitCode: 0, output: "translated" };
     }
@@ -247,11 +247,15 @@ describe("translateProviderJobFiles", () => {
       sourceEntries: { hello: "Hello", world: "World" },
     });
 
-    const prefilledCall = mocks.writeFileToSandboxMock.mock.calls.find(([, path]) =>
-      String(path).includes("prefilled"),
+    const prefilledCall = mocks.writeFileToSandboxMock.mock.calls.find((call) =>
+      String(call[1]).includes("prefilled"),
     );
-    expect(prefilledCall).toBeDefined();
-    expect(JSON.parse(prefilledCall![2].toString("utf8"))).toEqual({
+    if (!prefilledCall) {
+      throw new Error("Expected prefilled entries to be written to the sandbox");
+    }
+    const prefilledPayload = prefilledCall[2];
+    expect(Buffer.isBuffer(prefilledPayload)).toBe(true);
+    expect(JSON.parse(Buffer.from(prefilledPayload as Buffer).toString("utf8"))).toEqual({
       hello: "Salut TM",
       world: "Monde",
     });
@@ -276,9 +280,13 @@ describe("translateProviderJobFiles", () => {
       }),
     ]);
     expect(
-      mocks.runSandboxCommandMock.mock.calls.some(([, , args]) =>
-        String(args[1]).includes("--prefilled-entries"),
-      ),
+      mocks.runSandboxCommandMock.mock.calls.some((call) => {
+        const commandArgs = call[2];
+        return (
+          Array.isArray(commandArgs) &&
+          String(commandArgs[1]).includes("--prefilled-entries")
+        );
+      }),
     ).toBe(true);
   });
 
