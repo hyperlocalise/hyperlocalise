@@ -163,7 +163,10 @@ function createOrgScopedAppRoutes(
     .route("/external-tms-provider-credential", createExternalTmsProviderCredentialRoutes())
     .route(
       "/tms-provider",
-      createTmsProviderRoutes({ providerSyncQueue: options.providerSyncQueue }),
+      createTmsProviderRoutes({
+        providerSyncQueue: options.providerSyncQueue,
+        providerAgentTranslationQueue: options.providerAgentTranslationQueue,
+      }),
     )
     .route("/tms-agent-automation", createTmsAgentAutomationRoutes())
     .route("/tms-dashboard-summary", createTmsDashboardSummaryRoutes())

@@ -90,12 +90,16 @@ export function JobProviderDetailSection({
       const body = (await response.json()) as { agentRun: AgentRunRecord };
       return body.agentRun;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, action) => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: agentRunsQueryKey }),
         queryClient.invalidateQueries({ queryKey: jobQueryKey }),
       ]);
-      toast.success("Agent run queued");
+      toast.success(
+        action === "translate_with_agent"
+          ? "Translation agent is running"
+          : "Agent run queued",
+      );
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to start agent run");

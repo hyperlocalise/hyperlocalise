@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from "react";
 import {
+  AiMagicIcon,
   ArrowDown01Icon,
   Clock01Icon,
   File01Icon,
@@ -37,7 +38,11 @@ import {
   getReadinessNumber,
 } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
-import { buildJobsListHref, formatJobDetailDate } from "./job-detail-types";
+import {
+  buildJobsListHref,
+  formatJobDetailDate,
+  type ProviderActionAvailability,
+} from "./job-detail-types";
 import {
   defaultRenderBackLink,
   defaultRenderError,
@@ -274,9 +279,11 @@ export function ProviderLiveJobDetailView({
   error,
   isLoading,
   isRefreshing = false,
+  isTranslateWithAgentPending = false,
   job,
   jobId,
   onRefresh,
+  onTranslateWithAgent,
   organizationSlug,
   projectId,
   renderBackLink = defaultRenderBackLink,
@@ -284,6 +291,7 @@ export function ProviderLiveJobDetailView({
   renderError = defaultRenderError,
   renderExternalLink,
   renderFilesSection,
+  translateWithAgentAction,
 }: {
   buildJobsListHref?: typeof buildJobsListHref;
   canEditProviderJobDescription?: boolean;
@@ -293,9 +301,11 @@ export function ProviderLiveJobDetailView({
   error?: unknown;
   isLoading: boolean;
   isRefreshing?: boolean;
+  isTranslateWithAgentPending?: boolean;
   job?: TmsProviderLiveJobDetail;
   jobId: string;
   onRefresh?: () => void;
+  onTranslateWithAgent?: () => void;
   organizationSlug: string;
   projectId: string;
   renderBackLink?: JobDetailBackLinkRenderer;
@@ -303,6 +313,7 @@ export function ProviderLiveJobDetailView({
   renderError?: JobDetailErrorRenderer;
   renderExternalLink?: (props: { href: string; label: string }) => ReactNode;
   renderFilesSection?: ProviderLiveFilesSectionRenderer;
+  translateWithAgentAction?: ProviderActionAvailability | null;
 }) {
   const providerDescription = job
     ? (getProviderPayloadString(job.externalProviderPayload, "description") ?? "")
@@ -313,6 +324,12 @@ export function ProviderLiveJobDetailView({
   const showTaskDescriptionSection =
     providerDescription.trim().length > 0 || canEditProviderDescription;
   const jobsListHref = buildJobsListHrefProp(organizationSlug, projectId);
+  const showTranslateWithAgent = translateWithAgentAction?.visible ?? false;
+  const translateWithAgentDisabled =
+    !translateWithAgentAction?.enabled || isTranslateWithAgentPending || !onTranslateWithAgent;
+  const translateWithAgentLabel = isTranslateWithAgentPending
+    ? "Starting agent..."
+    : (translateWithAgentAction?.label ?? "Translate with agent");
 
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-5">
@@ -378,16 +395,25 @@ export function ProviderLiveJobDetailView({
                   {isRefreshing ? "Refreshing..." : "Refresh"}
                 </Button>
               ) : null}
-              <Tooltip>
-                <TooltipTrigger
-                  render={
-                    <Button size="sm" disabled>
-                      Run with agent
-                    </Button>
-                  }
-                />
-                <TooltipContent>Agent workflows on provider tasks are coming soon.</TooltipContent>
-              </Tooltip>
+              {showTranslateWithAgent ? (
+                <Tooltip>
+                  <TooltipTrigger
+                    render={
+                      <Button
+                        size="sm"
+                        disabled={translateWithAgentDisabled}
+                        onClick={onTranslateWithAgent}
+                      >
+                        <HugeiconsIcon icon={AiMagicIcon} strokeWidth={1.8} />
+                        {translateWithAgentLabel}
+                      </Button>
+                    }
+                  />
+                  {translateWithAgentAction?.disabledReason ? (
+                    <TooltipContent>{translateWithAgentAction.disabledReason}</TooltipContent>
+                  ) : null}
+                </Tooltip>
+              ) : null}
             </div>
           </div>
         ) : null}

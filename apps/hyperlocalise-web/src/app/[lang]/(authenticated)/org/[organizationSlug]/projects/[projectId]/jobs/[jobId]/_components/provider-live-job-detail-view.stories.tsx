@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { getJobProviderActionAvailability } from "@/lib/providers/job-provider-actions";
 
 import { ProviderJobDescriptionFieldView } from "../../../../../jobs/_components/provider-job-description-field";
 import { createLiveCrowdinJobComments, createLiveCrowdinJobDetail } from "./job-detail.fixture";
@@ -20,6 +21,9 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const liveJob = createLiveCrowdinJobDetail();
+const translateWithAgentAction = getJobProviderActionAvailability("crowdin").find(
+  (action) => action.id === "translate_with_agent",
+);
 const sourceFiles: ProjectFileRecord[] = [
   {
     origin: "provider",
@@ -94,6 +98,8 @@ export const CrowdinTask: Story = {
     comments: createLiveCrowdinJobComments(),
     commentsLoading: false,
     onRefresh: () => undefined,
+    onTranslateWithAgent: () => undefined,
+    translateWithAgentAction,
     renderDescriptionField: ({ description, editable }) => (
       <ProviderJobDescriptionFieldView
         description={description}
@@ -113,6 +119,7 @@ export const CrowdinTask: Story = {
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Translate marketing homepage")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Translate with agent" })).toBeInTheDocument();
     await expect(canvas.getByText("68%")).toBeInTheDocument();
     await expect(canvas.getByText("home.json")).toBeInTheDocument();
     await expect(canvas.getByText(/Preserve product name casing/)).toBeInTheDocument();

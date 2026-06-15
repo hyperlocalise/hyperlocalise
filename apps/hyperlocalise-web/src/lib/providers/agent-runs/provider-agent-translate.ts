@@ -17,7 +17,7 @@ import type {
   ExternalTmsTranslationUnit,
 } from "@/lib/providers/tms-provider-types";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
-import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
+import { resolveProviderAgentRunSourceFiles } from "@/lib/providers/job-provider-source-files";
 import {
   shouldUseProviderFileTranslation,
   translateProviderJobFiles,
@@ -505,14 +505,13 @@ export async function executeProviderAgentTranslation(input: {
       })()
     : [null];
 
-  const sourceFiles = jobDetails?.providerPayload
-    ? await resolveProviderSourceFiles({
-        organizationId: input.organizationId,
-        projectId,
-        providerKind: run.providerKind,
-        providerPayload: jobDetails.providerPayload,
-      })
-    : [];
+  const sourceFiles = await resolveProviderAgentRunSourceFiles({
+    organizationId: input.organizationId,
+    projectId,
+    providerKind: run.providerKind,
+    inputSnapshot: run.inputSnapshot ?? {},
+    syncedProviderPayload: jobDetails?.providerPayload ?? null,
+  });
 
   if (shouldUseProviderFileTranslation({ sourceFiles })) {
     const fileTranslationResult = await translateProviderJobFiles({

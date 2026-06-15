@@ -126,7 +126,7 @@ function NativeJobDetailPageContent({
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: jobQueryKey });
       await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
-      toast.success("File translation agent queued");
+      toast.success("Translation agent is running");
     },
     onError: (error) => {
       toast.error(error instanceof Error ? error.message : "Failed to start agent on job");
