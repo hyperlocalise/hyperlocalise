@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
@@ -80,7 +80,12 @@ export async function listOrganizationProjects(
   const databaseProjects = await db
     .select()
     .from(schema.projects)
-    .where(await buildAccessibleProjectsWhere(auth))
+    .where(
+      and(
+        await buildAccessibleProjectsWhere(auth),
+        or(isNull(schema.projects.isActive), eq(schema.projects.isActive, true)),
+      ),
+    )
     .orderBy(desc(schema.projects.updatedAt));
 
   const projects = await attachOpenJobCounts(organizationId, databaseProjects);

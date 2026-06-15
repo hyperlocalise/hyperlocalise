@@ -11,6 +11,8 @@ const {
   resolveSecretMaterialForActorMock,
   runTmsAgentAutomationForSyncedJobMock,
   upsertExternalTmsJobRecordsMock,
+  deactivateMissingExternalTmsProjectsMock,
+  deactivateExternalTmsProjectMock,
 } = vi.hoisted(() => ({
   createProviderAgentTranslationQueueMock: vi.fn(() => ({ enqueue: vi.fn() })),
   dbInsertMock: vi.fn(),
@@ -24,6 +26,8 @@ const {
     async (): Promise<{ triggered: string[] }> => ({ triggered: [] }),
   ),
   upsertExternalTmsJobRecordsMock: vi.fn(),
+  deactivateMissingExternalTmsProjectsMock: vi.fn(async () => 0),
+  deactivateExternalTmsProjectMock: vi.fn(async () => false),
 }));
 
 vi.mock("@/lib/database", () => ({
@@ -60,6 +64,8 @@ vi.mock("@/lib/providers/tms-provider-live", () => ({
 
 vi.mock("@/lib/projects/upsert-external-tms-project-record", () => ({
   upsertExternalTmsProjectRecord: vi.fn(async () => "ext:crowdin:902807"),
+  deactivateMissingExternalTmsProjects: deactivateMissingExternalTmsProjectsMock,
+  deactivateExternalTmsProject: deactivateExternalTmsProjectMock,
 }));
 
 vi.mock("./provider-sync-intent", () => ({
@@ -174,7 +180,11 @@ describe("executeProviderSyncIntent", () => {
     });
     resolveSecretMaterialForActorMock.mockResolvedValue("secret");
     fetchCrowdinJobTasksMock.mockResolvedValue([]);
-    upsertExternalTmsJobRecordsMock.mockResolvedValue({ upserted: 0, newlySyncedJobIds: [] });
+    upsertExternalTmsJobRecordsMock.mockResolvedValue({
+      upserted: 0,
+      newlySyncedJobIds: [],
+      removed: 0,
+    });
     runTmsAgentAutomationForSyncedJobMock.mockResolvedValue({ triggered: [] });
   });
 
@@ -202,6 +212,12 @@ describe("executeProviderSyncIntent", () => {
       providerKind: "crowdin",
       projectId: "ext:crowdin:902807",
       cause: "manual",
+    });
+    expect(deactivateMissingExternalTmsProjectsMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      providerCredentialId: "credential_123",
+      providerKind: "crowdin",
+      syncedProjectIds: ["ext:crowdin:902807"],
     });
   });
 
@@ -274,6 +290,7 @@ describe("executeProviderSyncIntent", () => {
     upsertExternalTmsJobRecordsMock.mockResolvedValue({
       upserted: 1,
       newlySyncedJobIds: [hyperlocaliseJobId],
+      removed: 0,
     });
 
     const result = await executeProviderSyncIntent(createJobTaskIntent());
@@ -375,6 +392,7 @@ describe("executeProviderSyncIntent", () => {
     upsertExternalTmsJobRecordsMock.mockResolvedValue({
       upserted: 2,
       newlySyncedJobIds: [jobId1, jobId2],
+      removed: 0,
     });
     runTmsAgentAutomationForSyncedJobMock
       .mockRejectedValueOnce(new Error("queue unavailable"))
@@ -440,6 +458,7 @@ describe("executeProviderSyncIntent", () => {
     upsertExternalTmsJobRecordsMock.mockResolvedValue({
       upserted: 1,
       newlySyncedJobIds: [],
+      removed: 0,
     });
 
     const result = await executeProviderSyncIntent(createJobTaskIntent());

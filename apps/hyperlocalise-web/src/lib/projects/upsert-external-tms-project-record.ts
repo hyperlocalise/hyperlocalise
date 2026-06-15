@@ -1,8 +1,29 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, notInArray } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import type { TmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
 import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+
+import { removeAllExternalTmsJobsForProject } from "./upsert-external-tms-job-records";
+
+async function removeExternalTmsJobsForProjects(input: {
+  organizationId: string;
+  providerKind: ExternalTmsProviderKind;
+  projectIds: string[];
+}) {
+  let removedJobs = 0;
+
+  for (const projectId of input.projectIds) {
+    removedJobs += await removeAllExternalTmsJobsForProject({
+      organizationId: input.organizationId,
+      projectId,
+      providerKind: input.providerKind,
+    });
+  }
+
+  return removedJobs;
+}
 
 export async function upsertExternalTmsProjectRecord(input: {
   organizationId: string;
@@ -54,6 +75,84 @@ export async function upsertExternalTmsProjectRecord(input: {
     });
 
   return projectId;
+}
+
+export async function deactivateMissingExternalTmsProjects(input: {
+  organizationId: string;
+  providerCredentialId: string;
+  providerKind: (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
+  syncedProjectIds: string[];
+}) {
+  if (input.syncedProjectIds.length === 0) {
+    return 0;
+  }
+
+  const now = new Date();
+  const deactivated = await db
+    .update(schema.projects)
+    .set({
+      isActive: false,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.source, "external_tms"),
+        eq(schema.projects.externalProviderKind, input.providerKind),
+        eq(schema.projects.externalProviderCredentialId, input.providerCredentialId),
+        eq(schema.projects.isActive, true),
+        notInArray(schema.projects.id, input.syncedProjectIds),
+      ),
+    )
+    .returning({ id: schema.projects.id });
+
+  await removeExternalTmsJobsForProjects({
+    organizationId: input.organizationId,
+    providerKind: input.providerKind,
+    projectIds: deactivated.map((project) => project.id),
+  });
+
+  return deactivated.length;
+}
+
+export async function deactivateExternalTmsProject(input: {
+  organizationId: string;
+  projectId: string;
+}) {
+  const now = new Date();
+  const deactivated = await db
+    .update(schema.projects)
+    .set({
+      isActive: false,
+      updatedAt: now,
+    })
+    .where(
+      and(
+        eq(schema.projects.id, input.projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.source, "external_tms"),
+        eq(schema.projects.isActive, true),
+      ),
+    )
+    .returning({
+      id: schema.projects.id,
+      externalProviderKind: schema.projects.externalProviderKind,
+    });
+
+  if (deactivated.length === 0) {
+    return false;
+  }
+
+  const [project] = deactivated;
+  if (project.externalProviderKind) {
+    await removeExternalTmsJobsForProjects({
+      organizationId: input.organizationId,
+      providerKind: project.externalProviderKind,
+      projectIds: [project.id],
+    });
+  }
+
+  return true;
 }
 
 export async function getOrganizationExternalTmsCredentialId(

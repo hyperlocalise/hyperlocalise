@@ -13,7 +13,11 @@ import {
   parseProviderProjectId,
 } from "@/lib/providers/tms-provider-resource-id";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/upsert-external-tms-job-records";
-import { upsertExternalTmsProjectRecord } from "@/lib/projects/upsert-external-tms-project-record";
+import {
+  deactivateExternalTmsProject,
+  deactivateMissingExternalTmsProjects,
+  upsertExternalTmsProjectRecord,
+} from "@/lib/projects/upsert-external-tms-project-record";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import { enqueueProviderProjectJobSyncIntent } from "./provider-sync-intent";
@@ -197,15 +201,18 @@ async function refreshMaterializedProjectFromLive(
   );
 
   if (!liveProject) {
+    const deactivated = await deactivateExternalTmsProject({
+      organizationId: intent.organizationId,
+      projectId: intent.projectId,
+    });
+
     await completeProviderSyncRun({
       runId,
-      status: "failed",
-      errorMessage: "Provider project is unavailable.",
+      status: "succeeded",
+      counts: { deactivatedProjects: deactivated ? 1 : 0 },
     });
-    return err({
-      code: "provider_project_unavailable",
-      message: "Provider project is unavailable.",
-    });
+
+    return ok({ runId });
   }
 
   const projectId = await upsertExternalTmsProjectRecord({
@@ -245,6 +252,7 @@ async function syncProjectCatalogFromLive(
   const actorUserId = await resolveProviderSyncActorUserId(intent);
   const liveProjects = await listTmsProviderLiveProjects(intent.organizationId, { actorUserId });
   let syncedCount = 0;
+  const syncedProjectIds: string[] = [];
 
   for (const liveProject of liveProjects) {
     const projectId = await upsertExternalTmsProjectRecord({
@@ -252,6 +260,7 @@ async function syncProjectCatalogFromLive(
       providerCredentialId: intent.providerCredentialId,
       liveProject,
     });
+    syncedProjectIds.push(projectId);
     await enqueueProviderProjectJobSyncIntent({
       organizationId: intent.organizationId,
       providerCredentialId: intent.providerCredentialId,
@@ -262,10 +271,17 @@ async function syncProjectCatalogFromLive(
     syncedCount += 1;
   }
 
+  const deactivatedProjects = await deactivateMissingExternalTmsProjects({
+    organizationId: intent.organizationId,
+    providerCredentialId: intent.providerCredentialId,
+    providerKind: intent.providerKind,
+    syncedProjectIds,
+  });
+
   await completeProviderSyncRun({
     runId,
     status: "succeeded",
-    counts: { projects: syncedCount },
+    counts: { projects: syncedCount, deactivatedProjects },
   });
 
   return ok({ runId });
@@ -302,7 +318,7 @@ async function syncProviderJobTasksFromLive(
     project: context.value.project,
     secretMaterial,
   });
-  const { upserted, newlySyncedJobIds } = await upsertExternalTmsJobRecords({
+  const { upserted, newlySyncedJobIds, removed } = await upsertExternalTmsJobRecords({
     organizationId: intent.organizationId,
     projectId: intent.projectId!,
     providerKind: intent.providerKind,
@@ -363,6 +379,7 @@ async function syncProviderJobTasksFromLive(
     status: "succeeded",
     counts: {
       jobs: upserted,
+      removedJobs: removed,
       ...(automationFailures.length > 0 ? { automationFailures: automationFailures.length } : {}),
     },
   });

@@ -1,4 +1,4 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, isNull, ne, or } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
@@ -75,6 +75,16 @@ function jobListFilters(input: {
   return filters;
 }
 
+function visibleSyncedJobConditions() {
+  return [
+    or(
+      isNull(schema.externalJobDetails.syncState),
+      ne(schema.externalJobDetails.syncState, "removed"),
+    ),
+    or(isNull(schema.projects.isActive), eq(schema.projects.isActive, true)),
+  ];
+}
+
 /**
  * Returns paginate-friendly job rows from the local database only.
  */
@@ -109,6 +119,7 @@ export async function listOrganizationJobs(
     .where(
       and(
         await buildAccessibleJobsWhere(auth),
+        ...visibleSyncedJobConditions(),
         ...jobListFilters({
           kind: query.kind,
           type: query.type,
@@ -155,6 +166,7 @@ export async function listOrganizationProjectJobs(
       and(
         eq(schema.jobs.organizationId, auth.organization.localOrganizationId),
         eq(schema.jobs.projectId, projectId),
+        ...visibleSyncedJobConditions(),
         ...jobListFilters({
           kind: query.kind,
           type: query.type,
