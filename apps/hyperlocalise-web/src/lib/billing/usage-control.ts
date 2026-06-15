@@ -15,6 +15,8 @@ export type UsageEventReference = {
   id: string;
 };
 
+type UsageEventDimensions = Record<string, string | number | boolean | null>;
+
 export type UsageEventNotFoundError = {
   code: "usage_event_not_found";
   operationKey: string;
@@ -70,6 +72,7 @@ export async function reserveUsageEvent(input: {
   operationKey: string;
   source: string;
   quantity?: number;
+  dimensions?: UsageEventDimensions;
   jobId?: string;
   interactionId?: string;
 }): Promise<Result<UsageEventReference, ReserveUsageEventError>> {
@@ -82,6 +85,7 @@ export async function reserveUsageEvent(input: {
       operationKey: input.operationKey,
       source: input.source,
       quantity: input.quantity ?? 1,
+      dimensions: input.dimensions,
       jobId: input.jobId,
       interactionId: input.interactionId,
     })
@@ -103,11 +107,26 @@ export async function reserveUsageEvent(input: {
 export async function markUsageEventSucceededByOperationKey(input: {
   db?: DatabaseClient;
   operationKey: string;
+  quantity?: number;
+  dimensions?: UsageEventDimensions;
 }): Promise<Result<void, MarkUsageEventSucceededError>> {
   const database = input.db ?? db;
+  const updateValues: Partial<typeof schema.usageEvents.$inferInsert> = {
+    status: "succeeded",
+    autumnTrackError: null,
+  };
+
+  if (typeof input.quantity === "number") {
+    updateValues.quantity = input.quantity;
+  }
+
+  if (input.dimensions) {
+    updateValues.dimensions = input.dimensions;
+  }
+
   const [event] = await database
     .update(schema.usageEvents)
-    .set({ status: "succeeded", autumnTrackError: null })
+    .set(updateValues)
     .where(eq(schema.usageEvents.operationKey, input.operationKey))
     .returning({ id: schema.usageEvents.id });
 
@@ -127,6 +146,11 @@ function autumnTrackErrorMessage(error: unknown) {
   return "autumn_tracking_failed";
 }
 
+function autumnEventName(event: typeof schema.usageEvents.$inferSelect) {
+  const eventName = event.dimensions?.autumn_event_name;
+  return typeof eventName === "string" && eventName.trim() ? eventName : null;
+}
+
 async function trackUsageEventInAutumn(input: {
   event: typeof schema.usageEvents.$inferSelect;
   apiKey: string;
@@ -144,7 +168,9 @@ async function trackUsageEventInAutumn(input: {
       },
       body: JSON.stringify({
         customer_id: input.event.organizationId,
-        feature_id: input.event.featureId,
+        ...(autumnEventName(input.event)
+          ? { event_name: autumnEventName(input.event) }
+          : { feature_id: input.event.featureId }),
         value: input.event.quantity,
         idempotency_key: input.event.operationKey,
         properties: {

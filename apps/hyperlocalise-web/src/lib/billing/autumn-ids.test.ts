@@ -1,30 +1,44 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { autumnPlanIds, meteredUsageFeatureIds, usageFeatureIds } from "@/lib/billing/autumn-ids";
+import {
+  autumnFeatureIds,
+  autumnPlanIds,
+  billingBalanceFeatureIds,
+  usageFeatureIds,
+} from "@/lib/billing/autumn-ids";
 
 describe("autumn identifiers", () => {
   it("exposes stable plan and usage feature IDs", () => {
     expect(autumnPlanIds).toEqual({
       free: "free",
-      team: "team",
+      growth: "growth",
+      enterprise: "enterprise",
+    });
+
+    expect(autumnFeatureIds).toEqual({
+      aiTokens: "ai_tokens",
+      translationJobs: "translation_jobs",
+      agentRuns: "agent_runs",
+      seats: "seats",
+      projects: "projects",
+      automations: "automations",
+      integrations: "integrations",
+      aiFeatures: "ai_features",
     });
 
     expect(usageFeatureIds).toEqual({
       translationJobs: "translation_jobs",
-      translationUnits: "translation_units",
-      sourceCharacters: "source_characters",
-      aiTokens: "ai_tokens",
-      apiRequests: "api_requests",
       agentRuns: "agent_runs",
     });
 
-    expect(meteredUsageFeatureIds).toEqual([
+    expect(billingBalanceFeatureIds).toEqual([
+      autumnFeatureIds.aiTokens,
       usageFeatureIds.translationJobs,
-      usageFeatureIds.translationUnits,
-      usageFeatureIds.sourceCharacters,
-      usageFeatureIds.aiTokens,
-      usageFeatureIds.apiRequests,
       usageFeatureIds.agentRuns,
+      autumnFeatureIds.seats,
+      autumnFeatureIds.projects,
+      autumnFeatureIds.automations,
+      autumnFeatureIds.integrations,
     ]);
   });
 });

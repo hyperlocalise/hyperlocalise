@@ -1,21 +1,22 @@
-import { meteredUsageFeatureIds, type UsageFeatureId } from "@/lib/billing/autumn-ids";
+import { billingBalanceFeatureIds, type AutumnFeatureId } from "@/lib/billing/autumn-ids";
 
-/** Display labels for metered usage features shown on billing settings. */
-export const usageFeatureLabels: Record<UsageFeatureId, string> = {
-  translation_jobs: "Translation jobs",
-  translation_units: "Translation units",
-  source_characters: "Source characters",
+/** Display labels for Autumn feature balances shown on billing settings. */
+export const usageFeatureLabels: Partial<Record<AutumnFeatureId, string>> = {
   ai_tokens: "AI tokens",
-  api_requests: "API requests",
+  translation_jobs: "Translation jobs",
   agent_runs: "Agent runs",
+  seats: "Seats",
+  projects: "Projects",
+  automations: "Automations",
+  integrations: "Integrations",
 };
 
 export function getUsageFeatureLabel(featureId: string) {
   if (featureId in usageFeatureLabels) {
-    return usageFeatureLabels[featureId as UsageFeatureId];
+    return usageFeatureLabels[featureId as AutumnFeatureId];
   }
 
   return featureId.replaceAll("_", " ");
 }
 
-export { meteredUsageFeatureIds };
+export { billingBalanceFeatureIds };

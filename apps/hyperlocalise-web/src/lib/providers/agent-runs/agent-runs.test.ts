@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
@@ -77,6 +78,21 @@ describe("agent runs", () => {
     expect(run.completedAt).toBeNull();
     expect(run.actorUserId).toBeNull();
     expect(run.hyperlocaliseJobId).toBeNull();
+
+    const [usageEvent] = await db
+      .select({
+        operationKey: schema.usageEvents.operationKey,
+        status: schema.usageEvents.status,
+        featureId: schema.usageEvents.featureId,
+      })
+      .from(schema.usageEvents)
+      .where(eq(schema.usageEvents.operationKey, `agent-run:${run.id}:agent_runs`))
+      .limit(1);
+    expect(usageEvent).toEqual({
+      operationKey: `agent-run:${run.id}:agent_runs`,
+      status: "reserved",
+      featureId: "agent_runs",
+    });
   });
 
   it("creates an agent run with actor, input snapshot, and linked job", async () => {
@@ -153,6 +169,24 @@ describe("agent runs", () => {
     expect(completed.outputSummary).toEqual({ approved: 5, rejected: 1 });
     expect(completed.changedItems).toEqual([{ keyId: "k1", change: "added term" }]);
     expect(completed.warnings).toEqual(["low confidence on item 3"]);
+
+    const [usageEvent] = await db
+      .select({
+        status: schema.usageEvents.status,
+        quantity: schema.usageEvents.quantity,
+        dimensions: schema.usageEvents.dimensions,
+      })
+      .from(schema.usageEvents)
+      .where(eq(schema.usageEvents.operationKey, `agent-run:${created.id}:agent_runs`))
+      .limit(1);
+    expect(usageEvent).toMatchObject({
+      status: "tracking_pending",
+      quantity: 1,
+      dimensions: {
+        autumn_event_name: "agent_run.completed",
+        unit: "run",
+      },
+    });
   });
 
   it("fails a run and preserves partial output", async () => {

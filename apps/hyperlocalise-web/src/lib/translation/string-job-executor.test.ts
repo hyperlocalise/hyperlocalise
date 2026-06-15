@@ -149,6 +149,11 @@ describe("createStringTranslationGenerator", () => {
         { locale: "fr-FR", text: "Bonjour le monde" },
         { locale: "de-DE", text: "Hallo Welt" },
       ],
+      tokenUsage: {
+        inputTokens: 10,
+        outputTokens: 20,
+        totalTokens: 30,
+      },
     });
   });
 
@@ -169,6 +174,11 @@ describe("createStringTranslationGenerator", () => {
         { locale: "fr-FR", text: " Bonjour le monde " },
         { locale: "de-DE", text: "\tHallo Welt\n" },
       ],
+      tokenUsage: {
+        inputTokens: 10,
+        outputTokens: 20,
+        totalTokens: 30,
+      },
     });
   });
 
@@ -191,6 +201,11 @@ describe("createStringTranslationGenerator", () => {
 
     expect(result).toEqual({
       translations: [{ locale: "fr-FR", text: "Bonjour le monde" }],
+      tokenUsage: {
+        inputTokens: 10,
+        outputTokens: 20,
+        totalTokens: 30,
+      },
     });
   });
 
