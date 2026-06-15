@@ -12,10 +12,11 @@ import {
   serviceUnavailableResponse,
 } from "@/api/response.schema";
 import {
-  ensureWorkspaceResourceLimitAvailable,
+  withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
+  type WorkspaceResourceLimitError,
 } from "@/lib/billing/workspace-resource-limits";
 import { dispatchManualWorkspaceAutomationRun } from "@/lib/agents/workspace-automation-dispatcher";
 import {
@@ -270,6 +271,26 @@ function mapReferenceError(
   }
 }
 
+function mapWorkspaceResourceLimitError(
+  c: Parameters<typeof conflictResponse>[0],
+  error: WorkspaceResourceLimitError,
+) {
+  if (error.code === "workspace_resource_limit_check_failed") {
+    return serviceUnavailableResponse(
+      c,
+      error.code,
+      "Unable to verify automation limits. Try again later.",
+    );
+  }
+
+  return conflictResponse(
+    c,
+    error.code,
+    workspaceResourceLimitMessage(error.featureId),
+    workspaceResourceLimitErrorDetails(error),
+  );
+}
+
 export function createWorkspaceAutomationRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -293,28 +314,6 @@ export function createWorkspaceAutomationRoutes() {
     .post("/", validateCreateBody, async (c) => {
       const payload = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;
-      if (payload.status !== "archived") {
-        const limitResult = await ensureWorkspaceResourceLimitAvailable({
-          organizationId,
-          featureId: workspaceResourceFeatureIds.automations,
-        });
-        if (!limitResult.ok) {
-          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
-            return serviceUnavailableResponse(
-              c,
-              limitResult.error.code,
-              "Unable to verify automation limits. Try again later.",
-            );
-          }
-
-          return conflictResponse(
-            c,
-            limitResult.error.code,
-            workspaceResourceLimitMessage(limitResult.error.featureId),
-            workspaceResourceLimitErrorDetails(limitResult.error),
-          );
-        }
-      }
 
       const referenceError = await validateAutomationReferences({
         organizationId,
@@ -326,7 +325,7 @@ export function createWorkspaceAutomationRoutes() {
       }
 
       try {
-        const result = await createWorkspaceAutomation({
+        const createInput = {
           organizationId,
           authorUserId: c.var.auth.user.localUserId,
           status: payload.status,
@@ -336,7 +335,25 @@ export function createWorkspaceAutomationRoutes() {
           repositoryTarget: payload.repositoryTarget,
           toolConfig: payload.toolConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
-        });
+        };
+
+        let result;
+        if (payload.status !== "archived") {
+          const limitWrapped = await withWorkspaceResourceLimit(
+            {
+              organizationId,
+              featureId: workspaceResourceFeatureIds.automations,
+            },
+            (tx) => createWorkspaceAutomation({ ...createInput, db: tx }),
+          );
+          if (!limitWrapped.ok) {
+            return mapWorkspaceResourceLimitError(c, limitWrapped.error);
+          }
+          result = limitWrapped.value;
+        } else {
+          result = await createWorkspaceAutomation(createInput);
+        }
+
         if (isErr(result)) {
           return mapAutomationConfigValidationError(c, result.error);
         }
@@ -379,29 +396,6 @@ export function createWorkspaceAutomationRoutes() {
         return notFoundResponse(c, "workspace_automation_not_found");
       }
 
-      if (existing.status === "archived" && payload.status && payload.status !== "archived") {
-        const limitResult = await ensureWorkspaceResourceLimitAvailable({
-          organizationId,
-          featureId: workspaceResourceFeatureIds.automations,
-        });
-        if (!limitResult.ok) {
-          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
-            return serviceUnavailableResponse(
-              c,
-              limitResult.error.code,
-              "Unable to verify automation limits. Try again later.",
-            );
-          }
-
-          return conflictResponse(
-            c,
-            limitResult.error.code,
-            workspaceResourceLimitMessage(limitResult.error.featureId),
-            workspaceResourceLimitErrorDetails(limitResult.error),
-          );
-        }
-      }
-
       const referenceError = await validateAutomationReferences({
         organizationId,
         repositoryTarget: payload.repositoryTarget ?? existing.repositoryTarget,
@@ -412,7 +406,7 @@ export function createWorkspaceAutomationRoutes() {
       }
 
       try {
-        const result = await updateWorkspaceAutomation({
+        const updateInput = {
           automationId: params.automationId,
           organizationId,
           status: payload.status,
@@ -422,7 +416,26 @@ export function createWorkspaceAutomationRoutes() {
           repositoryTarget: payload.repositoryTarget,
           toolConfig: payload.toolConfig,
           nextRunAt: parseNextRunAt(payload.nextRunAt),
-        });
+        };
+        const shouldEnforceAutomationLimit =
+          existing.status === "archived" && payload.status && payload.status !== "archived";
+
+        let result;
+        if (shouldEnforceAutomationLimit) {
+          const limitWrapped = await withWorkspaceResourceLimit(
+            {
+              organizationId,
+              featureId: workspaceResourceFeatureIds.automations,
+            },
+            (tx) => updateWorkspaceAutomation({ ...updateInput, db: tx }),
+          );
+          if (!limitWrapped.ok) {
+            return mapWorkspaceResourceLimitError(c, limitWrapped.error);
+          }
+          result = limitWrapped.value;
+        } else {
+          result = await updateWorkspaceAutomation(updateInput);
+        }
         if (isErr(result)) {
           return mapAutomationConfigValidationError(c, result.error);
         }

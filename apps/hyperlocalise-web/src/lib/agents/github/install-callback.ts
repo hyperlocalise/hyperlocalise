@@ -7,7 +7,7 @@ import { getGitHubApp } from "@/lib/agents/github/app";
 import { isGitHubAppPrivateKeyDecoderError } from "@/lib/agents/github/private-key";
 import { getGitHubStateSecret, verifyGitHubState } from "@/lib/agents/github/oauth-state";
 import {
-  ensureWorkspaceResourceLimitAvailable,
+  withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
 } from "@/lib/billing/workspace-resource-limits";
 import {
@@ -339,33 +339,39 @@ export async function handleGitHubInstallCallback(
         "github install callback updated existing installation row",
       );
     } else {
-      const limitResult = await ensureWorkspaceResourceLimitAvailable({
-        organizationId: org.id,
-        featureId: workspaceResourceFeatureIds.integrations,
-      });
-      if (!limitResult.ok) {
+      const insertResult = await withWorkspaceResourceLimit(
+        {
+          organizationId: org.id,
+          featureId: workspaceResourceFeatureIds.integrations,
+        },
+        async (tx) => {
+          const [inserted] = await tx
+            .insert(schema.githubInstallations)
+            .values({
+              organizationId: org.id,
+              githubInstallationId,
+              githubAppId,
+              accountLogin,
+              accountType,
+            })
+            .returning({ id: schema.githubInstallations.id });
+
+          return inserted;
+        },
+      );
+
+      if (!insertResult.ok) {
         const redirectTo = agentErrorRedirect(
           org,
-          limitResult.error.code === "workspace_resource_limit_check_failed"
+          insertResult.error.code === "workspace_resource_limit_check_failed"
             ? "integration_limit_check_failed"
             : "integration_limit_reached",
         ).redirectTo;
         return finish(redirectTo, orgContext, "github install callback integration limit blocked");
       }
 
-      const [inserted] = await db
-        .insert(schema.githubInstallations)
-        .values({
-          organizationId: org.id,
-          githubInstallationId,
-          githubAppId,
-          accountLogin,
-          accountType,
-        })
-        .returning({ id: schema.githubInstallations.id });
-
       logger.info(
-        { ...orgContext, githubInstallationRowId: inserted?.id, action: "insert" },
+        { ...orgContext, githubInstallationRowId: insertResult.value?.id, action: "insert" },
         "github install callback inserted installation row",
       );
     }

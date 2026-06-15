@@ -7,13 +7,14 @@ import { validator } from "hono/validator";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { hasCapability } from "@/api/auth/policy";
 import { env } from "@/lib/env";
-import { isErr } from "@/lib/primitives/result/results";
-import { db, schema } from "@/lib/database";
+import { isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import {
-  ensureWorkspaceResourceLimitAvailable,
+  withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
+  type WorkspaceResourceLimitError,
 } from "@/lib/billing/workspace-resource-limits";
 import {
   OAUTH_AUTH_MODE,
@@ -85,10 +86,13 @@ const PHRASE_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 const LOKALISE_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 const logger = createLogger("tms-user-oauth");
 
-async function ensureIntegrationLimitForNewExternalTmsCredential(input: {
-  organizationId: string;
-  providerKind: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect.providerKind;
-}) {
+async function withNewIntegrationLimit<T>(
+  input: {
+    organizationId: string;
+    providerKind: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect.providerKind;
+  },
+  run: (database: DatabaseClient) => Promise<T>,
+): Promise<Result<T, WorkspaceResourceLimitError>> {
   const [existing] = await db
     .select({ id: schema.organizationExternalTmsProviderCredentials.id })
     .from(schema.organizationExternalTmsProviderCredentials)
@@ -100,14 +104,32 @@ async function ensureIntegrationLimitForNewExternalTmsCredential(input: {
     )
     .limit(1);
 
-  if (existing) return null;
+  if (existing) return ok(await run(db));
 
-  const result = await ensureWorkspaceResourceLimitAvailable({
-    organizationId: input.organizationId,
-    featureId: workspaceResourceFeatureIds.integrations,
-  });
+  return withWorkspaceResourceLimit(
+    {
+      organizationId: input.organizationId,
+      featureId: workspaceResourceFeatureIds.integrations,
+    },
+    run,
+  );
+}
 
-  return result.ok ? null : result.error;
+function integrationLimitErrorResponse(limitError: WorkspaceResourceLimitError): {
+  body: Record<string, unknown>;
+  status: 409 | 503;
+} {
+  return {
+    body: {
+      error: limitError.code,
+      message:
+        limitError.code === "workspace_resource_limit_check_failed"
+          ? "Unable to verify integration limits. Try again later."
+          : workspaceResourceLimitMessage(limitError.featureId),
+      details: workspaceResourceLimitErrorDetails(limitError),
+    },
+    status: limitError.code === "workspace_resource_limit_check_failed" ? 503 : 409,
+  };
 }
 
 const validateUpsertBody = validator("json", (value, c) => {
@@ -1116,35 +1138,31 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
-        const limitError = await ensureIntegrationLimitForNewExternalTmsCredential({
-          organizationId,
-          providerKind: "crowdin",
-        });
-        if (limitError) {
-          return c.json(
-            {
-              error: limitError.code,
-              message:
-                limitError.code === "workspace_resource_limit_check_failed"
-                  ? "Unable to verify integration limits. Try again later."
-                  : workspaceResourceLimitMessage(limitError.featureId),
-              details: workspaceResourceLimitErrorDetails(limitError),
-            },
-            limitError.code === "workspace_resource_limit_check_failed" ? 503 : 409,
-          );
+        const credentialResult = await withNewIntegrationLimit(
+          {
+            organizationId,
+            providerKind: "crowdin",
+          },
+          (database) =>
+            upsertCrowdinOAuthProviderCredential({
+              organizationId,
+              userId: c.var.auth.user.localUserId,
+              role: c.var.auth.membership.role,
+              displayName: payload.displayName,
+              oauthClient: {
+                clientId: payload.oauthClientId,
+                clientSecret: payload.oauthClientSecret,
+              },
+              baseUrl: payload.baseUrl ?? null,
+              db: database,
+            }),
+        );
+        if (!credentialResult.ok) {
+          const limitResponse = integrationLimitErrorResponse(credentialResult.error);
+          return c.json(limitResponse.body, limitResponse.status);
         }
 
-        const providerCredential = await upsertCrowdinOAuthProviderCredential({
-          organizationId,
-          userId: c.var.auth.user.localUserId,
-          role: c.var.auth.membership.role,
-          displayName: payload.displayName,
-          oauthClient: {
-            clientId: payload.oauthClientId,
-            clientSecret: payload.oauthClientSecret,
-          },
-          baseUrl: payload.baseUrl ?? null,
-        });
+        const providerCredential = credentialResult.value;
 
         return c.json(
           {
@@ -1173,35 +1191,31 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
-        const limitError = await ensureIntegrationLimitForNewExternalTmsCredential({
-          organizationId,
-          providerKind: "phrase",
-        });
-        if (limitError) {
-          return c.json(
-            {
-              error: limitError.code,
-              message:
-                limitError.code === "workspace_resource_limit_check_failed"
-                  ? "Unable to verify integration limits. Try again later."
-                  : workspaceResourceLimitMessage(limitError.featureId),
-              details: workspaceResourceLimitErrorDetails(limitError),
-            },
-            limitError.code === "workspace_resource_limit_check_failed" ? 503 : 409,
-          );
+        const credentialResult = await withNewIntegrationLimit(
+          {
+            organizationId,
+            providerKind: "phrase",
+          },
+          (database) =>
+            upsertPhraseOAuthProviderCredential({
+              organizationId,
+              userId: c.var.auth.user.localUserId,
+              role: c.var.auth.membership.role,
+              displayName: payload.displayName,
+              oauthClient: {
+                clientId: payload.oauthClientId,
+                clientSecret: payload.oauthClientSecret,
+              },
+              baseUrl: payload.baseUrl ?? null,
+              db: database,
+            }),
+        );
+        if (!credentialResult.ok) {
+          const limitResponse = integrationLimitErrorResponse(credentialResult.error);
+          return c.json(limitResponse.body, limitResponse.status);
         }
 
-        const providerCredential = await upsertPhraseOAuthProviderCredential({
-          organizationId,
-          userId: c.var.auth.user.localUserId,
-          role: c.var.auth.membership.role,
-          displayName: payload.displayName,
-          oauthClient: {
-            clientId: payload.oauthClientId,
-            clientSecret: payload.oauthClientSecret,
-          },
-          baseUrl: payload.baseUrl ?? null,
-        });
+        const providerCredential = credentialResult.value;
 
         return c.json(
           {
@@ -1230,35 +1244,31 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
-        const limitError = await ensureIntegrationLimitForNewExternalTmsCredential({
-          organizationId,
-          providerKind: "lokalise",
-        });
-        if (limitError) {
-          return c.json(
-            {
-              error: limitError.code,
-              message:
-                limitError.code === "workspace_resource_limit_check_failed"
-                  ? "Unable to verify integration limits. Try again later."
-                  : workspaceResourceLimitMessage(limitError.featureId),
-              details: workspaceResourceLimitErrorDetails(limitError),
-            },
-            limitError.code === "workspace_resource_limit_check_failed" ? 503 : 409,
-          );
+        const credentialResult = await withNewIntegrationLimit(
+          {
+            organizationId,
+            providerKind: "lokalise",
+          },
+          (database) =>
+            upsertLokaliseOAuthProviderCredential({
+              organizationId,
+              userId: c.var.auth.user.localUserId,
+              role: c.var.auth.membership.role,
+              displayName: payload.displayName,
+              oauthClient: {
+                clientId: payload.oauthClientId,
+                clientSecret: payload.oauthClientSecret,
+              },
+              baseUrl: payload.baseUrl ?? null,
+              db: database,
+            }),
+        );
+        if (!credentialResult.ok) {
+          const limitResponse = integrationLimitErrorResponse(credentialResult.error);
+          return c.json(limitResponse.body, limitResponse.status);
         }
 
-        const providerCredential = await upsertLokaliseOAuthProviderCredential({
-          organizationId,
-          userId: c.var.auth.user.localUserId,
-          role: c.var.auth.membership.role,
-          displayName: payload.displayName,
-          oauthClient: {
-            clientId: payload.oauthClientId,
-            clientSecret: payload.oauthClientSecret,
-          },
-          baseUrl: payload.baseUrl ?? null,
-        });
+        const providerCredential = credentialResult.value;
 
         return c.json(
           {
@@ -1869,33 +1879,30 @@ export function createExternalTmsProviderCredentialRoutes() {
           );
         }
         const organizationId = c.var.auth.organization.localOrganizationId;
-        const limitError = await ensureIntegrationLimitForNewExternalTmsCredential({
-          organizationId,
-          providerKind: payload.providerKind,
-        });
-        if (limitError) {
-          return c.json(
-            {
-              error: limitError.code,
-              message:
-                limitError.code === "workspace_resource_limit_check_failed"
-                  ? "Unable to verify integration limits. Try again later."
-                  : workspaceResourceLimitMessage(limitError.featureId),
-              details: workspaceResourceLimitErrorDetails(limitError),
-            },
-            limitError.code === "workspace_resource_limit_check_failed" ? 503 : 409,
-          );
+        const credentialResult = await withNewIntegrationLimit(
+          {
+            organizationId,
+            providerKind: payload.providerKind,
+          },
+          (database) =>
+            upsertOrganizationExternalTmsProviderCredential({
+              organizationId,
+              userId: c.var.auth.user.localUserId,
+              role: c.var.auth.membership.role,
+              providerKind: payload.providerKind,
+              displayName: payload.displayName,
+              secretMaterial: payload.secretMaterial,
+              region: payload.region,
+              baseUrl: payload.baseUrl,
+              db: database,
+            }),
+        );
+        if (!credentialResult.ok) {
+          const limitResponse = integrationLimitErrorResponse(credentialResult.error);
+          return c.json(limitResponse.body, limitResponse.status);
         }
-        const providerCredential = await upsertOrganizationExternalTmsProviderCredential({
-          organizationId,
-          userId: c.var.auth.user.localUserId,
-          role: c.var.auth.membership.role,
-          providerKind: payload.providerKind,
-          displayName: payload.displayName,
-          secretMaterial: payload.secretMaterial,
-          region: payload.region,
-          baseUrl: payload.baseUrl,
-        });
+
+        const providerCredential = credentialResult.value;
 
         return c.json({ externalTmsProviderCredential: providerCredential }, 200);
       } catch (error) {

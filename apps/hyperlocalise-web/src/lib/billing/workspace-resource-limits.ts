@@ -1,9 +1,9 @@
 import { Autumn } from "autumn-js";
-import { and, count, eq, ne } from "drizzle-orm";
+import { and, count, eq, ne, sql } from "drizzle-orm";
 
 import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { getAutumnSecretKey } from "@/lib/billing/autumn-config";
-import type { DatabaseClient } from "@/lib/database";
+import type { DatabaseClient, DatabaseTransaction } from "@/lib/database";
 import { db, schema } from "@/lib/database";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -153,20 +153,33 @@ async function checkAutumnWorkspaceResourceLimit(input: {
   return response.allowed;
 }
 
-export async function ensureWorkspaceResourceLimitAvailable(input: {
-  db?: DatabaseClient;
+async function lockWorkspaceResourceLimit(
+  tx: DatabaseTransaction,
+  organizationId: string,
+  featureId: WorkspaceResourceFeatureId,
+) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtextextended(${[
+      "workspace_resource_limit",
+      organizationId,
+      featureId,
+    ].join(":")}, 0))`,
+  );
+}
+
+async function evaluateWorkspaceResourceLimit(input: {
+  db: DatabaseClient;
   organizationId: string;
   featureId: WorkspaceResourceFeatureId;
   additionalUsage?: number;
   autumnApiKey?: string;
 }): Promise<Result<void, WorkspaceResourceLimitError>> {
-  const database = input.db ?? db;
   const additionalUsage = input.additionalUsage ?? 1;
   if (additionalUsage <= 0) return ok(undefined);
   if (process.env.NODE_ENV === "test" && input.autumnApiKey === undefined) return ok(undefined);
 
   const currentUsage = await countWorkspaceResourceUsage({
-    db: database,
+    db: input.db,
     organizationId: input.organizationId,
     featureId: input.featureId,
   });
@@ -212,6 +225,51 @@ export async function ensureWorkspaceResourceLimitAvailable(input: {
       message: formatLimitCheckError(error),
     });
   }
+}
+
+export async function ensureWorkspaceResourceLimitAvailable(input: {
+  db?: DatabaseClient;
+  organizationId: string;
+  featureId: WorkspaceResourceFeatureId;
+  additionalUsage?: number;
+  autumnApiKey?: string;
+}): Promise<Result<void, WorkspaceResourceLimitError>> {
+  return evaluateWorkspaceResourceLimit({
+    db: input.db ?? db,
+    organizationId: input.organizationId,
+    featureId: input.featureId,
+    additionalUsage: input.additionalUsage,
+    autumnApiKey: input.autumnApiKey,
+  });
+}
+
+export async function withWorkspaceResourceLimit<T>(
+  input: {
+    organizationId: string;
+    featureId: WorkspaceResourceFeatureId;
+    additionalUsage?: number;
+    autumnApiKey?: string;
+    db?: DatabaseTransaction;
+  },
+  fn: (tx: DatabaseTransaction) => Promise<T>,
+): Promise<Result<T, WorkspaceResourceLimitError>> {
+  const run = async (tx: DatabaseTransaction): Promise<Result<T, WorkspaceResourceLimitError>> => {
+    await lockWorkspaceResourceLimit(tx, input.organizationId, input.featureId);
+
+    const limitResult = await evaluateWorkspaceResourceLimit({
+      db: tx,
+      organizationId: input.organizationId,
+      featureId: input.featureId,
+      additionalUsage: input.additionalUsage,
+      autumnApiKey: input.autumnApiKey,
+    });
+    if (!limitResult.ok) return limitResult;
+
+    return ok(await fn(tx));
+  };
+
+  if (input.db) return run(input.db);
+  return db.transaction(run);
 }
 
 export function workspaceResourceLimitMessage(featureId: WorkspaceResourceFeatureId) {

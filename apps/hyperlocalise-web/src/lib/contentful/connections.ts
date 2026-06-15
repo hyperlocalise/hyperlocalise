@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import {
   decryptProviderCredential,
   encryptProviderCredential,
@@ -193,9 +193,11 @@ export async function createContentfulConnection(input: {
   projectId?: string | null;
   sourceLocale?: string | null;
   targetLocales?: string[];
+  db?: DatabaseClient;
 }): Promise<ContentfulConnectionSecretResult> {
+  const database = input.db ?? db;
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken));
-  const [connection] = await db
+  const [connection] = await database
     .insert(schema.contentfulConnections)
     .values({
       organizationId: input.organizationId,
@@ -248,7 +250,9 @@ export async function updateContentfulConnection(input: {
   fieldConfig?: ContentfulConnectionFieldConfig;
   accessToken?: string;
   enabled?: boolean;
+  db?: DatabaseClient;
 }): Promise<ContentfulConnectionSecretResult | null> {
+  const database = input.db ?? db;
   const encrypted = input.accessToken
     ? unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken))
     : null;
@@ -305,7 +309,7 @@ export async function updateContentfulConnection(input: {
     previousSubscription.providerWebhookId = null;
   }
 
-  const [connection] = await db
+  const [connection] = await database
     .update(schema.contentfulConnections)
     .set({
       updatedByUserId: input.userId,

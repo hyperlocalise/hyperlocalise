@@ -13,7 +13,7 @@ import {
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth/slack-oauth.route";
 import {
-  ensureWorkspaceResourceLimitAvailable,
+  withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
   workspaceResourceLimitErrorDetails,
   workspaceResourceLimitMessage,
@@ -24,7 +24,7 @@ import {
   getSlackStateSecret,
   SLACK_STATE_TTL_MS,
 } from "@/lib/agents/slack/oauth-state";
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -309,6 +309,32 @@ export function createAgentSlackRoutes() {
         return c.json({ error: "forbidden" as const }, 403);
       }
 
+      const upsertSlackConnector = async (database: DatabaseClient) => {
+        const [connector] = await database
+          .insert(schema.connectors)
+          .values({
+            organizationId,
+            kind: "slack",
+            enabled: payload.enabled,
+            config: {},
+          })
+          .onConflictDoUpdate({
+            target: [schema.connectors.organizationId, schema.connectors.kind],
+            set: {
+              enabled: payload.enabled,
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
+
+        if (!connector) {
+          throw new Error("organization_not_found");
+        }
+
+        return connector;
+      };
+
+      let connector;
       if (payload.enabled) {
         const [existingConnector] = await db
           .select({ enabled: schema.connectors.enabled })
@@ -322,10 +348,13 @@ export function createAgentSlackRoutes() {
           .limit(1);
 
         if (!existingConnector?.enabled) {
-          const limitResult = await ensureWorkspaceResourceLimitAvailable({
-            organizationId,
-            featureId: workspaceResourceFeatureIds.integrations,
-          });
+          const limitResult = await withWorkspaceResourceLimit(
+            {
+              organizationId,
+              featureId: workspaceResourceFeatureIds.integrations,
+            },
+            upsertSlackConnector,
+          );
           if (!limitResult.ok) {
             if (limitResult.error.code === "workspace_resource_limit_check_failed") {
               return serviceUnavailableResponse(
@@ -342,28 +371,13 @@ export function createAgentSlackRoutes() {
               workspaceResourceLimitErrorDetails(limitResult.error),
             );
           }
+
+          connector = limitResult.value;
+        } else {
+          connector = await upsertSlackConnector(db);
         }
-      }
-
-      const [connector] = await db
-        .insert(schema.connectors)
-        .values({
-          organizationId,
-          kind: "slack",
-          enabled: payload.enabled,
-          config: {},
-        })
-        .onConflictDoUpdate({
-          target: [schema.connectors.organizationId, schema.connectors.kind],
-          set: {
-            enabled: payload.enabled,
-            updatedAt: new Date(),
-          },
-        })
-        .returning();
-
-      if (!connector) {
-        return c.json({ error: "organization_not_found" as const }, 404);
+      } else {
+        connector = await upsertSlackConnector(db);
       }
 
       const config = (connector.config ?? {}) as SlackConnectorConfig;

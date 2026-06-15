@@ -7,10 +7,10 @@ import { getSlackBot } from "@/lib/agents/slack/bot";
 import { findSlackConnectorOwnedByAnotherOrganization } from "@/lib/agents/slack/helpers";
 import { getSlackStateSecret, verifySlackState } from "@/lib/agents/slack/oauth-state";
 import {
-  ensureWorkspaceResourceLimitAvailable,
+  withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
 } from "@/lib/billing/workspace-resource-limits";
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import { env } from "@/lib/env";
 
 type SlackOAuthResult = Awaited<
@@ -116,24 +116,8 @@ export function createSlackOAuthRoutes() {
       .where(and(eq(schema.connectors.organizationId, org.id), eq(schema.connectors.kind, "slack")))
       .limit(1);
 
-    if (!existingConnector?.enabled) {
-      const limitResult = await ensureWorkspaceResourceLimitAvailable({
-        organizationId: org.id,
-        featureId: workspaceResourceFeatureIds.integrations,
-      });
-      if (!limitResult.ok) {
-        return c.redirect(
-          `/dashboard?error=${
-            limitResult.error.code === "workspace_resource_limit_check_failed"
-              ? "integration_limit_check_failed"
-              : "integration_limit_reached"
-          }`,
-        );
-      }
-    }
-
-    try {
-      await db
+    const upsertSlackConnector = async (database: DatabaseClient) => {
+      await database
         .insert(schema.connectors)
         .values({
           organizationId: org.id,
@@ -157,6 +141,29 @@ export function createSlackOAuthRoutes() {
             updatedAt: new Date(),
           },
         });
+    };
+
+    try {
+      if (!existingConnector?.enabled) {
+        const limitResult = await withWorkspaceResourceLimit(
+          {
+            organizationId: org.id,
+            featureId: workspaceResourceFeatureIds.integrations,
+          },
+          upsertSlackConnector,
+        );
+        if (!limitResult.ok) {
+          return c.redirect(
+            `/dashboard?error=${
+              limitResult.error.code === "workspace_resource_limit_check_failed"
+                ? "integration_limit_check_failed"
+                : "integration_limit_reached"
+            }`,
+          );
+        }
+      } else {
+        await upsertSlackConnector(db);
+      }
     } catch {
       return c.redirect("/dashboard?error=slack_install_failed");
     }

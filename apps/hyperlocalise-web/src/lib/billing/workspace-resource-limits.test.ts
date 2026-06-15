@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   ensureWorkspaceResourceLimitAvailable,
+  withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
 } from "./workspace-resource-limits";
 
@@ -84,6 +85,55 @@ describe("workspace resource limits", () => {
         featureId: workspaceResourceFeatureIds.automations,
         currentUsage: 0,
         requestedUsage: 1,
+      },
+    });
+  });
+
+  it("allows only one concurrent project when the local fallback limit is one", async () => {
+    const { organization, user } = await createOrganization();
+
+    const results = await Promise.all(
+      Array.from({ length: 2 }, () =>
+        withWorkspaceResourceLimit(
+          {
+            organizationId: organization.id,
+            featureId: workspaceResourceFeatureIds.projects,
+            autumnApiKey: "",
+          },
+          async (tx) => {
+            const [project] = await tx
+              .insert(schema.projects)
+              .values({
+                id: `project_${randomUUID()}`,
+                organizationId: organization.id,
+                createdByUserId: user.id,
+                name: "Concurrent project",
+                description: "",
+                translationContext: "",
+                source: "native",
+                sourceLocale: "en",
+                targetLocales: ["fr"],
+              })
+              .returning();
+
+            return project;
+          },
+        ),
+      ),
+    );
+
+    const successes = results.filter((result) => result.ok);
+    const failures = results.filter((result) => !result.ok);
+
+    expect(successes).toHaveLength(1);
+    expect(failures).toHaveLength(1);
+    expect(failures[0]).toMatchObject({
+      ok: false,
+      error: {
+        code: "workspace_resource_limit_reached",
+        featureId: workspaceResourceFeatureIds.projects,
+        currentUsage: 1,
+        requestedUsage: 2,
       },
     });
   });
