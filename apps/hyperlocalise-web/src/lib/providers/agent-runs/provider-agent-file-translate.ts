@@ -95,18 +95,6 @@ function sanitizeSandboxFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-function getSandboxOutputFilename(attachmentFilename: string, targetLocale: string): string {
-  const inputFilename = sanitizeSandboxFilename(attachmentFilename);
-  const lastDot = inputFilename.lastIndexOf(".");
-  if (lastDot === -1) {
-    return `${inputFilename}-${targetLocale}`;
-  }
-
-  const name = inputFilename.slice(0, lastDot);
-  const ext = inputFilename.slice(lastDot);
-  return `${name}-${targetLocale}${ext}`;
-}
-
 function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: string) {
   return unit.translations.find((translation) => translation.locale === locale) ?? null;
 }
@@ -179,6 +167,8 @@ async function runFileTranslationInSandbox(input: {
 }) {
   const {
     buildTempConfig,
+    extractSandboxEntries,
+    getSandboxOutputFilename,
     getSandboxTranslationEnv,
     readTranslatedFile,
     runSandboxCommand,
@@ -226,46 +216,15 @@ async function runFileTranslationInSandbox(input: {
   }
 
   const translatedContent = await readTranslatedFile(input.sandboxId, outputFilename);
-  const extractResult = await runSandboxCommand(
-    input.sandboxId,
-    "bash",
-    [
-      "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl entries '${shellSingleQuote(outputFilename)}'`,
-    ],
-    { env: getSandboxTranslationEnv(), output: "stdout" },
-  );
-  if (extractResult.exitCode !== 0) {
-    throw new Error(`failed to extract translated entries: ${extractResult.output}`);
+  const translatedEntries = await extractSandboxEntries(input.sandboxId, outputFilename);
+  if (!translatedEntries) {
+    throw new Error(`failed to extract translated entries: ${outputFilename}`);
   }
 
   return {
     translatedText: translatedContent.toString("utf8"),
-    translatedEntries: JSON.parse(extractResult.output) as Record<string, string>,
+    translatedEntries,
   };
-}
-
-async function extractSourceEntriesInSandbox(
-  sandboxId: string,
-  inputFilename: string,
-): Promise<Record<string, string> | null> {
-  const { getSandboxTranslationEnv, runSandboxCommand } =
-    await import("@/lib/translation/sandbox-translation");
-
-  const extractResult = await runSandboxCommand(
-    sandboxId,
-    "bash",
-    [
-      "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl entries '${shellSingleQuote(inputFilename)}'`,
-    ],
-    { env: getSandboxTranslationEnv(), output: "stdout" },
-  );
-  if (extractResult.exitCode !== 0) {
-    return null;
-  }
-
-  return JSON.parse(extractResult.output) as Record<string, string>;
 }
 
 export function shouldUseProviderFileTranslation(input: { sourceFiles: ProviderSourceFileRef[] }) {
@@ -451,6 +410,9 @@ export async function translateProviderJobFiles(input: {
       createTranslationSandbox,
       downloadAttachment,
       downloadCrowdinSourceInSandbox,
+      downloadCrowdinTranslationsInSandbox,
+      extractSandboxEntries,
+      getSandboxOutputFilename,
       prepareSandbox,
       readTranslatedFile,
       stopTranslationSandbox,
@@ -467,7 +429,7 @@ export async function translateProviderJobFiles(input: {
         await downloadCrowdinSourceInSandbox({
           sandboxId,
           externalFileId: sourceFile.id,
-          outputFilename: inputFilename,
+          sourceFilename: inputFilename,
           externalProjectId: crowdinContext.externalProjectId,
           secretMaterial: crowdinContext.secretMaterial,
           baseUrl: crowdinContext.baseUrl,
@@ -495,7 +457,7 @@ export async function translateProviderJobFiles(input: {
       );
 
       try {
-        sourceEntries = await extractSourceEntriesInSandbox(sandboxId, inputFilename);
+        sourceEntries = await extractSandboxEntries(sandboxId, inputFilename);
       } catch (error) {
         warnings.push(
           `Could not extract entries for ${sourceFile.displayName ?? sourceFile.id}: ${
@@ -549,7 +511,24 @@ export async function translateProviderJobFiles(input: {
             sourceEntries,
           });
         }
-        const prefilledEntries = { ...tmPrefilled, ...existingPrefilled };
+
+        let crowdinPrefilled: Record<string, string> = {};
+        if (crowdinContext?.ok) {
+          const outputFilename = getSandboxOutputFilename(inputFilename, targetLocale);
+          const downloadResult = await downloadCrowdinTranslationsInSandbox({
+            sandboxId,
+            targetLocale,
+            externalProjectId: crowdinContext.externalProjectId,
+            secretMaterial: crowdinContext.secretMaterial,
+            baseUrl: crowdinContext.baseUrl,
+            mergeApproved: true,
+          });
+          if (downloadResult.ok) {
+            crowdinPrefilled = (await extractSandboxEntries(sandboxId, outputFilename)) ?? {};
+          }
+        }
+
+        const prefilledEntries = { ...tmPrefilled, ...crowdinPrefilled, ...existingPrefilled };
 
         const localeContext = buildGlossaryContext({
           sourceText,
