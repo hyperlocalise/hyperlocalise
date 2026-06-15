@@ -112,7 +112,7 @@ func isLikelyMarkupTag(raw, normalized string) bool {
 	if tag == "" {
 		return false
 	}
-	if atom.Lookup([]byte(tag)) != 0 || strings.ContainsAny(tag, "-:._0123456789") {
+	if atom.Lookup([]byte(tag)) != 0 || strings.Contains(tag, "-") || strings.Contains(tag, ":") {
 		return true
 	}
 	rawName := rawTagName(raw)
