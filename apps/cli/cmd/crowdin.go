@@ -31,6 +31,17 @@ type crowdinCommonOptions struct {
 	dryRun                  bool
 }
 
+type crowdinDownloadSourcesOptions struct {
+	configPath   string
+	identityPath string
+	branch       string
+	fileID       int
+	sourcePaths  []string
+	outputPath   string
+	force        bool
+	dryRun       bool
+}
+
 type crowdinGlossaryDownloadOptions struct {
 	configPath   string
 	identityPath string
@@ -203,10 +214,22 @@ func newCrowdinUploadTranslationsCmd() *cobra.Command {
 	return cmd
 }
 
+var downloadCrowdinSourceFileByID = crowdinstorage.DownloadSourceFileByID
+
 func newCrowdinDownloadCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "download",
+		Short: "download source or translated files from Crowdin",
+	}
+	cmd.AddCommand(newCrowdinDownloadSourcesCmd())
+	cmd.AddCommand(newCrowdinDownloadTranslationsCmd())
+	return cmd
+}
+
+func newCrowdinDownloadTranslationsCmd() *cobra.Command {
 	o := crowdinCommonOptions{}
 	cmd := &cobra.Command{
-		Use:          "download",
+		Use:          "translations",
 		Short:        "download translated files defined in crowdin.yml",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -232,6 +255,108 @@ func newCrowdinDownloadCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&o.mergeApproved, "merge-approved", false, "merge approved downloaded JSON strings into existing translation files")
 	cmd.Flags().BoolVar(&o.includeSources, "include-sources", false, "also download source files into files[].source paths")
 	return cmd
+}
+
+func newCrowdinDownloadSourcesCmd() *cobra.Command {
+	o := crowdinDownloadSourcesOptions{}
+	cmd := &cobra.Command{
+		Use:          "sources",
+		Short:        "download source files from Crowdin",
+		SilenceUsage: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return executeCrowdinDownloadSources(cmd, o)
+		},
+	}
+	cmd.Flags().StringVar(&o.configPath, "config", "", "path to crowdin.yml")
+	cmd.Flags().StringVar(&o.identityPath, "identity", "", "path to Crowdin identity file")
+	cmd.Flags().StringVar(&o.branch, "branch", "", "Crowdin branch name to process")
+	cmd.Flags().IntVar(&o.fileID, "file-id", 0, "download one source file by Crowdin file ID")
+	cmd.Flags().StringSliceVar(&o.sourcePaths, "source", nil, "limit config-based download to one or more files[].source paths")
+	cmd.Flags().StringVarP(&o.outputPath, "output", "o", "", "output file path for --file-id; omit or use - for stdout")
+	cmd.Flags().BoolVar(&o.force, "force", false, "overwrite an existing output file")
+	cmd.Flags().BoolVar(&o.dryRun, "dry-run", false, "preview command without downloading content")
+	return cmd
+}
+
+func executeCrowdinDownloadSources(cmd *cobra.Command, o crowdinDownloadSourcesOptions) error {
+	outputPath := strings.TrimSpace(o.outputPath)
+	if o.fileID > 0 {
+		if o.dryRun {
+			destination := outputPath
+			if destination == "" {
+				destination = "-"
+			}
+			_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=download-sources file_id=%d output=%s\n", o.fileID, destination)
+			return err
+		}
+		if err := validateCrowdinDownloadSourcesOutputPath(outputPath, o.force); err != nil {
+			return err
+		}
+
+		cfg, _, err := crowdinstorage.LoadClientConfig(o.configPath, o.identityPath)
+		if err != nil {
+			return err
+		}
+		content, err := downloadCrowdinSourceFileByID(backgroundContext(), cfg, o.fileID)
+		if err != nil {
+			return fmt.Errorf("crowdin download sources: %w", err)
+		}
+		if outputPath == "" || outputPath == "-" {
+			_, err := cmd.OutOrStdout().Write(content)
+			return err
+		}
+		if err := writeCrowdinDownloadedSource(outputPath, content, o.force); err != nil {
+			return err
+		}
+		_, err = fmt.Fprintf(cmd.OutOrStdout(), "downloaded file=%s bytes=%d file_id=%d\n", outputPath, len(content), o.fileID)
+		return err
+	}
+
+	cfg, _, err := loadCrowdinWorkflowConfig(o.configPath, o.identityPath)
+	if err != nil {
+		return err
+	}
+	if o.dryRun {
+		_, err := fmt.Fprintf(cmd.OutOrStdout(), "dry-run action=download-sources files=%d sources=%s\n", len(cfg.Files), strings.Join(o.sourcePaths, ","))
+		return err
+	}
+	cfg = overrideCrowdinBranch(cfg, o.branch)
+	adapter, err := crowdinstorage.NewFileAdapter(cfg)
+	if err != nil {
+		return err
+	}
+	result, err := adapter.DownloadSources(backgroundContext(), storage.FileDownloadSourcesRequest{
+		Config:      cfg,
+		SourcePaths: o.sourcePaths,
+	})
+	return writeCrowdinResultError(cmd, "download-sources", result, err)
+}
+
+func writeCrowdinDownloadedSource(path string, content []byte, force bool) error {
+	if err := validateCrowdinDownloadSourcesOutputPath(path, force); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("crowdin download sources: mkdir output directory: %w", err)
+	}
+	return writeFileAtomic(path, content)
+}
+
+func validateCrowdinDownloadSourcesOutputPath(path string, force bool) error {
+	if path == "" || path == "-" {
+		return nil
+	}
+	if info, err := os.Stat(path); err == nil {
+		if info.IsDir() {
+			return fmt.Errorf("crowdin download sources: output file %q is a directory", path)
+		}
+		if !force {
+			return fmt.Errorf("crowdin download sources: output file %q already exists; use --force to overwrite", path)
+		}
+	} else if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("crowdin download sources: stat output file %q: %w", path, err)
+	}
+	return nil
 }
 
 func newCrowdinGlossaryCmd() *cobra.Command {

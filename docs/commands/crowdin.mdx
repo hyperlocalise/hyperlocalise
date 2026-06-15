@@ -10,7 +10,8 @@ hyperlocalise crowdin init
 hyperlocalise crowdin config validate [--config <path>] [--identity <path>]
 hyperlocalise crowdin upload sources [--config <path>] [--identity <path>] [--branch <name>]
 hyperlocalise crowdin upload translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>]
-hyperlocalise crowdin download [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>] [--export-only-approved] [--skip-untranslated-strings] [--merge-approved] [--include-sources]
+hyperlocalise crowdin download sources [--config <path>] [--identity <path>] [--branch <name>] [--file-id <id>] [--source <path>] [--output <path>] [--force]
+hyperlocalise crowdin download translations [--config <path>] [--identity <path>] [--branch <name>] [--language <locale>] [--export-only-approved] [--skip-untranslated-strings] [--merge-approved] [--include-sources]
 ```
 
 ## What this command family does
@@ -23,8 +24,9 @@ Use them when you want Crowdin-compatible file mode:
 
 - source-file upload from `files[].source`
 - translation upload from `files[].translation`
+- source download into `files[].source` or a single output file
 - translation download/export back into your repo
-- optional source download back into `files[].source` with `--include-sources`
+- optional source download alongside translations with `download translations --include-sources`
 - branch-scoped upload and download with root `branch:` or `--branch`
 - strict YAML decoding: only keys Crowdin documents and `hl` recognizes may appear in `crowdin.yml` (unknown keys still error)
 
@@ -93,19 +95,39 @@ Upload sources to a Crowdin branch:
 hyperlocalise crowdin upload sources --branch feature/login
 ```
 
+Download source files from `crowdin.yml` into their configured `files[].source` paths:
+
+```bash
+hyperlocalise crowdin download sources
+```
+
+Download one Crowdin source file by file ID:
+
+```bash
+hyperlocalise crowdin download sources --file-id 101 --output /tmp/messages.json --force
+```
+
+When you pass `--file-id`, Hyperlocalise downloads that file directly from Crowdin. Use `--output` to write a file, or omit it to print the source content to stdout. Credentials still come from `crowdin.yml`, `.crowdin.yml`, or the usual `CROWDIN_PROJECT_ID` and `CROWDIN_PERSONAL_TOKEN` environment variables.
+
+Limit a config-based source download to one or more configured paths:
+
+```bash
+hyperlocalise crowdin download sources --source /src/messages.json
+```
+
 Download only approved French translations:
 
 ```bash
-hyperlocalise crowdin download --language fr --export-only-approved --skip-untranslated-strings
+hyperlocalise crowdin download translations --language fr --export-only-approved --skip-untranslated-strings
 ```
 
 Download French translations and refresh the matching local source files:
 
 ```bash
-hyperlocalise crowdin download --language fr --include-sources
+hyperlocalise crowdin download translations --language fr --include-sources
 ```
 
-For exact `files[].source` paths, Hyperlocalise can write the source file even when it is missing locally. For globbed source paths, local glob expansion still determines which configured files are processed.
+With `download translations --include-sources`, exact `files[].source` paths can be written even when the file is missing locally. For globbed source paths, local glob expansion still determines which configured files are processed.
 
 Or configure the export behavior in `crowdin.yml`:
 
@@ -120,8 +142,8 @@ files:
 Merge approved JSON strings into the existing local translation file without deleting local keys that are absent from the approved export:
 
 ```bash
-hyperlocalise crowdin download --language fr --merge-approved
+hyperlocalise crowdin download translations --language fr --merge-approved
 ```
 
-`--merge-approved` currently supports JSON object translation files. It forces an approved-only sparse export for the request, then overwrites only keys present in the approved Crowdin payload.
+`download translations --merge-approved` currently supports JSON object translation files. It forces an approved-only sparse export for the request, then overwrites only keys present in the approved Crowdin payload.
 Downloaded values that still match the source JSON are treated as Crowdin source-language fallbacks and are not merged over existing local translations.

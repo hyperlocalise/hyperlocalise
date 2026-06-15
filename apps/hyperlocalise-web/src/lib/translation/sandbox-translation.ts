@@ -235,6 +235,61 @@ export function getSandboxOutputFilename(attachmentFilename: string, targetLocal
   return getOutputFilename(sanitizeFilename(attachmentFilename), targetLocale);
 }
 
+export function buildCrowdinSandboxConfig(input: { includeBaseUrl: boolean }): string {
+  const lines = ["project_id_env: CROWDIN_PROJECT_ID", "api_token_env: CROWDIN_PERSONAL_TOKEN"];
+  if (input.includeBaseUrl) {
+    lines.push("base_url_env: CROWDIN_BASE_URL");
+  }
+  return lines.join("\n");
+}
+
+export function getCrowdinSandboxEnv(input: {
+  externalProjectId: string;
+  secretMaterial: string;
+  baseUrl?: string | null;
+}): Record<string, string> {
+  const env: Record<string, string> = {
+    CROWDIN_PROJECT_ID: input.externalProjectId,
+    CROWDIN_PERSONAL_TOKEN: input.secretMaterial,
+  };
+  if (input.baseUrl?.trim()) {
+    env.CROWDIN_BASE_URL = input.baseUrl.trim();
+  }
+  return env;
+}
+
+export async function downloadCrowdinSourceInSandbox(input: {
+  sandboxId: string;
+  externalFileId: string;
+  outputFilename: string;
+  externalProjectId: string;
+  secretMaterial: string;
+  baseUrl?: string | null;
+}): Promise<void> {
+  const configPath = "/tmp/crowdin.yml";
+  const config = buildCrowdinSandboxConfig({ includeBaseUrl: Boolean(input.baseUrl?.trim()) });
+  await writeFilesToSandbox(input.sandboxId, [{ path: configPath, content: config }]);
+
+  const fileId = Number(input.externalFileId);
+  if (Number.isNaN(fileId)) {
+    throw new Error("Provider file identifiers are invalid");
+  }
+
+  const result = await runSandboxCommand(
+    input.sandboxId,
+    "bash",
+    [
+      "-lc",
+      `export PATH="$HOME/.local/bin:$PATH"; hl crowdin download sources --config ${shellQuote(configPath)} --file-id ${fileId} --output ${shellQuote(input.outputFilename)} --force`,
+    ],
+    { env: getCrowdinSandboxEnv(input) },
+  );
+
+  if (result.exitCode !== 0) {
+    throw new Error(`crowdin source download failed: ${result.output}`);
+  }
+}
+
 export function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
 
@@ -248,6 +303,10 @@ export function userFacingFailureReason(error: unknown): string {
 
   if (message.includes("failed to download attachment")) {
     return "the attachment couldn't be retrieved. It may have been too large or the link expired.";
+  }
+
+  if (message.includes("crowdin source download failed")) {
+    return "the source file couldn't be downloaded from Crowdin. This is usually temporary.";
   }
 
   if (message.includes("translation failed")) {

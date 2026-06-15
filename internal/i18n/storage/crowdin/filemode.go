@@ -190,6 +190,65 @@ func (a *FileAdapter) UploadTranslations(ctx context.Context, req storage.FileUp
 	return storage.FileOperationResult{Processed: processed, Skipped: skipped}, nil
 }
 
+func (a *FileAdapter) DownloadSources(ctx context.Context, req storage.FileDownloadSourcesRequest) (storage.FileOperationResult, error) {
+	config := a.effectiveConfig(req.Config)
+	baseRoot, err := canonicalCrowdinBasePath(config.BasePath)
+	if err != nil {
+		return storage.FileOperationResult{}, err
+	}
+	branchID, err := a.resolveBranchID(ctx, config)
+	if err != nil {
+		return storage.FileOperationResult{}, err
+	}
+
+	sourceFilter := makeStringSet(req.SourcePaths)
+	processed := make([]string, 0)
+	skipped := make([]string, 0)
+
+	for _, group := range config.Files {
+		sourcePaths, err := resolveCrowdinSourcePaths(config.BasePath, group.Source)
+		if err != nil {
+			return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+		}
+		for _, sourcePath := range sourcePaths {
+			if err := validateCrowdinContainedPath(baseRoot, sourcePath); err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("source path %q: %w", sourcePath, err)
+			}
+			remotePath, err := sourceRemotePath(config, sourcePath)
+			if err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+			}
+			if len(sourceFilter) > 0 && !matchesCrowdinSourcePathFilter(sourceFilter, remotePath, sourcePath) {
+				skipped = append(skipped, remotePath)
+				continue
+			}
+			dirID, name, err := a.findRemoteLocation(ctx, config.ProjectID, branchID, remotePath)
+			if err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+			}
+			fileID, err := a.client.FindFile(ctx, config.ProjectID, branchID, dirID, name)
+			if err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+			}
+			payload, err := a.client.DownloadSourceFile(ctx, config.ProjectID, fileID)
+			if err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, err
+			}
+			if err := os.MkdirAll(filepath.Dir(sourcePath), 0o755); err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("mkdir source output: %w", err)
+			}
+			if err := os.WriteFile(sourcePath, payload, 0o644); err != nil {
+				return storage.FileOperationResult{Processed: processed, Skipped: skipped}, fmt.Errorf("write source output: %w", err)
+			}
+			processed = append(processed, remotePath)
+		}
+	}
+
+	slices.Sort(processed)
+	slices.Sort(skipped)
+	return storage.FileOperationResult{Processed: processed, Skipped: skipped}, nil
+}
+
 func (a *FileAdapter) DownloadTranslations(ctx context.Context, req storage.FileDownloadTranslationsRequest) (storage.FileOperationResult, error) {
 	config := a.effectiveConfig(req.Config)
 	baseRoot, err := canonicalCrowdinBasePath(config.BasePath)
@@ -819,6 +878,27 @@ func makeStringSet(values []string) map[string]struct{} {
 	out := make(map[string]struct{}, len(values))
 	for _, value := range values {
 		out[value] = struct{}{}
+		normalized := filepath.ToSlash(strings.TrimSpace(value))
+		out[normalized] = struct{}{}
+		out[strings.TrimPrefix(normalized, "/")] = struct{}{}
 	}
 	return out
+}
+
+func matchesCrowdinSourcePathFilter(filter map[string]struct{}, remotePath, sourcePath string) bool {
+	candidates := []string{
+		remotePath,
+		sourcePath,
+		filepath.ToSlash(remotePath),
+		filepath.ToSlash(sourcePath),
+	}
+	for _, candidate := range candidates {
+		if _, ok := filter[candidate]; ok {
+			return true
+		}
+		if _, ok := filter[strings.TrimPrefix(candidate, "/")]; ok {
+			return true
+		}
+	}
+	return false
 }

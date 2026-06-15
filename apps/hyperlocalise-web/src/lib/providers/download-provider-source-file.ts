@@ -7,15 +7,30 @@ import type {
   ExternalTmsCredential,
   ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { normalizeProviderDownloadUrl } from "@/lib/providers/provider-url-safety";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
 
-export type DownloadProviderSourceFileResult =
+type ProviderSourceFileMetadata = {
+  filename: string;
+  fileFormat: NonNullable<ReturnType<typeof inferSupportedFileTranslationFileFormat>>;
+};
+
+export type ResolveProviderSourceFileDownloadResult =
+  | ({
+      ok: true;
+      downloadUrl: string;
+    } & ProviderSourceFileMetadata)
   | {
+      ok: false;
+      code: string;
+      message: string;
+    };
+
+export type DownloadProviderSourceFileResult =
+  | ({
       ok: true;
       content: Buffer;
-      filename: string;
-      fileFormat: NonNullable<ReturnType<typeof inferSupportedFileTranslationFileFormat>>;
-    }
+    } & ProviderSourceFileMetadata)
   | {
       ok: false;
       code: string;
@@ -72,13 +87,17 @@ async function loadProjectCredential(input: {
   };
 }
 
-async function downloadCrowdinSourceFile(input: {
-  credential: ExternalTmsCredential;
-  secretMaterial: string;
-  externalProjectId: string;
-  externalFileId: string;
-  sourcePath: string;
-}): Promise<DownloadProviderSourceFileResult> {
+function resolveCrowdinSourceFileMetadata(input: { externalFileId: string; sourcePath: string }):
+  | {
+      ok: true;
+      filename: string;
+      fileFormat: NonNullable<ReturnType<typeof inferSupportedFileTranslationFileFormat>>;
+    }
+  | {
+      ok: false;
+      code: string;
+      message: string;
+    } {
   const fileFormat = inferSupportedFileTranslationFileFormat(input.sourcePath);
   if (!fileFormat) {
     return {
@@ -86,6 +105,28 @@ async function downloadCrowdinSourceFile(input: {
       code: "unsupported_file_format",
       message: `Source path ${input.sourcePath} is not a supported translation file format`,
     };
+  }
+
+  return {
+    ok: true,
+    filename: input.sourcePath.split("/").pop() ?? `source-${input.externalFileId}`,
+    fileFormat,
+  };
+}
+
+async function resolveCrowdinSourceFileDownload(input: {
+  credential: ExternalTmsCredential;
+  secretMaterial: string;
+  externalProjectId: string;
+  externalFileId: string;
+  sourcePath: string;
+}): Promise<ResolveProviderSourceFileDownloadResult> {
+  const metadata = resolveCrowdinSourceFileMetadata({
+    externalFileId: input.externalFileId,
+    sourcePath: input.sourcePath,
+  });
+  if (!metadata.ok) {
+    return metadata;
   }
 
   const projectId = Number(input.externalProjectId);
@@ -105,14 +146,20 @@ async function downloadCrowdinSourceFile(input: {
 
   try {
     const downloadLink = await client.downloadFile(projectId, fileId);
-    const bytes = await client.downloadUrl(downloadLink.url);
-    const filename = input.sourcePath.split("/").pop() ?? `source-${input.externalFileId}`;
+    const downloadUrl = normalizeProviderDownloadUrl(downloadLink.url);
+    if (!downloadUrl) {
+      return {
+        ok: false,
+        code: "provider_file_download_url_invalid",
+        message: "Provider file download URL is invalid or unsafe",
+      };
+    }
 
     return {
       ok: true,
-      content: Buffer.from(bytes),
-      filename,
-      fileFormat,
+      downloadUrl,
+      filename: metadata.filename,
+      fileFormat: metadata.fileFormat,
     };
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
@@ -129,6 +176,139 @@ async function downloadCrowdinSourceFile(input: {
       message: error instanceof Error ? error.message : "Provider file download failed",
     };
   }
+}
+
+async function downloadCrowdinSourceFile(input: {
+  credential: ExternalTmsCredential;
+  secretMaterial: string;
+  externalProjectId: string;
+  externalFileId: string;
+  sourcePath: string;
+}): Promise<DownloadProviderSourceFileResult> {
+  const resolved = await resolveCrowdinSourceFileDownload(input);
+  if (!resolved.ok) {
+    return resolved;
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.secretMaterial,
+    baseUrl: input.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const bytes = await client.downloadUrl(resolved.downloadUrl);
+    return {
+      ok: true,
+      content: Buffer.from(bytes),
+      filename: resolved.filename,
+      fileFormat: resolved.fileFormat,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      code: "provider_file_download_failed",
+      message: error instanceof Error ? error.message : "Provider file download failed",
+    };
+  }
+}
+
+export async function loadProviderCrowdinDownloadContext(input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  actorUserId?: string | null;
+}): Promise<
+  | {
+      ok: true;
+      externalProjectId: string;
+      secretMaterial: string;
+      baseUrl: string | null;
+    }
+  | {
+      ok: false;
+      code: string;
+      message: string;
+    }
+> {
+  if (input.providerKind !== "crowdin") {
+    return {
+      ok: false,
+      code: "provider_file_download_unsupported",
+      message: `File download is not supported for ${input.providerKind} yet`,
+    };
+  }
+
+  const context = await loadProjectCredential({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    providerKind: input.providerKind,
+  });
+
+  if (!context) {
+    return {
+      ok: false,
+      code: "provider_project_unavailable",
+      message: "Provider project credentials are unavailable",
+    };
+  }
+
+  const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+    credential: context.credential,
+    organizationId: input.organizationId,
+    actorUserId: input.actorUserId,
+  });
+
+  return {
+    ok: true,
+    externalProjectId: context.externalProjectId,
+    secretMaterial,
+    baseUrl: context.credential.baseUrl ?? null,
+  };
+}
+
+export async function resolveProviderSourceFileDownload(input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalFileId: string;
+  sourcePath: string;
+  actorUserId?: string | null;
+}): Promise<ResolveProviderSourceFileDownloadResult> {
+  const context = await loadProjectCredential({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    providerKind: input.providerKind,
+  });
+
+  if (!context) {
+    return {
+      ok: false,
+      code: "provider_project_unavailable",
+      message: "Provider project credentials are unavailable",
+    };
+  }
+
+  const secretMaterial = await resolveExternalTmsSecretMaterialForActor({
+    credential: context.credential,
+    organizationId: input.organizationId,
+    actorUserId: input.actorUserId,
+  });
+
+  if (input.providerKind === "crowdin") {
+    return resolveCrowdinSourceFileDownload({
+      credential: context.credential,
+      secretMaterial,
+      externalProjectId: context.externalProjectId,
+      externalFileId: input.externalFileId,
+      sourcePath: input.sourcePath,
+    });
+  }
+
+  return {
+    ok: false,
+    code: "provider_file_download_unsupported",
+    message: `File download is not supported for ${input.providerKind} yet`,
+  };
 }
 
 export async function downloadProviderSourceFile(input: {
