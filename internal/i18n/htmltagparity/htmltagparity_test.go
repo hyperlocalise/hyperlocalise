@@ -145,6 +145,24 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			tgt:  "Bonjour world",
 			want: true,
 		},
+		{
+			name: "lowercase dot tags match in both strings",
+			src:  "Hello <my.component>world</my.component>",
+			tgt:  "Bonjour <my.component>monde</my.component>",
+			want: false,
+		},
+		{
+			name: "lowercase underscore tags match in both strings",
+			src:  "Hello <my_tag>world</my_tag>",
+			tgt:  "Bonjour <my_tag>monde</my_tag>",
+			want: false,
+		},
+		{
+			name: "lowercase tags with numbers match in both strings",
+			src:  "Hello <tag1>world</tag1>",
+			tgt:  "Bonjour <tag1>monde</tag1>",
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
