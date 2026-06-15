@@ -17,7 +17,10 @@ import {
 import { reuseFileTranslationMemoryEntries } from "@/lib/translation/file-translation-memory";
 import type { SandboxTranslationContext } from "@/lib/translation/sandbox-translation";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { createLogger } from "@/lib/log";
 import { loadTranslationContextProject } from "@/lib/translation/assemble-translation-context";
+
+const logger = createLogger("provider-agent-file-translate");
 
 type ProviderSourceFileRef = {
   id: string;
@@ -112,6 +115,16 @@ function shouldSkipExistingTranslation(
 
 function unitsForFile(units: ExternalTmsTranslationUnit[], externalFileId: string) {
   return units.filter((unit) => unit.fileId === externalFileId);
+}
+
+export function summarizeProviderUnitFileIds(units: ExternalTmsTranslationUnit[]) {
+  const countsByFileId = new Map<string, number>();
+  for (const unit of units) {
+    const fileId = unit.fileId?.trim() ? unit.fileId : "(null)";
+    countsByFileId.set(fileId, (countsByFileId.get(fileId) ?? 0) + 1);
+  }
+
+  return Object.fromEntries(countsByFileId);
 }
 
 function buildPrefilledEntriesForLocale(input: {
@@ -244,6 +257,7 @@ export function shouldUseProviderFileTranslation(input: { sourceFiles: ProviderS
 }
 
 export async function translateProviderJobFiles(input: {
+  agentRunId?: string;
   organizationId: string;
   projectId: string;
   providerKind: ExternalTmsProviderKind;
@@ -252,8 +266,23 @@ export async function translateProviderJobFiles(input: {
   actorUserId?: string | null;
   targetLocales?: string[];
 }): Promise<ProviderAgentFileTranslationResult> {
+  const logContext = {
+    agentRunId: input.agentRunId,
+    organizationId: input.organizationId,
+    providerKind: input.providerKind,
+  };
+  const unitFileIdCounts = summarizeProviderUnitFileIds(input.content.units);
+
   const project = await loadTranslationContextProject(input.projectId);
   if (!project) {
+    logger.warn(
+      {
+        ...logContext,
+        projectId: input.projectId,
+        reason: "translation_project_not_found",
+      },
+      "provider agent file translation aborted because translation project was not found",
+    );
     return {
       changedItems: [],
       warnings: [`Translation project ${input.projectId} was not found`],
@@ -274,14 +303,59 @@ export async function translateProviderJobFiles(input: {
   let unitsProcessed = 0;
   let skippedExistingLocales = 0;
   let filesProcessed = 0;
+  let skippedMissingSourcePathCount = 0;
+  let skippedNoMatchingUnitsCount = 0;
+  let skippedDownloadFailureCount = 0;
+
+  logger.info(
+    {
+      ...logContext,
+      unitCount: input.content.units.length,
+      targetLocaleCount: targetLocales.length,
+      targetLocales,
+      sourceLocale,
+      sourceFileCount: input.sourceFiles.length,
+      sourceFilesWithPathCount: input.sourceFiles.filter((file) => Boolean(file.sourcePath?.trim()))
+        .length,
+      sourceFileIds: input.sourceFiles.map((file) => ({
+        id: file.id,
+        hasSourcePath: Boolean(file.sourcePath?.trim()),
+      })),
+      unitFileIdCounts,
+    },
+    "provider agent file translation started",
+  );
 
   for (const sourceFile of input.sourceFiles) {
     if (!sourceFile.sourcePath?.trim()) {
+      skippedMissingSourcePathCount += 1;
+      logger.info(
+        {
+          ...logContext,
+          sourceFileId: sourceFile.id,
+          displayName: sourceFile.displayName,
+          reason: "missing_source_path",
+        },
+        "provider agent file translation skipped source file without source path",
+      );
       continue;
     }
 
     const fileUnits = unitsForFile(input.content.units, sourceFile.id);
     if (fileUnits.length === 0) {
+      skippedNoMatchingUnitsCount += 1;
+      logger.warn(
+        {
+          ...logContext,
+          sourceFileId: sourceFile.id,
+          displayName: sourceFile.displayName,
+          sourcePath: sourceFile.sourcePath,
+          unitCount: input.content.units.length,
+          unitFileIdCounts,
+          reason: "no_units_for_file",
+        },
+        "provider agent file translation skipped source file with no matching units",
+      );
       continue;
     }
 
@@ -295,11 +369,35 @@ export async function translateProviderJobFiles(input: {
     });
 
     if (!download.ok) {
+      skippedDownloadFailureCount += 1;
+      logger.warn(
+        {
+          ...logContext,
+          sourceFileId: sourceFile.id,
+          displayName: sourceFile.displayName,
+          sourcePath: sourceFile.sourcePath,
+          downloadCode: download.code,
+          matchingUnitCount: fileUnits.length,
+          reason: "source_file_download_failed",
+        },
+        "provider agent file translation skipped source file after download failure",
+      );
       warnings.push(`Skipped file ${sourceFile.displayName ?? sourceFile.id}: ${download.message}`);
       continue;
     }
 
     filesProcessed += 1;
+    logger.info(
+      {
+        ...logContext,
+        sourceFileId: sourceFile.id,
+        displayName: sourceFile.displayName,
+        sourcePath: sourceFile.sourcePath,
+        matchingUnitCount: fileUnits.length,
+        byteLength: download.content.byteLength,
+      },
+      "provider agent file translation downloaded source file",
+    );
     const sourceText = download.content.toString("utf8");
     const fileGlossaryTerms = await loadFileGlossaryTerms({
       projectId: input.projectId,
@@ -358,6 +456,16 @@ export async function translateProviderJobFiles(input: {
       unitsProcessed += localesNeedingTranslation.length;
 
       if (localesNeedingTranslation.length === 0) {
+        logger.info(
+          {
+            ...logContext,
+            sourceFileId: sourceFile.id,
+            targetLocale,
+            matchingUnitCount: fileUnits.length,
+            reason: "all_units_already_translated",
+          },
+          "provider agent file translation skipped locale because all units already have translations",
+        );
         continue;
       }
 
@@ -463,11 +571,51 @@ export async function translateProviderJobFiles(input: {
     }
   }
 
-  return {
+  const result = {
     changedItems,
     warnings,
     unitsProcessed,
     skippedExistingLocales,
     filesProcessed,
   };
+
+  if (input.content.units.length > 0 && filesProcessed === 0) {
+    logger.warn(
+      {
+        ...logContext,
+        unitCount: input.content.units.length,
+        proposedCount: changedItems.length,
+        unitsProcessed,
+        filesProcessed,
+        skippedMissingSourcePathCount,
+        skippedNoMatchingUnitsCount,
+        skippedDownloadFailureCount,
+        warningCount: warnings.length,
+        unitFileIdCounts,
+        sourceFileIds: input.sourceFiles.map((file) => ({
+          id: file.id,
+          hasSourcePath: Boolean(file.sourcePath?.trim()),
+        })),
+        reason: "no_files_processed",
+      },
+      "provider agent file translation completed without processing any source files",
+    );
+  } else {
+    logger.info(
+      {
+        ...logContext,
+        unitCount: input.content.units.length,
+        proposedCount: changedItems.length,
+        unitsProcessed,
+        filesProcessed,
+        skippedMissingSourcePathCount,
+        skippedNoMatchingUnitsCount,
+        skippedDownloadFailureCount,
+        warningCount: warnings.length,
+      },
+      "provider agent file translation completed",
+    );
+  }
+
+  return result;
 }

@@ -24,6 +24,7 @@ import {
 } from "@/lib/providers/job-provider-source-files";
 import {
   shouldUseProviderFileTranslation,
+  summarizeProviderUnitFileIds,
   translateProviderJobFiles,
 } from "@/lib/providers/agent-runs/provider-agent-file-translate";
 import {
@@ -579,7 +580,30 @@ export async function executeProviderAgentTranslation(input: {
   });
 
   if (shouldUseProviderFileTranslation({ sourceFiles })) {
+    const unitFileIdCounts = summarizeProviderUnitFileIds(filteredContent.units);
+
+    logger.info(
+      {
+        agentRunId: input.agentRunId,
+        organizationId: input.organizationId,
+        translationMode: "file",
+        unitsDiscovered: pullResult.counts.unitsDiscovered,
+        sourceFileCount: sourceFiles.length,
+        sourceFilesWithPathCount: sourceFiles.filter((file) => Boolean(file.sourcePath?.trim()))
+          .length,
+        sourceFileIds: sourceFiles.map((file) => ({
+          id: file.id,
+          hasSourcePath: Boolean(file.sourcePath?.trim()),
+        })),
+        unitFileIdCounts,
+        targetLocaleCount: filteredContent.targetLocales.length,
+        stringPullStrategy,
+      },
+      "provider agent translation selected file mode",
+    );
+
     const fileTranslationResult = await translateProviderJobFiles({
+      agentRunId: input.agentRunId,
       organizationId: input.organizationId,
       projectId,
       providerKind: run.providerKind,
@@ -617,10 +641,43 @@ export async function executeProviderAgentTranslation(input: {
         proposedCount: fileTranslationResult.changedItems.length,
         filesProcessed: fileTranslationResult.filesProcessed,
         sourceFileCount: sourceFiles.length,
+        warningCount: fileTranslationResult.warnings.length,
+        unitFileIdCounts,
         stringPullStrategy,
+        ...(pullResult.counts.unitsDiscovered > 0 &&
+        fileTranslationResult.filesProcessed === 0 &&
+        fileTranslationResult.unitsProcessed === 0 &&
+        fileTranslationResult.changedItems.length === 0
+          ? { emptyTranslationResult: true }
+          : {}),
       },
       "provider agent file translation completed",
     );
+
+    if (
+      pullResult.counts.unitsDiscovered > 0 &&
+      fileTranslationResult.filesProcessed === 0 &&
+      fileTranslationResult.unitsProcessed === 0 &&
+      fileTranslationResult.changedItems.length === 0
+    ) {
+      logger.warn(
+        {
+          agentRunId: input.agentRunId,
+          organizationId: input.organizationId,
+          translationMode: "file",
+          unitsDiscovered: pullResult.counts.unitsDiscovered,
+          sourceFileCount: sourceFiles.length,
+          sourceFileIds: sourceFiles.map((file) => ({
+            id: file.id,
+            hasSourcePath: Boolean(file.sourcePath?.trim()),
+          })),
+          unitFileIdCounts,
+          warningCount: fileTranslationResult.warnings.length,
+          reason: "file_mode_produced_no_translations",
+        },
+        "provider agent translation discovered units but file mode produced no translations",
+      );
+    }
 
     return {
       ok: true,
@@ -676,6 +733,17 @@ export async function executeProviderAgentTranslation(input: {
       message: "No translation generator available for this organization",
     };
   }
+
+  logger.info(
+    {
+      agentRunId: input.agentRunId,
+      organizationId: input.organizationId,
+      translationMode: "string",
+      unitsDiscovered: pullResult.counts.unitsDiscovered,
+      stringPullStrategy,
+    },
+    "provider agent translation selected string mode",
+  );
 
   const translationResult = await translateProviderUnits({
     organizationId: input.organizationId,
