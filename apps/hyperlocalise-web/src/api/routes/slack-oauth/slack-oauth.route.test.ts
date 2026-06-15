@@ -204,7 +204,7 @@ describe("slackOAuthRoutes", () => {
     });
     const transactionSpy = vi
       .spyOn(db, "transaction")
-      .mockImplementationOnce(async (callback) => callback(db as DatabaseTransaction));
+      .mockImplementationOnce(async (callback) => callback(db as unknown as DatabaseTransaction));
 
     try {
       const app = createSlackOAuthRoutes();

@@ -506,31 +506,32 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       const payload = c.req.valid("json");
-      const limitResult = await withWorkspaceResourceLimit(
-        {
-          organizationId: c.var.auth.organization.localOrganizationId,
-          featureId: workspaceResourceFeatureIds.projects,
-        },
-        async (tx) => projectStore.create(c.var.auth, payload, tx),
-      );
-      if (!limitResult.ok) {
-        if (limitResult.error.code === "workspace_resource_limit_check_failed") {
-          return serviceUnavailableResponse(
+
+      try {
+        const limitResult = await withWorkspaceResourceLimit(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            featureId: workspaceResourceFeatureIds.projects,
+          },
+          async (tx) => projectStore.create(c.var.auth, payload, tx),
+        );
+        if (!limitResult.ok) {
+          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+            return serviceUnavailableResponse(
+              c,
+              limitResult.error.code,
+              "Unable to verify project limits. Try again later.",
+            );
+          }
+
+          return conflictResponse(
             c,
             limitResult.error.code,
-            "Unable to verify project limits. Try again later.",
+            workspaceResourceLimitMessage(limitResult.error.featureId),
+            workspaceResourceLimitErrorDetails(limitResult.error),
           );
         }
 
-        return conflictResponse(
-          c,
-          limitResult.error.code,
-          workspaceResourceLimitMessage(limitResult.error.featureId),
-          workspaceResourceLimitErrorDetails(limitResult.error),
-        );
-      }
-
-      try {
         const project = limitResult.value;
         return c.json({ project: { ...project, openJobCount: 0 } }, 201);
       } catch (error) {
