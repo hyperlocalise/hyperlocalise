@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
+  ProjectFileCatRecommendationResponse,
   ProjectFileCatResponse,
   ProjectFileCatSegment,
   ProjectFileCatTranslation,
@@ -351,6 +352,34 @@ export function TmsJobCatWorkspace({
     },
     [organizationSlug, projectId, repositoryFullName, sourcePath],
   );
+  const generateAiRecommendation = useCallback(
+    async (segment: CatSegment, targetText: string, intelligence?: CatSegmentIntelligence) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.recommendation.$post({
+        param: { organizationSlug, projectId },
+        json: {
+          sourcePath,
+          targetLocale,
+          sourceLocale: segment.sourceLocale,
+          key: segment.key,
+          sourceText: segment.sourceText,
+          targetText,
+          context: segment.contextLabel ?? intelligence?.productMeaning ?? null,
+          agentContext: intelligence?.agentContext ?? null,
+          maxLength: segment.maxLength,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to generate AI recommendation"));
+      }
+
+      const body = (await response.json()) as ProjectFileCatRecommendationResponse;
+      return body.recommendation;
+    },
+    [organizationSlug, projectId, sourcePath, targetLocale],
+  );
 
   if (catQuery.isLoading) {
     return (
@@ -390,6 +419,7 @@ export function TmsJobCatWorkspace({
       className={cn("min-h-0 flex-1", className)}
       services={{
         validateFormat: validateSegmentFormat,
+        generateAiRecommendation,
         ...(repositoryFullName ? { lookupSegmentContext } : {}),
       }}
       review={{

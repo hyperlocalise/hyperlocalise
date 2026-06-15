@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/primitives/cn";
 
 import { CatFormatChecks } from "./cat-format-checks";
 import { analyzeCatMessageFormat } from "./cat-message-format";
@@ -57,7 +58,9 @@ export function CatEditorPanel({
   onApprove,
   primaryActionLabel = "Approve",
   onAskQuestion,
+  onRetryAiRecommendation,
   onAiRecommendationEnabledChange,
+  aiRecommendationError,
   onPrevious,
   onNext,
   hasPreviousSegment,
@@ -82,7 +85,9 @@ export function CatEditorPanel({
   onApprove: () => void;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
+  onRetryAiRecommendation?: () => void;
   onAiRecommendationEnabledChange: (enabled: boolean) => void;
+  aiRecommendationError?: string;
   onPrevious: () => void;
   onNext: () => void;
   hasPreviousSegment: boolean;
@@ -301,23 +306,53 @@ export function CatEditorPanel({
               </div>
               <Skeleton className="h-3 w-10/12 rounded-full bg-foreground/8" />
             </aside>
-          ) : isAiRecommendationEnabled && intelligence.aiSuggestion ? (
-            <aside className="border-l border-grove-300/40 pl-4">
+          ) : isAiRecommendationEnabled && canUseAiRecommendation ? (
+            <aside
+              className={cn(
+                "border-l pl-4",
+                intelligence.aiSuggestion ? "border-grove-300/40" : "border-foreground/12",
+              )}
+            >
               <div className="mb-2 flex items-center justify-between gap-3">
                 <p className="text-xs font-medium text-muted-foreground">AI recommendation</p>
-                <Button variant="ghost" size="sm" onClick={onUseAiSuggestion}>
-                  Use
-                </Button>
+                <div className="flex items-center gap-1">
+                  {intelligence.aiSuggestion ? (
+                    <Button variant="ghost" size="sm" onClick={onUseAiSuggestion}>
+                      Use
+                    </Button>
+                  ) : null}
+                  {onRetryAiRecommendation ? (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={onRetryAiRecommendation}
+                      disabled={isAiSuggestionLoading}
+                    >
+                      {isAiSuggestionLoading ? <Spinner className="size-4" /> : null}
+                      Retry
+                    </Button>
+                  ) : null}
+                </div>
               </div>
-              <p className="text-sm leading-relaxed text-foreground/88">
-                {intelligence.aiSuggestion}
-              </p>
-              {intelligence.aiReasoning ? (
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                  <span className="font-medium text-foreground/70">Reasoning:</span>{" "}
-                  {intelligence.aiReasoning}
+              {aiRecommendationError ? (
+                <p className="text-sm leading-relaxed text-flame-100">{aiRecommendationError}</p>
+              ) : intelligence.aiSuggestion ? (
+                <>
+                  <p className="text-sm leading-relaxed text-foreground/88">
+                    {intelligence.aiSuggestion}
+                  </p>
+                  {intelligence.aiReasoning ? (
+                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                      <span className="font-medium text-foreground/70">Reasoning:</span>{" "}
+                      {intelligence.aiReasoning}
+                    </p>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  No recommendation yet. Retry to generate one for this string.
                 </p>
-              ) : null}
+              )}
             </aside>
           ) : null}
 

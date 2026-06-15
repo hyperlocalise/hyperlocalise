@@ -43,6 +43,7 @@ import {
   createProjectBodySchema,
   maxProjectFileUploadBytes,
   projectFileCatQuerySchema,
+  projectFileCatRecommendationBodySchema,
   projectFileCatStatusBodySchema,
   projectFileCatTranslationBodySchema,
   projectFileDetailQuerySchema,
@@ -76,6 +77,7 @@ import {
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
+import { generateCatAiRecommendation } from "@/lib/translation/generate-cat-ai-recommendation";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 type ProjectUpdateErrorCode =
@@ -303,6 +305,16 @@ const validateProjectFileCatQuery = validator("query", (value, c) => {
 
 const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
   const parsed = projectFileCatTranslationBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatRecommendationBody = validator("json", (value, c) => {
+  const parsed = projectFileCatRecommendationBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -582,6 +594,50 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/recommendation",
+      validateProjectParams,
+      validateProjectFileCatRecommendationBody,
+      async (c) => {
+        if (!isAiActionAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const filename = body.sourcePath.split("/").pop() ?? body.sourcePath;
+        const result = await generateCatAiRecommendation({
+          projectId: params.projectId,
+          organizationId: c.var.auth.organization.localOrganizationId,
+          sourcePath: body.sourcePath,
+          filename,
+          sourceLocale: body.sourceLocale,
+          targetLocale: body.targetLocale,
+          key: body.key,
+          sourceText: body.sourceText,
+          targetText: body.targetText,
+          context: body.context ?? null,
+          agentContext: body.agentContext ?? null,
+          maxLength: body.maxLength,
+        });
+
+        if (isErr(result)) {
+          return badRequestResponse(c, result.error.code, result.error.message);
+        }
+
+        return c.json({ recommendation: result.value }, 200);
       },
     )
     .post(

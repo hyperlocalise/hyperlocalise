@@ -304,13 +304,16 @@ export function CatWorkspaceContainer({
         return;
       }
 
+      const currentIntelligence =
+        stateRef.current.segmentIntelligence?.[segmentId] ?? stateRef.current.intelligence;
+
       const sequence = reviewSequenceRef.current + 1;
       reviewSequenceRef.current = sequence;
       setIsGeneratingAiRecommendation(true);
       try {
         const [recommendation, formatChecks, qaChecks] = await Promise.all([
           includeAi && generateAiRecommendation
-            ? generateAiRecommendation(segment, segment.targetText)
+            ? generateAiRecommendation(segment, segment.targetText, currentIntelligence)
             : Promise.resolve(undefined),
           includeFormatChecks && validateFormat
             ? validateFormat(segment, segment.targetText)
@@ -322,7 +325,11 @@ export function CatWorkspaceContainer({
         if (reviewSequenceRef.current !== sequence) {
           return;
         }
-        const checks = recommendation?.formatChecks ?? [...formatChecks, ...qaChecks];
+        const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
+          segmentChecks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
+        const checks = withoutAiFailure(
+          recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
+        );
 
         setState((current) => {
           const currentIntelligence =
@@ -345,6 +352,40 @@ export function CatWorkspaceContainer({
                   },
                 }
               : current.segmentIntelligence,
+          };
+        });
+      } catch (error) {
+        if (reviewSequenceRef.current !== sequence) {
+          return;
+        }
+
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to generate AI translation recommendation.";
+        const aiFailureCheck: CatFormatCheck = {
+          id: `ai-recommendation-failed-${segmentId}`,
+          label: "AI recommendation",
+          status: "fail",
+          message,
+          category: "qa",
+        };
+
+        setState((current) => {
+          const currentChecks = current.segmentFormatChecks?.[segmentId] ?? current.formatChecks;
+          const nextChecks = [
+            aiFailureCheck,
+            ...currentChecks.filter((check) => check.id !== aiFailureCheck.id),
+          ];
+
+          return {
+            ...current,
+            formatChecks:
+              current.selectedSegmentId === segmentId ? nextChecks : current.formatChecks,
+            segmentFormatChecks: {
+              ...current.segmentFormatChecks,
+              [segmentId]: nextChecks,
+            },
           };
         });
       } finally {
@@ -540,7 +581,7 @@ export function CatWorkspaceContainer({
         }
       },
       onReviewWithAi: async (segmentId: string) => {
-        await runSegmentReview(segmentId);
+        await runSegmentReview(segmentId, { includeAi: true });
       },
       onSkip: (segmentId: string) => {
         setState((current) => {
