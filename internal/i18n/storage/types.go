@@ -176,6 +176,12 @@ type FileDownloadTranslationsRequest struct {
 	IncludeSources  bool               `json:"include_sources,omitempty"`
 }
 
+// FileDownloadSourcesRequest downloads source files defined in a file-mode config.
+type FileDownloadSourcesRequest struct {
+	Config      FileWorkflowConfig `json:"config"`
+	SourcePaths []string           `json:"source_paths,omitempty"`
+}
+
 // FileOperationResult returns normalized file-mode execution details.
 type FileOperationResult struct {
 	Processed []string  `json:"processed,omitempty"`
@@ -197,5 +203,6 @@ type FileWorkflowAdapter interface {
 	FileWorkflowCapabilities() FileWorkflowCapabilities
 	UploadSources(ctx context.Context, req FileUploadSourcesRequest) (FileOperationResult, error)
 	UploadTranslations(ctx context.Context, req FileUploadTranslationsRequest) (FileOperationResult, error)
+	DownloadSources(ctx context.Context, req FileDownloadSourcesRequest) (FileOperationResult, error)
 	DownloadTranslations(ctx context.Context, req FileDownloadTranslationsRequest) (FileOperationResult, error)
 }

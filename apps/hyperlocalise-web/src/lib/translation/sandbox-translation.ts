@@ -235,6 +235,140 @@ export function getSandboxOutputFilename(attachmentFilename: string, targetLocal
   return getOutputFilename(sanitizeFilename(attachmentFilename), targetLocale);
 }
 
+export const crowdinSandboxConfigPath = "/tmp/crowdin.yml";
+
+export function buildCrowdinTranslationPath(sourceFilename: string): string {
+  const lastDot = sourceFilename.lastIndexOf(".");
+  if (lastDot === -1) {
+    return `${sourceFilename}-%locale%`;
+  }
+
+  return `${sourceFilename.slice(0, lastDot)}-%locale%${sourceFilename.slice(lastDot)}`;
+}
+
+export function buildCrowdinFileSandboxConfig(input: {
+  sourceFilename: string;
+  includeBaseUrl: boolean;
+}): string {
+  const lines = ["project_id_env: CROWDIN_PROJECT_ID", "api_token_env: CROWDIN_PERSONAL_TOKEN"];
+  if (input.includeBaseUrl) {
+    lines.push("base_url_env: CROWDIN_BASE_URL");
+  }
+
+  lines.push(
+    "base_path: .",
+    "files:",
+    `  - source: ${input.sourceFilename}`,
+    `    translation: ${buildCrowdinTranslationPath(input.sourceFilename)}`,
+  );
+
+  return lines.join("\n");
+}
+
+export function getCrowdinSandboxEnv(input: {
+  externalProjectId: string;
+  secretMaterial: string;
+  baseUrl?: string | null;
+}): Record<string, string> {
+  const env: Record<string, string> = {
+    CROWDIN_PROJECT_ID: input.externalProjectId,
+    CROWDIN_PERSONAL_TOKEN: input.secretMaterial,
+  };
+  if (input.baseUrl?.trim()) {
+    env.CROWDIN_BASE_URL = input.baseUrl.trim();
+  }
+  return env;
+}
+
+export async function writeCrowdinFileSandboxConfig(input: {
+  sandboxId: string;
+  sourceFilename: string;
+  baseUrl?: string | null;
+}): Promise<void> {
+  const config = buildCrowdinFileSandboxConfig({
+    sourceFilename: input.sourceFilename,
+    includeBaseUrl: Boolean(input.baseUrl?.trim()),
+  });
+  await writeFilesToSandbox(input.sandboxId, [{ path: crowdinSandboxConfigPath, content: config }]);
+}
+
+export async function extractSandboxEntries(
+  sandboxId: string,
+  path: string,
+): Promise<Record<string, string> | null> {
+  const result = await runSandboxCommand(
+    sandboxId,
+    "bash",
+    ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries ${shellQuote(path)}`],
+    { env: getSandboxTranslationEnv(), output: "stdout" },
+  );
+  if (result.exitCode !== 0) {
+    return null;
+  }
+
+  return JSON.parse(result.output) as Record<string, string>;
+}
+
+export async function downloadCrowdinSourceInSandbox(input: {
+  sandboxId: string;
+  externalFileId: string;
+  sourceFilename: string;
+  externalProjectId: string;
+  secretMaterial: string;
+  baseUrl?: string | null;
+}): Promise<void> {
+  await writeCrowdinFileSandboxConfig({
+    sandboxId: input.sandboxId,
+    sourceFilename: input.sourceFilename,
+    baseUrl: input.baseUrl,
+  });
+
+  const fileId = Number(input.externalFileId);
+  if (Number.isNaN(fileId)) {
+    throw new Error("Provider file identifiers are invalid");
+  }
+
+  const result = await runSandboxCommand(
+    input.sandboxId,
+    "bash",
+    [
+      "-lc",
+      `export PATH="$HOME/.local/bin:$PATH"; hl crowdin download sources --config ${shellQuote(crowdinSandboxConfigPath)} --file-id ${fileId} --output ${shellQuote(input.sourceFilename)} --force`,
+    ],
+    { env: getCrowdinSandboxEnv(input) },
+  );
+
+  if (result.exitCode !== 0) {
+    throw new Error(`crowdin source download failed: ${result.output}`);
+  }
+}
+
+export async function downloadCrowdinTranslationsInSandbox(input: {
+  sandboxId: string;
+  targetLocale: string;
+  externalProjectId: string;
+  secretMaterial: string;
+  baseUrl?: string | null;
+  mergeApproved?: boolean;
+}): Promise<{ ok: true } | { ok: false; output: string }> {
+  const mergeFlag = input.mergeApproved ? " --merge-approved" : "";
+  const result = await runSandboxCommand(
+    input.sandboxId,
+    "bash",
+    [
+      "-lc",
+      `export PATH="$HOME/.local/bin:$PATH"; hl crowdin download translations --config ${shellQuote(crowdinSandboxConfigPath)} --language ${shellQuote(input.targetLocale)}${mergeFlag}`,
+    ],
+    { env: getCrowdinSandboxEnv(input) },
+  );
+
+  if (result.exitCode !== 0) {
+    return { ok: false, output: result.output };
+  }
+
+  return { ok: true };
+}
+
 export function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
 
@@ -248,6 +382,10 @@ export function userFacingFailureReason(error: unknown): string {
 
   if (message.includes("failed to download attachment")) {
     return "the attachment couldn't be retrieved. It may have been too large or the link expired.";
+  }
+
+  if (message.includes("crowdin source download failed")) {
+    return "the source file couldn't be downloaded from Crowdin. This is usually temporary.";
   }
 
   if (message.includes("translation failed")) {

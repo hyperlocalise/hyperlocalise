@@ -613,3 +613,111 @@ func (f *fakeCrowdinTranslationMemoryWriter) WriteTranslationMemoryTMX(_ context
 	}
 	return crowdinstorage.TranslationMemoryDownloadResult{Rows: 1, Segments: 1}, nil
 }
+
+func TestCrowdinDownloadSourcesDryRunByFileID(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "download", "sources", "--file-id", "101", "--output", "en.json", "--dry-run"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute crowdin download sources dry-run: %v", err)
+	}
+	if !strings.Contains(out.String(), "dry-run action=download-sources") || !strings.Contains(out.String(), "file_id=101") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestCrowdinDownloadSourcesWritesStdoutByFileID(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("CROWDIN_PROJECT_ID", "123")
+	t.Setenv("CROWDIN_PERSONAL_TOKEN", "secret")
+
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+
+	oldDownloader := downloadCrowdinSourceFileByID
+	defer func() {
+		downloadCrowdinSourceFileByID = oldDownloader
+	}()
+	downloadCrowdinSourceFileByID = func(_ context.Context, cfg crowdinstorage.Config, fileID int) ([]byte, error) {
+		if cfg.ProjectID != "123" || cfg.APIToken != "secret" || fileID != 101 {
+			t.Fatalf("unexpected download input: project=%q token=%q fileID=%d", cfg.ProjectID, cfg.APIToken, fileID)
+		}
+		return []byte(`{"hello":"Hello"}`), nil
+	}
+
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "download", "sources", "--file-id", "101"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute crowdin download sources: %v", err)
+	}
+	if got := out.String(); got != `{"hello":"Hello"}` {
+		t.Fatalf("unexpected stdout content: %q", got)
+	}
+}
+
+func TestCrowdinDownloadSourcesWritesOutputFileByFileID(t *testing.T) {
+	dir := t.TempDir()
+	t.Chdir(dir)
+	t.Setenv("CROWDIN_PROJECT_ID", "123")
+	t.Setenv("CROWDIN_PERSONAL_TOKEN", "secret")
+
+	if err := os.WriteFile(filepath.Join(dir, "crowdin.yml"), []byte(`
+project_id_env: CROWDIN_PROJECT_ID
+api_token_env: CROWDIN_PERSONAL_TOKEN
+`), 0o644); err != nil {
+		t.Fatalf("write crowdin config: %v", err)
+	}
+
+	oldDownloader := downloadCrowdinSourceFileByID
+	defer func() {
+		downloadCrowdinSourceFileByID = oldDownloader
+	}()
+	downloadCrowdinSourceFileByID = func(_ context.Context, _ crowdinstorage.Config, _ int) ([]byte, error) {
+		return []byte(`{"hello":"Hello"}`), nil
+	}
+
+	outputPath := filepath.Join(dir, "locales", "en.json")
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "download", "sources", "--file-id", "101", "--output", outputPath})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute crowdin download sources: %v", err)
+	}
+	content, err := os.ReadFile(outputPath)
+	if err != nil {
+		t.Fatalf("read output file: %v", err)
+	}
+	if string(content) != `{"hello":"Hello"}` {
+		t.Fatalf("unexpected file content: %q", string(content))
+	}
+	if !strings.Contains(out.String(), "downloaded file="+outputPath) || !strings.Contains(out.String(), "bytes=17") {
+		t.Fatalf("unexpected output: %q", out.String())
+	}
+}
+
+func TestCrowdinDownloadSourcesOutputRequiresFileID(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "download", "sources", "--output", "en.json"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when --output is set without --file-id")
+	}
+	if !strings.Contains(err.Error(), "--output requires --file-id") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

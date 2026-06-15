@@ -25,6 +25,8 @@ vi.mock("@vercel/sandbox", () => ({
 }));
 
 import {
+  buildCrowdinFileSandboxConfig,
+  buildCrowdinTranslationPath,
   buildTempConfig,
   createTranslationSandbox,
   runSandboxCommand,
@@ -138,6 +140,19 @@ describe("sandbox translation temporary config", () => {
     expect(config).toContain("system_prompt:");
     expect(config).not.toContain("Project translation context:");
     expect(config).not.toContain("Glossary terms:");
+  });
+});
+
+describe("crowdin sandbox file config", () => {
+  it("maps source and translation paths for hl crowdin download commands", () => {
+    expect(buildCrowdinTranslationPath("messages.json")).toBe("messages-%locale%.json");
+
+    const config = buildCrowdinFileSandboxConfig({
+      sourceFilename: "messages.json",
+      includeBaseUrl: false,
+    });
+    expect(config).toContain("source: messages.json");
+    expect(config).toContain("translation: messages-%locale%.json");
   });
 });
 

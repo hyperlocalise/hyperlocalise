@@ -98,15 +98,21 @@ hyperlocalise crowdin init
 hyperlocalise crowdin config validate
 hyperlocalise crowdin upload sources
 hyperlocalise crowdin upload translations --language fr
-hyperlocalise crowdin download --language fr --export-only-approved --skip-untranslated-strings
-hyperlocalise crowdin download --language fr --merge-approved
-hyperlocalise crowdin download --language fr --include-sources
+hyperlocalise crowdin download sources
+hyperlocalise crowdin download sources --file-id 101 --output /tmp/messages.json --force
+hyperlocalise crowdin download translations --language fr --export-only-approved --skip-untranslated-strings
+hyperlocalise crowdin download translations --language fr --merge-approved
+hyperlocalise crowdin download translations --language fr --include-sources
 ```
 
-`--merge-approved` merges approved JSON object keys into existing local translation files and preserves local keys omitted from Crowdin's approved export.
+`download sources` writes Crowdin source files into `files[].source` paths from `crowdin.yml`, or into a single `--output` file when you pass `--file-id`.
+
+`download translations --merge-approved` merges approved JSON object keys into existing local translation files and preserves local keys omitted from Crowdin's approved export.
 When Crowdin includes source-language fallback values in that export, Hyperlocalise skips values that still match the source JSON so previously translated local strings are preserved.
 
-`--include-sources` also downloads matching Crowdin source files into the configured `files[].source` paths before writing translations. Exact source paths can be created locally if missing; globbed source paths are limited to files matched by local glob expansion.
+`download translations --include-sources` also downloads matching Crowdin source files into the configured `files[].source` paths before writing translations. Exact source paths can be created locally if missing; globbed source paths are limited to files matched by local glob expansion.
+
+Use `download sources` when you only need source files. It avoids translation export work and is the preferred command for source-only automation.
 
 Use root `branch:` in `crowdin.yml` or pass `--branch <name>` to upload and download files from a Crowdin branch. The flag overrides the config value for that command.
 

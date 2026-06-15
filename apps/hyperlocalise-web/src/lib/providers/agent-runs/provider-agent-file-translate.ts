@@ -5,7 +5,11 @@ import {
   serializeAgentRunProposalItem,
   type AgentRunProposalItem,
 } from "@/lib/providers/agent-runs/agent-run-proposals";
-import { downloadProviderSourceFile } from "@/lib/providers/download-provider-source-file";
+import {
+  loadProviderCrowdinDownloadContext,
+  resolveProviderSourceFileDownload,
+} from "@/lib/providers/download-provider-source-file";
+import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
@@ -91,18 +95,6 @@ function sanitizeSandboxFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
-function getSandboxOutputFilename(attachmentFilename: string, targetLocale: string): string {
-  const inputFilename = sanitizeSandboxFilename(attachmentFilename);
-  const lastDot = inputFilename.lastIndexOf(".");
-  if (lastDot === -1) {
-    return `${inputFilename}-${targetLocale}`;
-  }
-
-  const name = inputFilename.slice(0, lastDot);
-  const ext = inputFilename.slice(lastDot);
-  return `${name}-${targetLocale}${ext}`;
-}
-
 function existingTranslationForLocale(unit: ExternalTmsTranslationUnit, locale: string) {
   return unit.translations.find((translation) => translation.locale === locale) ?? null;
 }
@@ -166,7 +158,7 @@ function buildGlossaryContext(input: {
 }
 
 async function runFileTranslationInSandbox(input: {
-  sourceContent: Buffer;
+  sandboxId: string;
   sourceFilename: string;
   sourceLocale: string;
   targetLocale: string;
@@ -175,81 +167,64 @@ async function runFileTranslationInSandbox(input: {
 }) {
   const {
     buildTempConfig,
-    createTranslationSandbox,
+    extractSandboxEntries,
+    getSandboxOutputFilename,
     getSandboxTranslationEnv,
-    prepareSandbox,
     readTranslatedFile,
     runSandboxCommand,
-    stopTranslationSandbox,
     writeFileToSandbox,
     writeTempConfig,
   } = await import("@/lib/translation/sandbox-translation");
 
   const inputFilename = sanitizeSandboxFilename(input.sourceFilename);
   const outputFilename = getSandboxOutputFilename(input.sourceFilename, input.targetLocale);
-  const { sandboxId } = await createTranslationSandbox();
 
-  try {
-    await prepareSandbox(sandboxId);
-    await writeFileToSandbox(sandboxId, inputFilename, input.sourceContent);
+  const configPath = "/tmp/hyperlocalise-file.yml";
+  const config = buildTempConfig(
+    inputFilename,
+    outputFilename,
+    input.sourceLocale,
+    input.targetLocale,
+    null,
+    input.context,
+  );
+  await writeTempConfig(input.sandboxId, config, configPath);
 
-    const configPath = "/tmp/hyperlocalise-file.yml";
-    const config = buildTempConfig(
-      inputFilename,
-      outputFilename,
-      input.sourceLocale,
-      input.targetLocale,
-      null,
-      input.context,
+  const prefilledPath = `/tmp/hyperlocalise-prefilled-${input.targetLocale}.json`;
+  let prefilledFlags = "";
+  if (Object.keys(input.prefilledEntries).length > 0) {
+    await writeFileToSandbox(
+      input.sandboxId,
+      prefilledPath,
+      Buffer.from(JSON.stringify(input.prefilledEntries), "utf8"),
     );
-    await writeTempConfig(sandboxId, config, configPath);
-
-    const prefilledPath = `/tmp/hyperlocalise-prefilled-${input.targetLocale}.json`;
-    let prefilledFlags = "";
-    if (Object.keys(input.prefilledEntries).length > 0) {
-      await writeFileToSandbox(
-        sandboxId,
-        prefilledPath,
-        Buffer.from(JSON.stringify(input.prefilledEntries), "utf8"),
-      );
-      prefilledFlags = ` --prefilled-entries '${shellSingleQuote(prefilledPath)}' --prefilled-target-path '${shellSingleQuote(outputFilename)}'`;
-    }
-
-    const translation = await runSandboxCommand(
-      sandboxId,
-      "bash",
-      [
-        "-lc",
-        `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(input.targetLocale)}' --force --progress off${prefilledFlags}`,
-      ],
-      { env: getSandboxTranslationEnv() },
-    );
-
-    if (translation.exitCode !== 0) {
-      throw new Error(`translation failed for ${input.targetLocale}: ${translation.output}`);
-    }
-
-    const translatedContent = await readTranslatedFile(sandboxId, outputFilename);
-    const extractResult = await runSandboxCommand(
-      sandboxId,
-      "bash",
-      [
-        "-lc",
-        `export PATH="$HOME/.local/bin:$PATH"; hl entries '${shellSingleQuote(outputFilename)}'`,
-      ],
-      { env: getSandboxTranslationEnv(), output: "stdout" },
-    );
-    if (extractResult.exitCode !== 0) {
-      throw new Error(`failed to extract translated entries: ${extractResult.output}`);
-    }
-
-    return {
-      translatedText: translatedContent.toString("utf8"),
-      translatedEntries: JSON.parse(extractResult.output) as Record<string, string>,
-    };
-  } finally {
-    await stopTranslationSandbox(sandboxId);
+    prefilledFlags = ` --prefilled-entries '${shellSingleQuote(prefilledPath)}' --prefilled-target-path '${shellSingleQuote(outputFilename)}'`;
   }
+
+  const translation = await runSandboxCommand(
+    input.sandboxId,
+    "bash",
+    [
+      "-lc",
+      `export PATH="$HOME/.local/bin:$PATH"; hl run --config '${shellSingleQuote(configPath)}' --locale '${shellSingleQuote(input.targetLocale)}' --force --progress off${prefilledFlags}`,
+    ],
+    { env: getSandboxTranslationEnv() },
+  );
+
+  if (translation.exitCode !== 0) {
+    throw new Error(`translation failed for ${input.targetLocale}: ${translation.output}`);
+  }
+
+  const translatedContent = await readTranslatedFile(input.sandboxId, outputFilename);
+  const translatedEntries = await extractSandboxEntries(input.sandboxId, outputFilename);
+  if (!translatedEntries) {
+    throw new Error(`failed to extract translated entries: ${outputFilename}`);
+  }
+
+  return {
+    translatedText: translatedContent.toString("utf8"),
+    translatedEntries,
+  };
 }
 
 export function shouldUseProviderFileTranslation(input: { sourceFiles: ProviderSourceFileRef[] }) {
@@ -326,6 +301,16 @@ export async function translateProviderJobFiles(input: {
     "provider agent file translation started",
   );
 
+  const crowdinContext =
+    input.providerKind === "crowdin"
+      ? await loadProviderCrowdinDownloadContext({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          providerKind: input.providerKind,
+          actorUserId: input.actorUserId,
+        })
+      : null;
+
   for (const sourceFile of input.sourceFiles) {
     if (!sourceFile.sourcePath?.trim()) {
       skippedMissingSourcePathCount += 1;
@@ -359,16 +344,19 @@ export async function translateProviderJobFiles(input: {
       continue;
     }
 
-    const download = await downloadProviderSourceFile({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      providerKind: input.providerKind,
-      externalFileId: sourceFile.id,
-      sourcePath: sourceFile.sourcePath,
-      actorUserId: input.actorUserId,
-    });
+    const inputFilename = sanitizeSandboxFilename(
+      sourceFile.sourcePath.split("/").pop() ?? `source-${sourceFile.id}`,
+    );
+    const fileFormat = inferSupportedFileTranslationFileFormat(sourceFile.sourcePath);
+    if (!fileFormat) {
+      skippedDownloadFailureCount += 1;
+      warnings.push(
+        `Skipped file ${sourceFile.displayName ?? sourceFile.id}: Source path ${sourceFile.sourcePath} is not a supported translation file format`,
+      );
+      continue;
+    }
 
-    if (!download.ok) {
+    if (crowdinContext && !crowdinContext.ok) {
       skippedDownloadFailureCount += 1;
       logger.warn(
         {
@@ -376,198 +364,280 @@ export async function translateProviderJobFiles(input: {
           sourceFileId: sourceFile.id,
           displayName: sourceFile.displayName,
           sourcePath: sourceFile.sourcePath,
-          downloadCode: download.code,
+          downloadCode: crowdinContext.code,
           matchingUnitCount: fileUnits.length,
           reason: "source_file_download_failed",
         },
         "provider agent file translation skipped source file after download failure",
       );
-      warnings.push(`Skipped file ${sourceFile.displayName ?? sourceFile.id}: ${download.message}`);
+      warnings.push(
+        `Skipped file ${sourceFile.displayName ?? sourceFile.id}: ${crowdinContext.message}`,
+      );
       continue;
     }
 
-    filesProcessed += 1;
-    logger.info(
-      {
-        ...logContext,
-        sourceFileId: sourceFile.id,
-        displayName: sourceFile.displayName,
-        sourcePath: sourceFile.sourcePath,
-        matchingUnitCount: fileUnits.length,
-        byteLength: download.content.byteLength,
-      },
-      "provider agent file translation downloaded source file",
-    );
-    const sourceText = download.content.toString("utf8");
-    const fileGlossaryTerms = await loadFileGlossaryTerms({
-      projectId: input.projectId,
-      sourceLocale,
-      targetLocales,
-      sourceText,
-    });
-
-    let sourceEntries: Record<string, string> | null = null;
-    try {
-      const {
-        createTranslationSandbox,
-        prepareSandbox,
-        runSandboxCommand,
-        stopTranslationSandbox,
-        writeFileToSandbox,
-        getSandboxTranslationEnv,
-      } = await import("@/lib/translation/sandbox-translation");
-      const inputFilename = sanitizeSandboxFilename(download.filename);
-      const { sandboxId } = await createTranslationSandbox();
-      try {
-        await prepareSandbox(sandboxId);
-        await writeFileToSandbox(sandboxId, inputFilename, download.content);
-        const extractResult = await runSandboxCommand(
-          sandboxId,
-          "bash",
-          [
-            "-lc",
-            `export PATH="$HOME/.local/bin:$PATH"; hl entries '${shellSingleQuote(inputFilename)}'`,
-          ],
-          { env: getSandboxTranslationEnv(), output: "stdout" },
-        );
-        if (extractResult.exitCode === 0) {
-          sourceEntries = JSON.parse(extractResult.output) as Record<string, string>;
-        }
-      } finally {
-        await stopTranslationSandbox(sandboxId);
-      }
-    } catch (error) {
-      warnings.push(
-        `Could not extract entries for ${sourceFile.displayName ?? sourceFile.id}: ${
-          error instanceof Error ? error.message : "unknown error"
-        }`,
+    const resolvedDownload =
+      input.providerKind !== "crowdin"
+        ? await resolveProviderSourceFileDownload({
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            providerKind: input.providerKind,
+            externalFileId: sourceFile.id,
+            sourcePath: sourceFile.sourcePath,
+            actorUserId: input.actorUserId,
+          })
+        : null;
+    if (resolvedDownload && !resolvedDownload.ok) {
+      skippedDownloadFailureCount += 1;
+      logger.warn(
+        {
+          ...logContext,
+          sourceFileId: sourceFile.id,
+          displayName: sourceFile.displayName,
+          sourcePath: sourceFile.sourcePath,
+          downloadCode: resolvedDownload.code,
+          matchingUnitCount: fileUnits.length,
+          reason: "source_file_download_failed",
+        },
+        "provider agent file translation skipped source file after download failure",
       );
+      warnings.push(
+        `Skipped file ${sourceFile.displayName ?? sourceFile.id}: ${resolvedDownload.message}`,
+      );
+      continue;
     }
 
-    for (const targetLocale of targetLocales) {
-      const localesNeedingTranslation = fileUnits.filter((unit) => {
-        const existing = existingTranslationForLocale(unit, targetLocale);
-        if (shouldSkipExistingTranslation(existing)) {
-          skippedExistingLocales += 1;
-          return false;
-        }
-        return true;
-      });
-      unitsProcessed += localesNeedingTranslation.length;
+    const {
+      createTranslationSandbox,
+      downloadAttachment,
+      downloadCrowdinSourceInSandbox,
+      downloadCrowdinTranslationsInSandbox,
+      extractSandboxEntries,
+      getSandboxOutputFilename,
+      prepareSandbox,
+      readTranslatedFile,
+      stopTranslationSandbox,
+    } = await import("@/lib/translation/sandbox-translation");
+    const { sandboxId } = await createTranslationSandbox();
 
-      if (localesNeedingTranslation.length === 0) {
-        logger.info(
-          {
-            ...logContext,
-            sourceFileId: sourceFile.id,
-            targetLocale,
-            matchingUnitCount: fileUnits.length,
-            reason: "all_units_already_translated",
-          },
-          "provider agent file translation skipped locale because all units already have translations",
-        );
-        continue;
-      }
+    let sourceText = "";
+    let sourceEntries: Record<string, string> | null = null;
 
-      const existingPrefilled = buildPrefilledEntriesForLocale({
-        units: fileUnits,
-        targetLocale,
-      });
-      let tmPrefilled: Record<string, string> = {};
-      if (sourceEntries) {
-        tmPrefilled = await reuseFileTranslationMemoryEntries({
-          projectId: input.projectId,
-          sourceLocale,
-          targetLocale,
-          sourceEntries,
+    try {
+      await prepareSandbox(sandboxId);
+
+      if (crowdinContext?.ok) {
+        await downloadCrowdinSourceInSandbox({
+          sandboxId,
+          externalFileId: sourceFile.id,
+          sourceFilename: inputFilename,
+          externalProjectId: crowdinContext.externalProjectId,
+          secretMaterial: crowdinContext.secretMaterial,
+          baseUrl: crowdinContext.baseUrl,
         });
+      } else if (resolvedDownload?.ok) {
+        await downloadAttachment(sandboxId, resolvedDownload.downloadUrl, inputFilename);
       }
-      const prefilledEntries = { ...tmPrefilled, ...existingPrefilled };
 
-      const localeContext = buildGlossaryContext({
-        sourceText,
-        projectName: project.name,
-        projectTranslationContext: project.translationContext,
-        glossaryTerms: fileGlossaryTerms,
-        targetLocale,
-      });
+      const sourceContent = await readTranslatedFile(sandboxId, inputFilename);
+      sourceText = sourceContent.toString("utf8");
+
+      filesProcessed += 1;
+      logger.info(
+        {
+          ...logContext,
+          sourceFileId: sourceFile.id,
+          displayName: sourceFile.displayName,
+          sourcePath: sourceFile.sourcePath,
+          matchingUnitCount: fileUnits.length,
+          byteLength: sourceContent.byteLength,
+          sandboxId,
+          downloadMethod: crowdinContext?.ok ? "hl-crowdin-download-sources" : "curl",
+        },
+        "provider agent file translation downloaded source file in sandbox",
+      );
 
       try {
-        const { translatedText, translatedEntries } = await runFileTranslationInSandbox({
-          sourceContent: download.content,
-          sourceFilename: download.filename,
-          sourceLocale,
-          targetLocale,
-          context: localeContext,
-          prefilledEntries,
-        });
-
-        const glossaryFailures = validateGlossaryTermsInTranslation({
-          sourceText,
-          translatedText,
-          terms: (localeContext.glossaryTerms ?? []).map((term) => ({
-            sourceTerm: term.sourceTerm,
-            targetTerm: term.targetTerm,
-            targetLocale: term.targetLocale,
-            forbidden: term.forbidden ?? null,
-            caseSensitive: term.caseSensitive ?? null,
-          })),
-        });
-        if (glossaryFailures.length > 0) {
-          warnings.push(
-            `Glossary validation failed for ${sourceFile.displayName ?? sourceFile.id} (${targetLocale})`,
-          );
-        }
-
-        for (const unit of localesNeedingTranslation) {
-          const existing = existingTranslationForLocale(unit, targetLocale);
-          const from = existing?.text ?? "";
-          const to = translatedEntries[unit.key] ?? from;
-          if (!to.trim() || to === from) {
-            continue;
-          }
-
-          const proposalWarnings = detectAgentRunProposalWarnings({
-            sourceText: unit.sourceText,
-            from,
-            to,
-            locale: targetLocale,
-            externalStringId: unit.externalStringId,
-            key: unit.key,
-            glossaryTerms: (localeContext.glossaryTerms ?? []).map((term) => ({
-              sourceTerm: term.sourceTerm,
-              targetTerm: term.targetTerm,
-              targetLocale: term.targetLocale,
-              forbidden: term.forbidden,
-              caseSensitive: term.caseSensitive,
-            })),
-          });
-
-          changedItems.push(
-            serializeAgentRunProposalItem({
-              itemId: buildAgentRunProposalItemId({
-                externalStringId: unit.externalStringId,
-                locale: targetLocale,
-              }),
-              externalStringId: unit.externalStringId,
-              key: unit.key,
-              locale: targetLocale,
-              sourceText: unit.sourceText,
-              from,
-              to,
-              reviewState: "pending",
-              changedFields: deriveChangedFields(from, to),
-              warnings: proposalWarnings,
-            }),
-          );
-        }
+        sourceEntries = await extractSandboxEntries(sandboxId, inputFilename);
       } catch (error) {
         warnings.push(
-          `File translation failed for ${sourceFile.displayName ?? sourceFile.id} (${targetLocale}): ${
+          `Could not extract entries for ${sourceFile.displayName ?? sourceFile.id}: ${
             error instanceof Error ? error.message : "unknown error"
           }`,
         );
       }
+
+      const fileGlossaryTerms = await loadFileGlossaryTerms({
+        projectId: input.projectId,
+        sourceLocale,
+        targetLocales,
+        sourceText,
+      });
+
+      for (const targetLocale of targetLocales) {
+        const localesNeedingTranslation = fileUnits.filter((unit) => {
+          const existing = existingTranslationForLocale(unit, targetLocale);
+          if (shouldSkipExistingTranslation(existing)) {
+            skippedExistingLocales += 1;
+            return false;
+          }
+          return true;
+        });
+        unitsProcessed += localesNeedingTranslation.length;
+
+        if (localesNeedingTranslation.length === 0) {
+          logger.info(
+            {
+              ...logContext,
+              sourceFileId: sourceFile.id,
+              targetLocale,
+              matchingUnitCount: fileUnits.length,
+              reason: "all_units_already_translated",
+            },
+            "provider agent file translation skipped locale because all units already have translations",
+          );
+          continue;
+        }
+
+        const existingPrefilled = buildPrefilledEntriesForLocale({
+          units: fileUnits,
+          targetLocale,
+        });
+        let tmPrefilled: Record<string, string> = {};
+        if (sourceEntries) {
+          tmPrefilled = await reuseFileTranslationMemoryEntries({
+            projectId: input.projectId,
+            sourceLocale,
+            targetLocale,
+            sourceEntries,
+          });
+        }
+
+        let crowdinPrefilled: Record<string, string> = {};
+        if (crowdinContext?.ok) {
+          const outputFilename = getSandboxOutputFilename(inputFilename, targetLocale);
+          const downloadResult = await downloadCrowdinTranslationsInSandbox({
+            sandboxId,
+            targetLocale,
+            externalProjectId: crowdinContext.externalProjectId,
+            secretMaterial: crowdinContext.secretMaterial,
+            baseUrl: crowdinContext.baseUrl,
+            mergeApproved: true,
+          });
+          if (downloadResult.ok) {
+            crowdinPrefilled = (await extractSandboxEntries(sandboxId, outputFilename)) ?? {};
+          }
+        }
+
+        const prefilledEntries = { ...tmPrefilled, ...crowdinPrefilled, ...existingPrefilled };
+
+        const localeContext = buildGlossaryContext({
+          sourceText,
+          projectName: project.name,
+          projectTranslationContext: project.translationContext,
+          glossaryTerms: fileGlossaryTerms,
+          targetLocale,
+        });
+
+        try {
+          const { translatedText, translatedEntries } = await runFileTranslationInSandbox({
+            sandboxId,
+            sourceFilename: inputFilename,
+            sourceLocale,
+            targetLocale,
+            context: localeContext,
+            prefilledEntries,
+          });
+
+          const glossaryFailures = validateGlossaryTermsInTranslation({
+            sourceText,
+            translatedText,
+            terms: (localeContext.glossaryTerms ?? []).map((term) => ({
+              sourceTerm: term.sourceTerm,
+              targetTerm: term.targetTerm,
+              targetLocale: term.targetLocale,
+              forbidden: term.forbidden ?? null,
+              caseSensitive: term.caseSensitive ?? null,
+            })),
+          });
+          if (glossaryFailures.length > 0) {
+            warnings.push(
+              `Glossary validation failed for ${sourceFile.displayName ?? sourceFile.id} (${targetLocale})`,
+            );
+          }
+
+          for (const unit of localesNeedingTranslation) {
+            const existing = existingTranslationForLocale(unit, targetLocale);
+            const from = existing?.text ?? "";
+            const to = translatedEntries[unit.key] ?? from;
+            if (!to.trim() || to === from) {
+              continue;
+            }
+
+            const proposalWarnings = detectAgentRunProposalWarnings({
+              sourceText: unit.sourceText,
+              from,
+              to,
+              locale: targetLocale,
+              externalStringId: unit.externalStringId,
+              key: unit.key,
+              glossaryTerms: (localeContext.glossaryTerms ?? []).map((term) => ({
+                sourceTerm: term.sourceTerm,
+                targetTerm: term.targetTerm,
+                targetLocale: term.targetLocale,
+                forbidden: term.forbidden,
+                caseSensitive: term.caseSensitive,
+              })),
+            });
+
+            changedItems.push(
+              serializeAgentRunProposalItem({
+                itemId: buildAgentRunProposalItemId({
+                  externalStringId: unit.externalStringId,
+                  locale: targetLocale,
+                }),
+                externalStringId: unit.externalStringId,
+                key: unit.key,
+                locale: targetLocale,
+                sourceText: unit.sourceText,
+                from,
+                to,
+                reviewState: "pending",
+                changedFields: deriveChangedFields(from, to),
+                warnings: proposalWarnings,
+              }),
+            );
+          }
+        } catch (error) {
+          warnings.push(
+            `File translation failed for ${sourceFile.displayName ?? sourceFile.id} (${targetLocale}): ${
+              error instanceof Error ? error.message : "unknown error"
+            }`,
+          );
+        }
+      }
+    } catch (error) {
+      skippedDownloadFailureCount += 1;
+      logger.warn(
+        {
+          ...logContext,
+          sourceFileId: sourceFile.id,
+          displayName: sourceFile.displayName,
+          sourcePath: sourceFile.sourcePath,
+          matchingUnitCount: fileUnits.length,
+          sandboxId,
+          reason: "sandbox_source_file_download_failed",
+          err: error instanceof Error ? error.message : "unknown error",
+        },
+        "provider agent file translation skipped source file after sandbox download failure",
+      );
+      warnings.push(
+        `Skipped file ${sourceFile.displayName ?? sourceFile.id}: ${
+          error instanceof Error ? error.message : "sandbox download failed"
+        }`,
+      );
+    } finally {
+      await stopTranslationSandbox(sandboxId);
     }
   }
 
