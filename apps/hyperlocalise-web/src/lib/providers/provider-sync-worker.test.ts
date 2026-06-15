@@ -49,8 +49,14 @@ vi.mock("./provider-sync-executor", () => ({
   executeProviderSyncIntent: executeProviderSyncIntentMock,
 }));
 
+vi.mock("./provider-sync-intent", () => ({
+  reclaimExpiredProviderSyncIntentLeases: vi.fn(async () => []),
+  enqueueProviderCatalogSyncIntent: vi.fn(),
+  enqueueProviderProjectJobSyncIntent: vi.fn(),
+}));
+
 import { ok } from "@/lib/primitives/result/results";
-import { runProviderSyncWorker } from "./provider-sync-worker";
+import { runProviderSyncIntentById, runProviderSyncWorker } from "./provider-sync-worker";
 
 function createIntent(id: string) {
   return {
@@ -61,6 +67,7 @@ function createIntent(id: string) {
     syncKind: "project_scan",
     projectId: null,
     attempts: 1,
+    leaseToken: `lease_${id}`,
   };
 }
 
@@ -108,11 +115,9 @@ describe("runProviderSyncWorker", () => {
       set: vi.fn((value: unknown) => {
         persistedUpdates.push(value);
         return {
-          where: vi.fn(() =>
-            Object.assign(Promise.resolve(undefined), {
-              returning: vi.fn(async () => []),
-            }),
-          ),
+          where: vi.fn(() => ({
+            returning: vi.fn(async () => [{ id: "intent_2" }]),
+          })),
         };
       }),
     }));
@@ -130,13 +135,6 @@ describe("runProviderSyncWorker", () => {
 
     expect(executeProviderSyncIntentMock).toHaveBeenCalledTimes(2);
     expect(persistedUpdates).toEqual([
-      expect.objectContaining({
-        status: "retryable",
-        lastError: "lease_expired",
-        leasedUntil: null,
-        leasedBy: null,
-        leaseToken: null,
-      }),
       expect.objectContaining({
         status: "retryable",
         lastError: "rate_limited",
@@ -162,5 +160,40 @@ describe("runProviderSyncWorker", () => {
         providerSyncRunId: "run_2",
       }),
     );
+  });
+
+  it("does not report success when the held lease token no longer matches", async () => {
+    const intent = createIntent("intent_1");
+
+    dbUpdateMock
+      .mockImplementationOnce(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({
+            returning: vi.fn(async () => [intent]),
+          })),
+        })),
+      }))
+      .mockImplementation(() => ({
+        set: vi.fn(() => ({
+          where: vi.fn(() => ({
+            returning: vi.fn(async () => []),
+          })),
+        })),
+      }));
+
+    executeProviderSyncIntentMock.mockResolvedValueOnce(ok({ runId: "run_stale" }));
+
+    await expect(
+      runProviderSyncIntentById({
+        intentId: intent.id,
+        organizationId: intent.organizationId,
+      }),
+    ).resolves.toEqual({
+      processed: true,
+      succeeded: false,
+      runId: null,
+    });
+
+    expect(logReconciliationSucceededMock).not.toHaveBeenCalled();
   });
 });

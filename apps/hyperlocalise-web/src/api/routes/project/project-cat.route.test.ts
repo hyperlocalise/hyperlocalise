@@ -8,8 +8,10 @@ import { db } from "@/lib/database";
 import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
 
 import { createProjectTestFixture } from "./project.fixture";
+import { ok } from "@/lib/primitives/result/results";
 import type {
   ProjectFileCatConcordanceResponse,
+  ProjectFileCatRecommendationResponse,
   ProjectFileCatResponse,
   ProjectFileCatTranslationResponse,
 } from "./project.schema";
@@ -19,15 +21,28 @@ const {
   getTmsProviderLiveCatFileMock,
   saveTmsProviderLiveCatTranslationMock,
   loadCatSegmentConcordanceMock,
+  generateCatAiRecommendationMock,
+  ensureOrganizationProjectRecordMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
   saveTmsProviderLiveCatTranslationMock: vi.fn(),
   loadCatSegmentConcordanceMock: vi.fn(),
+  generateCatAiRecommendationMock: vi.fn(),
+  ensureOrganizationProjectRecordMock: vi.fn(),
 }));
 
 vi.mock("@/lib/translation/load-cat-segment-concordance", () => ({
   loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
+}));
+
+vi.mock("@/lib/translation/generate-cat-ai-recommendation", () => ({
+  generateCatAiRecommendation: (...args: unknown[]) => generateCatAiRecommendationMock(...args),
+}));
+
+vi.mock("@/lib/projects/ensure-organization-project", () => ({
+  ensureOrganizationProjectRecord: (...args: unknown[]) =>
+    ensureOrganizationProjectRecordMock(...args),
 }));
 
 vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
@@ -71,6 +86,65 @@ afterEach(async () => {
 });
 
 describe("project file CAT routes", () => {
+  it("returns Crowdin AI recommendations for an encoded provider project", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    ensureOrganizationProjectRecordMock.mockResolvedValue(ok("ext:crowdin:42"));
+    generateCatAiRecommendationMock.mockResolvedValue(
+      ok({
+        aiSuggestion: "Bonjour",
+        aiReasoning: "Natural French greeting.",
+      }),
+    );
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.recommendation.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          key: "hello",
+          sourceText: "Hello",
+          targetText: "Bonjour",
+          glossaryTerms: [],
+          translationMemoryMatches: [],
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFileCatRecommendationResponse;
+    expect(body.recommendation).toMatchObject({
+      aiSuggestion: "Bonjour",
+      aiReasoning: "Natural French greeting.",
+    });
+    expect(ensureOrganizationProjectRecordMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "ext:crowdin:42",
+      }),
+    );
+    expect(generateCatAiRecommendationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "ext:crowdin:42",
+        sourcePath: "crowdin/home.json",
+        key: "hello",
+        sourceText: "Hello",
+      }),
+    );
+  });
+
   it("returns Crowdin concordance matches for a CAT segment", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({

@@ -128,8 +128,13 @@ async function leaseProviderSyncIntentById(input: {
   return updated ?? null;
 }
 
-async function markIntentSucceeded(intent: ProviderSyncIntentRow, runId: string) {
-  await db
+async function markIntentSucceeded(intent: ProviderSyncIntentRow, runId: string): Promise<boolean> {
+  const leaseToken = intent.leaseToken;
+  if (!leaseToken) {
+    return false;
+  }
+
+  const updated = await db
     .update(schema.providerSyncIntents)
     .set({
       status: "succeeded",
@@ -141,16 +146,30 @@ async function markIntentSucceeded(intent: ProviderSyncIntentRow, runId: string)
       lastError: null,
       errorDetails: {},
     })
-    .where(eq(schema.providerSyncIntents.id, intent.id));
+    .where(
+      and(
+        eq(schema.providerSyncIntents.id, intent.id),
+        eq(schema.providerSyncIntents.leaseToken, leaseToken),
+        eq(schema.providerSyncIntents.status, "running"),
+      ),
+    )
+    .returning({ id: schema.providerSyncIntents.id });
+
+  return updated.length > 0;
 }
 
-async function markIntentFailed(intent: ProviderSyncIntentRow, message: string) {
+async function markIntentFailed(intent: ProviderSyncIntentRow, message: string): Promise<boolean> {
+  const leaseToken = intent.leaseToken;
+  if (!leaseToken) {
+    return false;
+  }
+
   const shouldRetry = intent.attempts < MAX_ATTEMPTS;
   const nextAttemptAt = shouldRetry
     ? new Date(Date.now() + Math.min(intent.attempts * 60_000, 15 * 60_000))
     : null;
 
-  await db
+  const updated = await db
     .update(schema.providerSyncIntents)
     .set({
       status: shouldRetry ? "retryable" : "failed",
@@ -161,7 +180,16 @@ async function markIntentFailed(intent: ProviderSyncIntentRow, message: string) 
       leasedBy: null,
       leaseToken: null,
     })
-    .where(eq(schema.providerSyncIntents.id, intent.id));
+    .where(
+      and(
+        eq(schema.providerSyncIntents.id, intent.id),
+        eq(schema.providerSyncIntents.leaseToken, leaseToken),
+        eq(schema.providerSyncIntents.status, "running"),
+      ),
+    )
+    .returning({ id: schema.providerSyncIntents.id });
+
+  return updated.length > 0;
 }
 
 export async function runProviderSyncIntentById(input: {
@@ -204,14 +232,21 @@ export async function runProviderSyncIntentById(input: {
   try {
     const result = await executeProviderSyncIntent(intent);
     if (isErr(result)) {
-      await markIntentFailed(intent, result.error.message);
-      logReconciliationFailed({
-        providerKind: intent.providerKind,
-        organizationId: intent.organizationId,
-        providerSyncIntentId: intent.id,
-        syncKind: intent.syncKind,
-        reason: result.error.code,
-      });
+      const marked = await markIntentFailed(intent, result.error.message);
+      if (marked) {
+        logReconciliationFailed({
+          providerKind: intent.providerKind,
+          organizationId: intent.organizationId,
+          providerSyncIntentId: intent.id,
+          syncKind: intent.syncKind,
+          reason: result.error.code,
+        });
+      } else {
+        logger.info(
+          { intentId: intent.id, syncKind: intent.syncKind },
+          "skipped stale provider sync intent failure update",
+        );
+      }
       return {
         processed: true,
         succeeded: false,
@@ -220,22 +255,35 @@ export async function runProviderSyncIntentById(input: {
       };
     }
 
-    await markIntentSucceeded(intent, result.value.runId);
-    logReconciliationSucceeded({
-      providerKind: intent.providerKind,
-      organizationId: intent.organizationId,
-      providerSyncIntentId: intent.id,
-      providerSyncRunId: result.value.runId,
-      syncKind: intent.syncKind,
-    });
+    const marked = await markIntentSucceeded(intent, result.value.runId);
+    if (marked) {
+      logReconciliationSucceeded({
+        providerKind: intent.providerKind,
+        organizationId: intent.organizationId,
+        providerSyncIntentId: intent.id,
+        providerSyncRunId: result.value.runId,
+        syncKind: intent.syncKind,
+      });
+    } else {
+      logger.info(
+        { intentId: intent.id, syncKind: intent.syncKind },
+        "skipped stale provider sync intent success update",
+      );
+    }
     return {
       processed: true,
-      succeeded: true,
-      runId: result.value.runId,
+      succeeded: marked,
+      runId: marked ? result.value.runId : null,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "unknown_error";
-    await markIntentFailed(intent, message);
+    const marked = await markIntentFailed(intent, message);
+    if (!marked) {
+      logger.info(
+        { intentId: intent.id, syncKind: intent.syncKind },
+        "skipped stale provider sync intent failure update",
+      );
+    }
     logger.error(
       { intentId: intent.id, syncKind: intent.syncKind, error: message },
       "unexpected error executing provider sync workflow intent",
@@ -266,35 +314,51 @@ export async function runProviderSyncWorker(input?: {
     try {
       const result = await executeProviderSyncIntent(intent);
       if (isErr(result)) {
-        failed += 1;
-        await markIntentFailed(intent, result.error.message);
-        logReconciliationFailed({
-          providerKind: intent.providerKind,
-          organizationId: intent.organizationId,
-          providerSyncIntentId: intent.id,
-          syncKind: intent.syncKind,
-          reason: result.error.code,
-        });
+        const marked = await markIntentFailed(intent, result.error.message);
+        if (marked) {
+          failed += 1;
+          logReconciliationFailed({
+            providerKind: intent.providerKind,
+            organizationId: intent.organizationId,
+            providerSyncIntentId: intent.id,
+            syncKind: intent.syncKind,
+            reason: result.error.code,
+          });
+        } else {
+          logger.info(
+            { intentId: intent.id, syncKind: intent.syncKind },
+            "skipped stale provider sync intent failure update",
+          );
+        }
         continue;
       }
 
-      succeeded += 1;
-      await markIntentSucceeded(intent, result.value.runId);
-      logReconciliationSucceeded({
-        providerKind: intent.providerKind,
-        organizationId: intent.organizationId,
-        providerSyncIntentId: intent.id,
-        providerSyncRunId: result.value.runId,
-        syncKind: intent.syncKind,
-      });
+      const marked = await markIntentSucceeded(intent, result.value.runId);
+      if (marked) {
+        succeeded += 1;
+        logReconciliationSucceeded({
+          providerKind: intent.providerKind,
+          organizationId: intent.organizationId,
+          providerSyncIntentId: intent.id,
+          providerSyncRunId: result.value.runId,
+          syncKind: intent.syncKind,
+        });
+      }
     } catch (error) {
-      failed += 1;
       const message = error instanceof Error ? error.message : "unknown_error";
-      await markIntentFailed(intent, message);
-      logger.error(
-        { intentId: intent.id, syncKind: intent.syncKind, error: message },
-        "unexpected error executing sync intent",
-      );
+      const marked = await markIntentFailed(intent, message);
+      if (marked) {
+        failed += 1;
+        logger.error(
+          { intentId: intent.id, syncKind: intent.syncKind, error: message },
+          "unexpected error executing sync intent",
+        );
+      } else {
+        logger.info(
+          { intentId: intent.id, syncKind: intent.syncKind },
+          "skipped stale provider sync intent failure update",
+        );
+      }
     }
   }
 
