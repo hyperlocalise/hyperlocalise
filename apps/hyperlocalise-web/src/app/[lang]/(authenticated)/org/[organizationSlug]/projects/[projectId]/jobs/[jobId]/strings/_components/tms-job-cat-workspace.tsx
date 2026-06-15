@@ -4,6 +4,7 @@ import { useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type {
+  ProjectFileCatConcordanceResponse,
   ProjectFileCatRecommendationResponse,
   ProjectFileCatResponse,
   ProjectFileCatSegment,
@@ -20,6 +21,7 @@ import type {
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/types";
+import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/map-cat-concordance-for-ai-recommendation";
 import { AlertCircleIcon } from "lucide-react";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
@@ -352,8 +354,41 @@ export function TmsJobCatWorkspace({
     },
     [organizationSlug, projectId, repositoryFullName, sourcePath],
   );
+  const lookupSegmentConcordance = useCallback(
+    async (segment: CatSegment) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.concordance.$post({
+        param: { organizationSlug, projectId },
+        json: {
+          sourceLocale: segment.sourceLocale,
+          targetLocale: segment.targetLocale,
+          sourceText: segment.sourceText,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to search glossary and TM"));
+      }
+
+      const body = (await response.json()) as ProjectFileCatConcordanceResponse;
+      return body.concordance;
+    },
+    [organizationSlug, projectId],
+  );
   const generateAiRecommendation = useCallback(
     async (segment: CatSegment, targetText: string, intelligence?: CatSegmentIntelligence) => {
+      const concordancePayload =
+        intelligence != null
+          ? mapCatConcordanceForAiRecommendation(
+              {
+                glossaryTerms: intelligence.glossaryTerms ?? [],
+                translationMemoryMatches: intelligence.translationMemoryMatches ?? [],
+              },
+              segment.targetLocale,
+            )
+          : {};
+
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
       ].files.detail.cat.recommendation.$post({
@@ -368,6 +403,7 @@ export function TmsJobCatWorkspace({
           context: segment.contextLabel ?? intelligence?.productMeaning ?? null,
           agentContext: intelligence?.agentContext ?? null,
           maxLength: segment.maxLength,
+          ...concordancePayload,
         },
       });
 
@@ -419,6 +455,7 @@ export function TmsJobCatWorkspace({
       className={cn("min-h-0 flex-1", className)}
       services={{
         validateFormat: validateSegmentFormat,
+        lookupSegmentConcordance,
         generateAiRecommendation,
         ...(repositoryFullName ? { lookupSegmentContext } : {}),
       }}

@@ -498,9 +498,15 @@ export const catIntelligenceFixture: CatSegmentIntelligence = {
   reviewerPreference: "Keep dashboard cards short, direct, and free of marketing tone.",
   constraints: "Short text · Max 2 lines on mobile",
   glossaryTerms: [
-    { id: "term-1", source: "Dashboard", target: "Bảng điều khiển", approved: true },
-    { id: "term-2", source: "Review", target: "Đánh giá", approved: true },
-    { id: "term-3", source: "Approval", target: "Phê duyệt", approved: true },
+    {
+      id: "term-1",
+      source: "Dashboard",
+      target: "Bảng điều khiển",
+      approved: true,
+      forbidden: false,
+    },
+    { id: "term-2", source: "Review", target: "Đánh giá", approved: true, forbidden: false },
+    { id: "term-3", source: "Approval", target: "Phê duyệt", approved: true, forbidden: false },
   ],
   translationMemoryMatches: [
     {

@@ -42,6 +42,16 @@ function InsightCard({
   );
 }
 
+function ConcordanceSkeleton() {
+  return (
+    <div className="space-y-3 rounded-2xl bg-foreground/3 p-3.5">
+      <Skeleton className="h-4 w-32 rounded-full bg-foreground/8" />
+      <Skeleton className="h-4 w-full rounded-full bg-foreground/8" />
+      <Skeleton className="h-4 w-10/12 rounded-full bg-foreground/8" />
+    </div>
+  );
+}
+
 function AgentContextSkeleton() {
   return (
     <div className="space-y-3 rounded-2xl bg-foreground/3 p-3.5">
@@ -104,10 +114,12 @@ function TranslationMemoryRow({ match }: { match: CatTranslationMemoryMatch }) {
 export function CatIntelligencePanel({
   intelligence,
   isLookingUpContext = false,
+  isConcordanceLoading = false,
   showAgentContext = false,
 }: {
   intelligence: CatSegmentIntelligence;
   isLookingUpContext?: boolean;
+  isConcordanceLoading?: boolean;
   showAgentContext?: boolean;
 }) {
   const hasFileContext = Boolean(intelligence.productMeaning?.trim());
@@ -202,7 +214,18 @@ export function CatIntelligencePanel({
             </PanelSection>
           ) : null}
 
-          {intelligence.glossaryTerms.length > 0 ? (
+          {isConcordanceLoading ? (
+            <>
+              <PanelSection title="Glossary guidance">
+                <ConcordanceSkeleton />
+              </PanelSection>
+              <PanelSection title="Translation memory">
+                <ConcordanceSkeleton />
+              </PanelSection>
+            </>
+          ) : null}
+
+          {!isConcordanceLoading && intelligence.glossaryTerms.length > 0 ? (
             <PanelSection title="Glossary guidance">
               <div className="overflow-hidden rounded-2xl bg-foreground/3">
                 <ul className="divide-y divide-foreground/8">
@@ -214,7 +237,8 @@ export function CatIntelligencePanel({
             </PanelSection>
           ) : null}
 
-          {intelligence.translationMemoryMatches &&
+          {!isConcordanceLoading &&
+          intelligence.translationMemoryMatches &&
           intelligence.translationMemoryMatches.length > 0 ? (
             <PanelSection title="Translation memory">
               <div className="overflow-hidden rounded-2xl bg-foreground/3">

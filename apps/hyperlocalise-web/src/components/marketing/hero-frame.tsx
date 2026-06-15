@@ -386,12 +386,14 @@ const heroDemoState: CatWorkspaceState = {
         source: "globally",
         target: "à l'international",
         approved: true,
+        forbidden: false,
       },
       {
         id: "term-launch",
         source: "launch",
         target: "lancer",
         approved: true,
+        forbidden: false,
       },
     ],
     translationMemoryMatches: [
@@ -442,6 +444,7 @@ const heroDemoState: CatWorkspaceState = {
           source: "review",
           target: "validation",
           approved: true,
+          forbidden: false,
         },
       ],
       translationMemoryMatches: [

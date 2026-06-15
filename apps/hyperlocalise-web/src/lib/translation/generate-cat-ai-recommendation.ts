@@ -5,6 +5,10 @@ import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import { assembleStringTranslationContextSnapshot } from "./assemble-translation-context";
 import { loadOrganizationTranslationModel } from "./load-organization-translation-generator";
+import {
+  defaultGlossaryMatchResolution,
+  defaultTranslationMemoryMatchResolution,
+} from "@/lib/providers/match-resolution";
 
 const catAiRecommendationOutputSchema = z.object({
   suggestion: z.string().refine((text) => text.trim().length > 0, {
@@ -28,6 +32,18 @@ export type CatAiRecommendationInput = {
   context?: string | null;
   agentContext?: string | null;
   maxLength?: number;
+  glossaryTerms?: Array<{
+    sourceTerm: string;
+    targetTerm: string;
+    targetLocale: string;
+    forbidden?: boolean | null;
+    description?: string | null;
+  }>;
+  translationMemoryMatches?: Array<{
+    sourceText: string;
+    targetText: string;
+    targetLocale: string;
+  }>;
 };
 
 export type CatAiRecommendationResult = {
@@ -199,6 +215,9 @@ export async function generateCatAiRecommendation(
     });
   }
 
+  const hasPreloadedConcordance =
+    input.glossaryTerms !== undefined || input.translationMemoryMatches !== undefined;
+
   const contextResult = await assembleStringTranslationContextSnapshot(
     input.projectId,
     {
@@ -215,6 +234,9 @@ export async function generateCatAiRecommendation(
     undefined,
     {
       organizationId: input.organizationId,
+      glossaryMatchResolution: defaultGlossaryMatchResolution,
+      translationMemoryMatchResolution: defaultTranslationMemoryMatchResolution,
+      skipConcordance: hasPreloadedConcordance,
     },
   );
 
@@ -230,8 +252,9 @@ export async function generateCatAiRecommendation(
       projectName: contextResult.snapshot.project.name,
       projectTranslationContext: contextResult.snapshot.project.translationContext,
       knowledgeMemory: contextResult.snapshot.knowledgeMemory,
-      glossaryTerms: contextResult.snapshot.glossaryTerms,
-      translationMemoryMatches: contextResult.snapshot.translationMemoryMatches,
+      glossaryTerms: input.glossaryTerms ?? contextResult.snapshot.glossaryTerms,
+      translationMemoryMatches:
+        input.translationMemoryMatches ?? contextResult.snapshot.translationMemoryMatches,
     });
 
     return ok(recommendation);
