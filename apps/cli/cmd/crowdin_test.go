@@ -706,3 +706,18 @@ api_token_env: CROWDIN_PERSONAL_TOKEN
 		t.Fatalf("unexpected output: %q", out.String())
 	}
 }
+
+func TestCrowdinDownloadSourcesOutputRequiresFileID(t *testing.T) {
+	cmd := newRootCmd("")
+	out := bytes.NewBuffer(nil)
+	cmd.SetOut(out)
+	cmd.SetArgs([]string{"crowdin", "download", "sources", "--output", "en.json"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error when --output is set without --file-id")
+	}
+	if !strings.Contains(err.Error(), "--output requires --file-id") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}

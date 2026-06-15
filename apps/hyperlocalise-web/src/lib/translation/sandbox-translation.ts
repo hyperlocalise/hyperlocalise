@@ -369,28 +369,6 @@ export async function downloadCrowdinTranslationsInSandbox(input: {
   return { ok: true };
 }
 
-export async function uploadCrowdinTranslationsInSandbox(input: {
-  sandboxId: string;
-  targetLocale: string;
-  externalProjectId: string;
-  secretMaterial: string;
-  baseUrl?: string | null;
-}): Promise<void> {
-  const result = await runSandboxCommand(
-    input.sandboxId,
-    "bash",
-    [
-      "-lc",
-      `export PATH="$HOME/.local/bin:$PATH"; hl crowdin upload translations --config ${shellQuote(crowdinSandboxConfigPath)} --language ${shellQuote(input.targetLocale)}`,
-    ],
-    { env: getCrowdinSandboxEnv(input) },
-  );
-
-  if (result.exitCode !== 0) {
-    throw new Error(`crowdin translation upload failed: ${result.output}`);
-  }
-}
-
 export function userFacingFailureReason(error: unknown): string {
   const message = error instanceof Error ? error.message : "Unknown translation failure";
 

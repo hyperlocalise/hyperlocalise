@@ -280,6 +280,9 @@ func newCrowdinDownloadSourcesCmd() *cobra.Command {
 
 func executeCrowdinDownloadSources(cmd *cobra.Command, o crowdinDownloadSourcesOptions) error {
 	outputPath := strings.TrimSpace(o.outputPath)
+	if outputPath != "" && o.fileID == 0 {
+		return fmt.Errorf("crowdin download sources: --output requires --file-id")
+	}
 	if o.fileID > 0 {
 		if o.dryRun {
 			destination := outputPath

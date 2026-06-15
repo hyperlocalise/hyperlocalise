@@ -301,6 +301,16 @@ export async function translateProviderJobFiles(input: {
     "provider agent file translation started",
   );
 
+  const crowdinContext =
+    input.providerKind === "crowdin"
+      ? await loadProviderCrowdinDownloadContext({
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          providerKind: input.providerKind,
+          actorUserId: input.actorUserId,
+        })
+      : null;
+
   for (const sourceFile of input.sourceFiles) {
     if (!sourceFile.sourcePath?.trim()) {
       skippedMissingSourcePathCount += 1;
@@ -346,15 +356,6 @@ export async function translateProviderJobFiles(input: {
       continue;
     }
 
-    const crowdinContext =
-      input.providerKind === "crowdin"
-        ? await loadProviderCrowdinDownloadContext({
-            organizationId: input.organizationId,
-            projectId: input.projectId,
-            providerKind: input.providerKind,
-            actorUserId: input.actorUserId,
-          })
-        : null;
     if (crowdinContext && !crowdinContext.ok) {
       skippedDownloadFailureCount += 1;
       logger.warn(
