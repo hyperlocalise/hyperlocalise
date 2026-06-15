@@ -222,20 +222,14 @@ function normalizeAiSdkTokenUsage(
 ): StringTranslationJobResult["tokenUsage"] | undefined {
   const rawUsage = usage as
     | {
-        inputTokens?: number | { total?: number };
-        outputTokens?: number | { total?: number };
+        inputTokens?: number;
+        outputTokens?: number;
         totalTokens?: number;
       }
     | undefined;
 
-  const inputTokens =
-    typeof rawUsage?.inputTokens === "number"
-      ? rawUsage.inputTokens
-      : (rawUsage?.inputTokens?.total ?? 0);
-  const outputTokens =
-    typeof rawUsage?.outputTokens === "number"
-      ? rawUsage.outputTokens
-      : (rawUsage?.outputTokens?.total ?? 0);
+  const inputTokens = rawUsage?.inputTokens ?? 0;
+  const outputTokens = rawUsage?.outputTokens ?? 0;
   const totalTokens = rawUsage?.totalTokens ?? inputTokens + outputTokens;
   const parsedUsage = tokenUsageSchema.safeParse({ inputTokens, outputTokens, totalTokens });
 

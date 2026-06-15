@@ -157,6 +157,7 @@ async function trackUsageEventInAutumn(input: {
   fetchFn: typeof fetch;
 }): Promise<Result<void, Extract<TrackUsageEventError, { code: "autumn_usage_tracking_failed" }>>> {
   let response: Response;
+  const eventName = autumnEventName(input.event);
 
   try {
     response = await input.fetchFn(AUTUMN_TRACK_USAGE_URL, {
@@ -168,9 +169,7 @@ async function trackUsageEventInAutumn(input: {
       },
       body: JSON.stringify({
         customer_id: input.event.organizationId,
-        ...(autumnEventName(input.event)
-          ? { event_name: autumnEventName(input.event) }
-          : { feature_id: input.event.featureId }),
+        ...(eventName ? { event_name: eventName } : { feature_id: input.event.featureId }),
         value: input.event.quantity,
         idempotency_key: input.event.operationKey,
         properties: {
