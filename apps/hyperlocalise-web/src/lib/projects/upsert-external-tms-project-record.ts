@@ -5,7 +5,7 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/organization-exter
 import type { TmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
 import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
-import { reconcileMissingExternalTmsJobs } from "./upsert-external-tms-job-records";
+import { removeAllExternalTmsJobsForProject } from "./upsert-external-tms-job-records";
 
 async function removeExternalTmsJobsForProjects(input: {
   organizationId: string;
@@ -15,11 +15,10 @@ async function removeExternalTmsJobsForProjects(input: {
   let removedJobs = 0;
 
   for (const projectId of input.projectIds) {
-    removedJobs += await reconcileMissingExternalTmsJobs({
+    removedJobs += await removeAllExternalTmsJobsForProject({
       organizationId: input.organizationId,
       projectId,
       providerKind: input.providerKind,
-      syncedJobIds: [],
     });
   }
 
@@ -84,15 +83,11 @@ export async function deactivateMissingExternalTmsProjects(input: {
   providerKind: (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
   syncedProjectIds: string[];
 }) {
-  const now = new Date();
-  const scope = and(
-    eq(schema.projects.organizationId, input.organizationId),
-    eq(schema.projects.source, "external_tms"),
-    eq(schema.projects.externalProviderKind, input.providerKind),
-    eq(schema.projects.externalProviderCredentialId, input.providerCredentialId),
-    eq(schema.projects.isActive, true),
-  );
+  if (input.syncedProjectIds.length === 0) {
+    return 0;
+  }
 
+  const now = new Date();
   const deactivated = await db
     .update(schema.projects)
     .set({
@@ -100,9 +95,14 @@ export async function deactivateMissingExternalTmsProjects(input: {
       updatedAt: now,
     })
     .where(
-      input.syncedProjectIds.length > 0
-        ? and(scope, notInArray(schema.projects.id, input.syncedProjectIds))
-        : scope,
+      and(
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.source, "external_tms"),
+        eq(schema.projects.externalProviderKind, input.providerKind),
+        eq(schema.projects.externalProviderCredentialId, input.providerCredentialId),
+        eq(schema.projects.isActive, true),
+        notInArray(schema.projects.id, input.syncedProjectIds),
+      ),
     )
     .returning({ id: schema.projects.id });
 

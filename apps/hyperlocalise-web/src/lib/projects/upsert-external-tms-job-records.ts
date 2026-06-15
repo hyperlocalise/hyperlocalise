@@ -170,35 +170,25 @@ export async function upsertExternalTmsJobRecords(input: {
   return { upserted, newlySyncedJobIds, removed };
 }
 
-export async function reconcileMissingExternalTmsJobs(input: {
+function externalTmsJobsScope(input: {
   organizationId: string;
   projectId: string;
   providerKind: ExternalTmsProviderKind;
-  syncedJobIds: string[];
 }) {
-  const now = new Date();
-  const scope = and(
+  return and(
     eq(schema.jobs.organizationId, input.organizationId),
     eq(schema.jobs.projectId, input.projectId),
     eq(schema.externalJobDetails.providerKind, input.providerKind),
     ne(schema.externalJobDetails.syncState, "removed"),
   );
+}
 
-  const staleJobs = await db
-    .select({ id: schema.jobs.id })
-    .from(schema.jobs)
-    .innerJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-    .where(
-      input.syncedJobIds.length > 0
-        ? and(scope, notInArray(schema.jobs.id, input.syncedJobIds))
-        : scope,
-    );
-
-  if (staleJobs.length === 0) {
+async function cancelExternalTmsJobs(jobIds: string[]) {
+  if (jobIds.length === 0) {
     return 0;
   }
 
-  const staleJobIds = staleJobs.map((job) => job.id);
+  const now = new Date();
 
   await db.transaction(async (tx) => {
     await tx
@@ -208,7 +198,7 @@ export async function reconcileMissingExternalTmsJobs(input: {
         completedAt: now,
         updatedAt: now,
       })
-      .where(inArray(schema.jobs.id, staleJobIds));
+      .where(inArray(schema.jobs.id, jobIds));
 
     await tx
       .update(schema.externalJobDetails)
@@ -217,8 +207,41 @@ export async function reconcileMissingExternalTmsJobs(input: {
         syncState: "removed",
         updatedAt: now,
       })
-      .where(inArray(schema.externalJobDetails.jobId, staleJobIds));
+      .where(inArray(schema.externalJobDetails.jobId, jobIds));
   });
 
-  return staleJobIds.length;
+  return jobIds.length;
+}
+
+export async function removeAllExternalTmsJobsForProject(input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+}) {
+  const staleJobs = await db
+    .select({ id: schema.jobs.id })
+    .from(schema.jobs)
+    .innerJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+    .where(externalTmsJobsScope(input));
+
+  return cancelExternalTmsJobs(staleJobs.map((job) => job.id));
+}
+
+export async function reconcileMissingExternalTmsJobs(input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  syncedJobIds: string[];
+}) {
+  if (input.syncedJobIds.length === 0) {
+    return 0;
+  }
+
+  const staleJobs = await db
+    .select({ id: schema.jobs.id })
+    .from(schema.jobs)
+    .innerJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+    .where(and(externalTmsJobsScope(input), notInArray(schema.jobs.id, input.syncedJobIds)));
+
+  return cancelExternalTmsJobs(staleJobs.map((job) => job.id));
 }
