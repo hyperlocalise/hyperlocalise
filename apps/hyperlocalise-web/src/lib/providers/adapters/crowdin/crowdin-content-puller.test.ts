@@ -130,6 +130,9 @@ describe("pullCrowdinTaskContent", () => {
       sourceText: "Hello",
       translations: [{ locale: "fr", text: "Bonjour", isApproved: true }],
     });
+    expect(result.providerPayload).toMatchObject({
+      stringPullStrategy: "taskId",
+    });
 
     expect(
       fetchMock.mock.calls.some(
@@ -146,6 +149,226 @@ describe("pullCrowdinTaskContent", () => {
       fetchMock.mock.calls.some(([url]) =>
         String(url).includes("/projects/42/translations?stringId="),
       ),
+    ).toBe(false);
+  });
+
+  it("falls back to task fileIds when taskId filter returns no strings", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+
+      if (path.endsWith("/projects/42/tasks/2001") && init?.method !== "POST") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 2001,
+              projectId: 42,
+              type: 0,
+              status: "in_progress",
+              title: "French task",
+              description: null,
+              sourceLanguageId: "en",
+              targetLanguageId: "fr",
+              languageId: "fr",
+              fileIds: [101],
+              stringIds: null,
+              assignees: null,
+              deadline: null,
+              webUrl: "https://crowdin.com/project/42/tasks/2001",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/strings?") && path.includes("taskId=2001")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/strings?") && path.includes("fileId=101")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "hello",
+                  text: "Hello",
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("fileId=101")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (
+        path.includes("/projects/42/languages/fr/translations?") &&
+        path.includes("stringIds=1001")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.endsWith("/projects/42/tasks/2001/exports")) {
+        return new Response(null, { status: 204 });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await pullCrowdinTaskContent({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "crowdin",
+      externalProjectId: "42",
+      externalJobId: "2001",
+      credential: {
+        id: "cred_1",
+        baseUrl: "https://api.crowdin.test/api/v2",
+      } as never,
+      project: {} as never,
+      secretMaterial: "token",
+    });
+
+    expect(result.units).toHaveLength(1);
+    expect(result.providerPayload).toMatchObject({
+      stringPullStrategy: "fileIds",
+      stringPullCountsByFileId: { "101": 1 },
+    });
+    expect(
+      fetchMock.mock.calls.some(
+        ([requestUrl]) =>
+          String(requestUrl).includes("/projects/42/strings?") &&
+          String(requestUrl).includes("fileId=101"),
+      ),
+    ).toBe(true);
+  });
+
+  it("falls back to task stringIds when taskId and fileIds filters return no strings", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+
+      if (path.endsWith("/projects/42/tasks/2001") && init?.method !== "POST") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 2001,
+              projectId: 42,
+              type: 0,
+              status: "in_progress",
+              title: "French task",
+              description: null,
+              sourceLanguageId: "en",
+              targetLanguageId: "fr",
+              languageId: "fr",
+              fileIds: null,
+              stringIds: [1001],
+              assignees: null,
+              deadline: null,
+              webUrl: "https://crowdin.com/project/42/tasks/2001",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/strings?") && path.includes("taskId=2001")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/strings?") && path.includes("croql=")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "hello",
+                  text: "Hello",
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("stringId=1001")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (
+        path.includes("/projects/42/languages/fr/translations?") &&
+        path.includes("stringIds=1001")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.endsWith("/projects/42/tasks/2001/exports")) {
+        return new Response(null, { status: 204 });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const result = await pullCrowdinTaskContent({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "crowdin",
+      externalProjectId: "42",
+      externalJobId: "2001",
+      credential: {
+        id: "cred_1",
+        baseUrl: "https://api.crowdin.test/api/v2",
+      } as never,
+      project: {} as never,
+      secretMaterial: "token",
+    });
+
+    expect(result.units).toHaveLength(1);
+    expect(result.providerPayload).toMatchObject({
+      stringPullStrategy: "stringIds",
+    });
+    expect(
+      fetchMock.mock.calls.some(([requestUrl]) => {
+        const requestPath = String(requestUrl);
+        return requestPath.includes("/projects/42/strings?") && requestPath.includes("croql=");
+      }),
+    ).toBe(true);
+    expect(
+      fetchMock.mock.calls.some(([requestUrl]) => {
+        const requestPath = String(requestUrl);
+        return requestPath.includes("/projects/42/strings?") && requestPath.includes("fileId=");
+      }),
     ).toBe(false);
   });
 });

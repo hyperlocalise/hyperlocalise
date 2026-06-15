@@ -28,6 +28,9 @@ export async function executeProviderAgentTranslationStep(input: {
           proposedCount: result.proposedCount,
           unitsProcessed: result.unitsProcessed,
           alreadyCompleted: result.alreadyCompleted ?? false,
+          ...(result.proposedCount === 0 && result.unitsProcessed === 0 && !result.alreadyCompleted
+            ? { emptyTranslationResult: true }
+            : {}),
         },
         "provider agent translation step completed successfully",
       );

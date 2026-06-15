@@ -1,3 +1,4 @@
+import { createLogger } from "@/lib/log";
 import {
   detectAgentRunProposalWarnings,
   deriveChangedFields,
@@ -17,7 +18,10 @@ import type {
   ExternalTmsTranslationUnit,
 } from "@/lib/providers/tms-provider-types";
 import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
-import { resolveProviderAgentRunSourceFiles } from "@/lib/providers/job-provider-source-files";
+import {
+  resolveProviderAgentRunSourceFiles,
+  readProviderAgentRunSourceFilesFromSnapshot,
+} from "@/lib/providers/job-provider-source-files";
 import {
   shouldUseProviderFileTranslation,
   translateProviderJobFiles,
@@ -35,6 +39,8 @@ import type { AgentRunTranslationMemoryMatchUsage } from "@/lib/providers/contra
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
 import type { StringTranslationGenerator } from "@/lib/translation/string-job-executor";
+
+const logger = createLogger("provider-agent-translate");
 
 export type ProviderAgentTranslationChangedItem = AgentRunProposalItem;
 
@@ -66,6 +72,20 @@ function readAutomationLocales(inputSnapshot: Record<string, unknown>): string[]
   return automationLocales.filter(
     (locale): locale is string => typeof locale === "string" && locale.trim().length > 0,
   );
+}
+
+function buildPullDiagnosticsSummary(providerPayload: Record<string, unknown> | undefined) {
+  const summary: Record<string, unknown> = {};
+  if (typeof providerPayload?.stringPullStrategy === "string") {
+    summary.stringPullStrategy = providerPayload.stringPullStrategy;
+  }
+
+  const countsByFileId = providerPayload?.stringPullCountsByFileId;
+  if (countsByFileId && typeof countsByFileId === "object" && !Array.isArray(countsByFileId)) {
+    summary.stringPullCountsByFileId = countsByFileId;
+  }
+
+  return summary;
 }
 
 function readProjectIdFromInputSnapshot(inputSnapshot: Record<string, unknown>): string | null {
@@ -491,6 +511,51 @@ export async function executeProviderAgentTranslation(input: {
         }
       : pullResult.content;
 
+  const providerPayload = pullResult.content.providerPayload ?? {};
+  const stringPullStrategy =
+    typeof providerPayload.stringPullStrategy === "string"
+      ? providerPayload.stringPullStrategy
+      : null;
+  const sourceFileCount = readProviderAgentRunSourceFilesFromSnapshot(
+    run.inputSnapshot ?? {},
+  ).length;
+  const pullDiagnosticsSummary = buildPullDiagnosticsSummary(providerPayload);
+
+  logger.info(
+    {
+      agentRunId: input.agentRunId,
+      organizationId: input.organizationId,
+      providerKind: run.providerKind,
+      externalJobId: run.externalJobId,
+      unitsDiscovered: pullResult.counts.unitsDiscovered,
+      targetLocaleCount: filteredContent.targetLocales.length,
+      automationLocaleCount: automationLocales?.length ?? 0,
+      stringPullStrategy,
+      sourceFileCount,
+    },
+    "provider agent translation content pull completed",
+  );
+
+  if (pullResult.counts.unitsDiscovered === 0) {
+    logger.warn(
+      {
+        agentRunId: input.agentRunId,
+        organizationId: input.organizationId,
+        providerKind: run.providerKind,
+        externalJobId: run.externalJobId,
+        stringPullStrategy,
+        taskFileIdCount: Array.isArray(providerPayload.fileIds)
+          ? providerPayload.fileIds.length
+          : 0,
+        taskStringIdCount: Array.isArray(providerPayload.stringIds)
+          ? providerPayload.stringIds.length
+          : 0,
+        sourceFileCount,
+      },
+      "provider agent translation found no strings after content pull",
+    );
+  }
+
   const [jobDetails] = run.hyperlocaliseJobId
     ? await (async () => {
         const { db, schema } = await import("@/lib/database");
@@ -536,10 +601,26 @@ export async function executeProviderAgentTranslation(input: {
         translationMode: "file",
         targetLocales: filteredContent.targetLocales,
         sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
+        ...pullDiagnosticsSummary,
       },
       changedItems: fileTranslationResult.changedItems,
       warnings: fileTranslationResult.warnings,
     });
+
+    logger.info(
+      {
+        agentRunId: input.agentRunId,
+        organizationId: input.organizationId,
+        translationMode: "file",
+        unitsDiscovered: pullResult.counts.unitsDiscovered,
+        unitsProcessed: fileTranslationResult.unitsProcessed,
+        proposedCount: fileTranslationResult.changedItems.length,
+        filesProcessed: fileTranslationResult.filesProcessed,
+        sourceFileCount: sourceFiles.length,
+        stringPullStrategy,
+      },
+      "provider agent file translation completed",
+    );
 
     return {
       ok: true,
@@ -643,10 +724,24 @@ export async function executeProviderAgentTranslation(input: {
       sourceLocale: filteredContent.sourceLocale ?? defaultSourceLocale,
       translationMemoryUsage: translationResult.translationMemoryUsageByUnit,
       glossaryUsage: translationResult.glossaryUsageByUnit,
+      ...pullDiagnosticsSummary,
     },
     changedItems: translationResult.changedItems,
     warnings: translationResult.warnings,
   });
+
+  logger.info(
+    {
+      agentRunId: input.agentRunId,
+      organizationId: input.organizationId,
+      translationMode: "string",
+      unitsDiscovered: pullResult.counts.unitsDiscovered,
+      unitsProcessed: translationResult.unitsProcessed,
+      proposedCount: translationResult.changedItems.length,
+      stringPullStrategy,
+    },
+    "provider agent string translation completed",
+  );
 
   return {
     ok: true,
