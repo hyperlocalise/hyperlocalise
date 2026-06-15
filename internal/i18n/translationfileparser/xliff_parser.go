@@ -15,8 +15,16 @@ type XLIFFParser struct{}
 func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 
-	out := make(map[string]string)
-	var current *xliffUnit
+	// BOLT OPTIMIZATION: Hint capacity for output map based on content size.
+	capacity := len(content) / 256
+	if capacity < 4 {
+		capacity = 4
+	}
+	out := make(map[string]string, capacity)
+
+	// BOLT OPTIMIZATION: Reuse a single xliffUnit struct and its buffers.
+	var unit xliffUnit
+	unitActive := false
 
 	var captureName string
 	var captureStart int
@@ -41,12 +49,15 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 
 			switch token.Name.Local {
 			case "trans-unit", "unit":
-				if current != nil {
-					finalizeXLIFFUnit(out, *current)
+				if unitActive {
+					finalizeXLIFFUnit(out, &unit)
 				}
-				current = &xliffUnit{key: resolveXLIFFUnitKey(token.Attr)}
+				unit.key = resolveXLIFFUnitKey(token.Attr)
+				unit.source.Reset()
+				unit.target.Reset()
+				unitActive = true
 			case "source", "target":
-				if current != nil {
+				if unitActive {
 					captureName = token.Name.Local
 					captureStart = offset
 					captureDepth = 0
@@ -73,23 +84,23 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 						// Re-encoding via xml.Encoder (the old way) tended to normalize <ph id="1"/> to <ph id="1"></ph>.
 						// To maintain parity with the old behavior for nested tags, we can use a helper.
 						if captureName == "source" {
-							current.source.Write(normalizeXLIFFInternalMarkup(val))
+							unit.source.Write(normalizeXLIFFInternalMarkup(val))
 						} else {
-							current.target.Write(normalizeXLIFFInternalMarkup(val))
+							unit.target.Write(normalizeXLIFFInternalMarkup(val))
 						}
 					}
 					captureName = ""
 				}
 			} else if token.Name.Local == "trans-unit" || token.Name.Local == "unit" {
-				if current != nil {
-					finalizeXLIFFUnit(out, *current)
-					current = nil
+				if unitActive {
+					finalizeXLIFFUnit(out, &unit)
+					unitActive = false
 				}
 			}
 		}
 	}
-	if current != nil {
-		finalizeXLIFFUnit(out, *current)
+	if unitActive {
+		finalizeXLIFFUnit(out, &unit)
 	}
 	return out, nil
 }
@@ -154,7 +165,7 @@ func normalizeXLIFFInternalMarkup(val []byte) []byte {
 	return out.Bytes()
 }
 
-func finalizeXLIFFUnit(out map[string]string, unit xliffUnit) {
+func finalizeXLIFFUnit(out map[string]string, unit *xliffUnit) {
 	key := strings.TrimSpace(unit.key)
 	if key == "" {
 		return
@@ -217,7 +228,8 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, start xml.Star
 	replacement, hasReplacement := values[unitKey]
 
 	// Buffer all tokens in the unit to determine if it contains a <target> element.
-	var tokens []xml.Token
+	// BOLT OPTIMIZATION: Pre-allocate tokens slice. Units typically have 8-16 tokens.
+	tokens := make([]xml.Token, 0, 16)
 	tokens = append(tokens, cloneXMLToken(start))
 	hasTarget := false
 	depth := 1
@@ -239,20 +251,18 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, start xml.Star
 	}
 
 	// Re-emit buffered tokens, replacing source or target content as needed.
-	type textElementState struct {
-		name       string
-		replace    bool
-		wroteValue bool
-		depth      int
-	}
-	var textState *textElementState
+	// BOLT OPTIMIZATION: Use individual variables to avoid heap allocation for a state pointer.
+	var stateName string
+	var stateReplace bool
+	var stateWroteValue bool
+	var stateDepth int
 
 	for _, tok := range tokens {
 		switch t := tok.(type) {
 		case xml.StartElement:
-			if textState != nil {
-				textState.depth++
-				if textState.replace {
+			if stateName != "" {
+				stateDepth++
+				if stateReplace {
 					continue
 				}
 				if err := encoder.EncodeToken(t); err != nil {
@@ -263,16 +273,22 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, start xml.Star
 			switch t.Name.Local {
 			case "target":
 				if unitKey != "" && hasReplacement {
-					textState = &textElementState{name: "target", replace: true, wroteValue: false}
+					stateName = "target"
+					stateReplace = true
+					stateWroteValue = false
+					stateDepth = 0
 					if strings.TrimSpace(replacement) == "" {
-						textState.wroteValue = true
+						stateWroteValue = true
 					}
 				}
 			case "source":
 				if unitKey != "" && hasReplacement && !hasTarget {
-					textState = &textElementState{name: "source", replace: true, wroteValue: false}
+					stateName = "source"
+					stateReplace = true
+					stateWroteValue = false
+					stateDepth = 0
 					if strings.TrimSpace(replacement) == "" {
-						textState.wroteValue = true
+						stateWroteValue = true
 					}
 				}
 			}
@@ -280,26 +296,26 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, start xml.Star
 				return fmt.Errorf("xml encode start: %w", err)
 			}
 		case xml.EndElement:
-			if textState != nil {
-				if t.Name.Local == textState.name && textState.depth == 0 {
-					if textState.replace && !textState.wroteValue {
+			if stateName != "" {
+				if t.Name.Local == stateName && stateDepth == 0 {
+					if stateReplace && !stateWroteValue {
 						if err := encodeXLIFFFragment(encoder, replacement); err != nil {
 							return err
 						}
 					}
-					textState = nil
+					stateName = ""
 				} else {
-					if textState.replace {
-						if textState.depth > 0 {
-							textState.depth--
+					if stateReplace {
+						if stateDepth > 0 {
+							stateDepth--
 						}
 						continue
 					}
 					if err := encoder.EncodeToken(t); err != nil {
 						return fmt.Errorf("xml encode end: %w", err)
 					}
-					if textState.depth > 0 {
-						textState.depth--
+					if stateDepth > 0 {
+						stateDepth--
 					}
 					continue
 				}
@@ -308,12 +324,12 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, start xml.Star
 				return fmt.Errorf("xml encode end: %w", err)
 			}
 		case xml.CharData:
-			if textState != nil && textState.replace {
-				if !textState.wroteValue {
+			if stateName != "" && stateReplace {
+				if !stateWroteValue {
 					if err := encodeXLIFFFragment(encoder, replacement); err != nil {
 						return err
 					}
-					textState.wroteValue = true
+					stateWroteValue = true
 				}
 				continue
 			}
@@ -321,7 +337,7 @@ func marshalXLIFFUnit(encoder *xml.Encoder, decoder *xml.Decoder, start xml.Star
 				return fmt.Errorf("xml encode char data: %w", err)
 			}
 		case xml.Comment, xml.Directive, xml.ProcInst:
-			if textState != nil && textState.replace {
+			if stateName != "" && stateReplace {
 				continue
 			}
 			if err := encoder.EncodeToken(t); err != nil {
@@ -360,8 +376,9 @@ func encodeXLIFFFragment(encoder *xml.Encoder, value string) error {
 				}
 				return nil
 			}
+			// On error, fallback to treating the entire value as plain text.
 			if err := encoder.EncodeToken(xml.CharData([]byte(value))); err != nil {
-				return fmt.Errorf("xml encode char data: %w", err)
+				return fmt.Errorf("xml encode char data fallback: %w", err)
 			}
 			return nil
 		}
@@ -432,6 +449,10 @@ func upsertXLIFFAttr(attrs []xml.Attr, name, value string) []xml.Attr {
 func cloneXMLToken(tok xml.Token) xml.Token {
 	switch t := tok.(type) {
 	case xml.StartElement:
+		// BOLT OPTIMIZATION: Skip allocation if there are no attributes.
+		if len(t.Attr) == 0 {
+			return t
+		}
 		attrs := make([]xml.Attr, len(t.Attr))
 		copy(attrs, t.Attr)
 		t.Attr = attrs
@@ -439,21 +460,36 @@ func cloneXMLToken(tok xml.Token) xml.Token {
 	case xml.EndElement:
 		return t
 	case xml.CharData:
+		// BOLT OPTIMIZATION: Skip allocation for empty data.
+		if len(t) == 0 {
+			return t
+		}
 		cloned := make(xml.CharData, len(t))
 		copy(cloned, t)
 		return cloned
 	case xml.Comment:
+		// BOLT OPTIMIZATION: Skip allocation for empty comment.
+		if len(t) == 0 {
+			return t
+		}
 		cloned := make(xml.Comment, len(t))
 		copy(cloned, t)
 		return cloned
 	case xml.Directive:
+		// BOLT OPTIMIZATION: Skip allocation for empty directive.
+		if len(t) == 0 {
+			return t
+		}
 		cloned := make(xml.Directive, len(t))
 		copy(cloned, t)
 		return cloned
 	case xml.ProcInst:
 		cloned := xml.ProcInst{Target: t.Target}
-		cloned.Inst = make([]byte, len(t.Inst))
-		copy(cloned.Inst, t.Inst)
+		// BOLT OPTIMIZATION: Skip allocation for empty instruction data.
+		if len(t.Inst) > 0 {
+			cloned.Inst = make([]byte, len(t.Inst))
+			copy(cloned.Inst, t.Inst)
+		}
 		return cloned
 	default:
 		return tok
