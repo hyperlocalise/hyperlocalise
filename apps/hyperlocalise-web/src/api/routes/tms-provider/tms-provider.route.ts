@@ -2,12 +2,26 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 import { z } from "zod";
 
-import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import { isJobProviderActionAllowed } from "@/api/auth/capability-guards";
 import { hasCapability } from "@/api/auth/policy";
-import { serviceUnavailableResponse } from "@/api/response.schema";
+import { ownedProjectWhere } from "@/api/auth/team-access";
+import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
+import {
+  badRequestResponse,
+  conflictResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+} from "@/api/errors";
+import { db, schema } from "@/lib/database";
+import { createAgentRun, failAgentRun } from "@/lib/providers/agent-runs/agent-runs";
+import {
+  getJobProviderActionDefinition,
+  isJobProviderActionAvailable,
+} from "@/lib/providers/job-provider-actions";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { enqueueProviderCatalogSyncIntent } from "@/lib/providers/provider-sync-intent";
-import type { ProviderSyncQueue } from "@/lib/workflow/types";
+import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+import type { ProviderAgentTranslationQueue, ProviderSyncQueue } from "@/lib/workflow/types";
 import { createProviderSyncQueue } from "@/workflows/adapters";
 import {
   getTmsProviderConnection,
@@ -46,6 +60,21 @@ const projectFilesQuerySchema = z.object({
 const updateJobDescriptionBodySchema = z.object({
   description: z.string().max(2_048),
 });
+
+const createTmsProviderJobAgentRunBodySchema = z.object({
+  projectId: z.string().min(1),
+  action: z.literal("translate_with_agent"),
+});
+
+function serializeAgentRun(run: typeof schema.agentRuns.$inferSelect) {
+  return {
+    ...run,
+    startedAt: run.startedAt?.toISOString() ?? null,
+    completedAt: run.completedAt?.toISOString() ?? null,
+    createdAt: run.createdAt.toISOString(),
+    updatedAt: run.updatedAt.toISOString(),
+  };
+}
 
 const jobFileDetailQuerySchema = z.object({
   sourcePath: z.string().min(1),
@@ -96,6 +125,15 @@ const validateUpdateJobDescriptionBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateCreateTmsProviderJobAgentRunBody = validator("json", (value, c) => {
+  const parsed = createTmsProviderJobAgentRunBodySchema.safeParse(value);
+  if (!parsed.success) {
+    return badRequestResponse(c, "invalid_request_body", "Invalid provider agent run payload");
+  }
+
+  return parsed.data;
+});
+
 function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
   const role = auth.membership.role;
   return role === "admin" || (role === "localization_manager" && hasCapability(role, "jobs:write"));
@@ -131,6 +169,7 @@ async function getCurrentUserProviderAssigneeCandidates(auth: AuthVariables["aut
 }
 
 type CreateTmsProviderRoutesOptions = {
+  providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
   providerSyncQueue?: ProviderSyncQueue;
 };
 
@@ -411,6 +450,154 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }
+    })
+    .post("/jobs/:encodedJobId/agent-runs", validateCreateTmsProviderJobAgentRunBody, async (c) => {
+      const payload = c.req.valid("json");
+      const encodedJobId = c.req.param("encodedJobId");
+
+      if (!isJobProviderActionAllowed(c.var.auth.membership.role, payload.action)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const parsedJobId = parseProviderJobId(encodedJobId);
+      if (!parsedJobId) {
+        return badRequestResponse(c, "invalid_encoded_job_id", "Job id is not a provider job id");
+      }
+
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          externalProjectId: schema.projects.externalProjectId,
+          externalProviderKind: schema.projects.externalProviderKind,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(c.var.auth, payload.projectId))
+        .limit(1);
+
+      if (!project) {
+        return notFoundResponse(c, "project_not_found", "Project not found");
+      }
+
+      if (
+        project.externalProjectId &&
+        project.externalProjectId !== parsedJobId.externalProjectId
+      ) {
+        return conflictResponse(
+          c,
+          "project_job_mismatch",
+          "Provider job does not belong to this project",
+        );
+      }
+
+      if (
+        project.externalProviderKind &&
+        project.externalProviderKind !== parsedJobId.providerKind
+      ) {
+        return conflictResponse(
+          c,
+          "project_provider_mismatch",
+          "Provider job does not match the connected TMS for this project",
+        );
+      }
+
+      if (!isJobProviderActionAvailable(parsedJobId.providerKind, payload.action)) {
+        return conflictResponse(
+          c,
+          "provider_action_unavailable",
+          "This provider action is not available for the connected TMS",
+        );
+      }
+
+      const actionDefinition = getJobProviderActionDefinition(payload.action);
+      if (!actionDefinition) {
+        return badRequestResponse(c, "invalid_provider_action", "Unknown provider action");
+      }
+
+      let job;
+      try {
+        job = await getTmsProviderLiveJobDetail(organizationId, encodedJobId, {
+          actorUserId: c.var.auth.user.localUserId,
+        });
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+
+      if (!job) {
+        return notFoundResponse(c, "job_not_found", "Provider job not found");
+      }
+
+      let liveFiles;
+      try {
+        liveFiles = await listTmsProviderLiveJobFiles(organizationId, encodedJobId, {
+          actorUserId: c.var.auth.user.localUserId,
+        });
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
+      const sourceFiles = (liveFiles ?? []).map((file) => ({
+        id: file.provider.externalResourceId,
+        displayName: file.filename,
+        sourcePath: file.sourcePath,
+        resourceType: file.provider.resourceType,
+        externalUrl: file.provider.externalUrl,
+      }));
+
+      const agentRun = await createAgentRun({
+        organizationId,
+        providerKind: parsedJobId.providerKind,
+        externalJobId: job.externalJobId,
+        externalTaskId: job.externalTaskId,
+        kind: actionDefinition.agentRunKind,
+        actorUserId: c.var.auth.user.localUserId,
+        inputSnapshot: {
+          ...actionDefinition.inputSnapshot,
+          action: payload.action,
+          projectId: payload.projectId,
+          encodedJobId,
+          providerPayload: job.externalProviderPayload,
+          sourceFiles,
+        },
+      });
+
+      if (!options.providerAgentTranslationQueue) {
+        await failAgentRun({
+          runId: agentRun.id,
+          organizationId,
+          outputSummary: { code: "agent_run_queue_unavailable" },
+          warnings: ["agent translation queue unavailable"],
+        });
+
+        return serviceUnavailableResponse(
+          c,
+          "agent_run_queue_unavailable",
+          "Agent translation queue is unavailable",
+        );
+      }
+
+      try {
+        await options.providerAgentTranslationQueue.enqueue({
+          agentRunId: agentRun.id,
+          organizationId,
+        });
+      } catch (error) {
+        await failAgentRun({
+          runId: agentRun.id,
+          organizationId,
+          outputSummary: { code: "agent_run_queue_unavailable" },
+          warnings: [
+            error instanceof Error ? error.message : "agent translation queue unavailable",
+          ],
+        });
+
+        return serviceUnavailableResponse(
+          c,
+          "agent_run_queue_unavailable",
+          "Agent translation queue is unavailable",
+        );
+      }
+
+      return c.json({ agentRun: serializeAgentRun(agentRun) }, 201);
     })
     .get("/glossaries", validateExternalProjectIdQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "glossaries:read")) {
