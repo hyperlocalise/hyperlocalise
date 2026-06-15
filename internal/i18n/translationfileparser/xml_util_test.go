@@ -19,9 +19,11 @@ func TestEscapeXMLText(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := escapeXMLText(tt.in); got != tt.want {
-			t.Errorf("escapeXMLText(%q) = %q, want %q", tt.in, got, tt.want)
-		}
+		t.Run(tt.in, func(t *testing.T) {
+			if got := escapeXMLText(tt.in); got != tt.want {
+				t.Errorf("escapeXMLText() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -39,9 +41,11 @@ func TestEscapeXMLAttr(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := escapeXMLAttr(tt.in); got != tt.want {
-			t.Errorf("escapeXMLAttr(%q) = %q, want %q", tt.in, got, tt.want)
-		}
+		t.Run(tt.in, func(t *testing.T) {
+			if got := escapeXMLAttr(tt.in); got != tt.want {
+				t.Errorf("escapeXMLAttr() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -60,6 +64,7 @@ func TestContainsXMLTextEntityReference(t *testing.T) {
 		{"&#x0A;", true},
 		{"&#X0A;", true},
 		{"&unknown;", false},
+		{"&unknown; &amp;", true},
 		{"&incomplete", false},
 		{"&;", false},
 		{"a & b", false},
@@ -69,9 +74,11 @@ func TestContainsXMLTextEntityReference(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		if got := containsXMLTextEntityReference(tt.in); got != tt.want {
-			t.Errorf("containsXMLTextEntityReference(%q) = %v, want %v", tt.in, got, tt.want)
-		}
+		t.Run(tt.in, func(t *testing.T) {
+			if got := containsXMLTextEntityReference(tt.in); got != tt.want {
+				t.Errorf("containsXMLTextEntityReference() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 
@@ -84,21 +91,26 @@ func TestAttrValue(t *testing.T) {
 
 	tests := []struct {
 		name string
+		attr string
 		want string
 	}{
-		{"id", "main-id"},
-		{"class", "primary"},
-		{"unknown", ""},
-		{"", ""},
+		{"id attribute", "id", "main-id"},
+		{"class attribute", "class", "primary"},
+		{"unknown attribute", "unknown", ""},
+		{"empty name", "", ""},
 	}
 
 	for _, tt := range tests {
-		if got := attrValue(attrs, tt.name); got != tt.want {
-			t.Errorf("attrValue(attrs, %q) = %q, want %q", tt.name, got, tt.want)
-		}
+		t.Run(tt.name, func(t *testing.T) {
+			if got := attrValue(attrs, tt.attr); got != tt.want {
+				t.Errorf("attrValue() = %q, want %q", got, tt.want)
+			}
+		})
 	}
 
-	if got := attrValue(nil, "id"); got != "" {
-		t.Errorf("attrValue(nil, \"id\") = %q, want \"\"", got)
-	}
+	t.Run("nil attributes", func(t *testing.T) {
+		if got := attrValue(nil, "id"); got != "" {
+			t.Errorf("attrValue(nil) = %q, want \"\"", got)
+		}
+	})
 }
