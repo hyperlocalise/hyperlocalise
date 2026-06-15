@@ -60,6 +60,7 @@ import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/
 import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib/i18n/locales";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
+import { ensureOrganizationProjectRecord } from "@/lib/projects/ensure-organization-project";
 
 import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import {
@@ -660,14 +661,28 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           return providerProjectUnavailableResponse(c, target);
         }
 
-        const project = await getOwnedProject(c.var.auth, params.projectId);
-        if (!project) {
-          return projectNotFoundResponse(c);
+        let recommendationProjectId = params.projectId;
+
+        if (target.kind === "native") {
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+        } else {
+          const ensured = await ensureOrganizationProjectRecord({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            userId: c.var.auth.user.localUserId,
+          });
+          if (isErr(ensured)) {
+            return projectNotFoundResponse(c);
+          }
+          recommendationProjectId = ensured.value;
         }
 
         const filename = body.sourcePath.split("/").pop() ?? body.sourcePath;
         const result = await generateCatAiRecommendation({
-          projectId: params.projectId,
+          projectId: recommendationProjectId,
           organizationId: c.var.auth.organization.localOrganizationId,
           sourcePath: body.sourcePath,
           filename,
