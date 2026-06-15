@@ -25,18 +25,18 @@ const mocks = vi.hoisted(() => {
 
   return {
     dbSelectMock: vi.fn(() => glossaryQuery),
-    downloadProviderSourceFileMock: vi.fn((..._args: unknown[]) => undefined),
+    downloadProviderSourceFileMock: vi.fn((..._args: unknown[]): unknown => undefined),
     glossaryLimitMock,
-    loadTranslationContextProjectMock: vi.fn((..._args: unknown[]) => undefined),
-    reuseFileTranslationMemoryEntriesMock: vi.fn((..._args: unknown[]) => undefined),
+    loadTranslationContextProjectMock: vi.fn((..._args: unknown[]): unknown => undefined),
+    reuseFileTranslationMemoryEntriesMock: vi.fn((..._args: unknown[]): unknown => undefined),
     buildTempConfigMock: vi.fn((..._args: unknown[]) => "locales: []"),
-    createTranslationSandboxMock: vi.fn((..._args: unknown[]) => undefined),
+    createTranslationSandboxMock: vi.fn((..._args: unknown[]): unknown => undefined),
     getSandboxTranslationEnvMock: vi.fn((..._args: unknown[]) => ({})),
     prepareSandboxMock: vi.fn(async (..._args: unknown[]) => undefined),
     readTranslatedFileMock: vi.fn(async (..._args: unknown[]) =>
       Buffer.from("translated file", "utf8"),
     ),
-    runSandboxCommandMock: vi.fn((..._args: unknown[]) => undefined),
+    runSandboxCommandMock: vi.fn((..._args: unknown[]): unknown => undefined),
     stopTranslationSandboxMock: vi.fn(async (..._args: unknown[]) => undefined),
     writeFileToSandboxMock: vi.fn(async (..._args: unknown[]) => undefined),
     writeTempConfigMock: vi.fn(async (..._args: unknown[]) => undefined),
@@ -282,10 +282,7 @@ describe("translateProviderJobFiles", () => {
     expect(
       mocks.runSandboxCommandMock.mock.calls.some((call) => {
         const commandArgs = call[2];
-        return (
-          Array.isArray(commandArgs) &&
-          String(commandArgs[1]).includes("--prefilled-entries")
-        );
+        return Array.isArray(commandArgs) && String(commandArgs[1]).includes("--prefilled-entries");
       }),
     ).toBe(true);
   });
