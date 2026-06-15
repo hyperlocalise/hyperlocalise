@@ -8,16 +8,26 @@ import { db } from "@/lib/database";
 import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
 
 import { createProjectTestFixture } from "./project.fixture";
-import type { ProjectFileCatResponse, ProjectFileCatTranslationResponse } from "./project.schema";
+import type {
+  ProjectFileCatConcordanceResponse,
+  ProjectFileCatResponse,
+  ProjectFileCatTranslationResponse,
+} from "./project.schema";
 
 const {
   getTmsProviderConnectionMock,
   getTmsProviderLiveCatFileMock,
   saveTmsProviderLiveCatTranslationMock,
+  loadCatSegmentConcordanceMock,
 } = vi.hoisted(() => ({
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
   saveTmsProviderLiveCatTranslationMock: vi.fn(),
+  loadCatSegmentConcordanceMock: vi.fn(),
+}));
+
+vi.mock("@/lib/translation/load-cat-segment-concordance", () => ({
+  loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
 }));
 
 vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
@@ -61,6 +71,62 @@ afterEach(async () => {
 });
 
 describe("project file CAT routes", () => {
+  it("returns Crowdin concordance matches for a CAT segment", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    loadCatSegmentConcordanceMock.mockResolvedValue({
+      glossaryTerms: [
+        { id: "glossary-1", source: "workspace", target: "espace de travail", approved: true },
+      ],
+      translationMemoryMatches: [
+        {
+          id: "tm-1",
+          sourceText: "Hello",
+          targetText: "Bonjour",
+          matchPercent: 100,
+          contextLabel: "Website TM",
+        },
+      ],
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.concordance.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Hello workspace",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFileCatConcordanceResponse;
+    expect(body.concordance.glossaryTerms).toHaveLength(1);
+    expect(body.concordance.translationMemoryMatches).toHaveLength(1);
+    expect(loadCatSegmentConcordanceMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "ext:crowdin:42",
+        providerKind: "crowdin",
+        externalProjectId: "42",
+        sourceLocale: "en",
+        targetLocale: "fr",
+        sourceText: "Hello workspace",
+      }),
+    );
+  });
+
   it("returns Crowdin CAT content for an encoded provider project", async () => {
     const translator = projectFixture.createWorkosIdentityWithRole("translator");
     getTmsProviderConnectionMock.mockResolvedValue({

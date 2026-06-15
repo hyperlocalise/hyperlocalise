@@ -155,6 +155,23 @@ export function mergeCatWorkspaceState(
         agentContext: currentAgentContext,
       };
     }
+
+    const nextConcordance = nextInitialState.segmentIntelligence?.[segment.id];
+    const currentConcordance = currentState.segmentIntelligence?.[segment.id];
+    const hasCurrentConcordance =
+      (currentConcordance?.glossaryTerms.length ?? 0) > 0 ||
+      (currentConcordance?.translationMemoryMatches?.length ?? 0) > 0;
+    const hasNextConcordance =
+      (nextConcordance?.glossaryTerms.length ?? 0) > 0 ||
+      (nextConcordance?.translationMemoryMatches?.length ?? 0) > 0;
+    if (hasCurrentConcordance && !hasNextConcordance) {
+      segmentIntelligence[segment.id] = {
+        ...(segmentIntelligence[segment.id] ?? nextInitialState.intelligence),
+        ...currentState.segmentIntelligence?.[segment.id],
+        glossaryTerms: currentConcordance?.glossaryTerms ?? [],
+        translationMemoryMatches: currentConcordance?.translationMemoryMatches,
+      };
+    }
   }
 
   return {
@@ -205,6 +222,7 @@ export function CatWorkspaceContainer({
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isLookingUpContext, setIsLookingUpContext] = useState(false);
+  const [isLoadingConcordance, setIsLoadingConcordance] = useState(false);
   const [revealedAgentContextSegmentIds, setRevealedAgentContextSegmentIds] = useState<
     ReadonlySet<string>
   >(() => collectSegmentsWithAgentContext(initialState));
@@ -218,6 +236,7 @@ export function CatWorkspaceContainer({
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
   const lookupSegmentContext = serviceOverrides?.lookupSegmentContext;
+  const lookupSegmentConcordance = serviceOverrides?.lookupSegmentConcordance;
   const generateAiRecommendation = serviceOverrides?.generateAiRecommendation;
   const canLookupContext = Boolean(lookupSegmentContext);
   const canUseAiRecommendation = Boolean(generateAiRecommendation);
@@ -314,13 +333,84 @@ export function CatWorkspaceContainer({
       try {
         let recommendation: CatAiRecommendationResult | undefined;
         let aiFailureCheck: CatFormatCheck | undefined;
+        let intelligenceForRecommendation = currentIntelligence;
+
+        if (lookupSegmentConcordance) {
+          setIsLoadingConcordance(true);
+          try {
+            const concordance = await lookupSegmentConcordance(segment);
+            if (reviewSequenceRef.current !== sequence) {
+              return;
+            }
+
+            intelligenceForRecommendation = {
+              ...currentIntelligence,
+              glossaryTerms: concordance.glossaryTerms,
+              translationMemoryMatches: concordance.translationMemoryMatches,
+            };
+
+            setState((current) => {
+              const segmentIntelligence =
+                current.segmentIntelligence?.[segmentId] ?? current.intelligence;
+
+              return {
+                ...current,
+                segmentIntelligence: {
+                  ...current.segmentIntelligence,
+                  [segmentId]: {
+                    ...segmentIntelligence,
+                    glossaryTerms: concordance.glossaryTerms,
+                    translationMemoryMatches: concordance.translationMemoryMatches,
+                  },
+                },
+              };
+            });
+          } catch (error) {
+            if (reviewSequenceRef.current !== sequence) {
+              return;
+            }
+
+            const message =
+              error instanceof Error ? error.message : "Failed to search glossary and TM.";
+            const concordanceFailureCheck: CatFormatCheck = {
+              id: `concordance-failed-${segmentId}`,
+              label: "Concordance search",
+              status: "fail",
+              message,
+              category: "qa",
+            };
+
+            setState((current) => {
+              const currentChecks =
+                current.segmentFormatChecks?.[segmentId] ?? current.formatChecks;
+              const nextChecks = [
+                concordanceFailureCheck,
+                ...currentChecks.filter((check) => check.id !== concordanceFailureCheck.id),
+              ];
+
+              return {
+                ...current,
+                formatChecks:
+                  current.selectedSegmentId === segmentId ? nextChecks : current.formatChecks,
+                segmentFormatChecks: {
+                  ...current.segmentFormatChecks,
+                  [segmentId]: nextChecks,
+                },
+              };
+            });
+          } finally {
+            if (reviewSequenceRef.current === sequence) {
+              setIsLoadingConcordance(false);
+            }
+          }
+        }
 
         if (includeAi && generateAiRecommendation) {
           try {
             recommendation = await generateAiRecommendation(
               segment,
               segment.targetText,
-              currentIntelligence,
+              intelligenceForRecommendation,
             );
           } catch (error) {
             if (reviewSequenceRef.current !== sequence) {
@@ -390,7 +480,13 @@ export function CatWorkspaceContainer({
         }
       }
     },
-    [generateAiRecommendation, onReviewWithAi, runQaChecks, validateFormat],
+    [
+      generateAiRecommendation,
+      lookupSegmentConcordance,
+      onReviewWithAi,
+      runQaChecks,
+      validateFormat,
+    ],
   );
 
   const runSegmentReviewRef = useRef(runSegmentReview);
@@ -622,6 +718,7 @@ export function CatWorkspaceContainer({
       isValidating={isValidating}
       isApproving={isApproving}
       isLookingUpContext={isLookingUpContext}
+      isConcordanceLoading={isLoadingConcordance}
       isAiSuggestionLoading={
         isGeneratingAiRecommendation && isAiRecommendationEnabled && canUseAiRecommendation
       }

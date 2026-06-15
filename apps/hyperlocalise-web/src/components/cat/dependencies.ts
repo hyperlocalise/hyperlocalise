@@ -1,8 +1,10 @@
 import type {
   CatFormatCheck,
+  CatGlossaryTerm,
   CatSegment,
   CatSegmentIntelligence,
   CatSegmentStatus,
+  CatTranslationMemoryMatch,
   CatWorkspaceState,
 } from "./types";
 
@@ -10,6 +12,11 @@ export interface CatAiRecommendationResult {
   aiSuggestion: string;
   aiReasoning?: string;
   formatChecks?: CatFormatCheck[];
+}
+
+export interface CatSegmentConcordanceResult {
+  glossaryTerms: CatGlossaryTerm[];
+  translationMemoryMatches: CatTranslationMemoryMatch[];
 }
 
 export interface CatWorkspaceNavigation {
@@ -38,6 +45,7 @@ export interface CatWorkspaceServices {
   validateFormat?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   runQaChecks?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   lookupSegmentContext?: (segment: CatSegment) => Promise<string>;
+  lookupSegmentConcordance?: (segment: CatSegment) => Promise<CatSegmentConcordanceResult>;
   generateAiRecommendation?: (
     segment: CatSegment,
     targetText: string,
@@ -65,6 +73,7 @@ export interface CatWorkspaceViewProps {
   isValidating?: boolean;
   isApproving?: boolean;
   isLookingUpContext?: boolean;
+  isConcordanceLoading?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   canLookupContext?: boolean;

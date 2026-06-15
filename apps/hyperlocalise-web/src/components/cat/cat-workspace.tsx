@@ -40,6 +40,7 @@ export function CatWorkspaceView({
   isValidating: _isValidating = false,
   isApproving = false,
   isLookingUpContext = false,
+  isConcordanceLoading = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   canLookupContext = false,
@@ -144,6 +145,7 @@ export function CatWorkspaceView({
       <CatIntelligencePanel
         intelligence={selectedSegmentIntelligence}
         isLookingUpContext={isLookingUpContext}
+        isConcordanceLoading={isConcordanceLoading}
         showAgentContext={showAgentContext}
       />
     );

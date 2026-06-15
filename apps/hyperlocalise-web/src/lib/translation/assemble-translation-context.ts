@@ -83,6 +83,7 @@ export async function assembleStringTranslationContextSnapshot(
     externalJobUid?: string | null;
     translationMemoryMatchResolution?: TranslationMemoryMatchResolution;
     glossaryMatchResolution?: GlossaryMatchResolution;
+    skipConcordance?: boolean;
   },
 ) {
   const project =
@@ -97,10 +98,32 @@ export async function assembleStringTranslationContextSnapshot(
 
   const providerKind = options?.providerKind ?? project.externalProviderKind ?? undefined;
 
+  const knowledgeMemoryPromise = getKnowledgeMemoryForOrganization(project.organizationId).then(
+    (memory) => memory.content.trim(),
+  );
+
+  if (options?.skipConcordance) {
+    const knowledgeMemory = await knowledgeMemoryPromise;
+
+    return {
+      ok: true,
+      snapshot: {
+        assembledAt: new Date().toISOString(),
+        project: {
+          id: project.id,
+          name: project.name,
+          translationContext: project.translationContext,
+        },
+        job: jobInput,
+        glossaryTerms: [],
+        translationMemoryMatches: [],
+        ...(knowledgeMemory ? { knowledgeMemory } : {}),
+      } satisfies StringTranslationContextSnapshot,
+    } as const;
+  }
+
   const [knowledgeMemory, glossaryTerms, translationMemoryMatches] = await Promise.all([
-    getKnowledgeMemoryForOrganization(project.organizationId).then((memory) =>
-      memory.content.trim(),
-    ),
+    knowledgeMemoryPromise,
     loadGlossaryMatchesForContext({
       projectId,
       organizationId: options?.organizationId,

@@ -362,6 +362,54 @@ export const projectFileCatRecommendationBodySchema = z.object({
   context: z.string().trim().max(16_384).nullable().optional(),
   agentContext: z.string().trim().max(16_384).nullable().optional(),
   maxLength: z.number().int().positive().optional(),
+  glossaryTerms: z
+    .array(
+      z.object({
+        sourceTerm: z.string(),
+        targetTerm: z.string(),
+        targetLocale: z.string(),
+        forbidden: z.boolean().nullable().optional(),
+        description: z.string().nullable().optional(),
+      }),
+    )
+    .optional(),
+  translationMemoryMatches: z
+    .array(
+      z.object({
+        sourceText: z.string(),
+        targetText: z.string(),
+        targetLocale: z.string(),
+      }),
+    )
+    .optional(),
+});
+
+export const projectFileCatConcordanceBodySchema = z.object({
+  sourceLocale: z.string().trim().min(1).max(32),
+  targetLocale: z.string().trim().min(1).max(32),
+  sourceText: z.string().min(1).max(100_000),
+});
+
+export const projectFileCatConcordanceGlossaryTermSchema = z.object({
+  id: z.string(),
+  source: z.string(),
+  target: z.string(),
+  approved: z.boolean(),
+});
+
+export const projectFileCatConcordanceTranslationMemoryMatchSchema = z.object({
+  id: z.string(),
+  sourceText: z.string(),
+  targetText: z.string(),
+  matchPercent: z.number(),
+  contextLabel: z.string().optional(),
+});
+
+export const projectFileCatConcordanceResponseSchema = z.object({
+  concordance: z.object({
+    glossaryTerms: z.array(projectFileCatConcordanceGlossaryTermSchema),
+    translationMemoryMatches: z.array(projectFileCatConcordanceTranslationMemoryMatchSchema),
+  }),
 });
 
 export const projectFileCatRecommendationResponseSchema = z.object({
@@ -427,6 +475,10 @@ export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
 export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
 export type ProjectFileCatRecommendationBody = z.infer<
   typeof projectFileCatRecommendationBodySchema
+>;
+export type ProjectFileCatConcordanceBody = z.infer<typeof projectFileCatConcordanceBodySchema>;
+export type ProjectFileCatConcordanceResponse = z.infer<
+  typeof projectFileCatConcordanceResponseSchema
 >;
 export type ProjectSourceStringEntry = z.infer<typeof projectSourceStringEntrySchema>;
 export type ProjectSourceStringsPreview = z.infer<typeof projectSourceStringsPreviewSchema>;

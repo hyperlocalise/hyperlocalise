@@ -43,6 +43,7 @@ import {
   createProjectBodySchema,
   maxProjectFileUploadBytes,
   projectFileCatQuerySchema,
+  projectFileCatConcordanceBodySchema,
   projectFileCatRecommendationBodySchema,
   projectFileCatStatusBodySchema,
   projectFileCatTranslationBodySchema,
@@ -78,6 +79,7 @@ import {
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
 import { generateCatAiRecommendation } from "@/lib/translation/generate-cat-ai-recommendation";
+import { loadCatSegmentConcordance } from "@/lib/translation/load-cat-segment-concordance";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 type ProjectUpdateErrorCode =
@@ -305,6 +307,16 @@ const validateProjectFileCatQuery = validator("query", (value, c) => {
 
 const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
   const parsed = projectFileCatTranslationBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatConcordanceBody = validator("json", (value, c) => {
+  const parsed = projectFileCatConcordanceBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -597,6 +609,42 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .post(
+      "/:projectId/files/detail/cat/concordance",
+      validateProjectParams,
+      validateProjectFileCatConcordanceBody,
+      async (c) => {
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind === "native") {
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+        }
+
+        try {
+          const concordance = await loadCatSegmentConcordance({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            providerKind: target.kind === "provider" ? target.providerKind : null,
+            externalProjectId: target.kind === "provider" ? target.externalProjectId : null,
+            sourceLocale: body.sourceLocale,
+            targetLocale: body.targetLocale,
+            sourceText: body.sourceText,
+          });
+
+          return c.json({ concordance }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .post(
       "/:projectId/files/detail/cat/recommendation",
       validateProjectParams,
       validateProjectFileCatRecommendationBody,
@@ -631,6 +679,8 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           context: body.context ?? null,
           agentContext: body.agentContext ?? null,
           maxLength: body.maxLength,
+          glossaryTerms: body.glossaryTerms,
+          translationMemoryMatches: body.translationMemoryMatches,
         });
 
         if (isErr(result)) {
