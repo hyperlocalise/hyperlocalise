@@ -57,6 +57,41 @@ func (r *FineTuningDatasetAttributes) Validate() error {
 	return nil
 }
 
+// AITranslateRequest defines the structure of a request to translate strings using AI.
+type AITranslateRequest struct {
+	// Strings that should be translated.
+	Strings []string `json:"strings"`
+	// Target language identifier.
+	TargetLanguageID string `json:"targetLanguageId"`
+}
+
+// Validate checks if the request is valid.
+// It implements the crowdin.RequestValidator interface.
+func (r *AITranslateRequest) Validate() error {
+	if r == nil {
+		return ErrNilRequest
+	}
+	if len(r.Strings) == 0 {
+		return errors.New("strings are required")
+	}
+	if r.TargetLanguageID == "" {
+		return errors.New("targetLanguageId is required")
+	}
+
+	return nil
+}
+
+// AITranslateResponse defines the structure of a response when
+// translating strings using AI.
+type AITranslateResponse struct {
+	Data *AITranslate `json:"data"`
+}
+
+// AITranslate represents the AI translation result.
+type AITranslate struct {
+	Translations []string `json:"translations"`
+}
+
 // FineTuningDatasetResponse defines the structure of a response when
 // getting a single fine-tuning dataset.
 type FineTuningDatasetResponse struct {
