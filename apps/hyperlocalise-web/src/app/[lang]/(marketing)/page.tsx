@@ -49,11 +49,6 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
     description:
       "Open Graph meta description for the marketing homepage (shorter than the main description)",
   });
-  const logoAlt = intl.formatMessage({
-    defaultMessage: "Hyperlocalise",
-    id: "MTfbpjI4dY",
-    description: "Alt text for the Hyperlocalise logo in Open Graph metadata",
-  });
 
   return {
     title,
@@ -63,14 +58,6 @@ export async function generateMetadata({ params }: HomePageProps): Promise<Metad
       title,
       description: openGraphDescription,
       type: "website",
-      images: [
-        {
-          url: "https://www.hyperlocalise.com/images/logo.png",
-          width: 512,
-          height: 512,
-          alt: logoAlt,
-        },
-      ],
     },
   };
 }

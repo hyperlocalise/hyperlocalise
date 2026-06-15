@@ -33,14 +33,6 @@ export async function generateMetadata({ params }: UseCaseRouteProps): Promise<M
       title: content.metadata.title,
       description: content.metadata.description,
       type: "website",
-      images: [
-        {
-          url: "https://www.hyperlocalise.com/images/logo.png",
-          width: 512,
-          height: 512,
-          alt: "Hyperlocalise",
-        },
-      ],
     },
   };
 }
