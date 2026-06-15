@@ -17,8 +17,6 @@ import {
   JobsPageErrorMessage,
   JobsPageView,
   jobsStatusOptions,
-  type ApiJob,
-  type JobRow,
   type JobsErrorRenderer,
   type JobsLinkRenderer,
   type JobsScope,
@@ -108,8 +106,8 @@ export function JobsPageContent({
           },
         });
         if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
-        const body = (await response.json()) as { jobs: ApiJob[] };
-        return body.jobs.map((job) => ({ ...job, projectName: null }));
+        const body = await response.json();
+        return body.jobs;
       }
 
       const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
@@ -121,7 +119,7 @@ export function JobsPageContent({
         },
       });
       if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
-      const body = (await response.json()) as { jobs: JobRow[] };
+      const body = await response.json();
       return body.jobs;
     },
   });

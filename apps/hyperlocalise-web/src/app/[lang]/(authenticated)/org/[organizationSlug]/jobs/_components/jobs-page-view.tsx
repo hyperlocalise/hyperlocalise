@@ -344,7 +344,7 @@ function JobsList({
                   {sourceLabel(job)}
                 </Badge>
                 <TypographyP className="truncate text-sm text-foreground/58">
-                  {job.projectName ?? "Workspace"}
+                  {job.projectName ?? job.projectId ?? "Workspace"}
                 </TypographyP>
                 <Badge
                   variant="outline"
