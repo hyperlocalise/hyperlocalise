@@ -96,9 +96,7 @@ export function JobProviderDetailSection({
         queryClient.invalidateQueries({ queryKey: jobQueryKey }),
       ]);
       toast.success(
-        action === "translate_with_agent"
-          ? "Translation agent is running"
-          : "Agent run queued",
+        action === "translate_with_agent" ? "Translation agent is running" : "Agent run queued",
       );
     },
     onError: (error) => {
