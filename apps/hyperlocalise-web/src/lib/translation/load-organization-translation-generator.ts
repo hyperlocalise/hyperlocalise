@@ -1,3 +1,4 @@
+import type { LanguageModel } from "ai";
 import { desc, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
@@ -8,10 +9,35 @@ import {
 import {
   createManagedStringTranslationGenerator,
   createProviderStringTranslationGenerator,
+  getManagedTranslationLanguageModel,
   isManagedTranslationModelAvailable,
+  resolveProviderLanguageModel,
 } from "@/lib/translation/string-job-executor";
 
-export async function loadOrganizationTranslationGenerator(projectId: string) {
+type OrganizationTranslationProject = {
+  name: string;
+  translationContext: string;
+};
+
+type OrganizationTranslationSetupResult =
+  | {
+      ok: false;
+      code:
+        | "translation_project_not_found"
+        | "provider_credential_invalid"
+        | "provider_credential_missing";
+      message: string;
+    }
+  | {
+      ok: true;
+      project: OrganizationTranslationProject;
+      model: LanguageModel;
+      translateStringJob: ReturnType<typeof createProviderStringTranslationGenerator>;
+    };
+
+async function loadOrganizationTranslationSetup(
+  projectId: string,
+): Promise<OrganizationTranslationSetupResult> {
   const [project] = await db
     .select({
       name: schema.projects.name,
@@ -76,9 +102,16 @@ export async function loadOrganizationTranslationGenerator(projectId: string) {
       }),
     );
 
+    const model = resolveProviderLanguageModel({
+      provider: credential.provider,
+      apiKey,
+      model: credential.defaultModel,
+    });
+
     return {
       ok: true,
       project: projectContext,
+      model,
       translateStringJob: createProviderStringTranslationGenerator({
         provider: credential.provider,
         apiKey,
@@ -98,8 +131,35 @@ export async function loadOrganizationTranslationGenerator(projectId: string) {
   return {
     ok: true,
     project: projectContext,
+    model: getManagedTranslationLanguageModel(),
     translateStringJob: createManagedStringTranslationGenerator(),
   } as const;
+}
+
+export async function loadOrganizationTranslationGenerator(projectId: string) {
+  const setup = await loadOrganizationTranslationSetup(projectId);
+  if (!setup.ok) {
+    return setup;
+  }
+
+  return {
+    ok: true as const,
+    project: setup.project,
+    translateStringJob: setup.translateStringJob,
+  };
+}
+
+export async function loadOrganizationTranslationModel(projectId: string) {
+  const setup = await loadOrganizationTranslationSetup(projectId);
+  if (!setup.ok) {
+    return setup;
+  }
+
+  return {
+    ok: true as const,
+    project: setup.project,
+    model: setup.model,
+  };
 }
 
 /** @deprecated Use `loadOrganizationTranslationGenerator` instead. */

@@ -3,7 +3,12 @@
 import { motion, useReducedMotion } from "motion/react";
 
 import { CatWorkspaceContainer } from "@/components/cat";
-import type { CatFormatCheck, CatSegment, CatWorkspaceState } from "@/components/cat";
+import type {
+  CatFormatCheck,
+  CatSegment,
+  CatSegmentIntelligence,
+  CatWorkspaceState,
+} from "@/components/cat";
 
 const heroDemoSegments: CatSegment[] = [
   {
@@ -485,6 +490,8 @@ async function lookupHeroDemoContext(segment: CatSegment) {
 
 async function generateHeroAiRecommendation(
   segment: CatSegment,
+  _targetText: string,
+  intelligence?: CatSegmentIntelligence,
 ): Promise<{ aiSuggestion: string; aiReasoning: string; formatChecks: CatFormatCheck[] }> {
   await wait(1200);
 
@@ -497,7 +504,7 @@ async function generateHeroAiRecommendation(
     };
   }
 
-  const segmentIntelligence = heroDemoState.segmentIntelligence?.[segment.id];
+  const segmentIntelligence = intelligence ?? heroDemoState.segmentIntelligence?.[segment.id];
 
   return {
     aiSuggestion: segmentIntelligence?.aiSuggestion ?? segment.targetText,

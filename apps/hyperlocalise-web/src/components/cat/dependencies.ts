@@ -1,4 +1,10 @@
-import type { CatFormatCheck, CatSegment, CatSegmentStatus, CatWorkspaceState } from "./types";
+import type {
+  CatFormatCheck,
+  CatSegment,
+  CatSegmentIntelligence,
+  CatSegmentStatus,
+  CatWorkspaceState,
+} from "./types";
 
 export interface CatAiRecommendationResult {
   aiSuggestion: string;
@@ -35,6 +41,7 @@ export interface CatWorkspaceServices {
   generateAiRecommendation?: (
     segment: CatSegment,
     targetText: string,
+    intelligence?: CatSegmentIntelligence,
   ) => Promise<CatAiRecommendationResult>;
 }
 

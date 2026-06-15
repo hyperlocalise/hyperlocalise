@@ -267,29 +267,25 @@ const openAiCompatibleBaseUrlByProvider = {
   mistral: "https://api.mistral.ai/v1",
 } as const satisfies Partial<Record<LlmProvider, string>>;
 
-export function createProviderStringTranslationGenerator(input: {
+export function resolveProviderLanguageModel(input: {
   provider: LlmProvider;
   apiKey: string;
   model: string;
-}): StringTranslationGenerator {
+}): LanguageModel {
   switch (input.provider) {
     case "anthropic": {
       const provider = createAnthropic({
         apiKey: input.apiKey,
       });
 
-      return createStringTranslationGenerator({
-        model: provider(input.model),
-      });
+      return provider(input.model);
     }
     case "openai": {
       const provider = createOpenAI({
         apiKey: input.apiKey,
       });
 
-      return createStringTranslationGenerator({
-        model: provider(input.model),
-      });
+      return provider(input.model);
     }
     case "gemini":
     case "groq":
@@ -300,20 +296,32 @@ export function createProviderStringTranslationGenerator(input: {
         ...(baseURL ? { baseURL } : {}),
       });
 
-      return createStringTranslationGenerator({
-        model: provider(input.model),
-      });
+      return provider(input.model);
     }
   }
 }
 
-export function createManagedStringTranslationGenerator(): StringTranslationGenerator {
+export function createProviderStringTranslationGenerator(input: {
+  provider: LlmProvider;
+  apiKey: string;
+  model: string;
+}): StringTranslationGenerator {
+  return createStringTranslationGenerator({
+    model: resolveProviderLanguageModel(input),
+  });
+}
+
+export function getManagedTranslationLanguageModel(): LanguageModel {
   if (!env.OPENAI_API_KEY) {
     throw new Error("OPENAI_API_KEY is not configured");
   }
 
+  return openai(hyperlocaliseAgentModelId);
+}
+
+export function createManagedStringTranslationGenerator(): StringTranslationGenerator {
   return createStringTranslationGenerator({
-    model: openai(hyperlocaliseAgentModelId),
+    model: getManagedTranslationLanguageModel(),
   });
 }
 

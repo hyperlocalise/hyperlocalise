@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
+  CatAiRecommendationResult,
   CatWorkspaceDependencies,
   CatWorkspaceEditing,
   CatWorkspaceNavigation,
@@ -304,14 +305,43 @@ export function CatWorkspaceContainer({
         return;
       }
 
+      const currentIntelligence =
+        stateRef.current.segmentIntelligence?.[segmentId] ?? stateRef.current.intelligence;
+
       const sequence = reviewSequenceRef.current + 1;
       reviewSequenceRef.current = sequence;
       setIsGeneratingAiRecommendation(true);
       try {
-        const [recommendation, formatChecks, qaChecks] = await Promise.all([
-          includeAi && generateAiRecommendation
-            ? generateAiRecommendation(segment, segment.targetText)
-            : Promise.resolve(undefined),
+        let recommendation: CatAiRecommendationResult | undefined;
+        let aiFailureCheck: CatFormatCheck | undefined;
+
+        if (includeAi && generateAiRecommendation) {
+          try {
+            recommendation = await generateAiRecommendation(
+              segment,
+              segment.targetText,
+              currentIntelligence,
+            );
+          } catch (error) {
+            if (reviewSequenceRef.current !== sequence) {
+              return;
+            }
+
+            const message =
+              error instanceof Error
+                ? error.message
+                : "Failed to generate AI translation recommendation.";
+            aiFailureCheck = {
+              id: `ai-recommendation-failed-${segmentId}`,
+              label: "AI recommendation",
+              status: "fail",
+              message,
+              category: "qa",
+            };
+          }
+        }
+
+        const [formatChecks, qaChecks] = await Promise.all([
           includeFormatChecks && validateFormat
             ? validateFormat(segment, segment.targetText)
             : Promise.resolve([]),
@@ -322,7 +352,14 @@ export function CatWorkspaceContainer({
         if (reviewSequenceRef.current !== sequence) {
           return;
         }
-        const checks = recommendation?.formatChecks ?? [...formatChecks, ...qaChecks];
+        const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
+          segmentChecks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
+        const baseChecks = withoutAiFailure(
+          recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
+        );
+        const checks = aiFailureCheck
+          ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]
+          : baseChecks;
 
         setState((current) => {
           const currentIntelligence =
@@ -540,7 +577,7 @@ export function CatWorkspaceContainer({
         }
       },
       onReviewWithAi: async (segmentId: string) => {
-        await runSegmentReview(segmentId);
+        await runSegmentReview(segmentId, { includeAi: true });
       },
       onSkip: (segmentId: string) => {
         setState((current) => {

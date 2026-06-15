@@ -352,6 +352,25 @@ export const projectFileDetailResponseSchema = z.object({
   }),
 });
 
+export const projectFileCatRecommendationBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  sourceLocale: z.string().trim().min(1).max(32),
+  key: z.string().trim().min(1).max(2048),
+  sourceText: z.string().min(1).max(100_000),
+  targetText: z.string().max(100_000).optional(),
+  context: z.string().trim().max(16_384).nullable().optional(),
+  agentContext: z.string().trim().max(16_384).nullable().optional(),
+  maxLength: z.number().int().positive().optional(),
+});
+
+export const projectFileCatRecommendationResponseSchema = z.object({
+  recommendation: z.object({
+    aiSuggestion: z.string(),
+    aiReasoning: z.string(),
+  }),
+});
+
 export const projectFileCatCommentSchema = z.object({
   externalCommentId: z.string(),
   type: z.enum(["comment", "issue"]),
@@ -406,6 +425,9 @@ export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
 export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
+export type ProjectFileCatRecommendationBody = z.infer<
+  typeof projectFileCatRecommendationBodySchema
+>;
 export type ProjectSourceStringEntry = z.infer<typeof projectSourceStringEntrySchema>;
 export type ProjectSourceStringsPreview = z.infer<typeof projectSourceStringsPreviewSchema>;
 export type ProjectFileContent = z.infer<typeof projectFileContentSchema>;
@@ -424,6 +446,9 @@ export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
 export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;
 export type ProjectFileCatTranslationResponse = z.infer<
   typeof projectFileCatTranslationResponseSchema
+>;
+export type ProjectFileCatRecommendationResponse = z.infer<
+  typeof projectFileCatRecommendationResponseSchema
 >;
 export type WorkspaceFileRecord = z.infer<typeof workspaceFileRecordSchema>;
 export type WorkspaceFilesResponse = z.infer<typeof workspaceFilesResponseSchema>;

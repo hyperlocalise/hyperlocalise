@@ -82,6 +82,9 @@ export function CatWorkspaceView({
     state.segmentIntelligence?.[selectedSegment.id] ?? state.intelligence;
   const selectedSegmentFormatChecks =
     state.segmentFormatChecks?.[selectedSegment.id] ?? state.formatChecks;
+  const aiRecommendationError = selectedSegmentFormatChecks.find(
+    (check) => check.id === `ai-recommendation-failed-${selectedSegment.id}`,
+  )?.message;
   const isEditorBusy = isApproving;
   const canApprove = state.canEditTranslations !== false;
 
@@ -107,6 +110,10 @@ export function CatWorkspaceView({
         onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
         primaryActionLabel={state.primaryActionLabel}
         onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
+        onRetryAiRecommendation={
+          canUseAiRecommendation ? () => void review.onReviewWithAi(selectedSegment.id) : undefined
+        }
+        aiRecommendationError={aiRecommendationError}
         onAiRecommendationEnabledChange={onAiRecommendationEnabledChange}
         onPrevious={navigation.onPreviousSegment}
         onNext={navigation.onNextSegment}
