@@ -199,7 +199,7 @@ describe("task tool", () => {
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
-        instructions: expect.stringContaining("product surface"),
+        instructions: expect.stringContaining("product meaning"),
       }),
     );
     expect(runSubagentMock).toHaveBeenCalledWith(
@@ -235,7 +235,7 @@ describe("task tool", () => {
     expect(runSubagentMock).toHaveBeenCalledWith(
       "repository",
       expect.objectContaining({
-        instructions: expect.stringContaining("brief search log"),
+        instructions: expect.stringContaining("Lead with an **Answer**"),
       }),
     );
     expect(runSubagentMock).toHaveBeenCalledWith(

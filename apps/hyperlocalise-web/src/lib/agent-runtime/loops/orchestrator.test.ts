@@ -57,8 +57,8 @@ describe("conversation orchestrator", () => {
     expect(instructions).toContain("app shell, sidebar, navigation, and config files");
     expect(instructions).toContain("lowercase route/key variants");
     expect(instructions).toContain("not to return `no match` for a short UI label");
-    expect(instructions).toContain("brief search log");
-    expect(instructions).toContain("placeholder meanings");
+    expect(instructions).toContain("lead with an **Answer**");
+    expect(instructions).toContain("placeholder semantics");
     expect(instructions).toContain("Do not use repository context for broad architecture");
   });
 

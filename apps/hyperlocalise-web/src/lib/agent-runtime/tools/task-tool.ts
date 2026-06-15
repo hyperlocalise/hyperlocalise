@@ -105,8 +105,8 @@ BEHAVIOR:
                   "- For short visible UI labels, menu items, sidebar items, or page headings, search component, route, app shell, sidebar, navigation, and config files before accepting no-match results.",
                   "- For single-word or short-title UI copy, try lowercase route/key variants and nearby navigation labels.",
                   "- Do not return `no match` for a short UI label until you have tried exact, case-insensitive, fuzzySearch, lowercase, route/key, navigation, component, config, and locale/resource searches.",
-                  "- Include a brief search log with the patterns and repo areas checked.",
-                  "- Return localization context only: product surface, user intent, tone/register, placeholders, nearby copy, existing translations, and ambiguities.",
+                  "- Lead with an **Answer** translators can use immediately, then **Source** with `path:line` evidence.",
+                  "- Return localization context only: product meaning, tone/register, placeholders, nearby copy, and ambiguities when useful. Omit search logs unless evidence was inferred or no exact match was found.",
                   "- Do not ask for code changes, PR review, checks, or broad architecture analysis.",
                 ].join("\n")
               : instructions,
