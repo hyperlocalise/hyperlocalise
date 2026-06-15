@@ -46,8 +46,6 @@ export function CatWorkspaceView({
   canLookupContext = false,
   canUseAiRecommendation = false,
   showAgentContext = false,
-  isAiRecommendationEnabled = true,
-  onAiRecommendationEnabledChange,
   className,
 }: CatWorkspaceViewProps) {
   const selectedSegmentIndex = state.segments.findIndex(
@@ -105,17 +103,15 @@ export function CatWorkspaceView({
         canApprove={canApprove}
         canLookupContext={canLookupContext}
         canUseAiRecommendation={canUseAiRecommendation}
-        isAiRecommendationEnabled={isAiRecommendationEnabled}
         onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
         onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
         onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
         primaryActionLabel={state.primaryActionLabel}
         onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
-        onRetryAiRecommendation={
+        onGenerateAiRecommendation={
           canUseAiRecommendation ? () => void review.onReviewWithAi(selectedSegment.id) : undefined
         }
         aiRecommendationError={aiRecommendationError}
-        onAiRecommendationEnabledChange={onAiRecommendationEnabledChange}
         onPrevious={navigation.onPreviousSegment}
         onNext={navigation.onNextSegment}
         hasPreviousSegment={hasPreviousSegment}

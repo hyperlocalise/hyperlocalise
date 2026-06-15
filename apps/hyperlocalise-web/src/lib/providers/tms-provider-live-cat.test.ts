@@ -587,7 +587,7 @@ describe("getTmsProviderLiveCatFile", () => {
             data: [
               {
                 data: {
-                  id: 9001,
+                  id: 9010,
                   stringId: 1001,
                   languageId: "fr",
                   text: "Bonjour amélioré",
@@ -617,7 +617,7 @@ describe("getTmsProviderLiveCatFile", () => {
 
     expect(translation).toEqual({
       text: "Bonjour amélioré",
-      externalTranslationId: "9001",
+      externalTranslationId: "9010",
       isApproved: false,
     });
     const patchCall = fetchMock.mock.calls.find(
@@ -626,8 +626,17 @@ describe("getTmsProviderLiveCatFile", () => {
     );
     expect(patchCall).toBeDefined();
     expect(JSON.parse(String(patchCall?.[1]?.body))).toEqual([
-      { op: "replace", path: "/9001/text", value: "Bonjour amélioré" },
+      { op: "remove", path: "/9001" },
+      {
+        op: "add",
+        path: "/-",
+        value: {
+          stringId: 1001,
+          languageId: "fr",
+          text: "Bonjour amélioré",
+        },
+      },
     ]);
-    expect(approvalRequestCount).toBe(2);
+    expect(approvalRequestCount).toBe(1);
   });
 });

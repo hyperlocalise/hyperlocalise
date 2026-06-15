@@ -7,10 +7,8 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/primitives/cn";
 
@@ -52,14 +50,12 @@ export function CatEditorPanel({
   canApprove = true,
   canLookupContext = false,
   canUseAiRecommendation = false,
-  isAiRecommendationEnabled = true,
   onTargetChange,
   onUseAiSuggestion,
   onApprove,
   primaryActionLabel = "Approve",
   onAskQuestion,
-  onRetryAiRecommendation,
-  onAiRecommendationEnabledChange,
+  onGenerateAiRecommendation,
   aiRecommendationError,
   onPrevious,
   onNext,
@@ -79,14 +75,12 @@ export function CatEditorPanel({
   canApprove?: boolean;
   canLookupContext?: boolean;
   canUseAiRecommendation?: boolean;
-  isAiRecommendationEnabled?: boolean;
   onTargetChange: (value: string) => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
-  onRetryAiRecommendation?: () => void;
-  onAiRecommendationEnabledChange: (enabled: boolean) => void;
+  onGenerateAiRecommendation?: () => void;
   aiRecommendationError?: string;
   onPrevious: () => void;
   onNext: () => void;
@@ -196,27 +190,9 @@ export function CatEditorPanel({
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 lg:space-y-7 lg:px-8 lg:py-8">
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-3">
-              <h3 className="text-xs font-medium text-muted-foreground">
-                Source ({segment.sourceLocale})
-              </h3>
-              {canUseAiRecommendation ? (
-                <div className="flex items-center gap-2">
-                  <Label
-                    htmlFor={`ai-recommendation-${segment.id}`}
-                    className="text-xs font-normal text-muted-foreground"
-                  >
-                    AI recommendations
-                  </Label>
-                  <Switch
-                    id={`ai-recommendation-${segment.id}`}
-                    checked={isAiRecommendationEnabled}
-                    onCheckedChange={onAiRecommendationEnabledChange}
-                    aria-label="AI recommendations"
-                  />
-                </div>
-              ) : null}
-            </div>
+            <h3 className="text-xs font-medium text-muted-foreground">
+              Source ({segment.sourceLocale})
+            </h3>
             <p className="text-pretty text-base leading-relaxed text-foreground/92 lg:text-lg">
               <CatMessagePreview message={segment.sourceText} />
             </p>
@@ -294,66 +270,67 @@ export function CatEditorPanel({
             </Button>
           </div>
 
-          {isAiRecommendationEnabled && isAiSuggestionLoading ? (
-            <aside className="space-y-3 rounded-xl border border-foreground/8 bg-foreground/2 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <Skeleton className="h-3 w-28 rounded-full bg-foreground/8" />
-                <Skeleton className="h-8 w-12 rounded-md bg-foreground/8" />
-              </div>
-              <div className="space-y-2">
-                <Skeleton className="h-4 w-11/12 rounded-full bg-foreground/8" />
-                <Skeleton className="h-4 w-8/12 rounded-full bg-foreground/8" />
-              </div>
-              <Skeleton className="h-3 w-10/12 rounded-full bg-foreground/8" />
-            </aside>
-          ) : isAiRecommendationEnabled && canUseAiRecommendation ? (
-            <aside
-              className={cn(
-                "border-l pl-4",
-                intelligence.aiSuggestion ? "border-grove-300/40" : "border-foreground/12",
-              )}
-            >
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <p className="text-xs font-medium text-muted-foreground">AI recommendation</p>
-                <div className="flex items-center gap-1">
-                  {intelligence.aiSuggestion ? (
-                    <Button variant="ghost" size="sm" onClick={onUseAiSuggestion}>
-                      Use
-                    </Button>
-                  ) : null}
-                  {onRetryAiRecommendation ? (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={onRetryAiRecommendation}
-                      disabled={isAiSuggestionLoading}
-                    >
-                      {isAiSuggestionLoading ? <Spinner className="size-4" /> : null}
-                      Retry
-                    </Button>
-                  ) : null}
+          {canUseAiRecommendation ? (
+            isAiSuggestionLoading ? (
+              <aside className="space-y-3 rounded-xl border border-foreground/8 bg-foreground/2 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <Skeleton className="h-3 w-28 rounded-full bg-foreground/8" />
+                  <Skeleton className="h-8 w-12 rounded-md bg-foreground/8" />
                 </div>
-              </div>
-              {aiRecommendationError ? (
-                <p className="text-sm leading-relaxed text-flame-100">{aiRecommendationError}</p>
-              ) : intelligence.aiSuggestion ? (
-                <>
-                  <p className="text-sm leading-relaxed text-foreground/88">
-                    {intelligence.aiSuggestion}
-                  </p>
-                  {intelligence.aiReasoning ? (
-                    <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                      <span className="font-medium text-foreground/70">Reasoning:</span>{" "}
-                      {intelligence.aiReasoning}
+                <div className="space-y-2">
+                  <Skeleton className="h-4 w-11/12 rounded-full bg-foreground/8" />
+                  <Skeleton className="h-4 w-8/12 rounded-full bg-foreground/8" />
+                </div>
+                <Skeleton className="h-3 w-10/12 rounded-full bg-foreground/8" />
+              </aside>
+            ) : (
+              <aside
+                className={cn(
+                  "border-l pl-4",
+                  intelligence.aiSuggestion ? "border-grove-300/40" : "border-foreground/12",
+                )}
+              >
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <p className="text-xs font-medium text-muted-foreground">AI recommendation</p>
+                  <div className="flex items-center gap-1">
+                    {intelligence.aiSuggestion ? (
+                      <Button variant="ghost" size="sm" onClick={onUseAiSuggestion}>
+                        Use
+                      </Button>
+                    ) : null}
+                    {onGenerateAiRecommendation ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={onGenerateAiRecommendation}
+                        disabled={isAiSuggestionLoading}
+                      >
+                        {intelligence.aiSuggestion ? "Regenerate" : "Get recommendation"}
+                      </Button>
+                    ) : null}
+                  </div>
+                </div>
+                {aiRecommendationError ? (
+                  <p className="text-sm leading-relaxed text-flame-100">{aiRecommendationError}</p>
+                ) : intelligence.aiSuggestion ? (
+                  <>
+                    <p className="text-sm leading-relaxed text-foreground/88">
+                      {intelligence.aiSuggestion}
                     </p>
-                  ) : null}
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  No recommendation yet. Retry to generate one for this string.
-                </p>
-              )}
-            </aside>
+                    {intelligence.aiReasoning ? (
+                      <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+                        <span className="font-medium text-foreground/70">Reasoning:</span>{" "}
+                        {intelligence.aiReasoning}
+                      </p>
+                    ) : null}
+                  </>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Generate a translation suggestion for this string.
+                  </p>
+                )}
+              </aside>
+            )
           ) : null}
 
           <section className="space-y-3">

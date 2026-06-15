@@ -227,12 +227,10 @@ export function CatWorkspaceContainer({
     ReadonlySet<string>
   >(() => collectSegmentsWithAgentContext(initialState));
   const [isGeneratingAiRecommendation, setIsGeneratingAiRecommendation] = useState(false);
-  const [isAiRecommendationEnabled, setIsAiRecommendationEnabled] = useState(true);
   const stateRef = useRef(state);
   const previousInitialStateRef = useRef(initialState);
   const validationSequenceRef = useRef(0);
   const reviewSequenceRef = useRef(0);
-  const isAiRecommendationEnabledRef = useRef(isAiRecommendationEnabled);
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
   const lookupSegmentContext = serviceOverrides?.lookupSegmentContext;
@@ -255,10 +253,6 @@ export function CatWorkspaceContainer({
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
-
-  useEffect(() => {
-    isAiRecommendationEnabledRef.current = isAiRecommendationEnabled;
-  }, [isAiRecommendationEnabled]);
 
   useEffect(() => {
     setState((current) =>
@@ -315,9 +309,7 @@ export function CatWorkspaceContainer({
         return;
       }
 
-      const includeAi =
-        (options?.includeAi ?? isAiRecommendationEnabledRef.current) &&
-        Boolean(generateAiRecommendation);
+      const includeAi = options?.includeAi === true && Boolean(generateAiRecommendation);
       const includeFormatChecks = Boolean(validateFormat || runQaChecks);
 
       if (!includeAi && !includeFormatChecks) {
@@ -498,15 +490,8 @@ export function CatWorkspaceContainer({
       return;
     }
 
-    void runSegmentReviewRef.current(segmentId);
+    void runSegmentReviewRef.current(segmentId, { includeAi: false });
   }, [state.selectedSegmentId, canRunSegmentReview]);
-
-  function handleAiRecommendationEnabledChange(enabled: boolean) {
-    setIsAiRecommendationEnabled(enabled);
-    if (enabled && state.selectedSegmentId && canUseAiRecommendation) {
-      void runSegmentReview(state.selectedSegmentId, { includeAi: true });
-    }
-  }
 
   const dependencies = useMemo<CatWorkspaceDependencies>(() => {
     const navigation = {
@@ -719,15 +704,11 @@ export function CatWorkspaceContainer({
       isApproving={isApproving}
       isLookingUpContext={isLookingUpContext}
       isConcordanceLoading={isLoadingConcordance}
-      isAiSuggestionLoading={
-        isGeneratingAiRecommendation && isAiRecommendationEnabled && canUseAiRecommendation
-      }
+      isAiSuggestionLoading={isGeneratingAiRecommendation && canUseAiRecommendation}
       isFormatChecksLoading={isGeneratingAiRecommendation || isValidating}
       canLookupContext={canLookupContext}
       showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
       canUseAiRecommendation={canUseAiRecommendation}
-      isAiRecommendationEnabled={isAiRecommendationEnabled}
-      onAiRecommendationEnabledChange={handleAiRecommendationEnabledChange}
       className={className}
     />
   );

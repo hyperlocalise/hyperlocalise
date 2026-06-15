@@ -695,7 +695,7 @@ describe("CrowdinApiClient", () => {
     expect(upload.fileId).toBe(101);
   });
 
-  it("adds and updates string translations", async () => {
+  it("adds and replaces approved string translations", async () => {
     const fetchMock = vi.fn(async (url, init) => {
       const path = String(url);
 
@@ -721,7 +721,16 @@ describe("CrowdinApiClient", () => {
 
       if (path.endsWith("/projects/1/translations") && init?.method === "PATCH") {
         expect(JSON.parse(String(init.body))).toEqual([
-          { op: "replace", path: "/9001/text", value: "Salut" },
+          { op: "remove", path: "/9001" },
+          {
+            op: "add",
+            path: "/-",
+            value: {
+              stringId: 1001,
+              languageId: "fr",
+              text: "Salut",
+            },
+          },
         ]);
         return new Response(
           JSON.stringify({
@@ -750,19 +759,31 @@ describe("CrowdinApiClient", () => {
       languageId: "fr",
       text: "Bonjour",
     });
-    const updated = await client.updateTranslation(1, 9001, "Salut");
+    const replaced = await client.replaceApprovedTranslation(1, {
+      translationId: 9001,
+      stringId: 1001,
+      languageId: "fr",
+      text: "Salut",
+    });
 
     expect(added).toMatchObject({ id: 9001, text: "Bonjour" });
-    expect(updated).toMatchObject({ id: 9001, text: "Salut" });
+    expect(replaced).toMatchObject({ id: 9001, text: "Salut" });
   });
 
-  it("fails translation updates when Crowdin returns no updated item", async () => {
+  it("fails approved translation replacements when Crowdin returns no added item", async () => {
     const fetchMock = vi.fn(
       async () => new Response(JSON.stringify({ data: [] }), { status: 200 }),
     );
     const client = createClient(fetchMock as unknown as typeof fetch);
 
-    await expect(client.updateTranslation(1, 9001, "Salut")).rejects.toMatchObject({
+    await expect(
+      client.replaceApprovedTranslation(1, {
+        translationId: 9001,
+        stringId: 1001,
+        languageId: "fr",
+        text: "Salut",
+      }),
+    ).rejects.toMatchObject({
       name: "CrowdinApiError",
       status: 502,
     });
