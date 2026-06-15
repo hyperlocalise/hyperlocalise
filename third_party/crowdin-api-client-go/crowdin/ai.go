@@ -26,6 +26,19 @@ func (s *AIService) GenerateFineTuningDataset(ctx context.Context, aiPromptID, u
 	return res.Data, resp, err
 }
 
+// Translate translates strings using AI.
+// For the Enterprise client, set the userID to 0.
+//
+// https://crowdin.com/blog/whats-new-at-crowdin-december-2025
+func (s *AIService) Translate(ctx context.Context, userID int, req *model.AITranslateRequest) (
+	*model.AITranslate, *Response, error,
+) {
+	res := new(model.AITranslateResponse)
+	resp, err := s.client.Post(ctx, s.getPath("translate", userID), req, res)
+
+	return res.Data, resp, err
+}
+
 // GetFineTuningDatasetGenerationStatus returns the status of the AI Prompt Fine-Tuning Dataset generation.
 //
 // https://support.crowdin.com/developer/api/v2/#tag/AI/operation/api.users.ai.prompts.fine-tuning.datasets.get

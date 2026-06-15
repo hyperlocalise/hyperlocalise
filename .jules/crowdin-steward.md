@@ -155,3 +155,9 @@
 **Learning:** The Crowdin API v2 endpoint for editing a task's archived status is located under `/api/v2/user/tasks/{taskId}`, not the standard project-specific `/api/v2/projects/{projectId}/tasks/{taskId}` or the incorrect `/api/v2/tasks/{taskId}` path.
 
 **Action:** Updated `EditArchivedStatus` in `tasks.go` to use the correct `/api/v2/user/tasks/%d?projectId=%d` path. Adjusted `TestTasksService_EditArchivedStatus` in `tasks_test.go` to verify the correct URL is called. Verified with `make test`.
+
+## 2026-09-19 - Add AI Translate endpoint for on-demand translations
+
+**Learning:** The Crowdin API v2 recently introduced a `POST /ai/translate` endpoint for on-demand AI translations of dynamic content. This endpoint exists both at the root `/api/v2/ai/translate` (for Enterprise) and under user-specific paths `/api/v2/users/{userId}/ai/translate`. The request body requires `strings` and `targetLanguageId`. Due to minimal documentation on the exact response schema, a generic `any` response model was used to ensure compatibility with future changes.
+
+**Action:** Implemented `AIService.Translate` method and added typed `AITranslateRequest` and `AITranslateResponse` models in `model/ai.go`. Verified request serialization and response unmarshaling with a contract test in `ai_test.go`.

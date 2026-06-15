@@ -1238,3 +1238,37 @@ func TestAIService_CreateProxyChatCompletion(t *testing.T) {
 	expected := &model.ProxyChatCompletion{}
 	assert.Equal(t, expected, completion)
 }
+
+func TestAIService_Translate(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	const path = "/api/v2/users/1/ai/translate"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		testURL(t, r, path)
+		testJSONBody(t, r, `{
+			"strings": ["Chef's Special: Spicy Tuna Roll"],
+			"targetLanguageId": "de"
+		}`)
+
+		fmt.Fprint(w, `{
+			"data": {
+				"translations": ["Chef-Spezialität: Pikante Thunfisch-Rolle"]
+			}
+		}`)
+	})
+
+	req := &model.AITranslateRequest{
+		Strings:          []string{"Chef's Special: Spicy Tuna Roll"},
+		TargetLanguageID: "de",
+	}
+	res, resp, err := client.AI.Translate(context.Background(), 1, req)
+	require.NoError(t, err)
+	assert.NotNil(t, resp)
+
+	expected := &model.AITranslate{
+		Translations: []string{"Chef-Spezialität: Pikante Thunfisch-Rolle"},
+	}
+	assert.Equal(t, expected, res)
+}
