@@ -202,9 +202,9 @@ describe("slackOAuthRoutes", () => {
     const insertSpy = vi.spyOn(db, "insert").mockImplementationOnce(() => {
       throw new Error("db unavailable");
     });
-    const transactionSpy = vi.spyOn(db, "transaction").mockImplementationOnce(async (callback) =>
-      callback(db as DatabaseTransaction),
-    );
+    const transactionSpy = vi
+      .spyOn(db, "transaction")
+      .mockImplementationOnce(async (callback) => callback(db as DatabaseTransaction));
 
     try {
       const app = createSlackOAuthRoutes();
