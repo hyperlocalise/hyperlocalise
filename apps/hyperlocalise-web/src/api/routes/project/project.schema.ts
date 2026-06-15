@@ -357,7 +357,7 @@ export const projectFileCatRecommendationBodySchema = z.object({
   targetLocale: z.string().trim().min(1).max(32),
   sourceLocale: z.string().trim().min(1).max(32),
   key: z.string().trim().min(1).max(2048),
-  sourceText: z.string().max(100_000),
+  sourceText: z.string().min(1).max(100_000),
   targetText: z.string().max(100_000).optional(),
   context: z.string().trim().max(16_384).nullable().optional(),
   agentContext: z.string().trim().max(16_384).nullable().optional(),

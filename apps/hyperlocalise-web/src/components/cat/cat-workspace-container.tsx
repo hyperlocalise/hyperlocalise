@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import type {
+  CatAiRecommendationResult,
   CatWorkspaceDependencies,
   CatWorkspaceEditing,
   CatWorkspaceNavigation,
@@ -311,10 +312,36 @@ export function CatWorkspaceContainer({
       reviewSequenceRef.current = sequence;
       setIsGeneratingAiRecommendation(true);
       try {
-        const [recommendation, formatChecks, qaChecks] = await Promise.all([
-          includeAi && generateAiRecommendation
-            ? generateAiRecommendation(segment, segment.targetText, currentIntelligence)
-            : Promise.resolve(undefined),
+        let recommendation: CatAiRecommendationResult | undefined;
+        let aiFailureCheck: CatFormatCheck | undefined;
+
+        if (includeAi && generateAiRecommendation) {
+          try {
+            recommendation = await generateAiRecommendation(
+              segment,
+              segment.targetText,
+              currentIntelligence,
+            );
+          } catch (error) {
+            if (reviewSequenceRef.current !== sequence) {
+              return;
+            }
+
+            const message =
+              error instanceof Error
+                ? error.message
+                : "Failed to generate AI translation recommendation.";
+            aiFailureCheck = {
+              id: `ai-recommendation-failed-${segmentId}`,
+              label: "AI recommendation",
+              status: "fail",
+              message,
+              category: "qa",
+            };
+          }
+        }
+
+        const [formatChecks, qaChecks] = await Promise.all([
           includeFormatChecks && validateFormat
             ? validateFormat(segment, segment.targetText)
             : Promise.resolve([]),
@@ -327,9 +354,12 @@ export function CatWorkspaceContainer({
         }
         const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
           segmentChecks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
-        const checks = withoutAiFailure(
+        const baseChecks = withoutAiFailure(
           recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
         );
+        const checks = aiFailureCheck
+          ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]
+          : baseChecks;
 
         setState((current) => {
           const currentIntelligence =
@@ -352,40 +382,6 @@ export function CatWorkspaceContainer({
                   },
                 }
               : current.segmentIntelligence,
-          };
-        });
-      } catch (error) {
-        if (reviewSequenceRef.current !== sequence) {
-          return;
-        }
-
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Failed to generate AI translation recommendation.";
-        const aiFailureCheck: CatFormatCheck = {
-          id: `ai-recommendation-failed-${segmentId}`,
-          label: "AI recommendation",
-          status: "fail",
-          message,
-          category: "qa",
-        };
-
-        setState((current) => {
-          const currentChecks = current.segmentFormatChecks?.[segmentId] ?? current.formatChecks;
-          const nextChecks = [
-            aiFailureCheck,
-            ...currentChecks.filter((check) => check.id !== aiFailureCheck.id),
-          ];
-
-          return {
-            ...current,
-            formatChecks:
-              current.selectedSegmentId === segmentId ? nextChecks : current.formatChecks,
-            segmentFormatChecks: {
-              ...current.segmentFormatChecks,
-              [segmentId]: nextChecks,
-            },
           };
         });
       } finally {

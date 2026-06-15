@@ -86,6 +86,7 @@ function buildCatRecommendationSystemPrompt(input: {
     "When a current target draft is provided, improve it when needed instead of repeating it unchanged.",
     "Return concise reasoning that explains terminology, tone, or product-fit choices.",
     "",
+    `Project name: ${input.projectName}`,
     `Project translation context: ${input.projectTranslationContext || "(none)"}`,
     `Workspace knowledge memory: ${knowledgeMemory || "(none)"}`,
     glossaryTerms.length > 0
