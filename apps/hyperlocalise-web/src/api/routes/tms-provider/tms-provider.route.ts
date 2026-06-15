@@ -527,9 +527,14 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return notFoundResponse(c, "job_not_found", "Provider job not found");
       }
 
-      const liveFiles = await listTmsProviderLiveJobFiles(organizationId, encodedJobId, {
-        actorUserId: c.var.auth.user.localUserId,
-      });
+      let liveFiles;
+      try {
+        liveFiles = await listTmsProviderLiveJobFiles(organizationId, encodedJobId, {
+          actorUserId: c.var.auth.user.localUserId,
+        });
+      } catch (error) {
+        return tmsProviderLiveErrorResponse(c, error);
+      }
       const sourceFiles = (liveFiles ?? []).map((file) => ({
         id: file.provider.externalResourceId,
         displayName: file.filename,
@@ -556,6 +561,13 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       });
 
       if (!options.providerAgentTranslationQueue) {
+        await failAgentRun({
+          runId: agentRun.id,
+          organizationId,
+          outputSummary: { code: "agent_run_queue_unavailable" },
+          warnings: ["agent translation queue unavailable"],
+        });
+
         return serviceUnavailableResponse(
           c,
           "agent_run_queue_unavailable",
