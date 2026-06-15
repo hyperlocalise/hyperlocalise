@@ -10,7 +10,7 @@ describe("getAppShellTitle", () => {
     ["/org/acme/new-request", "New Request"],
     ["/org/acme/chat", "New Request"],
     ["/org/acme/projects", "Projects"],
-    ["/org/acme/projects/proj_1", "Overview"],
+    ["/org/acme/projects/proj_1", "proj_1"],
     ["/org/acme/projects/proj_1/files", "Files"],
     ["/org/acme/projects/proj_1/jobs", "Jobs"],
     ["/org/acme/projects/proj_1/agent-runs", "Agent Runs"],
@@ -50,19 +50,27 @@ describe("getAppShellBreadcrumbs", () => {
     expect(
       getAppShellBreadcrumbs("/org/acme/projects/proj_1/files", { projectName: "Checkout" }),
     ).toEqual([
-      { label: "Project", href: "/org/acme/projects" },
+      { label: "Projects", href: "/org/acme/projects" },
       { label: "Checkout", href: "/org/acme/projects/proj_1" },
       { label: "Files" },
+    ]);
+  });
+
+  it("falls back to the project id when the project name is unavailable", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1/jobs")).toEqual([
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "proj_1", href: "/org/acme/projects/proj_1" },
+      { label: "Jobs" },
     ]);
   });
 
   it("returns project overview breadcrumbs without a section crumb", () => {
     expect(
       getAppShellBreadcrumbs("/org/acme/projects/proj_1", { projectName: "Checkout" }),
-    ).toEqual([{ label: "Project", href: "/org/acme/projects" }, { label: "Checkout" }]);
+    ).toEqual([{ label: "Projects", href: "/org/acme/projects" }, { label: "Checkout" }]);
     expect(getAppShellBreadcrumbs("/org/acme/projects/proj_1")).toEqual([
-      { label: "Project", href: "/org/acme/projects" },
-      { label: "Overview" },
+      { label: "Projects", href: "/org/acme/projects" },
+      { label: "proj_1" },
     ]);
   });
 });

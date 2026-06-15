@@ -1,4 +1,6 @@
 import type { ComponentProps } from "react";
+
+import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import {
   AiBrain01Icon,
   BookOpenTextIcon,
@@ -152,10 +154,23 @@ export function buildProjectNavigationItems(
   ] as const;
 }
 
+function stripAppLocalePrefix(pathname: string) {
+  const [, firstSegment, ...rest] = pathname.split("/");
+  const locale = firstSegment ? normalizeAppLocale(firstSegment) : null;
+
+  if (!locale) {
+    return pathname;
+  }
+
+  return `/${rest.join("/")}`.replace(/\/+$/, "") || "/";
+}
+
 export function parseProjectRoute(pathname: string | null) {
   if (!pathname) return null;
 
-  const match = pathname.match(/^\/org\/([^/]+)\/projects\/([^/]+)(?:\/(.*))?$/);
+  const match = stripAppLocalePrefix(pathname).match(
+    /^\/org\/([^/]+)\/projects\/([^/]+)(?:\/(.*))?$/,
+  );
   if (!match) return null;
 
   const [, organizationSlug, projectIdSegment, remainder] = match;
@@ -185,30 +200,31 @@ export function isNavigationItemActive(
     organizationSlug?: string;
   },
 ) {
+  const normalizedPathname = stripAppLocalePrefix(pathname);
   const itemPathname = href.split("#", 1)[0];
 
   if (options?.exact) {
-    return pathname === itemPathname;
+    return normalizedPathname === itemPathname;
   }
 
   if (options?.projectId && options.organizationSlug) {
     const overviewHref = buildProjectPath(options.organizationSlug, options.projectId);
     if (itemPathname === overviewHref) {
-      return pathname === overviewHref;
+      return normalizedPathname === overviewHref;
     }
   }
 
-  if (pathname === itemPathname) {
+  if (normalizedPathname === itemPathname) {
     return true;
   }
 
   if (itemPathname.endsWith("/projects")) {
-    return pathname === itemPathname;
+    return normalizedPathname === itemPathname;
   }
 
-  if (pathname.startsWith(`${itemPathname}/`)) {
+  if (normalizedPathname.startsWith(`${itemPathname}/`)) {
     if (itemPathname.endsWith("/settings")) {
-      const settingsSubpath = pathname.slice(itemPathname.length + 1);
+      const settingsSubpath = normalizedPathname.slice(itemPathname.length + 1);
       if (settingsSubpath === "members" || settingsSubpath.startsWith("members/")) {
         return false;
       }
@@ -218,14 +234,14 @@ export function isNavigationItemActive(
 
   if (
     itemPathname.endsWith("/command-center") &&
-    pathname.startsWith(itemPathname.replace("command-center", "dashboard"))
+    normalizedPathname.startsWith(itemPathname.replace("command-center", "dashboard"))
   ) {
     return true;
   }
 
   if (
     itemPathname.endsWith("/my-work") &&
-    pathname.startsWith(itemPathname.replace("my-work", "my-jobs"))
+    normalizedPathname.startsWith(itemPathname.replace("my-work", "my-jobs"))
   ) {
     return true;
   }

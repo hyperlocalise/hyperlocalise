@@ -76,6 +76,14 @@ function buildOrgPath(organizationSlug: string, ...parts: string[]) {
   return `/org/${organizationSlug}/${parts.join("/")}`;
 }
 
+function decodePathSegment(value: string) {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 function routeTitle(segment: string) {
   return isRouteTitleKey(segment) ? ROUTE_TITLES[segment] : segment;
 }
@@ -104,20 +112,21 @@ export function getAppShellBreadcrumbs(
   }
 
   if (section === "projects" && subsection) {
-    const projectName = options?.projectName?.trim() || (projectSection ? "Project" : "Overview");
+    const projectId = decodePathSegment(subsection);
+    const projectLabel = options?.projectName?.trim() || projectId;
     const projectHref = buildOrgPath(organizationSlug, "projects", subsection);
 
     if (projectSection && isProjectSectionKey(projectSection)) {
       return [
-        { label: "Project", href: buildOrgPath(organizationSlug, "projects") },
-        { label: projectName, href: projectHref },
+        { label: ROUTE_TITLES.projects, href: buildOrgPath(organizationSlug, "projects") },
+        { label: projectLabel, href: projectHref },
         { label: PROJECT_SECTION_TITLES[projectSection] },
       ];
     }
 
     return [
-      { label: "Project", href: buildOrgPath(organizationSlug, "projects") },
-      { label: projectName },
+      { label: ROUTE_TITLES.projects, href: buildOrgPath(organizationSlug, "projects") },
+      { label: projectLabel },
     ];
   }
 
