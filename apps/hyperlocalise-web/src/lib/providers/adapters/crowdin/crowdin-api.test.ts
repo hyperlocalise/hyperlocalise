@@ -790,6 +790,111 @@ describe("CrowdinApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("updates unapproved string translations", async () => {
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+
+      if (path.endsWith("/projects/1/translations") && init?.method === "POST") {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 9001,
+              stringId: 1001,
+              languageId: "fr",
+              text: "Bonjour",
+              createdAt: "2026-06-08T00:00:00Z",
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.endsWith("/projects/1/translations") && init?.method === "PATCH") {
+        expect(JSON.parse(String(init.body))).toEqual([
+          { op: "replace", path: "/9001/text", value: "Salut" },
+        ]);
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 9001,
+                  stringId: 1001,
+                  languageId: "fr",
+                  text: "Salut",
+                  createdAt: "2026-06-08T00:01:00Z",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const added = await client.addTranslation(1, {
+      stringId: 1001,
+      languageId: "fr",
+      text: "Bonjour",
+    });
+    const updated = await client.updateTranslation(1, 9001, "Salut");
+
+    expect(added).toMatchObject({ id: 9001, text: "Bonjour" });
+    expect(updated).toMatchObject({ id: 9001, text: "Salut" });
+  });
+
+  it("fails translation updates when Crowdin returns no updated item", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ data: [] }), { status: 200 }),
+    );
+    const client = createClient(fetchMock as unknown as typeof fetch);
+
+    await expect(client.updateTranslation(1, 9001, "Salut")).rejects.toMatchObject({
+      name: "CrowdinApiError",
+      status: 502,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("fails approved translation replacements when response text does not match", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 9001,
+                  stringId: 1001,
+                  languageId: "fr",
+                  text: "Different text",
+                  createdAt: "2026-06-08T00:01:00Z",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        ),
+    );
+    const client = createClient(fetchMock as unknown as typeof fetch);
+
+    await expect(
+      client.replaceApprovedTranslation(1, {
+        translationId: 9001,
+        stringId: 1001,
+        languageId: "fr",
+        text: "Salut",
+      }),
+    ).rejects.toMatchObject({
+      name: "CrowdinApiError",
+      status: 502,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("lists glossaries and translation memories with pagination", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);

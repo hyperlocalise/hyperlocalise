@@ -979,22 +979,23 @@ async function saveCrowdinLiveCatTranslation(input: {
     ]);
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
     const existing = preferredLanguageTranslation(translations, approvedTranslationIds);
-    const isExistingApproved =
-      existing?.translationId != null && approvedTranslationIds.has(existing.translationId);
+    const existingTranslationId = existing?.translationId;
     const saved =
-      isExistingApproved && existing.translationId != null
+      existingTranslationId != null && approvedTranslationIds.has(existingTranslationId)
         ? await client.replaceApprovedTranslation(projectId, {
-            translationId: existing.translationId,
+            translationId: existingTranslationId,
             stringId,
             languageId: input.targetLocale,
             text: input.text,
           })
-        : await client.addTranslation(projectId, {
-            stringId,
-            languageId: input.targetLocale,
-            text: input.text,
-          });
-    const translationId = saved.id ?? null;
+        : existingTranslationId != null
+          ? await client.updateTranslation(projectId, existingTranslationId, input.text)
+          : await client.addTranslation(projectId, {
+              stringId,
+              languageId: input.targetLocale,
+              text: input.text,
+            });
+    const translationId = saved.id ?? existingTranslationId ?? null;
 
     return {
       text: saved.text,

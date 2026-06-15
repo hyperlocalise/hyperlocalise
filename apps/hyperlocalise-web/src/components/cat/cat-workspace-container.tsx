@@ -227,6 +227,7 @@ export function CatWorkspaceContainer({
     ReadonlySet<string>
   >(() => collectSegmentsWithAgentContext(initialState));
   const [isGeneratingAiRecommendation, setIsGeneratingAiRecommendation] = useState(false);
+  const [isRunningFormatChecks, setIsRunningFormatChecks] = useState(false);
   const stateRef = useRef(state);
   const previousInitialStateRef = useRef(initialState);
   const validationSequenceRef = useRef(0);
@@ -321,7 +322,12 @@ export function CatWorkspaceContainer({
 
       const sequence = reviewSequenceRef.current + 1;
       reviewSequenceRef.current = sequence;
-      setIsGeneratingAiRecommendation(true);
+      if (includeAi) {
+        setIsGeneratingAiRecommendation(true);
+      }
+      if (includeFormatChecks) {
+        setIsRunningFormatChecks(true);
+      }
       try {
         let recommendation: CatAiRecommendationResult | undefined;
         let aiFailureCheck: CatFormatCheck | undefined;
@@ -468,7 +474,12 @@ export function CatWorkspaceContainer({
         });
       } finally {
         if (reviewSequenceRef.current === sequence) {
-          setIsGeneratingAiRecommendation(false);
+          if (includeAi) {
+            setIsGeneratingAiRecommendation(false);
+          }
+          if (includeFormatChecks) {
+            setIsRunningFormatChecks(false);
+          }
         }
       }
     },
@@ -705,7 +716,7 @@ export function CatWorkspaceContainer({
       isLookingUpContext={isLookingUpContext}
       isConcordanceLoading={isLoadingConcordance}
       isAiSuggestionLoading={isGeneratingAiRecommendation && canUseAiRecommendation}
-      isFormatChecksLoading={isGeneratingAiRecommendation || isValidating}
+      isFormatChecksLoading={isRunningFormatChecks || isValidating}
       canLookupContext={canLookupContext}
       showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
       canUseAiRecommendation={canUseAiRecommendation}
