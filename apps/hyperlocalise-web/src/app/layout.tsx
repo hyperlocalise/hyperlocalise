@@ -5,6 +5,7 @@ import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 import { QueryProvider } from "@/components/query-provider";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { cn } from "@/lib/primitives/cn";
@@ -50,7 +51,10 @@ export default async function RootLayout({
           <I18nProvider locale={locale}>
             <QueryProvider>
               <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-                <TooltipProvider>{children}</TooltipProvider>
+                <TooltipProvider>
+                  {children}
+                  <Toaster richColors closeButton />
+                </TooltipProvider>
               </ThemeProvider>
             </QueryProvider>
           </I18nProvider>

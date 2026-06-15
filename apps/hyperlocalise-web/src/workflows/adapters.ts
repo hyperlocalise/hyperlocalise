@@ -1,5 +1,6 @@
 import { start } from "workflow/api";
 
+import { createLogger } from "@/lib/log";
 import { emailTranslationWorkflow } from "./email-translation";
 import { contentfulAutomationExecutionWorkflow } from "./contentful-automation-execution";
 import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
@@ -20,6 +21,8 @@ import type {
   ContentfulAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
+
+const providerAgentTranslationQueueLogger = createLogger("provider-agent-translation-queue");
 
 export { createTranslationJobEventQueue, createReviewJobEventQueue } from "@/lib/workflow/queues";
 
@@ -59,6 +62,14 @@ export function createProviderAgentTranslationQueue(): ProviderAgentTranslationQ
   return {
     async enqueue(event) {
       const run = await start(providerAgentTranslationWorkflow, [event]);
+      providerAgentTranslationQueueLogger.info(
+        {
+          agentRunId: event.agentRunId,
+          organizationId: event.organizationId,
+          workflowRunId: run.runId,
+        },
+        "provider agent translation workflow enqueued",
+      );
       return { ids: [run.runId] };
     },
   };
