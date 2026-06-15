@@ -314,9 +314,9 @@ export async function runProviderSyncWorker(input?: {
     try {
       const result = await executeProviderSyncIntent(intent);
       if (isErr(result)) {
-        failed += 1;
         const marked = await markIntentFailed(intent, result.error.message);
         if (marked) {
+          failed += 1;
           logReconciliationFailed({
             providerKind: intent.providerKind,
             organizationId: intent.organizationId,
@@ -324,6 +324,11 @@ export async function runProviderSyncWorker(input?: {
             syncKind: intent.syncKind,
             reason: result.error.code,
           });
+        } else {
+          logger.info(
+            { intentId: intent.id, syncKind: intent.syncKind },
+            "skipped stale provider sync intent failure update",
+          );
         }
         continue;
       }
@@ -340,13 +345,20 @@ export async function runProviderSyncWorker(input?: {
         });
       }
     } catch (error) {
-      failed += 1;
       const message = error instanceof Error ? error.message : "unknown_error";
-      await markIntentFailed(intent, message);
-      logger.error(
-        { intentId: intent.id, syncKind: intent.syncKind, error: message },
-        "unexpected error executing sync intent",
-      );
+      const marked = await markIntentFailed(intent, message);
+      if (marked) {
+        failed += 1;
+        logger.error(
+          { intentId: intent.id, syncKind: intent.syncKind, error: message },
+          "unexpected error executing sync intent",
+        );
+      } else {
+        logger.info(
+          { intentId: intent.id, syncKind: intent.syncKind },
+          "skipped stale provider sync intent failure update",
+        );
+      }
     }
   }
 
