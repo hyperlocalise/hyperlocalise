@@ -46,7 +46,7 @@
     "cli-table3": "0.6.5",
     "css-loader": "7.1.4",
     "css-modules-typescript-loader": "4.0.1",
-    "cssnano": "7.1.9",
+    "cssnano": "8.0.2",
     "debug": "4.4.3",
     "dotenv": "17.4.2",
     "esbuild-register": "3.6.0",
