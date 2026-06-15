@@ -7,6 +7,10 @@ import { getGitHubApp } from "@/lib/agents/github/app";
 import { isGitHubAppPrivateKeyDecoderError } from "@/lib/agents/github/private-key";
 import { getGitHubStateSecret, verifyGitHubState } from "@/lib/agents/github/oauth-state";
 import {
+  ensureWorkspaceResourceLimitAvailable,
+  workspaceResourceFeatureIds,
+} from "@/lib/billing/workspace-resource-limits";
+import {
   deleteOrganizationGitHubInstallationRepositories,
   syncInstallationRepositories,
 } from "@/lib/agents/github/repositories";
@@ -335,6 +339,20 @@ export async function handleGitHubInstallCallback(
         "github install callback updated existing installation row",
       );
     } else {
+      const limitResult = await ensureWorkspaceResourceLimitAvailable({
+        organizationId: org.id,
+        featureId: workspaceResourceFeatureIds.integrations,
+      });
+      if (!limitResult.ok) {
+        const redirectTo = agentErrorRedirect(
+          org,
+          limitResult.error.code === "workspace_resource_limit_check_failed"
+            ? "integration_limit_check_failed"
+            : "integration_limit_reached",
+        ).redirectTo;
+        return finish(redirectTo, orgContext, "github install callback integration limit blocked");
+      }
+
       const [inserted] = await db
         .insert(schema.githubInstallations)
         .values({

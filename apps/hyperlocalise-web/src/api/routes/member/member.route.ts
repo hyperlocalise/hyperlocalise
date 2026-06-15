@@ -11,7 +11,17 @@ import {
   markPendingMembershipReplacingInvitation,
   revokeOrganizationMembershipAccess,
 } from "@/api/auth/workos-sync";
-import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
+import {
+  conflictResponse,
+  internalErrorResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
+import {
+  ensureWorkspaceResourceLimitAvailable,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+} from "@/lib/billing/workspace-resource-limits";
 import { db, schema } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
@@ -443,6 +453,44 @@ export function createMemberRoutes() {
       }
 
       const normalizedEmail = payload.email.trim().toLowerCase();
+      const [existingMembershipForEmail] = await db
+        .select({ id: schema.organizationMemberships.id })
+        .from(schema.users)
+        .innerJoin(
+          schema.organizationMemberships,
+          eq(schema.organizationMemberships.userId, schema.users.id),
+        )
+        .where(
+          and(
+            eq(schema.organizationMemberships.organizationId, organizationId),
+            eq(schema.users.email, normalizedEmail),
+          ),
+        )
+        .limit(1);
+
+      if (!existingMembershipForEmail) {
+        const limitResult = await ensureWorkspaceResourceLimitAvailable({
+          organizationId,
+          featureId: workspaceResourceFeatureIds.seats,
+        });
+        if (!limitResult.ok) {
+          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+            return serviceUnavailableResponse(
+              c,
+              limitResult.error.code,
+              "Unable to verify seat limits. Try again later.",
+            );
+          }
+
+          return conflictResponse(
+            c,
+            limitResult.error.code,
+            workspaceResourceLimitMessage(limitResult.error.featureId),
+            workspaceResourceLimitErrorDetails(limitResult.error),
+          );
+        }
+      }
+
       const pendingInvite = await inviteOrganizationMember({
         organizationId,
         email: normalizedEmail,

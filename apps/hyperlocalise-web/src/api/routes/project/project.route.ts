@@ -7,8 +7,19 @@ import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { badRequestResponse, notFoundResponse } from "@/api/errors";
+import {
+  badRequestResponse,
+  conflictResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+} from "@/api/errors";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
+import {
+  ensureWorkspaceResourceLimitAvailable,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+} from "@/lib/billing/workspace-resource-limits";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
@@ -491,6 +502,27 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       const payload = c.req.valid("json");
+      const limitResult = await ensureWorkspaceResourceLimitAvailable({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        featureId: workspaceResourceFeatureIds.projects,
+      });
+      if (!limitResult.ok) {
+        if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+          return serviceUnavailableResponse(
+            c,
+            limitResult.error.code,
+            "Unable to verify project limits. Try again later.",
+          );
+        }
+
+        return conflictResponse(
+          c,
+          limitResult.error.code,
+          workspaceResourceLimitMessage(limitResult.error.featureId),
+          workspaceResourceLimitErrorDetails(limitResult.error),
+        );
+      }
+
       try {
         const project = await projectStore.create(c.var.auth, payload);
         return c.json({ project: { ...project, openJobCount: 0 } }, 201);

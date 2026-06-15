@@ -5,9 +5,19 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
-import { forbiddenResponse } from "@/api/response.schema";
+import {
+  conflictResponse,
+  forbiddenResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth/slack-oauth.route";
+import {
+  ensureWorkspaceResourceLimitAvailable,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+} from "@/lib/billing/workspace-resource-limits";
 import { getSlackBot } from "@/lib/agents/slack/bot";
 import {
   createSlackState,
@@ -297,6 +307,42 @@ export function createAgentSlackRoutes() {
         assertProviderCredentialAdmin(c.var.auth.membership.role);
       } catch {
         return c.json({ error: "forbidden" as const }, 403);
+      }
+
+      if (payload.enabled) {
+        const [existingConnector] = await db
+          .select({ enabled: schema.connectors.enabled })
+          .from(schema.connectors)
+          .where(
+            and(
+              eq(schema.connectors.organizationId, organizationId),
+              eq(schema.connectors.kind, "slack"),
+            ),
+          )
+          .limit(1);
+
+        if (!existingConnector?.enabled) {
+          const limitResult = await ensureWorkspaceResourceLimitAvailable({
+            organizationId,
+            featureId: workspaceResourceFeatureIds.integrations,
+          });
+          if (!limitResult.ok) {
+            if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+              return serviceUnavailableResponse(
+                c,
+                limitResult.error.code,
+                "Unable to verify integration limits. Try again later.",
+              );
+            }
+
+            return conflictResponse(
+              c,
+              limitResult.error.code,
+              workspaceResourceLimitMessage(limitResult.error.featureId),
+              workspaceResourceLimitErrorDetails(limitResult.error),
+            );
+          }
+        }
       }
 
       const [connector] = await db

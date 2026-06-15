@@ -5,10 +5,18 @@ import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
+  conflictResponse,
   forbiddenResponse,
   notFoundResponse,
+  serviceUnavailableResponse,
   unauthorizedResponse,
 } from "@/api/response.schema";
+import {
+  ensureWorkspaceResourceLimitAvailable,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+} from "@/lib/billing/workspace-resource-limits";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   createContentfulConnection,
@@ -153,6 +161,29 @@ export function createContentfulConnectionRoutes() {
       }
 
       const payload = c.req.valid("json");
+      if (payload.enabled) {
+        const limitResult = await ensureWorkspaceResourceLimitAvailable({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          featureId: workspaceResourceFeatureIds.integrations,
+        });
+        if (!limitResult.ok) {
+          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+            return serviceUnavailableResponse(
+              c,
+              limitResult.error.code,
+              "Unable to verify integration limits. Try again later.",
+            );
+          }
+
+          return conflictResponse(
+            c,
+            limitResult.error.code,
+            workspaceResourceLimitMessage(limitResult.error.featureId),
+            workspaceResourceLimitErrorDetails(limitResult.error),
+          );
+        }
+      }
+
       const result = await createContentfulConnection({
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
@@ -196,6 +227,39 @@ export function createContentfulConnectionRoutes() {
 
       const { connectionId } = c.req.valid("param");
       const payload = c.req.valid("json");
+      if (payload.enabled === true) {
+        const existing = await getContentfulConnection({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          connectionId,
+        });
+        if (!existing) {
+          return notFoundResponse(c, "contentful_connection_not_found");
+        }
+
+        if (!existing.enabled) {
+          const limitResult = await ensureWorkspaceResourceLimitAvailable({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            featureId: workspaceResourceFeatureIds.integrations,
+          });
+          if (!limitResult.ok) {
+            if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+              return serviceUnavailableResponse(
+                c,
+                limitResult.error.code,
+                "Unable to verify integration limits. Try again later.",
+              );
+            }
+
+            return conflictResponse(
+              c,
+              limitResult.error.code,
+              workspaceResourceLimitMessage(limitResult.error.featureId),
+              workspaceResourceLimitErrorDetails(limitResult.error),
+            );
+          }
+        }
+      }
+
       const result = await updateContentfulConnection({
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,

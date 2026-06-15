@@ -4,7 +4,19 @@ import { validator } from "hono/validator";
 
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
-import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
+import {
+  badRequestResponse,
+  conflictResponse,
+  forbiddenResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
+import {
+  ensureWorkspaceResourceLimitAvailable,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+} from "@/lib/billing/workspace-resource-limits";
 import { dispatchManualWorkspaceAutomationRun } from "@/lib/agents/workspace-automation-dispatcher";
 import {
   createWorkspaceAutomation,
@@ -281,6 +293,29 @@ export function createWorkspaceAutomationRoutes() {
     .post("/", validateCreateBody, async (c) => {
       const payload = c.req.valid("json");
       const organizationId = c.var.auth.organization.localOrganizationId;
+      if (payload.status !== "archived") {
+        const limitResult = await ensureWorkspaceResourceLimitAvailable({
+          organizationId,
+          featureId: workspaceResourceFeatureIds.automations,
+        });
+        if (!limitResult.ok) {
+          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+            return serviceUnavailableResponse(
+              c,
+              limitResult.error.code,
+              "Unable to verify automation limits. Try again later.",
+            );
+          }
+
+          return conflictResponse(
+            c,
+            limitResult.error.code,
+            workspaceResourceLimitMessage(limitResult.error.featureId),
+            workspaceResourceLimitErrorDetails(limitResult.error),
+          );
+        }
+      }
+
       const referenceError = await validateAutomationReferences({
         organizationId,
         repositoryTarget: payload.repositoryTarget,
@@ -342,6 +377,29 @@ export function createWorkspaceAutomationRoutes() {
 
       if (!existing) {
         return notFoundResponse(c, "workspace_automation_not_found");
+      }
+
+      if (existing.status === "archived" && payload.status && payload.status !== "archived") {
+        const limitResult = await ensureWorkspaceResourceLimitAvailable({
+          organizationId,
+          featureId: workspaceResourceFeatureIds.automations,
+        });
+        if (!limitResult.ok) {
+          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+            return serviceUnavailableResponse(
+              c,
+              limitResult.error.code,
+              "Unable to verify automation limits. Try again later.",
+            );
+          }
+
+          return conflictResponse(
+            c,
+            limitResult.error.code,
+            workspaceResourceLimitMessage(limitResult.error.featureId),
+            workspaceResourceLimitErrorDetails(limitResult.error),
+          );
+        }
       }
 
       const referenceError = await validateAutomationReferences({

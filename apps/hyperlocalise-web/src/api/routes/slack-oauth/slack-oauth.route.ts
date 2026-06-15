@@ -6,6 +6,10 @@ import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import { getSlackBot } from "@/lib/agents/slack/bot";
 import { findSlackConnectorOwnedByAnotherOrganization } from "@/lib/agents/slack/helpers";
 import { getSlackStateSecret, verifySlackState } from "@/lib/agents/slack/oauth-state";
+import {
+  ensureWorkspaceResourceLimitAvailable,
+  workspaceResourceFeatureIds,
+} from "@/lib/billing/workspace-resource-limits";
 import { db, schema } from "@/lib/database";
 import { env } from "@/lib/env";
 
@@ -104,6 +108,28 @@ export function createSlackOAuthRoutes() {
     });
     if (conflictingConnector) {
       return c.redirect("/dashboard?error=slack_team_already_connected");
+    }
+
+    const [existingConnector] = await db
+      .select({ id: schema.connectors.id, enabled: schema.connectors.enabled })
+      .from(schema.connectors)
+      .where(and(eq(schema.connectors.organizationId, org.id), eq(schema.connectors.kind, "slack")))
+      .limit(1);
+
+    if (!existingConnector?.enabled) {
+      const limitResult = await ensureWorkspaceResourceLimitAvailable({
+        organizationId: org.id,
+        featureId: workspaceResourceFeatureIds.integrations,
+      });
+      if (!limitResult.ok) {
+        return c.redirect(
+          `/dashboard?error=${
+            limitResult.error.code === "workspace_resource_limit_check_failed"
+              ? "integration_limit_check_failed"
+              : "integration_limit_reached"
+          }`,
+        );
+      }
     }
 
     try {
