@@ -79,8 +79,6 @@ export interface CatWorkspaceViewProps {
   canLookupContext?: boolean;
   canUseAiRecommendation?: boolean;
   showAgentContext?: boolean;
-  isAiRecommendationEnabled?: boolean;
-  onAiRecommendationEnabledChange: (enabled: boolean) => void;
   className?: string;
 }
 

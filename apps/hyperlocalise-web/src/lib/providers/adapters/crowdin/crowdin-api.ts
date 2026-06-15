@@ -896,6 +896,40 @@ export class CrowdinApiClient {
     return updatedTranslation;
   }
 
+  async replaceApprovedTranslation(
+    projectId: number,
+    request: {
+      translationId: number;
+      stringId: number;
+      languageId: string;
+      text: string;
+    },
+  ): Promise<CrowdinStringTranslation> {
+    const response = await this.patch<CrowdinListResponse<CrowdinStringTranslation>>(
+      `/projects/${projectId}/translations`,
+      [
+        { op: "remove", path: `/${request.translationId}` },
+        {
+          op: "add",
+          path: "/-",
+          value: {
+            stringId: request.stringId,
+            languageId: request.languageId,
+            text: request.text,
+          },
+        },
+      ],
+    );
+    const replacedTranslation = response.data
+      .map((item) => item.data)
+      .findLast((translation) => translation.text === request.text);
+    if (!replacedTranslation) {
+      throw new CrowdinApiError("Crowdin translation replace returned no data", 502, response);
+    }
+
+    return replacedTranslation;
+  }
+
   async getTranslation(
     projectId: number,
     translationId: number,

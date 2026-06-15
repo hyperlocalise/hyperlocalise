@@ -979,30 +979,28 @@ async function saveCrowdinLiveCatTranslation(input: {
     ]);
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
     const existing = preferredLanguageTranslation(translations, approvedTranslationIds);
+    const existingTranslationId = existing?.translationId;
     const saved =
-      existing?.translationId != null
-        ? await client.updateTranslation(projectId, existing.translationId, input.text)
-        : await client.addTranslation(projectId, {
+      existingTranslationId != null && approvedTranslationIds.has(existingTranslationId)
+        ? await client.replaceApprovedTranslation(projectId, {
+            translationId: existingTranslationId,
             stringId,
             languageId: input.targetLocale,
             text: input.text,
-          });
-    const translationId = saved.id ?? existing?.translationId ?? null;
-    const didUpdateExisting = existing?.translationId != null;
-    let isApproved = false;
-    if (didUpdateExisting && translationId != null) {
-      const postSaveApprovals = await client.listTranslationApprovals(
-        projectId,
-        input.targetLocale,
-        Number.isNaN(fileId) ? { stringId } : { fileId },
-      );
-      isApproved = postSaveApprovals.some((approval) => approval.translationId === translationId);
-    }
+          })
+        : existingTranslationId != null
+          ? await client.updateTranslation(projectId, existingTranslationId, input.text)
+          : await client.addTranslation(projectId, {
+              stringId,
+              languageId: input.targetLocale,
+              text: input.text,
+            });
+    const translationId = saved.id ?? existingTranslationId ?? null;
 
     return {
       text: saved.text,
       externalTranslationId: translationId != null ? String(translationId) : null,
-      isApproved,
+      isApproved: false,
     };
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
