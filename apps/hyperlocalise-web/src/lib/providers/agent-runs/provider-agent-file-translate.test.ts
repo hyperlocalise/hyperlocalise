@@ -277,7 +277,7 @@ describe("translateProviderJobFiles", () => {
     ]);
     expect(
       mocks.runSandboxCommandMock.mock.calls.some(([, , args]) =>
-        String(args[2]).includes("--prefilled-entries"),
+        String(args[1]).includes("--prefilled-entries"),
       ),
     ).toBe(true);
   });
