@@ -13,7 +13,7 @@ importers:
         version: 0.0.0-beta.4(@canva/design@2.9.0(@canva/error@2.2.1))(@canva/platform@2.2.2(@canva/error@2.2.1))(react@19.2.7)
       '@canva/app-i18n-kit':
         specifier: ^1.2.0
-        version: 1.2.0(@formatjs/intl@3.1.8(typescript@5.9.3))(intl-messageformat@10.7.18)(react-dom@19.2.7(react@19.2.7))(react-intl@7.1.14(react@19.2.7)(typescript@5.9.3))(react@19.2.7)
+        version: 1.2.0(@formatjs/intl@4.1.13)(intl-messageformat@11.2.8)(react-dom@19.2.7(react@19.2.7))(react-intl@10.1.13(@types/react@19.2.17)(react@19.2.7))(react@19.2.7)
       '@canva/app-ui-kit':
         specifier: ^5.10.0
         version: 5.10.0(@types/react@19.2.17)(mobx@6.16.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -42,8 +42,8 @@ importers:
         specifier: ^19.2.3
         version: 19.2.7(react@19.2.7)
       react-intl:
-        specifier: ^7.1.11
-        version: 7.1.14(react@19.2.7)(typescript@5.9.3)
+        specifier: ^10.0.0
+        version: 10.1.13(@types/react@19.2.17)(react@19.2.7)
     devDependencies:
       '@canva/cli':
         specifier: ^2.0.0
@@ -52,8 +52,8 @@ importers:
         specifier: 6.16.11
         version: 6.16.11
       '@formatjs/ts-transformer':
-        specifier: 3.14.2
-        version: 3.14.2
+        specifier: 4.4.13
+        version: 4.4.13
       '@ngrok/ngrok':
         specifier: 1.7.0
         version: 1.7.0
@@ -188,7 +188,7 @@ importers:
         version: 6.0.1(webpack-dev-server@5.2.5)(webpack@5.107.2)
       webpack-dev-server:
         specifier: 5.2.5
-        version: 5.2.5(debug@4.4.3(supports-color@5.5.0))(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2)
+        version: 5.2.5(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2)
       yargs:
         specifier: 17.7.2
         version: 17.7.2
@@ -1152,25 +1152,30 @@ packages:
   '@formatjs/fast-memoize@2.2.7':
     resolution: {integrity: sha512-Yabmi9nSvyOMrlSeGGWDiH7rf3a7sIwplbvo/dlz9WCIjzIQAfy1RMf4S0X3yG724n5Ghu2GmEl5NJIV6O9sZQ==}
 
+  '@formatjs/fast-memoize@3.1.6':
+    resolution: {integrity: sha512-H5aexk1Le7T9TPmscacZ+1pR6CTa2n1wq+HDVGXhH8TzUlQQpeXzZs91dRtmFHrbeNbjPFPfQujUqm7MHgVoXQ==}
+
   '@formatjs/icu-messageformat-parser@2.11.4':
     resolution: {integrity: sha512-7kR78cRrPNB4fjGFZg3Rmj5aah8rQj9KPzuLsmcSn4ipLXQvC04keycTI1F7kJYDwIXtT2+7IDEto842CfZBtw==}
+
+  '@formatjs/icu-messageformat-parser@3.5.11':
+    resolution: {integrity: sha512-NVsuNsc2dUVG9+4HBJ/srScxtA/18LqGgwtop/tuN/OIBjVl6QA+0KhfZQddDD9sEh2LeVjLFPGVU3ixa3blcA==}
 
   '@formatjs/icu-skeleton-parser@1.8.16':
     resolution: {integrity: sha512-H13E9Xl+PxBd8D5/6TVUluSpxGNvFSlN/b3coUp0e0JpuWXXnQDiavIpY3NnvSp4xhEMoXyyBvVfdFX8jglOHQ==}
 
+  '@formatjs/icu-skeleton-parser@2.1.10':
+    resolution: {integrity: sha512-XuSva+8ZGawk8VnD5VD6UeH8KarQ/Z022zgjHDoHmlNiAewstXuuzXc0Hk5pGFSdG+nNw5bfJKXqj1ZXHn9yUA==}
+
   '@formatjs/intl-localematcher@0.6.2':
     resolution: {integrity: sha512-XOMO2Hupl0wdd172Y06h6kLpBz6Dv+J4okPLl4LPtzbr8f66WbIoy4ev98EBuZ6ZK4h5ydTN6XneT4QVpD7cdA==}
 
-  '@formatjs/intl@3.1.8':
-    resolution: {integrity: sha512-LWXgwI5zTMatvR8w8kCNh/priDTOF/ZssokMBHJ7ZWXFoYLVOYo0EJERD9Eajv+xsfQO1QkuAt77KWQ1OI4mOQ==}
-    peerDependencies:
-      typescript: ^5.6.0
-    peerDependenciesMeta:
-      typescript:
-        optional: true
+  '@formatjs/intl@4.1.13':
+    resolution: {integrity: sha512-dufOl09iREq8V+laVdlGuyoqNmuzqDvyeA3O3k+0XQfvKJgK8bBWFKqYYWejFMKeOij/4LuPKJA+LsshpXQ4sw==}
 
-  '@formatjs/ts-transformer@3.14.2':
-    resolution: {integrity: sha512-c47ij+2Xi4jMDO3Hz01BDF3yB4575Gkoq24sFzVw1K1kpHvITsFfdlXQbhxScBwJi2gBhMpuZ++XsTUZ9O0Law==}
+  '@formatjs/ts-transformer@4.4.13':
+    resolution: {integrity: sha512-MQZyDrwULZ7MrJz6ar4cuCWCVn8HTlEXMEJffZfhpGJMI+RLx6WwmM7aCGeVa7q3rcV9ChAGFym5Bm2ZBUwV8A==}
+    engines: {node: '>= 20.12.0'}
     peerDependencies:
       ts-jest: ^29
     peerDependenciesMeta:
@@ -1985,6 +1990,18 @@ packages:
   '@types/aria-query@5.0.4':
     resolution: {integrity: sha512-rfT93uj5s0PRL7EzccGMs3brplhcrghnDoV26NqKhCAS1hVo+WdNsPvE/yb6ilfr5hi2MEk6d5EWJTKdxg8jVw==}
 
+  '@types/babel__core@7.20.5':
+    resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
+
+  '@types/babel__generator@7.27.0':
+    resolution: {integrity: sha512-ufFd2Xi92OAVPYsy+P4n7/U7e68fex0+Ee8gSG9KX7eo084CWiQ4sdxktvdl0bOPupXtVJPY19zk6EwWqUQ8lg==}
+
+  '@types/babel__template@7.4.4':
+    resolution: {integrity: sha512-h/NUaSyG5EyxBIp8YRxo4RMe2/qQgvyowRwVMzhYhBCONbW8PUsg4lkFMrhgZhUe5z3L3MiLDuvyJ/CaPa2A8A==}
+
+  '@types/babel__traverse@7.28.0':
+    resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
+
   '@types/body-parser@1.19.6':
     resolution: {integrity: sha512-HLFeCYgz89uk22N5Qg3dvGvsv46B8GLvKKo1zKG4NybA8U2DiEO3w9lqGg29t/tfLRJpJ6iQxnVw4OnB7MoM9g==}
 
@@ -2044,9 +2061,6 @@ packages:
   '@types/node-forge@1.3.14':
     resolution: {integrity: sha512-mhVF2BnD4BO+jtOp7z1CdzaK4mbuK0LLQYAvdOLqHTavxFNq4zA1EmYkpnFjP8HOUzedfQkRnp0E2ulSAYSzAw==}
 
-  '@types/node@22.19.19':
-    resolution: {integrity: sha512-dyh/xO2Fh5bYrfWaaqGrRQQGkNdmYw6AmaAUvYeUMNTWQtvb796ikLdmTchRmOlOiIJ1TDXfWgVx1QkUlQ6Hew==}
-
   '@types/node@24.13.0':
     resolution: {integrity: sha512-5vtOqGQr4NJKeEzV441FcOi2MeG9UTWq9LqVLGneDdu4vlX17H8kQ2PA2UmNwCUGPVDj4oBjNhS7ReVEIWJJrg==}
 
@@ -2067,9 +2081,6 @@ packages:
     resolution: {integrity: sha512-jp2L/eY6fn+KgVVQAOqYItbF0VY/YApe5Mz2F0aykSO8gx31bYCZyvSeYxCHKvzHG5eZjc+zyaS5BrBWya2+kQ==}
     peerDependencies:
       '@types/react': ^19.2.0
-
-  '@types/react@19.2.16':
-    resolution: {integrity: sha512-esJiCAnl0kfpNdE69f3So4WJUXy95dLZydX0KwK46riIHDzHM7O9Vtf9xCHW0PXIqvgqNrswl522kA/5yx+F4w==}
 
   '@types/react@19.2.17':
     resolution: {integrity: sha512-MXfmqaVPEVgkBT/aY0aGCkRWWtByiYQXo3xdQ8r5RzuFrPiRn8Gar2tQdXSUQ2GKV3bkXckek89V8wQBY2Q/Aw==}
@@ -3296,6 +3307,9 @@ packages:
   intl-messageformat@10.7.18:
     resolution: {integrity: sha512-m3Ofv/X/tV8Y3tHXLohcuVuhWKo7BBq62cqY15etqmLxg2DZ34AGGgQDeR+SCta2+zICb1NX83af0GJmbQ1++g==}
 
+  intl-messageformat@11.2.8:
+    resolution: {integrity: sha512-l323RCl3qJDVQ8U9j74ut/hVMdg3VPsOHpVMDvFfz9qiq4dPO5ooVYFNVUzzrpgG39a+RLzcXyJb8VFgIU+tUA==}
+
   invariant@2.2.4:
     resolution: {integrity: sha512-phJfQVBuaJM5raOpJjSfkiD6BpbCE4Ns//LaXl6wGYtUBY83nWS6Rf9tXm2e8VaK60JEjYldbPif/A2B1C2gNA==}
 
@@ -4251,14 +4265,11 @@ packages:
     peerDependencies:
       react: ^19.2.7
 
-  react-intl@7.1.14:
-    resolution: {integrity: sha512-VE/0Wi/lHJlBC7APQpCzLUdIt3GB5B0GZrRW8Q+ACbkHI4j+Wwgg9J1TniN6zmLHmPH5gxXcMy+fkSPfw5p1WQ==}
+  react-intl@10.1.13:
+    resolution: {integrity: sha512-3aKnIOIPN6CWsu3jqPpYMlJZ2U0Qnxhd42xGWQNdGIknK/gBudWOHSIx9vN4XKkITokJLr7YTgs4yLUGtbvP9g==}
     peerDependencies:
-      react: 16 || 17 || 18 || 19
-      typescript: ^5.6.0
-    peerDependenciesMeta:
-      typescript:
-        optional: true
+      '@types/react': '19'
+      react: '19'
 
   react-is@16.13.1:
     resolution: {integrity: sha512-24e6ynE2H+OKt4kqsOvNd8kBpV65zoxbA4BVsEOB3ARVWQki/DHzaUoC5KuON/BiccDaCCTZBuOcfZs70kR8bQ==}
@@ -4787,11 +4798,6 @@ packages:
     resolution: {integrity: sha512-faYHw0anBbc/kWF3zFTEnxSFOAGUX9GFbOBthvDdLsIlEoWOFOtS0zgCiQYwIskL9iGXZL3kAXD8OoZ4GmMATA==}
     engines: {node: '>= 18'}
 
-  typescript@5.9.2:
-    resolution: {integrity: sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==}
-    engines: {node: '>=14.17'}
-    hasBin: true
-
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
@@ -4799,9 +4805,6 @@ packages:
 
   undefsafe@2.0.5:
     resolution: {integrity: sha512-WxONCrssBM8TSPRqN5EmsjVrsv4A8X12J4ArBiiayv3DyyG3ZlIg6yysuuSYdZsVz3TKcTg2fd//Ujd4CHV1iA==}
-
-  undici-types@6.21.0:
-    resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
   undici-types@7.18.2:
     resolution: {integrity: sha512-AsuCzffGHJybSaRrmr5eHr81mwJU3kjw6M+uprWvCXiNeN9SOGwQ3Jn8jb8m3Z6izVgknn1R0FTCEAP2QrLY/w==}
@@ -5857,14 +5860,14 @@ snapshots:
       '@canva/platform': 2.2.2(@canva/error@2.2.1)
       react: 19.2.7
 
-  '@canva/app-i18n-kit@1.2.0(@formatjs/intl@3.1.8(typescript@5.9.3))(intl-messageformat@10.7.18)(react-dom@19.2.7(react@19.2.7))(react-intl@7.1.14(react@19.2.7)(typescript@5.9.3))(react@19.2.7)':
+  '@canva/app-i18n-kit@1.2.0(@formatjs/intl@4.1.13)(intl-messageformat@11.2.8)(react-dom@19.2.7(react@19.2.7))(react-intl@10.1.13(@types/react@19.2.17)(react@19.2.7))(react@19.2.7)':
     dependencies:
-      '@formatjs/intl': 3.1.8(typescript@5.9.3)
-      intl-messageformat: 10.7.18
+      '@formatjs/intl': 4.1.13
+      intl-messageformat: 11.2.8
     optionalDependencies:
       react: 19.2.7
       react-dom: 19.2.7(react@19.2.7)
-      react-intl: 7.1.14(react@19.2.7)(typescript@5.9.3)
+      react-intl: 10.1.13(@types/react@19.2.17)(react@19.2.7)
 
   '@canva/app-ui-kit@5.10.0(@types/react@19.2.17)(mobx@6.16.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)':
     dependencies:
@@ -6117,39 +6120,42 @@ snapshots:
     dependencies:
       tslib: 2.8.1
 
+  '@formatjs/fast-memoize@3.1.6': {}
+
   '@formatjs/icu-messageformat-parser@2.11.4':
     dependencies:
       '@formatjs/ecma402-abstract': 2.3.6
       '@formatjs/icu-skeleton-parser': 1.8.16
       tslib: 2.8.1
 
+  '@formatjs/icu-messageformat-parser@3.5.11':
+    dependencies:
+      '@formatjs/icu-skeleton-parser': 2.1.10
+
   '@formatjs/icu-skeleton-parser@1.8.16':
     dependencies:
       '@formatjs/ecma402-abstract': 2.3.6
       tslib: 2.8.1
 
+  '@formatjs/icu-skeleton-parser@2.1.10': {}
+
   '@formatjs/intl-localematcher@0.6.2':
     dependencies:
       tslib: 2.8.1
 
-  '@formatjs/intl@3.1.8(typescript@5.9.3)':
+  '@formatjs/intl@4.1.13':
     dependencies:
-      '@formatjs/ecma402-abstract': 2.3.6
-      '@formatjs/fast-memoize': 2.2.7
-      '@formatjs/icu-messageformat-parser': 2.11.4
-      intl-messageformat: 10.7.18
-      tslib: 2.8.1
-    optionalDependencies:
-      typescript: 5.9.3
+      '@formatjs/fast-memoize': 3.1.6
+      '@formatjs/icu-messageformat-parser': 3.5.11
+      intl-messageformat: 11.2.8
 
-  '@formatjs/ts-transformer@3.14.2':
+  '@formatjs/ts-transformer@4.4.13':
     dependencies:
-      '@formatjs/icu-messageformat-parser': 2.11.4
-      '@types/node': 22.19.19
-      chalk: 4.1.2
+      '@formatjs/icu-messageformat-parser': 3.5.11
+      '@types/babel__core': 7.20.5
+      '@types/node': 24.13.2
       json-stable-stringify: 1.3.0
-      tslib: 2.8.1
-      typescript: 5.9.2
+      typescript: 5.9.3
 
   '@hono/node-server@1.19.14(hono@4.12.25)':
     dependencies:
@@ -6638,7 +6644,7 @@ snapshots:
       webpack: 5.107.2(cssnano@8.0.2(postcss@8.5.15))(esbuild@0.28.0)(postcss@8.5.15)(webpack-cli@6.0.1)
     optionalDependencies:
       type-fest: 4.41.0
-      webpack-dev-server: 5.2.5(debug@4.4.3(supports-color@5.5.0))(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2)
+      webpack-dev-server: 5.2.5(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2)
 
   '@polka/url@1.0.0-next.29': {}
 
@@ -6816,6 +6822,27 @@ snapshots:
 
   '@types/aria-query@5.0.4': {}
 
+  '@types/babel__core@7.20.5':
+    dependencies:
+      '@babel/parser': 7.29.7
+      '@babel/types': 7.29.7
+      '@types/babel__generator': 7.27.0
+      '@types/babel__template': 7.4.4
+      '@types/babel__traverse': 7.28.0
+
+  '@types/babel__generator@7.27.0':
+    dependencies:
+      '@babel/types': 7.29.7
+
+  '@types/babel__template@7.4.4':
+    dependencies:
+      '@babel/parser': 7.29.7
+      '@babel/types': 7.29.7
+
+  '@types/babel__traverse@7.28.0':
+    dependencies:
+      '@babel/types': 7.29.7
+
   '@types/body-parser@1.19.6':
     dependencies:
       '@types/connect': 3.4.38
@@ -6837,7 +6864,7 @@ snapshots:
 
   '@types/connect@3.4.38':
     dependencies:
-      '@types/node': 24.13.0
+      '@types/node': 24.13.2
 
   '@types/debug@4.1.13':
     dependencies:
@@ -6860,11 +6887,6 @@ snapshots:
       '@types/express-serve-static-core': 4.19.8
       '@types/qs': 6.15.1
       '@types/serve-static': 1.15.10
-
-  '@types/hoist-non-react-statics@3.3.7(@types/react@19.2.16)':
-    dependencies:
-      '@types/react': 19.2.16
-      hoist-non-react-statics: 3.3.2
 
   '@types/hoist-non-react-statics@3.3.7(@types/react@19.2.17)':
     dependencies:
@@ -6897,10 +6919,6 @@ snapshots:
     dependencies:
       '@types/node': 24.13.0
 
-  '@types/node@22.19.19':
-    dependencies:
-      undici-types: 6.21.0
-
   '@types/node@24.13.0':
     dependencies:
       undici-types: 7.18.2
@@ -6921,10 +6939,6 @@ snapshots:
     dependencies:
       '@types/react': 19.2.17
 
-  '@types/react@19.2.16':
-    dependencies:
-      csstype: 3.2.3
-
   '@types/react@19.2.17':
     dependencies:
       csstype: 3.2.3
@@ -6934,11 +6948,11 @@ snapshots:
   '@types/send@0.17.6':
     dependencies:
       '@types/mime': 1.3.5
-      '@types/node': 24.13.0
+      '@types/node': 24.13.2
 
   '@types/send@1.2.1':
     dependencies:
-      '@types/node': 24.13.0
+      '@types/node': 24.13.2
 
   '@types/serve-index@1.9.4':
     dependencies:
@@ -7131,7 +7145,7 @@ snapshots:
       webpack: 5.107.2(cssnano@8.0.2(postcss@8.5.15))(esbuild@0.28.0)(postcss@8.5.15)(webpack-cli@6.0.1)
       webpack-cli: 6.0.1(webpack-dev-server@5.2.5)(webpack@5.107.2)
     optionalDependencies:
-      webpack-dev-server: 5.2.5(debug@4.4.3(supports-color@5.5.0))(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2)
+      webpack-dev-server: 5.2.5(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2)
 
   '@xtuc/ieee754@1.2.0': {}
 
@@ -8195,6 +8209,11 @@ snapshots:
       '@formatjs/icu-messageformat-parser': 2.11.4
       tslib: 2.8.1
 
+  intl-messageformat@11.2.8:
+    dependencies:
+      '@formatjs/fast-memoize': 3.1.6
+      '@formatjs/icu-messageformat-parser': 3.5.11
+
   invariant@2.2.4:
     dependencies:
       loose-envify: 1.4.0
@@ -9085,19 +9104,13 @@ snapshots:
       react: 19.2.7
       scheduler: 0.27.0
 
-  react-intl@7.1.14(react@19.2.7)(typescript@5.9.3):
+  react-intl@10.1.13(@types/react@19.2.17)(react@19.2.7):
     dependencies:
-      '@formatjs/ecma402-abstract': 2.3.6
-      '@formatjs/icu-messageformat-parser': 2.11.4
-      '@formatjs/intl': 3.1.8(typescript@5.9.3)
-      '@types/hoist-non-react-statics': 3.3.7(@types/react@19.2.16)
-      '@types/react': 19.2.16
-      hoist-non-react-statics: 3.3.2
-      intl-messageformat: 10.7.18
+      '@formatjs/icu-messageformat-parser': 3.5.11
+      '@formatjs/intl': 4.1.13
+      '@types/react': 19.2.17
+      intl-messageformat: 11.2.8
       react: 19.2.7
-      tslib: 2.8.1
-    optionalDependencies:
-      typescript: 5.9.3
 
   react-is@16.13.1: {}
 
@@ -9449,7 +9462,7 @@ snapshots:
 
   source-map@0.7.6: {}
 
-  spdy-transport@3.0.0:
+  spdy-transport@3.0.0(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       detect-node: 2.1.0
@@ -9460,13 +9473,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  spdy@4.0.2:
+  spdy@4.0.2(supports-color@5.5.0):
     dependencies:
       debug: 4.4.3(supports-color@5.5.0)
       handle-thing: 2.0.1
       http-deceiver: 1.2.7
       select-hose: 2.0.0
-      spdy-transport: 3.0.0
+      spdy-transport: 3.0.0(supports-color@5.5.0)
     transitivePeerDependencies:
       - supports-color
 
@@ -9667,13 +9680,9 @@ snapshots:
       media-typer: 1.1.0
       mime-types: 3.0.2
 
-  typescript@5.9.2: {}
-
   typescript@5.9.3: {}
 
   undefsafe@2.0.5: {}
-
-  undici-types@6.21.0: {}
 
   undici-types@7.18.2: {}
 
@@ -9820,7 +9829,7 @@ snapshots:
       webpack: 5.107.2(cssnano@8.0.2(postcss@8.5.15))(esbuild@0.28.0)(postcss@8.5.15)(webpack-cli@6.0.1)
       webpack-merge: 6.0.1
     optionalDependencies:
-      webpack-dev-server: 5.2.5(debug@4.4.3(supports-color@5.5.0))(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2)
+      webpack-dev-server: 5.2.5(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2)
 
   webpack-dev-middleware@7.4.5(tslib@2.8.1)(webpack@5.107.2):
     dependencies:
@@ -9835,7 +9844,7 @@ snapshots:
     transitivePeerDependencies:
       - tslib
 
-  webpack-dev-server@5.2.5(debug@4.4.3(supports-color@5.5.0))(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2):
+  webpack-dev-server@5.2.5(debug@4.4.3(supports-color@5.5.0))(supports-color@5.5.0)(tslib@2.8.1)(webpack-cli@6.0.1)(webpack@5.107.2):
     dependencies:
       '@types/bonjour': 3.5.13
       '@types/connect-history-api-fallback': 1.5.4
@@ -9862,7 +9871,7 @@ snapshots:
       selfsigned: 5.5.0
       serve-index: 1.9.2
       sockjs: 0.3.24
-      spdy: 4.0.2
+      spdy: 4.0.2(supports-color@5.5.0)
       webpack-dev-middleware: 7.4.5(tslib@2.8.1)(webpack@5.107.2)
       ws: 8.21.0
     optionalDependencies:
