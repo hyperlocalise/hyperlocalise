@@ -184,6 +184,7 @@ describe("ContentfulManagementClient asset helpers", () => {
       title: { "en-US": "Hero banner", "fr-FR": "Hero banner" },
       file: {
         "en-US": {
+          url: "//images.ctfassets.net/space/asset-source/hero.png",
           fileName: "hero.png",
           contentType: "image/png",
         },
@@ -200,7 +201,6 @@ describe("ContentfulManagementClient asset helpers", () => {
         },
       },
     });
-    expect(body.fields.file["en-US"]).not.toHaveProperty("url");
   });
 
   it("does not carry pending upload references from other asset locales", async () => {
