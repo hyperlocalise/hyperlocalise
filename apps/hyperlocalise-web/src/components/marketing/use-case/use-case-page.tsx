@@ -7,7 +7,7 @@ import {
   UseCaseCtaSection,
   UseCaseDifferentiatorSection,
   UseCaseHero,
-  UseCaseProblemSection,
+  UseCaseOverviewSection,
   UseCaseScenarioSection,
   UseCaseWorkflowSection,
 } from "./use-case-sections";
@@ -21,11 +21,11 @@ export function UseCasePage({ content }: UseCasePageProps) {
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
         <section className="px-5 pb-14 pt-8 sm:px-8 lg:px-10 lg:pt-10">
-          <UseCaseHero content={content.hero} />
+          <UseCaseHero content={content} />
         </section>
 
-        <section className="border-t border-border/70 px-5 py-20 sm:px-8 lg:px-10">
-          <UseCaseProblemSection content={content.problem} />
+        <section className="px-5 py-16 sm:px-8 lg:px-10">
+          <UseCaseOverviewSection content={content} />
         </section>
 
         <section className="border-t border-border/70 px-5 py-20 sm:px-8 lg:px-10">
