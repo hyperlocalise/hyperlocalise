@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { ok } from "@/lib/primitives/result/results";
+import { err, ok } from "@/lib/primitives/result/results";
 
 import { resolveAggregatedContentfulWebhookProcessingStatus } from "./events";
 import { localizeContentfulAssetForLocale } from "./image-localization";
@@ -16,7 +16,9 @@ import type { ContentfulTranslatableUnit } from "./types";
 
 const mocks = vi.hoisted(() => {
   const runItemValues: Array<Record<string, unknown>> = [];
+  const loggerWarn = vi.fn();
   return {
+    loggerWarn,
     runItemValues,
     insert: vi.fn(() => ({
       values: vi.fn(async (value: Record<string, unknown>) => {
@@ -26,6 +28,14 @@ const mocks = vi.hoisted(() => {
     assembleStringTranslationContextSnapshot: vi.fn(),
   };
 });
+
+vi.mock("@/lib/log", () => ({
+  createLogger: vi.fn(() => ({
+    warn: mocks.loggerWarn,
+    info: vi.fn(),
+    error: vi.fn(),
+  })),
+}));
 
 vi.mock("@/lib/database", () => ({
   db: {
@@ -47,6 +57,7 @@ vi.mock("./image-localization", () => ({
 describe("contentful automation executor", () => {
   beforeEach(() => {
     mocks.runItemValues.length = 0;
+    mocks.loggerWarn.mockClear();
     mocks.insert.mockClear();
     mocks.assembleStringTranslationContextSnapshot.mockReset();
     vi.mocked(localizeContentfulAssetForLocale).mockReset();
@@ -140,7 +151,13 @@ describe("contentful automation executor", () => {
     });
     vi.mocked(localizeContentfulAssetForLocale).mockImplementation(async (input) => {
       if (input.targetLocale === "de-DE") {
-        throw new Error("Contentful asset upload failed");
+        return err({
+          code: "contentful_request_failed",
+          status: 404,
+          message: "The resource could not be found",
+          operation: "upload_asset_file",
+          contentfulErrorId: "NotFound",
+        });
       }
       return ok({
         sourceAssetId: input.assetId,
@@ -204,6 +221,14 @@ describe("contentful automation executor", () => {
       runQa: true,
       client: {} as ContentfulManagementClient,
       localizedAssetCache: createLocalizedAssetCache(),
+      logContext: {
+        contentfulTranslationRunId: "run-1",
+        workspaceAutomationRunId: "automation-run-1",
+        organizationId: "org-1",
+        runId: "run-1",
+        fieldId: "body",
+        fieldKind: "text",
+      },
     });
 
     expect(mocks.assembleStringTranslationContextSnapshot).toHaveBeenCalledWith(
@@ -262,5 +287,15 @@ describe("contentful automation executor", () => {
         translationPreview: "Hero-Text",
       },
     ]);
+    expect(mocks.loggerWarn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        reason: "embedded_asset_localization_failed",
+        locale: "de-DE",
+        contentfulStatus: 404,
+        contentfulOperation: "upload_asset_file",
+        contentfulErrorId: "NotFound",
+      }),
+      "contentful automation preserved embedded asset references after localization failed",
+    );
   });
 });

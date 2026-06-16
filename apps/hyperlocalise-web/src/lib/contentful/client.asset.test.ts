@@ -27,12 +27,14 @@ describe("ContentfulManagementClient asset helpers", () => {
     let assetCreateRequestInit: RequestInit | undefined;
     let processRequestInit: RequestInit | undefined;
     let uploadRequestInit: RequestInit | undefined;
+    let uploadRequestUrl: string | undefined;
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "https://images.ctfassets.net/space/asset-source/hero.png") {
         return new Response(Buffer.from("source-image"), { status: 200 });
       }
 
       if (url.endsWith("/uploads") && init?.method === "POST") {
+        uploadRequestUrl = url;
         uploadRequestInit = init;
         return Response.json({ sys: { id: "upload-1" } });
       }
@@ -95,6 +97,7 @@ describe("ContentfulManagementClient asset helpers", () => {
     }
 
     expect(localizedResult.value.sys.id).toBe("asset-localized");
+    expect(uploadRequestUrl).toBe("https://upload.contentful.com/spaces/space/uploads");
     expect(new Headers(uploadRequestInit?.headers).get("content-type")).toBe(
       "application/octet-stream",
     );
@@ -119,8 +122,10 @@ describe("ContentfulManagementClient asset helpers", () => {
     let assetUpdateRequestInit: RequestInit | undefined;
     let processRequestInit: RequestInit | undefined;
     let uploadRequestInit: RequestInit | undefined;
+    let uploadRequestUrl: string | undefined;
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/uploads") && init?.method === "POST") {
+        uploadRequestUrl = url;
         uploadRequestInit = init;
         return Response.json({ sys: { id: "upload-2" } });
       }
@@ -166,6 +171,7 @@ describe("ContentfulManagementClient asset helpers", () => {
     }
 
     expect(localizedResult.value.sys.id).toBe("asset-source");
+    expect(uploadRequestUrl).toBe("https://upload.contentful.com/spaces/space/uploads");
     expect(new Headers(uploadRequestInit?.headers).get("content-type")).toBe(
       "application/octet-stream",
     );

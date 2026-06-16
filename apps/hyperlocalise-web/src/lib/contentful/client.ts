@@ -8,6 +8,7 @@ import type {
 } from "./types";
 
 const CONTENTFUL_CMA_BASE_URL = "https://api.contentful.com";
+const CONTENTFUL_UPLOAD_BASE_URL = "https://upload.contentful.com";
 
 export const CONTENTFUL_WEBHOOK_SECRET_HEADER = "x-hyperlocalise-webhook-secret";
 export const CONTENTFUL_WEBHOOK_PUBLISH_TOPIC = "Entry.publish";
@@ -32,6 +33,7 @@ export type ContentfulClientError = {
   code: "contentful_request_failed";
   status: number;
   message: string;
+  operation?: string;
   contentfulErrorId?: string;
 };
 
@@ -56,6 +58,7 @@ function parseContentfulManagementError(text: string): {
 function buildContentfulClientError(input: {
   status: number;
   fallbackMessage: string;
+  operation?: string;
   responseText?: string;
 }): ContentfulClientError {
   const parsed = input.responseText ? parseContentfulManagementError(input.responseText) : {};
@@ -63,6 +66,7 @@ function buildContentfulClientError(input: {
     code: "contentful_request_failed",
     status: input.status,
     message: parsed.message ?? input.fallbackMessage,
+    ...(input.operation ? { operation: input.operation } : {}),
     ...(parsed.contentfulErrorId ? { contentfulErrorId: parsed.contentfulErrorId } : {}),
   };
 }
@@ -117,6 +121,8 @@ export class ContentfulManagementClient {
   private async request<T>(
     path: string,
     init: RequestInit = {},
+    operation?: string,
+    baseUrl = CONTENTFUL_CMA_BASE_URL,
   ): Promise<Result<T, ContentfulClientError>> {
     const fetchImpl = this.options.fetchImpl ?? fetch;
     const headers = new Headers(init.headers);
@@ -127,7 +133,7 @@ export class ContentfulManagementClient {
 
     let response: Response;
     try {
-      response = await fetchImpl(`${CONTENTFUL_CMA_BASE_URL}${path}`, {
+      response = await fetchImpl(`${baseUrl}${path}`, {
         ...init,
         headers,
       });
@@ -136,6 +142,7 @@ export class ContentfulManagementClient {
         buildContentfulClientError({
           status: 0,
           fallbackMessage: "Contentful request failed before receiving a response",
+          operation,
         }),
       );
     }
@@ -149,6 +156,7 @@ export class ContentfulManagementClient {
           buildContentfulClientError({
             status: response.status,
             fallbackMessage: `Contentful request failed with status ${response.status}`,
+            operation,
           }),
         );
       }
@@ -157,6 +165,7 @@ export class ContentfulManagementClient {
         buildContentfulClientError({
           status: response.status,
           fallbackMessage: `Contentful request failed with status ${response.status}`,
+          operation,
           responseText,
         }),
       );
@@ -174,6 +183,7 @@ export class ContentfulManagementClient {
         buildContentfulClientError({
           status: response.status,
           fallbackMessage: "Contentful response body could not be read",
+          operation,
         }),
       );
     }
@@ -189,6 +199,7 @@ export class ContentfulManagementClient {
         buildContentfulClientError({
           status: response.status,
           fallbackMessage: "Contentful response body was not valid JSON",
+          operation,
           responseText: text,
         }),
       );
@@ -203,6 +214,10 @@ export class ContentfulManagementClient {
 
   private spacePath(path: string) {
     return `/spaces/${encodeURIComponent(this.options.spaceId)}${path}`;
+  }
+
+  private uploadPath(path: string) {
+    return `${this.spacePath(path)}`;
   }
 
   async validateConnection(): Promise<
@@ -227,7 +242,7 @@ export class ContentfulManagementClient {
   async listLocales(): Promise<Result<ContentfulLocale[], ContentfulClientError>> {
     const responseResult = await this.request<{
       items: Array<{ code: string; name: string; default?: boolean }>;
-    }>(this.environmentPath("/locales"));
+    }>(this.environmentPath("/locales"), undefined, "list_locales");
     if (isErr(responseResult)) {
       return err(responseResult.error);
     }
@@ -243,6 +258,8 @@ export class ContentfulManagementClient {
   async getEntry(entryId: string): Promise<Result<ContentfulEntry, ContentfulClientError>> {
     return this.request<ContentfulEntry>(
       this.environmentPath(`/entries/${encodeURIComponent(entryId)}`),
+      undefined,
+      "get_entry",
     );
   }
 
@@ -251,6 +268,8 @@ export class ContentfulManagementClient {
   ): Promise<Result<ContentfulContentType, ContentfulClientError>> {
     return this.request<ContentfulContentType>(
       this.environmentPath(`/content_types/${encodeURIComponent(contentTypeId)}`),
+      undefined,
+      "get_content_type",
     );
   }
 
@@ -293,6 +312,8 @@ export class ContentfulManagementClient {
   async getAsset(assetId: string): Promise<Result<ContentfulAsset, ContentfulClientError>> {
     return this.request<ContentfulAsset>(
       this.environmentPath(`/assets/${encodeURIComponent(assetId)}`),
+      undefined,
+      "get_asset",
     );
   }
 
@@ -307,6 +328,7 @@ export class ContentfulManagementClient {
         code: "contentful_request_failed",
         status: 404,
         message: `Contentful asset ${input.asset.sys.id} has no file for locale ${input.locale}`,
+        operation: "download_asset_file",
       });
     }
 
@@ -319,6 +341,7 @@ export class ContentfulManagementClient {
         code: "contentful_request_failed",
         status: 0,
         message: "Failed to download Contentful asset file before receiving a response",
+        operation: "download_asset_file",
       });
     }
     if (!response.ok) {
@@ -326,6 +349,7 @@ export class ContentfulManagementClient {
         code: "contentful_request_failed",
         status: response.status,
         message: `Failed to download Contentful asset file with status ${response.status}`,
+        operation: "download_asset_file",
       });
     }
 
@@ -337,6 +361,7 @@ export class ContentfulManagementClient {
         code: "contentful_request_failed",
         status: response.status,
         message: "Contentful asset file response body could not be read",
+        operation: "download_asset_file",
       });
     }
 
@@ -356,39 +381,48 @@ export class ContentfulManagementClient {
     title?: string;
     description?: string;
   }): Promise<Result<ContentfulAsset, ContentfulClientError>> {
-    const uploadResult = await this.request<{ sys: { id: string } }>(this.spacePath("/uploads"), {
-      method: "POST",
-      headers: {
-        "content-type": "application/octet-stream",
+    const uploadResult = await this.request<{ sys: { id: string } }>(
+      this.uploadPath("/uploads"),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/octet-stream",
+        },
+        body: new Uint8Array(input.buffer),
       },
-      body: new Uint8Array(input.buffer),
-    });
+      "upload_asset_file",
+      CONTENTFUL_UPLOAD_BASE_URL,
+    );
     if (isErr(uploadResult)) {
       return err(uploadResult.error);
     }
 
-    const assetResult = await this.request<ContentfulAsset>(this.environmentPath("/assets"), {
-      method: "POST",
-      body: JSON.stringify({
-        fields: {
-          title: { [input.locale]: input.title ?? input.fileName },
-          ...(input.description ? { description: { [input.locale]: input.description } } : {}),
-          file: {
-            [input.locale]: {
-              contentType: input.contentType,
-              fileName: input.fileName,
-              uploadFrom: {
-                sys: {
-                  type: "Link",
-                  linkType: "Upload",
-                  id: uploadResult.value.sys.id,
+    const assetResult = await this.request<ContentfulAsset>(
+      this.environmentPath("/assets"),
+      {
+        method: "POST",
+        body: JSON.stringify({
+          fields: {
+            title: { [input.locale]: input.title ?? input.fileName },
+            ...(input.description ? { description: { [input.locale]: input.description } } : {}),
+            file: {
+              [input.locale]: {
+                contentType: input.contentType,
+                fileName: input.fileName,
+                uploadFrom: {
+                  sys: {
+                    type: "Link",
+                    linkType: "Upload",
+                    id: uploadResult.value.sys.id,
+                  },
                 },
               },
             },
           },
-        },
-      }),
-    });
+        }),
+      },
+      "create_localized_asset",
+    );
     if (isErr(assetResult)) {
       return err(assetResult.error);
     }
@@ -403,6 +437,7 @@ export class ContentfulManagementClient {
           "X-Contentful-Version": String(assetResult.value.sys.version),
         },
       },
+      "process_localized_asset_file",
     );
     if (isErr(processResult)) {
       return err(processResult.error);
@@ -420,13 +455,18 @@ export class ContentfulManagementClient {
     title?: string;
     description?: string;
   }): Promise<Result<ContentfulAsset, ContentfulClientError>> {
-    const uploadResult = await this.request<{ sys: { id: string } }>(this.spacePath("/uploads"), {
-      method: "POST",
-      headers: {
-        "content-type": "application/octet-stream",
+    const uploadResult = await this.request<{ sys: { id: string } }>(
+      this.uploadPath("/uploads"),
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/octet-stream",
+        },
+        body: new Uint8Array(input.buffer),
       },
-      body: new Uint8Array(input.buffer),
-    });
+      "upload_asset_file",
+      CONTENTFUL_UPLOAD_BASE_URL,
+    );
     if (isErr(uploadResult)) {
       return err(uploadResult.error);
     }
@@ -474,6 +514,7 @@ export class ContentfulManagementClient {
         },
         body: JSON.stringify({ fields }),
       },
+      "update_asset_locale_file",
     );
     if (isErr(assetResult)) {
       return err(assetResult.error);
@@ -489,6 +530,7 @@ export class ContentfulManagementClient {
           "X-Contentful-Version": String(assetResult.value.sys.version),
         },
       },
+      "process_asset_locale_file",
     );
     if (isErr(processResult)) {
       return err(processResult.error);
@@ -629,6 +671,7 @@ export class ContentfulManagementClient {
       code: "contentful_request_failed",
       status: 409,
       message: "Contentful entry version conflict persisted after retries",
+      operation: "update_entry_drafts",
     });
   }
 }

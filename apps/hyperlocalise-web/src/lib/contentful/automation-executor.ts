@@ -188,6 +188,7 @@ function getContentfulAutomationErrorLogDetails(error: unknown, fallback: string
   return {
     errorMessage,
     contentfulStatus: error.status,
+    ...(error.operation ? { contentfulOperation: error.operation } : {}),
     ...(error.contentfulErrorId ? { contentfulErrorId: error.contentfulErrorId } : {}),
   };
 }
