@@ -542,7 +542,7 @@ type UploadTranslationsRequest struct {
 	// Note: Required for string based API.
 	BranchID int `json:"branchId,omitempty"`
 	// Directory Identifier for import.
-	// Note: Required for string based API.
+	// Note: Used for string based API; mutually exclusive with branchId.
 	DirectoryID int `json:"directoryId,omitempty"`
 	// Defines whether to add translation if it's the same as the source string.
 	// Default: false.
@@ -568,6 +568,9 @@ func (r *UploadTranslationsRequest) Validate() error {
 	}
 	if r.FileID > 0 && (r.BranchID > 0 || r.DirectoryID > 0) {
 		return errors.New("fileId cannot be used with branchId or directoryId in the same request")
+	}
+	if r.BranchID > 0 && r.DirectoryID > 0 {
+		return errors.New("only one of branchId or directoryId may be set")
 	}
 	return nil
 }

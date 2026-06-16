@@ -361,6 +361,11 @@ func TestUploadTranslationsRequestValidate(t *testing.T) {
 			err:  "fileId cannot be used with branchId or directoryId in the same request",
 		},
 		{
+			name: "branchId and directoryId together",
+			req:  &UploadTranslationsRequest{StorageID: 1, BranchID: 2, DirectoryID: 3},
+			err:  "only one of branchId or directoryId may be set",
+		},
+		{
 			name: "valid request with branchId",
 			req: &UploadTranslationsRequest{
 				StorageID: 1, BranchID: 3,
