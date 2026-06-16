@@ -1,17 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  selectMock,
-  selectWhereMock,
-  transactionMock,
-  updateMock,
-} = vi.hoisted(() => {
+const { selectMock, selectWhereMock, transactionMock, updateMock } = vi.hoisted(() => {
   const cancelJobsWhereMock = vi.fn(async () => undefined);
   const cancelJobsSetMock = vi.fn(() => ({ where: cancelJobsWhereMock }));
   const transactionUpdateMock = vi.fn(() => ({ set: cancelJobsSetMock }));
-  const transactionMock = vi.fn(async (callback: (tx: { update: typeof transactionUpdateMock }) => Promise<void>) => {
-    await callback({ update: transactionUpdateMock });
-  });
+  const transactionMock = vi.fn(
+    async (callback: (tx: { update: typeof transactionUpdateMock }) => Promise<void>) => {
+      await callback({ update: transactionUpdateMock });
+    },
+  );
 
   const selectWhereMock = vi.fn(async () => [{ id: "job_stale_1" }, { id: "job_stale_2" }]);
   const selectInnerJoinMock = vi.fn(() => ({ where: selectWhereMock }));
