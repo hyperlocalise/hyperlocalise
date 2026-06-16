@@ -59,7 +59,7 @@
     "node-fetch": "3.3.2",
     "node-forge": "1.4.0",
     "nodemon": "3.1.14",
-    "open": "8.4.2",
+    "open": "11.0.0",
     "postcss-loader": "8.2.1",
     "react-refresh": "0.18.0",
     "style-loader": "4.0.0",
