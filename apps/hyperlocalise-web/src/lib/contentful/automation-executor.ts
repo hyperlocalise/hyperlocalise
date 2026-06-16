@@ -336,6 +336,7 @@ export async function translateTextUnit(input: {
       : [];
     qaFindings.push(...findings);
     const hasQaError = contentfulQaFindingsContainError(findings);
+    let embeddedAssetLocalizationFailed = false;
     if (hasQaError) {
       if (input.logContext) {
         logger.warn(
@@ -361,6 +362,7 @@ export async function translateTextUnit(input: {
             cache: input.localizedAssetCache,
           });
         } catch (error) {
+          embeddedAssetLocalizationFailed = true;
           if (input.logContext) {
             logger.warn(
               {
@@ -394,7 +396,11 @@ export async function translateTextUnit(input: {
       runId: input.runId,
       unit: input.unit,
       locale: translation.locale,
-      status: hasQaError ? "qa_failed" : "translated",
+      status: hasQaError
+        ? "qa_failed"
+        : embeddedAssetLocalizationFailed
+          ? "translated_partial"
+          : "translated",
       translatedText: translation.text,
       qaFindings: findings,
     });

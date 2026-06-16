@@ -258,7 +258,7 @@ describe("contentful automation executor", () => {
         runId: "run-1",
         fieldId: "body",
         locale: "de-DE",
-        status: "translated",
+        status: "translated_partial",
         translationPreview: "Hero-Text",
       },
     ]);

@@ -90,6 +90,20 @@ type ContentfulAssetUploadFile = {
   };
 };
 
+function prepareAssetFilesForLocaleUpdate(input: {
+  existingFiles?: ContentfulAsset["fields"]["file"];
+  locale: string;
+  file: ContentfulAssetUploadFile;
+}): ContentfulAsset["fields"]["file"] {
+  const files: NonNullable<ContentfulAsset["fields"]["file"]> = {};
+  for (const [locale, existingFile] of Object.entries(input.existingFiles ?? {})) {
+    const { url: _url, ...fileWithoutProcessedUrl } = existingFile;
+    files[locale] = fileWithoutProcessedUrl;
+  }
+  files[input.locale] = input.file;
+  return files;
+}
+
 export class ContentfulManagementClient {
   constructor(
     private readonly options: {
@@ -444,10 +458,11 @@ export class ContentfulManagementClient {
             },
           }
         : {}),
-      file: {
-        ...input.asset.fields.file,
-        [input.locale]: file,
-      },
+      file: prepareAssetFilesForLocaleUpdate({
+        existingFiles: input.asset.fields.file,
+        locale: input.locale,
+        file,
+      }),
     };
 
     const assetResult = await this.request<ContentfulAsset>(

@@ -194,6 +194,7 @@ describe("ContentfulManagementClient asset helpers", () => {
         },
       },
     });
+    expect(body.fields.file["en-US"]).not.toHaveProperty("url");
   });
 
   it("fails when the requested asset locale has no file", async () => {
