@@ -217,9 +217,10 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
 			continue
 		}
-		seen[entry.key] = struct{}{}
+
 		b.WriteString(d.template[cursor:entry.valueStart])
 		if value, ok := values[entry.key]; ok {
+			seen[entry.key] = struct{}{}
 			b.WriteString(encodeJavaPropertiesValue(value))
 		} else {
 			b.WriteString(d.template[entry.valueStart:entry.valueEnd])
@@ -228,11 +229,7 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	}
 	b.WriteString(d.template[cursor:])
 
-	missingCap := len(values) - len(seen)
-	if missingCap < 0 {
-		missingCap = 0
-	}
-	missing := make([]string, 0, missingCap)
+	missing := make([]string, 0, len(values)-len(seen))
 	for key := range values {
 		if _, ok := seen[key]; ok {
 			continue
