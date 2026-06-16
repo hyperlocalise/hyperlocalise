@@ -228,7 +228,11 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	}
 	b.WriteString(d.template[cursor:])
 
-	missing := make([]string, 0, len(values)-len(seen))
+	missingCap := len(values) - len(seen)
+	if missingCap < 0 {
+		missingCap = 0
+	}
+	missing := make([]string, 0, missingCap)
 	for key := range values {
 		if _, ok := seen[key]; ok {
 			continue
@@ -277,30 +281,43 @@ func readPropertiesLogicalLine(text string, start int, lineNumber int) (properti
 	firstPhysicalLine := true
 
 	for {
-		contentStart, contentEnd, next := readPropertiesPhysicalLine(text, pos)
-		appendStart := contentStart
-		if !firstPhysicalLine {
-			appendStart = skipPropertiesPhysicalWhitespace(text, appendStart, contentEnd)
+		// Use the already-calculated physical line bounds for the first iteration
+		// to avoid redundant scanning.
+		var pStart, pEnd, pNext int
+		if firstPhysicalLine {
+			pStart, pEnd, pNext = contentStart, contentEnd, next
+		} else {
+			pStart, pEnd, pNext = readPropertiesPhysicalLine(text, pos)
 		}
-		appendEnd := contentEnd
-		continued := propertiesLineContinues(text[contentStart:contentEnd])
+
+		appendStart := pStart
+		if !firstPhysicalLine {
+			appendStart = skipPropertiesPhysicalWhitespace(text, appendStart, pEnd)
+		}
+		appendEnd := pEnd
+		continued := propertiesLineContinues(text[pStart:pEnd])
 		if continued {
 			appendEnd--
 		}
 		appendPropertiesRawSpan(&b, &boundaryRaw, text, appendStart, appendEnd)
+
 		if !continued {
 			return propertiesLogicalLine{
 				text:        b.String(),
 				rawStart:    start,
-				rawEnd:      contentEnd,
+				rawEnd:      pEnd,
 				boundaryRaw: boundaryRaw,
 				line:        lineNumber,
-			}, next, nil
+			}, pNext, nil
 		}
-		if next >= len(text) {
-			return propertiesLogicalLine{}, next, fmt.Errorf("line %d: continuation escape at end of file", lineNumber)
+
+		if pNext >= len(text) {
+			// Accurately report the line where the dangling continuation was found.
+			errLine := lineNumber + strings.Count(text[start:pEnd], "\n")
+			return propertiesLogicalLine{}, pNext, fmt.Errorf("line %d: continuation escape at end of file", errLine)
 		}
-		pos = next
+
+		pos = pNext
 		firstPhysicalLine = false
 	}
 }
