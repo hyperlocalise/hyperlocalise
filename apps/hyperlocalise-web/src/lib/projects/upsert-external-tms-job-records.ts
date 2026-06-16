@@ -234,7 +234,7 @@ export async function reconcileMissingExternalTmsJobs(input: {
   syncedJobIds: string[];
 }) {
   if (input.syncedJobIds.length === 0) {
-    return 0;
+    return removeAllExternalTmsJobsForProject(input);
   }
 
   const staleJobs = await db
