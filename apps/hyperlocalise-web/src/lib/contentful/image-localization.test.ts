@@ -23,7 +23,7 @@ describe("contentful image localization", () => {
     });
   });
 
-  it("downloads, localizes, and uploads a Contentful asset for the target locale", async () => {
+  it("downloads, localizes, and updates the Contentful asset target locale", async () => {
     const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
       if (url === "https://images.ctfassets.net/space/asset-source/hero.png") {
         return new Response(Buffer.from("source-image"), { status: 200 });
@@ -33,9 +33,9 @@ describe("contentful image localization", () => {
         return Response.json({ sys: { id: "upload-1" } });
       }
 
-      if (url.endsWith("/assets") && init?.method === "POST") {
+      if (url.endsWith("/assets/asset-source") && init?.method === "PUT") {
         return Response.json({
-          sys: { id: "asset-localized", version: 1 },
+          sys: { id: "asset-source", version: 2 },
           fields: {},
         });
       }
@@ -56,7 +56,7 @@ describe("contentful image localization", () => {
         });
       }
 
-      if (url.endsWith("/assets/asset-localized/files/fr-FR/process") && init?.method === "PUT") {
+      if (url.endsWith("/assets/asset-source/files/fr-FR/process") && init?.method === "PUT") {
         return new Response(null, { status: 204 });
       }
 
@@ -83,7 +83,7 @@ describe("contentful image localization", () => {
     }
     expect(result.value).toEqual({
       sourceAssetId: "asset-source",
-      localizedAssetId: "asset-localized",
+      localizedAssetId: "asset-source",
       fileName: "hero-fr-fr.png",
     });
     expect(regenerateImageFromAttachment).toHaveBeenCalledWith(
@@ -91,5 +91,58 @@ describe("contentful image localization", () => {
       "image/png",
       expect.stringContaining("Target locale: fr-FR"),
     );
+  });
+
+  it("reuses an existing target-locale Contentful asset file", async () => {
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.endsWith("/assets/asset-source")) {
+        return Response.json({
+          sys: { id: "asset-source", version: 1 },
+          fields: {
+            title: { "en-US": "Hero banner", "fr-FR": "Bannière hero" },
+            file: {
+              "en-US": {
+                url: "//images.ctfassets.net/space/asset-source/hero.png",
+                fileName: "hero.png",
+                contentType: "image/png",
+              },
+              "fr-FR": {
+                url: "//images.ctfassets.net/space/asset-source/hero-fr.png",
+                fileName: "hero-fr.png",
+                contentType: "image/png",
+              },
+            },
+          },
+        });
+      }
+
+      return new Response(null, { status: 404 });
+    });
+
+    const client = new ContentfulManagementClient({
+      accessToken: "token",
+      spaceId: "space",
+      environmentId: "master",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const result = await localizeContentfulAssetForLocale({
+      client,
+      assetId: "asset-source",
+      sourceLocale: "en-US",
+      targetLocale: "fr-FR",
+      fieldName: "Hero Image",
+    });
+
+    if (isErr(result)) {
+      throw new Error("expected existing localized asset file");
+    }
+    expect(result.value).toEqual({
+      sourceAssetId: "asset-source",
+      localizedAssetId: "asset-source",
+      fileName: "hero-fr.png",
+    });
+    expect(regenerateImageFromAttachment).not.toHaveBeenCalled();
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 });

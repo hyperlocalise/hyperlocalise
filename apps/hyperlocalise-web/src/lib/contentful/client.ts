@@ -78,6 +78,18 @@ type ContentfulAssetFileDownload = {
   contentType: string;
 };
 
+type ContentfulAssetUploadFile = {
+  contentType: string;
+  fileName: string;
+  uploadFrom: {
+    sys: {
+      type: "Link";
+      linkType: "Upload";
+      id: string;
+    };
+  };
+};
+
 export class ContentfulManagementClient {
   constructor(
     private readonly options: {
@@ -363,6 +375,91 @@ export class ContentfulManagementClient {
         },
       }),
     });
+    if (isErr(assetResult)) {
+      return err(assetResult.error);
+    }
+
+    const processResult = await this.request<void>(
+      this.environmentPath(
+        `/assets/${encodeURIComponent(assetResult.value.sys.id)}/files/${encodeURIComponent(input.locale)}/process`,
+      ),
+      {
+        method: "PUT",
+        headers: {
+          "X-Contentful-Version": String(assetResult.value.sys.version),
+        },
+      },
+    );
+    if (isErr(processResult)) {
+      return err(processResult.error);
+    }
+
+    return ok(assetResult.value);
+  }
+
+  async updateAssetLocaleFile(input: {
+    asset: ContentfulAsset;
+    locale: string;
+    fileName: string;
+    contentType: string;
+    buffer: Buffer;
+    title?: string;
+    description?: string;
+  }): Promise<Result<ContentfulAsset, ContentfulClientError>> {
+    const uploadResult = await this.request<{ sys: { id: string } }>(this.spacePath("/uploads"), {
+      method: "POST",
+      headers: {
+        "content-type": "application/octet-stream",
+      },
+      body: new Uint8Array(input.buffer),
+    });
+    if (isErr(uploadResult)) {
+      return err(uploadResult.error);
+    }
+
+    const file: ContentfulAssetUploadFile = {
+      contentType: input.contentType,
+      fileName: input.fileName,
+      uploadFrom: {
+        sys: {
+          type: "Link",
+          linkType: "Upload",
+          id: uploadResult.value.sys.id,
+        },
+      },
+    };
+    const fields: ContentfulAsset["fields"] = {
+      ...input.asset.fields,
+      title: {
+        ...input.asset.fields.title,
+        [input.locale]: input.asset.fields.title?.[input.locale] ?? input.title ?? input.fileName,
+      },
+      ...(input.asset.fields.description || input.description
+        ? {
+            description: {
+              ...input.asset.fields.description,
+              ...(input.description && !input.asset.fields.description?.[input.locale]
+                ? { [input.locale]: input.description }
+                : {}),
+            },
+          }
+        : {}),
+      file: {
+        ...input.asset.fields.file,
+        [input.locale]: file,
+      },
+    };
+
+    const assetResult = await this.request<ContentfulAsset>(
+      this.environmentPath(`/assets/${encodeURIComponent(input.asset.sys.id)}`),
+      {
+        method: "PUT",
+        headers: {
+          "X-Contentful-Version": String(input.asset.sys.version),
+        },
+        body: JSON.stringify({ fields }),
+      },
+    );
     if (isErr(assetResult)) {
       return err(assetResult.error);
     }
