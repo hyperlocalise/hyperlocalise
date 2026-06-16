@@ -223,6 +223,95 @@ describe("contentful field detector", () => {
     });
   });
 
+  it("keeps empty rich-text nodes structural instead of translating them", () => {
+    const sourceValue = {
+      nodeType: "document",
+      data: {},
+      content: [
+        {
+          nodeType: "paragraph",
+          data: {},
+          content: [
+            {
+              nodeType: "text",
+              value:
+                "A peaceful walk through the park as the sun rises, with birds singing and fresh air setting a calm mood for the day.",
+              marks: [],
+              data: {},
+            },
+          ],
+        },
+        {
+          nodeType: "embedded-asset-block",
+          data: {
+            target: {
+              sys: { type: "Link", linkType: "Asset", id: "asset-inline" },
+            },
+          },
+          content: [],
+        },
+        {
+          nodeType: "paragraph",
+          data: {},
+          content: [{ nodeType: "text", value: "", marks: [], data: {} }],
+        },
+      ],
+    };
+
+    const units = detectContentfulTranslatableFields({
+      entry: {
+        sys: {
+          id: "entry-1",
+          version: 1,
+          contentType: { sys: { id: "helpCenterArticle" } },
+        },
+        fields: {
+          content: {
+            "en-US": sourceValue,
+          },
+        },
+      },
+      contentType: {
+        sys: { id: "helpCenterArticle" },
+        fields: [{ id: "content", name: "Content", type: "RichText", localized: true }],
+      },
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      fieldConfig: { fieldMode: "auto" },
+    });
+
+    expect(units[0]?.kind === "text" ? units[0].sourceText : "").toBe(
+      JSON.stringify([
+        "A peaceful walk through the park as the sun rises, with birds singing and fresh air setting a calm mood for the day.",
+      ]),
+    );
+
+    const formatted = formatTranslatedValueForContentful({
+      sourceValue,
+      translatedText: JSON.stringify(["Une promenade paisible dans le parc au lever du soleil."]),
+      valueKind: "rich_text",
+    });
+
+    expect(formatted).toMatchObject({
+      content: [
+        {
+          content: [{ value: "Une promenade paisible dans le parc au lever du soleil." }],
+        },
+        {
+          nodeType: "embedded-asset-block",
+          data: {
+            target: {
+              sys: { type: "Link", linkType: "Asset", id: "asset-inline" },
+            },
+          },
+        },
+        {
+          content: [{ value: "" }],
+        },
+      ],
+    });
+  });
+
   it("detects localized asset link fields for image translation", () => {
     const imageContentType: ContentfulContentType = {
       sys: { id: "marketingPage" },

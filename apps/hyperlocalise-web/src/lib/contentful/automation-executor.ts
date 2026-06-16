@@ -373,24 +373,9 @@ export async function translateTextUnit(input: {
                   "contentful_embedded_asset_localization_failed",
                 ),
               },
-              "contentful automation blocked draft writeback after embedded asset localization failed",
+              "contentful automation preserved embedded asset references after localization failed",
             );
           }
-          await createTextRunItem({
-            runId: input.runId,
-            unit: input.unit,
-            locale: translation.locale,
-            status: "failed",
-            translatedText: translation.text,
-            qaFindings: findings,
-            error: {
-              message: getContentfulAutomationErrorMessage(
-                error,
-                "contentful_embedded_asset_localization_failed",
-              ),
-            },
-          });
-          continue;
         }
       }
 
