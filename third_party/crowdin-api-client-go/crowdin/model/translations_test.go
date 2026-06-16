@@ -351,9 +351,36 @@ func TestUploadTranslationsRequestValidate(t *testing.T) {
 			err:  "storageId is required",
 		},
 		{
-			name: "one of fileId or branchId is required",
+			name: "fileId and branchId together",
 			req:  &UploadTranslationsRequest{StorageID: 1, FileID: 2, BranchID: 3},
-			err:  "fileId and branchId can not be used at the same request",
+			err:  "fileId cannot be used with branchId or directoryId in the same request",
+		},
+		{
+			name: "fileId and directoryId together",
+			req:  &UploadTranslationsRequest{StorageID: 1, FileID: 2, DirectoryID: 3},
+			err:  "fileId cannot be used with branchId or directoryId in the same request",
+		},
+		{
+			name: "branchId and directoryId together",
+			req:  &UploadTranslationsRequest{StorageID: 1, BranchID: 2, DirectoryID: 3},
+			err:  "only one of branchId or directoryId may be set",
+		},
+		{
+			name: "valid request with branchId",
+			req: &UploadTranslationsRequest{
+				StorageID: 1, BranchID: 3,
+				ImportEqSuggestions: toPtr(true), AutoApproveImported: toPtr(true), TranslateHidden: toPtr(true),
+				AddToTM: toPtr(false), MarkAddedAsDone: toPtr(true),
+			},
+			valid: true,
+		},
+		{
+			name: "valid request with directoryId",
+			req: &UploadTranslationsRequest{
+				StorageID: 1, DirectoryID: 3,
+				ImportEqSuggestions: toPtr(true),
+			},
+			valid: true,
 		},
 		{
 			name: "valid request",
