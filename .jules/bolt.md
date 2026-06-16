@@ -63,6 +63,14 @@
 ## 2026-06-20 - Optimizing XCStrings path and key construction
 **Learning:** XCStrings parsing involves frequent recursive construction of path labels (e.g., `strings.KEY.localizations.LOCALE`). Using `fmt.Sprintf` for these labels in loops or recursion introduces significant reflection overhead. String concatenation is a much more efficient alternative.
 **Action:** Replaced `fmt.Sprintf` with string concatenation in `internal/i18n/translationfileparser/xcstrings_parser.go`, resulting in ~10% faster parsing and ~14% fewer allocations.
+
+## 2026-07-28 - Eliminating O(N²) line-number counting in sequential parsers
+**Learning:** Repeatedly calling a function that scans the entire prefix of a file to count newlines (e.g., `lineNumberAt(text, offset)`) inside a parser loop leads to $O(N^2)$ complexity. For sequential parsers, tracking a `currentLine` counter incrementally as the parser advances is significantly more efficient ($O(N)$).
+**Action:** Updated `JavaPropertiesParser` and `AppleStringsParser` to track line numbers incrementally, avoiding massive slowdowns on large localization files.
+
+## 2026-07-30 - Fast-paths for single-line properties in escaped formats
+**Learning:** For formats that support logical line continuations (like Java `.properties`), allocating a `strings.Builder` and a "mapping" slice for every line adds significant GC pressure. Since most properties are single-line, a fast-path that uses raw string slices and a `nil` mapping avoids these allocations entirely.
+**Action:** Implemented a fast-path in `readPropertiesLogicalLine` for the common case, contributing to a ~2.5x speedup and ~80% reduction in allocations.
 ## 2026-05-23 - Optimizing PHP array path construction
 **Learning:** In recursive tree/array traversal (like PHP array parsing), using a `[]string` slice to track the path leads to $O(N^2)$ complexity and high allocations due to repeated slice copies and `strings.Join` calls. Passing a pre-concatenated `string` prefix is much more efficient.
 **Action:** Refactored `PHPArrayParser` to use a `string` prefix for pathing, consistent with other optimized parsers in the codebase.

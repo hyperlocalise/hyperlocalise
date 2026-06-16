@@ -83,12 +83,14 @@ func parseStringsDocument(content []byte) (stringsDocument, error) {
 	text := string(content)
 	doc := stringsDocument{template: text, entries: []stringsEntry{}}
 
+	currentLine := 1
 	i := 0
 	for i < len(text) {
 		next, err := skipStringsTrivia(text, i)
 		if err != nil {
 			return stringsDocument{}, err
 		}
+		currentLine += strings.Count(text[i:next], "\n")
 		i = next
 		if i >= len(text) {
 			break
@@ -98,23 +100,34 @@ func parseStringsDocument(content []byte) (stringsDocument, error) {
 		if err != nil {
 			return stringsDocument{}, err
 		}
+		currentLine += strings.Count(text[i:next], "\n")
 		i = next
 
-		i = skipStringsWhitespace(text, i)
+		wsNext := skipStringsWhitespace(text, i)
+		currentLine += strings.Count(text[i:wsNext], "\n")
+		i = wsNext
+
 		if i >= len(text) || text[i] != '=' {
-			return stringsDocument{}, fmt.Errorf("line %d: expected '=' after key", lineNumberAt(text, i))
+			return stringsDocument{}, fmt.Errorf("line %d: expected '=' after key", currentLine)
 		}
 		i++
-		i = skipStringsWhitespace(text, i)
+		wsNext = skipStringsWhitespace(text, i)
+		currentLine += strings.Count(text[i:wsNext], "\n")
+		i = wsNext
 
 		valueToken, next, err := parseStringsQuotedToken(text, i)
 		if err != nil {
 			return stringsDocument{}, err
 		}
+		currentLine += strings.Count(text[i:next], "\n")
 		i = next
-		i = skipStringsWhitespace(text, i)
+
+		wsNext = skipStringsWhitespace(text, i)
+		currentLine += strings.Count(text[i:wsNext], "\n")
+		i = wsNext
+
 		if i >= len(text) || text[i] != ';' {
-			return stringsDocument{}, fmt.Errorf("line %d: expected ';' after value", lineNumberAt(text, i))
+			return stringsDocument{}, fmt.Errorf("line %d: expected ';' after value", currentLine)
 		}
 		i++
 

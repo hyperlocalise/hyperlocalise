@@ -1,7 +1,6 @@
 package translationfileparser
 
 import (
-	"cmp"
 	"fmt"
 	"slices"
 	"strconv"
@@ -28,8 +27,12 @@ type propertiesDocument struct {
 }
 
 type propertiesLogicalLine struct {
-	text        string
-	rawEnd      int
+	text string
+	// rawStart and rawEnd are the byte offsets of the logical line in the raw template.
+	rawStart int
+	rawEnd   int
+	// boundaryRaw maps indices in text back to raw byte offsets in the template.
+	// It is optional and can be nil if the logical line has no escaped/continued content.
 	boundaryRaw []int
 	line        int
 }
@@ -85,6 +88,7 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 	doc := propertiesDocument{template: text, entries: []propertiesEntry{}}
 	seen := map[string]int{}
 	var pendingComments []string
+	currentLine := 1
 
 	for pos := 0; pos < len(text); {
 		contentStart, contentEnd, next := readPropertiesPhysicalLine(text, pos)
@@ -92,16 +96,18 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 		first := firstPropertiesNonWhitespace(rawLine)
 		if first >= len(rawLine) {
 			pendingComments = nil
+			currentLine += strings.Count(text[pos:next], "\n")
 			pos = next
 			continue
 		}
 		if rawLine[first] == '#' || rawLine[first] == '!' {
 			pendingComments = append(pendingComments, strings.TrimSpace(rawLine[first+1:]))
+			currentLine += strings.Count(text[pos:next], "\n")
 			pos = next
 			continue
 		}
 
-		logical, nextPos, err := readPropertiesLogicalLine(text, pos)
+		logical, nextPos, err := readPropertiesLogicalLine(text, pos, currentLine)
 		if err != nil {
 			return propertiesDocument{}, err
 		}
@@ -116,6 +122,7 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 		}
 		seen[entry.key] = entry.line
 		doc.entries = append(doc.entries, entry)
+		currentLine += strings.Count(text[pos:nextPos], "\n")
 		pos = nextPos
 	}
 
@@ -181,7 +188,12 @@ func parseJavaPropertiesEntry(line propertiesLogicalLine, comments []string) (pr
 	if err != nil {
 		return propertiesEntry{}, fmt.Errorf("line %d: decode value for key %q: %w", line.line, key, err)
 	}
-	valueStartRaw := line.boundaryRaw[valueStart]
+
+	valueStartRaw := line.rawStart + valueStart
+	if line.boundaryRaw != nil {
+		valueStartRaw = line.boundaryRaw[valueStart]
+	}
+
 	return propertiesEntry{
 		key:         key,
 		sourceValue: value,
@@ -193,13 +205,13 @@ func parseJavaPropertiesEntry(line propertiesLogicalLine, comments []string) (pr
 }
 
 func (d propertiesDocument) render(values map[string]string) []byte {
-	entries := slices.Clone(d.entries)
-	slices.SortFunc(entries, func(a, b propertiesEntry) int {
-		return cmp.Compare(a.valueStart, b.valueStart)
-	})
+	// BOLT OPTIMIZATION: Removed redundant slices.Clone and slices.SortFunc.
+	// Since entries are parsed sequentially, they are already sorted by
+	// their position in the template.
+	entries := d.entries
 
 	var b strings.Builder
-	seen := map[string]struct{}{}
+	seen := make(map[string]struct{}, len(values))
 	cursor := 0
 	for _, entry := range entries {
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
@@ -216,7 +228,7 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	}
 	b.WriteString(d.template[cursor:])
 
-	missing := make([]string, 0, len(values))
+	missing := make([]string, 0, len(values)-len(seen))
 	for key := range values {
 		if _, ok := seen[key]; ok {
 			continue
@@ -243,12 +255,26 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	return []byte(out.String())
 }
 
-func readPropertiesLogicalLine(text string, start int) (propertiesLogicalLine, int, error) {
+func readPropertiesLogicalLine(text string, start int, lineNumber int) (propertiesLogicalLine, int, error) {
+	contentStart, contentEnd, next := readPropertiesPhysicalLine(text, start)
+	continued := propertiesLineContinues(text[contentStart:contentEnd])
+
+	// Fast-path: Single-line properties without continuations (the common case)
+	// avoid strings.Builder and boundaryRaw slice allocations.
+	if !continued {
+		return propertiesLogicalLine{
+			text:        text[contentStart:contentEnd],
+			rawStart:    contentStart,
+			rawEnd:      contentEnd,
+			boundaryRaw: nil,
+			line:        lineNumber,
+		}, next, nil
+	}
+
 	var b strings.Builder
-	boundaryRaw := []int{start}
+	boundaryRaw := []int{contentStart}
 	pos := start
 	firstPhysicalLine := true
-	lineNumber := lineNumberAt(text, start)
 
 	for {
 		contentStart, contentEnd, next := readPropertiesPhysicalLine(text, pos)
@@ -265,13 +291,14 @@ func readPropertiesLogicalLine(text string, start int) (propertiesLogicalLine, i
 		if !continued {
 			return propertiesLogicalLine{
 				text:        b.String(),
+				rawStart:    start,
 				rawEnd:      contentEnd,
 				boundaryRaw: boundaryRaw,
 				line:        lineNumber,
 			}, next, nil
 		}
 		if next >= len(text) {
-			return propertiesLogicalLine{}, next, fmt.Errorf("line %d: continuation escape at end of file", lineNumberAt(text, contentEnd))
+			return propertiesLogicalLine{}, next, fmt.Errorf("line %d: continuation escape at end of file", lineNumber)
 		}
 		pos = next
 		firstPhysicalLine = false
