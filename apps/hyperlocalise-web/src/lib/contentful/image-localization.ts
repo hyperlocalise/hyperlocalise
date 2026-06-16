@@ -40,6 +40,15 @@ export async function localizeContentfulAssetForLocale(input: {
     return err(sourceAssetResult.error);
   }
 
+  const targetLocaleFile = sourceAssetResult.value.fields.file?.[input.targetLocale];
+  if (targetLocaleFile?.url) {
+    return ok({
+      sourceAssetId: input.assetId,
+      localizedAssetId: input.assetId,
+      fileName: targetLocaleFile.fileName,
+    });
+  }
+
   const downloadedResult = await input.client.downloadAssetFile({
     asset: sourceAssetResult.value,
     locale: input.sourceLocale,
@@ -62,7 +71,8 @@ export async function localizeContentfulAssetForLocale(input: {
     input.targetLocale,
     localized.mimeType,
   );
-  const createdAssetResult = await input.client.createLocalizedAsset({
+  const updatedAssetResult = await input.client.updateAssetLocaleFile({
+    asset: sourceAssetResult.value,
     locale: input.targetLocale,
     fileName: localizedFileName,
     contentType: localized.mimeType,
@@ -70,13 +80,13 @@ export async function localizeContentfulAssetForLocale(input: {
     title: sourceAssetResult.value.fields.title?.[input.sourceLocale] ?? localizedFileName,
     description: sourceAssetResult.value.fields.description?.[input.sourceLocale],
   });
-  if (isErr(createdAssetResult)) {
-    return err(createdAssetResult.error);
+  if (isErr(updatedAssetResult)) {
+    return err(updatedAssetResult.error);
   }
 
   return ok({
     sourceAssetId: input.assetId,
-    localizedAssetId: createdAssetResult.value.sys.id,
+    localizedAssetId: updatedAssetResult.value.sys.id,
     fileName: localizedFileName,
   });
 }

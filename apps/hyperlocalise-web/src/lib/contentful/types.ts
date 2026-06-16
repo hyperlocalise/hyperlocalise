@@ -83,9 +83,16 @@ export type ContentfulAsset = {
     file?: Record<
       string,
       {
-        url: string;
+        url?: string;
         fileName: string;
         contentType: string;
+        uploadFrom?: {
+          sys: {
+            type: "Link";
+            linkType: "Upload";
+            id: string;
+          };
+        };
       }
     >;
   };

@@ -130,7 +130,7 @@ describe("contentful automation executor", () => {
     expect(second.get("asset-source")).toBe("asset-localized");
   });
 
-  it("keeps translated rich-text locales when embedded asset localization fails for another locale", async () => {
+  it("writes translated rich-text locales with source assets when embedded asset localization fails", async () => {
     mocks.assembleStringTranslationContextSnapshot.mockResolvedValue({
       ok: true,
       snapshot: {
@@ -215,7 +215,7 @@ describe("contentful automation executor", () => {
       undefined,
       { organizationId: "org-1" },
     );
-    expect(result.translations).toHaveLength(1);
+    expect(result.translations).toHaveLength(2);
     expect(result.translations[0]).toMatchObject({
       fieldId: "body",
       locale: "fr-FR",
@@ -226,6 +226,21 @@ describe("contentful automation executor", () => {
           data: expect.objectContaining({
             target: expect.objectContaining({
               sys: expect.objectContaining({ id: "asset-fr-fr" }),
+            }),
+          }),
+        }),
+      ]),
+    });
+    expect(result.translations[1]).toMatchObject({
+      fieldId: "body",
+      locale: "de-DE",
+    });
+    expect(result.translations[1]?.value).toMatchObject({
+      content: expect.arrayContaining([
+        expect.objectContaining({
+          data: expect.objectContaining({
+            target: expect.objectContaining({
+              sys: expect.objectContaining({ id: "asset-source" }),
             }),
           }),
         }),
@@ -243,9 +258,8 @@ describe("contentful automation executor", () => {
         runId: "run-1",
         fieldId: "body",
         locale: "de-DE",
-        status: "failed",
+        status: "translated_partial",
         translationPreview: "Hero-Text",
-        error: { message: "Contentful asset upload failed" },
       },
     ]);
   });

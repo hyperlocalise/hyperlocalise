@@ -171,7 +171,7 @@ function collectRichTextTextValues(value: unknown): string[] {
       return;
     }
 
-    if (node.nodeType === "text" && typeof node.value === "string") {
+    if (node.nodeType === "text" && typeof node.value === "string" && node.value.trim()) {
       values.push(node.value);
       return;
     }
@@ -295,6 +295,10 @@ function replaceRichTextTextNodes(value: unknown, translatedText: string): unkno
     }
 
     if (node.nodeType === "text" && typeof node.value === "string") {
+      if (!node.value.trim()) {
+        return node;
+      }
+
       const translatedSegment = translatedSegments[textNodeIndex];
       const isLastTextNode = textNodeIndex === textNodeCount - 1;
       const remainingSegments = translatedSegments.slice(textNodeIndex);

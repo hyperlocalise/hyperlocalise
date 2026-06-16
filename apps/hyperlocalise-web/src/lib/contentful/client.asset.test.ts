@@ -115,6 +115,174 @@ describe("ContentfulManagementClient asset helpers", () => {
     });
   });
 
+  it("adds a localized file version to an existing asset", async () => {
+    let assetUpdateRequestInit: RequestInit | undefined;
+    let processRequestInit: RequestInit | undefined;
+    let uploadRequestInit: RequestInit | undefined;
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/uploads") && init?.method === "POST") {
+        uploadRequestInit = init;
+        return Response.json({ sys: { id: "upload-2" } });
+      }
+
+      if (url.endsWith("/assets/asset-source") && init?.method === "PUT") {
+        assetUpdateRequestInit = init;
+        const requestBody = init?.body;
+        const body = JSON.parse(typeof requestBody === "string" ? requestBody : "") as Record<
+          string,
+          unknown
+        >;
+        return Response.json({
+          sys: { id: "asset-source", version: 2 },
+          fields: body.fields,
+        });
+      }
+
+      if (url.endsWith("/assets/asset-source/files/fr-FR/process") && init?.method === "PUT") {
+        processRequestInit = init;
+        return new Response(null, { status: 204 });
+      }
+
+      return new Response(null, { status: 404 });
+    });
+
+    const client = new ContentfulManagementClient({
+      accessToken: "token",
+      spaceId: "space",
+      environmentId: "master",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const localizedResult = await client.updateAssetLocaleFile({
+      asset: asset(),
+      locale: "fr-FR",
+      fileName: "hero-fr-fr.png",
+      contentType: "image/png",
+      buffer: Buffer.from("localized-image"),
+      title: "Hero banner",
+    });
+    if (isErr(localizedResult)) {
+      throw new Error("expected localized asset locale update");
+    }
+
+    expect(localizedResult.value.sys.id).toBe("asset-source");
+    expect(new Headers(uploadRequestInit?.headers).get("content-type")).toBe(
+      "application/octet-stream",
+    );
+    expect(new Headers(assetUpdateRequestInit?.headers).get("x-contentful-version")).toBe("1");
+    expect(new Headers(processRequestInit?.headers).get("x-contentful-version")).toBe("2");
+    const body = JSON.parse(
+      typeof assetUpdateRequestInit?.body === "string" ? assetUpdateRequestInit.body : "",
+    ) as Record<string, { file: Record<string, unknown>; title: Record<string, string> }>;
+    expect(body.fields).toMatchObject({
+      title: { "en-US": "Hero banner", "fr-FR": "Hero banner" },
+      file: {
+        "en-US": {
+          fileName: "hero.png",
+          contentType: "image/png",
+        },
+        "fr-FR": {
+          fileName: "hero-fr-fr.png",
+          contentType: "image/png",
+          uploadFrom: {
+            sys: {
+              type: "Link",
+              linkType: "Upload",
+              id: "upload-2",
+            },
+          },
+        },
+      },
+    });
+    expect(body.fields.file["en-US"]).not.toHaveProperty("url");
+  });
+
+  it("does not carry pending upload references from other asset locales", async () => {
+    let assetUpdateRequestInit: RequestInit | undefined;
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/uploads") && init?.method === "POST") {
+        return Response.json({ sys: { id: "upload-3" } });
+      }
+
+      if (url.endsWith("/assets/asset-source") && init?.method === "PUT") {
+        assetUpdateRequestInit = init;
+        const requestBody = init?.body;
+        const body = JSON.parse(typeof requestBody === "string" ? requestBody : "") as Record<
+          string,
+          unknown
+        >;
+        return Response.json({
+          sys: { id: "asset-source", version: 3 },
+          fields: body.fields,
+        });
+      }
+
+      if (url.endsWith("/assets/asset-source/files/de-DE/process") && init?.method === "PUT") {
+        return new Response(null, { status: 204 });
+      }
+
+      return new Response(null, { status: 404 });
+    });
+
+    const client = new ContentfulManagementClient({
+      accessToken: "token",
+      spaceId: "space",
+      environmentId: "master",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const localizedResult = await client.updateAssetLocaleFile({
+      asset: {
+        ...asset(),
+        fields: {
+          ...asset().fields,
+          file: {
+            ...asset().fields.file,
+            "fr-FR": {
+              fileName: "hero-fr-fr.png",
+              contentType: "image/png",
+              uploadFrom: {
+                sys: {
+                  type: "Link",
+                  linkType: "Upload",
+                  id: "upload-1",
+                },
+              },
+            },
+          },
+        },
+      },
+      locale: "de-DE",
+      fileName: "hero-de-de.png",
+      contentType: "image/png",
+      buffer: Buffer.from("localized-image"),
+      title: "Hero banner",
+    });
+    if (isErr(localizedResult)) {
+      throw new Error("expected localized asset locale update");
+    }
+
+    const body = JSON.parse(
+      typeof assetUpdateRequestInit?.body === "string" ? assetUpdateRequestInit.body : "",
+    ) as Record<string, { file: Record<string, unknown> }>;
+    expect(body.fields.file["fr-FR"]).toMatchObject({
+      fileName: "hero-fr-fr.png",
+      contentType: "image/png",
+    });
+    expect(body.fields.file["fr-FR"]).not.toHaveProperty("uploadFrom");
+    expect(body.fields.file["de-DE"]).toMatchObject({
+      fileName: "hero-de-de.png",
+      contentType: "image/png",
+      uploadFrom: {
+        sys: {
+          type: "Link",
+          linkType: "Upload",
+          id: "upload-3",
+        },
+      },
+    });
+  });
+
   it("fails when the requested asset locale has no file", async () => {
     const fetchImpl = vi.fn();
     const client = new ContentfulManagementClient({
