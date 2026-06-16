@@ -21,6 +21,14 @@ function asset(version = 1): ContentfulAsset {
   };
 }
 
+function expectUploadBody(init: RequestInit | undefined, expected: string) {
+  const body = init?.body;
+  if (!(body instanceof Uint8Array)) {
+    throw new Error("expected Contentful upload request body to be Uint8Array");
+  }
+  expect(Buffer.from(body).toString()).toBe(expected);
+}
+
 describe("ContentfulManagementClient asset helpers", () => {
   it("downloads asset files and creates localized assets from uploaded buffers", async () => {
     const createdAssets: Array<Record<string, unknown>> = [];
@@ -101,6 +109,7 @@ describe("ContentfulManagementClient asset helpers", () => {
     expect(new Headers(uploadRequestInit?.headers).get("content-type")).toBe(
       "application/octet-stream",
     );
+    expectUploadBody(uploadRequestInit, "localized-image");
     expect(new Headers(assetCreateRequestInit?.headers).get("content-type")).toBe(
       "application/vnd.contentful.management.v1+json",
     );
@@ -175,6 +184,7 @@ describe("ContentfulManagementClient asset helpers", () => {
     expect(new Headers(uploadRequestInit?.headers).get("content-type")).toBe(
       "application/octet-stream",
     );
+    expectUploadBody(uploadRequestInit, "localized-image");
     expect(new Headers(assetUpdateRequestInit?.headers).get("x-contentful-version")).toBe("1");
     expect(new Headers(processRequestInit?.headers).get("x-contentful-version")).toBe("2");
     const body = JSON.parse(
