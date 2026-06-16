@@ -22,12 +22,12 @@
     "@canva/user": "^2.2.0",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
-    "react-intl": "^7.1.11"
+    "react-intl": "^10.0.0"
   },
   "devDependencies": {
     "@canva/cli": "^2.0.0",
     "@formatjs/cli": "6.16.11",
-    "@formatjs/ts-transformer": "3.14.2",
+    "@formatjs/ts-transformer": "4.4.13",
     "@ngrok/ngrok": "1.7.0",
     "@pmmmwh/react-refresh-webpack-plugin": "0.6.2",
     "@svgr/webpack": "8.1.0",
