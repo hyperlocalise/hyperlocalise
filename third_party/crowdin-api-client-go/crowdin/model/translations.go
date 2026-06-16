@@ -541,6 +541,9 @@ type UploadTranslationsRequest struct {
 	// Branch Identifier for import.
 	// Note: Required for string based API.
 	BranchID int `json:"branchId,omitempty"`
+	// Directory Identifier for import.
+	// Note: Required for string based API.
+	DirectoryID int `json:"directoryId,omitempty"`
 	// Defines whether to add translation if it's the same as the source string.
 	// Default: false.
 	ImportEqSuggestions *bool `json:"importEqSuggestions,omitempty"`
@@ -563,8 +566,8 @@ func (r *UploadTranslationsRequest) Validate() error {
 	if r.StorageID == 0 {
 		return errors.New("storageId is required")
 	}
-	if r.FileID > 0 && r.BranchID > 0 {
-		return errors.New("fileId and branchId can not be used at the same request")
+	if r.FileID > 0 && (r.BranchID > 0 || r.DirectoryID > 0) {
+		return errors.New("fileId cannot be used with branchId or directoryId in the same request")
 	}
 	return nil
 }
@@ -572,10 +575,12 @@ func (r *UploadTranslationsRequest) Validate() error {
 type (
 	// UploadTranslations represents the uploaded translations.
 	UploadTranslations struct {
-		ProjectID  int    `json:"projectId"`
-		StorageID  int    `json:"storageId"`
-		LanguageID string `json:"languageId"`
-		FileID     int    `json:"fileId"`
+		ProjectID   int    `json:"projectId"`
+		StorageID   int    `json:"storageId"`
+		LanguageID  string `json:"languageId"`
+		FileID      int    `json:"fileId"`
+		BranchID    int    `json:"branchId"`
+		DirectoryID int    `json:"directoryId"`
 	}
 
 	// UploadTranslationsResponse defines the structure of a response when
