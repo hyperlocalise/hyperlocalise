@@ -7,7 +7,7 @@ replace github.com/crowdin/crowdin-api-client-go => ./third_party/crowdin-api-cl
 require (
 	charm.land/bubbles/v2 v2.1.0
 	charm.land/bubbletea/v2 v2.0.7
-	charm.land/lipgloss/v2 v2.0.3
+	charm.land/lipgloss/v2 v2.0.4
 	charm.land/log/v2 v2.0.0
 	github.com/Masterminds/semver/v3 v3.5.0
 	github.com/antihax/optional v1.0.0
