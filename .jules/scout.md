@@ -73,16 +73,8 @@
 **Action:** Always apply repository-relative path normalization after token substitution and before safety validation to ensure consistent handling of relative paths regardless of token resolution.
 
 ## 2025-06-25 - [Slash Collapsing in Path Resolution]
-**Learning:**  may only handle leading/trailing slashes and specific segments (like  or ). It might not collapse internal multiple slashes (e.g., ).
-**Action:** When performing token substitution that might result in empty segments, explicitly collapse multiple slashes using a regex (e.g., ) before applying repository-wide normalization.
-
-## 2025-06-25 - [Slash Collapsing in Path Resolution]
 **Learning:** `normalizeRepositoryRelativePath` may only handle leading/trailing slashes and specific segments (like `.` or `..`). It might not collapse internal multiple slashes (e.g., `a//b`).
 **Action:** When performing token substitution that might result in empty segments, explicitly collapse multiple slashes using a regex (e.g., `path.replace(/\/+/g, "/")`) before applying repository-wide normalization.
-
-## 2026-07-02 - [Mixed XML Encoder and Buffer Writes]
-**Learning:** Interleaving  calls with direct writes to the encoder's underlying  causes content reordering because  is buffered. Tokens sent to the encoder are held until a flush, while direct buffer writes happen immediately.
-**Action:** Always call  before writing directly to the underlying buffer (e.g., when decoding CharData tokens into literal text) to maintain correct element order.
 
 ## 2026-07-02 - [Mixed XML Encoder and Buffer Writes]
 **Learning:** Interleaving `xml.Encoder.EncodeToken` calls with direct writes to the encoder's underlying `bytes.Buffer` causes content reordering because `xml.Encoder` is buffered. Tokens sent to the encoder are held until a flush, while direct buffer writes happen immediately.

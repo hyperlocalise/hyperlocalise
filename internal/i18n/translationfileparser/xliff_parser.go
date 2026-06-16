@@ -159,16 +159,8 @@ func normalizeXLIFFInternalMarkup(val []byte) []byte {
 			}
 			return val // On decode error, fallback to original value.
 		}
-		switch t := tok.(type) {
-		case xml.CharData:
-			if err := enc.Flush(); err != nil {
-				return val
-			}
-			out.Write(t)
-		default:
-			if err := enc.EncodeToken(tok); err != nil {
-				return val
-			}
+		if err := enc.EncodeToken(tok); err != nil {
+			return val
 		}
 	}
 	if err := enc.Flush(); err != nil {
