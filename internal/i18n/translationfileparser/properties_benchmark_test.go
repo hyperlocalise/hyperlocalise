@@ -9,7 +9,7 @@ import (
 func BenchmarkJavaPropertiesParser(b *testing.B) {
 	var sb strings.Builder
 	for i := 0; i < 1000; i++ {
-		sb.WriteString(fmt.Sprintf("key.%d = value %d\n", i, i))
+		fmt.Fprintf(&sb, "key.%d = value %d\n", i, i)
 	}
 	content := []byte(sb.String())
 	parser := JavaPropertiesParser{}
@@ -27,7 +27,7 @@ func BenchmarkMarshalJavaProperties(b *testing.B) {
 	values := make(map[string]string, 1000)
 	for i := 0; i < 1000; i++ {
 		key := fmt.Sprintf("key.%d", i)
-		sb.WriteString(fmt.Sprintf("%s = value %d\n", key, i))
+		fmt.Fprintf(&sb, "%s = value %d\n", key, i)
 		values[key] = fmt.Sprintf("updated value %d", i)
 	}
 	template := []byte(sb.String())
