@@ -228,7 +228,7 @@ func (r *SourceStringsAddRequest) Validate() error {
 	return nil
 }
 
-// SourceStringsService represents the upload strings status.
+// SourceStringsUpload represents the upload strings status.
 type SourceStringsUpload struct {
 	Identifier string `json:"identifier"`
 	Status     string `json:"status"`
@@ -328,7 +328,7 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	if o.BranchID != 0 && o.DirectoryID != 0 {
 		return errors.New("only one of branchId or directoryId may be set")
 	}
-	if o.UpdateOption != "" && !(*o.UpdateStrings) {
+	if o.UpdateOption != "" && (o.UpdateStrings == nil || !(*o.UpdateStrings)) {
 		return errors.New("updateStrings must be set to true to use updateOption")
 	}
 

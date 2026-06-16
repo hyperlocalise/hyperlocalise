@@ -161,3 +161,9 @@
 **Learning:** The Crowdin API v2 recently introduced a `POST /ai/translate` endpoint for on-demand AI translations of dynamic content. This endpoint exists both at the root `/api/v2/ai/translate` (for Enterprise) and under user-specific paths `/api/v2/users/{userId}/ai/translate`. The request body requires `strings` and `targetLanguageId`. Due to minimal documentation on the exact response schema, a generic `any` response model was used to ensure compatibility with future changes.
 
 **Action:** Implemented `AIService.Translate` method and added typed `AITranslateRequest` and `AITranslateResponse` models in `model/ai.go`. Verified request serialization and response unmarshaling with a contract test in `ai_test.go`.
+
+## 2026-09-26 - Improve Upload Translations parity and fix panic in Source Strings upload
+
+**Learning:** The Crowdin API v2 for uploading translations (`POST /api/v2/projects/{projectId}/translations/{languageId}`) supports `directoryId` for string-based projects, which was missing from the SDK. Additionally, `SourceStringsUploadRequest.Validate()` would panic if `updateOption` was set while `updateStrings` was nil.
+
+**Action:** Added `DirectoryID` (int) to `UploadTranslationsRequest` and updated `Validate()` to ensure `FileID` is not used with `BranchID` or `DirectoryID`. Added `BranchID` and `DirectoryID` to the `UploadTranslations` response struct. Fixed potential nil pointer dereference in `SourceStringsUploadRequest.Validate()` and corrected a struct name in documentation comments. Verified with comprehensive unit and contract tests.

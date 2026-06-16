@@ -887,7 +887,9 @@ func TestTranslationsService_UploadTranslations(t *testing.T) {
 				"projectId": 8,
 				"storageId": 34,
 				"languageId": "uk",
-				"fileId": 56
+				"fileId": 56,
+				"branchId": 0,
+				"directoryId": 0
 			}
 		}`)
 	})
@@ -905,13 +907,105 @@ func TestTranslationsService_UploadTranslations(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := &model.UploadTranslations{
-		ProjectID:  8,
-		StorageID:  34,
-		LanguageID: "uk",
-		FileID:     56,
+		ProjectID:   8,
+		StorageID:   34,
+		LanguageID:  "uk",
+		FileID:      56,
+		BranchID:    0,
+		DirectoryID: 0,
 	}
 	assert.Equal(t, expected, uploadTranslations)
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestTranslationsService_UploadTranslations_WithDirectoryID(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	const path = "/api/v2/projects/1/translations/uk"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		testURL(t, r, path)
+		testJSONBody(t, r, `{
+			"storageId": 34,
+			"directoryId": 12,
+			"importEqSuggestions": true
+		}`)
+
+		fmt.Fprint(w, `{
+			"data": {
+				"projectId": 8,
+				"storageId": 34,
+				"languageId": "uk",
+				"fileId": 0,
+				"branchId": 0,
+				"directoryId": 12
+			}
+		}`)
+	})
+
+	req := &model.UploadTranslationsRequest{
+		StorageID:           34,
+		DirectoryID:         12,
+		ImportEqSuggestions: ToPtr(true),
+	}
+	uploadTranslations, resp, err := client.Translations.UploadTranslations(context.Background(), 1, "uk", req)
+	require.NoError(t, err)
+
+	expected := &model.UploadTranslations{
+		ProjectID:   8,
+		StorageID:   34,
+		LanguageID:  "uk",
+		FileID:      0,
+		BranchID:    0,
+		DirectoryID: 12,
+	}
+	assert.Equal(t, expected, uploadTranslations)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestTranslationsService_UploadTranslations_Validation(t *testing.T) {
+	client, _, teardown := setupClient()
+	defer teardown()
+
+	tests := []struct {
+		name          string
+		req           *model.UploadTranslationsRequest
+		expectedError string
+	}{
+		{
+			name: "missing storageId",
+			req: &model.UploadTranslationsRequest{
+				FileID: 56,
+			},
+			expectedError: "storageId is required",
+		},
+		{
+			name: "fileId and branchId together",
+			req: &model.UploadTranslationsRequest{
+				StorageID: 34,
+				FileID:    56,
+				BranchID:  78,
+			},
+			expectedError: "fileId cannot be used with branchId or directoryId in the same request",
+		},
+		{
+			name: "fileId and directoryId together",
+			req: &model.UploadTranslationsRequest{
+				StorageID:   34,
+				FileID:      56,
+				DirectoryID: 12,
+			},
+			expectedError: "fileId cannot be used with branchId or directoryId in the same request",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := client.Translations.UploadTranslations(context.Background(), 1, "uk", tt.req)
+			assert.EqualError(t, err, tt.expectedError)
+		})
+	}
 }
 
 func TestTranslationsService_DownloadProjectTranslations(t *testing.T) {
