@@ -141,22 +141,34 @@ type xliffUnit struct {
 }
 
 func normalizeXLIFFInternalMarkup(val []byte) []byte {
-	if !bytes.Contains(val, []byte("<")) {
+	// Decode entities and CDATA even if no tags are present.
+	if !bytes.ContainsAny(val, "<&") {
 		return val
 	}
 	// To preserve parity with the old xml.Encoder-based behavior (which expanded self-closing tags),
-	// we use a full decode/encode cycle ONLY if tags are present.
-	// This is still faster than doing it for every single source/target since many are plain text.
+	// we use a full decode cycle. To decode entities and CDATA into literal text, we write
+	// CharData tokens directly to the output buffer after flushing the encoder.
 	var out bytes.Buffer
 	enc := xml.NewEncoder(&out)
 	dec := xml.NewDecoder(bytes.NewReader(val))
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			break
+			if err == io.EOF {
+				break
+			}
+			return val // On decode error, fallback to original value.
 		}
-		if err := enc.EncodeToken(tok); err != nil {
-			return val
+		switch t := tok.(type) {
+		case xml.CharData:
+			if err := enc.Flush(); err != nil {
+				return val
+			}
+			out.Write(t)
+		default:
+			if err := enc.EncodeToken(tok); err != nil {
+				return val
+			}
 		}
 	}
 	if err := enc.Flush(); err != nil {
