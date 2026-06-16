@@ -197,6 +197,92 @@ describe("ContentfulManagementClient asset helpers", () => {
     expect(body.fields.file["en-US"]).not.toHaveProperty("url");
   });
 
+  it("does not carry pending upload references from other asset locales", async () => {
+    let assetUpdateRequestInit: RequestInit | undefined;
+    const fetchImpl = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/uploads") && init?.method === "POST") {
+        return Response.json({ sys: { id: "upload-3" } });
+      }
+
+      if (url.endsWith("/assets/asset-source") && init?.method === "PUT") {
+        assetUpdateRequestInit = init;
+        const requestBody = init?.body;
+        const body = JSON.parse(typeof requestBody === "string" ? requestBody : "") as Record<
+          string,
+          unknown
+        >;
+        return Response.json({
+          sys: { id: "asset-source", version: 3 },
+          fields: body.fields,
+        });
+      }
+
+      if (url.endsWith("/assets/asset-source/files/de-DE/process") && init?.method === "PUT") {
+        return new Response(null, { status: 204 });
+      }
+
+      return new Response(null, { status: 404 });
+    });
+
+    const client = new ContentfulManagementClient({
+      accessToken: "token",
+      spaceId: "space",
+      environmentId: "master",
+      fetchImpl: fetchImpl as typeof fetch,
+    });
+
+    const localizedResult = await client.updateAssetLocaleFile({
+      asset: {
+        ...asset(),
+        fields: {
+          ...asset().fields,
+          file: {
+            ...asset().fields.file,
+            "fr-FR": {
+              fileName: "hero-fr-fr.png",
+              contentType: "image/png",
+              uploadFrom: {
+                sys: {
+                  type: "Link",
+                  linkType: "Upload",
+                  id: "upload-1",
+                },
+              },
+            },
+          },
+        },
+      },
+      locale: "de-DE",
+      fileName: "hero-de-de.png",
+      contentType: "image/png",
+      buffer: Buffer.from("localized-image"),
+      title: "Hero banner",
+    });
+    if (isErr(localizedResult)) {
+      throw new Error("expected localized asset locale update");
+    }
+
+    const body = JSON.parse(
+      typeof assetUpdateRequestInit?.body === "string" ? assetUpdateRequestInit.body : "",
+    ) as Record<string, { file: Record<string, unknown> }>;
+    expect(body.fields.file["fr-FR"]).toMatchObject({
+      fileName: "hero-fr-fr.png",
+      contentType: "image/png",
+    });
+    expect(body.fields.file["fr-FR"]).not.toHaveProperty("uploadFrom");
+    expect(body.fields.file["de-DE"]).toMatchObject({
+      fileName: "hero-de-de.png",
+      contentType: "image/png",
+      uploadFrom: {
+        sys: {
+          type: "Link",
+          linkType: "Upload",
+          id: "upload-3",
+        },
+      },
+    });
+  });
+
   it("fails when the requested asset locale has no file", async () => {
     const fetchImpl = vi.fn();
     const client = new ContentfulManagementClient({

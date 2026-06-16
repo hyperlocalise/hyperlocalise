@@ -97,8 +97,8 @@ function prepareAssetFilesForLocaleUpdate(input: {
 }): ContentfulAsset["fields"]["file"] {
   const files: NonNullable<ContentfulAsset["fields"]["file"]> = {};
   for (const [locale, existingFile] of Object.entries(input.existingFiles ?? {})) {
-    const { url: _url, ...fileWithoutProcessedUrl } = existingFile;
-    files[locale] = fileWithoutProcessedUrl;
+    const { url: _url, uploadFrom: _uploadFrom, ...fileDescriptor } = existingFile;
+    files[locale] = fileDescriptor;
   }
   files[input.locale] = input.file;
   return files;
