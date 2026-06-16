@@ -179,6 +179,19 @@ function getContentfulAutomationErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+function getContentfulAutomationErrorLogDetails(error: unknown, fallback: string) {
+  const errorMessage = getContentfulAutomationErrorMessage(error, fallback);
+  if (!isContentfulClientError(error)) {
+    return { errorMessage };
+  }
+
+  return {
+    errorMessage,
+    contentfulStatus: error.status,
+    ...(error.contentfulErrorId ? { contentfulErrorId: error.contentfulErrorId } : {}),
+  };
+}
+
 async function createTextRunItem(input: {
   runId: string;
   unit: ContentfulTranslatableUnit;
@@ -370,7 +383,7 @@ export async function translateTextUnit(input: {
                 reason: "embedded_asset_localization_failed",
                 locale: translation.locale,
                 embeddedAssetCount: input.unit.embeddedAssetIds.length,
-                message: getContentfulAutomationErrorMessage(
+                ...getContentfulAutomationErrorLogDetails(
                   error,
                   "contentful_embedded_asset_localization_failed",
                 ),
@@ -482,7 +495,10 @@ async function translateImageUnit(input: {
             ...input.logContext,
             reason: "image_localization_failed",
             locale,
-            message,
+            ...getContentfulAutomationErrorLogDetails(
+              error,
+              "contentful_image_localization_failed",
+            ),
           },
           "contentful automation image field localization failed",
         );
