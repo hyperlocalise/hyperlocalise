@@ -37,7 +37,7 @@ import {
   ProjectSectionHeader,
 } from "../../projects/[projectId]/_components/project-page-shell";
 
-export type JobsScope = "all" | "mine";
+export type JobsScope = "all" | "personal";
 
 export type ApiJob = {
   id: string;
@@ -213,6 +213,26 @@ export function getJobName(job: ApiJob) {
 function formatJobKind(job: ApiJob) {
   if (job.kind === "translation" && job.type) return `${job.kind.replace("_", " ")} · ${job.type}`;
   return job.kind.replace("_", " ");
+}
+
+function jobMatchesFilters(job: JobRow, input: { search: string; statusFilter: JobsStatusFilter }) {
+  const matchesStatus = input.statusFilter === "all" || job.status === input.statusFilter;
+  const matchesSearch =
+    !input.search ||
+    [
+      getJobName(job),
+      job.projectName,
+      job.id,
+      job.kind,
+      job.externalProviderKind,
+      job.externalStatus,
+      targetLocales(job),
+      assignees(job),
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(input.search);
+  return matchesStatus && matchesSearch;
 }
 
 export function taskDetailSummary(job: ApiJob) {
@@ -392,7 +412,9 @@ function JobListItemTitle({ job }: { job: ApiJob }) {
 }
 
 export function JobsPageView({
+  assignedJobs,
   buildJobDetailHref = defaultBuildJobDetailHref,
+  createdJobs,
   error,
   initialSearch = "",
   initialStatusFilter = "all",
@@ -409,7 +431,9 @@ export function JobsPageView({
   scope = "all",
   statusFilter: controlledStatusFilter,
 }: {
+  assignedJobs?: JobRow[];
   buildJobDetailHref?: typeof defaultBuildJobDetailHref;
+  createdJobs?: JobRow[];
   error?: unknown;
   initialSearch?: string;
   initialStatusFilter?: JobsStatusFilter;
@@ -434,31 +458,27 @@ export function JobsPageView({
 
   const visibleJobs = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
-    return jobs.filter((job) => {
-      const matchesStatus = statusFilter === "all" || job.status === statusFilter;
-      const matchesSearch =
-        !normalizedSearch ||
-        [
-          getJobName(job),
-          job.projectName,
-          job.id,
-          job.kind,
-          job.externalProviderKind,
-          job.externalStatus,
-          targetLocales(job),
-          assignees(job),
-        ]
-          .join(" ")
-          .toLowerCase()
-          .includes(normalizedSearch);
-      return matchesStatus && matchesSearch;
-    });
+    return jobs.filter((job) => jobMatchesFilters(job, { search: normalizedSearch, statusFilter }));
   }, [jobs, search, statusFilter]);
 
-  const isMyWork = scope === "mine";
+  const visibleAssignedJobs = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return (assignedJobs ?? []).filter((job) =>
+      jobMatchesFilters(job, { search: normalizedSearch, statusFilter }),
+    );
+  }, [assignedJobs, search, statusFilter]);
+
+  const visibleCreatedJobs = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase();
+    return (createdJobs ?? []).filter((job) =>
+      jobMatchesFilters(job, { search: normalizedSearch, statusFilter }),
+    );
+  }, [createdJobs, search, statusFilter]);
+
+  const isPersonalWork = scope === "personal";
   const emptyLabel = projectId
     ? "No jobs synced for this project yet. Sync jobs from your TMS to populate this list."
-    : scope === "mine"
+    : scope === "personal"
       ? "No work items found for your account."
       : "No jobs found for this workspace.";
   const syncJobsAction =
@@ -523,16 +543,55 @@ export function JobsPageView({
         </JobsFilterField>
       </div>
       {error ? <div>{renderError({ error, organizationSlug })}</div> : null}
-      <JobsList
-        buildJobDetailHref={buildJobDetailHref}
-        emptyLabel={emptyLabel}
-        isLoading={isLoading}
-        jobs={visibleJobs}
-        now={now}
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        renderJobLink={renderJobLink}
-      />
+      {isPersonalWork ? (
+        <div className="space-y-8">
+          <div className="space-y-3">
+            <div>
+              <TypographyP className="text-sm font-medium text-foreground">
+                Jobs assigned to me
+              </TypographyP>
+            </div>
+            <JobsList
+              buildJobDetailHref={buildJobDetailHref}
+              emptyLabel="No assigned jobs found for your account."
+              isLoading={isLoading}
+              jobs={visibleAssignedJobs}
+              now={now}
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              renderJobLink={renderJobLink}
+            />
+          </div>
+          <div className="space-y-3">
+            <div>
+              <TypographyP className="text-sm font-medium text-foreground">
+                Jobs created by me
+              </TypographyP>
+            </div>
+            <JobsList
+              buildJobDetailHref={buildJobDetailHref}
+              emptyLabel="No jobs created by you found."
+              isLoading={isLoading}
+              jobs={visibleCreatedJobs}
+              now={now}
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              renderJobLink={renderJobLink}
+            />
+          </div>
+        </div>
+      ) : (
+        <JobsList
+          buildJobDetailHref={buildJobDetailHref}
+          emptyLabel={emptyLabel}
+          isLoading={isLoading}
+          jobs={visibleJobs}
+          now={now}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          renderJobLink={renderJobLink}
+        />
+      )}
     </section>
   );
 
@@ -553,12 +612,12 @@ export function JobsPageView({
   return (
     <WorkspacePageShell>
       <PageHeader
-        icon={isMyWork ? WorkHistoryIcon : Task01Icon}
+        icon={isPersonalWork ? WorkHistoryIcon : Task01Icon}
         label="Workspace"
-        title={isMyWork ? "My Jobs" : "Jobs"}
+        title={isPersonalWork ? "My Jobs" : "Jobs"}
         description={
-          isMyWork
-            ? "Translation, review, and sync work assigned to you across projects."
+          isPersonalWork
+            ? "Translation, review, and sync work assigned to you or created by you."
             : "Translation, review, QA, and sync work tracked across the workspace."
         }
       />

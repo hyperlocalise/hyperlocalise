@@ -67,12 +67,12 @@ async function insertNativeJob(input: {
 }
 
 describe("workspace job list", () => {
-  it("includes synced provider jobs assigned to the current provider user in My Jobs", async () => {
+  it("filters assigned and created jobs for the current user", async () => {
     const { identity, organization, project, user } =
       await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
 
-    await insertNativeJob({
+    const [createdNativeJob] = await insertNativeJob({
       organizationId: organization.id,
       projectId: project.id,
       createdByUserId: user.id,
@@ -108,25 +108,46 @@ describe("workspace job list", () => {
       ],
     });
 
-    const response = await client.api.orgs[":organizationSlug"].jobs.$get(
+    const assignedResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
       {
         param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
-        query: { mine: "true", limit: "100" },
+        query: { relationship: "assigned", limit: "100" },
       },
       { headers },
     );
 
-    expect(response.status).toBe(200);
-    const body = (await response.json()) as WorkspaceJobsResponse;
-    const jobIds = body.jobs.map((job) => job.id);
+    expect(assignedResponse.status).toBe(200);
+    const assignedBody = (await assignedResponse.json()) as WorkspaceJobsResponse;
+    const assignedJobIds = assignedBody.jobs.map((job) => job.id);
 
-    expect(jobIds).toEqual(
+    expect(assignedJobIds).toEqual(
       expect.arrayContaining([
         expect.stringContaining("assigned-to-current-user"),
         ownedNativeJob.id,
       ]),
     );
-    expect(jobIds).not.toEqual(expect.arrayContaining([otherNativeJob.id]));
-    expect(jobIds).not.toEqual(expect.arrayContaining([expect.stringContaining("other-user")]));
+    expect(assignedJobIds).not.toEqual(expect.arrayContaining([createdNativeJob.id]));
+    expect(assignedJobIds).not.toEqual(expect.arrayContaining([otherNativeJob.id]));
+    expect(assignedJobIds).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("other-user")]),
+    );
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { relationship: "created", limit: "100" },
+      },
+      { headers },
+    );
+
+    expect(createdResponse.status).toBe(200);
+    const createdBody = (await createdResponse.json()) as WorkspaceJobsResponse;
+    const createdJobIds = createdBody.jobs.map((job) => job.id);
+
+    expect(createdJobIds).toEqual(expect.arrayContaining([createdNativeJob.id]));
+    expect(createdJobIds).not.toEqual(expect.arrayContaining([ownedNativeJob.id]));
+    expect(createdJobIds).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("assigned-to-current-user")]),
+    );
   });
 });

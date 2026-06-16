@@ -89,10 +89,25 @@ export function JobsPageContent({
   const searchParams = useSearchParams();
   const [statusFilter, setStatusFilter] = useState(() => readInitialStatusFilter(searchParams));
   const jobsQueryKey = ["jobs", organizationSlug, scope, statusFilter, projectId ?? "workspace"];
+  const assignedJobsQueryKey = [
+    "jobs",
+    organizationSlug,
+    "assigned",
+    statusFilter,
+    projectId ?? "workspace",
+  ];
+  const createdJobsQueryKey = [
+    "jobs",
+    organizationSlug,
+    "created",
+    statusFilter,
+    projectId ?? "workspace",
+  ];
   const isProviderProject = Boolean(parseProviderProjectId(projectId));
 
   const jobsQuery = useQuery({
     queryKey: jobsQueryKey,
+    enabled: scope !== "personal",
     queryFn: async () => {
       if (projectId) {
         const response = await apiClient.api.orgs[":organizationSlug"].projects[
@@ -101,7 +116,6 @@ export function JobsPageContent({
           param: { organizationSlug, projectId },
           query: {
             limit: "100",
-            mine: "false",
             ...(statusFilter === "all" ? {} : { status: statusFilter }),
           },
         });
@@ -114,11 +128,44 @@ export function JobsPageContent({
         param: { organizationSlug },
         query: {
           limit: "100",
-          mine: scope === "mine" ? "true" : "false",
           ...(statusFilter === "all" ? {} : { status: statusFilter }),
         },
       });
       if (!response.ok) throw await readApiResponseError(response, "Failed to load jobs");
+      const body = await response.json();
+      return body.jobs;
+    },
+  });
+  const assignedJobsQuery = useQuery({
+    queryKey: assignedJobsQueryKey,
+    enabled: scope === "personal" && !projectId,
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
+        param: { organizationSlug },
+        query: {
+          limit: "100",
+          relationship: "assigned",
+          ...(statusFilter === "all" ? {} : { status: statusFilter }),
+        },
+      });
+      if (!response.ok) throw await readApiResponseError(response, "Failed to load assigned jobs");
+      const body = await response.json();
+      return body.jobs;
+    },
+  });
+  const createdJobsQuery = useQuery({
+    queryKey: createdJobsQueryKey,
+    enabled: scope === "personal" && !projectId,
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].jobs.$get({
+        param: { organizationSlug },
+        query: {
+          limit: "100",
+          relationship: "created",
+          ...(statusFilter === "all" ? {} : { status: statusFilter }),
+        },
+      });
+      if (!response.ok) throw await readApiResponseError(response, "Failed to load created jobs");
       const body = await response.json();
       return body.jobs;
     },
@@ -154,8 +201,14 @@ export function JobsPageContent({
 
   return (
     <JobsPageView
-      error={jobsQuery.error}
-      isLoading={jobsQuery.isLoading}
+      assignedJobs={assignedJobsQuery.data ?? []}
+      createdJobs={createdJobsQuery.data ?? []}
+      error={jobsQuery.error ?? assignedJobsQuery.error ?? createdJobsQuery.error}
+      isLoading={
+        scope === "personal"
+          ? assignedJobsQuery.isLoading || createdJobsQuery.isLoading
+          : jobsQuery.isLoading
+      }
       isSyncingProviderJobs={syncProviderJobs.isPending}
       jobs={jobsQuery.data ?? []}
       onSyncProviderJobs={isProviderProject ? syncProviderJobs.mutate : undefined}

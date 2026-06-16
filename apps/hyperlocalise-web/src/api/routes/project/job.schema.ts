@@ -60,11 +60,7 @@ export const jobListQuerySchema = z.object({
   kind: z.enum(schema.jobKindEnum.enumValues).optional(),
   type: z.enum(schema.translationJobTypeEnum.enumValues).optional(),
   status: z.enum(schema.jobStatusEnum.enumValues).optional(),
-  mine: z
-    .enum(["true", "false"])
-    .optional()
-    .default("false")
-    .transform((value) => value === "true"),
+  relationship: z.enum(["assigned", "created"]).optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 

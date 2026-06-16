@@ -52,7 +52,7 @@ function jobListFilters(input: {
   kind?: "translation" | "research" | "review" | "sync" | "asset_management";
   type?: "string" | "file";
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
-  mine?: boolean;
+  relationship?: "assigned" | "created";
   userId?: string;
   providerAssigneeCandidates?: string[];
 }) {
@@ -70,14 +70,19 @@ function jobListFilters(input: {
     filters.push(eq(schema.jobs.status, input.status));
   }
 
-  if (input.mine && input.userId) {
-    filters.push(
-      or(
-        eq(schema.jobs.createdByUserId, input.userId),
-        eq(schema.jobs.ownerUserId, input.userId),
-        providerAssignedUsersMatch(input.providerAssigneeCandidates ?? []),
-      ),
+  if (input.userId) {
+    const relationship = input.relationship;
+    const assignedFilter = or(
+      eq(schema.jobs.ownerUserId, input.userId),
+      providerAssignedUsersMatch(input.providerAssigneeCandidates ?? []),
     );
+    const createdFilter = eq(schema.jobs.createdByUserId, input.userId);
+
+    if (relationship === "assigned") {
+      filters.push(assignedFilter);
+    } else if (relationship === "created") {
+      filters.push(createdFilter);
+    }
   }
 
   return filters;
@@ -126,13 +131,14 @@ export async function listOrganizationJobs(
     kind?: "translation" | "research" | "review" | "sync" | "asset_management";
     type?: "string" | "file";
     status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
-    mine?: boolean;
+    relationship?: "assigned" | "created";
     limit: number;
   },
 ) {
-  const providerAssigneeCandidates = query.mine
-    ? await getCurrentUserProviderAssigneeCandidates(auth)
-    : undefined;
+  const providerAssigneeCandidates =
+    query.relationship === "assigned"
+      ? await getCurrentUserProviderAssigneeCandidates(auth)
+      : undefined;
 
   return db
     .select(jobWithProjectSelect)
@@ -160,7 +166,7 @@ export async function listOrganizationJobs(
           kind: query.kind,
           type: query.type,
           status: query.status,
-          mine: query.mine,
+          relationship: query.relationship,
           userId: auth.user.localUserId,
           providerAssigneeCandidates,
         }),
@@ -177,13 +183,14 @@ export async function listOrganizationProjectJobs(
     kind?: "translation" | "research" | "review" | "sync" | "asset_management";
     type?: "string" | "file";
     status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
-    mine?: boolean;
+    relationship?: "assigned" | "created";
     limit: number;
   },
 ) {
-  const providerAssigneeCandidates = query.mine
-    ? await getCurrentUserProviderAssigneeCandidates(auth)
-    : undefined;
+  const providerAssigneeCandidates =
+    query.relationship === "assigned"
+      ? await getCurrentUserProviderAssigneeCandidates(auth)
+      : undefined;
 
   return db
     .select(jobWithProjectSelect)
@@ -212,7 +219,7 @@ export async function listOrganizationProjectJobs(
           kind: query.kind,
           type: query.type,
           status: query.status,
-          mine: query.mine,
+          relationship: query.relationship,
           userId: auth.user.localUserId,
           providerAssigneeCandidates,
         }),
