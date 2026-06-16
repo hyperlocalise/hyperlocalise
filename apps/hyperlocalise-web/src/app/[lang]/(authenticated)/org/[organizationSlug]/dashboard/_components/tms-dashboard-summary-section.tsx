@@ -118,7 +118,7 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
         param: { organizationSlug },
         query: {
           limit: "3",
-          mine: "true",
+          relationship: "assigned",
         },
       });
       if (!response.ok) throw await readApiResponseError(response, "Failed to load my jobs");

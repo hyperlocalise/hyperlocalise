@@ -103,8 +103,23 @@ export const WorkspaceJobs: Story = {
 export const MyJobs: Story = {
   args: {
     organizationSlug: "acme",
-    scope: "mine",
-    jobs: jobs.slice(0, 2),
+    scope: "personal",
+    assignedJobs: jobs.slice(0, 2),
+    createdJobs: [
+      createJob({
+        id: "job_created_mobile",
+        status: "queued",
+        projectId: "project_mobile",
+        projectName: "Mobile app",
+        externalProviderKind: null,
+        externalTaskId: null,
+        externalTitle: null,
+        externalTargetLocales: null,
+        externalAssignedUsers: null,
+        updatedAt: iso(-900_000),
+      }),
+    ],
+    jobs: [],
     isLoading: false,
     now: fixedNow,
   },

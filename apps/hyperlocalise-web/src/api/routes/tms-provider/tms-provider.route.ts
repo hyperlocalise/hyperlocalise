@@ -39,8 +39,7 @@ import {
   listTmsProviderLiveTranslationMemories,
 } from "@/lib/providers/tms-provider-live";
 import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
-import { getCrowdinUserConnectionSummary } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
-import { getPhraseUserConnectionSummary } from "@/lib/providers/adapters/phrase/phrase-user-connections";
+import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
 import { projectIdSchema } from "@/lib/projects/project-id";
 
 const mineQuerySchema = z.object({
@@ -138,35 +137,6 @@ const validateCreateTmsProviderJobAgentRunBody = validator("json", (value, c) =>
 function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
   const role = auth.membership.role;
   return role === "admin" || (role === "localization_manager" && hasCapability(role, "jobs:write"));
-}
-
-async function getCurrentUserProviderAssigneeCandidates(auth: AuthVariables["auth"]) {
-  const candidates = [auth.user.email];
-  const crowdinUserConnection = await getCrowdinUserConnectionSummary({
-    organizationId: auth.organization.localOrganizationId,
-    userId: auth.user.localUserId,
-  });
-  const phraseUserConnection = await getPhraseUserConnectionSummary({
-    organizationId: auth.organization.localOrganizationId,
-    userId: auth.user.localUserId,
-  });
-
-  if (crowdinUserConnection) {
-    candidates.push(
-      crowdinUserConnection.username,
-      crowdinUserConnection.email ?? "",
-      crowdinUserConnection.fullName ?? "",
-    );
-  }
-  if (phraseUserConnection) {
-    candidates.push(
-      phraseUserConnection.username,
-      phraseUserConnection.email ?? "",
-      phraseUserConnection.fullName ?? "",
-    );
-  }
-
-  return candidates.filter((candidate) => candidate.trim().length > 0);
 }
 
 type CreateTmsProviderRoutesOptions = {

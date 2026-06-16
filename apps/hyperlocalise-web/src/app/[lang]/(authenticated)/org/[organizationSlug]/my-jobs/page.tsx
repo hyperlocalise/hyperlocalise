@@ -11,7 +11,7 @@ export default async function MyJobsPage({
 
   return (
     <Suspense fallback={null}>
-      <JobsPageContent organizationSlug={organizationSlug} scope="mine" />
+      <JobsPageContent organizationSlug={organizationSlug} scope="personal" />
     </Suspense>
   );
 }
