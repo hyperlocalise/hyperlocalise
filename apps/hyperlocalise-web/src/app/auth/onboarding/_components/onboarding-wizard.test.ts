@@ -1,13 +1,26 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { OnboardingWizard } from "./onboarding-wizard";
+import { IntlProvider } from "react-intl";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+
+vi.mock("../actions", () => ({
+  createWorkspaceAction: async () => ({}),
+}));
+
+import { OnboardingWizard } from "./onboarding-wizard";
+
+const testIntl = getIntlShape("en");
 
 describe("OnboardingWizard Accessibility", () => {
   it("renders Workspace name field with label", () => {
     const markup = renderToStaticMarkup(
-      React.createElement(TooltipProvider, {}, React.createElement(OnboardingWizard)),
+      React.createElement(
+        IntlProvider,
+        { locale: "en", messages: testIntl.messages },
+        React.createElement(TooltipProvider, {}, React.createElement(OnboardingWizard)),
+      ),
     );
 
     expect(markup).toContain("Hyperlocalise logo");

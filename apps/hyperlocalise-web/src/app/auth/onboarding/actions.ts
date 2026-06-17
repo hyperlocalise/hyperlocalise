@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 
 import { updateProviderCredentialBodySchema } from "@/api/routes/provider-credential/provider-credential.schema";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+import { getAppLocale } from "@/lib/app-i18n/server-locale";
 import { createWorkspaceForSessionUser } from "@/lib/onboarding/workspace";
 import { loadOnboardingContext } from "@/lib/onboarding/context";
 import {
@@ -34,7 +36,7 @@ export type SaveProviderActionState = {
 };
 
 const createWorkspaceSchema = z.object({
-  organizationName: z.string().trim().min(2, "Workspace name must be at least 2 characters."),
+  organizationName: z.string().trim().min(2),
 });
 
 function getOrganizationDashboardPath(slug: string | null | undefined) {
@@ -49,15 +51,24 @@ export async function createWorkspaceAction(
   _previousState: CreateWorkspaceActionState,
   formData: FormData,
 ): Promise<CreateWorkspaceActionState> {
+  const intl = getIntlShape(await getAppLocale());
   const parsed = createWorkspaceSchema.safeParse({
     organizationName: formData.get("organizationName"),
   });
 
   if (!parsed.success) {
-    const issue = parsed.error.flatten().fieldErrors.organizationName?.[0];
+    const hasOrganizationNameError =
+      parsed.error.flatten().fieldErrors.organizationName !== undefined;
+
     return {
       fieldErrors: {
-        organizationName: issue,
+        organizationName: hasOrganizationNameError
+          ? intl.formatMessage({
+              defaultMessage: "Workspace name must be at least 2 characters.",
+              id: "9aWpVkf/JD",
+              description: "Validation error when the workspace name is too short",
+            })
+          : undefined,
       },
     };
   }
@@ -86,13 +97,22 @@ export async function createWorkspaceAction(
   } catch (error) {
     if (error instanceof Error && error.message === "workspace_slug_conflict") {
       return {
-        error: "Unable to create a unique workspace URL right now. Please retry.",
+        error: intl.formatMessage({
+          defaultMessage: "Unable to create a unique workspace URL right now. Please retry.",
+          id: "NIwDVdLvI2",
+          description: "Error when workspace slug generation conflicts during onboarding",
+        }),
       };
     }
 
     if (error instanceof Error && error.message === "workos_organization_required") {
       return {
-        error: "Workspace creation requires WorkOS organization management to be configured.",
+        error: intl.formatMessage({
+          defaultMessage:
+            "Workspace creation requires WorkOS organization management to be configured.",
+          id: "7itDAFKmls",
+          description: "Error when WorkOS organization management is not configured",
+        }),
       };
     }
 
@@ -101,7 +121,11 @@ export async function createWorkspaceAction(
 
   if (!organization.slug) {
     return {
-      error: "We created the workspace, but could not prepare its URL. Please retry.",
+      error: intl.formatMessage({
+        defaultMessage: "We created the workspace, but could not prepare its URL. Please retry.",
+        id: "xX2Nm+qioI",
+        description: "Error when workspace was created without a usable slug",
+      }),
     };
   }
 
@@ -115,6 +139,7 @@ export async function saveProviderCredentialAction(
   _previousState: SaveProviderActionState,
   formData: FormData,
 ): Promise<SaveProviderActionState> {
+  const intl = getIntlShape(await getAppLocale());
   const parsed = updateProviderCredentialBodySchema.safeParse({
     provider: formData.get("provider"),
     apiKey: formData.get("apiKey"),
@@ -123,12 +148,43 @@ export async function saveProviderCredentialAction(
 
   if (!parsed.success) {
     const flattened = parsed.error.flatten().fieldErrors;
+    let defaultModelError: string | undefined;
+
+    if (flattened.defaultModel?.[0]) {
+      const defaultModelIssue = parsed.error.issues.find(
+        (issue) => issue.path[0] === "defaultModel",
+      );
+      defaultModelError =
+        defaultModelIssue?.code === "too_small"
+          ? intl.formatMessage({
+              defaultMessage: "Default model is required.",
+              id: "e6YBGi9Md6",
+              description: "Validation error when default model is missing during onboarding",
+            })
+          : intl.formatMessage({
+              defaultMessage: "Choose a supported model for the selected provider.",
+              id: "TYuiCQUYlI",
+              description: "Validation error when default model is unsupported during onboarding",
+            });
+    }
 
     return {
       fieldErrors: {
-        provider: flattened.provider?.[0],
-        apiKey: flattened.apiKey?.[0],
-        defaultModel: flattened.defaultModel?.[0],
+        provider: flattened.provider?.[0]
+          ? intl.formatMessage({
+              defaultMessage: "Select a supported provider.",
+              id: "mi29vosn6Y",
+              description: "Validation error when onboarding provider selection is invalid",
+            })
+          : undefined,
+        apiKey: flattened.apiKey?.[0]
+          ? intl.formatMessage({
+              defaultMessage: "API key is required.",
+              id: "2kWEZewISl",
+              description: "Validation error when provider API key is missing during onboarding",
+            })
+          : undefined,
+        defaultModel: defaultModelError,
       },
     };
   }
@@ -149,12 +205,25 @@ export async function saveProviderCredentialAction(
       defaultModel: parsed.data.defaultModel,
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Unable to validate the credential.";
+    const message =
+      error instanceof Error
+        ? error.message
+        : intl.formatMessage({
+            defaultMessage: "Unable to validate the credential.",
+            id: "fj5dhgmhYc",
+            description:
+              "Generic error when provider credential validation fails during onboarding",
+          });
 
     return {
       error:
         message === "forbidden"
-          ? "You do not have permission to update provider credentials."
+          ? intl.formatMessage({
+              defaultMessage: "You do not have permission to update provider credentials.",
+              id: "tZ+plgRfNJ",
+              description:
+                "Error when the user lacks permission to save provider credentials during onboarding",
+            })
           : message,
     };
   }
