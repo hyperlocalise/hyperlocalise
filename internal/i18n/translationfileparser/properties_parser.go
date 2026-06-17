@@ -205,12 +205,10 @@ func parseJavaPropertiesEntry(line propertiesLogicalLine, comments []string) (pr
 }
 
 func (d propertiesDocument) render(values map[string]string) []byte {
-	// BOLT OPTIMIZATION: Removed redundant slices.Clone and slices.SortFunc.
-	// Since entries are parsed sequentially, they are already sorted by
-	// their position in the template.
 	entries := d.entries
 
 	var b strings.Builder
+	b.Grow(len(d.template))
 	seen := make(map[string]struct{}, len(values))
 	cursor := 0
 	for _, entry := range entries {

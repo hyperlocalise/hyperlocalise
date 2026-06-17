@@ -71,6 +71,11 @@
 ## 2026-07-30 - Fast-paths for single-line properties in escaped formats
 **Learning:** For formats that support logical line continuations (like Java `.properties`), allocating a `strings.Builder` and a "mapping" slice for every line adds significant GC pressure. Since most properties are single-line, a fast-path that uses raw string slices and a `nil` mapping avoids these allocations entirely.
 **Action:** Implemented a fast-path in `readPropertiesLogicalLine` for the common case, contributing to a ~2.5x speedup and ~80% reduction in allocations.
+
+## 2026-08-01 - Eliminating redundant sorting and O(N²) line counting in parsers
+**Learning:** For sequential parsers, entries are naturally collected in document order. Explicitly cloning and sorting them again in `render` methods introduces $O(N \log N)$ CPU overhead and $O(N)$ allocations. Additionally, calling O(N) line-counting helpers in a loop creates $O(N^2)$ complexity; tracking `currentLine` incrementally during linear scanning is $O(N)$. Finally, using `strings.Builder.Grow(len(template))` in renderers avoids multiple re-allocations and data copies.
+**Action:** Removed redundant sorting and added allocation hints to `AndroidXMLResourcesParser`, `AppleStringsParser`, `JSTSLocaleModuleParser`, and `JavaPropertiesParser`. Implemented incremental line tracking in `parseAndroidResourceDocument`.
+
 ## 2026-05-23 - Optimizing PHP array path construction
 **Learning:** In recursive tree/array traversal (like PHP array parsing), using a `[]string` slice to track the path leads to $O(N^2)$ complexity and high allocations due to repeated slice copies and `strings.Join` calls. Passing a pre-concatenated `string` prefix is much more efficient.
 **Action:** Refactored `PHPArrayParser` to use a `string` prefix for pathing, consistent with other optimized parsers in the codebase.

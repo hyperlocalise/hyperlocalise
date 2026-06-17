@@ -1,9 +1,7 @@
 package translationfileparser
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode"
@@ -102,10 +100,12 @@ func (d jstsLocaleDocument) render(values map[string]string) ([]byte, error) {
 		return []byte(d.template), nil
 	}
 
-	entries := append([]jstsLocaleEntry(nil), d.entries...)
-	slices.SortFunc(entries, func(a, b jstsLocaleEntry) int { return cmp.Compare(a.valueStart, b.valueStart) })
+	// BOLT OPTIMIZATION: Removed redundant clones and slices.SortFunc.
+	// Entries are naturally collected in document order during parsing.
+	entries := d.entries
 
 	var b strings.Builder
+	b.Grow(len(d.template))
 	cursor := 0
 	for _, entry := range entries {
 		if entry.valueStart < cursor {

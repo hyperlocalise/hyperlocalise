@@ -2,11 +2,9 @@ package translationfileparser
 
 import (
 	"bytes"
-	"cmp"
 	"encoding/xml"
 	"fmt"
 	"path/filepath"
-	"slices"
 	"strings"
 )
 
@@ -73,25 +71,27 @@ func MarshalAndroidXMLResources(template []byte, values map[string]string) ([]by
 	if err != nil {
 		return nil, err
 	}
-	return doc.render(values), nil
+	return doc.render(values)
 }
 
-func (d androidResourceDocument) render(values map[string]string) []byte {
+func (d androidResourceDocument) render(values map[string]string) ([]byte, error) {
 	if len(d.entries) == 0 {
-		return []byte(d.template)
+		return []byte(d.template), nil
 	}
 
-	// BOLT OPTIMIZATION: Use slices.Clone and slices.SortFunc instead of sort.Slice to avoid reflection.
-	entries := slices.Clone(d.entries)
-	slices.SortFunc(entries, func(a, b androidResourceEntry) int {
-		return cmp.Compare(a.valueStart, b.valueStart)
-	})
+	// BOLT OPTIMIZATION: Removed redundant slices.Clone and slices.SortFunc.
+	// Entries are naturally collected in document order during parsing.
+	entries := d.entries
 
 	var b strings.Builder
+	b.Grow(len(d.template))
 	cursor := 0
 	for _, entry := range entries {
-		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
-			continue
+		if entry.valueStart < cursor {
+			return nil, fmt.Errorf("android resources render: overlapping or out-of-order replacement for key %q", entry.key)
+		}
+		if entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
+			return nil, fmt.Errorf("android resources render: invalid replacement span for key %q", entry.key)
 		}
 		b.WriteString(d.template[cursor:entry.valueStart])
 		if translated, ok := values[entry.key]; ok {
@@ -106,7 +106,7 @@ func (d androidResourceDocument) render(values map[string]string) []byte {
 		cursor = entry.valueEnd
 	}
 	b.WriteString(d.template[cursor:])
-	return []byte(b.String())
+	return []byte(b.String()), nil
 }
 
 func parseAndroidResourceDocument(content []byte) (androidResourceDocument, error) {
@@ -126,6 +126,9 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 	var capture *androidValueCapture
 	seenKeys := map[string]struct{}{}
 
+	currentLine := 1
+	lastOffset := 0
+
 	for {
 		tok, err := decoder.Token()
 		if err != nil {
@@ -134,6 +137,10 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 			}
 			return androidResourceDocument{}, fmt.Errorf("xml decode: %w", err)
 		}
+
+		offset := int(decoder.InputOffset())
+		currentLine += strings.Count(text[lastOffset:offset], "\n")
+		lastOffset = offset
 
 		switch token := tok.(type) {
 		case xml.StartElement:
@@ -158,7 +165,7 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 
 			switch {
 			case depth == 1:
-				nextCapture, nextPlural, err := handleAndroidTopLevelStart(text, decoder, token, seenKeys)
+				nextCapture, nextPlural, err := handleAndroidTopLevelStart(text, decoder, token, seenKeys, currentLine)
 				if err != nil {
 					return androidResourceDocument{}, err
 				}
@@ -169,7 +176,7 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 					plural = nextPlural
 				}
 			case depth == 2 && plural != nil:
-				nextCapture, err := handleAndroidPluralChildStart(text, decoder, token, plural, seenKeys)
+				nextCapture, err := handleAndroidPluralChildStart(text, decoder, token, plural, seenKeys, currentLine)
 				if err != nil {
 					return androidResourceDocument{}, err
 				}
@@ -220,7 +227,7 @@ func parseAndroidResourceDocument(content []byte) (androidResourceDocument, erro
 	return doc, nil
 }
 
-func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.StartElement, seenKeys map[string]struct{}) (*androidValueCapture, *androidPluralState, error) {
+func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.StartElement, seenKeys map[string]struct{}, currentLine int) (*androidValueCapture, *androidPluralState, error) {
 	if !androidResourceTranslatable(token.Attr) {
 		return nil, nil, nil
 	}
@@ -238,15 +245,15 @@ func handleAndroidTopLevelStart(text string, decoder *xml.Decoder, token xml.Sta
 		if err != nil {
 			return nil, nil, err
 		}
-		return nil, &androidPluralState{name: name, startLine: lineNumberAt(text, int(decoder.InputOffset()))}, nil
+		return nil, &androidPluralState{name: name, startLine: currentLine}, nil
 	default:
-		return nil, nil, fmt.Errorf("android resources: unsupported <%s> resource at line %d; supported top-level resources are <string> and <plurals>", token.Name.Local, lineNumberAt(text, int(decoder.InputOffset())))
+		return nil, nil, fmt.Errorf("android resources: unsupported <%s> resource at line %d; supported top-level resources are <string> and <plurals>", token.Name.Local, currentLine)
 	}
 }
 
-func handleAndroidPluralChildStart(text string, decoder *xml.Decoder, token xml.StartElement, plural *androidPluralState, seenKeys map[string]struct{}) (*androidValueCapture, error) {
+func handleAndroidPluralChildStart(text string, decoder *xml.Decoder, token xml.StartElement, plural *androidPluralState, seenKeys map[string]struct{}, currentLine int) (*androidValueCapture, error) {
 	if token.Name.Local != "item" {
-		return nil, fmt.Errorf("android resources: unsupported <%s> inside <plurals name=%q> at line %d; only <item> is supported", token.Name.Local, plural.name, lineNumberAt(text, int(decoder.InputOffset())))
+		return nil, fmt.Errorf("android resources: unsupported <%s> inside <plurals name=%q> at line %d; only <item> is supported", token.Name.Local, plural.name, currentLine)
 	}
 	quantity, err := androidRequiredAttr(token, "quantity")
 	if err != nil {
