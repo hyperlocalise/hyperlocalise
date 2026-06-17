@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -44,4 +45,31 @@ func TestManagerListOptionsValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestManagerResponseUnmarshaling(t *testing.T) {
+	jsonResp := `{
+		"data": [
+			{
+				"data": {
+					"id": 1,
+					"user": {
+						"id": 10,
+						"username": "john_doe"
+					}
+				}
+			}
+		],
+		"pagination": {
+			"offset": 0,
+			"limit": 25
+		}
+	}`
+
+	var resp ManagerResponse
+	err := json.Unmarshal([]byte(jsonResp), &resp)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp.Pagination)
+	assert.Equal(t, 0, resp.Pagination.Offset)
+	assert.Equal(t, 25, resp.Pagination.Limit)
 }

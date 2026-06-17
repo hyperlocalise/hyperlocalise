@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -42,6 +43,57 @@ func TestProjectProgressListOptionsValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestTranslationProgressResponseUnmarshaling(t *testing.T) {
+	jsonResp := `{
+		"data": [
+			{
+				"data": {
+					"words": {"total": 100},
+					"phrases": {"total": 10},
+					"translationProgress": 50,
+					"approvalProgress": 20
+				}
+			}
+		],
+		"pagination": {
+			"offset": 0,
+			"limit": 25
+		}
+	}`
+
+	var resp TranslationProgressResponse
+	err := json.Unmarshal([]byte(jsonResp), &resp)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp.Pagination)
+	assert.Equal(t, 0, resp.Pagination.Offset)
+	assert.Equal(t, 25, resp.Pagination.Limit)
+}
+
+func TestQAChecksResponseUnmarshaling(t *testing.T) {
+	jsonResp := `{
+		"data": [
+			{
+				"data": {
+					"stringId": 1,
+					"languageId": "uk",
+					"category": "variables"
+				}
+			}
+		],
+		"pagination": {
+			"offset": 10,
+			"limit": 50
+		}
+	}`
+
+	var resp QAChecksResponse
+	err := json.Unmarshal([]byte(jsonResp), &resp)
+	assert.NoError(t, err)
+	assert.NotNil(t, resp.Pagination)
+	assert.Equal(t, 10, resp.Pagination.Offset)
+	assert.Equal(t, 50, resp.Pagination.Limit)
 }
 
 func TestQACheckListOptionsValues(t *testing.T) {

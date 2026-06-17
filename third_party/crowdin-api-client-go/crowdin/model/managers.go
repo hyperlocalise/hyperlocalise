@@ -2,8 +2,6 @@ package model
 
 import (
 	"net/url"
-	"strconv"
-	"strings"
 )
 
 // Manager represents a manager in the organization.
@@ -22,7 +20,8 @@ type ManagerGetResponse struct {
 // ManagerResponse defines the structure of the response when
 // getting a list of group managers.
 type ManagerResponse struct {
-	Data []*ManagerGetResponse `json:"data"`
+	Data       []*ManagerGetResponse `json:"data"`
+	Pagination *Pagination           `json:"pagination"`
 }
 
 // ManagerListOptions specifies the optional parameters to the
@@ -36,17 +35,13 @@ type ManagerListOptions struct {
 // Values returns the url.Values representation of the ManagerListOptions.
 // It implements the crowdin.ListOptionsProvider interface.
 func (o *ManagerListOptions) Values() (url.Values, bool) {
-	v := url.Values{}
 	if o == nil {
 		return nil, false
 	}
 
+	v := url.Values{}
 	if len(o.TeamIDs) > 0 {
-		ids := make([]string, len(o.TeamIDs))
-		for i, id := range o.TeamIDs {
-			ids[i] = strconv.Itoa(id)
-		}
-		v.Set("teamIds", strings.Join(ids, ","))
+		v.Add("teamIds", JoinSlice(o.TeamIDs))
 	}
 
 	if o.OrderBy != "" {

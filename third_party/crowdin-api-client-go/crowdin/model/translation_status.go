@@ -21,6 +21,7 @@ type TranslationProgressResponse struct {
 	Data []struct {
 		Data *TranslationProgress `json:"data"`
 	} `json:"data"`
+	Pagination *Pagination `json:"pagination"`
 }
 
 // TranslationProgressListOptions specifies the optional parameters for progress
@@ -103,6 +104,7 @@ type QAChecksResponse struct {
 	Data []struct {
 		Data *QACheck `json:"data"`
 	} `json:"data"`
+	Pagination *Pagination `json:"pagination"`
 }
 
 // QACheckListOptions specifies the optional parameters to the
