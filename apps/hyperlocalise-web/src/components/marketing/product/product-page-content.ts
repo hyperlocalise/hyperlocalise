@@ -20,36 +20,18 @@ export type ProductPageContent = {
     headline: string;
     subcopy: string;
   };
-  explanation: {
-    label: string;
+  detailsHeadline: string;
+  summary: string;
+  proofPoints: {
     title: string;
     body: string;
-  };
-  process: {
-    label: string;
-    title: string;
-    steps: string[];
-  };
-  capabilities: {
-    label: string;
-    title: string;
-    items: string[];
-  };
-  whyItMatters: {
-    label: string;
-    title: string;
-    items: string[];
-  };
+  }[];
   cta: {
     headline: string;
     description: string;
   };
   related: ProductPageLink[];
-  resources: ProductPageLink[];
 };
-
-const githubActionUrl = "https://github.com/marketplace/actions/hyperlocalise-ci";
-const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
 
 export const productLinks: ProductPageLink[] = [
   { label: "Agents Automation", href: "/product/agents-automation" },
@@ -61,9 +43,9 @@ export const productPages: ProductPageContent[] = [
   {
     slug: "agents-automation",
     metadata: {
-      title: "Agents Automation for Localisation Operations | Hyperlocalise",
+      title: "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
       description:
-        "Automate localisation workflows across AI agents, human reviewers, TMS, CMS, GitHub, Slack, and existing tools with Hyperlocalise.",
+        "Catch source changes, route localisation work, gather context, and keep human review in control across your existing tools.",
       keywords: [
         "localisation automation",
         "AI localisation agents",
@@ -74,68 +56,43 @@ export const productPages: ProductPageContent[] = [
     visualKind: "automation",
     hero: {
       eyebrow: "Agents Automation",
-      headline: "Agents Automation for Localisation Operations",
+      headline: "Stop chasing localisation work across tools",
       subcopy:
-        "Turn source changes, content updates, and launch requests into automated localisation workflows across AI agents, human reviewers, and your existing stack.",
+        "Every release creates strings, context, screenshots, reviewer questions, and sync work. Hyperlocalise turns those loose signals into controlled localisation workflows before anything gets missed.",
     },
-    explanation: {
-      label: "Product pillar",
-      title: "Automate the work without removing review",
-      body: "Hyperlocalise agents turn content changes, launch requests, and translation tasks into scoped workflows with humans in control.",
-    },
-    process: {
-      label: "How it works",
-      title: "From change signal to approved translations",
-      steps: [
-        "Detect new content or source changes",
-        "Create scoped localisation tasks",
-        "Pull context from repo, CMS, TMS, glossary, and product docs",
-        "Route work to AI agents or human reviewers",
-        "Sync approved translations back",
-      ],
-    },
-    capabilities: {
-      label: "Key capabilities",
-      title: "Built around your existing operating model",
-      items: [
-        "GitHub, Slack, and CMS intake",
-        "Scoped localisation task creation",
-        "Context gathering before translation starts",
-        "AI and reviewer routing",
-        "Approved translation sync",
-      ],
-    },
-    whyItMatters: {
-      label: "Why it matters",
-      title: "Less coordination, faster launches",
-      items: [
-        "Less manual coordination",
-        "Faster launch cycles",
-        "Fewer missed translation tasks",
-        "Works across existing tools",
-      ],
-    },
+    detailsHeadline: "When launch work is scattered, translations become a last-minute scramble.",
+    summary:
+      "Hyperlocalise watches where work starts, scopes what needs translation, gathers the context reviewers need, and routes the job through the people and systems already in your stack.",
+    proofPoints: [
+      {
+        title: "Catch the change",
+        body: "Source changes, CMS updates, and launch requests stop depending on someone remembering to open a ticket.",
+      },
+      {
+        title: "Route the review",
+        body: "Agents prepare the work, but reviewers still decide what is good enough to ship.",
+      },
+      {
+        title: "Close the loop",
+        body: "Approved translations go back to the TMS, repo, or release flow instead of getting stranded in chat.",
+      },
+    ],
     cta: {
-      headline: "Automate localisation without replacing your stack.",
+      headline: "Make missed localisation work harder to miss.",
       description:
-        "Connect change signals, agents, reviewers, and translation systems in one controlled workflow.",
+        "Connect the signals, reviewers, and systems you already use, then let Hyperlocalise keep the workflow moving.",
     },
     related: [
       { label: "Next-gen CAT Tool", href: "/product/next-gen-cat-tool" },
       { label: "Self-evolving Knowledge", href: "/product/self-evolving-knowledge" },
     ],
-    resources: [
-      { label: "Homepage", href: "/" },
-      { label: "GitHub Action", href: githubActionUrl },
-      { label: "CLI docs", href: cliDocsUrl },
-    ],
   },
   {
     slug: "next-gen-cat-tool",
     metadata: {
-      title: "Next-gen CAT Tool for Human-in-the-loop Translation | Hyperlocalise",
+      title: "Review Translations With the Context Next to the String | Hyperlocalise",
       description:
-        "A modern CAT tool for AI-assisted translation, human review, product context, glossary rules, and localisation quality checks.",
+        "Give reviewers the source, target, product context, glossary guidance, AI notes, comments, and quality checks in one translation workspace.",
       keywords: [
         "next-gen CAT tool",
         "AI assisted translation",
@@ -146,69 +103,44 @@ export const productPages: ProductPageContent[] = [
     visualKind: "cat",
     hero: {
       eyebrow: "Next-gen CAT Tool",
-      headline: "Next-gen CAT Tool for Human-in-the-loop Translation",
+      headline: "Review translations without guessing what the string means",
       subcopy:
-        "Translate, review, and approve content with AI support, full product context, and human control in one modern workspace.",
+        "Most review cycles stall because the translator cannot see the screen, the glossary, the intent, or the product nuance. Hyperlocalise puts that context beside the string.",
     },
-    explanation: {
-      label: "Product pillar",
-      title: "A focused workspace for better review decisions",
-      body: "Give translators and reviewers one place for source strings, target strings, context, glossary, memory, AI suggestions, and quality checks.",
-    },
-    process: {
-      label: "Workspace flow",
-      title: "Translate with context in view",
-      steps: [
-        "Open source and target strings together",
-        "Review AI-assisted suggestions",
-        "Check product context and glossary rules",
-        "Discuss changes with reviewer comments",
-        "Approve only after quality warnings are resolved",
-      ],
-    },
-    capabilities: {
-      label: "Key capabilities",
-      title: "Everything review needs, kept close",
-      items: [
-        "Source and target editing",
-        "AI-assisted suggestions",
-        "Product context sidebar",
-        "Glossary and brand voice rules",
-        "Review comments and approval flow",
-        "Quality warnings before approval",
-      ],
-    },
-    whyItMatters: {
-      label: "Why it matters",
-      title: "AI becomes useful when reviewers stay in control",
-      items: [
-        "Reviewers make better decisions",
-        "Translators get context before editing",
-        "AI supports work without removing human judgement",
-        "Fewer back-and-forth review cycles",
-      ],
-    },
+    detailsHeadline:
+      "Bad translations rarely start with bad language. They start with missing context.",
+    summary:
+      "The CAT workspace keeps the source, target, AI recommendation, product meaning, glossary rules, comments, warnings, and approval state in one place so reviewers can make a decision.",
+    proofPoints: [
+      {
+        title: "Know the intent",
+        body: "Reviewers see what the copy is trying to do before they choose the wording.",
+      },
+      {
+        title: "See the risk",
+        body: "Glossary notes, format warnings, and comments surface before approval, not after release.",
+      },
+      {
+        title: "Approve with confidence",
+        body: "AI helps explain the tradeoffs, but the human reviewer keeps control of the final call.",
+      },
+    ],
     cta: {
-      headline: "Bring context, AI, and human review into one translation workspace.",
+      headline: "Stop reviewing strings in the dark.",
       description:
-        "Give every reviewer the source, context, checks, and approval controls needed to ship with confidence.",
+        "Give every reviewer the context, checks, and approval controls they need before translated copy reaches production.",
     },
     related: [
       { label: "Agents Automation", href: "/product/agents-automation" },
       { label: "Self-evolving Knowledge", href: "/product/self-evolving-knowledge" },
     ],
-    resources: [
-      { label: "Homepage", href: "/" },
-      { label: "GitHub Action", href: githubActionUrl },
-      { label: "CLI docs", href: cliDocsUrl },
-    ],
   },
   {
     slug: "self-evolving-knowledge",
     metadata: {
-      title: "Self-evolving Localisation Knowledge | Hyperlocalise",
+      title: "Stop Repeating the Same Localisation Feedback | Hyperlocalise",
       description:
-        "Capture approved translations, reviewer feedback, glossary decisions, product context, and market knowledge to improve every localisation workflow.",
+        "Capture reviewer corrections, glossary decisions, product context, and market preferences so every localisation workflow starts smarter.",
       keywords: [
         "localisation knowledge",
         "translation memory",
@@ -219,62 +151,36 @@ export const productPages: ProductPageContent[] = [
     visualKind: "knowledge",
     hero: {
       eyebrow: "Self-evolving Knowledge",
-      headline: "Self-evolving Localisation Knowledge",
+      headline: "Stop repeating the same localisation feedback",
       subcopy:
-        "Build a living knowledge layer that captures product context, terminology, review decisions, and market feedback across every localisation workflow.",
+        "Teams lose time explaining the same product terms, tone rules, and market preferences on every launch. Hyperlocalise turns those decisions into reusable context.",
     },
-    explanation: {
-      label: "Product pillar",
-      title: "Every review improves the next workflow",
-      body: "Hyperlocalise learns from approved translations, reviewer feedback, glossary decisions, product context, and market-specific preferences.",
-    },
-    process: {
-      label: "What it learns from",
-      title: "A reusable knowledge layer for agents and humans",
-      steps: [
-        "Approved translations",
-        "Reviewer edits",
-        "Glossary and terminology choices",
-        "Product documentation",
-        "Brand voice rules",
-        "Market-specific feedback",
-        "Repeated mistakes and corrections",
-      ],
-    },
-    capabilities: {
-      label: "Key capabilities",
-      title: "Memory that is practical, visible, and reusable",
-      items: [
-        "Terminology and brand voice capture",
-        "Reviewer feedback memory",
-        "Product documentation context",
-        "Market-specific preferences",
-        "Repeated correction tracking",
-      ],
-    },
-    whyItMatters: {
-      label: "Why it matters",
-      title: "Stop repeating the same feedback",
-      items: [
-        "AI suggestions improve over time",
-        "Teams stop repeating the same feedback",
-        "Brand and terminology stay consistent",
-        "Localisation knowledge becomes reusable across agents and humans",
-      ],
-    },
+    detailsHeadline:
+      "If the last review taught the team something, the next workflow should know it.",
+    summary:
+      "Every approved translation, reviewer correction, glossary choice, and market-specific decision becomes context that agents and humans can reuse on the next job.",
+    proofPoints: [
+      {
+        title: "Keep the decision",
+        body: "Corrections, terminology choices, and product context stop disappearing into old comments.",
+      },
+      {
+        title: "Reuse the nuance",
+        body: "Future suggestions can start from what the team already approved instead of asking again.",
+      },
+      {
+        title: "Reduce review churn",
+        body: "Market rules, voice preferences, and repeated mistakes stay visible across workflows.",
+      },
+    ],
     cta: {
-      headline: "Turn every review decision into reusable localisation intelligence.",
+      headline: "Make every review improve the next one.",
       description:
-        "Capture the context and corrections your team already creates, then make them available to every future workflow.",
+        "Capture the context and corrections your team already creates, then make them available when the next launch starts.",
     },
     related: [
       { label: "Agents Automation", href: "/product/agents-automation" },
       { label: "Next-gen CAT Tool", href: "/product/next-gen-cat-tool" },
-    ],
-    resources: [
-      { label: "Homepage", href: "/" },
-      { label: "GitHub Action", href: githubActionUrl },
-      { label: "CLI docs", href: cliDocsUrl },
     ],
   },
 ];
