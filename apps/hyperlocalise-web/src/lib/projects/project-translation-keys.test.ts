@@ -1,18 +1,28 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { limitMock, selectMock, whereMock } = vi.hoisted(() => {
-  const limitMock = vi.fn(async (): Promise<unknown[]> => []);
-  const whereMock = vi.fn(() => ({ limit: limitMock }));
+const { offsetMock, repoLimitMock, orderByMock, selectMock, whereMock } = vi.hoisted(() => {
+  const offsetMock = vi.fn(async (): Promise<unknown[]> => []);
+  const keysLimitMock = vi.fn(() => ({ offset: offsetMock }));
+  const repoLimitMock = vi.fn(async (): Promise<unknown[]> => []);
+  const orderByMock = vi.fn(() => ({ limit: keysLimitMock }));
+  const whereMock = vi.fn(() => ({
+    limit: repoLimitMock,
+    orderBy: orderByMock,
+  }));
   const fromMock = vi.fn(() => ({ where: whereMock }));
   const selectMock = vi.fn(() => ({ from: fromMock }));
 
-  return { limitMock, selectMock, whereMock };
+  return { offsetMock, repoLimitMock, orderByMock, selectMock, whereMock };
 });
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...conditions: unknown[]) => ["and", conditions]),
+  asc: vi.fn((field: unknown) => ["asc", field]),
+  count: vi.fn(() => ({ count: "count" })),
   eq: vi.fn((field: string, value: unknown) => ["eq", field, value]),
+  ilike: vi.fn((field: string, value: unknown) => ["ilike", field, value]),
   inArray: vi.fn((field: string, values: unknown[]) => ["inArray", field, values]),
+  or: vi.fn((...conditions: unknown[]) => ["or", conditions]),
   sql: vi.fn((strings: TemplateStringsArray) => ({ sql: strings.join("") })),
 }));
 
@@ -55,7 +65,8 @@ import { loadProjectTranslationsAsPrefilledEntries } from "./project-translation
 describe("loadProjectTranslationsAsPrefilledEntries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    limitMock.mockResolvedValue([]);
+    repoLimitMock.mockResolvedValue([]);
+    offsetMock.mockResolvedValue([]);
   });
 
   it("returns an empty map when the source file is not linked to the project", async () => {
@@ -76,19 +87,20 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
   });
 
   it("maps existing project translations to entry keys", async () => {
-    limitMock
-      .mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }])
-      .mockResolvedValueOnce([
-        { id: "key_1", key: "greeting", sourceText: "Hello" },
-        { id: "key_2", key: "farewell", sourceText: "Goodbye" },
-        { id: "key_3", key: "empty", sourceText: "Pending" },
-      ]);
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "greeting", sourceText: "Hello" },
+      { id: "key_2", key: "farewell", sourceText: "Goodbye" },
+      { id: "key_3", key: "empty", sourceText: "Pending" },
+    ]);
 
     whereMock.mockImplementationOnce(() => ({
-      limit: limitMock,
+      limit: repoLimitMock,
+      orderBy: orderByMock,
     }));
     whereMock.mockImplementationOnce(() => ({
-      limit: limitMock,
+      limit: repoLimitMock,
+      orderBy: orderByMock,
     }));
     whereMock.mockImplementationOnce(
       () =>
@@ -96,7 +108,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
           { id: "translation_1", translationKeyId: "key_1", text: "Bonjour", status: "approved" },
           { id: "translation_2", translationKeyId: "key_2", text: "Au revoir", status: "draft" },
           { id: "translation_3", translationKeyId: "key_3", text: "   ", status: "draft" },
-        ]) as unknown as { limit: typeof limitMock },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
     );
 
     const result = await loadProjectTranslationsAsPrefilledEntries({
@@ -119,15 +131,16 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
   });
 
   it("excludes rejected translations even when text is present", async () => {
-    limitMock
-      .mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }])
-      .mockResolvedValueOnce([{ id: "key_1", key: "greeting", sourceText: "Hello" }]);
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([{ id: "key_1", key: "greeting", sourceText: "Hello" }]);
 
     whereMock.mockImplementationOnce(() => ({
-      limit: limitMock,
+      limit: repoLimitMock,
+      orderBy: orderByMock,
     }));
     whereMock.mockImplementationOnce(() => ({
-      limit: limitMock,
+      limit: repoLimitMock,
+      orderBy: orderByMock,
     }));
     whereMock.mockImplementationOnce(
       () =>
@@ -138,7 +151,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
             text: "Mauvais",
             status: "rejected",
           },
-        ]) as unknown as { limit: typeof limitMock },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
     );
 
     const result = await loadProjectTranslationsAsPrefilledEntries({
@@ -160,18 +173,23 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       sourceText: `Source ${index}`,
     }));
 
-    limitMock
-      .mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }])
-      .mockResolvedValueOnce(overLimitKeys);
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce(overLimitKeys);
 
     whereMock.mockImplementationOnce(() => ({
-      limit: limitMock,
+      limit: repoLimitMock,
+      orderBy: orderByMock,
     }));
     whereMock.mockImplementationOnce(() => ({
-      limit: limitMock,
+      limit: repoLimitMock,
+      orderBy: orderByMock,
     }));
     whereMock.mockImplementationOnce(
-      () => Promise.resolve([]) as unknown as { limit: typeof limitMock },
+      () =>
+        Promise.resolve([]) as unknown as {
+          limit: typeof repoLimitMock;
+          orderBy: typeof orderByMock;
+        },
     );
 
     const result = await loadProjectTranslationsAsPrefilledEntries({

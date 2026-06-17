@@ -80,6 +80,20 @@ export interface CatWorkspaceViewProps {
   canUseAiRecommendation?: boolean;
   showAgentContext?: boolean;
   className?: string;
+  queueSearch?: string;
+  onQueueSearchChange?: (value: string) => void;
+  isQueueSearchPending?: boolean;
+  isQueueFetchingPage?: boolean;
+  queuePagination?: {
+    offset: number;
+    limit: number;
+    returnedCount: number;
+    totalCount: number;
+    hasMore: boolean;
+  } | null;
+  onQueuePreviousPage?: () => void;
+  onQueueNextPage?: () => void;
+  onQueueNearEnd?: () => void;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {

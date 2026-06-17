@@ -282,7 +282,102 @@ describe("project file CAT routes", () => {
       "42",
       "crowdin/home.json",
       "fr",
-      expect.objectContaining({ canEditTranslations: true }),
+      expect.objectContaining({
+        canEditTranslations: true,
+        pagination: expect.objectContaining({ paginated: false }),
+      }),
+    );
+  });
+
+  it("passes pagination params to the provider CAT loader", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    getTmsProviderLiveCatFileMock.mockResolvedValue({
+      sourcePath: "crowdin/home.json",
+      filename: "home.json",
+      provider: {
+        kind: "crowdin",
+        resourceType: "file",
+        externalProjectId: "42",
+        externalResourceId: "101",
+        externalUrl: null,
+        syncState: "synced",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+        localeReadiness: {},
+        revision: "1",
+        format: "json",
+        lastSyncedAt: null,
+      },
+      targetLocale: "fr",
+      canEditTranslations: true,
+      truncated: false,
+      pagination: {
+        offset: 50,
+        limit: 25,
+        returnedCount: 1,
+        totalCount: 120,
+        hasMore: true,
+      },
+      segments: [
+        {
+          externalStringId: "1002",
+          key: "goodbye",
+          sourceText: "Goodbye",
+          context: null,
+          type: "text",
+          target: null,
+          comments: [],
+        },
+      ],
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        query: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          offset: 50,
+          limit: 25,
+          search: "good",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFileCatResponse;
+    expect(body.catFile.pagination).toMatchObject({
+      offset: 50,
+      limit: 25,
+      hasMore: true,
+      totalCount: 120,
+    });
+    expect(getTmsProviderLiveCatFileMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      "crowdin/home.json",
+      "fr",
+      expect.objectContaining({
+        canEditTranslations: true,
+        pagination: expect.objectContaining({
+          paginated: true,
+          offset: 50,
+          limit: 25,
+          search: "good",
+        }),
+      }),
     );
   });
 

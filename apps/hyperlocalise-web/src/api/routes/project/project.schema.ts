@@ -213,7 +213,24 @@ export const projectFileCatQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
+  search: z.string().trim().max(256).optional(),
+  offset: z.coerce.number().int().min(0).optional(),
+  limit: z.coerce.number().int().min(1).max(100).optional(),
 });
+
+export const projectFileCatPaginationSchema = z.object({
+  offset: z.number().int().min(0),
+  limit: z.number().int().min(1),
+  returnedCount: z.number().int().min(0),
+  totalCount: z.number().int().min(0),
+  hasMore: z.boolean(),
+});
+
+export const defaultProjectFileCatPageLimit = 50;
+export const maxProjectFileCatPageLimit = 100;
+export const maxCrowdinSourceStringCountCeiling = 5_000;
+export const legacyNativeCatSegmentLimit = 500;
+export const legacyProviderCatSegmentLimit = 1_000;
 
 export const projectFileCatTranslationBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
@@ -455,6 +472,7 @@ export const projectFileCatResponseSchema = z.object({
     canEditTranslations: z.boolean(),
     truncated: z.boolean(),
     segments: z.array(projectFileCatSegmentSchema),
+    pagination: projectFileCatPaginationSchema.optional(),
   }),
 });
 

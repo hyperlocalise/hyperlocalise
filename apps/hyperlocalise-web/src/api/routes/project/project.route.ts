@@ -10,6 +10,7 @@ import { badRequestResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
+import { createLogger } from "@/lib/log";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
@@ -22,8 +23,7 @@ import {
 import { listOrganizationProjects } from "@/lib/projects/list-organization-projects";
 import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
-import { attachProjectFileCatAgentContexts } from "@/lib/projects/attach-project-file-cat-agent-contexts";
-import { createLogger, serializeErrorForLog } from "@/lib/log";
+import { resolveProjectFileCatPagination } from "@/lib/projects/project-file-cat-pagination";
 import { listFilteredProjectFiles } from "@/lib/projects/project-files";
 import {
   getNativeProjectCatFile,
@@ -365,36 +365,7 @@ function asFile(value: unknown) {
   return values.find((item): item is File => item instanceof File && item.size > 0) ?? null;
 }
 
-const catContextHydrationLogger = createLogger("project-file-cat-context-route");
 const stringContextRouteLogger = createLogger("project-file-string-context-route");
-
-async function hydrateProjectFileCatAgentContexts(input: {
-  organizationId: string;
-  projectId: string;
-  catFile: NonNullable<Awaited<ReturnType<typeof getTmsProviderLiveCatFile>>>;
-  preferredRepositoryFullName?: string | null;
-}) {
-  const log = catContextHydrationLogger.child({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    segmentCount: input.catFile.segments.length,
-  });
-
-  try {
-    return await attachProjectFileCatAgentContexts({
-      organizationId: input.organizationId,
-      projectId: input.projectId,
-      catFile: input.catFile,
-      preferredRepositoryFullName: input.preferredRepositoryFullName ?? null,
-    });
-  } catch (error) {
-    log.warn(
-      { err: serializeErrorForLog(error) },
-      "CAT context hydration failed; returning unhydrated file",
-    );
-    return input.catFile;
-  }
-}
 
 const validateProjectFilesQuery = validator("query", (value, c) => {
   const parsed = projectFilesQuerySchema.safeParse(value);
@@ -467,6 +438,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       async (c) => {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
+        const pagination = resolveProjectFileCatPagination(query);
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
@@ -484,6 +456,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             sourcePath: query.sourcePath,
             targetLocale: query.targetLocale,
             canEditTranslations: isWriteBackTranslationAllowed(c.var.auth.membership.role),
+            pagination,
           });
 
           if (!catFile) {
@@ -494,14 +467,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
           }
 
-          const hydratedCatFile = await hydrateProjectFileCatAgentContexts({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            catFile,
-            preferredRepositoryFullName: query.repositoryFullName ?? null,
-          });
-
-          return c.json({ catFile: hydratedCatFile }, 200);
+          return c.json({ catFile }, 200);
         }
 
         try {
@@ -513,20 +479,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             {
               actorUserId: c.var.auth.user.localUserId,
               canEditTranslations: isWriteBackTranslationAllowed(c.var.auth.membership.role),
+              pagination,
             },
           );
           if (!catFile) {
             return projectNotFoundResponse(c);
           }
 
-          const hydratedCatFile = await hydrateProjectFileCatAgentContexts({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            catFile,
-            preferredRepositoryFullName: query.repositoryFullName ?? null,
-          });
-
-          return c.json({ catFile: hydratedCatFile }, 200);
+          return c.json({ catFile }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }

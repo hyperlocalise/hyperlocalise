@@ -5,7 +5,7 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   projectFileCatToWorkspaceState,
   requireProviderExternalResourceId,
-} from "./tms-job-cat-workspace";
+} from "@/components/cat/project-file-cat-mapper";
 
 const testIntl = getIntlShape("en");
 
@@ -86,12 +86,8 @@ describe("projectFileCatToWorkspaceState", () => {
       status: "needs_review",
       tags: ["icu", "1 comment", "1 issue"],
     });
-    expect(state.segmentFormatChecks?.["issue-string"]).toContainEqual(
-      expect.objectContaining({
-        label: "ICU structure",
-        status: "fail",
-      }),
-    );
+    expect(state.segmentFormatChecks).toEqual({});
+    expect(state.formatChecks).toEqual([]);
     expect(state.intelligence.filePath).toBe("en-US.json");
     expect(state.segmentIntelligence?.["approved-string"]).toMatchObject({
       productMeaning: "Heading on the sign-in screen",

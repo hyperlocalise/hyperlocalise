@@ -1,37 +1,27 @@
 "use client";
 
-import type { ReactNode } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
 import type {
   ProjectFileDetailResponse,
   ProjectFileRecord,
-  ProjectSourceStringsPreview,
 } from "@/api/routes/project/project.schema";
+import { ProjectFileCatWorkspace } from "@/components/cat/project-file-cat-workspace";
 import { Badge } from "@/components/ui/badge";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
-import { ProjectFileSourceStringsPreview } from "./project-file-source-strings-preview";
-import { ProjectFileCatWorkspace } from "./project-file-cat-workspace";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { parseSourceStringsFromFileContent } from "@/lib/projects/project-file-source-strings";
 import { cn } from "@/lib/primitives/cn";
 import { formatBytes } from "./project-files-shared";
 
 type ProjectFileDetail = ProjectFileDetailResponse["file"];
 
-export type ProjectFileSourceStringsPreviewRenderer = (props: {
-  sourceStrings: ProjectSourceStringsPreview;
-}) => ReactNode;
-
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
   dateStyle: "medium",
   timeStyle: "short",
 });
-
-const MAX_PREVIEW_CHARS = 100_000;
 
 function projectFileDetailQueryKey(
   organizationSlug: string,
@@ -71,27 +61,6 @@ function fileMetadataLine(
   ]
     .filter(Boolean)
     .join(" · ");
-}
-
-function truncatePreview(text: string) {
-  if (text.length <= MAX_PREVIEW_CHARS) {
-    return { text, truncated: false };
-  }
-
-  return {
-    text: `${text.slice(0, MAX_PREVIEW_CHARS)}\n\n…`,
-    truncated: true,
-  };
-}
-
-function defaultRenderSourceStringsPreview({
-  sourceStrings,
-}: Parameters<ProjectFileSourceStringsPreviewRenderer>[0]) {
-  if (!sourceStrings) {
-    return null;
-  }
-
-  return <ProjectFileSourceStringsPreview sourceStrings={sourceStrings} />;
 }
 
 export function ProjectFileDetailPanel({
@@ -194,7 +163,6 @@ export function ProjectFileDetailPanelView({
   isLoading,
   error,
   detail,
-  renderSourceStringsPreview = defaultRenderSourceStringsPreview,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -205,7 +173,6 @@ export function ProjectFileDetailPanelView({
   isLoading: boolean;
   error?: unknown;
   detail?: ProjectFileDetail;
-  renderSourceStringsPreview?: ProjectFileSourceStringsPreviewRenderer;
 }) {
   const sourcePath = file?.sourcePath ?? null;
 
@@ -229,7 +196,7 @@ export function ProjectFileDetailPanelView({
       <div className="flex h-full min-h-48 flex-col items-center justify-center gap-2 px-6 py-10 text-center">
         <TypographyP className="text-sm font-medium text-foreground">Select a file</TypographyP>
         <TypographyP className="max-w-sm text-sm text-muted-foreground">
-          Choose a file from the list to preview its source content and related jobs.
+          Choose a file from the list to view metadata and edit strings in CAT.
         </TypographyP>
       </div>
     );
@@ -255,11 +222,8 @@ export function ProjectFileDetailPanelView({
   }
 
   const latestVersion = detail?.versions[0];
-  const latestContent = latestVersion?.content ?? null;
-  const sourceStringsPreview = parseSourceStringsFromFileContent(latestContent);
-  const textPreview =
-    latestContent?.text && !sourceStringsPreview ? truncatePreview(latestContent.text) : null;
   const displayByteSize = latestVersion?.byteSize ?? file.byteSize;
+  const provider = file.provider;
 
   const jobsByLocale = detail?.jobsByLocale ?? [];
   const orderedJobsByLocale = highlightLocale
@@ -276,9 +240,9 @@ export function ProjectFileDetailPanelView({
           {sourcePath}
         </TypographyP>
         <div className="flex flex-wrap items-center gap-2">
-          {file.provider ? (
+          {provider ? (
             <Badge variant="outline" className="rounded-full text-[10px]">
-              {providerName(file.provider.kind)}
+              {providerName(provider.kind)}
             </Badge>
           ) : file.latestJob ? (
             <Badge variant="outline" className="rounded-full text-[10px]">
@@ -298,37 +262,29 @@ export function ProjectFileDetailPanelView({
             Hash {latestVersion.sourceHash}
           </TypographyP>
         ) : null}
-      </header>
-
-      <section className="space-y-2">
-        <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-          Source preview
-        </TypographyP>
-        {sourceStringsPreview ? (
-          renderSourceStringsPreview({
-            sourceStrings: sourceStringsPreview,
-          })
-        ) : textPreview ? (
-          <div className="overflow-hidden rounded-md border border-border bg-background">
-            <pre className="max-h-[min(24rem,50vh)] overflow-auto p-3 font-mono text-xs leading-relaxed text-foreground whitespace-pre-wrap wrap-break-word">
-              {textPreview.text}
-            </pre>
-            {textPreview.truncated ? (
-              <TypographyP className="border-t border-border px-3 py-2 text-xs text-muted-foreground">
-                Preview truncated. Download the full file from a completed job output when
-                available.
+        {provider ? (
+          <div className="flex flex-wrap gap-x-4 gap-y-1 pt-1">
+            {provider.format ? (
+              <TypographyP className="text-xs text-muted-foreground">
+                Format {provider.format}
+              </TypographyP>
+            ) : null}
+            {provider.sourceLocale ? (
+              <TypographyP className="text-xs text-muted-foreground">
+                Source {provider.sourceLocale}
+              </TypographyP>
+            ) : null}
+            {provider.targetLocales.length > 0 ? (
+              <TypographyP className="text-xs text-muted-foreground">
+                Targets {provider.targetLocales.join(", ")}
               </TypographyP>
             ) : null}
           </div>
-        ) : (
-          <TypographyP className="text-sm text-muted-foreground">
-            No text preview is available for this file yet.
-          </TypographyP>
-        )}
-      </section>
+        ) : null}
+      </header>
 
       {!file.provider && sourcePath ? (
-        <section className="space-y-3">
+        <section className="flex min-h-[min(32rem,70vh)] flex-col gap-3">
           <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             CAT workspace
           </TypographyP>
@@ -338,6 +294,8 @@ export function ProjectFileDetailPanelView({
             sourcePath={sourcePath}
             targetLocales={targetLocales}
             highlightLocale={highlightLocale}
+            layout="default"
+            className="min-h-[min(28rem,60vh)]"
           />
         </section>
       ) : null}
