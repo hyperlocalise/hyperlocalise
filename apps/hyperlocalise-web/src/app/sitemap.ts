@@ -16,7 +16,7 @@ function localizedUrl(locale: string, path = "/") {
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const localizedStaticPaths = ["/", "/terms", "/privacy"];
+  const localizedStaticPaths = ["/", "/terms", "/privacy", "/trust-center"];
   const localizedStaticEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
     localizedStaticPaths.map((path) => ({
       url: localizedUrl(locale, path),
