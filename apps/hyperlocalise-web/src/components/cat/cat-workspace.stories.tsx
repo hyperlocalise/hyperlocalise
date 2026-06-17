@@ -159,9 +159,9 @@ export const InteractiveReview: Story = {
       expect(canvas.getByText("Your review is ready for approval")).toBeInTheDocument(),
     );
     await waitFor(() =>
-      expect(targetEditor.textContent?.trim()).not.toContain(
-        "Thẻ bảng điều khiển hiển thị số đánh giá còn cần phê duyệt.",
-      ),
+      expect(
+        canvas.getByRole("textbox", { name: "Target translation" }).textContent?.trim(),
+      ).not.toContain("Thẻ bảng điều khiển hiển thị số đánh giá còn cần phê duyệt."),
     );
   },
 };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo } from "react";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Extension, type Extensions } from "@tiptap/core";
@@ -261,20 +261,17 @@ export function CatIcuStructureSummary({ blocks }: { blocks: CatIcuBlockSummary[
 }
 
 export function CatTargetEditor({
-  segmentId,
   sourceText,
   value,
   disabled = false,
   onChange,
 }: {
-  segmentId?: string;
   sourceText: string;
   value: string;
   disabled?: boolean;
   onChange: (value: string) => void;
 }) {
   const intl = useIntl();
-  const activeSegmentIdRef = useRef(segmentId);
   const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
   const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
   const parityIssues = useMemo(
@@ -325,15 +322,12 @@ export function CatTargetEditor({
       return;
     }
 
-    const segmentChanged = segmentId !== undefined && activeSegmentIdRef.current !== segmentId;
-    activeSegmentIdRef.current = segmentId;
-
-    if (!segmentChanged && editorText(editor) === value) {
+    if (editorText(editor) === value) {
       return;
     }
 
     editor.commands.setContent(textDocFromValue(value), { emitUpdate: false });
-  }, [editor, segmentId, value]);
+  }, [editor, value]);
 
   function insertToken(token: CatMessageToken) {
     if (!editor || disabled) {
