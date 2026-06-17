@@ -6,9 +6,11 @@ import {
   InformationCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
+import { catFormatChecksMessages } from "./cat.messages";
 import type { CatFormatCheck } from "./types";
 
 function FormatCheckIcon({ status }: { status: CatFormatCheck["status"] }) {
@@ -22,24 +24,29 @@ function FormatCheckIcon({ status }: { status: CatFormatCheck["status"] }) {
   }
 }
 
-function formatCheckStatusLabel(status: CatFormatCheck["status"]) {
+function formatCheckStatusLabel(
+  status: CatFormatCheck["status"],
+  intl: ReturnType<typeof useIntl>,
+) {
   switch (status) {
     case "pass":
-      return "Passed";
+      return intl.formatMessage(catFormatChecksMessages.statusPass);
     case "warn":
-      return "Check";
+      return intl.formatMessage(catFormatChecksMessages.statusWarn);
     case "fail":
-      return "Issue";
+      return intl.formatMessage(catFormatChecksMessages.statusFail);
     default:
       return status;
   }
 }
 
 export function CatFormatChecks({ checks }: { checks: CatFormatCheck[] }) {
+  const intl = useIntl();
+
   if (checks.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-foreground/12 px-3 py-4 text-center text-xs text-muted-foreground">
-        No format or QA checks for this segment yet.
+        <FormattedMessage {...catFormatChecksMessages.emptyChecks} />
       </div>
     );
   }
@@ -60,7 +67,7 @@ export function CatFormatChecks({ checks }: { checks: CatFormatCheck[] }) {
                   check.status === "fail" && "text-flame-200",
                 )}
               >
-                {formatCheckStatusLabel(check.status)}
+                {formatCheckStatusLabel(check.status, intl)}
               </span>
             </div>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{check.message}</p>

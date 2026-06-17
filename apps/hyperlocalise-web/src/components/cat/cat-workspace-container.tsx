@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useIntl } from "react-intl";
 
 import type {
   CatAiRecommendationResult,
@@ -12,6 +13,7 @@ import type {
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
 import { CatWorkspaceView } from "./cat-workspace";
+import { catWorkspaceContainerMessages } from "./cat.messages";
 import type { CatFormatCheck, CatSegment, CatWorkspaceState } from "./types";
 
 function getSegmentQueueIndex(segments: CatSegment[], segmentIdOrKey: string) {
@@ -76,10 +78,11 @@ export function addSaveFailureFormatCheck(
   state: CatWorkspaceState,
   segmentId: string,
   message: string,
+  label: string,
 ): Pick<CatWorkspaceState, "formatChecks" | "segmentFormatChecks"> {
   const saveFailureCheck: CatFormatCheck = {
     id: `save-failed-${segmentId}`,
-    label: "Save failed",
+    label,
     status: "fail",
     message,
     category: "qa",
@@ -218,6 +221,7 @@ export function CatWorkspaceContainer({
   services: serviceOverrides = dependencyOverrides?.services,
   className,
 }: CatWorkspaceContainerProps) {
+  const intl = useIntl();
   const [state, setState] = useState(initialState);
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
@@ -369,10 +373,12 @@ export function CatWorkspaceContainer({
             }
 
             const message =
-              error instanceof Error ? error.message : "Failed to search glossary and TM.";
+              error instanceof Error
+                ? error.message
+                : intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchFailed);
             const concordanceFailureCheck: CatFormatCheck = {
               id: `concordance-failed-${segmentId}`,
-              label: "Concordance search",
+              label: intl.formatMessage(catWorkspaceContainerMessages.concordanceSearchLabel),
               status: "fail",
               message,
               category: "qa",
@@ -418,10 +424,10 @@ export function CatWorkspaceContainer({
             const message =
               error instanceof Error
                 ? error.message
-                : "Failed to generate AI translation recommendation.";
+                : intl.formatMessage(catWorkspaceContainerMessages.aiRecommendationFailed);
             aiFailureCheck = {
               id: `ai-recommendation-failed-${segmentId}`,
-              label: "AI recommendation",
+              label: intl.formatMessage(catWorkspaceContainerMessages.aiRecommendationLabel),
               status: "fail",
               message,
               category: "qa",
@@ -485,6 +491,7 @@ export function CatWorkspaceContainer({
     },
     [
       generateAiRecommendation,
+      intl,
       lookupSegmentConcordance,
       onReviewWithAi,
       runQaChecks,
@@ -581,10 +588,18 @@ export function CatWorkspaceContainer({
             };
           });
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Failed to save translation.";
+          const message =
+            error instanceof Error
+              ? error.message
+              : intl.formatMessage(catWorkspaceContainerMessages.saveTranslationFailed);
           setState((current) => ({
             ...current,
-            ...addSaveFailureFormatCheck(current, segmentId, message),
+            ...addSaveFailureFormatCheck(
+              current,
+              segmentId,
+              message,
+              intl.formatMessage(catWorkspaceContainerMessages.saveFailedLabel),
+            ),
           }));
         } finally {
           setIsApproving(false);
@@ -638,10 +653,12 @@ export function CatWorkspaceContainer({
           });
         } catch (error) {
           const message =
-            error instanceof Error ? error.message : "Failed to look up repository context.";
+            error instanceof Error
+              ? error.message
+              : intl.formatMessage(catWorkspaceContainerMessages.contextLookupFailed);
           const lookupFailureCheck: CatFormatCheck = {
             id: `context-lookup-failed-${segmentId}`,
-            label: "Context lookup",
+            label: intl.formatMessage(catWorkspaceContainerMessages.contextLookupLabel),
             status: "fail",
             message,
             category: "qa",
@@ -692,6 +709,7 @@ export function CatWorkspaceContainer({
   }, [
     onApprove,
     onAskQuestion,
+    intl,
     onNextSegment,
     onPreviousSegment,
     onReviewInSequence,

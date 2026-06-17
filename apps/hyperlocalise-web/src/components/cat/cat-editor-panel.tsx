@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useHotkeys } from "react-hotkeys-hook";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
@@ -13,6 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/primitives/cn";
 
 import { CatFormatChecks } from "./cat-format-checks";
+import { catEditorPanelMessages } from "./cat.messages";
 import { analyzeCatMessageFormat } from "./cat-message-format";
 import { CatIcuStructureSummary, CatMessagePreview, CatTargetEditor } from "./cat-target-editor";
 import type { CatFormatCheck, CatSegment, CatSegmentIntelligence } from "./types";
@@ -53,7 +55,7 @@ export function CatEditorPanel({
   onTargetChange,
   onUseAiSuggestion,
   onApprove,
-  primaryActionLabel = "Approve",
+  primaryActionLabel,
   onAskQuestion,
   onGenerateAiRecommendation,
   aiRecommendationError,
@@ -87,6 +89,9 @@ export function CatEditorPanel({
   hasPreviousSegment: boolean;
   hasNextSegment: boolean;
 }) {
+  const intl = useIntl();
+  const resolvedPrimaryActionLabel =
+    primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
   const [commentsBySegmentId, setCommentsBySegmentId] = useState<
     Record<string, CatEditorComment[]>
@@ -145,8 +150,8 @@ export function CatEditorPanel({
           ...currentComments,
           {
             id: `${segment.id}-comment-${commentNumber}`,
-            author: "Reviewer",
-            createdAtLabel: "Just now",
+            author: intl.formatMessage(catEditorPanelMessages.commentAuthorReviewer),
+            createdAtLabel: intl.formatMessage(catEditorPanelMessages.commentCreatedJustNow),
             body: trimmedCommentDraft,
           },
         ],
@@ -169,8 +174,8 @@ export function CatEditorPanel({
             size="icon-sm"
             onClick={onPrevious}
             disabled={!hasPreviousSegment}
-            aria-label="Previous segment"
-            title="Previous segment (⌘←)"
+            aria-label={intl.formatMessage(catEditorPanelMessages.previousSegmentAria)}
+            title={intl.formatMessage(catEditorPanelMessages.previousSegmentTitle)}
           >
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
           </Button>
@@ -179,8 +184,8 @@ export function CatEditorPanel({
             size="icon-sm"
             onClick={onNext}
             disabled={!hasNextSegment}
-            aria-label="Next segment"
-            title="Next segment (⌘→)"
+            aria-label={intl.formatMessage(catEditorPanelMessages.nextSegmentAria)}
+            title={intl.formatMessage(catEditorPanelMessages.nextSegmentTitle)}
           >
             <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
           </Button>
@@ -191,7 +196,10 @@ export function CatEditorPanel({
         <div className="mx-auto max-w-3xl space-y-6 px-4 py-5 sm:px-6 lg:space-y-7 lg:px-8 lg:py-8">
           <section className="space-y-3">
             <h3 className="text-xs font-medium text-muted-foreground">
-              Source ({segment.sourceLocale})
+              <FormattedMessage
+                {...catEditorPanelMessages.sourceHeading}
+                values={{ locale: segment.sourceLocale }}
+              />
             </h3>
             <p className="text-pretty text-base leading-relaxed text-foreground/92 lg:text-lg">
               <CatMessagePreview message={segment.sourceText} />
@@ -201,7 +209,10 @@ export function CatEditorPanel({
           <section className="space-y-3">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-xs font-medium text-muted-foreground">
-                Target ({segment.targetLocale})
+                <FormattedMessage
+                  {...catEditorPanelMessages.targetHeading}
+                  values={{ locale: segment.targetLocale }}
+                />
               </h3>
             </div>
             <CatTargetEditor
@@ -226,7 +237,7 @@ export function CatEditorPanel({
               }
             >
               {isApproving ? <Spinner className="size-4 text-white" /> : null}
-              {primaryActionLabel}
+              {resolvedPrimaryActionLabel}
               <ShortcutKbd keys={["⌘", "↵"]} className="bg-white/15 text-white" />
             </Button>
             <Button
@@ -242,12 +253,16 @@ export function CatEditorPanel({
               }
               title={
                 canLookupContext
-                  ? "Look up where this string appears in the connected repository"
-                  : "Repository context lookup is not available"
+                  ? intl.formatMessage(catEditorPanelMessages.findContextTitle)
+                  : intl.formatMessage(catEditorPanelMessages.findContextUnavailableTitle)
               }
             >
               {isLookingUpContext ? <Spinner className="size-4" /> : null}
-              {isLookingUpContext ? "Finding context…" : "Find context"}
+              {isLookingUpContext ? (
+                <FormattedMessage {...catEditorPanelMessages.findingContext} />
+              ) : (
+                <FormattedMessage {...catEditorPanelMessages.findContext} />
+              )}
               <ShortcutKbd keys={["⌘", "K"]} />
             </Button>
             <Button
@@ -256,7 +271,7 @@ export function CatEditorPanel({
               onClick={onPrevious}
               disabled={isApproving || isLookingUpContext || !hasPreviousSegment}
             >
-              Previous
+              <FormattedMessage {...catEditorPanelMessages.previous} />
               <ShortcutKbd keys={["⌘", "←"]} />
             </Button>
             <Button
@@ -265,7 +280,7 @@ export function CatEditorPanel({
               onClick={onNext}
               disabled={isApproving || isLookingUpContext || !hasNextSegment}
             >
-              Next
+              <FormattedMessage {...catEditorPanelMessages.next} />
               <ShortcutKbd keys={["⌘", "→"]} />
             </Button>
           </div>
@@ -291,11 +306,13 @@ export function CatEditorPanel({
                 )}
               >
                 <div className="mb-2 flex items-center justify-between gap-3">
-                  <p className="text-xs font-medium text-muted-foreground">AI recommendation</p>
+                  <p className="text-xs font-medium text-muted-foreground">
+                    <FormattedMessage {...catEditorPanelMessages.aiRecommendation} />
+                  </p>
                   <div className="flex items-center gap-1">
                     {intelligence.aiSuggestion ? (
                       <Button variant="ghost" size="sm" onClick={onUseAiSuggestion}>
-                        Use
+                        <FormattedMessage {...catEditorPanelMessages.use} />
                       </Button>
                     ) : null}
                     {onGenerateAiRecommendation ? (
@@ -305,7 +322,11 @@ export function CatEditorPanel({
                         onClick={onGenerateAiRecommendation}
                         disabled={isAiSuggestionLoading}
                       >
-                        {intelligence.aiSuggestion ? "Regenerate" : "Get recommendation"}
+                        {intelligence.aiSuggestion ? (
+                          <FormattedMessage {...catEditorPanelMessages.regenerate} />
+                        ) : (
+                          <FormattedMessage {...catEditorPanelMessages.getRecommendation} />
+                        )}
                       </Button>
                     ) : null}
                   </div>
@@ -319,14 +340,16 @@ export function CatEditorPanel({
                     </p>
                     {intelligence.aiReasoning ? (
                       <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-                        <span className="font-medium text-foreground/70">Reasoning:</span>{" "}
+                        <span className="font-medium text-foreground/70">
+                          <FormattedMessage {...catEditorPanelMessages.reasoningPrefix} />
+                        </span>{" "}
                         {intelligence.aiReasoning}
                       </p>
                     ) : null}
                   </>
                 ) : (
                   <p className="text-sm text-muted-foreground">
-                    Generate a translation suggestion for this string.
+                    <FormattedMessage {...catEditorPanelMessages.aiSuggestionEmpty} />
                   </p>
                 )}
               </aside>
@@ -334,7 +357,9 @@ export function CatEditorPanel({
           ) : null}
 
           <section className="space-y-3">
-            <h3 className="text-xs font-medium text-muted-foreground">Format & QA checks</h3>
+            <h3 className="text-xs font-medium text-muted-foreground">
+              <FormattedMessage {...catEditorPanelMessages.formatQaChecks} />
+            </h3>
             {isFormatChecksLoading ? (
               <div className="space-y-0 divide-y divide-foreground/8 rounded-xl border border-foreground/8 bg-foreground/2">
                 {[0, 1, 2].map((item) => (
@@ -357,7 +382,9 @@ export function CatEditorPanel({
 
           <section className="space-y-3 border-t border-foreground/8 pt-5">
             <div className="flex items-center justify-between gap-2">
-              <h3 className="text-xs font-medium text-muted-foreground">Comments</h3>
+              <h3 className="text-xs font-medium text-muted-foreground">
+                <FormattedMessage {...catEditorPanelMessages.comments} />
+              </h3>
               <span className="text-xs text-muted-foreground tabular-nums">
                 {segmentComments.length}
               </span>
@@ -376,14 +403,14 @@ export function CatEditorPanel({
               </ul>
             ) : (
               <p className="text-sm text-muted-foreground">
-                No comments yet. Add a note for reviewers or translators.
+                <FormattedMessage {...catEditorPanelMessages.noComments} />
               </p>
             )}
             <Textarea
               value={commentDraft}
               onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
               className="min-h-20 resize-y rounded-xl border-foreground/12 bg-background px-3 py-3 text-sm leading-relaxed"
-              placeholder="Add a comment..."
+              placeholder={intl.formatMessage(catEditorPanelMessages.commentPlaceholder)}
             />
             <div className="flex justify-end">
               <Button
@@ -392,7 +419,7 @@ export function CatEditorPanel({
                 onClick={handleAddComment}
                 disabled={!trimmedCommentDraft}
               >
-                Add comment
+                <FormattedMessage {...catEditorPanelMessages.addComment} />
               </Button>
             </div>
           </section>

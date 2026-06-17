@@ -48,9 +48,9 @@ export interface CatMessageAnalysis {
 
 export interface CatMessageParityIssue {
   kind: "missing-token" | "extra-token" | "icu-mismatch" | "parse-error";
-  label: string;
-  message: string;
   tokens?: string[];
+  parseErrorMessage?: string;
+  parseTarget?: "source" | "target";
 }
 
 function locationRange(location: Location | undefined, fallbackEnd: number) {
@@ -204,7 +204,7 @@ export function analyzeCatMessageFormat(message: string): CatMessageAnalysis {
       placeholders: [],
       icuBlocks: [],
       parseError: {
-        message: parserError.message ?? "Message syntax could not be parsed.",
+        message: parserError.message ?? "",
         start: range.start,
         end: Math.max(range.end, range.start + 1),
       },
@@ -246,14 +246,14 @@ export function compareCatMessageFormats(
   if (source.parseError) {
     issues.push({
       kind: "parse-error",
-      label: "Source message syntax",
-      message: source.parseError.message,
+      parseTarget: "source",
+      parseErrorMessage: source.parseError.message || undefined,
     });
     if (target.parseError) {
       issues.push({
         kind: "parse-error",
-        label: "Target message syntax",
-        message: target.parseError.message,
+        parseTarget: "target",
+        parseErrorMessage: target.parseError.message || undefined,
       });
     }
     return issues;
@@ -262,8 +262,8 @@ export function compareCatMessageFormats(
   if (target.parseError) {
     issues.push({
       kind: "parse-error",
-      label: "Target message syntax",
-      message: target.parseError.message,
+      parseTarget: "target",
+      parseErrorMessage: target.parseError.message || undefined,
     });
     return issues;
   }
@@ -273,8 +273,6 @@ export function compareCatMessageFormats(
     const labels = uniqueSorted(missingPlaceholders.map(tokenDisplayName));
     issues.push({
       kind: "missing-token",
-      label: "Missing placeholders",
-      message: `Target is missing ${labels.join(", ")} from the source string.`,
       tokens: labels,
     });
   }
@@ -284,8 +282,6 @@ export function compareCatMessageFormats(
     const labels = uniqueSorted(extraPlaceholders.map(tokenDisplayName));
     issues.push({
       kind: "extra-token",
-      label: "Extra placeholders",
-      message: `Target includes ${labels.join(", ")} that is not in the source string.`,
       tokens: labels,
     });
   }
@@ -298,8 +294,6 @@ export function compareCatMessageFormats(
     const labels = uniqueSorted(missingIcuBlocks.map(tokenDisplayName));
     issues.push({
       kind: "icu-mismatch",
-      label: "ICU structure",
-      message: `Target ICU structure must match ${labels.join(", ")} from the source string.`,
       tokens: labels,
     });
   }
