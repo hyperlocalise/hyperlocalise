@@ -26,7 +26,7 @@ export default defineConfig({
     rules: {
       ...pluginFormatjs.configs.strict.rules,
       // Most UI is not localized yet; re-enable as /localise coverage grows.
-      // "formatjs/no-literal-string-in-jsx": "off",
+      "formatjs/no-literal-string-in-jsx": "off",
     },
     overrides: [
       {
