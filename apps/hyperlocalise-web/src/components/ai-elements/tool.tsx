@@ -14,8 +14,10 @@ import {
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { isValidElement } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { CodeBlock } from "./code-block";
+import { toolMessages } from "./tool.messages";
 import { TypographyH4 } from "@/components/ui/typography";
 
 export type ToolProps = ComponentProps<typeof Collapsible>;
@@ -41,14 +43,14 @@ export type ToolHeaderProps = {
     }
 );
 
-const statusLabels: Record<ToolPart["state"], string> = {
-  "approval-requested": "Awaiting Approval",
-  "approval-responded": "Responded",
-  "input-available": "Running",
-  "input-streaming": "Pending",
-  "output-available": "Completed",
-  "output-denied": "Denied",
-  "output-error": "Error",
+const statusMessageKeys: Record<ToolPart["state"], keyof typeof toolMessages> = {
+  "approval-requested": "statusApprovalRequested",
+  "approval-responded": "statusApprovalResponded",
+  "input-available": "statusInputAvailable",
+  "input-streaming": "statusInputStreaming",
+  "output-available": "statusOutputAvailable",
+  "output-denied": "statusOutputDenied",
+  "output-error": "statusOutputError",
 };
 
 const statusIcons: Record<ToolPart["state"], ReactNode> = {
@@ -61,12 +63,19 @@ const statusIcons: Record<ToolPart["state"], ReactNode> = {
   "output-error": <XCircleIcon className="size-4 text-red-600" />,
 };
 
-export const getStatusBadge = (status: ToolPart["state"]) => (
-  <Badge className="gap-1.5 rounded-full text-xs" variant="secondary">
-    {statusIcons[status]}
-    {statusLabels[status]}
-  </Badge>
-);
+export const ToolStatusBadge = ({ status }: { status: ToolPart["state"] }) => {
+  const intl = useIntl();
+
+  return (
+    <Badge className="gap-1.5 rounded-full text-xs" variant="secondary">
+      {statusIcons[status]}
+      {intl.formatMessage(toolMessages[statusMessageKeys[status]])}
+    </Badge>
+  );
+};
+
+/** @deprecated Use `ToolStatusBadge` instead. */
+export const getStatusBadge = (status: ToolPart["state"]) => <ToolStatusBadge status={status} />;
 
 export const ToolHeader = ({
   className,
@@ -86,7 +95,7 @@ export const ToolHeader = ({
       <div className="flex items-center gap-2">
         <WrenchIcon className="size-4 text-muted-foreground" />
         <span className="font-medium text-sm">{title ?? derivedName}</span>
-        {getStatusBadge(state)}
+        <ToolStatusBadge status={state} />
       </div>
       <ChevronDownIcon className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
     </CollapsibleTrigger>
@@ -112,7 +121,7 @@ export type ToolInputProps = ComponentProps<"div"> & {
 export const ToolInput = ({ className, input, ...props }: ToolInputProps) => (
   <div className={cn("space-y-2 overflow-hidden", className)} {...props}>
     <TypographyH4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-      Parameters
+      <FormattedMessage {...toolMessages.parameters} />
     </TypographyH4>
     <div className="rounded-md bg-muted/50">
       <CodeBlock code={JSON.stringify(input, null, 2)} language="json" />
@@ -141,7 +150,11 @@ export const ToolOutput = ({ className, output, errorText, ...props }: ToolOutpu
   return (
     <div className={cn("space-y-2", className)} {...props}>
       <TypographyH4 className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-        {errorText ? "Error" : "Result"}
+        {errorText ? (
+          <FormattedMessage {...toolMessages.error} />
+        ) : (
+          <FormattedMessage {...toolMessages.result} />
+        )}
       </TypographyH4>
       <div
         className={cn(

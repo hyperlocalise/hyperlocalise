@@ -1,3 +1,5 @@
+"use client";
+
 import {
   Command,
   CommandDialog,
@@ -12,6 +14,9 @@ import {
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/primitives/cn";
 import type { ComponentProps, ReactNode } from "react";
+import { useIntl } from "react-intl";
+
+import { modelSelectorMessages } from "./model-selector.messages";
 
 export type ModelSelectorProps = ComponentProps<typeof Dialog>;
 
@@ -30,18 +35,23 @@ export type ModelSelectorContentProps = ComponentProps<typeof DialogContent> & {
 export const ModelSelectorContent = ({
   className,
   children,
-  title = "Model Selector",
+  title,
   ...props
-}: ModelSelectorContentProps) => (
-  <DialogContent
-    aria-describedby={undefined}
-    className={cn("outline! border-none! p-0 outline-border! outline-solid!", className)}
-    {...props}
-  >
-    <DialogTitle className="sr-only">{title}</DialogTitle>
-    <Command className="**:data-[slot=command-input-wrapper]:h-auto">{children}</Command>
-  </DialogContent>
-);
+}: ModelSelectorContentProps) => {
+  const intl = useIntl();
+  const resolvedTitle = title ?? intl.formatMessage(modelSelectorMessages.title);
+
+  return (
+    <DialogContent
+      aria-describedby={undefined}
+      className={cn("outline! border-none! p-0 outline-border! outline-solid!", className)}
+      {...props}
+    >
+      <DialogTitle className="sr-only">{resolvedTitle}</DialogTitle>
+      <Command className="**:data-[slot=command-input-wrapper]:h-auto">{children}</Command>
+    </DialogContent>
+  );
+};
 
 export type ModelSelectorDialogProps = ComponentProps<typeof CommandDialog>;
 
@@ -145,16 +155,20 @@ export type ModelSelectorLogoProps = Omit<ComponentProps<"img">, "src" | "alt"> 
     | (string & {});
 };
 
-export const ModelSelectorLogo = ({ provider, className, ...props }: ModelSelectorLogoProps) => (
-  <img
-    {...props}
-    alt={`${provider} logo`}
-    className={cn("size-3 dark:invert", className)}
-    height={12}
-    src={`https://models.dev/logos/${provider}.svg`}
-    width={12}
-  />
-);
+export const ModelSelectorLogo = ({ provider, className, ...props }: ModelSelectorLogoProps) => {
+  const intl = useIntl();
+
+  return (
+    <img
+      {...props}
+      alt={intl.formatMessage(modelSelectorMessages.providerLogoAlt, { provider })}
+      className={cn("size-3 dark:invert", className)}
+      height={12}
+      src={`https://models.dev/logos/${provider}.svg`}
+      width={12}
+    />
+  );
+};
 
 export type ModelSelectorLogoGroupProps = ComponentProps<"div">;
 

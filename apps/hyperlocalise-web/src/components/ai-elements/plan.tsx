@@ -15,7 +15,9 @@ import { cn } from "@/lib/primitives/cn";
 import { ChevronsUpDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { FormattedMessage } from "react-intl";
 
+import { planMessages } from "./plan.messages";
 import { Shimmer } from "./shimmer";
 
 interface PlanContextValue {
@@ -131,7 +133,9 @@ export const PlanTrigger = ({ className, children, ...props }: PlanTriggerProps)
     {children ?? (
       <>
         <ChevronsUpDownIcon className="size-4" />
-        <span className="sr-only">Toggle plan</span>
+        <span className="sr-only">
+          <FormattedMessage {...planMessages.togglePlanAria} />
+        </span>
       </>
     )}
   </CollapsibleTrigger>

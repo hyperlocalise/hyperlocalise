@@ -7,8 +7,11 @@ import type { UIMessage } from "ai";
 import { ArrowDownIcon, DownloadIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { useCallback } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { StickToBottom, useStickToBottomContext } from "use-stick-to-bottom";
 import { TypographyH3, TypographyP } from "@/components/ui/typography";
+
+import { conversationMessages } from "./conversation.messages";
 
 export type ConversationProps = ComponentProps<typeof StickToBottom>;
 
@@ -36,32 +39,41 @@ export type ConversationEmptyStateProps = ComponentProps<"div"> & {
 
 export const ConversationEmptyState = ({
   className,
-  title = "No messages yet",
-  description = "Start a conversation to see messages here",
+  title,
+  description,
   icon,
   children,
   ...props
-}: ConversationEmptyStateProps) => (
-  <div
-    className={cn(
-      "flex size-full flex-col items-center justify-center gap-3 p-8 text-center",
-      className,
-    )}
-    {...props}
-  >
-    {children ?? (
-      <>
-        {icon && <div className="text-muted-foreground">{icon}</div>}
-        <div className="space-y-1">
-          <TypographyH3 className="font-medium text-sm md:text-sm">{title}</TypographyH3>
-          {description && (
-            <TypographyP className="text-muted-foreground text-sm">{description}</TypographyP>
-          )}
-        </div>
-      </>
-    )}
-  </div>
-);
+}: ConversationEmptyStateProps) => {
+  const intl = useIntl();
+  const resolvedTitle = title ?? intl.formatMessage(conversationMessages.noMessagesYet);
+  const resolvedDescription =
+    description ?? intl.formatMessage(conversationMessages.startConversation);
+
+  return (
+    <div
+      className={cn(
+        "flex size-full flex-col items-center justify-center gap-3 p-8 text-center",
+        className,
+      )}
+      {...props}
+    >
+      {children ?? (
+        <>
+          {icon && <div className="text-muted-foreground">{icon}</div>}
+          <div className="space-y-1">
+            <TypographyH3 className="font-medium text-sm md:text-sm">{resolvedTitle}</TypographyH3>
+            {resolvedDescription && (
+              <TypographyP className="text-muted-foreground text-sm">
+                {resolvedDescription}
+              </TypographyP>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+};
 
 export type ConversationScrollButtonProps = ComponentProps<typeof Button>;
 
@@ -69,6 +81,7 @@ export const ConversationScrollButton = ({
   className,
   ...props
 }: ConversationScrollButtonProps) => {
+  const intl = useIntl();
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
 
   const handleScrollToBottom = useCallback(() => {
@@ -81,7 +94,7 @@ export const ConversationScrollButton = ({
         <TooltipTrigger
           render={
             <Button
-              aria-label="Scroll to bottom"
+              aria-label={intl.formatMessage(conversationMessages.scrollToBottomAria)}
               className={cn(
                 "absolute bottom-4 start-[50%] translate-x-[-50%] rtl:-translate-x-[-50%] rounded-full dark:bg-background dark:hover:bg-muted",
                 className,
@@ -96,7 +109,9 @@ export const ConversationScrollButton = ({
             </Button>
           }
         />
-        <TooltipContent side="top">Scroll to bottom</TooltipContent>
+        <TooltipContent side="top">
+          <FormattedMessage {...conversationMessages.scrollToBottomAria} />
+        </TooltipContent>
       </Tooltip>
     )
   );
@@ -132,6 +147,7 @@ export const ConversationDownload = ({
   children,
   ...props
 }: ConversationDownloadProps) => {
+  const intl = useIntl();
   const handleDownload = useCallback(() => {
     const markdown = messagesToMarkdown(messages, formatMessage);
     const blob = new Blob([markdown], { type: "text/markdown" });
@@ -150,7 +166,7 @@ export const ConversationDownload = ({
       <TooltipTrigger
         render={
           <Button
-            aria-label="Download conversation"
+            aria-label={intl.formatMessage(conversationMessages.downloadConversationAria)}
             className={cn(
               "absolute top-4 end-4 rounded-full dark:bg-background dark:hover:bg-muted",
               className,
@@ -166,7 +182,7 @@ export const ConversationDownload = ({
         }
       />
       <TooltipContent side="bottom" align="end">
-        Download conversation
+        <FormattedMessage {...conversationMessages.downloadConversationTooltip} />
       </TooltipContent>
     </Tooltip>
   );

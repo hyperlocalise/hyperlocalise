@@ -22,6 +22,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { useIntl } from "react-intl";
+
+import { micSelectorMessages } from "./mic-selector.messages";
 
 const deviceIdRegex = /\(([\da-fA-F]{4}:[\da-fA-F]{4})\)$/;
 
@@ -248,9 +251,16 @@ export type MicSelectorInputProps = ComponentProps<typeof CommandInput> & {
   onValueChange?: (value: string) => void;
 };
 
-export const MicSelectorInput = ({ ...props }: MicSelectorInputProps) => (
-  <CommandInput placeholder="Search microphones..." {...props} />
-);
+export const MicSelectorInput = ({ placeholder, ...props }: MicSelectorInputProps) => {
+  const intl = useIntl();
+
+  return (
+    <CommandInput
+      placeholder={placeholder ?? intl.formatMessage(micSelectorMessages.searchPlaceholder)}
+      {...props}
+    />
+  );
+};
 
 export type MicSelectorListProps = Omit<ComponentProps<typeof CommandList>, "children"> & {
   children: (devices: MediaDeviceInfo[]) => ReactNode;
@@ -264,10 +274,15 @@ export const MicSelectorList = ({ children, ...props }: MicSelectorListProps) =>
 
 export type MicSelectorEmptyProps = ComponentProps<typeof CommandEmpty>;
 
-export const MicSelectorEmpty = ({
-  children = "No microphone found.",
-  ...props
-}: MicSelectorEmptyProps) => <CommandEmpty {...props}>{children}</CommandEmpty>;
+export const MicSelectorEmpty = ({ children, ...props }: MicSelectorEmptyProps) => {
+  const intl = useIntl();
+
+  return (
+    <CommandEmpty {...props}>
+      {children ?? intl.formatMessage(micSelectorMessages.noMicrophoneFound)}
+    </CommandEmpty>
+  );
+};
 
 export type MicSelectorItemProps = ComponentProps<typeof CommandItem>;
 

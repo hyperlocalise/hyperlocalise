@@ -22,8 +22,11 @@ import {
   useRef,
   useState,
 } from "react";
+import { useIntl } from "react-intl";
 import type { BundledLanguage, BundledTheme, HighlighterGeneric, ThemedToken } from "shiki";
 import { createHighlighter } from "shiki";
+
+import { codeBlockMessages } from "./code-block.messages";
 
 // Shiki uses bitflags for font styles: 1=italic, 2=bold, 4=underline
 // oxlint-disable-next-line eslint(no-bitwise)
@@ -441,6 +444,7 @@ export const CodeBlockCopyButton = ({
   const [isCopied, setIsCopied] = useState(false);
   const timeoutRef = useRef<number>(0);
   const { code } = useContext(CodeBlockContext);
+  const intl = useIntl();
 
   const copyToClipboard = useCallback(async () => {
     if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
@@ -468,7 +472,9 @@ export const CodeBlockCopyButton = ({
   );
 
   const Icon = isCopied ? CheckIcon : CopyIcon;
-  const tooltipText = isCopied ? "Copied!" : "Copy code";
+  const tooltipText = isCopied
+    ? intl.formatMessage(codeBlockMessages.copied)
+    : intl.formatMessage(codeBlockMessages.copyCode);
 
   return (
     <Tooltip>

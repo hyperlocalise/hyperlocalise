@@ -6,7 +6,10 @@ import { cn } from "@/lib/primitives/cn";
 import type { LucideIcon } from "lucide-react";
 import { XIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
+import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
+
+import { artifactMessages } from "./artifact.messages";
 
 export type ArtifactProps = HTMLAttributes<HTMLDivElement>;
 
@@ -49,11 +52,15 @@ export const ArtifactClose = ({
           {...props}
         >
           {children ?? <XIcon className="size-4" />}
-          <span className="sr-only">Close</span>
+          <span className="sr-only">
+            <FormattedMessage {...artifactMessages.close} />
+          </span>
         </Button>
       }
     />
-    <TooltipContent>Close</TooltipContent>
+    <TooltipContent>
+      <FormattedMessage {...artifactMessages.close} />
+    </TooltipContent>
   </Tooltip>
 );
 

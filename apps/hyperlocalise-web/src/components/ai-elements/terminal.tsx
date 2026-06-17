@@ -15,6 +15,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { useIntl } from "react-intl";
+
+import { terminalMessages } from "./terminal.messages";
 
 interface TerminalContextType {
   output: string;
@@ -45,12 +48,16 @@ export const TerminalHeader = ({ className, children, ...props }: TerminalHeader
 
 export type TerminalTitleProps = HTMLAttributes<HTMLDivElement>;
 
-export const TerminalTitle = ({ className, children, ...props }: TerminalTitleProps) => (
-  <div className={cn("flex items-center gap-2 text-sm text-zinc-400", className)} {...props}>
-    <TerminalIcon className="size-4" />
-    {children ?? "Terminal"}
-  </div>
-);
+export const TerminalTitle = ({ className, children, ...props }: TerminalTitleProps) => {
+  const intl = useIntl();
+
+  return (
+    <div className={cn("flex items-center gap-2 text-sm text-zinc-400", className)} {...props}>
+      <TerminalIcon className="size-4" />
+      {children ?? intl.formatMessage(terminalMessages.title)}
+    </div>
+  );
+};
 
 export type TerminalStatusProps = HTMLAttributes<HTMLDivElement>;
 
@@ -93,6 +100,7 @@ export const TerminalCopyButton = ({
   const [isCopied, setIsCopied] = useState(false);
   const timeoutRef = useRef<number>(0);
   const { output } = useContext(TerminalContext);
+  const intl = useIntl();
 
   const copyToClipboard = useCallback(async () => {
     if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
@@ -118,7 +126,9 @@ export const TerminalCopyButton = ({
   );
 
   const Icon = isCopied ? CheckIcon : CopyIcon;
-  const tooltipText = isCopied ? "Copied!" : "Copy terminal output";
+  const tooltipText = isCopied
+    ? intl.formatMessage(terminalMessages.copied)
+    : intl.formatMessage(terminalMessages.copyOutput);
 
   return (
     <Tooltip>

@@ -20,6 +20,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { useIntl } from "react-intl";
+
+import { snippetMessages } from "./snippet.messages";
 
 interface SnippetContextType {
   code: string;
@@ -87,6 +90,7 @@ export const SnippetCopyButton = ({
   const [isCopied, setIsCopied] = useState(false);
   const timeoutRef = useRef<number>(0);
   const { code } = useContext(SnippetContext);
+  const intl = useIntl();
 
   const copyToClipboard = useCallback(async () => {
     if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
@@ -114,7 +118,9 @@ export const SnippetCopyButton = ({
   );
 
   const Icon = isCopied ? CheckIcon : CopyIcon;
-  const tooltipText = isCopied ? "Copied!" : "Copy";
+  const tooltipText = isCopied
+    ? intl.formatMessage(snippetMessages.copied)
+    : intl.formatMessage(snippetMessages.copy);
 
   return (
     <Tooltip>

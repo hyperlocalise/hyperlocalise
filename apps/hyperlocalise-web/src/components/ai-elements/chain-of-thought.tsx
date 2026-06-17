@@ -8,7 +8,10 @@ import type { LucideIcon } from "lucide-react";
 import { BrainIcon, ChevronDownIcon, DotIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, memo, useContext, useMemo } from "react";
+import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
+
+import { chainOfThoughtMessages } from "./chain-of-thought.messages";
 
 interface ChainOfThoughtContextValue {
   isOpen: boolean;
@@ -74,7 +77,9 @@ export const ChainOfThoughtHeader = memo(
           {...props}
         >
           <BrainIcon className="size-4" />
-          <span className="flex-1 text-start">{children ?? "Chain of Thought"}</span>
+          <span className="flex-1 text-start">
+            {children ?? <FormattedMessage {...chainOfThoughtMessages.header} />}
+          </span>
           <ChevronDownIcon
             className={cn("size-4 transition-transform", isOpen ? "rotate-180" : "rotate-0")}
           />

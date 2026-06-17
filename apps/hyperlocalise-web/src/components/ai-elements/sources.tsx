@@ -4,7 +4,10 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { cn } from "@/lib/primitives/cn";
 import { BookIcon, ChevronDownIcon } from "lucide-react";
 import type { ComponentProps } from "react";
+import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
+
+import { sourcesMessages } from "./sources.messages";
 
 export type SourcesProps = ComponentProps<"div">;
 
@@ -20,7 +23,9 @@ export const SourcesTrigger = ({ className, count, children, ...props }: Sources
   <CollapsibleTrigger className={cn("flex items-center gap-2", className)} {...props}>
     {children ?? (
       <>
-        <TypographyP className="font-medium">Used {count} sources</TypographyP>
+        <TypographyP className="font-medium">
+          <FormattedMessage {...sourcesMessages.usedSources} values={{ count }} />
+        </TypographyP>
         <ChevronDownIcon className="h-4 w-4" />
       </>
     )}

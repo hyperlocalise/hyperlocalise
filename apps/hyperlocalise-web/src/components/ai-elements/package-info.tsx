@@ -5,7 +5,10 @@ import { cn } from "@/lib/primitives/cn";
 import { ArrowRightIcon, MinusIcon, PackageIcon, PlusIcon } from "lucide-react";
 import type { HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
+
+import { packageInfoMessages } from "./package-info.messages";
 
 type ChangeType = "major" | "minor" | "patch" | "added" | "removed";
 
@@ -177,7 +180,7 @@ export const PackageInfoDependencies = ({
 }: PackageInfoDependenciesProps) => (
   <div className={cn("space-y-2", className)} {...props}>
     <span className="font-medium text-muted-foreground text-xs uppercase tracking-wide">
-      Dependencies
+      <FormattedMessage {...packageInfoMessages.dependencies} />
     </span>
     <div className="space-y-1">{children}</div>
   </div>

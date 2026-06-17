@@ -29,6 +29,9 @@ import {
 } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo } from "react";
+import { useIntl } from "react-intl";
+
+import { voiceSelectorMessages } from "./voice-selector.messages";
 
 interface VoiceSelectorContextValue {
   value: string | undefined;
@@ -109,14 +112,19 @@ export type VoiceSelectorContentProps = ComponentProps<typeof DialogContent> & {
 export const VoiceSelectorContent = ({
   className,
   children,
-  title = "Voice Selector",
+  title,
   ...props
-}: VoiceSelectorContentProps) => (
-  <DialogContent aria-describedby={undefined} className={cn("p-0", className)} {...props}>
-    <DialogTitle className="sr-only">{title}</DialogTitle>
-    <Command className="**:data-[slot=command-input-wrapper]:h-auto">{children}</Command>
-  </DialogContent>
-);
+}: VoiceSelectorContentProps) => {
+  const intl = useIntl();
+  const resolvedTitle = title ?? intl.formatMessage(voiceSelectorMessages.title);
+
+  return (
+    <DialogContent aria-describedby={undefined} className={cn("p-0", className)} {...props}>
+      <DialogTitle className="sr-only">{resolvedTitle}</DialogTitle>
+      <Command className="**:data-[slot=command-input-wrapper]:h-auto">{children}</Command>
+    </DialogContent>
+  );
+};
 
 export type VoiceSelectorDialogProps = ComponentProps<typeof CommandDialog>;
 
@@ -409,6 +417,8 @@ export const VoiceSelectorPreview = ({
   onClick,
   ...props
 }: VoiceSelectorPreviewProps) => {
+  const intl = useIntl();
+
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
       event.stopPropagation();
@@ -428,7 +438,11 @@ export const VoiceSelectorPreview = ({
 
   return (
     <Button
-      aria-label={playing ? "Pause preview" : "Play preview"}
+      aria-label={
+        playing
+          ? intl.formatMessage(voiceSelectorMessages.pausePreviewAria)
+          : intl.formatMessage(voiceSelectorMessages.playPreviewAria)
+      }
       className={cn("size-6", className)}
       disabled={loading}
       onClick={handleClick}

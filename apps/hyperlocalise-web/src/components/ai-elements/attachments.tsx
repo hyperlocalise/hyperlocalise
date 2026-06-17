@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
+
+import { attachmentsMessages } from "./attachments.messages";
+
+type AttachmentIntl = ReturnType<typeof useIntl>;
 
 // ============================================================================
 // Types
@@ -70,19 +75,29 @@ export const getMediaCategory = (data: AttachmentData): AttachmentMediaCategory 
   return "unknown";
 };
 
-export const getAttachmentLabel = (data: AttachmentData): string => {
+export const getAttachmentLabel = (intl: AttachmentIntl, data: AttachmentData): string => {
   if (data.type === "source-document") {
-    return data.title || data.filename || "Source";
+    return data.title || data.filename || intl.formatMessage(attachmentsMessages.source);
   }
 
   const category = getMediaCategory(data);
-  return data.filename || (category === "image" ? "Image" : "Attachment");
+  return (
+    data.filename ||
+    intl.formatMessage(
+      category === "image" ? attachmentsMessages.image : attachmentsMessages.attachment,
+    )
+  );
 };
 
-const renderAttachmentImage = (url: string, filename: string | undefined, isGrid: boolean) =>
+const renderAttachmentImage = (
+  intl: AttachmentIntl,
+  url: string,
+  filename: string | undefined,
+  isGrid: boolean,
+) =>
   isGrid ? (
     <img
-      alt={filename || "Image"}
+      alt={filename || intl.formatMessage(attachmentsMessages.image)}
       className="size-full object-cover"
       height={96}
       src={url}
@@ -90,7 +105,7 @@ const renderAttachmentImage = (url: string, filename: string | undefined, isGrid
     />
   ) : (
     <img
-      alt={filename || "Image"}
+      alt={filename || intl.formatMessage(attachmentsMessages.image)}
       className="size-full rounded object-cover"
       height={20}
       src={url}
@@ -222,6 +237,7 @@ export const AttachmentPreview = ({
   className,
   ...props
 }: AttachmentPreviewProps) => {
+  const intl = useIntl();
   const { data, mediaCategory, variant } = useAttachmentContext();
 
   const iconSize = variant === "inline" ? "size-3" : "size-4";
@@ -232,7 +248,7 @@ export const AttachmentPreview = ({
 
   const renderContent = () => {
     if (mediaCategory === "image" && data.type === "file" && data.url) {
-      return renderAttachmentImage(data.url, data.filename, variant === "grid");
+      return renderAttachmentImage(intl, data.url, data.filename, variant === "grid");
     }
 
     if (mediaCategory === "video" && data.type === "file" && data.url) {
@@ -272,8 +288,9 @@ export const AttachmentInfo = ({
   className,
   ...props
 }: AttachmentInfoProps) => {
+  const intl = useIntl();
   const { data, variant } = useAttachmentContext();
-  const label = getAttachmentLabel(data);
+  const label = getAttachmentLabel(intl, data);
 
   if (variant === "grid") {
     return null;
@@ -298,11 +315,13 @@ export type AttachmentRemoveProps = ComponentProps<typeof Button> & {
 };
 
 export const AttachmentRemove = ({
-  label = "Remove",
+  label,
   className,
   children,
   ...props
 }: AttachmentRemoveProps) => {
+  const intl = useIntl();
+  const resolvedLabel = label ?? intl.formatMessage(attachmentsMessages.remove);
   const { onRemove, variant } = useAttachmentContext();
 
   const handleClick = useCallback(
@@ -319,7 +338,7 @@ export const AttachmentRemove = ({
 
   return (
     <Button
-      aria-label={label}
+      aria-label={resolvedLabel}
       className={cn(
         variant === "grid" && [
           "absolute top-2 right-2 size-6 rounded-full p-0",
@@ -342,7 +361,7 @@ export const AttachmentRemove = ({
       {...props}
     >
       {children ?? <XIcon />}
-      <span className="sr-only">{label}</span>
+      <span className="sr-only">{resolvedLabel}</span>
     </Button>
   );
 };
@@ -388,6 +407,6 @@ export const AttachmentEmpty = ({ className, children, ...props }: AttachmentEmp
     className={cn("flex items-center justify-center p-4 text-muted-foreground text-sm", className)}
     {...props}
   >
-    {children ?? "No attachments"}
+    {children ?? <FormattedMessage {...attachmentsMessages.noAttachments} />}
   </div>
 );
