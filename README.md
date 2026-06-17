@@ -214,6 +214,19 @@ git push origin v0.1.0
 
 Release assets are built by [GoReleaser](https://goreleaser.com/) via [`.github/workflows/release.yml`](.github/workflows/release.yml) and [`.goreleaser.yml`](.goreleaser.yml).
 
+## License
+
+The CLI, shared Go packages, GitHub Actions, and repository files are licensed
+under the MIT License unless a more specific license file applies.
+
+The web application in [`apps/hyperlocalise-web/`](apps/hyperlocalise-web/) is
+licensed separately under the Business Source License 1.1. See
+[`apps/hyperlocalise-web/LICENSE`](apps/hyperlocalise-web/LICENSE).
+
+The Canva app in [`apps/canva-app/`](apps/canva-app/) is also licensed
+separately under the Business Source License 1.1. See
+[`apps/canva-app/LICENSE`](apps/canva-app/LICENSE).
+
 ## Contributing
 
 Issues and pull requests are welcome.
