@@ -101,8 +101,7 @@ func (d jstsLocaleDocument) render(values map[string]string) ([]byte, error) {
 	}
 
 	// BOLT OPTIMIZATION: Removed redundant clones and slices.SortFunc.
-	// Since entries are parsed sequentially, they are already sorted by
-	// their position in the template.
+	// Entries are naturally collected in document order during parsing.
 	entries := d.entries
 
 	var b strings.Builder

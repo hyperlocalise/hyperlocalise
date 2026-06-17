@@ -71,25 +71,27 @@ func MarshalAndroidXMLResources(template []byte, values map[string]string) ([]by
 	if err != nil {
 		return nil, err
 	}
-	return doc.render(values), nil
+	return doc.render(values)
 }
 
-func (d androidResourceDocument) render(values map[string]string) []byte {
+func (d androidResourceDocument) render(values map[string]string) ([]byte, error) {
 	if len(d.entries) == 0 {
-		return []byte(d.template)
+		return []byte(d.template), nil
 	}
 
 	// BOLT OPTIMIZATION: Removed redundant slices.Clone and slices.SortFunc.
-	// Since entries are parsed sequentially, they are already sorted by
-	// their position in the template.
+	// Entries are naturally collected in document order during parsing.
 	entries := d.entries
 
 	var b strings.Builder
 	b.Grow(len(d.template))
 	cursor := 0
 	for _, entry := range entries {
-		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
-			continue
+		if entry.valueStart < cursor {
+			return nil, fmt.Errorf("android resources render: overlapping or out-of-order replacement for key %q", entry.key)
+		}
+		if entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
+			return nil, fmt.Errorf("android resources render: invalid replacement span for key %q", entry.key)
 		}
 		b.WriteString(d.template[cursor:entry.valueStart])
 		if translated, ok := values[entry.key]; ok {
@@ -104,7 +106,7 @@ func (d androidResourceDocument) render(values map[string]string) []byte {
 		cursor = entry.valueEnd
 	}
 	b.WriteString(d.template[cursor:])
-	return []byte(b.String())
+	return []byte(b.String()), nil
 }
 
 func parseAndroidResourceDocument(content []byte) (androidResourceDocument, error) {
