@@ -161,6 +161,7 @@ export const footerColumns: MarketingFooterColumn[] = [
       { labelKey: "footerCliDocs", href: cliDocsUrl },
       { labelKey: "footerGitHubAction", href: githubActionUrl },
       { labelKey: "footerGitHub", href: githubRepoUrl },
+      { label: "Trust Center", href: "/trust-center" },
       { labelKey: "footerContact", href: "mailto:minh@hyperlocalise.com" },
     ],
   },
