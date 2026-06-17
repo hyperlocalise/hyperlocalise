@@ -3,12 +3,14 @@
 import type { ReactNode } from "react";
 import { BulbIcon, CheckmarkCircle02Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { MarkdownContent } from "@/components/markdown-description-editor";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { catIntelligencePanelMessages } from "./cat.messages";
 import type { CatGlossaryTerm, CatSegmentIntelligence, CatTranslationMemoryMatch } from "./types";
 
 function PanelSection({ title, children }: { title: string; children: ReactNode }) {
@@ -70,6 +72,8 @@ function AgentContextSkeleton() {
 }
 
 function GlossaryTermRow({ term }: { term: CatGlossaryTerm }) {
+  const intl = useIntl();
+
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-3 py-2.5">
       <span className="min-w-0 truncate text-sm text-foreground/86">{term.source}</span>
@@ -80,7 +84,7 @@ function GlossaryTermRow({ term }: { term: CatGlossaryTerm }) {
           <HugeiconsIcon
             icon={CheckmarkCircle02Icon}
             className="size-3.5 shrink-0 text-grove-300"
-            aria-label="Approved"
+            aria-label={intl.formatMessage(catIntelligencePanelMessages.approvedAria)}
           />
         ) : null}
       </span>
@@ -93,7 +97,10 @@ function TranslationMemoryRow({ match }: { match: CatTranslationMemoryMatch }) {
     <li className="space-y-2 px-3 py-3">
       <div className="flex items-center justify-between gap-3">
         <span className="rounded-full border border-dew-500/25 bg-dew-500/10 px-2 py-0.5 text-[11px] font-medium text-dew-100">
-          {match.matchPercent}% match
+          <FormattedMessage
+            {...catIntelligencePanelMessages.matchPercent}
+            values={{ matchPercent: match.matchPercent }}
+          />
         </span>
         {match.contextLabel ? (
           <span className="min-w-0 truncate text-xs text-muted-foreground">
@@ -122,6 +129,7 @@ export function CatIntelligencePanel({
   isConcordanceLoading?: boolean;
   showAgentContext?: boolean;
 }) {
+  const intl = useIntl();
   const hasFileContext = Boolean(intelligence.productMeaning?.trim());
   const agentBadges = [
     intelligence.locationBreadcrumb,
@@ -136,51 +144,59 @@ export function CatIntelligencePanel({
       <div className="border-b border-foreground/8 px-4 py-3">
         <div className="flex items-center gap-2">
           <HugeiconsIcon icon={BulbIcon} className="size-4 text-bud-300" />
-          <h2 className="text-sm font-semibold text-foreground">Translation Intelligence</h2>
+          <h2 className="text-sm font-semibold text-foreground">
+            <FormattedMessage {...catIntelligencePanelMessages.panelTitle} />
+          </h2>
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          Context and terminology for this string.
+          <FormattedMessage {...catIntelligencePanelMessages.panelDescription} />
         </p>
       </div>
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-4">
-          <PanelSection title="Context attached in the file">
+          <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.fileContextTitle)}>
             {hasFileContext ? (
               <MarkdownContent
                 value={intelligence.productMeaning ?? ""}
                 contentClassName="px-0 py-0 text-sm leading-relaxed text-foreground/88"
-                ariaLabel="File context"
+                ariaLabel={intl.formatMessage(catIntelligencePanelMessages.fileContextAria)}
               />
             ) : (
               <p className="text-sm leading-relaxed text-muted-foreground">
-                No context is attached to this string in the source file.
+                <FormattedMessage {...catIntelligencePanelMessages.noFileContext} />
               </p>
             )}
           </PanelSection>
 
           {showAgentContext ? (
-            <PanelSection title="Context found by agent">
+            <PanelSection
+              title={intl.formatMessage(catIntelligencePanelMessages.agentContextTitle)}
+            >
               {isLookingUpContext ? (
                 <AgentContextSkeleton />
               ) : hasAgentContext ? (
                 <div className="space-y-3">
                   {hasAgentInsight ? (
                     <InsightCard
-                      label="Meaning in product"
+                      label={intl.formatMessage(catIntelligencePanelMessages.meaningInProduct)}
                       icon={<HugeiconsIcon icon={InformationCircleIcon} className="size-3.5" />}
                     >
                       <div className="min-h-[1.25rem] space-y-2">
                         <MarkdownContent
                           value={intelligence.agentContext ?? ""}
                           contentClassName="min-h-[1.25rem] px-0 py-0 text-sm leading-relaxed text-foreground/88"
-                          ariaLabel="Agent context"
+                          ariaLabel={intl.formatMessage(
+                            catIntelligencePanelMessages.agentContextAria,
+                          )}
                         />
                         {intelligence.intent ? (
                           <MarkdownContent
                             value={intelligence.intent}
                             contentClassName="min-h-[1rem] px-0 py-0 text-xs leading-relaxed text-muted-foreground"
-                            ariaLabel="Translation intent"
+                            ariaLabel={intl.formatMessage(
+                              catIntelligencePanelMessages.translationIntentAria,
+                            )}
                           />
                         ) : null}
                       </div>
@@ -208,7 +224,7 @@ export function CatIntelligencePanel({
                 </div>
               ) : (
                 <p className="text-sm leading-relaxed text-muted-foreground">
-                  No repository context was found for this string.
+                  <FormattedMessage {...catIntelligencePanelMessages.noRepositoryContext} />
                 </p>
               )}
             </PanelSection>
@@ -216,17 +232,21 @@ export function CatIntelligencePanel({
 
           {isConcordanceLoading ? (
             <>
-              <PanelSection title="Glossary guidance">
+              <PanelSection
+                title={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidance)}
+              >
                 <ConcordanceSkeleton />
               </PanelSection>
-              <PanelSection title="Translation memory">
+              <PanelSection
+                title={intl.formatMessage(catIntelligencePanelMessages.translationMemory)}
+              >
                 <ConcordanceSkeleton />
               </PanelSection>
             </>
           ) : null}
 
           {!isConcordanceLoading && intelligence.glossaryTerms.length > 0 ? (
-            <PanelSection title="Glossary guidance">
+            <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.glossaryGuidance)}>
               <div className="overflow-hidden rounded-2xl bg-foreground/3">
                 <ul className="divide-y divide-foreground/8">
                   {intelligence.glossaryTerms.map((term) => (
@@ -240,7 +260,9 @@ export function CatIntelligencePanel({
           {!isConcordanceLoading &&
           intelligence.translationMemoryMatches &&
           intelligence.translationMemoryMatches.length > 0 ? (
-            <PanelSection title="Translation memory">
+            <PanelSection
+              title={intl.formatMessage(catIntelligencePanelMessages.translationMemory)}
+            >
               <div className="overflow-hidden rounded-2xl bg-foreground/3">
                 <ul className="divide-y divide-foreground/8">
                   {intelligence.translationMemoryMatches.map((match) => (

@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useIntl } from "react-intl";
 
 import type {
   ProjectFileCatConcordanceResponse,
@@ -15,6 +16,11 @@ import {
   analyzeCatMessageFormat,
   compareCatMessageFormats,
 } from "@/components/cat/cat-message-format";
+import type { CatMessageParityIssue } from "@/components/cat/cat-message-format";
+import {
+  localizeCatMessageParityIssue,
+  type CatFormatMessageIntl,
+} from "@/components/cat/cat-message-format-i18n";
 import type {
   CatFormatCheck,
   CatSegment,
@@ -69,7 +75,33 @@ function segmentStatusFor(segment: ProjectFileCatSegment): CatSegment["status"] 
   return segment.target?.text.trim() ? "needs_review" : "pending";
 }
 
-function formatCheckForSegment(segment: CatSegment, value: string): CatFormatCheck[] {
+function formatCheckFromParityIssue(
+  issue: CatMessageParityIssue,
+  index: number,
+  intl: CatFormatMessageIntl,
+): CatFormatCheck {
+  const localized = localizeCatMessageParityIssue(issue, intl);
+
+  return {
+    id: `format-${issue.kind}-${index}`,
+    label: localized.label,
+    status: issue.kind === "extra-token" ? "warn" : "fail",
+    message: localized.message,
+    category:
+      issue.kind === "parse-error"
+        ? "syntax"
+        : issue.kind === "icu-mismatch"
+          ? "icu"
+          : "placeholder",
+    relatedTokens: issue.tokens,
+  };
+}
+
+function formatCheckForSegment(
+  segment: CatSegment,
+  value: string,
+  intl: CatFormatMessageIntl,
+): CatFormatCheck[] {
   const checks: CatFormatCheck[] = [];
   const sourceAnalysis = analyzeCatMessageFormat(segment.sourceText);
   const targetAnalysis = analyzeCatMessageFormat(value);
@@ -88,22 +120,7 @@ function formatCheckForSegment(segment: CatSegment, value: string): CatFormatChe
     });
   } else {
     checks.push(
-      ...parityIssues.map(
-        (issue, index) =>
-          ({
-            id: `format-${issue.kind}-${index}`,
-            label: issue.label,
-            status: issue.kind === "extra-token" ? "warn" : "fail",
-            message: issue.message,
-            category:
-              issue.kind === "parse-error"
-                ? "syntax"
-                : issue.kind === "icu-mismatch"
-                  ? "icu"
-                  : "placeholder",
-            relatedTokens: issue.tokens,
-          }) satisfies CatFormatCheck,
-      ),
+      ...parityIssues.map((issue, index) => formatCheckFromParityIssue(issue, index, intl)),
     );
   }
 
@@ -120,8 +137,12 @@ function formatCheckForSegment(segment: CatSegment, value: string): CatFormatChe
   return checks;
 }
 
-async function validateSegmentFormat(segment: CatSegment, value: string) {
-  return formatCheckForSegment(segment, value);
+async function validateSegmentFormat(
+  segment: CatSegment,
+  value: string,
+  intl: CatFormatMessageIntl,
+) {
+  return formatCheckForSegment(segment, value, intl);
 }
 
 function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
@@ -182,7 +203,10 @@ function segmentIntelligenceFor(
   };
 }
 
-export function projectFileCatToWorkspaceState(catFile: CatFile): CatWorkspaceState {
+export function projectFileCatToWorkspaceState(
+  catFile: CatFile,
+  intl: CatFormatMessageIntl,
+): CatWorkspaceState {
   const sourceLocale = catFile.provider?.sourceLocale ?? "source";
   const segments = catFile.segments.map((segment, index): CatSegment => {
     const comments = segment.comments.length;
@@ -214,9 +238,14 @@ export function projectFileCatToWorkspaceState(catFile: CatFile): CatWorkspaceSt
       total: segments.length,
       reviewed: segments.filter((segment) => segment.status === "reviewed").length,
     },
-    formatChecks: segments[0] ? formatCheckForSegment(segments[0], segments[0].targetText) : [],
+    formatChecks: segments[0]
+      ? formatCheckForSegment(segments[0], segments[0].targetText, intl)
+      : [],
     segmentFormatChecks: Object.fromEntries(
-      segments.map((segment) => [segment.id, formatCheckForSegment(segment, segment.targetText)]),
+      segments.map((segment) => [
+        segment.id,
+        formatCheckForSegment(segment, segment.targetText, intl),
+      ]),
     ),
     suggestions: [],
     intelligence: intelligenceFor(catFile),
@@ -247,6 +276,7 @@ export function TmsJobCatWorkspace({
   repositoryFullName?: string | null;
   className?: string;
 }) {
+  const intl = useIntl();
   const queryClient = useQueryClient();
   const queryKey = projectFileCatQueryKey(
     organizationSlug,
@@ -309,8 +339,12 @@ export function TmsJobCatWorkspace({
   const saveTranslation = saveMutation.mutateAsync;
 
   const workspaceState = useMemo(
-    () => (catQuery.data ? projectFileCatToWorkspaceState(catQuery.data) : null),
-    [catQuery.data],
+    () => (catQuery.data ? projectFileCatToWorkspaceState(catQuery.data, intl) : null),
+    [catQuery.data, intl],
+  );
+  const validateFormat = useCallback(
+    (segment: CatSegment, value: string) => validateSegmentFormat(segment, value, intl),
+    [intl],
   );
   const handleApprove = useCallback(
     async (segmentId: string, targetText: string) => {
@@ -454,7 +488,7 @@ export function TmsJobCatWorkspace({
       initialState={workspaceState}
       className={cn("min-h-0 flex-1", className)}
       services={{
-        validateFormat: validateSegmentFormat,
+        validateFormat,
         lookupSegmentConcordance,
         generateAiRecommendation,
         ...(repositoryFullName ? { lookupSegmentContext } : {}),

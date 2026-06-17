@@ -186,7 +186,12 @@ describe("addSaveFailureFormatCheck", () => {
       },
     });
 
-    const next = addSaveFailureFormatCheck(state, "seg-02", "Provider rejected the update.");
+    const next = addSaveFailureFormatCheck(
+      state,
+      "seg-02",
+      "Provider rejected the update.",
+      "Save failed",
+    );
 
     expect(next.formatChecks).toMatchObject([
       {

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
+import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   projectFileCatToWorkspaceState,
   requireProviderExternalResourceId,
 } from "./tms-job-cat-workspace";
+
+const testIntl = getIntlShape("en");
 
 function catFile(): ProjectFileCatResponse["catFile"] {
   return {
@@ -65,7 +68,7 @@ function catFile(): ProjectFileCatResponse["catFile"] {
 
 describe("projectFileCatToWorkspaceState", () => {
   it("maps live Crowdin CAT content into the next-gen CAT workspace shape", () => {
-    const state = projectFileCatToWorkspaceState(catFile());
+    const state = projectFileCatToWorkspaceState(catFile(), testIntl);
 
     expect(state.selectedSegmentId).toBe("approved-string");
     expect(state.queueSummary).toEqual({ total: 2, reviewed: 1 });
@@ -103,16 +106,19 @@ describe("projectFileCatToWorkspaceState", () => {
   });
 
   it("maps persisted repository context into segment intelligence", () => {
-    const state = projectFileCatToWorkspaceState({
-      ...catFile(),
-      segments: [
-        {
-          ...catFile().segments[0],
-          repositoryContext: "Hero title on the sign-in page.",
-        },
-        catFile().segments[1],
-      ],
-    });
+    const state = projectFileCatToWorkspaceState(
+      {
+        ...catFile(),
+        segments: [
+          {
+            ...catFile().segments[0],
+            repositoryContext: "Hero title on the sign-in page.",
+          },
+          catFile().segments[1],
+        ],
+      },
+      testIntl,
+    );
 
     expect(state.segmentIntelligence?.["approved-string"]?.agentContext).toBe(
       "Hero title on the sign-in page.",
@@ -120,10 +126,13 @@ describe("projectFileCatToWorkspaceState", () => {
   });
 
   it("maps canEditTranslations from the CAT file payload", () => {
-    const readOnlyState = projectFileCatToWorkspaceState({
-      ...catFile(),
-      canEditTranslations: false,
-    });
+    const readOnlyState = projectFileCatToWorkspaceState(
+      {
+        ...catFile(),
+        canEditTranslations: false,
+      },
+      testIntl,
+    );
 
     expect(readOnlyState.canEditTranslations).toBe(false);
   });

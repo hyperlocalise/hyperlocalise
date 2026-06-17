@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { FormattedMessage } from "react-intl";
 
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,6 +10,7 @@ import { cn } from "@/lib/primitives/cn";
 import { CatEditorPanel } from "./cat-editor-panel";
 import { CatIntelligencePanel } from "./cat-intelligence-panel";
 import { CatQueuePanel } from "./cat-queue-panel";
+import { catWorkspaceMessages } from "./cat.messages";
 import type { CatWorkspaceViewProps } from "./dependencies";
 
 const COMPACT_WORKSPACE_QUERY = "(max-width: 1023px)";
@@ -68,7 +70,7 @@ export function CatWorkspaceView({
           className,
         )}
       >
-        No segments in queue.
+        <FormattedMessage {...catWorkspaceMessages.emptyQueue} />
       </div>
     );
   }
@@ -168,9 +170,20 @@ export function CatWorkspaceView({
                 </p>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-xs font-medium text-foreground">{reviewedProgress}% reviewed</p>
+                <p className="text-xs font-medium text-foreground">
+                  <FormattedMessage
+                    {...catWorkspaceMessages.reviewedProgress}
+                    values={{ progress: reviewedProgress }}
+                  />
+                </p>
                 <p className="text-xs text-muted-foreground">
-                  {state.queueSummary.reviewed} of {state.queueSummary.total}
+                  <FormattedMessage
+                    {...catWorkspaceMessages.reviewedSummary}
+                    values={{
+                      reviewed: state.queueSummary.reviewed,
+                      total: state.queueSummary.total,
+                    }}
+                  />
                 </p>
               </div>
             </div>
@@ -183,9 +196,15 @@ export function CatWorkspaceView({
             className="min-h-0 flex-1 gap-0 overflow-hidden"
           >
             <TabsList className="mx-4 mt-3 grid h-10 w-auto grid-cols-3">
-              <TabsTrigger value="edit">Edit</TabsTrigger>
-              <TabsTrigger value="queue">Queue</TabsTrigger>
-              <TabsTrigger value="ai">AI</TabsTrigger>
+              <TabsTrigger value="edit">
+                <FormattedMessage {...catWorkspaceMessages.tabEdit} />
+              </TabsTrigger>
+              <TabsTrigger value="queue">
+                <FormattedMessage {...catWorkspaceMessages.tabQueue} />
+              </TabsTrigger>
+              <TabsTrigger value="ai">
+                <FormattedMessage {...catWorkspaceMessages.tabAi} />
+              </TabsTrigger>
             </TabsList>
             <TabsContent
               value="edit"

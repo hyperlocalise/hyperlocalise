@@ -67,7 +67,7 @@ describe("cat message format utilities", () => {
     expect(issues).toContainEqual(
       expect.objectContaining({
         kind: "parse-error",
-        label: "Source message syntax",
+        parseTarget: "source",
       }),
     );
   });

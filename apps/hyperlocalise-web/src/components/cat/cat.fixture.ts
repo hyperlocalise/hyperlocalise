@@ -5,7 +5,31 @@ import type {
   CatSuggestion,
   CatWorkspaceState,
 } from "./types";
+import { getIntlShape } from "@/lib/app-i18n/intl";
+
 import { analyzeCatMessageFormat, compareCatMessageFormats } from "./cat-message-format";
+import type { CatMessageParityIssue } from "./cat-message-format";
+import { localizeCatMessageParityIssue } from "./cat-message-format-i18n";
+
+const fixtureIntl = getIntlShape("en");
+
+function formatCheckFromParityIssue(issue: CatMessageParityIssue, id: string): CatFormatCheck {
+  const localized = localizeCatMessageParityIssue(issue, fixtureIntl);
+
+  return {
+    id,
+    label: localized.label,
+    status: issue.kind === "extra-token" ? "warn" : "fail",
+    message: localized.message,
+    category:
+      issue.kind === "parse-error"
+        ? "syntax"
+        : issue.kind === "icu-mismatch"
+          ? "icu"
+          : "placeholder",
+    relatedTokens: issue.tokens,
+  };
+}
 
 type CatSegmentFixtureInput = Omit<CatSegment, "id" | "index" | "sourceLocale" | "targetLocale">;
 
@@ -579,34 +603,13 @@ export async function mockValidateFormat(
   const placeholderCheckIndex = checks.findIndex((check) => check.id === "check-placeholders");
 
   if (parityIssues.length > 0) {
-    checks[placeholderCheckIndex] = {
-      id: `check-format-${parityIssues[0].kind}`,
-      label: parityIssues[0].label,
-      status: parityIssues[0].kind === "extra-token" ? "warn" : "fail",
-      message: parityIssues[0].message,
-      category:
-        parityIssues[0].kind === "parse-error"
-          ? "syntax"
-          : parityIssues[0].kind === "icu-mismatch"
-            ? "icu"
-            : "placeholder",
-      relatedTokens: parityIssues[0].tokens,
-    };
+    checks[placeholderCheckIndex] = formatCheckFromParityIssue(
+      parityIssues[0],
+      `check-format-${parityIssues[0].kind}`,
+    );
 
     parityIssues.slice(1).forEach((issue, index) => {
-      checks.push({
-        id: `check-format-${issue.kind}-${index + 1}`,
-        label: issue.label,
-        status: issue.kind === "extra-token" ? "warn" : "fail",
-        message: issue.message,
-        category:
-          issue.kind === "parse-error"
-            ? "syntax"
-            : issue.kind === "icu-mismatch"
-              ? "icu"
-              : "placeholder",
-        relatedTokens: issue.tokens,
-      });
+      checks.push(formatCheckFromParityIssue(issue, `check-format-${issue.kind}-${index + 1}`));
     });
   } else if (sourceAnalysis.tokens.length > 0) {
     checks[placeholderCheckIndex] = {

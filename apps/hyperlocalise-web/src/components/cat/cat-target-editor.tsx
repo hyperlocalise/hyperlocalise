@@ -6,6 +6,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { Extension, type Extensions } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/primitives/cn";
@@ -18,6 +19,7 @@ import {
   type CatMessageAnalysis,
   type CatMessageToken,
 } from "./cat-message-format";
+import { catTargetEditorMessages } from "./cat.messages";
 
 function textDocFromValue(value: string) {
   const lines = value.split("\n");
@@ -228,7 +230,9 @@ export function CatIcuStructureSummary({ blocks }: { blocks: CatIcuBlockSummary[
 
   return (
     <div className="space-y-2 rounded-xl border border-foreground/8 bg-foreground/3 px-3 py-2.5">
-      <p className="text-xs font-medium text-muted-foreground">ICU structure</p>
+      <p className="text-xs font-medium text-muted-foreground">
+        <FormattedMessage {...catTargetEditorMessages.icuStructure} />
+      </p>
       <ul className="space-y-2">
         {blocks.map((block) => (
           <li key={block.id} className="space-y-1">
@@ -267,6 +271,7 @@ export function CatTargetEditor({
   disabled?: boolean;
   onChange: (value: string) => void;
 }) {
+  const intl = useIntl();
   const sourceAnalysis = useMemo(() => analyzeCatMessageFormat(sourceText), [sourceText]);
   const targetAnalysis = useMemo(() => analyzeCatMessageFormat(value), [value]);
   const parityIssues = useMemo(
@@ -294,8 +299,8 @@ export function CatTargetEditor({
           "min-h-36 px-4 py-4 text-lg leading-relaxed text-foreground/92 focus:outline-none md:text-lg",
           "whitespace-pre-wrap break-words",
         ),
-        "aria-label": "Target translation",
-        "data-placeholder": "Enter translation...",
+        "aria-label": intl.formatMessage(catTargetEditorMessages.targetTranslationAria),
+        "data-placeholder": intl.formatMessage(catTargetEditorMessages.targetPlaceholder),
         autocapitalize: "off",
         autocomplete: "off",
         autocorrect: "off",
@@ -366,7 +371,9 @@ export function CatTargetEditor({
 
       {sourceTokens.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="me-1 text-xs font-medium text-muted-foreground">Required tokens</span>
+          <span className="me-1 text-xs font-medium text-muted-foreground">
+            <FormattedMessage {...catTargetEditorMessages.requiredTokens} />
+          </span>
           {sourceTokens.map((token) => {
             const isMissing = missingTokens.some((missingToken) => missingToken.id === token.id);
             const isPresent = targetSignatures.has(

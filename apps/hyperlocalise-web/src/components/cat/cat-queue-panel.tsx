@@ -6,12 +6,14 @@ import {
   MoreHorizontalCircle01Icon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/primitives/cn";
 
+import { catQueuePanelMessages } from "./cat.messages";
 import type { CatQueueSummary, CatSegment } from "./types";
 
 function QueueStatusIcon({ status }: { status: CatSegment["status"] }) {
@@ -37,6 +39,7 @@ export function CatQueuePanel({
   summary: CatQueueSummary;
   onSelectSegment: (segmentId: string) => void;
 }) {
+  const intl = useIntl();
   const progressValue =
     summary.total > 0 ? Math.round((summary.reviewed / summary.total) * 100) : 0;
 
@@ -44,16 +47,29 @@ export function CatQueuePanel({
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-foreground/8">
       <div className="flex items-center justify-between gap-2 border-b border-foreground/8 px-4 py-3">
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Queue</h2>
+          <h2 className="text-sm font-semibold text-foreground">
+            <FormattedMessage {...catQueuePanelMessages.queueTitle} />
+          </h2>
           <p className="text-xs text-muted-foreground">
-            {summary.total} total · {summary.reviewed} reviewed
+            <FormattedMessage
+              {...catQueuePanelMessages.queueSummary}
+              values={{ total: summary.total, reviewed: summary.reviewed }}
+            />
           </p>
         </div>
         <div className="flex items-center gap-1">
-          <Button variant="ghost" size="icon-sm" aria-label="Filter queue">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={intl.formatMessage(catQueuePanelMessages.filterQueueAria)}
+          >
             <HugeiconsIcon icon={FilterIcon} className="size-4" />
           </Button>
-          <Button variant="ghost" size="icon-sm" aria-label="Queue actions">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={intl.formatMessage(catQueuePanelMessages.queueActionsAria)}
+          >
             <HugeiconsIcon icon={MoreHorizontalCircle01Icon} className="size-4" />
           </Button>
         </div>

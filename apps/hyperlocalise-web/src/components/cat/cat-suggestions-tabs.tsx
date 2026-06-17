@@ -3,6 +3,7 @@
 import { useId, useState } from "react";
 import { ArrowDown01Icon, ArrowUp01Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,28 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
 
-import { catToneClass, suggestionSourceLabel } from "./cat-tone";
+import { catSuggestionsTabsMessages, catToneMessages } from "./cat.messages";
+import { catToneClass } from "./cat-tone";
 import type { CatSuggestion } from "./types";
 
+function suggestionSourceLabel(source: string, intl: ReturnType<typeof useIntl>) {
+  switch (source) {
+    case "ai":
+      return intl.formatMessage(catToneMessages.sourceAi);
+    case "glossary":
+      return intl.formatMessage(catToneMessages.sourceGlossary);
+    case "tm":
+      return intl.formatMessage(catToneMessages.sourceTm);
+    case "mt":
+      return intl.formatMessage(catToneMessages.sourceMt);
+    default:
+      return source;
+  }
+}
+
 function SuggestionRow({ suggestion, onUse }: { suggestion: CatSuggestion; onUse: () => void }) {
+  const intl = useIntl();
+
   return (
     <li className="rounded-lg border border-foreground/8 bg-foreground/2 px-3 py-2.5">
       <div className="flex items-start justify-between gap-3">
@@ -23,7 +42,7 @@ function SuggestionRow({ suggestion, onUse }: { suggestion: CatSuggestion; onUse
               variant="outline"
               className={cn("rounded-full text-[10px]", catToneClass("info"))}
             >
-              {suggestionSourceLabel(suggestion.source)}
+              {suggestionSourceLabel(suggestion.source, intl)}
               {suggestion.matchPercent ? ` ${suggestion.matchPercent}%` : ""}
             </Badge>
             {suggestion.metadata ? (
@@ -33,7 +52,7 @@ function SuggestionRow({ suggestion, onUse }: { suggestion: CatSuggestion; onUse
           <p className="text-sm text-foreground/88">{suggestion.text}</p>
         </div>
         <Button variant="outline" size="sm" onClick={onUse}>
-          Use
+          <FormattedMessage {...catSuggestionsTabsMessages.use} />
         </Button>
       </div>
     </li>
@@ -60,9 +79,24 @@ export function CatSuggestionsTabs({
     <div className="relative flex min-h-0 flex-1 flex-col">
       <Tabs defaultValue="suggestions" className="flex min-h-0 flex-1 flex-col">
         <TabsList className="w-full justify-start rounded-none border-b border-foreground/8 bg-transparent px-4 pe-28">
-          <TabsTrigger value="suggestions">Suggestions {suggestions.length}</TabsTrigger>
-          <TabsTrigger value="history">History {historyCount}</TabsTrigger>
-          <TabsTrigger value="glossary">Glossary matches {glossaryMatchCount}</TabsTrigger>
+          <TabsTrigger value="suggestions">
+            <FormattedMessage
+              {...catSuggestionsTabsMessages.suggestionsTab}
+              values={{ count: suggestions.length }}
+            />
+          </TabsTrigger>
+          <TabsTrigger value="history">
+            <FormattedMessage
+              {...catSuggestionsTabsMessages.historyTab}
+              values={{ count: historyCount }}
+            />
+          </TabsTrigger>
+          <TabsTrigger value="glossary">
+            <FormattedMessage
+              {...catSuggestionsTabsMessages.glossaryTab}
+              values={{ count: glossaryMatchCount }}
+            />
+          </TabsTrigger>
         </TabsList>
 
         <div
@@ -87,24 +121,37 @@ export function CatSuggestionsTabs({
             {tmMatchBasisCount ? (
               <div className="flex items-center gap-1.5 border-t border-foreground/8 px-4 py-2 text-xs text-muted-foreground">
                 <HugeiconsIcon icon={InformationCircleIcon} className="size-3.5" />
-                Based on {tmMatchBasisCount} similar translations
+                <FormattedMessage
+                  {...catSuggestionsTabsMessages.basedOnSimilar}
+                  values={{ count: tmMatchBasisCount }}
+                />
               </div>
             ) : null}
           </TabsContent>
 
           <TabsContent value="history" className="mt-0 p-4">
             <p className="text-sm text-muted-foreground">
-              {historyCount > 0
-                ? `${historyCount} previous revisions available for this string.`
-                : "No revision history yet."}
+              {historyCount > 0 ? (
+                <FormattedMessage
+                  {...catSuggestionsTabsMessages.historyAvailable}
+                  values={{ count: historyCount }}
+                />
+              ) : (
+                <FormattedMessage {...catSuggestionsTabsMessages.noHistory} />
+              )}
             </p>
           </TabsContent>
 
           <TabsContent value="glossary" className="mt-0 p-4">
             <p className="text-sm text-muted-foreground">
-              {glossaryMatchCount > 0
-                ? `${glossaryMatchCount} approved glossary terms match this segment.`
-                : "No glossary matches for this segment."}
+              {glossaryMatchCount > 0 ? (
+                <FormattedMessage
+                  {...catSuggestionsTabsMessages.glossaryMatches}
+                  values={{ count: glossaryMatchCount }}
+                />
+              ) : (
+                <FormattedMessage {...catSuggestionsTabsMessages.noGlossaryMatches} />
+              )}
             </p>
           </TabsContent>
         </div>
@@ -117,7 +164,11 @@ export function CatSuggestionsTabs({
         aria-expanded={isOpen}
         onClick={() => setIsOpen((current) => !current)}
       >
-        {isOpen ? "Collapse" : "Expand"}
+        {isOpen ? (
+          <FormattedMessage {...catSuggestionsTabsMessages.collapse} />
+        ) : (
+          <FormattedMessage {...catSuggestionsTabsMessages.expand} />
+        )}
         <HugeiconsIcon icon={isOpen ? ArrowDown01Icon : ArrowUp01Icon} className="size-4" />
       </button>
     </div>
