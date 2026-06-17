@@ -512,3 +512,39 @@ func TestMarshalXLIFFOverridesWrongSourceLanguageFromTemplate(t *testing.T) {
 		t.Fatalf("expected target-language to match target locale, got %q", content)
 	}
 }
+
+func TestXLIFFParserDecodesEntities(t *testing.T) {
+	content := []byte(`<?xml version="1.0" encoding="UTF-8"?>
+<xliff version="1.2">
+  <file source-language="en-US">
+    <body>
+      <trans-unit id="ent">
+        <source>A &amp; B &lt; C</source>
+      </trans-unit>
+      <trans-unit id="mixed">
+        <source>Value &amp; <ph id="1"/> markup</source>
+      </trans-unit>
+      <trans-unit id="cdata">
+        <source><![CDATA[ </source> ]]></source>
+      </trans-unit>
+    </body>
+  </file>
+</xliff>`)
+
+	got, err := (XLIFFParser{}).Parse(content)
+	if err != nil {
+		t.Fatalf("parse xliff: %v", err)
+	}
+	// Note: We expect entities to be normalized/re-escaped in the output to maintain
+	// well-formed XML for downstream processing of mixed content.
+	if got["ent"] != "A &amp; B &lt; C" {
+		t.Errorf("expected 'A &amp; B &lt; C', got %q", got["ent"])
+	}
+	wantMixed := `Value &amp; <ph id="1"></ph> markup`
+	if got["mixed"] != wantMixed {
+		t.Errorf("expected %q, got %q", wantMixed, got["mixed"])
+	}
+	if got["cdata"] != " &lt;/source&gt; " {
+		t.Errorf("expected re-escaped CDATA content, got %q", got["cdata"])
+	}
+}
