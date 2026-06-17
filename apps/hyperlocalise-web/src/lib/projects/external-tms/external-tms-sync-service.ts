@@ -102,6 +102,41 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
     return projectId;
   }
 
+  async deactivateAllProjectsForCredential(input: {
+    organizationId: string;
+    providerCredentialId: string;
+    providerKind: (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
+  }) {
+    const now = new Date();
+    const deactivated = await this.database
+      .update(schema.projects)
+      .set({
+        isActive: false,
+        updatedAt: now,
+      })
+      .where(this.externalTmsProjectsScope(input))
+      .returning({ id: schema.projects.id });
+
+    await this.removeJobsForProjects({
+      organizationId: input.organizationId,
+      providerKind: input.providerKind,
+      projectIds: deactivated.map((project) => project.id),
+    });
+
+    if (deactivated.length > 0) {
+      this.log.info(
+        {
+          organizationId: input.organizationId,
+          providerKind: input.providerKind,
+          deactivatedCount: deactivated.length,
+        },
+        "deactivated all external TMS projects for credential",
+      );
+    }
+
+    return deactivated.length;
+  }
+
   async deactivateMissingProjects(input: {
     organizationId: string;
     providerCredentialId: string;
@@ -109,7 +144,7 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
     syncedProjectIds: string[];
   }) {
     if (input.syncedProjectIds.length === 0) {
-      return 0;
+      return this.deactivateAllProjectsForCredential(input);
     }
 
     const now = new Date();
@@ -121,11 +156,7 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
       })
       .where(
         and(
-          eq(schema.projects.organizationId, input.organizationId),
-          eq(schema.projects.source, "external_tms"),
-          eq(schema.projects.externalProviderKind, input.providerKind),
-          eq(schema.projects.externalProviderCredentialId, input.providerCredentialId),
-          eq(schema.projects.isActive, true),
+          this.externalTmsProjectsScope(input),
           notInArray(schema.projects.id, input.syncedProjectIds),
         ),
       )
@@ -426,6 +457,20 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
     }
 
     return removedJobs;
+  }
+
+  private externalTmsProjectsScope(input: {
+    organizationId: string;
+    providerCredentialId: string;
+    providerKind: (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
+  }) {
+    return and(
+      eq(schema.projects.organizationId, input.organizationId),
+      eq(schema.projects.source, "external_tms"),
+      eq(schema.projects.externalProviderKind, input.providerKind),
+      eq(schema.projects.externalProviderCredentialId, input.providerCredentialId),
+      eq(schema.projects.isActive, true),
+    );
   }
 
   private externalTmsJobsScope(input: {
