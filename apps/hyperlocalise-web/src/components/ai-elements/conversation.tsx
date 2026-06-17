@@ -182,7 +182,7 @@ export const ConversationDownload = ({
         }
       />
       <TooltipContent side="bottom" align="end">
-        <FormattedMessage {...conversationMessages.downloadConversationTooltip} />
+        <FormattedMessage {...conversationMessages.downloadConversationAria} />
       </TooltipContent>
     </Tooltip>
   );

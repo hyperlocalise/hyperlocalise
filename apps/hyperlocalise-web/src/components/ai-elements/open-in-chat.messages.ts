@@ -27,12 +27,6 @@ export const openInChatMessages = defineMessages({
     defaultMessage: "Open in Cursor",
     description: "Menu item to open the prompt in Cursor",
   },
-  openInGitHub: {
-    id: "/ESsUBfxoN",
-
-    defaultMessage: "Open in GitHub",
-    description: "Menu item to open the prompt in GitHub",
-  },
   openInScira: {
     id: "jal4p9crNk",
 

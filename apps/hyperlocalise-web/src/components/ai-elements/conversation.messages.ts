@@ -22,15 +22,10 @@ export const conversationMessages = defineMessages({
     description: "Accessible label and tooltip for scrolling to the latest message",
   },
   downloadConversationAria: {
-    id: "hwc4QU1Ip1",
+    id: "jyL5Pnsg0T",
 
     defaultMessage: "Download conversation",
-    description: "Accessible label for downloading the conversation as a file",
-  },
-  downloadConversationTooltip: {
-    id: "hK0QYAJ27z",
-
-    defaultMessage: "Download conversation",
-    description: "Tooltip for the download conversation button",
+    description:
+      "Accessible label and tooltip for the button that downloads the conversation as a file",
   },
 });

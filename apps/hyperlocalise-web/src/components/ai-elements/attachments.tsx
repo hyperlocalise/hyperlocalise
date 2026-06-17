@@ -75,7 +75,7 @@ export const getMediaCategory = (data: AttachmentData): AttachmentMediaCategory 
   return "unknown";
 };
 
-export const getAttachmentLabel = (intl: AttachmentIntl, data: AttachmentData): string => {
+const getAttachmentLabel = (intl: AttachmentIntl, data: AttachmentData): string => {
   if (data.type === "source-document") {
     return data.title || data.filename || intl.formatMessage(attachmentsMessages.source);
   }
