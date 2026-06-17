@@ -211,6 +211,7 @@ func (d propertiesDocument) render(values map[string]string) []byte {
 	entries := d.entries
 
 	var b strings.Builder
+	b.Grow(len(d.template))
 	seen := make(map[string]struct{}, len(values))
 	cursor := 0
 	for _, entry := range entries {

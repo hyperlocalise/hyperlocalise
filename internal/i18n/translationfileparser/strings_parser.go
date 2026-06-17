@@ -1,9 +1,7 @@
 package translationfileparser
 
 import (
-	"cmp"
 	"fmt"
-	"slices"
 	"strconv"
 	"strings"
 	"unicode/utf16"
@@ -58,10 +56,13 @@ func (d stringsDocument) render(values map[string]string) []byte {
 		return []byte(d.template)
 	}
 
-	entries := append([]stringsEntry(nil), d.entries...)
-	slices.SortFunc(entries, func(a, b stringsEntry) int { return cmp.Compare(a.valueStart, b.valueStart) })
+	// BOLT OPTIMIZATION: Removed redundant clones and slices.SortFunc.
+	// Since entries are parsed sequentially, they are already sorted by
+	// their position in the template.
+	entries := d.entries
 
 	var b strings.Builder
+	b.Grow(len(d.template))
 	cursor := 0
 	for _, entry := range entries {
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
