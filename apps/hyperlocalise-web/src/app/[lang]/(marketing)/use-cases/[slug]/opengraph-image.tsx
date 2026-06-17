@@ -26,8 +26,9 @@ export default async function Image({ params }: UseCaseOgImageProps) {
     return createMarketingOgImage({
       heading: "Hyperlocalise",
       description: intl.formatMessage({
-        defaultMessage: "Localisation for the Agentic Era.", id: 'HGh+6gH7HI',
-        description: "Open Graph fallback description for unknown use case pages",
+        defaultMessage: "Localisation for the Agentic Era.",
+        id: "jycg40Y0pj",
+        description: "Open Graph fallback description for unknown pages",
       }),
     });
   }
@@ -38,8 +39,9 @@ export default async function Image({ params }: UseCaseOgImageProps) {
     return createMarketingOgImage({
       heading: "Hyperlocalise",
       description: intl.formatMessage({
-        defaultMessage: "Localisation for the Agentic Era.", id: 'HGh+6gH7HI',
-        description: "Open Graph fallback description for unknown use case pages",
+        defaultMessage: "Localisation for the Agentic Era.",
+        id: "jycg40Y0pj",
+        description: "Open Graph fallback description for unknown pages",
       }),
     });
   }
