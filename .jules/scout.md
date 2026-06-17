@@ -79,3 +79,7 @@
 ## 2026-07-02 - [Mixed XML Encoder and Buffer Writes]
 **Learning:** Interleaving `xml.Encoder.EncodeToken` calls with direct writes to the encoder's underlying `bytes.Buffer` causes content reordering because `xml.Encoder` is buffered. Tokens sent to the encoder are held until a flush, while direct buffer writes happen immediately.
 **Action:** Always call `enc.Flush()` before writing directly to the underlying buffer (e.g., when decoding `CharData` tokens into literal text) to maintain correct element order.
+
+## 2026-07-03 - [Heuristic Tag Identification for Parity]
+**Learning:** HTML tag parity checks must balance protecting application-specific markup (like MDX or Web Components) with allowing legitimate removal of template-style placeholders (like `<resource_id>` or `<v1>`). Aggressively treating any tag containing dots, underscores, or digits as structural markup causes false-positive mismatches when translators omit these tokens. Strong indicators of "true" markup include hyphens, colons, PascalCase (MDX), or the presence of attributes.
+**Action:** Use heuristics to distinguish markup from placeholders: treat tags as markup if they are known atoms (excluding generic placeholders like `name` and `id`), contain hyphens/colons, start with an uppercase letter, or have attributes. Avoid treating plain attribute-less tokens with dots, underscores, or digits as structural markup by default.
