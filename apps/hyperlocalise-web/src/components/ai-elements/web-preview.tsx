@@ -8,7 +8,10 @@ import { cn } from "@/lib/primitives/cn";
 import { ChevronDownIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
+
+import { webPreviewMessages } from "./web-preview.messages";
 
 export interface WebPreviewContextValue {
   url: string;
@@ -122,8 +125,15 @@ export const WebPreviewNavigationButton = ({
 
 export type WebPreviewUrlProps = ComponentProps<typeof Input>;
 
-export const WebPreviewUrl = ({ value, onChange, onKeyDown, ...props }: WebPreviewUrlProps) => {
+export const WebPreviewUrl = ({
+  value,
+  onChange,
+  onKeyDown,
+  placeholder,
+  ...props
+}: WebPreviewUrlProps) => {
   const { url, setUrl } = useWebPreview();
+  const intl = useIntl();
   const [prevUrl, setPrevUrl] = useState(url);
   const [inputValue, setInputValue] = useState(url);
 
@@ -154,7 +164,7 @@ export const WebPreviewUrl = ({ value, onChange, onKeyDown, ...props }: WebPrevi
       className="h-8 flex-1 text-sm"
       onChange={onChange ?? handleChange}
       onKeyDown={handleKeyDown}
-      placeholder="Enter URL..."
+      placeholder={placeholder ?? intl.formatMessage(webPreviewMessages.urlPlaceholder)}
       value={value ?? inputValue}
       {...props}
     />
@@ -165,8 +175,15 @@ export type WebPreviewBodyProps = ComponentProps<"iframe"> & {
   loading?: ReactNode;
 };
 
-export const WebPreviewBody = ({ className, loading, src, ...props }: WebPreviewBodyProps) => {
+export const WebPreviewBody = ({
+  className,
+  loading,
+  src,
+  title,
+  ...props
+}: WebPreviewBodyProps) => {
   const { url } = useWebPreview();
+  const intl = useIntl();
 
   return (
     <div className="flex-1">
@@ -175,7 +192,7 @@ export const WebPreviewBody = ({ className, loading, src, ...props }: WebPreview
         // oxlint-disable-next-line eslint-plugin-react(iframe-missing-sandbox)
         sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-presentation"
         src={(src ?? url) || undefined}
-        title="Preview"
+        title={title ?? intl.formatMessage(webPreviewMessages.previewTitle)}
         {...props}
       />
       {loading}
@@ -225,7 +242,7 @@ export const WebPreviewConsole = ({
           />
         }
       >
-        Console
+        <FormattedMessage {...webPreviewMessages.console} />
         <ChevronDownIcon
           className={cn("h-4 w-4 transition-transform duration-200", consoleOpen && "rotate-180")}
         />
@@ -238,7 +255,9 @@ export const WebPreviewConsole = ({
       >
         <div className="max-h-48 space-y-1 overflow-y-auto">
           {logs.length === 0 ? (
-            <TypographyP className="text-muted-foreground">No console output</TypographyP>
+            <TypographyP className="text-muted-foreground">
+              <FormattedMessage {...webPreviewMessages.noConsoleOutput} />
+            </TypographyP>
           ) : (
             logs.map((log) => (
               <div

@@ -8,6 +8,9 @@ import { cn } from "@/lib/primitives/cn";
 import { CheckIcon, CopyIcon, FileIcon, GitCommitIcon, MinusIcon, PlusIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useIntl } from "react-intl";
+
+import { commitMessages } from "./commit.messages";
 
 export type CommitProps = ComponentProps<typeof Collapsible>;
 
@@ -163,6 +166,7 @@ export const CommitCopyButton = ({
 }: CommitCopyButtonProps) => {
   const [isCopied, setIsCopied] = useState(false);
   const timeoutRef = useRef<number>(0);
+  const intl = useIntl();
 
   const copyToClipboard = useCallback(async () => {
     if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
@@ -190,7 +194,9 @@ export const CommitCopyButton = ({
   );
 
   const Icon = isCopied ? CheckIcon : CopyIcon;
-  const tooltipText = isCopied ? "Copied!" : "Copy hash";
+  const tooltipText = isCopied
+    ? intl.formatMessage(commitMessages.copied)
+    : intl.formatMessage(commitMessages.copyHash);
 
   return (
     <Tooltip>

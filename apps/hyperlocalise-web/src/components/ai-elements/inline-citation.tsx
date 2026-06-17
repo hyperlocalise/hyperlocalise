@@ -8,7 +8,10 @@ import { cn } from "@/lib/primitives/cn";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import type { ComponentProps } from "react";
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { useIntl } from "react-intl";
 import { TypographyH4, TypographyP } from "@/components/ui/typography";
+
+import { inlineCitationMessages } from "./inline-citation.messages";
 
 export type InlineCitationProps = ComponentProps<"span">;
 
@@ -164,6 +167,7 @@ export const InlineCitationCarouselPrev = ({
   ...props
 }: InlineCitationCarouselPrevProps) => {
   const api = useCarouselApi();
+  const intl = useIntl();
 
   const handleClick = useCallback(() => {
     if (api) {
@@ -173,7 +177,7 @@ export const InlineCitationCarouselPrev = ({
 
   return (
     <button
-      aria-label="Previous"
+      aria-label={intl.formatMessage(inlineCitationMessages.previousAria)}
       className={cn("shrink-0", className)}
       onClick={handleClick}
       type="button"
@@ -191,6 +195,7 @@ export const InlineCitationCarouselNext = ({
   ...props
 }: InlineCitationCarouselNextProps) => {
   const api = useCarouselApi();
+  const intl = useIntl();
 
   const handleClick = useCallback(() => {
     if (api) {
@@ -200,7 +205,7 @@ export const InlineCitationCarouselNext = ({
 
   return (
     <button
-      aria-label="Next"
+      aria-label={intl.formatMessage(inlineCitationMessages.nextAria)}
       className={cn("shrink-0", className)}
       onClick={handleClick}
       type="button"

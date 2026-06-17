@@ -59,6 +59,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { useIntl } from "react-intl";
+
+import { promptInputMessages } from "./prompt-input.messages";
 import { TypographyH3 } from "@/components/ui/typography";
 
 // ============================================================================
@@ -401,10 +404,12 @@ export type PromptInputActionAddAttachmentsProps = ComponentProps<typeof Dropdow
 };
 
 export const PromptInputActionAddAttachments = ({
-  label = "Add photos or files",
+  label,
   ...props
 }: PromptInputActionAddAttachmentsProps) => {
   const attachments = usePromptInputAttachments();
+  const intl = useIntl();
+  const resolvedLabel = label ?? intl.formatMessage(promptInputMessages.addPhotosOrFiles);
 
   const handleSelect = useCallback(
     (event: DropdownMenuItemSelectEvent) => {
@@ -416,7 +421,7 @@ export const PromptInputActionAddAttachments = ({
 
   return (
     <DropdownMenuItem {...props} onSelect={handleSelect}>
-      <ImageIcon className="me-2 size-4" /> {label}
+      <ImageIcon className="me-2 size-4" /> {resolvedLabel}
     </DropdownMenuItem>
   );
 };
@@ -426,11 +431,13 @@ export type PromptInputActionAddScreenshotProps = ComponentProps<typeof Dropdown
 };
 
 export const PromptInputActionAddScreenshot = ({
-  label = "Take screenshot",
+  label,
   onSelect,
   ...props
 }: PromptInputActionAddScreenshotProps) => {
   const attachments = usePromptInputAttachments();
+  const intl = useIntl();
+  const resolvedLabel = label ?? intl.formatMessage(promptInputMessages.takeScreenshot);
 
   const handleSelect = useCallback(
     async (event: DropdownMenuItemSelectEvent) => {
@@ -460,7 +467,7 @@ export const PromptInputActionAddScreenshot = ({
   return (
     <DropdownMenuItem {...props} onSelect={handleSelect}>
       <Monitor className="me-2 size-4" />
-      {label}
+      {resolvedLabel}
     </DropdownMenuItem>
   );
 };
@@ -502,6 +509,7 @@ export const PromptInput = ({
   children,
   ...props
 }: PromptInputProps) => {
+  const intl = useIntl();
   // Try to use a provider controller if present
   const controller = useOptionalPromptInputController();
   const usingProvider = !!controller;
@@ -560,7 +568,7 @@ export const PromptInput = ({
       if (incoming.length && accepted.length === 0) {
         onError?.({
           code: "accept",
-          message: "No files match the accepted types.",
+          message: intl.formatMessage(promptInputMessages.noFilesMatchTypes),
         });
         return;
       }
@@ -569,7 +577,7 @@ export const PromptInput = ({
       if (accepted.length > 0 && sized.length === 0) {
         onError?.({
           code: "max_file_size",
-          message: "All files exceed the maximum size.",
+          message: intl.formatMessage(promptInputMessages.allFilesExceedMaxSize),
         });
         return;
       }
@@ -581,7 +589,7 @@ export const PromptInput = ({
         if (typeof capacity === "number" && sized.length > capacity) {
           onError?.({
             code: "max_files",
-            message: "Too many files. Some were not added.",
+            message: intl.formatMessage(promptInputMessages.tooManyFiles),
           });
         }
         const next: (FileUIPart & { id: string })[] = [];
@@ -597,7 +605,7 @@ export const PromptInput = ({
         return [...prev, ...next];
       });
     },
-    [matchesAccept, maxFiles, maxFileSize, onError],
+    [matchesAccept, maxFiles, maxFileSize, onError, intl],
   );
 
   const removeLocal = useCallback(
@@ -620,7 +628,7 @@ export const PromptInput = ({
       if (incoming.length && accepted.length === 0) {
         onError?.({
           code: "accept",
-          message: "No files match the accepted types.",
+          message: intl.formatMessage(promptInputMessages.noFilesMatchTypes),
         });
         return;
       }
@@ -629,7 +637,7 @@ export const PromptInput = ({
       if (accepted.length > 0 && sized.length === 0) {
         onError?.({
           code: "max_file_size",
-          message: "All files exceed the maximum size.",
+          message: intl.formatMessage(promptInputMessages.allFilesExceedMaxSize),
         });
         return;
       }
@@ -641,7 +649,7 @@ export const PromptInput = ({
       if (typeof capacity === "number" && sized.length > capacity) {
         onError?.({
           code: "max_files",
-          message: "Too many files. Some were not added.",
+          message: intl.formatMessage(promptInputMessages.tooManyFiles),
         });
       }
 
@@ -649,7 +657,7 @@ export const PromptInput = ({
         controller?.attachments.add(capped);
       }
     },
-    [matchesAccept, maxFileSize, maxFiles, onError, files.length, controller],
+    [matchesAccept, maxFileSize, maxFiles, onError, files.length, controller, intl],
   );
 
   const clearAttachments = useCallback(
@@ -870,16 +878,17 @@ export const PromptInput = ({
   );
 
   // Render with or without local provider
+  const uploadLabel = intl.formatMessage(promptInputMessages.uploadFilesAria);
   const inner = (
     <>
       <input
         accept={accept}
-        aria-label="Upload files"
+        aria-label={uploadLabel}
         className="hidden"
         multiple={multiple}
         onChange={handleChange}
         ref={inputRef}
-        title="Upload files"
+        title={uploadLabel}
         type="file"
       />
       <form className={cn("w-full", className)} onSubmit={handleSubmit} ref={formRef} {...props}>
@@ -914,12 +923,14 @@ export const PromptInputTextarea = ({
   onChange,
   onKeyDown,
   className,
-  placeholder = "What would you like to know?",
+  placeholder,
   ...props
 }: PromptInputTextareaProps) => {
   const controller = useOptionalPromptInputController();
   const attachments = usePromptInputAttachments();
+  const intl = useIntl();
   const [isComposing, setIsComposing] = useState(false);
+  const resolvedPlaceholder = placeholder ?? intl.formatMessage(promptInputMessages.placeholder);
 
   const handleKeyDown: KeyboardEventHandler<HTMLTextAreaElement> = useCallback(
     (e) => {
@@ -1014,7 +1025,7 @@ export const PromptInputTextarea = ({
       onCompositionStart={handleCompositionStart}
       onKeyDown={handleKeyDown}
       onPaste={handlePaste}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       {...props}
       {...controlledProps}
     />
@@ -1149,6 +1160,7 @@ export const PromptInputSubmit = ({
   ...props
 }: PromptInputSubmitProps) => {
   const isGenerating = status === "submitted" || status === "streaming";
+  const intl = useIntl();
 
   let Icon = <CornerDownLeftIcon className="size-4" />;
 
@@ -1174,7 +1186,11 @@ export const PromptInputSubmit = ({
 
   const button = (
     <InputGroupButton
-      aria-label={isGenerating ? "Stop" : "Submit"}
+      aria-label={
+        isGenerating
+          ? intl.formatMessage(promptInputMessages.stopAria)
+          : intl.formatMessage(promptInputMessages.submitAria)
+      }
       className={cn(className)}
       onClick={handleClick}
       size={size}

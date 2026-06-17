@@ -7,8 +7,11 @@ import { cn } from "@/lib/primitives/cn";
 import type { LanguageModelUsage } from "ai";
 import type { ComponentProps } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { getUsage } from "tokenlens";
 import { TypographyP } from "@/components/ui/typography";
+
+import { contextMessages } from "./context.messages";
 
 const PERCENT_MAX = 100;
 
@@ -75,13 +78,14 @@ export const Context = ({ usedTokens, maxTokens, usage, modelId, ...props }: Con
 
 const ContextIcon = () => {
   const { usedTokens, maxTokens } = useContextValue();
+  const intl = useIntl();
   const circumference = 2 * Math.PI * ICON_RADIUS;
   const usedPercent = usedTokens / maxTokens;
   const dashOffset = circumference * (1 - usedPercent);
 
   return (
     <svg
-      aria-label="Model context usage"
+      aria-label={intl.formatMessage(contextMessages.modelContextUsageAria)}
       height="20"
       role="img"
       style={{ color: "currentcolor" }}
@@ -208,7 +212,9 @@ export const ContextContentFooter = ({
     >
       {children ?? (
         <>
-          <span className="text-muted-foreground">Total cost</span>
+          <span className="text-muted-foreground">
+            <FormattedMessage {...contextMessages.totalCost} />
+          </span>
           <span>{totalCost}</span>
         </>
       )}
@@ -247,7 +253,9 @@ export const ContextInputUsage = ({ className, children, ...props }: ContextInpu
 
   return (
     <div className={cn("flex items-center justify-between text-xs", className)} {...props}>
-      <span className="text-muted-foreground">Input</span>
+      <span className="text-muted-foreground">
+        <FormattedMessage {...contextMessages.input} />
+      </span>
       <TokensWithCost costText={inputCostText} tokens={inputTokens} />
     </div>
   );
@@ -277,7 +285,9 @@ export const ContextOutputUsage = ({ className, children, ...props }: ContextOut
 
   return (
     <div className={cn("flex items-center justify-between text-xs", className)} {...props}>
-      <span className="text-muted-foreground">Output</span>
+      <span className="text-muted-foreground">
+        <FormattedMessage {...contextMessages.output} />
+      </span>
       <TokensWithCost costText={outputCostText} tokens={outputTokens} />
     </div>
   );
@@ -311,7 +321,9 @@ export const ContextReasoningUsage = ({
 
   return (
     <div className={cn("flex items-center justify-between text-xs", className)} {...props}>
-      <span className="text-muted-foreground">Reasoning</span>
+      <span className="text-muted-foreground">
+        <FormattedMessage {...contextMessages.reasoning} />
+      </span>
       <TokensWithCost costText={reasoningCostText} tokens={reasoningTokens} />
     </div>
   );
@@ -341,7 +353,9 @@ export const ContextCacheUsage = ({ className, children, ...props }: ContextCach
 
   return (
     <div className={cn("flex items-center justify-between text-xs", className)} {...props}>
-      <span className="text-muted-foreground">Cache</span>
+      <span className="text-muted-foreground">
+        <FormattedMessage {...contextMessages.cache} />
+      </span>
       <TokensWithCost costText={cacheCostText} tokens={cacheTokens} />
     </div>
   );

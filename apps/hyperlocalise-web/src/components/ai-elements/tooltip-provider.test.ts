@@ -1,11 +1,15 @@
 import { describe, expect, it } from "vite-plus/test";
 import React from "react";
+import { IntlProvider } from "react-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MessageAction } from "./message";
 import { ArtifactAction } from "./artifact";
 import { WebPreviewNavigationButton } from "./web-preview";
 import { CodeBlockCopyButton } from "./code-block";
 import { TooltipProvider } from "@/components/ui/tooltip";
+
+const withTestProviders = (children: React.ReactNode) =>
+  React.createElement(IntlProvider, { locale: "en", messages: {} }, children);
 
 describe("Tooltip Redundancy Optimization", () => {
   it("MessageAction renders correctly within a TooltipProvider", () => {
@@ -59,10 +63,12 @@ describe("Tooltip Redundancy Optimization", () => {
 
   it("CodeBlockCopyButton renders correctly within a TooltipProvider", () => {
     const markup = renderToStaticMarkup(
-      React.createElement(
-        TooltipProvider,
-        {},
-        React.createElement(CodeBlockCopyButton, {}, "Copy"),
+      withTestProviders(
+        React.createElement(
+          TooltipProvider,
+          {},
+          React.createElement(CodeBlockCopyButton, {}, "Copy"),
+        ),
       ),
     );
     expect(markup).toContain("Copy");

@@ -6,7 +6,10 @@ import { cn } from "@/lib/primitives/cn";
 import { ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
+
+import { schemaDisplayMessages } from "./schema-display.messages";
 
 type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
@@ -171,7 +174,7 @@ export const SchemaDisplayParameter = ({
           className="bg-red-100 text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400"
           variant="secondary"
         >
-          required
+          <FormattedMessage {...schemaDisplayMessages.required} />
         </Badge>
       )}
     </div>
@@ -194,7 +197,9 @@ export const SchemaDisplayParameters = ({
     <Collapsible className={cn(className)} defaultOpen {...props}>
       <CollapsibleTrigger className="group flex w-full items-center gap-2 px-4 py-3 text-start transition-colors hover:bg-muted/50">
         <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
-        <span className="font-medium text-sm">Parameters</span>
+        <span className="font-medium text-sm">
+          <FormattedMessage {...schemaDisplayMessages.parameters} />
+        </span>
         <Badge className="ms-auto text-xs" variant="secondary">
           {parameters?.length}
         </Badge>
@@ -248,7 +253,7 @@ export const SchemaDisplayProperty = ({
               className="bg-red-100 text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400"
               variant="secondary"
             >
-              required
+              <FormattedMessage {...schemaDisplayMessages.required} />
             </Badge>
           )}
         </CollapsibleTrigger>
@@ -286,7 +291,7 @@ export const SchemaDisplayProperty = ({
             className="bg-red-100 text-red-700 text-xs dark:bg-red-900/30 dark:text-red-400"
             variant="secondary"
           >
-            required
+            <FormattedMessage {...schemaDisplayMessages.required} />
           </Badge>
         )}
       </div>
@@ -310,7 +315,9 @@ export const SchemaDisplayRequest = ({
     <Collapsible className={cn(className)} defaultOpen {...props}>
       <CollapsibleTrigger className="group flex w-full items-center gap-2 px-4 py-3 text-start transition-colors hover:bg-muted/50">
         <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
-        <span className="font-medium text-sm">Request Body</span>
+        <span className="font-medium text-sm">
+          <FormattedMessage {...schemaDisplayMessages.requestBody} />
+        </span>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="border-t">
@@ -337,7 +344,9 @@ export const SchemaDisplayResponse = ({
     <Collapsible className={cn(className)} defaultOpen {...props}>
       <CollapsibleTrigger className="group flex w-full items-center gap-2 px-4 py-3 text-start transition-colors hover:bg-muted/50">
         <ChevronRightIcon className="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-90" />
-        <span className="font-medium text-sm">Response</span>
+        <span className="font-medium text-sm">
+          <FormattedMessage {...schemaDisplayMessages.response} />
+        </span>
       </CollapsibleTrigger>
       <CollapsibleContent>
         <div className="border-t">

@@ -17,6 +17,9 @@ import {
   useRef,
   useState,
 } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
+
+import { stackTraceMessages } from "./stack-trace.messages";
 
 // Regex patterns for parsing stack traces
 const STACK_FRAME_WITH_PARENS_REGEX = /^at\s+(.+?)\s+\((.+):(\d+):(\d+)\)$/;
@@ -302,6 +305,7 @@ export const StackTraceCopyButton = memo(
     const [isCopied, setIsCopied] = useState(false);
     const timeoutRef = useRef<number>(0);
     const { raw } = useStackTrace();
+    const intl = useIntl();
 
     const copyToClipboard = useCallback(async () => {
       if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
@@ -327,7 +331,9 @@ export const StackTraceCopyButton = memo(
     );
 
     const Icon = isCopied ? CheckIcon : CopyIcon;
-    const tooltipText = isCopied ? "Copied!" : "Copy stack trace";
+    const tooltipText = isCopied
+      ? intl.formatMessage(stackTraceMessages.copied)
+      : intl.formatMessage(stackTraceMessages.copyStackTrace);
 
     return (
       <Tooltip>
@@ -472,7 +478,9 @@ export const StackTraceFrames = memo(
           </div>
         ))}
         {framesToShow.length === 0 && (
-          <div className="text-muted-foreground text-xs">No stack frames</div>
+          <div className="text-muted-foreground text-xs">
+            <FormattedMessage {...stackTraceMessages.noStackFrames} />
+          </div>
         )}
       </div>
     );

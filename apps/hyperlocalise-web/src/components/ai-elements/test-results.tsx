@@ -12,7 +12,10 @@ import {
 } from "lucide-react";
 import type { ComponentProps, HTMLAttributes } from "react";
 import { createContext, useContext, useMemo } from "react";
+import { FormattedMessage } from "react-intl";
 import { TypographyP } from "@/components/ui/typography";
+
+import { testResultsMessages } from "./test-results.messages";
 
 type TestStatus = "passed" | "failed" | "skipped" | "running";
 
@@ -83,7 +86,10 @@ export const TestResultsSummary = ({ className, children, ...props }: TestResult
             variant="secondary"
           >
             <CheckCircle2Icon className="size-3" />
-            {summary.passed} passed
+            <FormattedMessage
+              {...testResultsMessages.passedCount}
+              values={{ count: summary.passed }}
+            />
           </Badge>
           {summary.failed > 0 && (
             <Badge
@@ -91,7 +97,10 @@ export const TestResultsSummary = ({ className, children, ...props }: TestResult
               variant="secondary"
             >
               <XCircleIcon className="size-3" />
-              {summary.failed} failed
+              <FormattedMessage
+                {...testResultsMessages.failedCount}
+                values={{ count: summary.failed }}
+              />
             </Badge>
           )}
           {summary.skipped > 0 && (
@@ -100,7 +109,10 @@ export const TestResultsSummary = ({ className, children, ...props }: TestResult
               variant="secondary"
             >
               <CircleIcon className="size-3" />
-              {summary.skipped} skipped
+              <FormattedMessage
+                {...testResultsMessages.skippedCount}
+                values={{ count: summary.skipped }}
+              />
             </Badge>
           )}
         </>
@@ -157,7 +169,10 @@ export const TestResultsProgress = ({
           </div>
           <div className="flex justify-between text-muted-foreground text-xs">
             <span>
-              {summary.passed}/{summary.total} tests passed
+              <FormattedMessage
+                {...testResultsMessages.testsPassedProgress}
+                values={{ passed: summary.passed, total: summary.total }}
+              />
             </span>
             <span>{passedPercent.toFixed(0)}%</span>
           </div>

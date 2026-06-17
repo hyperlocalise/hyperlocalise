@@ -12,7 +12,10 @@ import type { UIMessage } from "ai";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
 import type { ComponentProps, HTMLAttributes, ReactElement } from "react";
 import { createContext, memo, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { Streamdown } from "streamdown";
+
+import { messageMessages } from "./message.messages";
 
 export type MessageProps = HTMLAttributes<HTMLDivElement> & {
   from: UIMessage["role"];
@@ -218,13 +221,15 @@ export type MessageBranchPreviousProps = ComponentProps<typeof Button>;
 
 export const MessageBranchPrevious = ({ children, ...props }: MessageBranchPreviousProps) => {
   const { goToPrevious, totalBranches } = useMessageBranch();
+  const intl = useIntl();
+  const ariaLabel = intl.formatMessage(messageMessages.previousBranchAria);
 
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <Button
-            aria-label="Previous branch"
+            aria-label={ariaLabel}
             disabled={totalBranches <= 1}
             onClick={goToPrevious}
             size="icon-sm"
@@ -236,7 +241,9 @@ export const MessageBranchPrevious = ({ children, ...props }: MessageBranchPrevi
           </Button>
         }
       />
-      <TooltipContent side="bottom">Previous branch</TooltipContent>
+      <TooltipContent side="bottom">
+        <FormattedMessage {...messageMessages.previousBranchAria} />
+      </TooltipContent>
     </Tooltip>
   );
 };
@@ -245,13 +252,15 @@ export type MessageBranchNextProps = ComponentProps<typeof Button>;
 
 export const MessageBranchNext = ({ children, ...props }: MessageBranchNextProps) => {
   const { goToNext, totalBranches } = useMessageBranch();
+  const intl = useIntl();
+  const ariaLabel = intl.formatMessage(messageMessages.nextBranchAria);
 
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <Button
-            aria-label="Next branch"
+            aria-label={ariaLabel}
             disabled={totalBranches <= 1}
             onClick={goToNext}
             size="icon-sm"
@@ -263,7 +272,9 @@ export const MessageBranchNext = ({ children, ...props }: MessageBranchNextProps
           </Button>
         }
       />
-      <TooltipContent side="bottom">Next branch</TooltipContent>
+      <TooltipContent side="bottom">
+        <FormattedMessage {...messageMessages.nextBranchAria} />
+      </TooltipContent>
     </Tooltip>
   );
 };

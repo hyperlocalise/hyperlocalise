@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import React from "react";
+import { IntlProvider } from "react-intl";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MessageBranch, MessageBranchPrevious, MessageBranchNext } from "./message";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,11 +8,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 describe("MessageBranch Navigation Tooltips", () => {
   it("MessageBranchPrevious renders with tooltip trigger", () => {
     const markup = renderToStaticMarkup(
-      <TooltipProvider>
-        <MessageBranch>
-          <MessageBranchPrevious />
-        </MessageBranch>
-      </TooltipProvider>,
+      <IntlProvider locale="en" messages={{}}>
+        <TooltipProvider>
+          <MessageBranch>
+            <MessageBranchPrevious />
+          </MessageBranch>
+        </TooltipProvider>
+      </IntlProvider>,
     );
 
     expect(markup).toContain('data-slot="tooltip-trigger"');
@@ -24,11 +27,13 @@ describe("MessageBranch Navigation Tooltips", () => {
 
   it("MessageBranchNext renders with tooltip trigger", () => {
     const markup = renderToStaticMarkup(
-      <TooltipProvider>
-        <MessageBranch>
-          <MessageBranchNext />
-        </MessageBranch>
-      </TooltipProvider>,
+      <IntlProvider locale="en" messages={{}}>
+        <TooltipProvider>
+          <MessageBranch>
+            <MessageBranchNext />
+          </MessageBranch>
+        </TooltipProvider>
+      </IntlProvider>,
     );
 
     expect(markup).toContain('data-slot="tooltip-trigger"');

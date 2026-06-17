@@ -16,7 +16,10 @@ import {
   useRef,
   useState,
 } from "react";
+import { FormattedMessage, useIntl } from "react-intl";
 import { TypographyH3 } from "@/components/ui/typography";
+
+import { environmentVariablesMessages } from "./environment-variables.messages";
 
 interface EnvironmentVariablesContextType {
   showValues: boolean;
@@ -86,11 +89,15 @@ export const EnvironmentVariablesTitle = ({
   className,
   children,
   ...props
-}: EnvironmentVariablesTitleProps) => (
-  <TypographyH3 className={cn("font-medium text-sm", className)} {...props}>
-    {children ?? "Environment Variables"}
-  </TypographyH3>
-);
+}: EnvironmentVariablesTitleProps) => {
+  const intl = useIntl();
+
+  return (
+    <TypographyH3 className={cn("font-medium text-sm", className)} {...props}>
+      {children ?? intl.formatMessage(environmentVariablesMessages.title)}
+    </TypographyH3>
+  );
+};
 
 export type EnvironmentVariablesToggleProps = ComponentProps<typeof Switch>;
 
@@ -99,6 +106,7 @@ export const EnvironmentVariablesToggle = ({
   ...props
 }: EnvironmentVariablesToggleProps) => {
   const { showValues, setShowValues } = useContext(EnvironmentVariablesContext);
+  const intl = useIntl();
 
   return (
     <div className={cn("flex items-center gap-2", className)}>
@@ -106,7 +114,7 @@ export const EnvironmentVariablesToggle = ({
         {showValues ? <EyeIcon size={14} /> : <EyeOffIcon size={14} />}
       </span>
       <Switch
-        aria-label="Toggle value visibility"
+        aria-label={intl.formatMessage(environmentVariablesMessages.toggleVisibilityAria)}
         checked={showValues}
         onCheckedChange={setShowValues}
         {...props}
@@ -243,6 +251,7 @@ export const EnvironmentVariableCopyButton = ({
   const [isCopied, setIsCopied] = useState(false);
   const timeoutRef = useRef<number>(0);
   const { name, value } = useContext(EnvironmentVariableContext);
+  const intl = useIntl();
 
   const getTextToCopy = useCallback((): string => {
     const formatMap = {
@@ -279,12 +288,12 @@ export const EnvironmentVariableCopyButton = ({
   const Icon = isCopied ? CheckIcon : CopyIcon;
 
   const tooltipText = isCopied
-    ? "Copied!"
+    ? intl.formatMessage(environmentVariablesMessages.copied)
     : copyFormat === "value"
-      ? "Copy value"
+      ? intl.formatMessage(environmentVariablesMessages.copyValue)
       : copyFormat === "name"
-        ? "Copy name"
-        : "Copy export command";
+        ? intl.formatMessage(environmentVariablesMessages.copyName)
+        : intl.formatMessage(environmentVariablesMessages.copyExportCommand);
 
   return (
     <Tooltip>
@@ -315,6 +324,6 @@ export const EnvironmentVariableRequired = ({
   ...props
 }: EnvironmentVariableRequiredProps) => (
   <Badge className={cn("text-xs", className)} variant="secondary" {...props}>
-    {children ?? "Required"}
+    {children ?? <FormattedMessage {...environmentVariablesMessages.required} />}
   </Badge>
 );
