@@ -90,6 +90,7 @@ export function ProjectFileCatWorkspace({
     catQuery,
     search,
     setSearch,
+    debouncedSearch,
     isSearchPending,
     pagination,
     prefetchNextPage,
@@ -334,7 +335,7 @@ export function ProjectFileCatWorkspace({
       ) : null}
 
       <CatWorkspaceContainer
-        key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${search}:${pagination?.offset ?? 0}`}
+        key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${pagination?.offset ?? 0}`}
         initialState={workspaceState}
         className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
         services={{

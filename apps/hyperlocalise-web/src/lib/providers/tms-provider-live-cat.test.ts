@@ -3,6 +3,7 @@ import "dotenv/config";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
+import { maxCrowdinSourceStringCountCeiling } from "@/api/routes/project/project.schema";
 import { db } from "@/lib/database";
 import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
 import { getTmsProviderLiveCatFile, saveTmsProviderLiveCatTranslation } from "./tms-provider-live";
@@ -796,5 +797,124 @@ describe("getTmsProviderLiveCatFile", () => {
           String(url).includes("/projects/42/translations") && init?.method === "POST",
       ),
     ).toBe(false);
+  });
+
+  it("caps Crowdin source-string counting while preserving paginated hasMore", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: organization.id,
+      userId: user.id,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "token",
+      baseUrl: "https://api.crowdin.test/api/v2",
+    });
+
+    const stringPage = (offset: number) =>
+      Array.from({ length: 501 }, (_, index) => ({
+        data: {
+          id: offset + index + 1,
+          projectId: 42,
+          fileId: 101,
+          branchId: null,
+          directoryId: null,
+          identifier: `key.${offset + index + 1}`,
+          text: `Value ${offset + index + 1}`,
+          type: "text",
+          context: null,
+          labelIds: null,
+        },
+      }));
+
+    let stringsRequestCount = 0;
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/projects?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 42,
+                  name: "Website",
+                  identifier: "website",
+                  sourceLanguageId: "en",
+                  targetLanguageIds: ["fr"],
+                  webUrl: "https://crowdin.test/project/website",
+                  isSuspended: false,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 7,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/files/101/revisions?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/strings?") && path.includes("fileId=101")) {
+        stringsRequestCount += 1;
+        const offset = Number(new URL(path).searchParams.get("offset") ?? "0");
+        return new Response(JSON.stringify({ data: stringPage(offset) }), { status: 200 });
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 50,
+        paginated: true,
+      },
+    });
+
+    expect(catFile?.pagination).toMatchObject({
+      offset: 0,
+      limit: 50,
+      returnedCount: 50,
+      totalCount: maxCrowdinSourceStringCountCeiling,
+      hasMore: true,
+    });
+    expect(stringsRequestCount).toBeLessThanOrEqual(maxCrowdinSourceStringCountCeiling / 500 + 1);
   });
 });

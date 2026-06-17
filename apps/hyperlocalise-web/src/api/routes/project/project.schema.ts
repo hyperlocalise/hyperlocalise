@@ -228,6 +228,7 @@ export const projectFileCatPaginationSchema = z.object({
 
 export const defaultProjectFileCatPageLimit = 50;
 export const maxProjectFileCatPageLimit = 100;
+export const maxCrowdinSourceStringCountCeiling = 5_000;
 export const legacyNativeCatSegmentLimit = 500;
 export const legacyProviderCatSegmentLimit = 1_000;
 

@@ -45,8 +45,9 @@ export function buildCatFilePagination(input: {
   limit: number;
   returnedCount: number;
   totalCount: number;
+  hasMore?: boolean;
 }) {
-  const hasMore = input.offset + input.returnedCount < input.totalCount;
+  const hasMore = input.hasMore ?? input.offset + input.returnedCount < input.totalCount;
 
   return {
     offset: input.offset,

@@ -14,7 +14,10 @@ import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/project-file-cat-pagination";
-import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
+import {
+  legacyProviderCatSegmentLimit,
+  maxCrowdinSourceStringCountCeiling,
+} from "@/api/routes/project/project.schema";
 import { buildCrowdinFileSearchCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
 import {
   CrowdinApiClient,
@@ -843,11 +846,15 @@ async function countCrowdinSourceStrings(
     fileId?: number;
     croql?: string;
   },
+  options?: {
+    maxCount?: number;
+  },
 ) {
+  const ceiling = options?.maxCount ?? maxCrowdinSourceStringCountCeiling;
   let total = 0;
   let offset = 0;
 
-  while (true) {
+  while (total < ceiling) {
     const page = await client.listSourceStringsPage(projectId, {
       fileId: filter.fileId,
       croql: filter.croql,
@@ -860,6 +867,8 @@ async function countCrowdinSourceStrings(
     }
     offset += page.strings.length;
   }
+
+  return total;
 }
 
 async function buildCrowdinLiveCatFile(input: {
@@ -906,7 +915,7 @@ async function buildCrowdinLiveCatFile(input: {
       const croql = paginationInput.search
         ? buildCrowdinFileSearchCroql(fileId, paginationInput.search)
         : undefined;
-      const [totalCount, page] = await Promise.all([
+      const [countedTotal, page] = await Promise.all([
         countCrowdinSourceStrings(client, projectId, {
           fileId: croql ? undefined : fileId,
           croql,
@@ -920,11 +929,17 @@ async function buildCrowdinLiveCatFile(input: {
       ]);
 
       visibleStrings = page.strings;
+
+      const totalCount = page.hasMore
+        ? Math.max(countedTotal, paginationInput.offset + visibleStrings.length + 1)
+        : paginationInput.offset + visibleStrings.length;
+
       pagination = buildCatFilePagination({
         offset: paginationInput.offset,
         limit: paginationInput.limit,
         returnedCount: visibleStrings.length,
         totalCount,
+        hasMore: page.hasMore,
       });
       truncated = pagination.hasMore;
     }

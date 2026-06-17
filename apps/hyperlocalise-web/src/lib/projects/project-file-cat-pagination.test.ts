@@ -51,4 +51,16 @@ describe("buildCatFilePagination", () => {
       buildCatFilePagination({ offset: 100, limit: 50, returnedCount: 20, totalCount: 120 }),
     ).toMatchObject({ hasMore: false });
   });
+
+  it("honors an explicit hasMore override", () => {
+    expect(
+      buildCatFilePagination({
+        offset: 4_950,
+        limit: 50,
+        returnedCount: 50,
+        totalCount: 5_000,
+        hasMore: true,
+      }),
+    ).toMatchObject({ hasMore: true });
+  });
 });
