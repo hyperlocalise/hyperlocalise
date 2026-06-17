@@ -865,10 +865,13 @@ async function countCrowdinSourceStrings(
     if (!page.hasMore) {
       return total;
     }
+    if (total >= ceiling) {
+      return ceiling;
+    }
     offset += page.strings.length;
   }
 
-  return total;
+  return Math.min(total, ceiling);
 }
 
 async function buildCrowdinLiveCatFile(input: {
