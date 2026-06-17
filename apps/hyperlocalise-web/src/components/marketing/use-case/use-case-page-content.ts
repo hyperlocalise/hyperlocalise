@@ -1,57 +1,61 @@
+import type { UseCaseMessageKey } from "./use-case-page-content.messages";
+
+export type { UseCaseMessageKey } from "./use-case-page-content.messages";
+
 export type UseCaseWorkflowStep = {
-  label: string;
-  description?: string;
+  labelKey: UseCaseMessageKey;
+  descriptionKey?: UseCaseMessageKey;
 };
 
 export type UseCaseCapability = {
-  title: string;
-  description: string;
+  titleKey: UseCaseMessageKey;
+  descriptionKey: UseCaseMessageKey;
 };
 
 export type UseCasePageContent = {
   slug: string;
   metadata: {
-    title: string;
-    description: string;
+    titleKey: UseCaseMessageKey;
+    descriptionKey: UseCaseMessageKey;
     keywords: string[];
   };
   hero: {
-    eyebrow: string;
-    headline: string;
-    subheadline: string;
-    ctaLabel: "Join the waitlist" | "Request a demo";
+    eyebrowKey: UseCaseMessageKey;
+    headlineKey: UseCaseMessageKey;
+    subheadlineKey: UseCaseMessageKey;
+    ctaLabelKey: "ctaJoinWaitlist" | "ctaRequestDemo";
   };
   problem: {
-    title: string;
-    description: string;
-    pains: string[];
+    titleKey: UseCaseMessageKey;
+    descriptionKey: UseCaseMessageKey;
+    painKeys: UseCaseMessageKey[];
   };
   workflow: {
-    label: string;
-    title: string;
-    description: string;
+    labelKey: "workflowSectionLabel";
+    titleKey: UseCaseMessageKey;
+    descriptionKey: UseCaseMessageKey;
     steps: UseCaseWorkflowStep[];
   };
   capabilities: {
-    label: string;
-    title: string;
+    labelKey: "capabilitiesSectionLabel";
+    titleKey: UseCaseMessageKey;
     items: UseCaseCapability[];
   };
   differentiator: {
-    label: string;
-    title: string;
-    description: string;
-    points: string[];
+    labelKey: "differentiatorSectionLabel";
+    titleKey: UseCaseMessageKey;
+    descriptionKey: UseCaseMessageKey;
+    pointKeys: UseCaseMessageKey[];
   };
   scenario: {
-    label: string;
-    title: string;
-    narrative: string;
+    labelKey: "scenarioSectionLabel";
+    titleKey: UseCaseMessageKey;
+    narrativeKey: UseCaseMessageKey;
   };
   cta: {
-    headline: string;
-    description: string;
-    primaryLabel: "Join the waitlist" | "Request a demo";
+    headlineKey: UseCaseMessageKey;
+    descriptionKey: UseCaseMessageKey;
+    primaryLabelKey: "ctaJoinWaitlist" | "ctaRequestDemo";
   };
 };
 
@@ -59,9 +63,8 @@ export const useCasePages: UseCasePageContent[] = [
   {
     slug: "product-localisation",
     metadata: {
-      title: "Product Localisation Platform | Hyperlocalise",
-      description:
-        "Turn product changes, pull requests, and launch briefs into reviewed, release-ready translations. Keep localisation inside your release workflow without replacing your TMS.",
+      titleKey: "productLocalisationMetadataTitle",
+      descriptionKey: "productLocalisationMetadataDescription",
       keywords: [
         "product localisation platform",
         "AI product localisation",
@@ -70,107 +73,112 @@ export const useCasePages: UseCasePageContent[] = [
       ],
     },
     hero: {
-      eyebrow: "Product localisation",
-      headline: "Product localisation that keeps up with every release",
-      subheadline:
-        "Turn product changes, pull requests, and launch briefs into reviewed, release-ready translations with AI-assisted workflows and human approval built in.",
-      ctaLabel: "Join the waitlist",
+      eyebrowKey: "productLocalisationHeroEyebrow",
+      headlineKey: "productLocalisationHeroHeadline",
+      subheadlineKey: "productLocalisationHeroSubheadline",
+      ctaLabelKey: "ctaJoinWaitlist",
     },
     problem: {
-      title: "Product strings change faster than localisation can follow",
-      description:
-        "Product teams ship continuously. Localisation teams are left reconciling context across tools after the fact.",
-      pains: [
-        "Product context lives across GitHub, Slack, Notion, Figma, and your TMS — never in one place when translation starts.",
-        "AI drafts miss UI constraints, glossary rules, and what actually changed in the pull request.",
-        "Translation work starts too late in the release cycle, so locales block launches or ship with gaps.",
-        "Engineering and localisation rely on manual spot checks before release instead of structured gates.",
-        "Inconsistent UI copy and terminology drift across locales after every sprint.",
+      titleKey: "productLocalisationProblemTitle",
+      descriptionKey: "productLocalisationProblemDescription",
+      painKeys: [
+        "productLocalisationPain0",
+        "productLocalisationPain1",
+        "productLocalisationPain2",
+        "productLocalisationPain3",
+        "productLocalisationPain4",
       ],
     },
     workflow: {
-      label: "How it works",
-      title: "From pull request to release-ready locales",
-      description:
-        "Hyperlocalise connects product change signals to the review and sync workflow your team already runs.",
+      labelKey: "workflowSectionLabel",
+      titleKey: "productLocalisationWorkflowTitle",
+      descriptionKey: "productLocalisationWorkflowDescription",
       steps: [
-        { label: "GitHub PR", description: "Detect changed strings and gather PR context" },
-        { label: "Product context", description: "Pull briefs, glossaries, and UI constraints" },
-        { label: "AI translation draft", description: "Generate locale drafts with your LLM" },
-        { label: "Human review", description: "Route to reviewers in your TMS workflow" },
-        { label: "TMS sync", description: "Push approved translations back" },
-        { label: "Release check", description: "Flag unresolved locales before ship" },
+        {
+          labelKey: "productLocalisationWorkflowStep0Label",
+          descriptionKey: "productLocalisationWorkflowStep0Description",
+        },
+        {
+          labelKey: "productLocalisationWorkflowStep1Label",
+          descriptionKey: "productLocalisationWorkflowStep1Description",
+        },
+        {
+          labelKey: "productLocalisationWorkflowStep2Label",
+          descriptionKey: "productLocalisationWorkflowStep2Description",
+        },
+        {
+          labelKey: "productLocalisationWorkflowStep3Label",
+          descriptionKey: "productLocalisationWorkflowStep3Description",
+        },
+        {
+          labelKey: "productLocalisationWorkflowStep4Label",
+          descriptionKey: "productLocalisationWorkflowStep4Description",
+        },
+        {
+          labelKey: "productLocalisationWorkflowStep5Label",
+          descriptionKey: "productLocalisationWorkflowStep5Description",
+        },
       ],
     },
     capabilities: {
-      label: "Key capabilities",
-      title: "Built for product release velocity",
+      labelKey: "capabilitiesSectionLabel",
+      titleKey: "productLocalisationCapabilitiesTitle",
       items: [
         {
-          title: "Pull product context from where work happens",
-          description:
-            "Gather string changes, PR descriptions, Slack threads, and launch briefs so translators see why copy changed — not just the diff.",
+          titleKey: "productLocalisationCapability0Title",
+          descriptionKey: "productLocalisationCapability0Description",
         },
         {
-          title: "Generate drafts with your preferred LLM",
-          description:
-            "Use OpenAI, Claude, Gemini, or another provider without locking your stack to one model vendor.",
+          titleKey: "productLocalisationCapability1Title",
+          descriptionKey: "productLocalisationCapability1Description",
         },
         {
-          title: "Apply glossary, tone, and UI constraints before review",
-          description:
-            "Enforce terminology, character limits, and product voice before drafts reach human reviewers.",
+          titleKey: "productLocalisationCapability2Title",
+          descriptionKey: "productLocalisationCapability2Description",
         },
         {
-          title: "Route work to reviewers inside your existing workflow",
-          description:
-            "Keep review assignments, approvals, and comments in the TMS your localisation team already uses.",
+          titleKey: "productLocalisationCapability3Title",
+          descriptionKey: "productLocalisationCapability3Description",
         },
         {
-          title: "Sync with your TMS instead of replacing it",
-          description:
-            "Push approved strings to Crowdin, Lokalise, Phrase, Smartling, or another platform without a migration project.",
+          titleKey: "productLocalisationCapability4Title",
+          descriptionKey: "productLocalisationCapability4Description",
         },
         {
-          title: "Catch bad translations before production",
-          description:
-            "Run release checks and regression gates so unresolved locales and quality issues surface before merge.",
+          titleKey: "productLocalisationCapability5Title",
+          descriptionKey: "productLocalisationCapability5Description",
         },
       ],
     },
     differentiator: {
-      label: "Why this is different",
-      title: "An AI-native layer across your product stack — not another TMS",
-      description:
-        "Hyperlocalise is not here to replace your TMS. It adds a workflow layer that connects engineering change signals, LLM-assisted drafting, human review, and release confidence.",
-      points: [
-        "TMS agnostic",
-        "LLM agnostic",
-        "Human-in-the-loop by design",
-        "Context-aware from GitHub and product briefs",
-        "Built for localisation operations at release speed",
-        "Works across engineering, product, and localisation workflows",
+      labelKey: "differentiatorSectionLabel",
+      titleKey: "productLocalisationDifferentiatorTitle",
+      descriptionKey: "productLocalisationDifferentiatorDescription",
+      pointKeys: [
+        "productLocalisationDifferentiatorPoint0",
+        "productLocalisationDifferentiatorPoint1",
+        "productLocalisationDifferentiatorPoint2",
+        "productLocalisationDifferentiatorPoint3",
+        "productLocalisationDifferentiatorPoint4",
+        "productLocalisationDifferentiatorPoint5",
       ],
     },
     scenario: {
-      label: "Example workflow",
-      title: "A new onboarding flow ships in Friday's release",
-      narrative:
-        "A product manager merges a pull request with a redesigned onboarding flow. Hyperlocalise detects changed strings, gathers context from the PR and product brief, creates translation drafts for each target locale, checks glossary and tone rules, routes them to reviewers in the TMS, syncs approved translations back, and flags unresolved locales before the release train leaves the station.",
+      labelKey: "scenarioSectionLabel",
+      titleKey: "productLocalisationScenarioTitle",
+      narrativeKey: "productLocalisationScenarioNarrative",
     },
     cta: {
-      headline: "Build your AI-native localisation workflow",
-      description:
-        "Join the Hyperlocalise waitlist and see how your team can launch global product content faster without replacing your existing tools.",
-      primaryLabel: "Join the waitlist",
+      headlineKey: "productLocalisationCtaHeadline",
+      descriptionKey: "productLocalisationCtaDescription",
+      primaryLabelKey: "ctaJoinWaitlist",
     },
   },
   {
     slug: "marketing-localisation",
     metadata: {
-      title: "Marketing Localisation Platform | Hyperlocalise",
-      description:
-        "Turn campaign briefs into brand-safe, locale-adapted marketing copy with review workflows and asset delivery built in. Keep global messaging consistent without slowing launches.",
+      titleKey: "marketingLocalisationMetadataTitle",
+      descriptionKey: "marketingLocalisationMetadataDescription",
       keywords: [
         "marketing localisation platform",
         "AI marketing translation",
@@ -179,106 +187,112 @@ export const useCasePages: UseCasePageContent[] = [
       ],
     },
     hero: {
-      eyebrow: "Marketing localisation",
-      headline: "Campaign localisation that protects brand voice in every market",
-      subheadline:
-        "Turn launch briefs, campaign assets, and regional messaging into reviewed, culturally adapted copy — with approval flows and glossary control built in.",
-      ctaLabel: "Request a demo",
+      eyebrowKey: "marketingLocalisationHeroEyebrow",
+      headlineKey: "marketingLocalisationHeroHeadline",
+      subheadlineKey: "marketingLocalisationHeroSubheadline",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
-      title: "Global campaigns break when context stays in the brief",
-      description:
-        "Marketing teams move fast. Localisation becomes a bottleneck when brand nuance and regional intent never reach the translator.",
-      pains: [
-        "Campaign context sits in Notion, Figma, Slack, and agency decks — not in the translation workflow.",
-        "Generic AI translation flattens brand voice, cultural references, and regional nuance.",
-        "Approval chains span marketing, legal, and localisation with no shared view of what changed.",
-        "Landing pages and ads drift across locales after the initial launch push.",
-        "Performance learnings from one market rarely feed back into the next campaign cycle.",
+      titleKey: "marketingLocalisationProblemTitle",
+      descriptionKey: "marketingLocalisationProblemDescription",
+      painKeys: [
+        "marketingLocalisationPain0",
+        "marketingLocalisationPain1",
+        "marketingLocalisationPain2",
+        "marketingLocalisationPain3",
+        "marketingLocalisationPain4",
       ],
     },
     workflow: {
-      label: "How it works",
-      title: "From campaign brief to market-ready assets",
-      description:
-        "Hyperlocalise carries brand context through adaptation, review, and delivery so every locale ships with intent intact.",
+      labelKey: "workflowSectionLabel",
+      titleKey: "marketingLocalisationWorkflowTitle",
+      descriptionKey: "marketingLocalisationWorkflowDescription",
       steps: [
-        { label: "Campaign brief", description: "Capture goals, audience, and messaging" },
-        { label: "Brand context", description: "Apply voice, glossary, and legal guardrails" },
-        { label: "Locale adaptation", description: "Adapt copy for regional nuance" },
-        { label: "Review workflow", description: "Route to marketing and legal reviewers" },
-        { label: "Asset delivery", description: "Sync approved copy to CMS and ad platforms" },
-        { label: "Performance learning", description: "Feed locale results into the next cycle" },
+        {
+          labelKey: "marketingLocalisationWorkflowStep0Label",
+          descriptionKey: "marketingLocalisationWorkflowStep0Description",
+        },
+        {
+          labelKey: "marketingLocalisationWorkflowStep1Label",
+          descriptionKey: "marketingLocalisationWorkflowStep1Description",
+        },
+        {
+          labelKey: "marketingLocalisationWorkflowStep2Label",
+          descriptionKey: "marketingLocalisationWorkflowStep2Description",
+        },
+        {
+          labelKey: "marketingLocalisationWorkflowStep3Label",
+          descriptionKey: "marketingLocalisationWorkflowStep3Description",
+        },
+        {
+          labelKey: "marketingLocalisationWorkflowStep4Label",
+          descriptionKey: "marketingLocalisationWorkflowStep4Description",
+        },
+        {
+          labelKey: "marketingLocalisationWorkflowStep5Label",
+          descriptionKey: "marketingLocalisationWorkflowStep5Description",
+        },
       ],
     },
     capabilities: {
-      label: "Key capabilities",
-      title: "Built for brand-safe global campaigns",
+      labelKey: "capabilitiesSectionLabel",
+      titleKey: "marketingLocalisationCapabilitiesTitle",
       items: [
         {
-          title: "Ingest campaign briefs and creative context",
-          description:
-            "Pull messaging intent, audience notes, and creative direction from the tools marketing teams already use.",
+          titleKey: "marketingLocalisationCapability0Title",
+          descriptionKey: "marketingLocalisationCapability0Description",
         },
         {
-          title: "Enforce brand voice and terminology",
-          description:
-            "Apply glossaries, tone guides, and do-not-translate rules before drafts reach reviewers.",
+          titleKey: "marketingLocalisationCapability1Title",
+          descriptionKey: "marketingLocalisationCapability1Description",
         },
         {
-          title: "Adapt for regional nuance, not word-for-word translation",
-          description:
-            "Generate locale-aware drafts that respect cultural context while keeping campaign intent aligned.",
+          titleKey: "marketingLocalisationCapability2Title",
+          descriptionKey: "marketingLocalisationCapability2Description",
         },
         {
-          title: "Run multi-stakeholder approval flows",
-          description:
-            "Route copy through marketing, legal, and localisation reviewers with clear status and audit trails.",
+          titleKey: "marketingLocalisationCapability3Title",
+          descriptionKey: "marketingLocalisationCapability3Description",
         },
         {
-          title: "Deliver to CMS and campaign tools",
-          description:
-            "Sync approved copy to Contentful, Webflow, ad platforms, and your TMS without duplicate handoffs.",
+          titleKey: "marketingLocalisationCapability4Title",
+          descriptionKey: "marketingLocalisationCapability4Description",
         },
         {
-          title: "Track drift across live campaigns",
-          description:
-            "Monitor when published marketing copy falls out of sync with source messaging or glossary rules.",
+          titleKey: "marketingLocalisationCapability5Title",
+          descriptionKey: "marketingLocalisationCapability5Description",
         },
       ],
     },
     differentiator: {
-      label: "Why this is different",
-      title: "Translation intelligence for marketing — not a generic TMS",
-      description:
-        "Hyperlocalise connects campaign context, brand rules, and review decisions into one workflow. Your TMS stays the system of record; Hyperlocalise makes sure the right context reaches every locale.",
-      points: [
-        "TMS agnostic",
-        "LLM agnostic",
-        "Human-in-the-loop approvals",
-        "Context-aware from briefs and brand guides",
-        "Built for marketing and localisation operations",
-        "Works across CMS, creative, and campaign workflows",
+      labelKey: "differentiatorSectionLabel",
+      titleKey: "marketingLocalisationDifferentiatorTitle",
+      descriptionKey: "marketingLocalisationDifferentiatorDescription",
+      pointKeys: [
+        "marketingLocalisationDifferentiatorPoint0",
+        "marketingLocalisationDifferentiatorPoint1",
+        "marketingLocalisationDifferentiatorPoint2",
+        "marketingLocalisationDifferentiatorPoint3",
+        "marketingLocalisationDifferentiatorPoint4",
+        "marketingLocalisationDifferentiatorPoint5",
       ],
     },
     scenario: {
-      label: "Example workflow",
-      title: "A product launch campaign goes live in six markets",
-      narrative:
-        "A growth lead shares a launch brief in Slack with positioning, audience segments, and legal disclaimers. Hyperlocalise structures the campaign for localisation, applies brand glossary and tone rules, generates adapted drafts for each locale, routes them through marketing and legal review, syncs approved copy to the CMS and ad platforms, and flags any locale where messaging has drifted from the approved source.",
+      labelKey: "scenarioSectionLabel",
+      titleKey: "marketingLocalisationScenarioTitle",
+      narrativeKey: "marketingLocalisationScenarioNarrative",
     },
     cta: {
-      headline: "Bring translation intelligence into your localisation workflow",
-      description: "Request early access to Hyperlocalise.",
-      primaryLabel: "Request a demo",
+      headlineKey: "marketingLocalisationCtaHeadline",
+      descriptionKey: "marketingLocalisationCtaDescription",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
     slug: "help-center-localisation",
     metadata: {
-      title: "Help Center Localisation | Hyperlocalise",
-      description:
-        "Keep support articles translated and fresh across locales. Connect CMS updates to review workflows and freshness monitoring without support content lag.",
+      titleKey: "helpCenterLocalisationMetadataTitle",
+      descriptionKey: "helpCenterLocalisationMetadataDescription",
       keywords: [
         "help center localisation",
         "AI help center translation",
@@ -287,107 +301,112 @@ export const useCasePages: UseCasePageContent[] = [
       ],
     },
     hero: {
-      eyebrow: "Help center localisation",
-      headline: "Support content that stays current in every language",
-      subheadline:
-        "Turn new and updated help articles into reviewed translations, sync them to your CMS, and monitor freshness so customers never read stale guidance.",
-      ctaLabel: "Join the waitlist",
+      eyebrowKey: "helpCenterLocalisationHeroEyebrow",
+      headlineKey: "helpCenterLocalisationHeroHeadline",
+      subheadlineKey: "helpCenterLocalisationHeroSubheadline",
+      ctaLabelKey: "ctaJoinWaitlist",
     },
     problem: {
-      title: "Support content goes stale the moment it ships in English",
-      description:
-        "Product updates outpace help center translations. Support teams absorb the cost when localized articles lag behind.",
-      pains: [
-        "New articles and updates live in Zendesk, Intercom, Contentful, or Notion — disconnected from localisation queues.",
-        "AI translation misses product terminology, UI labels, and support-specific phrasing.",
-        "Reviewers cannot see what changed in the source article when approving updates.",
-        "Translated articles fall behind after every product release without anyone noticing.",
-        "Support tickets spike in non-English locales when guidance is outdated or missing.",
+      titleKey: "helpCenterLocalisationProblemTitle",
+      descriptionKey: "helpCenterLocalisationProblemDescription",
+      painKeys: [
+        "helpCenterLocalisationPain0",
+        "helpCenterLocalisationPain1",
+        "helpCenterLocalisationPain2",
+        "helpCenterLocalisationPain3",
+        "helpCenterLocalisationPain4",
       ],
     },
     workflow: {
-      label: "How it works",
-      title: "From new article to monitored locale coverage",
-      description:
-        "Hyperlocalise connects CMS change signals to translation, terminology checks, and ongoing freshness monitoring.",
+      labelKey: "workflowSectionLabel",
+      titleKey: "helpCenterLocalisationWorkflowTitle",
+      descriptionKey: "helpCenterLocalisationWorkflowDescription",
       steps: [
-        { label: "New article", description: "Detect published or updated support content" },
-        { label: "Content analysis", description: "Extract structure, links, and product terms" },
-        { label: "Translation draft", description: "Generate locale drafts with your LLM" },
-        { label: "Terminology check", description: "Validate glossary and UI label consistency" },
-        { label: "CMS sync", description: "Push approved translations to your help center" },
-        { label: "Freshness monitoring", description: "Alert when locales fall behind source" },
+        {
+          labelKey: "helpCenterLocalisationWorkflowStep0Label",
+          descriptionKey: "helpCenterLocalisationWorkflowStep0Description",
+        },
+        {
+          labelKey: "helpCenterLocalisationWorkflowStep1Label",
+          descriptionKey: "helpCenterLocalisationWorkflowStep1Description",
+        },
+        {
+          labelKey: "helpCenterLocalisationWorkflowStep2Label",
+          descriptionKey: "helpCenterLocalisationWorkflowStep2Description",
+        },
+        {
+          labelKey: "helpCenterLocalisationWorkflowStep3Label",
+          descriptionKey: "helpCenterLocalisationWorkflowStep3Description",
+        },
+        {
+          labelKey: "helpCenterLocalisationWorkflowStep4Label",
+          descriptionKey: "helpCenterLocalisationWorkflowStep4Description",
+        },
+        {
+          labelKey: "helpCenterLocalisationWorkflowStep5Label",
+          descriptionKey: "helpCenterLocalisationWorkflowStep5Description",
+        },
       ],
     },
     capabilities: {
-      label: "Key capabilities",
-      title: "Built for support content at scale",
+      labelKey: "capabilitiesSectionLabel",
+      titleKey: "helpCenterLocalisationCapabilitiesTitle",
       items: [
         {
-          title: "Connect to Zendesk, Intercom, Contentful, and more",
-          description:
-            "Detect new and updated articles from the CMS and support platforms your team already maintains.",
+          titleKey: "helpCenterLocalisationCapability0Title",
+          descriptionKey: "helpCenterLocalisationCapability0Description",
         },
         {
-          title: "Preserve product terminology and UI labels",
-          description:
-            "Apply glossaries and in-product string references so help content matches what users see in the app.",
+          titleKey: "helpCenterLocalisationCapability1Title",
+          descriptionKey: "helpCenterLocalisationCapability1Description",
         },
         {
-          title: "Show reviewers what changed in the source",
-          description:
-            "Attach article diffs and product context so reviewers approve updates with full visibility.",
+          titleKey: "helpCenterLocalisationCapability2Title",
+          descriptionKey: "helpCenterLocalisationCapability2Description",
         },
         {
-          title: "Route to support and localisation reviewers",
-          description:
-            "Assign articles to the right reviewers based on topic, locale, or expertise.",
+          titleKey: "helpCenterLocalisationCapability3Title",
+          descriptionKey: "helpCenterLocalisationCapability3Description",
         },
         {
-          title: "Sync approved translations back to your CMS",
-          description:
-            "Publish localized articles without manual copy-paste between your TMS and help center.",
+          titleKey: "helpCenterLocalisationCapability4Title",
+          descriptionKey: "helpCenterLocalisationCapability4Description",
         },
         {
-          title: "Monitor locale freshness and coverage gaps",
-          description:
-            "Track which articles are missing translations or lag behind the English source after product changes.",
+          titleKey: "helpCenterLocalisationCapability5Title",
+          descriptionKey: "helpCenterLocalisationCapability5Description",
         },
       ],
     },
     differentiator: {
-      label: "Why this is different",
-      title: "Support localisation that stays connected to the product",
-      description:
-        "Hyperlocalise is not another help center tool. It adds an AI-native workflow layer that keeps support content aligned with product changes, glossary rules, and review standards.",
-      points: [
-        "TMS agnostic",
-        "LLM agnostic",
-        "Human-in-the-loop review",
-        "Context-aware from CMS and product docs",
-        "Built for support and localisation operations",
-        "Works across CMS, TMS, and product workflows",
+      labelKey: "differentiatorSectionLabel",
+      titleKey: "helpCenterLocalisationDifferentiatorTitle",
+      descriptionKey: "helpCenterLocalisationDifferentiatorDescription",
+      pointKeys: [
+        "helpCenterLocalisationDifferentiatorPoint0",
+        "helpCenterLocalisationDifferentiatorPoint1",
+        "helpCenterLocalisationDifferentiatorPoint2",
+        "helpCenterLocalisationDifferentiatorPoint3",
+        "helpCenterLocalisationDifferentiatorPoint4",
+        "helpCenterLocalisationDifferentiatorPoint5",
       ],
     },
     scenario: {
-      label: "Example workflow",
-      title: "A billing FAQ update needs to reach twelve locales",
-      narrative:
-        "Support publishes an updated billing FAQ after a pricing change. Hyperlocalise detects the article update, analyzes changed sections and linked product terms, generates translation drafts for each locale, runs terminology checks against the product glossary, routes drafts to support reviewers, syncs approved translations to Zendesk and Contentful, and alerts the team if any locale still shows the pre-change version after forty-eight hours.",
+      labelKey: "scenarioSectionLabel",
+      titleKey: "helpCenterLocalisationScenarioTitle",
+      narrativeKey: "helpCenterLocalisationScenarioNarrative",
     },
     cta: {
-      headline: "Build your AI-native localisation workflow",
-      description:
-        "Join the Hyperlocalise waitlist and see how your team can keep support content current across every locale.",
-      primaryLabel: "Join the waitlist",
+      headlineKey: "helpCenterLocalisationCtaHeadline",
+      descriptionKey: "helpCenterLocalisationCtaDescription",
+      primaryLabelKey: "ctaJoinWaitlist",
     },
   },
   {
     slug: "github-release-localisation",
     metadata: {
-      title: "GitHub Localisation Workflow | Hyperlocalise",
-      description:
-        "Automate localisation checks in CI/CD. Detect string changes in pull requests, draft translations, and gate releases before bad translations reach production.",
+      titleKey: "githubReleaseLocalisationMetadataTitle",
+      descriptionKey: "githubReleaseLocalisationMetadataDescription",
       keywords: [
         "GitHub localisation workflow",
         "localisation CI",
@@ -396,107 +415,112 @@ export const useCasePages: UseCasePageContent[] = [
       ],
     },
     hero: {
-      eyebrow: "GitHub release localisation",
-      headline: "Localisation checks that run with every pull request",
-      subheadline:
-        "Detect string changes, gather PR context, draft translations, and gate releases — so engineering teams catch localisation issues before merge, not after launch.",
-      ctaLabel: "Join the waitlist",
+      eyebrowKey: "githubReleaseLocalisationHeroEyebrow",
+      headlineKey: "githubReleaseLocalisationHeroHeadline",
+      subheadlineKey: "githubReleaseLocalisationHeroSubheadline",
+      ctaLabelKey: "ctaJoinWaitlist",
     },
     problem: {
-      title: "Localisation is still a manual step outside the release pipeline",
-      description:
-        "Developers merge string changes daily. Localisation quality depends on someone remembering to check before ship.",
-      pains: [
-        "String changes hide in large pull requests without clear localisation impact.",
-        "Engineering and localisation coordinate over Slack instead of inside CI/CD.",
-        "Translation files drift from source strings between releases.",
-        "Release gates depend on manual TMS checks that block deploys unpredictably.",
-        "Bad translations reach production because there is no automated regression layer.",
+      titleKey: "githubReleaseLocalisationProblemTitle",
+      descriptionKey: "githubReleaseLocalisationProblemDescription",
+      painKeys: [
+        "githubReleaseLocalisationPain0",
+        "githubReleaseLocalisationPain1",
+        "githubReleaseLocalisationPain2",
+        "githubReleaseLocalisationPain3",
+        "githubReleaseLocalisationPain4",
       ],
     },
     workflow: {
-      label: "How it works",
-      title: "From pull request to release gate",
-      description:
-        "Hyperlocalise fits into the developer workflow your team already runs — with GitHub Actions and TMS sync built in.",
+      labelKey: "workflowSectionLabel",
+      titleKey: "githubReleaseLocalisationWorkflowTitle",
+      descriptionKey: "githubReleaseLocalisationWorkflowDescription",
       steps: [
-        { label: "Pull request", description: "Detect added, changed, and removed strings" },
-        { label: "Change analysis", description: "Map diffs to locales and glossary impact" },
-        { label: "Translation draft", description: "Generate locale drafts with your LLM" },
-        { label: "Review routing", description: "Open review tasks in your TMS" },
-        { label: "CI check", description: "Run localisation gates in GitHub Actions" },
-        { label: "Release gate", description: "Block merge when locales are unresolved" },
+        {
+          labelKey: "githubReleaseLocalisationWorkflowStep0Label",
+          descriptionKey: "githubReleaseLocalisationWorkflowStep0Description",
+        },
+        {
+          labelKey: "githubReleaseLocalisationWorkflowStep1Label",
+          descriptionKey: "githubReleaseLocalisationWorkflowStep1Description",
+        },
+        {
+          labelKey: "githubReleaseLocalisationWorkflowStep2Label",
+          descriptionKey: "githubReleaseLocalisationWorkflowStep2Description",
+        },
+        {
+          labelKey: "githubReleaseLocalisationWorkflowStep3Label",
+          descriptionKey: "githubReleaseLocalisationWorkflowStep3Description",
+        },
+        {
+          labelKey: "githubReleaseLocalisationWorkflowStep4Label",
+          descriptionKey: "githubReleaseLocalisationWorkflowStep4Description",
+        },
+        {
+          labelKey: "githubReleaseLocalisationWorkflowStep5Label",
+          descriptionKey: "githubReleaseLocalisationWorkflowStep5Description",
+        },
       ],
     },
     capabilities: {
-      label: "Key capabilities",
-      title: "Built for developer-led release workflows",
+      labelKey: "capabilitiesSectionLabel",
+      titleKey: "githubReleaseLocalisationCapabilitiesTitle",
       items: [
         {
-          title: "GitHub Action for localisation checks",
-          description:
-            "Run drift detection, coverage checks, and regression evals on every pull request.",
+          titleKey: "githubReleaseLocalisationCapability0Title",
+          descriptionKey: "githubReleaseLocalisationCapability0Description",
         },
         {
-          title: "Detect string changes from PR diffs",
-          description:
-            "Surface added, modified, and removed keys with context from the pull request description and linked issues.",
+          titleKey: "githubReleaseLocalisationCapability1Title",
+          descriptionKey: "githubReleaseLocalisationCapability1Description",
         },
         {
-          title: "Draft translations with your preferred LLM",
-          description:
-            "Generate locale drafts automatically when strings change, using glossary and TM context.",
+          titleKey: "githubReleaseLocalisationCapability2Title",
+          descriptionKey: "githubReleaseLocalisationCapability2Description",
         },
         {
-          title: "Comment on pull requests with localisation status",
-          description:
-            "Give reviewers a clear view of locale coverage, quality flags, and unresolved items before merge.",
+          titleKey: "githubReleaseLocalisationCapability3Title",
+          descriptionKey: "githubReleaseLocalisationCapability3Description",
         },
         {
-          title: "Sync approved strings to your TMS",
-          description:
-            "Push translations to Crowdin, Lokalise, Phrase, or Smartling without leaving the release flow.",
+          titleKey: "githubReleaseLocalisationCapability4Title",
+          descriptionKey: "githubReleaseLocalisationCapability4Description",
         },
         {
-          title: "Block releases when quality gates fail",
-          description:
-            "Configure checks that prevent merge when critical locales are missing or regression thresholds are exceeded.",
+          titleKey: "githubReleaseLocalisationCapability5Title",
+          descriptionKey: "githubReleaseLocalisationCapability5Description",
         },
       ],
     },
     differentiator: {
-      label: "Why this is different",
-      title: "Localisation intelligence inside your CI/CD pipeline",
-      description:
-        "Hyperlocalise is not a replacement for your TMS or i18n library. It adds an AI-native layer that connects GitHub change signals, translation drafting, and release gates.",
-      points: [
-        "TMS agnostic",
-        "LLM agnostic",
-        "Human-in-the-loop when review is required",
-        "Context-aware from pull requests and issues",
-        "Built for engineering and localisation operations",
-        "Works across GitHub, TMS, and release tooling",
+      labelKey: "differentiatorSectionLabel",
+      titleKey: "githubReleaseLocalisationDifferentiatorTitle",
+      descriptionKey: "githubReleaseLocalisationDifferentiatorDescription",
+      pointKeys: [
+        "githubReleaseLocalisationDifferentiatorPoint0",
+        "githubReleaseLocalisationDifferentiatorPoint1",
+        "githubReleaseLocalisationDifferentiatorPoint2",
+        "githubReleaseLocalisationDifferentiatorPoint3",
+        "githubReleaseLocalisationDifferentiatorPoint4",
+        "githubReleaseLocalisationDifferentiatorPoint5",
       ],
     },
     scenario: {
-      label: "Example workflow",
-      title: "A pricing page refactor opens a pull request on Tuesday",
-      narrative:
-        "A developer opens a pull request that renames fourteen UI strings and adds six new ones. Hyperlocalise comments on the PR with affected locales, generates translation drafts using glossary context from the linked launch brief, opens review tasks in Lokalise, runs the GitHub Action to verify all target locales are covered, and blocks merge until German and Japanese reviewers approve the updated pricing terminology.",
+      labelKey: "scenarioSectionLabel",
+      titleKey: "githubReleaseLocalisationScenarioTitle",
+      narrativeKey: "githubReleaseLocalisationScenarioNarrative",
     },
     cta: {
-      headline: "Build your AI-native localisation workflow",
-      description:
-        "Join the Hyperlocalise waitlist and bring localisation checks into your release pipeline.",
-      primaryLabel: "Join the waitlist",
+      headlineKey: "githubReleaseLocalisationCtaHeadline",
+      descriptionKey: "githubReleaseLocalisationCtaDescription",
+      primaryLabelKey: "ctaJoinWaitlist",
     },
   },
   {
     slug: "localisation-quality-monitoring",
     metadata: {
-      title: "Localisation Quality Monitoring | Hyperlocalise",
-      description:
-        "Monitor translation quality, terminology drift, and locale coverage at scale. Run quality gates and catch regressions before they reach customers.",
+      titleKey: "localisationQualityMonitoringMetadataTitle",
+      descriptionKey: "localisationQualityMonitoringMetadataDescription",
       keywords: [
         "localisation quality monitoring",
         "translation quality automation",
@@ -505,106 +529,112 @@ export const useCasePages: UseCasePageContent[] = [
       ],
     },
     hero: {
-      eyebrow: "Localisation quality monitoring",
-      headline: "Catch translation drift before your customers do",
-      subheadline:
-        "Monitor terminology consistency, locale coverage, and translation quality across product, marketing, and support content — with gates that block bad syncs before they go live.",
-      ctaLabel: "Request a demo",
+      eyebrowKey: "localisationQualityMonitoringHeroEyebrow",
+      headlineKey: "localisationQualityMonitoringHeroHeadline",
+      subheadlineKey: "localisationQualityMonitoringHeroSubheadline",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
-      title: "Quality issues surface after launch, not before",
-      description:
-        "Teams ship translations and hope for the best. Drift, missing locales, and terminology breaks accumulate quietly across releases.",
-      pains: [
-        "No single view of locale health across product strings, marketing copy, and support articles.",
-        "Terminology breaks when different teams translate the same product terms independently.",
-        "Regression checks run manually — or not at all — before major releases.",
-        "Review coverage is unclear: which locales were human-approved vs. machine-translated only.",
-        "Quality problems are discovered by customers, support tickets, or app store reviews.",
+      titleKey: "localisationQualityMonitoringProblemTitle",
+      descriptionKey: "localisationQualityMonitoringProblemDescription",
+      painKeys: [
+        "localisationQualityMonitoringPain0",
+        "localisationQualityMonitoringPain1",
+        "localisationQualityMonitoringPain2",
+        "localisationQualityMonitoringPain3",
+        "localisationQualityMonitoringPain4",
       ],
     },
     workflow: {
-      label: "How it works",
-      title: "From content sync to ongoing quality monitoring",
-      description:
-        "Hyperlocalise runs quality checks at every stage — draft, review, sync, and after publish.",
+      labelKey: "workflowSectionLabel",
+      titleKey: "localisationQualityMonitoringWorkflowTitle",
+      descriptionKey: "localisationQualityMonitoringWorkflowDescription",
       steps: [
-        { label: "Content sync", description: "Track strings across TMS and sources" },
-        { label: "Quality analysis", description: "Run glossary, drift, and coverage checks" },
-        { label: "Regression eval", description: "Compare against approved baselines" },
-        { label: "Review routing", description: "Escalate flagged items to reviewers" },
-        { label: "Release gate", description: "Block sync when thresholds fail" },
-        { label: "Ongoing monitor", description: "Alert on drift after publish" },
+        {
+          labelKey: "localisationQualityMonitoringWorkflowStep0Label",
+          descriptionKey: "localisationQualityMonitoringWorkflowStep0Description",
+        },
+        {
+          labelKey: "localisationQualityMonitoringWorkflowStep1Label",
+          descriptionKey: "localisationQualityMonitoringWorkflowStep1Description",
+        },
+        {
+          labelKey: "localisationQualityMonitoringWorkflowStep2Label",
+          descriptionKey: "localisationQualityMonitoringWorkflowStep2Description",
+        },
+        {
+          labelKey: "localisationQualityMonitoringWorkflowStep3Label",
+          descriptionKey: "localisationQualityMonitoringWorkflowStep3Description",
+        },
+        {
+          labelKey: "localisationQualityMonitoringWorkflowStep4Label",
+          descriptionKey: "localisationQualityMonitoringWorkflowStep4Description",
+        },
+        {
+          labelKey: "localisationQualityMonitoringWorkflowStep5Label",
+          descriptionKey: "localisationQualityMonitoringWorkflowStep5Description",
+        },
       ],
     },
     capabilities: {
-      label: "Key capabilities",
-      title: "Built for quality at scale",
+      labelKey: "capabilitiesSectionLabel",
+      titleKey: "localisationQualityMonitoringCapabilitiesTitle",
       items: [
         {
-          title: "Monitor locale coverage across all content types",
-          description:
-            "See which locales are complete, partial, or missing for product, marketing, and support content.",
+          titleKey: "localisationQualityMonitoringCapability0Title",
+          descriptionKey: "localisationQualityMonitoringCapability0Description",
         },
         {
-          title: "Detect terminology drift and glossary violations",
-          description:
-            "Flag when translations diverge from approved terminology or when source strings change without locale updates.",
+          titleKey: "localisationQualityMonitoringCapability1Title",
+          descriptionKey: "localisationQualityMonitoringCapability1Description",
         },
         {
-          title: "Run regression evals before sync and release",
-          description:
-            "Compare new translations against approved baselines and block sync when quality thresholds fail.",
+          titleKey: "localisationQualityMonitoringCapability2Title",
+          descriptionKey: "localisationQualityMonitoringCapability2Description",
         },
         {
-          title: "Track review coverage and approval status",
-          description:
-            "Know which strings were human-reviewed, machine-translated only, or pending approval per locale.",
+          titleKey: "localisationQualityMonitoringCapability3Title",
+          descriptionKey: "localisationQualityMonitoringCapability3Description",
         },
         {
-          title: "Surface quality issues in pull requests",
-          description:
-            "Show localisation health directly in GitHub so engineering and localisation share one view.",
+          titleKey: "localisationQualityMonitoringCapability4Title",
+          descriptionKey: "localisationQualityMonitoringCapability4Description",
         },
         {
-          title: "Alert on post-publish drift",
-          description:
-            "Monitor live content for terminology breaks, missing updates, and locale gaps after release.",
+          titleKey: "localisationQualityMonitoringCapability5Title",
+          descriptionKey: "localisationQualityMonitoringCapability5Description",
         },
       ],
     },
     differentiator: {
-      label: "Why this is different",
-      title: "Quality monitoring across your stack — not a point-in-time QA tool",
-      description:
-        "Hyperlocalise connects quality checks to the workflows where content is created, reviewed, and synced. Your TMS stays the system of record; Hyperlocalise makes quality visible at every step.",
-      points: [
-        "TMS agnostic",
-        "LLM agnostic",
-        "Human-in-the-loop escalation",
-        "Context-aware quality checks",
-        "Built for localisation operations and release confidence",
-        "Works across product, marketing, support, and engineering",
+      labelKey: "differentiatorSectionLabel",
+      titleKey: "localisationQualityMonitoringDifferentiatorTitle",
+      descriptionKey: "localisationQualityMonitoringDifferentiatorDescription",
+      pointKeys: [
+        "localisationQualityMonitoringDifferentiatorPoint0",
+        "localisationQualityMonitoringDifferentiatorPoint1",
+        "localisationQualityMonitoringDifferentiatorPoint2",
+        "localisationQualityMonitoringDifferentiatorPoint3",
+        "localisationQualityMonitoringDifferentiatorPoint4",
+        "localisationQualityMonitoringDifferentiatorPoint5",
       ],
     },
     scenario: {
-      label: "Example workflow",
-      title: "A glossary update needs to propagate across three content types",
-      narrative:
-        "Localisation updates the product glossary after a rebrand. Hyperlocalise scans product strings, marketing landing pages, and help center articles for terminology that no longer matches, runs regression evals against approved baselines, routes flagged strings to reviewers, blocks TMS sync for locales that fail the threshold, and continues monitoring published content for drift over the following two weeks.",
+      labelKey: "scenarioSectionLabel",
+      titleKey: "localisationQualityMonitoringScenarioTitle",
+      narrativeKey: "localisationQualityMonitoringScenarioNarrative",
     },
     cta: {
-      headline: "Bring translation intelligence into your localisation workflow",
-      description: "Request early access to Hyperlocalise.",
-      primaryLabel: "Request a demo",
+      headlineKey: "localisationQualityMonitoringCtaHeadline",
+      descriptionKey: "localisationQualityMonitoringCtaDescription",
+      primaryLabelKey: "ctaRequestDemo",
     },
   },
   {
     slug: "localisation-operations",
     metadata: {
-      title: "Localisation Operations Platform | Hyperlocalise",
-      description:
-        "Orchestrate localisation across TMS platforms, LLM providers, vendors, and reviewers. One workflow layer for localisation managers without replacing your stack.",
+      titleKey: "localisationOperationsMetadataTitle",
+      descriptionKey: "localisationOperationsMetadataDescription",
       keywords: [
         "localisation operations platform",
         "AI localisation operations",
@@ -613,99 +643,105 @@ export const useCasePages: UseCasePageContent[] = [
       ],
     },
     hero: {
-      eyebrow: "Localisation operations",
-      headline: "One operations layer across your entire localisation stack",
-      subheadline:
-        "Orchestrate agents, reviewers, vendors, LLMs, and TMS platforms in a single workflow — without replacing the tools your team already depends on.",
-      ctaLabel: "Request a demo",
+      eyebrowKey: "localisationOperationsHeroEyebrow",
+      headlineKey: "localisationOperationsHeroHeadline",
+      subheadlineKey: "localisationOperationsHeroSubheadline",
+      ctaLabelKey: "ctaRequestDemo",
     },
     problem: {
-      title: "Localisation operations span too many disconnected systems",
-      description:
-        "Localisation managers coordinate across TMS tools, model providers, vendors, and engineering — with no unified view of what is in flight.",
-      pains: [
-        "Work arrives from product, marketing, support, and engineering through different channels with no shared intake.",
-        "Switching LLM providers or TMS platforms disrupts established workflows.",
-        "Vendor and reviewer assignments happen manually across spreadsheets and Slack.",
-        "Approvals and status live in the TMS while context lives elsewhere.",
-        "Reporting on throughput, quality, and locale coverage requires stitching data from multiple tools.",
+      titleKey: "localisationOperationsProblemTitle",
+      descriptionKey: "localisationOperationsProblemDescription",
+      painKeys: [
+        "localisationOperationsPain0",
+        "localisationOperationsPain1",
+        "localisationOperationsPain2",
+        "localisationOperationsPain3",
+        "localisationOperationsPain4",
       ],
     },
     workflow: {
-      label: "How it works",
-      title: "From intake to orchestrated delivery",
-      description:
-        "Hyperlocalise gives localisation operations a single control plane across sources, models, reviewers, and sync targets.",
+      labelKey: "workflowSectionLabel",
+      titleKey: "localisationOperationsWorkflowTitle",
+      descriptionKey: "localisationOperationsWorkflowDescription",
       steps: [
-        { label: "Intake", description: "Collect work from GitHub, Slack, CMS, and TMS" },
-        { label: "Context assembly", description: "Attach glossaries, briefs, and history" },
-        { label: "Agent assignment", description: "Route to LLM agents or human reviewers" },
-        { label: "Review & approval", description: "Track decisions across stakeholders" },
-        { label: "TMS sync", description: "Push approved work to your platform" },
-        { label: "Operations report", description: "Monitor throughput and locale health" },
+        {
+          labelKey: "localisationOperationsWorkflowStep0Label",
+          descriptionKey: "localisationOperationsWorkflowStep0Description",
+        },
+        {
+          labelKey: "localisationOperationsWorkflowStep1Label",
+          descriptionKey: "localisationOperationsWorkflowStep1Description",
+        },
+        {
+          labelKey: "localisationOperationsWorkflowStep2Label",
+          descriptionKey: "localisationOperationsWorkflowStep2Description",
+        },
+        {
+          labelKey: "localisationOperationsWorkflowStep3Label",
+          descriptionKey: "localisationOperationsWorkflowStep3Description",
+        },
+        {
+          labelKey: "localisationOperationsWorkflowStep4Label",
+          descriptionKey: "localisationOperationsWorkflowStep4Description",
+        },
+        {
+          labelKey: "localisationOperationsWorkflowStep5Label",
+          descriptionKey: "localisationOperationsWorkflowStep5Description",
+        },
       ],
     },
     capabilities: {
-      label: "Key capabilities",
-      title: "Built for localisation managers",
+      labelKey: "capabilitiesSectionLabel",
+      titleKey: "localisationOperationsCapabilitiesTitle",
       items: [
         {
-          title: "Unified intake across product, marketing, and support",
-          description:
-            "Collect localisation requests from GitHub, Slack, CMS platforms, and your TMS into one queue.",
+          titleKey: "localisationOperationsCapability0Title",
+          descriptionKey: "localisationOperationsCapability0Description",
         },
         {
-          title: "Orchestrate agents, vendors, and internal reviewers",
-          description:
-            "Assign translation, review, and QA work based on locale, content type, or expertise.",
+          titleKey: "localisationOperationsCapability1Title",
+          descriptionKey: "localisationOperationsCapability1Description",
         },
         {
-          title: "Switch LLM providers without workflow redesign",
-          description:
-            "Use different models for different content types while keeping review and sync logic consistent.",
+          titleKey: "localisationOperationsCapability2Title",
+          descriptionKey: "localisationOperationsCapability2Description",
         },
         {
-          title: "Stay TMS agnostic across platforms",
-          description:
-            "Operate across Crowdin, Lokalise, Phrase, Smartling, and other TMS tools from one workflow layer.",
+          titleKey: "localisationOperationsCapability3Title",
+          descriptionKey: "localisationOperationsCapability3Description",
         },
         {
-          title: "Track approvals and audit trails",
-          description:
-            "See who approved what, when, and with what context — across agents and human reviewers.",
+          titleKey: "localisationOperationsCapability4Title",
+          descriptionKey: "localisationOperationsCapability4Description",
         },
         {
-          title: "Report on throughput, coverage, and quality",
-          description:
-            "Monitor locale health, review backlog, and quality trends without exporting from three systems.",
+          titleKey: "localisationOperationsCapability5Title",
+          descriptionKey: "localisationOperationsCapability5Description",
         },
       ],
     },
     differentiator: {
-      label: "Why this is different",
-      title: "An operations platform that connects your stack — not another silo",
-      description:
-        "Hyperlocalise is not a TMS replacement. It is the workflow layer localisation operations teams use to orchestrate agents, humans, models, and platforms without a rip-and-replace migration.",
-      points: [
-        "TMS agnostic",
-        "LLM agnostic",
-        "Human-in-the-loop orchestration",
-        "Context-aware across all content sources",
-        "Built for localisation operations at scale",
-        "Works across product, marketing, support, and engineering",
+      labelKey: "differentiatorSectionLabel",
+      titleKey: "localisationOperationsDifferentiatorTitle",
+      descriptionKey: "localisationOperationsDifferentiatorDescription",
+      pointKeys: [
+        "localisationOperationsDifferentiatorPoint0",
+        "localisationOperationsDifferentiatorPoint1",
+        "localisationOperationsDifferentiatorPoint2",
+        "localisationOperationsDifferentiatorPoint3",
+        "localisationOperationsDifferentiatorPoint4",
+        "localisationOperationsDifferentiatorPoint5",
       ],
     },
     scenario: {
-      label: "Example workflow",
-      title: "A localisation manager plans the quarter across four content streams",
-      narrative:
-        "A localisation manager receives intake from a product release, a marketing campaign, twelve updated help articles, and a vendor translation batch. Hyperlocalise structures each stream with the right context and glossary rules, assigns product strings to an LLM agent with human review, routes marketing copy through legal approval, sends vendor work to the TMS with quality gates, and surfaces a single dashboard showing locale coverage, review backlog, and blocked releases across all four streams.",
+      labelKey: "scenarioSectionLabel",
+      titleKey: "localisationOperationsScenarioTitle",
+      narrativeKey: "localisationOperationsScenarioNarrative",
     },
     cta: {
-      headline: "Build your AI-native localisation workflow",
-      description:
-        "Join the Hyperlocalise waitlist and see how your operations team can orchestrate localisation without replacing your existing tools.",
-      primaryLabel: "Join the waitlist",
+      headlineKey: "localisationOperationsCtaHeadline",
+      descriptionKey: "localisationOperationsCtaDescription",
+      primaryLabelKey: "ctaJoinWaitlist",
     },
   },
 ];
@@ -717,6 +753,6 @@ export const useCasePagesBySlug = Object.fromEntries(
 export const useCaseSlugs = useCasePages.map((page) => page.slug);
 
 export const useCaseFooterLinks = useCasePages.map((page) => ({
-  label: page.hero.eyebrow,
+  useCaseLabelKey: page.hero.eyebrowKey,
   href: `/use-cases/${page.slug}`,
 }));

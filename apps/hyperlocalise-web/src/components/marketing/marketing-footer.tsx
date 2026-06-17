@@ -7,12 +7,26 @@ import { FormattedMessage } from "react-intl";
 
 import { marketingPageMessages } from "./marketing-page-content.messages";
 import type { MarketingPageMessageKey } from "./marketing-page-content.messages";
+import { useCasePageMessages } from "./use-case/use-case-page-content.messages";
+import type { UseCaseMessageKey } from "./use-case/use-case-page-content.messages";
 
 type MarketingFooterProps = {
   columns: MarketingFooterColumn[];
 };
 
-function FooterLinkLabel({ label, labelKey }: { label?: string; labelKey?: string }) {
+function FooterLinkLabel({
+  label,
+  labelKey,
+  useCaseLabelKey,
+}: {
+  label?: string;
+  labelKey?: string;
+  useCaseLabelKey?: UseCaseMessageKey;
+}) {
+  if (useCaseLabelKey) {
+    return <FormattedMessage {...useCasePageMessages[useCaseLabelKey]} />;
+  }
+
   if (labelKey) {
     return <FormattedMessage {...marketingPageMessages[labelKey as MarketingPageMessageKey]} />;
   }
@@ -46,7 +60,7 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
             </div>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               {column.links.map((link) => (
-                <li key={link.labelKey ?? link.label ?? link.href}>
+                <li key={link.useCaseLabelKey ?? link.labelKey ?? link.label ?? link.href}>
                   {isExternalHref(link.href) ? (
                     <a
                       href={link.href}
@@ -54,14 +68,22 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
                       rel="noopener noreferrer"
                       className="inline-flex rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                      <FooterLinkLabel label={link.label} labelKey={link.labelKey} />
+                      <FooterLinkLabel
+                        label={link.label}
+                        labelKey={link.labelKey}
+                        useCaseLabelKey={link.useCaseLabelKey}
+                      />
                     </a>
                   ) : (
                     <Link
                       href={link.href}
                       className="inline-flex rounded-sm transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
                     >
-                      <FooterLinkLabel label={link.label} labelKey={link.labelKey} />
+                      <FooterLinkLabel
+                        label={link.label}
+                        labelKey={link.labelKey}
+                        useCaseLabelKey={link.useCaseLabelKey}
+                      />
                     </Link>
                   )}
                 </li>

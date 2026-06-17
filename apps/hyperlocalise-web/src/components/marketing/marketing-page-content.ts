@@ -9,6 +9,7 @@ export const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
 
 export type MarketingFooterLink = {
   labelKey?: string;
+  useCaseLabelKey?: import("@/components/marketing/use-case/use-case-page-content.messages").UseCaseMessageKey;
   label?: string;
   href: string;
 };

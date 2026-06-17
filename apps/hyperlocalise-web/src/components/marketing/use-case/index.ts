@@ -5,6 +5,7 @@ export {
   useCasePagesBySlug,
   useCaseSlugs,
   type UseCaseCapability,
+  type UseCaseMessageKey,
   type UseCasePageContent,
   type UseCaseWorkflowStep,
 } from "./use-case-page-content";

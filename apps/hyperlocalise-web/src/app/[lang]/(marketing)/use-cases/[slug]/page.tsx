@@ -2,7 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { UseCasePage, useCasePagesBySlug, useCaseSlugs } from "@/components/marketing/use-case";
+import { getIntlShape } from "@/lib/app-i18n/intl";
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
+
+import { getUseCaseRouteMetadata } from "./use-case-route-metadata";
 
 type UseCaseRouteParams = {
   lang: string;
@@ -18,20 +21,29 @@ export function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: UseCaseRouteProps): Promise<Metadata> {
-  const { slug } = await params;
+  const { lang, slug } = await params;
   const content = useCasePagesBySlug[slug];
 
   if (!content) {
     return {};
   }
 
+  const intl = getIntlShape(lang);
+  const metadata = getUseCaseRouteMetadata(slug, intl);
+
+  if (!metadata) {
+    return {};
+  }
+
+  const { title, description } = metadata;
+
   return {
-    title: content.metadata.title,
-    description: content.metadata.description,
+    title,
+    description,
     keywords: content.metadata.keywords,
     openGraph: {
-      title: content.metadata.title,
-      description: content.metadata.description,
+      title,
+      description,
       type: "website",
     },
   };
