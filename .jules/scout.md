@@ -79,3 +79,7 @@
 ## 2026-07-02 - [Mixed XML Encoder and Buffer Writes]
 **Learning:** Interleaving `xml.Encoder.EncodeToken` calls with direct writes to the encoder's underlying `bytes.Buffer` causes content reordering because `xml.Encoder` is buffered. Tokens sent to the encoder are held until a flush, while direct buffer writes happen immediately.
 **Action:** Always call `enc.Flush()` before writing directly to the underlying buffer (e.g., when decoding `CharData` tokens into literal text) to maintain correct element order.
+
+## 2025-06-12 - [Custom Tag Identification for Parity]
+**Learning:** HTML tag parity checks identifying tags for structural integrity should include custom tags common in modern web frameworks (e.g., MDX, Web Components). These tags often contain dots, underscores, or digits (e.g., `<My.Component>`, `<tag_name>`, `<v1.0>`). If these characters are not explicitly included in the identification logic, such tags may be ignored, leading to false-positive structural matches if they are missing in translations.
+**Action:** Use `strings.ContainsAny(tag, "-:._0123456789")` or similar comprehensive identification in tag parity checks to ensure custom tags are correctly identified and protected during localization.

@@ -127,6 +127,30 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			tgt:  `<div title="something">content</div>`,
 			want: false,
 		},
+		{
+			name: "tag with digit should be protected",
+			src:  "Hello <tag1>world</tag1>",
+			tgt:  "Bonjour world",
+			want: true,
+		},
+		{
+			name: "tag with dot should be protected",
+			src:  "Hello <my.component>world</my.component>",
+			tgt:  "Bonjour world",
+			want: true,
+		},
+		{
+			name: "tag with underscore should be protected",
+			src:  "Hello <my_tag>world</my_tag>",
+			tgt:  "Bonjour world",
+			want: true,
+		},
+		{
+			name: "custom tags with digits/dots/underscores should match if preserved",
+			src:  "<tag1><a.b><c_d>Content</c_d></a.b></tag1>",
+			tgt:  "<tag1><a.b><c_d>Contenu</c_d></a.b></tag1>",
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {
