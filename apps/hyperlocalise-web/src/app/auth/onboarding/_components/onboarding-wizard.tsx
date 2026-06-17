@@ -4,6 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { useActionState, useId, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Image from "next/image";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ import { slugifyOrganizationName } from "@/lib/onboarding/slugify-organization-n
 
 import type { CreateWorkspaceActionState } from "../actions";
 import { createWorkspaceAction } from "../actions";
+import { onboardingWizardMessages } from "./onboarding-wizard.messages";
 
 function SubmitButton({
   children,
@@ -30,6 +32,7 @@ function SubmitButton({
 }
 
 export function OnboardingWizard() {
+  const intl = useIntl();
   const [organizationName, setOrganizationName] = useState("");
   const [state, formAction] = useActionState<CreateWorkspaceActionState, FormData>(
     createWorkspaceAction,
@@ -48,15 +51,14 @@ export function OnboardingWizard() {
               width={40}
               height={40}
               sizes="40px"
-              alt="Hyperlocalise logo"
+              alt={intl.formatMessage(onboardingWizardMessages.logoAlt)}
               className="mx-auto size-10 rounded-xl"
             />
             <h1 className="font-heading text-xl font-semibold text-foreground">
-              Create your workspace
+              <FormattedMessage {...onboardingWizardMessages.title} />
             </h1>
             <TypographyP className="text-sm leading-6 text-muted-foreground">
-              Your workspace holds projects, team access, and settings. Choose a name to get
-              started.
+              <FormattedMessage {...onboardingWizardMessages.description} />
             </TypographyP>
           </div>
 
@@ -69,11 +71,15 @@ export function OnboardingWizard() {
 
             <Field>
               <FieldContent className="gap-3">
-                <FieldLabel htmlFor={organizationNameId}>Workspace name</FieldLabel>
+                <FieldLabel htmlFor={organizationNameId}>
+                  <FormattedMessage {...onboardingWizardMessages.workspaceNameLabel} />
+                </FieldLabel>
                 <Input
                   id={organizationNameId}
                   name="organizationName"
-                  placeholder="Acme localisation"
+                  placeholder={intl.formatMessage(
+                    onboardingWizardMessages.workspaceNamePlaceholder,
+                  )}
                   value={organizationName}
                   onChange={(event) => setOrganizationName(event.target.value)}
                   aria-invalid={Boolean(state.fieldErrors?.organizationName)}
@@ -81,15 +87,21 @@ export function OnboardingWizard() {
                   autoFocus
                 />
                 <p className="pt-0.5 text-sm leading-relaxed text-muted-foreground">
-                  <span className="text-foreground/70">Workspace URL </span>
-                  <span className="font-mono text-foreground">/org/{derivedSlug}</span>
+                  <FormattedMessage
+                    {...onboardingWizardMessages.workspaceUrlPreview}
+                    values={{
+                      slug: derivedSlug,
+                      label: (chunks) => <span className="text-foreground/70">{chunks}</span>,
+                      path: (chunks) => <span className="font-mono text-foreground">{chunks}</span>,
+                    }}
+                  />
                 </p>
                 <FieldError>{state.fieldErrors?.organizationName}</FieldError>
               </FieldContent>
             </Field>
 
             <SubmitButton nativeButton type="submit">
-              Create workspace
+              <FormattedMessage {...onboardingWizardMessages.createWorkspace} />
             </SubmitButton>
           </form>
         </CardContent>
