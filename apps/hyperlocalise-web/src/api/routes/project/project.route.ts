@@ -61,12 +61,15 @@ import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 import { ensureOrganizationProjectRecord } from "@/lib/projects/ensure-organization-project";
+import { normalizeProjectId } from "@/lib/projects/project-id";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
   forbiddenResponse,
   getOwnedProject,
+  getOwnedProjectRecord,
   invalidProjectPayloadResponse,
   isProjectCreateAllowed,
   isProjectMutationAllowed,
@@ -278,8 +281,23 @@ const projectStore: ProjectStore = {
 
 const validateProjectParams = validator("param", (value, c) => {
   const parsed = projectIdParamsSchema.safeParse(value);
+  const rawProjectId =
+    typeof value === "object" && value !== null && "projectId" in value
+      ? typeof (value as { projectId?: unknown }).projectId === "string"
+        ? (value as { projectId: string }).projectId
+        : ""
+      : "";
 
   if (!parsed.success) {
+    projectDetailRouteLogger.warn(
+      {
+        route: "project.detail.params",
+        organizationId: c.var.auth?.organization.localOrganizationId ?? null,
+        ...projectIdEncodingDiagnostics(rawProjectId, normalizeProjectId(rawProjectId) as string),
+        validationIssueCodes: parsed.error.issues.map((issue) => issue.code),
+      },
+      "project id param validation failed",
+    );
     return projectNotFoundResponse(c);
   }
 
@@ -366,6 +384,30 @@ function asFile(value: unknown) {
 }
 
 const stringContextRouteLogger = createLogger("project-file-string-context-route");
+const projectDetailRouteLogger = createLogger("project-detail-route");
+
+function projectIdEncodingDiagnostics(rawProjectId: string, validatedProjectId: string) {
+  let singleDecodedProjectId: string | undefined;
+  try {
+    const decoded = decodeURIComponent(rawProjectId);
+    if (decoded !== rawProjectId) {
+      singleDecodedProjectId = decoded;
+    }
+  } catch {
+    singleDecodedProjectId = undefined;
+  }
+
+  return {
+    rawPathProjectId: rawProjectId,
+    validatedProjectId,
+    singleDecodedProjectId,
+    validatedMatchesRaw: validatedProjectId === rawProjectId,
+    validatedMatchesSingleDecoded:
+      singleDecodedProjectId !== undefined
+        ? validatedProjectId === singleDecodedProjectId
+        : undefined,
+  };
+}
 
 const validateProjectFilesQuery = validator("query", (value, c) => {
   const parsed = projectFilesQuerySchema.safeParse(value);
@@ -1035,25 +1077,148 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       },
     )
     .get("/:projectId", validateProjectParams, async (c) => {
+      const rawPathProjectId = c.req.param("projectId");
       const params = c.req.valid("param");
+      const encodedProject = parseProviderProjectId(params.projectId);
+      const organizationId = c.var.auth.organization.localOrganizationId;
+
+      projectDetailRouteLogger.info(
+        {
+          route: "project.detail",
+          organizationId,
+          actorUserId: c.var.auth.user.localUserId,
+          ...projectIdEncodingDiagnostics(rawPathProjectId, params.projectId),
+          parsedProviderKind: encodedProject?.providerKind ?? null,
+          parsedExternalProjectId: encodedProject?.externalProjectId ?? null,
+        },
+        "project detail lookup started",
+      );
+
       const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+
+      projectDetailRouteLogger.info(
+        {
+          route: "project.detail",
+          organizationId,
+          projectId: params.projectId,
+          targetKind: target.kind,
+          ...(target.kind === "provider_unavailable"
+            ? { providerUnavailableError: target.error }
+            : {}),
+          ...(target.kind === "provider"
+            ? {
+                providerKind: target.providerKind,
+                externalProjectId: target.externalProjectId,
+                externalProjectIdIsNumeric: /^\d+$/.test(target.externalProjectId),
+              }
+            : {}),
+        },
+        "project resource target resolved",
+      );
+
       if (target.kind === "provider_unavailable") {
+        projectDetailRouteLogger.warn(
+          {
+            route: "project.detail",
+            organizationId,
+            projectId: params.projectId,
+            providerUnavailableError: target.error,
+            providerUnavailableMessage: target.message,
+          },
+          "provider project unavailable for detail lookup",
+        );
         return providerProjectUnavailableResponse(c, target);
       }
 
       if (target.kind === "provider") {
         try {
+          projectDetailRouteLogger.info(
+            {
+              route: "project.detail",
+              organizationId,
+              projectId: params.projectId,
+              providerKind: target.providerKind,
+              externalProjectId: target.externalProjectId,
+            },
+            "fetching live provider project",
+          );
+
           const project = await getTmsProviderLiveProject(
-            c.var.auth.organization.localOrganizationId,
+            organizationId,
             target.externalProjectId,
             { actorUserId: c.var.auth.user.localUserId },
           );
           if (!project) {
+            projectDetailRouteLogger.warn(
+              {
+                route: "project.detail",
+                organizationId,
+                projectId: params.projectId,
+                providerKind: target.providerKind,
+                externalProjectId: target.externalProjectId,
+                liveLookupResult: "not_found",
+              },
+              "live provider project lookup returned no match",
+            );
+
+            const materializedProject = await getOwnedProjectRecord(c.var.auth, params.projectId);
+            projectDetailRouteLogger.info(
+              {
+                route: "project.detail",
+                organizationId,
+                projectId: params.projectId,
+                materializedFallbackAttempted: true,
+                materializedFallbackResult: materializedProject ? "found" : "not_found",
+                materializedProjectId: materializedProject?.id ?? null,
+                materializedExternalProjectId: materializedProject?.externalProjectId ?? null,
+                materializedExternalProviderKind: materializedProject?.externalProviderKind ?? null,
+                paramMatchesMaterializedId: materializedProject?.id === params.projectId,
+                externalIdMatchesMaterialized:
+                  materializedProject?.externalProjectId === target.externalProjectId,
+              },
+              "materialized project fallback evaluated",
+            );
+
+            if (materializedProject?.source === "external_tms") {
+              const openJobCount = await countOpenJobs(c.var.auth, materializedProject.id);
+              return c.json({ project: { ...materializedProject, openJobCount } }, 200);
+            }
+
+            scheduleProjectNotFoundDiagnostics({
+              auth: c.var.auth,
+              projectId: params.projectId,
+              route: "project.detail.provider",
+            });
             return projectNotFoundResponse(c);
           }
 
+          projectDetailRouteLogger.info(
+            {
+              route: "project.detail",
+              organizationId,
+              projectId: params.projectId,
+              providerKind: target.providerKind,
+              externalProjectId: target.externalProjectId,
+              liveLookupResult: "found",
+              liveProjectId: project.id,
+              liveExternalProjectId: project.externalProjectId,
+            },
+            "live provider project lookup succeeded",
+          );
+
           return c.json({ project: { ...project, openJobCount: 0 } }, 200);
         } catch (error) {
+          projectDetailRouteLogger.warn(
+            {
+              route: "project.detail",
+              organizationId,
+              projectId: params.projectId,
+              providerKind: target.providerKind,
+              externalProjectId: target.externalProjectId,
+              error: error instanceof Error ? error.message : "unknown_error",
+            },
+            "live provider project lookup failed",
+          );
           return tmsProviderLiveErrorResponse(c, error);
         }
       }

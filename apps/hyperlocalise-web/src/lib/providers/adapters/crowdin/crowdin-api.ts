@@ -633,8 +633,11 @@ export class CrowdinApiClient {
     },
   ): Promise<CrowdinSourceStringsPage> {
     const pageLimit = Math.min(Math.max(options.limit, 1), 500);
+    // Crowdin rejects limit > 500. For max-sized pages, request exactly 500 and infer hasMore
+    // from a full page. Smaller pages over-fetch by one to distinguish exact page fills.
+    const requestLimit = pageLimit < 500 ? pageLimit + 1 : pageLimit;
     const params = new URLSearchParams({
-      limit: String(pageLimit + 1),
+      limit: String(requestLimit),
       offset: String(options.offset),
     });
 
@@ -652,8 +655,8 @@ export class CrowdinApiClient {
       `/projects/${projectId}/strings?${params.toString()}`,
     );
     const page = response.data.map((item) => item.data);
-    const hasMore = page.length > pageLimit;
-    const strings = hasMore ? page.slice(0, pageLimit) : page;
+    const hasMore = pageLimit < 500 ? page.length > pageLimit : page.length === pageLimit;
+    const strings = pageLimit < 500 && page.length > pageLimit ? page.slice(0, pageLimit) : page;
     const totalCount = hasMore
       ? options.offset + strings.length + 1
       : options.offset + strings.length;

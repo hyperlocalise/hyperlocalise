@@ -538,6 +538,27 @@ describe("CrowdinApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("lists source string pages without exceeding Crowdin max limit", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/projects/902807/strings?");
+      expect(path).toContain("limit=500");
+      expect(path).not.toContain("limit=501");
+      expect(path).toContain("fileId=2");
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const page = await client.listSourceStringsPage(902807, {
+      fileId: 2,
+      offset: 0,
+      limit: 500,
+    });
+
+    expect(page).toMatchObject({ strings: [], offset: 0, limit: 500, hasMore: false });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
   it("lists string comments for strings without languageId", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);

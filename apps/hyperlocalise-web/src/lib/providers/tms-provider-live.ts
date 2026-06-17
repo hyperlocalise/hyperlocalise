@@ -1235,6 +1235,39 @@ export async function getTmsProviderLiveProject(
   externalProjectId: string,
   options?: { actorUserId?: string | null },
 ): Promise<TmsProviderLiveProject | null> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+
+  if (context.providerKind === "crowdin") {
+    const crowdinProjectId = Number(externalProjectId);
+    if (!Number.isFinite(crowdinProjectId) || crowdinProjectId <= 0) {
+      return null;
+    }
+
+    const client = new CrowdinApiClient({
+      token: context.secretMaterial,
+      baseUrl: context.credential.baseUrl ?? undefined,
+    });
+
+    try {
+      const project = await client.getProject(crowdinProjectId);
+      return mapLiveProject(context.providerKind, {
+        externalProjectId: String(project.id),
+        name: project.name,
+        sourceLocale: project.sourceLanguageId,
+        targetLocales: project.targetLanguageIds,
+        externalProjectUrl: project.webUrl,
+        isActive: !project.isSuspended,
+      });
+    } catch (error) {
+      if (error instanceof CrowdinApiError && error.status === 404) {
+        return null;
+      }
+      rethrowProviderFetcherError(error);
+    }
+  }
+
   const projects = await listTmsProviderLiveProjects(organizationId, options);
   return projects.find((project) => project.externalProjectId === externalProjectId) ?? null;
 }
