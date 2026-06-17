@@ -1,51 +1,62 @@
 "use client";
 
-import {
-  CheckmarkCircle02Icon,
-  FilterIcon,
-  MoreHorizontalCircle01Icon,
-} from "@hugeicons/core-free-icons";
+import { SearchIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/primitives/cn";
+import { Spinner } from "@/components/ui/spinner";
 
+import { CatQueueVirtualList } from "./cat-queue-virtual-list";
 import { catQueuePanelMessages } from "./cat.messages";
 import type { CatQueueSummary, CatSegment } from "./types";
 
-function QueueStatusIcon({ status }: { status: CatSegment["status"] }) {
-  if (status === "reviewed") {
-    return <HugeiconsIcon icon={CheckmarkCircle02Icon} className="size-4 text-grove-300" />;
-  }
-
-  if (status === "needs_review") {
-    return <span className="size-2.5 rounded-full bg-bud-400" />;
-  }
-
-  return <span className="size-2.5 rounded-full border border-foreground/25" />;
-}
+export type CatQueuePagination = {
+  offset: number;
+  limit: number;
+  returnedCount: number;
+  totalCount: number;
+  hasMore: boolean;
+};
 
 export function CatQueuePanel({
   segments,
   selectedSegmentId,
   summary,
   onSelectSegment,
+  search = "",
+  onSearchChange,
+  isSearching = false,
+  isFetchingPage = false,
+  pagination = null,
+  onPreviousPage,
+  onNextPage,
+  onNearEnd,
 }: {
   segments: CatSegment[];
   selectedSegmentId: string;
   summary: CatQueueSummary;
   onSelectSegment: (segmentId: string) => void;
+  search?: string;
+  onSearchChange?: (value: string) => void;
+  isSearching?: boolean;
+  isFetchingPage?: boolean;
+  pagination?: CatQueuePagination | null;
+  onPreviousPage?: () => void;
+  onNextPage?: () => void;
+  onNearEnd?: () => void;
 }) {
   const intl = useIntl();
   const progressValue =
     summary.total > 0 ? Math.round((summary.reviewed / summary.total) * 100) : 0;
+  const rangeStart = pagination ? pagination.offset + 1 : 1;
+  const rangeEnd = pagination ? pagination.offset + pagination.returnedCount : segments.length;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-foreground/8">
-      <div className="flex items-center justify-between gap-2 border-b border-foreground/8 px-4 py-3">
+      <div className="space-y-3 border-b border-foreground/8 px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...catQueuePanelMessages.queueTitle} />
@@ -57,69 +68,79 @@ export function CatQueuePanel({
             />
           </p>
         </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={intl.formatMessage(catQueuePanelMessages.filterQueueAria)}
-          >
-            <HugeiconsIcon icon={FilterIcon} className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label={intl.formatMessage(catQueuePanelMessages.queueActionsAria)}
-          >
-            <HugeiconsIcon icon={MoreHorizontalCircle01Icon} className="size-4" />
-          </Button>
-        </div>
+
+        {onSearchChange ? (
+          <div className="relative">
+            <HugeiconsIcon
+              icon={SearchIcon}
+              className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+            />
+            <Input
+              value={search}
+              onChange={(event) => onSearchChange(event.target.value)}
+              placeholder={intl.formatMessage(catQueuePanelMessages.searchPlaceholder)}
+              aria-label={intl.formatMessage(catQueuePanelMessages.searchAria)}
+              className="h-9 pl-9 font-mono text-xs"
+            />
+            {isSearching ? (
+              <Spinner className="absolute top-1/2 right-2.5 size-3.5 -translate-y-1/2" />
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       <div className="px-4 py-3">
         <Progress value={progressValue} className="h-1.5" />
       </div>
 
-      <ScrollArea
-        className="min-h-0 flex-1"
-        maskHeight={44}
-        maskClassName="before:via-background/90 before:backdrop-blur-[1px] after:via-background/90 after:backdrop-blur-[1px]"
-      >
-        <ul className="space-y-1 px-4 pb-3">
-          {segments.map((segment) => {
-            const selected = segment.id === selectedSegmentId;
+      {segments.length === 0 ? (
+        <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-3 text-sm text-muted-foreground">
+          <FormattedMessage {...catQueuePanelMessages.emptySearchResults} />
+        </div>
+      ) : (
+        <CatQueueVirtualList
+          segments={segments}
+          selectedSegmentId={selectedSegmentId}
+          onSelectSegment={onSelectSegment}
+          onNearEnd={onNearEnd}
+        />
+      )}
 
-            return (
-              <li key={segment.id}>
-                <button
-                  type="button"
-                  onClick={() => onSelectSegment(segment.id)}
-                  className={cn(
-                    "flex min-h-11 w-full items-start gap-3 rounded-lg px-3 py-2.5 text-left transition-colors",
-                    selected
-                      ? "bg-grove-500/10 ring-1 ring-inset ring-grove-400/25"
-                      : "hover:bg-foreground/4",
-                  )}
-                >
-                  <span className="mt-0.5 w-5 shrink-0 font-mono text-xs text-muted-foreground">
-                    {String(segment.index).padStart(2, "0")}
-                  </span>
-                  <div className="min-w-0 flex-1 space-y-1">
-                    <p className="line-clamp-2 text-sm text-foreground/90">{segment.sourceText}</p>
-                    <div className="flex min-w-0 items-center">
-                      <span className="min-w-0 truncate font-mono text-xs text-muted-foreground">
-                        {segment.key}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="mt-1 shrink-0">
-                    <QueueStatusIcon status={segment.status} />
-                  </div>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </ScrollArea>
+      {pagination ? (
+        <div className="flex items-center justify-between gap-2 border-t border-foreground/8 px-4 py-3">
+          <p className="text-xs text-muted-foreground">
+            <FormattedMessage
+              {...catQueuePanelMessages.paginationSummary}
+              values={{
+                start: rangeStart,
+                end: rangeEnd,
+                total: pagination.totalCount,
+              }}
+            />
+          </p>
+          <div className="flex items-center gap-1">
+            {isFetchingPage ? <Spinner className="size-3.5" /> : null}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={pagination.offset === 0 || isFetchingPage}
+              onClick={onPreviousPage}
+            >
+              <FormattedMessage {...catQueuePanelMessages.previousPage} />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={!pagination.hasMore || isFetchingPage}
+              onClick={onNextPage}
+            >
+              <FormattedMessage {...catQueuePanelMessages.nextPage} />
+            </Button>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -39,11 +39,7 @@ const meta = {
         {...props}
         isLoading={false}
         detail={props.file?.sourcePath === selectedDetail.sourcePath ? selectedDetail : undefined}
-        renderSourceStringsPreview={({ sourceStrings }) => (
-          <div className="rounded-md border border-foreground/8 bg-background p-3 text-xs text-foreground/72">
-            {sourceStrings.entries.length} parsed strings ready for repository lookup.
-          </div>
-        )}
+        targetLocales={["fr-FR", "de-DE"]}
       />
     ),
   },
@@ -88,11 +84,6 @@ export const ProviderFiles: Story = {
         {...props}
         isLoading={false}
         detail={props.file ? createProjectFileDetail(props.file) : undefined}
-        renderSourceStringsPreview={({ sourceStrings }) => (
-          <div className="rounded-md border border-foreground/8 bg-background p-3 text-xs text-foreground/72">
-            {sourceStrings.entries.length} provider strings loaded.
-          </div>
-        )}
       />
     ),
   },

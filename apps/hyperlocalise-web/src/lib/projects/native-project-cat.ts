@@ -4,14 +4,18 @@ import type {
   ProjectFileCatResponse,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
+import { legacyNativeCatSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
 import {
+  buildCatFilePagination,
+  type ProjectFileCatPaginationInput,
+} from "@/lib/projects/project-file-cat-pagination";
+import {
+  countProjectTranslationKeysForFile,
   getRepositorySourceFileByPath,
   getProjectTranslationsByKeyIds,
   listProjectTranslationKeysForFile,
 } from "@/lib/projects/project-translation-keys";
-
-const maxCatSegments = 500;
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
@@ -35,6 +39,7 @@ export async function getNativeProjectCatFile(input: {
   sourcePath: string;
   targetLocale: string;
   canEditTranslations: boolean;
+  pagination?: ProjectFileCatPaginationInput;
 }): Promise<ProjectFileCatResponse["catFile"] | null> {
   const sourceFile = await getRepositorySourceFileByPath({
     organizationId: input.organizationId,
@@ -46,33 +51,95 @@ export async function getNativeProjectCatFile(input: {
     return null;
   }
 
-  const keys = await listProjectTranslationKeysForFile({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    repositorySourceFileId: sourceFile.id,
-    limit: maxCatSegments + 1,
+  const paginationInput = input.pagination ?? {
+    offset: 0,
+    limit: legacyNativeCatSegmentLimit,
+    search: undefined,
+    paginated: false,
+  };
+
+  if (!paginationInput.paginated) {
+    const keys = await listProjectTranslationKeysForFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: sourceFile.id,
+      limit: legacyNativeCatSegmentLimit + 1,
+    });
+
+    const truncated = keys.length > legacyNativeCatSegmentLimit;
+    const visibleKeys = truncated ? keys.slice(0, legacyNativeCatSegmentLimit) : keys;
+
+    return buildNativeCatFileResponse({
+      input,
+      visibleKeys,
+      truncated,
+      pagination: undefined,
+    });
+  }
+
+  const [totalCount, keys] = await Promise.all([
+    countProjectTranslationKeysForFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: sourceFile.id,
+      search: paginationInput.search,
+    }),
+    listProjectTranslationKeysForFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: sourceFile.id,
+      limit: paginationInput.limit,
+      offset: paginationInput.offset,
+      search: paginationInput.search,
+    }),
+  ]);
+
+  const pagination = buildCatFilePagination({
+    offset: paginationInput.offset,
+    limit: paginationInput.limit,
+    returnedCount: keys.length,
+    totalCount,
   });
 
-  const truncated = keys.length > maxCatSegments;
-  const visibleKeys = truncated ? keys.slice(0, maxCatSegments) : keys;
+  return buildNativeCatFileResponse({
+    input,
+    visibleKeys: keys,
+    truncated: pagination.hasMore,
+    pagination,
+  });
+}
+
+async function buildNativeCatFileResponse(input: {
+  input: {
+    sourcePath: string;
+    targetLocale: string;
+    canEditTranslations: boolean;
+    organizationId: string;
+    projectId: string;
+  };
+  visibleKeys: Awaited<ReturnType<typeof listProjectTranslationKeysForFile>>;
+  truncated: boolean;
+  pagination: ReturnType<typeof buildCatFilePagination> | undefined;
+}): Promise<ProjectFileCatResponse["catFile"]> {
   const translations = await getProjectTranslationsByKeyIds({
-    organizationId: input.organizationId,
-    projectId: input.projectId,
-    translationKeyIds: visibleKeys.map((key) => key.id),
-    targetLocale: input.targetLocale,
+    organizationId: input.input.organizationId,
+    projectId: input.input.projectId,
+    translationKeyIds: input.visibleKeys.map((key) => key.id),
+    targetLocale: input.input.targetLocale,
   });
   const translationByKeyId = new Map(
     translations.map((translation) => [translation.translationKeyId, translation]),
   );
 
   return {
-    sourcePath: input.sourcePath,
-    filename: filenameFromSourcePath(input.sourcePath),
+    sourcePath: input.input.sourcePath,
+    filename: filenameFromSourcePath(input.input.sourcePath),
     provider: null,
-    targetLocale: input.targetLocale,
-    canEditTranslations: input.canEditTranslations,
-    truncated,
-    segments: visibleKeys.map((key) => {
+    targetLocale: input.input.targetLocale,
+    canEditTranslations: input.input.canEditTranslations,
+    truncated: input.truncated,
+    pagination: input.pagination,
+    segments: input.visibleKeys.map((key) => {
       const translation = translationByKeyId.get(key.id);
       return {
         externalStringId: key.id,

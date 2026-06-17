@@ -11,6 +11,12 @@ import {
   normalizeProjectFileContent,
 } from "@/lib/projects/project-file-source-strings";
 import {
+  buildCatFilePagination,
+  type ProjectFileCatPaginationInput,
+} from "@/lib/projects/project-file-cat-pagination";
+import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
+import { buildCrowdinFileSearchCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
+import {
   CrowdinApiClient,
   CrowdinApiError,
   type CrowdinLanguageTranslation,
@@ -830,11 +836,40 @@ function relevantCrowdinCatComments(input: {
   return commentsByStringId;
 }
 
+async function countCrowdinSourceStrings(
+  client: CrowdinApiClient,
+  projectId: number,
+  filter: {
+    fileId?: number;
+    croql?: string;
+  },
+) {
+  let total = 0;
+  let offset = 0;
+
+  while (total <= legacyProviderCatSegmentLimit) {
+    const page = await client.listSourceStringsPage(projectId, {
+      fileId: filter.fileId,
+      croql: filter.croql,
+      offset,
+      limit: 500,
+    });
+    total += page.strings.length;
+    if (!page.hasMore) {
+      return total;
+    }
+    offset += page.strings.length;
+  }
+
+  return total;
+}
+
 async function buildCrowdinLiveCatFile(input: {
   context: ActiveTmsProviderContext;
   file: TmsProviderLiveFile;
   targetLocale: string;
   canEditTranslations: boolean;
+  pagination?: ProjectFileCatPaginationInput;
 }): Promise<TmsProviderLiveCatFile> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const fileId = Number(input.file.provider?.externalResourceId);
@@ -851,11 +886,51 @@ async function buildCrowdinLiveCatFile(input: {
   });
 
   try {
-    const strings = await client.listSourceStrings(projectId, {
-      fileId,
-      maxItems: maxLiveProviderStringPreviewItems + 1,
-    });
-    const visibleStrings = strings.slice(0, maxLiveProviderStringPreviewItems);
+    const paginationInput = input.pagination ?? {
+      offset: 0,
+      limit: legacyProviderCatSegmentLimit,
+      search: undefined,
+      paginated: false,
+    };
+
+    let visibleStrings: CrowdinSourceString[] = [];
+    let truncated = false;
+    let pagination: ReturnType<typeof buildCatFilePagination> | undefined;
+
+    if (!paginationInput.paginated) {
+      const strings = await client.listSourceStrings(projectId, {
+        fileId,
+        maxItems: legacyProviderCatSegmentLimit + 1,
+      });
+      truncated = strings.length > legacyProviderCatSegmentLimit;
+      visibleStrings = truncated ? strings.slice(0, legacyProviderCatSegmentLimit) : strings;
+    } else {
+      const croql = paginationInput.search
+        ? buildCrowdinFileSearchCroql(fileId, paginationInput.search)
+        : undefined;
+      const [totalCount, page] = await Promise.all([
+        countCrowdinSourceStrings(client, projectId, {
+          fileId: croql ? undefined : fileId,
+          croql,
+        }),
+        client.listSourceStringsPage(projectId, {
+          fileId: croql ? undefined : fileId,
+          croql,
+          offset: paginationInput.offset,
+          limit: paginationInput.limit,
+        }),
+      ]);
+
+      visibleStrings = page.strings;
+      pagination = buildCatFilePagination({
+        offset: paginationInput.offset,
+        limit: paginationInput.limit,
+        returnedCount: visibleStrings.length,
+        totalCount,
+      });
+      truncated = pagination.hasMore;
+    }
+
     const sourceStringIds = visibleStrings.map((sourceString) => sourceString.id);
     const sourceStringIdSet = new Set(sourceStringIds);
 
@@ -903,7 +978,8 @@ async function buildCrowdinLiveCatFile(input: {
       provider: input.file.provider,
       targetLocale: input.targetLocale,
       canEditTranslations: input.canEditTranslations,
-      truncated: strings.length > maxLiveProviderStringPreviewItems,
+      truncated,
+      pagination,
       segments: visibleStrings.map((sourceString) => {
         const target = preferredLanguageTranslation(
           translationsByStringId.get(sourceString.id) ?? [],
@@ -1372,7 +1448,11 @@ export async function getTmsProviderLiveCatFile(
   externalProjectId: string,
   sourcePath: string,
   targetLocale: string,
-  options?: { actorUserId?: string | null; canEditTranslations?: boolean },
+  options?: {
+    actorUserId?: string | null;
+    canEditTranslations?: boolean;
+    pagination?: ProjectFileCatPaginationInput;
+  },
 ): Promise<TmsProviderLiveCatFile | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
@@ -1398,6 +1478,7 @@ export async function getTmsProviderLiveCatFile(
     file,
     targetLocale,
     canEditTranslations: options?.canEditTranslations ?? false,
+    pagination: options?.pagination,
   });
 }
 

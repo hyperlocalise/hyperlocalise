@@ -56,6 +56,36 @@ export const catQueuePanelMessages = defineMessages({
     id: "fDknk0nTC0",
     description: "Accessible label for the queue overflow actions button",
   },
+  searchPlaceholder: {
+    defaultMessage: "Search key or text…",
+    id: "8TtvvjSylP",
+    description: "Placeholder for CAT queue search input",
+  },
+  searchAria: {
+    defaultMessage: "Search segments by key or source text",
+    id: "Wk16E7zAqa",
+    description: "Accessible label for CAT queue search input",
+  },
+  emptySearchResults: {
+    defaultMessage: "No segments match your search.",
+    id: "ypyJIGOXrt",
+    description: "Empty state when CAT queue search returns no segments",
+  },
+  paginationSummary: {
+    defaultMessage: "{start}–{end} of {total}",
+    id: "7YdMLbBTSy",
+    description: "Pagination summary for CAT queue pages",
+  },
+  previousPage: {
+    defaultMessage: "Previous",
+    id: "oFQD3YDzBl",
+    description: "Previous page button label in CAT queue",
+  },
+  nextPage: {
+    defaultMessage: "Next",
+    id: "U/tZOaayjq",
+    description: "Next page button label in CAT queue",
+  },
 });
 
 export const catFormatChecksMessages = defineMessages({

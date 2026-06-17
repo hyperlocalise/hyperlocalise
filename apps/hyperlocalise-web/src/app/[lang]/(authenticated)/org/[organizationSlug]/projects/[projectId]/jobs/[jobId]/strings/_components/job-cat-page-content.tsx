@@ -28,7 +28,7 @@ import {
 } from "./job-cat-repository-preference";
 import { selectJobCatTargetLocale } from "./job-cat-target-locale";
 import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
-import { TmsJobCatWorkspace } from "./tms-job-cat-workspace";
+import { ProjectFileCatWorkspace } from "@/components/cat/project-file-cat-workspace";
 
 type JobCatGithubRepository = {
   fullName: string;
@@ -345,13 +345,14 @@ export function JobCatPageContent({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
-        <TmsJobCatWorkspace
+        <ProjectFileCatWorkspace
           key={`${selectedFile.sourcePath}:${selectedRepositoryFullName ?? "default"}`}
           organizationSlug={organizationSlug}
           projectId={projectId}
           sourcePath={selectedFile.sourcePath}
           targetLocale={selectedTargetLocale}
           repositoryFullName={selectedRepositoryFullName}
+          layout="fullscreen"
         />
       </div>
     </main>

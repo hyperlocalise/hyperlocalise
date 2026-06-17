@@ -10,6 +10,7 @@ import type {
   CatWorkspaceNavigation,
   CatWorkspaceReview,
   CatWorkspaceServices,
+  CatWorkspaceViewProps,
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
 import { CatWorkspaceView } from "./cat-workspace";
@@ -202,6 +203,14 @@ export interface CatWorkspaceContainerProps {
   review?: Partial<CatWorkspaceReview>;
   services?: CatWorkspaceServices;
   className?: string;
+  queueSearch?: string;
+  onQueueSearchChange?: (value: string) => void;
+  isQueueSearchPending?: boolean;
+  isQueueFetchingPage?: boolean;
+  queuePagination?: CatWorkspaceViewProps["queuePagination"];
+  onQueuePreviousPage?: () => void;
+  onQueueNextPage?: () => void;
+  onQueueNearEnd?: () => void;
 }
 
 function collectSegmentsWithAgentContext(state: CatWorkspaceState): ReadonlySet<string> {
@@ -220,6 +229,14 @@ export function CatWorkspaceContainer({
   review: reviewOverrides = dependencyOverrides?.review,
   services: serviceOverrides = dependencyOverrides?.services,
   className,
+  queueSearch,
+  onQueueSearchChange,
+  isQueueSearchPending,
+  isQueueFetchingPage,
+  queuePagination,
+  onQueuePreviousPage,
+  onQueueNextPage,
+  onQueueNearEnd,
 }: CatWorkspaceContainerProps) {
   const intl = useIntl();
   const [state, setState] = useState(initialState);
@@ -743,6 +760,14 @@ export function CatWorkspaceContainer({
       showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
       canUseAiRecommendation={canUseAiRecommendation}
       className={className}
+      queueSearch={queueSearch}
+      onQueueSearchChange={onQueueSearchChange}
+      isQueueSearchPending={isQueueSearchPending}
+      isQueueFetchingPage={isQueueFetchingPage}
+      queuePagination={queuePagination}
+      onQueuePreviousPage={onQueuePreviousPage}
+      onQueueNextPage={onQueueNextPage}
+      onQueueNearEnd={onQueueNearEnd}
     />
   );
 }

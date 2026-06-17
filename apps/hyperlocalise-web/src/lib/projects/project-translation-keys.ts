@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
 
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
@@ -110,13 +110,57 @@ export async function upsertProjectTranslationKeysFromEntries(input: {
   return { imported, updated };
 }
 
+function translationKeysFileConditions(input: {
+  organizationId: string;
+  projectId: string;
+  repositorySourceFileId: string;
+}) {
+  return and(
+    eq(schema.projectTranslationKeys.organizationId, input.organizationId),
+    eq(schema.projectTranslationKeys.projectId, input.projectId),
+    eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
+  );
+}
+
+function translationKeysSearchCondition(search: string | undefined) {
+  const query = search?.trim();
+  if (!query) {
+    return undefined;
+  }
+
+  const pattern = `%${query}%`;
+
+  return or(
+    ilike(schema.projectTranslationKeys.key, pattern),
+    ilike(schema.projectTranslationKeys.sourceText, pattern),
+    ilike(schema.projectTranslationKeys.context, pattern),
+  );
+}
+
+export async function countProjectTranslationKeysForFile(input: {
+  organizationId: string;
+  projectId: string;
+  repositorySourceFileId: string;
+  search?: string;
+}) {
+  const [row] = await db
+    .select({ total: count() })
+    .from(schema.projectTranslationKeys)
+    .where(and(translationKeysFileConditions(input), translationKeysSearchCondition(input.search)));
+
+  return Number(row?.total ?? 0);
+}
+
 export async function listProjectTranslationKeysForFile(input: {
   organizationId: string;
   projectId: string;
   repositorySourceFileId: string;
   limit?: number;
+  offset?: number;
+  search?: string;
 }) {
   const limit = input.limit ?? 2_000;
+  const offset = input.offset ?? 0;
 
   return db
     .select({
@@ -128,14 +172,10 @@ export async function listProjectTranslationKeysForFile(input: {
       maxLength: schema.projectTranslationKeys.maxLength,
     })
     .from(schema.projectTranslationKeys)
-    .where(
-      and(
-        eq(schema.projectTranslationKeys.organizationId, input.organizationId),
-        eq(schema.projectTranslationKeys.projectId, input.projectId),
-        eq(schema.projectTranslationKeys.repositorySourceFileId, input.repositorySourceFileId),
-      ),
-    )
-    .limit(limit);
+    .where(and(translationKeysFileConditions(input), translationKeysSearchCondition(input.search)))
+    .orderBy(asc(schema.projectTranslationKeys.key), asc(schema.projectTranslationKeys.id))
+    .limit(limit)
+    .offset(offset);
 }
 
 export async function getProjectTranslationsByKeyIds(input: {

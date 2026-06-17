@@ -49,6 +49,14 @@ export function CatWorkspaceView({
   canUseAiRecommendation = false,
   showAgentContext = false,
   className,
+  queueSearch,
+  onQueueSearchChange,
+  isQueueSearchPending = false,
+  isQueueFetchingPage = false,
+  queuePagination = null,
+  onQueuePreviousPage,
+  onQueueNextPage,
+  onQueueNearEnd,
 }: CatWorkspaceViewProps) {
   const selectedSegmentIndex = state.segments.findIndex(
     (segment) => segment.id === state.selectedSegmentId || segment.key === state.selectedSegmentId,
@@ -134,6 +142,14 @@ export function CatWorkspaceView({
             setActivePanel("edit");
           }
         }}
+        search={queueSearch}
+        onSearchChange={onQueueSearchChange}
+        isSearching={isQueueSearchPending}
+        isFetchingPage={isQueueFetchingPage}
+        pagination={queuePagination}
+        onPreviousPage={onQueuePreviousPage}
+        onNextPage={onQueueNextPage}
+        onNearEnd={onQueueNearEnd}
       />
     );
   }

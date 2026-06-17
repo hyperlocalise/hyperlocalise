@@ -379,6 +379,14 @@ interface CrowdinListResponse<T> {
   };
 }
 
+export type CrowdinSourceStringsPage = {
+  strings: CrowdinSourceString[];
+  offset: number;
+  limit: number;
+  hasMore: boolean;
+  totalCount: number;
+};
+
 interface CrowdinGetResponse<T> {
   data: T;
 }
@@ -574,49 +582,89 @@ export class CrowdinApiClient {
       taskId?: number;
       croql?: string;
       maxItems?: number;
+      startOffset?: number;
     },
   ): Promise<CrowdinSourceString[]> {
     const strings: CrowdinSourceString[] = [];
-    let offset = 0;
-    const limit = 500;
+    let offset = options?.startOffset ?? 0;
 
     while (true) {
-      const pageLimit =
-        options?.maxItems !== undefined
-          ? Math.min(limit, Math.max(options.maxItems - strings.length, 0))
-          : limit;
-      if (pageLimit === 0) {
+      const remaining =
+        options?.maxItems === undefined ? 500 : Math.max(options.maxItems - strings.length, 0);
+      if (options?.maxItems !== undefined && remaining === 0) {
         break;
       }
 
-      const params = new URLSearchParams({
-        limit: String(pageLimit),
-        offset: String(offset),
+      const page = await this.listSourceStringsPage(projectId, {
+        fileId: options?.fileId,
+        taskId: options?.taskId,
+        croql: options?.croql,
+        offset,
+        limit: options?.maxItems === undefined ? 500 : Math.min(remaining, 500),
       });
-      if (options?.fileId !== undefined) {
-        params.append("fileId", String(options.fileId));
-      }
-      if (options?.taskId !== undefined) {
-        params.append("taskId", String(options.taskId));
-      }
-      if (options?.croql) {
-        params.append("croql", options.croql);
-      }
 
-      const response = await this.get<CrowdinListResponse<CrowdinSourceString>>(
-        `/projects/${projectId}/strings?${params.toString()}`,
-      );
-      const page = response.data.map((item) => item.data);
-      strings.push(...page);
+      strings.push(...page.strings);
 
-      if (page.length < pageLimit || strings.length === options?.maxItems) {
+      if (
+        !page.hasMore ||
+        (options?.maxItems !== undefined && strings.length >= options.maxItems)
+      ) {
         break;
       }
 
-      offset += pageLimit;
+      offset += page.strings.length;
+    }
+
+    if (options?.maxItems !== undefined && strings.length > options.maxItems) {
+      return strings.slice(0, options.maxItems);
     }
 
     return strings;
+  }
+
+  async listSourceStringsPage(
+    projectId: number,
+    options: {
+      fileId?: number;
+      taskId?: number;
+      croql?: string;
+      offset: number;
+      limit: number;
+    },
+  ): Promise<CrowdinSourceStringsPage> {
+    const pageLimit = Math.min(Math.max(options.limit, 1), 500);
+    const params = new URLSearchParams({
+      limit: String(pageLimit + 1),
+      offset: String(options.offset),
+    });
+
+    if (options.fileId !== undefined) {
+      params.append("fileId", String(options.fileId));
+    }
+    if (options.taskId !== undefined) {
+      params.append("taskId", String(options.taskId));
+    }
+    if (options.croql) {
+      params.append("croql", options.croql);
+    }
+
+    const response = await this.get<CrowdinListResponse<CrowdinSourceString>>(
+      `/projects/${projectId}/strings?${params.toString()}`,
+    );
+    const page = response.data.map((item) => item.data);
+    const hasMore = page.length > pageLimit;
+    const strings = hasMore ? page.slice(0, pageLimit) : page;
+    const totalCount = hasMore
+      ? options.offset + strings.length + 1
+      : options.offset + strings.length;
+
+    return {
+      strings,
+      offset: options.offset,
+      limit: pageLimit,
+      hasMore,
+      totalCount,
+    };
   }
 
   /**
