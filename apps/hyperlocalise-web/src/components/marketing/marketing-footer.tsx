@@ -7,6 +7,8 @@ import { FormattedMessage } from "react-intl";
 
 import { marketingPageMessages } from "./marketing-page-content.messages";
 import type { MarketingPageMessageKey } from "./marketing-page-content.messages";
+import { productPageMessages } from "./product/product-page-content.messages";
+import type { ProductMessageKey } from "./product/product-page-content.messages";
 import { useCasePageMessages } from "./use-case/use-case-page-content.messages";
 import type { UseCaseMessageKey } from "./use-case/use-case-page-content.messages";
 
@@ -18,13 +20,19 @@ function FooterLinkLabel({
   label,
   labelKey,
   useCaseLabelKey,
+  productLabelKey,
 }: {
   label?: string;
   labelKey?: string;
   useCaseLabelKey?: UseCaseMessageKey;
+  productLabelKey?: ProductMessageKey;
 }) {
   if (useCaseLabelKey) {
     return <FormattedMessage {...useCasePageMessages[useCaseLabelKey]} />;
+  }
+
+  if (productLabelKey) {
+    return <FormattedMessage {...productPageMessages[productLabelKey]} />;
   }
 
   if (labelKey) {
@@ -60,7 +68,15 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
             </div>
             <ul className="mt-4 space-y-3 text-sm text-muted-foreground">
               {column.links.map((link) => (
-                <li key={link.useCaseLabelKey ?? link.labelKey ?? link.label ?? link.href}>
+                <li
+                  key={
+                    link.useCaseLabelKey ??
+                    link.productLabelKey ??
+                    link.labelKey ??
+                    link.label ??
+                    link.href
+                  }
+                >
                   {isExternalHref(link.href) ? (
                     <a
                       href={link.href}
@@ -72,6 +88,7 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
                         label={link.label}
                         labelKey={link.labelKey}
                         useCaseLabelKey={link.useCaseLabelKey}
+                        productLabelKey={link.productLabelKey}
                       />
                     </a>
                   ) : (
@@ -83,6 +100,7 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
                         label={link.label}
                         labelKey={link.labelKey}
                         useCaseLabelKey={link.useCaseLabelKey}
+                        productLabelKey={link.productLabelKey}
                       />
                     </Link>
                   )}

@@ -1,51 +1,48 @@
+import type { ProductMessageKey } from "./product-page-content.messages";
+
+export type { ProductMessageKey } from "./product-page-content.messages";
+
 export type ProductPageSlug = "agents-automation" | "next-gen-cat-tool" | "self-evolving-knowledge";
 
 export type ProductVisualKind = "automation" | "cat" | "knowledge";
 
 export type ProductPageLink = {
-  label: string;
+  labelKey: ProductMessageKey;
   href: string;
 };
 
 export type ProductPageContent = {
   slug: ProductPageSlug;
   metadata: {
-    title: string;
-    description: string;
+    titleKey: ProductMessageKey;
+    descriptionKey: ProductMessageKey;
     keywords: string[];
   };
   visualKind: ProductVisualKind;
   hero: {
-    eyebrow: string;
-    headline: string;
-    subcopy: string;
+    eyebrowKey: ProductMessageKey;
+    headlineKey: ProductMessageKey;
+    subcopyKey: ProductMessageKey;
   };
-  detailsHeadline: string;
-  summary: string;
+  detailsHeadlineKey: ProductMessageKey;
+  summaryKey: ProductMessageKey;
   proofPoints: {
-    title: string;
-    body: string;
+    titleKey: ProductMessageKey;
+    bodyKey: ProductMessageKey;
   }[];
   cta: {
-    headline: string;
-    description: string;
+    headlineKey: ProductMessageKey;
+    descriptionKey: ProductMessageKey;
   };
   related: ProductPageLink[];
 };
-
-export const productLinks: ProductPageLink[] = [
-  { label: "Agents Automation", href: "/product/agents-automation" },
-  { label: "Next-gen CAT Tool", href: "/product/next-gen-cat-tool" },
-  { label: "Self-evolving Knowledge", href: "/product/self-evolving-knowledge" },
-];
 
 export const productPages: ProductPageContent[] = [
   {
     slug: "agents-automation",
     metadata: {
-      title: "Stop Chasing Localisation Work Across Tools | Hyperlocalise",
-      description:
-        "Catch source changes, route localisation work, gather context, and keep human review in control across your existing tools.",
+      titleKey: "agentsAutomationMetadataTitle",
+      descriptionKey: "agentsAutomationMetadataDescription",
       keywords: [
         "localisation automation",
         "AI localisation agents",
@@ -55,44 +52,40 @@ export const productPages: ProductPageContent[] = [
     },
     visualKind: "automation",
     hero: {
-      eyebrow: "Agents Automation",
-      headline: "Stop chasing localisation work across tools",
-      subcopy:
-        "Every release creates strings, context, screenshots, reviewer questions, and sync work. Hyperlocalise turns those loose signals into controlled localisation workflows before anything gets missed.",
+      eyebrowKey: "agentsAutomationHeroEyebrow",
+      headlineKey: "agentsAutomationHeroHeadline",
+      subcopyKey: "agentsAutomationHeroSubcopy",
     },
-    detailsHeadline: "When launch work is scattered, translations become a last-minute scramble.",
-    summary:
-      "Hyperlocalise watches where work starts, scopes what needs translation, gathers the context reviewers need, and routes the job through the people and systems already in your stack.",
+    detailsHeadlineKey: "agentsAutomationDetailsHeadline",
+    summaryKey: "agentsAutomationSummary",
     proofPoints: [
       {
-        title: "Catch the change",
-        body: "Source changes, CMS updates, and launch requests stop depending on someone remembering to open a ticket.",
+        titleKey: "agentsAutomationProof0Title",
+        bodyKey: "agentsAutomationProof0Body",
       },
       {
-        title: "Route the review",
-        body: "Agents prepare the work, but reviewers still decide what is good enough to ship.",
+        titleKey: "agentsAutomationProof1Title",
+        bodyKey: "agentsAutomationProof1Body",
       },
       {
-        title: "Close the loop",
-        body: "Approved translations go back to the TMS, repo, or release flow instead of getting stranded in chat.",
+        titleKey: "agentsAutomationProof2Title",
+        bodyKey: "agentsAutomationProof2Body",
       },
     ],
     cta: {
-      headline: "Make missed localisation work harder to miss.",
-      description:
-        "Connect the signals, reviewers, and systems you already use, then let Hyperlocalise keep the workflow moving.",
+      headlineKey: "agentsAutomationCtaHeadline",
+      descriptionKey: "agentsAutomationCtaDescription",
     },
     related: [
-      { label: "Next-gen CAT Tool", href: "/product/next-gen-cat-tool" },
-      { label: "Self-evolving Knowledge", href: "/product/self-evolving-knowledge" },
+      { labelKey: "productNavNextGenCatTool", href: "/product/next-gen-cat-tool" },
+      { labelKey: "productNavSelfEvolvingKnowledge", href: "/product/self-evolving-knowledge" },
     ],
   },
   {
     slug: "next-gen-cat-tool",
     metadata: {
-      title: "Review Translations With the Context Next to the String | Hyperlocalise",
-      description:
-        "Give reviewers the source, target, product context, glossary guidance, AI notes, comments, and quality checks in one translation workspace.",
+      titleKey: "nextGenCatToolMetadataTitle",
+      descriptionKey: "nextGenCatToolMetadataDescription",
       keywords: [
         "next-gen CAT tool",
         "AI assisted translation",
@@ -102,45 +95,40 @@ export const productPages: ProductPageContent[] = [
     },
     visualKind: "cat",
     hero: {
-      eyebrow: "Next-gen CAT Tool",
-      headline: "Review translations without guessing what the string means",
-      subcopy:
-        "Most review cycles stall because the translator cannot see the screen, the glossary, the intent, or the product nuance. Hyperlocalise puts that context beside the string.",
+      eyebrowKey: "nextGenCatToolHeroEyebrow",
+      headlineKey: "nextGenCatToolHeroHeadline",
+      subcopyKey: "nextGenCatToolHeroSubcopy",
     },
-    detailsHeadline:
-      "Bad translations rarely start with bad language. They start with missing context.",
-    summary:
-      "The CAT workspace keeps the source, target, AI recommendation, product meaning, glossary rules, comments, warnings, and approval state in one place so reviewers can make a decision.",
+    detailsHeadlineKey: "nextGenCatToolDetailsHeadline",
+    summaryKey: "nextGenCatToolSummary",
     proofPoints: [
       {
-        title: "Know the intent",
-        body: "Reviewers see what the copy is trying to do before they choose the wording.",
+        titleKey: "nextGenCatToolProof0Title",
+        bodyKey: "nextGenCatToolProof0Body",
       },
       {
-        title: "See the risk",
-        body: "Glossary notes, format warnings, and comments surface before approval, not after release.",
+        titleKey: "nextGenCatToolProof1Title",
+        bodyKey: "nextGenCatToolProof1Body",
       },
       {
-        title: "Approve with confidence",
-        body: "AI helps explain the tradeoffs, but the human reviewer keeps control of the final call.",
+        titleKey: "nextGenCatToolProof2Title",
+        bodyKey: "nextGenCatToolProof2Body",
       },
     ],
     cta: {
-      headline: "Stop reviewing strings in the dark.",
-      description:
-        "Give every reviewer the context, checks, and approval controls they need before translated copy reaches production.",
+      headlineKey: "nextGenCatToolCtaHeadline",
+      descriptionKey: "nextGenCatToolCtaDescription",
     },
     related: [
-      { label: "Agents Automation", href: "/product/agents-automation" },
-      { label: "Self-evolving Knowledge", href: "/product/self-evolving-knowledge" },
+      { labelKey: "productNavAgentsAutomation", href: "/product/agents-automation" },
+      { labelKey: "productNavSelfEvolvingKnowledge", href: "/product/self-evolving-knowledge" },
     ],
   },
   {
     slug: "self-evolving-knowledge",
     metadata: {
-      title: "Stop Repeating the Same Localisation Feedback | Hyperlocalise",
-      description:
-        "Capture reviewer corrections, glossary decisions, product context, and market preferences so every localisation workflow starts smarter.",
+      titleKey: "selfEvolvingKnowledgeMetadataTitle",
+      descriptionKey: "selfEvolvingKnowledgeMetadataDescription",
       keywords: [
         "localisation knowledge",
         "translation memory",
@@ -150,37 +138,33 @@ export const productPages: ProductPageContent[] = [
     },
     visualKind: "knowledge",
     hero: {
-      eyebrow: "Self-evolving Knowledge",
-      headline: "Stop repeating the same localisation feedback",
-      subcopy:
-        "Teams lose time explaining the same product terms, tone rules, and market preferences on every launch. Hyperlocalise turns those decisions into reusable context.",
+      eyebrowKey: "selfEvolvingKnowledgeHeroEyebrow",
+      headlineKey: "selfEvolvingKnowledgeHeroHeadline",
+      subcopyKey: "selfEvolvingKnowledgeHeroSubcopy",
     },
-    detailsHeadline:
-      "If the last review taught the team something, the next workflow should know it.",
-    summary:
-      "Every approved translation, reviewer correction, glossary choice, and market-specific decision becomes context that agents and humans can reuse on the next job.",
+    detailsHeadlineKey: "selfEvolvingKnowledgeDetailsHeadline",
+    summaryKey: "selfEvolvingKnowledgeSummary",
     proofPoints: [
       {
-        title: "Keep the decision",
-        body: "Corrections, terminology choices, and product context stop disappearing into old comments.",
+        titleKey: "selfEvolvingKnowledgeProof0Title",
+        bodyKey: "selfEvolvingKnowledgeProof0Body",
       },
       {
-        title: "Reuse the nuance",
-        body: "Future suggestions can start from what the team already approved instead of asking again.",
+        titleKey: "selfEvolvingKnowledgeProof1Title",
+        bodyKey: "selfEvolvingKnowledgeProof1Body",
       },
       {
-        title: "Reduce review churn",
-        body: "Market rules, voice preferences, and repeated mistakes stay visible across workflows.",
+        titleKey: "selfEvolvingKnowledgeProof2Title",
+        bodyKey: "selfEvolvingKnowledgeProof2Body",
       },
     ],
     cta: {
-      headline: "Make every review improve the next one.",
-      description:
-        "Capture the context and corrections your team already creates, then make them available when the next launch starts.",
+      headlineKey: "selfEvolvingKnowledgeCtaHeadline",
+      descriptionKey: "selfEvolvingKnowledgeCtaDescription",
     },
     related: [
-      { label: "Agents Automation", href: "/product/agents-automation" },
-      { label: "Next-gen CAT Tool", href: "/product/next-gen-cat-tool" },
+      { labelKey: "productNavAgentsAutomation", href: "/product/agents-automation" },
+      { labelKey: "productNavNextGenCatTool", href: "/product/next-gen-cat-tool" },
     ],
   },
 ];
@@ -190,3 +174,8 @@ export const productPagesBySlug = Object.fromEntries(
 ) as Record<ProductPageSlug, ProductPageContent>;
 
 export const productSlugs = productPages.map((page) => page.slug);
+
+export const productFooterLinks = productPages.map((page) => ({
+  productLabelKey: page.hero.eyebrowKey,
+  href: `/product/${page.slug}`,
+}));

@@ -1,5 +1,5 @@
 import { useCaseFooterLinks } from "@/components/marketing/use-case";
-import { productLinks } from "@/components/marketing/product/product-page-content";
+import { productFooterLinks } from "@/components/marketing/product/product-page-content";
 
 export const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
 export const githubActionUrl = "https://github.com/marketplace/actions/hyperlocalise-ci";
@@ -10,6 +10,7 @@ export const cliDocsUrl = "https://hyperlocalise.dev/commands/overview";
 export type MarketingFooterLink = {
   labelKey?: string;
   useCaseLabelKey?: import("@/components/marketing/use-case/use-case-page-content.messages").UseCaseMessageKey;
+  productLabelKey?: import("@/components/marketing/product/product-page-content.messages").ProductMessageKey;
   label?: string;
   href: string;
 };
@@ -149,7 +150,7 @@ export const testimonials = [
 export const footerColumns: MarketingFooterColumn[] = [
   {
     titleKey: "footerProductTitle",
-    links: productLinks,
+    links: productFooterLinks,
   },
   {
     titleKey: "footerUseCasesTitle",

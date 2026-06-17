@@ -1,9 +1,10 @@
 export { ProductPage } from "./product-page";
 export {
-  productLinks,
+  productFooterLinks,
   productPages,
   productPagesBySlug,
   productSlugs,
+  type ProductMessageKey,
   type ProductPageContent,
   type ProductPageSlug,
 } from "./product-page-content";

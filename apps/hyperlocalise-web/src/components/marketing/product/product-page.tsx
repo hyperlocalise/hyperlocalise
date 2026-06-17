@@ -1,5 +1,8 @@
+"use client";
+
 import Link from "next/link";
 import { ArrowRightIcon, CheckCircle2Icon } from "lucide-react";
+import { FormattedMessage } from "react-intl";
 
 import { HeroFrame } from "@/components/marketing/hero-frame";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
@@ -9,14 +12,21 @@ import { env } from "@/lib/env";
 import { cn } from "@/lib/primitives/cn";
 
 import type { ProductPageContent, ProductVisualKind } from "./product-page-content";
+import { productPageMessages, type ProductMessageKey } from "./product-page-content.messages";
 
 type ProductPageProps = {
   content: ProductPageContent;
 };
 
-function ProductEyebrow({ children }: { children: React.ReactNode }) {
+function ProductMessage({ messageKey }: { messageKey: ProductMessageKey }) {
+  return <FormattedMessage {...productPageMessages[messageKey]} />;
+}
+
+function ProductEyebrow({ messageKey }: { messageKey: ProductMessageKey }) {
   return (
-    <div className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">{children}</div>
+    <div className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">
+      <ProductMessage messageKey={messageKey} />
+    </div>
   );
 }
 
@@ -25,15 +35,15 @@ function ProductHero({ content }: ProductPageProps) {
     <div className="mx-auto flex max-w-4xl flex-col items-center gap-8 text-center">
       <div className="flex flex-col items-center gap-5">
         <h1 className="max-w-4xl font-heading text-[clamp(2.5rem,5vw,4.75rem)] leading-[1] font-semibold tracking-normal text-balance">
-          {content.hero.headline}
+          <ProductMessage messageKey={content.hero.headlineKey} />
         </h1>
         <p className="max-w-2xl text-lg leading-8 text-muted-foreground text-balance sm:text-xl">
-          {content.hero.subcopy}
+          <ProductMessage messageKey={content.hero.subcopyKey} />
         </p>
       </div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
         <Button size="lg" nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
-          Join waitlist
+          <ProductMessage messageKey="ctaJoinWaitlist" />
           <ArrowRightIcon data-icon="inline-end" className="size-4" />
         </Button>
       </div>
@@ -42,56 +52,86 @@ function ProductHero({ content }: ProductPageProps) {
 }
 
 function AutomationPrimaryVisual() {
-  const sources = ["GitHub", "Slack", "CMS"];
-  const destinations = ["Reviewer", "TMS", "Release"];
+  const sources: ProductMessageKey[] = [
+    "visualAutomationSourceGitHub",
+    "visualAutomationSourceSlack",
+    "visualAutomationSourceCms",
+  ];
+  const destinations: ProductMessageKey[] = [
+    "visualAutomationDestReviewer",
+    "visualAutomationDestTms",
+    "visualAutomationDestRelease",
+  ];
+  const tasks: ProductMessageKey[] = [
+    "visualAutomationTaskDetectChangedStrings",
+    "visualAutomationTaskAttachProductContext",
+    "visualAutomationTaskCreateReviewerTasks",
+  ];
 
   return (
     <div className="relative h-full overflow-hidden rounded-lg border border-border/70 bg-card p-4 shadow-2xl shadow-foreground/5">
       <div className="mb-4 flex items-center justify-between border-b border-border/70 pb-3">
         <div>
-          <div className="text-sm font-semibold">Launch request</div>
-          <div className="text-xs text-muted-foreground">FR, DE, JA waiting on scope</div>
+          <div className="text-sm font-semibold">
+            <ProductMessage messageKey="visualAutomationLaunchRequest" />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            <ProductMessage messageKey="visualAutomationLocalesWaiting" />
+          </div>
         </div>
         <div className="rounded-full bg-success/15 px-3 py-1 text-xs font-medium text-success-foreground dark:text-success">
-          Running
+          <ProductMessage messageKey="visualAutomationStatusRunning" />
         </div>
       </div>
       <div className="grid h-[calc(100%-4.5rem)] min-h-[24rem] gap-3 md:grid-cols-[0.8fr_1.15fr_0.8fr]">
         <div className="flex flex-col gap-2">
-          {sources.map((source) => (
-            <div key={source} className="rounded-md border border-border/70 bg-background p-3">
-              <div className="text-xs text-muted-foreground">Signal</div>
-              <div className="text-sm font-semibold">{source}</div>
+          {sources.map((sourceKey) => (
+            <div key={sourceKey} className="rounded-md border border-border/70 bg-background p-3">
+              <div className="text-xs text-muted-foreground">
+                <ProductMessage messageKey="visualAutomationSignalLabel" />
+              </div>
+              <div className="text-sm font-semibold">
+                <ProductMessage messageKey={sourceKey} />
+              </div>
             </div>
           ))}
         </div>
         <div className="rounded-lg border border-primary/25 bg-primary/8 p-4">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <div className="text-sm font-semibold">Hyperlocalise agent</div>
-              <div className="text-xs text-muted-foreground">Scope, context, route</div>
+              <div className="text-sm font-semibold">
+                <ProductMessage messageKey="visualAutomationHyperlocaliseAgent" />
+              </div>
+              <div className="text-xs text-muted-foreground">
+                <ProductMessage messageKey="visualAutomationScopeContextRoute" />
+              </div>
             </div>
             <div className="size-2 rounded-full bg-primary" />
           </div>
           <div className="space-y-2">
-            {["Detect changed strings", "Attach product context", "Create reviewer tasks"].map(
-              (item) => (
-                <div
-                  key={item}
-                  className="flex items-center gap-2 rounded-md bg-background/80 px-3 py-2 text-xs"
-                >
-                  <CheckCircle2Icon className="size-3.5 text-primary" />
-                  {item}
-                </div>
-              ),
-            )}
+            {tasks.map((taskKey) => (
+              <div
+                key={taskKey}
+                className="flex items-center gap-2 rounded-md bg-background/80 px-3 py-2 text-xs"
+              >
+                <CheckCircle2Icon className="size-3.5 text-primary" />
+                <ProductMessage messageKey={taskKey} />
+              </div>
+            ))}
           </div>
         </div>
         <div className="flex flex-col gap-2">
-          {destinations.map((destination) => (
-            <div key={destination} className="rounded-md border border-border/70 bg-background p-3">
-              <div className="text-xs text-muted-foreground">Route</div>
-              <div className="text-sm font-semibold">{destination}</div>
+          {destinations.map((destinationKey) => (
+            <div
+              key={destinationKey}
+              className="rounded-md border border-border/70 bg-background p-3"
+            >
+              <div className="text-xs text-muted-foreground">
+                <ProductMessage messageKey="visualAutomationRouteLabel" />
+              </div>
+              <div className="text-sm font-semibold">
+                <ProductMessage messageKey={destinationKey} />
+              </div>
             </div>
           ))}
         </div>
@@ -101,38 +141,59 @@ function AutomationPrimaryVisual() {
 }
 
 function KnowledgePrimaryVisual() {
-  const nodes = ["Product docs", "Glossary", "Translations", "Reviewers", "Markets", "Agents"];
+  const nodes: ProductMessageKey[] = [
+    "visualKnowledgeNodeProductDocs",
+    "visualKnowledgeNodeGlossary",
+    "visualKnowledgeNodeTranslations",
+    "visualKnowledgeNodeReviewers",
+    "visualKnowledgeNodeMarkets",
+    "visualKnowledgeNodeAgents",
+  ];
 
   return (
     <div className="h-full rounded-lg border border-border/70 bg-card p-5 shadow-2xl shadow-foreground/5">
       <div className="mb-6 flex items-center justify-between border-b border-border/70 pb-4">
         <div>
-          <div className="text-sm font-semibold">Localisation memory layer</div>
-          <div className="text-xs text-muted-foreground">Signals captured from approved work</div>
+          <div className="text-sm font-semibold">
+            <ProductMessage messageKey="visualKnowledgeMemoryLayerTitle" />
+          </div>
+          <div className="text-xs text-muted-foreground">
+            <ProductMessage messageKey="visualKnowledgeSignalsCaptured" />
+          </div>
         </div>
-        <div className="rounded-full bg-secondary/25 px-3 py-1 text-xs font-medium">Learning</div>
+        <div className="rounded-full bg-secondary/25 px-3 py-1 text-xs font-medium">
+          <ProductMessage messageKey="visualKnowledgeStatusLearning" />
+        </div>
       </div>
       <div className="grid min-h-[20rem] gap-3 sm:grid-cols-3">
-        {nodes.map((node, index) => (
+        {nodes.map((nodeKey, index) => (
           <div
-            key={node}
+            key={nodeKey}
             className={cn(
               "rounded-lg border p-4",
               index === 2 ? "border-primary/35 bg-primary/10" : "border-border/70 bg-background",
             )}
           >
             <div className="mb-8 size-2 rounded-full bg-primary" />
-            <div className="text-sm font-semibold">{node}</div>
+            <div className="text-sm font-semibold">
+              <ProductMessage messageKey={nodeKey} />
+            </div>
             <div className="mt-1 text-xs text-muted-foreground">
-              {index === 2 ? "Approved source of truth" : "Context signal"}
+              {index === 2 ? (
+                <ProductMessage messageKey="visualKnowledgeApprovedSourceOfTruth" />
+              ) : (
+                <ProductMessage messageKey="visualKnowledgeContextSignal" />
+              )}
             </div>
           </div>
         ))}
       </div>
       <div className="mt-4 rounded-lg border border-border/70 bg-muted/25 p-4">
-        <div className="text-xs font-semibold text-muted-foreground uppercase">Latest decision</div>
+        <div className="text-xs font-semibold text-muted-foreground uppercase">
+          <ProductMessage messageKey="visualKnowledgeLatestDecision" />
+        </div>
         <div className="mt-2 text-sm">
-          Prefer market-specific idioms for onboarding CTAs, but keep product terms literal.
+          <ProductMessage messageKey="visualKnowledgeLatestDecisionBody" />
         </div>
       </div>
     </div>
@@ -175,26 +236,34 @@ function ProductDetailsSection({ content }: ProductPageProps) {
   return (
     <div className="grid gap-12 lg:grid-cols-[0.82fr_1.18fr] lg:items-start">
       <div className="max-w-xl lg:sticky lg:top-24">
-        <ProductEyebrow>How it works</ProductEyebrow>
+        <ProductEyebrow messageKey="sectionHowItWorks" />
         <h2 className="mt-5 font-heading text-3xl leading-tight font-semibold tracking-normal text-balance sm:text-4xl">
-          {content.detailsHeadline}
+          <ProductMessage messageKey={content.detailsHeadlineKey} />
         </h2>
-        <p className="mt-6 text-lg leading-8 text-muted-foreground">{content.summary}</p>
+        <p className="mt-6 text-lg leading-8 text-muted-foreground">
+          <ProductMessage messageKey={content.summaryKey} />
+        </p>
       </div>
 
       <div className="divide-y divide-border/70 border-y border-border/70">
         {content.proofPoints.map((point) => (
-          <div key={point.title} className="grid gap-3 py-8 sm:grid-cols-[12rem_minmax(0,1fr)]">
-            <div className="text-base font-semibold leading-7">{point.title}</div>
-            <p className="max-w-2xl text-base leading-7 text-muted-foreground">{point.body}</p>
+          <div key={point.titleKey} className="grid gap-3 py-8 sm:grid-cols-[12rem_minmax(0,1fr)]">
+            <div className="text-base font-semibold leading-7">
+              <ProductMessage messageKey={point.titleKey} />
+            </div>
+            <p className="max-w-2xl text-base leading-7 text-muted-foreground">
+              <ProductMessage messageKey={point.bodyKey} />
+            </p>
           </div>
         ))}
 
         <div className="flex flex-col gap-4 py-8 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="text-base font-semibold leading-7">Explore the rest</div>
+            <div className="text-base font-semibold leading-7">
+              <ProductMessage messageKey="exploreRestTitle" />
+            </div>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Move between the product pillars without leaving the feature-page flow.
+              <ProductMessage messageKey="exploreRestDescription" />
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -207,7 +276,7 @@ function ProductDetailsSection({ content }: ProductPageProps) {
                 nativeButton={false}
                 render={<Link href={link.href} />}
               >
-                {link.label}
+                <ProductMessage messageKey={link.labelKey} />
                 <ArrowRightIcon data-icon="inline-end" className="size-3.5" />
               </Button>
             ))}
@@ -222,7 +291,7 @@ function ProductCta({ content }: ProductPageProps) {
   return (
     <div id="waitlist" className="text-center">
       <h2 className="font-heading text-4xl leading-[1.04] font-semibold tracking-normal text-balance sm:text-5xl">
-        {content.cta.headline}
+        <ProductMessage messageKey={content.cta.headlineKey} />
       </h2>
       <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
         <Button
@@ -231,7 +300,7 @@ function ProductCta({ content }: ProductPageProps) {
             <a href={env.NEXT_PUBLIC_WAITLIST_URL} target="_blank" rel="noopener noreferrer" />
           }
         >
-          Join early access
+          <ProductMessage messageKey="ctaJoinEarlyAccess" />
         </Button>
       </div>
     </div>
