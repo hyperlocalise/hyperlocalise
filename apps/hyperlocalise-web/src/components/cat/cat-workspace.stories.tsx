@@ -147,10 +147,22 @@ export const InteractiveReview: Story = {
       throw new Error("InteractiveReview requires an onApprove spy.");
     }
 
+    const targetEditor = canvas.getByRole("textbox", { name: "Target translation" });
+    await expect(targetEditor).toHaveTextContent(
+      "Thẻ bảng điều khiển hiển thị số đánh giá còn cần phê duyệt.",
+    );
+
     await userEvent.click(approveButton);
     await expect(onApprove).toHaveBeenCalled();
     await expect(canvas.getByText("50 total · 32 reviewed")).toBeInTheDocument();
-    await expect(canvas.getByText("Your review is ready for approval")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(canvas.getByText("Your review is ready for approval")).toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(
+        canvas.getByRole("textbox", { name: "Target translation" }).textContent?.trim(),
+      ).not.toContain("Thẻ bảng điều khiển hiển thị số đánh giá còn cần phê duyệt."),
+    );
   },
 };
 

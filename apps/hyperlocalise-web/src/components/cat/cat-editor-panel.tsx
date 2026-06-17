@@ -216,6 +216,7 @@ export function CatEditorPanel({
               </h3>
             </div>
             <CatTargetEditor
+              key={segment.id}
               sourceText={segment.sourceText}
               value={segment.targetText}
               onChange={onTargetChange}
