@@ -47,6 +47,12 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 
 <!-- END:hono-agent-rules -->
 
+# Frontend Module Imports
+
+- **Do not add barrel files** (`index.ts` / `index.tsx`) that re-export a folder’s public API. Import the concrete module instead, for example `@/components/theme-toggle/theme-toggle` rather than `@/components/theme-toggle`.
+- **Prefer direct file paths** for components, hooks, messages, and utilities so bundlers and static analysis see explicit dependencies.
+- **Colocate related files in folders** when a feature has multiple modules (component, messages, tests), but export from the implementation file, not an `index.ts` shim.
+
 # API Response Conventions
 
 New JSON routes must follow the conventions below. Shared schemas and helpers live in [`src/api/response.schema.ts`](src/api/response.schema.ts).

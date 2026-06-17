@@ -4,6 +4,7 @@ import * as React from "react";
 import { ComputerIcon, Moon02Icon, Sun01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useTheme } from "next-themes";
+import { FormattedMessage, useIntl } from "react-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,6 +15,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+import { themeToggleMessages } from "./theme-toggle.messages";
 
 type ThemeOption = "light" | "dark" | "system";
 
@@ -30,6 +33,7 @@ function ThemeToggleIcon({ theme }: { theme: ThemeOption }) {
 }
 
 export function ThemeToggle() {
+  const intl = useIntl();
   const { resolvedTheme, setTheme, theme } = useTheme();
   const [mounted, setMounted] = React.useState(false);
 
@@ -55,33 +59,35 @@ export function ThemeToggle() {
               render={
                 <Button variant="outline" size="icon-sm" className="rounded-full">
                   <ThemeToggleIcon theme={triggerTheme} />
-                  <span className="sr-only">Change theme</span>
+                  <span className="sr-only">
+                    <FormattedMessage {...themeToggleMessages.changeTheme} />
+                  </span>
                 </Button>
               }
             />
           }
         />
         <TooltipContent side="bottom" align="center">
-          Change theme
+          <FormattedMessage {...themeToggleMessages.changeTheme} />
         </TooltipContent>
       </Tooltip>
       <DropdownMenuContent align="end">
         <DropdownMenuRadioGroup
-          aria-label="Color theme"
+          aria-label={intl.formatMessage(themeToggleMessages.colorThemeAria)}
           value={activeTheme}
           onValueChange={(value) => setTheme(value as ThemeOption)}
         >
           <DropdownMenuRadioItem value="light">
             <HugeiconsIcon icon={Sun01Icon} strokeWidth={2} className="size-4" />
-            Light
+            <FormattedMessage {...themeToggleMessages.light} />
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">
             <HugeiconsIcon icon={Moon02Icon} strokeWidth={2} className="size-4" />
-            Dark
+            <FormattedMessage {...themeToggleMessages.dark} />
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system">
             <HugeiconsIcon icon={ComputerIcon} strokeWidth={2} className="size-4" />
-            System
+            <FormattedMessage {...themeToggleMessages.system} />
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>

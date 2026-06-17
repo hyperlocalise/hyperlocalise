@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import {
   MarkdownDescriptionEditor,
   MarkdownDescriptionPreview,
-} from "@/components/markdown-description-editor";
+} from "@/components/markdown-description-editor/markdown-description-editor";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 

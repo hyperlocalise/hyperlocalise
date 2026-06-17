@@ -14,7 +14,7 @@ import {
   SidebarRail,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import ThemeToggle from "@/components/theme-toggle";
+import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 import { AppShellBreadcrumb } from "./app-shell-breadcrumb";
 import { TmsUserConnectButton } from "./tms-user-connect-button";
 import type { TmsUserConnectCta } from "@/lib/providers/tms-user-connection-shared";

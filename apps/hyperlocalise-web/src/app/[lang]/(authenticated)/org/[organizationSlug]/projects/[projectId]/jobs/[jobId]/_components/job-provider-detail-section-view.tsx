@@ -5,7 +5,7 @@ import type { ReactNode } from "react";
 import { AiMagicIcon, Comment01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { MarkdownDescriptionPreview } from "@/components/markdown-description-editor";
+import { MarkdownDescriptionPreview } from "@/components/markdown-description-editor/markdown-description-editor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
