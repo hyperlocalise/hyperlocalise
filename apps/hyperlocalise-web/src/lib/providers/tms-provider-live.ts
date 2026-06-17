@@ -847,7 +847,7 @@ async function countCrowdinSourceStrings(
   let total = 0;
   let offset = 0;
 
-  while (total <= legacyProviderCatSegmentLimit) {
+  while (true) {
     const page = await client.listSourceStringsPage(projectId, {
       fileId: filter.fileId,
       croql: filter.croql,
@@ -860,8 +860,6 @@ async function countCrowdinSourceStrings(
     }
     offset += page.strings.length;
   }
-
-  return total;
 }
 
 async function buildCrowdinLiveCatFile(input: {

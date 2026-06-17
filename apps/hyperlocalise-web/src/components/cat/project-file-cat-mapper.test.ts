@@ -82,7 +82,7 @@ describe("projectFileCatToWorkspaceState", () => {
     });
   });
 
-  it("uses pagination offset for segment indices and total count", () => {
+  it("uses pagination offset for segment indices and page-scoped queue totals", () => {
     const state = projectFileCatToWorkspaceState(
       catFile({
         pagination: {
@@ -97,6 +97,6 @@ describe("projectFileCatToWorkspaceState", () => {
     );
 
     expect(state.segments[0]?.index).toBe(51);
-    expect(state.queueSummary.total).toBe(120);
+    expect(state.queueSummary).toEqual({ total: 2, reviewed: 1 });
   });
 });

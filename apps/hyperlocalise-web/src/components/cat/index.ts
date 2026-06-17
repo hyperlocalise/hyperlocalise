@@ -6,18 +6,6 @@ export { CatEditorPanel } from "./cat-editor-panel";
 export { CatIntelligencePanel } from "./cat-intelligence-panel";
 export { CatFormatChecks } from "./cat-format-checks";
 export { CatSuggestionsTabs } from "./cat-suggestions-tabs";
-export { ProjectFileCatWorkspace } from "./project-file-cat-workspace";
-export { useCatSegmentQuery } from "./use-cat-segment-query";
-export {
-  projectFileCatToWorkspaceState,
-  requireProviderExternalResourceId,
-  validateSegmentFormat,
-} from "./project-file-cat-mapper";
-export {
-  fetchProjectFileCatPage,
-  projectFileCatQueryKey,
-  defaultCatPageLimit,
-} from "./project-file-cat-api";
 export type {
   CatAiRecommendationResult,
   CatWorkspaceDependencies,

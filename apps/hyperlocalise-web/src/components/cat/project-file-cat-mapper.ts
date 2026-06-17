@@ -199,13 +199,11 @@ export function projectFileCatToWorkspaceState(
     };
   });
 
-  const totalSegments = catFile.pagination?.totalCount ?? segments.length;
-
   return {
     segments,
     selectedSegmentId: segments[0]?.id ?? "",
     queueSummary: {
-      total: totalSegments,
+      total: segments.length,
       reviewed: segments.filter((segment) => segment.status === "reviewed").length,
     },
     formatChecks: [],
