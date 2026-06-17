@@ -574,7 +574,11 @@ export function CatWorkspaceContainer({
         try {
           const nextStatus = (await onApprove?.(segmentId, targetText)) ?? "reviewed";
           setState((current) => {
-            const segments = updateSegmentStatus(current.segments, segmentId, nextStatus);
+            const segments = updateSegmentTarget(
+              updateSegmentStatus(current.segments, segmentId, nextStatus),
+              segmentId,
+              targetText,
+            );
             const nextSelectedSegmentId =
               getAdjacentSegmentId(current.segments, segmentId, 1) ?? current.selectedSegmentId;
             return {
