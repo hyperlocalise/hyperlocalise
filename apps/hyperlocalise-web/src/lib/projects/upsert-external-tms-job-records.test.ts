@@ -1,36 +1,44 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { selectMock, selectWhereMock, transactionMock, updateMock } = vi.hoisted(() => {
-  const cancelJobsWhereMock = vi.fn(async () => undefined);
-  const cancelJobsSetMock = vi.fn(() => ({ where: cancelJobsWhereMock }));
-  const transactionUpdateMock = vi.fn(() => ({ set: cancelJobsSetMock }));
-  const transactionMock = vi.fn(
-    async (callback: (tx: { update: typeof transactionUpdateMock }) => Promise<void>) => {
-      await callback({ update: transactionUpdateMock });
-    },
-  );
+const { notInArrayMock, selectMock, selectWhereMock, transactionMock, updateMock } = vi.hoisted(
+  () => {
+    const notInArrayMock = vi.fn((field: string, values: unknown[]) => [
+      "notInArray",
+      field,
+      values,
+    ]);
+    const cancelJobsWhereMock = vi.fn(async () => undefined);
+    const cancelJobsSetMock = vi.fn(() => ({ where: cancelJobsWhereMock }));
+    const transactionUpdateMock = vi.fn(() => ({ set: cancelJobsSetMock }));
+    const transactionMock = vi.fn(
+      async (callback: (tx: { update: typeof transactionUpdateMock }) => Promise<void>) => {
+        await callback({ update: transactionUpdateMock });
+      },
+    );
 
-  const selectWhereMock = vi.fn(async () => [{ id: "job_stale_1" }, { id: "job_stale_2" }]);
-  const selectInnerJoinMock = vi.fn(() => ({ where: selectWhereMock }));
-  const selectFromMock = vi.fn(() => ({ innerJoin: selectInnerJoinMock }));
-  const selectMock = vi.fn(() => ({ from: selectFromMock }));
+    const selectWhereMock = vi.fn(async () => [{ id: "job_stale_1" }, { id: "job_stale_2" }]);
+    const selectInnerJoinMock = vi.fn(() => ({ where: selectWhereMock }));
+    const selectFromMock = vi.fn(() => ({ innerJoin: selectInnerJoinMock }));
+    const selectMock = vi.fn(() => ({ from: selectFromMock }));
 
-  const updateMock = vi.fn();
+    const updateMock = vi.fn();
 
-  return {
-    selectMock,
-    selectWhereMock,
-    transactionMock,
-    updateMock,
-  };
-});
+    return {
+      notInArrayMock,
+      selectMock,
+      selectWhereMock,
+      transactionMock,
+      updateMock,
+    };
+  },
+);
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...conditions: unknown[]) => ["and", conditions]),
   eq: vi.fn((field: string, value: unknown) => ["eq", field, value]),
   inArray: vi.fn((field: string, values: unknown[]) => ["inArray", field, values]),
   ne: vi.fn((field: string, value: unknown) => ["ne", field, value]),
-  notInArray: vi.fn((field: string, values: unknown[]) => ["notInArray", field, values]),
+  notInArray: notInArrayMock,
 }));
 
 vi.mock("@/lib/database", () => ({
@@ -85,7 +93,24 @@ describe("reconcileMissingExternalTmsJobs", () => {
 
     expect(removed).toBe(2);
     expect(selectMock).toHaveBeenCalledTimes(1);
+    expect(notInArrayMock).not.toHaveBeenCalled();
     expect(transactionMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns zero without cancelling jobs when the provider snapshot is empty and none are stored", async () => {
+    selectWhereMock.mockResolvedValue([]);
+
+    const removed = await reconcileMissingExternalTmsJobs({
+      organizationId: "org_1",
+      projectId: "ext:crowdin:42",
+      providerKind: "crowdin",
+      syncedJobIds: [],
+    });
+
+    expect(removed).toBe(0);
+    expect(selectMock).toHaveBeenCalledTimes(1);
+    expect(notInArrayMock).not.toHaveBeenCalled();
+    expect(transactionMock).not.toHaveBeenCalled();
   });
 
   it("removes only jobs missing from a non-empty provider snapshot", async () => {
@@ -98,6 +123,8 @@ describe("reconcileMissingExternalTmsJobs", () => {
 
     expect(removed).toBe(2);
     expect(selectMock).toHaveBeenCalledTimes(1);
+    expect(notInArrayMock).toHaveBeenCalledTimes(1);
+    expect(notInArrayMock).toHaveBeenCalledWith("jobs.id", ["ext:crowdin:42:task-1"]);
     expect(transactionMock).toHaveBeenCalledTimes(1);
   });
 });
