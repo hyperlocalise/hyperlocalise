@@ -1,5 +1,5 @@
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
-import { normalizeProjectId } from "@/lib/projects/project-id";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 
 const externalTmsProviderKinds = new Set<ExternalTmsProviderKind>([
   "crowdin",

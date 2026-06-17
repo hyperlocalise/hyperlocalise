@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { optionalProjectIdSchema } from "@/lib/projects/project-id";
+import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 import { githubRepositoryAutomationSettingsSchema } from "@/lib/agents/github/github-repository-automation-settings";
 
 export const updateRepositoriesSchema = z.object({

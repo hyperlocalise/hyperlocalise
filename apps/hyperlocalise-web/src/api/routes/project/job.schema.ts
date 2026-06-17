@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { projectIdSchema } from "@/lib/projects/project-id";
+import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import * as schema from "@/lib/database/schema";
 import { supportedTranslationFileFormats } from "@/lib/translation/file-formats";
 

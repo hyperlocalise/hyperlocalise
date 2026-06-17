@@ -32,7 +32,7 @@ import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 
-import { lookupProjectFileStringRepositoryContext } from "./project-file-string-context";
+import { lookupProjectFileStringRepositoryContext } from "./project-string-context-service";
 
 const fixture = createProjectTestFixture();
 
@@ -111,7 +111,7 @@ describe("lookupProjectFileStringRepositoryContext", () => {
     });
 
     const { saveProjectFileStringRepositoryContext } =
-      await import("./project-file-string-context-store");
+      await import("./project-string-context-service");
     await saveProjectFileStringRepositoryContext({
       organizationId: organization.id,
       projectId: project.id,

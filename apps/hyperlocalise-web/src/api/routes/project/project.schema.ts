@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/project-id";
+import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
   localeInputSchema,
   maxProjectTargetLocales,

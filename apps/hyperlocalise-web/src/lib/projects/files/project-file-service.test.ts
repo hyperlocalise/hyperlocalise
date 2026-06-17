@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 
-import { filterProjectFiles } from "./project-files";
+import { filterProjectFiles } from "./project-file-service";
 
 const baseFile: ProjectFileRecord = {
   origin: "provider",

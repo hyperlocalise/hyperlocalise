@@ -1,5 +1,5 @@
 import { hasCapability } from "@/api/auth/policy";
-import { normalizeProjectId } from "@/lib/projects/project-id";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { JobDetailPageContent } from "./_components/job-detail-page-content";

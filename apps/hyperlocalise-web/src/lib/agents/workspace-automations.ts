@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { db, schema } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { optionalProjectIdSchema } from "@/lib/projects/project-id";
+import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 import { hasWorkspaceAutomationGithubWorkflow } from "./workspace-automation-github-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";

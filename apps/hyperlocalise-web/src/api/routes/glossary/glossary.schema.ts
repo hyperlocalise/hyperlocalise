@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { projectIdSchema } from "@/lib/projects/project-id";
+import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import { localeInputSchema } from "@/lib/i18n/locales";
 
 export const glossaryIdParamsSchema = z.object({

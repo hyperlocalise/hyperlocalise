@@ -7,7 +7,7 @@ import { buildAccessibleInteractionsWhere, canAccessInteraction } from "@/api/au
 import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { badRequestResponse } from "@/api/response.schema";
-import { normalizeProjectId } from "@/lib/projects/project-id";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { getFileStorageAdapter } from "@/lib/file-storage";

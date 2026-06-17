@@ -4,7 +4,7 @@ import {
   normalizeProjectId,
   optionalProjectIdSchema,
   projectIdSchema,
-} from "@/lib/projects/project-id";
+} from "@/lib/projects/identity/project-id";
 import { createConversationRequestSchema } from "@/api/routes/conversation/conversation.schema";
 import { createContentfulConnectionBodySchema } from "@/api/routes/contentful-connection/contentful-connection.schema";
 import { providerSyncObservabilityQuerySchema } from "@/api/routes/external-tms-provider-credential/external-tms-provider-credential.schema";

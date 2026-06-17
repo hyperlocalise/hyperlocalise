@@ -337,7 +337,7 @@ export async function loadProjectTranslationsAsPrefilledEntriesStep(input: {
 }) {
   "use step";
   const { loadProjectTranslationsAsPrefilledEntries } =
-    await import("@/lib/projects/project-translation-keys");
+    await import("@/lib/projects/translations/project-translation-service");
   return loadProjectTranslationsAsPrefilledEntries(input);
 }
 
@@ -369,7 +369,7 @@ export async function persistFileProjectTranslationsStep(input: {
 }) {
   "use step";
   const { persistFileJobTranslations } =
-    await import("@/lib/projects/promote-project-translations");
+    await import("@/lib/projects/translations/project-translation-service");
   return persistFileJobTranslations(input);
 }
 

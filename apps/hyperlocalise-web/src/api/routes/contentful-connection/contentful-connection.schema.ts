@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { optionalProjectIdSchema } from "@/lib/projects/project-id";
+import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const contentfulConnectionIdParamSchema = z.object({
   connectionId: z.string().uuid(),

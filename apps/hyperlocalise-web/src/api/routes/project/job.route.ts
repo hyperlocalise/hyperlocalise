@@ -39,7 +39,7 @@ import {
   getOrganizationJobById,
   listOrganizationJobs,
   listOrganizationProjectJobs,
-} from "@/lib/projects/list-organization-jobs";
+} from "@/lib/projects/jobs/organization-job-query-service";
 import type {
   JobQueue,
   ProviderAgentCommentQueue,

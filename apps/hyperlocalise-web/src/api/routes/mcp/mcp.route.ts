@@ -10,7 +10,7 @@ import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/
 import { z } from "zod";
 
 import { apiAuthContextFromMcpAuth } from "@/api/auth/mcp-access";
-import { projectIdSchema } from "@/lib/projects/project-id";
+import { projectIdSchema } from "@/lib/projects/identity/project-id";
 import {
   buildAccessibleProjectsWhere,
   buildProjectLinkedGlossaryWhere,

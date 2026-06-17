@@ -12,7 +12,7 @@ const {
   getProjectTranslationsByKeyIdsMock: vi.fn(),
 }));
 
-vi.mock("@/lib/projects/project-translation-keys", () => ({
+vi.mock("@/lib/projects/translations/project-translation-service", () => ({
   getRepositorySourceFileByPath: (...args: unknown[]) => getRepositorySourceFileByPathMock(...args),
   listProjectTranslationKeysForFile: (...args: unknown[]) =>
     listProjectTranslationKeysForFileMock(...args),
@@ -22,7 +22,7 @@ vi.mock("@/lib/projects/project-translation-keys", () => ({
     getProjectTranslationsByKeyIdsMock(...args),
 }));
 
-import { getNativeProjectCatFile } from "./native-project-cat";
+import { getNativeProjectCatFile } from "./native-cat-service";
 
 describe("getNativeProjectCatFile", () => {
   beforeEach(() => {
