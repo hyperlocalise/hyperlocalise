@@ -41,10 +41,44 @@ func TestMismatchPlainText(t *testing.T) {
 }
 
 func TestMismatchIgnoresAngleBracketPathTokens(t *testing.T) {
-	src := "Use `bedrock` in `llm.profiles.<name>.provider`."
-	tgt := "Sử dụng 'bedrock' trong 'llm.profiles.<name>.provider'."
-	if Mismatch(src, tgt) {
-		t.Fatalf("expected <name> in paths not to count as HTML tags")
+	tests := []struct {
+		name string
+		src  string
+		tgt  string
+		want bool
+	}{
+		{
+			name: "identical path token with known atom",
+			src:  "Use `bedrock` in `llm.profiles.<name>.provider`.",
+			tgt:  "Sử dụng 'bedrock' trong 'llm.profiles.<name>.provider'.",
+			want: false,
+		},
+		{
+			name: "removed path token with known atom",
+			src:  "Use `bedrock` in `llm.profiles.<name>.provider`.",
+			tgt:  "Sử dụng 'bedrock' trong 'llm.profiles.provider'.",
+			want: false,
+		},
+		{
+			name: "removed path token with underscore",
+			src:  "See `api/<version_1>`.",
+			tgt:  "Xem `api/`.",
+			want: false,
+		},
+		{
+			name: "removed path token with dot",
+			src:  "Replace `<my.var>`.",
+			tgt:  "Thay thế.",
+			want: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := Mismatch(tt.src, tt.tgt); got != tt.want {
+				t.Errorf("%s: Mismatch() = %v, want %v", tt.name, got, tt.want)
+			}
+		})
 	}
 }
 
@@ -128,20 +162,26 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "tag with digit should be protected",
+			name: "tag with digit without attributes is treated as placeholder and ignored",
 			src:  "Hello <tag1>world</tag1>",
 			tgt:  "Bonjour world",
-			want: true,
+			want: false,
 		},
 		{
-			name: "tag with dot should be protected",
+			name: "tag with dot without attributes is treated as placeholder and ignored",
 			src:  "Hello <my.component>world</my.component>",
 			tgt:  "Bonjour world",
-			want: true,
+			want: false,
 		},
 		{
-			name: "tag with underscore should be protected",
+			name: "tag with underscore without attributes is treated as placeholder and ignored",
 			src:  "Hello <my_tag>world</my_tag>",
+			tgt:  "Bonjour world",
+			want: false,
+		},
+		{
+			name: "MDX component with dot is protected",
+			src:  "Hello <My.Component>world</My.Component>",
 			tgt:  "Bonjour world",
 			want: true,
 		},
@@ -150,6 +190,12 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			src:  "<tag1><a.b><c_d>Content</c_d></a.b></tag1>",
 			tgt:  "<tag1><a.b><c_d>Contenu</c_d></a.b></tag1>",
 			want: false,
+		},
+		{
+			name: "custom tag with dot and attributes is protected",
+			src:  "<tag.name attr=\"val\">Content</tag.name>",
+			tgt:  "Content",
+			want: true,
 		},
 	}
 

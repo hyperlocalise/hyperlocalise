@@ -112,7 +112,16 @@ func isLikelyMarkupTag(raw, normalized string) bool {
 	if tag == "" {
 		return false
 	}
-	if atom.Lookup([]byte(tag)) != 0 || strings.ContainsAny(tag, "-:._0123456789") {
+	if a := atom.Lookup([]byte(tag)); a != 0 {
+		// 'name' and 'id' are common path/template placeholders that are atoms but
+		// not standard HTML elements. We only treat them as markup if they have
+		// attributes (checked below).
+		if tag != "name" && tag != "id" {
+			return true
+		}
+	}
+	// Hyphens and colons are strong indicators of custom elements or namespaced tags.
+	if strings.Contains(tag, "-") || strings.Contains(tag, ":") {
 		return true
 	}
 	rawName := rawTagName(raw)
