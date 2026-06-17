@@ -1,21 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const { offsetMock, repoLimitMock, orderByMock, selectMock, whereMock } = vi.hoisted(
-  () => {
-    const offsetMock = vi.fn(async (): Promise<unknown[]> => []);
-    const keysLimitMock = vi.fn(() => ({ offset: offsetMock }));
-    const repoLimitMock = vi.fn(async (): Promise<unknown[]> => []);
-    const orderByMock = vi.fn(() => ({ limit: keysLimitMock }));
-    const whereMock = vi.fn(() => ({
-      limit: repoLimitMock,
-      orderBy: orderByMock,
-    }));
-    const fromMock = vi.fn(() => ({ where: whereMock }));
-    const selectMock = vi.fn(() => ({ from: fromMock }));
+const { offsetMock, repoLimitMock, orderByMock, selectMock, whereMock } = vi.hoisted(() => {
+  const offsetMock = vi.fn(async (): Promise<unknown[]> => []);
+  const keysLimitMock = vi.fn(() => ({ offset: offsetMock }));
+  const repoLimitMock = vi.fn(async (): Promise<unknown[]> => []);
+  const orderByMock = vi.fn(() => ({ limit: keysLimitMock }));
+  const whereMock = vi.fn(() => ({
+    limit: repoLimitMock,
+    orderBy: orderByMock,
+  }));
+  const fromMock = vi.fn(() => ({ where: whereMock }));
+  const selectMock = vi.fn(() => ({ from: fromMock }));
 
-    return { offsetMock, repoLimitMock, orderByMock, selectMock, whereMock };
-  },
-);
+  return { offsetMock, repoLimitMock, orderByMock, selectMock, whereMock };
+});
 
 vi.mock("drizzle-orm", () => ({
   and: vi.fn((...conditions: unknown[]) => ["and", conditions]),
