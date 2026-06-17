@@ -19,7 +19,7 @@ import {
 } from "@/lib/providers/tms-provider-resource-id";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
-import { externalTmsSyncService } from "@/lib/projects/external-tms/external-tms-sync-service";
+import { ExternalTmsSyncService } from "@/lib/projects/external-tms/external-tms-sync-service";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 import type { OrganizationProjectListItem } from "./organization-project-list-item";
@@ -53,8 +53,14 @@ function projectNotFound(
 }
 
 export class OrganizationProjectService extends ProjectServiceBase {
-  constructor(database: typeof db = db) {
+  private readonly externalTmsSync: ExternalTmsSyncService;
+
+  constructor(
+    database: typeof db = db,
+    externalTmsSync: ExternalTmsSyncService = new ExternalTmsSyncService(database),
+  ) {
     super(database, "projects.organization");
+    this.externalTmsSync = externalTmsSync;
   }
 
   /**
@@ -171,7 +177,7 @@ export class OrganizationProjectService extends ProjectServiceBase {
       return err(error);
     }
 
-    await externalTmsSyncService.upsertProjectRecord({
+    await this.externalTmsSync.upsertProjectRecord({
       organizationId: input.organizationId,
       providerCredentialId: credential.id,
       liveProject,
@@ -258,7 +264,7 @@ export class OrganizationProjectService extends ProjectServiceBase {
       return projects;
     }
 
-    const providerCredentialId = await externalTmsSyncService.getOrganizationCredentialId(
+    const providerCredentialId = await this.externalTmsSync.getOrganizationCredentialId(
       organizationId,
       connection.providerKind,
     );

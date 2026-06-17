@@ -11,13 +11,8 @@ import {
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
-import {
-  countProjectTranslationKeysForFile,
-  getRepositorySourceFileByPath,
-  getProjectTranslationsByKeyIds,
-  listProjectTranslationKeysForFile,
-} from "@/lib/projects/translations/project-translation-service";
-import { listCachedProjectFileStringRepositoryContexts } from "@/lib/projects/string-context/project-string-context-service";
+import { ProjectStringContextService } from "@/lib/projects/string-context/project-string-context-service";
+import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
 function filenameFromSourcePath(sourcePath: string) {
   return sourcePath.split("/").at(-1) ?? sourcePath;
@@ -36,8 +31,17 @@ function toCatTranslation(row: {
 }
 
 export class NativeCatService extends ProjectServiceBase {
-  constructor(database: typeof db = db) {
+  private readonly translations: ProjectTranslationService;
+  private readonly stringContext: ProjectStringContextService;
+
+  constructor(
+    database: typeof db = db,
+    translations: ProjectTranslationService = new ProjectTranslationService(database),
+    stringContext: ProjectStringContextService = new ProjectStringContextService(database),
+  ) {
     super(database, "projects.cat");
+    this.translations = translations;
+    this.stringContext = stringContext;
   }
 
   async getCatFile(input: {
@@ -48,7 +52,7 @@ export class NativeCatService extends ProjectServiceBase {
     canEditTranslations: boolean;
     pagination?: ProjectFileCatPaginationInput;
   }): Promise<ProjectFileCatResponse["catFile"] | null> {
-    const sourceFile = await getRepositorySourceFileByPath({
+    const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
@@ -66,7 +70,7 @@ export class NativeCatService extends ProjectServiceBase {
     };
 
     if (!paginationInput.paginated) {
-      const keys = await listProjectTranslationKeysForFile({
+      const keys = await this.translations.listKeysForFile({
         organizationId: input.organizationId,
         projectId: input.projectId,
         repositorySourceFileId: sourceFile.id,
@@ -85,13 +89,13 @@ export class NativeCatService extends ProjectServiceBase {
     }
 
     const [totalCount, keys] = await Promise.all([
-      countProjectTranslationKeysForFile({
+      this.translations.countKeysForFile({
         organizationId: input.organizationId,
         projectId: input.projectId,
         repositorySourceFileId: sourceFile.id,
         search: paginationInput.search,
       }),
-      listProjectTranslationKeysForFile({
+      this.translations.listKeysForFile({
         organizationId: input.organizationId,
         projectId: input.projectId,
         repositorySourceFileId: sourceFile.id,
@@ -124,11 +128,11 @@ export class NativeCatService extends ProjectServiceBase {
       organizationId: string;
       projectId: string;
     };
-    visibleKeys: Awaited<ReturnType<typeof listProjectTranslationKeysForFile>>;
+    visibleKeys: Awaited<ReturnType<ProjectTranslationService["listKeysForFile"]>>;
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
   }): Promise<ProjectFileCatResponse["catFile"]> {
-    const translations = await getProjectTranslationsByKeyIds({
+    const translations = await this.translations.getTranslationsByKeyIds({
       organizationId: input.input.organizationId,
       projectId: input.input.projectId,
       translationKeyIds: input.visibleKeys.map((key) => key.id),
@@ -173,7 +177,7 @@ export class NativeCatService extends ProjectServiceBase {
     provenance?: "manual" | "translation_job" | "import" | "agent";
     sourceJobId?: string;
   }): Promise<ProjectFileCatTranslation | null> {
-    const sourceFile = await getRepositorySourceFileByPath({
+    const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.sourcePath,
@@ -329,7 +333,7 @@ export class NativeCatService extends ProjectServiceBase {
     const sourceTextByKey = new Map(
       input.catFile.segments.map((segment) => [segment.key, segment.sourceText] as const),
     );
-    const cachedSummaries = await listCachedProjectFileStringRepositoryContexts({
+    const cachedSummaries = await this.stringContext.listCached({
       organizationId: input.organizationId,
       projectId: input.projectId,
       sourcePath: input.catFile.sourcePath,

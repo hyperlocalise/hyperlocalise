@@ -1,40 +1,42 @@
 import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-const {
-  getRepositorySourceFileByPathMock,
-  listProjectTranslationKeysForFileMock,
-  countProjectTranslationKeysForFileMock,
-  getProjectTranslationsByKeyIdsMock,
-} = vi.hoisted(() => ({
-  getRepositorySourceFileByPathMock: vi.fn(),
-  listProjectTranslationKeysForFileMock: vi.fn(),
-  countProjectTranslationKeysForFileMock: vi.fn(),
-  getProjectTranslationsByKeyIdsMock: vi.fn(),
-}));
+import type { ProjectStringContextService } from "@/lib/projects/string-context/project-string-context-service";
+import type { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
-vi.mock("@/lib/projects/translations/project-translation-service", () => ({
-  getRepositorySourceFileByPath: (...args: unknown[]) => getRepositorySourceFileByPathMock(...args),
-  listProjectTranslationKeysForFile: (...args: unknown[]) =>
-    listProjectTranslationKeysForFileMock(...args),
-  countProjectTranslationKeysForFile: (...args: unknown[]) =>
-    countProjectTranslationKeysForFileMock(...args),
-  getProjectTranslationsByKeyIds: (...args: unknown[]) =>
-    getProjectTranslationsByKeyIdsMock(...args),
-}));
+import { NativeCatService } from "./native-cat-service";
 
-import { getNativeProjectCatFile } from "./native-cat-service";
+describe("NativeCatService.getCatFile", () => {
+  const getRepositorySourceFileByPath = vi.fn();
+  const listKeysForFile = vi.fn();
+  const countKeysForFile = vi.fn();
+  const getTranslationsByKeyIds = vi.fn();
+  const listCached = vi.fn();
 
-describe("getNativeProjectCatFile", () => {
+  let service: NativeCatService;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    getRepositorySourceFileByPathMock.mockResolvedValue({ id: "file_1" });
-    getProjectTranslationsByKeyIdsMock.mockResolvedValue([]);
+    getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
+    getTranslationsByKeyIds.mockResolvedValue([]);
+
+    const translations = {
+      getRepositorySourceFileByPath,
+      listKeysForFile,
+      countKeysForFile,
+      getTranslationsByKeyIds,
+    } as unknown as ProjectTranslationService;
+
+    const stringContext = {
+      listCached,
+    } as unknown as ProjectStringContextService;
+
+    service = new NativeCatService(undefined as never, translations, stringContext);
   });
 
   it("returns null when the source file is missing", async () => {
-    getRepositorySourceFileByPathMock.mockResolvedValue(null);
+    getRepositorySourceFileByPath.mockResolvedValue(null);
 
-    const result = await getNativeProjectCatFile({
+    const result = await service.getCatFile({
       organizationId: "org_1",
       projectId: "project_1",
       sourcePath: "locales/en.json",
@@ -46,18 +48,19 @@ describe("getNativeProjectCatFile", () => {
   });
 
   it("loads a paginated page with search and pagination metadata", async () => {
-    countProjectTranslationKeysForFileMock.mockResolvedValue(120);
-    listProjectTranslationKeysForFileMock.mockResolvedValue([
+    countKeysForFile.mockResolvedValue(120);
+    listKeysForFile.mockResolvedValue([
       {
         id: "key_51",
         key: "hero.title",
         sourceText: "Welcome",
         context: null,
         type: "text",
+        maxLength: null,
       },
     ]);
 
-    const result = await getNativeProjectCatFile({
+    const result = await service.getCatFile({
       organizationId: "org_1",
       projectId: "project_1",
       sourcePath: "locales/en.json",
@@ -71,16 +74,14 @@ describe("getNativeProjectCatFile", () => {
       },
     });
 
-    expect(listProjectTranslationKeysForFileMock).toHaveBeenCalledWith(
+    expect(listKeysForFile).toHaveBeenCalledWith(
       expect.objectContaining({
         offset: 50,
         limit: 25,
         search: "hero",
       }),
     );
-    expect(countProjectTranslationKeysForFileMock).toHaveBeenCalledWith(
-      expect.objectContaining({ search: "hero" }),
-    );
+    expect(countKeysForFile).toHaveBeenCalledWith(expect.objectContaining({ search: "hero" }));
     expect(result?.pagination).toMatchObject({
       offset: 50,
       limit: 25,
