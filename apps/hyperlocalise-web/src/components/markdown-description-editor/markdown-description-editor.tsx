@@ -5,8 +5,11 @@ import { EditorContent, type Editor, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "@tiptap/markdown";
 import type { Extensions } from "@tiptap/core";
+import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
+
+import { markdownDescriptionEditorMessages } from "./markdown-description-editor.messages";
 
 const markdownDescriptionContentClassName = cn(
   "max-w-none px-3 py-2 text-sm text-foreground/74 focus:outline-none",
@@ -76,62 +79,63 @@ function MarkdownToolbarButton({
 }
 
 function MarkdownDescriptionToolbar({ editor, disabled }: { editor: Editor; disabled: boolean }) {
+  const intl = useIntl();
   const isDisabled = disabled || !editor.isEditable;
 
   return (
     <div className="flex flex-wrap items-center gap-1 border-b border-foreground/8 bg-foreground/2 px-2 py-1.5">
       <MarkdownToolbarButton
-        label="B"
-        title="Bold"
+        label={intl.formatMessage(markdownDescriptionEditorMessages.boldLabel)}
+        title={intl.formatMessage(markdownDescriptionEditorMessages.boldTitle)}
         pressed={editor.isActive("bold")}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleBold().run()}
       />
       <MarkdownToolbarButton
-        label="I"
-        title="Italic"
+        label={intl.formatMessage(markdownDescriptionEditorMessages.italicLabel)}
+        title={intl.formatMessage(markdownDescriptionEditorMessages.italicTitle)}
         pressed={editor.isActive("italic")}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleItalic().run()}
       />
       <MarkdownToolbarButton
-        label="H2"
-        title="Heading 2"
+        label={intl.formatMessage(markdownDescriptionEditorMessages.heading2Label)}
+        title={intl.formatMessage(markdownDescriptionEditorMessages.heading2Title)}
         pressed={editor.isActive("heading", { level: 2 })}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleHeading({ level: 2 }).run()}
       />
       <MarkdownToolbarButton
-        label="H3"
-        title="Heading 3"
+        label={intl.formatMessage(markdownDescriptionEditorMessages.heading3Label)}
+        title={intl.formatMessage(markdownDescriptionEditorMessages.heading3Title)}
         pressed={editor.isActive("heading", { level: 3 })}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleHeading({ level: 3 }).run()}
       />
       <MarkdownToolbarButton
-        label="• List"
-        title="Bullet list"
+        label={intl.formatMessage(markdownDescriptionEditorMessages.bulletListLabel)}
+        title={intl.formatMessage(markdownDescriptionEditorMessages.bulletListTitle)}
         pressed={editor.isActive("bulletList")}
         disabled={isDisabled}
         onClick={() => editor.chain().focus().toggleBulletList().run()}
       />
       <MarkdownToolbarButton
-        label="1. List"
-        title="Numbered list"
+        label={intl.formatMessage(markdownDescriptionEditorMessages.orderedListLabel)}
+        title={intl.formatMessage(markdownDescriptionEditorMessages.orderedListTitle)}
         pressed={editor.isActive("orderedList")}
         disabled={isDisabled}
         onClick={() => editor.chain().focus().toggleOrderedList().run()}
       />
       <MarkdownToolbarButton
-        label="Quote"
-        title="Blockquote"
+        label={intl.formatMessage(markdownDescriptionEditorMessages.blockquoteLabel)}
+        title={intl.formatMessage(markdownDescriptionEditorMessages.blockquoteTitle)}
         pressed={editor.isActive("blockquote")}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleBlockquote().run()}
       />
       <MarkdownToolbarButton
-        label="Code"
-        title="Inline code"
+        label={intl.formatMessage(markdownDescriptionEditorMessages.codeLabel)}
+        title={intl.formatMessage(markdownDescriptionEditorMessages.codeTitle)}
         pressed={editor.isActive("code")}
         disabled={isDisabled}
         onClick={() => markdownCommandChain(editor).toggleCode().run()}
@@ -145,7 +149,7 @@ export function MarkdownDescriptionEditor({
   onChange,
   disabled = false,
   className,
-  placeholder = "Add a description…",
+  placeholder,
 }: {
   value: string;
   onChange: (value: string) => void;
@@ -153,6 +157,13 @@ export function MarkdownDescriptionEditor({
   className?: string;
   placeholder?: string;
 }) {
+  const intl = useIntl();
+  const resolvedPlaceholder =
+    placeholder ?? intl.formatMessage(markdownDescriptionEditorMessages.placeholder);
+  const taskDescriptionAria = intl.formatMessage(
+    markdownDescriptionEditorMessages.taskDescriptionAria,
+  );
+
   const editor = useEditor({
     extensions: markdownExtensions,
     content: value,
@@ -165,8 +176,8 @@ export function MarkdownDescriptionEditor({
     editorProps: {
       attributes: {
         class: cn(markdownDescriptionContentClassName, "min-h-[8rem]"),
-        "aria-label": "Task description",
-        "data-placeholder": placeholder,
+        "aria-label": taskDescriptionAria,
+        "data-placeholder": resolvedPlaceholder,
       },
     },
   });
@@ -191,6 +202,22 @@ export function MarkdownDescriptionEditor({
 
     editor.commands.setContent(value, { contentType: "markdown", emitUpdate: false });
   }, [editor, value]);
+
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    editor.setOptions({
+      editorProps: {
+        attributes: {
+          class: cn(markdownDescriptionContentClassName, "min-h-[8rem]"),
+          "aria-label": taskDescriptionAria,
+          "data-placeholder": resolvedPlaceholder,
+        },
+      },
+    });
+  }, [editor, resolvedPlaceholder, taskDescriptionAria]);
 
   if (!editor) {
     return (
@@ -231,13 +258,17 @@ export function MarkdownContent({
   value,
   className,
   contentClassName,
-  ariaLabel = "Markdown content",
+  ariaLabel,
 }: {
   value: string;
   className?: string;
   contentClassName?: string;
   ariaLabel?: string;
 }) {
+  const intl = useIntl();
+  const resolvedAriaLabel =
+    ariaLabel ?? intl.formatMessage(markdownDescriptionEditorMessages.markdownContentAria);
+
   const editor = useEditor({
     extensions: markdownExtensions,
     content: value,
@@ -247,7 +278,7 @@ export function MarkdownContent({
     editorProps: {
       attributes: {
         class: cn(markdownDescriptionContentClassName, contentClassName),
-        "aria-label": ariaLabel,
+        "aria-label": resolvedAriaLabel,
       },
     },
   });
@@ -265,9 +296,28 @@ export function MarkdownContent({
     editor.commands.setContent(value, { contentType: "markdown", emitUpdate: false });
   }, [editor, value]);
 
+  useEffect(() => {
+    if (!editor) {
+      return;
+    }
+
+    editor.setOptions({
+      editorProps: {
+        attributes: {
+          class: cn(markdownDescriptionContentClassName, contentClassName),
+          "aria-label": resolvedAriaLabel,
+        },
+      },
+    });
+  }, [contentClassName, editor, resolvedAriaLabel]);
+
   if (!editor) {
     return (
-      <div className={cn(className, contentClassName)} aria-busy="true" aria-label={ariaLabel} />
+      <div
+        className={cn(className, contentClassName)}
+        aria-busy="true"
+        aria-label={resolvedAriaLabel}
+      />
     );
   }
 
@@ -282,13 +332,20 @@ export function MarkdownDescriptionPreview({
   value,
   className,
   contentClassName,
-  emptyMessage = "No description",
+  emptyMessage,
 }: {
   value: string;
   className?: string;
   contentClassName?: string;
   emptyMessage?: string;
 }) {
+  const intl = useIntl();
+  const resolvedEmptyMessage =
+    emptyMessage ?? intl.formatMessage(markdownDescriptionEditorMessages.noDescription);
+  const previewAriaLabel = intl.formatMessage(
+    markdownDescriptionEditorMessages.taskDescriptionPreviewAria,
+  );
+
   if (!value.trim()) {
     return (
       <div
@@ -297,7 +354,7 @@ export function MarkdownDescriptionPreview({
           className,
         )}
       >
-        {emptyMessage}
+        {resolvedEmptyMessage}
       </div>
     );
   }
@@ -307,7 +364,7 @@ export function MarkdownDescriptionPreview({
       value={value}
       className={cn("rounded-lg border border-foreground/8 bg-foreground/2.5", className)}
       contentClassName={cn("min-h-[5rem]", contentClassName)}
-      ariaLabel="Task description preview"
+      ariaLabel={previewAriaLabel}
     />
   );
 }

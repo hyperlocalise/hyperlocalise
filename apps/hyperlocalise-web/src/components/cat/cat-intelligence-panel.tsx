@@ -5,7 +5,7 @@ import { BulbIcon, CheckmarkCircle02Icon, InformationCircleIcon } from "@hugeico
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
-import { MarkdownContent } from "@/components/markdown-description-editor";
+import { MarkdownContent } from "@/components/markdown-description-editor/markdown-description-editor";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";

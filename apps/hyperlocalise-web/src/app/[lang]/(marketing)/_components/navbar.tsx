@@ -19,7 +19,7 @@ import { env } from "@/lib/env";
 import Image from "next/image";
 import Link from "next/link";
 
-import ThemeToggle from "@/components/theme-toggle";
+import ThemeToggle from "@/components/theme-toggle/theme-toggle";
 
 const navigationLinks: { href: string; label: string; active?: boolean }[] = [
   { href: "/product/agents-automation", label: "Agents" },
