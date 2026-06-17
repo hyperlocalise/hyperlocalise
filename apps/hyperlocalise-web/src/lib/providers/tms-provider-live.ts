@@ -9,11 +9,11 @@ import type {
 import {
   buildSourceStringsPreviewContent,
   normalizeProjectFileContent,
-} from "@/lib/projects/project-file-source-strings";
+} from "@/lib/projects/files/project-file-content";
 import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
-} from "@/lib/projects/project-file-cat-pagination";
+} from "@/lib/projects/cat/project-file-cat-pagination";
 import {
   legacyProviderCatSegmentLimit,
   maxCrowdinSourceStringCountCeiling,
@@ -865,10 +865,13 @@ async function countCrowdinSourceStrings(
     if (!page.hasMore) {
       return total;
     }
+    if (total >= ceiling) {
+      return ceiling;
+    }
     offset += page.strings.length;
   }
 
-  return total;
+  return Math.min(total, ceiling);
 }
 
 async function buildCrowdinLiveCatFile(input: {

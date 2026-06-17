@@ -655,8 +655,8 @@ export class CrowdinApiClient {
       `/projects/${projectId}/strings?${params.toString()}`,
     );
     const page = response.data.map((item) => item.data);
-    const hasMore = pageLimit < 500 ? page.length > pageLimit : page.length === pageLimit;
-    const strings = pageLimit < 500 && page.length > pageLimit ? page.slice(0, pageLimit) : page;
+    const hasMore = page.length >= requestLimit;
+    const strings = page.length > pageLimit ? page.slice(0, pageLimit) : page;
     const totalCount = hasMore
       ? options.offset + strings.length + 1
       : options.offset + strings.length;

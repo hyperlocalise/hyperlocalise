@@ -3,7 +3,7 @@ import { and, eq, isNull, or } from "drizzle-orm";
 import { stringTranslationJobInputSchema } from "@/api/routes/project/job.schema";
 import { db, schema } from "@/lib/database";
 import type { TranslationJobEventData } from "@/lib/workflow/types";
-import { persistStringJobTranslations } from "@/lib/projects/promote-project-translations";
+import { persistStringJobTranslations } from "@/lib/projects/translations/project-translation-service";
 import {
   formatUsageControlError,
   markUsageEventSucceededByOperationKey,

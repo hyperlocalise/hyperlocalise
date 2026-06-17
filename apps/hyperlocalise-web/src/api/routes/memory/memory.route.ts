@@ -14,7 +14,7 @@ import { db, schema } from "@/lib/database";
 import type { Memory } from "@/lib/database/types";
 import { toMemoryRecord } from "@/lib/memory/memory-records";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
-import { promoteApprovedProjectTranslationsToMemory } from "@/lib/projects/promote-project-translations";
+import { promoteApprovedProjectTranslationsToMemory } from "@/lib/projects/translations/project-translation-service";
 
 import { getOwnedProject, projectNotFoundResponse } from "../project/project.shared";
 import {

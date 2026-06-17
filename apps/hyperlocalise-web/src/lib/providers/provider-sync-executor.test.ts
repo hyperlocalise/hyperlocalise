@@ -62,10 +62,11 @@ vi.mock("@/lib/providers/tms-provider-live", () => ({
   listTmsProviderLiveProjects: listTmsProviderLiveProjectsMock,
 }));
 
-vi.mock("@/lib/projects/upsert-external-tms-project-record", () => ({
+vi.mock("@/lib/projects/external-tms/external-tms-sync-service", () => ({
   upsertExternalTmsProjectRecord: vi.fn(async () => "ext:crowdin:902807"),
   deactivateMissingExternalTmsProjects: deactivateMissingExternalTmsProjectsMock,
   deactivateExternalTmsProject: deactivateExternalTmsProjectMock,
+  upsertExternalTmsJobRecords: upsertExternalTmsJobRecordsMock,
 }));
 
 vi.mock("./provider-sync-intent", () => ({
@@ -80,10 +81,6 @@ vi.mock("@/lib/providers/tms-provider-fetcher-registry", () => ({
 
 vi.mock("@/lib/providers/tms-provider-content", () => ({
   resolveExternalTmsSecretMaterialForActor: resolveSecretMaterialForActorMock,
-}));
-
-vi.mock("@/lib/projects/upsert-external-tms-job-records", () => ({
-  upsertExternalTmsJobRecords: upsertExternalTmsJobRecordsMock,
 }));
 
 vi.mock("./agent-runs/tms-agent-automation-runner", () => ({

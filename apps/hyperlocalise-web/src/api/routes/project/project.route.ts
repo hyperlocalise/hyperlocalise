@@ -20,21 +20,23 @@ import {
   listTmsProviderLiveFilesForProject,
   saveTmsProviderLiveCatTranslation,
 } from "@/lib/providers/tms-provider-live";
-import { listOrganizationProjects } from "@/lib/projects/list-organization-projects";
-import { getProjectFileDetail } from "@/lib/projects/project-file-detail";
-import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/project-file-string-context";
-import { resolveProjectFileCatPagination } from "@/lib/projects/project-file-cat-pagination";
-import { listFilteredProjectFiles } from "@/lib/projects/project-files";
+import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectCatFile,
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
-} from "@/lib/projects/native-project-cat";
-import { parseTranslationFileEntries } from "@/lib/projects/parse-translation-file-entries";
+} from "@/lib/projects/cat/native-cat-service";
+import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
+import {
+  getProjectFileDetail,
+  listFilteredProjectFiles,
+} from "@/lib/projects/files/project-file-service";
+import { parseTranslationFileEntries } from "@/lib/projects/files/parse-translation-file-entries";
+import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/string-context/project-string-context-service";
 import {
   getRepositorySourceFileByPath,
   upsertProjectTranslationKeysFromEntries,
-} from "@/lib/projects/project-translation-keys";
+} from "@/lib/projects/translations/project-translation-service";
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
 import type { JobQueue, ProviderSyncQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createProviderSyncQueue, createTranslationJobEventQueue } from "@/workflows/adapters";
@@ -60,8 +62,8 @@ import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/
 import { normalizeProjectLocalePatch, type ProjectLocalePatchError } from "@/lib/i18n/locales";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
-import { ensureOrganizationProjectRecord } from "@/lib/projects/ensure-organization-project";
-import { normalizeProjectId } from "@/lib/projects/project-id";
+import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";

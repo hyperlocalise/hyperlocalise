@@ -7,7 +7,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
-import { upsertExternalTmsJobRecords } from "@/lib/projects/upsert-external-tms-job-records";
+import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 
 import { createProjectTestFixture } from "./project.fixture";
 import type { WorkspaceJobsResponse } from "./job.schema";

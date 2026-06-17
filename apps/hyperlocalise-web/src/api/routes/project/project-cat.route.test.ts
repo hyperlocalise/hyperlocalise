@@ -40,7 +40,7 @@ vi.mock("@/lib/translation/generate-cat-ai-recommendation", () => ({
   generateCatAiRecommendation: (...args: unknown[]) => generateCatAiRecommendationMock(...args),
 }));
 
-vi.mock("@/lib/projects/ensure-organization-project", () => ({
+vi.mock("@/lib/projects/organization/organization-project-service", () => ({
   ensureOrganizationProjectRecord: (...args: unknown[]) =>
     ensureOrganizationProjectRecordMock(...args),
 }));

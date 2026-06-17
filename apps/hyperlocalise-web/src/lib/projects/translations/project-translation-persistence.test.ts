@@ -56,7 +56,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-import { persistFileJobTranslations } from "./promote-project-translations";
+import { persistFileJobTranslations } from "./project-translation-service";
 
 describe("persistFileJobTranslations", () => {
   beforeEach(() => {

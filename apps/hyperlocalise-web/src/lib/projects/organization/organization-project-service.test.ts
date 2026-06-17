@@ -15,7 +15,7 @@ import { isErr, isOk } from "@/lib/primitives/result/results";
 import {
   ensureOrganizationProjectRecord,
   unwrapOrganizationProjectRecord,
-} from "./ensure-organization-project";
+} from "./organization-project-service";
 
 const { getTmsProviderLiveProjectMock } = vi.hoisted(() => ({
   getTmsProviderLiveProjectMock: vi.fn(),

@@ -60,7 +60,7 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-import { loadProjectTranslationsAsPrefilledEntries } from "./project-translation-keys";
+import { loadProjectTranslationsAsPrefilledEntries } from "./project-translation-service";
 
 describe("loadProjectTranslationsAsPrefilledEntries", () => {
   beforeEach(() => {

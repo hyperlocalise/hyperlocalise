@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { projectIdSchema } from "@/lib/projects/project-id";
+import { projectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const maxPublicUploadBytes = 25 * 1024 * 1024;
 

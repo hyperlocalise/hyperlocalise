@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   normalizeProjectFileContent,
   parseSourceStringsFromFileContent,
-} from "./project-file-source-strings";
+} from "./project-file-content";
 
 describe("project-file-source-strings", () => {
   it("parses structured sourceStrings from stored JSON text", () => {

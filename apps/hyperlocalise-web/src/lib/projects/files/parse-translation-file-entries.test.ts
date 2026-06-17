@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { isErr, isOk } from "@/lib/primitives/result/results";
 
-import { parseTranslationFileEntries } from "@/lib/projects/parse-translation-file-entries";
+import { parseTranslationFileEntries } from "@/lib/projects/files/parse-translation-file-entries";
 
 function expectEntries(
   result: ReturnType<typeof parseTranslationFileEntries>,

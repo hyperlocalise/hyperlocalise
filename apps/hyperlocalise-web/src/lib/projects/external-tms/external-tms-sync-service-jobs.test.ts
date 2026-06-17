@@ -75,7 +75,7 @@ vi.mock("@/lib/database", () => ({
 import {
   reconcileMissingExternalTmsJobs,
   removeAllExternalTmsJobsForProject,
-} from "./upsert-external-tms-job-records";
+} from "./external-tms-sync-service";
 
 describe("reconcileMissingExternalTmsJobs", () => {
   beforeEach(() => {

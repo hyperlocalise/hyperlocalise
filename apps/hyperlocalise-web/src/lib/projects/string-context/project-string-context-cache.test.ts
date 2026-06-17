@@ -9,7 +9,7 @@ import {
   hashProjectFileStringSourceText,
   listCachedProjectFileStringRepositoryContexts,
   saveProjectFileStringRepositoryContext,
-} from "./project-file-string-context-store";
+} from "./project-string-context-service";
 
 const fixture = createProjectTestFixture();
 

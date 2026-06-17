@@ -12,12 +12,12 @@ import {
   encodeProviderJobId,
   parseProviderProjectId,
 } from "@/lib/providers/tms-provider-resource-id";
-import { upsertExternalTmsJobRecords } from "@/lib/projects/upsert-external-tms-job-records";
+import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
 import {
   deactivateExternalTmsProject,
   deactivateMissingExternalTmsProjects,
   upsertExternalTmsProjectRecord,
-} from "@/lib/projects/upsert-external-tms-project-record";
+} from "@/lib/projects/external-tms/external-tms-sync-service";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 import { enqueueProviderProjectJobSyncIntent } from "./provider-sync-intent";
