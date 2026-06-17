@@ -167,3 +167,9 @@
 **Learning:** The Crowdin API v2 for uploading translations (`POST /api/v2/projects/{projectId}/translations/{languageId}`) supports `directoryId` for string-based projects, which was missing from the SDK. Additionally, `SourceStringsUploadRequest.Validate()` would panic if `updateOption` was set while `updateStrings` was nil.
 
 **Action:** Added `DirectoryID` (int) to `UploadTranslationsRequest` and updated `Validate()` to ensure `FileID` is not used with `BranchID` or `DirectoryID`. Added `BranchID` and `DirectoryID` to the `UploadTranslations` response struct. Fixed potential nil pointer dereference in `SourceStringsUploadRequest.Validate()` and corrected a struct name in documentation comments. Verified with comprehensive unit and contract tests.
+
+## 2026-10-03 - Improve response parity for Pagination and optimize ManagerListOptions
+
+**Learning:** Several list response models in the Crowdin Go SDK were missing the `pagination` field, preventing callers from handling multi-page results for translation progress, QA checks, and group managers. Additionally, the `ManagerListOptions.Values()` method was using a manual loop for slice joining, which is less efficient and consistent than the `JoinSlice` helper.
+
+**Action:** Added `Pagination *Pagination` to `TranslationProgressResponse`, `QAChecksResponse`, and `ManagerResponse`. Refactored `ManagerListOptions.Values()` to use `JoinSlice`. Added comprehensive unmarshaling tests to verify that the new pagination fields are correctly populated from API responses. Verified with `go test` in the fork.
