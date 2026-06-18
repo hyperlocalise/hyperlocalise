@@ -8,15 +8,19 @@ import {
   getProviderTranslationMemoryMatcher,
   getProviderTranslationPusher,
   getTmsProviderAdapter,
-  tmsProviderAdapters,
-} from "@/lib/providers/adapters/tms-provider-adapter-registry";
-import { TmsProviderAdapter } from "@/lib/providers/contracts/tms-provider-adapter";
-import {
   providerSupportsCommentPush,
   providerSupportsGlossaryMatch,
   providerSupportsReviewPull,
   providerSupportsTranslationMemoryMatch,
-} from "@/lib/providers/tms-provider-optional-capabilities";
+  tmsProviderAdapters,
+} from "@/lib/providers/adapters/tms-provider-adapter-registry";
+import { TmsProviderAdapter } from "@/lib/providers/contracts/tms-provider-adapter";
+import {
+  adapterSupportsCommentPush,
+  adapterSupportsGlossaryMatch,
+  adapterSupportsReviewPull,
+  adapterSupportsTranslationMemoryMatch,
+} from "@/lib/providers/tms-provider-adapter-capabilities";
 
 describe("tmsProviderAdapters", () => {
   it("registers all known providers as TmsProviderAdapter instances", () => {
@@ -42,24 +46,30 @@ describe("tmsProviderAdapters", () => {
 });
 
 describe("optional adapter capabilities", () => {
-  it.each([
-    ["crowdin", true, true, true, true],
-    ["phrase", true, false, false, true],
-    ["lokalise", true, true, true, true],
-    ["smartling", false, true, true, true],
-  ] as const)(
-    "%s review=%s comments=%s glossary=%s tm=%s",
-    (provider, review, comments, glossary, tm) => {
-      expect(providerSupportsReviewPull(provider)).toBe(review);
-      expect(providerSupportsCommentPush(provider)).toBe(comments);
-      expect(providerSupportsGlossaryMatch(provider)).toBe(glossary);
-      expect(providerSupportsTranslationMemoryMatch(provider)).toBe(tm);
-      expect(getProviderReviewPuller(provider) != null).toBe(review);
-      expect(getProviderCommentPusher(provider) != null).toBe(comments);
-      expect(getProviderGlossaryMatcher(provider) != null).toBe(glossary);
-      expect(getProviderTranslationMemoryMatcher(provider) != null).toBe(tm);
-    },
-  );
+  it("derives optional capabilities from adapter method overrides", () => {
+    for (const adapter of Object.values(tmsProviderAdapters)) {
+      expect(providerSupportsReviewPull(adapter.kind)).toBe(adapterSupportsReviewPull(adapter));
+      expect(providerSupportsCommentPush(adapter.kind)).toBe(adapterSupportsCommentPush(adapter));
+      expect(providerSupportsGlossaryMatch(adapter.kind)).toBe(
+        adapterSupportsGlossaryMatch(adapter),
+      );
+      expect(providerSupportsTranslationMemoryMatch(adapter.kind)).toBe(
+        adapterSupportsTranslationMemoryMatch(adapter),
+      );
+      expect(getProviderReviewPuller(adapter.kind) != null).toBe(
+        adapterSupportsReviewPull(adapter),
+      );
+      expect(getProviderCommentPusher(adapter.kind) != null).toBe(
+        adapterSupportsCommentPush(adapter),
+      );
+      expect(getProviderGlossaryMatcher(adapter.kind) != null).toBe(
+        adapterSupportsGlossaryMatch(adapter),
+      );
+      expect(getProviderTranslationMemoryMatcher(adapter.kind) != null).toBe(
+        adapterSupportsTranslationMemoryMatch(adapter),
+      );
+    }
+  });
 
   it("always exposes content pull and translation push for all providers", () => {
     for (const provider of ["crowdin", "phrase", "lokalise", "smartling"] as const) {

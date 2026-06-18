@@ -81,7 +81,6 @@ import {
 import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
 import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
-import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
 import {
@@ -1070,14 +1069,6 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
           c,
           "provider_action_unavailable",
           "QA checks are not available for the connected TMS",
-        );
-      }
-
-      if (!getProviderContentPuller(job.externalProviderKind)) {
-        return conflictResponse(
-          c,
-          "unsupported_provider_pull",
-          `Provider ${job.externalProviderKind} does not support content pull yet`,
         );
       }
 

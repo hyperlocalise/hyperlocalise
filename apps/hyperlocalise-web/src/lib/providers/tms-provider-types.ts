@@ -223,7 +223,7 @@ export type ExternalTmsReviewPuller = (input: {
   providerKind: ExternalTmsProviderKind;
   externalProjectId: string;
   externalJobId: string;
-  credential: { baseUrl?: string | null; region?: string | null };
+  credential: ExternalTmsCredential;
   secretMaterial: string;
   project: ExternalTmsProject;
   content: ExternalTmsTaskContent;

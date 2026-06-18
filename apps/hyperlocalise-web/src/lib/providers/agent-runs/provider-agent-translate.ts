@@ -432,24 +432,6 @@ export async function executeProviderAgentTranslation(input: {
   }
 
   const pullContent = getProviderContentPuller(run.providerKind);
-  if (!pullContent) {
-    await failAgentRun({
-      runId: run.id,
-      organizationId: input.organizationId,
-      outputSummary: {
-        code: "unsupported_provider_pull",
-        providerKind: run.providerKind,
-      },
-      warnings: [`Provider ${run.providerKind} does not support content pull yet`],
-    });
-
-    return {
-      ok: false,
-      agentRunId: input.agentRunId,
-      code: "unsupported_provider_pull",
-      message: `Provider ${run.providerKind} does not support content pull yet`,
-    };
-  }
 
   if (run.status === "queued") {
     try {

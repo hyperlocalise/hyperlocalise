@@ -4,7 +4,6 @@ import { PhraseTmsAdapter } from "@/lib/providers/adapters/phrase/phrase-adapter
 import { SmartlingTmsAdapter } from "@/lib/providers/adapters/smartling/smartling-adapter";
 import type { TmsProviderAdapter } from "@/lib/providers/contracts/tms-provider-adapter";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
-import type { ExternalTmsCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 import type { ExternalTmsCommentPusher } from "@/lib/providers/provider-feedback-types";
 import type {
   ExternalTmsContentPuller,
@@ -19,11 +18,11 @@ import type {
 import type { ExternalTmsGlossaryMatcher } from "@/lib/providers/contracts/glossary-matcher";
 import type { ExternalTmsTranslationMemoryMatcher } from "@/lib/providers/contracts/translation-memory-matcher";
 import {
-  providerSupportsCommentPush,
-  providerSupportsGlossaryMatch,
-  providerSupportsReviewPull,
-  providerSupportsTranslationMemoryMatch,
-} from "@/lib/providers/tms-provider-optional-capabilities";
+  adapterSupportsCommentPush,
+  adapterSupportsGlossaryMatch,
+  adapterSupportsReviewPull,
+  adapterSupportsTranslationMemoryMatch,
+} from "@/lib/providers/tms-provider-adapter-capabilities";
 
 const crowdinAdapter = new CrowdinTmsAdapter();
 const phraseAdapter = new PhraseTmsAdapter();
@@ -135,7 +134,7 @@ function asReviewPuller(adapter: TmsProviderAdapter): ExternalTmsReviewPuller {
       projectId: input.projectId,
       externalProjectId: input.externalProjectId,
       externalJobId: input.externalJobId,
-      credential: input.credential as ExternalTmsCredential,
+      credential: input.credential,
       project: input.project,
       secretMaterial: input.secretMaterial,
       content: input.content,
@@ -223,16 +222,32 @@ export const tmsProviderFileKeyFetchers = Object.fromEntries(
 
 export function getProviderContentPuller(
   providerKind: ExternalTmsProviderKind,
-): ExternalTmsContentPuller | null {
-  const adapter = tmsProviderAdapters[providerKind];
-  return adapter ? asContentPuller(adapter) : null;
+): ExternalTmsContentPuller {
+  return asContentPuller(tmsProviderAdapters[providerKind]);
 }
 
 export function getProviderTranslationPusher(
   providerKind: ExternalTmsProviderKind,
-): ExternalTmsTranslationPusher | null {
-  const adapter = tmsProviderAdapters[providerKind];
-  return adapter ? asTranslationPusher(adapter) : null;
+): ExternalTmsTranslationPusher {
+  return asTranslationPusher(tmsProviderAdapters[providerKind]);
+}
+
+export function providerSupportsReviewPull(providerKind: ExternalTmsProviderKind): boolean {
+  return adapterSupportsReviewPull(tmsProviderAdapters[providerKind]);
+}
+
+export function providerSupportsCommentPush(providerKind: ExternalTmsProviderKind): boolean {
+  return adapterSupportsCommentPush(tmsProviderAdapters[providerKind]);
+}
+
+export function providerSupportsGlossaryMatch(providerKind: ExternalTmsProviderKind): boolean {
+  return adapterSupportsGlossaryMatch(tmsProviderAdapters[providerKind]);
+}
+
+export function providerSupportsTranslationMemoryMatch(
+  providerKind: ExternalTmsProviderKind,
+): boolean {
+  return adapterSupportsTranslationMemoryMatch(tmsProviderAdapters[providerKind]);
 }
 
 export function getProviderReviewPuller(

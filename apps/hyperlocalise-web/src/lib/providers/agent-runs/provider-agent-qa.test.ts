@@ -193,38 +193,6 @@ describe("executeProviderAgentQa", () => {
     expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
   });
 
-  it("fails when the provider does not support content pull", async () => {
-    providerContentPullerMocks.getProviderContentPullerMock.mockReturnValue(null);
-
-    const project = await createExternalTmsProject();
-
-    const run = await createAgentRun({
-      organizationId: project.organizationId,
-      providerKind: "lokalise",
-      externalJobId: "lokalise-job-qa-1",
-      kind: "review",
-      inputSnapshot: { projectId: project.id, action: "run_qa_checks" },
-    });
-
-    const result = await executeProviderAgentQa({
-      agentRunId: run.id,
-      organizationId: project.organizationId,
-    });
-
-    expect(result).toMatchObject({
-      ok: false,
-      code: "unsupported_provider_pull",
-    });
-
-    const failed = await getAgentRun({
-      runId: run.id,
-      organizationId: project.organizationId,
-    });
-
-    expect(failed?.status).toBe("failed");
-    expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
-  });
-
   it("fails when projectId is missing from the input snapshot", async () => {
     const project = await createExternalTmsProject();
 
