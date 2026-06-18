@@ -4,6 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
+import { formatPendingActionCount } from "./overview-attention";
+
 export function OverviewSectionHeader({
   title,
   count,
@@ -21,7 +23,7 @@ export function OverviewSectionHeader({
           variant="outline"
           className="size-5 justify-center rounded-full border-beam-500/30 bg-beam-500/15 p-0 text-xs font-medium text-beam-100"
         >
-          {count > 9 ? "9+" : count}
+          {formatPendingActionCount(count)}
         </Badge>
       ) : null}
     </div>

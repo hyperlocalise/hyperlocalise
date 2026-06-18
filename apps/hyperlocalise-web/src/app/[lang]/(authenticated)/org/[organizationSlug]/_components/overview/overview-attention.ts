@@ -52,6 +52,7 @@ export function computeProjectPendingActionCount(
   return count;
 }
 
+/** Cap a badge count to "9+" for display. Used by section headers and snapshot counts. */
 export function formatPendingActionCount(count: number) {
   if (count > 9) {
     return "9+";

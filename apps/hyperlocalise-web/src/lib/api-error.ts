@@ -1,3 +1,5 @@
+import type { z } from "zod";
+
 type ApiErrorResponseBody = {
   error?: unknown;
   message?: unknown;
@@ -46,6 +48,24 @@ export async function readApiResponseError(response: Response, fallback: string)
 
 export async function readApiError(response: Response, fallback: string) {
   return (await readApiResponseError(response, fallback)).message;
+}
+
+export async function parseApiJsonResponse<TSchema extends z.ZodType>(
+  response: Response,
+  schema: TSchema,
+  fallbackMessage: string,
+): Promise<z.infer<TSchema>> {
+  const body: unknown = await response.json().catch(() => null);
+  const parsed = schema.safeParse(body);
+
+  if (!parsed.success) {
+    throw new ApiResponseError(fallbackMessage, {
+      code: "invalid_response",
+      status: response.status,
+    });
+  }
+
+  return parsed.data;
 }
 
 export function isApiResponseErrorCode(error: unknown, code: string) {

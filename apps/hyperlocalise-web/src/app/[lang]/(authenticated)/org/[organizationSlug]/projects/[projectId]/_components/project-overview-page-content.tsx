@@ -10,13 +10,17 @@ import {
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { jobsResponseSchema } from "@/api/routes/project/job.schema";
+import {
+  projectFilesResponseSchema,
+  type ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
-import { readApiResponseError } from "@/lib/api-error";
+import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
 
@@ -416,13 +420,17 @@ export function ProjectOverviewPageContent({
         ":projectId"
       ].jobs.$get({
         param: { organizationSlug, projectId },
-        query: { limit: "5" },
+        query: { limit: "5", open: true },
       });
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to load project jobs");
       }
-      const body = (await response.json()) as { jobs: ApiJob[] };
-      return body.jobs;
+      const { jobs } = await parseApiJsonResponse(
+        response,
+        jobsResponseSchema,
+        "Invalid project jobs response",
+      );
+      return jobs as ApiJob[];
     },
   });
 
@@ -438,8 +446,12 @@ export function ProjectOverviewPageContent({
       if (!response.ok) {
         throw await readApiResponseError(response, "Failed to load project files");
       }
-      const body = (await response.json()) as { files: ProjectFileRecord[] };
-      return body.files;
+      const { files } = await parseApiJsonResponse(
+        response,
+        projectFilesResponseSchema,
+        "Invalid project files response",
+      );
+      return files;
     },
   });
 
