@@ -354,6 +354,32 @@ func TestMarshalJSONTargetNestedStringArrayRoundTrip(t *testing.T) {
 	}
 }
 
+func TestMarshalJSONTargetGrowsNestedStringArrayRows(t *testing.T) {
+	template := []byte(`{"rows":[[]]}`)
+	values := map[string]string{"rows[0][0]": "alpha"}
+	content, err := marshalJSONTarget("/tmp/nested.json", template, values, nil)
+	if err != nil {
+		t.Fatalf("marshal nested string arrays with growth: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode nested payload: %v", err)
+	}
+
+	rows := payload["rows"].([]any)
+	inner, ok := rows[0].([]any)
+	if !ok {
+		t.Fatalf("expected rows[0] to be an array, got %T", rows[0])
+	}
+	if len(inner) != 1 {
+		t.Fatalf("expected grown inner row length 1, got %d", len(inner))
+	}
+	if got := inner[0]; got != "alpha" {
+		t.Fatalf("rows[0][0] mismatch: %v", got)
+	}
+}
+
 func TestParseJSONPathNestedArrayIndices(t *testing.T) {
 	segments, err := parseJSONPath("rows[0][1]")
 	if err != nil {

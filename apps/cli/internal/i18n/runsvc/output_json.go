@@ -334,127 +334,170 @@ func parseJSONPathPart(part string) ([]jsonPathSegment, error) {
 	return segments, nil
 }
 
+type jsonPathCursor struct {
+	node      any
+	parentArr []any
+	parentIdx int
+	hasParent bool
+}
+
 func setNestedValue(payload map[string]any, dottedKey, value string) {
 	segments, err := parseJSONPath(dottedKey)
 	if err != nil {
 		return
 	}
 
-	current := any(payload)
+	cursor := jsonPathCursor{node: payload}
 	for i := 0; i < len(segments)-1; i++ {
 		var nextSegment *jsonPathSegment
 		if i+1 < len(segments) {
 			nextSegment = &segments[i+1]
 		}
-		next, ok := descendJSONPath(current, segments[i], nextSegment, true)
-		if !ok {
+		if !cursor.descend(segments[i], nextSegment, true) {
 			return
 		}
-		current = next
 	}
-
-	setJSONPathValue(current, segments[len(segments)-1], value)
+	cursor.setValue(segments[len(segments)-1], value)
 }
 
-func setJSONPathValue(current any, segment jsonPathSegment, value string) {
-	switch typed := current.(type) {
-	case map[string]any:
-		if segment.index == nil {
-			typed[segment.key] = value
-			return
+func (c *jsonPathCursor) writeBackArray(arr []any) {
+	if c.hasParent {
+		c.parentArr[c.parentIdx] = arr
+	}
+}
+
+func extendJSONArray(arr []any, index int, create bool) ([]any, bool) {
+	if len(arr) <= index {
+		if !create {
+			return nil, false
 		}
-		arr, ok := typed[segment.key].([]any)
-		if !ok {
-			arr = make([]any, *segment.index+1)
-		}
-		for len(arr) <= *segment.index {
+		for len(arr) <= index {
 			arr = append(arr, nil)
 		}
-		typed[segment.key] = arr
-		arr[*segment.index] = value
-	case []any:
-		if segment.index == nil {
-			return
-		}
-		for len(typed) <= *segment.index {
-			typed = append(typed, nil)
-		}
-		typed[*segment.index] = value
 	}
+	return arr, true
 }
 
-func descendJSONPath(current any, segment jsonPathSegment, nextSegment *jsonPathSegment, create bool) (any, bool) {
+func (c *jsonPathCursor) descend(segment jsonPathSegment, nextSegment *jsonPathSegment, create bool) bool {
 	if segment.key != "" {
-		currentMap, ok := current.(map[string]any)
+		currentMap, ok := c.node.(map[string]any)
 		if !ok {
-			return nil, false
+			return false
 		}
 		if segment.index == nil {
 			next, ok := currentMap[segment.key]
 			if !ok {
 				if !create {
-					return nil, false
+					return false
 				}
-				nested := map[string]any{}
-				currentMap[segment.key] = nested
-				return nested, true
+				next = map[string]any{}
+				currentMap[segment.key] = next
 			}
 			nested, ok := next.(map[string]any)
 			if !ok {
 				if !create {
-					return nil, false
+					return false
 				}
 				nested = map[string]any{}
 				currentMap[segment.key] = nested
 			}
-			return nested, true
+			c.node = nested
+			c.hasParent = false
+			return true
 		}
 
 		next, ok := currentMap[segment.key]
 		if !ok {
 			if !create {
-				return nil, false
+				return false
 			}
 			next = []any{}
 			currentMap[segment.key] = next
 		}
 		arr, ok := next.([]any)
 		if !ok {
-			return nil, false
+			return false
 		}
-		for len(arr) <= *segment.index {
-			if !create {
-				return nil, false
-			}
-			arr = append(arr, nil)
+		arr, ok = extendJSONArray(arr, *segment.index, create)
+		if !ok {
+			return false
 		}
 		currentMap[segment.key] = arr
-		return ensureJSONArrayElement(arr, *segment.index, nextSegment, create)
-	}
-
-	arr, ok := current.([]any)
-	if !ok {
-		return nil, false
-	}
-	for len(arr) <= *segment.index {
-		if !create {
-			return nil, false
+		elem := arr[*segment.index]
+		if elem == nil && create {
+			elem = newJSONPathChild(nextSegment)
+			arr[*segment.index] = elem
+			currentMap[segment.key] = arr
 		}
-		arr = append(arr, nil)
+		if elem == nil {
+			return create
+		}
+		c.node = elem
+		c.parentArr = arr
+		c.parentIdx = *segment.index
+		c.hasParent = true
+		return true
 	}
-	return ensureJSONArrayElement(arr, *segment.index, nextSegment, create)
-}
 
-func ensureJSONArrayElement(arr []any, index int, nextSegment *jsonPathSegment, create bool) (any, bool) {
-	elem := arr[index]
+	arr, ok := c.node.([]any)
+	if !ok {
+		return false
+	}
+	arr, ok = extendJSONArray(arr, *segment.index, create)
+	if !ok {
+		return false
+	}
+	c.writeBackArray(arr)
+	elem := arr[*segment.index]
 	if elem == nil && create {
 		elem = newJSONPathChild(nextSegment)
-		arr[index] = elem
+		arr[*segment.index] = elem
+		c.writeBackArray(arr)
 	}
 	if elem == nil {
-		return nil, create
+		return create
 	}
-	return elem, true
+	c.node = elem
+	c.parentArr = arr
+	c.parentIdx = *segment.index
+	c.hasParent = true
+	return true
+}
+
+func (c *jsonPathCursor) setValue(segment jsonPathSegment, value string) {
+	if segment.key != "" {
+		currentMap, ok := c.node.(map[string]any)
+		if !ok {
+			return
+		}
+		if segment.index == nil {
+			currentMap[segment.key] = value
+			return
+		}
+		arr, ok := currentMap[segment.key].([]any)
+		if !ok {
+			arr = make([]any, *segment.index+1)
+		}
+		arr, ok = extendJSONArray(arr, *segment.index, true)
+		if !ok {
+			return
+		}
+		arr[*segment.index] = value
+		currentMap[segment.key] = arr
+		return
+	}
+
+	arr, ok := c.node.([]any)
+	if !ok {
+		return
+	}
+	arr, ok = extendJSONArray(arr, *segment.index, true)
+	if !ok {
+		return
+	}
+	c.writeBackArray(arr)
+	arr[*segment.index] = value
+	c.writeBackArray(arr)
 }
 
 func newJSONPathChild(nextSegment *jsonPathSegment) any {
