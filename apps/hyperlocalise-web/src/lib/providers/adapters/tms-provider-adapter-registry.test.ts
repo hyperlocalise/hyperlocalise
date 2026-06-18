@@ -21,6 +21,12 @@ import {
   adapterSupportsReviewPull,
   adapterSupportsTranslationMemoryMatch,
 } from "@/lib/providers/tms-provider-adapter-capabilities";
+import {
+  providerSupportsCommentPush as clientProviderSupportsCommentPush,
+  providerSupportsGlossaryMatch as clientProviderSupportsGlossaryMatch,
+  providerSupportsReviewPull as clientProviderSupportsReviewPull,
+  providerSupportsTranslationMemoryMatch as clientProviderSupportsTranslationMemoryMatch,
+} from "@/lib/providers/tms-provider-optional-capabilities";
 
 describe("tmsProviderAdapters", () => {
   it("registers all known providers as TmsProviderAdapter instances", () => {
@@ -46,6 +52,23 @@ describe("tmsProviderAdapters", () => {
 });
 
 describe("optional adapter capabilities", () => {
+  it("keeps client-safe optional capability flags aligned with adapter overrides", () => {
+    for (const adapter of Object.values(tmsProviderAdapters)) {
+      expect(clientProviderSupportsReviewPull(adapter.kind)).toBe(
+        adapterSupportsReviewPull(adapter),
+      );
+      expect(clientProviderSupportsCommentPush(adapter.kind)).toBe(
+        adapterSupportsCommentPush(adapter),
+      );
+      expect(clientProviderSupportsGlossaryMatch(adapter.kind)).toBe(
+        adapterSupportsGlossaryMatch(adapter),
+      );
+      expect(clientProviderSupportsTranslationMemoryMatch(adapter.kind)).toBe(
+        adapterSupportsTranslationMemoryMatch(adapter),
+      );
+    }
+  });
+
   it("derives optional capabilities from adapter method overrides", () => {
     for (const adapter of Object.values(tmsProviderAdapters)) {
       expect(providerSupportsReviewPull(adapter.kind)).toBe(adapterSupportsReviewPull(adapter));

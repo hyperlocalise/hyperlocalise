@@ -5,7 +5,7 @@ import {
   type TmsProviderCapabilityAction,
 } from "./tms-capabilities";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
-import { providerSupportsCommentPush } from "./adapters/tms-provider-adapter-registry";
+import { providerSupportsCommentPush } from "./tms-provider-optional-capabilities";
 import type { JobProviderActionId } from "./job-provider-action-ids";
 
 export type { JobProviderActionId } from "./job-provider-action-ids";
