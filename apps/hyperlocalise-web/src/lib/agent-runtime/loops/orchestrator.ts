@@ -76,11 +76,6 @@ export function buildOrchestratorInstructions(input: {
     );
   }
 
-  lines.push(
-    "",
-    "After each agent returns, synthesize one clear user-facing reply that covers every intent addressed.",
-  );
-
   return lines.join("\n");
 }
 

@@ -50,6 +50,21 @@ describe("conversation orchestrator", () => {
     expect(instructions.split(marker).length - 1).toBe(1);
   });
 
+  it("includes the synthesis instruction only once", () => {
+    const instructions = buildOrchestratorInstructions({
+      surface: "web",
+      projectId: null,
+      suggestedIntents: ["repository"],
+      suggestedMode: "repository",
+      availableSubagents: ["repository"],
+      preferredSubagents: ["repository"],
+    });
+
+    const marker =
+      "After each agent returns, synthesize one clear user-facing reply that covers every intent addressed.";
+    expect(instructions.split(marker).length - 1).toBe(1);
+  });
+
   it("frames repository delegation as localization context exploration", () => {
     const instructions = buildOrchestratorInstructions({
       surface: "web",

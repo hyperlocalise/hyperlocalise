@@ -17,6 +17,7 @@ export type ContentfulAgentSession = {
   workspaceAutomationRunId: string;
   projectId: string;
   instructions: string;
+  userBindingContext?: string | null;
   sourceLocale: string;
   targetLocales: string[];
   runQa: boolean;

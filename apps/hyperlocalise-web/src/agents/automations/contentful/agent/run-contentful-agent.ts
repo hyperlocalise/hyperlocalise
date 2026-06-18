@@ -90,6 +90,7 @@ export async function runContentfulAgent(
       workspaceAutomationRunId: input.workspaceAutomationRunId,
       projectId: run.projectId,
       instructions: composedInstructions,
+      userBindingContext: userInstructions,
       sourceLocale: run.sourceLocale,
       targetLocales: run.targetLocales,
       runQa: run.runQa,

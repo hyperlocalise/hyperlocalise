@@ -131,7 +131,7 @@ export function buildContentfulAgentTools(session: ContentfulAgentSession): Tool
         sourceText,
         targetLocales: locales,
         sourceLocale: session.sourceLocale,
-        context: session.instructions,
+        context: session.userBindingContext ?? undefined,
       });
 
       for (const translation of result.translations) {
