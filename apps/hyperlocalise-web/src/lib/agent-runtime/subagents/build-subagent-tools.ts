@@ -12,16 +12,28 @@ import { createTranslateStringTool } from "@/agents/_runtime/shared-tools/transl
 import type { HyperlocaliseSubagentType } from "./types";
 
 const subagentToolNames = {
-  translation: ["createTranslationJob", "translate_string"],
+  translation: ["createTranslationJob"],
   repository: [...repositoryWorkspaceToolNames],
 } satisfies Record<HyperlocaliseSubagentType, string[]>;
+
+function listTranslationToolNames(projectId: string | null): string[] {
+  const names = [...subagentToolNames.translation];
+  if (projectId) {
+    names.push("translate_string");
+  }
+  return names;
+}
 
 export function buildSubagentToolSet(
   toolContext: ToolContext,
   subagentType: HyperlocaliseSubagentType,
 ): ToolSet {
   const built = buildTools(toolContext);
-  const filtered = filterToolSetByNames(built, subagentToolNames[subagentType]);
+  const names =
+    subagentType === "translation"
+      ? listTranslationToolNames(toolContext.projectId)
+      : subagentToolNames[subagentType];
+  const filtered = filterToolSetByNames(built, names);
 
   if (subagentType === "translation" && toolContext.projectId) {
     return {
@@ -33,6 +45,13 @@ export function buildSubagentToolSet(
   return filtered;
 }
 
-export function listSubagentToolNames(subagentType: HyperlocaliseSubagentType): string[] {
+export function listSubagentToolNames(
+  subagentType: HyperlocaliseSubagentType,
+  options?: { projectId?: string | null },
+): string[] {
+  if (subagentType === "translation") {
+    return listTranslationToolNames(options?.projectId ?? null);
+  }
+
   return [...subagentToolNames[subagentType]];
 }

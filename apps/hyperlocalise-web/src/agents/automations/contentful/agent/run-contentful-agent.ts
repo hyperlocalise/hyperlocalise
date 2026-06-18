@@ -1,7 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { stepCountIs, ToolLoopAgent } from "ai";
 
-import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import type { ContentfulAutomationExecutionEvent } from "@/lib/contentful/automation-executor";
@@ -105,11 +104,7 @@ export async function runContentfulAgent(
     const tools = buildContentfulAgentTools(session);
     const agent = new ToolLoopAgent({
       model: getHyperlocaliseAgentModel(),
-      instructions: composeInstructions({
-        automationId: "contentful",
-        skills: ["translate-contentful-article"],
-        dynamicSections: [composedInstructions],
-      }),
+      instructions: composedInstructions,
       tools,
       stopWhen: stepCountIs(CONTENTFUL_AGENT_STEP_LIMIT),
       timeout: WORKFLOW_AGENT_TIMEOUT,
