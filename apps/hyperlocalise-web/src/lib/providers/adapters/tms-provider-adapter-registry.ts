@@ -18,6 +18,12 @@ import type {
 } from "@/lib/providers/tms-provider-types";
 import type { ExternalTmsGlossaryMatcher } from "@/lib/providers/contracts/glossary-matcher";
 import type { ExternalTmsTranslationMemoryMatcher } from "@/lib/providers/contracts/translation-memory-matcher";
+import {
+  providerSupportsCommentPush,
+  providerSupportsGlossaryMatch,
+  providerSupportsReviewPull,
+  providerSupportsTranslationMemoryMatch,
+} from "@/lib/providers/tms-provider-optional-capabilities";
 
 const crowdinAdapter = new CrowdinTmsAdapter();
 const phraseAdapter = new PhraseTmsAdapter();
@@ -229,50 +235,37 @@ export function getProviderTranslationPusher(
   return adapter ? asTranslationPusher(adapter) : null;
 }
 
-const reviewPullerKinds = new Set<ExternalTmsProviderKind>(["crowdin", "phrase", "lokalise"]);
-
 export function getProviderReviewPuller(
   providerKind: ExternalTmsProviderKind,
 ): ExternalTmsReviewPuller | null {
-  if (!reviewPullerKinds.has(providerKind)) {
+  if (!providerSupportsReviewPull(providerKind)) {
     return null;
   }
   return asReviewPuller(tmsProviderAdapters[providerKind]);
 }
 
-const commentPusherKinds = new Set<ExternalTmsProviderKind>(["crowdin", "lokalise", "smartling"]);
-
 export function getProviderCommentPusher(
   providerKind: ExternalTmsProviderKind,
 ): ExternalTmsCommentPusher | null {
-  if (!commentPusherKinds.has(providerKind)) {
+  if (!providerSupportsCommentPush(providerKind)) {
     return null;
   }
   return asCommentPusher(tmsProviderAdapters[providerKind]);
 }
 
-const glossaryMatcherKinds = new Set<ExternalTmsProviderKind>(["crowdin", "lokalise", "smartling"]);
-
 export function getProviderGlossaryMatcher(
   providerKind: ExternalTmsProviderKind,
 ): ExternalTmsGlossaryMatcher | null {
-  if (!glossaryMatcherKinds.has(providerKind)) {
+  if (!providerSupportsGlossaryMatch(providerKind)) {
     return null;
   }
   return asGlossaryMatcher(tmsProviderAdapters[providerKind]);
 }
 
-const translationMemoryMatcherKinds = new Set<ExternalTmsProviderKind>([
-  "crowdin",
-  "phrase",
-  "lokalise",
-  "smartling",
-]);
-
 export function getProviderTranslationMemoryMatcher(
   providerKind: ExternalTmsProviderKind,
 ): ExternalTmsTranslationMemoryMatcher | null {
-  if (!translationMemoryMatcherKinds.has(providerKind)) {
+  if (!providerSupportsTranslationMemoryMatch(providerKind)) {
     return null;
   }
   return asTranslationMemoryMatcher(tmsProviderAdapters[providerKind]);

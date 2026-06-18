@@ -11,6 +11,12 @@ import {
   tmsProviderAdapters,
 } from "@/lib/providers/adapters/tms-provider-adapter-registry";
 import { TmsProviderAdapter } from "@/lib/providers/contracts/tms-provider-adapter";
+import {
+  providerSupportsCommentPush,
+  providerSupportsGlossaryMatch,
+  providerSupportsReviewPull,
+  providerSupportsTranslationMemoryMatch,
+} from "@/lib/providers/tms-provider-optional-capabilities";
 
 describe("tmsProviderAdapters", () => {
   it("registers all known providers as TmsProviderAdapter instances", () => {
@@ -44,6 +50,10 @@ describe("optional adapter capabilities", () => {
   ] as const)(
     "%s review=%s comments=%s glossary=%s tm=%s",
     (provider, review, comments, glossary, tm) => {
+      expect(providerSupportsReviewPull(provider)).toBe(review);
+      expect(providerSupportsCommentPush(provider)).toBe(comments);
+      expect(providerSupportsGlossaryMatch(provider)).toBe(glossary);
+      expect(providerSupportsTranslationMemoryMatch(provider)).toBe(tm);
       expect(getProviderReviewPuller(provider) != null).toBe(review);
       expect(getProviderCommentPusher(provider) != null).toBe(comments);
       expect(getProviderGlossaryMatcher(provider) != null).toBe(glossary);
