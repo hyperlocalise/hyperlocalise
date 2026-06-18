@@ -1,3 +1,5 @@
+import { getWorkflowMetadata } from "workflow";
+
 import type { WorkspaceAutomationExecutionEventData } from "@/lib/workflow/types";
 
 import { executeWorkspaceAutomationStep } from "./steps/workspace-automation-execution";
@@ -7,6 +9,7 @@ export async function workspaceAutomationExecutionWorkflow(
 ) {
   "use workflow";
 
+  const { workflowRunId } = getWorkflowMetadata();
   const result = await executeWorkspaceAutomationStep(event);
 
   if (!result.ok) {
@@ -14,6 +17,7 @@ export async function workspaceAutomationExecutionWorkflow(
       ok: false as const,
       runId: result.error.runId ?? event.workspaceAutomationRunId,
       message: result.error.message,
+      workflowRunId,
     };
   }
 
@@ -21,5 +25,6 @@ export async function workspaceAutomationExecutionWorkflow(
     ok: true as const,
     runId: result.value.runId,
     status: result.value.status,
+    workflowRunId,
   };
 }

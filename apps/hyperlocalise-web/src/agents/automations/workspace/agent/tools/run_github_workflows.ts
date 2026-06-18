@@ -130,10 +130,12 @@ export function createRunGithubWorkflowsTool(session: WorkspaceOrchestratorSessi
         .optional()
         .describe("Optional operator note to include in the run record."),
     }),
-    execute: async () => {
+    execute: async ({ summary }) => {
       if (!session.repository) {
         throw new Error("github_repository_target_required");
       }
+
+      const operatorNote = summary?.trim() || undefined;
 
       const githubSettings = workspaceAutomationToGithubSettings(session.automation);
       if (!githubSettings) {
@@ -190,8 +192,13 @@ export function createRunGithubWorkflowsTool(session: WorkspaceOrchestratorSessi
         completedAt: claim.job.status === "skipped" ? new Date() : null,
         outputSummary:
           claim.job.status === "skipped"
-            ? { skipReason: claim.job.skipReason ?? "automation_skipped" }
-            : {},
+            ? {
+                ...(operatorNote ? { operatorNote } : {}),
+                skipReason: claim.job.skipReason ?? "automation_skipped",
+              }
+            : operatorNote
+              ? { operatorNote }
+              : {},
       });
 
       if (claim.job.status === "skipped") {
@@ -230,6 +237,7 @@ export function createRunGithubWorkflowsTool(session: WorkspaceOrchestratorSessi
         organizationId: session.organizationId,
         status: mappedStatus,
         outputSummary: {
+          ...(operatorNote ? { operatorNote } : {}),
           ...terminalJob.resultSummary,
           ...(terminalJob.skipReason ? { skipReason: terminalJob.skipReason } : {}),
           githubRepositoryAutomationJobId: terminalJob.id,

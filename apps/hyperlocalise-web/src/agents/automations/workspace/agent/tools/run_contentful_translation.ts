@@ -93,7 +93,8 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
         runId: session.run.id,
         organizationId: session.organizationId,
         status: "running",
-        startedAt: session.run.startedAt ? undefined : new Date(),
+        startedAt: undefined,
+        completedAt: null,
       });
 
       const result = await runContentfulAgent(
