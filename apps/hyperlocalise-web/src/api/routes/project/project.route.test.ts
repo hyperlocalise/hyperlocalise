@@ -128,6 +128,7 @@ describe("project detail route", () => {
       targetLocales: ["fr", "de"],
       openJobCount: 1,
     });
+    expect(getTmsProviderLiveProjectMock).toHaveBeenCalledTimes(1);
     expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith(organizationId, externalProjectId, {
       actorUserId: userId,
     });

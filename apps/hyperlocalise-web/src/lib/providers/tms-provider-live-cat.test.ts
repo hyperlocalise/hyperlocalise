@@ -894,6 +894,7 @@ describe("getTmsProviderLiveCatFile", () => {
         const params = new URL(path).searchParams;
         const offset = Number(params.get("offset") ?? "0");
         const limit = Number(params.get("limit") ?? "500");
+        expect(limit).toBeLessThanOrEqual(500);
         return new Response(JSON.stringify({ data: stringPage(offset, limit) }), { status: 200 });
       }
 
