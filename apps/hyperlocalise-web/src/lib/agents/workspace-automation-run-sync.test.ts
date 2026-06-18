@@ -1,15 +1,7 @@
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-
-const { notifyWorkspaceAutomationTerminalRunMock } = vi.hoisted(() => ({
-  notifyWorkspaceAutomationTerminalRunMock: vi.fn(async () => ({ notificationSent: true })),
-}));
-
-vi.mock("./workspace-automation-notifications", () => ({
-  notifyWorkspaceAutomationTerminalRun: notifyWorkspaceAutomationTerminalRunMock,
-}));
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 
@@ -96,17 +88,65 @@ describe("workspace automation run sync", () => {
     await db.$client.query("select 1");
   });
 
-  beforeEach(() => {
-    notifyWorkspaceAutomationTerminalRunMock.mockClear();
-  });
-
   afterEach(async () => {
     for (const organizationId of organizationIds.splice(0)) {
       await db.delete(schema.organizations).where(eq(schema.organizations.id, organizationId));
     }
   });
 
-  it("only sends terminal notifications on the first transition into a terminal state", async () => {
+  it("does not overwrite orchestrator-managed terminal workspace runs from github job sync", async () => {
+    const scope = await seedRunSyncScope();
+    const automation = expectOk(
+      await createWorkspaceAutomation({
+        organizationId: scope.organizationId,
+        authorUserId: scope.userId,
+        name: "Repository automation",
+        instructions: "Run repository automation.",
+      }),
+    );
+    const { job } = await claimGithubRepositoryAutomationJob({
+      idempotencyKey: `workspace-automation:${crypto.randomUUID()}`,
+      organizationId: scope.organizationId,
+      githubInstallationRepositoryId: scope.githubInstallationRepositoryId,
+      githubInstallationId: scope.githubInstallationId,
+      githubRepositoryId: scope.githubRepositoryId,
+      configVersion: 1,
+      triggerMode: "scheduled",
+      scheduledRunAt: new Date("2026-06-01T12:00:00.000Z"),
+    });
+
+    await createWorkspaceAutomationRun({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+      triggerSource: "scheduled",
+      status: "running",
+      githubRepositoryAutomationJobId: job.id,
+      startedAt: new Date("2026-06-01T12:01:00.000Z"),
+      outputSummary: {
+        orchestratorEnqueuedAt: "2026-06-01T12:00:30.000Z",
+      },
+    });
+
+    await syncWorkspaceAutomationRunsForGithubJob({
+      jobId: job.id,
+      status: "succeeded",
+      resultSummary: { changedFiles: 2 },
+      completedAt: new Date("2026-06-01T12:02:00.000Z"),
+    });
+
+    const [syncedRun] = await listWorkspaceAutomationRuns({
+      automationId: automation.id,
+      organizationId: scope.organizationId,
+    });
+    expect(syncedRun).toMatchObject({
+      status: "running",
+      outputSummary: {
+        orchestratorEnqueuedAt: "2026-06-01T12:00:30.000Z",
+      },
+    });
+  });
+
+  it("still syncs legacy workspace runs without orchestrator metadata", async () => {
     const scope = await seedRunSyncScope();
     const automation = expectOk(
       await createWorkspaceAutomation({
@@ -137,17 +177,12 @@ describe("workspace automation run sync", () => {
     });
 
     const completedAt = new Date("2026-06-01T12:02:00.000Z");
-    const syncInput = {
+    await syncWorkspaceAutomationRunsForGithubJob({
       jobId: job.id,
-      status: "succeeded" as const,
+      status: "succeeded",
       resultSummary: { changedFiles: 2 },
       completedAt,
-    };
-
-    await syncWorkspaceAutomationRunsForGithubJob(syncInput);
-    await syncWorkspaceAutomationRunsForGithubJob(syncInput);
-
-    expect(notifyWorkspaceAutomationTerminalRunMock).toHaveBeenCalledTimes(1);
+    });
 
     const [syncedRun] = await listWorkspaceAutomationRuns({
       automationId: automation.id,
@@ -157,7 +192,6 @@ describe("workspace automation run sync", () => {
       status: "succeeded",
       outputSummary: {
         changedFiles: 2,
-        notificationSent: true,
       },
       completedAt: completedAt.toISOString(),
     });

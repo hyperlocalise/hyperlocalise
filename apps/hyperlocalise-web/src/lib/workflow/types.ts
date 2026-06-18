@@ -110,6 +110,13 @@ export type ContentfulAutomationExecutionEventData = {
 
 export type ContentfulAutomationExecutionQueue = JobQueue<ContentfulAutomationExecutionEventData>;
 
+export type WorkspaceAutomationExecutionEventData = {
+  workspaceAutomationRunId: string;
+  organizationId: string;
+};
+
+export type WorkspaceAutomationExecutionQueue = JobQueue<WorkspaceAutomationExecutionEventData>;
+
 export type ProviderSyncEventData = {
   providerSyncIntentId: string;
   organizationId: string;

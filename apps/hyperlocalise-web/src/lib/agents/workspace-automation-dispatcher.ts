@@ -1,19 +1,8 @@
 import { createLogger } from "@/lib/log";
+import { composeWorkspaceAutomationInstructions } from "@/agents/automations/workspace/agent/compose-workspace-instructions";
+import { buildWorkspaceOrchestratorPlan } from "@/agents/automations/workspace/agent/plan";
+import { isWorkspaceOrchestratorEnabled } from "@/lib/agents/workspace-orchestrator-enabled";
 
-import {
-  buildGithubPushAutomationIdempotencyKey,
-  buildGithubScheduledAutomationIdempotencyKey,
-} from "./github/github-repository-automation-idempotency";
-import {
-  buildGithubRepoAutomationDispatchPayload,
-  shouldRunAutomationForPushBranch,
-} from "./github/github-repository-automation-settings";
-import {
-  claimGithubRepositoryAutomationJob,
-  type GithubRepositoryAutomationJobRecord,
-} from "./github/github-repository-automation-jobs";
-import { enqueueGithubRepositoryAutomationJob } from "./github/github-repository-automation-worker";
-import { githubRepositoryAutomationJobHasRunnableWorkflow } from "./github/github-repository-automation-workflows";
 import {
   buildWorkspaceContentfulScheduledAutomationIdempotencyKey,
   buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
@@ -24,21 +13,20 @@ import {
 import {
   hasWorkspaceAutomationGithubWorkflow,
   workspaceAutomationMatchesPushBranch,
-  workspaceAutomationToGithubSettings,
 } from "./workspace-automation-github-mapping";
 import {
   advanceWorkspaceAutomationNextRun,
   createWorkspaceAutomationRun,
+  getWorkspaceAutomationRunByIdempotencyKey,
   hasWorkspaceAutomationContentfulWorkflow,
   listDueContentfulWorkspaceAutomations,
   listWorkspaceAutomations,
   updateWorkspaceAutomationRun,
   type WorkspaceAutomationRecord,
+  type WorkspaceAutomationRunTriggerSource,
 } from "./workspace-automations";
-import { createContentfulTranslationRun } from "@/lib/contentful/automation-executor";
-import { composeContentfulAutomationInstructions } from "@/agents/automations/workspace/agent/workspace-template-manifest";
-import type { ContentfulAutomationExecutionQueue } from "@/lib/workflow/types";
-import { createContentfulAutomationExecutionQueue } from "@/workflows/adapters";
+import type { WorkspaceAutomationExecutionQueue } from "@/lib/workflow/types";
+import { createWorkspaceAutomationExecutionQueue } from "@/workflows/adapters";
 
 const logger = createLogger("workspace-automation-dispatch");
 
@@ -46,287 +34,180 @@ export type WorkspaceAutomationDispatchResult =
   | {
       outcome: "enqueued";
       runId: string;
-      job: GithubRepositoryAutomationJobRecord;
       inserted: boolean;
     }
   | {
       outcome: "skipped";
       runId: string;
-      job: GithubRepositoryAutomationJobRecord;
-      inserted: boolean;
-      skipReason: string;
-    }
-  | {
-      outcome: "enqueued";
-      runId: string;
-      contentfulTranslationRunId: string;
-      inserted: boolean;
-    }
-  | {
-      outcome: "skipped";
-      runId: string;
-      contentfulTranslationRunId: string | null;
       inserted: boolean;
       skipReason: string;
     };
 
-function contentfulQueue(input?: ContentfulAutomationExecutionQueue) {
-  return input ?? createContentfulAutomationExecutionQueue();
+function orchestratorQueue(input?: WorkspaceAutomationExecutionQueue) {
+  return input ?? createWorkspaceAutomationExecutionQueue();
 }
 
-async function enqueueWorkspaceContentfulAutomation(input: {
-  organizationId: string;
+function isTerminalRunStatus(status: string) {
+  return (
+    status === "succeeded" || status === "failed" || status === "skipped" || status === "cancelled"
+  );
+}
+
+function resolveTemplateSkillId(inputSnapshot: Record<string, unknown>) {
+  return typeof inputSnapshot.templateSkillId === "string" ? inputSnapshot.templateSkillId : null;
+}
+
+function resolveContentfulDispatchSkipReason(input: {
   automation: WorkspaceAutomationRecord;
-  triggerSource: "scheduled" | "contentful" | "manual";
-  idempotencyKey: string;
-  connectionId: string;
   entryId: string | null;
-  contentTypeId?: string | null;
-  webhookEventId?: string | null;
-  scheduledRunAt?: Date | null;
-  queue?: ContentfulAutomationExecutionQueue;
-}): Promise<WorkspaceAutomationDispatchResult> {
+  triggerSource: WorkspaceAutomationRunTriggerSource;
+}) {
   const contentful = input.automation.toolConfig.contentful;
-  const projectId = contentful?.projectId;
-  const sourceLocale = contentful?.sourceLocale?.trim();
-  const targetLocales = contentful?.targetLocales ?? [];
-  const configSkipReason = !projectId
-    ? "contentful_project_missing"
-    : !sourceLocale
-      ? "contentful_source_locale_missing"
-      : !input.entryId
-        ? "contentful_entry_id_missing"
-        : !targetLocales.length
-          ? "contentful_target_locales_missing"
-          : null;
-
-  const run = await createWorkspaceAutomationRun({
-    automationId: input.automation.id,
-    organizationId: input.organizationId,
-    triggerSource: input.triggerSource,
-    status: configSkipReason ? "skipped" : "queued",
-    idempotencyKey: input.idempotencyKey,
-    inputSnapshot: {
-      automationConfigVersion: input.automation.configVersion,
-      automationName: input.automation.name,
-      instructions: input.automation.instructions,
-      effectiveInstructions: composeContentfulAutomationInstructions({
-        userOverride: input.automation.instructions,
-      }),
-      connectionId: input.connectionId,
-      ...(input.entryId ? { entryId: input.entryId } : {}),
-      ...(input.contentTypeId ? { contentTypeId: input.contentTypeId } : {}),
-      ...(input.webhookEventId ? { contentfulWebhookEventId: input.webhookEventId } : {}),
-      ...(input.scheduledRunAt ? { scheduledRunAt: input.scheduledRunAt.toISOString() } : {}),
-    },
-    completedAt: configSkipReason ? new Date() : null,
-    outputSummary: configSkipReason ? { skipReason: configSkipReason } : {},
-  });
-
-  if (configSkipReason) {
-    return {
-      outcome: "skipped",
-      runId: run.id,
-      contentfulTranslationRunId: null,
-      inserted: true,
-      skipReason: configSkipReason,
-    };
+  if (!hasWorkspaceAutomationContentfulWorkflow(input.automation.toolConfig)) {
+    return null;
   }
 
-  if (
-    input.entryId &&
-    typeof run.outputSummary.contentfulTranslationRunId === "string" &&
-    run.outputSummary.contentfulTranslationRunId.length > 0
-  ) {
+  if (!contentful?.connectionId) {
+    return "contentful_connection_missing";
+  }
+  if (!contentful.projectId) {
+    return "contentful_project_missing";
+  }
+  if (!contentful.sourceLocale?.trim()) {
+    return "contentful_source_locale_missing";
+  }
+  if (!contentful.targetLocales?.length) {
+    return "contentful_target_locales_missing";
+  }
+  if (!input.entryId) {
+    return "contentful_entry_id_missing";
+  }
+
+  return null;
+}
+
+async function dispatchWorkspaceAutomationViaOrchestrator(input: {
+  organizationId: string;
+  automation: WorkspaceAutomationRecord;
+  triggerSource: WorkspaceAutomationRunTriggerSource;
+  idempotencyKey: string;
+  inputSnapshot?: Record<string, unknown>;
+  preDispatchSkipReason?: string | null;
+  queue?: WorkspaceAutomationExecutionQueue;
+}): Promise<WorkspaceAutomationDispatchResult> {
+  const snapshot = {
+    automationConfigVersion: input.automation.configVersion,
+    automationName: input.automation.name,
+    instructions: input.automation.instructions,
+    ...input.inputSnapshot,
+  };
+
+  const templateSkillId = resolveTemplateSkillId(snapshot);
+  const plan = buildWorkspaceOrchestratorPlan(input.automation, { templateSkillId });
+  const skipReason =
+    input.preDispatchSkipReason ?? (plan.tools.length === 0 ? "no_enabled_tools" : null) ?? null;
+
+  const existing = await getWorkspaceAutomationRunByIdempotencyKey({
+    organizationId: input.organizationId,
+    automationId: input.automation.id,
+    idempotencyKey: input.idempotencyKey,
+  });
+
+  if (existing && isTerminalRunStatus(existing.status)) {
+    if (existing.status === "skipped") {
+      return {
+        outcome: "skipped",
+        runId: existing.id,
+        inserted: false,
+        skipReason:
+          typeof existing.outputSummary.skipReason === "string"
+            ? existing.outputSummary.skipReason
+            : "automation_skipped",
+      };
+    }
+
     return {
       outcome: "enqueued",
-      runId: run.id,
-      contentfulTranslationRunId: run.outputSummary.contentfulTranslationRunId,
+      runId: existing.id,
       inserted: false,
     };
   }
 
-  const translationRun = await createContentfulTranslationRun({
-    organizationId: input.organizationId,
-    connectionId: input.connectionId,
-    projectId: projectId!,
+  const run =
+    existing ??
+    (await createWorkspaceAutomationRun({
+      automationId: input.automation.id,
+      organizationId: input.organizationId,
+      triggerSource: input.triggerSource,
+      status: skipReason ? "skipped" : "queued",
+      idempotencyKey: input.idempotencyKey,
+      inputSnapshot: {
+        ...snapshot,
+        effectiveInstructions: composeWorkspaceAutomationInstructions({
+          templateSkillId,
+          userOverride: input.automation.instructions,
+          triggerMode: input.automation.triggerConfig.mode,
+          plan,
+        }),
+      },
+      completedAt: skipReason ? new Date() : null,
+      outputSummary: skipReason ? { skipReason } : {},
+    }));
+
+  const inserted = !existing;
+
+  if (skipReason) {
+    return {
+      outcome: "skipped",
+      runId: run.id,
+      inserted,
+      skipReason,
+    };
+  }
+
+  if (
+    typeof run.outputSummary.orchestratorEnqueuedAt === "string" &&
+    run.outputSummary.orchestratorEnqueuedAt.length > 0
+  ) {
+    return {
+      outcome: "enqueued",
+      runId: run.id,
+      inserted: false,
+    };
+  }
+
+  if (!isWorkspaceOrchestratorEnabled()) {
+    throw new Error("workspace_orchestrator_disabled");
+  }
+
+  await orchestratorQueue(input.queue).enqueue({
     workspaceAutomationRunId: run.id,
-    webhookEventId: input.webhookEventId ?? null,
-    entryId: input.entryId!,
-    contentTypeId: input.contentTypeId ?? null,
-    sourceLocale: sourceLocale!,
-    targetLocales,
-    runQa: contentful?.runQa ?? true,
-    writeDrafts: contentful?.writeDrafts ?? true,
-    overwriteDraftLocales: contentful?.overwriteDraftLocales ?? false,
+    organizationId: input.organizationId,
   });
 
   await updateWorkspaceAutomationRun({
     runId: run.id,
     organizationId: input.organizationId,
     outputSummary: {
-      contentfulTranslationRunId: translationRun.id,
+      ...run.outputSummary,
+      orchestratorEnqueuedAt: new Date().toISOString(),
     },
-  });
-
-  await contentfulQueue(input.queue).enqueue({
-    contentfulTranslationRunId: translationRun.id,
-    workspaceAutomationRunId: run.id,
-    organizationId: input.organizationId,
   });
 
   return {
     outcome: "enqueued",
     runId: run.id,
-    contentfulTranslationRunId: translationRun.id,
-    inserted: true,
-  };
-}
-
-async function linkWorkspaceAutomationRun(input: {
-  organizationId: string;
-  automation: WorkspaceAutomationRecord;
-  triggerSource: "manual" | "scheduled" | "github";
-  idempotencyKey: string;
-  scheduledRunAt?: Date;
-  githubDeliveryId?: string;
-  pushBranch?: string;
-  commitBefore?: string;
-  commitAfter?: string;
-  inputSnapshot?: Record<string, unknown>;
-  dispatchPayload: NonNullable<ReturnType<typeof buildGithubRepoAutomationDispatchPayload>>;
-  repository: {
-    id: string;
-    githubInstallationId: string;
-    githubRepositoryId: string;
-  };
-}): Promise<WorkspaceAutomationDispatchResult> {
-  const workspaceRunIdempotencyKey =
-    input.triggerSource === "manual"
-      ? buildWorkspaceManualAutomationIdempotencyKey({
-          automationId: input.automation.id,
-          configVersion: input.automation.configVersion,
-          idempotencyKey: input.idempotencyKey,
-        })
-      : input.idempotencyKey;
-
-  const run = await createWorkspaceAutomationRun({
-    automationId: input.automation.id,
-    organizationId: input.organizationId,
-    triggerSource: input.triggerSource,
-    status: "queued",
-    idempotencyKey: workspaceRunIdempotencyKey,
-    inputSnapshot: {
-      ...input.inputSnapshot,
-      automationConfigVersion: input.automation.configVersion,
-      automationName: input.automation.name,
-      instructions: input.automation.instructions,
-      ...(input.scheduledRunAt ? { scheduledRunAt: input.scheduledRunAt.toISOString() } : {}),
-      ...(input.githubDeliveryId ? { githubDeliveryId: input.githubDeliveryId } : {}),
-      ...(input.pushBranch ? { pushBranch: input.pushBranch } : {}),
-      ...(input.commitBefore ? { commitBefore: input.commitBefore } : {}),
-      ...(input.commitAfter ? { commitAfter: input.commitAfter } : {}),
-    },
-  });
-
-  const githubIdempotencyKey =
-    input.triggerSource === "manual"
-      ? buildWorkspaceManualAutomationIdempotencyKey({
-          automationId: input.automation.id,
-          configVersion: input.dispatchPayload.configVersion,
-          idempotencyKey: input.idempotencyKey,
-        })
-      : input.triggerSource === "scheduled" && input.scheduledRunAt
-        ? buildGithubScheduledAutomationIdempotencyKey({
-            githubInstallationRepositoryId: input.repository.id,
-            configVersion: input.dispatchPayload.configVersion,
-            scheduledRunAt: input.scheduledRunAt,
-          })
-        : input.pushBranch && input.commitAfter
-          ? buildGithubPushAutomationIdempotencyKey({
-              organizationId: input.organizationId,
-              githubInstallationRepositoryId: input.repository.id,
-              githubRepositoryId: input.repository.githubRepositoryId,
-              branch: input.pushBranch,
-              commitBefore: input.commitBefore ?? "",
-              commitAfter: input.commitAfter,
-              configVersion: input.dispatchPayload.configVersion,
-            })
-          : buildWorkspaceGithubPushAutomationIdempotencyKey({
-              automationId: input.automation.id,
-              configVersion: input.dispatchPayload.configVersion,
-              githubDeliveryId: input.githubDeliveryId ?? run.id,
-            });
-
-  const claim = await claimGithubRepositoryAutomationJob({
-    idempotencyKey: githubIdempotencyKey,
-    organizationId: input.organizationId,
-    githubInstallationRepositoryId: input.repository.id,
-    githubInstallationId: input.repository.githubInstallationId,
-    githubRepositoryId: input.repository.githubRepositoryId,
-    configVersion: input.dispatchPayload.configVersion,
-    triggerMode: input.triggerSource === "github" ? "push" : "scheduled",
-    triggerBranch: input.pushBranch ?? null,
-    commitBefore: input.commitBefore ?? null,
-    commitAfter: input.commitAfter ?? null,
-    workflows: input.dispatchPayload.workflows,
-    githubDeliveryId: input.githubDeliveryId ?? null,
-    scheduledRunAt: input.scheduledRunAt ?? null,
-  });
-
-  await updateWorkspaceAutomationRun({
-    runId: run.id,
-    organizationId: input.organizationId,
-    githubRepositoryAutomationJobId: claim.job.id,
-    status: claim.job.status === "skipped" ? "skipped" : "queued",
-    outputSummary:
-      claim.job.status === "skipped"
-        ? { skipReason: claim.job.skipReason ?? "automation_skipped" }
-        : {},
-    completedAt: claim.job.status === "skipped" ? new Date() : null,
-  });
-
-  if (
-    claim.job.status !== "skipped" &&
-    githubRepositoryAutomationJobHasRunnableWorkflow(input.dispatchPayload.workflows) &&
-    claim.job.status === "queued"
-  ) {
-    await enqueueGithubRepositoryAutomationJob({ jobId: claim.job.id });
-  }
-
-  if (claim.job.status === "skipped") {
-    return {
-      outcome: "skipped",
-      runId: run.id,
-      job: claim.job,
-      inserted: claim.inserted,
-      skipReason: claim.job.skipReason ?? "automation_skipped",
-    };
-  }
-
-  return {
-    outcome: "enqueued",
-    runId: run.id,
-    job: claim.job,
-    inserted: claim.inserted,
+    inserted,
   };
 }
 
 export async function dispatchManualWorkspaceAutomationRun(input: {
   automation: WorkspaceAutomationRecord;
-  repository: {
-    id: string;
-    githubInstallationId: string;
-    githubRepositoryId: string;
-  };
   idempotencyKey: string;
   inputSnapshot?: Record<string, unknown>;
+  queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult | null> {
   if (input.automation.status !== "active") {
-    return null;
-  }
-
-  if (!hasWorkspaceAutomationGithubWorkflow(input.automation.toolConfig)) {
     return null;
   }
 
@@ -334,49 +215,50 @@ export async function dispatchManualWorkspaceAutomationRun(input: {
     return null;
   }
 
-  const githubSettings = workspaceAutomationToGithubSettings(input.automation);
-  if (!githubSettings) {
-    return null;
-  }
-
-  const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
-    configVersion: input.automation.configVersion,
-    githubInstallationRepositoryId: input.repository.id,
-    organizationId: input.automation.organizationId,
-    githubRepositoryId: input.repository.githubRepositoryId,
-    githubInstallationId: input.repository.githubInstallationId,
-    settings: githubSettings,
+  const plan = buildWorkspaceOrchestratorPlan(input.automation, {
+    templateSkillId:
+      typeof input.inputSnapshot?.templateSkillId === "string"
+        ? input.inputSnapshot.templateSkillId
+        : null,
   });
-
-  if (!dispatchPayload) {
+  if (plan.tools.length === 0) {
     return null;
   }
 
-  return linkWorkspaceAutomationRun({
+  const contentfulEntryId =
+    typeof input.inputSnapshot?.entryId === "string"
+      ? input.inputSnapshot.entryId
+      : (input.automation.toolConfig.contentful?.entryId ?? null);
+
+  return dispatchWorkspaceAutomationViaOrchestrator({
     organizationId: input.automation.organizationId,
     automation: input.automation,
     triggerSource: "manual",
-    idempotencyKey: input.idempotencyKey,
-    inputSnapshot: input.inputSnapshot,
-    dispatchPayload,
-    repository: input.repository,
+    idempotencyKey: buildWorkspaceManualAutomationIdempotencyKey({
+      automationId: input.automation.id,
+      configVersion: input.automation.configVersion,
+      idempotencyKey: input.idempotencyKey,
+    }),
+    inputSnapshot: {
+      ...input.inputSnapshot,
+      manualIdempotencyKey: input.idempotencyKey,
+      entryId: contentfulEntryId ?? undefined,
+    },
+    preDispatchSkipReason: resolveContentfulDispatchSkipReason({
+      automation: input.automation,
+      entryId: contentfulEntryId,
+      triggerSource: "manual",
+    }),
+    queue: input.queue,
   });
 }
 
 export async function dispatchWorkspaceAutomationForSchedule(input: {
   automation: WorkspaceAutomationRecord;
-  repository: {
-    id: string;
-    githubInstallationId: string;
-    githubRepositoryId: string;
-  };
   scheduledRunAt: Date;
+  queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult | null> {
   if (input.automation.status !== "active") {
-    return null;
-  }
-
-  if (!hasWorkspaceAutomationGithubWorkflow(input.automation.toolConfig)) {
     return null;
   }
 
@@ -384,50 +266,43 @@ export async function dispatchWorkspaceAutomationForSchedule(input: {
     return null;
   }
 
-  const githubSettings = workspaceAutomationToGithubSettings(input.automation);
-  if (!githubSettings) {
+  const plan = buildWorkspaceOrchestratorPlan(input.automation);
+  if (plan.tools.length === 0) {
     return null;
   }
 
-  const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
-    configVersion: input.automation.configVersion,
-    githubInstallationRepositoryId: input.repository.id,
-    organizationId: input.automation.organizationId,
-    githubRepositoryId: input.repository.githubRepositoryId,
-    githubInstallationId: input.repository.githubInstallationId,
-    settings: githubSettings,
-  });
+  const contentfulEntryId = input.automation.toolConfig.contentful?.entryId ?? null;
 
-  if (!dispatchPayload) {
-    return null;
-  }
-
-  const idempotencyKey = buildWorkspaceScheduledAutomationIdempotencyKey({
-    automationId: input.automation.id,
-    configVersion: input.automation.configVersion,
-    scheduledRunAt: input.scheduledRunAt,
-  });
-
-  return linkWorkspaceAutomationRun({
+  return dispatchWorkspaceAutomationViaOrchestrator({
     organizationId: input.automation.organizationId,
     automation: input.automation,
     triggerSource: "scheduled",
-    idempotencyKey,
-    scheduledRunAt: input.scheduledRunAt,
-    dispatchPayload,
-    repository: input.repository,
+    idempotencyKey: buildWorkspaceScheduledAutomationIdempotencyKey({
+      automationId: input.automation.id,
+      configVersion: input.automation.configVersion,
+      scheduledRunAt: input.scheduledRunAt,
+    }),
+    inputSnapshot: {
+      scheduledRunAt: input.scheduledRunAt.toISOString(),
+      entryId: contentfulEntryId ?? undefined,
+    },
+    preDispatchSkipReason: resolveContentfulDispatchSkipReason({
+      automation: input.automation,
+      entryId: contentfulEntryId,
+      triggerSource: "scheduled",
+    }),
+    queue: input.queue,
   });
 }
 
 export async function dispatchWorkspaceAutomationsForGithubPush(input: {
   deliveryId: string;
   organizationId: string;
-  githubInstallationId: string;
   githubInstallationRepositoryId: string;
-  githubRepositoryId: string;
   branch: string;
   commitBefore: string;
   commitAfter: string;
+  queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult[]> {
   const automations = (
     await listWorkspaceAutomations({
@@ -441,41 +316,15 @@ export async function dispatchWorkspaceAutomationsForGithubPush(input: {
       automation.repositoryTarget.githubInstallationRepositoryId ===
         input.githubInstallationRepositoryId &&
       automation.triggerConfig.mode === "github" &&
-      workspaceAutomationMatchesPushBranch(automation, input.branch),
+      workspaceAutomationMatchesPushBranch(automation, input.branch) &&
+      hasWorkspaceAutomationGithubWorkflow(automation.toolConfig),
   );
 
   const results: WorkspaceAutomationDispatchResult[] = [];
 
   for (const automation of automations) {
-    if (!hasWorkspaceAutomationGithubWorkflow(automation.toolConfig)) {
-      continue;
-    }
-
-    const githubSettings = workspaceAutomationToGithubSettings(automation);
-    if (!githubSettings || githubSettings.trigger?.mode !== "push") {
-      continue;
-    }
-
-    if (!shouldRunAutomationForPushBranch(githubSettings, input.branch)) {
-      continue;
-    }
-
-    const dispatchPayload = buildGithubRepoAutomationDispatchPayload({
-      configVersion: automation.configVersion,
-      githubInstallationRepositoryId: input.githubInstallationRepositoryId,
-      organizationId: input.organizationId,
-      githubRepositoryId: input.githubRepositoryId,
-      githubInstallationId: input.githubInstallationId,
-      settings: githubSettings,
-      pushBranch: input.branch,
-    });
-
-    if (!dispatchPayload) {
-      continue;
-    }
-
     try {
-      const result = await linkWorkspaceAutomationRun({
+      const result = await dispatchWorkspaceAutomationViaOrchestrator({
         organizationId: input.organizationId,
         automation,
         triggerSource: "github",
@@ -484,16 +333,13 @@ export async function dispatchWorkspaceAutomationsForGithubPush(input: {
           configVersion: automation.configVersion,
           githubDeliveryId: input.deliveryId,
         }),
-        githubDeliveryId: input.deliveryId,
-        pushBranch: input.branch,
-        commitBefore: input.commitBefore,
-        commitAfter: input.commitAfter,
-        dispatchPayload,
-        repository: {
-          id: input.githubInstallationRepositoryId,
-          githubInstallationId: input.githubInstallationId,
-          githubRepositoryId: input.githubRepositoryId,
+        inputSnapshot: {
+          githubDeliveryId: input.deliveryId,
+          pushBranch: input.branch,
+          commitBefore: input.commitBefore,
+          commitAfter: input.commitAfter,
         },
+        queue: input.queue,
       });
       results.push(result);
     } catch (error) {
@@ -513,15 +359,15 @@ export async function dispatchWorkspaceAutomationsForGithubPush(input: {
 
 export async function dispatchWorkspaceAutomationForScheduleAndAdvance(input: {
   automation: WorkspaceAutomationRecord;
-  repository: {
-    id: string;
-    githubInstallationId: string;
-    githubRepositoryId: string;
-  };
   scheduledRunAt: Date;
   completedAt?: Date;
+  queue?: WorkspaceAutomationExecutionQueue;
 }) {
-  const result = await dispatchWorkspaceAutomationForSchedule(input);
+  const result = await dispatchWorkspaceAutomationForSchedule({
+    automation: input.automation,
+    scheduledRunAt: input.scheduledRunAt,
+    queue: input.queue,
+  });
   await advanceWorkspaceAutomationNextRun({
     automationId: input.automation.id,
     organizationId: input.automation.organizationId,
@@ -536,7 +382,7 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
   contentfulWebhookEventId: string;
   entryId: string | null;
   contentTypeId?: string | null;
-  queue?: ContentfulAutomationExecutionQueue;
+  queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult[]> {
   const candidateAutomations = await listWorkspaceAutomations({
     organizationId: input.organizationId,
@@ -565,7 +411,7 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
   const results: WorkspaceAutomationDispatchResult[] = [];
   for (const automation of automations) {
     try {
-      const result = await enqueueWorkspaceContentfulAutomation({
+      const result = await dispatchWorkspaceAutomationViaOrchestrator({
         organizationId: input.organizationId,
         automation,
         triggerSource: "contentful",
@@ -574,23 +420,20 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
           configVersion: automation.configVersion,
           contentfulWebhookEventId: input.contentfulWebhookEventId,
         }),
-        connectionId: input.connectionId,
-        entryId: input.entryId,
-        contentTypeId: input.contentTypeId,
-        webhookEventId: input.contentfulWebhookEventId,
+        inputSnapshot: {
+          connectionId: input.connectionId,
+          entryId: input.entryId ?? undefined,
+          contentTypeId: input.contentTypeId ?? undefined,
+          contentfulWebhookEventId: input.contentfulWebhookEventId,
+        },
+        preDispatchSkipReason: resolveContentfulDispatchSkipReason({
+          automation,
+          entryId: input.entryId,
+          triggerSource: "contentful",
+        }),
         queue: input.queue,
       });
       results.push(result);
-      logger.info(
-        {
-          organizationId: input.organizationId,
-          automationId: automation.id,
-          contentfulWebhookEventId: input.contentfulWebhookEventId,
-          outcome: result.outcome,
-          inserted: result.inserted,
-        },
-        "workspace automation contentful webhook automation dispatched",
-      );
     } catch (error) {
       logger.error(
         {
@@ -609,35 +452,10 @@ export async function dispatchWorkspaceAutomationsForContentfulWebhook(input: {
 export async function dispatchContentfulWorkspaceAutomationForSchedule(input: {
   automation: WorkspaceAutomationRecord;
   scheduledRunAt: Date;
-  queue?: ContentfulAutomationExecutionQueue;
+  queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult | null> {
-  if (input.automation.status !== "active") {
-    return null;
-  }
-  if (input.automation.triggerConfig.mode !== "scheduled") {
-    return null;
-  }
-  if (!hasWorkspaceAutomationContentfulWorkflow(input.automation.toolConfig)) {
-    return null;
-  }
-
-  const contentful = input.automation.toolConfig.contentful;
-  if (!contentful?.connectionId) {
-    return null;
-  }
-
-  return enqueueWorkspaceContentfulAutomation({
-    organizationId: input.automation.organizationId,
+  return dispatchWorkspaceAutomationForSchedule({
     automation: input.automation,
-    triggerSource: "scheduled",
-    idempotencyKey: buildWorkspaceContentfulScheduledAutomationIdempotencyKey({
-      automationId: input.automation.id,
-      configVersion: input.automation.configVersion,
-      scheduledRunAt: input.scheduledRunAt,
-    }),
-    connectionId: contentful.connectionId,
-    entryId: contentful.entryId ?? null,
-    contentTypeId: null,
     scheduledRunAt: input.scheduledRunAt,
     queue: input.queue,
   });
@@ -646,36 +464,15 @@ export async function dispatchContentfulWorkspaceAutomationForSchedule(input: {
 export async function dispatchContentfulWorkspaceAutomationForManual(input: {
   automation: WorkspaceAutomationRecord;
   idempotencyKey?: string | null;
-  queue?: ContentfulAutomationExecutionQueue;
+  queue?: WorkspaceAutomationExecutionQueue;
 }): Promise<WorkspaceAutomationDispatchResult | null> {
-  if (input.automation.status !== "active") {
-    return null;
-  }
-  if (input.automation.triggerConfig.mode !== "manual") {
-    return null;
-  }
-  if (!hasWorkspaceAutomationContentfulWorkflow(input.automation.toolConfig)) {
+  if (!input.idempotencyKey) {
     return null;
   }
 
-  const contentful = input.automation.toolConfig.contentful;
-  if (!contentful?.connectionId) {
-    return null;
-  }
-  if (!contentful.projectId || !contentful.sourceLocale?.trim()) {
-    return null;
-  }
-
-  return enqueueWorkspaceContentfulAutomation({
-    organizationId: input.automation.organizationId,
+  return dispatchManualWorkspaceAutomationRun({
     automation: input.automation,
-    triggerSource: "manual",
-    idempotencyKey:
-      input.idempotencyKey ??
-      `workspace-automation:contentful-manual:${input.automation.id}:${Date.now()}`,
-    connectionId: contentful.connectionId,
-    entryId: contentful.entryId ?? null,
-    contentTypeId: null,
+    idempotencyKey: input.idempotencyKey,
     queue: input.queue,
   });
 }
@@ -683,7 +480,7 @@ export async function dispatchContentfulWorkspaceAutomationForManual(input: {
 export async function dispatchDueContentfulWorkspaceAutomations(input?: {
   now?: Date;
   limit?: number;
-  queue?: ContentfulAutomationExecutionQueue;
+  queue?: WorkspaceAutomationExecutionQueue;
 }) {
   const now = input?.now ?? new Date();
   const automations = await listDueContentfulWorkspaceAutomations({
@@ -693,9 +490,16 @@ export async function dispatchDueContentfulWorkspaceAutomations(input?: {
 
   const results: WorkspaceAutomationDispatchResult[] = [];
   for (const automation of automations) {
+    if (
+      hasWorkspaceAutomationGithubWorkflow(automation.toolConfig) &&
+      automation.repositoryTarget.kind === "github"
+    ) {
+      continue;
+    }
+
     const scheduledRunAt = automation.nextRunAt ? new Date(automation.nextRunAt) : now;
     try {
-      const result = await dispatchContentfulWorkspaceAutomationForSchedule({
+      const result = await dispatchWorkspaceAutomationForSchedule({
         automation,
         scheduledRunAt,
         queue: input?.queue,

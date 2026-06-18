@@ -3,9 +3,7 @@ import { eq } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 
 import type { GithubRepositoryAutomationJobStatus } from "./github/github-repository-automation-jobs";
-import { notifyWorkspaceAutomationTerminalRun } from "./workspace-automation-notifications";
 import {
-  getWorkspaceAutomationById,
   updateWorkspaceAutomationRun,
   type WorkspaceAutomationRunStatus,
 } from "./workspace-automations";
@@ -58,15 +56,20 @@ export async function syncWorkspaceAutomationRunsForGithubJob(input: {
   }
 
   for (const runRow of runRows) {
-    const shouldNotifyTerminalRun =
-      isTerminalRunStatus(mappedStatus) && !isTerminalRunStatus(runRow.status);
     const outputSummary = {
       ...(runRow.outputSummary as Record<string, unknown>),
       ...input.resultSummary,
       ...(input.skipReason ? { skipReason: input.skipReason } : {}),
     };
 
-    const updatedRun = await updateWorkspaceAutomationRun({
+    const orchestratorManaged =
+      typeof (runRow.outputSummary as Record<string, unknown>).orchestratorEnqueuedAt === "string";
+
+    if (orchestratorManaged && isTerminalRunStatus(mappedStatus)) {
+      continue;
+    }
+
+    await updateWorkspaceAutomationRun({
       runId: runRow.id,
       organizationId: runRow.organizationId,
       status: mappedStatus,
@@ -82,37 +85,5 @@ export async function syncWorkspaceAutomationRunsForGithubJob(input: {
           ? new Date()
           : (runRow.startedAt ?? undefined),
     });
-
-    if (!updatedRun) {
-      continue;
-    }
-
-    if (!shouldNotifyTerminalRun) {
-      continue;
-    }
-
-    const automation = await getWorkspaceAutomationById({
-      automationId: runRow.automationId,
-      organizationId: runRow.organizationId,
-    });
-    if (!automation) {
-      continue;
-    }
-
-    const notificationSummary = await notifyWorkspaceAutomationTerminalRun({
-      automation,
-      run: updatedRun,
-    });
-
-    if (Object.keys(notificationSummary).length > 0) {
-      await updateWorkspaceAutomationRun({
-        runId: updatedRun.id,
-        organizationId: updatedRun.organizationId,
-        outputSummary: {
-          ...updatedRun.outputSummary,
-          ...notificationSummary,
-        },
-      });
-    }
   }
 }

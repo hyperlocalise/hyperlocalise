@@ -86,9 +86,7 @@ export async function handleGithubPushWebhook(
     await dispatchWorkspaceAutomationsForGithubPush({
       deliveryId: input.deliveryId,
       organizationId: input.organizationId,
-      githubInstallationId: input.githubInstallationId,
       githubInstallationRepositoryId: input.githubInstallationRepositoryId,
-      githubRepositoryId: input.githubRepositoryId,
       branch,
       commitBefore,
       commitAfter,
