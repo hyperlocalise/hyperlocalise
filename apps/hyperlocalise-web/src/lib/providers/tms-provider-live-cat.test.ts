@@ -920,4 +920,147 @@ describe("getTmsProviderLiveCatFile", () => {
     });
     expect(stringsRequestCount).toBeLessThanOrEqual(maxCrowdinSourceStringCountCeiling / 500 + 1);
   });
+
+  it("uses CroQL for paginated Crowdin file search and omits fileId", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId: organization.id,
+      userId: user.id,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "token",
+      baseUrl: "https://api.crowdin.test/api/v2",
+    });
+
+    const stringsRequests: URL[] = [];
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/projects?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 42,
+                  name: "Website",
+                  identifier: "website",
+                  sourceLanguageId: "en",
+                  targetLanguageIds: ["fr"],
+                  webUrl: "https://crowdin.test/project/website",
+                  isSuspended: false,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 7,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/files/101/revisions?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/strings?")) {
+        const requestUrl = new URL(path);
+        stringsRequests.push(requestUrl);
+        expect(requestUrl.searchParams.get("croql")).toBe(
+          'id of file = 101 and (identifier contains "hero" or text contains "hero")',
+        );
+        expect(requestUrl.searchParams.has("fileId")).toBe(false);
+
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "homepage.hero.title",
+                  text: "Hero title",
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+              {
+                data: {
+                  id: 1002,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "homepage.hero.cta",
+                  text: "Hero CTA",
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 25,
+        paginated: true,
+        search: "hero",
+      },
+    });
+
+    expect(catFile?.pagination).toMatchObject({
+      offset: 0,
+      limit: 25,
+      returnedCount: 2,
+      totalCount: 2,
+      hasMore: false,
+    });
+    expect(stringsRequests).toHaveLength(2);
+  });
 });
