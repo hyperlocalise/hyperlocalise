@@ -813,8 +813,8 @@ describe("getTmsProviderLiveCatFile", () => {
       baseUrl: "https://api.crowdin.test/api/v2",
     });
 
-    const stringPage = (offset: number) =>
-      Array.from({ length: 501 }, (_, index) => ({
+    const stringPage = (offset: number, limit: number) =>
+      Array.from({ length: limit }, (_, index) => ({
         data: {
           id: offset + index + 1,
           projectId: 42,
@@ -891,8 +891,11 @@ describe("getTmsProviderLiveCatFile", () => {
 
       if (path.includes("/projects/42/strings?") && path.includes("fileId=101")) {
         stringsRequestCount += 1;
-        const offset = Number(new URL(path).searchParams.get("offset") ?? "0");
-        return new Response(JSON.stringify({ data: stringPage(offset) }), { status: 200 });
+        const params = new URL(path).searchParams;
+        const offset = Number(params.get("offset") ?? "0");
+        const limit = Number(params.get("limit") ?? "500");
+        expect(limit).toBeLessThanOrEqual(500);
+        return new Response(JSON.stringify({ data: stringPage(offset, limit) }), { status: 200 });
       }
 
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
