@@ -1,4 +1,5 @@
 import type { WorkspaceAutomationFormState } from "./workspace-automation-view-model";
+import { mergeWorkspaceTemplateSkills } from "@/agents/automations/workspace/agent/workspace-template-manifest";
 
 export type WorkspaceAutomationTemplateCategory =
   | "popular"
@@ -30,7 +31,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES: Array<{
   { id: "release", label: "Release Readiness" },
 ];
 
-export const WORKSPACE_AUTOMATION_TEMPLATES: WorkspaceAutomationTemplate[] = [
+export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] = [
   {
     id: "translate-contentful-article",
     category: "popular",
@@ -614,6 +615,10 @@ export const WORKSPACE_AUTOMATION_TEMPLATES: WorkspaceAutomationTemplate[] = [
     },
   },
 ];
+
+export const WORKSPACE_AUTOMATION_TEMPLATES = mergeWorkspaceTemplateSkills(
+  WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+);
 
 export type WorkspaceAutomationTemplateFlowNode = {
   id: string;

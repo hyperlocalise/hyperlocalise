@@ -22,7 +22,7 @@ describe("workspace automation view model", () => {
       validationEnabled: true,
       slackEnabled: true,
     });
-    expect(form?.instructions).toContain("localisation quality automation");
+    expect(form?.instructions).toContain("Validate localisation on every push");
   });
 
   it("does not prefill coming-soon templates", () => {

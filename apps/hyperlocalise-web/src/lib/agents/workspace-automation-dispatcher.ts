@@ -36,6 +36,7 @@ import {
   type WorkspaceAutomationRecord,
 } from "./workspace-automations";
 import { createContentfulTranslationRun } from "@/lib/contentful/automation-executor";
+import { composeContentfulAutomationInstructions } from "@/agents/automations/workspace/agent/workspace-template-manifest";
 import type { ContentfulAutomationExecutionQueue } from "@/lib/workflow/types";
 import { createContentfulAutomationExecutionQueue } from "@/workflows/adapters";
 
@@ -109,6 +110,9 @@ async function enqueueWorkspaceContentfulAutomation(input: {
       automationConfigVersion: input.automation.configVersion,
       automationName: input.automation.name,
       instructions: input.automation.instructions,
+      effectiveInstructions: composeContentfulAutomationInstructions({
+        userOverride: input.automation.instructions,
+      }),
       connectionId: input.connectionId,
       ...(input.entryId ? { entryId: input.entryId } : {}),
       ...(input.contentTypeId ? { contentTypeId: input.contentTypeId } : {}),

@@ -22,6 +22,11 @@ import {
   type ConversationOrchestratorOnFinish,
 } from "./orchestrator";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
+import {
+  buildHyperlocaliseBaseInstructions,
+  type HyperlocaliseAgentSurface,
+} from "@/agents/hyperlocalise/agent/agent";
+export type { HyperlocaliseAgentSurface };
 
 export type { HyperlocaliseConversationMode } from "./conversation-mode";
 export { buildConversationModeInstructions } from "./conversation-mode";
@@ -39,8 +44,6 @@ export type { HyperlocaliseConversationIntent } from "./conversation-mode";
 
 export const hyperlocaliseAgentStepLimit = 10;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
-
-export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
 
 type InteractionHistoryRow = {
   senderType: "user" | "agent";
@@ -85,43 +88,7 @@ export function buildHyperlocaliseAgentInstructions(input: {
   projectId: string | null;
   additionalInstructions?: string;
 }) {
-  const lines = [
-    "You are Hyperlocalise, a localization assistant.",
-    "Route each request to the capability you have: translate uploaded files, or find localization context for source strings/messages in a connected GitHub repository.",
-    "Use only the tools you are given; do not guess file IDs, repository paths, or file contents.",
-  ];
-
-  if (input.surface === "slack") {
-    lines.push(
-      "Keep responses concise and Slack-friendly. Use short Markdown with bullets, bold labels, and a small number of relevant emoji when it improves readability.",
-    );
-  } else if (input.surface === "github") {
-    lines.push(
-      "Keep GitHub replies concise, concrete, and focused on the requested repository action.",
-    );
-  }
-
-  if (input.projectId) {
-    lines.push(
-      "",
-      "Project context:",
-      `- This conversation is attached to project ${input.projectId}.`,
-    );
-  }
-
-  lines.push(
-    "",
-    "Guidelines:",
-    "- Follow the mode-specific instructions when present.",
-    "- Be concise but thorough. Responses should be scannable.",
-    "- Always maintain a professional, helpful tone.",
-  );
-
-  if (input.additionalInstructions?.trim()) {
-    lines.push("", "Surface-specific instructions:", input.additionalInstructions.trim());
-  }
-
-  return lines.join("\n");
+  return buildHyperlocaliseBaseInstructions(input);
 }
 
 export function toModelMessages(rows: InteractionHistoryRow[]): ModelMessage[] {

@@ -24,10 +24,11 @@ export async function executeContentfulAutomationStep(
 
   logger.info(stepContext, "contentful automation step started");
 
-  const { executeContentfulAutomation } = await import("@/lib/contentful/automation-executor");
+  const { runContentfulAgent } =
+    await import("@/agents/automations/contentful/agent/run-contentful-agent");
 
   try {
-    const result = await executeContentfulAutomation(event);
+    const result = await runContentfulAgent(event);
 
     if (isErr(result)) {
       const stepResult: ContentfulAutomationStepResult = {

@@ -2,13 +2,14 @@
 
 This folder contains workflow entrypoints started through `adapters.ts`.
 
+Agent packages live under [`src/agents/`](../agents/README.md).
+
 Current agent scope:
 
-- Hyperlocalise agent translates uploaded files.
-- Repository agent reads repository context for localized messages or strings.
-- TMS/provider agent tools are not exposed to the conversational agents yet.
-
-TODO: Add the next provider/TMS agent flow after the agent tool contract is ready.
+- Hyperlocalise conversational agent (`hyperlocalise/agent`) translates uploaded files and delegates to subagents.
+- Repository subagent reads repository context for localized messages or strings.
+- Contentful automation runs via `automations/contentful/agent` ToolLoopAgent.
+- TMS/provider agent workflows use `automations/provider-tms/agent` executors.
 
 ## Queue Adapter
 
@@ -27,6 +28,9 @@ apps/hyperlocalise-web/src/workflows/adapters.ts
         |
         +-- createRepositoryAgentTaskQueue()
         |       `---------------> repositoryAgentWorkflow
+        |
+        +-- createContentfulAutomationExecutionQueue()
+        |       `---------------> contentfulAutomationExecutionWorkflow
         |
         `-- provider/TMS queues
                 +-- providerAgentTranslationWorkflow

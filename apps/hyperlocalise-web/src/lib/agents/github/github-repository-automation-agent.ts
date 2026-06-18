@@ -1,9 +1,7 @@
 import { ToolLoopAgent, type ModelMessage, type ToolSet } from "ai";
 
-import {
-  buildHyperlocaliseAgentInstructions,
-  getHyperlocaliseAgentModel,
-} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { composeInstructions } from "@/agents/_runtime/compose-instructions";
+import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   filterToolSetByNames,
@@ -55,15 +53,14 @@ export async function runRepositoryLocalisationAgentForCommit(input: {
     tools,
     stopWhen: [(step) => step.steps.length >= agentStepLimit],
     timeout: WORKFLOW_AGENT_TIMEOUT,
-    instructions: buildHyperlocaliseAgentInstructions({
-      surface: "github",
-      projectId: null,
-      additionalInstructions: [
+    instructions: composeInstructions({
+      automationId: "github-repository",
+      dynamicSections: [
         "This is an automated read-only localization review for a single commit.",
         "Do not modify files, commit, push, or create external effects.",
         "Summarize risks, missing translations, and suggested fixes based on the diff context.",
         `Sandbox id: ${input.sandboxId}. Use repository tools to inspect files when needed.`,
-      ].join("\n\n"),
+      ],
     }),
     experimental_context: { sandboxId: input.sandboxId },
   });
