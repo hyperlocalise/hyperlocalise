@@ -36,6 +36,20 @@ import {
 import { buildOrchestratorInstructions, createConversationOrchestratorAgent } from "./orchestrator";
 
 describe("conversation orchestrator", () => {
+  it("includes base agent instructions only once", () => {
+    const instructions = buildOrchestratorInstructions({
+      surface: "web",
+      projectId: null,
+      suggestedIntents: ["repository"],
+      suggestedMode: "repository",
+      availableSubagents: ["repository"],
+      preferredSubagents: ["repository"],
+    });
+
+    const marker = "You are Hyperlocalise, a localization assistant.";
+    expect(instructions.split(marker).length - 1).toBe(1);
+  });
+
   it("frames repository delegation as localization context exploration", () => {
     const instructions = buildOrchestratorInstructions({
       surface: "web",

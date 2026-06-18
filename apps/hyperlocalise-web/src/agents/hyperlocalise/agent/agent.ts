@@ -5,11 +5,11 @@ export type HyperlocaliseAgentSurface = "web" | "slack" | "github";
 export const hyperlocaliseAgentStepLimit = 10;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
 
-export function buildHyperlocaliseBaseInstructions(input: {
+export function buildHyperlocaliseDynamicSections(input: {
   surface: HyperlocaliseAgentSurface;
   projectId: string | null;
   additionalInstructions?: string;
-}) {
+}): string[] {
   const dynamicSections: string[] = [];
 
   if (input.surface === "slack") {
@@ -33,9 +33,17 @@ export function buildHyperlocaliseBaseInstructions(input: {
     dynamicSections.push("Surface-specific instructions:", input.additionalInstructions.trim());
   }
 
+  return dynamicSections;
+}
+
+export function buildHyperlocaliseBaseInstructions(input: {
+  surface: HyperlocaliseAgentSurface;
+  projectId: string | null;
+  additionalInstructions?: string;
+}) {
   return composeInstructions({
     agentId: "hyperlocalise",
-    dynamicSections,
+    dynamicSections: buildHyperlocaliseDynamicSections(input),
   });
 }
 
@@ -47,6 +55,6 @@ export function buildOrchestratorBaseInstructions(input: {
   return composeInstructions({
     agentId: "hyperlocalise",
     skills: ["orchestration", "repository-handoff"],
-    dynamicSections: [buildHyperlocaliseBaseInstructions(input)],
+    dynamicSections: buildHyperlocaliseDynamicSections(input),
   });
 }

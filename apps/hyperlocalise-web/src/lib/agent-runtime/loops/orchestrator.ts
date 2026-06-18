@@ -8,7 +8,7 @@ import {
 } from "@/lib/agent-runtime/subagents/registry";
 import type { HyperlocaliseSubagentType } from "@/lib/agent-runtime/subagents/definitions";
 import { createTaskTool } from "@/lib/agent-runtime/tools/task-tool";
-import { composeInstructions } from "@/agents/_runtime/compose-instructions";
+import { buildOrchestratorBaseInstructions } from "@/agents/hyperlocalise/agent/agent";
 import {
   ORCHESTRATOR_AGENT_TIMEOUT,
   ORCHESTRATOR_STEP_LIMIT,
@@ -17,7 +17,6 @@ import {
 import type { HyperlocaliseConversationMode } from "./conversation-mode";
 import { getHyperlocaliseAgentModel } from "./model";
 import {
-  buildHyperlocaliseAgentInstructions,
   hyperlocaliseAgentMaxOutputTokens,
   type HyperlocaliseAgentSurface,
 } from "./hyperlocalise-agent";
@@ -38,16 +37,10 @@ export function buildOrchestratorInstructions(input: {
   preferredSubagents: HyperlocaliseSubagentType[];
   additionalInstructions?: string;
 }) {
-  const base = composeInstructions({
-    agentId: "hyperlocalise",
-    skills: ["orchestration", "repository-handoff"],
-    dynamicSections: [
-      buildHyperlocaliseAgentInstructions({
-        surface: input.surface,
-        projectId: input.projectId,
-        additionalInstructions: input.additionalInstructions,
-      }),
-    ],
+  const base = buildOrchestratorBaseInstructions({
+    surface: input.surface,
+    projectId: input.projectId,
+    additionalInstructions: input.additionalInstructions,
   });
 
   const lines = [base, "", "Available agents:", buildSubagentSummaryLines()];
