@@ -198,6 +198,10 @@ func pruneJSONArrayStringFields(payload []any, prefix string, allowed map[string
 	for idx, value := range payload {
 		fullKey := prefix + "[" + strconv.Itoa(idx) + "]"
 		switch typed := value.(type) {
+		case string:
+			if _, ok := allowed[fullKey]; !ok {
+				payload[idx] = nil
+			}
 		case []any:
 			pruneJSONArrayStringFields(typed, fullKey, allowed)
 		case map[string]any:
@@ -283,25 +287,48 @@ func parseJSONPath(key string) ([]jsonPathSegment, error) {
 			return nil, fmt.Errorf("invalid json path %q", key)
 		}
 
-		bracket := strings.Index(part, "[")
-		if bracket < 0 {
-			segments = append(segments, jsonPathSegment{key: part})
-			continue
+		partSegments, err := parseJSONPathPart(part)
+		if err != nil {
+			return nil, err
 		}
-		if !strings.HasSuffix(part, "]") {
-			return nil, fmt.Errorf("invalid json path segment %q", part)
-		}
+		segments = append(segments, partSegments...)
+	}
 
-		name := part[:bracket]
-		if name == "" {
+	return segments, nil
+}
+
+func parseJSONPathPart(part string) ([]jsonPathSegment, error) {
+	bracket := strings.Index(part, "[")
+	if bracket < 0 {
+		return []jsonPathSegment{{key: part}}, nil
+	}
+
+	name := part[:bracket]
+	if name == "" {
+		return nil, fmt.Errorf("invalid json path segment %q", part)
+	}
+
+	remainder := part[bracket:]
+	segments := make([]jsonPathSegment, 0, 4)
+	for remainder != "" {
+		if remainder[0] != '[' {
 			return nil, fmt.Errorf("invalid json path segment %q", part)
 		}
-		idx, err := strconv.Atoi(part[bracket+1 : len(part)-1])
+		closeBracket := strings.Index(remainder, "]")
+		if closeBracket < 0 {
+			return nil, fmt.Errorf("invalid json path segment %q", part)
+		}
+		idx, err := strconv.Atoi(remainder[1:closeBracket])
 		if err != nil || idx < 0 {
 			return nil, fmt.Errorf("invalid json array index in %q", part)
 		}
 		index := idx
-		segments = append(segments, jsonPathSegment{key: name, index: &index})
+		if len(segments) == 0 {
+			segments = append(segments, jsonPathSegment{key: name, index: &index})
+		} else {
+			segments = append(segments, jsonPathSegment{index: &index})
+		}
+		remainder = remainder[closeBracket+1:]
 	}
 
 	return segments, nil
@@ -313,64 +340,99 @@ func setNestedValue(payload map[string]any, dottedKey, value string) {
 		return
 	}
 
-	current := payload
+	current := any(payload)
 	for i := 0; i < len(segments)-1; i++ {
-		nextMap, ok := descendJSONPath(current, segments[i], true)
+		var nextSegment *jsonPathSegment
+		if i+1 < len(segments) {
+			nextSegment = &segments[i+1]
+		}
+		next, ok := descendJSONPath(current, segments[i], nextSegment, true)
 		if !ok {
 			return
 		}
-		current = nextMap
+		current = next
 	}
 
-	last := segments[len(segments)-1]
-	if last.index == nil {
-		current[last.key] = value
-		return
-	}
-
-	arr, ok := current[last.key].([]any)
-	if !ok {
-		arr = make([]any, *last.index+1)
-		current[last.key] = arr
-	}
-	for len(arr) <= *last.index {
-		arr = append(arr, nil)
-	}
-	current[last.key] = arr
-	arr[*last.index] = value
+	setJSONPathValue(current, segments[len(segments)-1], value)
 }
 
-func descendJSONPath(current map[string]any, segment jsonPathSegment, create bool) (map[string]any, bool) {
-	if segment.index == nil {
-		next, ok := current[segment.key]
-		if !ok {
-			if !create {
-				return nil, false
-			}
-			nested := map[string]any{}
-			current[segment.key] = nested
-			return nested, true
+func setJSONPathValue(current any, segment jsonPathSegment, value string) {
+	switch typed := current.(type) {
+	case map[string]any:
+		if segment.index == nil {
+			typed[segment.key] = value
+			return
 		}
-		nested, ok := next.(map[string]any)
+		arr, ok := typed[segment.key].([]any)
 		if !ok {
-			if !create {
-				return nil, false
-			}
-			nested = map[string]any{}
-			current[segment.key] = nested
+			arr = make([]any, *segment.index+1)
 		}
-		return nested, true
+		for len(arr) <= *segment.index {
+			arr = append(arr, nil)
+		}
+		typed[segment.key] = arr
+		arr[*segment.index] = value
+	case []any:
+		if segment.index == nil {
+			return
+		}
+		for len(typed) <= *segment.index {
+			typed = append(typed, nil)
+		}
+		typed[*segment.index] = value
 	}
+}
 
-	next, ok := current[segment.key]
-	if !ok {
-		if !create {
+func descendJSONPath(current any, segment jsonPathSegment, nextSegment *jsonPathSegment, create bool) (any, bool) {
+	if segment.key != "" {
+		currentMap, ok := current.(map[string]any)
+		if !ok {
 			return nil, false
 		}
-		next = []any{}
-		current[segment.key] = next
+		if segment.index == nil {
+			next, ok := currentMap[segment.key]
+			if !ok {
+				if !create {
+					return nil, false
+				}
+				nested := map[string]any{}
+				currentMap[segment.key] = nested
+				return nested, true
+			}
+			nested, ok := next.(map[string]any)
+			if !ok {
+				if !create {
+					return nil, false
+				}
+				nested = map[string]any{}
+				currentMap[segment.key] = nested
+			}
+			return nested, true
+		}
+
+		next, ok := currentMap[segment.key]
+		if !ok {
+			if !create {
+				return nil, false
+			}
+			next = []any{}
+			currentMap[segment.key] = next
+		}
+		arr, ok := next.([]any)
+		if !ok {
+			return nil, false
+		}
+		for len(arr) <= *segment.index {
+			if !create {
+				return nil, false
+			}
+			arr = append(arr, nil)
+		}
+		currentMap[segment.key] = arr
+		return ensureJSONArrayElement(arr, *segment.index, nextSegment, create)
 	}
-	arr, ok := next.([]any)
+
+	arr, ok := current.([]any)
 	if !ok {
 		return nil, false
 	}
@@ -378,18 +440,26 @@ func descendJSONPath(current map[string]any, segment jsonPathSegment, create boo
 		if !create {
 			return nil, false
 		}
-		arr = append(arr, map[string]any{})
+		arr = append(arr, nil)
 	}
-	current[segment.key] = arr
+	return ensureJSONArrayElement(arr, *segment.index, nextSegment, create)
+}
 
-	elem := arr[*segment.index]
-	elemMap, ok := elem.(map[string]any)
-	if !ok {
-		if !create {
-			return nil, false
-		}
-		elemMap = map[string]any{}
-		arr[*segment.index] = elemMap
+func ensureJSONArrayElement(arr []any, index int, nextSegment *jsonPathSegment, create bool) (any, bool) {
+	elem := arr[index]
+	if elem == nil && create {
+		elem = newJSONPathChild(nextSegment)
+		arr[index] = elem
 	}
-	return elemMap, true
+	if elem == nil {
+		return nil, create
+	}
+	return elem, true
+}
+
+func newJSONPathChild(nextSegment *jsonPathSegment) any {
+	if nextSegment != nil && nextSegment.key == "" && nextSegment.index != nil {
+		return []any{}
+	}
+	return map[string]any{}
 }
