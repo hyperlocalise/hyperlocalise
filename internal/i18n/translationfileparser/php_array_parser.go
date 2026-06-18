@@ -89,9 +89,16 @@ func (d phpArrayDocument) render(values map[string]string) []byte {
 }
 
 func parsePHPArrayDocument(content []byte) (phpArrayDocument, error) {
+	// BOLT OPTIMIZATION: Hint capacity for entries and seen map based on content size.
+	capacity := len(content) / 64
+	if capacity < 4 {
+		capacity = 4
+	}
+
 	scanner := &phpArrayScanner{
-		text: string(content),
-		seen: map[string]struct{}{},
+		text:    string(content),
+		entries: make([]phpArrayEntry, 0, capacity),
+		seen:    make(map[string]struct{}, capacity),
 	}
 
 	if strings.HasPrefix(scanner.text, "\ufeff") {
@@ -245,7 +252,31 @@ func (s *phpArrayScanner) parseStringLiteral() (phpStringToken, error) {
 		stopChars += "$"
 	}
 
+	// BOLT OPTIMIZATION: Fast-path for simple strings without escapes or interpolation.
+	// This avoids strings.Builder allocations for the common case.
+	idx := strings.IndexAny(s.text[i:], stopChars)
+	if idx >= 0 && s.text[i+idx] == quote {
+		end := i + idx + 1
+		raw := s.text[start:end]
+		s.pos = end
+		return phpStringToken{
+			decoded: s.text[i : i+idx],
+			raw:     raw,
+			start:   start,
+			end:     end,
+			quote:   quote,
+		}, nil
+	}
+
 	var b strings.Builder
+	// BOLT OPTIMIZATION: Use a conservative hint for strings with escapes.
+	if remaining := len(s.text) - i; remaining > 0 {
+		if remaining > 1024 {
+			b.Grow(1024)
+		} else {
+			b.Grow(remaining)
+		}
+	}
 	for i < len(s.text) {
 		idx := strings.IndexAny(s.text[i:], stopChars)
 		if idx < 0 {
