@@ -17,7 +17,7 @@ import {
 } from "@/lib/providers/match-resolution";
 import { collectGlossaryUsageForUnits } from "@/lib/translation/load-glossary-matches";
 import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/load-translation-memory-matches";
-import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
+import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import {
   buildProviderJobQaReport,

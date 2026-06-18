@@ -9,7 +9,7 @@ import {
   listAgentRuns,
   startAgentRun,
 } from "../agent-runs/agent-runs";
-import { getProviderCommentPusher } from "../provider-comment-pushers";
+import { getProviderCommentPusher } from "../adapters/tms-provider-adapter-registry";
 import type {
   ProviderCommentChangedItem,
   ProviderQaFeedbackUpload,

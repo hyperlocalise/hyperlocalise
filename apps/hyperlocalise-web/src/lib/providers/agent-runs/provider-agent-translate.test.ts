@@ -35,8 +35,9 @@ const providerContentPullerMocks = vi.hoisted(() => {
   return { state, getProviderContentPullerMock };
 });
 
-vi.mock("@/lib/providers/provider-content-pullers", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/provider-content-pullers")>();
+vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-adapter-registry")>();
   providerContentPullerMocks.state.actual = actual.getProviderContentPuller;
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     actual.getProviderContentPuller,

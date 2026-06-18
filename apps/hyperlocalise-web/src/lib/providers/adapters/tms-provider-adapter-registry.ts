@@ -6,13 +6,13 @@ import type { TmsProviderAdapter } from "@/lib/providers/contracts/tms-provider-
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { ExternalTmsCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
 import type { ExternalTmsCommentPusher } from "@/lib/providers/provider-feedback-types";
-import type { ExternalTmsReviewPuller } from "@/lib/providers/provider-review-pullers";
 import type {
   ExternalTmsContentPuller,
   ExternalTmsFileKeyFetcher,
   ExternalTmsGlossaryFetcher,
   ExternalTmsJobTaskFetcher,
   ExternalTmsProjectFetcher,
+  ExternalTmsReviewPuller,
   ExternalTmsTranslationMemoryFetcher,
   ExternalTmsTranslationPusher,
 } from "@/lib/providers/tms-provider-types";

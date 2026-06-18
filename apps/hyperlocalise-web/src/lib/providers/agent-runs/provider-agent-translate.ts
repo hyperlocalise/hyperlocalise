@@ -17,7 +17,7 @@ import type {
   ExternalTmsTaskContent,
   ExternalTmsTranslationUnit,
 } from "@/lib/providers/tms-provider-types";
-import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
+import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
 import {
   resolveProviderAgentRunSourceFiles,
   readProviderAgentRunSourceFilesFromSnapshot,

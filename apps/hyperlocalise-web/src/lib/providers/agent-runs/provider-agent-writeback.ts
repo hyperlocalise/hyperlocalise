@@ -16,7 +16,7 @@ import type {
   ExternalTmsContentSyncFailure,
 } from "../tms-provider-types";
 import type { ProviderTranslationWritebackChangedItem } from "../provider-feedback-types";
-import { getProviderTranslationPusher } from "../provider-translation-pushers";
+import { getProviderTranslationPusher } from "../adapters/tms-provider-adapter-registry";
 
 export type ProviderAgentWritebackResult =
   | {

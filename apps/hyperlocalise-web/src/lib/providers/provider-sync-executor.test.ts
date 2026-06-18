@@ -73,7 +73,7 @@ vi.mock("./provider-sync-intent", () => ({
   enqueueProviderProjectJobSyncIntent: enqueueProviderProjectJobSyncIntentMock,
 }));
 
-vi.mock("@/lib/providers/tms-provider-fetcher-registry", () => ({
+vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", () => ({
   tmsProviderJobTaskFetchers: {
     crowdin: fetchCrowdinJobTasksMock,
   },
