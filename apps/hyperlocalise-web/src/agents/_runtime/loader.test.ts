@@ -2,10 +2,16 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { composeInstructions } from "./compose-instructions";
 import { clearAgentManifestCache, getAgentManifest, loadSharedSkill } from "./loader";
+import { AGENT_MARKDOWN_TRACE_GLOB, getAgentsRoot } from "./paths";
 import { parseFrontmatter } from "./parse-frontmatter";
 import { toolNameFromFilename } from "./define-agent-tool";
 
 describe("agent loader", () => {
+  it("keeps build trace glob aligned with runtime agents root", () => {
+    expect(AGENT_MARKDOWN_TRACE_GLOB).toBe("src/agents/**/*.md");
+    expect(getAgentsRoot()).toMatch(/src\/agents$/);
+  });
+
   it("loads hyperlocalise instructions from markdown", () => {
     clearAgentManifestCache();
     const manifest = getAgentManifest({ agentId: "hyperlocalise" });
