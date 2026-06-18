@@ -102,14 +102,6 @@ export type GithubRepositoryAutomationQueue = JobQueue<{
   jobId: string;
 }>;
 
-export type ContentfulAutomationExecutionEventData = {
-  contentfulTranslationRunId: string;
-  workspaceAutomationRunId: string;
-  organizationId: string;
-};
-
-export type ContentfulAutomationExecutionQueue = JobQueue<ContentfulAutomationExecutionEventData>;
-
 export type WorkspaceAutomationExecutionEventData = {
   workspaceAutomationRunId: string;
   organizationId: string;

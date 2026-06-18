@@ -33,9 +33,6 @@ apps/hyperlocalise-web/src/workflows/adapters.ts
         +-- createWorkspaceAutomationExecutionQueue()
         |       `---------------> workspaceAutomationExecutionWorkflow
         |
-        +-- createContentfulAutomationExecutionQueue()
-        |       `---------------> contentfulAutomationExecutionWorkflow (legacy fallback)
-        |
         `-- provider/TMS queues
                 +-- providerAgentTranslationWorkflow
                 +-- providerAgentQaWorkflow

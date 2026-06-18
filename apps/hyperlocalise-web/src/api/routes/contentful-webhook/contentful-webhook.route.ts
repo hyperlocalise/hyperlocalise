@@ -16,7 +16,6 @@ import {
 } from "@/lib/contentful/webhook";
 import { db, schema } from "@/lib/database";
 import { createLogger } from "@/lib/log";
-import type { ContentfulAutomationExecutionQueue } from "@/lib/workflow/types";
 import { eq } from "drizzle-orm";
 
 import { contentfulWebhookSubscriptionParamSchema } from "../contentful-connection/contentful-connection.schema";
@@ -31,11 +30,7 @@ const validateWebhookParams = validator("param", (value, c) => {
 
 const logger = createLogger("contentful-webhook");
 
-export function createContentfulWebhookRoutes(
-  options: {
-    contentfulAutomationExecutionQueue?: ContentfulAutomationExecutionQueue;
-  } = {},
-) {
+export function createContentfulWebhookRoutes() {
   return new Hono().post("/:subscriptionId", validateWebhookParams, async (c) => {
     const { subscriptionId } = c.req.valid("param");
     const subscription = await getContentfulWebhookSubscription({ subscriptionId });
@@ -181,7 +176,6 @@ export function createContentfulWebhookRoutes(
       contentfulWebhookEventId: record.event.id,
       entryId: parsedEvent.entryId,
       contentTypeId: parsedEvent.contentTypeId,
-      queue: options.contentfulAutomationExecutionQueue,
     });
     const enqueued = results.filter((result) => result.outcome === "enqueued").length;
     const skipped = results.filter((result) => result.outcome === "skipped").length;

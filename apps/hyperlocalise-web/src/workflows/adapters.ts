@@ -2,7 +2,6 @@ import { start } from "workflow/api";
 
 import { createLogger } from "@/lib/log";
 import { emailTranslationWorkflow } from "./email-translation";
-import { contentfulAutomationExecutionWorkflow } from "./contentful-automation-execution";
 import { workspaceAutomationExecutionWorkflow } from "./workspace-automation-execution";
 import { githubRepositoryAutomationWorkflow } from "./github-repository-automation";
 import { providerAgentCommentWorkflow } from "./provider-agent-comment";
@@ -19,7 +18,6 @@ import type {
   ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
-  ContentfulAutomationExecutionQueue,
   WorkspaceAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
@@ -99,15 +97,6 @@ export function createProviderAgentWritebackQueue(): ProviderAgentWritebackQueue
   return {
     async enqueue(event) {
       const run = await start(providerAgentWritebackWorkflow, [event]);
-      return { ids: [run.runId] };
-    },
-  };
-}
-
-export function createContentfulAutomationExecutionQueue(): ContentfulAutomationExecutionQueue {
-  return {
-    async enqueue(event) {
-      const run = await start(contentfulAutomationExecutionWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

@@ -178,12 +178,6 @@ export const env = createEnv({
       .positive()
       .default(100),
 
-    /** Route workspace automations through the unified workspace orchestrator workflow. */
-    WORKSPACE_ORCHESTRATOR_ENABLED: z
-      .enum(["true", "false"])
-      .default("true")
-      .transform((value) => value === "true"),
-
     /**
      * Opt in to TMS provider shell mode (live provider reads, background sync off).
      * Prefer NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE for client-visible behavior.
@@ -284,8 +278,6 @@ export const env = createEnv({
       process.env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
-    WORKSPACE_ORCHESTRATOR_ENABLED:
-      process.env.WORKSPACE_ORCHESTRATOR_ENABLED ?? (isTestEnv ? "true" : "true"),
     TMS_PROVIDER_SHELL_MODE:
       process.env.TMS_PROVIDER_SHELL_MODE ??
       process.env.NEXT_PUBLIC_TMS_PROVIDER_SHELL_MODE ??

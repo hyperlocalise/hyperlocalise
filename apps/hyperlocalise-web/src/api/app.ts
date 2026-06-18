@@ -11,7 +11,6 @@ import type {
   ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
-  ContentfulAutomationExecutionQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
@@ -57,7 +56,6 @@ import {
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
-  createContentfulAutomationExecutionQueue,
   createProviderSyncQueue,
 } from "@/workflows/adapters";
 
@@ -70,7 +68,6 @@ type CreateAppOptions = {
   providerAgentCommentQueue?: ProviderAgentCommentQueue;
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   providerSyncQueue?: ProviderSyncQueue;
-  contentfulAutomationExecutionQueue?: ContentfulAutomationExecutionQueue;
   fileStorageAdapter?: FileStorageAdapter;
 };
 
@@ -84,8 +81,6 @@ export function createApp(options: CreateAppOptions = {}) {
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
   const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
-  const contentfulAutomationExecutionQueue =
-    options.contentfulAutomationExecutionQueue ?? createContentfulAutomationExecutionQueue();
 
   return new Hono<EvlogVariables>()
     .use("*", secureHeaders())
@@ -106,7 +101,6 @@ export function createApp(options: CreateAppOptions = {}) {
         providerAgentCommentQueue,
         providerAgentWritebackQueue,
         providerSyncQueue,
-        contentfulAutomationExecutionQueue,
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
@@ -140,7 +134,6 @@ function createOrgScopedAppRoutes(
     providerAgentCommentQueue: ProviderAgentCommentQueue;
     providerAgentWritebackQueue: ProviderAgentWritebackQueue;
     providerSyncQueue: ProviderSyncQueue;
-    contentfulAutomationExecutionQueue: ContentfulAutomationExecutionQueue;
   },
 ) {
   return new Hono()
@@ -209,11 +202,6 @@ function createWebhookRoutes(options: CreateAppOptions) {
         emailAgentTaskQueue: options.emailAgentTaskQueue,
       }),
     )
-    .route(
-      "/contentful",
-      createContentfulWebhookRoutes({
-        contentfulAutomationExecutionQueue: options.contentfulAutomationExecutionQueue,
-      }),
-    )
+    .route("/contentful", createContentfulWebhookRoutes())
     .route("/slack", createSlackWebhookRoutes());
 }

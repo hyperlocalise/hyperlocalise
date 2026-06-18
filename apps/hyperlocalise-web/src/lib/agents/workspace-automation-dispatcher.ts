@@ -1,7 +1,6 @@
 import { createLogger } from "@/lib/log";
 import { composeWorkspaceAutomationInstructions } from "@/agents/automations/workspace/agent/compose-workspace-instructions";
 import { buildWorkspaceOrchestratorPlan } from "@/agents/automations/workspace/agent/plan";
-import { isWorkspaceOrchestratorEnabled } from "@/lib/agents/workspace-orchestrator-enabled";
 
 import {
   buildWorkspaceContentfulScheduledAutomationIdempotencyKey,
@@ -174,10 +173,6 @@ async function dispatchWorkspaceAutomationViaOrchestrator(input: {
       runId: run.id,
       inserted: false,
     };
-  }
-
-  if (!isWorkspaceOrchestratorEnabled()) {
-    throw new Error("workspace_orchestrator_disabled");
   }
 
   await orchestratorQueue(input.queue).enqueue({
