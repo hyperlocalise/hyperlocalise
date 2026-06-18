@@ -181,8 +181,9 @@ export function createWorkspaceAutomationFormStateFromRecord(
 
 export function createWorkspaceAutomationFormStateFromTemplate(
   templateId: string,
+  templates?: WorkspaceAutomationTemplate[],
 ): WorkspaceAutomationFormState | null {
-  const template = getWorkspaceAutomationTemplate(templateId);
+  const template = getWorkspaceAutomationTemplate(templateId, templates);
   if (!template?.activatable) {
     return null;
   }

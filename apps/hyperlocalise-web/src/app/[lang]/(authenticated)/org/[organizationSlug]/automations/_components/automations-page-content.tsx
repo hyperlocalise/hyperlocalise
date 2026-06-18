@@ -6,6 +6,8 @@ import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 
+import type { WorkspaceAutomationTemplate } from "@/lib/agents/workspace-automation-templates";
+
 import { createAutomationsApi } from "./automations-api";
 import { AutomationsPageView } from "./automations-page-view";
 
@@ -45,9 +47,11 @@ function renderProductionActionLink({
 
 export function AutomationsPageContent({
   organizationSlug,
+  templates,
   automationsApi: injectedAutomationsApi = automationsApi,
 }: {
   organizationSlug: string;
+  templates: WorkspaceAutomationTemplate[];
   automationsApi?: typeof automationsApi;
 }) {
   const automationsQuery = useQuery({
@@ -59,6 +63,7 @@ export function AutomationsPageContent({
     <AutomationsPageView
       organizationSlug={organizationSlug}
       automations={automationsQuery.data ?? []}
+      templates={templates}
       isLoading={automationsQuery.isLoading}
       error={automationsQuery.error}
       renderAutomationLink={renderProductionAutomationLink}

@@ -16,8 +16,11 @@ export function mergeWorkspaceTemplateSkills(
       return template;
     }
 
+    const category = getTemplateCategoryFromSkill(template.id) ?? template.category;
+
     return {
       ...template,
+      category,
       name: skill.frontmatter.name || template.name,
       description:
         skill.body

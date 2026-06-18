@@ -24,10 +24,10 @@ export function resolveAutomationPageStats(automations: WorkspaceAutomationRecor
   };
 }
 
-export function resolveSortedAutomationTemplates() {
+export function resolveSortedAutomationTemplates(templates: WorkspaceAutomationTemplate[]) {
   const categoryOrder = WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES.map((category) => category.id);
 
-  return listWorkspaceAutomationTemplates().toSorted((left, right) => {
+  return listWorkspaceAutomationTemplates(undefined, templates).toSorted((left, right) => {
     const leftIndex = categoryOrder.indexOf(left.category);
     const rightIndex = categoryOrder.indexOf(right.category);
     if (leftIndex !== rightIndex) {

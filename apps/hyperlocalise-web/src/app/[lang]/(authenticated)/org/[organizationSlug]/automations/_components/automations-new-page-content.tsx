@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -10,32 +10,22 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import {
   createDefaultWorkspaceAutomationFormState,
-  createWorkspaceAutomationFormStateFromTemplate,
   formStateToWorkspaceAutomationPayload,
   mapWorkspaceAutomationApiErrorToFieldErrors,
   validateWorkspaceAutomationFormState,
+  type WorkspaceAutomationFormState,
 } from "@/lib/agents/workspace-automation-view-model";
 import { WorkspacePageShell } from "../../_components/workspace-resource-shared";
 import { WorkspaceAutomationEditor } from "./workspace-automation-form";
 
 export function AutomationsNewPageContent({
   organizationSlug,
-  templateId,
+  initialForm = createDefaultWorkspaceAutomationFormState(),
 }: {
   organizationSlug: string;
-  templateId?: string;
+  initialForm?: WorkspaceAutomationFormState;
 }) {
   const router = useRouter();
-  const initialForm = useMemo(() => {
-    if (templateId) {
-      return (
-        createWorkspaceAutomationFormStateFromTemplate(templateId) ??
-        createDefaultWorkspaceAutomationFormState()
-      );
-    }
-
-    return createDefaultWorkspaceAutomationFormState();
-  }, [templateId]);
   const [form, setForm] = useState(initialForm);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
