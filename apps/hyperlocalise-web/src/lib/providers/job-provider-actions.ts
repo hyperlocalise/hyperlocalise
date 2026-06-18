@@ -1,11 +1,11 @@
 import type { AgentRunKind } from "@/lib/database/types";
 
-import { getProviderCommentPusher } from "./provider-comment-pushers";
 import {
   getTmsProviderActionCapability,
   type TmsProviderCapabilityAction,
 } from "./tms-capabilities";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
+import { providerSupportsCommentPush } from "./tms-provider-optional-capabilities";
 import type { JobProviderActionId } from "./job-provider-action-ids";
 
 export type { JobProviderActionId } from "./job-provider-action-ids";
@@ -114,8 +114,7 @@ function resolveActionAvailability(
   }
 
   if (action.id === "leave_provider_comment") {
-    const pusher = getProviderCommentPusher(providerKind as ExternalTmsProviderKind);
-    if (!pusher) {
+    if (!providerSupportsCommentPush(providerKind as ExternalTmsProviderKind)) {
       return {
         id: action.id,
         label: action.label,

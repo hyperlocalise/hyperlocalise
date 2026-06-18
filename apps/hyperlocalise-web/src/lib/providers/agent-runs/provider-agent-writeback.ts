@@ -16,7 +16,7 @@ import type {
   ExternalTmsContentSyncFailure,
 } from "../tms-provider-types";
 import type { ProviderTranslationWritebackChangedItem } from "../provider-feedback-types";
-import { getProviderTranslationPusher } from "../provider-translation-pushers";
+import { getProviderTranslationPusher } from "../adapters/tms-provider-adapter-registry";
 
 export type ProviderAgentWritebackResult =
   | {
@@ -304,24 +304,6 @@ export async function executeProviderAgentWriteback(input: {
   }
 
   const pushTranslations = getProviderTranslationPusher(run.providerKind);
-  if (!pushTranslations) {
-    await failAgentRun({
-      runId: run.id,
-      organizationId: input.organizationId,
-      outputSummary: {
-        code: "unsupported_provider_translation_push",
-        providerKind: run.providerKind,
-      },
-      warnings: [`Provider ${run.providerKind} does not support translation write-back yet`],
-    });
-
-    return {
-      ok: false,
-      agentRunId: input.agentRunId,
-      code: "unsupported_provider_translation_push",
-      message: `Provider ${run.providerKind} does not support translation write-back yet`,
-    };
-  }
 
   if (run.status === "queued") {
     try {

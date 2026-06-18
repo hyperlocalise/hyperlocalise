@@ -35,8 +35,9 @@ const providerContentPullerMocks = vi.hoisted(() => {
   return { state, getProviderContentPullerMock };
 });
 
-vi.mock("@/lib/providers/provider-content-pullers", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/providers/provider-content-pullers")>();
+vi.mock("@/lib/providers/adapters/tms-provider-adapter-registry", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@/lib/providers/adapters/tms-provider-adapter-registry")>();
   providerContentPullerMocks.state.actual = actual.getProviderContentPuller;
   providerContentPullerMocks.getProviderContentPullerMock.mockImplementation(
     actual.getProviderContentPuller,
@@ -173,38 +174,6 @@ describe("executeProviderAgentTranslation", () => {
       unitsProcessed: 2,
       skippedExistingLocales: 1,
     });
-  });
-
-  it("fails when the provider does not support content pull", async () => {
-    providerContentPullerMocks.getProviderContentPullerMock.mockReturnValue(null);
-
-    const project = await createExternalTmsProject();
-
-    const run = await createAgentRun({
-      organizationId: project.organizationId,
-      providerKind: "lokalise",
-      externalJobId: "lokalise-job-1",
-      kind: "translate",
-      inputSnapshot: { projectId: project.id, action: "translate_with_agent" },
-    });
-
-    const result = await executeProviderAgentTranslation({
-      agentRunId: run.id,
-      organizationId: project.organizationId,
-    });
-
-    expect(result).toMatchObject({
-      ok: false,
-      code: "unsupported_provider_pull",
-    });
-
-    const failed = await getAgentRun({
-      runId: run.id,
-      organizationId: project.organizationId,
-    });
-
-    expect(failed?.status).toBe("failed");
-    expect(pullExternalTmsTaskContentMock).not.toHaveBeenCalled();
   });
 
   it("pulls Smartling job content through the provider-neutral sync layer", async () => {

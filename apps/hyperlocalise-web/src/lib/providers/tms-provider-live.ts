@@ -56,7 +56,7 @@ import {
   tmsProviderJobTaskFetchers,
   tmsProviderProjectFetchers,
   tmsProviderTranslationMemoryFetchers,
-} from "@/lib/providers/tms-provider-fetcher-registry";
+} from "@/lib/providers/adapters/tms-provider-adapter-registry";
 import { extractProviderFileIds } from "@/lib/providers/job-provider-source-files";
 import {
   encodeProviderJobId,

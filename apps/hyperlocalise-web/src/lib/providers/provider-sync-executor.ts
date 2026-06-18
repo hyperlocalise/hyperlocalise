@@ -2,7 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 import type { ExternalTmsCredential } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { tmsProviderJobTaskFetchers } from "@/lib/providers/tms-provider-fetcher-registry";
+import { tmsProviderJobTaskFetchers } from "@/lib/providers/adapters/tms-provider-adapter-registry";
 import {
   getTmsProviderLiveProject,
   listTmsProviderLiveProjects,

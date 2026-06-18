@@ -17,7 +17,7 @@ import {
 } from "@/lib/providers/match-resolution";
 import { collectGlossaryUsageForUnits } from "@/lib/translation/load-glossary-matches";
 import { collectTranslationMemoryUsageForUnits } from "@/lib/translation/load-translation-memory-matches";
-import { getProviderContentPuller } from "@/lib/providers/provider-content-pullers";
+import { getProviderContentPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
 import { loadProjectGlossaryTerms } from "@/lib/providers/provider-job-qa/load-glossary-terms";
 import {
   buildProviderJobQaReport,
@@ -133,9 +133,6 @@ export async function runProviderJobQaForJob(input: {
   actorUserId?: string | null;
 }) {
   const pullContent = getProviderContentPuller(input.providerKind);
-  if (!pullContent) {
-    throw new Error(`Provider ${input.providerKind} does not support content pull yet`);
-  }
 
   const pullResult = await pullExternalTmsTaskContent({
     organizationId: input.organizationId,
@@ -276,24 +273,6 @@ export async function prepareProviderAgentQaRun(input: {
   }
 
   const pullContent = getProviderContentPuller(run.providerKind);
-  if (!pullContent) {
-    await failAgentRun({
-      runId: run.id,
-      organizationId: input.organizationId,
-      outputSummary: {
-        code: "unsupported_provider_pull",
-        providerKind: run.providerKind,
-      },
-      warnings: [`Provider ${run.providerKind} does not support content pull yet`],
-    });
-
-    return {
-      ok: false,
-      agentRunId: input.agentRunId,
-      code: "unsupported_provider_pull",
-      message: `Provider ${run.providerKind} does not support content pull yet`,
-    };
-  }
 
   if (run.status === "queued") {
     try {

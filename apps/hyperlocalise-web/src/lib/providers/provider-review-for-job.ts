@@ -5,7 +5,7 @@ import { db, schema } from "@/lib/database";
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
 import { mergeProviderReviewReports } from "./provider-job-review/normalize-provider-review";
 import type { ProviderReviewReport } from "./provider-job-review/types";
-import { getProviderReviewPuller } from "./provider-review-pullers";
+import { getProviderReviewPuller } from "./adapters/tms-provider-adapter-registry";
 import { resolveExternalTmsSecretMaterialForActor } from "./tms-provider-content";
 import type { ExternalTmsTaskContent } from "./tms-provider-types";
 

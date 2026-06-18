@@ -2,7 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import { getTmsProviderActionCapability, providerSupportsTmsAction } from "./tms-capabilities";
 
-import { getProviderCommentPusher } from "./provider-comment-pushers";
+import { getProviderCommentPusher } from "./adapters/tms-provider-adapter-registry";
 
 describe("getProviderCommentPusher", () => {
   it.each([

@@ -5,6 +5,7 @@ import type {
   ExternalTmsCredential,
   ExternalTmsProviderKind,
 } from "./organization-external-tms-provider-credentials";
+import type { ProviderReviewReport } from "./provider-job-review/types";
 
 type ExternalTmsProject = typeof schema.projects.$inferSelect;
 
@@ -215,6 +216,18 @@ export type ExternalTmsTranslationPusher = (input: {
   asyncOperations: Array<Record<string, unknown>>;
   failures: Array<{ locale: string; message: string; fileId?: string | null }>;
 }>;
+
+export type ExternalTmsReviewPuller = (input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  externalJobId: string;
+  credential: ExternalTmsCredential;
+  secretMaterial: string;
+  project: ExternalTmsProject;
+  content: ExternalTmsTaskContent;
+}) => Promise<ProviderReviewReport>;
 
 export type ExternalTmsContentSyncFailure = {
   externalStringId: string | null;
