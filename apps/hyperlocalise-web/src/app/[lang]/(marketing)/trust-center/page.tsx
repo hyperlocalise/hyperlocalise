@@ -65,6 +65,12 @@ const subprocessors = [
     location: "Global infrastructure",
   },
   {
+    name: "PlanetScale",
+    purpose: "Managed PostgreSQL database hosting and persistent data storage",
+    data: "Account, organization, project, localization workflow, and application metadata stored in the platform database",
+    location: "United States",
+  },
+  {
     name: "WorkOS",
     purpose: "Authentication, session management, and organization membership",
     data: "Account identity, organization membership, and session metadata",
