@@ -4,5 +4,5 @@ export function escapeCrowdinCroqlString(value: string) {
 
 export function buildCrowdinFileSearchCroql(fileId: number, search: string) {
   const escaped = escapeCrowdinCroqlString(search.trim());
-  return `fileId = ${fileId} and (identifier contains "${escaped}" or text contains "${escaped}")`;
+  return `id of file = ${fileId} and (identifier contains "${escaped}" or text contains "${escaped}")`;
 }
