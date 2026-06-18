@@ -1,6 +1,7 @@
-import { and, desc, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
+import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
@@ -53,6 +54,7 @@ type JobListQuery = {
   kind?: "translation" | "research" | "review" | "sync" | "asset_management";
   type?: "string" | "file";
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
+  open?: boolean;
   relationship?: "assigned" | "created";
   limit: number;
 };
@@ -61,6 +63,7 @@ function jobListFilters(input: {
   kind?: JobListQuery["kind"];
   type?: JobListQuery["type"];
   status?: JobListQuery["status"];
+  open?: JobListQuery["open"];
   relationship?: JobListQuery["relationship"];
   userId?: string;
   providerAssigneeCandidates?: string[];
@@ -75,7 +78,9 @@ function jobListFilters(input: {
     filters.push(eq(schema.translationJobDetails.type, input.type));
   }
 
-  if (input.status) {
+  if (input.open) {
+    filters.push(inArray(schema.jobs.status, [...openJobStatusValues]));
+  } else if (input.status) {
     filters.push(eq(schema.jobs.status, input.status));
   }
 
@@ -172,6 +177,7 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
             kind: query.kind,
             type: query.type,
             status: query.status,
+            open: query.open,
             relationship: query.relationship,
             userId: auth.user.localUserId,
             providerAssigneeCandidates,
@@ -229,6 +235,7 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
             kind: query.kind,
             type: query.type,
             status: query.status,
+            open: query.open,
             relationship: query.relationship,
             userId: auth.user.localUserId,
             providerAssigneeCandidates,
