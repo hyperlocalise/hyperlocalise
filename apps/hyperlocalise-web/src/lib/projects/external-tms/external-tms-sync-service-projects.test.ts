@@ -125,4 +125,20 @@ describe("deactivateAllProjectsForCredential", () => {
 
     expect(removeAllJobsSpy).not.toHaveBeenCalled();
   });
+
+  it("deactivates projects and removes jobs when active external projects exist", async () => {
+    updateReturningMock.mockResolvedValue([{ id: "ext:crowdin:1" }]);
+
+    await expect(
+      externalTmsSyncService.deactivateAllProjectsForCredential(credentialScope),
+    ).resolves.toBe(1);
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(removeAllJobsSpy).toHaveBeenCalledTimes(1);
+    expect(removeAllJobsSpy).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "ext:crowdin:1",
+      providerKind: "crowdin",
+    });
+  });
 });

@@ -128,6 +128,7 @@ export class ExternalTmsSyncService extends ProjectServiceBase {
         {
           organizationId: input.organizationId,
           providerKind: input.providerKind,
+          providerCredentialId: input.providerCredentialId,
           deactivatedCount: deactivated.length,
         },
         "deactivated all external TMS projects for credential",
