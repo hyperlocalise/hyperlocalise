@@ -83,3 +83,7 @@
 ## 2026-07-03 - [Heuristic Tag Identification for Parity]
 **Learning:** HTML tag parity checks must balance protecting application-specific markup (like MDX or Web Components) with allowing legitimate removal of template-style placeholders (like `<resource_id>` or `<v1>`). Aggressively treating any tag containing dots, underscores, or digits as structural markup causes false-positive mismatches when translators omit these tokens. Strong indicators of "true" markup include hyphens, colons, PascalCase (MDX), or the presence of attributes.
 **Action:** Use heuristics to distinguish markup from placeholders: treat tags as markup if they are known atoms (excluding generic placeholders like `name` and `id`), contain hyphens/colons, start with an uppercase letter, or have attributes. Avoid treating plain attribute-less tokens with dots, underscores, or digits as structural markup by default.
+
+## 2026-07-10 - [Robust Markdown Link Title Parentheses Handling]
+**Learning:** Naive depth-counting scanners for Markdown link destinations (e.g., `[](/url "title")`) fail when parentheses appear inside quoted titles (e.g., `[link](/url "title )")`). The scanner prematurely terminates the destination segment at the first unquoted closing parenthesis, leading to corrupted metadata and broken round-trips.
+**Action:** Always implement quote-aware scanning for link destinations and titles. Parentheses encountered while inside a single or double-quoted literal must be ignored by depth counters to ensure the full span of the link is correctly identified and protected.

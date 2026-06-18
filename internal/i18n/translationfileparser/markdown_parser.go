@@ -217,13 +217,24 @@ func findJSXTagEnd(line string, start int) int {
 
 func findMarkdownLinkDestinationEnd(line string, start int) int {
 	depth := 1
+	var quote byte
 	for idx := start; idx < len(line); idx++ {
-		if line[idx] == '\\' {
+		ch := line[idx]
+		if ch == '\\' {
 			idx++
 			continue
 		}
 
-		switch line[idx] {
+		if quote != 0 {
+			if ch == quote {
+				quote = 0
+			}
+			continue
+		}
+
+		switch ch {
+		case '"', '\'':
+			quote = ch
 		case '(':
 			depth++
 		case ')':
