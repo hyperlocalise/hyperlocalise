@@ -184,6 +184,28 @@ func TestMarshalMarkdownPreservesLinkDestinationsWithParentheses(t *testing.T) {
 	}
 }
 
+func TestMarshalMarkdownPreservesLinkTitleWithParenthesis(t *testing.T) {
+	template := []byte("[link](/url \"title with ) paren\")\n")
+
+	entries, err := (MarkdownParser{}).Parse(template)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	updates := map[string]string{}
+	for k, v := range entries {
+		updates[k] = strings.ToUpper(v)
+	}
+
+	output := string(MarshalMarkdown(template, updates, false))
+	if !strings.Contains(output, "(/url \"title with ) paren\")") {
+		t.Fatalf("expected full link destination and title preserved, got %q", output)
+	}
+	if !strings.Contains(output, "[LINK]") {
+		t.Fatalf("expected link text translated, got %q", output)
+	}
+}
+
 func TestMarshalMarkdownPreservesDoubleBacktickInlineCode(t *testing.T) {
 	template := []byte("Use ``code with ` inside`` safely.\n")
 
