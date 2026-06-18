@@ -78,7 +78,7 @@ export async function runContentfulAgent(
       throw new Error(generator.message);
     }
 
-    const { client } = await loadContentfulAgentClient({
+    const { client, connection } = await loadContentfulAgentClient({
       organizationId: input.organizationId,
       connectionId: run.connectionId,
     });
@@ -95,6 +95,7 @@ export async function runContentfulAgent(
       runQa: run.runQa,
       writeDrafts: run.writeDrafts,
       overwriteDraftLocales: run.overwriteDraftLocales,
+      fieldConfig: connection.fieldConfig,
       client,
       translateStringJob: generator.translateStringJob,
       projectName: generator.project.name,

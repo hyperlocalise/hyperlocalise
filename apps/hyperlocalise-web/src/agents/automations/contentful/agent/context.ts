@@ -4,6 +4,7 @@ import {
 } from "@/lib/contentful/automation-executor";
 import type { ContentfulManagementClient } from "@/lib/contentful/client";
 import type {
+  ContentfulConnectionFieldConfig,
   ContentfulDraftTranslation,
   ContentfulTranslatableFieldUnit,
 } from "@/lib/contentful/types";
@@ -21,6 +22,7 @@ export type ContentfulAgentSession = {
   runQa: boolean;
   writeDrafts: boolean;
   overwriteDraftLocales: boolean;
+  fieldConfig: ContentfulConnectionFieldConfig;
   client: ContentfulManagementClient;
   translateStringJob: StringTranslationGenerator;
   projectName: string;

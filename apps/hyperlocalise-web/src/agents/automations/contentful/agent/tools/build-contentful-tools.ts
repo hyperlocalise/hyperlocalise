@@ -11,11 +11,7 @@ import {
 import { ContentfulManagementClient } from "@/lib/contentful/client";
 import { isErr } from "@/lib/primitives/result/results";
 import { loadContentfulConnectionWithToken } from "@/lib/contentful/connections";
-import type {
-  ContentfulConnectionFieldConfig,
-  ContentfulContentType,
-  ContentfulEntry,
-} from "@/lib/contentful/types";
+import type { ContentfulContentType, ContentfulEntry } from "@/lib/contentful/types";
 
 import type { ContentfulAgentSession } from "../context";
 
@@ -100,7 +96,7 @@ export function buildContentfulAgentTools(session: ContentfulAgentSession): Tool
         throw new Error("fetch_entry_required");
       }
 
-      const fieldConfig = {} as ContentfulConnectionFieldConfig;
+      const fieldConfig = session.fieldConfig;
       session.units = detectContentfulTranslatableFields({
         entry: session.entry as ContentfulEntry,
         contentType: session.contentType as ContentfulContentType,
