@@ -1,5 +1,4 @@
 import type { WorkspaceAutomationFormState } from "./workspace-automation-view-model";
-import { mergeWorkspaceTemplateSkills } from "@/agents/automations/workspace/agent/workspace-template-manifest";
 
 export type WorkspaceAutomationTemplateCategory =
   | "popular"
@@ -616,9 +615,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] 
   },
 ];
 
-export const WORKSPACE_AUTOMATION_TEMPLATES = mergeWorkspaceTemplateSkills(
-  WORKSPACE_AUTOMATION_TEMPLATES_BASE,
-);
+export const WORKSPACE_AUTOMATION_TEMPLATES = WORKSPACE_AUTOMATION_TEMPLATES_BASE;
 
 export type WorkspaceAutomationTemplateFlowNode = {
   id: string;
