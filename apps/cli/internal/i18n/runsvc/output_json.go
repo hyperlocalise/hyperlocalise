@@ -10,10 +10,16 @@ import (
 	"path/filepath"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 
 	jsoncparser "github.com/tidwall/jsonc"
 )
+
+type jsonPathSegment struct {
+	key   string
+	index *int
+}
 
 func unmarshalJSONForPath(path string, content []byte, out any) error {
 	firstErr := json.Unmarshal(content, out)
@@ -177,11 +183,25 @@ func pruneNestedJSONStringFields(payload map[string]any, prefix string, allowed 
 			if _, ok := allowed[fullKey]; !ok {
 				delete(payload, key)
 			}
+		case []any:
+			pruneJSONArrayStringFields(typed, fullKey, allowed)
 		case map[string]any:
 			pruneNestedJSONStringFields(typed, fullKey, allowed)
 			if len(typed) == 0 {
 				delete(payload, key)
 			}
+		}
+	}
+}
+
+func pruneJSONArrayStringFields(payload []any, prefix string, allowed map[string]struct{}) {
+	for idx, value := range payload {
+		fullKey := prefix + "[" + strconv.Itoa(idx) + "]"
+		switch typed := value.(type) {
+		case []any:
+			pruneJSONArrayStringFields(typed, fullKey, allowed)
+		case map[string]any:
+			pruneNestedJSONStringFields(typed, fullKey, allowed)
 		}
 	}
 }
@@ -220,6 +240,22 @@ func collectNestedJSONStrings(out map[string]string, prefix string, payload map[
 		switch typed := value.(type) {
 		case string:
 			out[fullKey] = typed
+		case []any:
+			collectJSONArrayStrings(out, fullKey, typed)
+		case map[string]any:
+			collectNestedJSONStrings(out, fullKey, typed)
+		}
+	}
+}
+
+func collectJSONArrayStrings(out map[string]string, prefix string, payload []any) {
+	for idx, value := range payload {
+		fullKey := prefix + "[" + strconv.Itoa(idx) + "]"
+		switch typed := value.(type) {
+		case string:
+			out[fullKey] = typed
+		case []any:
+			collectJSONArrayStrings(out, fullKey, typed)
 		case map[string]any:
 			collectNestedJSONStrings(out, fullKey, typed)
 		}
@@ -235,26 +271,125 @@ func sortedEntryKeysMapAny(entries map[string]any) []string {
 	return keys
 }
 
+func parseJSONPath(key string) ([]jsonPathSegment, error) {
+	if key == "" {
+		return nil, fmt.Errorf("json path cannot be empty")
+	}
+
+	parts := strings.Split(key, ".")
+	segments := make([]jsonPathSegment, 0, len(parts))
+	for _, part := range parts {
+		if part == "" {
+			return nil, fmt.Errorf("invalid json path %q", key)
+		}
+
+		bracket := strings.Index(part, "[")
+		if bracket < 0 {
+			segments = append(segments, jsonPathSegment{key: part})
+			continue
+		}
+		if !strings.HasSuffix(part, "]") {
+			return nil, fmt.Errorf("invalid json path segment %q", part)
+		}
+
+		name := part[:bracket]
+		if name == "" {
+			return nil, fmt.Errorf("invalid json path segment %q", part)
+		}
+		idx, err := strconv.Atoi(part[bracket+1 : len(part)-1])
+		if err != nil || idx < 0 {
+			return nil, fmt.Errorf("invalid json array index in %q", part)
+		}
+		index := idx
+		segments = append(segments, jsonPathSegment{key: name, index: &index})
+	}
+
+	return segments, nil
+}
+
 func setNestedValue(payload map[string]any, dottedKey, value string) {
-	parts := strings.Split(dottedKey, ".")
+	segments, err := parseJSONPath(dottedKey)
+	if err != nil {
+		return
+	}
+
 	current := payload
-	for i, part := range parts {
-		if i == len(parts)-1 {
-			current[part] = value
+	for i := 0; i < len(segments)-1; i++ {
+		nextMap, ok := descendJSONPath(current, segments[i], true)
+		if !ok {
 			return
 		}
-		next, ok := current[part]
+		current = nextMap
+	}
+
+	last := segments[len(segments)-1]
+	if last.index == nil {
+		current[last.key] = value
+		return
+	}
+
+	arr, ok := current[last.key].([]any)
+	if !ok {
+		arr = make([]any, *last.index+1)
+		current[last.key] = arr
+	}
+	for len(arr) <= *last.index {
+		arr = append(arr, nil)
+	}
+	current[last.key] = arr
+	arr[*last.index] = value
+}
+
+func descendJSONPath(current map[string]any, segment jsonPathSegment, create bool) (map[string]any, bool) {
+	if segment.index == nil {
+		next, ok := current[segment.key]
 		if !ok {
+			if !create {
+				return nil, false
+			}
 			nested := map[string]any{}
-			current[part] = nested
-			current = nested
-			continue
+			current[segment.key] = nested
+			return nested, true
 		}
 		nested, ok := next.(map[string]any)
 		if !ok {
+			if !create {
+				return nil, false
+			}
 			nested = map[string]any{}
-			current[part] = nested
+			current[segment.key] = nested
 		}
-		current = nested
+		return nested, true
 	}
+
+	next, ok := current[segment.key]
+	if !ok {
+		if !create {
+			return nil, false
+		}
+		next = []any{}
+		current[segment.key] = next
+	}
+	arr, ok := next.([]any)
+	if !ok {
+		return nil, false
+	}
+	for len(arr) <= *segment.index {
+		if !create {
+			return nil, false
+		}
+		arr = append(arr, map[string]any{})
+	}
+	current[segment.key] = arr
+
+	elem := arr[*segment.index]
+	elemMap, ok := elem.(map[string]any)
+	if !ok {
+		if !create {
+			return nil, false
+		}
+		elemMap = map[string]any{}
+		arr[*segment.index] = elemMap
+	}
+	return elemMap, true
 }

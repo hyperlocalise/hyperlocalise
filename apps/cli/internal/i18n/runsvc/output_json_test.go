@@ -92,7 +92,7 @@ func TestParseJSONEntriesLenientIgnoresNonStringLeaves(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parse lenient non-string leaves: %v", err)
 	}
-	want := map[string]string{"a.s": "x"}
+	want := map[string]string{"a.s": "x", "a.arr[0]": "x"}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("entries mismatch\nwant: %#v\n got: %#v", want, got)
 	}
@@ -205,5 +205,101 @@ func TestUnmarshalJSONForPathResetsTargetBeforeJSONCRetry(t *testing.T) {
 	want := map[string]any{"first": "one", "second": "two"}
 	if !reflect.DeepEqual(payload, want) {
 		t.Fatalf("payload mismatch\nwant: %#v\n got: %#v", want, payload)
+	}
+}
+
+func TestMarshalJSONTargetPreservesObjectArrayShape(t *testing.T) {
+	template := []byte(`{
+  "home": {
+    "title": "Welcome",
+    "steps": [
+      {"title": "One", "description": "First"},
+      {"title": "Two", "description": "Second"},
+      {"title": "Three", "description": "Third"}
+    ]
+  }
+}`)
+	values := map[string]string{
+		"home.steps[0].title":       "Uno",
+		"home.steps[1].description": "Segundo",
+	}
+	content, err := marshalJSONTarget("/tmp/nested.json", template, values, nil)
+	if err != nil {
+		t.Fatalf("marshal nested json with arrays: %v", err)
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(content, &payload); err != nil {
+		t.Fatalf("decode nested payload: %v", err)
+	}
+
+	home := payload["home"].(map[string]any)
+	steps, ok := home["steps"].([]any)
+	if !ok {
+		t.Fatalf("expected steps array, got %T", home["steps"])
+	}
+	if len(steps) != 3 {
+		t.Fatalf("expected 3 steps, got %d", len(steps))
+	}
+	if _, ok := home["steps[0]"]; ok {
+		t.Fatalf("expected indexed keys to remain inside steps array")
+	}
+
+	first := steps[0].(map[string]any)
+	if got := first["title"]; got != "Uno" {
+		t.Fatalf("first step title mismatch: %v", got)
+	}
+	second := steps[1].(map[string]any)
+	if got := second["description"]; got != "Segundo" {
+		t.Fatalf("second step description mismatch: %v", got)
+	}
+}
+
+func TestParseJSONEntriesLenientCollectsArrayStrings(t *testing.T) {
+	got, err := parseJSONEntriesLenient("/tmp/messages.json", []byte(`{
+  "home": {
+    "steps": [
+      {"title": "One", "description": "First"},
+      {"title": "Two", "description": "Second"}
+    ],
+    "tags": ["Alpha", "Beta"]
+  }
+}`))
+	if err != nil {
+		t.Fatalf("parse lenient arrays: %v", err)
+	}
+
+	if got["home.steps[0].title"] != "One" {
+		t.Fatalf("unexpected home.steps[0].title: %q", got["home.steps[0].title"])
+	}
+	if got["home.steps[1].description"] != "Second" {
+		t.Fatalf("unexpected home.steps[1].description: %q", got["home.steps[1].description"])
+	}
+	if got["home.tags[0]"] != "Alpha" {
+		t.Fatalf("unexpected home.tags[0]: %q", got["home.tags[0]"])
+	}
+}
+
+func TestSetNestedValueHandlesArrayIndexedPaths(t *testing.T) {
+	payload := map[string]any{
+		"home": map[string]any{
+			"steps": []any{
+				map[string]any{"title": "Old", "description": "First"},
+			},
+		},
+	}
+
+	setNestedValue(payload, "home.steps[0].title", "New title")
+	setNestedValue(payload, "home.tags[0]", "Alpha")
+
+	home := payload["home"].(map[string]any)
+	steps := home["steps"].([]any)
+	first := steps[0].(map[string]any)
+	if got := first["title"]; got != "New title" {
+		t.Fatalf("step title mismatch: %v", got)
+	}
+	tags := home["tags"].([]any)
+	if got := tags[0]; got != "Alpha" {
+		t.Fatalf("tags[0] mismatch: %v", got)
 	}
 }
