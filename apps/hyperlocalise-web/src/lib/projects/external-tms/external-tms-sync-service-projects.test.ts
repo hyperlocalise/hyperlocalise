@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { notInArrayMock, updateMock, updateReturningMock } = vi.hoisted(() => {
   const notInArrayMock = vi.fn((field: string, values: unknown[]) => ["notInArray", field, values]);
-  const updateReturningMock = vi.fn(async () => [{ id: "ext:crowdin:1" }, { id: "ext:crowdin:2" }]);
+  const updateReturningMock = vi.fn(
+    async (): Promise<Array<{ id: string; externalProviderKind?: "crowdin" }>> => [
+      { id: "ext:crowdin:1" },
+      { id: "ext:crowdin:2" },
+    ],
+  );
   const updateWhereMock = vi.fn(() => ({ returning: updateReturningMock }));
   const updateSetMock = vi.fn(() => ({ where: updateWhereMock }));
   const updateMock = vi.fn(() => ({ set: updateSetMock }));

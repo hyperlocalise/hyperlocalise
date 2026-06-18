@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { createWebAdapter } from "@chat-adapter/web";
 import { createMemoryState } from "@chat-adapter/state-memory";
-import { Chat, type Thread } from "chat";
+import { Chat } from "chat";
 
 import { isAiActionAllowed } from "@/api/auth/capability-guards";
 import { canAccessInteraction } from "@/api/auth/team-access";
