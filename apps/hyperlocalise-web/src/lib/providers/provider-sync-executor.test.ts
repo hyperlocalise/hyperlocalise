@@ -7,10 +7,12 @@ const {
   dbUpdateMock,
   enqueueProviderProjectJobSyncIntentMock,
   fetchCrowdinJobTasksMock,
+  getTmsProviderLiveProjectMock,
   listTmsProviderLiveProjectsMock,
   resolveSecretMaterialForActorMock,
   runTmsAgentAutomationForSyncedJobMock,
   upsertExternalTmsJobRecordsMock,
+  upsertExternalTmsProjectRecordMock,
   deactivateMissingExternalTmsProjectsMock,
   deactivateExternalTmsProjectMock,
 } = vi.hoisted(() => ({
@@ -20,12 +22,14 @@ const {
   dbUpdateMock: vi.fn(),
   enqueueProviderProjectJobSyncIntentMock: vi.fn(),
   fetchCrowdinJobTasksMock: vi.fn(),
+  getTmsProviderLiveProjectMock: vi.fn(),
   listTmsProviderLiveProjectsMock: vi.fn(),
   resolveSecretMaterialForActorMock: vi.fn(),
   runTmsAgentAutomationForSyncedJobMock: vi.fn(
     async (): Promise<{ triggered: string[] }> => ({ triggered: [] }),
   ),
   upsertExternalTmsJobRecordsMock: vi.fn(),
+  upsertExternalTmsProjectRecordMock: vi.fn(async () => "ext:crowdin:902807"),
   deactivateMissingExternalTmsProjectsMock: vi.fn(async () => 0),
   deactivateExternalTmsProjectMock: vi.fn(async () => false),
 }));
@@ -58,12 +62,12 @@ vi.mock("@/lib/database", () => ({
 }));
 
 vi.mock("@/lib/providers/tms-provider-live", () => ({
-  getTmsProviderLiveProject: vi.fn(),
+  getTmsProviderLiveProject: getTmsProviderLiveProjectMock,
   listTmsProviderLiveProjects: listTmsProviderLiveProjectsMock,
 }));
 
 vi.mock("@/lib/projects/external-tms/external-tms-sync-service", () => ({
-  upsertExternalTmsProjectRecord: vi.fn(async () => "ext:crowdin:902807"),
+  upsertExternalTmsProjectRecord: upsertExternalTmsProjectRecordMock,
   deactivateMissingExternalTmsProjects: deactivateMissingExternalTmsProjectsMock,
   deactivateExternalTmsProject: deactivateExternalTmsProjectMock,
   upsertExternalTmsJobRecords: upsertExternalTmsJobRecordsMock,
@@ -230,6 +234,69 @@ describe("executeProviderSyncIntent", () => {
     expect(listTmsProviderLiveProjectsMock).toHaveBeenCalledWith("org_123", {
       actorUserId: "user_created",
     });
+  });
+
+  it("deactivates a materialized project when the live TMS project is missing", async () => {
+    const updateSetMock = vi.fn(() => ({
+      where: vi.fn(async () => {}),
+    }));
+    dbUpdateMock.mockReturnValue({ set: updateSetMock });
+    getTmsProviderLiveProjectMock.mockResolvedValue(null);
+    deactivateExternalTmsProjectMock.mockResolvedValue(true);
+
+    const result = await executeProviderSyncIntent({
+      ...createCatalogIntent(),
+      projectId: "ext:crowdin:902807",
+      leaseKey: "org_123:crowdin:project_scan:ext:crowdin:902807:",
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith("org_123", "902807", {
+      actorUserId: "user_updated",
+    });
+    expect(deactivateExternalTmsProjectMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      projectId: "ext:crowdin:902807",
+    });
+    expect(updateSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "succeeded",
+        errorMessage: null,
+        counts: { deactivatedProjects: 1 },
+      }),
+    );
+    expect(upsertExternalTmsProjectRecordMock).not.toHaveBeenCalled();
+    expect(enqueueProviderProjectJobSyncIntentMock).not.toHaveBeenCalled();
+  });
+
+  it("does not count a deactivation when the missing live TMS project is already inactive", async () => {
+    const updateSetMock = vi.fn(() => ({
+      where: vi.fn(async () => {}),
+    }));
+    dbUpdateMock.mockReturnValue({ set: updateSetMock });
+    getTmsProviderLiveProjectMock.mockResolvedValue(null);
+    deactivateExternalTmsProjectMock.mockResolvedValue(false);
+
+    const result = await executeProviderSyncIntent({
+      ...createCatalogIntent(),
+      projectId: "ext:crowdin:902807",
+      leaseKey: "org_123:crowdin:project_scan:ext:crowdin:902807:",
+    });
+
+    expect(isOk(result)).toBe(true);
+    expect(deactivateExternalTmsProjectMock).toHaveBeenCalledWith({
+      organizationId: "org_123",
+      projectId: "ext:crowdin:902807",
+    });
+    expect(updateSetMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: "succeeded",
+        errorMessage: null,
+        counts: { deactivatedProjects: 0 },
+      }),
+    );
+    expect(upsertExternalTmsProjectRecordMock).not.toHaveBeenCalled();
+    expect(enqueueProviderProjectJobSyncIntentMock).not.toHaveBeenCalled();
   });
 
   it("fetches and upserts provider job tasks for a project job scan", async () => {

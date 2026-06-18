@@ -1,7 +1,7 @@
 import "dotenv/config";
 
 import { eq } from "drizzle-orm";
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vite-plus/test";
+import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
 import { db, schema } from "@/lib/database";
 

@@ -2,7 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { notInArrayMock, updateMock, updateReturningMock } = vi.hoisted(() => {
   const notInArrayMock = vi.fn((field: string, values: unknown[]) => ["notInArray", field, values]);
-  const updateReturningMock = vi.fn(async () => [{ id: "ext:crowdin:1" }, { id: "ext:crowdin:2" }]);
+  const updateReturningMock = vi.fn(
+    async (): Promise<Array<{ id: string; externalProviderKind?: "crowdin" }>> => [
+      { id: "ext:crowdin:1" },
+      { id: "ext:crowdin:2" },
+    ],
+  );
   const updateWhereMock = vi.fn(() => ({ returning: updateReturningMock }));
   const updateSetMock = vi.fn(() => ({ where: updateWhereMock }));
   const updateMock = vi.fn(() => ({ set: updateSetMock }));
@@ -40,6 +45,7 @@ vi.mock("@/lib/database", () => ({
 }));
 
 import {
+  deactivateExternalTmsProject,
   deactivateMissingExternalTmsProjects,
   externalTmsSyncService,
 } from "./external-tms-sync-service";
@@ -140,5 +146,48 @@ describe("deactivateAllProjectsForCredential", () => {
       projectId: "ext:crowdin:1",
       providerKind: "crowdin",
     });
+  });
+});
+
+describe("deactivateExternalTmsProject", () => {
+  const removeAllJobsSpy = vi.spyOn(externalTmsSyncService, "removeAllJobsForProject");
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    removeAllJobsSpy.mockResolvedValue(0);
+    updateReturningMock.mockResolvedValue([
+      { id: "ext:crowdin:99", externalProviderKind: "crowdin" },
+    ]);
+  });
+
+  it("deactivates an active external TMS project and removes its jobs", async () => {
+    await expect(
+      deactivateExternalTmsProject({
+        organizationId: "org_1",
+        projectId: "ext:crowdin:99",
+      }),
+    ).resolves.toBe(true);
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(removeAllJobsSpy).toHaveBeenCalledTimes(1);
+    expect(removeAllJobsSpy).toHaveBeenCalledWith({
+      organizationId: "org_1",
+      projectId: "ext:crowdin:99",
+      providerKind: "crowdin",
+    });
+  });
+
+  it("returns false when the external TMS project is already inactive or missing", async () => {
+    updateReturningMock.mockResolvedValue([]);
+
+    await expect(
+      deactivateExternalTmsProject({
+        organizationId: "org_1",
+        projectId: "ext:crowdin:99",
+      }),
+    ).resolves.toBe(false);
+
+    expect(updateMock).toHaveBeenCalledTimes(1);
+    expect(removeAllJobsSpy).not.toHaveBeenCalled();
   });
 });

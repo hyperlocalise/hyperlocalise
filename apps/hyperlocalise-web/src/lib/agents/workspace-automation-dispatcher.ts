@@ -3,7 +3,6 @@ import { composeWorkspaceAutomationInstructions } from "@/agents/automations/wor
 import { buildWorkspaceOrchestratorPlan } from "@/agents/automations/workspace/agent/plan";
 
 import {
-  buildWorkspaceContentfulScheduledAutomationIdempotencyKey,
   buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
   buildWorkspaceGithubPushAutomationIdempotencyKey,
   buildWorkspaceManualAutomationIdempotencyKey,
