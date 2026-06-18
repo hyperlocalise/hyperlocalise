@@ -30,7 +30,7 @@ export const WORKSPACE_AUTOMATION_TEMPLATE_CATEGORIES: Array<{
   { id: "release", label: "Release Readiness" },
 ];
 
-export const WORKSPACE_AUTOMATION_TEMPLATES: WorkspaceAutomationTemplate[] = [
+export const WORKSPACE_AUTOMATION_TEMPLATES_BASE: WorkspaceAutomationTemplate[] = [
   {
     id: "translate-contentful-article",
     category: "popular",
@@ -615,6 +615,8 @@ export const WORKSPACE_AUTOMATION_TEMPLATES: WorkspaceAutomationTemplate[] = [
   },
 ];
 
+export const WORKSPACE_AUTOMATION_TEMPLATES = WORKSPACE_AUTOMATION_TEMPLATES_BASE;
+
 export type WorkspaceAutomationTemplateFlowNode = {
   id: string;
   label: string;
@@ -684,8 +686,11 @@ export function getWorkspaceAutomationTemplateFlow(
   return { trigger, tools };
 }
 
-export function getWorkspaceAutomationTemplate(templateId: string) {
-  return WORKSPACE_AUTOMATION_TEMPLATES.find((template) => template.id === templateId) ?? null;
+export function getWorkspaceAutomationTemplate(
+  templateId: string,
+  templates: WorkspaceAutomationTemplate[] = WORKSPACE_AUTOMATION_TEMPLATES,
+) {
+  return templates.find((template) => template.id === templateId) ?? null;
 }
 
 export function getWorkspaceAutomationTemplateCategoryLabel(
@@ -697,10 +702,13 @@ export function getWorkspaceAutomationTemplateCategoryLabel(
   );
 }
 
-export function listWorkspaceAutomationTemplates(category?: WorkspaceAutomationTemplateCategory) {
+export function listWorkspaceAutomationTemplates(
+  category?: WorkspaceAutomationTemplateCategory,
+  templates: WorkspaceAutomationTemplate[] = WORKSPACE_AUTOMATION_TEMPLATES,
+) {
   if (!category) {
-    return WORKSPACE_AUTOMATION_TEMPLATES;
+    return templates;
   }
 
-  return WORKSPACE_AUTOMATION_TEMPLATES.filter((template) => template.category === category);
+  return templates.filter((template) => template.category === category);
 }

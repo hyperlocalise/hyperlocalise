@@ -2,12 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { err, ok } from "@/lib/primitives/result/results";
 
-const { executeContentfulAutomationMock } = vi.hoisted(() => ({
-  executeContentfulAutomationMock: vi.fn(),
+const { runContentfulAgentMock } = vi.hoisted(() => ({
+  runContentfulAgentMock: vi.fn(),
 }));
 
-vi.mock("@/lib/contentful/automation-executor", () => ({
-  executeContentfulAutomation: executeContentfulAutomationMock,
+vi.mock("@/agents/automations/contentful/agent/run-contentful-agent", () => ({
+  runContentfulAgent: runContentfulAgentMock,
 }));
 
 import { executeContentfulAutomationStep } from "./contentful-automation-execution";
@@ -24,7 +24,7 @@ describe("executeContentfulAutomationStep", () => {
   });
 
   it("returns a plain serializable object when automation succeeds", async () => {
-    executeContentfulAutomationMock.mockResolvedValueOnce(ok({ runId: "run-1" }));
+    runContentfulAgentMock.mockResolvedValueOnce(ok({ runId: "run-1" }));
 
     const result = await executeContentfulAutomationStep(event);
 
@@ -35,11 +35,11 @@ describe("executeContentfulAutomationStep", () => {
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
     expect("map" in result).toBe(false);
     expect(JSON.parse(JSON.stringify(result))).toEqual(result);
-    expect(executeContentfulAutomationMock).toHaveBeenCalledWith(event);
+    expect(runContentfulAgentMock).toHaveBeenCalledWith(event);
   });
 
   it("returns a plain serializable object when automation reports an expected error", async () => {
-    executeContentfulAutomationMock.mockResolvedValueOnce(
+    runContentfulAgentMock.mockResolvedValueOnce(
       err({
         code: "contentful_automation_failed",
         runId: "run-2",
@@ -60,11 +60,11 @@ describe("executeContentfulAutomationStep", () => {
     expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
     expect("map" in result).toBe(false);
     expect(JSON.parse(JSON.stringify(result))).toEqual(result);
-    expect(executeContentfulAutomationMock).toHaveBeenCalledWith(event);
+    expect(runContentfulAgentMock).toHaveBeenCalledWith(event);
   });
 
   it("rethrows unexpected executor failures", async () => {
-    executeContentfulAutomationMock.mockRejectedValueOnce(new Error("database unavailable"));
+    runContentfulAgentMock.mockRejectedValueOnce(new Error("database unavailable"));
 
     await expect(executeContentfulAutomationStep(event)).rejects.toThrow("database unavailable");
   });

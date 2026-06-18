@@ -11,7 +11,10 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TypographyP } from "@/components/ui/typography";
-import type { WorkspaceAutomationTemplateCategory } from "@/lib/agents/workspace-automation-templates";
+import type {
+  WorkspaceAutomationTemplate,
+  WorkspaceAutomationTemplateCategory,
+} from "@/lib/agents/workspace-automation-templates";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
 
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
@@ -113,6 +116,7 @@ function AutomationToolsSummary({ automation }: { automation: WorkspaceAutomatio
 export function AutomationsPageView({
   organizationSlug,
   automations,
+  templates,
   isLoading,
   error,
   now,
@@ -121,6 +125,7 @@ export function AutomationsPageView({
 }: {
   organizationSlug: string;
   automations: WorkspaceAutomationRecord[];
+  templates: WorkspaceAutomationTemplate[];
   isLoading: boolean;
   error?: unknown;
   now?: number;
@@ -132,11 +137,14 @@ export function AutomationsPageView({
 
   const visibleAutomations = useMemo(() => resolveVisibleAutomations(automations), [automations]);
   const stats = useMemo(() => resolveAutomationPageStats(visibleAutomations), [visibleAutomations]);
-  const templates = useMemo(() => resolveSortedAutomationTemplates(), []);
-  const templateCategoryTabs = useMemo(() => resolveTemplateCategoryTabs(templates), [templates]);
+  const sortedTemplates = useMemo(() => resolveSortedAutomationTemplates(templates), [templates]);
+  const templateCategoryTabs = useMemo(
+    () => resolveTemplateCategoryTabs(sortedTemplates),
+    [sortedTemplates],
+  );
   const filteredTemplates = useMemo(
-    () => templates.filter((template) => template.category === templateCategoryFilter),
-    [templateCategoryFilter, templates],
+    () => sortedTemplates.filter((template) => template.category === templateCategoryFilter),
+    [templateCategoryFilter, sortedTemplates],
   );
 
   return (

@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import { getWorkspaceAutomationTemplate } from "./workspace-automation-templates";
+import { mergeWorkspaceTemplateSkills } from "@/agents/automations/workspace/agent/workspace-template-manifest";
+
+import {
+  getWorkspaceAutomationTemplate,
+  WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+} from "./workspace-automation-templates";
 import {
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromTemplate,
@@ -8,12 +13,20 @@ import {
   validateWorkspaceAutomationFormState,
 } from "./workspace-automation-view-model";
 
+const mergedTemplates = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE);
+
 describe("workspace automation view model", () => {
   it("prefills the form from a template", () => {
-    const template = getWorkspaceAutomationTemplate("validate-localisation-on-push");
+    const template = getWorkspaceAutomationTemplate(
+      "validate-localisation-on-push",
+      mergedTemplates,
+    );
     expect(template).not.toBeNull();
 
-    const form = createWorkspaceAutomationFormStateFromTemplate("validate-localisation-on-push");
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "validate-localisation-on-push",
+      mergedTemplates,
+    );
     expect(form).toMatchObject({
       name: "Validate localisation on push",
       triggerMode: "github",
@@ -22,16 +35,19 @@ describe("workspace automation view model", () => {
       validationEnabled: true,
       slackEnabled: true,
     });
-    expect(form?.instructions).toContain("localisation quality automation");
+    expect(form?.instructions).toContain("protected branches");
   });
 
   it("does not prefill coming-soon templates", () => {
-    expect(getWorkspaceAutomationTemplate("create-localisation-job-brief")?.activatable).toBe(
-      false,
-    );
-    expect(createWorkspaceAutomationFormStateFromTemplate("create-localisation-job-brief")).toBe(
-      null,
-    );
+    expect(
+      getWorkspaceAutomationTemplate("create-localisation-job-brief", mergedTemplates)?.activatable,
+    ).toBe(false);
+    expect(
+      createWorkspaceAutomationFormStateFromTemplate(
+        "create-localisation-job-brief",
+        mergedTemplates,
+      ),
+    ).toBe(null);
   });
 
   it("maps form state to API payload", () => {
@@ -73,7 +89,10 @@ describe("workspace automation view model", () => {
   });
 
   it("prefills the Contentful translation template", () => {
-    const form = createWorkspaceAutomationFormStateFromTemplate("translate-contentful-article");
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "translate-contentful-article",
+      mergedTemplates,
+    );
 
     expect(form).toMatchObject({
       name: "Translate Contentful article",

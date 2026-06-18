@@ -10,12 +10,10 @@ import type { AuthVariables } from "@/api/auth/workos";
 import { workosAuthMiddleware } from "@/api/auth/workos";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import {
-  buildTranslationAttachmentRequiredMessage,
-  classifyConversation,
-  createConversationToolLoopAgent,
-  getRecentUserConversationText,
-  loadInteractionModelMessages,
-} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+  postStreamingAgentReply,
+  postWebAttachmentRequiredReply,
+  runWebChatAgentTurn,
+} from "@/agents/hyperlocalise/agent/channels/web";
 import { db } from "@/lib/database";
 import {
   addInteractionMessage,
@@ -25,24 +23,6 @@ import {
 import { conversationIdParamsSchema } from "./conversation.schema";
 
 type WebInboxBotState = Record<string, unknown>;
-
-async function postStreamingAgentReply(
-  thread: Thread<WebInboxBotState>,
-  stream: AsyncIterable<string>,
-) {
-  let text = "";
-
-  async function* captureTextStream() {
-    for await (const chunk of stream) {
-      text += chunk;
-      yield chunk;
-    }
-  }
-
-  await thread.post(captureTextStream());
-
-  return text;
-}
 
 export function createChatStreamRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
@@ -105,28 +85,13 @@ export function createChatStreamRoutes() {
         const hasTranslationAttachments =
           await interactionHasTranslationAttachments(conversationId);
         if (!hasTranslationAttachments) {
-          const text = buildTranslationAttachmentRequiredMessage("web");
-          await thread.post(text);
-          await addInteractionMessage({
-            interactionId: conversationId,
-            senderType: "agent",
-            text,
-          });
+          await postWebAttachmentRequiredReply(thread, conversationId);
           return;
         }
 
-        const chatMessages = await loadInteractionModelMessages(conversationId);
-        const conversationText = getRecentUserConversationText(chatMessages, message.text);
-        const classification = await classifyConversation({
-          currentMessage: message.text,
-          conversationText,
-          hasFileAttachments: hasTranslationAttachments,
-          hasStoredRepositoryContext: false,
-          surface: "web",
-        });
-        const agent = createConversationToolLoopAgent({
-          surface: "web",
-          suggestedIntents: classification.intents,
+        const { textStream } = await runWebChatAgentTurn({
+          conversationId,
+          messageText: message.text,
           toolContext: {
             conversationId,
             organizationId: orgId,
@@ -135,11 +100,10 @@ export function createChatStreamRoutes() {
             projectId: conversation.projectId ?? null,
             db,
           },
-          hasFileAttachments: hasTranslationAttachments,
+          hasTranslationAttachments,
         });
 
-        const result = await agent.stream({ messages: chatMessages });
-        const text = await postStreamingAgentReply(thread, result.textStream);
+        const text = await postStreamingAgentReply(thread, textStream);
 
         try {
           await addInteractionMessage({
