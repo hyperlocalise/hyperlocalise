@@ -1,8 +1,5 @@
-import { pullCrowdinProviderReview } from "@/lib/providers/adapters/crowdin/crowdin-review-puller";
 import type { ExternalTmsTaskContent } from "@/lib/providers/tms-provider-types";
-import { pullLokaliseProviderReview } from "@/lib/providers/adapters/lokalise/lokalise-review-puller";
 import type { ProviderReviewReport } from "@/lib/providers/provider-job-review/types";
-import { pullPhraseProviderReview } from "@/lib/providers/adapters/phrase/phrase-review-puller";
 
 import { schema } from "@/lib/database";
 
@@ -22,39 +19,4 @@ export type ExternalTmsReviewPuller = (input: {
   content: ExternalTmsTaskContent;
 }) => Promise<ProviderReviewReport>;
 
-export function getProviderReviewPuller(
-  providerKind: ExternalTmsProviderKind,
-): ExternalTmsReviewPuller | null {
-  switch (providerKind) {
-    case "crowdin":
-      return async (input) =>
-        pullCrowdinProviderReview({
-          credential: input.credential,
-          secretMaterial: input.secretMaterial,
-          externalProjectId: input.externalProjectId,
-          externalJobId: input.externalJobId,
-          content: input.content,
-        });
-    case "phrase":
-      return async (input) =>
-        pullPhraseProviderReview({
-          credential: input.credential,
-          secretMaterial: input.secretMaterial,
-          externalProjectId: input.externalProjectId,
-          externalJobId: input.externalJobId,
-          project: input.project,
-          content: input.content,
-        });
-    case "lokalise":
-      return async (input) =>
-        pullLokaliseProviderReview({
-          credential: input.credential,
-          secretMaterial: input.secretMaterial,
-          externalProjectId: input.externalProjectId,
-          externalJobId: input.externalJobId,
-          content: input.content,
-        });
-    default:
-      return null;
-  }
-}
+export { getProviderReviewPuller } from "@/lib/providers/adapters/tms-provider-adapter-registry";
