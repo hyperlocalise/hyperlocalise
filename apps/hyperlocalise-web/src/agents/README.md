@@ -24,6 +24,16 @@ Each package uses Eve-inspired slots under `agent/`:
 | `schedules/`      | Cron ticks                                  |
 | `subagents/`      | Specialist child agents                     |
 
+## Workspace automations
+
+`automations/workspace/agent` is the unified executor for customer workspace automations. It composes instructions from `instructions.md`, template skills, and customer overrides, then runs a hybrid orchestrator:
+
+- **Plan**: deterministic tool order from `toolConfig` and `executorAgent` skill metadata
+- **Execution**: `ToolLoopAgent` with `prepareStep` forcing each planned tool
+- **Tools**: GitHub workflows, Contentful translation, Slack, and email notifications
+
+Child executors remain specialized packages (`contentful`, `github-repository`) but are invoked as orchestrator tools rather than separate dispatch branches.
+
 ## Authoring
 
 - Edit prompts in markdown; use `composeInstructions()` for dynamic + DB overrides.

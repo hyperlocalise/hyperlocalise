@@ -190,12 +190,18 @@ export async function createContentfulConnection(input: {
   fieldConfig: ContentfulConnectionFieldConfig;
   accessToken: string;
   enabled?: boolean;
+  projectId?: string | null;
+  sourceLocale?: string | null;
+  targetLocales?: string[];
 }): Promise<ContentfulConnectionSecretResult> {
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken));
   const [connection] = await db
     .insert(schema.contentfulConnections)
     .values({
       organizationId: input.organizationId,
+      projectId: input.projectId ?? null,
+      sourceLocale: input.sourceLocale ?? "en-US",
+      targetLocales: input.targetLocales ?? [],
       createdByUserId: input.userId,
       updatedByUserId: input.userId,
       displayName: input.displayName,

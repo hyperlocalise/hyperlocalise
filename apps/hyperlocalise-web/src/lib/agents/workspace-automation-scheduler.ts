@@ -4,7 +4,7 @@ import {
   dispatchDueContentfulWorkspaceAutomations,
   dispatchWorkspaceAutomationForScheduleAndAdvance,
 } from "./workspace-automation-dispatcher";
-import { hasWorkspaceAutomationGithubWorkflow } from "./workspace-automation-github-mapping";
+import { buildWorkspaceOrchestratorPlan } from "@/agents/automations/workspace/agent/plan";
 import { listDueWorkspaceAutomations } from "./workspace-automations";
 
 const logger = createLogger("workspace-automation-scheduler");
@@ -46,27 +46,7 @@ export async function runWorkspaceAutomationScheduler(input?: {
         );
         await dispatchWorkspaceAutomationForScheduleAndAdvance({
           automation: entry.automation,
-          repository: {
-            id: entry.repository.id,
-            githubInstallationId: entry.repository.githubInstallationId,
-            githubRepositoryId: entry.repository.githubRepositoryId,
-          },
           scheduledRunAt: now,
-          completedAt: now,
-        });
-        skipped += 1;
-        continue;
-      }
-
-      if (!hasWorkspaceAutomationGithubWorkflow(entry.automation.toolConfig)) {
-        await dispatchWorkspaceAutomationForScheduleAndAdvance({
-          automation: entry.automation,
-          repository: {
-            id: entry.repository.id,
-            githubInstallationId: entry.repository.githubInstallationId,
-            githubRepositoryId: entry.repository.githubRepositoryId,
-          },
-          scheduledRunAt,
           completedAt: now,
         });
         skipped += 1;
@@ -76,11 +56,17 @@ export async function runWorkspaceAutomationScheduler(input?: {
       if (entry.automation.triggerConfig.mode !== "scheduled") {
         await dispatchWorkspaceAutomationForScheduleAndAdvance({
           automation: entry.automation,
-          repository: {
-            id: entry.repository.id,
-            githubInstallationId: entry.repository.githubInstallationId,
-            githubRepositoryId: entry.repository.githubRepositoryId,
-          },
+          scheduledRunAt,
+          completedAt: now,
+        });
+        skipped += 1;
+        continue;
+      }
+
+      const plan = buildWorkspaceOrchestratorPlan(entry.automation);
+      if (plan.tools.length === 0) {
+        await dispatchWorkspaceAutomationForScheduleAndAdvance({
+          automation: entry.automation,
           scheduledRunAt,
           completedAt: now,
         });
@@ -90,11 +76,6 @@ export async function runWorkspaceAutomationScheduler(input?: {
 
       const result = await dispatchWorkspaceAutomationForScheduleAndAdvance({
         automation: entry.automation,
-        repository: {
-          id: entry.repository.id,
-          githubInstallationId: entry.repository.githubInstallationId,
-          githubRepositoryId: entry.repository.githubRepositoryId,
-        },
         scheduledRunAt,
         completedAt: now,
       });

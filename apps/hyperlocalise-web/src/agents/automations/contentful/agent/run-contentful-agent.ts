@@ -21,9 +21,15 @@ import {
 
 const CONTENTFUL_AGENT_STEP_LIMIT = 20;
 
+export type RunContentfulAgentOptions = {
+  manageWorkspaceRunStatus?: boolean;
+};
+
 export async function runContentfulAgent(
   input: ContentfulAutomationExecutionEvent,
+  options: RunContentfulAgentOptions = {},
 ): Promise<Result<ContentfulAutomationExecutionSuccess, ContentfulAutomationExecutionError>> {
+  const manageWorkspaceRunStatus = options.manageWorkspaceRunStatus ?? true;
   const [run] = await db
     .select()
     .from(schema.contentfulTranslationRuns)
@@ -67,10 +73,12 @@ export async function runContentfulAgent(
     .update(schema.contentfulTranslationRuns)
     .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
     .where(eq(schema.contentfulTranslationRuns.id, run.id));
-  await db
-    .update(schema.workspaceAutomationRuns)
-    .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
-    .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+  if (manageWorkspaceRunStatus) {
+    await db
+      .update(schema.workspaceAutomationRuns)
+      .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
+      .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+  }
 
   try {
     const generator = await loadOrganizationTranslationGenerator(run.projectId);
@@ -151,19 +159,21 @@ export async function runContentfulAgent(
       })
       .where(eq(schema.contentfulTranslationRuns.id, run.id));
 
-    await db
-      .update(schema.workspaceAutomationRuns)
-      .set({
-        status: "succeeded",
-        outputSummary: {
-          contentfulTranslationRunId: run.id,
-          qaFindingCount: session.qaFindings.length,
-          qaErrorCount,
-        },
-        completedAt,
-        updatedAt: completedAt,
-      })
-      .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+    if (manageWorkspaceRunStatus) {
+      await db
+        .update(schema.workspaceAutomationRuns)
+        .set({
+          status: "succeeded",
+          outputSummary: {
+            contentfulTranslationRunId: run.id,
+            qaFindingCount: session.qaFindings.length,
+            qaErrorCount,
+          },
+          completedAt,
+          updatedAt: completedAt,
+        })
+        .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+    }
 
     return ok({
       runId: run.id,
@@ -182,15 +192,17 @@ export async function runContentfulAgent(
       })
       .where(eq(schema.contentfulTranslationRuns.id, run.id));
 
-    await db
-      .update(schema.workspaceAutomationRuns)
-      .set({
-        status: "failed",
-        completedAt,
-        updatedAt: completedAt,
-        outputSummary: { error: message },
-      })
-      .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+    if (manageWorkspaceRunStatus) {
+      await db
+        .update(schema.workspaceAutomationRuns)
+        .set({
+          status: "failed",
+          completedAt,
+          updatedAt: completedAt,
+          outputSummary: { error: message },
+        })
+        .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+    }
 
     return err({
       code: "contentful_automation_failed",

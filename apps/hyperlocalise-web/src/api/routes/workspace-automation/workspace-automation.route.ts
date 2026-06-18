@@ -5,10 +5,7 @@ import { validator } from "hono/validator";
 import { isWorkspaceOperatorRole } from "@/api/auth/roles";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, forbiddenResponse, notFoundResponse } from "@/api/response.schema";
-import {
-  dispatchContentfulWorkspaceAutomationForManual,
-  dispatchManualWorkspaceAutomationRun,
-} from "@/lib/agents/workspace-automation-dispatcher";
+import { dispatchManualWorkspaceAutomationRun } from "@/lib/agents/workspace-automation-dispatcher";
 import {
   createWorkspaceAutomation,
   getWorkspaceAutomationById,
@@ -459,62 +456,17 @@ export function createWorkspaceAutomationRoutes() {
       }
 
       try {
-        const contentfulResult = await dispatchContentfulWorkspaceAutomationForManual({
-          automation,
-          idempotencyKey: payload.idempotencyKey,
-        });
-        if (contentfulResult) {
-          const automationRun = await getWorkspaceAutomationRunById({
-            runId: contentfulResult.runId,
-            organizationId,
-          });
-          if (!automationRun) {
-            throw new Error("workspace_automation_run_not_found");
-          }
-          return c.json({ automationRun, dispatch: contentfulResult }, 202);
-        }
-
-        if (
-          automation.repositoryTarget.kind !== "github" ||
-          !automation.repositoryTarget.githubInstallationRepositoryId
-        ) {
-          return badRequestResponse(
-            c,
-            "github_repository_target_required",
-            "Manual runs require an enabled GitHub repository workflow.",
-          );
-        }
-
-        const repository = await getOwnedGithubRepository({
-          organizationId,
-          repositoryId: automation.repositoryTarget.githubInstallationRepositoryId,
-        });
-        if (!repository || !repository.enabled) {
-          return badRequestResponse(
-            c,
-            "github_repository_target_required",
-            "Manual runs require an enabled GitHub repository workflow.",
-          );
-        }
-
         const result = await dispatchManualWorkspaceAutomationRun({
           automation,
-          repository: {
-            id: repository.id,
-            githubInstallationId: repository.githubInstallationId,
-            githubRepositoryId: repository.githubRepositoryId,
-          },
           idempotencyKey: payload.idempotencyKey,
-          inputSnapshot: {
-            ...payload.inputSnapshot,
-          },
+          inputSnapshot: payload.inputSnapshot,
         });
 
         if (!result) {
           return badRequestResponse(
             c,
             "manual_run_not_supported",
-            "Manual runs require an enabled GitHub repository or Contentful workflow.",
+            "Manual runs require at least one enabled workflow or notification tool.",
           );
         }
 

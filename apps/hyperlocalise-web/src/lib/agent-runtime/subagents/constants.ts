@@ -30,6 +30,20 @@ export const WORKFLOW_AGENT_TIMEOUT = {
   stepMs: 90 * 1000,
 } as const;
 
+/** Maximum tool steps for workspace automation orchestrator (workflows + notifications + summary). */
+export const WORKSPACE_ORCHESTRATOR_STEP_LIMIT = 6;
+
+export const WORKSPACE_ORCHESTRATOR_TIMEOUT = {
+  totalMs: 25 * 60 * 1000,
+  stepMs: 90 * 1000,
+} as const;
+
+/** Poll interval while waiting for a GitHub repository automation job to finish. */
+export const WORKSPACE_GITHUB_JOB_POLL_INTERVAL_MS = 3_000;
+
+/** Maximum time to wait for a GitHub repository automation job inside an orchestrator tool. */
+export const WORKSPACE_GITHUB_JOB_POLL_MAX_MS = 20 * 60 * 1000;
+
 export const SUBAGENT_NO_QUESTIONS_RULES = [
   "You cannot ask follow-up questions — no one will respond in this loop.",
   "If required information is missing, state what is missing in your final summary.",

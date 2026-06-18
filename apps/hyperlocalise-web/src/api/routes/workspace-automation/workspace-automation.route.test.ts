@@ -4,20 +4,32 @@ import { eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
-  resolveApiAuthContextFromSessionMock: vi.fn(
-    (options) =>
-      globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
-      globalThis.__testApiAuthContext ??
-      null,
-  ),
-}));
+const { resolveApiAuthContextFromSessionMock, workspaceAutomationExecutionEnqueueMock } =
+  vi.hoisted(() => ({
+    resolveApiAuthContextFromSessionMock: vi.fn(
+      (options) =>
+        globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
+        globalThis.__testApiAuthContext ??
+        null,
+    ),
+    workspaceAutomationExecutionEnqueueMock: vi.fn(async () => ({ ids: ["workflow-run-1"] })),
+  }));
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();
   return {
     ...actual,
     resolveApiAuthContextFromSession: resolveApiAuthContextFromSessionMock,
+  };
+});
+
+vi.mock("@/workflows/adapters", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/workflows/adapters")>();
+  return {
+    ...actual,
+    createWorkspaceAutomationExecutionQueue: vi.fn(() => ({
+      enqueue: workspaceAutomationExecutionEnqueueMock,
+    })),
   };
 });
 
@@ -294,7 +306,7 @@ describe("workspace automation routes", () => {
     });
   });
 
-  it("rejects manual runs without a runnable GitHub workflow", async () => {
+  it("rejects manual runs without enabled workflow tools", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationId = await getOrganizationId(identity.organization.workosOrganizationId);
@@ -340,7 +352,7 @@ describe("workspace automation routes", () => {
 
     expect(firstRunResponse.status).toBe(400);
     await expect(firstRunResponse.json()).resolves.toMatchObject({
-      error: "github_repository_target_required",
+      error: "manual_run_not_supported",
     });
   });
 
@@ -408,13 +420,18 @@ describe("workspace automation routes", () => {
         id: string;
         status: string;
         idempotencyKey: string;
-        githubRepositoryAutomationJobId: string;
+        outputSummary: { orchestratorEnqueuedAt?: string };
       };
+      dispatch: { outcome: string; inserted: boolean };
     };
     const secondRun = (await secondRunResponse.json()) as {
       automationRun: { id: string; status: string; idempotencyKey: string };
+      dispatch: { outcome: string; inserted: boolean };
     };
-    expect(firstRun.automationRun.githubRepositoryAutomationJobId).toBeTruthy();
+    expect(firstRun.dispatch).toMatchObject({ outcome: "enqueued", inserted: true });
+    expect(secondRun.dispatch).toMatchObject({ outcome: "enqueued", inserted: false });
+    expect(firstRun.automationRun.outputSummary.orchestratorEnqueuedAt).toBeTruthy();
+    expect(workspaceAutomationExecutionEnqueueMock).toHaveBeenCalledTimes(1);
     expect(secondRun.automationRun).toMatchObject({
       id: firstRun.automationRun.id,
       status: "queued",

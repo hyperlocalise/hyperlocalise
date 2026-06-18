@@ -8,7 +8,8 @@ Current agent scope:
 
 - Hyperlocalise conversational agent (`hyperlocalise/agent`) translates uploaded files and delegates to subagents.
 - Repository subagent reads repository context for localized messages or strings.
-- Contentful automation runs via `automations/contentful/agent` ToolLoopAgent.
+- Workspace automations run via `automations/workspace/agent` orchestrator ToolLoopAgent.
+- Contentful translation is invoked inline by the workspace orchestrator via `automations/contentful/agent`.
 - TMS/provider agent workflows use `automations/provider-tms/agent` executors.
 
 ## Queue Adapter
@@ -29,14 +30,36 @@ apps/hyperlocalise-web/src/workflows/adapters.ts
         +-- createRepositoryAgentTaskQueue()
         |       `---------------> repositoryAgentWorkflow
         |
-        +-- createContentfulAutomationExecutionQueue()
-        |       `---------------> contentfulAutomationExecutionWorkflow
+        +-- createWorkspaceAutomationExecutionQueue()
+        |       `---------------> workspaceAutomationExecutionWorkflow
         |
         `-- provider/TMS queues
                 +-- providerAgentTranslationWorkflow
                 +-- providerAgentQaWorkflow
                 +-- providerAgentCommentWorkflow
                 `-- providerAgentWritebackWorkflow
+```
+
+## Workspace Automation Orchestrator
+
+Workspace automations (manual, scheduled, GitHub push, Contentful webhook) create a run record and enqueue `workspaceAutomationExecutionWorkflow`. The orchestrator builds a deterministic tool plan from `toolConfig` and template skills, then executes it with `prepareStep` tool forcing:
+
+```text
+trigger (API / cron / webhook)
+        |
+        v
+workspace-automation-dispatcher
+        |
+        v
+workspaceAutomationExecutionWorkflow
+        |
+        v
+runWorkspaceOrchestrator (ToolLoopAgent)
+        |
+        +-- run_github_workflows ----> githubRepositoryAutomationWorkflow (poll to terminal)
+        +-- run_contentful_translation -> runContentfulAgent (inline)
+        +-- notify_slack
+        `-- notify_email
 ```
 
 ## Hyperlocalise Agent: Uploaded File Translation

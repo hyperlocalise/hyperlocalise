@@ -141,35 +141,36 @@ describe("workspace automation dispatcher", () => {
       }),
     );
 
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
+    const queue = {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
+        enqueued.push(event);
+        return { ids: ["workflow-1"] };
+      },
+    };
+
     const first = await dispatchWorkspaceAutomationForSchedule({
       automation,
-      repository: {
-        id: scope.repository.id,
-        githubInstallationId: scope.githubInstallationId,
-        githubRepositoryId: scope.githubRepositoryId,
-      },
       scheduledRunAt,
+      queue,
     });
     const second = await dispatchWorkspaceAutomationForSchedule({
       automation,
-      repository: {
-        id: scope.repository.id,
-        githubInstallationId: scope.githubInstallationId,
-        githubRepositoryId: scope.githubRepositoryId,
-      },
       scheduledRunAt,
+      queue,
     });
 
     expect(first?.outcome).toBe("enqueued");
     expect(second?.outcome).toBe("enqueued");
     expect(second?.inserted).toBe(false);
+    expect(enqueued).toHaveLength(1);
 
     const runs = await listWorkspaceAutomationRuns({
       automationId: automation.id,
       organizationId: scope.organizationId,
     });
     expect(runs).toHaveLength(1);
-    expect(runs[0]?.githubRepositoryAutomationJobId).toBeTruthy();
+    expect(runs[0]?.outputSummary.orchestratorEnqueuedAt).toBeTruthy();
   });
 
   it("dispatches Contentful webhook automation idempotently", async () => {
@@ -177,6 +178,7 @@ describe("workspace automation dispatcher", () => {
     const contentfulConnection = await createContentfulConnection({
       organizationId: scope.organizationId,
       userId: scope.userId,
+      projectId: scope.projectId,
       displayName: "Contentful Help Center",
       spaceId: `space-${scope.organizationId.slice(0, 8)}`,
       environmentId: "master",
@@ -260,13 +262,9 @@ describe("workspace automation dispatcher", () => {
         }),
       );
     }
-    const enqueued: unknown[] = [];
+    const enqueued: Array<{ workspaceAutomationRunId: string; organizationId: string }> = [];
     const queue = {
-      async enqueue(event: {
-        contentfulTranslationRunId: string;
-        workspaceAutomationRunId: string;
-        organizationId: string;
-      }) {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
         enqueued.push(event);
         return { ids: ["workflow-1"] };
       },
@@ -300,18 +298,7 @@ describe("workspace automation dispatcher", () => {
       organizationId: scope.organizationId,
     });
     expect(runs).toHaveLength(1);
-
-    const translationRuns = await db
-      .select()
-      .from(schema.contentfulTranslationRuns)
-      .where(eq(schema.contentfulTranslationRuns.organizationId, scope.organizationId));
-    expect(translationRuns).toHaveLength(1);
-    expect(translationRuns[0]?.entryId).toBe("entry-1");
-    expect(translationRuns[0]?.projectId).toBe(scope.projectId);
-    expect(translationRuns[0]?.sourceLocale).toBe("de-DE");
-    expect(translationRuns[0]?.targetLocales).toEqual(["fr-FR"]);
-    expect(translationRuns[0]?.runQa).toBe(true);
-    expect(translationRuns[0]?.overwriteDraftLocales).toBe(false);
+    expect(runs[0]?.outputSummary.orchestratorEnqueuedAt).toBeTruthy();
   });
 
   it("creates skipped scheduled Contentful runs when project or source locale is missing", async () => {
@@ -319,6 +306,7 @@ describe("workspace automation dispatcher", () => {
     const contentfulConnection = await createContentfulConnection({
       organizationId: scope.organizationId,
       userId: scope.userId,
+      projectId: scope.projectId,
       displayName: "Contentful Help Center",
       spaceId: `space-${scope.organizationId.slice(0, 8)}`,
       environmentId: "master",
@@ -494,6 +482,7 @@ describe("workspace automation dispatcher", () => {
     const contentfulConnection = await createContentfulConnection({
       organizationId: scope.organizationId,
       userId: scope.userId,
+      projectId: scope.projectId,
       displayName: "Contentful Help Center",
       spaceId: `space-${scope.organizationId.slice(0, 8)}`,
       environmentId: "master",
@@ -531,7 +520,7 @@ describe("workspace automation dispatcher", () => {
       automation,
       idempotencyKey: "manual-non-manual-contentful",
       queue: {
-        async enqueue(event) {
+        async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
           enqueued.push(event);
           return { ids: ["workflow-1"] };
         },
@@ -545,12 +534,6 @@ describe("workspace automation dispatcher", () => {
       organizationId: scope.organizationId,
     });
     expect(runs).toHaveLength(0);
-
-    const translationRuns = await db
-      .select()
-      .from(schema.contentfulTranslationRuns)
-      .where(eq(schema.contentfulTranslationRuns.organizationId, scope.organizationId));
-    expect(translationRuns).toHaveLength(0);
   });
 
   it("dispatches Contentful webhook automations only for matching content types", async () => {
@@ -558,6 +541,7 @@ describe("workspace automation dispatcher", () => {
     const contentfulConnection = await createContentfulConnection({
       organizationId: scope.organizationId,
       userId: scope.userId,
+      projectId: scope.projectId,
       displayName: "Contentful Help Center",
       spaceId: `space-${scope.organizationId.slice(0, 8)}`,
       environmentId: "master",
@@ -644,11 +628,7 @@ describe("workspace automation dispatcher", () => {
 
     const enqueuedAutomationIds: string[] = [];
     const queue = {
-      async enqueue(event: {
-        contentfulTranslationRunId: string;
-        workspaceAutomationRunId: string;
-        organizationId: string;
-      }) {
+      async enqueue(event: { workspaceAutomationRunId: string; organizationId: string }) {
         const [run] = await db
           .select({ automationId: schema.workspaceAutomationRuns.automationId })
           .from(schema.workspaceAutomationRuns)
