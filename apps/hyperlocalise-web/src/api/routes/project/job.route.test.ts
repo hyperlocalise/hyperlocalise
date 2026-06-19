@@ -307,7 +307,8 @@ describe("workspace job list", () => {
   it("does not return created jobs for projects outside the current team scope", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
     const member = projectFixture.createWorkosIdentityForOrganization(admin.organization, "member");
-    const { organization: adminOrganization } = await projectFixture.createLocalWorkosIdentity(admin);
+    const { organization: adminOrganization } =
+      await projectFixture.createLocalWorkosIdentity(admin);
 
     await projectFixture.authHeadersFor(member);
 
