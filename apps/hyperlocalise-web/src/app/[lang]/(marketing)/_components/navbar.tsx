@@ -9,7 +9,6 @@ import {
   Sheet,
   SheetClose,
   SheetContent,
-  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -97,17 +96,12 @@ function MobileNavigation() {
         className="w-[min(90vw,22rem)] border-s border-border/70 bg-background/98 px-0"
       >
         <SheetHeader className="gap-4 border-b border-border/70 px-5 pb-5 pt-6 text-left">
+          <SheetTitle className="sr-only">Navigation menu</SheetTitle>
           <div className="text-xs font-medium tracking-[0.18em] text-muted-foreground uppercase">
             Navigation
           </div>
           <div className="pr-10">
             <Logo />
-          </div>
-          <div className="space-y-1">
-            <SheetTitle>Move through the site</SheetTitle>
-            <SheetDescription>
-              Browse the homepage sections, then jump to the waitlist when you are ready.
-            </SheetDescription>
           </div>
         </SheetHeader>
         <div className="flex flex-1 flex-col px-3 py-4">
