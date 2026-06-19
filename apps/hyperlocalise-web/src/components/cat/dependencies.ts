@@ -7,6 +7,7 @@ import type {
   CatTranslationMemoryMatch,
   CatWorkspaceState,
 } from "./types";
+import type { CatQueueFilter } from "./cat-queue-filter";
 
 export interface CatAiRecommendationResult {
   aiSuggestion: string;
@@ -41,6 +42,8 @@ export interface CatWorkspaceReview {
   onAskQuestion: (segmentId: string) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;
   onSkip: (segmentId: string) => void;
+  onBulkApprove?: (segmentIds: string[]) => void | Promise<void>;
+  onBulkSkip?: (segmentIds: string[]) => void | Promise<void>;
 }
 
 export interface CatWorkspaceServices {
@@ -99,6 +102,18 @@ export interface CatWorkspaceViewProps {
   onQueuePreviousPage?: () => void;
   onQueueNextPage?: () => void;
   onQueueNearEnd?: () => void;
+  queueFilter?: CatQueueFilter;
+  onQueueFilterChange?: (filter: CatQueueFilter) => void;
+  availableQueueFilters?: CatQueueFilter[];
+  checkedSegmentIds?: ReadonlySet<string>;
+  onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
+  onSelectAllVisible?: () => void;
+  onClearChecked?: () => void;
+  onBulkApprove?: () => void;
+  onBulkSkip?: () => void;
+  isBulkActionPending?: boolean;
+  buildSegmentShareUrl?: (segment: CatSegment) => string | null;
+  editorState?: CatWorkspaceState;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {

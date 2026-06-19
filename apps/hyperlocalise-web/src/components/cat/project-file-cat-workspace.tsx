@@ -26,6 +26,8 @@ import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/map-cat-
 import { cn } from "@/lib/primitives/cn";
 
 import { CatWorkspaceContainer } from "./cat-workspace-container";
+import { buildCatSegmentShareUrl } from "./cat-segment-share-link";
+import { resolveAvailableCatQueueFilters } from "./cat-queue-filter";
 import {
   projectFileCatToWorkspaceState,
   requireProviderExternalResourceId,
@@ -50,6 +52,7 @@ export function ProjectFileCatWorkspace({
   targetLocales,
   highlightLocale = null,
   repositoryFullName = null,
+  initialSegmentKey = null,
   layout = "default",
   className,
 }: {
@@ -60,6 +63,7 @@ export function ProjectFileCatWorkspace({
   targetLocales?: string[];
   highlightLocale?: string | null;
   repositoryFullName?: string | null;
+  initialSegmentKey?: string | null;
   layout?: "default" | "fullscreen";
   className?: string;
 }) {
@@ -91,6 +95,8 @@ export function ProjectFileCatWorkspace({
     catQuery,
     search,
     setSearch,
+    queueFilter,
+    setQueueFilter,
     debouncedSearch,
     isSearchPending,
     pagination,
@@ -106,6 +112,19 @@ export function ProjectFileCatWorkspace({
     repositoryFullName,
     enabled: Boolean(targetLocale),
   });
+
+  const availableQueueFilters = useMemo(
+    () => resolveAvailableCatQueueFilters(catQuery.data?.provider?.kind),
+    [catQuery.data?.provider?.kind],
+  );
+
+  useEffect(() => {
+    if (availableQueueFilters.includes(queueFilter)) {
+      return;
+    }
+
+    setQueueFilter("all");
+  }, [availableQueueFilters, queueFilter, setQueueFilter]);
 
   const saveMutation = useMutation({
     mutationFn: async (input: { externalStringId: string; text: string }) => {
@@ -209,6 +228,32 @@ export function ProjectFileCatWorkspace({
     },
     [catQuery.data?.canEditTranslations, postComment],
   );
+
+  const handleBulkApprove = useCallback(
+    async (segmentIds: string[]) => {
+      for (const segmentId of segmentIds) {
+        const segment = workspaceState?.segments.find((item) => item.id === segmentId);
+        if (!segment) {
+          continue;
+        }
+
+        await handleApprove(segmentId, segment.targetText);
+      }
+    },
+    [handleApprove, workspaceState?.segments],
+  );
+
+  const buildSegmentShareUrl = useCallback((segment: CatSegment) => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return buildCatSegmentShareUrl({
+      baseUrl: window.location.href,
+      segmentId: segment.id,
+      segmentKey: segment.key,
+    });
+  }, []);
 
   const lookupSegmentContext = useCallback(
     async (segment: CatSegment) => {
@@ -341,7 +386,9 @@ export function ProjectFileCatWorkspace({
         <TypographyP className="text-sm">
           {search.trim()
             ? "No strings match your search."
-            : "No source strings are available for this file."}
+            : queueFilter !== "all"
+              ? "No segments match this filter."
+              : "No source strings are available for this file."}
         </TypographyP>
       </div>
     );
@@ -382,7 +429,7 @@ export function ProjectFileCatWorkspace({
       ) : null}
 
       <CatWorkspaceContainer
-        key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${pagination?.offset ?? 0}`}
+        key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}:${pagination?.offset ?? 0}`}
         initialState={workspaceState}
         className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
         services={{
@@ -394,9 +441,15 @@ export function ProjectFileCatWorkspace({
         review={{
           onApprove: handleApprove,
           onAddComment: handleAddComment,
+          onBulkApprove: handleBulkApprove,
         }}
+        initialSegmentKeyOrId={initialSegmentKey}
+        buildSegmentShareUrl={buildSegmentShareUrl}
         queueSearch={search}
         onQueueSearchChange={setSearch}
+        queueFilter={queueFilter}
+        onQueueFilterChange={setQueueFilter}
+        availableQueueFilters={availableQueueFilters}
         isQueueSearchPending={isSearchPending}
         isQueueFetchingPage={catQuery.isFetching && !catQuery.isLoading}
         queuePagination={pagination}

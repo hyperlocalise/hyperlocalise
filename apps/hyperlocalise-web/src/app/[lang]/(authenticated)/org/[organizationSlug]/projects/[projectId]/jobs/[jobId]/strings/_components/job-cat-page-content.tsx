@@ -50,11 +50,16 @@ function stringsPageHref(input: {
   jobId: string;
   sourcePath: string;
   targetLocale: string;
+  segment?: string | null;
 }) {
   const params = new URLSearchParams({
     sourcePath: input.sourcePath,
     targetLocale: input.targetLocale,
   });
+
+  if (input.segment) {
+    params.set("segment", input.segment);
+  }
 
   return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}/strings?${params.toString()}`;
 }
@@ -65,12 +70,14 @@ export function JobCatPageContent({
   jobId,
   sourcePath,
   targetLocale,
+  initialSegmentKey = null,
 }: {
   organizationSlug: string;
   projectId: string;
   jobId: string;
   sourcePath: string | null;
   targetLocale: string | null;
+  initialSegmentKey?: string | null;
 }) {
   const router = useRouter();
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
@@ -352,6 +359,7 @@ export function JobCatPageContent({
           sourcePath={selectedFile.sourcePath}
           targetLocale={selectedTargetLocale}
           repositoryFullName={selectedRepositoryFullName}
+          initialSegmentKey={initialSegmentKey}
           layout="fullscreen"
         />
       </div>

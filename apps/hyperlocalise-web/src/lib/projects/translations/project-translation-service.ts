@@ -1,7 +1,10 @@
 import { and, asc, count, eq, ilike, inArray, or, sql } from "drizzle-orm";
 import { createHash } from "node:crypto";
 
-import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileCatQueueFilter,
+  ProjectSourceStringEntry,
+} from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
@@ -37,6 +40,52 @@ function translationKeysSearchCondition(search: string | undefined) {
     ilike(schema.projectTranslationKeys.sourceText, pattern),
     ilike(schema.projectTranslationKeys.context, pattern),
   );
+}
+
+function translationKeysQueueFilterCondition(input: {
+  organizationId: string;
+  projectId: string;
+  targetLocale: string;
+  queueFilter?: ProjectFileCatQueueFilter;
+}) {
+  const filter = input.queueFilter;
+  if (!filter || filter === "all") {
+    return undefined;
+  }
+
+  const translationMatch = sql`
+    ${schema.projectTranslations.translationKeyId} = ${schema.projectTranslationKeys.id}
+    and ${schema.projectTranslations.organizationId} = ${input.organizationId}
+    and ${schema.projectTranslations.projectId} = ${input.projectId}
+    and ${schema.projectTranslations.targetLocale} = ${input.targetLocale}
+  `;
+
+  switch (filter) {
+    case "untranslated":
+      return sql`not exists (
+        select 1
+        from ${schema.projectTranslations}
+        where ${translationMatch}
+          and trim(${schema.projectTranslations.text}) != ''
+      )`;
+    case "reviewed":
+      return sql`exists (
+        select 1
+        from ${schema.projectTranslations}
+        where ${translationMatch}
+          and ${schema.projectTranslations.status} = 'approved'
+      )`;
+    case "needs_review":
+      return sql`exists (
+        select 1
+        from ${schema.projectTranslations}
+        where ${translationMatch}
+          and trim(${schema.projectTranslations.text}) != ''
+          and ${schema.projectTranslations.status} != 'approved'
+      )`;
+    default:
+      return undefined;
+  }
 }
 
 export class ProjectTranslationService extends ProjectServiceBase {
@@ -164,13 +213,26 @@ export class ProjectTranslationService extends ProjectServiceBase {
     organizationId: string;
     projectId: string;
     repositorySourceFileId: string;
+    targetLocale?: string;
     search?: string;
+    queueFilter?: ProjectFileCatQueueFilter;
   }) {
     const [row] = await this.database
       .select({ total: count() })
       .from(schema.projectTranslationKeys)
       .where(
-        and(translationKeysFileConditions(input), translationKeysSearchCondition(input.search)),
+        and(
+          translationKeysFileConditions(input),
+          translationKeysSearchCondition(input.search),
+          input.targetLocale
+            ? translationKeysQueueFilterCondition({
+                organizationId: input.organizationId,
+                projectId: input.projectId,
+                targetLocale: input.targetLocale,
+                queueFilter: input.queueFilter,
+              })
+            : undefined,
+        ),
       );
 
     return Number(row?.total ?? 0);
@@ -180,9 +242,11 @@ export class ProjectTranslationService extends ProjectServiceBase {
     organizationId: string;
     projectId: string;
     repositorySourceFileId: string;
+    targetLocale?: string;
     limit?: number;
     offset?: number;
     search?: string;
+    queueFilter?: ProjectFileCatQueueFilter;
   }) {
     const limit = input.limit ?? 2_000;
     const offset = input.offset ?? 0;
@@ -198,7 +262,18 @@ export class ProjectTranslationService extends ProjectServiceBase {
       })
       .from(schema.projectTranslationKeys)
       .where(
-        and(translationKeysFileConditions(input), translationKeysSearchCondition(input.search)),
+        and(
+          translationKeysFileConditions(input),
+          translationKeysSearchCondition(input.search),
+          input.targetLocale
+            ? translationKeysQueueFilterCondition({
+                organizationId: input.organizationId,
+                projectId: input.projectId,
+                targetLocale: input.targetLocale,
+                queueFilter: input.queueFilter,
+              })
+            : undefined,
+        ),
       )
       .orderBy(asc(schema.projectTranslationKeys.key), asc(schema.projectTranslationKeys.id))
       .limit(limit)

@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, ArrowRight01Icon, LinkSquare02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { CheckIcon } from "lucide-react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
@@ -80,6 +81,7 @@ export function CatEditorPanel({
   onNext,
   hasPreviousSegment,
   hasNextSegment,
+  segmentShareUrl = null,
 }: {
   segment: CatSegment;
   segmentPosition: number;
@@ -113,8 +115,10 @@ export function CatEditorPanel({
   onNext: () => void;
   hasPreviousSegment: boolean;
   hasNextSegment: boolean;
+  segmentShareUrl?: string | null;
 }) {
   const intl = useIntl();
+  const [shareLinkState, setShareLinkState] = useState<"idle" | "copied" | "error">("idle");
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
@@ -197,6 +201,26 @@ export function CatEditorPanel({
     handleCommentDraftChange("");
   }
 
+  async function handleShareSegment() {
+    if (!segmentShareUrl) {
+      return;
+    }
+
+    if (typeof window === "undefined" || !navigator?.clipboard?.writeText) {
+      setShareLinkState("error");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(segmentShareUrl);
+      setShareLinkState("copied");
+      window.setTimeout(() => setShareLinkState("idle"), 2000);
+    } catch {
+      setShareLinkState("error");
+      window.setTimeout(() => setShareLinkState("idle"), 2000);
+    }
+  }
+
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3 lg:px-5">
@@ -211,6 +235,27 @@ export function CatEditorPanel({
           ) : null}
         </div>
         <div className="flex items-center gap-1">
+          {segmentShareUrl ? (
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => void handleShareSegment()}
+              aria-label={intl.formatMessage(catEditorPanelMessages.shareSegmentAria)}
+              title={
+                shareLinkState === "copied"
+                  ? intl.formatMessage(catEditorPanelMessages.shareSegmentCopied)
+                  : shareLinkState === "error"
+                    ? intl.formatMessage(catEditorPanelMessages.shareSegmentFailed)
+                    : intl.formatMessage(catEditorPanelMessages.shareSegment)
+              }
+            >
+              {shareLinkState === "copied" ? (
+                <CheckIcon className="size-4" />
+              ) : (
+                <HugeiconsIcon icon={LinkSquare02Icon} className="size-4" />
+              )}
+            </Button>
+          ) : null}
           <Button
             variant="ghost"
             size="icon-sm"

@@ -3,6 +3,7 @@
 import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
 import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
 
 import {
@@ -11,6 +12,7 @@ import {
   projectFileCatBaseQueryKey,
   projectFileCatQueryKey,
 } from "./project-file-cat-api";
+import { isServerQueueFilter, type CatQueueFilter } from "./cat-queue-filter";
 
 type CatFilePagination = NonNullable<ProjectFileCatResponse["catFile"]["pagination"]>;
 
@@ -25,6 +27,10 @@ function useDebouncedValue<T>(value: T, delayMs: number) {
   return debouncedValue;
 }
 
+function toServerQueueFilter(filter: CatQueueFilter): ProjectFileCatQueueFilter {
+  return isServerQueueFilter(filter) ? filter : "all";
+}
+
 export function useCatSegmentQuery(input: {
   organizationSlug: string;
   projectId: string;
@@ -36,14 +42,16 @@ export function useCatSegmentQuery(input: {
   const queryClient = useQueryClient();
   const repositoryFullName = input.repositoryFullName ?? null;
   const [search, setSearch] = useState("");
+  const [queueFilter, setQueueFilter] = useState<CatQueueFilter>("all");
   const [offset, setOffset] = useState(0);
   const [limit] = useState(defaultCatPageLimit);
   const debouncedSearch = useDebouncedValue(search, 300);
   const isSearchPending = search !== debouncedSearch;
+  const serverQueueFilter = toServerQueueFilter(queueFilter);
 
   useEffect(() => {
     setOffset(0);
-  }, [debouncedSearch, input.sourcePath, input.targetLocale, repositoryFullName]);
+  }, [debouncedSearch, queueFilter, input.sourcePath, input.targetLocale, repositoryFullName]);
 
   const queryKey = useMemo(
     () =>
@@ -54,6 +62,7 @@ export function useCatSegmentQuery(input: {
         targetLocale: input.targetLocale,
         repositoryFullName,
         search: debouncedSearch,
+        queueFilter: serverQueueFilter,
         limit,
         offset,
       }),
@@ -66,6 +75,7 @@ export function useCatSegmentQuery(input: {
       limit,
       offset,
       repositoryFullName,
+      serverQueueFilter,
     ],
   );
 
@@ -81,6 +91,7 @@ export function useCatSegmentQuery(input: {
         targetLocale: input.targetLocale,
         repositoryFullName,
         search: debouncedSearch,
+        queueFilter: serverQueueFilter,
         limit,
         offset,
       }),
@@ -101,6 +112,7 @@ export function useCatSegmentQuery(input: {
       targetLocale: input.targetLocale,
       repositoryFullName,
       search: debouncedSearch,
+      queueFilter: serverQueueFilter,
       limit,
       offset: nextOffset,
     });
@@ -116,6 +128,7 @@ export function useCatSegmentQuery(input: {
           targetLocale: input.targetLocale,
           repositoryFullName,
           search: debouncedSearch,
+          queueFilter: serverQueueFilter,
           limit,
           offset: nextOffset,
         }),
@@ -132,6 +145,7 @@ export function useCatSegmentQuery(input: {
     pagination?.hasMore,
     queryClient,
     repositoryFullName,
+    serverQueueFilter,
   ]);
 
   useEffect(() => {
@@ -159,6 +173,8 @@ export function useCatSegmentQuery(input: {
     catQuery,
     search,
     setSearch,
+    queueFilter,
+    setQueueFilter,
     offset,
     limit,
     debouncedSearch,
@@ -176,6 +192,7 @@ export function useCatSegmentQuery(input: {
       targetLocale: input.targetLocale,
       repositoryFullName,
       search: debouncedSearch,
+      queueFilter: serverQueueFilter,
       limit,
     }),
   };

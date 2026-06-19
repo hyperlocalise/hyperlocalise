@@ -91,6 +91,71 @@ export const catQueuePanelMessages = defineMessages({
     id: "CHs2ugz7iN",
     description: "Accessible label for queue row indicator when a segment has unsaved edits",
   },
+  filterAll: {
+    defaultMessage: "All strings",
+    id: "V+8wDWpBnh",
+    description: "CAT queue filter option showing every segment",
+  },
+  filterUntranslated: {
+    defaultMessage: "Untranslated",
+    id: "Kdyh8ZKnlc",
+    description: "CAT queue filter option for segments without a target translation",
+  },
+  filterNeedsReview: {
+    defaultMessage: "Needs review",
+    id: "cMuLE7Fon0",
+    description: "CAT queue filter option for translated segments awaiting review",
+  },
+  filterReviewed: {
+    defaultMessage: "Approved",
+    id: "F6X8Sh27Q0",
+    description: "CAT queue filter option for approved segments",
+  },
+  filterHasIssues: {
+    defaultMessage: "Has issues",
+    id: "U+tI5HA1qo",
+    description: "CAT queue filter option for segments with open issue comments",
+  },
+  filterSkipped: {
+    defaultMessage: "Skipped",
+    id: "75tLVTlfqV",
+    description: "CAT queue filter option for skipped segments",
+  },
+  emptyFilterResults: {
+    defaultMessage: "No segments match this filter.",
+    id: "oY/dfpDvR7",
+    description: "Empty state when CAT queue status filter returns no segments",
+  },
+  bulkApprove: {
+    defaultMessage: "Approve selected",
+    id: "sPeeyibl9Y",
+    description: "Bulk action to approve all selected CAT segments",
+  },
+  bulkSkip: {
+    defaultMessage: "Skip selected",
+    id: "zCn3UqvqWI",
+    description: "Bulk action to skip all selected CAT segments",
+  },
+  bulkSelectAll: {
+    defaultMessage: "Select all visible",
+    id: "1v2hbAXp/Y",
+    description: "Bulk action to select every segment in the current queue view",
+  },
+  bulkClearSelection: {
+    defaultMessage: "Clear selection",
+    id: "whr/nciIbp",
+    description: "Bulk action to clear the current segment selection",
+  },
+  bulkSelectionSummary: {
+    defaultMessage: "{count} selected",
+    id: "uZnk0UoDEu",
+    description: "Summary of how many CAT queue segments are selected for bulk actions",
+  },
+  selectSegmentAria: {
+    defaultMessage: "Select {key}",
+    id: "Ygi+pnLdm5",
+    description: "Accessible label for selecting a CAT queue segment for bulk actions",
+  },
 });
 
 export const catFormatChecksMessages = defineMessages({
@@ -572,5 +637,25 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "Clear target",
     id: "5/hlw6iDag",
     description: "Button to clear the target translation field",
+  },
+  shareSegment: {
+    defaultMessage: "Copy link",
+    id: "H7+t0VoSpu",
+    description: "Button to copy a shareable link to the current CAT segment",
+  },
+  shareSegmentCopied: {
+    defaultMessage: "Link copied",
+    id: "0YoaNbe8v4",
+    description: "Tooltip after a CAT segment share link is copied to the clipboard",
+  },
+  shareSegmentFailed: {
+    defaultMessage: "Could not copy link",
+    id: "HLG4pq/SOg",
+    description: "Tooltip when copying a CAT segment share link fails",
+  },
+  shareSegmentAria: {
+    defaultMessage: "Copy link to this segment",
+    id: "CqDUHu+YvU",
+    description: "Accessible label for the CAT segment share link button",
   },
 });

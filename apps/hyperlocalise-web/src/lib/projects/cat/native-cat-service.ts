@@ -66,6 +66,7 @@ export class NativeCatService extends ProjectServiceBase {
       offset: 0,
       limit: legacyNativeCatSegmentLimit,
       search: undefined,
+      queueFilter: "all",
       paginated: false,
     };
 
@@ -93,15 +94,19 @@ export class NativeCatService extends ProjectServiceBase {
         organizationId: input.organizationId,
         projectId: input.projectId,
         repositorySourceFileId: sourceFile.id,
+        targetLocale: input.targetLocale,
         search: paginationInput.search,
+        queueFilter: paginationInput.queueFilter,
       }),
       this.translations.listKeysForFile({
         organizationId: input.organizationId,
         projectId: input.projectId,
         repositorySourceFileId: sourceFile.id,
+        targetLocale: input.targetLocale,
         limit: paginationInput.limit,
         offset: paginationInput.offset,
         search: paginationInput.search,
+        queueFilter: paginationInput.queueFilter,
       }),
     ]);
 

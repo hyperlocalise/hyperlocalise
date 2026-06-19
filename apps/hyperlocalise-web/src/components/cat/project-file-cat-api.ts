@@ -1,4 +1,5 @@
 import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
+import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
 import { defaultProjectFileCatPageLimit } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -12,6 +13,7 @@ export function projectFileCatQueryKey(input: {
   targetLocale: string;
   repositoryFullName: string | null;
   search: string;
+  queueFilter: ProjectFileCatQueueFilter;
   limit: number;
   offset: number;
 }) {
@@ -23,6 +25,7 @@ export function projectFileCatQueryKey(input: {
     input.targetLocale,
     input.repositoryFullName,
     input.search,
+    input.queueFilter,
     input.limit,
     input.offset,
   ] as const;
@@ -35,6 +38,7 @@ export function projectFileCatBaseQueryKey(input: {
   targetLocale: string;
   repositoryFullName: string | null;
   search: string;
+  queueFilter: ProjectFileCatQueueFilter;
   limit: number;
 }) {
   return [
@@ -45,6 +49,7 @@ export function projectFileCatBaseQueryKey(input: {
     input.targetLocale,
     input.repositoryFullName,
     input.search,
+    input.queueFilter,
     input.limit,
   ] as const;
 }
@@ -56,6 +61,7 @@ export async function fetchProjectFileCatPage(input: {
   targetLocale: string;
   repositoryFullName: string | null;
   search: string;
+  queueFilter: ProjectFileCatQueueFilter;
   limit: number;
   offset: number;
 }) {
@@ -69,6 +75,7 @@ export async function fetchProjectFileCatPage(input: {
       offset: input.offset,
       limit: input.limit,
       ...(input.search ? { search: input.search } : {}),
+      ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
       ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
     },
   });

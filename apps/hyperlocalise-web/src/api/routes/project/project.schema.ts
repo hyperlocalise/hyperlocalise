@@ -209,11 +209,20 @@ export const projectFileDetailQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
 });
 
+export const projectFileCatQueueFilterSchema = z.enum([
+  "all",
+  "untranslated",
+  "needs_review",
+  "reviewed",
+  "has_issues",
+]);
+
 export const projectFileCatQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
   repositoryFullName: z.string().trim().min(1).max(256).optional(),
   search: z.string().trim().max(256).optional(),
+  queueFilter: projectFileCatQueueFilterSchema.optional(),
   offset: z.coerce.number().int().min(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 });
@@ -505,6 +514,7 @@ export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
+export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
 export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
 export type ProjectFileCatRecommendationBody = z.infer<
   typeof projectFileCatRecommendationBodySchema

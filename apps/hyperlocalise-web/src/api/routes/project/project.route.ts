@@ -506,6 +506,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
+          if (query.queueFilter === "has_issues") {
+            return badRequestResponse(
+              c,
+              "unsupported_queue_filter",
+              "The has issues filter is only available for Crowdin projects.",
+            );
+          }
+
           const catFile = await getNativeProjectCatFile({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,

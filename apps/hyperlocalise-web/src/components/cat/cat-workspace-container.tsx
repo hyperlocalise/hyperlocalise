@@ -33,6 +33,13 @@ import {
   syncSavedTargetTexts,
   type SavedTargetTextMap,
 } from "./cat-dirty-state";
+import {
+  findSegmentIdByKeyOrId,
+  resolveSelectedSegmentId,
+  resolveVisibleQueueSegments,
+  type CatQueueFilter,
+} from "./cat-queue-filter";
+import { buildCatSegmentShareUrl } from "./cat-segment-share-link";
 import { catEditorPanelMessages, catWorkspaceContainerMessages } from "./cat.messages";
 import {
   selectBestTmMatchForAutoFill,
@@ -233,12 +240,17 @@ export interface CatWorkspaceContainerProps {
   className?: string;
   queueSearch?: string;
   onQueueSearchChange?: (value: string) => void;
+  queueFilter?: CatQueueFilter;
+  onQueueFilterChange?: (filter: CatQueueFilter) => void;
+  availableQueueFilters?: CatQueueFilter[];
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   queuePagination?: CatWorkspaceViewProps["queuePagination"];
   onQueuePreviousPage?: () => void;
   onQueueNextPage?: () => void;
   onQueueNearEnd?: () => void;
+  initialSegmentKeyOrId?: string | null;
+  buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   tmAutoFillMinMatchPercent?: number;
 }
 
@@ -265,16 +277,34 @@ export function CatWorkspaceContainer({
   className,
   queueSearch,
   onQueueSearchChange,
+  queueFilter: queueFilterProp,
+  onQueueFilterChange,
+  availableQueueFilters,
   isQueueSearchPending,
   isQueueFetchingPage,
   queuePagination,
   onQueuePreviousPage,
   onQueueNextPage,
   onQueueNearEnd,
+  initialSegmentKeyOrId,
+  buildSegmentShareUrl,
   tmAutoFillMinMatchPercent = TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
 }: CatWorkspaceContainerProps) {
   const intl = useIntl();
-  const [state, setState] = useState(initialState);
+  const [state, setState] = useState(() => ({
+    ...initialState,
+    selectedSegmentId: resolveSelectedSegmentId(
+      initialState.segments,
+      initialSegmentKeyOrId,
+      initialState.selectedSegmentId,
+    ),
+  }));
+  const [localQueueFilter, setLocalQueueFilter] = useState<CatQueueFilter>("all");
+  const queueFilter = queueFilterProp ?? localQueueFilter;
+  const handleQueueFilterChange = onQueueFilterChange ?? setLocalQueueFilter;
+  const [checkedSegmentIds, setCheckedSegmentIds] = useState<ReadonlySet<string>>(() => new Set());
+  const [isBulkActionPending, setIsBulkActionPending] = useState(false);
+  const initialSegmentJumpAppliedRef = useRef(false);
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
@@ -319,15 +349,63 @@ export function CatWorkspaceContainer({
   const onAskQuestion = reviewOverrides?.onAskQuestion;
   const onReviewWithAi = reviewOverrides?.onReviewWithAi;
   const onSkip = reviewOverrides?.onSkip;
+  const onBulkApprove = reviewOverrides?.onBulkApprove;
+  const onBulkSkip = reviewOverrides?.onBulkSkip;
+
+  const usesServerQueueFilter = Boolean(onQueueFilterChange);
+
+  const filteredSegments = useMemo(
+    () => resolveVisibleQueueSegments(state.segments, queueFilter, usesServerQueueFilter),
+    [queueFilter, state.segments, usesServerQueueFilter],
+  );
+
+  useEffect(() => {
+    setState((current) => {
+      if (filteredSegments.some((segment) => segment.id === current.selectedSegmentId)) {
+        return current;
+      }
+
+      const nextSelectedSegmentId = filteredSegments[0]?.id;
+      if (!nextSelectedSegmentId || nextSelectedSegmentId === current.selectedSegmentId) {
+        return current;
+      }
+
+      return { ...current, selectedSegmentId: nextSelectedSegmentId };
+    });
+  }, [filteredSegments]);
+
+  useEffect(() => {
+    setCheckedSegmentIds(new Set());
+  }, [queueFilter]);
+
+  useEffect(() => {
+    setCheckedSegmentIds((current) => {
+      const visibleIds = new Set(state.segments.map((segment) => segment.id));
+      const next = new Set([...current].filter((segmentId) => visibleIds.has(segmentId)));
+      return next.size === current.size ? current : next;
+    });
+  }, [state.segments]);
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
 
   useEffect(() => {
-    setState((current) =>
-      mergeCatWorkspaceState(previousInitialStateRef.current, current, initialState),
-    );
+    setState((current) => {
+      const merged = mergeCatWorkspaceState(previousInitialStateRef.current, current, initialState);
+      const matchedSegmentId = initialSegmentKeyOrId
+        ? findSegmentIdByKeyOrId(merged.segments, initialSegmentKeyOrId)
+        : null;
+      if (matchedSegmentId && !initialSegmentJumpAppliedRef.current) {
+        initialSegmentJumpAppliedRef.current = true;
+        return {
+          ...merged,
+          selectedSegmentId: matchedSegmentId,
+        };
+      }
+
+      return merged;
+    });
     setSavedTargetTexts((saved) =>
       syncSavedTargetTexts({
         savedTargetTexts: saved,
@@ -341,7 +419,7 @@ export function CatWorkspaceContainer({
       const next = collectSegmentsWithAgentContext(initialState);
       return new Set([...current, ...next]);
     });
-  }, [initialState]);
+  }, [initialSegmentKeyOrId, initialState]);
 
   useEffect(() => {
     const dirtySegmentIds = collectDirtySegmentIds(state.segments, savedTargetTexts);
@@ -688,11 +766,12 @@ export function CatWorkspaceContainer({
       onPreviousSegment: () => {
         attemptSegmentNavigation(() => {
           setState((current) => {
-            const previousId = getAdjacentSegmentId(
+            const visibleSegments = resolveVisibleQueueSegments(
               current.segments,
-              current.selectedSegmentId,
-              -1,
+              queueFilter,
+              usesServerQueueFilter,
             );
+            const previousId = getAdjacentSegmentId(visibleSegments, current.selectedSegmentId, -1);
             if (!previousId) {
               return current;
             }
@@ -704,7 +783,12 @@ export function CatWorkspaceContainer({
       onNextSegment: () => {
         attemptSegmentNavigation(() => {
           setState((current) => {
-            const nextId = getAdjacentSegmentId(current.segments, current.selectedSegmentId, 1);
+            const visibleSegments = resolveVisibleQueueSegments(
+              current.segments,
+              queueFilter,
+              usesServerQueueFilter,
+            );
+            const nextId = getAdjacentSegmentId(visibleSegments, current.selectedSegmentId, 1);
             if (!nextId) {
               return current;
             }
@@ -755,8 +839,13 @@ export function CatWorkspaceContainer({
               segmentId,
               targetText,
             );
+            const visibleSegments = resolveVisibleQueueSegments(
+              segments,
+              queueFilter,
+              usesServerQueueFilter,
+            );
             const nextSelectedSegmentId =
-              getAdjacentSegmentId(current.segments, segmentId, 1) ?? current.selectedSegmentId;
+              getAdjacentSegmentId(visibleSegments, segmentId, 1) ?? current.selectedSegmentId;
             return {
               ...current,
               segments,
@@ -923,6 +1012,8 @@ export function CatWorkspaceContainer({
     onTargetChange,
     onUseAiSuggestion,
     lookupSegmentContext,
+    queueFilter,
+    usesServerQueueFilter,
     runSegmentReview,
     runQaChecks,
     runSegmentChecks,
@@ -934,10 +1025,106 @@ export function CatWorkspaceContainer({
     [savedTargetTexts, state.segments],
   );
 
+  const handleToggleSegmentChecked = useCallback((segmentId: string, checked: boolean) => {
+    setCheckedSegmentIds((current) => {
+      const next = new Set(current);
+      if (checked) {
+        next.add(segmentId);
+      } else {
+        next.delete(segmentId);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleSelectAllVisible = useCallback(() => {
+    setCheckedSegmentIds(new Set(filteredSegments.map((segment) => segment.id)));
+  }, [filteredSegments]);
+
+  const handleClearChecked = useCallback(() => {
+    setCheckedSegmentIds(new Set());
+  }, []);
+
+  const handleBulkApprove = useCallback(async () => {
+    const segmentIds = [...checkedSegmentIds];
+    if (segmentIds.length === 0) {
+      return;
+    }
+
+    setIsBulkActionPending(true);
+    try {
+      if (onBulkApprove) {
+        await onBulkApprove(segmentIds);
+        setCheckedSegmentIds(new Set());
+        return;
+      }
+
+      for (const segmentId of segmentIds) {
+        const segment = stateRef.current.segments.find((item) => item.id === segmentId);
+        if (!segment) {
+          continue;
+        }
+
+        await dependencies.review.onApprove(segmentId, segment.targetText);
+      }
+    } finally {
+      setIsBulkActionPending(false);
+      setCheckedSegmentIds(new Set());
+    }
+  }, [checkedSegmentIds, dependencies.review, onBulkApprove]);
+
+  const handleBulkSkip = useCallback(async () => {
+    const segmentIds = [...checkedSegmentIds];
+    if (segmentIds.length === 0) {
+      return;
+    }
+
+    setIsBulkActionPending(true);
+    try {
+      if (onBulkSkip) {
+        await onBulkSkip(segmentIds);
+        return;
+      }
+
+      for (const segmentId of segmentIds) {
+        dependencies.review.onSkip(segmentId);
+      }
+    } finally {
+      setIsBulkActionPending(false);
+      setCheckedSegmentIds(new Set());
+    }
+  }, [checkedSegmentIds, dependencies.review, onBulkSkip]);
+
+  const queueViewState = useMemo(
+    () => ({
+      ...state,
+      segments: filteredSegments,
+    }),
+    [filteredSegments, state],
+  );
+
+  const resolvedBuildSegmentShareUrl = useMemo(() => {
+    if (buildSegmentShareUrl) {
+      return buildSegmentShareUrl;
+    }
+
+    if (typeof window === "undefined") {
+      return undefined;
+    }
+
+    return (segment: CatSegment) =>
+      buildCatSegmentShareUrl({
+        baseUrl: window.location.href,
+        segmentId: segment.id,
+        segmentKey: segment.key,
+      });
+  }, [buildSegmentShareUrl]);
+
   return (
     <>
       <CatWorkspaceView
-        state={state}
+        state={queueViewState}
+        editorState={state}
         dependencies={dependencies}
         dirtySegmentIds={dirtySegmentIds}
         isValidating={isValidating}
@@ -962,6 +1149,17 @@ export function CatWorkspaceContainer({
         }
         onQueueNextPage={onQueueNextPage ? () => attemptPageNavigation(onQueueNextPage) : undefined}
         onQueueNearEnd={onQueueNearEnd}
+        queueFilter={queueFilter}
+        onQueueFilterChange={handleQueueFilterChange}
+        availableQueueFilters={availableQueueFilters}
+        checkedSegmentIds={checkedSegmentIds}
+        onToggleSegmentChecked={handleToggleSegmentChecked}
+        onSelectAllVisible={handleSelectAllVisible}
+        onClearChecked={handleClearChecked}
+        onBulkApprove={() => void handleBulkApprove()}
+        onBulkSkip={() => void handleBulkSkip()}
+        isBulkActionPending={isBulkActionPending}
+        buildSegmentShareUrl={resolvedBuildSegmentShareUrl}
       />
 
       <AlertDialog

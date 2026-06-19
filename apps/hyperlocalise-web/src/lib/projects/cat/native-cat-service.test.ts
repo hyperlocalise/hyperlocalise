@@ -79,9 +79,12 @@ describe("NativeCatService.getCatFile", () => {
         offset: 50,
         limit: 25,
         search: "hero",
+        targetLocale: "fr",
       }),
     );
-    expect(countKeysForFile).toHaveBeenCalledWith(expect.objectContaining({ search: "hero" }));
+    expect(countKeysForFile).toHaveBeenCalledWith(
+      expect.objectContaining({ search: "hero", targetLocale: "fr" }),
+    );
     expect(result?.pagination).toMatchObject({
       offset: 50,
       limit: 25,
