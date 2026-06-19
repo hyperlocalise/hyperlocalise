@@ -28,5 +28,6 @@ export type {
   CatSegmentStatus,
   CatSuggestion,
   CatSuggestionSource,
+  CatTmMatchKind,
   CatWorkspaceState,
 } from "./types";

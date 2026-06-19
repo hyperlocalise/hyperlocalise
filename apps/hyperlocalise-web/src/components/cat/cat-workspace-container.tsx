@@ -1,7 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useIntl } from "react-intl";
+import { FormattedMessage, useIntl } from "react-intl";
+
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 import type {
   CatAiRecommendationResult,
@@ -14,8 +25,25 @@ import type {
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
 import { CatWorkspaceView } from "./cat-workspace";
+import {
+  buildSavedTargetTextMap,
+  collectDirtySegmentIds,
+  isSegmentTargetDirty,
+  markSegmentTargetSaved,
+  syncSavedTargetTexts,
+  type SavedTargetTextMap,
+} from "./cat-dirty-state";
 import { catEditorPanelMessages, catWorkspaceContainerMessages } from "./cat.messages";
-import type { CatFormatCheck, CatSegment, CatWorkspaceState } from "./types";
+import {
+  selectBestTmMatchForAutoFill,
+  TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
+} from "./tm-match-quality";
+import type {
+  CatFormatCheck,
+  CatSegment,
+  CatTranslationMemoryMatch,
+  CatWorkspaceState,
+} from "./types";
 
 function getSegmentQueueIndex(segments: CatSegment[], segmentIdOrKey: string) {
   return segments.findIndex(
@@ -211,7 +239,13 @@ export interface CatWorkspaceContainerProps {
   onQueuePreviousPage?: () => void;
   onQueueNextPage?: () => void;
   onQueueNearEnd?: () => void;
+  tmAutoFillMinMatchPercent?: number;
 }
+
+type UnsavedNavigationPrompt = {
+  kind: "segment" | "page";
+  proceed: () => void;
+};
 
 function collectSegmentsWithAgentContext(state: CatWorkspaceState): ReadonlySet<string> {
   return new Set(
@@ -237,6 +271,7 @@ export function CatWorkspaceContainer({
   onQueuePreviousPage,
   onQueueNextPage,
   onQueueNearEnd,
+  tmAutoFillMinMatchPercent = TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
 }: CatWorkspaceContainerProps) {
   const intl = useIntl();
   const [state, setState] = useState(initialState);
@@ -251,10 +286,18 @@ export function CatWorkspaceContainer({
   >(() => collectSegmentsWithAgentContext(initialState));
   const [isGeneratingAiRecommendation, setIsGeneratingAiRecommendation] = useState(false);
   const [isRunningFormatChecks, setIsRunningFormatChecks] = useState(false);
+  const [savedTargetTexts, setSavedTargetTexts] = useState<SavedTargetTextMap>(() =>
+    buildSavedTargetTextMap(initialState.segments),
+  );
+  const [unsavedNavigationPrompt, setUnsavedNavigationPrompt] =
+    useState<UnsavedNavigationPrompt | null>(null);
   const stateRef = useRef(state);
   const previousInitialStateRef = useRef(initialState);
   const validationSequenceRef = useRef(0);
   const reviewSequenceRef = useRef(0);
+  const autoFilledSegmentIdsRef = useRef<ReadonlySet<string>>(new Set());
+  const savedTargetTextsRef = useRef(savedTargetTexts);
+  savedTargetTextsRef.current = savedTargetTexts;
   const validateFormat = serviceOverrides?.validateFormat;
   const runQaChecks = serviceOverrides?.runQaChecks;
   const lookupSegmentContext = serviceOverrides?.lookupSegmentContext;
@@ -262,7 +305,9 @@ export function CatWorkspaceContainer({
   const generateAiRecommendation = serviceOverrides?.generateAiRecommendation;
   const canLookupContext = Boolean(lookupSegmentContext);
   const canUseAiRecommendation = Boolean(generateAiRecommendation);
-  const canRunSegmentReview = Boolean(generateAiRecommendation || validateFormat || runQaChecks);
+  const canRunSegmentReview = Boolean(
+    lookupSegmentConcordance || generateAiRecommendation || validateFormat || runQaChecks,
+  );
   const onSelectSegment = navigationOverrides?.onSelectSegment;
   const onPreviousSegment = navigationOverrides?.onPreviousSegment;
   const onNextSegment = navigationOverrides?.onNextSegment;
@@ -283,12 +328,69 @@ export function CatWorkspaceContainer({
     setState((current) =>
       mergeCatWorkspaceState(previousInitialStateRef.current, current, initialState),
     );
+    setSavedTargetTexts((saved) =>
+      syncSavedTargetTexts({
+        savedTargetTexts: saved,
+        previousInitialState: previousInitialStateRef.current,
+        currentState: stateRef.current,
+        nextInitialState: initialState,
+      }),
+    );
     previousInitialStateRef.current = initialState;
     setRevealedAgentContextSegmentIds((current) => {
       const next = collectSegmentsWithAgentContext(initialState);
       return new Set([...current, ...next]);
     });
   }, [initialState]);
+
+  useEffect(() => {
+    const dirtySegmentIds = collectDirtySegmentIds(state.segments, savedTargetTexts);
+    if (dirtySegmentIds.length === 0) {
+      return;
+    }
+
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [savedTargetTexts, state.segments]);
+
+  const attemptSegmentNavigation = useCallback((proceed: () => void) => {
+    const currentState = stateRef.current;
+    const selectedSegment = currentState.segments.find(
+      (segment) => segment.id === currentState.selectedSegmentId,
+    );
+    if (
+      selectedSegment &&
+      isSegmentTargetDirty(
+        selectedSegment.id,
+        selectedSegment.targetText,
+        savedTargetTextsRef.current,
+      )
+    ) {
+      setUnsavedNavigationPrompt({ kind: "segment", proceed });
+      return;
+    }
+
+    proceed();
+  }, []);
+
+  const attemptPageNavigation = useCallback((proceed: () => void) => {
+    const dirtySegmentIds = collectDirtySegmentIds(
+      stateRef.current.segments,
+      savedTargetTextsRef.current,
+    );
+    if (dirtySegmentIds.length > 0) {
+      setUnsavedNavigationPrompt({ kind: "page", proceed });
+      return;
+    }
+
+    proceed();
+  }, []);
 
   useEffect(() => {
     setCommentPostError(undefined);
@@ -340,8 +442,9 @@ export function CatWorkspaceContainer({
 
       const includeAi = options?.includeAi === true && Boolean(generateAiRecommendation);
       const includeFormatChecks = Boolean(validateFormat || runQaChecks);
+      const includeConcordance = Boolean(lookupSegmentConcordance);
 
-      if (!includeAi && !includeFormatChecks) {
+      if (!includeAi && !includeFormatChecks && !includeConcordance) {
         return;
       }
 
@@ -391,6 +494,37 @@ export function CatWorkspaceContainer({
                 },
               };
             });
+
+            const currentSegment = stateRef.current.segments.find((item) => item.id === segmentId);
+            const bestTmMatch = selectBestTmMatchForAutoFill(
+              concordance.translationMemoryMatches,
+              tmAutoFillMinMatchPercent,
+            );
+            if (
+              currentSegment &&
+              !currentSegment.targetText.trim() &&
+              bestTmMatch &&
+              !autoFilledSegmentIdsRef.current.has(segmentId)
+            ) {
+              autoFilledSegmentIdsRef.current = new Set([
+                ...autoFilledSegmentIdsRef.current,
+                segmentId,
+              ]);
+              const segments = updateSegmentTarget(
+                stateRef.current.segments,
+                segmentId,
+                bestTmMatch.targetText,
+              );
+              setState((current) => ({ ...current, segments }));
+              setSavedTargetTexts((saved) =>
+                markSegmentTargetSaved(saved, segmentId, bestTmMatch.targetText),
+              );
+              onTargetChange?.(segmentId, bestTmMatch.targetText);
+              const updatedSegment = segments.find((item) => item.id === segmentId);
+              if (updatedSegment && (validateFormat || runQaChecks)) {
+                void runSegmentChecks(updatedSegment, bestTmMatch.targetText);
+              }
+            }
           } catch (error) {
             if (reviewSequenceRef.current !== sequence) {
               return;
@@ -459,49 +593,51 @@ export function CatWorkspaceContainer({
           }
         }
 
-        const [formatChecks, qaChecks] = await Promise.all([
-          includeFormatChecks && validateFormat
-            ? validateFormat(segment, segment.targetText)
-            : Promise.resolve([]),
-          includeFormatChecks && runQaChecks
-            ? runQaChecks(segment, segment.targetText)
-            : Promise.resolve([]),
-        ]);
-        if (reviewSequenceRef.current !== sequence) {
-          return;
+        if (includeFormatChecks || includeAi) {
+          const [formatChecks, qaChecks] = await Promise.all([
+            includeFormatChecks && validateFormat
+              ? validateFormat(segment, segment.targetText)
+              : Promise.resolve([]),
+            includeFormatChecks && runQaChecks
+              ? runQaChecks(segment, segment.targetText)
+              : Promise.resolve([]),
+          ]);
+          if (reviewSequenceRef.current !== sequence) {
+            return;
+          }
+          const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
+            segmentChecks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
+          const baseChecks = withoutAiFailure(
+            recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
+          );
+          const checks = aiFailureCheck
+            ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]
+            : baseChecks;
+
+          setState((current) => {
+            const currentIntelligence =
+              current.segmentIntelligence?.[segmentId] ?? current.intelligence;
+
+            return {
+              ...current,
+              formatChecks: current.selectedSegmentId === segmentId ? checks : current.formatChecks,
+              segmentFormatChecks: {
+                ...current.segmentFormatChecks,
+                [segmentId]: checks,
+              },
+              segmentIntelligence: recommendation
+                ? {
+                    ...current.segmentIntelligence,
+                    [segmentId]: {
+                      ...currentIntelligence,
+                      aiSuggestion: recommendation.aiSuggestion,
+                      aiReasoning: recommendation.aiReasoning,
+                    },
+                  }
+                : current.segmentIntelligence,
+            };
+          });
         }
-        const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
-          segmentChecks.filter((check) => check.id !== `ai-recommendation-failed-${segmentId}`);
-        const baseChecks = withoutAiFailure(
-          recommendation?.formatChecks ?? [...formatChecks, ...qaChecks],
-        );
-        const checks = aiFailureCheck
-          ? [aiFailureCheck, ...baseChecks.filter((check) => check.id !== aiFailureCheck.id)]
-          : baseChecks;
-
-        setState((current) => {
-          const currentIntelligence =
-            current.segmentIntelligence?.[segmentId] ?? current.intelligence;
-
-          return {
-            ...current,
-            formatChecks: current.selectedSegmentId === segmentId ? checks : current.formatChecks,
-            segmentFormatChecks: {
-              ...current.segmentFormatChecks,
-              [segmentId]: checks,
-            },
-            segmentIntelligence: recommendation
-              ? {
-                  ...current.segmentIntelligence,
-                  [segmentId]: {
-                    ...currentIntelligence,
-                    aiSuggestion: recommendation.aiSuggestion,
-                    aiReasoning: recommendation.aiReasoning,
-                  },
-                }
-              : current.segmentIntelligence,
-          };
-        });
       } finally {
         if (reviewSequenceRef.current === sequence) {
           if (includeAi) {
@@ -518,7 +654,10 @@ export function CatWorkspaceContainer({
       intl,
       lookupSegmentConcordance,
       onReviewWithAi,
+      onTargetChange,
       runQaChecks,
+      runSegmentChecks,
+      tmAutoFillMinMatchPercent,
       validateFormat,
     ],
   );
@@ -538,31 +677,41 @@ export function CatWorkspaceContainer({
   const dependencies = useMemo<CatWorkspaceDependencies>(() => {
     const navigation = {
       onSelectSegment: (segmentId: string) => {
-        setState((current) => {
-          const selectedSegmentId = getSegmentId(current.segments, segmentId) ?? segmentId;
-          return { ...current, selectedSegmentId };
+        attemptSegmentNavigation(() => {
+          setState((current) => {
+            const selectedSegmentId = getSegmentId(current.segments, segmentId) ?? segmentId;
+            return { ...current, selectedSegmentId };
+          });
+          onSelectSegment?.(segmentId);
         });
-        onSelectSegment?.(segmentId);
       },
       onPreviousSegment: () => {
-        setState((current) => {
-          const previousId = getAdjacentSegmentId(current.segments, current.selectedSegmentId, -1);
-          if (!previousId) {
-            return current;
-          }
-          return { ...current, selectedSegmentId: previousId };
+        attemptSegmentNavigation(() => {
+          setState((current) => {
+            const previousId = getAdjacentSegmentId(
+              current.segments,
+              current.selectedSegmentId,
+              -1,
+            );
+            if (!previousId) {
+              return current;
+            }
+            return { ...current, selectedSegmentId: previousId };
+          });
+          onPreviousSegment?.();
         });
-        onPreviousSegment?.();
       },
       onNextSegment: () => {
-        setState((current) => {
-          const nextId = getAdjacentSegmentId(current.segments, current.selectedSegmentId, 1);
-          if (!nextId) {
-            return current;
-          }
-          return { ...current, selectedSegmentId: nextId };
+        attemptSegmentNavigation(() => {
+          setState((current) => {
+            const nextId = getAdjacentSegmentId(current.segments, current.selectedSegmentId, 1);
+            if (!nextId) {
+              return current;
+            }
+            return { ...current, selectedSegmentId: nextId };
+          });
+          onNextSegment?.();
         });
-        onNextSegment?.();
       },
       onReviewInSequence: () => {
         onReviewInSequence?.();
@@ -590,6 +739,9 @@ export function CatWorkspaceContainer({
         editing.onTargetChange(segmentId, aiSuggestion);
         onUseAiSuggestion?.(segmentId);
       },
+      onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => {
+        editing.onTargetChange(segmentId, match.targetText);
+      },
     };
 
     const review = {
@@ -615,6 +767,7 @@ export function CatWorkspaceContainer({
               },
             };
           });
+          setSavedTargetTexts((saved) => markSegmentTargetSaved(saved, segmentId, targetText));
         } catch (error) {
           const message =
             error instanceof Error
@@ -755,6 +908,8 @@ export function CatWorkspaceContainer({
       },
     };
   }, [
+    attemptPageNavigation,
+    attemptSegmentNavigation,
     onApprove,
     onAddComment,
     onAskQuestion,
@@ -774,30 +929,88 @@ export function CatWorkspaceContainer({
     validateFormat,
   ]);
 
+  const dirtySegmentIds = useMemo(
+    () => new Set(collectDirtySegmentIds(state.segments, savedTargetTexts)),
+    [savedTargetTexts, state.segments],
+  );
+
   return (
-    <CatWorkspaceView
-      state={state}
-      dependencies={dependencies}
-      isValidating={isValidating}
-      isApproving={isApproving}
-      isPostingComment={isPostingComment}
-      commentPostError={commentPostError}
-      isLookingUpContext={isLookingUpContext}
-      isConcordanceLoading={isLoadingConcordance}
-      isAiSuggestionLoading={isGeneratingAiRecommendation && canUseAiRecommendation}
-      isFormatChecksLoading={isRunningFormatChecks || isValidating}
-      canLookupContext={canLookupContext}
-      showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
-      canUseAiRecommendation={canUseAiRecommendation}
-      className={className}
-      queueSearch={queueSearch}
-      onQueueSearchChange={onQueueSearchChange}
-      isQueueSearchPending={isQueueSearchPending}
-      isQueueFetchingPage={isQueueFetchingPage}
-      queuePagination={queuePagination}
-      onQueuePreviousPage={onQueuePreviousPage}
-      onQueueNextPage={onQueueNextPage}
-      onQueueNearEnd={onQueueNearEnd}
-    />
+    <>
+      <CatWorkspaceView
+        state={state}
+        dependencies={dependencies}
+        dirtySegmentIds={dirtySegmentIds}
+        isValidating={isValidating}
+        isApproving={isApproving}
+        isPostingComment={isPostingComment}
+        commentPostError={commentPostError}
+        isLookingUpContext={isLookingUpContext}
+        isConcordanceLoading={isLoadingConcordance}
+        isAiSuggestionLoading={isGeneratingAiRecommendation && canUseAiRecommendation}
+        isFormatChecksLoading={isRunningFormatChecks || isValidating}
+        canLookupContext={canLookupContext}
+        showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
+        canUseAiRecommendation={canUseAiRecommendation}
+        className={className}
+        queueSearch={queueSearch}
+        onQueueSearchChange={onQueueSearchChange}
+        isQueueSearchPending={isQueueSearchPending}
+        isQueueFetchingPage={isQueueFetchingPage}
+        queuePagination={queuePagination}
+        onQueuePreviousPage={
+          onQueuePreviousPage ? () => attemptPageNavigation(onQueuePreviousPage) : undefined
+        }
+        onQueueNextPage={onQueueNextPage ? () => attemptPageNavigation(onQueueNextPage) : undefined}
+        onQueueNearEnd={onQueueNearEnd}
+      />
+
+      <AlertDialog
+        open={unsavedNavigationPrompt !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setUnsavedNavigationPrompt(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {unsavedNavigationPrompt?.kind === "page" ? (
+                <FormattedMessage {...catWorkspaceContainerMessages.unsavedPageNavigationTitle} />
+              ) : (
+                <FormattedMessage
+                  {...catWorkspaceContainerMessages.unsavedSegmentNavigationTitle}
+                />
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {unsavedNavigationPrompt?.kind === "page" ? (
+                <FormattedMessage
+                  {...catWorkspaceContainerMessages.unsavedPageNavigationDescription}
+                />
+              ) : (
+                <FormattedMessage
+                  {...catWorkspaceContainerMessages.unsavedSegmentNavigationDescription}
+                />
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage {...catWorkspaceContainerMessages.unsavedNavigationStay} />
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                const proceed = unsavedNavigationPrompt?.proceed;
+                setUnsavedNavigationPrompt(null);
+                proceed?.();
+              }}
+            >
+              <FormattedMessage {...catWorkspaceContainerMessages.unsavedNavigationDiscard} />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }

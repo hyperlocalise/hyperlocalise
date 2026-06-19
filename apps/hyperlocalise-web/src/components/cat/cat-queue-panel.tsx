@@ -25,6 +25,7 @@ export function CatQueuePanel({
   segments,
   selectedSegmentId,
   summary,
+  dirtySegmentIds,
   onSelectSegment,
   search = "",
   onSearchChange,
@@ -38,6 +39,7 @@ export function CatQueuePanel({
   segments: CatSegment[];
   selectedSegmentId: string;
   summary: CatQueueSummary;
+  dirtySegmentIds?: ReadonlySet<string>;
   onSelectSegment: (segmentId: string) => void;
   search?: string;
   onSearchChange?: (value: string) => void;
@@ -101,6 +103,7 @@ export function CatQueuePanel({
         <CatQueueVirtualList
           segments={segments}
           selectedSegmentId={selectedSegmentId}
+          dirtySegmentIds={dirtySegmentIds}
           onSelectSegment={onSelectSegment}
           onNearEnd={onNearEnd}
         />

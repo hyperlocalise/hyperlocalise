@@ -204,7 +204,6 @@ describe("project file CAT routes", () => {
       expect.objectContaining({
         projectId: "ext:crowdin:42",
         providerKind: "crowdin",
-        externalProjectId: "42",
         sourceLocale: "en",
         targetLocale: "fr",
         sourceText: "Hello workspace",

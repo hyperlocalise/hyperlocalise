@@ -50,6 +50,7 @@ export function CatWorkspaceView({
   canLookupContext = false,
   canUseAiRecommendation = false,
   showAgentContext = false,
+  dirtySegmentIds,
   className,
   queueSearch,
   onQueueSearchChange,
@@ -99,6 +100,7 @@ export function CatWorkspaceView({
   const isEditorBusy = isApproving;
   const canApprove = state.canEditTranslations !== false;
   const canAddComment = state.canAddComments === true;
+  const isTargetDirty = dirtySegmentIds?.has(selectedSegment.id) ?? false;
 
   function renderEditorPanel() {
     return (
@@ -117,9 +119,13 @@ export function CatWorkspaceView({
         commentPostError={commentPostError}
         canApprove={canApprove}
         canAddComment={canAddComment}
+        canEditTranslations={canApprove}
+        isTargetDirty={isTargetDirty}
         canLookupContext={canLookupContext}
         canUseAiRecommendation={canUseAiRecommendation}
         onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
+        onCopySource={() => editing.onTargetChange(selectedSegment.id, selectedSegment.sourceText)}
+        onClearTarget={() => editing.onTargetChange(selectedSegment.id, "")}
         onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
         onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
         onAddComment={
@@ -147,6 +153,7 @@ export function CatWorkspaceView({
         segments={state.segments}
         selectedSegmentId={selectedSegment.id}
         summary={state.queueSummary}
+        dirtySegmentIds={dirtySegmentIds}
         onSelectSegment={(segmentId) => {
           navigation.onSelectSegment(segmentId);
           if (isCompact) {
@@ -172,6 +179,8 @@ export function CatWorkspaceView({
         isLookingUpContext={isLookingUpContext}
         isConcordanceLoading={isConcordanceLoading}
         showAgentContext={showAgentContext}
+        canEditTranslations={state.canEditTranslations !== false}
+        onUseTmMatch={(match) => editing.onUseTmMatch(selectedSegment.id, match)}
       />
     );
   }

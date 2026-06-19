@@ -1,4 +1,5 @@
 import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/cat/types";
+import { inferTmMatchKind } from "@/components/cat/tm-match-quality";
 import { searchCrowdinCatConcordance } from "@/lib/providers/adapters/crowdin/crowdin-cat-concordance";
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
@@ -8,13 +9,14 @@ import {
   defaultGlossaryMatchResolution,
   defaultTranslationMemoryMatchResolution,
 } from "@/lib/providers/match-resolution";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { loadGlossaryMatchesForContext } from "@/lib/translation/load-glossary-matches";
+import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
 import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
 } from "@/lib/security/provider-credential-crypto";
-import { loadGlossaryMatchesForContext } from "@/lib/translation/load-glossary-matches";
-import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
+import { db, schema } from "@/lib/database";
+import { and, eq } from "drizzle-orm";
 
 export type { CatConcordanceForAiRecommendation } from "./map-cat-concordance-for-ai-recommendation";
 export { mapCatConcordanceForAiRecommendation } from "./map-cat-concordance-for-ai-recommendation";
@@ -36,33 +38,88 @@ function toCatGlossaryTerm(match: NormalizedGlossaryMatch): CatGlossaryTerm {
 
 function toCatTranslationMemoryMatch(
   match: NormalizedTranslationMemoryMatch,
+  querySourceText: string,
 ): CatTranslationMemoryMatch {
+  const matchPercent = match.matchScore ?? 0;
+
   return {
     id: match.id,
     sourceText: match.sourceText,
     targetText: match.targetText,
-    matchPercent: match.matchScore ?? 0,
+    matchPercent,
+    matchKind: inferTmMatchKind(matchPercent, querySourceText, match.sourceText),
     contextLabel: match.memoryName,
   };
 }
 
+async function loadCrowdinProjectCredential(input: { organizationId: string; projectId: string }) {
+  const [project] = await db
+    .select({
+      externalProjectId: schema.projects.externalProjectId,
+      externalProviderCredentialId: schema.projects.externalProviderCredentialId,
+      externalProviderKind: schema.projects.externalProviderKind,
+    })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.id, input.projectId),
+        eq(schema.projects.organizationId, input.organizationId),
+        eq(schema.projects.externalProviderKind, "crowdin"),
+        eq(schema.projects.source, "external_tms"),
+      ),
+    )
+    .limit(1);
+
+  if (!project?.externalProjectId || !project.externalProviderCredentialId) {
+    return null;
+  }
+
+  const [credential] = await db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+        eq(
+          schema.organizationExternalTmsProviderCredentials.id,
+          project.externalProviderCredentialId,
+        ),
+      ),
+    )
+    .limit(1);
+
+  if (!credential) {
+    return null;
+  }
+
+  return {
+    externalProjectId: project.externalProjectId,
+    credential,
+  };
+}
+
+type CrowdinLiveConcordance = {
+  glossaryTerms: NormalizedGlossaryMatch[];
+  translationMemoryMatches: NormalizedTranslationMemoryMatch[];
+};
+
 async function loadCrowdinLiveConcordance(input: {
   organizationId: string;
-  externalProjectId: string;
+  projectId: string;
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
-}): Promise<{
-  glossaryTerms: NormalizedGlossaryMatch[];
-  translationMemoryMatches: NormalizedTranslationMemoryMatch[];
-}> {
-  const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
-    input.organizationId,
-  );
-  if (!credential || credential.providerKind !== "crowdin") {
-    return { glossaryTerms: [], translationMemoryMatches: [] };
+}): Promise<CrowdinLiveConcordance | null> {
+  const projectCredential = await loadCrowdinProjectCredential({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+  });
+  if (!projectCredential) {
+    return null;
   }
 
+  const { credential, externalProjectId } = projectCredential;
   const secretMaterial = unwrapProviderCredentialCrypto(
     decryptProviderCredential({
       algorithm: credential.encryptionAlgorithm,
@@ -80,7 +137,7 @@ async function loadCrowdinLiveConcordance(input: {
 
   return searchCrowdinCatConcordance({
     client,
-    externalProjectId: input.externalProjectId,
+    externalProjectId,
     sourceLocale: input.sourceLocale,
     targetLocale: input.targetLocale,
     sourceText: input.sourceText,
@@ -91,26 +148,27 @@ export async function loadCatSegmentConcordance(input: {
   organizationId: string;
   projectId: string;
   providerKind?: ExternalTmsProviderKind | null;
-  externalProjectId?: string | null;
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
 }): Promise<CatSegmentConcordance> {
-  if (input.providerKind === "crowdin" && input.externalProjectId) {
+  if (input.providerKind === "crowdin") {
     const liveMatches = await loadCrowdinLiveConcordance({
       organizationId: input.organizationId,
-      externalProjectId: input.externalProjectId,
+      projectId: input.projectId,
       sourceLocale: input.sourceLocale,
       targetLocale: input.targetLocale,
       sourceText: input.sourceText,
     });
 
-    return {
-      glossaryTerms: liveMatches.glossaryTerms.map(toCatGlossaryTerm),
-      translationMemoryMatches: liveMatches.translationMemoryMatches.map(
-        toCatTranslationMemoryMatch,
-      ),
-    };
+    if (liveMatches) {
+      return {
+        glossaryTerms: liveMatches.glossaryTerms.map(toCatGlossaryTerm),
+        translationMemoryMatches: liveMatches.translationMemoryMatches.map((match) =>
+          toCatTranslationMemoryMatch(match, input.sourceText),
+        ),
+      };
+    }
   }
 
   const [glossaryMatches, translationMemoryMatches] = await Promise.all([
@@ -137,7 +195,7 @@ export async function loadCatSegmentConcordance(input: {
   return {
     glossaryTerms: glossaryMatches.map((match) => toCatGlossaryTerm(match)),
     translationMemoryMatches: translationMemoryMatches.map((match) =>
-      toCatTranslationMemoryMatch(match),
+      toCatTranslationMemoryMatch(match, input.sourceText),
     ),
   };
 }

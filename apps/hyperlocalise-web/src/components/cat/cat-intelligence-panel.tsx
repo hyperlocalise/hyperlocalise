@@ -1,17 +1,35 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { BulbIcon, CheckmarkCircle02Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
 import { MarkdownContent } from "@/components/markdown-description-editor/markdown-description-editor";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/primitives/cn";
 
 import { catIntelligencePanelMessages } from "./cat.messages";
-import type { CatGlossaryTerm, CatSegmentIntelligence, CatTranslationMemoryMatch } from "./types";
+import { requiresLowMatchConfirmation } from "./tm-match-quality";
+import type {
+  CatGlossaryTerm,
+  CatSegmentIntelligence,
+  CatTmMatchKind,
+  CatTranslationMemoryMatch,
+} from "./types";
 
 function PanelSection({ title, children }: { title: string; children: ReactNode }) {
   return (
@@ -92,21 +110,65 @@ function GlossaryTermRow({ term }: { term: CatGlossaryTerm }) {
   );
 }
 
-function TranslationMemoryRow({ match }: { match: CatTranslationMemoryMatch }) {
+function tmMatchBadgeTone(matchKind: CatTmMatchKind | undefined) {
+  switch (matchKind) {
+    case "exact":
+    case "context":
+      return "border-grove-300/25 bg-grove-300/10 text-grove-300";
+    default:
+      return "border-bud-500/25 bg-bud-500/10 text-bud-300";
+  }
+}
+
+function tmMatchBadgeLabel(match: CatTranslationMemoryMatch, intl: ReturnType<typeof useIntl>) {
+  switch (match.matchKind) {
+    case "exact":
+      return intl.formatMessage(catIntelligencePanelMessages.matchKindExact);
+    case "context":
+      return intl.formatMessage(catIntelligencePanelMessages.matchKindContext);
+    case "fuzzy":
+      return intl.formatMessage(catIntelligencePanelMessages.matchKindFuzzy);
+    default:
+      return intl.formatMessage(catIntelligencePanelMessages.matchPercent, {
+        matchPercent: match.matchPercent,
+      });
+  }
+}
+
+function TranslationMemoryRow({
+  match,
+  onUse,
+}: {
+  match: CatTranslationMemoryMatch;
+  onUse?: (match: CatTranslationMemoryMatch) => void;
+}) {
+  const intl = useIntl();
+
   return (
     <li className="space-y-2 px-3 py-3">
-      <div className="flex items-center justify-between gap-3">
-        <span className="rounded-full border border-dew-500/25 bg-dew-500/10 px-2 py-0.5 text-[11px] font-medium text-dew-100">
-          <FormattedMessage
-            {...catIntelligencePanelMessages.matchPercent}
-            values={{ matchPercent: match.matchPercent }}
-          />
-        </span>
-        {match.contextLabel ? (
-          <span className="min-w-0 truncate text-xs text-muted-foreground">
-            {match.contextLabel}
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <span
+            className={cn(
+              "rounded-full border px-2 py-0.5 text-[11px] font-medium tabular-nums",
+              tmMatchBadgeTone(match.matchKind),
+            )}
+          >
+            {tmMatchBadgeLabel(match, intl)}
           </span>
-        ) : null}
+        </div>
+        <div className="flex shrink-0 items-center gap-2">
+          {match.contextLabel ? (
+            <span className="max-w-28 truncate text-xs text-muted-foreground">
+              {match.contextLabel}
+            </span>
+          ) : null}
+          {onUse ? (
+            <Button variant="ghost" size="sm" onClick={() => onUse(match)}>
+              <FormattedMessage {...catIntelligencePanelMessages.useTmMatch} />
+            </Button>
+          ) : null}
+        </div>
       </div>
       <div className="space-y-1">
         <p className="text-pretty text-xs leading-relaxed text-muted-foreground">
@@ -123,13 +185,18 @@ export function CatIntelligencePanel({
   isLookingUpContext = false,
   isConcordanceLoading = false,
   showAgentContext = false,
+  canEditTranslations = true,
+  onUseTmMatch,
 }: {
   intelligence: CatSegmentIntelligence;
   isLookingUpContext?: boolean;
   isConcordanceLoading?: boolean;
   showAgentContext?: boolean;
+  canEditTranslations?: boolean;
+  onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
 }) {
   const intl = useIntl();
+  const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);
   const hasFileContext = Boolean(intelligence.productMeaning?.trim());
   const agentBadges = [
     intelligence.locationBreadcrumb,
@@ -138,6 +205,26 @@ export function CatIntelligencePanel({
   ].filter(Boolean);
   const hasAgentInsight = Boolean(intelligence.agentContext?.trim());
   const hasAgentContext = hasAgentInsight || agentBadges.length > 0;
+
+  function handleUseTmMatch(match: CatTranslationMemoryMatch) {
+    if (!onUseTmMatch) {
+      return;
+    }
+
+    if (requiresLowMatchConfirmation(match.matchPercent)) {
+      setPendingLowMatch(match);
+      return;
+    }
+
+    onUseTmMatch(match);
+  }
+
+  function confirmLowMatchApply() {
+    if (pendingLowMatch && onUseTmMatch) {
+      onUseTmMatch(pendingLowMatch);
+    }
+    setPendingLowMatch(null);
+  }
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-l lg:border-foreground/8">
@@ -266,7 +353,11 @@ export function CatIntelligencePanel({
               <div className="overflow-hidden rounded-2xl bg-foreground/3">
                 <ul className="divide-y divide-foreground/8">
                   {intelligence.translationMemoryMatches.map((match) => (
-                    <TranslationMemoryRow key={match.id} match={match} />
+                    <TranslationMemoryRow
+                      key={match.id}
+                      match={match}
+                      onUse={canEditTranslations && onUseTmMatch ? handleUseTmMatch : undefined}
+                    />
                   ))}
                 </ul>
               </div>
@@ -274,6 +365,39 @@ export function CatIntelligencePanel({
           ) : null}
         </div>
       </ScrollArea>
+
+      <AlertDialog
+        open={pendingLowMatch !== null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingLowMatch(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              <FormattedMessage {...catIntelligencePanelMessages.lowMatchConfirmTitle} />
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingLowMatch ? (
+                <FormattedMessage
+                  {...catIntelligencePanelMessages.lowMatchConfirmDescription}
+                  values={{ matchPercent: pendingLowMatch.matchPercent }}
+                />
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              <FormattedMessage {...catIntelligencePanelMessages.cancel} />
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={confirmLowMatchApply}>
+              <FormattedMessage {...catIntelligencePanelMessages.lowMatchConfirmAction} />
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

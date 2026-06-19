@@ -60,11 +60,15 @@ export function CatEditorPanel({
   isFormatChecksLoading = false,
   canApprove = true,
   canAddComment = false,
+  canEditTranslations = true,
   canLookupContext = false,
   canUseAiRecommendation = false,
+  isTargetDirty = false,
   isPostingComment = false,
   commentPostError,
   onTargetChange,
+  onCopySource,
+  onClearTarget,
   onUseAiSuggestion,
   onApprove,
   onAddComment,
@@ -89,11 +93,15 @@ export function CatEditorPanel({
   isFormatChecksLoading?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
+  canEditTranslations?: boolean;
   canLookupContext?: boolean;
   canUseAiRecommendation?: boolean;
+  isTargetDirty?: boolean;
   isPostingComment?: boolean;
   commentPostError?: string;
   onTargetChange: (value: string) => void;
+  onCopySource: () => void;
+  onClearTarget: () => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
   onAddComment?: (text: string) => void | Promise<void>;
@@ -120,6 +128,7 @@ export function CatEditorPanel({
     isAiSuggestionLoading ||
     isFormatChecksLoading;
   const canTriggerApprove = canApprove && !isActionBlocked;
+  const canEditTarget = canEditTranslations && !isEditorBusy;
   const sourceMessageAnalysis = useMemo(
     () => analyzeCatMessageFormat(segment.sourceText),
     [segment.sourceText],
@@ -191,10 +200,15 @@ export function CatEditorPanel({
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3 lg:px-5">
-        <div className="flex items-center">
+        <div className="flex items-center gap-2">
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
             {String(segmentPosition).padStart(2, "0")} / {String(totalSegments).padStart(2, "0")}
           </span>
+          {isTargetDirty ? (
+            <Badge variant="outline" className="border-bud-500/40 bg-bud-500/10 text-bud-300">
+              <FormattedMessage {...catEditorPanelMessages.unsavedChanges} />
+            </Badge>
+          ) : null}
         </div>
         <div className="flex items-center gap-1">
           <Button
@@ -235,20 +249,36 @@ export function CatEditorPanel({
           </section>
 
           <section className="space-y-3">
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <h3 className="text-xs font-medium text-muted-foreground">
                 <FormattedMessage
                   {...catEditorPanelMessages.targetHeading}
                   values={{ locale: segment.targetLocale }}
                 />
               </h3>
+              {canEditTarget ? (
+                <div className="flex flex-wrap items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={onCopySource}>
+                    <FormattedMessage {...catEditorPanelMessages.copySource} />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onClearTarget}
+                    disabled={segment.targetText.length === 0}
+                  >
+                    <FormattedMessage {...catEditorPanelMessages.clearTarget} />
+                  </Button>
+                </div>
+              ) : null}
             </div>
             <CatTargetEditor
               key={segment.id}
               sourceText={segment.sourceText}
               value={segment.targetText}
+              maxLength={segment.maxLength}
               onChange={onTargetChange}
-              disabled={isEditorBusy}
+              disabled={!canEditTarget}
             />
             <CatIcuStructureSummary blocks={sourceMessageAnalysis.icuBlocks} />
           </section>

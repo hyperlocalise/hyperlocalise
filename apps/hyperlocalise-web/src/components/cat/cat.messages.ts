@@ -86,6 +86,11 @@ export const catQueuePanelMessages = defineMessages({
     id: "U/tZOaayjq",
     description: "Next page button label in CAT queue",
   },
+  unsavedChangesAria: {
+    defaultMessage: "Unsaved changes",
+    id: "CHs2ugz7iN",
+    description: "Accessible label for queue row indicator when a segment has unsaved edits",
+  },
 });
 
 export const catFormatChecksMessages = defineMessages({
@@ -126,11 +131,6 @@ export const catToneMessages = defineMessages({
     defaultMessage: "TM",
     id: "+H5q/WALpt",
     description: "Badge label for a translation memory CAT suggestion",
-  },
-  sourceMt: {
-    defaultMessage: "MT",
-    id: "expYVaTo2d",
-    description: "Badge label for a machine translation CAT suggestion",
   },
 });
 
@@ -175,6 +175,36 @@ export const catWorkspaceContainerMessages = defineMessages({
     id: "pMRZvoJLzS",
     description: "Fallback error when approving or saving a CAT translation fails",
   },
+  unsavedSegmentNavigationTitle: {
+    defaultMessage: "Leave segment with unsaved changes?",
+    id: "2O/RojUz55",
+    description: "Title when navigating away from a segment with unsaved target text",
+  },
+  unsavedSegmentNavigationDescription: {
+    defaultMessage: "Your edits to this segment have not been saved. Leave without saving?",
+    id: "37yFkjafwR",
+    description: "Body when navigating away from a segment with unsaved target text",
+  },
+  unsavedPageNavigationTitle: {
+    defaultMessage: "Leave page with unsaved changes?",
+    id: "oeD72ehQB/",
+    description: "Title when changing CAT queue page with unsaved target text",
+  },
+  unsavedPageNavigationDescription: {
+    defaultMessage: "Some segments on this page have unsaved edits. Change page without saving?",
+    id: "+pyXMBZm58",
+    description: "Body when changing CAT queue page with unsaved target text",
+  },
+  unsavedNavigationStay: {
+    defaultMessage: "Stay",
+    id: "+EhuajKQYW",
+    description: "Cancel button for unsaved changes navigation guard",
+  },
+  unsavedNavigationDiscard: {
+    defaultMessage: "Leave without saving",
+    id: "VR+xvnXyUj",
+    description: "Confirm button to navigate away without saving target edits",
+  },
 });
 
 export const catTargetEditorMessages = defineMessages({
@@ -197,6 +227,16 @@ export const catTargetEditorMessages = defineMessages({
     defaultMessage: "Required tokens",
     id: "zVk2EFJa3O",
     description: "Label for required ICU and placeholder tokens below the CAT target editor",
+  },
+  characterCount: {
+    defaultMessage: "{count}/{maxLength} characters",
+    id: "MB3Jte6am8",
+    description: "Live character count for the CAT target translation against a max length limit",
+  },
+  characterCountAria: {
+    defaultMessage: "{count} of {maxLength} characters used",
+    id: "+jUwPCSypy",
+    description: "Accessible label for the CAT target translation character counter",
   },
 });
 
@@ -328,6 +368,47 @@ export const catIntelligencePanelMessages = defineMessages({
     defaultMessage: "{matchPercent}% match",
     id: "c8ULJQ9Qs8",
     description: "Translation memory match quality badge",
+  },
+  matchKindExact: {
+    defaultMessage: "100% match",
+    id: "hhrYYWvHkj",
+    description: "Badge label for an exact translation memory match",
+  },
+  matchKindContext: {
+    defaultMessage: "Context match",
+    id: "5H+UdOBSV9",
+    description: "Badge label for a context translation memory match",
+  },
+  matchKindFuzzy: {
+    defaultMessage: "Fuzzy match",
+    id: "ReZgZHvqUS",
+    description: "Badge label for a fuzzy translation memory match",
+  },
+  useTmMatch: {
+    defaultMessage: "Use",
+    id: "rHDcSl4Kt4",
+    description: "Button to apply a translation memory match to the target field",
+  },
+  lowMatchConfirmTitle: {
+    defaultMessage: "Apply low-quality TM match?",
+    id: "nojhrDNSfO",
+    description: "Title for confirmation dialog when applying a TM match below 70%",
+  },
+  lowMatchConfirmDescription: {
+    defaultMessage:
+      "This match is only {matchPercent}% similar. Applying it may introduce errors. Continue?",
+    id: "R+eufhiwar",
+    description: "Body for confirmation dialog when applying a low-quality TM match",
+  },
+  lowMatchConfirmAction: {
+    defaultMessage: "Apply anyway",
+    id: "y/0rjxqRwk",
+    description: "Confirm button for applying a low-quality TM match",
+  },
+  cancel: {
+    defaultMessage: "Cancel",
+    id: "Eecec2KI1k",
+    description: "Cancel button for low-quality TM match confirmation",
   },
 });
 
@@ -476,5 +557,20 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "Posting…",
     id: "j+ggKPYEzH",
     description: "Button label while a segment comment is being posted to the TMS",
+  },
+  unsavedChanges: {
+    defaultMessage: "Unsaved",
+    id: "RSN+J7hbqE",
+    description: "Badge shown when the current segment has unsaved target edits",
+  },
+  copySource: {
+    defaultMessage: "Copy source",
+    id: "JERGbk68rN",
+    description: "Button to copy the source string into the target translation field",
+  },
+  clearTarget: {
+    defaultMessage: "Clear target",
+    id: "5/hlw6iDag",
+    description: "Button to clear the target translation field",
   },
 });
