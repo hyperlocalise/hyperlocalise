@@ -31,6 +31,7 @@ describe("isUnsupportedLocalePath", () => {
   it("allows non-locale root routes", () => {
     expect(isUnsupportedLocalePath("/auth/sign-in")).toBe(false);
     expect(isUnsupportedLocalePath("/install")).toBe(false);
+    expect(isUnsupportedLocalePath("/api/auth/callback")).toBe(false);
   });
 
   it("allows the site root", () => {
@@ -40,6 +41,7 @@ describe("isUnsupportedLocalePath", () => {
 
 describe("proxy", () => {
   it("returns 404 for unsupported locale paths before AuthKit runs", async () => {
+    authkitProxyMock.mockReset();
     const response = await proxy(createRequest("/wp-links.php"), {} as never);
 
     expect(response?.status).toBe(404);
@@ -47,9 +49,20 @@ describe("proxy", () => {
   });
 
   it("still delegates supported locale paths to AuthKit", async () => {
+    authkitProxyMock.mockReset();
     authkitProxyMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
 
     const response = await proxy(createRequest("/en/blog"), {} as never);
+
+    expect(authkitProxyMock).toHaveBeenCalledOnce();
+    expect(response?.status).toBe(200);
+  });
+
+  it("delegates /api paths to AuthKit instead of returning 404", async () => {
+    authkitProxyMock.mockReset();
+    authkitProxyMock.mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    const response = await proxy(createRequest("/api/auth/callback"), {} as never);
 
     expect(authkitProxyMock).toHaveBeenCalledOnce();
     expect(response?.status).toBe(200);

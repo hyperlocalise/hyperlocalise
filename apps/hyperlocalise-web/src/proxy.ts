@@ -14,7 +14,7 @@ type WorkosProxyResult = Awaited<ReturnType<typeof workosProxy>>;
 const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog"];
 const PUBLIC_LOCALIZED_PATHS = new Set(["/", "/privacy", "/terms", "/trust-center"]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
-const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install"];
+const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install", "/api"];
 
 function splitLocalePath(pathname: string): {
   locale: string | null;
