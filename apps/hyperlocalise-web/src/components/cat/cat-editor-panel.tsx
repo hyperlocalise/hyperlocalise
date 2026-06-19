@@ -114,7 +114,11 @@ export function CatEditorPanel({
   const segmentComments = segment.comments ?? [];
   const trimmedCommentDraft = commentDraft.trim();
   const isActionBlocked =
-    isApproving || isLookingUpContext || isAiSuggestionLoading || isFormatChecksLoading;
+    isApproving ||
+    isPostingComment ||
+    isLookingUpContext ||
+    isAiSuggestionLoading ||
+    isFormatChecksLoading;
   const canTriggerApprove = canApprove && !isActionBlocked;
   const sourceMessageAnalysis = useMemo(
     () => analyzeCatMessageFormat(segment.sourceText),
