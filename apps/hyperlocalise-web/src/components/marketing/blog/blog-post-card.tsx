@@ -1,7 +1,10 @@
+"use client";
+
 import type { Post } from "@/lib/blog/blog-post";
 import { formatBlogPostDate } from "@/components/marketing/blog/format-blog-post-date";
 import { BlogPostCover } from "@/components/marketing/blog/blog-post-cover";
 import Link from "next/link";
+import { useIntl } from "react-intl";
 
 type BlogPostCardProps = {
   post: Post;
@@ -9,6 +12,8 @@ type BlogPostCardProps = {
 };
 
 export function BlogPostCard({ post, lang }: BlogPostCardProps) {
+  const intl = useIntl();
+
   return (
     <Link className="group block space-y-4" href={`/${lang}/blog/${post.slug}`}>
       <div className="overflow-hidden rounded-xl">
@@ -24,7 +29,7 @@ export function BlogPostCard({ post, lang }: BlogPostCardProps) {
           {post.title}
         </h2>
         <p className="text-sm text-muted-foreground">
-          {post.category} · {formatBlogPostDate(post.date)}
+          {post.category} · {formatBlogPostDate(intl, post.date)}
         </p>
       </div>
     </Link>

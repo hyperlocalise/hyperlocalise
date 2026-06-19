@@ -4,6 +4,7 @@ import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { BlogPostCover } from "@/components/marketing/blog/blog-post-cover";
 import { formatBlogPostDate } from "@/components/marketing/blog/format-blog-post-date";
 import { TypographyH1, TypographyMuted, TypographyP } from "@/components/ui/typography";
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import markdownStyles from "@/app/[lang]/(marketing)/blog/[slug]/markdown.module.css";
 
@@ -14,6 +15,8 @@ type BlogPostPageProps = {
 };
 
 export function BlogPostPage({ post, lang, htmlContent }: BlogPostPageProps) {
+  const intl = getIntlShape(lang);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
@@ -26,7 +29,7 @@ export function BlogPostPage({ post, lang, htmlContent }: BlogPostPageProps) {
               {post.excerpt}
             </TypographyP>
             <TypographyMuted className="mt-4 text-sm">
-              {formatBlogPostDate(post.date)}
+              {formatBlogPostDate(intl, post.date)}
             </TypographyMuted>
           </header>
 
