@@ -239,6 +239,13 @@ describe("project file CAT routes", () => {
       targetLocale: "fr",
       canEditTranslations: true,
       truncated: false,
+      queueSummary: {
+        total: 1,
+        reviewed: 1,
+        untranslated: 0,
+        needsReview: 0,
+        hasIssues: 1,
+      },
       segments: [
         {
           externalStringId: "1001",
@@ -321,6 +328,13 @@ describe("project file CAT routes", () => {
       targetLocale: "fr",
       canEditTranslations: true,
       truncated: false,
+      queueSummary: {
+        total: 120,
+        reviewed: 45,
+        untranslated: 30,
+        needsReview: 40,
+        hasIssues: 5,
+      },
       pagination: {
         offset: 50,
         limit: 25,

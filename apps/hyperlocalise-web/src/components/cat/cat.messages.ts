@@ -42,9 +42,10 @@ export const catQueuePanelMessages = defineMessages({
     description: "Heading for the CAT segment queue panel",
   },
   queueSummary: {
-    defaultMessage: "{total} total · {reviewed} reviewed",
-    id: "QCxFpsyrag",
-    description: "Segment queue summary showing total and reviewed counts",
+    defaultMessage:
+      "{reviewed}/{total} reviewed · {untranslated} untranslated · {needsReview} to review · {hasIssues} with issues",
+    id: "D/5RN82ldi",
+    description: "File-level segment queue summary showing review progress and status breakdown",
   },
   filterQueueAria: {
     defaultMessage: "Filter queue",
@@ -181,24 +182,6 @@ export const catFormatChecksMessages = defineMessages({
   },
 });
 
-export const catToneMessages = defineMessages({
-  sourceAi: {
-    defaultMessage: "AI",
-    id: "tK0t302C5U",
-    description: "Badge label for an AI-generated CAT suggestion",
-  },
-  sourceGlossary: {
-    defaultMessage: "Glossary",
-    id: "V+GHSOFLEr",
-    description: "Badge label for a glossary-based CAT suggestion",
-  },
-  sourceTm: {
-    defaultMessage: "TM",
-    id: "+H5q/WALpt",
-    description: "Badge label for a translation memory CAT suggestion",
-  },
-});
-
 export const catWorkspaceContainerMessages = defineMessages({
   saveFailedLabel: {
     defaultMessage: "Save failed",
@@ -305,64 +288,6 @@ export const catTargetEditorMessages = defineMessages({
   },
 });
 
-export const catSuggestionsTabsMessages = defineMessages({
-  suggestionsTab: {
-    defaultMessage: "Suggestions {count}",
-    id: "eMf+c9N3t5",
-    description: "CAT suggestions drawer tab showing suggestion count",
-  },
-  historyTab: {
-    defaultMessage: "History {count}",
-    id: "C9czZHFhB5",
-    description: "CAT suggestions drawer tab showing revision history count",
-  },
-  glossaryTab: {
-    defaultMessage: "Glossary matches {count}",
-    id: "fnePVmHoGg",
-    description: "CAT suggestions drawer tab showing glossary match count",
-  },
-  basedOnSimilar: {
-    defaultMessage: "Based on {count} similar translations",
-    id: "5IfbvZ6RDU",
-    description: "Footer note for CAT suggestions derived from translation memory matches",
-  },
-  historyAvailable: {
-    defaultMessage: "{count} previous revisions available for this string.",
-    id: "A4FjXhuep2",
-    description: "CAT history tab when prior revisions exist",
-  },
-  noHistory: {
-    defaultMessage: "No revision history yet.",
-    id: "T4JM/NthUA",
-    description: "CAT history tab empty state",
-  },
-  glossaryMatches: {
-    defaultMessage: "{count} approved glossary terms match this segment.",
-    id: "v4I2Z4hlz+",
-    description: "CAT glossary tab when approved terms match the segment",
-  },
-  noGlossaryMatches: {
-    defaultMessage: "No glossary matches for this segment.",
-    id: "FaKEfdW84W",
-    description: "CAT glossary tab empty state",
-  },
-  use: {
-    defaultMessage: "Use",
-    id: "1JXFNEtQ4J",
-    description: "Button to apply a CAT suggestion to the target translation",
-  },
-  collapse: {
-    defaultMessage: "Collapse",
-    id: "eABCOj2JVn",
-    description: "Button to collapse the CAT suggestions drawer",
-  },
-  expand: {
-    defaultMessage: "Expand",
-    id: "a5kZWopQ4Y",
-    description: "Button to expand the CAT suggestions drawer",
-  },
-});
-
 export const catIntelligencePanelMessages = defineMessages({
   panelTitle: {
     defaultMessage: "Translation Intelligence",
@@ -453,6 +378,11 @@ export const catIntelligencePanelMessages = defineMessages({
     defaultMessage: "Use",
     id: "rHDcSl4Kt4",
     description: "Button to apply a translation memory match to the target field",
+  },
+  useGlossaryTerm: {
+    defaultMessage: "Use",
+    id: "/qvZ8TPpqw",
+    description: "Button to apply an approved glossary term to the target field",
   },
   lowMatchConfirmTitle: {
     defaultMessage: "Apply low-quality TM match?",

@@ -356,6 +356,9 @@ const heroDemoState: CatWorkspaceState = {
   queueSummary: {
     total: heroDemoSegments.length,
     reviewed: heroDemoSegments.filter((segment) => segment.status === "reviewed").length,
+    untranslated: heroDemoSegments.filter((segment) => segment.status === "pending").length,
+    needsReview: heroDemoSegments.filter((segment) => segment.status === "needs_review").length,
+    hasIssues: 0,
   },
   formatChecks: heroDemoChecks,
   segmentFormatChecks: {
@@ -371,7 +374,6 @@ const heroDemoState: CatWorkspaceState = {
       },
     ],
   },
-  suggestions: [],
   intelligence: {
     productMeaning: "Marketing hero headline shown above the primary waitlist call to action.",
     intent: "Position speed as release confidence, not shortcut automation.",

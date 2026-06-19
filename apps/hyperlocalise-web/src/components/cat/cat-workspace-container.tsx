@@ -33,6 +33,7 @@ import {
   syncSavedTargetTexts,
   type SavedTargetTextMap,
 } from "./cat-dirty-state";
+import { adjustQueueSummaryForStatusChange, applyGlossaryTermToTarget } from "./cat-queue-summary";
 import {
   findSegmentIdByKeyOrId,
   resolveSelectedSegmentId,
@@ -47,6 +48,7 @@ import {
 } from "./tm-match-quality";
 import type {
   CatFormatCheck,
+  CatGlossaryTerm,
   CatSegment,
   CatTranslationMemoryMatch,
   CatWorkspaceState,
@@ -92,10 +94,6 @@ function updateSegmentStatus(
   status: CatSegment["status"],
 ) {
   return segments.map((segment) => (segment.id === segmentId ? { ...segment, status } : segment));
-}
-
-function countReviewed(segments: CatSegment[]) {
-  return segments.filter((segment) => segment.status === "reviewed").length;
 }
 
 function getSegmentsById(state: CatWorkspaceState) {
@@ -217,10 +215,7 @@ export function mergeCatWorkspaceState(
     ...nextInitialState,
     segments,
     selectedSegmentId,
-    queueSummary: {
-      total: segments.length,
-      reviewed: countReviewed(segments),
-    },
+    queueSummary: nextInitialState.queueSummary,
     formatChecks:
       selectedSegmentId === currentState.selectedSegmentId
         ? currentState.formatChecks
@@ -826,6 +821,14 @@ export function CatWorkspaceContainer({
       onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => {
         editing.onTargetChange(segmentId, match.targetText);
       },
+      onUseGlossaryTerm: (segmentId: string, term: CatGlossaryTerm, sourceText: string) => {
+        const segment = stateRef.current.segments.find((item) => item.id === segmentId);
+        const currentTarget = segment?.targetText ?? "";
+        editing.onTargetChange(
+          segmentId,
+          applyGlossaryTermToTarget(sourceText, currentTarget, term),
+        );
+      },
     };
 
     const review = {
@@ -834,6 +837,7 @@ export function CatWorkspaceContainer({
         try {
           const nextStatus = (await onApprove?.(segmentId, targetText)) ?? "reviewed";
           setState((current) => {
+            const previousSegment = current.segments.find((segment) => segment.id === segmentId);
             const segments = updateSegmentTarget(
               updateSegmentStatus(current.segments, segmentId, nextStatus),
               segmentId,
@@ -850,10 +854,13 @@ export function CatWorkspaceContainer({
               ...current,
               segments,
               selectedSegmentId: nextSelectedSegmentId,
-              queueSummary: {
-                total: current.queueSummary.total,
-                reviewed: countReviewed(segments),
-              },
+              queueSummary: previousSegment
+                ? adjustQueueSummaryForStatusChange(
+                    current.queueSummary,
+                    previousSegment.status,
+                    nextStatus,
+                  )
+                : current.queueSummary,
             };
           });
           setSavedTargetTexts((saved) => markSegmentTargetSaved(saved, segmentId, targetText));

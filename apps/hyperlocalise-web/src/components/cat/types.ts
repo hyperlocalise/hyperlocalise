@@ -1,7 +1,5 @@
 export type CatSegmentStatus = "pending" | "needs_review" | "reviewed" | "skipped";
 
-export type CatSuggestionSource = "ai" | "glossary" | "tm";
-
 export type CatTmMatchKind = "exact" | "context" | "fuzzy";
 
 export type CatRiskLevel = "low" | "medium" | "high" | "good";
@@ -33,14 +31,6 @@ export interface CatSegment {
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];
-}
-
-export interface CatSuggestion {
-  id: string;
-  source: CatSuggestionSource;
-  text: string;
-  matchPercent?: number;
-  metadata?: string;
 }
 
 export interface CatFormatCheck {
@@ -89,6 +79,9 @@ export interface CatSegmentIntelligence {
 export interface CatQueueSummary {
   total: number;
   reviewed: number;
+  untranslated: number;
+  needsReview: number;
+  hasIssues: number;
 }
 
 export interface CatWorkspaceState {
@@ -97,7 +90,6 @@ export interface CatWorkspaceState {
   queueSummary: CatQueueSummary;
   formatChecks: CatFormatCheck[];
   segmentFormatChecks?: Record<string, CatFormatCheck[]>;
-  suggestions: CatSuggestion[];
   intelligence: CatSegmentIntelligence;
   segmentIntelligence?: Record<string, CatSegmentIntelligence>;
   jobTitle?: string;

@@ -31,6 +31,7 @@ export interface CatWorkspaceEditing {
   onTargetChange: (segmentId: string, value: string) => void;
   onUseAiSuggestion: (segmentId: string) => void;
   onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => void;
+  onUseGlossaryTerm: (segmentId: string, term: CatGlossaryTerm, sourceText: string) => void;
 }
 
 export interface CatWorkspaceReview {
@@ -127,6 +128,7 @@ export const noopCatDependencies: CatWorkspaceDependencies = {
     onTargetChange: () => undefined,
     onUseAiSuggestion: () => undefined,
     onUseTmMatch: () => undefined,
+    onUseGlossaryTerm: () => undefined,
   },
   review: {
     onApprove: () => undefined,

@@ -898,6 +898,10 @@ describe("getTmsProviderLiveCatFile", () => {
         return new Response(JSON.stringify({ data: stringPage(offset, limit) }), { status: 200 });
       }
 
+      if (path.includes("/projects/42/strings?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
     });
     globalThis.fetch = fetchMock as typeof fetch;
@@ -998,10 +1002,13 @@ describe("getTmsProviderLiveCatFile", () => {
       if (path.includes("/projects/42/strings?")) {
         const requestUrl = new URL(path);
         stringsRequests.push(requestUrl);
-        expect(requestUrl.searchParams.get("croql")).toBe(
-          'id of file = 101 and (identifier contains "hero" or text contains "hero")',
-        );
-        expect(requestUrl.searchParams.has("fileId")).toBe(false);
+        const croql = requestUrl.searchParams.get("croql");
+        if (croql?.includes("hero")) {
+          expect(croql).toBe(
+            'id of file = 101 and (identifier contains "hero" or text contains "hero")',
+          );
+          expect(requestUrl.searchParams.has("fileId")).toBe(false);
+        }
 
         return new Response(
           JSON.stringify({

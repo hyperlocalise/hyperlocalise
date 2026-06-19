@@ -216,6 +216,9 @@ export function CatWorkspaceView({
         showAgentContext={showAgentContext}
         canEditTranslations={fullState.canEditTranslations !== false}
         onUseTmMatch={(match) => editing.onUseTmMatch(selectedSegment.id, match)}
+        onUseGlossaryTerm={(term) =>
+          editing.onUseGlossaryTerm(selectedSegment.id, term, selectedSegment.sourceText)
+        }
       />
     );
   }
