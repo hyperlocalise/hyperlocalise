@@ -1,6 +1,7 @@
 import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { Domine, Geist_Mono, Open_Sans } from "next/font/google";
+import { withAuth } from "@workos-inc/authkit-nextjs";
 import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import { I18nProvider } from "@/components/i18n/i18n-provider";
 import { QueryProvider } from "@/components/query-provider";
@@ -27,12 +28,19 @@ export const metadata: Metadata = {
     "Localisation for the Agentic Era. Hyperlocalise helps teams review multilingual product copy for quality, nuance, and release safety before it ships.",
 };
 
+async function getInitialAuth(): Promise<
+  React.ComponentProps<typeof AuthKitProvider>["initialAuth"]
+> {
+  const { accessToken: _accessToken, ...initialAuth } = await withAuth();
+  return initialAuth;
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const locale = await getAppLocale();
+  const [locale, initialAuth] = await Promise.all([getAppLocale(), getInitialAuth()]);
 
   return (
     <html
@@ -48,7 +56,7 @@ export default async function RootLayout({
     >
       <body>
         <Analytics />
-        <AuthKitProvider>
+        <AuthKitProvider initialAuth={initialAuth}>
           <I18nProvider locale={locale}>
             <QueryProvider>
               <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>

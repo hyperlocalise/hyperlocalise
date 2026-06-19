@@ -50,28 +50,6 @@ function isLocalizedAppPath(pathname: string): boolean {
   return isPublicLocalizedPath(pathname) || isProtectedLocalizedPath(pathname);
 }
 
-function nextWithLocale(request: NextRequest, locale: string): NextResponse {
-  const requestHeaders = new Headers(request.headers);
-  requestHeaders.set(APP_LOCALE_HEADER_NAME, locale);
-
-  const response = NextResponse.next({
-    request: {
-      headers: requestHeaders,
-    },
-  });
-
-  response.headers.set(APP_LOCALE_HEADER_NAME, locale);
-  response.cookies.set({
-    name: APP_LOCALE_COOKIE_NAME,
-    value: locale,
-    path: "/",
-    maxAge: 60 * 60 * 24 * 365,
-    sameSite: "lax",
-  });
-
-  return response;
-}
-
 function applyLocaleToResponse(response: WorkosProxyResult, locale: string): WorkosProxyResult {
   if (!response) {
     return response;
@@ -97,7 +75,8 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
   const { locale, pathnameWithoutLocale } = splitLocalePath(pathname);
 
   if (locale && isPublicLocalizedPath(pathnameWithoutLocale)) {
-    return nextWithLocale(request, locale);
+    const response = await workosProxy(request, event);
+    return applyLocaleToResponse(response, locale);
   }
 
   if (locale && isProtectedLocalizedPath(pathnameWithoutLocale)) {
