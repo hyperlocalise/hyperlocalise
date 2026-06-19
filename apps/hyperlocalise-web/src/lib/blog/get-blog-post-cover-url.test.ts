@@ -23,9 +23,7 @@ describe("getBlogPostCoverUrl", () => {
   });
 
   it("falls back to the validated blog OG image API when coverImage is missing", () => {
-    expect(getBlogPostCoverUrl(samplePost, "en")).toBe(
-      "/api/blog/sample-post/og-image?lang=en",
-    );
+    expect(getBlogPostCoverUrl(samplePost, "en")).toBe("/api/blog/sample-post/og-image?lang=en");
   });
 });
 

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Post } from "@/lib/blog/blog-post";
+import { FinalCtaSection } from "@/components/marketing/final-cta-section";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { BlogPostCard } from "@/components/marketing/blog/blog-post-card";
@@ -73,6 +74,12 @@ export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPost
             </div>
           </section>
         ) : null}
+
+        <section className="border-t border-border/70">
+          <div className="px-5 py-24 sm:px-8 lg:px-10">
+            <FinalCtaSection />
+          </div>
+        </section>
 
         <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
           <MarketingFooter columns={footerColumns} />
