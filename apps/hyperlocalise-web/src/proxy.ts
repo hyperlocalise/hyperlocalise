@@ -14,6 +14,7 @@ type WorkosProxyResult = Awaited<ReturnType<typeof workosProxy>>;
 const PUBLIC_LOCALIZED_PREFIXES = ["/product", "/use-cases", "/blog"];
 const PUBLIC_LOCALIZED_PATHS = new Set(["/", "/privacy", "/terms", "/trust-center"]);
 const PROTECTED_LOCALIZED_PREFIXES = ["/dashboard", "/org"];
+const NON_LOCALE_ROOT_PREFIXES = ["/auth", "/install"];
 
 function splitLocalePath(pathname: string): {
   locale: string | null;
@@ -50,6 +51,30 @@ function isLocalizedAppPath(pathname: string): boolean {
   return isPublicLocalizedPath(pathname) || isProtectedLocalizedPath(pathname);
 }
 
+function isNonLocaleRootPath(pathname: string): boolean {
+  return NON_LOCALE_ROOT_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
+/**
+ * Paths like /wp-links.php are captured by the /[lang] segment even though the
+ * first segment is not a supported locale. Reject them in proxy before rendering
+ * so root layout withAuth() does not throw when AuthKit middleware was skipped.
+ */
+export function isUnsupportedLocalePath(pathname: string): boolean {
+  if (isNonLocaleRootPath(pathname)) {
+    return false;
+  }
+
+  const firstSegment = pathname.split("/").filter(Boolean)[0];
+  if (!firstSegment) {
+    return false;
+  }
+
+  return normalizeAppLocale(firstSegment) === null;
+}
+
 function applyLocaleToResponse(response: WorkosProxyResult, locale: string): WorkosProxyResult {
   if (!response) {
     return response;
@@ -72,6 +97,11 @@ function applyLocaleToResponse(response: WorkosProxyResult, locale: string): Wor
 
 export default async function proxy(request: NextRequest, event: NextFetchEvent) {
   const { pathname } = request.nextUrl;
+
+  if (isUnsupportedLocalePath(pathname)) {
+    return new NextResponse(null, { status: 404 });
+  }
+
   const { locale, pathnameWithoutLocale } = splitLocalePath(pathname);
 
   if (locale && isPublicLocalizedPath(pathnameWithoutLocale)) {
@@ -96,7 +126,7 @@ export default async function proxy(request: NextRequest, event: NextFetchEvent)
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|\\.well-known|install|.*\\..*).*)",
+    "/((?!_next/static|_next/image|favicon.ico|images|api|mcp|\\.well-known|install).*)",
     "/api/:path*",
   ],
 };
