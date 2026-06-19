@@ -159,6 +159,21 @@ describe("getPostBySlug", () => {
   it("returns null for unsafe slugs", () => {
     expect(blogPost.getPostBySlug("../secrets", DEFAULT_LOCALE)).toBeNull();
   });
+
+  it("normalizes YAML date frontmatter to ISO strings", () => {
+    directoryEntries.push("dated-post.md");
+    fileContents["dated-post"] = `---
+title: Dated post
+date: 2026-06-19T00:00:00.000Z
+excerpt: Dated excerpt
+category: Blog
+---
+Post body`;
+
+    const post = blogPost.getPostBySlug("dated-post", DEFAULT_LOCALE);
+
+    expect(post?.date).toBe("2026-06-19T00:00:00.000Z");
+  });
 });
 
 describe("getRelevantPosts", () => {

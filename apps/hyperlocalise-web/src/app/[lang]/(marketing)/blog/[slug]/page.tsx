@@ -35,6 +35,8 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
     return {};
   }
 
+  const imageUrl = getBlogPostCoverAbsoluteUrl(post, lang, BASE_URL);
+
   return {
     title: `${post.title} | Hyperlocalise`,
     description: post.excerpt,
@@ -43,6 +45,13 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
       description: post.excerpt,
       type: "article",
       publishedTime: post.date,
+      images: [imageUrl],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: post.title,
+      description: post.excerpt,
+      images: [imageUrl],
     },
   };
 }

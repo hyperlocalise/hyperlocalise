@@ -32,6 +32,14 @@ function frontmatterString(value: unknown, fallback = ""): string {
   return fallback;
 }
 
+function frontmatterDate(value: unknown, fallback = ""): string {
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return value.toISOString();
+  }
+
+  return frontmatterString(value, fallback);
+}
+
 function postsDirectory(locale: string) {
   const safeLocale = normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
   return join(process.cwd(), "_posts", safeLocale);
@@ -41,7 +49,7 @@ function normalizePost(slug: string, data: Record<string, unknown>, content: str
   return {
     slug,
     title: frontmatterString(data.title),
-    date: frontmatterString(data.date),
+    date: frontmatterDate(data.date),
     excerpt: frontmatterString(data.excerpt),
     category: frontmatterString(data.category, DEFAULT_CATEGORY),
     coverImage: typeof data.coverImage === "string" ? data.coverImage : undefined,

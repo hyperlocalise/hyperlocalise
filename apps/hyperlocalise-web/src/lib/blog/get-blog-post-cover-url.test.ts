@@ -22,15 +22,17 @@ describe("getBlogPostCoverUrl", () => {
     expect(getBlogPostCoverUrl(post, "en")).toBe("/images/blog/example.jpg");
   });
 
-  it("falls back to the dynamic open graph route when coverImage is missing", () => {
-    expect(getBlogPostCoverUrl(samplePost, "en")).toBe("/en/blog/sample-post/opengraph-image");
+  it("falls back to the validated blog OG image API when coverImage is missing", () => {
+    expect(getBlogPostCoverUrl(samplePost, "en")).toBe(
+      "/api/blog/sample-post/og-image?lang=en",
+    );
   });
 });
 
 describe("getBlogPostCoverAbsoluteUrl", () => {
   it("returns an absolute URL for dynamic covers", () => {
     expect(getBlogPostCoverAbsoluteUrl(samplePost, "en", "https://www.hyperlocalise.com")).toBe(
-      "https://www.hyperlocalise.com/en/blog/sample-post/opengraph-image",
+      "https://www.hyperlocalise.com/api/blog/sample-post/og-image?lang=en",
     );
   });
 });

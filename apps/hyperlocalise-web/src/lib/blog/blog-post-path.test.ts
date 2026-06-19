@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import {
-  getBlogPostOpenGraphImagePath,
-  getBlogPostPath,
-  isValidBlogPostSlug,
-  normalizeBlogPostSlug,
-} from "./blog-post-path";
+import { getBlogPostPath, isValidBlogPostSlug, normalizeBlogPostSlug } from "./blog-post-path";
 
 describe("blog post slug validation", () => {
   it("accepts kebab-case slugs", () => {
@@ -27,11 +22,5 @@ describe("getBlogPostPath", () => {
 
   it("returns null for unsafe slugs", () => {
     expect(getBlogPostPath("en", "../secrets")).toBeNull();
-  });
-
-  it("builds the open graph image path from a validated slug", () => {
-    expect(getBlogPostOpenGraphImagePath("en", "sample-post")).toBe(
-      "/en/blog/sample-post/opengraph-image",
-    );
   });
 });

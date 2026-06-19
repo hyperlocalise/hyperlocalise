@@ -24,13 +24,3 @@ export function getBlogPostPath(lang: string, slug: string): string | null {
 
   return `/${safeLang}/blog/${encodeURIComponent(safeSlug)}`;
 }
-
-export function getBlogPostOpenGraphImagePath(lang: string, slug: string): string | null {
-  const postPath = getBlogPostPath(lang, slug);
-
-  if (!postPath) {
-    return null;
-  }
-
-  return `${postPath}/opengraph-image`;
-}
