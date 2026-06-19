@@ -53,6 +53,42 @@ Follow the official Hono best-practices guide for this app: [Best Practices](htt
 - **Prefer direct file paths** for components, hooks, messages, and utilities so bundlers and static analysis see explicit dependencies.
 - **Colocate related files in folders** when a feature has multiple modules (component, messages, tests), but export from the implementation file, not an `index.ts` shim.
 
+# Internationalization (react-intl)
+
+## Message modules (`*.messages.ts`)
+
+Every `*.messages.ts` file **must** start with `"use client"` before importing `defineMessages` from `react-intl`:
+
+```ts
+"use client";
+
+import { defineMessages } from "react-intl";
+
+export const exampleMessages = defineMessages({
+  title: {
+    defaultMessage: "Example",
+    id: "abc123",
+    description: "Example title",
+  },
+});
+```
+
+`defineMessages()` is a **client-only** API. If a messages file omits `"use client"`, any Server Component or route module that transitively imports it fails at build time:
+
+```
+Error: Failed to collect configuration for /[lang]/blog
+  [cause]: Error: Attempted to call defineMessages() from the server but defineMessages is on the client.
+```
+
+## Server Components and translated strings
+
+**Do not import `*.messages.ts` from Server Components.** Message modules are client modules; pick one of these patterns instead:
+
+1. **Inline descriptors** — pass `{ id, defaultMessage, description }` objects to `getIntlShape(locale).formatMessage()`. See [`src/app/[lang]/(marketing)/blog/blog-route-metadata.ts`](src/app/[lang]/(marketing)/blog/blog-route-metadata.ts).
+2. **Client Components** — add `"use client"` to the component, import the messages module, and use `<FormattedMessage>` or `useIntl()`.
+
+A component that calls `getIntlShape()` without `"use client"` is a Server Component. It must use inline descriptors, not imports from `*.messages.ts`.
+
 # API Response Conventions
 
 New JSON routes must follow the conventions below. Shared schemas and helpers live in [`src/api/response.schema.ts`](src/api/response.schema.ts).
