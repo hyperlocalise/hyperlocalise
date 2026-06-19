@@ -44,7 +44,14 @@ export async function loadPhraseCatVisualContextWithClient(input: {
       phraseMarkerFetchConcurrency,
       async (screenshot) => {
         if (screenshot.markers) {
-          return mapPhraseScreenshot(screenshot, screenshot.markers);
+          const keyMarkers = screenshot.markers.filter(
+            (marker) => marker.keyId === input.externalStringId,
+          );
+          if (keyMarkers.length === 0) {
+            return null;
+          }
+
+          return mapPhraseScreenshot(screenshot, keyMarkers);
         }
 
         const markers = await input.client.listScreenshotMarkers(

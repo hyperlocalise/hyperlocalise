@@ -1339,7 +1339,7 @@ function normalizeLokaliseLanguage(record: LokaliseLanguageApiRecord): LokaliseL
 
 function normalizeLokaliseScreenshot(record: LokaliseScreenshotApiRecord): LokaliseScreenshot {
   return {
-    screenshotId: record.screenshot_id ?? 0,
+    screenshotId: record.screenshot_id ?? -1,
     title: record.title?.trim() || null,
     description: record.description?.trim() || null,
     imageUrl: record.url?.trim() ?? "",
