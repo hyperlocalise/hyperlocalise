@@ -153,7 +153,10 @@ export function CatEditorPanel({
     "mod+enter",
     (event) => {
       const activeElement = document.activeElement;
-      if (activeElement instanceof HTMLElement && activeElement.dataset.catCommentInput === "true") {
+      if (
+        activeElement instanceof HTMLElement &&
+        activeElement.dataset.catCommentInput === "true"
+      ) {
         return;
       }
 
