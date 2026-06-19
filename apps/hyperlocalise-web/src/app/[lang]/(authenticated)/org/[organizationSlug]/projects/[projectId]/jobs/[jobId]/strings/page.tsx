@@ -7,10 +7,10 @@ export default async function ProjectJobStringsPage({
   searchParams,
 }: {
   params: Promise<{ organizationSlug: string; projectId: string; jobId: string }>;
-  searchParams: Promise<{ sourcePath?: string; targetLocale?: string }>;
+  searchParams: Promise<{ sourcePath?: string; targetLocale?: string; segment?: string }>;
 }) {
   const { organizationSlug, projectId, jobId } = await params;
-  const { sourcePath, targetLocale } = await searchParams;
+  const { sourcePath, targetLocale, segment } = await searchParams;
   await requireAppAuthContext({ organizationSlug });
 
   return (
@@ -20,6 +20,7 @@ export default async function ProjectJobStringsPage({
       jobId={jobId}
       sourcePath={sourcePath ?? null}
       targetLocale={targetLocale ?? null}
+      initialSegmentKey={segment ?? null}
     />
   );
 }

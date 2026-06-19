@@ -38,6 +38,7 @@ function useIsCompactWorkspace() {
 
 export function CatWorkspaceView({
   state,
+  editorState,
   dependencies,
   isValidating: _isValidating = false,
   isApproving = false,
@@ -60,17 +61,29 @@ export function CatWorkspaceView({
   onQueuePreviousPage,
   onQueueNextPage,
   onQueueNearEnd,
+  queueFilter,
+  onQueueFilterChange,
+  checkedSegmentIds,
+  onToggleSegmentChecked,
+  onSelectAllVisible,
+  onClearChecked,
+  onBulkApprove,
+  onBulkSkip,
+  isBulkActionPending = false,
+  buildSegmentShareUrl,
 }: CatWorkspaceViewProps) {
-  const selectedSegmentIndex = state.segments.findIndex(
-    (segment) => segment.id === state.selectedSegmentId || segment.key === state.selectedSegmentId,
+  const fullState = editorState ?? state;
+  const selectedSegmentIndex = fullState.segments.findIndex(
+    (segment) =>
+      segment.id === fullState.selectedSegmentId || segment.key === fullState.selectedSegmentId,
   );
   const selectedSegment =
-    selectedSegmentIndex >= 0 ? state.segments[selectedSegmentIndex] : state.segments[0];
+    selectedSegmentIndex >= 0 ? fullState.segments[selectedSegmentIndex] : fullState.segments[0];
   const isCompact = useIsCompactWorkspace();
   const [activePanel, setActivePanel] = useState<CatWorkspacePanel>("edit");
   const reviewedProgress =
-    state.queueSummary.total > 0
-      ? Math.round((state.queueSummary.reviewed / state.queueSummary.total) * 100)
+    fullState.queueSummary.total > 0
+      ? Math.round((fullState.queueSummary.reviewed / fullState.queueSummary.total) * 100)
       : 0;
 
   if (!selectedSegment) {
@@ -88,26 +101,27 @@ export function CatWorkspaceView({
 
   const segmentPosition = selectedSegmentIndex >= 0 ? selectedSegmentIndex + 1 : 1;
   const hasPreviousSegment = segmentPosition > 1;
-  const hasNextSegment = segmentPosition < state.segments.length;
+  const hasNextSegment = segmentPosition < fullState.segments.length;
   const { navigation, editing, review } = dependencies;
   const selectedSegmentIntelligence =
-    state.segmentIntelligence?.[selectedSegment.id] ?? state.intelligence;
+    fullState.segmentIntelligence?.[selectedSegment.id] ?? fullState.intelligence;
   const selectedSegmentFormatChecks =
-    state.segmentFormatChecks?.[selectedSegment.id] ?? state.formatChecks;
+    fullState.segmentFormatChecks?.[selectedSegment.id] ?? fullState.formatChecks;
   const aiRecommendationError = selectedSegmentFormatChecks.find(
     (check) => check.id === `ai-recommendation-failed-${selectedSegment.id}`,
   )?.message;
   const isEditorBusy = isApproving;
-  const canApprove = state.canEditTranslations !== false;
-  const canAddComment = state.canAddComments === true;
+  const canApprove = fullState.canEditTranslations !== false;
+  const canAddComment = fullState.canAddComments === true;
   const isTargetDirty = dirtySegmentIds?.has(selectedSegment.id) ?? false;
+  const segmentShareUrl = buildSegmentShareUrl?.(selectedSegment) ?? null;
 
   function renderEditorPanel() {
     return (
       <CatEditorPanel
         segment={selectedSegment}
         segmentPosition={segmentPosition}
-        totalSegments={state.segments.length}
+        totalSegments={fullState.segments.length}
         formatChecks={selectedSegmentFormatChecks}
         intelligence={selectedSegmentIntelligence}
         isEditorBusy={isEditorBusy}
@@ -123,6 +137,7 @@ export function CatWorkspaceView({
         isTargetDirty={isTargetDirty}
         canLookupContext={canLookupContext}
         canUseAiRecommendation={canUseAiRecommendation}
+        segmentShareUrl={segmentShareUrl}
         onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
         onCopySource={() => editing.onTargetChange(selectedSegment.id, selectedSegment.sourceText)}
         onClearTarget={() => editing.onTargetChange(selectedSegment.id, "")}
@@ -133,7 +148,7 @@ export function CatWorkspaceView({
             ? (text) => review.onAddComment?.(selectedSegment.id, text)
             : undefined
         }
-        primaryActionLabel={state.primaryActionLabel}
+        primaryActionLabel={fullState.primaryActionLabel}
         onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
         onGenerateAiRecommendation={
           canUseAiRecommendation ? () => void review.onReviewWithAi(selectedSegment.id) : undefined
@@ -152,7 +167,7 @@ export function CatWorkspaceView({
       <CatQueuePanel
         segments={state.segments}
         selectedSegmentId={selectedSegment.id}
-        summary={state.queueSummary}
+        summary={fullState.queueSummary}
         dirtySegmentIds={dirtySegmentIds}
         onSelectSegment={(segmentId) => {
           navigation.onSelectSegment(segmentId);
@@ -163,6 +178,15 @@ export function CatWorkspaceView({
         search={queueSearch}
         onSearchChange={onQueueSearchChange}
         isSearching={isQueueSearchPending}
+        queueFilter={queueFilter}
+        onQueueFilterChange={onQueueFilterChange}
+        checkedSegmentIds={checkedSegmentIds}
+        onToggleSegmentChecked={onToggleSegmentChecked}
+        onSelectAllVisible={onSelectAllVisible}
+        onClearChecked={onClearChecked}
+        onBulkApprove={onBulkApprove}
+        onBulkSkip={onBulkSkip}
+        isBulkActionPending={isBulkActionPending}
         isFetchingPage={isQueueFetchingPage}
         pagination={queuePagination}
         onPreviousPage={onQueuePreviousPage}
@@ -179,7 +203,7 @@ export function CatWorkspaceView({
         isLookingUpContext={isLookingUpContext}
         isConcordanceLoading={isConcordanceLoading}
         showAgentContext={showAgentContext}
-        canEditTranslations={state.canEditTranslations !== false}
+        canEditTranslations={fullState.canEditTranslations !== false}
         onUseTmMatch={(match) => editing.onUseTmMatch(selectedSegment.id, match)}
       />
     );
@@ -199,7 +223,7 @@ export function CatWorkspaceView({
               <div className="min-w-0 space-y-1">
                 <p className="font-mono text-xs text-muted-foreground tabular-nums">
                   {String(segmentPosition).padStart(2, "0")} /{" "}
-                  {String(state.segments.length).padStart(2, "0")}
+                  {String(fullState.segments.length).padStart(2, "0")}
                 </p>
                 <p className="truncate font-mono text-sm font-medium text-foreground">
                   {selectedSegment.key}
@@ -216,8 +240,8 @@ export function CatWorkspaceView({
                   <FormattedMessage
                     {...catWorkspaceMessages.reviewedSummary}
                     values={{
-                      reviewed: state.queueSummary.reviewed,
-                      total: state.queueSummary.total,
+                      reviewed: fullState.queueSummary.reviewed,
+                      total: fullState.queueSummary.total,
                     }}
                   />
                 </p>

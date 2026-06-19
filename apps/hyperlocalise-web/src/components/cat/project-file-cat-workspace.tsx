@@ -26,6 +26,7 @@ import { mapCatConcordanceForAiRecommendation } from "@/lib/translation/map-cat-
 import { cn } from "@/lib/primitives/cn";
 
 import { CatWorkspaceContainer } from "./cat-workspace-container";
+import { buildCatSegmentShareUrl } from "./cat-segment-share-link";
 import {
   projectFileCatToWorkspaceState,
   requireProviderExternalResourceId,
@@ -50,6 +51,7 @@ export function ProjectFileCatWorkspace({
   targetLocales,
   highlightLocale = null,
   repositoryFullName = null,
+  initialSegmentKey = null,
   layout = "default",
   className,
 }: {
@@ -60,6 +62,7 @@ export function ProjectFileCatWorkspace({
   targetLocales?: string[];
   highlightLocale?: string | null;
   repositoryFullName?: string | null;
+  initialSegmentKey?: string | null;
   layout?: "default" | "fullscreen";
   className?: string;
 }) {
@@ -209,6 +212,32 @@ export function ProjectFileCatWorkspace({
     },
     [catQuery.data?.canEditTranslations, postComment],
   );
+
+  const handleBulkApprove = useCallback(
+    async (segmentIds: string[]) => {
+      for (const segmentId of segmentIds) {
+        const segment = workspaceState?.segments.find((item) => item.id === segmentId);
+        if (!segment) {
+          continue;
+        }
+
+        await handleApprove(segmentId, segment.targetText);
+      }
+    },
+    [handleApprove, workspaceState?.segments],
+  );
+
+  const buildSegmentShareUrl = useCallback((segment: CatSegment) => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return buildCatSegmentShareUrl({
+      baseUrl: window.location.href,
+      segmentId: segment.id,
+      segmentKey: segment.key,
+    });
+  }, []);
 
   const lookupSegmentContext = useCallback(
     async (segment: CatSegment) => {
@@ -394,7 +423,10 @@ export function ProjectFileCatWorkspace({
         review={{
           onApprove: handleApprove,
           onAddComment: handleAddComment,
+          onBulkApprove: handleBulkApprove,
         }}
+        initialSegmentKeyOrId={initialSegmentKey}
+        buildSegmentShareUrl={buildSegmentShareUrl}
         queueSearch={search}
         onQueueSearchChange={setSearch}
         isQueueSearchPending={isSearchPending}
