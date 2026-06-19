@@ -49,14 +49,14 @@ export function applyGlossaryTermToTarget(
 
   if (currentTargetText.trim()) {
     if (currentTargetText.includes(term.source)) {
-      return currentTargetText.replace(term.source, term.target);
+      return currentTargetText.replaceAll(term.source, term.target);
     }
 
     return currentTargetText;
   }
 
   if (segmentSourceText.includes(term.source)) {
-    return segmentSourceText.replace(term.source, term.target);
+    return segmentSourceText.replaceAll(term.source, term.target);
   }
 
   return term.target;

@@ -28,6 +28,9 @@ describe("NativeCatService.getCatFile", () => {
       if (input.queueFilter === "needs_review") {
         return 40;
       }
+      if (input.queueFilter === "has_issues") {
+        return 5;
+      }
       return 120;
     });
 
@@ -113,7 +116,7 @@ describe("NativeCatService.getCatFile", () => {
       reviewed: 45,
       untranslated: 30,
       needsReview: 40,
-      hasIssues: 0,
+      hasIssues: 5,
     });
   });
 });

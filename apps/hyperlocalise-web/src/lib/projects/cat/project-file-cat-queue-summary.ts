@@ -21,11 +21,12 @@ export async function countNativeFileQueueSummary(
     targetLocale: input.targetLocale,
   };
 
-  const [total, reviewed, untranslated, needsReview] = await Promise.all([
+  const [total, reviewed, untranslated, needsReview, hasIssues] = await Promise.all([
     translations.countKeysForFile(base),
     translations.countKeysForFile({ ...base, queueFilter: "reviewed" }),
     translations.countKeysForFile({ ...base, queueFilter: "untranslated" }),
     translations.countKeysForFile({ ...base, queueFilter: "needs_review" }),
+    translations.countKeysForFile({ ...base, queueFilter: "has_issues" }),
   ]);
 
   return {
@@ -33,7 +34,7 @@ export async function countNativeFileQueueSummary(
     reviewed,
     untranslated,
     needsReview,
-    hasIssues: 0,
+    hasIssues,
   };
 }
 
@@ -56,6 +57,9 @@ async function countCrowdinSourceStrings(
     });
     total += page.strings.length;
     if (!page.hasMore) {
+      return total;
+    }
+    if (page.strings.length === 0) {
       return total;
     }
     if (total >= ceiling) {

@@ -35,7 +35,7 @@ describe("adjustQueueSummaryForStatusChange", () => {
 describe("applyGlossaryTermToTarget", () => {
   it("replaces the source term in an existing target", () => {
     expect(
-      applyGlossaryTermToTarget("Sign in to Workspace", "Dang nhap Workspace", {
+      applyGlossaryTermToTarget("Workspace settings for Workspace", "Dang nhap Workspace", {
         source: "Workspace",
         target: "Khong gian lam viec",
         approved: true,
@@ -44,14 +44,29 @@ describe("applyGlossaryTermToTarget", () => {
     ).toBe("Dang nhap Khong gian lam viec");
   });
 
+  it("replaces every source term occurrence in an existing target", () => {
+    expect(
+      applyGlossaryTermToTarget(
+        "Workspace settings for this Workspace",
+        "Workspace settings for this Workspace",
+        {
+          source: "Workspace",
+          target: "Khong gian lam viec",
+          approved: true,
+          forbidden: false,
+        },
+      ),
+    ).toBe("Khong gian lam viec settings for this Khong gian lam viec");
+  });
+
   it("derives a target from the source when the editor is empty", () => {
     expect(
-      applyGlossaryTermToTarget("Sign in to Workspace", "", {
+      applyGlossaryTermToTarget("Workspace settings for Workspace", "", {
         source: "Workspace",
         target: "Khong gian lam viec",
         approved: true,
         forbidden: false,
       }),
-    ).toBe("Sign in to Khong gian lam viec");
+    ).toBe("Khong gian lam viec settings for Khong gian lam viec");
   });
 });

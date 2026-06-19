@@ -5,6 +5,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { maxCrowdinSourceStringCountCeiling } from "@/api/routes/project/project.schema";
 import { db } from "@/lib/database";
+import { buildCrowdinFileQueueCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
 import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
 import { getTmsProviderLiveCatFile, saveTmsProviderLiveCatTranslation } from "./tms-provider-live";
 
@@ -940,6 +941,7 @@ describe("getTmsProviderLiveCatFile", () => {
     });
 
     const stringsRequests: URL[] = [];
+    const queueSummaryCroqls: string[] = [];
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
@@ -1008,6 +1010,8 @@ describe("getTmsProviderLiveCatFile", () => {
             'id of file = 101 and (identifier contains "hero" or text contains "hero")',
           );
           expect(requestUrl.searchParams.has("fileId")).toBe(false);
+        } else if (croql) {
+          queueSummaryCroqls.push(croql);
         }
 
         return new Response(
@@ -1071,5 +1075,21 @@ describe("getTmsProviderLiveCatFile", () => {
     // buildCrowdinLiveCatFile currently issues parallel count + page requests; croql/fileId
     // assertions above guard the regression regardless of how many calls are made.
     expect(stringsRequests.length).toBeGreaterThanOrEqual(1);
+    expect(queueSummaryCroqls.sort()).toEqual(
+      [
+        buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "reviewed" }),
+        buildCrowdinFileQueueCroql({
+          fileId: 101,
+          targetLocale: "fr",
+          queueFilter: "untranslated",
+        }),
+        buildCrowdinFileQueueCroql({
+          fileId: 101,
+          targetLocale: "fr",
+          queueFilter: "needs_review",
+        }),
+        buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "has_issues" }),
+      ].sort(),
+    );
   });
 });
