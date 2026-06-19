@@ -31,6 +31,8 @@ vi.mock("node:fs", () => {
 import type { Post } from "./blog-post";
 import * as blogPost from "./blog-post";
 
+const { parseBlogPostDate } = blogPost;
+
 const DEFAULT_LOCALE = "en";
 
 const serializePost = (post: Post) => {
@@ -50,6 +52,19 @@ const serializePost = (post: Post) => {
 
   return `---\n${frontmatterEntries.join("\n")}\n---\n${content}`;
 };
+
+describe("parseBlogPostDate", () => {
+  it("returns a Date for valid ISO strings", () => {
+    expect(parseBlogPostDate("2024-06-01T00:00:00.000Z")).toEqual(
+      new Date("2024-06-01T00:00:00.000Z"),
+    );
+  });
+
+  it("returns null for missing or invalid dates", () => {
+    expect(parseBlogPostDate("")).toBeNull();
+    expect(parseBlogPostDate("not-a-date")).toBeNull();
+  });
+});
 
 describe("getAllPosts", () => {
   beforeEach(() => {

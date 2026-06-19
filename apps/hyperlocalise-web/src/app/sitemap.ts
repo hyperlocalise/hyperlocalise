@@ -3,7 +3,7 @@ import { MetadataRoute } from "next";
 import { productSlugs } from "@/components/marketing/product";
 import { useCaseSlugs } from "@/components/marketing/use-case";
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
-import { getAllPosts } from "@/lib/blog/blog-post";
+import { getAllPosts, parseBlogPostDate } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 
 const BASE_URL = "https://www.hyperlocalise.com";
@@ -60,10 +60,15 @@ export default function sitemap(): MetadataRoute.Sitemap {
         return [];
       }
 
+      const lastModified = parseBlogPostDate(post.date);
+      if (!lastModified) {
+        return [];
+      }
+
       return [
         {
           url: `${BASE_URL}${postPath}`,
-          lastModified: new Date(post.date),
+          lastModified,
           changeFrequency: "monthly" as const,
           priority: 0.7,
         },

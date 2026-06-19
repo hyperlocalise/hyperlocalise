@@ -68,6 +68,15 @@ function getPostSlugsFromDirectory(locale: string) {
   });
 }
 
+export function parseBlogPostDate(date: string): Date | null {
+  const timestamp = Date.parse(date);
+  if (Number.isNaN(timestamp)) {
+    return null;
+  }
+
+  return new Date(timestamp);
+}
+
 export function getPostSlugs(locale: string) {
   return getPostSlugsFromDirectory(locale).map((file) => file.replace(/\.md$/, ""));
 }
