@@ -1,6 +1,7 @@
 "use client";
 
 import type { Post } from "@/lib/blog/blog-post";
+import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { formatBlogPostDate } from "@/components/marketing/blog/format-blog-post-date";
 import { BlogPostCover } from "@/components/marketing/blog/blog-post-cover";
 import Link from "next/link";
@@ -13,9 +14,14 @@ type BlogPostCardProps = {
 
 export function BlogPostCard({ post, lang }: BlogPostCardProps) {
   const intl = useIntl();
+  const href = getBlogPostPath(lang, post.slug);
+
+  if (!href) {
+    return null;
+  }
 
   return (
-    <Link className="group block space-y-4" href={`/${lang}/blog/${post.slug}`}>
+    <Link className="group block space-y-4" href={href}>
       <div className="overflow-hidden rounded-xl">
         <BlogPostCover
           alt={post.title}

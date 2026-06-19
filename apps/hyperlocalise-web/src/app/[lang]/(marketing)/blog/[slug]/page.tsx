@@ -6,6 +6,7 @@ import { BlogPostPage } from "@/components/marketing/blog/blog-post-page";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
 import { getPostBySlug, getPostSlugs } from "@/lib/blog/blog-post";
+import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { getBlogPostCoverAbsoluteUrl } from "@/lib/blog/get-blog-post-cover-url";
 import { markdownToHtml } from "@/lib/blog/markdown-to-html";
 
@@ -47,7 +48,8 @@ export async function generateMetadata({ params }: BlogPostRouteProps): Promise<
 }
 
 function buildArticleJsonLd(post: NonNullable<ReturnType<typeof getPostBySlug>>, lang: string) {
-  const canonicalUrl = `${BASE_URL}/${lang}/blog/${post.slug}`;
+  const postPath = getBlogPostPath(lang, post.slug);
+  const canonicalUrl = postPath ? `${BASE_URL}${postPath}` : `${BASE_URL}/${lang}/blog`;
   const imageUrl = getBlogPostCoverAbsoluteUrl(post, lang, BASE_URL);
 
   const articleSchema: WithContext<Article> = {

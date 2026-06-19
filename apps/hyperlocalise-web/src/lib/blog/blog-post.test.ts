@@ -140,6 +140,10 @@ describe("getPostBySlug", () => {
   it("returns null when the post file is missing", () => {
     expect(blogPost.getPostBySlug("missing-post", DEFAULT_LOCALE)).toBeNull();
   });
+
+  it("returns null for unsafe slugs", () => {
+    expect(blogPost.getPostBySlug("../secrets", DEFAULT_LOCALE)).toBeNull();
+  });
 });
 
 describe("getRelevantPosts", () => {

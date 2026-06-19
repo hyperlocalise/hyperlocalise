@@ -3,6 +3,8 @@ import { join } from "node:path";
 
 import matter from "gray-matter";
 
+import { isValidBlogPostSlug, normalizeBlogPostSlug } from "@/lib/blog/blog-post-path";
+
 export interface Post {
   slug: string;
   title: string;
@@ -54,7 +56,14 @@ function getPostSlugsFromDirectory(locale: string) {
     return [];
   }
 
-  return fs.readdirSync(directory).filter((file) => file.endsWith(".md"));
+  return fs.readdirSync(directory).filter((file) => {
+    if (!file.endsWith(".md")) {
+      return false;
+    }
+
+    const slug = file.replace(/\.md$/, "");
+    return isValidBlogPostSlug(slug);
+  });
 }
 
 export function getPostSlugs(locale: string) {
@@ -62,8 +71,12 @@ export function getPostSlugs(locale: string) {
 }
 
 export function getPostBySlug(slug: string, locale: string): Post | null {
+  const realSlug = normalizeBlogPostSlug(slug);
+  if (!realSlug) {
+    return null;
+  }
+
   try {
-    const realSlug = slug.replace(/\.md$/, "");
     const fullPath = join(postsDirectory(locale), `${realSlug}.md`);
     const fileContents = fs.readFileSync(fullPath, "utf8");
     const { data, content } = matter(fileContents);
