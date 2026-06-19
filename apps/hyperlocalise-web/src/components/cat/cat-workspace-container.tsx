@@ -516,6 +516,9 @@ export function CatWorkspaceContainer({
                 bestTmMatch.targetText,
               );
               setState((current) => ({ ...current, segments }));
+              setSavedTargetTexts((saved) =>
+                markSegmentTargetSaved(saved, segmentId, bestTmMatch.targetText),
+              );
               onTargetChange?.(segmentId, bestTmMatch.targetText);
               const updatedSegment = segments.find((item) => item.id === segmentId);
               if (updatedSegment && (validateFormat || runQaChecks)) {

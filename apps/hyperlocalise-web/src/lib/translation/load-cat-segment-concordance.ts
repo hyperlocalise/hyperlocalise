@@ -99,22 +99,24 @@ async function loadCrowdinProjectCredential(input: { organizationId: string; pro
   };
 }
 
+type CrowdinLiveConcordance = {
+  glossaryTerms: NormalizedGlossaryMatch[];
+  translationMemoryMatches: NormalizedTranslationMemoryMatch[];
+};
+
 async function loadCrowdinLiveConcordance(input: {
   organizationId: string;
   projectId: string;
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
-}): Promise<{
-  glossaryTerms: NormalizedGlossaryMatch[];
-  translationMemoryMatches: NormalizedTranslationMemoryMatch[];
-}> {
+}): Promise<CrowdinLiveConcordance | null> {
   const projectCredential = await loadCrowdinProjectCredential({
     organizationId: input.organizationId,
     projectId: input.projectId,
   });
   if (!projectCredential) {
-    return { glossaryTerms: [], translationMemoryMatches: [] };
+    return null;
   }
 
   const { credential, externalProjectId } = projectCredential;
@@ -146,12 +148,11 @@ export async function loadCatSegmentConcordance(input: {
   organizationId: string;
   projectId: string;
   providerKind?: ExternalTmsProviderKind | null;
-  externalProjectId?: string | null;
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
 }): Promise<CatSegmentConcordance> {
-  if (input.providerKind === "crowdin" && input.externalProjectId) {
+  if (input.providerKind === "crowdin") {
     const liveMatches = await loadCrowdinLiveConcordance({
       organizationId: input.organizationId,
       projectId: input.projectId,
@@ -160,12 +161,14 @@ export async function loadCatSegmentConcordance(input: {
       sourceText: input.sourceText,
     });
 
-    return {
-      glossaryTerms: liveMatches.glossaryTerms.map(toCatGlossaryTerm),
-      translationMemoryMatches: liveMatches.translationMemoryMatches.map((match) =>
-        toCatTranslationMemoryMatch(match, input.sourceText),
-      ),
-    };
+    if (liveMatches) {
+      return {
+        glossaryTerms: liveMatches.glossaryTerms.map(toCatGlossaryTerm),
+        translationMemoryMatches: liveMatches.translationMemoryMatches.map((match) =>
+          toCatTranslationMemoryMatch(match, input.sourceText),
+        ),
+      };
+    }
   }
 
   const [glossaryMatches, translationMemoryMatches] = await Promise.all([

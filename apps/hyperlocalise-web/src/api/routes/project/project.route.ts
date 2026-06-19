@@ -697,7 +697,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             providerKind: target.kind === "provider" ? target.providerKind : null,
-            externalProjectId: target.kind === "provider" ? target.externalProjectId : null,
             sourceLocale: body.sourceLocale,
             targetLocale: body.targetLocale,
             sourceText: body.sourceText,

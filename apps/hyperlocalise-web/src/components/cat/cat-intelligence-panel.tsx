@@ -121,13 +121,18 @@ function tmMatchBadgeTone(matchKind: CatTmMatchKind | undefined) {
 }
 
 function tmMatchBadgeLabel(match: CatTranslationMemoryMatch, intl: ReturnType<typeof useIntl>) {
-  if (match.matchKind === "context") {
-    return intl.formatMessage(catIntelligencePanelMessages.matchKindContext);
+  switch (match.matchKind) {
+    case "exact":
+      return intl.formatMessage(catIntelligencePanelMessages.matchKindExact);
+    case "context":
+      return intl.formatMessage(catIntelligencePanelMessages.matchKindContext);
+    case "fuzzy":
+      return intl.formatMessage(catIntelligencePanelMessages.matchKindFuzzy);
+    default:
+      return intl.formatMessage(catIntelligencePanelMessages.matchPercent, {
+        matchPercent: match.matchPercent,
+      });
   }
-
-  return intl.formatMessage(catIntelligencePanelMessages.matchPercent, {
-    matchPercent: match.matchPercent,
-  });
 }
 
 function TranslationMemoryRow({
