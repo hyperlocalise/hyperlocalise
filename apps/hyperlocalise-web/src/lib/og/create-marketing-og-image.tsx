@@ -17,6 +17,7 @@ const openSansFontPromise = readFile(
 type CreateMarketingOgImageOptions = {
   heading: string;
   description: string;
+  size?: { width: number; height: number };
 };
 
 function headingFontSize(heading: string) {
@@ -34,6 +35,7 @@ function headingFontSize(heading: string) {
 export async function createMarketingOgImage({
   heading,
   description,
+  size = marketingOgImageSize,
 }: CreateMarketingOgImageOptions) {
   const [logo, domineFont, openSansFont] = await Promise.all([
     logoPromise,
@@ -100,7 +102,7 @@ export async function createMarketingOgImage({
       </div>
     </div>,
     {
-      ...marketingOgImageSize,
+      ...size,
       fonts: [
         { name: "Domine", data: domineFont, weight: 700, style: "normal" },
         { name: "Open Sans", data: openSansFont, weight: 400, style: "normal" },

@@ -48,6 +48,7 @@ import { createTeamRoutes } from "./routes/team/team.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
+import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
 import { createTmsScheduledReconciliationRoutes } from "./routes/cron/tms-scheduled-reconciliation.route";
 import {
@@ -91,6 +92,7 @@ export function createApp(options: CreateAppOptions = {}) {
     .route("/", createInternalRoutes())
     .route("/auth", createAuthRoutes())
     .route("/autumn", createAutumnRoutes())
+    .route("/blog", createBlogOgImageRoutes())
     .route(
       "/orgs/:organizationSlug",
       createOrgScopedAppRoutes({
