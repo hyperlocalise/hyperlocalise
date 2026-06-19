@@ -166,6 +166,10 @@
 **Learning:** Re-creating `strings.NewReplacer` in a hot loop is extremely expensive due to internal trie construction. Additionally, redundant `slices.Sort` calls on segments that are already in document order and missing `strings.Builder.Grow` hints in renderers are significant avoidable overheads.
 **Action:** Move `strings.NewReplacer` to package-level variables for static rules. Use `strings.Builder.Grow` in renderers. Remove redundant sorting by ensuring parsers produce ordered segments.
 
+## 2026-10-05 - Precomputing syntax counts and optimizing scanning
+**Learning:** Repeatedly scanning the same source strings for syntax validation (e.g., `IntroducesRawHTMLSyntax`) during rendering creates $O(N)$ overhead per segment that can be avoided by precomputing counts during parsing. Additionally, manual byte-by-byte loops for character searching (like finding '<') are significantly slower than Go's optimized `strings.IndexByte`.
+**Action:** Precompute `sourceSyntaxCount` during parsing for HTML/Markdown parts and store it in the struct. Optimize `rawHTMLSyntaxStartCount` using `strings.IndexByte` for faster character discovery.
+
 ## 2026-09-15 - Optimizing ARB marshaling via string fast-paths and partial sorting
 **Learning:** For JSON-based formats like ARB, bypassing `json.Marshal` for simple ASCII strings and avoiding full map sorts when only a few keys are new provides significant efficiency gains. Heuristic capacity hints for maps and slices also minimize GC pressure during large file processing.
 **Action:** Implemented `isSimpleJSONString` fast-path and refactored `MarshalARB` to sort only new keys, resulting in ~11-18% speedup and reduced allocations.

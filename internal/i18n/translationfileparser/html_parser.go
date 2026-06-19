@@ -12,6 +12,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"golang.org/x/net/html"
 )
@@ -36,10 +38,14 @@ type htmlPart struct {
 	isVoidAttr    bool
 	voidTagPrefix string
 	voidTagSuffix string
+	// BOLT OPTIMIZATION: precompute raw HTML syntax count to avoid redundant scans.
+	sourceSyntaxCount int
 }
 
 type htmlDocument struct {
 	parts []htmlPart
+	// BOLT OPTIMIZATION: store original template length to hint strings.Builder capacity.
+	templateLen int
 }
 
 // HTMLRenderDiagnostics records keys that fell back to source text during render.
@@ -82,18 +88,46 @@ var htmlSkipElements = map[string]bool{
 var htmlTagPattern = regexp.MustCompile(`<(?:[^>"']*(?:"[^"]*"|'[^']*'))*[^>]*>`)
 
 // IntroducesRawHTMLSyntax reports whether translated contains more raw
-// tag-shaped syntax starts than source. It catches incomplete tag openers that
-// complete-tag regexes intentionally cannot see.
-func IntroducesRawHTMLSyntax(source, translated string) bool {
-	return rawHTMLSyntaxStartCount(translated) > rawHTMLSyntaxStartCount(source)
+// tag-shaped syntax starts than the precomputed sourceCount. It catches
+// incomplete tag openers that complete-tag regexes intentionally cannot see.
+func IntroducesRawHTMLSyntax(sourceCount int, translated string) bool {
+	return rawHTMLSyntaxStartCount(translated) > sourceCount
+}
+
+func RawHTMLSyntaxStartCount(s string) int {
+	return rawHTMLSyntaxStartCount(s)
+}
+
+func isAllHTMLWhitespace(s string) bool {
+	for i := 0; i < len(s); {
+		if s[i] < 0x80 {
+			if s[i] != ' ' && s[i] != '\t' && s[i] != '\n' && s[i] != '\r' {
+				return false
+			}
+			i++
+			continue
+		}
+		r, size := utf8.DecodeRuneInString(s[i:])
+		if !unicode.IsSpace(r) {
+			return false
+		}
+		i += size
+	}
+	return true
 }
 
 func rawHTMLSyntaxStartCount(s string) int {
 	count := 0
-	for i := 0; i < len(s); i++ {
-		if s[i] != '<' || i+1 >= len(s) {
-			continue
+	for i := 0; i < len(s); {
+		idx := strings.IndexByte(s[i:], '<')
+		if idx < 0 {
+			break
 		}
+		i += idx
+		if i+1 >= len(s) {
+			break
+		}
+
 		next := s[i+1]
 		switch {
 		case next == '>':
@@ -103,6 +137,7 @@ func rawHTMLSyntaxStartCount(s string) int {
 		case (next >= 'A' && next <= 'Z') || (next >= 'a' && next <= 'z'):
 			count++
 		}
+		i++
 	}
 	return count
 }
@@ -156,9 +191,13 @@ func splitVoidAttrTag(raw, attrName string) (prefix, rawVal, suffix string, ok b
 // returning the document, a map of key → source (with placeholders), and any
 // non-EOF tokenizer error.
 func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) {
-	var doc htmlDocument
-	entries := map[string]string{}
-	occurrences := map[string]int{}
+	// BOLT OPTIMIZATION: Heuristic capacity hints to minimize re-allocations.
+	doc := htmlDocument{
+		parts:       make([]htmlPart, 0, len(content)/128),
+		templateLen: len(content),
+	}
+	entries := make(map[string]string, len(content)/256)
+	occurrences := make(map[string]int, len(content)/256)
 
 	z := html.NewTokenizer(bytes.NewReader(content))
 
@@ -175,7 +214,8 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		if raw == "" {
 			return
 		}
-		if strings.TrimSpace(raw) == "" {
+		// BOLT OPTIMIZATION: Use isAllHTMLWhitespace helper to avoid string allocation.
+		if isAllHTMLWhitespace(raw) {
 			appendLiteral(raw)
 			return
 		}
@@ -187,13 +227,15 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		key := htmlSegmentKey(placeholdered, occurrences)
 		entries[key] = placeholdered
 		doc.parts = append(doc.parts, htmlPart{
-			key:          key,
-			source:       placeholdered,
-			placeholders: placeholders,
+			key:               key,
+			source:            placeholdered,
+			placeholders:      placeholders,
+			sourceSyntaxCount: rawHTMLSyntaxStartCount(placeholdered),
 		})
 	}
 
-	handleVoidTranslatable := func(raw, attrName string) {
+	handleVoidTranslatable := func(rawBytes []byte, attrName string) {
+		raw := string(rawBytes)
 		prefix, rawVal, suffix, found := splitVoidAttrTag(raw, attrName)
 		decoded := html.UnescapeString(rawVal)
 		if found && isTranslatableChunk(decoded) {
@@ -201,11 +243,12 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			key := htmlSegmentKey(decoded, occurrences)
 			entries[key] = decoded
 			doc.parts = append(doc.parts, htmlPart{
-				key:           key,
-				source:        decoded,
-				isVoidAttr:    true,
-				voidTagPrefix: prefix,
-				voidTagSuffix: suffix,
+				key:               key,
+				source:            decoded,
+				isVoidAttr:        true,
+				voidTagPrefix:     prefix,
+				voidTagSuffix:     suffix,
+				sourceSyntaxCount: rawHTMLSyntaxStartCount(decoded),
 			})
 		} else {
 			buffer.WriteString(raw)
@@ -222,10 +265,8 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			break
 		}
 
-		// Copy raw bytes before any TagName call which may advance internal state.
-		raw := string(z.Raw())
-
 		if skipDepth > 0 {
+			rawBytes := z.Raw()
 			switch tt {
 			case html.EndTagToken:
 				tn, _ := z.TagName()
@@ -238,53 +279,53 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 					skipDepth++
 				}
 			}
-			appendLiteral(raw)
+			appendLiteral(string(rawBytes))
 			continue
 		}
 
 		switch tt {
 		case html.DoctypeToken, html.CommentToken:
 			flushBuffer()
-			appendLiteral(raw)
+			appendLiteral(string(z.Raw()))
 
 		case html.StartTagToken:
 			tn, _ := z.TagName()
 			if htmlSkipElements[string(tn)] {
 				flushBuffer()
 				skipDepth++
-				appendLiteral(raw)
+				appendLiteral(string(z.Raw()))
 			} else if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(raw)
+				appendLiteral(string(z.Raw()))
 			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(raw, attrName)
+				handleVoidTranslatable(z.Raw(), attrName)
 			} else {
 				// Inline element: accumulate into the text buffer.
-				buffer.WriteString(raw)
+				buffer.Write(z.Raw())
 			}
 
 		case html.EndTagToken:
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(raw)
+				appendLiteral(string(z.Raw()))
 			} else {
-				buffer.WriteString(raw)
+				buffer.Write(z.Raw())
 			}
 
 		case html.SelfClosingTagToken:
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(raw)
+				appendLiteral(string(z.Raw()))
 			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(raw, attrName)
+				handleVoidTranslatable(z.Raw(), attrName)
 			} else {
-				buffer.WriteString(raw)
+				buffer.Write(z.Raw())
 			}
 
 		case html.TextToken:
-			buffer.WriteString(raw)
+			buffer.Write(z.Raw())
 		}
 	}
 
@@ -422,6 +463,8 @@ func MarshalHTMLWithTargetFallback(sourceTemplate, targetTemplate []byte, values
 func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagnostics) {
 	var diags HTMLRenderDiagnostics
 	var b strings.Builder
+	// BOLT OPTIMIZATION: hint builder capacity to minimize re-allocations.
+	b.Grow(d.templateLen)
 	for _, part := range d.parts {
 		if part.isVoidAttr {
 			translated, ok := values[part.key]
@@ -453,7 +496,7 @@ func (d htmlDocument) render(values map[string]string) ([]byte, HTMLRenderDiagno
 				break
 			}
 		}
-		if !allPresent || IntroducesRawHTMLSyntax(part.source, rendered) {
+		if !allPresent || IntroducesRawHTMLSyntax(part.sourceSyntaxCount, rendered) {
 			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 			b.WriteString(expandHTMLPlaceholders(part.source, part.placeholders))
 			continue
