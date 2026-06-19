@@ -12,7 +12,7 @@ type BlogPostCoverProps = {
 
 export function BlogPostCover({ post, lang, alt, className, priority }: BlogPostCoverProps) {
   const src = getBlogPostCoverUrl(post, lang);
-  const isDynamicCover = !post.coverImage;
+  const isDynamicCover = !post.coverImage || /^https?:\/\//.test(post.coverImage);
 
   return (
     <Image
