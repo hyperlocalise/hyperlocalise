@@ -235,6 +235,14 @@ export const projectFileCatPaginationSchema = z.object({
   hasMore: z.boolean(),
 });
 
+export const projectFileCatQueueSummarySchema = z.object({
+  total: z.number().int().min(0),
+  reviewed: z.number().int().min(0),
+  untranslated: z.number().int().min(0),
+  needsReview: z.number().int().min(0),
+  hasIssues: z.number().int().min(0),
+});
+
 export const defaultProjectFileCatPageLimit = 50;
 export const maxProjectFileCatPageLimit = 100;
 export const maxCrowdinSourceStringCountCeiling = 5_000;
@@ -496,6 +504,7 @@ export const projectFileCatResponseSchema = z.object({
     truncated: z.boolean(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
+    queueSummary: projectFileCatQueueSummarySchema,
   }),
 });
 
@@ -540,6 +549,7 @@ export type ProjectFileCatCommentBody = z.infer<typeof projectFileCatCommentBody
 export type ProjectFileCatCommentResponse = z.infer<typeof projectFileCatCommentResponseSchema>;
 export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
+export type ProjectFileCatQueueSummary = z.infer<typeof projectFileCatQueueSummarySchema>;
 export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;
 export type ProjectFileCatTranslationResponse = z.infer<
   typeof projectFileCatTranslationResponseSchema

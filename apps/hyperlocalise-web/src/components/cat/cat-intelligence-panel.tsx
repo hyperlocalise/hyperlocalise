@@ -89,11 +89,17 @@ function AgentContextSkeleton() {
   );
 }
 
-function GlossaryTermRow({ term }: { term: CatGlossaryTerm }) {
+function GlossaryTermRow({
+  term,
+  onUse,
+}: {
+  term: CatGlossaryTerm;
+  onUse?: (term: CatGlossaryTerm) => void;
+}) {
   const intl = useIntl();
 
   return (
-    <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 px-3 py-2.5">
+    <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5">
       <span className="min-w-0 truncate text-sm text-foreground/86">{term.source}</span>
       <span className="text-xs text-muted-foreground">→</span>
       <span className="inline-flex min-w-0 items-center justify-end gap-1.5 text-right text-sm font-medium text-foreground/92">
@@ -106,6 +112,13 @@ function GlossaryTermRow({ term }: { term: CatGlossaryTerm }) {
           />
         ) : null}
       </span>
+      {onUse && term.approved && !term.forbidden ? (
+        <Button variant="ghost" size="sm" onClick={() => onUse(term)}>
+          <FormattedMessage {...catIntelligencePanelMessages.useGlossaryTerm} />
+        </Button>
+      ) : (
+        <span />
+      )}
     </li>
   );
 }
@@ -187,6 +200,7 @@ export function CatIntelligencePanel({
   showAgentContext = false,
   canEditTranslations = true,
   onUseTmMatch,
+  onUseGlossaryTerm,
 }: {
   intelligence: CatSegmentIntelligence;
   isLookingUpContext?: boolean;
@@ -194,6 +208,7 @@ export function CatIntelligencePanel({
   showAgentContext?: boolean;
   canEditTranslations?: boolean;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
+  onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
 }) {
   const intl = useIntl();
   const [pendingLowMatch, setPendingLowMatch] = useState<CatTranslationMemoryMatch | null>(null);
@@ -337,7 +352,13 @@ export function CatIntelligencePanel({
               <div className="overflow-hidden rounded-2xl bg-foreground/3">
                 <ul className="divide-y divide-foreground/8">
                   {intelligence.glossaryTerms.map((term) => (
-                    <GlossaryTermRow key={term.id} term={term} />
+                    <GlossaryTermRow
+                      key={term.id}
+                      term={term}
+                      onUse={
+                        canEditTranslations && onUseGlossaryTerm ? onUseGlossaryTerm : undefined
+                      }
+                    />
                   ))}
                 </ul>
               </div>

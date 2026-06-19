@@ -18,6 +18,21 @@ describe("NativeCatService.getCatFile", () => {
     vi.clearAllMocks();
     getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     getTranslationsByKeyIds.mockResolvedValue([]);
+    countKeysForFile.mockImplementation(async (input) => {
+      if (input.queueFilter === "reviewed") {
+        return 45;
+      }
+      if (input.queueFilter === "untranslated") {
+        return 30;
+      }
+      if (input.queueFilter === "needs_review") {
+        return 40;
+      }
+      if (input.queueFilter === "has_issues") {
+        return 5;
+      }
+      return 120;
+    });
 
     const translations = {
       getRepositorySourceFileByPath,
@@ -48,7 +63,6 @@ describe("NativeCatService.getCatFile", () => {
   });
 
   it("loads a paginated page with search and pagination metadata", async () => {
-    countKeysForFile.mockResolvedValue(120);
     listKeysForFile.mockResolvedValue([
       {
         id: "key_51",
@@ -96,6 +110,13 @@ describe("NativeCatService.getCatFile", () => {
       externalStringId: "key_51",
       key: "hero.title",
       sourceText: "Welcome",
+    });
+    expect(result?.queueSummary).toEqual({
+      total: 120,
+      reviewed: 45,
+      untranslated: 30,
+      needsReview: 40,
+      hasIssues: 5,
     });
   });
 });

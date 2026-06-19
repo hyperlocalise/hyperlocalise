@@ -2,7 +2,6 @@ import type {
   CatFormatCheck,
   CatSegment,
   CatSegmentIntelligence,
-  CatSuggestion,
   CatWorkspaceState,
 } from "./types";
 import { getIntlShape } from "@/lib/app-i18n/intl";
@@ -463,28 +462,6 @@ export const catSegmentsFixture: CatSegment[] = catSegmentInputs.map((segment, i
   targetLocale: TARGET_LOCALE,
 }));
 
-export const catSuggestionsFixture: CatSuggestion[] = [
-  {
-    id: "sug-ai",
-    source: "ai",
-    text: "Thẻ trên bảng điều khiển hiển thị số lượng đánh giá cần phê duyệt.",
-    metadata: "Natural Vietnamese UI phrasing",
-  },
-  {
-    id: "sug-glossary",
-    source: "glossary",
-    text: "Thẻ bảng điều khiển hiển thị số đánh giá cần phê duyệt.",
-    metadata: "Uses approved term: Dashboard → Bảng điều khiển",
-  },
-  {
-    id: "sug-tm",
-    source: "tm",
-    text: "Thẻ bảng điều khiển cho biết còn bao nhiêu đánh giá cần phê duyệt.",
-    matchPercent: 85,
-    metadata: "From project TM",
-  },
-];
-
 export const catFormatChecksFixture: CatFormatCheck[] = [
   {
     id: "check-glossary",
@@ -570,9 +547,11 @@ export function createCatWorkspaceState(
     queueSummary: overrides.queueSummary ?? {
       total: segments.length,
       reviewed: segments.filter((segment) => segment.status === "reviewed").length,
+      untranslated: segments.filter((segment) => segment.status === "pending").length,
+      needsReview: segments.filter((segment) => segment.status === "needs_review").length,
+      hasIssues: 0,
     },
     formatChecks: catFormatChecksFixture,
-    suggestions: catSuggestionsFixture,
     intelligence: catIntelligenceFixture,
     breadcrumbs: ["Project", "HL-Test", "Jobs", "Translate to Vietnamese"],
     ...overrides,

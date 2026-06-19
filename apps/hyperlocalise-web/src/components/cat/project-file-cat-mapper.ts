@@ -216,13 +216,9 @@ export function projectFileCatToWorkspaceState(
   return {
     segments,
     selectedSegmentId: segments[0]?.id ?? "",
-    queueSummary: {
-      total: segments.length,
-      reviewed: segments.filter((segment) => segment.status === "reviewed").length,
-    },
+    queueSummary: catFile.queueSummary,
     formatChecks: [],
     segmentFormatChecks: {},
-    suggestions: [],
     intelligence: intelligenceFor(catFile),
     segmentIntelligence: Object.fromEntries(
       catFile.segments.map((segment) => [

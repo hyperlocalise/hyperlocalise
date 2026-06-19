@@ -15,6 +15,7 @@ import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
+import { countCrowdinFileQueueSummary } from "@/lib/projects/cat/project-file-cat-queue-summary";
 import {
   legacyProviderCatSegmentLimit,
   maxCrowdinSourceStringCountCeiling,
@@ -908,6 +909,7 @@ async function buildCrowdinLiveCatFile(input: {
     let visibleStrings: CrowdinSourceString[] = [];
     let truncated = false;
     let pagination: ReturnType<typeof buildCatFilePagination> | undefined;
+    let knownFileTotal: number | undefined;
 
     if (!paginationInput.paginated) {
       const strings = await client.listSourceStrings(projectId, {
@@ -954,10 +956,21 @@ async function buildCrowdinLiveCatFile(input: {
         hasMore: page.hasMore,
       });
       truncated = pagination.hasMore;
+      if (!croql) {
+        knownFileTotal = countedTotal;
+      }
     }
 
     const sourceStringIds = visibleStrings.map((sourceString) => sourceString.id);
     const sourceStringIdSet = new Set(sourceStringIds);
+
+    const queueSummaryPromise = countCrowdinFileQueueSummary(
+      client,
+      projectId,
+      fileId,
+      input.targetLocale,
+      { knownTotal: knownFileTotal },
+    );
 
     const translationsByStringId = new Map<number, CrowdinLanguageTranslation[]>();
     const approvalsPromise = client.listTranslationApprovals(projectId, input.targetLocale, {
@@ -984,7 +997,8 @@ async function buildCrowdinLiveCatFile(input: {
     const approvals = await approvalsPromise;
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
 
-    const [plainComments, unresolvedIssues] = await Promise.all([
+    const [queueSummary, plainComments, unresolvedIssues] = await Promise.all([
+      queueSummaryPromise,
       client.listStringCommentsForStrings(projectId, sourceStringIds, { type: "comment" }),
       client.listStringCommentsForStrings(projectId, sourceStringIds, {
         type: "issue",
@@ -1005,6 +1019,7 @@ async function buildCrowdinLiveCatFile(input: {
       canEditTranslations: input.canEditTranslations,
       truncated,
       pagination,
+      queueSummary,
       segments: visibleStrings.map((sourceString) => {
         const target = preferredLanguageTranslation(
           translationsByStringId.get(sourceString.id) ?? [],

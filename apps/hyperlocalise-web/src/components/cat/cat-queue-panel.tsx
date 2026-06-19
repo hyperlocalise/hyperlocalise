@@ -116,7 +116,13 @@ export function CatQueuePanel({
           <p className="text-xs text-muted-foreground">
             <FormattedMessage
               {...catQueuePanelMessages.queueSummary}
-              values={{ total: summary.total, reviewed: summary.reviewed }}
+              values={{
+                total: summary.total,
+                reviewed: summary.reviewed,
+                untranslated: summary.untranslated,
+                needsReview: summary.needsReview,
+                hasIssues: summary.hasIssues,
+              }}
             />
           </p>
         </div>

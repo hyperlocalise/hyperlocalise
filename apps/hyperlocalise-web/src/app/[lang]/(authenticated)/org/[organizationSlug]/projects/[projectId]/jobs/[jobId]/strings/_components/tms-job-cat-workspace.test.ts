@@ -30,6 +30,13 @@ function catFile(): ProjectFileCatResponse["catFile"] {
     targetLocale: "vi",
     canEditTranslations: true,
     truncated: false,
+    queueSummary: {
+      total: 2,
+      reviewed: 1,
+      untranslated: 1,
+      needsReview: 0,
+      hasIssues: 1,
+    },
     segments: [
       {
         externalStringId: "approved-string",
@@ -71,7 +78,13 @@ describe("projectFileCatToWorkspaceState", () => {
     const state = projectFileCatToWorkspaceState(catFile(), testIntl);
 
     expect(state.selectedSegmentId).toBe("approved-string");
-    expect(state.queueSummary).toEqual({ total: 2, reviewed: 1 });
+    expect(state.queueSummary).toEqual({
+      total: 2,
+      reviewed: 1,
+      untranslated: 1,
+      needsReview: 0,
+      hasIssues: 1,
+    });
     expect(state.segments[0]).toMatchObject({
       id: "approved-string",
       key: "auth.signIn.title",

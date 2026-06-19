@@ -5,7 +5,6 @@ export { CatQueuePanel } from "./cat-queue-panel";
 export { CatEditorPanel } from "./cat-editor-panel";
 export { CatIntelligencePanel } from "./cat-intelligence-panel";
 export { CatFormatChecks } from "./cat-format-checks";
-export { CatSuggestionsTabs } from "./cat-suggestions-tabs";
 export type {
   CatAiRecommendationResult,
   CatWorkspaceDependencies,
@@ -26,8 +25,6 @@ export type {
   CatSegment,
   CatSegmentIntelligence,
   CatSegmentStatus,
-  CatSuggestion,
-  CatSuggestionSource,
   CatTmMatchKind,
   CatWorkspaceState,
 } from "./types";

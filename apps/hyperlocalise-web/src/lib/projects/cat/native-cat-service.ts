@@ -10,6 +10,7 @@ import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
+import { countNativeFileQueueSummary } from "@/lib/projects/cat/project-file-cat-queue-summary";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { ProjectStringContextService } from "@/lib/projects/string-context/project-string-context-service";
 import { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
@@ -80,16 +81,23 @@ export class NativeCatService extends ProjectServiceBase {
 
       const truncated = keys.length > legacyNativeCatSegmentLimit;
       const visibleKeys = truncated ? keys.slice(0, legacyNativeCatSegmentLimit) : keys;
+      const queueSummary = await countNativeFileQueueSummary(this.translations, {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        repositorySourceFileId: sourceFile.id,
+        targetLocale: input.targetLocale,
+      });
 
       return this.buildCatFileResponse({
         input,
         visibleKeys,
         truncated,
         pagination: undefined,
+        queueSummary,
       });
     }
 
-    const [totalCount, keys] = await Promise.all([
+    const [totalCount, keys, queueSummary] = await Promise.all([
       this.translations.countKeysForFile({
         organizationId: input.organizationId,
         projectId: input.projectId,
@@ -108,6 +116,12 @@ export class NativeCatService extends ProjectServiceBase {
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
       }),
+      countNativeFileQueueSummary(this.translations, {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        repositorySourceFileId: sourceFile.id,
+        targetLocale: input.targetLocale,
+      }),
     ]);
 
     const pagination = buildCatFilePagination({
@@ -122,6 +136,7 @@ export class NativeCatService extends ProjectServiceBase {
       visibleKeys: keys,
       truncated: pagination.hasMore,
       pagination,
+      queueSummary,
     });
   }
 
@@ -136,6 +151,7 @@ export class NativeCatService extends ProjectServiceBase {
     visibleKeys: Awaited<ReturnType<ProjectTranslationService["listKeysForFile"]>>;
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
+    queueSummary: Awaited<ReturnType<typeof countNativeFileQueueSummary>>;
   }): Promise<ProjectFileCatResponse["catFile"]> {
     const translations = await this.translations.getTranslationsByKeyIds({
       organizationId: input.input.organizationId,
@@ -155,6 +171,7 @@ export class NativeCatService extends ProjectServiceBase {
       canEditTranslations: input.input.canEditTranslations,
       truncated: input.truncated,
       pagination: input.pagination,
+      queueSummary: input.queueSummary,
       segments: input.visibleKeys.map((key) => {
         const translation = translationByKeyId.get(key.id);
         return {
