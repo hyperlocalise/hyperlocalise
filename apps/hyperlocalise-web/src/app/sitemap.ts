@@ -3,6 +3,8 @@ import { MetadataRoute } from "next";
 import { productSlugs } from "@/components/marketing/product";
 import { useCaseSlugs } from "@/components/marketing/use-case";
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
+import { getAllPosts, parseBlogPostDate } from "@/lib/blog/blog-post";
+import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 
 const BASE_URL = "https://www.hyperlocalise.com";
 
@@ -44,6 +46,36 @@ export default function sitemap(): MetadataRoute.Sitemap {
     })),
   );
 
+  const blogIndexEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.map((locale) => ({
+    url: localizedUrl(locale, "/blog"),
+    lastModified: now,
+    changeFrequency: "weekly",
+    priority: 0.7,
+  }));
+
+  const blogPostEntries: MetadataRoute.Sitemap = SUPPORTED_APP_LOCALES.flatMap((locale) =>
+    getAllPosts(locale).flatMap((post) => {
+      const postPath = getBlogPostPath(locale, post.slug);
+      if (!postPath) {
+        return [];
+      }
+
+      const lastModified = parseBlogPostDate(post.date);
+      if (!lastModified) {
+        return [];
+      }
+
+      return [
+        {
+          url: `${BASE_URL}${postPath}`,
+          lastModified,
+          changeFrequency: "monthly" as const,
+          priority: 0.7,
+        },
+      ];
+    }),
+  );
+
   return [
     ...localizedStaticEntries,
     {
@@ -54,5 +86,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     },
     ...productEntries,
     ...useCaseEntries,
+    ...blogIndexEntries,
+    ...blogPostEntries,
   ];
 }

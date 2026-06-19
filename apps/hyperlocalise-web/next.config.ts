@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   // Agent prompts load from src/agents/**/*.md at runtime via process.cwd() (see paths.ts).
   outputFileTracingIncludes: {
-    "/*": [AGENT_MARKDOWN_TRACE_GLOB],
+    "/*": [AGENT_MARKDOWN_TRACE_GLOB, "_posts/**/*.md"],
   },
 };
 

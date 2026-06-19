@@ -1,0 +1,76 @@
+@reference "../../../../globals.css";
+
+.markdown {
+  @apply text-lg leading-relaxed;
+}
+
+.markdown p,
+.markdown blockquote {
+  @apply my-6;
+}
+
+.markdown li,
+.markdown ul,
+.markdown ol {
+  @apply my-4;
+}
+
+.markdown ul {
+  @apply list-inside list-disc;
+}
+
+.markdown ol {
+  @apply list-inside list-decimal;
+}
+
+.markdown li {
+  @apply list-item;
+}
+
+.markdown h2 {
+  @apply mt-12 mb-4 text-3xl leading-snug font-semibold;
+}
+
+.markdown h3 {
+  @apply mt-8 mb-4 text-2xl leading-snug font-semibold;
+}
+
+.markdown a {
+  @apply font-semibold text-primary underline;
+}
+
+.markdown img {
+  @apply rounded-3xl;
+}
+
+.markdown pre {
+  @apply my-6 overflow-x-auto rounded-lg border border-border bg-muted p-4 text-sm;
+}
+
+.markdown code {
+  @apply rounded bg-muted px-1.5 py-0.5 text-sm;
+}
+
+.markdown pre code {
+  @apply bg-transparent p-0;
+}
+
+.markdown table {
+  @apply my-6 w-full border-collapse overflow-hidden rounded-lg border;
+}
+
+.markdown thead {
+  @apply bg-muted;
+}
+
+.markdown th {
+  @apply border-b px-4 py-3 text-left font-semibold;
+}
+
+.markdown td {
+  @apply border-b px-4 py-3;
+}
+
+.markdown tbody tr:last-child td {
+  @apply border-b-0;
+}

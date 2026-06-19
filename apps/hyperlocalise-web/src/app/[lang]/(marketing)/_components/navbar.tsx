@@ -25,6 +25,7 @@ const navigationLinks: { href: string; label: string; active?: boolean }[] = [
   { href: "/product/agents-automation", label: "Agents" },
   { href: "/product/next-gen-cat-tool", label: "CAT Tool" },
   { href: "/product/self-evolving-knowledge", label: "Knowledge" },
+  { href: "/blog", label: "Blog" },
 ];
 const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
 
