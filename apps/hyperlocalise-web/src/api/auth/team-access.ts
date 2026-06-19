@@ -3,6 +3,7 @@ import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
+import { providerAssignedUsersMatch } from "@/lib/providers/tms-provider-assignee-match";
 import { backfillOrganizationProjectTeams } from "@/lib/teams/default-workspace-team";
 
 export function hasOrganizationWideProjectAccess(auth: ApiAuthContext) {
@@ -97,30 +98,6 @@ export async function buildAccessibleJobsWhere(auth: ApiAuthContext): Promise<SQ
   return and(organizationScope, inArray(schema.jobs.projectId, accessibleProjectIds))!;
 }
 
-function providerAssignedUsersMatch(candidates: string[]) {
-  const normalizedCandidates = Array.from(
-    new Set(candidates.map((candidate) => candidate.trim().toLowerCase()).filter(Boolean)),
-  );
-
-  if (normalizedCandidates.length === 0) {
-    return sql`false`;
-  }
-
-  const candidatePredicates = normalizedCandidates.map(
-    (candidate) => sql`
-      lower(assigned_user.value) = ${candidate}
-      or lower(assigned_user.value) like '%' || ${candidate} || '%'
-      or ${candidate} like '%' || lower(assigned_user.value) || '%'
-    `,
-  );
-
-  return sql`exists (
-    select 1
-    from jsonb_array_elements_text(${schema.externalJobDetails.assignedUsers}) as assigned_user(value)
-    where ${sql.join(candidatePredicates, sql` or `)}
-  )`;
-}
-
 function buildPersonalJobRelationshipWhere(input: {
   userId: string;
   relationship: "assigned" | "created";
@@ -145,13 +122,23 @@ export async function buildOrganizationJobsListWhere(
 ): Promise<SQL> {
   const organizationScope = eq(schema.jobs.organizationId, auth.organization.localOrganizationId);
 
-  if (options?.relationship === "assigned" || options?.relationship === "created") {
+  if (options?.relationship === "assigned") {
     return and(
       organizationScope,
       buildPersonalJobRelationshipWhere({
         userId: auth.user.localUserId,
-        relationship: options.relationship,
+        relationship: "assigned",
         providerAssigneeCandidates: options.providerAssigneeCandidates,
+      }),
+    )!;
+  }
+
+  if (options?.relationship === "created") {
+    return and(
+      await buildAccessibleJobsWhere(auth),
+      buildPersonalJobRelationshipWhere({
+        userId: auth.user.localUserId,
+        relationship: "created",
       }),
     )!;
   }

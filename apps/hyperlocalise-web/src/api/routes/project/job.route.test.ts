@@ -8,10 +8,14 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
+import * as tmsProviderAssigneeCandidates from "@/lib/providers/tms-provider-assignee-candidates";
 import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
+import { createTeamTestFixture } from "../team/team.fixture";
+import type { ProjectResponse } from "./project.schema";
+import type { TeamResponse } from "../team/team.schema";
 import type { WorkspaceJobsResponse } from "./job.schema";
 
 const { resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
@@ -33,6 +37,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 const client = testClient(app);
 const projectFixture = createProjectTestFixture(client);
+const teamFixture = createTeamTestFixture(client);
 
 beforeAll(async () => {
   await db.$client.query("select 1");
@@ -246,5 +251,135 @@ describe("workspace job list", () => {
     expect(createdResponse.status).toBe(200);
     const createdBody = (await createdResponse.json()) as WorkspaceJobsResponse;
     expect(createdBody.jobs).toEqual([]);
+  });
+
+  it("does not match assigned jobs via substring assignee candidates", async () => {
+    const assigneeCandidatesSpy = vi
+      .spyOn(tmsProviderAssigneeCandidates, "getCurrentUserProviderAssigneeCandidates")
+      .mockResolvedValue(["lee"]);
+
+    const { identity, organization, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    await upsertExternalTmsJobRecords({
+      organizationId: organization.id,
+      projectId: project.id,
+      providerKind: "crowdin",
+      externalProjectId: "crowdin-project",
+      tasks: [
+        {
+          externalJobId: "assigned-to-ashlee",
+          externalStatus: "todo",
+          title: "Assigned to Ashlee",
+          assignedUsers: ["Ashlee Johnson"],
+        },
+        {
+          externalJobId: "assigned-to-current-user",
+          externalStatus: "todo",
+          title: "Assigned to current user",
+          assignedUsers: ["lee"],
+        },
+      ],
+    });
+
+    const assignedResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: { relationship: "assigned", limit: "100" },
+      },
+      { headers },
+    );
+
+    expect(assignedResponse.status).toBe(200);
+    const assignedBody = (await assignedResponse.json()) as WorkspaceJobsResponse;
+    const assignedJobIds = assignedBody.jobs.map((job) => job.id);
+
+    expect(assignedJobIds).toEqual(
+      expect.arrayContaining([expect.stringContaining("assigned-to-current-user")]),
+    );
+    expect(assignedJobIds).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("assigned-to-ashlee")]),
+    );
+
+    assigneeCandidatesSpy.mockRestore();
+  });
+
+  it("does not return created jobs for projects outside the current team scope", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const member = projectFixture.createWorkosIdentityForOrganization(admin.organization, "member");
+
+    await projectFixture.authHeadersFor(admin);
+    await projectFixture.authHeadersFor(member);
+
+    const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
+    expect(teamAlphaResponse.status).toBe(201);
+    const teamAlphaBody = (await teamAlphaResponse.json()) as TeamResponse;
+
+    const teamBetaResponse = await teamFixture.createTeamViaApi(admin, { name: "Beta Team" });
+    expect(teamBetaResponse.status).toBe(201);
+    const teamBetaBody = (await teamBetaResponse.json()) as TeamResponse;
+
+    await db.insert(schema.teamMemberships).values({
+      teamId: teamAlphaBody.team.id,
+      userId: await projectFixture.getLocalUserId(member.user.workosUserId),
+      role: "member",
+    });
+
+    const alphaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+        json: {
+          name: "Alpha Project",
+          teamId: teamAlphaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["fr-FR"],
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(admin) },
+    );
+    expect(alphaProjectResponse.status).toBe(201);
+    const alphaProjectBody = (await alphaProjectResponse.json()) as ProjectResponse;
+
+    const betaProjectResponse = await client.api.orgs[":organizationSlug"].projects.$post(
+      {
+        param: { organizationSlug: admin.organization.slug ?? "missing-slug" },
+        json: {
+          name: "Beta Project",
+          teamId: teamBetaBody.team.id,
+          sourceLocale: "en-US",
+          targetLocales: ["de-DE"],
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(admin) },
+    );
+    expect(betaProjectResponse.status).toBe(201);
+    const betaProjectBody = (await betaProjectResponse.json()) as ProjectResponse;
+
+    const memberUserId = await projectFixture.getLocalUserId(member.user.workosUserId);
+    await insertNativeJob({
+      organizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      projectId: alphaProjectBody.project.id,
+      createdByUserId: memberUserId,
+    });
+    await insertNativeJob({
+      organizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      projectId: betaProjectBody.project.id,
+      createdByUserId: memberUserId,
+    });
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: member.organization.slug ?? "missing-slug" },
+        query: { relationship: "created", limit: "100" },
+      },
+      { headers: await projectFixture.authHeadersFor(member) },
+    );
+
+    expect(createdResponse.status).toBe(200);
+    const createdBody = (await createdResponse.json()) as WorkspaceJobsResponse;
+    const createdProjectIds = createdBody.jobs.map((job) => job.projectId);
+
+    expect(createdProjectIds).toEqual([alphaProjectBody.project.id]);
+    expect(createdProjectIds).not.toContain(betaProjectBody.project.id);
   });
 });

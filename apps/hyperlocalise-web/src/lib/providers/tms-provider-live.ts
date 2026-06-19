@@ -43,6 +43,7 @@ import {
 } from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
+import { matchesProviderAssignee } from "@/lib/providers/tms-provider-assignee-match";
 import {
   API_TOKEN_AUTH_MODE,
   OAUTH_AUTH_MODE,
@@ -1400,25 +1401,16 @@ export async function listTmsProviderLiveJobsForProject(
     rethrowProviderFetcherError(error);
   }
 
-  const assigneeNeedles = [
+  const assigneeCandidates = [
     ...(options?.assigneeCandidates ?? []),
     ...(options?.assignee ? [options.assignee] : []),
-  ]
-    .map((candidate) => candidate.trim().toLowerCase())
-    .filter(Boolean);
+  ];
   const filteredTasks = options?.mine
-    ? assigneeNeedles.length > 0
+    ? assigneeCandidates.length > 0
       ? tasks.filter((task) =>
-          (task.assignedUsers ?? []).some((user) => {
-            const assignedUser = user.trim().toLowerCase();
-            if (!assignedUser) return false;
-            return assigneeNeedles.some(
-              (candidate) =>
-                assignedUser === candidate ||
-                assignedUser.includes(candidate) ||
-                candidate.includes(assignedUser),
-            );
-          }),
+          (task.assignedUsers ?? []).some((user) =>
+            matchesProviderAssignee(user, assigneeCandidates),
+          ),
         )
       : []
     : tasks;
