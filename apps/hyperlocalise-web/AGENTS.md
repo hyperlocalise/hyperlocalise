@@ -84,7 +84,7 @@ Error: Failed to collect configuration for /[lang]/blog
 
 **Do not import `*.messages.ts` from Server Components.** Message modules are client modules; pick one of these patterns instead:
 
-1. **Inline descriptors** — pass `{ id, defaultMessage, description }` objects to `getIntlShape(locale).formatMessage()`. See [`src/app/[lang]/(marketing)/blog/blog-route-metadata.ts`](src/app/[lang]/(marketing)/blog/blog-route-metadata.ts).
+1. **Inline descriptors** — pass `{ id, defaultMessage, description }` objects to `getIntlShape(locale).formatMessage()`. See [`src/app/[lang]/(marketing)/blog/blog-route-metadata.ts`](<src/app/[lang]/(marketing)/blog/blog-route-metadata.ts>).
 2. **Client Components** — add `"use client"` to the component, import the messages module, and use `<FormattedMessage>` or `useIntl()`.
 
 A component that calls `getIntlShape()` without `"use client"` is a Server Component. It must use inline descriptors, not imports from `*.messages.ts`.
