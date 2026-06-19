@@ -13,7 +13,6 @@ import {
   LinkSquare02Icon,
   Settings01Icon,
   Task01Icon,
-  UserGroupIcon,
   UserMultiple02Icon,
   WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
@@ -108,12 +107,6 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           label: "Integrations",
           href: org("integrations"),
           icon: LinkSquare02Icon,
-        },
-        {
-          label: "Teams",
-          href: org("teams"),
-          icon: UserGroupIcon,
-          description: "Create teams and assign workspace members",
         },
         {
           label: "Members",
