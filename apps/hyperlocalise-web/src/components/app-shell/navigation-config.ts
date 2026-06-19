@@ -161,7 +161,7 @@ export function buildProjectNavigationItems(
   ] as const;
 }
 
-function stripAppLocalePrefix(pathname: string) {
+export function stripAppLocalePrefix(pathname: string) {
   const [, firstSegment, ...rest] = pathname.split("/");
   const locale = firstSegment ? normalizeAppLocale(firstSegment) : null;
 

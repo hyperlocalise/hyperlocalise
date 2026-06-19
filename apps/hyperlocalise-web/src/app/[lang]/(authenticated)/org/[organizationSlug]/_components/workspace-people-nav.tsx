@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { stripAppLocalePrefix } from "@/components/app-shell/navigation-config";
 import { cn } from "@/lib/primitives/cn";
 
 type WorkspacePeopleSection = "teams" | "members";
@@ -26,7 +27,7 @@ const peopleSections: readonly {
 
 function resolveActiveSection(pathname: string, organizationSlug: string): WorkspacePeopleSection {
   const basePath = `/org/${organizationSlug}`;
-  const normalizedPath = pathname.replace(/^\/[a-z]{2}(?=\/)/, "");
+  const normalizedPath = stripAppLocalePrefix(pathname);
 
   if (normalizedPath.startsWith(`${basePath}/members`)) {
     return "members";
