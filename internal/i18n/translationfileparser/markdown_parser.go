@@ -21,6 +21,8 @@ type markdownPart struct {
 	placeholders map[string]string
 	path         string
 	yamlPlain    bool
+	// BOLT OPTIMIZATION: precompute raw HTML syntax count to avoid redundant scans.
+	sourceSyntaxCount int
 }
 
 type markdownDocument struct {
@@ -177,7 +179,7 @@ func emitMarkdownLineParts(line string, doc *markdownDocument, appendKey func(ma
 		}
 		return
 	}
-	appendKey(markdownPart{source: placeholdered, placeholders: placeholders, path: path})
+	appendKey(markdownPart{source: placeholdered, placeholders: placeholders, path: path, sourceSyntaxCount: rawHTMLSyntaxStartCount(placeholdered)})
 	for _, literal := range trailingLiterals {
 		doc.parts = append(doc.parts, markdownPart{literal: literal})
 	}
@@ -605,7 +607,7 @@ func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func
 			return
 		}
 		doc.parts = append(doc.parts, markdownPart{literal: body[:colon+1] + valuePart[:lead]})
-		appendKey(markdownPart{source: plainValue, yamlPlain: true})
+		appendKey(markdownPart{source: plainValue, yamlPlain: true, sourceSyntaxCount: rawHTMLSyntaxStartCount(plainValue)})
 		doc.parts = append(doc.parts, markdownPart{literal: newline})
 		return
 	}
@@ -623,7 +625,7 @@ func emitFrontmatterLineParts(line string, doc *markdownDocument, appendKey func
 	}
 
 	doc.parts = append(doc.parts, markdownPart{literal: body[:colon+1] + valuePart[:lead] + string(quote)})
-	appendKey(markdownPart{source: quotedText})
+	appendKey(markdownPart{source: quotedText, sourceSyntaxCount: rawHTMLSyntaxStartCount(quotedText)})
 	doc.parts = append(doc.parts, markdownPart{literal: valueRest[end:] + newline})
 }
 
@@ -699,7 +701,7 @@ func renderMarkdownPartWithDiagnostics(part markdownPart, translated string, dia
 		rendered = yamlDoubleQuoteScalar(rendered)
 	}
 	rendered = normalizeMarkdownTableRowBoundaries(part, rendered)
-	if !trustedFallback && IntroducesRawHTMLSyntax(part.source, rendered) {
+	if !trustedFallback && IntroducesRawHTMLSyntax(part.sourceSyntaxCount, rendered) {
 		if diags != nil && part.key != "" {
 			diags.SourceFallbackKeys = append(diags.SourceFallbackKeys, part.key)
 		}

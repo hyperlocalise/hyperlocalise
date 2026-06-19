@@ -75,10 +75,11 @@ func parseMarkdownASTDocument(content []byte) (markdownDocument, map[string]stri
 		}
 
 		part := markdownPart{
-			source:       placeholdered,
-			placeholders: placeholders,
-			path:         candidate.path,
-			yamlPlain:    candidate.yamlPlain,
+			source:            placeholdered,
+			placeholders:      placeholders,
+			path:              candidate.path,
+			yamlPlain:         candidate.yamlPlain,
+			sourceSyntaxCount: rawHTMLSyntaxStartCount(placeholdered),
 		}
 		part.key = markdownSegmentKey(part.source, hashOccurrences)
 		doc.parts = append(doc.parts, part)
