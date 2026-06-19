@@ -43,7 +43,7 @@ import {
 } from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
-import { matchesProviderAssignee } from "@/lib/providers/tms-provider-assignee-match";
+import { normalizeProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-match";
 import {
   API_TOKEN_AUTH_MODE,
   OAUTH_AUTH_MODE,
@@ -1405,12 +1405,17 @@ export async function listTmsProviderLiveJobsForProject(
     ...(options?.assigneeCandidates ?? []),
     ...(options?.assignee ? [options.assignee] : []),
   ];
+  const normalizedCandidates = normalizeProviderAssigneeCandidates(assigneeCandidates);
   const filteredTasks = options?.mine
-    ? assigneeCandidates.length > 0
+    ? normalizedCandidates.length > 0
       ? tasks.filter((task) =>
-          (task.assignedUsers ?? []).some((user) =>
-            matchesProviderAssignee(user, assigneeCandidates),
-          ),
+          (task.assignedUsers ?? []).some((user) => {
+            const normalizedAssignedUser = user.trim().toLowerCase();
+            return (
+              Boolean(normalizedAssignedUser) &&
+              normalizedCandidates.includes(normalizedAssignedUser)
+            );
+          }),
         )
       : []
     : tasks;

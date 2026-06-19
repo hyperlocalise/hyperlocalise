@@ -67,6 +67,7 @@ export function createProjectTestFixture(client?: Client) {
   return {
     authHeadersFor: authFixture.authHeadersFor,
     cleanup: authFixture.cleanup,
+    createLocalWorkosIdentity: authFixture.createLocalWorkosIdentity,
     createProjectViaApi,
     createStoredProjectFixture,
     createWorkosIdentity: authFixture.createWorkosIdentity,

@@ -307,8 +307,8 @@ describe("workspace job list", () => {
   it("does not return created jobs for projects outside the current team scope", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
     const member = projectFixture.createWorkosIdentityForOrganization(admin.organization, "member");
+    const { organization: adminOrganization } = await projectFixture.createLocalWorkosIdentity(admin);
 
-    await projectFixture.authHeadersFor(admin);
     await projectFixture.authHeadersFor(member);
 
     const teamAlphaResponse = await teamFixture.createTeamViaApi(admin, { name: "Alpha Team" });
@@ -357,12 +357,12 @@ describe("workspace job list", () => {
 
     const memberUserId = await projectFixture.getLocalUserId(member.user.workosUserId);
     await insertNativeJob({
-      organizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      organizationId: adminOrganization.id,
       projectId: alphaProjectBody.project.id,
       createdByUserId: memberUserId,
     });
     await insertNativeJob({
-      organizationId: globalThis.__testApiAuthContext!.organization.localOrganizationId,
+      organizationId: adminOrganization.id,
       projectId: betaProjectBody.project.id,
       createdByUserId: memberUserId,
     });

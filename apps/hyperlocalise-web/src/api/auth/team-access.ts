@@ -122,6 +122,8 @@ export async function buildOrganizationJobsListWhere(
 ): Promise<SQL> {
   const organizationScope = eq(schema.jobs.organizationId, auth.organization.localOrganizationId);
 
+  // Assigned jobs stay org-wide so assignees can find work they are responsible for
+  // even without team project access (for example external translators).
   if (options?.relationship === "assigned") {
     return and(
       organizationScope,
