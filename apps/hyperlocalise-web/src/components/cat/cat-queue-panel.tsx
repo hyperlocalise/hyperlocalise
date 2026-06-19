@@ -7,10 +7,12 @@ import { FormattedMessage, useIntl } from "react-intl";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -170,19 +172,21 @@ export function CatQueuePanel({
                   </span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="start" className="w-48">
-                  <DropdownMenuLabel>
-                    <FormattedMessage {...catQueuePanelMessages.filterQueueAria} />
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  {availableQueueFilters.map((filterValue) => (
-                    <DropdownMenuCheckboxItem
-                      key={filterValue}
-                      checked={queueFilter === filterValue}
-                      onCheckedChange={() => onQueueFilterChange(filterValue)}
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>
+                      <FormattedMessage {...catQueuePanelMessages.filterQueueAria} />
+                    </DropdownMenuLabel>
+                    <DropdownMenuRadioGroup
+                      value={queueFilter}
+                      onValueChange={(value) => onQueueFilterChange(value as CatQueueFilter)}
                     >
-                      <FormattedMessage {...queueFilterMessageByValue[filterValue]} />
-                    </DropdownMenuCheckboxItem>
-                  ))}
+                      {availableQueueFilters.map((filterValue) => (
+                        <DropdownMenuRadioItem key={filterValue} value={filterValue}>
+                          <FormattedMessage {...queueFilterMessageByValue[filterValue]} />
+                        </DropdownMenuRadioItem>
+                      ))}
+                    </DropdownMenuRadioGroup>
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
@@ -210,38 +214,44 @@ export function CatQueuePanel({
                   )}
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel>
-                    {selectedCount > 0 ? (
-                      <FormattedMessage
-                        {...catQueuePanelMessages.bulkSelectionSummary}
-                        values={{ count: selectedCount }}
-                      />
-                    ) : (
-                      <FormattedMessage {...catQueuePanelMessages.queueActionsAria} />
-                    )}
-                  </DropdownMenuLabel>
+                  <DropdownMenuGroup>
+                    <DropdownMenuLabel>
+                      {selectedCount > 0 ? (
+                        <FormattedMessage
+                          {...catQueuePanelMessages.bulkSelectionSummary}
+                          values={{ count: selectedCount }}
+                        />
+                      ) : (
+                        <FormattedMessage {...catQueuePanelMessages.queueActionsAria} />
+                      )}
+                    </DropdownMenuLabel>
+                    {onSelectAllVisible ? (
+                      <DropdownMenuItem
+                        onClick={onSelectAllVisible}
+                        disabled={segments.length === 0}
+                      >
+                        <FormattedMessage {...catQueuePanelMessages.bulkSelectAll} />
+                      </DropdownMenuItem>
+                    ) : null}
+                    {onClearChecked ? (
+                      <DropdownMenuItem onClick={onClearChecked} disabled={selectedCount === 0}>
+                        <FormattedMessage {...catQueuePanelMessages.bulkClearSelection} />
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuGroup>
                   <DropdownMenuSeparator />
-                  {onSelectAllVisible ? (
-                    <DropdownMenuItem onClick={onSelectAllVisible} disabled={segments.length === 0}>
-                      <FormattedMessage {...catQueuePanelMessages.bulkSelectAll} />
-                    </DropdownMenuItem>
-                  ) : null}
-                  {onClearChecked ? (
-                    <DropdownMenuItem onClick={onClearChecked} disabled={selectedCount === 0}>
-                      <FormattedMessage {...catQueuePanelMessages.bulkClearSelection} />
-                    </DropdownMenuItem>
-                  ) : null}
-                  <DropdownMenuSeparator />
-                  {onBulkApprove ? (
-                    <DropdownMenuItem onClick={onBulkApprove} disabled={selectedCount === 0}>
-                      <FormattedMessage {...catQueuePanelMessages.bulkApprove} />
-                    </DropdownMenuItem>
-                  ) : null}
-                  {onBulkSkip ? (
-                    <DropdownMenuItem onClick={onBulkSkip} disabled={selectedCount === 0}>
-                      <FormattedMessage {...catQueuePanelMessages.bulkSkip} />
-                    </DropdownMenuItem>
-                  ) : null}
+                  <DropdownMenuGroup>
+                    {onBulkApprove ? (
+                      <DropdownMenuItem onClick={onBulkApprove} disabled={selectedCount === 0}>
+                        <FormattedMessage {...catQueuePanelMessages.bulkApprove} />
+                      </DropdownMenuItem>
+                    ) : null}
+                    {onBulkSkip ? (
+                      <DropdownMenuItem onClick={onBulkSkip} disabled={selectedCount === 0}>
+                        <FormattedMessage {...catQueuePanelMessages.bulkSkip} />
+                      </DropdownMenuItem>
+                    ) : null}
+                  </DropdownMenuGroup>
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : null}
