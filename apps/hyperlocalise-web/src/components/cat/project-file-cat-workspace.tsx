@@ -94,6 +94,8 @@ export function ProjectFileCatWorkspace({
     catQuery,
     search,
     setSearch,
+    queueFilter,
+    setQueueFilter,
     debouncedSearch,
     isSearchPending,
     pagination,
@@ -370,7 +372,9 @@ export function ProjectFileCatWorkspace({
         <TypographyP className="text-sm">
           {search.trim()
             ? "No strings match your search."
-            : "No source strings are available for this file."}
+            : queueFilter !== "all"
+              ? "No segments match this filter."
+              : "No source strings are available for this file."}
         </TypographyP>
       </div>
     );
@@ -411,7 +415,7 @@ export function ProjectFileCatWorkspace({
       ) : null}
 
       <CatWorkspaceContainer
-        key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${pagination?.offset ?? 0}`}
+        key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}:${pagination?.offset ?? 0}`}
         initialState={workspaceState}
         className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
         services={{
@@ -429,6 +433,8 @@ export function ProjectFileCatWorkspace({
         buildSegmentShareUrl={buildSegmentShareUrl}
         queueSearch={search}
         onQueueSearchChange={setSearch}
+        queueFilter={queueFilter}
+        onQueueFilterChange={setQueueFilter}
         isQueueSearchPending={isSearchPending}
         isQueueFetchingPage={catQuery.isFetching && !catQuery.isLoading}
         queuePagination={pagination}

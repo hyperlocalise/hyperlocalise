@@ -36,6 +36,7 @@ import {
 import {
   filterCatQueueSegments,
   findSegmentIdByKeyOrId,
+  isServerQueueFilter,
   resolveSelectedSegmentId,
   type CatQueueFilter,
 } from "./cat-queue-filter";
@@ -240,6 +241,8 @@ export interface CatWorkspaceContainerProps {
   className?: string;
   queueSearch?: string;
   onQueueSearchChange?: (value: string) => void;
+  queueFilter?: CatQueueFilter;
+  onQueueFilterChange?: (filter: CatQueueFilter) => void;
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   queuePagination?: CatWorkspaceViewProps["queuePagination"];
@@ -274,6 +277,8 @@ export function CatWorkspaceContainer({
   className,
   queueSearch,
   onQueueSearchChange,
+  queueFilter: queueFilterProp,
+  onQueueFilterChange,
   isQueueSearchPending,
   isQueueFetchingPage,
   queuePagination,
@@ -293,7 +298,9 @@ export function CatWorkspaceContainer({
       initialState.selectedSegmentId,
     ),
   }));
-  const [queueFilter, setQueueFilter] = useState<CatQueueFilter>("all");
+  const [localQueueFilter, setLocalQueueFilter] = useState<CatQueueFilter>("all");
+  const queueFilter = queueFilterProp ?? localQueueFilter;
+  const handleQueueFilterChange = onQueueFilterChange ?? setLocalQueueFilter;
   const [checkedSegmentIds, setCheckedSegmentIds] = useState<ReadonlySet<string>>(() => new Set());
   const [isBulkActionPending, setIsBulkActionPending] = useState(false);
   const initialSegmentJumpAppliedRef = useRef(false);
@@ -344,10 +351,13 @@ export function CatWorkspaceContainer({
   const onBulkApprove = reviewOverrides?.onBulkApprove;
   const onBulkSkip = reviewOverrides?.onBulkSkip;
 
-  const filteredSegments = useMemo(
-    () => filterCatQueueSegments(state.segments, queueFilter),
-    [queueFilter, state.segments],
-  );
+  const filteredSegments = useMemo(() => {
+    if (onQueueFilterChange && isServerQueueFilter(queueFilter)) {
+      return state.segments;
+    }
+
+    return filterCatQueueSegments(state.segments, queueFilter);
+  }, [onQueueFilterChange, queueFilter, state.segments]);
 
   useEffect(() => {
     setCheckedSegmentIds(new Set());
@@ -1112,7 +1122,7 @@ export function CatWorkspaceContainer({
         onQueueNextPage={onQueueNextPage ? () => attemptPageNavigation(onQueueNextPage) : undefined}
         onQueueNearEnd={onQueueNearEnd}
         queueFilter={queueFilter}
-        onQueueFilterChange={setQueueFilter}
+        onQueueFilterChange={handleQueueFilterChange}
         checkedSegmentIds={checkedSegmentIds}
         onToggleSegmentChecked={handleToggleSegmentChecked}
         onSelectAllVisible={handleSelectAllVisible}

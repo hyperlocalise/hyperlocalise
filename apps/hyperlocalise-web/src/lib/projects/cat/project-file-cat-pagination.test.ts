@@ -11,6 +11,7 @@ describe("resolveProjectFileCatPagination", () => {
       offset: 0,
       limit: 500,
       search: undefined,
+      queueFilter: "all",
       paginated: false,
     });
   });
@@ -20,6 +21,7 @@ describe("resolveProjectFileCatPagination", () => {
       offset: 50,
       limit: 25,
       search: undefined,
+      queueFilter: "all",
       paginated: true,
     });
   });
@@ -29,6 +31,15 @@ describe("resolveProjectFileCatPagination", () => {
       offset: 0,
       limit: 50,
       search: "hello",
+      paginated: true,
+    });
+  });
+
+  it("enables paginated mode when queueFilter is provided", () => {
+    expect(resolveProjectFileCatPagination({ queueFilter: "needs_review" })).toMatchObject({
+      offset: 0,
+      limit: 50,
+      queueFilter: "needs_review",
       paginated: true,
     });
   });

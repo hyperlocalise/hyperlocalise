@@ -1,12 +1,8 @@
+import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
+
 import type { CatSegment } from "./types";
 
-export type CatQueueFilter =
-  | "all"
-  | "untranslated"
-  | "needs_review"
-  | "reviewed"
-  | "has_issues"
-  | "skipped";
+export type CatQueueFilter = ProjectFileCatQueueFilter | "skipped";
 
 export const catQueueFilterValues: CatQueueFilter[] = [
   "all",
@@ -16,6 +12,10 @@ export const catQueueFilterValues: CatQueueFilter[] = [
   "has_issues",
   "skipped",
 ];
+
+export function isServerQueueFilter(filter: CatQueueFilter): filter is ProjectFileCatQueueFilter {
+  return filter !== "skipped";
+}
 
 export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: string) {
   const match = segments.find(

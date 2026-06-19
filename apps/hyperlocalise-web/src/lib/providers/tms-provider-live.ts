@@ -19,7 +19,7 @@ import {
   legacyProviderCatSegmentLimit,
   maxCrowdinSourceStringCountCeiling,
 } from "@/api/routes/project/project.schema";
-import { buildCrowdinFileSearchCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
+import { buildCrowdinFileQueueCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
 import {
   CrowdinApiClient,
   CrowdinApiError,
@@ -901,6 +901,7 @@ async function buildCrowdinLiveCatFile(input: {
       offset: 0,
       limit: legacyProviderCatSegmentLimit,
       search: undefined,
+      queueFilter: "all",
       paginated: false,
     };
 
@@ -916,9 +917,16 @@ async function buildCrowdinLiveCatFile(input: {
       truncated = strings.length > legacyProviderCatSegmentLimit;
       visibleStrings = truncated ? strings.slice(0, legacyProviderCatSegmentLimit) : strings;
     } else {
-      const croql = paginationInput.search
-        ? buildCrowdinFileSearchCroql(fileId, paginationInput.search)
-        : undefined;
+      const croql =
+        paginationInput.search?.trim() ||
+        (paginationInput.queueFilter && paginationInput.queueFilter !== "all")
+          ? buildCrowdinFileQueueCroql({
+              fileId,
+              targetLocale: input.targetLocale,
+              queueFilter: paginationInput.queueFilter,
+              search: paginationInput.search,
+            })
+          : undefined;
       const [countedTotal, page] = await Promise.all([
         countCrowdinSourceStrings(client, projectId, {
           fileId: croql ? undefined : fileId,

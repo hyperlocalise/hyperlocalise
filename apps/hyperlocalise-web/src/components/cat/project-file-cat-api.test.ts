@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import { projectFileCatQueryKey } from "./project-file-cat-api";
 
 describe("projectFileCatQueryKey", () => {
-  it("includes search, limit, and offset for page-scoped cache keys", () => {
+  it("includes search, queue filter, limit, and offset for page-scoped cache keys", () => {
     expect(
       projectFileCatQueryKey({
         organizationSlug: "acme",
@@ -12,6 +12,7 @@ describe("projectFileCatQueryKey", () => {
         targetLocale: "fr",
         repositoryFullName: "acme/web",
         search: "hero",
+        queueFilter: "needs_review",
         limit: 50,
         offset: 50,
       }),
@@ -23,6 +24,7 @@ describe("projectFileCatQueryKey", () => {
       "fr",
       "acme/web",
       "hero",
+      "needs_review",
       50,
       50,
     ]);
@@ -36,6 +38,7 @@ describe("projectFileCatQueryKey", () => {
       targetLocale: "fr",
       repositoryFullName: null,
       search: "",
+      queueFilter: "all" as const,
       limit: 50,
     };
 
