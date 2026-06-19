@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
+import { WorkspacePeopleNav } from "../../_components/workspace-people-nav";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 
 import { TeamDialog } from "./team-dialog";
@@ -58,6 +59,8 @@ export function TeamsPageView({
 
   return (
     <WorkspacePageShell>
+      <WorkspacePeopleNav organizationSlug={organizationSlug} />
+
       <PageHeader
         icon={UserGroupIcon}
         label="Workspace"
@@ -94,7 +97,15 @@ export function TeamsPageView({
           <div className="py-10">
             <TypographyP className="text-sm font-medium text-foreground">No teams yet</TypographyP>
             <TypographyP className="mt-2 max-w-xl text-sm leading-6 text-foreground/52">
-              Create a team to group workspace members and scope project access.
+              Create a team to group workspace members and scope project access. Invite people on
+              the{" "}
+              <Link
+                href={`/org/${organizationSlug}/members`}
+                className="font-medium text-foreground/72 underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Members
+              </Link>{" "}
+              page first if your workspace is still empty.
             </TypographyP>
           </div>
         ) : (

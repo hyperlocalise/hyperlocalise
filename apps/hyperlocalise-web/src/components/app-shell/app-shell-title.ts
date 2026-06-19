@@ -14,7 +14,7 @@ const ROUTE_TITLES = {
   jobs: "Jobs",
   knowledge: "Knowledge",
   locales: "Locales",
-  members: "Team",
+  members: "Members",
   "my-jobs": "My Jobs",
   "my-work": "My Jobs",
   "new-request": "New Request",
@@ -22,6 +22,7 @@ const ROUTE_TITLES = {
   qa: "QA",
   reviews: "Reviews",
   settings: "Settings",
+  teams: "Teams",
   "translation-memories": "Translation Memories",
 } as const;
 
@@ -109,6 +110,21 @@ export function getAppShellBreadcrumbs(
       { label: ROUTE_TITLES.settings, href: buildOrgPath(organizationSlug, "settings") },
       { label: routeTitle(subsection) },
     ];
+  }
+
+  if (section === "teams") {
+    if (!subsection) {
+      return [{ label: ROUTE_TITLES.teams }];
+    }
+
+    return [
+      { label: ROUTE_TITLES.teams, href: buildOrgPath(organizationSlug, "teams") },
+      { label: decodePathSegment(subsection) },
+    ];
+  }
+
+  if (section === "members") {
+    return [{ label: ROUTE_TITLES.members }];
   }
 
   if (section === "projects" && subsection) {
