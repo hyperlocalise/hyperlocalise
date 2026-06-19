@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { getAppLocale } from "@/lib/app-i18n/server-locale";
+import { GoogleAnalytics } from "@next/third-parties/google";
 import { cn } from "@/lib/primitives/cn";
 import "./globals.css";
 
@@ -60,6 +61,8 @@ export default async function RootLayout({
           </I18nProvider>
         </AuthKitProvider>
       </body>
+
+      <GoogleAnalytics gaId="G-ET30XL0TE6" />
     </html>
   );
 }
