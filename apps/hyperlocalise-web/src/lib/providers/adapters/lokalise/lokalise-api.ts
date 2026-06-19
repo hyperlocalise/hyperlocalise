@@ -742,6 +742,19 @@ export class LokaliseApiClient {
     return screenshots.slice(0, maxItems);
   }
 
+  async getScreenshot(projectId: string, screenshotId: number): Promise<LokaliseScreenshot> {
+    const response = await this.get<LokaliseScreenshotGetResponse>(
+      `/projects/${encodeURIComponent(projectId)}/screenshots/${encodeURIComponent(String(screenshotId))}`,
+    );
+
+    const record = response.screenshot;
+    if (!record) {
+      throw new LokaliseApiError("lokalise_screenshot_not_found", 404, response);
+    }
+
+    return normalizeLokaliseScreenshot(record);
+  }
+
   async listWebhooks(projectId: string): Promise<LokaliseWebhook[]> {
     const response = await this.get<LokaliseWebhooksListResponse>(
       `/projects/${encodeURIComponent(projectId)}/webhooks`,
@@ -1097,6 +1110,11 @@ type LokaliseScreenshotsListResponse = {
   screenshots?: LokaliseScreenshotApiRecord[];
 };
 
+type LokaliseScreenshotGetResponse = {
+  project_id?: string;
+  screenshot?: LokaliseScreenshotApiRecord;
+};
+
 type LokaliseScreenshotApiRecord = {
   screenshot_id?: number;
   title?: string | null;
@@ -1338,6 +1356,7 @@ function normalizeLokaliseLanguage(record: LokaliseLanguageApiRecord): LokaliseL
 }
 
 function normalizeLokaliseScreenshot(record: LokaliseScreenshotApiRecord): LokaliseScreenshot {
+  // The list endpoint often omits keys[].coordinates; retrieve-a-screenshot includes them.
   return {
     screenshotId: record.screenshot_id ?? -1,
     title: record.title?.trim() || null,

@@ -397,6 +397,53 @@ describe("LokaliseApiClient", () => {
     );
   });
 
+  it("retrieves a screenshot with key coordinates", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      if (String(url).includes("/projects/proj.123/screenshots/123")) {
+        return new Response(
+          JSON.stringify({
+            project_id: "proj.123",
+            screenshot: {
+              screenshot_id: 123,
+              title: "Homepage",
+              url: "https://example.com/screenshot.png",
+              width: 800,
+              height: 600,
+              key_ids: [4242],
+              keys: [
+                {
+                  key_id: 4242,
+                  coordinates: {
+                    left: 40,
+                    top: 80,
+                    width: 120,
+                    height: 24,
+                  },
+                },
+              ],
+            },
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ screenshot: null }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const screenshot = await client.getScreenshot("proj.123", 123);
+
+    expect(screenshot.keyAreas).toEqual([
+      {
+        keyId: 4242,
+        left: 40,
+        top: 80,
+        width: 120,
+        height: 24,
+      },
+    ]);
+  });
+
   it("filters completed tasks by completion time and caps pagination", async () => {
     const recentCompletedAt = Math.floor(Date.now() / 1000) - 60;
     const staleCompletedAt = Math.floor(Date.now() / 1000) - 60 * 60 * 24 * 60;

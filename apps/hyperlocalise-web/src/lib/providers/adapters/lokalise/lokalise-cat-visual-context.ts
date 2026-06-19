@@ -1,3 +1,4 @@
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
   pixelRectToPercentMarkers,
   type CatVisualContext,
@@ -5,6 +6,8 @@ import {
 } from "@/lib/translation/cat-visual-context";
 
 import { LokaliseApiClient } from "./lokalise-api";
+
+const lokaliseScreenshotDetailConcurrency = 5;
 
 export async function loadLokaliseCatVisualContext(input: {
   client: LokaliseApiClient;
@@ -17,11 +20,23 @@ export async function loadLokaliseCatVisualContext(input: {
   }
 
   const screenshots = await input.client.listScreenshotsForKey(input.externalProjectId, keyId);
+  const withImage = screenshots.filter((screenshot) => screenshot.imageUrl.trim().length > 0);
+
+  const enriched = await mapWithConcurrency(
+    withImage,
+    lokaliseScreenshotDetailConcurrency,
+    async (screenshot) => {
+      const hasKeyArea = screenshot.keyAreas.some((area) => area.keyId === keyId);
+      if (hasKeyArea || screenshot.screenshotId <= 0) {
+        return screenshot;
+      }
+
+      return input.client.getScreenshot(input.externalProjectId, screenshot.screenshotId);
+    },
+  );
 
   return {
-    screenshots: screenshots
-      .filter((screenshot) => screenshot.imageUrl.trim().length > 0)
-      .map((screenshot) => mapLokaliseScreenshot(screenshot, keyId)),
+    screenshots: enriched.map((screenshot) => mapLokaliseScreenshot(screenshot, keyId)),
   };
 }
 

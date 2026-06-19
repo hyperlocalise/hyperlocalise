@@ -111,7 +111,9 @@ async function loadPhraseKeyScreenshots(input: {
   externalStringId: string;
 }): Promise<PhraseKeyScreenshot[] | null> {
   try {
-    return await input.client.listKeyScreenshots(input.externalProjectId, input.externalStringId);
+    return await input.client.listKeyScreenshots(input.externalProjectId, input.externalStringId, {
+      maxItems: maxPhraseScreenshotsPerSegment,
+    });
   } catch (error) {
     if (error instanceof PhraseApiError && error.status === 404) {
       return null;

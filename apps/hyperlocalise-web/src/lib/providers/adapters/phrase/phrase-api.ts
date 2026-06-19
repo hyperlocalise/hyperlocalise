@@ -402,20 +402,30 @@ export class PhraseApiClient {
   async listKeyScreenshots(
     projectId: string,
     keyId: string,
-    options: PhraseListOptions = {},
+    options: PhraseListOptions & { maxItems?: number } = {},
   ): Promise<PhraseKeyScreenshot[]> {
-    return this.paginate({
-      buildPath: (page, perPage) =>
+    const results: PhraseKeyScreenshot[] = [];
+    const maxItems = options.maxItems ?? 50;
+    const perPage = 100;
+    let page = 1;
+
+    while (results.length < maxItems) {
+      const pageItems = await this.get<unknown[]>(
         this.buildPath(
           `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/screenshots`,
-          {
-            page,
-            per_page: perPage,
-            branch: options.branch,
-          },
+          { page, per_page: perPage, branch: options.branch },
         ),
-      normalize: (record) => normalizePhraseKeyScreenshot(record),
-    });
+      );
+      results.push(...pageItems.map((record) => normalizePhraseKeyScreenshot(record)));
+
+      if (pageItems.length < perPage || results.length >= maxItems) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return results.slice(0, maxItems);
   }
 
   async listScreenshotMarkers(
