@@ -214,6 +214,25 @@ export interface LokaliseKey {
   translations: LokaliseTranslation[];
 }
 
+export interface LokaliseScreenshotKeyArea {
+  keyId: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface LokaliseScreenshot {
+  screenshotId: number;
+  title: string | null;
+  description: string | null;
+  imageUrl: string;
+  width: number | null;
+  height: number | null;
+  keyIds: number[];
+  keyAreas: LokaliseScreenshotKeyArea[];
+}
+
 export const LOKALISE_DEFAULT_BUNDLE_STRUCTURE = "%LANG_ISO%.%FORMAT%";
 
 /** Caps glossary-term pagination during sync and live lookup. */
@@ -688,6 +707,36 @@ export class LokaliseApiClient {
     return (response.comments ?? []).map(normalizeLokaliseComment);
   }
 
+  async listScreenshotsForKey(
+    projectId: string,
+    keyId: number,
+    options?: { maxItems?: number },
+  ): Promise<LokaliseScreenshot[]> {
+    const screenshots: LokaliseScreenshot[] = [];
+    let page = 1;
+    const limit = 100;
+    const maxItems = options?.maxItems ?? 8;
+
+    while (screenshots.length < maxItems) {
+      const response = await this.get<LokaliseScreenshotsListResponse>(
+        `/projects/${encodeURIComponent(projectId)}/screenshots?page=${page}&limit=${limit}`,
+      );
+      const pageItems = (response.screenshots ?? [])
+        .map(normalizeLokaliseScreenshot)
+        .filter((screenshot) => screenshot.keyIds.includes(keyId));
+
+      screenshots.push(...pageItems);
+
+      if ((response.screenshots ?? []).length < limit || screenshots.length >= maxItems) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return screenshots.slice(0, maxItems);
+  }
+
   async listWebhooks(projectId: string): Promise<LokaliseWebhook[]> {
     const response = await this.get<LokaliseWebhooksListResponse>(
       `/projects/${encodeURIComponent(projectId)}/webhooks`,
@@ -1038,6 +1087,30 @@ type LokaliseKeyCommentsCreateResponse = {
   comments?: LokaliseCommentApiRecord[];
 };
 
+type LokaliseScreenshotsListResponse = {
+  project_id?: string;
+  screenshots?: LokaliseScreenshotApiRecord[];
+};
+
+type LokaliseScreenshotApiRecord = {
+  screenshot_id?: number;
+  title?: string | null;
+  description?: string | null;
+  url?: string | null;
+  width?: number | null;
+  height?: number | null;
+  key_ids?: number[];
+  keys?: Array<{
+    key_id?: number;
+    coordinates?: {
+      left?: number;
+      top?: number;
+      width?: number;
+      height?: number;
+    } | null;
+  }>;
+};
+
 type LokaliseLanguagesListResponse = {
   project_id?: string;
   languages?: LokaliseLanguageApiRecord[];
@@ -1256,6 +1329,35 @@ function normalizeLokaliseLanguage(record: LokaliseLanguageApiRecord): LokaliseL
     langIso: record.lang_iso,
     langName: record.lang_name,
     isRtl: record.is_rtl ?? false,
+  };
+}
+
+function normalizeLokaliseScreenshot(record: LokaliseScreenshotApiRecord): LokaliseScreenshot {
+  return {
+    screenshotId: record.screenshot_id ?? 0,
+    title: record.title?.trim() || null,
+    description: record.description?.trim() || null,
+    imageUrl: record.url?.trim() ?? "",
+    width: record.width ?? null,
+    height: record.height ?? null,
+    keyIds: (record.key_ids ?? []).filter((keyId): keyId is number => typeof keyId === "number"),
+    keyAreas: (record.keys ?? [])
+      .map((key) => {
+        const keyId = key.key_id;
+        const coordinates = key.coordinates;
+        if (keyId == null || !coordinates) {
+          return null;
+        }
+
+        return {
+          keyId,
+          left: coordinates.left ?? 0,
+          top: coordinates.top ?? 0,
+          width: coordinates.width ?? 0,
+          height: coordinates.height ?? 0,
+        };
+      })
+      .filter((area): area is LokaliseScreenshotKeyArea => area != null),
   };
 }
 

@@ -1,3 +1,4 @@
+import type { CatVisualContext } from "@/lib/translation/cat-visual-context";
 import type {
   CatFormatCheck,
   CatGlossaryTerm,
@@ -19,6 +20,8 @@ export interface CatSegmentConcordanceResult {
   glossaryTerms: CatGlossaryTerm[];
   translationMemoryMatches: CatTranslationMemoryMatch[];
 }
+
+export type CatSegmentVisualContextResult = CatVisualContext;
 
 export interface CatWorkspaceNavigation {
   onSelectSegment: (segmentId: string) => void;
@@ -52,6 +55,7 @@ export interface CatWorkspaceServices {
   runQaChecks?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   lookupSegmentContext?: (segment: CatSegment) => Promise<string>;
   lookupSegmentConcordance?: (segment: CatSegment) => Promise<CatSegmentConcordanceResult>;
+  lookupSegmentVisualContext?: (segment: CatSegment) => Promise<CatSegmentVisualContextResult>;
   generateAiRecommendation?: (
     segment: CatSegment,
     targetText: string,
@@ -82,11 +86,13 @@ export interface CatWorkspaceViewProps {
   commentPostError?: string;
   isLookingUpContext?: boolean;
   isConcordanceLoading?: boolean;
+  isVisualContextLoading?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   canLookupContext?: boolean;
   canUseAiRecommendation?: boolean;
   showAgentContext?: boolean;
+  showVisualContext?: boolean;
   dirtySegmentIds?: ReadonlySet<string>;
   className?: string;
   queueSearch?: string;

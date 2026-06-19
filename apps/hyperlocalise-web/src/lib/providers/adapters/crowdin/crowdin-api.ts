@@ -85,6 +85,31 @@ export interface CrowdinSourceString {
   labelIds: number[] | null;
 }
 
+export interface CrowdinScreenshotTagPosition {
+  x?: number | null;
+  y?: number | null;
+  width?: number | null;
+  height?: number | null;
+}
+
+export interface CrowdinScreenshotTag {
+  id: number;
+  screenshotId: number;
+  stringId: number;
+  position?: CrowdinScreenshotTagPosition | null;
+}
+
+export interface CrowdinScreenshot {
+  id: number;
+  webUrl: string;
+  name: string;
+  size?: {
+    width: number;
+    height: number;
+  } | null;
+  tags?: CrowdinScreenshotTag[] | null;
+}
+
 export interface CrowdinLanguageRef {
   id: string;
   name?: string;
@@ -575,6 +600,57 @@ export class CrowdinApiClient {
    *
    * Supported filters: `fileId`, `taskId`, or `croql` (mutually exclusive with each other).
    */
+  async listScreenshots(
+    projectId: number,
+    options?: {
+      stringIds?: number[];
+      maxItems?: number;
+    },
+  ): Promise<CrowdinScreenshot[]> {
+    const screenshots: CrowdinScreenshot[] = [];
+    let offset = 0;
+    const pageLimit = 25;
+
+    while (true) {
+      const remaining =
+        options?.maxItems === undefined
+          ? pageLimit
+          : Math.max(options.maxItems - screenshots.length, 0);
+      if (options?.maxItems !== undefined && remaining === 0) {
+        break;
+      }
+
+      const params = new URLSearchParams({
+        limit: String(Math.min(remaining, pageLimit)),
+        offset: String(offset),
+      });
+      if (options?.stringIds?.length) {
+        params.set("stringIds", options.stringIds.join(","));
+      }
+
+      const response = await this.get<CrowdinListResponse<CrowdinScreenshot>>(
+        `/projects/${projectId}/screenshots?${params.toString()}`,
+      );
+      const page = response.data.map((item) => item.data);
+      screenshots.push(...page);
+
+      if (
+        page.length < Math.min(remaining, pageLimit) ||
+        (options?.maxItems !== undefined && screenshots.length >= options.maxItems)
+      ) {
+        break;
+      }
+
+      offset += page.length;
+    }
+
+    if (options?.maxItems !== undefined && screenshots.length > options.maxItems) {
+      return screenshots.slice(0, options.maxItems);
+    }
+
+    return screenshots;
+  }
+
   async listSourceStrings(
     projectId: number,
     options?: {

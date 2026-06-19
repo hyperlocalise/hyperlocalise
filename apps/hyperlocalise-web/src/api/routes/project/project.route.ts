@@ -51,6 +51,7 @@ import {
   projectFileCatRecommendationBodySchema,
   projectFileCatStatusBodySchema,
   projectFileCatTranslationBodySchema,
+  projectFileCatVisualContextBodySchema,
   projectFileDetailQuerySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
@@ -88,6 +89,7 @@ import {
 import { createJobRoutes } from "./job.route";
 import { generateCatAiRecommendation } from "@/lib/translation/generate-cat-ai-recommendation";
 import { loadCatSegmentConcordance } from "@/lib/translation/load-cat-segment-concordance";
+import { loadCatSegmentVisualContext } from "@/lib/translation/load-cat-segment-visual-context";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 type ProjectUpdateErrorCode =
@@ -350,6 +352,16 @@ const validateProjectFileCatCommentBody = validator("json", (value, c) => {
 
 const validateProjectFileCatConcordanceBody = validator("json", (value, c) => {
   const parsed = projectFileCatConcordanceBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatVisualContextBody = validator("json", (value, c) => {
+  const parsed = projectFileCatVisualContextBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -711,6 +723,41 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           });
 
           return c.json({ concordance }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/visual-context",
+      validateProjectParams,
+      validateProjectFileCatVisualContextBody,
+      async (c) => {
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          return badRequestResponse(
+            c,
+            "visual_context_unavailable",
+            "In-context preview is only available for connected TMS provider projects.",
+          );
+        }
+
+        try {
+          const visualContext = await loadCatSegmentVisualContext({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            providerKind: target.providerKind,
+            externalProjectId: target.externalProjectId,
+            externalStringId: body.externalStringId,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+
+          return c.json({ visualContext }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }

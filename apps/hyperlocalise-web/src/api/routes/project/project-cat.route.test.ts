@@ -23,6 +23,7 @@ const {
   saveTmsProviderLiveCatTranslationMock,
   saveTmsProviderLiveCatCommentMock,
   loadCatSegmentConcordanceMock,
+  loadCatSegmentVisualContextMock,
   generateCatAiRecommendationMock,
   ensureOrganizationProjectRecordMock,
 } = vi.hoisted(() => ({
@@ -31,12 +32,17 @@ const {
   saveTmsProviderLiveCatTranslationMock: vi.fn(),
   saveTmsProviderLiveCatCommentMock: vi.fn(),
   loadCatSegmentConcordanceMock: vi.fn(),
+  loadCatSegmentVisualContextMock: vi.fn(),
   generateCatAiRecommendationMock: vi.fn(),
   ensureOrganizationProjectRecordMock: vi.fn(),
 }));
 
 vi.mock("@/lib/translation/load-cat-segment-concordance", () => ({
   loadCatSegmentConcordance: (...args: unknown[]) => loadCatSegmentConcordanceMock(...args),
+}));
+
+vi.mock("@/lib/translation/load-cat-segment-visual-context", () => ({
+  loadCatSegmentVisualContext: (...args: unknown[]) => loadCatSegmentVisualContextMock(...args),
 }));
 
 vi.mock("@/lib/translation/generate-cat-ai-recommendation", () => ({
@@ -209,6 +215,87 @@ describe("project file CAT routes", () => {
         sourceText: "Hello workspace",
       }),
     );
+  });
+
+  it("loads provider visual context for TMS segments", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    getTmsProviderConnectionMock.mockResolvedValue({
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      validationStatus: "valid",
+      validationMessage: null,
+    });
+    loadCatSegmentVisualContextMock.mockResolvedValue({
+      screenshots: [
+        {
+          id: "12",
+          name: "Checkout",
+          imageUrl: "https://example.com/screen.jpg",
+          width: 200,
+          height: 400,
+          markers: [{ left: 10, top: 10, width: 25, height: 5 }],
+        },
+      ],
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat["visual-context"].$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "home.json",
+          externalStringId: "99",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({
+      visualContext: {
+        screenshots: [
+          expect.objectContaining({
+            id: "12",
+            imageUrl: "https://example.com/screen.jpg",
+          }),
+        ],
+      },
+    });
+    expect(loadCatSegmentVisualContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        providerKind: "crowdin",
+        externalProjectId: "42",
+        externalStringId: "99",
+      }),
+    );
+  });
+
+  it("rejects visual context for native projects", async () => {
+    const { identity, project } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat["visual-context"].$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath: "home.json",
+          externalStringId: "segment-1",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "visual_context_unavailable" });
   });
 
   it("returns Crowdin CAT content for an encoded provider project", async () => {

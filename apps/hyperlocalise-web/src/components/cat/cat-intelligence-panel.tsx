@@ -24,6 +24,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { catIntelligencePanelMessages } from "./cat.messages";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
+import { CatVisualContextPanel } from "./cat-visual-context-panel";
 import type {
   CatGlossaryTerm,
   CatSegmentIntelligence,
@@ -197,7 +198,9 @@ export function CatIntelligencePanel({
   intelligence,
   isLookingUpContext = false,
   isConcordanceLoading = false,
+  isVisualContextLoading = false,
   showAgentContext = false,
+  showVisualContext = false,
   canEditTranslations = true,
   onUseTmMatch,
   onUseGlossaryTerm,
@@ -205,7 +208,9 @@ export function CatIntelligencePanel({
   intelligence: CatSegmentIntelligence;
   isLookingUpContext?: boolean;
   isConcordanceLoading?: boolean;
+  isVisualContextLoading?: boolean;
   showAgentContext?: boolean;
+  showVisualContext?: boolean;
   canEditTranslations?: boolean;
   onUseTmMatch?: (match: CatTranslationMemoryMatch) => void;
   onUseGlossaryTerm?: (term: CatGlossaryTerm) => void;
@@ -257,6 +262,12 @@ export function CatIntelligencePanel({
 
       <ScrollArea className="min-h-0 flex-1">
         <div className="space-y-5 p-4">
+          <CatVisualContextPanel
+            visualContext={intelligence.visualContext}
+            isLoading={isVisualContextLoading}
+            showPanel={showVisualContext}
+          />
+
           <PanelSection title={intl.formatMessage(catIntelligencePanelMessages.fileContextTitle)}>
             {hasFileContext ? (
               <MarkdownContent

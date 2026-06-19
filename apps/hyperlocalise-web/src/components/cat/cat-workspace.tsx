@@ -46,11 +46,13 @@ export function CatWorkspaceView({
   commentPostError,
   isLookingUpContext = false,
   isConcordanceLoading = false,
+  isVisualContextLoading = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   canLookupContext = false,
   canUseAiRecommendation = false,
   showAgentContext = false,
+  showVisualContext = false,
   dirtySegmentIds,
   className,
   queueSearch,
@@ -213,7 +215,9 @@ export function CatWorkspaceView({
         intelligence={selectedSegmentIntelligence}
         isLookingUpContext={isLookingUpContext}
         isConcordanceLoading={isConcordanceLoading}
+        isVisualContextLoading={isVisualContextLoading}
         showAgentContext={showAgentContext}
+        showVisualContext={showVisualContext}
         canEditTranslations={fullState.canEditTranslations !== false}
         onUseTmMatch={(match) => editing.onUseTmMatch(selectedSegment.id, match)}
         onUseGlossaryTerm={(term) =>
