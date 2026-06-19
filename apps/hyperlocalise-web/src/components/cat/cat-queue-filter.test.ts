@@ -2,6 +2,7 @@ import { describe, expect, it } from "vite-plus/test";
 
 import {
   filterCatQueueSegments,
+  findSegmentIdByKeyOrId,
   resolveSelectedSegmentId,
   segmentMatchesQueueFilter,
 } from "./cat-queue-filter";
@@ -83,6 +84,21 @@ describe("segmentMatchesQueueFilter", () => {
     expect(filterCatQueueSegments(segments, "reviewed").map((segment) => segment.id)).toEqual([
       "b",
     ]);
+  });
+});
+
+describe("findSegmentIdByKeyOrId", () => {
+  const segments = [
+    createSegment({ id: "seg-1", key: "alpha" }),
+    createSegment({ id: "seg-2", key: "beta" }),
+  ];
+
+  it("returns null when the segment is not loaded yet", () => {
+    expect(findSegmentIdByKeyOrId([], "beta")).toBeNull();
+  });
+
+  it("resolves by segment key", () => {
+    expect(findSegmentIdByKeyOrId(segments, "beta")).toBe("seg-2");
   });
 });
 

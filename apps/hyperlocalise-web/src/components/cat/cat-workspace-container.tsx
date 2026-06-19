@@ -35,6 +35,7 @@ import {
 } from "./cat-dirty-state";
 import {
   filterCatQueueSegments,
+  findSegmentIdByKeyOrId,
   resolveSelectedSegmentId,
   type CatQueueFilter,
 } from "./cat-queue-filter";
@@ -295,7 +296,7 @@ export function CatWorkspaceContainer({
   const [queueFilter, setQueueFilter] = useState<CatQueueFilter>("all");
   const [checkedSegmentIds, setCheckedSegmentIds] = useState<ReadonlySet<string>>(() => new Set());
   const [isBulkActionPending, setIsBulkActionPending] = useState(false);
-  const initialSegmentJumpAppliedRef = useRef(Boolean(initialSegmentKeyOrId));
+  const initialSegmentJumpAppliedRef = useRef(false);
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
@@ -349,6 +350,10 @@ export function CatWorkspaceContainer({
   );
 
   useEffect(() => {
+    setCheckedSegmentIds(new Set());
+  }, [queueFilter]);
+
+  useEffect(() => {
     setCheckedSegmentIds((current) => {
       const visibleIds = new Set(state.segments.map((segment) => segment.id));
       const next = new Set([...current].filter((segmentId) => visibleIds.has(segmentId)));
@@ -363,15 +368,14 @@ export function CatWorkspaceContainer({
   useEffect(() => {
     setState((current) => {
       const merged = mergeCatWorkspaceState(previousInitialStateRef.current, current, initialState);
-      if (initialSegmentKeyOrId && !initialSegmentJumpAppliedRef.current) {
+      const matchedSegmentId = initialSegmentKeyOrId
+        ? findSegmentIdByKeyOrId(merged.segments, initialSegmentKeyOrId)
+        : null;
+      if (matchedSegmentId && !initialSegmentJumpAppliedRef.current) {
         initialSegmentJumpAppliedRef.current = true;
         return {
           ...merged,
-          selectedSegmentId: resolveSelectedSegmentId(
-            merged.segments,
-            initialSegmentKeyOrId,
-            merged.selectedSegmentId,
-          ),
+          selectedSegmentId: matchedSegmentId,
         };
       }
 

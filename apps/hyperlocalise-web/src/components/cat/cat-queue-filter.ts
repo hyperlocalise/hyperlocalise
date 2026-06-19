@@ -17,6 +17,14 @@ export const catQueueFilterValues: CatQueueFilter[] = [
   "skipped",
 ];
 
+export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: string) {
+  const match = segments.find(
+    (segment) => segment.id === segmentIdOrKey || segment.key === segmentIdOrKey,
+  );
+
+  return match?.id ?? null;
+}
+
 export function segmentHasOpenIssues(segment: CatSegment) {
   return (
     segment.comments?.some((comment) => comment.type === "issue" && comment.status === "open") ??
@@ -60,9 +68,5 @@ export function resolveSelectedSegmentId(
     return fallbackSegmentId;
   }
 
-  const match = segments.find(
-    (segment) => segment.id === preferredSegmentIdOrKey || segment.key === preferredSegmentIdOrKey,
-  );
-
-  return match?.id ?? fallbackSegmentId;
+  return findSegmentIdByKeyOrId(segments, preferredSegmentIdOrKey) ?? fallbackSegmentId;
 }
