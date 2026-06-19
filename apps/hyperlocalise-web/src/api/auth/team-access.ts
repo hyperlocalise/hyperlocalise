@@ -97,15 +97,63 @@ export async function buildAccessibleJobsWhere(auth: ApiAuthContext): Promise<SQ
   return and(organizationScope, inArray(schema.jobs.projectId, accessibleProjectIds))!;
 }
 
-/** Personal My Jobs queries scope by assignment/ownership instead of team membership. */
+function providerAssignedUsersMatch(candidates: string[]) {
+  const normalizedCandidates = Array.from(
+    new Set(candidates.map((candidate) => candidate.trim().toLowerCase()).filter(Boolean)),
+  );
+
+  if (normalizedCandidates.length === 0) {
+    return sql`false`;
+  }
+
+  const candidatePredicates = normalizedCandidates.map(
+    (candidate) => sql`
+      lower(assigned_user.value) = ${candidate}
+      or lower(assigned_user.value) like '%' || ${candidate} || '%'
+      or ${candidate} like '%' || lower(assigned_user.value) || '%'
+    `,
+  );
+
+  return sql`exists (
+    select 1
+    from jsonb_array_elements_text(${schema.externalJobDetails.assignedUsers}) as assigned_user(value)
+    where ${sql.join(candidatePredicates, sql` or `)}
+  )`;
+}
+
+function buildPersonalJobRelationshipWhere(input: {
+  userId: string;
+  relationship: "assigned" | "created";
+  providerAssigneeCandidates?: string[];
+}) {
+  if (input.relationship === "assigned") {
+    return or(
+      eq(schema.jobs.ownerUserId, input.userId),
+      providerAssignedUsersMatch(input.providerAssigneeCandidates ?? []),
+    )!;
+  }
+
+  return eq(schema.jobs.createdByUserId, input.userId);
+}
+
 export async function buildOrganizationJobsListWhere(
   auth: ApiAuthContext,
-  options?: { relationship?: "assigned" | "created" },
+  options?: {
+    relationship?: "assigned" | "created";
+    providerAssigneeCandidates?: string[];
+  },
 ): Promise<SQL> {
   const organizationScope = eq(schema.jobs.organizationId, auth.organization.localOrganizationId);
 
   if (options?.relationship === "assigned" || options?.relationship === "created") {
-    return organizationScope;
+    return and(
+      organizationScope,
+      buildPersonalJobRelationshipWhere({
+        userId: auth.user.localUserId,
+        relationship: options.relationship,
+        providerAssigneeCandidates: options.providerAssigneeCandidates,
+      }),
+    )!;
   }
 
   return buildAccessibleJobsWhere(auth);

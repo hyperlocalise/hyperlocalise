@@ -173,6 +173,7 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
         and(
           await buildOrganizationJobsListWhere(auth, {
             relationship: query.relationship,
+            providerAssigneeCandidates,
           }),
           ...visibleSyncedJobConditions(),
           ...jobListFilters({
@@ -180,9 +181,6 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
             type: query.type,
             status: query.status,
             open: query.open,
-            relationship: query.relationship,
-            userId: auth.user.localUserId,
-            providerAssigneeCandidates,
           }),
         ),
       )
