@@ -83,7 +83,7 @@ function crowdinTokenBundle(
     accessToken: "fresh-access-token",
     refreshToken: "refresh-token",
     tokenType: "bearer",
-    expiresAt: "2026-01-01T01:00:00.000Z",
+    expiresAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
     ...overrides,
   };
 }
@@ -321,7 +321,11 @@ describe("workspace job list", () => {
         fullName: "Hannah Provider",
       },
     });
-    expect(isErr(userConnection)).toBe(false);
+    if (isErr(userConnection)) {
+      throw new Error(
+        `upsertCrowdinUserConnection failed: ${JSON.stringify(userConnection.error)}`,
+      );
+    }
 
     await upsertExternalTmsJobRecords({
       organizationId,
