@@ -1,5 +1,3 @@
-"use client";
-
 import { defineMessages } from "react-intl";
 
 export const blogMessages = defineMessages({
@@ -17,6 +15,11 @@ export const blogMessages = defineMessages({
     defaultMessage: "No posts yet. Check back soon.",
     id: "joOR4TGsxW",
     description: "Empty state on the blog index when there are no published posts",
+  },
+  relatedPostsTitle: {
+    defaultMessage: "Related posts",
+    id: "jhwzOupLZL",
+    description: "Heading for related blog posts on a blog post page",
   },
   coverImageAlt: {
     defaultMessage: "Cover image for {title}",

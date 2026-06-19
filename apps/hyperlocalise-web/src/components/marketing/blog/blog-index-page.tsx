@@ -1,12 +1,10 @@
-"use client";
-
 import type { Post } from "@/lib/blog/blog-post";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { BlogPostCard } from "@/components/marketing/blog/blog-post-card";
 import { blogMessages } from "@/components/marketing/blog/blog.messages";
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography";
-import { FormattedMessage } from "react-intl";
+import { getIntlShape } from "@/lib/app-i18n/intl";
 
 type BlogIndexPageProps = {
   posts: Post[];
@@ -14,15 +12,17 @@ type BlogIndexPageProps = {
 };
 
 export function BlogIndexPage({ posts, lang }: BlogIndexPageProps) {
+  const intl = getIntlShape(lang);
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <main className="mx-auto max-w-7xl">
         <section className="px-5 pb-10 pt-12 text-center sm:px-8 lg:px-10 lg:pt-16">
           <TypographyH1 className="text-4xl tracking-tight sm:text-5xl">
-            <FormattedMessage {...blogMessages.indexTitle} />
+            {intl.formatMessage(blogMessages.indexTitle)}
           </TypographyH1>
           <TypographyMuted className="mx-auto mt-4 max-w-2xl text-base sm:text-lg">
-            <FormattedMessage {...blogMessages.indexTagline} />
+            {intl.formatMessage(blogMessages.indexTagline)}
           </TypographyMuted>
         </section>
 
@@ -35,7 +35,7 @@ export function BlogIndexPage({ posts, lang }: BlogIndexPageProps) {
             </div>
           ) : (
             <TypographyMuted className="text-center text-base">
-              <FormattedMessage {...blogMessages.indexEmptyState} />
+              {intl.formatMessage(blogMessages.indexEmptyState)}
             </TypographyMuted>
           )}
         </section>

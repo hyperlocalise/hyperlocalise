@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { BlogPostPage } from "@/components/marketing/blog/blog-post-page";
 import { JsonLd } from "@/components/seo/json-ld";
 import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
-import { getPostBySlug, getPostSlugs } from "@/lib/blog/blog-post";
+import { getPostBySlug, getPostSlugs, getRelevantPosts } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { getBlogPostCoverAbsoluteUrl } from "@/lib/blog/get-blog-post-cover-url";
 import { markdownToHtml } from "@/lib/blog/markdown-to-html";
@@ -93,11 +93,12 @@ export default async function BlogPostRoute({ params }: BlogPostRouteProps) {
 
   const htmlContent = await markdownToHtml(post.content);
   const jsonLd = buildArticleJsonLd(post, lang);
+  const relatedPosts = getRelevantPosts(slug, lang);
 
   return (
     <>
       <JsonLd data={jsonLd} />
-      <BlogPostPage htmlContent={htmlContent} lang={lang} post={post} />
+      <BlogPostPage htmlContent={htmlContent} lang={lang} post={post} relatedPosts={relatedPosts} />
     </>
   );
 }

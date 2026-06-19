@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import matter from "gray-matter";
 
+import { DEFAULT_APP_LOCALE, normalizeAppLocale } from "@/lib/app-i18n/locales";
 import { isValidBlogPostSlug, normalizeBlogPostSlug } from "@/lib/blog/blog-post-path";
 
 export interface Post {
@@ -32,7 +33,8 @@ function frontmatterString(value: unknown, fallback = ""): string {
 }
 
 function postsDirectory(locale: string) {
-  return join(process.cwd(), "_posts", locale);
+  const safeLocale = normalizeAppLocale(locale) ?? DEFAULT_APP_LOCALE;
+  return join(process.cwd(), "_posts", safeLocale);
 }
 
 function normalizePost(slug: string, data: Record<string, unknown>, content: string): Post {

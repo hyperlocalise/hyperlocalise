@@ -1,9 +1,16 @@
 import type { Post } from "@/lib/blog/blog-post";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
+import { BlogPostCard } from "@/components/marketing/blog/blog-post-card";
 import { BlogPostCover } from "@/components/marketing/blog/blog-post-cover";
+import { blogMessages } from "@/components/marketing/blog/blog.messages";
 import { formatBlogPostDate } from "@/components/marketing/blog/format-blog-post-date";
-import { TypographyH1, TypographyMuted, TypographyP } from "@/components/ui/typography";
+import {
+  TypographyH1,
+  TypographyH2,
+  TypographyMuted,
+  TypographyP,
+} from "@/components/ui/typography";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
 import markdownStyles from "@/app/[lang]/(marketing)/blog/[slug]/markdown.module.css";
@@ -12,9 +19,10 @@ type BlogPostPageProps = {
   post: Post;
   lang: string;
   htmlContent: string;
+  relatedPosts: Post[];
 };
 
-export function BlogPostPage({ post, lang, htmlContent }: BlogPostPageProps) {
+export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPostPageProps) {
   const intl = getIntlShape(lang);
 
   return (
@@ -48,6 +56,21 @@ export function BlogPostPage({ post, lang, htmlContent }: BlogPostPageProps) {
             dangerouslySetInnerHTML={{ __html: htmlContent }}
           />
         </article>
+
+        {relatedPosts.length > 0 ? (
+          <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
+            <div className="mx-auto max-w-3xl">
+              <TypographyH2 className="text-2xl tracking-tight">
+                {intl.formatMessage(blogMessages.relatedPostsTitle)}
+              </TypographyH2>
+              <div className="mt-8 grid grid-cols-1 gap-8 md:grid-cols-2">
+                {relatedPosts.map((relatedPost) => (
+                  <BlogPostCard key={relatedPost.slug} lang={lang} post={relatedPost} />
+                ))}
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         <section className="border-t border-border/70 px-5 py-16 sm:px-8 lg:px-10">
           <MarketingFooter columns={footerColumns} />
