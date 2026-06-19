@@ -575,16 +575,15 @@ func TestParseASTSelectOrdinal(t *testing.T) {
 			continue
 		}
 		if len(opt.Value) != 2 {
-			t.Errorf("expected 2 elements in option %q, got %d", opt.Selector, len(opt.Value))
+			t.Errorf("expected 2 elements (pound + literal) in option %q, got %d", opt.Selector, len(opt.Value))
 			continue
 		}
 		if _, ok := opt.Value[0].(PoundElement); !ok {
-			t.Errorf("expected PoundElement for option %q, got %v", opt.Selector, opt.Value[0])
-			continue
+			t.Errorf("expected first element to be PoundElement for option %q, got %T", opt.Selector, opt.Value[0])
 		}
 		lit, ok := opt.Value[1].(LiteralElement)
 		if !ok || lit.Value != suffix {
-			t.Errorf("expected literal %q for option %q, got %v", suffix, opt.Selector, opt.Value[1])
+			t.Errorf("expected literal suffix %q for option %q, got %v", suffix, opt.Selector, opt.Value[1])
 		}
 	}
 }
