@@ -754,6 +754,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             providerKind: target.providerKind,
             externalProjectId: target.externalProjectId,
             externalStringId: body.externalStringId,
+            sourcePath: body.sourcePath,
             actorUserId: c.var.auth.user.localUserId,
           });
 

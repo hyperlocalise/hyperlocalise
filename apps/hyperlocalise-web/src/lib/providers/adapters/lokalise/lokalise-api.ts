@@ -718,8 +718,13 @@ export class LokaliseApiClient {
     const maxItems = options?.maxItems ?? 8;
 
     while (screenshots.length < maxItems) {
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        filter_keys: String(keyId),
+      });
       const response = await this.get<LokaliseScreenshotsListResponse>(
-        `/projects/${encodeURIComponent(projectId)}/screenshots?page=${page}&limit=${limit}`,
+        `/projects/${encodeURIComponent(projectId)}/screenshots?${params.toString()}`,
       );
       const pageItems = (response.screenshots ?? [])
         .map(normalizeLokaliseScreenshot)

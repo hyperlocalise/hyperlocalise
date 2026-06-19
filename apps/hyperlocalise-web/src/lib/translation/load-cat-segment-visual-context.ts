@@ -12,6 +12,8 @@ export async function loadCatSegmentVisualContext(input: {
   providerKind: ExternalTmsProviderKind;
   externalProjectId: string;
   externalStringId: string;
+  // Kept at this boundary for provider implementations that need file-scoped lookups.
+  sourcePath?: string;
   actorUserId?: string | null;
 }): Promise<CatVisualContext> {
   const context = await tryLoadActiveTmsProviderContext(input.organizationId, {

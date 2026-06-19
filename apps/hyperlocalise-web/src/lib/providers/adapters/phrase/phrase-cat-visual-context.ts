@@ -1,7 +1,7 @@
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import {
-  pixelRectToPercentMarkers,
   type CatVisualContext,
+  type CatVisualContextMarker,
   type CatVisualContextScreenshot,
 } from "@/lib/translation/cat-visual-context";
 
@@ -78,17 +78,26 @@ function mapPhraseScreenshot(
   }
 
   const mappedMarkers = markers
-    .map((marker) =>
-      pixelRectToPercentMarkers({
-        width: null,
-        height: null,
+    .map((marker): CatVisualContextMarker | null => {
+      if (
+        !Number.isFinite(marker.left) ||
+        !Number.isFinite(marker.top) ||
+        !Number.isFinite(marker.width) ||
+        !Number.isFinite(marker.height) ||
+        marker.width <= 0 ||
+        marker.height <= 0
+      ) {
+        return null;
+      }
+
+      return {
         left: marker.left,
         top: marker.top,
-        widthPx: marker.width,
-        heightPx: marker.height,
-      }),
-    )
-    .filter((marker): marker is NonNullable<typeof marker> => marker != null);
+        width: marker.width,
+        height: marker.height,
+      };
+    })
+    .filter((marker): marker is CatVisualContextMarker => marker != null);
 
   return {
     id: screenshot.id,

@@ -770,6 +770,7 @@ export function CatWorkspaceContainer({
 
     const existingVisualContext = stateRef.current.segmentIntelligence?.[segmentId]?.visualContext;
     if (existingVisualContext) {
+      setIsLoadingVisualContext(false);
       return;
     }
 

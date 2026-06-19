@@ -270,6 +270,7 @@ describe("project file CAT routes", () => {
         providerKind: "crowdin",
         externalProjectId: "42",
         externalStringId: "99",
+        sourcePath: "home.json",
       }),
     );
   });
