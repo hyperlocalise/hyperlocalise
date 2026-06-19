@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { openJobStatusValues } from "@/api/routes/project/job.schema";
-import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
+import { buildAccessibleJobsWhere, buildOrganizationJobsListWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
@@ -171,16 +171,16 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
       )
       .where(
         and(
-          await buildAccessibleJobsWhere(auth),
+          await buildOrganizationJobsListWhere(auth, {
+            relationship: query.relationship,
+            providerAssigneeCandidates,
+          }),
           ...visibleSyncedJobConditions(),
           ...jobListFilters({
             kind: query.kind,
             type: query.type,
             status: query.status,
             open: query.open,
-            relationship: query.relationship,
-            userId: auth.user.localUserId,
-            providerAssigneeCandidates,
           }),
         ),
       )

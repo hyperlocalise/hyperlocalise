@@ -8,6 +8,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 import { app } from "@/api/app";
 import { db, schema } from "@/lib/database";
 import { upsertExternalTmsJobRecords } from "@/lib/projects/external-tms/external-tms-sync-service";
+import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { ensureDefaultWorkspaceTeam } from "@/lib/teams/default-workspace-team";
 
 import { createProjectTestFixture } from "./project.fixture";
 import type { WorkspaceJobsResponse } from "./job.schema";
@@ -149,5 +151,100 @@ describe("workspace job list", () => {
     expect(createdJobIds).not.toEqual(
       expect.arrayContaining([expect.stringContaining("assigned-to-current-user")]),
     );
+  });
+
+  it("returns assigned provider jobs for translators without team project access", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const translator = projectFixture.createWorkosIdentityForOrganization(
+      admin.organization,
+      "translator",
+    );
+
+    await projectFixture.authHeadersFor(admin);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const defaultTeam = await ensureDefaultWorkspaceTeam(organizationId);
+    const providerProjectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId: "provider-project",
+    });
+
+    await db.insert(schema.projects).values({
+      id: providerProjectId,
+      organizationId,
+      teamId: defaultTeam.id,
+      name: "Provider project",
+      description: "",
+      translationContext: "",
+      source: "external_tms",
+      externalProviderKind: "crowdin",
+      externalProjectId: "provider-project",
+      sourceLocale: "en-US",
+      targetLocales: ["fr-FR"],
+      isActive: true,
+    });
+
+    await upsertExternalTmsJobRecords({
+      organizationId,
+      projectId: providerProjectId,
+      providerKind: "crowdin",
+      externalProjectId: "provider-project",
+      tasks: [
+        {
+          externalJobId: "assigned-to-translator",
+          externalStatus: "todo",
+          title: "Assigned to translator",
+          assignedUsers: [translator.user.email],
+        },
+        {
+          externalJobId: "assigned-to-someone-else",
+          externalStatus: "todo",
+          title: "Assigned to someone else",
+          assignedUsers: ["someone-else@example.com"],
+        },
+      ],
+    });
+
+    const translatorHeaders = await projectFixture.authHeadersFor(translator);
+
+    const assignedResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: translator.organization.slug ?? "missing-slug" },
+        query: { relationship: "assigned", limit: "100" },
+      },
+      { headers: translatorHeaders },
+    );
+
+    expect(assignedResponse.status).toBe(200);
+    const assignedBody = (await assignedResponse.json()) as WorkspaceJobsResponse;
+    expect(assignedBody.jobs.map((job) => job.id)).toEqual(
+      expect.arrayContaining([expect.stringContaining("assigned-to-translator")]),
+    );
+    expect(assignedBody.jobs.map((job) => job.id)).not.toEqual(
+      expect.arrayContaining([expect.stringContaining("assigned-to-someone-else")]),
+    );
+
+    const workspaceResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: translator.organization.slug ?? "missing-slug" },
+        query: { limit: "100" },
+      },
+      { headers: translatorHeaders },
+    );
+
+    expect(workspaceResponse.status).toBe(200);
+    const workspaceBody = (await workspaceResponse.json()) as WorkspaceJobsResponse;
+    expect(workspaceBody.jobs).toEqual([]);
+
+    const createdResponse = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: translator.organization.slug ?? "missing-slug" },
+        query: { relationship: "created", limit: "100" },
+      },
+      { headers: translatorHeaders },
+    );
+
+    expect(createdResponse.status).toBe(200);
+    const createdBody = (await createdResponse.json()) as WorkspaceJobsResponse;
+    expect(createdBody.jobs).toEqual([]);
   });
 });
