@@ -101,7 +101,7 @@ func RawHTMLSyntaxStartCount(s string) int {
 func isAllHTMLWhitespace(s string) bool {
 	for i := 0; i < len(s); {
 		if s[i] < 0x80 {
-			if s[i] != ' ' && s[i] != '\t' && s[i] != '\n' && s[i] != '\r' {
+			if s[i] != ' ' && s[i] != '\t' && s[i] != '\n' && s[i] != '\r' && s[i] != '\f' {
 				return false
 			}
 			i++
@@ -265,8 +265,10 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			break
 		}
 
+		// BOLT OPTIMIZATION: Capture z.Raw() before any TagName calls to avoid buffer corruption.
+		rawBytes := z.Raw()
+
 		if skipDepth > 0 {
-			rawBytes := z.Raw()
 			switch tt {
 			case html.EndTagToken:
 				tn, _ := z.TagName()
@@ -286,46 +288,46 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		switch tt {
 		case html.DoctypeToken, html.CommentToken:
 			flushBuffer()
-			appendLiteral(string(z.Raw()))
+			appendLiteral(string(rawBytes))
 
 		case html.StartTagToken:
 			tn, _ := z.TagName()
 			if htmlSkipElements[string(tn)] {
 				flushBuffer()
 				skipDepth++
-				appendLiteral(string(z.Raw()))
+				appendLiteral(string(rawBytes))
 			} else if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(string(z.Raw()))
+				appendLiteral(string(rawBytes))
 			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(z.Raw(), attrName)
+				handleVoidTranslatable(rawBytes, attrName)
 			} else {
 				// Inline element: accumulate into the text buffer.
-				buffer.Write(z.Raw())
+				buffer.Write(rawBytes)
 			}
 
 		case html.EndTagToken:
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(string(z.Raw()))
+				appendLiteral(string(rawBytes))
 			} else {
-				buffer.Write(z.Raw())
+				buffer.Write(rawBytes)
 			}
 
 		case html.SelfClosingTagToken:
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(string(z.Raw()))
+				appendLiteral(string(rawBytes))
 			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(z.Raw(), attrName)
+				handleVoidTranslatable(rawBytes, attrName)
 			} else {
-				buffer.Write(z.Raw())
+				buffer.Write(rawBytes)
 			}
 
 		case html.TextToken:
-			buffer.Write(z.Raw())
+			buffer.Write(rawBytes)
 		}
 	}
 
