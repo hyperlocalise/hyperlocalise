@@ -234,7 +234,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		})
 	}
 
-	handleVoidTranslatable := func(raw string, attrName string) {
+	handleVoidTranslatable := func(raw, attrName string) {
 		prefix, rawVal, suffix, found := splitVoidAttrTag(raw, attrName)
 		decoded := html.UnescapeString(rawVal)
 		if found && isTranslatableChunk(decoded) {
@@ -264,10 +264,13 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			break
 		}
 
-		// Copy raw bytes before any TagName call; TagName may mutate the Raw() slice.
-		raw := string(z.Raw())
+		// BOLT OPTIMIZATION: Use z.Raw() directly for TextToken to avoid allocations.
+		// For tag tokens, we must copy z.Raw() before calling z.TagName() because
+		// TagName may modify the tokenizer's internal buffer.
+		rawBytes := z.Raw()
 
 		if skipDepth > 0 {
+			raw := string(rawBytes)
 			switch tt {
 			case html.EndTagToken:
 				tn, _ := z.TagName()
@@ -285,11 +288,15 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		}
 
 		switch tt {
+		case html.TextToken:
+			buffer.Write(rawBytes)
+
 		case html.DoctypeToken, html.CommentToken:
 			flushBuffer()
-			appendLiteral(raw)
+			appendLiteral(string(rawBytes))
 
 		case html.StartTagToken:
+			raw := string(rawBytes)
 			tn, _ := z.TagName()
 			if htmlSkipElements[string(tn)] {
 				flushBuffer()
@@ -306,6 +313,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			}
 
 		case html.EndTagToken:
+			raw := string(rawBytes)
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
@@ -315,6 +323,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			}
 
 		case html.SelfClosingTagToken:
+			raw := string(rawBytes)
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
@@ -324,9 +333,6 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			} else {
 				buffer.WriteString(raw)
 			}
-
-		case html.TextToken:
-			buffer.WriteString(raw)
 		}
 	}
 
