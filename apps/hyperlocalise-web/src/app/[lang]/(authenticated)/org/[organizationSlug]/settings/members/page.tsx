@@ -1,14 +1,10 @@
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
+import { redirect } from "next/navigation";
 
-import { MembersSettingsPageContent } from "../_components/members-page-content";
-
-export default async function MembersSettingsPage({
+export default async function MembersSettingsRedirectPage({
   params,
 }: {
   params: Promise<{ organizationSlug: string }>;
 }) {
   const { organizationSlug } = await params;
-  await requireAppAuthContext({ organizationSlug });
-
-  return <MembersSettingsPageContent organizationSlug={organizationSlug} />;
+  redirect(`/org/${organizationSlug}/members`);
 }

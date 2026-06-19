@@ -31,6 +31,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
+import { WorkspacePeopleNav } from "../../_components/workspace-people-nav";
 import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 
 import { AddTeamMemberDialog } from "./add-team-member-dialog";
@@ -118,6 +119,8 @@ export function TeamDetailPageView({
 
   return (
     <WorkspacePageShell>
+      <WorkspacePeopleNav organizationSlug={organizationSlug} />
+
       <div className="flex flex-col gap-4">
         <Button
           nativeButton={false}
@@ -160,7 +163,15 @@ export function TeamDetailPageView({
           <div>
             <TypographyP className="text-sm font-medium text-foreground">Members</TypographyP>
             <TypographyP className="mt-1 text-sm text-foreground/52">
-              People assigned to this team can access its projects and jobs.
+              People assigned to this team can access its projects and jobs. Need someone new in the
+              workspace?{" "}
+              <Link
+                href={`/org/${organizationSlug}/members`}
+                className="font-medium text-foreground/72 underline-offset-4 hover:text-foreground hover:underline"
+              >
+                Invite a member
+              </Link>
+              .
             </TypographyP>
           </div>
           {pageState.canManageMembers ? (

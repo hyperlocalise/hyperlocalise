@@ -20,8 +20,11 @@ describe("getAppShellTitle", () => {
     ["/org/acme/glossaries", "Glossaries"],
     ["/org/acme/translation-memories", "Translation Memories"],
     ["/org/acme/integrations", "Integrations"],
+    ["/org/acme/teams", "Teams"],
+    ["/org/acme/teams/team_1", "team_1"],
+    ["/org/acme/members", "Members"],
     ["/org/acme/settings", "Settings"],
-    ["/org/acme/settings/members", "Team"],
+    ["/org/acme/settings/members", "Members"],
     ["/org/acme/settings/account", "Account"],
     ["/org/acme/settings/billing", "Billing"],
   ])("returns the route title for %s", (pathname, title) => {
@@ -40,10 +43,22 @@ describe("getAppShellBreadcrumbs", () => {
   });
 
   it("returns settings breadcrumbs for settings subpages", () => {
-    expect(getAppShellBreadcrumbs("/org/acme/settings/members")).toEqual([
+    expect(getAppShellBreadcrumbs("/org/acme/settings/account")).toEqual([
       { label: "Settings", href: "/org/acme/settings" },
-      { label: "Team" },
+      { label: "Account" },
     ]);
+  });
+
+  it("returns teams breadcrumbs for team detail pages", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/teams")).toEqual([{ label: "Teams" }]);
+    expect(getAppShellBreadcrumbs("/org/acme/teams/team_1")).toEqual([
+      { label: "Teams", href: "/org/acme/teams" },
+      { label: "team_1" },
+    ]);
+  });
+
+  it("returns members breadcrumbs", () => {
+    expect(getAppShellBreadcrumbs("/org/acme/members")).toEqual([{ label: "Members" }]);
   });
 
   it("returns project breadcrumbs with the project name", () => {

@@ -4,7 +4,6 @@ import {
   AiUserIcon,
   ArrowRight01Icon,
   Key01Icon,
-  UserGroupIcon,
   CreditCardIcon,
   Settings01Icon,
 } from "@hugeicons/core-free-icons";
@@ -47,13 +46,6 @@ const settingsRows = [
     description: "Profile details and workspace identity.",
     href: "account",
     icon: AiUserIcon,
-  },
-  {
-    label: "Members",
-    description: "Invite people to this workspace and manage their roles.",
-    href: "members",
-    icon: UserGroupIcon,
-    requiredCapability: "workspace:read" as const,
   },
   {
     label: "API Keys",

@@ -32,7 +32,8 @@ import { apiClient } from "@/lib/api-client-instance";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { cn } from "@/lib/primitives/cn";
 
-import { PageHeader } from "../../_components/workspace-resource-shared";
+import { WorkspacePeopleNav } from "../../_components/workspace-people-nav";
+import { PageHeader, WorkspacePageShell } from "../../_components/workspace-resource-shared";
 
 import {
   getMembershipStatusLabel,
@@ -140,7 +141,7 @@ function MembersTableHeader() {
   );
 }
 
-export function MembersSettingsPageContent({ organizationSlug }: { organizationSlug: string }) {
+export function MembersPageContent({ organizationSlug }: { organizationSlug: string }) {
   const queryClient = useQueryClient();
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
@@ -242,10 +243,12 @@ export function MembersSettingsPageContent({ organizationSlug }: { organizationS
   }
 
   return (
-    <main className="mx-auto flex w-full max-w-6xl flex-col gap-6">
+    <WorkspacePageShell>
+      <WorkspacePeopleNav organizationSlug={organizationSlug} />
+
       <PageHeader
         icon={UserGroupIcon}
-        label="Workspace settings"
+        label="Workspace"
         title="Members"
         description="Manage workspace access, invitations, and localization roles."
         actions={
@@ -506,6 +509,6 @@ export function MembersSettingsPageContent({ organizationSlug }: { organizationS
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </main>
+    </WorkspacePageShell>
   );
 }

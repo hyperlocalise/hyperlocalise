@@ -14,6 +14,7 @@ import {
   Settings01Icon,
   Task01Icon,
   UserGroupIcon,
+  UserMultiple02Icon,
   WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 import type { HugeiconsIcon } from "@hugeicons/react";
@@ -115,6 +116,12 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           description: "Create teams and assign workspace members",
         },
         {
+          label: "Members",
+          href: org("members"),
+          icon: UserMultiple02Icon,
+          description: "Invite people and manage workspace roles",
+        },
+        {
           label: "Settings",
           href: org("settings"),
           icon: Settings01Icon,
@@ -154,7 +161,7 @@ export function buildProjectNavigationItems(
   ] as const;
 }
 
-function stripAppLocalePrefix(pathname: string) {
+export function stripAppLocalePrefix(pathname: string) {
   const [, firstSegment, ...rest] = pathname.split("/");
   const locale = firstSegment ? normalizeAppLocale(firstSegment) : null;
 
@@ -223,12 +230,6 @@ export function isNavigationItemActive(
   }
 
   if (normalizedPathname.startsWith(`${itemPathname}/`)) {
-    if (itemPathname.endsWith("/settings")) {
-      const settingsSubpath = normalizedPathname.slice(itemPathname.length + 1);
-      if (settingsSubpath === "members" || settingsSubpath.startsWith("members/")) {
-        return false;
-      }
-    }
     return true;
   }
 

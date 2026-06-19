@@ -116,7 +116,7 @@ export function NavUser({
             Account
           </DropdownMenuItem>
           {showMembersLink ? (
-            <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/settings/members`} />}>
+            <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/members`} />}>
               <HugeiconsIcon icon={UserGroupIcon} strokeWidth={2} className="size-4" />
               Members
             </DropdownMenuItem>

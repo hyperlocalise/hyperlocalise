@@ -80,3 +80,29 @@ describe("navigation-config", () => {
     ).toBe(false);
   });
 });
+
+describe("workspace people navigation", () => {
+  it("marks teams active for team detail routes", () => {
+    const teamsHref = "/org/acme/teams";
+
+    expect(isNavigationItemActive("/org/acme/teams", teamsHref)).toBe(true);
+    expect(isNavigationItemActive("/org/acme/teams/team_1", teamsHref)).toBe(true);
+    expect(isNavigationItemActive("/org/acme/members", teamsHref)).toBe(false);
+  });
+
+  it("marks members active only on members routes", () => {
+    const membersHref = "/org/acme/members";
+
+    expect(isNavigationItemActive("/org/acme/members", membersHref)).toBe(true);
+    expect(isNavigationItemActive("/en/org/acme/members", membersHref)).toBe(true);
+    expect(isNavigationItemActive("/org/acme/teams", membersHref)).toBe(false);
+    expect(isNavigationItemActive("/org/acme/teams/team_1", membersHref)).toBe(false);
+  });
+
+  it("does not mark settings active on members routes", () => {
+    const settingsHref = "/org/acme/settings";
+
+    expect(isNavigationItemActive("/org/acme/members", settingsHref)).toBe(false);
+    expect(isNavigationItemActive("/org/acme/settings/account", settingsHref)).toBe(true);
+  });
+});
