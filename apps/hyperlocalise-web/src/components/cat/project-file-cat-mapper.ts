@@ -22,17 +22,15 @@ import type {
 type CatFile = ProjectFileCatResponse["catFile"];
 
 function mapSegmentComments(segment: ProjectFileCatSegment): CatSegmentComment[] {
-  return segment.comments
-    .toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .map((comment) => ({
-      id: comment.externalCommentId,
-      type: comment.type,
-      status: comment.status,
-      text: comment.text,
-      createdAt: comment.createdAt,
-      locale: comment.locale,
-      author: comment.author ?? null,
-    }));
+  return segment.comments.map((comment) => ({
+    id: comment.externalCommentId,
+    type: comment.type,
+    status: comment.status,
+    text: comment.text,
+    createdAt: comment.createdAt,
+    locale: comment.locale,
+    author: comment.author ?? null,
+  }));
 }
 
 export function segmentStatusFor(segment: ProjectFileCatSegment): CatSegment["status"] {
@@ -235,7 +233,7 @@ export function projectFileCatToWorkspaceState(
     breadcrumbs: [catFile.provider?.kind ?? "native", catFile.filename, catFile.targetLocale],
     primaryActionLabel: catFile.provider ? "Save to provider" : "Save translation",
     canEditTranslations: catFile.canEditTranslations,
-    canAddComments: Boolean(catFile.provider && catFile.canEditTranslations),
+    canAddComments: Boolean(catFile.provider?.kind === "crowdin" && catFile.canEditTranslations),
   };
 }
 
