@@ -36,6 +36,7 @@ export interface CatWorkspaceReview {
     segmentId: string,
     targetText: string,
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
+  onAddComment?: (segmentId: string, text: string) => void | Promise<void>;
   onAskQuestion: (segmentId: string) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;
   onSkip: (segmentId: string) => void;
@@ -72,6 +73,8 @@ export interface CatWorkspaceViewProps {
   dependencies: CatWorkspaceDependencies;
   isValidating?: boolean;
   isApproving?: boolean;
+  isPostingComment?: boolean;
+  commentPostError?: string;
   isLookingUpContext?: boolean;
   isConcordanceLoading?: boolean;
   isAiSuggestionLoading?: boolean;

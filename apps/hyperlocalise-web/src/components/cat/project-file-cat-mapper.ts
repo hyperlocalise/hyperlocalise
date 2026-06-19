@@ -14,11 +14,24 @@ import {
 import type {
   CatFormatCheck,
   CatSegment,
+  CatSegmentComment,
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/types";
 
 type CatFile = ProjectFileCatResponse["catFile"];
+
+function mapSegmentComments(segment: ProjectFileCatSegment): CatSegmentComment[] {
+  return segment.comments.map((comment) => ({
+    id: comment.externalCommentId,
+    type: comment.type,
+    status: comment.status,
+    text: comment.text,
+    createdAt: comment.createdAt,
+    locale: comment.locale,
+    author: comment.author ?? null,
+  }));
+}
 
 export function segmentStatusFor(segment: ProjectFileCatSegment): CatSegment["status"] {
   if (segment.target?.isApproved) {
@@ -196,6 +209,7 @@ export function projectFileCatToWorkspaceState(
       contextLabel: segment.context ?? undefined,
       status: segmentStatusFor(segment),
       tags,
+      comments: mapSegmentComments(segment),
     };
   });
 
@@ -219,6 +233,7 @@ export function projectFileCatToWorkspaceState(
     breadcrumbs: [catFile.provider?.kind ?? "native", catFile.filename, catFile.targetLocale],
     primaryActionLabel: catFile.provider ? "Save to provider" : "Save translation",
     canEditTranslations: catFile.canEditTranslations,
+    canAddComments: Boolean(catFile.provider?.kind === "crowdin" && catFile.canEditTranslations),
   };
 }
 

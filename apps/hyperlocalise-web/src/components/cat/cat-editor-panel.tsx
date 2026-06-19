@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import { ArrowLeft01Icon, ArrowRight01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { FormattedMessage, useIntl } from "react-intl";
+import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -31,11 +32,19 @@ function ShortcutKbd({ keys, className }: { keys: string[]; className?: string }
   );
 }
 
-interface CatEditorComment {
-  id: string;
-  author: string;
-  createdAtLabel: string;
-  body: string;
+function formatCommentTimestamp(intl: IntlShape, createdAt: string) {
+  const parsed = Date.parse(createdAt);
+  if (Number.isNaN(parsed)) {
+    return createdAt;
+  }
+
+  return intl.formatDate(parsed, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
 }
 
 export function CatEditorPanel({
@@ -50,11 +59,15 @@ export function CatEditorPanel({
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   canApprove = true,
+  canAddComment = false,
   canLookupContext = false,
   canUseAiRecommendation = false,
+  isPostingComment = false,
+  commentPostError,
   onTargetChange,
   onUseAiSuggestion,
   onApprove,
+  onAddComment,
   primaryActionLabel,
   onAskQuestion,
   onGenerateAiRecommendation,
@@ -75,11 +88,15 @@ export function CatEditorPanel({
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   canApprove?: boolean;
+  canAddComment?: boolean;
   canLookupContext?: boolean;
   canUseAiRecommendation?: boolean;
+  isPostingComment?: boolean;
+  commentPostError?: string;
   onTargetChange: (value: string) => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
+  onAddComment?: (text: string) => void | Promise<void>;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
   onGenerateAiRecommendation?: () => void;
@@ -93,12 +110,16 @@ export function CatEditorPanel({
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
-  const [commentsBySegmentId, setCommentsBySegmentId] = useState<
-    Record<string, CatEditorComment[]>
-  >({});
   const commentDraft = commentDrafts[segment.id] ?? "";
-  const segmentComments = commentsBySegmentId[segment.id] ?? [];
+  const segmentComments = segment.comments ?? [];
   const trimmedCommentDraft = commentDraft.trim();
+  const isActionBlocked =
+    isApproving ||
+    isPostingComment ||
+    isLookingUpContext ||
+    isAiSuggestionLoading ||
+    isFormatChecksLoading;
+  const canTriggerApprove = canApprove && !isActionBlocked;
   const sourceMessageAnalysis = useMemo(
     () => analyzeCatMessageFormat(segment.sourceText),
     [segment.sourceText],
@@ -132,31 +153,38 @@ export function CatEditorPanel({
     [hasNextSegment, onNext],
   );
 
+  useHotkeys(
+    "mod+enter",
+    (event) => {
+      const activeElement = document.activeElement;
+      if (
+        activeElement instanceof HTMLElement &&
+        activeElement.dataset.catCommentInput === "true"
+      ) {
+        return;
+      }
+
+      event.preventDefault();
+      onApprove();
+    },
+    {
+      enabled: canTriggerApprove,
+      enableOnFormTags: true,
+      preventDefault: true,
+    },
+    [canTriggerApprove, onApprove],
+  );
+
   function handleCommentDraftChange(value: string) {
     setCommentDrafts((current) => ({ ...current, [segment.id]: value }));
   }
 
-  function handleAddComment() {
-    if (!trimmedCommentDraft) {
+  async function handleAddComment() {
+    if (!trimmedCommentDraft || !onAddComment || isPostingComment) {
       return;
     }
 
-    setCommentsBySegmentId((current) => {
-      const currentComments = current[segment.id] ?? [];
-      const commentNumber = currentComments.length + 1;
-      return {
-        ...current,
-        [segment.id]: [
-          ...currentComments,
-          {
-            id: `${segment.id}-comment-${commentNumber}`,
-            author: intl.formatMessage(catEditorPanelMessages.commentAuthorReviewer),
-            createdAtLabel: intl.formatMessage(catEditorPanelMessages.commentCreatedJustNow),
-            body: trimmedCommentDraft,
-          },
-        ],
-      };
-    });
+    await onAddComment(trimmedCommentDraft);
     handleCommentDraftChange("");
   }
 
@@ -229,13 +257,7 @@ export function CatEditorPanel({
             <Button
               className="min-h-11 flex-1 bg-grove-500 text-white hover:bg-grove-400 sm:flex-none lg:min-h-0"
               onClick={onApprove}
-              disabled={
-                !canApprove ||
-                isApproving ||
-                isLookingUpContext ||
-                isAiSuggestionLoading ||
-                isFormatChecksLoading
-              }
+              disabled={!canTriggerApprove}
             >
               {isApproving ? <Spinner className="size-4 text-white" /> : null}
               {resolvedPrimaryActionLabel}
@@ -393,12 +415,23 @@ export function CatEditorPanel({
             {segmentComments.length > 0 ? (
               <ul className="space-y-3">
                 {segmentComments.map((comment) => (
-                  <li key={comment.id} className="space-y-1">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="font-medium text-foreground/78">{comment.author}</span>
-                      <span>{comment.createdAtLabel}</span>
+                  <li
+                    key={comment.id}
+                    className="space-y-1 rounded-lg border border-foreground/8 p-3"
+                  >
+                    <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                      {comment.type === "issue" ? (
+                        <Badge variant="outline" className="border-flame-200/40 text-flame-100">
+                          <FormattedMessage {...catEditorPanelMessages.commentIssueLabel} />
+                        </Badge>
+                      ) : null}
+                      {comment.author ? (
+                        <span className="font-medium text-foreground/78">{comment.author}</span>
+                      ) : null}
+                      <span>{formatCommentTimestamp(intl, comment.createdAt)}</span>
+                      {comment.status ? <span className="capitalize">{comment.status}</span> : null}
                     </div>
-                    <p className="text-sm leading-relaxed text-foreground/88">{comment.body}</p>
+                    <p className="text-sm leading-relaxed text-foreground/88">{comment.text}</p>
                   </li>
                 ))}
               </ul>
@@ -412,15 +445,25 @@ export function CatEditorPanel({
               onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
               className="min-h-20 resize-y rounded-xl border-foreground/12 bg-background px-3 py-3 text-sm leading-relaxed"
               placeholder={intl.formatMessage(catEditorPanelMessages.commentPlaceholder)}
+              disabled={!canAddComment || isPostingComment}
+              data-cat-comment-input="true"
             />
+            {commentPostError ? <p className="text-sm text-flame-100">{commentPostError}</p> : null}
             <div className="flex justify-end">
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={handleAddComment}
-                disabled={!trimmedCommentDraft}
+                onClick={() => void handleAddComment()}
+                disabled={
+                  !canAddComment || !trimmedCommentDraft || isPostingComment || !onAddComment
+                }
               >
-                <FormattedMessage {...catEditorPanelMessages.addComment} />
+                {isPostingComment ? <Spinner className="size-4" /> : null}
+                {isPostingComment ? (
+                  <FormattedMessage {...catEditorPanelMessages.postingComment} />
+                ) : (
+                  <FormattedMessage {...catEditorPanelMessages.addComment} />
+                )}
               </Button>
             </div>
           </section>

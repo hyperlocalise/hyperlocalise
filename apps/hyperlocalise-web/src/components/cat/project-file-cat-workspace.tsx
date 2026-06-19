@@ -7,6 +7,7 @@ import { useIntl } from "react-intl";
 
 import type {
   ProjectFileCatConcordanceResponse,
+  ProjectFileCatComment,
   ProjectFileCatRecommendationResponse,
   ProjectFileCatTranslation,
 } from "@/api/routes/project/project.schema";
@@ -138,6 +139,38 @@ export function ProjectFileCatWorkspace({
   });
   const saveTranslation = saveMutation.mutateAsync;
 
+  const commentMutation = useMutation({
+    mutationFn: async (input: { externalStringId: string; text: string }) => {
+      const externalResourceId = catQuery.data?.provider
+        ? requireProviderExternalResourceId(catQuery.data)
+        : undefined;
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.comments.$post({
+        param: { organizationSlug, projectId },
+        json: {
+          sourcePath,
+          targetLocale,
+          externalStringId: input.externalStringId,
+          externalResourceId,
+          text: input.text,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to post comment"));
+      }
+
+      const body = (await response.json()) as { comment: ProjectFileCatComment };
+      return body.comment;
+    },
+    onSuccess: async () => {
+      await invalidateCurrentPage();
+    },
+  });
+  const postComment = commentMutation.mutateAsync;
+
   const workspaceState = useMemo(
     () => (catQuery.data ? projectFileCatToWorkspaceState(catQuery.data, intl) : null),
     [catQuery.data, intl],
@@ -161,6 +194,20 @@ export function ProjectFileCatWorkspace({
       return translation.isApproved ? "reviewed" : "needs_review";
     },
     [catQuery.data?.canEditTranslations, saveTranslation],
+  );
+
+  const handleAddComment = useCallback(
+    async (segmentId: string, text: string) => {
+      if (!catQuery.data?.canEditTranslations) {
+        throw new Error("Your role cannot post comments to the provider.");
+      }
+
+      await postComment({
+        externalStringId: segmentId,
+        text,
+      });
+    },
+    [catQuery.data?.canEditTranslations, postComment],
   );
 
   const lookupSegmentContext = useCallback(
@@ -346,6 +393,7 @@ export function ProjectFileCatWorkspace({
         }}
         review={{
           onApprove: handleApprove,
+          onAddComment: handleAddComment,
         }}
         queueSearch={search}
         onQueueSearchChange={setSearch}

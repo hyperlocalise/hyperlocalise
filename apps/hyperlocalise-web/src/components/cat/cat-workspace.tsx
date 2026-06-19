@@ -41,6 +41,8 @@ export function CatWorkspaceView({
   dependencies,
   isValidating: _isValidating = false,
   isApproving = false,
+  isPostingComment = false,
+  commentPostError,
   isLookingUpContext = false,
   isConcordanceLoading = false,
   isAiSuggestionLoading = false,
@@ -96,6 +98,7 @@ export function CatWorkspaceView({
   )?.message;
   const isEditorBusy = isApproving;
   const canApprove = state.canEditTranslations !== false;
+  const canAddComment = state.canAddComments === true;
 
   function renderEditorPanel() {
     return (
@@ -110,12 +113,20 @@ export function CatWorkspaceView({
         isLookingUpContext={isLookingUpContext}
         isAiSuggestionLoading={isAiSuggestionLoading}
         isFormatChecksLoading={isFormatChecksLoading}
+        isPostingComment={isPostingComment}
+        commentPostError={commentPostError}
         canApprove={canApprove}
+        canAddComment={canAddComment}
         canLookupContext={canLookupContext}
         canUseAiRecommendation={canUseAiRecommendation}
         onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
         onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
         onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
+        onAddComment={
+          review.onAddComment
+            ? (text) => review.onAddComment?.(selectedSegment.id, text)
+            : undefined
+        }
         primaryActionLabel={state.primaryActionLabel}
         onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
         onGenerateAiRecommendation={

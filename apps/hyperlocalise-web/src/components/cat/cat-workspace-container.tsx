@@ -14,7 +14,7 @@ import type {
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
 import { CatWorkspaceView } from "./cat-workspace";
-import { catWorkspaceContainerMessages } from "./cat.messages";
+import { catEditorPanelMessages, catWorkspaceContainerMessages } from "./cat.messages";
 import type { CatFormatCheck, CatSegment, CatWorkspaceState } from "./types";
 
 function getSegmentQueueIndex(segments: CatSegment[], segmentIdOrKey: string) {
@@ -242,6 +242,8 @@ export function CatWorkspaceContainer({
   const [state, setState] = useState(initialState);
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isPostingComment, setIsPostingComment] = useState(false);
+  const [commentPostError, setCommentPostError] = useState<string | undefined>();
   const [isLookingUpContext, setIsLookingUpContext] = useState(false);
   const [isLoadingConcordance, setIsLoadingConcordance] = useState(false);
   const [revealedAgentContextSegmentIds, setRevealedAgentContextSegmentIds] = useState<
@@ -268,6 +270,7 @@ export function CatWorkspaceContainer({
   const onTargetChange = editingOverrides?.onTargetChange;
   const onUseAiSuggestion = editingOverrides?.onUseAiSuggestion;
   const onApprove = reviewOverrides?.onApprove;
+  const onAddComment = reviewOverrides?.onAddComment;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
   const onReviewWithAi = reviewOverrides?.onReviewWithAi;
   const onSkip = reviewOverrides?.onSkip;
@@ -286,6 +289,10 @@ export function CatWorkspaceContainer({
       return new Set([...current, ...next]);
     });
   }, [initialState]);
+
+  useEffect(() => {
+    setCommentPostError(undefined);
+  }, [state.selectedSegmentId]);
 
   const runSegmentChecks = useCallback(
     async (segment: CatSegment, value: string) => {
@@ -626,6 +633,26 @@ export function CatWorkspaceContainer({
           setIsApproving(false);
         }
       },
+      onAddComment: async (segmentId: string, text: string) => {
+        if (!onAddComment) {
+          return;
+        }
+
+        setCommentPostError(undefined);
+        setIsPostingComment(true);
+        try {
+          await onAddComment(segmentId, text);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : intl.formatMessage(catEditorPanelMessages.commentPostFailed);
+          setCommentPostError(message);
+          throw error;
+        } finally {
+          setIsPostingComment(false);
+        }
+      },
       onAskQuestion: async (segmentId: string) => {
         await onAskQuestion?.(segmentId);
         if (!lookupSegmentContext) {
@@ -729,6 +756,7 @@ export function CatWorkspaceContainer({
     };
   }, [
     onApprove,
+    onAddComment,
     onAskQuestion,
     intl,
     onNextSegment,
@@ -752,6 +780,8 @@ export function CatWorkspaceContainer({
       dependencies={dependencies}
       isValidating={isValidating}
       isApproving={isApproving}
+      isPostingComment={isPostingComment}
+      commentPostError={commentPostError}
       isLookingUpContext={isLookingUpContext}
       isConcordanceLoading={isLoadingConcordance}
       isAiSuggestionLoading={isGeneratingAiRecommendation && canUseAiRecommendation}

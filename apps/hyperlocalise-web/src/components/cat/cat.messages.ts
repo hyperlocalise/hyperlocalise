@@ -462,4 +462,19 @@ export const catEditorPanelMessages = defineMessages({
     id: "LOKE6DdX5z",
     description: "Timestamp label for a comment added moments ago",
   },
+  commentIssueLabel: {
+    defaultMessage: "Issue",
+    id: "rfurrkqR11",
+    description: "Badge label for an unresolved TMS issue on a segment",
+  },
+  commentPostFailed: {
+    defaultMessage: "Failed to post comment. Try again.",
+    id: "wAW00AgfLK",
+    description: "Error message when posting a segment comment to the TMS fails",
+  },
+  postingComment: {
+    defaultMessage: "Posting…",
+    id: "j+ggKPYEzH",
+    description: "Button label while a segment comment is being posted to the TMS",
+  },
 });

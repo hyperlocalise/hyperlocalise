@@ -444,6 +444,20 @@ export const projectFileCatCommentSchema = z.object({
   text: z.string(),
   createdAt: z.string(),
   locale: z.string().nullable(),
+  author: z.string().nullable().optional(),
+});
+
+export const projectFileCatCommentBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  externalStringId: z.string().trim().min(1).max(128),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+  text: z.string().trim().min(1).max(16_384),
+  type: z.enum(["comment", "issue"]).optional(),
+});
+
+export const projectFileCatCommentResponseSchema = z.object({
+  comment: projectFileCatCommentSchema,
 });
 
 export const projectFileCatTranslationSchema = z.object({
@@ -512,6 +526,8 @@ export type ProjectFileJobRecord = z.infer<typeof projectFileJobRecordSchema>;
 export type ProjectFileProviderJobRecord = z.infer<typeof projectFileProviderJobRecordSchema>;
 export type ProjectFileDetailResponse = z.infer<typeof projectFileDetailResponseSchema>;
 export type ProjectFileCatComment = z.infer<typeof projectFileCatCommentSchema>;
+export type ProjectFileCatCommentBody = z.infer<typeof projectFileCatCommentBodySchema>;
+export type ProjectFileCatCommentResponse = z.infer<typeof projectFileCatCommentResponseSchema>;
 export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
 export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;
