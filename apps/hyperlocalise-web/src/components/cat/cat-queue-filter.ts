@@ -17,6 +17,37 @@ export function isServerQueueFilter(filter: CatQueueFilter): filter is ProjectFi
   return filter !== "skipped";
 }
 
+export function isQueueFilterSupportedForProvider(
+  filter: CatQueueFilter,
+  providerKind: string | null | undefined,
+) {
+  if (filter === "has_issues") {
+    return providerKind === "crowdin";
+  }
+
+  return true;
+}
+
+export function resolveAvailableCatQueueFilters(
+  providerKind: string | null | undefined,
+): CatQueueFilter[] {
+  return catQueueFilterValues.filter((filter) =>
+    isQueueFilterSupportedForProvider(filter, providerKind),
+  );
+}
+
+export function resolveVisibleQueueSegments(
+  segments: CatSegment[],
+  queueFilter: CatQueueFilter,
+  usesServerQueueFilter: boolean,
+) {
+  if (usesServerQueueFilter && isServerQueueFilter(queueFilter)) {
+    return segments;
+  }
+
+  return filterCatQueueSegments(segments, queueFilter);
+}
+
 export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: string) {
   const match = segments.find(
     (segment) => segment.id === segmentIdOrKey || segment.key === segmentIdOrKey,

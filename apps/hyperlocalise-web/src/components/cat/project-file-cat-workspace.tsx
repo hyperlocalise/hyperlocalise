@@ -27,6 +27,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { CatWorkspaceContainer } from "./cat-workspace-container";
 import { buildCatSegmentShareUrl } from "./cat-segment-share-link";
+import { resolveAvailableCatQueueFilters } from "./cat-queue-filter";
 import {
   projectFileCatToWorkspaceState,
   requireProviderExternalResourceId,
@@ -111,6 +112,19 @@ export function ProjectFileCatWorkspace({
     repositoryFullName,
     enabled: Boolean(targetLocale),
   });
+
+  const availableQueueFilters = useMemo(
+    () => resolveAvailableCatQueueFilters(catQuery.data?.provider?.kind),
+    [catQuery.data?.provider?.kind],
+  );
+
+  useEffect(() => {
+    if (availableQueueFilters.includes(queueFilter)) {
+      return;
+    }
+
+    setQueueFilter("all");
+  }, [availableQueueFilters, queueFilter, setQueueFilter]);
 
   const saveMutation = useMutation({
     mutationFn: async (input: { externalStringId: string; text: string }) => {
@@ -435,6 +449,7 @@ export function ProjectFileCatWorkspace({
         onQueueSearchChange={setSearch}
         queueFilter={queueFilter}
         onQueueFilterChange={setQueueFilter}
+        availableQueueFilters={availableQueueFilters}
         isQueueSearchPending={isSearchPending}
         isQueueFetchingPage={catQuery.isFetching && !catQuery.isLoading}
         queuePagination={pagination}

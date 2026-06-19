@@ -55,6 +55,7 @@ export function CatQueuePanel({
   isSearching = false,
   queueFilter = "all",
   onQueueFilterChange,
+  availableQueueFilters = catQueueFilterValues,
   checkedSegmentIds,
   onToggleSegmentChecked,
   onSelectAllVisible,
@@ -78,6 +79,7 @@ export function CatQueuePanel({
   isSearching?: boolean;
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
+  availableQueueFilters?: CatQueueFilter[];
   checkedSegmentIds?: ReadonlySet<string>;
   onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
   onSelectAllVisible?: () => void;
@@ -166,7 +168,7 @@ export function CatQueuePanel({
                     <FormattedMessage {...catQueuePanelMessages.filterQueueAria} />
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
-                  {catQueueFilterValues.map((filterValue) => (
+                  {availableQueueFilters.map((filterValue) => (
                     <DropdownMenuCheckboxItem
                       key={filterValue}
                       checked={queueFilter === filterValue}

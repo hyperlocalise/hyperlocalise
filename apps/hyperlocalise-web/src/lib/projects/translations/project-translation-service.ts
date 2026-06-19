@@ -49,11 +49,7 @@ function translationKeysQueueFilterCondition(input: {
   queueFilter?: ProjectFileCatQueueFilter;
 }) {
   const filter = input.queueFilter;
-  if (!filter || filter === "all" || filter === "has_issues") {
-    if (filter === "has_issues") {
-      return sql`false`;
-    }
-
+  if (!filter || filter === "all") {
     return undefined;
   }
 

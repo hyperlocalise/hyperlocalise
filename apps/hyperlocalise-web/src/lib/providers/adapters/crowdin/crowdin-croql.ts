@@ -28,6 +28,7 @@ export function buildCrowdinFileQueueCroql(input: {
       parts.push(
         `count of languages summary where (${languageSummary} and is translated and not is approved) > 0`,
       );
+      parts.push("count of comments where (has unresolved issue) = 0");
       break;
     case "reviewed":
       parts.push(`count of languages summary where (${languageSummary} and is approved) > 0`);

@@ -104,6 +104,7 @@ export interface CatWorkspaceViewProps {
   onQueueNearEnd?: () => void;
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
+  availableQueueFilters?: CatQueueFilter[];
   checkedSegmentIds?: ReadonlySet<string>;
   onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
   onSelectAllVisible?: () => void;

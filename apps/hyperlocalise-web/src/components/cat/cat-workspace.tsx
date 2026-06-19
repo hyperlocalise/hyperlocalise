@@ -63,6 +63,7 @@ export function CatWorkspaceView({
   onQueueNearEnd,
   queueFilter,
   onQueueFilterChange,
+  availableQueueFilters,
   checkedSegmentIds,
   onToggleSegmentChecked,
   onSelectAllVisible,
@@ -73,12 +74,16 @@ export function CatWorkspaceView({
   buildSegmentShareUrl,
 }: CatWorkspaceViewProps) {
   const fullState = editorState ?? state;
-  const selectedSegmentIndex = fullState.segments.findIndex(
+  const navigationSegments = editorState ? state.segments : fullState.segments;
+  const selectedSegmentIndex = navigationSegments.findIndex(
     (segment) =>
       segment.id === fullState.selectedSegmentId || segment.key === fullState.selectedSegmentId,
   );
   const selectedSegment =
-    selectedSegmentIndex >= 0 ? fullState.segments[selectedSegmentIndex] : fullState.segments[0];
+    fullState.segments.find(
+      (segment) =>
+        segment.id === fullState.selectedSegmentId || segment.key === fullState.selectedSegmentId,
+    ) ?? navigationSegments[selectedSegmentIndex >= 0 ? selectedSegmentIndex : 0];
   const isCompact = useIsCompactWorkspace();
   const [activePanel, setActivePanel] = useState<CatWorkspacePanel>("edit");
   const reviewedProgress =
@@ -99,9 +104,14 @@ export function CatWorkspaceView({
     );
   }
 
-  const segmentPosition = selectedSegmentIndex >= 0 ? selectedSegmentIndex + 1 : 1;
+  const segmentPosition = queuePagination
+    ? queuePagination.offset + (selectedSegmentIndex >= 0 ? selectedSegmentIndex + 1 : 1)
+    : selectedSegmentIndex >= 0
+      ? selectedSegmentIndex + 1
+      : 1;
+  const totalSegments = queuePagination?.totalCount ?? navigationSegments.length;
   const hasPreviousSegment = segmentPosition > 1;
-  const hasNextSegment = segmentPosition < fullState.segments.length;
+  const hasNextSegment = segmentPosition < totalSegments;
   const { navigation, editing, review } = dependencies;
   const selectedSegmentIntelligence =
     fullState.segmentIntelligence?.[selectedSegment.id] ?? fullState.intelligence;
@@ -121,7 +131,7 @@ export function CatWorkspaceView({
       <CatEditorPanel
         segment={selectedSegment}
         segmentPosition={segmentPosition}
-        totalSegments={fullState.segments.length}
+        totalSegments={totalSegments}
         formatChecks={selectedSegmentFormatChecks}
         intelligence={selectedSegmentIntelligence}
         isEditorBusy={isEditorBusy}
@@ -180,6 +190,7 @@ export function CatWorkspaceView({
         isSearching={isQueueSearchPending}
         queueFilter={queueFilter}
         onQueueFilterChange={onQueueFilterChange}
+        availableQueueFilters={availableQueueFilters}
         checkedSegmentIds={checkedSegmentIds}
         onToggleSegmentChecked={onToggleSegmentChecked}
         onSelectAllVisible={onSelectAllVisible}
@@ -223,7 +234,7 @@ export function CatWorkspaceView({
               <div className="min-w-0 space-y-1">
                 <p className="font-mono text-xs text-muted-foreground tabular-nums">
                   {String(segmentPosition).padStart(2, "0")} /{" "}
-                  {String(fullState.segments.length).padStart(2, "0")}
+                  {String(totalSegments).padStart(2, "0")}
                 </p>
                 <p className="truncate font-mono text-sm font-medium text-foreground">
                   {selectedSegment.key}

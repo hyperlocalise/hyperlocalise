@@ -31,6 +31,18 @@ describe("buildCrowdinFileQueueCroql", () => {
       'id of file = 7 and (identifier contains "hero" or text contains "hero") and count of languages summary where (language = @language:"de" and is approved) > 0',
     );
   });
+
+  it("excludes unresolved issues from needs review results", () => {
+    expect(
+      buildCrowdinFileQueueCroql({
+        fileId: 9,
+        targetLocale: "fr",
+        queueFilter: "needs_review",
+      }),
+    ).toBe(
+      'id of file = 9 and count of languages summary where (language = @language:"fr" and is translated and not is approved) > 0 and count of comments where (has unresolved issue) = 0',
+    );
+  });
 });
 
 describe("buildCrowdinFileSearchCroql", () => {
