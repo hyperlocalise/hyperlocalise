@@ -74,7 +74,9 @@ async function insertNativeJob(input: {
     .returning();
 }
 
-function crowdinTokenBundle(overrides: Partial<CrowdinOAuthTokenBundle> = {}): CrowdinOAuthTokenBundle {
+function crowdinTokenBundle(
+  overrides: Partial<CrowdinOAuthTokenBundle> = {},
+): CrowdinOAuthTokenBundle {
   return {
     clientId: "client-id",
     clientSecret: "client-secret",
