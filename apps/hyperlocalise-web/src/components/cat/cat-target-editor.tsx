@@ -263,11 +263,13 @@ export function CatIcuStructureSummary({ blocks }: { blocks: CatIcuBlockSummary[
 export function CatTargetEditor({
   sourceText,
   value,
+  maxLength,
   disabled = false,
   onChange,
 }: {
   sourceText: string;
   value: string;
+  maxLength?: number;
   disabled?: boolean;
   onChange: (value: string) => void;
 }) {
@@ -284,6 +286,8 @@ export function CatTargetEditor({
   );
   const targetSignatures = useMemo(() => presentTokenSignatures(targetAnalysis), [targetAnalysis]);
   const sourceTokens = sourceAnalysis.tokens.filter((token) => token.kind !== "pound");
+  const characterCount = value.length;
+  const isOverMaxLength = maxLength !== undefined && characterCount > maxLength;
 
   const editor = useEditor({
     extensions: catTargetEditorExtensions,
@@ -360,7 +364,7 @@ export function CatTargetEditor({
           "[&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none",
           disabled && "opacity-60",
         )}
-        aria-invalid={parityIssues.length > 0}
+        aria-invalid={parityIssues.length > 0 || isOverMaxLength}
       >
         {editor ? (
           <EditorContent editor={editor} />
@@ -368,6 +372,27 @@ export function CatTargetEditor({
           <div className="min-h-36 px-4 py-4 text-lg text-muted-foreground" />
         )}
       </div>
+
+      {maxLength !== undefined ? (
+        <div className="flex justify-end px-1">
+          <p
+            className={cn(
+              "text-xs tabular-nums",
+              isOverMaxLength ? "font-medium text-flame-100" : "text-muted-foreground",
+            )}
+            aria-live="polite"
+            aria-label={intl.formatMessage(catTargetEditorMessages.characterCountAria, {
+              count: characterCount,
+              maxLength,
+            })}
+          >
+            <FormattedMessage
+              {...catTargetEditorMessages.characterCount}
+              values={{ count: characterCount, maxLength }}
+            />
+          </p>
+        </div>
+      ) : null}
 
       {sourceTokens.length > 0 ? (
         <div className="flex flex-wrap items-center gap-1.5">

@@ -76,8 +76,6 @@ export function suggestionSourceLabel(source: string) {
       return "Glossary";
     case "tm":
       return "TM";
-    case "mt":
-      return "MT";
     default:
       return source;
   }

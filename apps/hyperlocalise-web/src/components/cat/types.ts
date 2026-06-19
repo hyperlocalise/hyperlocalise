@@ -1,6 +1,8 @@
 export type CatSegmentStatus = "pending" | "needs_review" | "reviewed" | "skipped";
 
-export type CatSuggestionSource = "ai" | "glossary" | "tm" | "mt";
+export type CatSuggestionSource = "ai" | "glossary" | "tm";
+
+export type CatTmMatchKind = "exact" | "context" | "fuzzy";
 
 export type CatRiskLevel = "low" | "medium" | "high" | "good";
 
@@ -63,6 +65,7 @@ export interface CatTranslationMemoryMatch {
   sourceText: string;
   targetText: string;
   matchPercent: number;
+  matchKind?: CatTmMatchKind;
   contextLabel?: string;
 }
 

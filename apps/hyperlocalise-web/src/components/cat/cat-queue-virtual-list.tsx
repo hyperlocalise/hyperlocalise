@@ -2,9 +2,11 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useRef } from "react";
+import { useIntl } from "react-intl";
 
 import { cn } from "@/lib/primitives/cn";
 
+import { catQueuePanelMessages } from "./cat.messages";
 import type { CatSegment } from "./types";
 
 const ESTIMATED_ROW_HEIGHT = 72;
@@ -24,16 +26,19 @@ function QueueStatusDot({ status }: { status: CatSegment["status"] }) {
 export function CatQueueVirtualList({
   segments,
   selectedSegmentId,
+  dirtySegmentIds,
   onSelectSegment,
   onNearEnd,
   className,
 }: {
   segments: CatSegment[];
   selectedSegmentId: string;
+  dirtySegmentIds?: ReadonlySet<string>;
   onSelectSegment: (segmentId: string) => void;
   onNearEnd?: () => void;
   className?: string;
 }) {
+  const intl = useIntl();
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: segments.length,
@@ -68,6 +73,7 @@ export function CatQueueVirtualList({
           }
 
           const selected = segment.id === selectedSegmentId;
+          const isDirty = dirtySegmentIds?.has(segment.id) ?? false;
 
           return (
             <li
@@ -98,7 +104,13 @@ export function CatQueueVirtualList({
                     </span>
                   </div>
                 </div>
-                <div className="mt-1 shrink-0">
+                <div className="mt-1 flex shrink-0 flex-col items-center gap-1">
+                  {isDirty ? (
+                    <span
+                      className="size-2 rounded-full bg-bud-400"
+                      aria-label={intl.formatMessage(catQueuePanelMessages.unsavedChangesAria)}
+                    />
+                  ) : null}
                   <QueueStatusDot status={segment.status} />
                 </div>
               </button>

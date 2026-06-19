@@ -29,6 +29,7 @@ export interface CatWorkspaceNavigation {
 export interface CatWorkspaceEditing {
   onTargetChange: (segmentId: string, value: string) => void;
   onUseAiSuggestion: (segmentId: string) => void;
+  onUseTmMatch: (segmentId: string, match: CatTranslationMemoryMatch) => void;
 }
 
 export interface CatWorkspaceReview {
@@ -82,6 +83,7 @@ export interface CatWorkspaceViewProps {
   canLookupContext?: boolean;
   canUseAiRecommendation?: boolean;
   showAgentContext?: boolean;
+  dirtySegmentIds?: ReadonlySet<string>;
   className?: string;
   queueSearch?: string;
   onQueueSearchChange?: (value: string) => void;
@@ -109,6 +111,7 @@ export const noopCatDependencies: CatWorkspaceDependencies = {
   editing: {
     onTargetChange: () => undefined,
     onUseAiSuggestion: () => undefined,
+    onUseTmMatch: () => undefined,
   },
   review: {
     onApprove: () => undefined,

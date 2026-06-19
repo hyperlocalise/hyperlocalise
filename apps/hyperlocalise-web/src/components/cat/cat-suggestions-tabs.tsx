@@ -23,8 +23,6 @@ function suggestionSourceLabel(source: string, intl: ReturnType<typeof useIntl>)
       return intl.formatMessage(catToneMessages.sourceGlossary);
     case "tm":
       return intl.formatMessage(catToneMessages.sourceTm);
-    case "mt":
-      return intl.formatMessage(catToneMessages.sourceMt);
     default:
       return source;
   }
