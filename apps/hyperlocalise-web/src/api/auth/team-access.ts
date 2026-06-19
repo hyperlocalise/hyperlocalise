@@ -97,6 +97,20 @@ export async function buildAccessibleJobsWhere(auth: ApiAuthContext): Promise<SQ
   return and(organizationScope, inArray(schema.jobs.projectId, accessibleProjectIds))!;
 }
 
+/** Personal My Jobs queries scope by assignment/ownership instead of team membership. */
+export async function buildOrganizationJobsListWhere(
+  auth: ApiAuthContext,
+  options?: { relationship?: "assigned" | "created" },
+): Promise<SQL> {
+  const organizationScope = eq(schema.jobs.organizationId, auth.organization.localOrganizationId);
+
+  if (options?.relationship === "assigned" || options?.relationship === "created") {
+    return organizationScope;
+  }
+
+  return buildAccessibleJobsWhere(auth);
+}
+
 export async function buildProjectLinkedGlossaryWhere(auth: ApiAuthContext): Promise<SQL> {
   const organizationId = auth.organization.localOrganizationId;
   const organizationScope = eq(schema.glossaries.organizationId, organizationId);
