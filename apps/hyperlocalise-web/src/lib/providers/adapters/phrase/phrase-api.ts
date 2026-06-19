@@ -98,6 +98,10 @@ export interface PhraseScreenshotMarker {
   height: number;
 }
 
+export interface PhraseKeyScreenshot extends PhraseScreenshot {
+  markers: PhraseScreenshotMarker[] | null;
+}
+
 export interface PhraseUserPreview {
   id: string;
   username: string | null;
@@ -393,6 +397,25 @@ export class PhraseApiClient {
     }
 
     return screenshots.slice(0, maxItems);
+  }
+
+  async listKeyScreenshots(
+    projectId: string,
+    keyId: string,
+    options: PhraseListOptions = {},
+  ): Promise<PhraseKeyScreenshot[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(
+          `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/screenshots`,
+          {
+            page,
+            per_page: perPage,
+            branch: options.branch,
+          },
+        ),
+      normalize: (record) => normalizePhraseKeyScreenshot(record),
+    });
   }
 
   async listScreenshotMarkers(
@@ -752,10 +775,12 @@ type PhraseScreenshotApiRecord = {
   description?: string | null;
   screenshot_url?: string | null;
   markers_count?: number;
+  markers?: PhraseScreenshotMarkerApiRecord[];
 };
 
 type PhraseScreenshotMarkerApiRecord = {
   id?: string;
+  key_id?: string;
   presentation?: {
     x?: number;
     y?: number;
@@ -891,12 +916,22 @@ function normalizePhraseScreenshot(record: unknown): PhraseScreenshot {
   };
 }
 
+function normalizePhraseKeyScreenshot(record: unknown): PhraseKeyScreenshot {
+  const screenshot = record as PhraseScreenshotApiRecord;
+  return {
+    ...normalizePhraseScreenshot(record),
+    markers: Array.isArray(screenshot.markers)
+      ? screenshot.markers.map((marker) => normalizePhraseScreenshotMarker(marker))
+      : null,
+  };
+}
+
 function normalizePhraseScreenshotMarker(
   record: PhraseScreenshotMarkerApiRecord,
 ): PhraseScreenshotMarker {
   return {
     id: record.id ?? "",
-    keyId: record.translation_key?.id ?? "",
+    keyId: record.translation_key?.id ?? record.key_id ?? "",
     left: record.presentation?.x ?? 0,
     top: record.presentation?.y ?? 0,
     width: record.presentation?.w ?? 0,

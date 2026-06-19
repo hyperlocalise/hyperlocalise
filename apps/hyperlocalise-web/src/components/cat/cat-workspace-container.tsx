@@ -816,18 +816,19 @@ export function CatWorkspaceContainer({
         setState((current) => {
           const currentChecks =
             current.segmentFormatChecks?.[segmentId] ?? current.formatChecks ?? [];
+          const nextChecks = [
+            visualContextFailureCheck,
+            ...currentChecks.filter((check) => check.id !== visualContextFailureCheck.id),
+          ];
 
           return {
             ...current,
             segmentFormatChecks: {
               ...current.segmentFormatChecks,
-              [segmentId]: [
-                visualContextFailureCheck,
-                ...currentChecks.filter((check) => check.id !== visualContextFailureCheck.id),
-              ],
+              [segmentId]: nextChecks,
             },
             formatChecks:
-              current.selectedSegmentId === segmentId ? currentChecks : current.formatChecks,
+              current.selectedSegmentId === segmentId ? nextChecks : current.formatChecks,
           };
         });
       })

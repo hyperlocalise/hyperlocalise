@@ -5,7 +5,7 @@ import {
   type CatVisualContextScreenshot,
 } from "@/lib/translation/cat-visual-context";
 
-import { PhraseApiClient } from "./phrase-api";
+import { PhraseApiClient, PhraseApiError, type PhraseKeyScreenshot } from "./phrase-api";
 import { createPhraseStringsApiClient } from "./phrase-strings-client";
 
 const maxPhraseScreenshotsToScan = 50;
@@ -37,6 +37,36 @@ export async function loadPhraseCatVisualContextWithClient(input: {
   externalProjectId: string;
   externalStringId: string;
 }): Promise<CatVisualContext> {
+  const keyScreenshots = await loadPhraseKeyScreenshots(input);
+  if (keyScreenshots) {
+    const mapped = await mapWithConcurrency(
+      keyScreenshots.filter((screenshot) => screenshot.screenshotUrl),
+      phraseMarkerFetchConcurrency,
+      async (screenshot) => {
+        if (screenshot.markers) {
+          return mapPhraseScreenshot(screenshot, screenshot.markers);
+        }
+
+        const markers = await input.client.listScreenshotMarkers(
+          input.externalProjectId,
+          screenshot.id,
+        );
+        const keyMarkers = markers.filter((marker) => marker.keyId === input.externalStringId);
+        if (keyMarkers.length === 0) {
+          return null;
+        }
+
+        return mapPhraseScreenshot(screenshot, keyMarkers);
+      },
+    );
+
+    return {
+      screenshots: mapped
+        .filter((screenshot): screenshot is CatVisualContextScreenshot => screenshot != null)
+        .slice(0, maxPhraseScreenshotsPerSegment),
+    };
+  }
+
   const screenshots = await input.client.listScreenshots(input.externalProjectId, {
     maxItems: maxPhraseScreenshotsToScan,
   });
@@ -68,8 +98,26 @@ export async function loadPhraseCatVisualContextWithClient(input: {
   };
 }
 
+async function loadPhraseKeyScreenshots(input: {
+  client: PhraseApiClient;
+  externalProjectId: string;
+  externalStringId: string;
+}): Promise<PhraseKeyScreenshot[] | null> {
+  try {
+    return await input.client.listKeyScreenshots(input.externalProjectId, input.externalStringId);
+  } catch (error) {
+    if (error instanceof PhraseApiError && error.status === 404) {
+      return null;
+    }
+
+    throw error;
+  }
+}
+
 function mapPhraseScreenshot(
-  screenshot: Awaited<ReturnType<PhraseApiClient["listScreenshots"]>>[number],
+  screenshot:
+    | Awaited<ReturnType<PhraseApiClient["listScreenshots"]>>[number]
+    | Awaited<ReturnType<PhraseApiClient["listKeyScreenshots"]>>[number],
   markers: Awaited<ReturnType<PhraseApiClient["listScreenshotMarkers"]>>,
 ): CatVisualContextScreenshot | null {
   const imageUrl = screenshot.screenshotUrl?.trim();
