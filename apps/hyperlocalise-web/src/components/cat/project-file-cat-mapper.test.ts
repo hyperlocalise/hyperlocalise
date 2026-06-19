@@ -79,6 +79,17 @@ describe("projectFileCatToWorkspaceState", () => {
       id: "issue-string",
       status: "needs_review",
       tags: ["icu", "1 comment", "1 issue"],
+      comments: [
+        {
+          id: "comment-1",
+          type: "issue",
+          status: "unresolved",
+          text: "Needs product context",
+          createdAt: "2026-06-10T00:00:00.000Z",
+          locale: "vi",
+          author: null,
+        },
+      ],
     });
   });
 

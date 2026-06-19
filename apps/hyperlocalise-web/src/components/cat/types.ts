@@ -6,6 +6,18 @@ export type CatRiskLevel = "low" | "medium" | "high" | "good";
 
 export type CatFormatCheckStatus = "pass" | "warn" | "fail";
 
+export type CatSegmentCommentType = "comment" | "issue";
+
+export interface CatSegmentComment {
+  id: string;
+  type: CatSegmentCommentType;
+  status: string | null;
+  text: string;
+  createdAt: string;
+  locale: string | null;
+  author?: string | null;
+}
+
 export interface CatSegment {
   id: string;
   index: number;
@@ -18,6 +30,7 @@ export interface CatSegment {
   status: CatSegmentStatus;
   tags?: string[];
   maxLength?: number;
+  comments?: CatSegmentComment[];
 }
 
 export interface CatSuggestion {
@@ -88,4 +101,5 @@ export interface CatWorkspaceState {
   breadcrumbs?: string[];
   primaryActionLabel?: string;
   canEditTranslations?: boolean;
+  canAddComments?: boolean;
 }

@@ -19,6 +19,7 @@ import {
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
   saveTmsProviderLiveCatTranslation,
+  saveTmsProviderLiveCatComment,
 } from "@/lib/providers/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
@@ -46,6 +47,7 @@ import {
   maxProjectFileUploadBytes,
   projectFileCatQuerySchema,
   projectFileCatConcordanceBodySchema,
+  projectFileCatCommentBodySchema,
   projectFileCatRecommendationBodySchema,
   projectFileCatStatusBodySchema,
   projectFileCatTranslationBodySchema,
@@ -336,6 +338,16 @@ const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileCatCommentBody = validator("json", (value, c) => {
+  const parsed = projectFileCatCommentBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileCatConcordanceBody = validator("json", (value, c) => {
   const parsed = projectFileCatConcordanceBodySchema.safeParse(value);
 
@@ -608,6 +620,54 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           }
 
           return c.json({ translation }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .post(
+      "/:projectId/files/detail/cat/comments",
+      validateProjectParams,
+      validateProjectFileCatCommentBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "CAT comments are only available for provider-connected projects.",
+          );
+        }
+
+        try {
+          const comment = await saveTmsProviderLiveCatComment(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            body.sourcePath,
+            {
+              targetLocale: body.targetLocale,
+              externalStringId: body.externalStringId,
+              externalResourceId: body.externalResourceId,
+              text: body.text,
+              type: body.type,
+            },
+            { actorUserId: c.var.auth.user.localUserId },
+          );
+          if (!comment) {
+            return projectNotFoundResponse(c);
+          }
+
+          return c.json({ comment }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }

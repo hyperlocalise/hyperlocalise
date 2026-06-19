@@ -11,6 +11,7 @@ import { createProjectTestFixture } from "./project.fixture";
 import { ok } from "@/lib/primitives/result/results";
 import type {
   ProjectFileCatConcordanceResponse,
+  ProjectFileCatCommentResponse,
   ProjectFileCatRecommendationResponse,
   ProjectFileCatResponse,
   ProjectFileCatTranslationResponse,
@@ -20,6 +21,7 @@ const {
   getTmsProviderConnectionMock,
   getTmsProviderLiveCatFileMock,
   saveTmsProviderLiveCatTranslationMock,
+  saveTmsProviderLiveCatCommentMock,
   loadCatSegmentConcordanceMock,
   generateCatAiRecommendationMock,
   ensureOrganizationProjectRecordMock,
@@ -27,6 +29,7 @@ const {
   getTmsProviderConnectionMock: vi.fn(),
   getTmsProviderLiveCatFileMock: vi.fn(),
   saveTmsProviderLiveCatTranslationMock: vi.fn(),
+  saveTmsProviderLiveCatCommentMock: vi.fn(),
   loadCatSegmentConcordanceMock: vi.fn(),
   generateCatAiRecommendationMock: vi.fn(),
   ensureOrganizationProjectRecordMock: vi.fn(),
@@ -53,6 +56,8 @@ vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
     getTmsProviderLiveCatFile: (...args: unknown[]) => getTmsProviderLiveCatFileMock(...args),
     saveTmsProviderLiveCatTranslation: (...args: unknown[]) =>
       saveTmsProviderLiveCatTranslationMock(...args),
+    saveTmsProviderLiveCatComment: (...args: unknown[]) =>
+      saveTmsProviderLiveCatCommentMock(...args),
   };
 });
 
@@ -528,5 +533,82 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(403);
     expect(saveTmsProviderLiveCatTranslationMock).not.toHaveBeenCalled();
+  });
+
+  it("posts Crowdin CAT comments for users with write-back permission", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    saveTmsProviderLiveCatCommentMock.mockResolvedValue({
+      externalCommentId: "5001",
+      type: "comment",
+      status: null,
+      text: "Please clarify tone.",
+      createdAt: "2026-06-19T00:00:00.000Z",
+      locale: "fr",
+      author: "Reviewer",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringId: "1001",
+          externalResourceId: "101",
+          text: "Please clarify tone.",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFileCatCommentResponse;
+    expect(body.comment).toMatchObject({
+      externalCommentId: "5001",
+      text: "Please clarify tone.",
+    });
+    expect(saveTmsProviderLiveCatCommentMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      "crowdin/home.json",
+      {
+        targetLocale: "fr",
+        externalStringId: "1001",
+        externalResourceId: "101",
+        text: "Please clarify tone.",
+        type: undefined,
+      },
+      expect.objectContaining({ actorUserId: expect.any(String) }),
+    );
+  });
+
+  it("denies CAT comment posts without write-back permission", async () => {
+    const member = projectFixture.createWorkosIdentityWithRole("member");
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments.$post(
+      {
+        param: {
+          organizationSlug: member.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringId: "1001",
+          text: "Please clarify tone.",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(member) },
+    );
+
+    expect(response.status).toBe(403);
+    expect(saveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
   });
 });

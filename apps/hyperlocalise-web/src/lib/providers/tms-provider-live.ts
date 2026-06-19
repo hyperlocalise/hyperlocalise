@@ -1,6 +1,7 @@
 import { createLogger } from "@/lib/log";
 import { schema } from "@/lib/database";
 import type {
+  ProjectFileCatComment,
   ProjectFileCatResponse,
   ProjectFileCatTranslation,
   ProjectFileContent,
@@ -1018,14 +1019,7 @@ async function buildCrowdinLiveCatFile(input: {
             : null,
           comments: (commentsByStringId.get(sourceString.id) ?? [])
             .toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-            .map((comment) => ({
-              externalCommentId: String(comment.id),
-              type: comment.type === "issue" ? ("issue" as const) : ("comment" as const),
-              status: comment.issueStatus ?? null,
-              text: comment.text,
-              createdAt: comment.createdAt,
-              locale: comment.languageId || null,
-            })),
+            .map((comment) => mapCrowdinStringComment(comment)),
         };
       }),
     };
@@ -1094,6 +1088,58 @@ async function saveCrowdinLiveCatTranslation(input: {
       externalTranslationId: translationId != null ? String(translationId) : null,
       isApproved: false,
     };
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    throw error;
+  }
+}
+
+function mapCrowdinStringComment(comment: CrowdinStringComment): ProjectFileCatComment {
+  return {
+    externalCommentId: String(comment.id),
+    type: comment.type === "issue" ? "issue" : "comment",
+    status: comment.issueStatus ?? null,
+    text: comment.text,
+    createdAt: comment.createdAt,
+    locale: comment.languageId || null,
+    author: comment.user?.fullName ?? comment.user?.username ?? null,
+  };
+}
+
+async function saveCrowdinLiveCatComment(input: {
+  context: ActiveTmsProviderContext;
+  file: TmsProviderLiveFile;
+  targetLocale: string;
+  externalStringId: string;
+  text: string;
+  type?: "comment" | "issue";
+}): Promise<ProjectFileCatComment> {
+  const projectId = Number(input.file.provider?.externalProjectId);
+  const stringId = Number(input.externalStringId);
+  if (Number.isNaN(projectId) || Number.isNaN(stringId)) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_string_id",
+      "Crowdin project or string identifier is invalid.",
+    );
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const created = await client.addStringComment(projectId, {
+      text: input.text,
+      stringId,
+      targetLanguageId: input.targetLocale,
+      type: input.type ?? "comment",
+    });
+
+    return mapCrowdinStringComment(created);
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
@@ -1580,6 +1626,60 @@ export async function saveTmsProviderLiveCatTranslation(
     targetLocale: input.targetLocale,
     externalStringId: input.externalStringId,
     text: input.text,
+  });
+}
+
+export async function saveTmsProviderLiveCatComment(
+  organizationId: string,
+  externalProjectId: string,
+  sourcePath: string,
+  input: {
+    targetLocale: string;
+    externalStringId: string;
+    text: string;
+    externalResourceId?: string | null;
+    type?: "comment" | "issue";
+  },
+  options?: { actorUserId?: string | null },
+): Promise<ProjectFileCatComment | null> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  const file =
+    input.externalResourceId && context.providerKind === "crowdin"
+      ? mapLiveFile({
+          providerKind: context.providerKind,
+          externalProjectId,
+          file: {
+            resourceType: "file",
+            externalResourceId: input.externalResourceId,
+            sourcePath,
+          },
+        })
+      : (
+          await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
+            context,
+            limit: 1000,
+          })
+        ).find((item) => item.sourcePath === sourcePath);
+  if (!file) {
+    return null;
+  }
+
+  if (context.providerKind !== "crowdin" || file.provider?.resourceType !== "file") {
+    throw new TmsProviderLiveError(
+      "provider_cat_unsupported",
+      "CAT comments are not available for this provider file yet.",
+    );
+  }
+
+  return saveCrowdinLiveCatComment({
+    context,
+    file,
+    targetLocale: input.targetLocale,
+    externalStringId: input.externalStringId,
+    text: input.text,
+    type: input.type,
   });
 }
 
