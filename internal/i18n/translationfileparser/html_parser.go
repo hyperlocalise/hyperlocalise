@@ -234,8 +234,7 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 		})
 	}
 
-	handleVoidTranslatable := func(rawBytes []byte, attrName string) {
-		raw := string(rawBytes)
+	handleVoidTranslatable := func(raw string, attrName string) {
 		prefix, rawVal, suffix, found := splitVoidAttrTag(raw, attrName)
 		decoded := html.UnescapeString(rawVal)
 		if found && isTranslatableChunk(decoded) {
@@ -265,8 +264,8 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 			break
 		}
 
-		// BOLT OPTIMIZATION: Capture z.Raw() before any TagName calls to avoid buffer corruption.
-		rawBytes := z.Raw()
+		// Copy raw bytes before any TagName call; TagName may mutate the Raw() slice.
+		raw := string(z.Raw())
 
 		if skipDepth > 0 {
 			switch tt {
@@ -281,53 +280,53 @@ func parseHTMLDocument(content []byte) (htmlDocument, map[string]string, error) 
 					skipDepth++
 				}
 			}
-			appendLiteral(string(rawBytes))
+			appendLiteral(raw)
 			continue
 		}
 
 		switch tt {
 		case html.DoctypeToken, html.CommentToken:
 			flushBuffer()
-			appendLiteral(string(rawBytes))
+			appendLiteral(raw)
 
 		case html.StartTagToken:
 			tn, _ := z.TagName()
 			if htmlSkipElements[string(tn)] {
 				flushBuffer()
 				skipDepth++
-				appendLiteral(string(rawBytes))
+				appendLiteral(raw)
 			} else if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(string(rawBytes))
+				appendLiteral(raw)
 			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(rawBytes, attrName)
+				handleVoidTranslatable(raw, attrName)
 			} else {
 				// Inline element: accumulate into the text buffer.
-				buffer.Write(rawBytes)
+				buffer.WriteString(raw)
 			}
 
 		case html.EndTagToken:
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(string(rawBytes))
+				appendLiteral(raw)
 			} else {
-				buffer.Write(rawBytes)
+				buffer.WriteString(raw)
 			}
 
 		case html.SelfClosingTagToken:
 			tn, _ := z.TagName()
 			if htmlBlockElements[string(tn)] || htmlStructuralElements[string(tn)] {
 				flushBuffer()
-				appendLiteral(string(rawBytes))
+				appendLiteral(raw)
 			} else if attrName, isVoid := htmlVoidTranslatableAttrs[string(tn)]; isVoid {
-				handleVoidTranslatable(rawBytes, attrName)
+				handleVoidTranslatable(raw, attrName)
 			} else {
-				buffer.Write(rawBytes)
+				buffer.WriteString(raw)
 			}
 
 		case html.TextToken:
-			buffer.Write(rawBytes)
+			buffer.WriteString(raw)
 		}
 	}
 
