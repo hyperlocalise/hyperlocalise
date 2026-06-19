@@ -218,6 +218,11 @@ export const catWorkspaceContainerMessages = defineMessages({
     id: "BGfQ06k8Pb",
     description: "Fallback error when repository context lookup fails",
   },
+  visualContextLoadFailed: {
+    defaultMessage: "Failed to load in-context preview from the provider.",
+    id: "qd8sDGeNiM",
+    description: "Fallback error when TMS visual context preview fails to load",
+  },
   saveTranslationFailed: {
     defaultMessage: "Failed to save translation.",
     id: "pMRZvoJLzS",
@@ -587,5 +592,28 @@ export const catEditorPanelMessages = defineMessages({
     defaultMessage: "Copy link to this segment",
     id: "CqDUHu+YvU",
     description: "Accessible label for the CAT segment share link button",
+  },
+});
+
+export const catVisualContextPanelMessages = defineMessages({
+  title: {
+    defaultMessage: "In-context preview",
+    id: "2W3toA+qRz",
+    description: "Section heading for TMS screenshot context in the CAT intelligence panel",
+  },
+  description: {
+    defaultMessage: "Screenshots attached in your TMS for this string.",
+    id: "3Td/QL9gLC",
+    description: "Supporting copy for TMS screenshot context in the CAT intelligence panel",
+  },
+  empty: {
+    defaultMessage: "No screenshots are attached to this string in the provider.",
+    id: "ISCo8PAGGI",
+    description: "Empty state when a TMS string has no screenshot context",
+  },
+  screenshotAltFallback: {
+    defaultMessage: "Screenshot context for this string",
+    id: "jORzWMtK+S",
+    description: "Accessible fallback label for a TMS screenshot preview image",
   },
 });

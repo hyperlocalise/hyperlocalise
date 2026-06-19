@@ -41,7 +41,11 @@ import {
   type CatQueueFilter,
 } from "./cat-queue-filter";
 import { buildCatSegmentShareUrl } from "./cat-segment-share-link";
-import { catEditorPanelMessages, catWorkspaceContainerMessages } from "./cat.messages";
+import {
+  catEditorPanelMessages,
+  catIntelligencePanelMessages,
+  catWorkspaceContainerMessages,
+} from "./cat.messages";
 import {
   selectBestTmMatchForAutoFill,
   TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
@@ -209,6 +213,16 @@ export function mergeCatWorkspaceState(
         translationMemoryMatches: currentConcordance?.translationMemoryMatches,
       };
     }
+
+    const nextVisualContext = nextInitialState.segmentIntelligence?.[segment.id]?.visualContext;
+    const currentVisualContext = currentState.segmentIntelligence?.[segment.id]?.visualContext;
+    if (!nextVisualContext && currentVisualContext) {
+      segmentIntelligence[segment.id] = {
+        ...(segmentIntelligence[segment.id] ?? nextInitialState.intelligence),
+        ...currentState.segmentIntelligence?.[segment.id],
+        visualContext: currentVisualContext,
+      };
+    }
   }
 
   return {
@@ -306,6 +320,7 @@ export function CatWorkspaceContainer({
   const [commentPostError, setCommentPostError] = useState<string | undefined>();
   const [isLookingUpContext, setIsLookingUpContext] = useState(false);
   const [isLoadingConcordance, setIsLoadingConcordance] = useState(false);
+  const [isLoadingVisualContext, setIsLoadingVisualContext] = useState(false);
   const [revealedAgentContextSegmentIds, setRevealedAgentContextSegmentIds] = useState<
     ReadonlySet<string>
   >(() => collectSegmentsWithAgentContext(initialState));
@@ -327,8 +342,12 @@ export function CatWorkspaceContainer({
   const runQaChecks = serviceOverrides?.runQaChecks;
   const lookupSegmentContext = serviceOverrides?.lookupSegmentContext;
   const lookupSegmentConcordance = serviceOverrides?.lookupSegmentConcordance;
+  const lookupSegmentVisualContext = serviceOverrides?.lookupSegmentVisualContext;
   const generateAiRecommendation = serviceOverrides?.generateAiRecommendation;
   const canLookupContext = Boolean(lookupSegmentContext);
+  const canLoadVisualContext = Boolean(
+    lookupSegmentVisualContext && state.providerKind && state.providerKind !== "native",
+  );
   const canUseAiRecommendation = Boolean(generateAiRecommendation);
   const canRunSegmentReview = Boolean(
     lookupSegmentConcordance || generateAiRecommendation || validateFormat || runQaChecks,
@@ -740,6 +759,98 @@ export function CatWorkspaceContainer({
 
   useEffect(() => {
     const segmentId = state.selectedSegmentId;
+    if (!segmentId || !lookupSegmentVisualContext || !canLoadVisualContext) {
+      return;
+    }
+
+    const segment = stateRef.current.segments.find((item) => item.id === segmentId);
+    if (!segment) {
+      return;
+    }
+
+    const existingVisualContext = stateRef.current.segmentIntelligence?.[segmentId]?.visualContext;
+    if (existingVisualContext) {
+      setIsLoadingVisualContext(false);
+      return;
+    }
+
+    let cancelled = false;
+    setIsLoadingVisualContext(true);
+
+    void lookupSegmentVisualContext(segment)
+      .then((visualContext) => {
+        if (cancelled) {
+          return;
+        }
+
+        setState((current) => {
+          const segmentIntelligence =
+            current.segmentIntelligence?.[segmentId] ?? current.intelligence;
+
+          return {
+            ...current,
+            segmentIntelligence: {
+              ...current.segmentIntelligence,
+              [segmentId]: {
+                ...segmentIntelligence,
+                visualContext,
+              },
+            },
+          };
+        });
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
+        }
+
+        const message = intl.formatMessage(catWorkspaceContainerMessages.visualContextLoadFailed);
+        const visualContextFailureCheck: CatFormatCheck = {
+          id: `visual-context-failed-${segmentId}`,
+          label: intl.formatMessage(catIntelligencePanelMessages.panelTitle),
+          status: "warn",
+          message,
+          category: "qa",
+        };
+
+        setState((current) => {
+          const currentChecks =
+            current.segmentFormatChecks?.[segmentId] ?? current.formatChecks ?? [];
+          const nextChecks = [
+            visualContextFailureCheck,
+            ...currentChecks.filter((check) => check.id !== visualContextFailureCheck.id),
+          ];
+
+          return {
+            ...current,
+            segmentFormatChecks: {
+              ...current.segmentFormatChecks,
+              [segmentId]: nextChecks,
+            },
+            formatChecks:
+              current.selectedSegmentId === segmentId ? nextChecks : current.formatChecks,
+          };
+        });
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingVisualContext(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    canLoadVisualContext,
+    intl,
+    lookupSegmentVisualContext,
+    state.providerKind,
+    state.selectedSegmentId,
+  ]);
+
+  useEffect(() => {
+    const segmentId = state.selectedSegmentId;
     if (!segmentId || !canRunSegmentReview) {
       return;
     }
@@ -1140,10 +1251,12 @@ export function CatWorkspaceContainer({
         commentPostError={commentPostError}
         isLookingUpContext={isLookingUpContext}
         isConcordanceLoading={isLoadingConcordance}
+        isVisualContextLoading={isLoadingVisualContext}
         isAiSuggestionLoading={isGeneratingAiRecommendation && canUseAiRecommendation}
         isFormatChecksLoading={isRunningFormatChecks || isValidating}
         canLookupContext={canLookupContext}
         showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
+        showVisualContext={canLoadVisualContext}
         canUseAiRecommendation={canUseAiRecommendation}
         className={className}
         queueSearch={queueSearch}

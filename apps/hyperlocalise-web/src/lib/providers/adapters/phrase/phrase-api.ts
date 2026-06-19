@@ -81,6 +81,27 @@ export interface PhraseUpload {
   updatedAt: string | null;
 }
 
+export interface PhraseScreenshot {
+  id: string;
+  name: string | null;
+  description: string | null;
+  screenshotUrl: string | null;
+  markersCount: number;
+}
+
+export interface PhraseScreenshotMarker {
+  id: string;
+  keyId: string;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+}
+
+export interface PhraseKeyScreenshot extends PhraseScreenshot {
+  markers: PhraseScreenshotMarker[] | null;
+}
+
 export interface PhraseUserPreview {
   id: string;
   username: string | null;
@@ -346,6 +367,84 @@ export class PhraseApiClient {
           branch: options.branch,
         }),
       normalize: (record) => normalizePhraseTranslation(record as PhraseTranslationApiRecord),
+    });
+  }
+
+  async listScreenshots(
+    projectId: string,
+    options: PhraseListOptions & { maxItems?: number } = {},
+  ): Promise<PhraseScreenshot[]> {
+    const screenshots: PhraseScreenshot[] = [];
+    let page = 1;
+    const perPage = 100;
+    const maxItems = options.maxItems ?? 50;
+
+    while (screenshots.length < maxItems) {
+      const pageItems = await this.get<unknown[]>(
+        this.buildPath(`/projects/${encodeURIComponent(projectId)}/screenshots`, {
+          page,
+          per_page: perPage,
+          branch: options.branch,
+        }),
+      );
+      screenshots.push(...pageItems.map((record) => normalizePhraseScreenshot(record)));
+
+      if (pageItems.length < perPage || screenshots.length >= maxItems) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return screenshots.slice(0, maxItems);
+  }
+
+  async listKeyScreenshots(
+    projectId: string,
+    keyId: string,
+    options: PhraseListOptions & { maxItems?: number } = {},
+  ): Promise<PhraseKeyScreenshot[]> {
+    const results: PhraseKeyScreenshot[] = [];
+    const maxItems = options.maxItems ?? 50;
+    const perPage = 100;
+    let page = 1;
+
+    while (results.length < maxItems) {
+      const pageItems = await this.get<unknown[]>(
+        this.buildPath(
+          `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/screenshots`,
+          { page, per_page: perPage, branch: options.branch },
+        ),
+      );
+      results.push(...pageItems.map((record) => normalizePhraseKeyScreenshot(record)));
+
+      if (pageItems.length < perPage || results.length >= maxItems) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return results.slice(0, maxItems);
+  }
+
+  async listScreenshotMarkers(
+    projectId: string,
+    screenshotId: string,
+    options: PhraseListOptions = {},
+  ): Promise<PhraseScreenshotMarker[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(
+          `/projects/${encodeURIComponent(projectId)}/screenshots/${encodeURIComponent(screenshotId)}/markers`,
+          {
+            page,
+            per_page: perPage,
+            branch: options.branch,
+          },
+        ),
+      normalize: (record) =>
+        normalizePhraseScreenshotMarker(record as PhraseScreenshotMarkerApiRecord),
     });
   }
 
@@ -680,6 +779,29 @@ type PhraseUploadApiRecord = {
   updated_at?: string | null;
 };
 
+type PhraseScreenshotApiRecord = {
+  id?: string;
+  name?: string | null;
+  description?: string | null;
+  screenshot_url?: string | null;
+  markers_count?: number;
+  markers?: PhraseScreenshotMarkerApiRecord[];
+};
+
+type PhraseScreenshotMarkerApiRecord = {
+  id?: string;
+  key_id?: string;
+  presentation?: {
+    x?: number;
+    y?: number;
+    w?: number;
+    h?: number;
+  } | null;
+  translation_key?: {
+    id?: string;
+  } | null;
+};
+
 type PhraseUserPreviewApiRecord = {
   id: string;
   username?: string | null;
@@ -789,6 +911,41 @@ function normalizePhraseUpload(upload: PhraseUploadApiRecord): PhraseUpload {
     url: upload.url ?? null,
     createdAt: upload.created_at ?? null,
     updatedAt: upload.updated_at ?? null,
+  };
+}
+
+function normalizePhraseScreenshot(record: unknown): PhraseScreenshot {
+  const screenshot = record as PhraseScreenshotApiRecord;
+
+  return {
+    id: screenshot.id ?? "",
+    name: screenshot.name?.trim() || null,
+    description: screenshot.description?.trim() || null,
+    screenshotUrl: screenshot.screenshot_url?.trim() || null,
+    markersCount: screenshot.markers_count ?? 0,
+  };
+}
+
+function normalizePhraseKeyScreenshot(record: unknown): PhraseKeyScreenshot {
+  const screenshot = record as PhraseScreenshotApiRecord;
+  return {
+    ...normalizePhraseScreenshot(record),
+    markers: Array.isArray(screenshot.markers)
+      ? screenshot.markers.map((marker) => normalizePhraseScreenshotMarker(marker))
+      : null,
+  };
+}
+
+function normalizePhraseScreenshotMarker(
+  record: PhraseScreenshotMarkerApiRecord,
+): PhraseScreenshotMarker {
+  return {
+    id: record.id ?? "",
+    keyId: record.translation_key?.id ?? record.key_id ?? "",
+    left: record.presentation?.x ?? 0,
+    top: record.presentation?.y ?? 0,
+    width: record.presentation?.w ?? 0,
+    height: record.presentation?.h ?? 0,
   };
 }
 

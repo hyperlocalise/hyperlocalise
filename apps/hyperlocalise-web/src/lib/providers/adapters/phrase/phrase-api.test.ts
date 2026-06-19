@@ -268,4 +268,34 @@ describe("PhraseApiClient", () => {
 
     await expect(client.listProjects()).rejects.toBeInstanceOf(PhraseApiError);
   });
+
+  it("caps listKeyScreenshots pagination with maxItems", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      if (path.includes("/keys/key-1/screenshots") && path.includes("page=1")) {
+        return new Response(
+          JSON.stringify(
+            Array.from({ length: 100 }, (_, index) => ({
+              id: `screenshot-${index + 1}`,
+              name: `Screenshot ${index + 1}`,
+              screenshot_url: `https://example.com/${index + 1}.png`,
+            })),
+          ),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-1/screenshots") && path.includes("page=2")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const screenshots = await client.listKeyScreenshots("proj-1", "key-1", { maxItems: 8 });
+
+    expect(screenshots).toHaveLength(8);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });

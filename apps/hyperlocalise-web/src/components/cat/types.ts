@@ -1,3 +1,5 @@
+import type { CatVisualContext } from "@/lib/translation/cat-visual-context";
+
 export type CatSegmentStatus = "pending" | "needs_review" | "reviewed" | "skipped";
 
 export type CatTmMatchKind = "exact" | "context" | "fuzzy";
@@ -74,6 +76,7 @@ export interface CatSegmentIntelligence {
   translationMemoryMatches?: CatTranslationMemoryMatch[];
   aiSuggestion?: string;
   aiReasoning?: string;
+  visualContext?: CatVisualContext;
 }
 
 export interface CatQueueSummary {
@@ -97,4 +100,5 @@ export interface CatWorkspaceState {
   primaryActionLabel?: string;
   canEditTranslations?: boolean;
   canAddComments?: boolean;
+  providerKind?: string | null;
 }

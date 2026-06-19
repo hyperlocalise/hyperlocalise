@@ -10,6 +10,7 @@ import type {
   ProjectFileCatComment,
   ProjectFileCatRecommendationResponse,
   ProjectFileCatTranslation,
+  ProjectFileCatVisualContextResponse,
 } from "@/api/routes/project/project.schema";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -307,6 +308,28 @@ export function ProjectFileCatWorkspace({
     [organizationSlug, projectId],
   );
 
+  const lookupSegmentVisualContext = useCallback(
+    async (segment: CatSegment) => {
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat["visual-context"].$post({
+        param: { organizationSlug, projectId },
+        json: {
+          sourcePath,
+          externalStringId: segment.id,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to load in-context preview"));
+      }
+
+      const body = (await response.json()) as ProjectFileCatVisualContextResponse;
+      return body.visualContext;
+    },
+    [organizationSlug, projectId, sourcePath],
+  );
+
   const generateAiRecommendation = useCallback(
     async (segment: CatSegment, targetText: string, intelligence?: CatSegmentIntelligence) => {
       const concordancePayload =
@@ -435,6 +458,10 @@ export function ProjectFileCatWorkspace({
         services={{
           validateFormat,
           lookupSegmentConcordance,
+          lookupSegmentVisualContext:
+            catQuery.data?.provider?.kind && catQuery.data.provider.kind !== "native"
+              ? lookupSegmentVisualContext
+              : undefined,
           generateAiRecommendation,
           ...(repositoryFullName ? { lookupSegmentContext } : {}),
         }}

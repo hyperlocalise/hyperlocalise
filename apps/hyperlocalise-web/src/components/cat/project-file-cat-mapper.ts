@@ -230,6 +230,7 @@ export function projectFileCatToWorkspaceState(
     primaryActionLabel: catFile.provider ? "Save to provider" : "Save translation",
     canEditTranslations: catFile.canEditTranslations,
     canAddComments: Boolean(catFile.provider?.kind === "crowdin" && catFile.canEditTranslations),
+    providerKind: catFile.provider?.kind ?? null,
   };
 }
 

@@ -447,6 +447,33 @@ export const projectFileCatConcordanceResponseSchema = z.object({
   }),
 });
 
+export const projectFileCatVisualContextMarkerSchema = z.object({
+  left: z.number(),
+  top: z.number(),
+  width: z.number(),
+  height: z.number(),
+});
+
+export const projectFileCatVisualContextScreenshotSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable(),
+  imageUrl: z.string().min(1),
+  width: z.number().nullable(),
+  height: z.number().nullable(),
+  markers: z.array(projectFileCatVisualContextMarkerSchema),
+});
+
+export const projectFileCatVisualContextBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalStringId: z.string().trim().min(1).max(128),
+});
+
+export const projectFileCatVisualContextResponseSchema = z.object({
+  visualContext: z.object({
+    screenshots: z.array(projectFileCatVisualContextScreenshotSchema),
+  }),
+});
+
 export const projectFileCatRecommendationResponseSchema = z.object({
   recommendation: z.object({
     aiSuggestion: z.string(),
@@ -531,6 +558,10 @@ export type ProjectFileCatRecommendationBody = z.infer<
 export type ProjectFileCatConcordanceBody = z.infer<typeof projectFileCatConcordanceBodySchema>;
 export type ProjectFileCatConcordanceResponse = z.infer<
   typeof projectFileCatConcordanceResponseSchema
+>;
+export type ProjectFileCatVisualContextBody = z.infer<typeof projectFileCatVisualContextBodySchema>;
+export type ProjectFileCatVisualContextResponse = z.infer<
+  typeof projectFileCatVisualContextResponseSchema
 >;
 export type ProjectSourceStringEntry = z.infer<typeof projectSourceStringEntrySchema>;
 export type ProjectSourceStringsPreview = z.infer<typeof projectSourceStringsPreviewSchema>;
