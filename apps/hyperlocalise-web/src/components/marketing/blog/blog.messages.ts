@@ -1,3 +1,5 @@
+"use client";
+
 import { defineMessages } from "react-intl";
 
 export const blogMessages = defineMessages({

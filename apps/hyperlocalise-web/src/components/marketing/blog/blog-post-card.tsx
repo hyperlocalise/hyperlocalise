@@ -1,9 +1,11 @@
+"use client";
+
 import type { Post } from "@/lib/blog/blog-post";
 import { getBlogPostPath } from "@/lib/blog/blog-post-path";
 import { formatBlogPostDate } from "@/components/marketing/blog/format-blog-post-date";
 import { BlogPostCover } from "@/components/marketing/blog/blog-post-cover";
-import { getIntlShape } from "@/lib/app-i18n/intl";
 import Link from "next/link";
+import { useIntl } from "react-intl";
 
 type BlogPostCardProps = {
   post: Post;
@@ -11,7 +13,7 @@ type BlogPostCardProps = {
 };
 
 export function BlogPostCard({ post, lang }: BlogPostCardProps) {
-  const intl = getIntlShape(lang);
+  const intl = useIntl();
   const href = getBlogPostPath(lang, post.slug);
 
   if (!href) {

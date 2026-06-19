@@ -1,10 +1,12 @@
+"use client";
+
 import type { Post } from "@/lib/blog/blog-post";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
 import { BlogPostCard } from "@/components/marketing/blog/blog-post-card";
 import { blogMessages } from "@/components/marketing/blog/blog.messages";
 import { TypographyH1, TypographyMuted } from "@/components/ui/typography";
-import { getIntlShape } from "@/lib/app-i18n/intl";
+import { useIntl } from "react-intl";
 
 type BlogIndexPageProps = {
   posts: Post[];
@@ -12,7 +14,7 @@ type BlogIndexPageProps = {
 };
 
 export function BlogIndexPage({ posts, lang }: BlogIndexPageProps) {
-  const intl = getIntlShape(lang);
+  const intl = useIntl();
 
   return (
     <div className="min-h-screen bg-background text-foreground">

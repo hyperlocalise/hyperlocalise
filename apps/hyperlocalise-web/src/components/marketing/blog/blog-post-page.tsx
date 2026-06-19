@@ -1,3 +1,5 @@
+"use client";
+
 import type { Post } from "@/lib/blog/blog-post";
 import { MarketingFooter } from "@/components/marketing/marketing-footer";
 import { footerColumns } from "@/components/marketing/marketing-page-content";
@@ -11,7 +13,7 @@ import {
   TypographyMuted,
   TypographyP,
 } from "@/components/ui/typography";
-import { getIntlShape } from "@/lib/app-i18n/intl";
+import { useIntl } from "react-intl";
 
 import markdownStyles from "@/app/[lang]/(marketing)/blog/[slug]/markdown.module.css";
 
@@ -23,7 +25,7 @@ type BlogPostPageProps = {
 };
 
 export function BlogPostPage({ post, lang, htmlContent, relatedPosts }: BlogPostPageProps) {
-  const intl = getIntlShape(lang);
+  const intl = useIntl();
 
   return (
     <div className="min-h-screen bg-background text-foreground">
