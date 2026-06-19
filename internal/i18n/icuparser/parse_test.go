@@ -493,3 +493,73 @@ func TestParsePluralWithSpaceInOffset(t *testing.T) {
 		})
 	}
 }
+
+func TestParseASTSelect(t *testing.T) {
+	msg := "{gender, select, male {He} female {She} other {They}}"
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("Parse() failed: %v", err)
+	}
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(elems))
+	}
+	se, ok := elems[0].(SelectElement)
+	if !ok {
+		t.Fatalf("expected SelectElement, got %T", elems[0])
+	}
+	if se.Value != "gender" {
+		t.Errorf("expected argument 'gender', got %q", se.Value)
+	}
+	if len(se.Options) != 3 {
+		t.Fatalf("expected 3 options, got %d", len(se.Options))
+	}
+
+	expected := map[string]string{
+		"male":   "He",
+		"female": "She",
+		"other":  "They",
+	}
+
+	for _, opt := range se.Options {
+		val, ok := expected[opt.Selector]
+		if !ok {
+			t.Errorf("unexpected selector %q", opt.Selector)
+			continue
+		}
+		if len(opt.Value) != 1 {
+			t.Errorf("expected 1 element in option %q, got %d", opt.Selector, len(opt.Value))
+			continue
+		}
+		lit, ok := opt.Value[0].(LiteralElement)
+		if !ok || lit.Value != val {
+			t.Errorf("expected literal %q for option %q, got %v", val, opt.Selector, opt.Value[0])
+		}
+	}
+}
+
+func TestParseASTSelectOrdinal(t *testing.T) {
+	msg := "{pos, selectordinal, one {#st} other {#th}}"
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("Parse() failed: %v", err)
+	}
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(elems))
+	}
+	pl, ok := elems[0].(PluralElement)
+	if !ok {
+		t.Fatalf("expected PluralElement, got %T", elems[0])
+	}
+	if pl.Type() != TypeSelectOrdinal {
+		t.Errorf("expected type %q, got %q", TypeSelectOrdinal, pl.Type())
+	}
+	if !pl.Ordinal {
+		t.Errorf("expected Ordinal to be true")
+	}
+	if pl.Value != "pos" {
+		t.Errorf("expected argument 'pos', got %q", pl.Value)
+	}
+	if len(pl.Options) != 2 {
+		t.Fatalf("expected 2 options, got %d", len(pl.Options))
+	}
+}
