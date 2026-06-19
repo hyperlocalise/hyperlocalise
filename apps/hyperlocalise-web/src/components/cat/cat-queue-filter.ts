@@ -18,7 +18,10 @@ export const catQueueFilterValues: CatQueueFilter[] = [
 ];
 
 export function segmentHasOpenIssues(segment: CatSegment) {
-  return segment.comments?.some((comment) => comment.type === "issue") ?? false;
+  return (
+    segment.comments?.some((comment) => comment.type === "issue" && comment.status === "open") ??
+    false
+  );
 }
 
 export function segmentMatchesQueueFilter(segment: CatSegment, filter: CatQueueFilter) {

@@ -54,6 +54,25 @@ describe("segmentMatchesQueueFilter", () => {
     expect(segmentMatchesQueueFilter(withIssue, "needs_review")).toBe(false);
   });
 
+  it("ignores resolved issue comments for the has issues filter", () => {
+    const withResolvedIssue = createSegment({
+      status: "needs_review",
+      comments: [
+        {
+          id: "c-1",
+          type: "issue",
+          status: "resolved",
+          text: "Fixed tone",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          locale: "vi",
+        },
+      ],
+    });
+
+    expect(segmentMatchesQueueFilter(withResolvedIssue, "has_issues")).toBe(false);
+    expect(segmentMatchesQueueFilter(withResolvedIssue, "needs_review")).toBe(true);
+  });
+
   it("filters segment lists", () => {
     const segments = [
       createSegment({ id: "a", status: "pending" }),

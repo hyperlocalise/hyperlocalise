@@ -295,6 +295,7 @@ export function CatWorkspaceContainer({
   const [queueFilter, setQueueFilter] = useState<CatQueueFilter>("all");
   const [checkedSegmentIds, setCheckedSegmentIds] = useState<ReadonlySet<string>>(() => new Set());
   const [isBulkActionPending, setIsBulkActionPending] = useState(false);
+  const initialSegmentJumpAppliedRef = useRef(Boolean(initialSegmentKeyOrId));
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
@@ -362,18 +363,19 @@ export function CatWorkspaceContainer({
   useEffect(() => {
     setState((current) => {
       const merged = mergeCatWorkspaceState(previousInitialStateRef.current, current, initialState);
-      if (!initialSegmentKeyOrId) {
-        return merged;
+      if (initialSegmentKeyOrId && !initialSegmentJumpAppliedRef.current) {
+        initialSegmentJumpAppliedRef.current = true;
+        return {
+          ...merged,
+          selectedSegmentId: resolveSelectedSegmentId(
+            merged.segments,
+            initialSegmentKeyOrId,
+            merged.selectedSegmentId,
+          ),
+        };
       }
 
-      return {
-        ...merged,
-        selectedSegmentId: resolveSelectedSegmentId(
-          merged.segments,
-          initialSegmentKeyOrId,
-          merged.selectedSegmentId,
-        ),
-      };
+      return merged;
     });
     setSavedTargetTexts((saved) =>
       syncSavedTargetTexts({
@@ -1039,6 +1041,7 @@ export function CatWorkspaceContainer({
     try {
       if (onBulkSkip) {
         await onBulkSkip(segmentIds);
+        return;
       }
 
       for (const segmentId of segmentIds) {
