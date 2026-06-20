@@ -213,6 +213,7 @@ export function CatWorkspaceView({
     return (
       <CatIntelligencePanel
         intelligence={selectedSegmentIntelligence}
+        targetText={selectedSegment.targetText}
         isLookingUpContext={isLookingUpContext}
         isConcordanceLoading={isConcordanceLoading}
         isVisualContextLoading={isVisualContextLoading}

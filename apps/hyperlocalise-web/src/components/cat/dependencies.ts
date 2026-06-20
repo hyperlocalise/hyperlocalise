@@ -51,7 +51,11 @@ export interface CatWorkspaceReview {
 }
 
 export interface CatWorkspaceServices {
-  validateFormat?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
+  validateFormat?: (
+    segment: CatSegment,
+    value: string,
+    glossaryTerms?: CatGlossaryTerm[],
+  ) => Promise<CatFormatCheck[]>;
   runQaChecks?: (segment: CatSegment, value: string) => Promise<CatFormatCheck[]>;
   lookupSegmentContext?: (segment: CatSegment) => Promise<string>;
   lookupSegmentConcordance?: (segment: CatSegment) => Promise<CatSegmentConcordanceResult>;

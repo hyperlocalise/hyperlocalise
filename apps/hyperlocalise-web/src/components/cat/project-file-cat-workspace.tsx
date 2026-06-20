@@ -35,7 +35,7 @@ import {
   validateSegmentFormat,
 } from "./project-file-cat-mapper";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
-import type { CatSegment, CatSegmentIntelligence } from "./types";
+import type { CatGlossaryTerm, CatSegment, CatSegmentIntelligence } from "./types";
 
 function initialTargetLocale(targetLocales: string[], highlightLocale: string | null) {
   if (highlightLocale && targetLocales.includes(highlightLocale)) {
@@ -197,7 +197,8 @@ export function ProjectFileCatWorkspace({
   );
 
   const validateFormat = useCallback(
-    (segment: CatSegment, value: string) => validateSegmentFormat(segment, value, intl),
+    (segment: CatSegment, value: string, glossaryTerms: CatGlossaryTerm[] = []) =>
+      validateSegmentFormat(segment, value, intl, glossaryTerms),
     [intl],
   );
 

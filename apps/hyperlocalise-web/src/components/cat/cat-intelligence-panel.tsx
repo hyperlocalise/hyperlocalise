@@ -1,7 +1,12 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { BulbIcon, CheckmarkCircle02Icon, InformationCircleIcon } from "@hugeicons/core-free-icons";
+import {
+  BulbIcon,
+  AlertCircleIcon,
+  CheckmarkCircle02Icon,
+  InformationCircleIcon,
+} from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { FormattedMessage, useIntl } from "react-intl";
 
@@ -23,6 +28,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
 import { catIntelligencePanelMessages } from "./cat.messages";
+import { containsGlossaryTerm } from "./cat-glossary-checks";
 import { requiresLowMatchConfirmation } from "./tm-match-quality";
 import { CatVisualContextPanel } from "./cat-visual-context-panel";
 import type {
@@ -92,12 +98,15 @@ function AgentContextSkeleton() {
 
 function GlossaryTermRow({
   term,
+  targetText,
   onUse,
 }: {
   term: CatGlossaryTerm;
+  targetText: string;
   onUse?: (term: CatGlossaryTerm) => void;
 }) {
   const intl = useIntl();
+  const forbiddenInTarget = term.forbidden && containsGlossaryTerm(targetText, term.source);
 
   return (
     <li className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 px-3 py-2.5">
@@ -105,7 +114,13 @@ function GlossaryTermRow({
       <span className="text-xs text-muted-foreground">→</span>
       <span className="inline-flex min-w-0 items-center justify-end gap-1.5 text-right text-sm font-medium text-foreground/92">
         <span className="truncate">{term.target}</span>
-        {term.approved ? (
+        {forbiddenInTarget ? (
+          <HugeiconsIcon
+            icon={AlertCircleIcon}
+            className="size-3.5 shrink-0 text-flame-200"
+            aria-label={intl.formatMessage(catIntelligencePanelMessages.forbiddenInTargetAria)}
+          />
+        ) : term.approved ? (
           <HugeiconsIcon
             icon={CheckmarkCircle02Icon}
             className="size-3.5 shrink-0 text-grove-300"
@@ -196,6 +211,7 @@ function TranslationMemoryRow({
 
 export function CatIntelligencePanel({
   intelligence,
+  targetText = "",
   isLookingUpContext = false,
   isConcordanceLoading = false,
   isVisualContextLoading = false,
@@ -206,6 +222,7 @@ export function CatIntelligencePanel({
   onUseGlossaryTerm,
 }: {
   intelligence: CatSegmentIntelligence;
+  targetText?: string;
   isLookingUpContext?: boolean;
   isConcordanceLoading?: boolean;
   isVisualContextLoading?: boolean;
@@ -366,6 +383,7 @@ export function CatIntelligencePanel({
                     <GlossaryTermRow
                       key={term.id}
                       term={term}
+                      targetText={targetText}
                       onUse={
                         canEditTranslations && onUseGlossaryTerm ? onUseGlossaryTerm : undefined
                       }
