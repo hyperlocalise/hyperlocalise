@@ -185,3 +185,7 @@
 ## 2026-09-25 - Optimizing XLIFF parser and marshaler via allocation reduction
 **Learning:** XLIFF parsing and marshaling are allocation-intensive due to frequent XML token cloning and unit state management. Reusing `xliffUnit` structs with `bytes.Buffer` resets, hinting map capacity, and avoiding heap-allocated state pointers provides measurable efficiency gains. Additionally, refining `cloneXMLToken` to skip allocations for empty/nil slices further reduces GC pressure.
 **Action:** Optimized `internal/i18n/translationfileparser/xliff_parser.go` by reusing unit buffers, pre-allocating token slices, and replacing heap pointers with stack-based variables, resulting in a ~22% reduction in allocations and improved speed.
+
+## 2026-10-10 - Optimizing Apple Stringsdict parser and renderer
+**Learning:** XML-based pluralization formats like stringsdict benefit significantly from document-order processing. Since the XML decoder visits tokens sequentially, entries can be collected in order, allowing the renderer to bypass expensive sorting and cloning. Additionally, heuristic capacity hints for stacks and maps in recursive-like XML structures (nested dicts) reduce GC pressure.
+**Action:** Removed redundant sorting/cloning in `render` and implemented capacity hints in `parseStringsdictDocument` and helpers in `internal/i18n/translationfileparser/stringsdict_parser.go`.

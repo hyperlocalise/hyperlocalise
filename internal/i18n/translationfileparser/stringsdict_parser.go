@@ -2,11 +2,9 @@ package translationfileparser
 
 import (
 	"bytes"
-	"cmp"
 	"encoding/xml"
 	"fmt"
 	"regexp"
-	"slices"
 	"strings"
 )
 
@@ -55,10 +53,12 @@ func (d stringsdictDocument) render(values map[string]string) []byte {
 		return []byte(d.template)
 	}
 
-	entries := append([]stringsdictEntry(nil), d.entries...)
-	slices.SortFunc(entries, func(a, b stringsdictEntry) int { return cmp.Compare(a.valueStart, b.valueStart) })
+	// BOLT OPTIMIZATION: Removed redundant clones and slices.SortFunc.
+	// Entries are naturally collected in document order during parsing.
+	entries := d.entries
 
 	var b strings.Builder
+	b.Grow(len(d.template))
 	cursor := 0
 	for _, entry := range entries {
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
@@ -82,14 +82,16 @@ func (d stringsdictDocument) render(values map[string]string) []byte {
 
 func parseStringsdictDocument(content []byte) (stringsdictDocument, error) {
 	text := string(content)
-	doc := stringsdictDocument{template: text, entries: []stringsdictEntry{}}
+	// BOLT OPTIMIZATION: Hint entries capacity based on content size.
+	doc := stringsdictDocument{template: text, entries: make([]stringsdictEntry, 0, len(content)/128)}
 
 	decoder := xml.NewDecoder(bytes.NewReader(content))
 	type dictFrame struct {
 		pathPrefix string
 		pendingKey string
 	}
-	dictStack := []dictFrame{}
+	// BOLT OPTIMIZATION: Hint dictStack capacity.
+	dictStack := make([]dictFrame, 0, 8)
 
 	captureKey := false
 	var keyBuilder strings.Builder
@@ -206,7 +208,8 @@ func parseStringsdictDocument(content []byte) (stringsdictDocument, error) {
 var stringsdictFormatTokenPattern = regexp.MustCompile(`%#@([^@]+)@`)
 
 func validateStringsdictFormatKeys(entries []stringsdictEntry) error {
-	childKeysByPrefix := map[string]map[string]struct{}{}
+	// BOLT OPTIMIZATION: Hint childKeysByPrefix map capacity.
+	childKeysByPrefix := make(map[string]map[string]struct{}, len(entries)/4)
 	for _, entry := range entries {
 		// BOLT OPTIMIZATION: Use LastIndexByte to extract prefix and child key.
 		// A stringsdict key is at least prefix.substitutionKey.category (3 segments).
@@ -262,7 +265,8 @@ func validateStringsdictFormatKeys(entries []stringsdictEntry) error {
 }
 
 func isStringsdictMetadataKey(path string) bool {
-	lastDot := strings.LastIndex(path, ".")
+	// BOLT OPTIMIZATION: Use LastIndexByte for faster character discovery.
+	lastDot := strings.LastIndexByte(path, '.')
 	segment := path
 	if lastDot >= 0 {
 		segment = path[lastDot+1:]
