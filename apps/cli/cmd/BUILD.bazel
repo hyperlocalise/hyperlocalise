@@ -28,7 +28,6 @@ go_library(
         "//internal/pathguard",
         "//internal/i18n/storage",
         "//internal/i18n/storage/crowdin",
-        "//internal/i18n/storage/hyperlocalise",
         "//internal/i18n/storage/lokalise",
         "//internal/i18n/storage/phrase",
         "//internal/i18n/storage/smartling",

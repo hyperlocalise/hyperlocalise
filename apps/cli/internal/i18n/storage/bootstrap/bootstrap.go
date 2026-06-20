@@ -5,7 +5,6 @@ import (
 
 	"github.com/hyperlocalise/hyperlocalise/apps/cli/internal/i18n/storageregistry"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/crowdin"
-	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/hyperlocalise"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/lilt"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/lokalise"
 	"github.com/hyperlocalise/hyperlocalise/internal/i18n/storage/phrase"
@@ -29,7 +28,6 @@ func RegisterBuiltins(reg *storageregistry.Registry) error {
 		{name: lokalise.AdapterName, factory: lokalise.New},
 		{name: phrase.AdapterName, factory: phrase.New},
 		{name: smartling.AdapterName, factory: smartling.New},
-		{name: hyperlocalise.AdapterName, factory: hyperlocalise.New},
 	}
 
 	for _, registration := range registrations {

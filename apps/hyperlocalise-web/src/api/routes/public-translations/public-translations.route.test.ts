@@ -27,7 +27,7 @@ afterEach(async () => {
 });
 
 describe("publicTranslationRoutes", () => {
-  it("lists and upserts project translations for key sync", async () => {
+  it("downloads a translation file built from project translations", async () => {
     const { apiKey, project } = await createPublicApiFixture();
     await db
       .update(schema.organizationApiKeys)
@@ -47,34 +47,34 @@ describe("publicTranslationRoutes", () => {
       entries: [{ key: "greeting", text: "Hello" }],
     });
 
-    const putResponse = await client.api.v1.projects[":projectId"].translations.$put(
+    await db.insert(schema.projectTranslations).values({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      translationKeyId: (
+        await db
+          .select({ id: schema.projectTranslationKeys.id })
+          .from(schema.projectTranslationKeys)
+          .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+          .limit(1)
+      )[0].id,
+      targetLocale: "fr",
+      text: "Bonjour",
+      status: "approved",
+      provenance: "import",
+    });
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
       {
         param: { projectId: project.id },
-        json: {
-          sourcePath,
-          sourceLocale: "en",
-          entries: [{ key: "greeting", locale: "fr", value: "Bonjour" }],
-        },
+        query: { sourcePath, locale: "fr" },
       },
       { headers: { "x-api-key": apiKey } },
     );
 
-    expect(putResponse.status).toBe(200);
-
-    const getResponse = await client.api.v1.projects[":projectId"].translations.$get(
-      {
-        param: { projectId: project.id },
-        query: { sourcePath, locales: "fr" },
-      },
-      { headers: { "x-api-key": apiKey } },
-    );
-
-    expect(getResponse.status).toBe(200);
-    const body = (await getResponse.json()) as {
-      translations: Array<{ key: string; locale: string; value: string }>;
-    };
-    expect(body.translations).toEqual([
-      expect.objectContaining({ key: "greeting", locale: "fr", value: "Bonjour" }),
-    ]);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/json");
+    expect(response.headers.get("content-disposition")).toContain("attachment");
+    const content = await response.text();
+    expect(JSON.parse(content)).toEqual({ greeting: "Bonjour" });
   });
 });

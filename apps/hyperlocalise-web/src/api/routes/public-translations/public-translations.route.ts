@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { bodyLimit } from "hono/body-limit";
+import path from "node:path";
 import { validator } from "hono/validator";
 
 import {
@@ -8,13 +8,11 @@ import {
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
 import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
-import { payloadTooLargeResponse } from "@/api/response.schema";
-import { projectTranslationService } from "@/lib/projects/translations/project-translation-service";
+import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 
 import {
-  listPublicTranslationsQuerySchema,
+  downloadPublicTranslationsQuerySchema,
   publicTranslationProjectParamsSchema,
-  upsertPublicTranslationsBodySchema,
 } from "./public-translations.schema";
 import {
   invalidTranslationPayloadResponse,
@@ -29,41 +27,29 @@ const validateProjectParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
-const validateListQuery = validator("query", (value, c) => {
-  const parsed = listPublicTranslationsQuerySchema.safeParse(value);
+const validateDownloadQuery = validator("query", (value, c) => {
+  const parsed = downloadPublicTranslationsQuerySchema.safeParse(value);
   if (!parsed.success) {
     return invalidTranslationPayloadResponse(c);
   }
   return parsed.data;
 });
 
-const validateUpsertBody = validator("json", (value, c) => {
-  const parsed = upsertPublicTranslationsBodySchema.safeParse(value);
-  if (!parsed.success) {
-    return invalidTranslationPayloadResponse(c);
-  }
-  return parsed.data;
-});
-
-function parseLocales(value: string | undefined) {
-  if (!value?.trim()) {
-    return undefined;
-  }
-
-  return value
-    .split(",")
-    .map((locale) => locale.trim())
-    .filter(Boolean);
+function downloadFilename(sourcePath: string, locale: string) {
+  const extension = path.extname(sourcePath);
+  const baseName = path.basename(sourcePath, extension);
+  const suffix = baseName.endsWith(`-${locale}`) ? baseName : `${baseName}-${locale}`;
+  return extension ? `${suffix}${extension}` : `${suffix}.json`;
 }
 
 export function createPublicTranslationRoutes() {
   return new Hono<{ Variables: ApiKeyAuthVariables }>()
     .use("*", apiKeyAuthMiddleware)
     .get(
-      "/:projectId/translations",
+      "/:projectId/translations/download",
       requireApiKeyPermission("files:read"),
       validateProjectParams,
-      validateListQuery,
+      validateDownloadQuery,
       async (c) => {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
@@ -77,53 +63,20 @@ export function createPublicTranslationRoutes() {
           return projectNotFoundResponse(c);
         }
 
-        const result = await projectTranslationService.listTranslationsForSync({
+        const result = await loadProjectTranslationsAsPrefilledEntries({
           organizationId,
           projectId: project.id,
           sourcePath: query.sourcePath,
-          locales: parseLocales(query.locales),
+          targetLocale: query.locale,
         });
 
-        return c.json(
-          {
-            translations: result.entries,
-            revision: result.revision,
-          },
-          200,
-        );
-      },
-    )
-    .put(
-      "/:projectId/translations",
-      requireApiKeyPermission("files:write"),
-      bodyLimit({
-        maxSize: 5 * 1024 * 1024,
-        onError: (c) => payloadTooLargeResponse(c, "translation_payload_too_large"),
-      }),
-      validateProjectParams,
-      validateUpsertBody,
-      async (c) => {
-        const params = c.req.valid("param");
-        const body = c.req.valid("json");
-        const organizationId = c.var.auth.organization.localOrganizationId;
+        const content = JSON.stringify(result.prefilled, null, 2) + "\n";
+        const filename = downloadFilename(query.sourcePath, query.locale);
 
-        const project = await getAccessibleProjectForApiKey(
-          c.var.auth.teamAccess,
-          params.projectId,
-        );
-        if (!project) {
-          return projectNotFoundResponse(c);
-        }
-
-        const result = await projectTranslationService.upsertTranslationsFromSync({
-          organizationId,
-          projectId: project.id,
-          sourcePath: body.sourcePath,
-          sourceLocale: body.sourceLocale,
-          entries: body.entries,
+        return c.body(content, 200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Disposition": `attachment; filename="${filename}"`,
         });
-
-        return c.json({ result }, 200);
       },
     );
 }
