@@ -1,16 +1,20 @@
 "use client";
 
-import { useId, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import {
   DatabaseSyncIcon,
+  KanbanIcon,
+  ListViewIcon,
   SearchIcon,
   Task01Icon,
+  TranslateIcon,
   WorkHistoryIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import {
@@ -24,6 +28,13 @@ import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
+import { JobsKanbanBoard, JobRowActions } from "./jobs-kanban-board";
+import {
+  buildJobDetailHref,
+  readJobsViewMode,
+  writeJobsViewMode,
+  type JobsViewMode,
+} from "./jobs-view-helpers";
 import { formatLocaleList, getCrowdinTargetLocales } from "./provider-crowdin-job-display";
 
 import {
@@ -86,7 +97,7 @@ export const jobsStatusOptions = [
 
 export type JobsStatusFilter = (typeof jobsStatusOptions)[number];
 
-type JobLinkKind = "title" | "details";
+type JobLinkKind = "title" | "details" | "cat";
 
 export type JobsLinkRenderer = (props: {
   href: string;
@@ -113,7 +124,7 @@ const jobsFilterSelectContentClassName =
   "w-max min-w-[var(--anchor-width)] max-w-[min(16rem,calc(100vw-2rem))]";
 
 const jobsTableGridClassName =
-  "grid grid-cols-[minmax(13rem,1.35fr)_7.5rem_minmax(8rem,0.8fr)_7.5rem_minmax(10rem,1fr)_5.5rem] gap-3";
+  "grid grid-cols-[minmax(13rem,1.35fr)_7.5rem_minmax(8rem,0.8fr)_7.5rem_minmax(10rem,1fr)_minmax(11rem,auto)] gap-3";
 
 function JobsFilterField({
   label,
@@ -166,7 +177,7 @@ export function formatRelativeTime(value: string | null, now = Date.now()) {
   return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 31_536_000), "year");
 }
 
-function sourceLabel(job: ApiJob) {
+export function sourceLabel(job: ApiJob) {
   return job.externalProviderKind ? `Provider · ${job.externalProviderKind}` : "Native";
 }
 
@@ -210,7 +221,7 @@ export function getJobName(job: ApiJob) {
   return job.id;
 }
 
-function formatJobKind(job: ApiJob) {
+export function formatJobKind(job: ApiJob) {
   if (job.kind === "translation" && job.type) return `${job.kind.replace("_", " ")} · ${job.type}`;
   return job.kind.replace("_", " ");
 }
@@ -249,18 +260,6 @@ export function taskDetailSummary(job: ApiJob) {
   return `${locales} · ${people}`;
 }
 
-function defaultBuildJobDetailHref(
-  organizationSlug: string,
-  projectId: string | null | undefined,
-  jobId: string,
-) {
-  if (!projectId) {
-    return null;
-  }
-
-  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
-}
-
 function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRenderer>[0]) {
   if (kind === "title") {
     return (
@@ -270,6 +269,21 @@ function defaultRenderJobLink({ href, kind, children }: Parameters<JobsLinkRende
         variant="ghost"
         className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-foreground/6"
       >
+        {children}
+      </Button>
+    );
+  }
+
+  if (kind === "cat") {
+    return (
+      <Button
+        nativeButton={false}
+        render={<a href={href} />}
+        variant="outline"
+        size="sm"
+        className="w-fit"
+      >
+        <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
         {children}
       </Button>
     );
@@ -300,7 +314,7 @@ export function JobsPageErrorMessage({ error }: { error: unknown }) {
 }
 
 function JobsList({
-  buildJobDetailHref,
+  buildJobDetailHref: buildDetailHref = buildJobDetailHref,
   emptyLabel,
   isLoading,
   jobs,
@@ -309,7 +323,7 @@ function JobsList({
   projectId,
   renderJobLink,
 }: {
-  buildJobDetailHref: typeof defaultBuildJobDetailHref;
+  buildJobDetailHref?: typeof buildJobDetailHref;
   emptyLabel: string;
   isLoading: boolean;
   jobs: JobRow[];
@@ -337,14 +351,10 @@ function JobsList({
           <TypographyP>Project</TypographyP>
           <TypographyP>Status</TypographyP>
           <TypographyP>Task details</TypographyP>
-          <span aria-hidden />
+          <TypographyP className="text-end">Actions</TypographyP>
         </div>
         {jobs.map((job, index) => {
-          const detailHref = buildJobDetailHref(
-            organizationSlug,
-            projectId ?? job.projectId,
-            job.id,
-          );
+          const detailHref = buildDetailHref(organizationSlug, projectId ?? job.projectId, job.id);
 
           return (
             <div key={job.id}>
@@ -381,13 +391,13 @@ function JobsList({
                     {formatRelativeTime(job.updatedAt, now)}
                   </TypographyP>
                 </div>
-                {detailHref ? (
-                  renderJobLink({ href: detailHref, kind: "details", children: "Details" })
-                ) : (
-                  <Button variant="outline" size="sm" className="w-fit" disabled>
-                    Details
-                  </Button>
-                )}
+                <JobRowActions
+                  buildJobDetailHref={buildDetailHref}
+                  job={job}
+                  organizationSlug={organizationSlug}
+                  projectId={projectId}
+                  renderJobLink={renderJobLink}
+                />
               </div>
               {index < jobs.length - 1 ? <Separator className="bg-foreground/8" /> : null}
             </div>
@@ -411,9 +421,92 @@ function JobListItemTitle({ job }: { job: ApiJob }) {
   );
 }
 
+function JobsViewModeToggle({
+  viewMode,
+  onViewModeChange,
+}: {
+  viewMode: JobsViewMode;
+  onViewModeChange: (viewMode: JobsViewMode) => void;
+}) {
+  return (
+    <ButtonGroup aria-label="Jobs view mode">
+      <Button
+        type="button"
+        variant={viewMode === "row" ? "default" : "outline"}
+        size="sm"
+        className="h-9"
+        onClick={() => onViewModeChange("row")}
+      >
+        <HugeiconsIcon icon={ListViewIcon} strokeWidth={1.8} />
+        Row
+      </Button>
+      <Button
+        type="button"
+        variant={viewMode === "kanban" ? "default" : "outline"}
+        size="sm"
+        className="h-9"
+        onClick={() => onViewModeChange("kanban")}
+      >
+        <HugeiconsIcon icon={KanbanIcon} strokeWidth={1.8} />
+        Board
+      </Button>
+    </ButtonGroup>
+  );
+}
+
+function JobsCollection({
+  buildJobDetailHref: buildDetailHref = buildJobDetailHref,
+  emptyLabel,
+  isLoading,
+  jobs,
+  now,
+  organizationSlug,
+  projectId,
+  renderJobLink,
+  viewMode,
+}: {
+  buildJobDetailHref?: typeof buildJobDetailHref;
+  emptyLabel: string;
+  isLoading: boolean;
+  jobs: JobRow[];
+  now?: number;
+  organizationSlug: string;
+  projectId?: string;
+  renderJobLink: JobsLinkRenderer;
+  viewMode: JobsViewMode;
+}) {
+  if (viewMode === "kanban") {
+    return (
+      <JobsKanbanBoard
+        buildJobDetailHref={buildDetailHref}
+        emptyLabel={emptyLabel}
+        isLoading={isLoading}
+        jobs={jobs}
+        now={now}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        renderJobLink={renderJobLink}
+      />
+    );
+  }
+
+  return (
+    <JobsList
+      buildJobDetailHref={buildDetailHref}
+      emptyLabel={emptyLabel}
+      isLoading={isLoading}
+      jobs={jobs}
+      now={now}
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      renderJobLink={renderJobLink}
+    />
+  );
+}
+
 export function JobsPageView({
   assignedJobs,
-  buildJobDetailHref = defaultBuildJobDetailHref,
+  buildJobDetailHref: buildDetailHref = buildJobDetailHref,
   createdJobs,
   error,
   initialSearch = "",
@@ -432,7 +525,7 @@ export function JobsPageView({
   statusFilter: controlledStatusFilter,
 }: {
   assignedJobs?: JobRow[];
-  buildJobDetailHref?: typeof defaultBuildJobDetailHref;
+  buildJobDetailHref?: typeof buildJobDetailHref;
   createdJobs?: JobRow[];
   error?: unknown;
   initialSearch?: string;
@@ -452,9 +545,25 @@ export function JobsPageView({
 }) {
   const searchId = useId();
   const [search, setSearch] = useState(initialSearch);
+  const [viewMode, setViewMode] = useState<JobsViewMode>("row");
   const [uncontrolledStatusFilter, setUncontrolledStatusFilter] =
     useState<JobsStatusFilter>(initialStatusFilter);
   const statusFilter = controlledStatusFilter ?? uncontrolledStatusFilter;
+
+  useEffect(() => {
+    if (!projectId) {
+      return;
+    }
+
+    setViewMode(readJobsViewMode());
+  }, [projectId]);
+
+  const handleViewModeChange = (nextViewMode: JobsViewMode) => {
+    setViewMode(nextViewMode);
+    if (projectId) {
+      writeJobsViewMode(nextViewMode);
+    }
+  };
 
   const visibleJobs = useMemo(() => {
     const normalizedSearch = search.trim().toLowerCase();
@@ -541,6 +650,11 @@ export function JobsPageView({
             </SelectContent>
           </Select>
         </JobsFilterField>
+        {projectId ? (
+          <JobsFilterField label="View" className="w-full lg:w-auto">
+            <JobsViewModeToggle viewMode={viewMode} onViewModeChange={handleViewModeChange} />
+          </JobsFilterField>
+        ) : null}
       </div>
       {error ? <div>{renderError({ error, organizationSlug })}</div> : null}
       {isPersonalWork ? (
@@ -551,8 +665,8 @@ export function JobsPageView({
                 Jobs assigned to me
               </TypographyP>
             </div>
-            <JobsList
-              buildJobDetailHref={buildJobDetailHref}
+            <JobsCollection
+              buildJobDetailHref={buildDetailHref}
               emptyLabel="No assigned jobs found for your account."
               isLoading={isLoading}
               jobs={visibleAssignedJobs}
@@ -560,6 +674,7 @@ export function JobsPageView({
               organizationSlug={organizationSlug}
               projectId={projectId}
               renderJobLink={renderJobLink}
+              viewMode={viewMode}
             />
           </div>
           <div className="space-y-3">
@@ -568,8 +683,8 @@ export function JobsPageView({
                 Jobs created by me
               </TypographyP>
             </div>
-            <JobsList
-              buildJobDetailHref={buildJobDetailHref}
+            <JobsCollection
+              buildJobDetailHref={buildDetailHref}
               emptyLabel="No jobs created by you found."
               isLoading={isLoading}
               jobs={visibleCreatedJobs}
@@ -577,12 +692,13 @@ export function JobsPageView({
               organizationSlug={organizationSlug}
               projectId={projectId}
               renderJobLink={renderJobLink}
+              viewMode={viewMode}
             />
           </div>
         </div>
       ) : (
-        <JobsList
-          buildJobDetailHref={buildJobDetailHref}
+        <JobsCollection
+          buildJobDetailHref={buildDetailHref}
           emptyLabel={emptyLabel}
           isLoading={isLoading}
           jobs={visibleJobs}
@@ -590,6 +706,7 @@ export function JobsPageView({
           organizationSlug={organizationSlug}
           projectId={projectId}
           renderJobLink={renderJobLink}
+          viewMode={viewMode}
         />
       )}
     </section>
