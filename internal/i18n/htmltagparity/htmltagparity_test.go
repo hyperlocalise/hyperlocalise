@@ -197,6 +197,30 @@ func TestMismatchFormattingAndKnownTags(t *testing.T) {
 			tgt:  "Content",
 			want: true,
 		},
+		{
+			name: "placeholder with normal self-closing is ignored",
+			src:  "Hello <v1/>",
+			tgt:  "Bonjour",
+			want: false,
+		},
+		{
+			name: "placeholder with space before self-closing is ignored",
+			src:  "Hello <v1 />",
+			tgt:  "Bonjour",
+			want: false,
+		},
+		{
+			name: "placeholder with space after slash (flexible self-closing) is ignored",
+			src:  "Hello <v1 / >",
+			tgt:  "Bonjour",
+			want: false,
+		},
+		{
+			name: "known tag with flexible self-closing is protected",
+			src:  "Hello <br / >",
+			tgt:  "Bonjour",
+			want: true,
+		},
 	}
 
 	for _, tt := range tests {
