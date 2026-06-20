@@ -195,3 +195,5 @@ Translation is no longer the bottleneck.
 Missing context is.
 
 Translation intelligence is how modern localisation teams close that gap.
+
+For the broader shift from translation to market-ready communication, see [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
