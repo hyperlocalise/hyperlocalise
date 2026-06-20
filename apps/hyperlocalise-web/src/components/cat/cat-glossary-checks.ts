@@ -2,6 +2,8 @@ import type { CatFormatMessageIntl } from "./cat-message-format-i18n";
 import { catGlossaryChecksMessages } from "./cat.messages";
 import type { CatFormatCheck, CatGlossaryTerm } from "./types";
 
+const UNICODE_WORD_CHAR = String.raw`\p{L}\p{N}_`;
+
 function escapeRegExp(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -12,8 +14,8 @@ export function containsGlossaryTerm(text: string, term: string) {
     return false;
   }
 
-  const patternStr = `(?<![a-zA-Z0-9_])${escapeRegExp(normalizedTerm)}(?![a-zA-Z0-9_])`;
-  return new RegExp(patternStr, "i").test(text);
+  const patternStr = `(?<![${UNICODE_WORD_CHAR}])${escapeRegExp(normalizedTerm)}(?![${UNICODE_WORD_CHAR}])`;
+  return new RegExp(patternStr, "iu").test(text);
 }
 
 export function glossaryFormatChecksForSegment(
@@ -27,9 +29,11 @@ export function glossaryFormatChecksForSegment(
   }
 
   const checks: CatFormatCheck[] = [];
+  let evaluatedTermCount = 0;
 
   for (const term of glossaryTerms) {
     if (term.forbidden) {
+      evaluatedTermCount += 1;
       if (containsGlossaryTerm(targetText, term.source)) {
         checks.push({
           id: `glossary-forbidden-${term.id}`,
@@ -45,6 +49,10 @@ export function glossaryFormatChecksForSegment(
       continue;
     }
 
+    if (!term.approved) {
+      continue;
+    }
+
     if (!containsGlossaryTerm(sourceText, term.source)) {
       continue;
     }
@@ -53,6 +61,8 @@ export function glossaryFormatChecksForSegment(
     if (!expectedTarget) {
       continue;
     }
+
+    evaluatedTermCount += 1;
 
     if (!containsGlossaryTerm(targetText, expectedTarget)) {
       checks.push({
@@ -69,7 +79,7 @@ export function glossaryFormatChecksForSegment(
     }
   }
 
-  if (checks.length === 0) {
+  if (evaluatedTermCount > 0 && checks.length === 0) {
     checks.push({
       id: "glossary-compliance",
       label: intl.formatMessage(catGlossaryChecksMessages.complianceLabel),

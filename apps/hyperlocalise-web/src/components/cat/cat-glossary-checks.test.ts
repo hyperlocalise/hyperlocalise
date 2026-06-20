@@ -30,6 +30,11 @@ describe("containsGlossaryTerm", () => {
     expect(containsGlossaryTerm("Open the dashboard settings", "Dashboard")).toBe(true);
     expect(containsGlossaryTerm("Open the Dashboards settings", "Dashboard")).toBe(false);
   });
+
+  it("uses unicode word boundaries for multi-word target terms", () => {
+    expect(containsGlossaryTerm("Mở Bảng điều khiển", "Bảng điều khiển")).toBe(true);
+    expect(containsGlossaryTerm("xềBảng điều khiển", "Bảng điều khiển")).toBe(false);
+  });
 });
 
 describe("glossaryFormatChecksForSegment", () => {
@@ -52,7 +57,7 @@ describe("glossaryFormatChecksForSegment", () => {
 
   it("flags forbidden terms that appear in the target", () => {
     const checks = glossaryFormatChecksForSegment(
-      "Reviews awaiting approval",
+      "Review awaiting approval",
       "Review đang chờ phê duyệt",
       glossaryTerms,
       testIntl,
@@ -87,5 +92,43 @@ describe("glossaryFormatChecksForSegment", () => {
 
   it("returns no checks when the target is empty", () => {
     expect(glossaryFormatChecksForSegment("Dashboard", "", glossaryTerms, testIntl)).toEqual([]);
+  });
+
+  it("does not warn for unapproved non-forbidden terms", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Open Dashboard settings",
+      "Mở cài đặt",
+      [
+        {
+          id: "draft-term",
+          source: "Dashboard",
+          target: "Bảng điều khiển",
+          approved: false,
+          forbidden: false,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([]);
+  });
+
+  it("returns no checks when glossary terms are not relevant to the segment", () => {
+    const checks = glossaryFormatChecksForSegment(
+      "Save your work before closing",
+      "Lưu công việc trước khi đóng",
+      [
+        {
+          id: "term-dashboard",
+          source: "Dashboard",
+          target: "Bảng điều khiển",
+          approved: true,
+          forbidden: false,
+        },
+      ],
+      testIntl,
+    );
+
+    expect(checks).toEqual([]);
   });
 });
