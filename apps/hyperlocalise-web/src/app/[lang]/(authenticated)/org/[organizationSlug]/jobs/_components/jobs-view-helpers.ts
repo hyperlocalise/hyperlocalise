@@ -13,6 +13,12 @@ export const kanbanStatusColumns = [
   "cancelled",
 ] as const;
 
+export type KanbanStatus = (typeof kanbanStatusColumns)[number];
+
+export function isKanbanStatus(status: string): status is KanbanStatus {
+  return (kanbanStatusColumns as readonly string[]).includes(status);
+}
+
 type JobCatTarget = {
   id: string;
   kind: "translation" | "research" | "review" | "sync" | "asset_management";
@@ -50,6 +56,10 @@ export function readJobsViewMode(): JobsViewMode {
 }
 
 export function writeJobsViewMode(mode: JobsViewMode) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
   try {
     window.localStorage.setItem(JOBS_VIEW_MODE_STORAGE_KEY, mode);
   } catch {

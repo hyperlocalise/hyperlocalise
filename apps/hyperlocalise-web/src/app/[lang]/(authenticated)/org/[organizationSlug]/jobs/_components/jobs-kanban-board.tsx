@@ -6,15 +6,23 @@ import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
 import {
+  formatJobKind,
   formatRelativeTime,
   getJobName,
   jobTone,
+  sourceLabel,
   taskDetailSummary,
   type ApiJob,
   type JobRow,
   type JobsLinkRenderer,
 } from "./jobs-page-view";
-import { buildJobCatHref, buildJobDetailHref, kanbanStatusColumns } from "./jobs-view-helpers";
+import {
+  buildJobCatHref,
+  buildJobDetailHref,
+  isKanbanStatus,
+  kanbanStatusColumns,
+  type KanbanStatus,
+} from "./jobs-view-helpers";
 import { toneClass, type Tone } from "../../_components/workspace-resource-shared";
 
 const kanbanStatusLabels: Record<ApiJob["status"], string> = {
@@ -26,17 +34,12 @@ const kanbanStatusLabels: Record<ApiJob["status"], string> = {
   cancelled: "Cancelled",
 };
 
-function sourceLabel(job: ApiJob) {
-  return job.externalProviderKind ? `Provider · ${job.externalProviderKind}` : "Native";
-}
-
-function formatJobKind(job: ApiJob) {
-  if (job.kind === "translation" && job.type) {
-    return `${job.kind.replace("_", " ")} · ${job.type}`;
-  }
-
-  return job.kind.replace("_", " ");
-}
+type KanbanColumnDef = {
+  key: string;
+  label: string;
+  statusTone: Tone;
+  jobs: JobRow[];
+};
 
 export function JobRowActions({
   buildJobDetailHref: buildDetailHref = buildJobDetailHref,
@@ -54,11 +57,10 @@ export function JobRowActions({
   const resolvedProjectId = projectId ?? job.projectId;
   const detailHref = buildDetailHref(organizationSlug, resolvedProjectId, job.id);
   const catHref = buildJobCatHref(organizationSlug, resolvedProjectId, job);
-  const showCat = Boolean(catHref);
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {showCat && catHref ? renderJobLink({ href: catHref, kind: "cat", children: "CAT" }) : null}
+      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: "CAT" }) : null}
       {detailHref ? (
         renderJobLink({ href: detailHref, kind: "details", children: "Details" })
       ) : (
@@ -208,28 +210,52 @@ export function JobsKanbanBoard({
     return <TypographyP className="px-3 py-8 text-sm text-foreground/58">{emptyLabel}</TypographyP>;
   }
 
-  const jobsByStatus = new Map<ApiJob["status"], JobRow[]>();
+  const jobsByStatus = new Map<KanbanStatus, JobRow[]>();
   for (const status of kanbanStatusColumns) {
     jobsByStatus.set(status, []);
   }
 
+  const unknownStatusJobs: JobRow[] = [];
   for (const job of jobs) {
-    jobsByStatus.get(job.status)?.push(job);
+    const status = job.status as string;
+    if (isKanbanStatus(status)) {
+      jobsByStatus.get(status)?.push(job);
+      continue;
+    }
+
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(`[JobsKanbanBoard] Unknown job status "${status}" for job ${job.id}`);
+    }
+    unknownStatusJobs.push(job);
   }
 
-  const visibleColumns = kanbanStatusColumns.filter(
-    (status) => (jobsByStatus.get(status)?.length ?? 0) > 0,
-  );
+  const columns: KanbanColumnDef[] = kanbanStatusColumns
+    .filter((status) => (jobsByStatus.get(status)?.length ?? 0) > 0)
+    .map((status) => ({
+      key: status,
+      label: kanbanStatusLabels[status],
+      statusTone: jobTone(status),
+      jobs: jobsByStatus.get(status) ?? [],
+    }));
+
+  if (unknownStatusJobs.length > 0) {
+    columns.push({
+      key: "other",
+      label: "Other",
+      statusTone: "watch",
+      jobs: unknownStatusJobs,
+    });
+  }
 
   return (
     <div className="overflow-x-auto pb-1">
       <div className="flex min-w-max gap-3">
-        {visibleColumns.map((status) => (
+        {columns.map((column) => (
           <KanbanColumn
-            key={status}
-            label={kanbanStatusLabels[status]}
-            statusTone={jobTone(status)}
-            jobs={jobsByStatus.get(status) ?? []}
+            key={column.key}
+            label={column.label}
+            statusTone={column.statusTone}
+            jobs={column.jobs}
             buildJobDetailHref={buildDetailHref}
             now={now}
             organizationSlug={organizationSlug}

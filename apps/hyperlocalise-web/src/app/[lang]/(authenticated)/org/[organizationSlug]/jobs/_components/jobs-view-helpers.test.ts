@@ -5,6 +5,7 @@ import {
   buildJobCatHref,
   buildJobDetailHref,
   canOpenJobCat,
+  isKanbanStatus,
   readJobsViewMode,
   writeJobsViewMode,
 } from "./jobs-view-helpers";
@@ -83,6 +84,11 @@ describe("jobs-view-helpers", () => {
     );
     expect(buildJobCatHref("acme", null, createJob())).toBeNull();
     expect(buildJobCatHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
+  });
+
+  it("identifies known kanban statuses", () => {
+    expect(isKanbanStatus("running")).toBe(true);
+    expect(isKanbanStatus("unknown_status")).toBe(false);
   });
 
   it("persists project jobs view mode in local storage", () => {

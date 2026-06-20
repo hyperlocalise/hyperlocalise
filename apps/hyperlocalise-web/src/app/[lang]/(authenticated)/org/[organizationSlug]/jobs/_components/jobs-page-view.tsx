@@ -177,7 +177,7 @@ export function formatRelativeTime(value: string | null, now = Date.now()) {
   return RELATIVE_TIME_FORMATTER.format(Math.round(deltaSeconds / 31_536_000), "year");
 }
 
-function sourceLabel(job: ApiJob) {
+export function sourceLabel(job: ApiJob) {
   return job.externalProviderKind ? `Provider · ${job.externalProviderKind}` : "Native";
 }
 
@@ -221,7 +221,7 @@ export function getJobName(job: ApiJob) {
   return job.id;
 }
 
-function formatJobKind(job: ApiJob) {
+export function formatJobKind(job: ApiJob) {
   if (job.kind === "translation" && job.type) return `${job.kind.replace("_", " ")} · ${job.type}`;
   return job.kind.replace("_", " ");
 }
