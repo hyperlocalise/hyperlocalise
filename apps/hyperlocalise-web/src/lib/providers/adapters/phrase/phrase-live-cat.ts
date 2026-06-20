@@ -140,6 +140,18 @@ function mapPhraseTargetTranslation(
   };
 }
 
+function resolvePhraseTargetLocale(targetLocale: string, locales: PhraseLocale[]): PhraseLocale {
+  const matched = matchPhraseTargetLocale(targetLocale, locales);
+  if (!matched) {
+    throw new PhraseLiveCatError(
+      "phrase_target_locale_not_found",
+      `Target locale "${targetLocale}" was not found in the Phrase project.`,
+    );
+  }
+
+  return matched;
+}
+
 function mapPhraseKeyComment(
   comment: {
     id: string;
@@ -159,7 +171,7 @@ function mapPhraseKeyComment(
     type: "comment",
     status: null,
     text: comment.message,
-    createdAt: comment.createdAt ?? comment.updatedAt ?? new Date().toISOString(),
+    createdAt: comment.createdAt ?? comment.updatedAt ?? null,
     locale,
     author: comment.user?.name ?? comment.user?.username ?? null,
   };
@@ -204,30 +216,32 @@ function segmentMatchesSearch(segment: PhraseCatSegmentDraft, search: string | u
 async function loadTranslationsByKeyId(input: {
   client: ReturnType<typeof createPhraseStringsApiClient>;
   projectId: string;
-  locales: PhraseLocale[];
+  localeNames: Set<string>;
   branch: string | null;
-  keyIds: Set<string>;
+  keyIds: string[];
 }) {
   const translationsByKeyId = new Map<string, Map<string, PhraseTranslation>>();
   const listOptions = input.branch ? { branch: input.branch } : {};
+  if (input.keyIds.length === 0) {
+    return translationsByKeyId;
+  }
 
-  await mapWithConcurrency(input.locales, LOCALE_FETCH_CONCURRENCY, async (locale) => {
+  await mapWithConcurrency(input.keyIds, LOCALE_FETCH_CONCURRENCY, async (keyId) => {
     try {
-      const translations = await input.client.listTranslations(
+      const translations = await input.client.listKeyTranslations(
         input.projectId,
-        locale.name,
+        keyId,
         listOptions,
       );
 
       for (const translation of translations) {
-        if (!translation.keyId || !input.keyIds.has(translation.keyId)) {
+        if (!translation.localeName || !input.localeNames.has(translation.localeName)) {
           continue;
         }
 
-        const byLocale =
-          translationsByKeyId.get(translation.keyId) ?? new Map<string, PhraseTranslation>();
-        byLocale.set(locale.name, translation);
-        translationsByKeyId.set(translation.keyId, byLocale);
+        const byLocale = translationsByKeyId.get(keyId) ?? new Map<string, PhraseTranslation>();
+        byLocale.set(translation.localeName, translation);
+        translationsByKeyId.set(keyId, byLocale);
       }
     } catch (error) {
       mapPhraseApiError(error);
@@ -363,15 +377,7 @@ export async function buildPhraseLiveCatFile(input: {
   }
 
   const sourceLocale = locales.find((locale) => locale.default) ?? null;
-  const targetLocale =
-    matchPhraseTargetLocale(input.targetLocale, locales) ??
-    locales.find((locale) => !locale.default);
-  if (!targetLocale) {
-    throw new PhraseLiveCatError(
-      "phrase_target_locale_not_found",
-      "Target locale was not found in the Phrase project.",
-    );
-  }
+  const targetLocale = resolvePhraseTargetLocale(input.targetLocale, locales);
 
   const scopedKeys = await resolveScopedKeys({
     client,
@@ -379,15 +385,17 @@ export async function buildPhraseLiveCatFile(input: {
     branch: scope.branch,
     file: input.file,
   });
-  const keyIds = new Set(scopedKeys.map((key) => key.id));
-  const localesToLoad = [sourceLocale, targetLocale].filter(
-    (locale): locale is PhraseLocale => locale != null,
+  const keyIds = scopedKeys.map((key) => key.id);
+  const localeNames = new Set(
+    [sourceLocale, targetLocale]
+      .filter((locale): locale is PhraseLocale => locale != null)
+      .map((locale) => locale.name),
   );
 
   const translationsByKeyId = await loadTranslationsByKeyId({
     client,
     projectId: scope.stringsProjectId,
-    locales: localesToLoad,
+    localeNames,
     branch: scope.branch,
     keyIds,
   });
@@ -509,15 +517,7 @@ export async function savePhraseLiveCatTranslation(input: {
     mapPhraseApiError(error);
   }
 
-  const targetLocale =
-    matchPhraseTargetLocale(input.targetLocale, locales) ??
-    locales.find((locale) => !locale.default);
-  if (!targetLocale) {
-    throw new PhraseLiveCatError(
-      "phrase_target_locale_not_found",
-      "Target locale was not found in the Phrase project.",
-    );
-  }
+  const targetLocale = resolvePhraseTargetLocale(input.targetLocale, locales);
 
   let saved: PhraseTranslation;
   try {
@@ -563,7 +563,7 @@ export async function savePhraseLiveCatComment(input: {
   });
   const listOptions = scope.branch ? { branch: scope.branch } : {};
 
-  let created;
+  let created: Awaited<ReturnType<typeof client.createKeyComment>>;
   try {
     created = await client.createKeyComment(
       scope.stringsProjectId,

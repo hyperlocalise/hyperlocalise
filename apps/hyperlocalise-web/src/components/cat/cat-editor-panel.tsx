@@ -503,7 +503,9 @@ export function CatEditorPanel({
                       {comment.author ? (
                         <span className="font-medium text-foreground/78">{comment.author}</span>
                       ) : null}
-                      <span>{formatCommentTimestamp(intl, comment.createdAt)}</span>
+                      {comment.createdAt ? (
+                        <span>{formatCommentTimestamp(intl, comment.createdAt)}</span>
+                      ) : null}
                       {comment.status ? <span className="capitalize">{comment.status}</span> : null}
                     </div>
                     <p className="text-sm leading-relaxed text-foreground/88">{comment.text}</p>

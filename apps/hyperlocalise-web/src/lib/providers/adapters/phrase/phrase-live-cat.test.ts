@@ -4,6 +4,7 @@ import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
 
 import {
   buildPhraseLiveCatFile,
+  PhraseLiveCatError,
   savePhraseLiveCatComment,
   savePhraseLiveCatTranslation,
 } from "./phrase-live-cat";
@@ -70,7 +71,7 @@ describe("buildPhraseLiveCatFile", () => {
         );
       }
 
-      if (path.includes("/keys/key-1") && !path.includes("/comments")) {
+      if (path.includes("/keys/key-1") && !path.includes("/comments") && !path.includes("/translations")) {
         return new Response(
           JSON.stringify({
             id: "key-1",
@@ -83,7 +84,7 @@ describe("buildPhraseLiveCatFile", () => {
         );
       }
 
-      if (path.includes("/translations") && path.includes("locale_name=en")) {
+      if (path.includes("/keys/key-1/translations")) {
         return new Response(
           JSON.stringify([
             {
@@ -95,14 +96,6 @@ describe("buildPhraseLiveCatFile", () => {
               unverified: false,
               excluded: false,
             },
-          ]),
-          { status: 200 },
-        );
-      }
-
-      if (path.includes("/translations") && path.includes("locale_name=fr")) {
-        return new Response(
-          JSON.stringify([
             {
               id: "tr-fr",
               key_id: "key-1",
@@ -115,6 +108,10 @@ describe("buildPhraseLiveCatFile", () => {
           ]),
           { status: 200 },
         );
+      }
+
+      if (path.includes("/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
       }
 
       if (path.includes("/keys/key-1/comments")) {
@@ -201,7 +198,7 @@ describe("buildPhraseLiveCatFile", () => {
         );
       }
 
-      if (path.includes("/translations") && path.includes("locale_name=en")) {
+      if (path.includes("/keys/key-hero/translations")) {
         return new Response(
           JSON.stringify([
             {
@@ -213,6 +210,14 @@ describe("buildPhraseLiveCatFile", () => {
               unverified: false,
               excluded: false,
             },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-footer/translations")) {
+        return new Response(
+          JSON.stringify([
             {
               id: "tr-en-footer",
               key_id: "key-footer",
@@ -227,7 +232,7 @@ describe("buildPhraseLiveCatFile", () => {
         );
       }
 
-      if (path.includes("/translations") && path.includes("locale_name=fr")) {
+      if (path.includes("/translations")) {
         return new Response(JSON.stringify([]), { status: 200 });
       }
 
@@ -291,6 +296,102 @@ describe("buildPhraseLiveCatFile", () => {
       untranslated: 1,
     });
   });
+
+  it("throws when the requested target locale cannot be matched", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-de", name: "de", code: "de-DE", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      buildPhraseLiveCatFile({
+        secretMaterial: "token",
+        externalProjectId: "project-1",
+        file: createPhraseKeyFile(),
+        targetLocale: "fr-FR",
+        canEditTranslations: true,
+      }),
+    ).rejects.toMatchObject({
+      code: "phrase_target_locale_not_found",
+    });
+  });
+
+  it("leaves comment timestamps null when Phrase omits created and updated times", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/keys/key-1") &&
+        !path.includes("/comments") &&
+        !path.includes("/translations")
+      ) {
+        return new Response(
+          JSON.stringify({
+            id: "key-1",
+            name: "home.hero.title",
+            description: null,
+            plural: false,
+            tags: ["app"],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-1/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (path.includes("/keys/key-1/comments")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "comment-1",
+              message: "Check tone",
+              has_replies: false,
+              user: { id: "user-1", username: "reviewer", name: "Reviewer" },
+              locales: [{ id: "loc-fr", name: "fr", code: "fr-FR" }],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await buildPhraseLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile(),
+      targetLocale: "fr",
+      canEditTranslations: true,
+    });
+
+    expect(catFile.segments[0]?.comments[0]?.createdAt).toBeNull();
+  });
 });
 
 describe("savePhraseLiveCatTranslation", () => {
@@ -352,6 +453,36 @@ describe("savePhraseLiveCatTranslation", () => {
       externalTranslationId: "tr-fr-new",
       isApproved: true,
     });
+  });
+
+  it("throws when saving to an unmatched target locale", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-de", name: "de", code: "de-DE", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      savePhraseLiveCatTranslation({
+        secretMaterial: "token",
+        externalProjectId: "project-1",
+        file: createPhraseKeyFile(),
+        targetLocale: "fr-FR",
+        externalStringId: "key-1",
+        text: "Bonjour",
+      }),
+    ).rejects.toBeInstanceOf(PhraseLiveCatError);
   });
 });
 

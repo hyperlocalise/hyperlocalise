@@ -416,6 +416,25 @@ export class PhraseApiClient {
     });
   }
 
+  async listKeyTranslations(
+    projectId: string,
+    keyId: string,
+    options: PhraseListOptions = {},
+  ): Promise<PhraseTranslation[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(
+          `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/translations`,
+          {
+            page,
+            per_page: perPage,
+            branch: options.branch,
+          },
+        ),
+      normalize: (record) => normalizePhraseTranslation(record as PhraseTranslationApiRecord),
+    });
+  }
+
   async listScreenshots(
     projectId: string,
     options: PhraseListOptions & { maxItems?: number } = {},

@@ -15,7 +15,7 @@ export interface CatSegmentComment {
   type: CatSegmentCommentType;
   status: string | null;
   text: string;
-  createdAt: string;
+  createdAt: string | null;
   locale: string | null;
   author?: string | null;
 }

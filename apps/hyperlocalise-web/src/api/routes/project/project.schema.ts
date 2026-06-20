@@ -486,7 +486,7 @@ export const projectFileCatCommentSchema = z.object({
   type: z.enum(["comment", "issue"]),
   status: z.string().nullable(),
   text: z.string(),
-  createdAt: z.string(),
+  createdAt: z.string().nullable(),
   locale: z.string().nullable(),
   author: z.string().nullable().optional(),
 });
