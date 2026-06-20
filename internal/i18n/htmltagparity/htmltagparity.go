@@ -84,8 +84,10 @@ func normalizeTagNames(tags []string) []string {
 	out := make([]string, 0, len(tags))
 	for _, tag := range tags {
 		normalized := strings.ToLower(strings.TrimSpace(tag))
-		normalized = strings.TrimSuffix(normalized, "/>")
 		normalized = strings.TrimSuffix(normalized, ">")
+		normalized = strings.TrimSpace(normalized)
+		normalized = strings.TrimSuffix(normalized, "/") // Handle flexible " / >"
+		normalized = strings.TrimSpace(normalized)
 		normalized = strings.TrimPrefix(normalized, "<")
 		parts := strings.Fields(normalized)
 		if len(parts) == 0 {
@@ -155,5 +157,10 @@ func rawTagHasAttributes(raw, rawName string) bool {
 		return false
 	}
 	rest := strings.TrimSpace(inner[len(rawName):])
-	return rest != "" && rest != ">" && rest != "/>"
+	// Strip trailing ">" and flexible self-closing "/"
+	rest = strings.TrimSuffix(rest, ">")
+	rest = strings.TrimSpace(rest)
+	rest = strings.TrimSuffix(rest, "/")
+	rest = strings.TrimSpace(rest)
+	return rest != ""
 }
