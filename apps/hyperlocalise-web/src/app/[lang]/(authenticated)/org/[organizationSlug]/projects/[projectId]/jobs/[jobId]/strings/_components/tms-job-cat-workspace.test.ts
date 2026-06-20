@@ -108,7 +108,7 @@ describe("projectFileCatToWorkspaceState", () => {
       filePath: "en-US.json",
     });
     expect(state.segmentIntelligence?.["issue-string"]?.productMeaning).toContain(
-      "1 Crowdin comment is attached",
+      "1 provider comment is attached",
     );
     expect(state.breadcrumbs).toEqual(["crowdin", "en-US.json", "vi"]);
     expect(state.canEditTranslations).toBe(true);
