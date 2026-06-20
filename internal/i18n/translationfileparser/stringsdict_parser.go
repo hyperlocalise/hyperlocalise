@@ -61,6 +61,8 @@ func (d stringsdictDocument) render(values map[string]string) []byte {
 	b.Grow(len(d.template))
 	cursor := 0
 	for _, entry := range entries {
+		// Entries are naturally collected in document order during parsing,
+		// ensuring entry.valueStart >= cursor.
 		if entry.valueStart < cursor || entry.valueStart > len(d.template) || entry.valueEnd > len(d.template) {
 			continue
 		}

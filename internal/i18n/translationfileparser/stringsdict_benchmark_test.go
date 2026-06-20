@@ -48,6 +48,7 @@ func BenchmarkAppleStringsdictParser(b *testing.B) {
 </plist>`)
 
 	parser := AppleStringsdictParser{}
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_, _ = parser.Parse(content)
 	}
@@ -76,6 +77,7 @@ func BenchmarkMarshalAppleStringsdict(b *testing.B) {
 		"files_count.files.other": "%d fichiers",
 	}
 
+	b.ReportAllocs()
 	for i := 0; i < b.N; i++ {
 		_, _ = MarshalAppleStringsdict(template, values)
 	}
