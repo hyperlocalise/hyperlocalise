@@ -1,5 +1,6 @@
 import type {
   CatFormatCheck,
+  CatGlossaryTerm,
   CatSegment,
   CatSegmentIntelligence,
   CatWorkspaceState,
@@ -9,6 +10,7 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 import { analyzeCatMessageFormat, compareCatMessageFormats } from "./cat-message-format";
 import type { CatMessageParityIssue } from "./cat-message-format";
 import { localizeCatMessageParityIssue } from "./cat-message-format-i18n";
+import { glossaryFormatChecksForSegment } from "./cat-glossary-checks";
 
 const fixtureIntl = getIntlShape("en");
 
@@ -464,13 +466,6 @@ export const catSegmentsFixture: CatSegment[] = catSegmentInputs.map((segment, i
 
 export const catFormatChecksFixture: CatFormatCheck[] = [
   {
-    id: "check-glossary",
-    label: "Glossary compliance",
-    status: "pass",
-    message: "Approved terms for Dashboard and Review are used correctly.",
-    category: "glossary",
-  },
-  {
     id: "check-placeholders",
     label: "Placeholders & markup",
     status: "pass",
@@ -506,7 +501,7 @@ export const catIntelligenceFixture: CatSegmentIntelligence = {
       approved: true,
       forbidden: false,
     },
-    { id: "term-2", source: "Review", target: "Đánh giá", approved: true, forbidden: false },
+    { id: "term-2", source: "Review", target: "Đánh giá", approved: false, forbidden: true },
     { id: "term-3", source: "Approval", target: "Phê duyệt", approved: true, forbidden: false },
   ],
   translationMemoryMatches: [
@@ -563,8 +558,19 @@ export const catWorkspaceFixture = createCatWorkspaceState();
 export async function mockValidateFormat(
   segment: CatSegment,
   value: string,
+  glossaryTerms: CatGlossaryTerm[] = catIntelligenceFixture.glossaryTerms,
 ): Promise<CatFormatCheck[]> {
   const checks = [...catFormatChecksFixture];
+
+  const glossaryChecks = glossaryFormatChecksForSegment(
+    segment.sourceText,
+    value,
+    glossaryTerms,
+    fixtureIntl,
+  );
+  if (glossaryChecks.length > 0) {
+    checks.unshift(...glossaryChecks);
+  }
 
   if (segment.maxLength && value.length > segment.maxLength) {
     checks.unshift({

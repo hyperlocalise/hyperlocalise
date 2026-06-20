@@ -112,6 +112,12 @@ function hasSaveFailureCheck(checks: CatFormatCheck[]) {
   return checks.some((check) => check.id.startsWith("save-failed-"));
 }
 
+function glossaryTermsForSegment(state: CatWorkspaceState, segmentId: string) {
+  return (
+    state.segmentIntelligence?.[segmentId]?.glossaryTerms ?? state.intelligence.glossaryTerms ?? []
+  );
+}
+
 export function addSaveFailureFormatCheck(
   state: CatWorkspaceState,
   segmentId: string,
@@ -489,7 +495,7 @@ export function CatWorkspaceContainer({
   }, [state.selectedSegmentId]);
 
   const runSegmentChecks = useCallback(
-    async (segment: CatSegment, value: string) => {
+    async (segment: CatSegment, value: string, glossaryTermsOverride?: CatGlossaryTerm[]) => {
       if (!validateFormat && !runQaChecks) {
         return;
       }
@@ -498,8 +504,10 @@ export function CatWorkspaceContainer({
       validationSequenceRef.current = sequence;
       setIsValidating(true);
       try {
+        const glossaryTerms =
+          glossaryTermsOverride ?? glossaryTermsForSegment(stateRef.current, segment.id);
         const [formatChecks, qaChecks] = await Promise.all([
-          validateFormat ? validateFormat(segment, value) : Promise.resolve([]),
+          validateFormat ? validateFormat(segment, value, glossaryTerms) : Promise.resolve([]),
           runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
         ]);
         if (validationSequenceRef.current !== sequence) {
@@ -614,7 +622,11 @@ export function CatWorkspaceContainer({
               onTargetChange?.(segmentId, bestTmMatch.targetText);
               const updatedSegment = segments.find((item) => item.id === segmentId);
               if (updatedSegment && (validateFormat || runQaChecks)) {
-                void runSegmentChecks(updatedSegment, bestTmMatch.targetText);
+                void runSegmentChecks(
+                  updatedSegment,
+                  bestTmMatch.targetText,
+                  concordance.glossaryTerms,
+                );
               }
             }
           } catch (error) {
@@ -688,7 +700,11 @@ export function CatWorkspaceContainer({
         if (includeFormatChecks || includeAi) {
           const [formatChecks, qaChecks] = await Promise.all([
             includeFormatChecks && validateFormat
-              ? validateFormat(segment, segment.targetText)
+              ? validateFormat(
+                  segment,
+                  segment.targetText,
+                  intelligenceForRecommendation.glossaryTerms,
+                )
               : Promise.resolve([]),
             includeFormatChecks && runQaChecks
               ? runQaChecks(segment, segment.targetText)

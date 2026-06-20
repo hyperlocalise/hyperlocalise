@@ -3,7 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
-import { projectFileCatToWorkspaceState } from "./project-file-cat-mapper";
+import { projectFileCatToWorkspaceState, formatCheckForSegment } from "./project-file-cat-mapper";
 
 const testIntl = getIntlShape("en");
 
@@ -135,5 +135,40 @@ describe("projectFileCatToWorkspaceState", () => {
       needsReview: 40,
       hasIssues: 5,
     });
+  });
+});
+
+describe("formatCheckForSegment", () => {
+  it("includes glossary compliance checks when glossary terms are provided", () => {
+    const segment = {
+      id: "seg-1",
+      index: 1,
+      key: "dashboard.title",
+      sourceText: "Open Dashboard settings",
+      targetText: "Mở cài đặt",
+      sourceLocale: "en-US",
+      targetLocale: "vi",
+      status: "needs_review" as const,
+    };
+
+    const checks = formatCheckForSegment(segment, segment.targetText, testIntl, [
+      {
+        id: "term-dashboard",
+        source: "Dashboard",
+        target: "Bảng điều khiển",
+        approved: true,
+        forbidden: false,
+      },
+    ]);
+
+    expect(checks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: "glossary-missing-term-dashboard",
+          status: "warn",
+          category: "glossary",
+        }),
+      ]),
+    );
   });
 });

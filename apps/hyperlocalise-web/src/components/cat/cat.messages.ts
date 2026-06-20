@@ -159,6 +159,40 @@ export const catQueuePanelMessages = defineMessages({
   },
 });
 
+export const catGlossaryChecksMessages = defineMessages({
+  complianceLabel: {
+    defaultMessage: "Glossary compliance",
+    id: "8BeERYABTz",
+    description: "CAT format check label for glossary compliance summary",
+  },
+  compliancePassMessage: {
+    defaultMessage: "Approved glossary terms are used correctly and forbidden terms are absent.",
+    id: "irDjU9PSS4",
+    description: "CAT format check message when glossary terms pass validation",
+  },
+  forbiddenTermLabel: {
+    defaultMessage: "Forbidden glossary term",
+    id: "8OHSn5eQCa",
+    description: "CAT format check label when a forbidden glossary term appears in the target",
+  },
+  forbiddenTermMessage: {
+    defaultMessage: 'Forbidden term "{term}" appears in the target translation.',
+    id: "ivdHFzfBNo",
+    description: "CAT format check message when a forbidden glossary term appears in the target",
+  },
+  missingTermLabel: {
+    defaultMessage: "Glossary term mismatch",
+    id: "lN7mrKGBHB",
+    description: "CAT format check label when a required glossary rendering is missing",
+  },
+  missingTermMessage: {
+    defaultMessage:
+      'Source term "{sourceTerm}" should be translated as "{targetTerm}" per the glossary.',
+    id: "nG1gispZFL",
+    description: "CAT format check message when a required glossary rendering is missing",
+  },
+});
+
 export const catFormatChecksMessages = defineMessages({
   emptyChecks: {
     defaultMessage: "No format or QA checks for this segment yet.",
@@ -358,6 +392,11 @@ export const catIntelligencePanelMessages = defineMessages({
     defaultMessage: "Approved",
     id: "jGuaDovXli",
     description: "Accessible label for an approved glossary term",
+  },
+  forbiddenInTargetAria: {
+    defaultMessage: "Forbidden term used in translation",
+    id: "gEtNXv9OoK",
+    description: "Accessible label when a forbidden glossary term appears in the target text",
   },
   matchPercent: {
     defaultMessage: "{matchPercent}% match",

@@ -11,8 +11,10 @@ import {
   localizeCatMessageParityIssue,
   type CatFormatMessageIntl,
 } from "@/components/cat/cat-message-format-i18n";
+import { glossaryFormatChecksForSegment } from "@/components/cat/cat-glossary-checks";
 import type {
   CatFormatCheck,
+  CatGlossaryTerm,
   CatSegment,
   CatSegmentComment,
   CatSegmentIntelligence,
@@ -71,6 +73,7 @@ export function formatCheckForSegment(
   segment: CatSegment,
   value: string,
   intl: CatFormatMessageIntl,
+  glossaryTerms: CatGlossaryTerm[] = [],
 ): CatFormatCheck[] {
   const checks: CatFormatCheck[] = [];
   const sourceAnalysis = analyzeCatMessageFormat(segment.sourceText);
@@ -104,6 +107,10 @@ export function formatCheckForSegment(
     });
   }
 
+  if (glossaryTerms.length > 0) {
+    checks.push(...glossaryFormatChecksForSegment(segment.sourceText, value, glossaryTerms, intl));
+  }
+
   return checks;
 }
 
@@ -111,8 +118,9 @@ export async function validateSegmentFormat(
   segment: CatSegment,
   value: string,
   intl: CatFormatMessageIntl,
+  glossaryTerms: CatGlossaryTerm[] = [],
 ) {
-  return formatCheckForSegment(segment, value, intl);
+  return formatCheckForSegment(segment, value, intl, glossaryTerms);
 }
 
 function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
