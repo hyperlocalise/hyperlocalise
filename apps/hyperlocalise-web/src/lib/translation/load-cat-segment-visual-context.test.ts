@@ -137,6 +137,40 @@ describe("loadCatSegmentVisualContext", () => {
     });
   });
 
+  it("dispatches Lokalise visual context with the active credential material", async () => {
+    tryLoadActiveTmsProviderContextMock.mockResolvedValue({
+      providerKind: "lokalise",
+      secretMaterial: "lokalise-token",
+      credential: {
+        baseUrl: "https://lokalise.example",
+        region: null,
+      },
+    });
+    loadLokaliseCatVisualContextMock.mockResolvedValue({
+      screenshots: [{ id: "screen_1", name: "Checkout", imageUrl: "https://example.com/s.png" }],
+    });
+
+    const visualContext = await loadCatSegmentVisualContext({
+      organizationId: "org_1",
+      providerKind: "lokalise",
+      externalProjectId: "project_1",
+      externalStringId: "string_1",
+    });
+
+    expect(visualContext.screenshots).toHaveLength(1);
+    expect(lokaliseClientOptions).toEqual([
+      {
+        token: "lokalise-token",
+        baseUrl: "https://lokalise.example",
+      },
+    ]);
+    expect(loadLokaliseCatVisualContextMock).toHaveBeenCalledWith({
+      client: expect.any(Object),
+      externalProjectId: "project_1",
+      externalStringId: "string_1",
+    });
+  });
+
   it("dispatches Phrase visual context with token, region, and external identifiers", async () => {
     tryLoadActiveTmsProviderContextMock.mockResolvedValue({
       providerKind: "phrase",
