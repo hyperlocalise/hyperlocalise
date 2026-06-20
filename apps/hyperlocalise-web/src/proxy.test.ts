@@ -34,6 +34,13 @@ describe("isUnsupportedLocalePath", () => {
     expect(isUnsupportedLocalePath("/api/auth/callback")).toBe(false);
   });
 
+  it("allows localized marketing paths without a locale prefix", () => {
+    expect(isUnsupportedLocalePath("/product/agents-automation")).toBe(false);
+    expect(isUnsupportedLocalePath("/use-cases/saas")).toBe(false);
+    expect(isUnsupportedLocalePath("/blog")).toBe(false);
+    expect(isUnsupportedLocalePath("/privacy")).toBe(false);
+  });
+
   it("allows the site root", () => {
     expect(isUnsupportedLocalePath("/")).toBe(false);
   });
@@ -56,6 +63,28 @@ describe("proxy", () => {
 
     expect(authkitProxyMock).toHaveBeenCalledOnce();
     expect(response?.status).toBe(200);
+  });
+
+  it("redirects localized marketing paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/product/agents-automation"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe(
+      "https://www.hyperlocalise.com/en/product/agents-automation",
+    );
+    expect(authkitProxyMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects blog paths without a locale prefix", async () => {
+    authkitProxyMock.mockReset();
+
+    const response = await proxy(createRequest("/blog"), {} as never);
+
+    expect(response?.status).toBe(307);
+    expect(response?.headers.get("location")).toBe("https://www.hyperlocalise.com/en/blog");
+    expect(authkitProxyMock).not.toHaveBeenCalled();
   });
 
   it("delegates /api paths to AuthKit instead of returning 404", async () => {
