@@ -72,7 +72,16 @@ export function isUnsupportedLocalePath(pathname: string): boolean {
     return false;
   }
 
-  return normalizeAppLocale(firstSegment) === null;
+  if (normalizeAppLocale(firstSegment) !== null) {
+    return false;
+  }
+
+  // Paths like /product or /blog without a locale prefix should redirect, not 404.
+  if (isLocalizedAppPath(pathname)) {
+    return false;
+  }
+
+  return true;
 }
 
 function applyLocaleToResponse(response: WorkosProxyResult, locale: string): WorkosProxyResult {
