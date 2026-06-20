@@ -4,6 +4,7 @@ import {
   buildPhraseKeyExternalResourceId,
   buildPhraseKeySourcePath,
   mapPhraseTranslationReadiness,
+  parsePhraseExternalResourceId,
 } from "./phrase-locale-readiness";
 
 describe("phrase locale readiness", () => {
@@ -54,6 +55,14 @@ describe("phrase locale readiness", () => {
   it("scopes key identity by branch when present", () => {
     expect(buildPhraseKeyExternalResourceId("key-1", "feature")).toBe("feature::key-1");
     expect(buildPhraseKeyExternalResourceId("key-1", null)).toBe("key-1");
+    expect(parsePhraseExternalResourceId("feature::key-1")).toEqual({
+      branch: "feature",
+      resourceId: "key-1",
+    });
+    expect(parsePhraseExternalResourceId("key-1")).toEqual({
+      branch: null,
+      resourceId: "key-1",
+    });
     expect(buildPhraseKeySourcePath("home.hero.title", null)).toBe("keys/home.hero.title");
     expect(buildPhraseKeySourcePath("home.hero.title", "feature")).toBe(
       "feature/keys/home.hero.title",

@@ -38,6 +38,12 @@ import {
   resolvePhraseUserConnectionSecretMaterial,
 } from "@/lib/providers/adapters/phrase/phrase-user-connections";
 import {
+  buildPhraseLiveCatFile,
+  PhraseLiveCatError,
+  savePhraseLiveCatComment,
+  savePhraseLiveCatTranslation,
+} from "@/lib/providers/adapters/phrase/phrase-live-cat";
+import {
   getLokaliseUserConnection,
   resolveLokaliseUserConnectionSecretMaterial,
 } from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
@@ -720,6 +726,96 @@ function mapLiveFile(input: {
     },
     latestJob: null,
   };
+}
+
+function mapPhraseLiveCatError(error: unknown): never {
+  if (error instanceof PhraseLiveCatError) {
+    throw new TmsProviderLiveError(error.code, error.message);
+  }
+
+  throw error;
+}
+
+function supportsLiveProviderCat(
+  providerKind: ExternalTmsProviderKind,
+  file: TmsProviderLiveFile,
+): boolean {
+  if (!file.provider) {
+    return false;
+  }
+
+  if (providerKind === "crowdin") {
+    return file.provider.resourceType === "file";
+  }
+
+  if (providerKind === "phrase") {
+    return file.provider.resourceType === "file" || file.provider.resourceType === "key";
+  }
+
+  return false;
+}
+
+function resolveLiveCatFileFromExternalResourceId(input: {
+  providerKind: ExternalTmsProviderKind;
+  externalProjectId: string;
+  externalResourceId: string;
+  sourcePath: string;
+  resourceType?: "file" | "key";
+}): TmsProviderLiveFile {
+  return mapLiveFile({
+    providerKind: input.providerKind,
+    externalProjectId: input.externalProjectId,
+    file: {
+      resourceType: input.resourceType ?? (input.providerKind === "phrase" ? "key" : "file"),
+      externalResourceId: input.externalResourceId,
+      sourcePath: input.sourcePath,
+    },
+  });
+}
+
+async function resolveLiveCatFile(input: {
+  organizationId: string;
+  externalProjectId: string;
+  sourcePath: string;
+  externalResourceId?: string | null;
+  context: ActiveTmsProviderContext;
+}): Promise<TmsProviderLiveFile | null> {
+  const files = await listTmsProviderLiveFilesForProject(
+    input.organizationId,
+    input.externalProjectId,
+    {
+      context: input.context,
+      limit: 1000,
+    },
+  );
+
+  const bySourcePath = files.find((item) => item.sourcePath === input.sourcePath);
+  if (bySourcePath) {
+    return bySourcePath;
+  }
+
+  if (!input.externalResourceId) {
+    return null;
+  }
+
+  const byResourceId = files.find(
+    (item) => item.provider?.externalResourceId === input.externalResourceId,
+  );
+  if (byResourceId) {
+    return byResourceId;
+  }
+
+  if (input.context.providerKind === "crowdin") {
+    return resolveLiveCatFileFromExternalResourceId({
+      providerKind: input.context.providerKind,
+      externalProjectId: input.externalProjectId,
+      externalResourceId: input.externalResourceId,
+      sourcePath: input.sourcePath,
+      resourceType: "file",
+    });
+  }
+
+  return null;
 }
 
 function crowdinSourceTextValue(text: CrowdinSourceString["text"]) {
@@ -1581,11 +1677,28 @@ export async function getTmsProviderLiveCatFile(
     return null;
   }
 
-  if (context.providerKind !== "crowdin" || file.provider?.resourceType !== "file") {
+  if (!supportsLiveProviderCat(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT editing is not available for this provider file yet.",
     );
+  }
+
+  if (context.providerKind === "phrase") {
+    try {
+      return await buildPhraseLiveCatFile({
+        secretMaterial: context.secretMaterial,
+        region: context.credential.region,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        canEditTranslations: options?.canEditTranslations ?? false,
+        pagination: options?.pagination,
+      });
+    } catch (error) {
+      mapPhraseLiveCatError(error);
+    }
   }
 
   return buildCrowdinLiveCatFile({
@@ -1612,32 +1725,39 @@ export async function saveTmsProviderLiveCatTranslation(
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
-  const file =
-    input.externalResourceId && context.providerKind === "crowdin"
-      ? mapLiveFile({
-          providerKind: context.providerKind,
-          externalProjectId,
-          file: {
-            resourceType: "file",
-            externalResourceId: input.externalResourceId,
-            sourcePath,
-          },
-        })
-      : (
-          await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
-            context,
-            limit: 1000,
-          })
-        ).find((item) => item.sourcePath === sourcePath);
+  const file = await resolveLiveCatFile({
+    organizationId,
+    externalProjectId,
+    sourcePath,
+    externalResourceId: input.externalResourceId,
+    context,
+  });
   if (!file) {
     return null;
   }
 
-  if (context.providerKind !== "crowdin" || file.provider?.resourceType !== "file") {
+  if (!supportsLiveProviderCat(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT editing is not available for this provider file yet.",
     );
+  }
+
+  if (context.providerKind === "phrase") {
+    try {
+      return await savePhraseLiveCatTranslation({
+        secretMaterial: context.secretMaterial,
+        region: context.credential.region,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+      });
+    } catch (error) {
+      mapPhraseLiveCatError(error);
+    }
   }
 
   return saveCrowdinLiveCatTranslation({
@@ -1665,32 +1785,46 @@ export async function saveTmsProviderLiveCatComment(
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
-  const file =
-    input.externalResourceId && context.providerKind === "crowdin"
-      ? mapLiveFile({
-          providerKind: context.providerKind,
-          externalProjectId,
-          file: {
-            resourceType: "file",
-            externalResourceId: input.externalResourceId,
-            sourcePath,
-          },
-        })
-      : (
-          await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
-            context,
-            limit: 1000,
-          })
-        ).find((item) => item.sourcePath === sourcePath);
+  const file = await resolveLiveCatFile({
+    organizationId,
+    externalProjectId,
+    sourcePath,
+    externalResourceId: input.externalResourceId,
+    context,
+  });
   if (!file) {
     return null;
   }
 
-  if (context.providerKind !== "crowdin" || file.provider?.resourceType !== "file") {
+  if (!supportsLiveProviderCat(context.providerKind, file)) {
     throw new TmsProviderLiveError(
       "provider_cat_unsupported",
       "CAT comments are not available for this provider file yet.",
     );
+  }
+
+  if (context.providerKind === "phrase") {
+    if (input.type === "issue") {
+      throw new TmsProviderLiveError(
+        "provider_cat_unsupported",
+        "Issue comments are not available for Phrase files.",
+      );
+    }
+
+    try {
+      return await savePhraseLiveCatComment({
+        secretMaterial: context.secretMaterial,
+        region: context.credential.region,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+      });
+    } catch (error) {
+      mapPhraseLiveCatError(error);
+    }
   }
 
   return saveCrowdinLiveCatComment({
