@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { TranslateIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
@@ -44,6 +46,21 @@ function renderProductionJobLink({ href, kind, children }: Parameters<JobsLinkRe
         variant="ghost"
         className="-mx-2 h-auto min-w-0 justify-start px-2 py-1 text-left hover:bg-foreground/6"
       >
+        {children}
+      </Button>
+    );
+  }
+
+  if (kind === "cat") {
+    return (
+      <Button
+        nativeButton={false}
+        render={<Link href={href} />}
+        variant="outline"
+        size="sm"
+        className="w-fit"
+      >
+        <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
         {children}
       </Button>
     );

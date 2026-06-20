@@ -133,6 +133,27 @@ export const ProjectJobs: Story = {
     isLoading: false,
     now: fixedNow,
   },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByRole("button", { name: "Row" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Board" })).toBeInTheDocument();
+    await expect(canvas.getAllByRole("link", { name: "CAT" }).length).toBeGreaterThan(0);
+    await expect(canvas.getAllByRole("link", { name: "Details" }).length).toBeGreaterThan(0);
+  },
+};
+
+export const ProjectJobsKanban: Story = {
+  args: {
+    organizationSlug: "acme",
+    projectId: "project_website",
+    jobs,
+    isLoading: false,
+    now: fixedNow,
+  },
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole("button", { name: "Board" }));
+    await expect(canvas.getByText("Queued")).toBeInTheDocument();
+    await expect(canvas.getByText("Running")).toBeInTheDocument();
+  },
 };
 
 export const Loading: Story = {
