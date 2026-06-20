@@ -44,7 +44,7 @@ describe("publicTranslationRoutes", () => {
       organizationId: project.organizationId,
       projectId: project.id,
       repositorySourceFileId: sourceFile.id,
-      entries: [{ key: "greeting", text: "Hello" }],
+      entries: [{ key: "greeting", text: "Hello", context: null }],
     });
 
     await db.insert(schema.projectTranslations).values({
