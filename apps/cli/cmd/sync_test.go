@@ -77,6 +77,68 @@ func TestHyperlocaliseSyncRecognizesFluentFiles(t *testing.T) {
 	}
 }
 
+func TestHyperlocalisePullWithoutManifestUsesLatest(t *testing.T) {
+	dir := t.TempDir()
+	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
+	targetPath := filepath.Join(dir, "locales", "fr.json")
+	requestedLatest := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/jobs/latest":
+			requestedLatest = true
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = w.Write([]byte(`{"job":{"id":"job-latest","status":"succeeded","outputFiles":[{"fileId":"file-fr","locale":"fr","filename":"fr.json"}]}}`))
+		case "/v1/files/file-fr/download":
+			_, _ = w.Write([]byte(`{"hello":"Salut"}`))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"json": {
+					Files: []config.BucketFileMapping{{
+						From: "locales/{{source}}.json",
+						To:   targetPattern,
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{}, time.Second)
+	if err != nil {
+		t.Fatalf("pull without manifest: %v", err)
+	}
+	if !requestedLatest {
+		t.Fatalf("expected sync pull to request the latest completed job")
+	}
+	if report.Jobs != 1 || report.Downloaded != 1 {
+		t.Fatalf("report = %#v, want one downloaded job output", report)
+	}
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(content) != `{"hello":"Salut"}` {
+		t.Fatalf("target content = %q", string(content))
+	}
+}
+
 func TestHyperlocalisePullUsesManifestJobWhenNewerSameFileJobExists(t *testing.T) {
 	dir := t.TempDir()
 	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")

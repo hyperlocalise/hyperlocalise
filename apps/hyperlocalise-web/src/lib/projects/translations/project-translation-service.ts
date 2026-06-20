@@ -6,6 +6,7 @@ import type {
   ProjectSourceStringEntry,
 } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
+import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { normalizeTranslationMemorySourceText } from "@/lib/translation/normalizeTranslationMemorySourceText";
 
@@ -120,7 +121,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     organizationId: string;
     projectId: string;
     repositorySourceFileId: string;
-    sourceFileVersionId: string;
+    sourceFileVersionId?: string | null;
     entries: ProjectSourceStringEntry[];
   }) {
     const entries = input.entries
@@ -175,7 +176,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           normalizedSourceText: entry.normalizedSourceText,
           context: entry.context,
           type: entry.type,
-          sourceFileVersionId: input.sourceFileVersionId,
+          sourceFileVersionId: input.sourceFileVersionId ?? null,
         })),
       )
       .onConflictDoUpdate({
@@ -614,6 +615,234 @@ export class ProjectTranslationService extends ProjectServiceBase {
       });
   }
 
+  async listTranslationsForSync(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    locales?: string[];
+  }) {
+    const sourceFile = await this.getRepositorySourceFileByPath({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+    });
+
+    if (!sourceFile) {
+      return { entries: [], revision: "" };
+    }
+
+    const keys = await this.listKeysForFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: sourceFile.id,
+      limit: maxKeysPerImport,
+    });
+
+    if (keys.length === 0) {
+      return { entries: [], revision: "" };
+    }
+
+    const localeFilter =
+      input.locales && input.locales.length > 0
+        ? new Set(input.locales.map((locale) => locale.trim()).filter(Boolean))
+        : null;
+
+    const translations = await this.database
+      .select({
+        translationKeyId: schema.projectTranslations.translationKeyId,
+        targetLocale: schema.projectTranslations.targetLocale,
+        text: schema.projectTranslations.text,
+        status: schema.projectTranslations.status,
+        updatedAt: schema.projectTranslations.updatedAt,
+      })
+      .from(schema.projectTranslations)
+      .where(
+        and(
+          eq(schema.projectTranslations.organizationId, input.organizationId),
+          eq(schema.projectTranslations.projectId, input.projectId),
+          inArray(
+            schema.projectTranslations.translationKeyId,
+            keys.map((key) => key.id),
+          ),
+          localeFilter
+            ? inArray(schema.projectTranslations.targetLocale, [...localeFilter])
+            : undefined,
+        ),
+      );
+
+    const translationsByKeyId = new Map<string, typeof translations>();
+    for (const translation of translations) {
+      const bucket = translationsByKeyId.get(translation.translationKeyId) ?? [];
+      bucket.push(translation);
+      translationsByKeyId.set(translation.translationKeyId, bucket);
+    }
+
+    const entries: Array<{
+      key: string;
+      context: string | null;
+      locale: string;
+      value: string;
+      status: (typeof schema.projectTranslationStatusEnum.enumValues)[number];
+      updatedAt: Date;
+    }> = [];
+
+    let latestUpdatedAt: Date | null = null;
+
+    for (const key of keys) {
+      const keyTranslations = translationsByKeyId.get(key.id) ?? [];
+      for (const translation of keyTranslations) {
+        if (!translation.text.trim()) {
+          continue;
+        }
+        if (latestUpdatedAt === null || translation.updatedAt > latestUpdatedAt) {
+          latestUpdatedAt = translation.updatedAt;
+        }
+        entries.push({
+          key: key.key,
+          context: key.context,
+          locale: translation.targetLocale,
+          value: translation.text,
+          status: translation.status,
+          updatedAt: translation.updatedAt,
+        });
+      }
+    }
+
+    return {
+      entries: entries.map((entry) => ({
+        key: entry.key,
+        context: entry.context,
+        locale: entry.locale,
+        value: entry.value,
+        status: entry.status,
+        updatedAt: entry.updatedAt.toISOString(),
+      })),
+      revision: latestUpdatedAt?.toISOString() ?? "",
+    };
+  }
+
+  async upsertTranslationsFromSync(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    sourceLocale: string;
+    entries: Array<{
+      key: string;
+      context?: string | null;
+      locale: string;
+      value: string;
+    }>;
+  }) {
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+    });
+
+    const normalizedEntries = input.entries
+      .map((entry) => ({
+        key: entry.key.trim(),
+        context: entry.context?.trim() || null,
+        locale: entry.locale.trim(),
+        value: entry.value,
+      }))
+      .filter(
+        (entry) => entry.key.length > 0 && entry.locale.length > 0 && entry.value.trim().length > 0,
+      )
+      .slice(0, maxKeysPerImport);
+
+    if (normalizedEntries.length === 0) {
+      return { upserted: 0 };
+    }
+
+    const sourceLocale = input.sourceLocale.trim();
+    const keySourceText = new Map<string, string>();
+    const keyContext = new Map<string, string | null>();
+
+    for (const entry of normalizedEntries) {
+      if (!keyContext.has(entry.key)) {
+        keyContext.set(entry.key, entry.context);
+      }
+      if (entry.locale === sourceLocale) {
+        keySourceText.set(entry.key, entry.value.trim());
+      }
+    }
+
+    const keyEntries = [...new Set(normalizedEntries.map((entry) => entry.key))].map((key) => ({
+      key,
+      text: keySourceText.get(key) ?? key,
+      context: keyContext.get(key) ?? undefined,
+    }));
+
+    await this.upsertKeysFromEntries({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: sourceFile.id,
+      entries: keyEntries,
+    });
+
+    const keys = await this.database
+      .select({
+        id: schema.projectTranslationKeys.id,
+        key: schema.projectTranslationKeys.key,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+          inArray(
+            schema.projectTranslationKeys.key,
+            keyEntries.map((entry) => entry.key),
+          ),
+        ),
+      );
+
+    const keyIdByName = new Map(keys.map((key) => [key.key, key.id]));
+    const translationValues = normalizedEntries.flatMap((entry) => {
+      if (entry.locale === sourceLocale) {
+        return [];
+      }
+      const translationKeyId = keyIdByName.get(entry.key);
+      if (!translationKeyId) {
+        return [];
+      }
+      return [
+        {
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          translationKeyId,
+          targetLocale: entry.locale,
+          text: entry.value.trim(),
+          status: "needs_review" as const,
+          provenance: "import" as const,
+        },
+      ];
+    });
+
+    if (translationValues.length === 0) {
+      return { upserted: 0 };
+    }
+
+    await this.database
+      .insert(schema.projectTranslations)
+      .values(translationValues)
+      .onConflictDoUpdate({
+        target: [
+          schema.projectTranslations.translationKeyId,
+          schema.projectTranslations.targetLocale,
+        ],
+        set: {
+          text: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.text ELSE excluded.text END`,
+          status: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.status ELSE excluded.status END`,
+          provenance: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.provenance ELSE excluded.provenance END`,
+          updatedAt: sql`CASE WHEN project_translations.status = 'approved' THEN project_translations.updated_at ELSE now() END`,
+        },
+      });
+
+    return { upserted: translationValues.length };
+  }
+
   async persistFileJobTranslations(input: {
     organizationId: string;
     projectId: string;
@@ -736,3 +965,11 @@ export const persistStringJobTranslations = (
 export const persistFileJobTranslations = (
   input: Parameters<ProjectTranslationService["persistFileJobTranslations"]>[0],
 ) => projectTranslationService.persistFileJobTranslations(input);
+
+export const listProjectTranslationsForSync = (
+  input: Parameters<ProjectTranslationService["listTranslationsForSync"]>[0],
+) => projectTranslationService.listTranslationsForSync(input);
+
+export const upsertProjectTranslationsFromSync = (
+  input: Parameters<ProjectTranslationService["upsertTranslationsFromSync"]>[0],
+) => projectTranslationService.upsertTranslationsFromSync(input);

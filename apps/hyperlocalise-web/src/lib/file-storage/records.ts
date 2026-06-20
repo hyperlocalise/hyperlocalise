@@ -71,6 +71,35 @@ export function safePathPart(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+export async function ensureRepositorySourceFile(input: {
+  organizationId: string;
+  projectId: string;
+  sourcePath: string;
+  db?: DbInsertClient;
+}) {
+  const dbClient = input.db ?? db;
+  const sourcePath = normalizeSourcePath(input.sourcePath);
+
+  const [sourceFile] = await dbClient
+    .insert(schema.repositorySourceFiles)
+    .values({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath,
+    })
+    .onConflictDoUpdate({
+      target: [schema.repositorySourceFiles.projectId, schema.repositorySourceFiles.sourcePath],
+      set: { updatedAt: new Date() },
+    })
+    .returning();
+
+  if (!sourceFile) {
+    throw new Error("Failed to ensure repository source file: no row returned.");
+  }
+
+  return sourceFile;
+}
+
 export function normalizeSourcePath(value: string) {
   return value
     .replace(/\\/g, "/")

@@ -13,5 +13,6 @@ go_library(
         "//internal/i18n/storage/phrase",
         "//internal/i18n/storage/poeditor",
         "//internal/i18n/storage/smartling",
+        "//internal/i18n/storage/hyperlocalise",
     ],
 )

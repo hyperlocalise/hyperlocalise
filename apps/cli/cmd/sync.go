@@ -23,7 +23,7 @@ func defaultSyncCommonOptions() syncCommonOptions {
 func newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "submit and retrieve Hyperlocalise jobs",
+		Short: "submit and retrieve translations from Hyperlocalise",
 	}
 
 	cmd.AddCommand(newSyncPullCmd())

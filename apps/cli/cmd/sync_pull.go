@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 	"github.com/spf13/cobra"
 )
 
@@ -13,10 +14,18 @@ func newSyncPullCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:          "pull",
-		Short:        "pull completed Hyperlocalise job outputs",
+		Short:        "pull translations from Hyperlocalise",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath)
+			cfg, err := config.Load(o.configPath)
+			if err != nil {
+				return fmt.Errorf("load i18n config: %w", err)
+			}
+			if usesHyperlocaliseKeySync(cfg) {
+				return runStorageSyncPull(backgroundContext(), o.configPath, o)
+			}
+
+			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath, false)
 			if err != nil {
 				return fmt.Errorf("initialize sync runtime: %w", err)
 			}
