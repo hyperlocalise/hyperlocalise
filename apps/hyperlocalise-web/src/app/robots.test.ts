@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
+import { SUPPORTED_APP_LOCALES } from "@/lib/app-i18n/locales";
 import robots from "./robots";
 
 describe("robots", () => {
@@ -15,8 +16,12 @@ describe("robots", () => {
       ? config.rules.flatMap((rule) => rule.disallow ?? [])
       : (config.rules?.disallow ?? []);
 
+    const localizedPaths = SUPPORTED_APP_LOCALES.flatMap((locale) => [
+      `/${locale}/dashboard/`,
+      `/${locale}/org/`,
+    ]);
     expect(disallow).toEqual(
-      expect.arrayContaining(["/auth/", "/api/", "/mcp", "/en/dashboard", "/en/org/"]),
+      expect.arrayContaining(["/auth/", "/api/", "/mcp", ...localizedPaths]),
     );
     expect(config.sitemap).toBe("https://www.hyperlocalise.com/sitemap.xml");
   });

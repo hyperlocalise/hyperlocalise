@@ -6,7 +6,7 @@ const BASE_URL = "https://www.hyperlocalise.com";
 
 export default function robots(): MetadataRoute.Robots {
   const protectedLocalizedDisallows = SUPPORTED_APP_LOCALES.flatMap((locale) => [
-    `/${locale}/dashboard`,
+    `/${locale}/dashboard/`,
     `/${locale}/org/`,
   ]);
 
