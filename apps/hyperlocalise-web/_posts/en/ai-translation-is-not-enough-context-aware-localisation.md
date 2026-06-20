@@ -125,3 +125,5 @@ Context-aware localisation helps teams translate product meaning, brand intent, 
 At Hyperlocalise, we are building a [next-generation CAT tool](/product/next-gen-cat-tool) designed around this idea: AI assistance, product context, reusable knowledge, and human review working together in one localisation workflow.
 
 [See our next-gen CAT tool](/product/next-gen-cat-tool) and discover how context-aware AI localisation can help your team translate with more accuracy, consistency, and confidence.
+
+For how this fits into a wider global growth strategy, read [Hyperlocalisation: Why Global Growth Needs More Than Translation](/blog/hyperlocalisation-why-global-growth-needs-more-than-translation).
