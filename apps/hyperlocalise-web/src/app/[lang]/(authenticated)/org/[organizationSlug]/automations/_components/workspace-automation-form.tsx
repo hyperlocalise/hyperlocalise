@@ -221,6 +221,7 @@ function formatHour(hourUtc: number) {
 function triggerSummary(
   form: WorkspaceAutomationFormState,
   repositories: GithubRepositoryOption[] = [],
+  projects: ProjectOption[] = [],
 ) {
   if (form.triggerMode === "scheduled") {
     if (form.scheduledCadence === "hourly") {
@@ -1881,7 +1882,7 @@ export function WorkspaceAutomationEditor({
           {form.triggerMode !== "manual" ? (
             <>
               <span className="text-foreground/20">|</span>
-              <span>{triggerSummary(form, repositories)}</span>
+              <span>{triggerSummary(form, repositories, projectsQuery.data ?? [])}</span>
             </>
           ) : null}
           <span className="text-foreground/20">|</span>

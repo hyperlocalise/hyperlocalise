@@ -416,6 +416,7 @@ function asFile(value: unknown) {
 
 const stringContextRouteLogger = createLogger("project-file-string-context-route");
 const projectDetailRouteLogger = createLogger("project-detail-route");
+const projectFileRouteLogger = createLogger("project-file-route");
 
 function projectIdEncodingDiagnostics(rawProjectId: string, validatedProjectId: string) {
   let singleDecodedProjectId: string | undefined;
@@ -1248,10 +1249,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           sourceFileVersionId: version.id,
           sourcePath: parsed.data.sourcePath,
         }).catch((error) => {
-          console.warn("[file-upload] source upload automation dispatch failed", {
-            projectId: params.projectId,
-            error: error instanceof Error ? error.message : "unknown",
-          });
+          projectFileRouteLogger.warn(
+            {
+              projectId: params.projectId,
+              sourceFileVersionId: version.id,
+              error: error instanceof Error ? error.message : "unknown",
+            },
+            "file-upload source upload automation dispatch failed",
+          );
         });
 
         return c.json(

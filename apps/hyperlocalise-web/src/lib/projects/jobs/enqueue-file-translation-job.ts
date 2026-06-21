@@ -169,13 +169,17 @@ export async function enqueueFileTranslationJob(
 
     return { ok: true, jobId: job.id };
   } catch (error) {
-    await db
-      .update(schema.jobs)
-      .set({
-        status: "failed",
-        lastError: error instanceof Error ? error.message : "translation job queue unavailable",
-      })
-      .where(and(eq(schema.jobs.projectId, input.projectId), eq(schema.jobs.id, jobId)));
+    try {
+      await db
+        .update(schema.jobs)
+        .set({
+          status: "failed",
+          lastError: error instanceof Error ? error.message : "translation job queue unavailable",
+        })
+        .where(and(eq(schema.jobs.projectId, input.projectId), eq(schema.jobs.id, jobId)));
+    } catch {
+      // Best-effort cleanup; preserve the original enqueue failure response.
+    }
 
     return {
       ok: false,
