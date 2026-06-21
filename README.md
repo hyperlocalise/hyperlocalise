@@ -227,6 +227,10 @@ The Canva app in [`apps/canva-app/`](apps/canva-app/) is also licensed
 separately under the Business Source License 1.1. See
 [`apps/canva-app/LICENSE`](apps/canva-app/LICENSE).
 
+The Figma plugin in [`apps/figma-plugin/`](apps/figma-plugin/) is also licensed
+separately under the Business Source License 1.1. See
+[`apps/figma-plugin/LICENSE`](apps/figma-plugin/LICENSE).
+
 ## Contributing
 
 Issues and pull requests are welcome.
