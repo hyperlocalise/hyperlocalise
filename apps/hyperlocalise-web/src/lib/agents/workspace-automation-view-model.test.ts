@@ -147,4 +147,37 @@ describe("workspace automation view model", () => {
       contentfulTargetLocales: "Add at least one target locale.",
     });
   });
+
+  it("maps source upload translation settings to API payload", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Translate uploads",
+      instructions: "Queue jobs after each upload.",
+      triggerMode: "source_upload" as const,
+      translationEnabled: true,
+      translationProjectId: "project-1",
+      translationUseProjectTargetLocales: true,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    const payload = formStateToWorkspaceAutomationPayload(form);
+    expect(payload.triggerConfig).toEqual({ mode: "source_upload" });
+    expect(payload.toolConfig.translation).toEqual({
+      enabled: true,
+      projectId: "project-1",
+      useProjectTargetLocales: true,
+      targetLocales: [],
+    });
+  });
+
+  it("requires translation tool when source upload trigger is selected", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      triggerMode: "source_upload" as const,
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
+      trigger: "Source upload triggers require translation jobs to be enabled.",
+    });
+  });
 });

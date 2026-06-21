@@ -1,6 +1,7 @@
 import { hasWorkspaceAutomationGithubWorkflow } from "@/lib/agents/workspace-automation-github-mapping";
 import {
   hasWorkspaceAutomationContentfulWorkflow,
+  hasWorkspaceAutomationTranslationWorkflow,
   type WorkspaceAutomationRecord,
   type WorkspaceAutomationToolConfig,
 } from "@/lib/agents/workspace-automations";
@@ -10,6 +11,7 @@ import { getTemplateExecutorAgent } from "./workspace-template-manifest";
 export const WORKSPACE_ORCHESTRATOR_TOOL_NAMES = [
   "run_github_workflows",
   "run_contentful_translation",
+  "create_translation_jobs",
   "notify_slack",
   "notify_email",
 ] as const;
@@ -27,6 +29,7 @@ export type WorkspaceOrchestratorTriggerContext = {
 const WORKFLOW_TOOLS: WorkspaceOrchestratorToolName[] = [
   "run_github_workflows",
   "run_contentful_translation",
+  "create_translation_jobs",
 ];
 
 const NOTIFICATION_TOOLS: WorkspaceOrchestratorToolName[] = ["notify_slack", "notify_email"];
@@ -40,6 +43,8 @@ function workflowToolEnabled(
       return hasWorkspaceAutomationGithubWorkflow(toolConfig);
     case "run_contentful_translation":
       return hasWorkspaceAutomationContentfulWorkflow(toolConfig);
+    case "create_translation_jobs":
+      return hasWorkspaceAutomationTranslationWorkflow(toolConfig);
     default:
       return false;
   }

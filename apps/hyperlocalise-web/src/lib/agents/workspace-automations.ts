@@ -22,6 +22,7 @@ export const workspaceAutomationRunTriggerSourceSchema = z.enum([
   "scheduled",
   "github",
   "contentful",
+  "source_upload",
 ]);
 
 const branchPatternSchema = z
@@ -33,7 +34,9 @@ const branchPatternSchema = z
 
 const triggerConfigSchema = z
   .object({
-    mode: z.enum(["manual", "scheduled", "github", "contentful"]).default("manual"),
+    mode: z
+      .enum(["manual", "scheduled", "github", "contentful", "source_upload"])
+      .default("manual"),
     schedule: z
       .object({
         cadence: z.enum(["hourly", "daily", "weekly"]),
@@ -102,12 +105,22 @@ const contentfulToolConfigSchema = z
     writeDrafts: true,
   });
 
+const translationToolConfigSchema = z
+  .object({
+    enabled: z.boolean().default(false),
+    projectId: optionalProjectIdSchema,
+    useProjectTargetLocales: z.boolean().default(true),
+    targetLocales: z.array(z.string().trim().min(1).max(32)).max(20).default([]),
+  })
+  .default({ enabled: false, useProjectTargetLocales: true, targetLocales: [] });
+
 const toolConfigSchema = z
   .object({
     github: githubToolConfigSchema.optional(),
     slack: slackToolConfigSchema.optional(),
     email: emailToolConfigSchema.optional(),
     contentful: contentfulToolConfigSchema.optional(),
+    translation: translationToolConfigSchema.optional(),
   })
   .default({});
 
@@ -178,6 +191,18 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "email_recipients_required";
       message: "Add at least one email recipient for automation notifications.";
+    }
+  | {
+      code: "translation_project_required";
+      message: "Enabled translation tools require a project.";
+    }
+  | {
+      code: "translation_target_locales_required";
+      message: "Enabled translation tools require at least one target locale.";
+    }
+  | {
+      code: "source_upload_workflow_required";
+      message: "Source upload triggers require translation jobs to be enabled.";
     };
 
 type AutomationRow = typeof schema.workspaceAutomations.$inferSelect;
@@ -187,6 +212,12 @@ export function hasWorkspaceAutomationContentfulWorkflow(
   toolConfig: WorkspaceAutomationToolConfig,
 ) {
   return Boolean(toolConfig.contentful?.enabled);
+}
+
+export function hasWorkspaceAutomationTranslationWorkflow(
+  toolConfig: WorkspaceAutomationToolConfig,
+) {
+  return Boolean(toolConfig.translation?.enabled);
 }
 
 export type WorkspaceAutomationRecord = {
@@ -323,6 +354,33 @@ function validateWorkspaceAutomationConfig(input: {
     return err({
       code: "email_recipients_required",
       message: "Add at least one email recipient for automation notifications.",
+    });
+  }
+
+  const translationTools = input.toolConfig.translation;
+  if (translationTools?.enabled) {
+    if (!translationTools.projectId) {
+      return err({
+        code: "translation_project_required",
+        message: "Enabled translation tools require a project.",
+      });
+    }
+
+    if (!translationTools.useProjectTargetLocales && translationTools.targetLocales.length === 0) {
+      return err({
+        code: "translation_target_locales_required",
+        message: "Enabled translation tools require at least one target locale.",
+      });
+    }
+  }
+
+  if (
+    input.triggerConfig.mode === "source_upload" &&
+    !hasWorkspaceAutomationTranslationWorkflow(input.toolConfig)
+  ) {
+    return err({
+      code: "source_upload_workflow_required",
+      message: "Source upload triggers require translation jobs to be enabled.",
     });
   }
 
@@ -702,6 +760,29 @@ export async function listWorkspaceAutomations(input: {
     .orderBy(desc(schema.workspaceAutomations.createdAt))
     .limit(input.limit ?? 50)
     .offset(input.offset ?? 0);
+
+  return rows.map(serializeAutomation);
+}
+
+export async function listSourceUploadWorkspaceAutomations(input: {
+  organizationId: string;
+  projectId: string;
+  limit?: number;
+}): Promise<WorkspaceAutomationRecord[]> {
+  const rows = await db
+    .select()
+    .from(schema.workspaceAutomations)
+    .where(
+      and(
+        eq(schema.workspaceAutomations.organizationId, input.organizationId),
+        eq(schema.workspaceAutomations.status, "active"),
+        sql`${schema.workspaceAutomations.triggerConfig}->>'mode' = 'source_upload'`,
+        sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'enabled' = 'true'`,
+        sql`${schema.workspaceAutomations.toolConfig}->'translation'->>'projectId' = ${input.projectId}`,
+      ),
+    )
+    .orderBy(desc(schema.workspaceAutomations.createdAt))
+    .limit(input.limit ?? 20);
 
   return rows.map(serializeAutomation);
 }

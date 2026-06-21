@@ -5,6 +5,11 @@ import type { FileTreeRowDecorationContext } from "@pierre/trees";
 import { FileTree as PierreFileTree, useFileTree } from "@pierre/trees/react";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import {
+  resolveFileLocaleReadiness,
+  summarizeNativeLocaleReadiness,
+} from "@/lib/projects/files/native-locale-readiness";
+import { summarizeLocaleReadiness } from "../../../../_components/workspace-files-shared";
 import { formatBytes } from "./project-files-shared";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {
@@ -84,7 +89,23 @@ export function ProjectFilesTree({
       }
 
       const file = latestStateRef.current.fileByPath.get(context.item.path);
-      if (!file || file.provider) {
+      if (!file) {
+        return null;
+      }
+
+      const localeReadiness = resolveFileLocaleReadiness(file);
+      const readinessSummary =
+        summarizeLocaleReadiness(localeReadiness) ??
+        summarizeNativeLocaleReadiness(localeReadiness, Object.keys(localeReadiness).length);
+
+      if (readinessSummary) {
+        return {
+          text: readinessSummary,
+          title: fileListMetadata(file),
+        };
+      }
+
+      if (file.provider) {
         return null;
       }
 

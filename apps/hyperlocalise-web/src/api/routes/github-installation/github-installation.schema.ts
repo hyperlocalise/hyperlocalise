@@ -86,3 +86,19 @@ export const githubRepositoryAutomationSettingsResponseSchema = z.object({
     })
     .nullable(),
 });
+
+export const githubRepositoryAutomationJobRecordSchema = z.object({
+  id: z.string().uuid(),
+  status: z.enum(["queued", "running", "succeeded", "failed", "skipped"]),
+  triggerMode: z.enum(["push", "scheduled"]),
+  triggerBranch: z.string().nullable(),
+  lastError: z.string().nullable(),
+  skipReason: z.string().nullable(),
+  resultSummary: z.record(z.string(), z.unknown()).nullable(),
+  createdAt: z.string(),
+  completedAt: z.string().nullable(),
+});
+
+export const githubRepositoryAutomationJobsResponseSchema = z.object({
+  automationJobs: z.array(githubRepositoryAutomationJobRecordSchema),
+});

@@ -36,6 +36,7 @@ import {
   ProjectSectionTitle,
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
+import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
   crowdin: "Crowdin",
@@ -357,6 +358,10 @@ export function ProjectSettingsPageContent({
         </section>
 
         <ProjectSourceDetails project={project} />
+
+        {project.source === "native" ? (
+          <ProjectNativeConnectCliPanel organizationSlug={organizationSlug} projectId={projectId} />
+        ) : null}
       </form>
     </ProjectPageShell>
   );

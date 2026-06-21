@@ -6,6 +6,7 @@ import { createNotifyEmailTool } from "./tools/notify_email";
 import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
+import { createTranslationJobsTool } from "./tools/create_translation_jobs";
 
 const TOOL_BUILDERS: Record<
   WorkspaceOrchestratorToolName,
@@ -13,6 +14,7 @@ const TOOL_BUILDERS: Record<
 > = {
   run_github_workflows: createRunGithubWorkflowsTool,
   run_contentful_translation: createRunContentfulTranslationTool,
+  create_translation_jobs: createTranslationJobsTool,
   notify_slack: createNotifySlackTool,
   notify_email: createNotifyEmailTool,
 };

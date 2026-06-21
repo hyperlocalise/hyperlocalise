@@ -50,6 +50,19 @@ export function buildWorkspaceContentfulWebhookAutomationIdempotencyKey(input: {
   ].join(":");
 }
 
+export function buildWorkspaceSourceUploadAutomationIdempotencyKey(input: {
+  automationId: string;
+  configVersion: number;
+  sourceFileVersionId: string;
+}): string {
+  return [
+    "workspace-automation:source-upload",
+    input.automationId,
+    String(input.configVersion),
+    input.sourceFileVersionId,
+  ].join(":");
+}
+
 export function buildWorkspaceContentfulScheduledAutomationIdempotencyKey(input: {
   automationId: string;
   configVersion: number;

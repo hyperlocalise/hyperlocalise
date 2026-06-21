@@ -12,6 +12,8 @@ import { canAccessStoredFile } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
+import { dispatchWorkspaceAutomationsForSourceUpload } from "@/lib/agents/workspace-automation-dispatcher";
+import { createLogger } from "@/lib/log";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { payloadTooLargeResponse } from "@/api/response.schema";
@@ -23,6 +25,8 @@ import {
   fileNotFoundResponse,
   unsupportedFileResponse,
 } from "./public-files.shared";
+
+const logger = createLogger("public-files");
 
 function asString(value: unknown) {
   return typeof value === "string" ? value : undefined;
@@ -123,6 +127,23 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
             }
             throw error;
           });
+
+        void dispatchWorkspaceAutomationsForSourceUpload({
+          organizationId,
+          projectId: project.id,
+          sourceFileId: storedFile.id,
+          sourceFileVersionId: version.id,
+          sourcePath: parsed.data.sourcePath,
+        }).catch((error) => {
+          logger.warn(
+            {
+              projectId: project.id,
+              sourceFileVersionId: version.id,
+              error: error instanceof Error ? error.message : String(error),
+            },
+            "public-files source upload automation dispatch failed",
+          );
+        });
 
         return c.json(
           {
