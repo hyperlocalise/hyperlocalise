@@ -19,7 +19,7 @@ overrides:
   vite: "8.0.16"
   vitest: "catalog:"
   # Pin each undici major independently (transitive deps use 6/7/8).
-  "undici@^6.0.0": "6.26.0"
+  "undici@^6.0.0": "6.27.0"
   "undici@^7.0.0": "7.28.0"
   "undici@^8.0.0": "8.5.0"
   devalue: "5.8.1"
