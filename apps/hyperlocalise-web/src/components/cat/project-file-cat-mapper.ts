@@ -135,7 +135,8 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
   );
   const providerKind = catFile.provider?.kind;
 
-  const providerSupportsComments = providerKind === "crowdin" || providerKind === "phrase";
+  const providerSupportsComments =
+    providerKind === "crowdin" || providerKind === "phrase" || providerKind === "lokalise";
 
   return {
     intent: `Translate ${catFile.filename} into ${catFile.targetLocale}.`,
@@ -169,7 +170,8 @@ function segmentIntelligenceFor(
   const repositoryContext = segment.repositoryContext?.trim();
   const providerKind = catFile.provider?.kind;
 
-  const providerSupportsComments = providerKind === "crowdin" || providerKind === "phrase";
+  const providerSupportsComments =
+    providerKind === "crowdin" || providerKind === "phrase" || providerKind === "lokalise";
 
   return {
     intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
@@ -242,7 +244,9 @@ export function projectFileCatToWorkspaceState(
     primaryActionLabel: catFile.provider ? "Save to provider" : "Save translation",
     canEditTranslations: catFile.canEditTranslations,
     canAddComments: Boolean(
-      (catFile.provider?.kind === "crowdin" || catFile.provider?.kind === "phrase") &&
+      (catFile.provider?.kind === "crowdin" ||
+        catFile.provider?.kind === "phrase" ||
+        catFile.provider?.kind === "lokalise") &&
       catFile.canEditTranslations,
     ),
     providerKind: catFile.provider?.kind ?? null,

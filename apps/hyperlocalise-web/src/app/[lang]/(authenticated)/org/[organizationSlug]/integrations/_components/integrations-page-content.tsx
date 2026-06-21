@@ -146,6 +146,42 @@ const integrationErrorCopyByCode = {
     title: "Phrase account link expired",
     description: "This Phrase connection link expired. Start Connect Phrase again.",
   },
+  lokalise_user_oauth_exchange_failed: {
+    title: "Lokalise account link failed",
+    description:
+      "Lokalise did not return an access token. Check that the OAuth app callback URL, client ID, and client secret match the Lokalise OAuth App configuration.",
+  },
+  lokalise_user_oauth_invalid: {
+    title: "Lokalise account link failed",
+    description:
+      "Lokalise rejected the access token returned during authorization. Try connecting again.",
+  },
+  lokalise_user_lookup_failed: {
+    title: "Lokalise account link failed",
+    description: "Hyperlocalise received a token but could not load the authorized Lokalise user.",
+  },
+  lokalise_user_no_projects: {
+    title: "Lokalise account link failed",
+    description:
+      "Lokalise authorized your account, but you need access to at least one project before linking.",
+  },
+  lokalise_integration_not_connected: {
+    title: "Lokalise integration is not connected",
+    description: "Save the Lokalise OAuth app credentials before linking a user account.",
+  },
+  lokalise_user_already_linked: {
+    title: "Lokalise account already linked",
+    description:
+      "That Lokalise user is already linked to another Hyperlocalise user in this workspace.",
+  },
+  missing_lokalise_user_oauth_code: {
+    title: "Lokalise account link was cancelled",
+    description: "Lokalise did not return an authorization code. Start the connection again.",
+  },
+  invalid_lokalise_oauth_state: {
+    title: "Lokalise account link expired",
+    description: "This Lokalise connection link expired. Start Connect Lokalise again.",
+  },
 } satisfies Record<string, IntegrationErrorCopy>;
 
 function canManageIntegrations(role: OrganizationMembershipRole) {
@@ -228,6 +264,9 @@ type TmsIntegrationConfig =
       comingSoon?: boolean;
     };
 
+const tmsIntegrationLiveDetail =
+  "Connect with an OAuth app. Projects, jobs, files, glossaries, and translation memories load live from the provider. Each team member links their own account.";
+
 const tmsIntegrations: readonly TmsIntegrationConfig[] = [
   {
     name: "Hyperlocalise Native",
@@ -241,21 +280,19 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
     providerKind: "crowdin",
     logo: "/images/tms/crowdin.png",
     icon: siCrowdin,
-    detail:
-      "Connect to browse Crowdin projects alongside native Hyperlocalise projects. Lists read from your local workspace copy while background sync keeps data current.",
+    detail: tmsIntegrationLiveDetail,
   },
   {
     name: "Lokalise",
     providerKind: "lokalise" as const,
     logo: "/images/tms/lokalise.webp",
-    detail:
-      "Connect to browse Lokalise projects, tasks, glossaries, and translation memories with user OAuth.",
+    detail: tmsIntegrationLiveDetail,
   },
   {
     name: "Phrase",
     providerKind: "phrase" as const,
     logo: "/images/tms/phrase.png",
-    detail: "Connect to browse Phrase projects and jobs with user OAuth.",
+    detail: tmsIntegrationLiveDetail,
   },
   {
     name: "Smartling",

@@ -44,6 +44,12 @@ import {
   savePhraseLiveCatTranslation,
 } from "@/lib/providers/adapters/phrase/phrase-live-cat";
 import {
+  buildLokaliseLiveCatFile,
+  LokaliseLiveCatError,
+  saveLokaliseLiveCatComment,
+  saveLokaliseLiveCatTranslation,
+} from "@/lib/providers/adapters/lokalise/lokalise-live-cat";
+import {
   getLokaliseUserConnection,
   resolveLokaliseUserConnectionSecretMaterial,
 } from "@/lib/providers/adapters/lokalise/lokalise-user-connections";
@@ -736,6 +742,14 @@ function mapPhraseLiveCatError(error: unknown): never {
   throw error;
 }
 
+function mapLokaliseLiveCatError(error: unknown): never {
+  if (error instanceof LokaliseLiveCatError) {
+    throw new TmsProviderLiveError(error.code, error.message);
+  }
+
+  throw error;
+}
+
 function supportsLiveProviderCat(
   providerKind: ExternalTmsProviderKind,
   file: TmsProviderLiveFile,
@@ -752,7 +766,26 @@ function supportsLiveProviderCat(
     return file.provider.resourceType === "file" || file.provider.resourceType === "key";
   }
 
+  if (providerKind === "lokalise") {
+    return file.provider.resourceType === "file" || file.provider.resourceType === "key";
+  }
+
   return false;
+}
+
+function inferLiveCatResourceType(
+  providerKind: ExternalTmsProviderKind,
+  externalResourceId: string,
+): "file" | "key" {
+  if (providerKind === "phrase") {
+    return "key";
+  }
+
+  if (providerKind === "lokalise") {
+    return externalResourceId.includes("::") ? "file" : "key";
+  }
+
+  return "file";
 }
 
 function resolveLiveCatFileFromExternalResourceId(input: {
@@ -766,7 +799,9 @@ function resolveLiveCatFileFromExternalResourceId(input: {
     providerKind: input.providerKind,
     externalProjectId: input.externalProjectId,
     file: {
-      resourceType: input.resourceType ?? (input.providerKind === "phrase" ? "key" : "file"),
+      resourceType:
+        input.resourceType ??
+        inferLiveCatResourceType(input.providerKind, input.externalResourceId),
       externalResourceId: input.externalResourceId,
       sourcePath: input.sourcePath,
     },
@@ -812,6 +847,15 @@ async function resolveLiveCatFile(input: {
       externalResourceId: input.externalResourceId,
       sourcePath: input.sourcePath,
       resourceType: "file",
+    });
+  }
+
+  if (input.context.providerKind === "phrase" || input.context.providerKind === "lokalise") {
+    return resolveLiveCatFileFromExternalResourceId({
+      providerKind: input.context.providerKind,
+      externalProjectId: input.externalProjectId,
+      externalResourceId: input.externalResourceId,
+      sourcePath: input.sourcePath,
     });
   }
 
@@ -1701,6 +1745,22 @@ export async function getTmsProviderLiveCatFile(
     }
   }
 
+  if (context.providerKind === "lokalise") {
+    try {
+      return await buildLokaliseLiveCatFile({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        canEditTranslations: options?.canEditTranslations ?? false,
+        pagination: options?.pagination,
+      });
+    } catch (error) {
+      mapLokaliseLiveCatError(error);
+    }
+  }
+
   return buildCrowdinLiveCatFile({
     context,
     file,
@@ -1757,6 +1817,21 @@ export async function saveTmsProviderLiveCatTranslation(
       });
     } catch (error) {
       mapPhraseLiveCatError(error);
+    }
+  }
+
+  if (context.providerKind === "lokalise") {
+    try {
+      return await saveLokaliseLiveCatTranslation({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+      });
+    } catch (error) {
+      mapLokaliseLiveCatError(error);
     }
   }
 
@@ -1824,6 +1899,28 @@ export async function saveTmsProviderLiveCatComment(
       });
     } catch (error) {
       mapPhraseLiveCatError(error);
+    }
+  }
+
+  if (context.providerKind === "lokalise") {
+    if (input.type === "issue") {
+      throw new TmsProviderLiveError(
+        "provider_cat_unsupported",
+        "Issue comments are not available for Lokalise files.",
+      );
+    }
+
+    try {
+      return await saveLokaliseLiveCatComment({
+        secretMaterial: context.secretMaterial,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        targetLocale: input.targetLocale,
+        externalStringId: input.externalStringId,
+        text: input.text,
+      });
+    } catch (error) {
+      mapLokaliseLiveCatError(error);
     }
   }
 

@@ -102,6 +102,10 @@ describe("resolveAvailableCatQueueFilters", () => {
   it("includes has issues for Phrase projects", () => {
     expect(resolveAvailableCatQueueFilters("phrase")).toContain("has_issues");
   });
+
+  it("includes has issues for Lokalise projects", () => {
+    expect(resolveAvailableCatQueueFilters("lokalise")).toContain("has_issues");
+  });
 });
 
 describe("resolveVisibleQueueSegments", () => {

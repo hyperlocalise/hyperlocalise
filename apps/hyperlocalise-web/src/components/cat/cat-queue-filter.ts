@@ -22,7 +22,7 @@ export function isQueueFilterSupportedForProvider(
   providerKind: string | null | undefined,
 ) {
   if (filter === "has_issues") {
-    return providerKind === "crowdin" || providerKind === "phrase";
+    return providerKind === "crowdin" || providerKind === "phrase" || providerKind === "lokalise";
   }
 
   return true;

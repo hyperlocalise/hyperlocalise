@@ -23,6 +23,7 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "phrase_auth_invalid":
     case "phrase_user_auth_invalid":
     case "phrase_user_connection_required":
+    case "lokalise_auth_invalid":
     case "lokalise_user_auth_invalid":
     case "lokalise_user_connection_required":
       return 401;
@@ -30,7 +31,10 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "invalid_crowdin_project_or_file_id":
     case "invalid_crowdin_project_or_string_id":
     case "invalid_phrase_project_id":
+    case "invalid_lokalise_project_id":
+    case "invalid_lokalise_key_id":
     case "phrase_target_locale_not_found":
+    case "lokalise_target_locale_not_found":
       return 400;
     case "provider_fetcher_unavailable":
     case "provider_description_edit_unsupported":

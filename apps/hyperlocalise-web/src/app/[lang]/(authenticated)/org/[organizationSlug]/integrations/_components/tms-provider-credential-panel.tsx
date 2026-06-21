@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   Copy01Icon,
   Delete02Icon,
@@ -17,6 +18,7 @@ import type {
   ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
+import { LOKALISE_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/lokalise/lokalise-oauth-scopes";
 import { PHRASE_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -29,7 +31,101 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TmsUserConnectButton } from "@/components/app-shell/tms-user-connect-button";
+import { apiClient } from "@/lib/api-client-instance";
+import type { TmsUserConnectProviderKind } from "@/lib/providers/tms-user-connection-shared";
 import { cn } from "@/lib/primitives/cn";
+
+function TmsOAuthUserAccountBanner({
+  organizationSlug,
+  providerKind,
+  providerName,
+}: {
+  organizationSlug: string;
+  providerKind: TmsUserConnectProviderKind;
+  providerName: string;
+}) {
+  const query = useQuery({
+    queryKey: [`${providerKind}-user-connection`, organizationSlug],
+    queryFn: async () => {
+      const route =
+        providerKind === "phrase"
+          ? apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].phrase[
+              "user-connection"
+            ]
+          : providerKind === "lokalise"
+            ? apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].lokalise[
+                "user-connection"
+              ]
+            : apiClient.api.orgs[":organizationSlug"]["external-tms-provider-credential"].crowdin[
+                "user-connection"
+              ];
+      const response = await route.$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to load ${providerName} user connection`);
+      }
+
+      return response.json() as Promise<{
+        shouldConnectCrowdinUser?: boolean;
+        shouldConnectPhraseUser?: boolean;
+        shouldConnectLokaliseUser?: boolean;
+        crowdinUserConnection?: { email: string | null } | null;
+        phraseUserConnection?: { email: string | null } | null;
+        lokaliseUserConnection?: { email: string | null } | null;
+      }>;
+    },
+  });
+
+  const shouldConnect =
+    providerKind === "phrase"
+      ? query.data?.shouldConnectPhraseUser
+      : providerKind === "lokalise"
+        ? query.data?.shouldConnectLokaliseUser
+        : query.data?.shouldConnectCrowdinUser;
+
+  const connection =
+    providerKind === "phrase"
+      ? query.data?.phraseUserConnection
+      : providerKind === "lokalise"
+        ? query.data?.lokaliseUserConnection
+        : query.data?.crowdinUserConnection;
+
+  if (query.isLoading || shouldConnect == null) {
+    return null;
+  }
+
+  if (shouldConnect) {
+    return (
+      <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+        <div>
+          <p className="font-medium text-foreground">Link your {providerName} account</p>
+          <p className="mt-1 leading-6 text-muted-foreground">
+            The workspace OAuth app is connected, but Hyperlocalise still needs your personal{" "}
+            {providerName} authorization before projects, jobs, and files can load.
+          </p>
+        </div>
+        <TmsUserConnectButton
+          organizationSlug={organizationSlug}
+          providerKind={providerKind}
+          providerDisplayName={providerName}
+        />
+      </div>
+    );
+  }
+
+  if (connection?.email) {
+    return (
+      <div className="rounded-lg border border-border bg-muted/30 p-4 text-sm">
+        <p className="font-medium text-foreground">Your {providerName} account is linked</p>
+        <p className="mt-1 leading-6 text-muted-foreground">{connection.email}</p>
+      </div>
+    );
+  }
+
+  return null;
+}
 
 function CrowdinOAuthSetupFields({
   providerKind,
@@ -109,14 +205,18 @@ function CrowdinOAuthSetupFields({
           <p className="mt-1 text-sm leading-6 text-muted-foreground">
             {providerKind === "crowdin"
               ? "In your Crowdin OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Crowdin."
-              : "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token."}
+              : providerKind === "lokalise"
+                ? "In your Lokalise OAuth App, enable every scope below. Hyperlocalise requests the same list when you connect Lokalise."
+                : "Phrase TMS OAuth uses the scope below when Hyperlocalise requests an authorization code and exchanges it for a user bearer token."}
           </p>
         </div>
-        {providerKind === "crowdin" || providerKind === "phrase" ? (
+        {providerKind === "crowdin" || providerKind === "phrase" || providerKind === "lokalise" ? (
           <ul className="space-y-2">
             {(providerKind === "crowdin"
               ? CROWDIN_OAUTH_SCOPE_GUIDE
-              : PHRASE_OAUTH_SCOPE_GUIDE
+              : providerKind === "lokalise"
+                ? LOKALISE_OAUTH_SCOPE_GUIDE
+                : PHRASE_OAUTH_SCOPE_GUIDE
             ).map((entry) => (
               <li key={entry.scope} className="flex flex-col gap-1 sm:flex-row sm:gap-3">
                 <code className="shrink-0 rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground">
@@ -285,18 +385,25 @@ export function TmsProviderCredentialPanel({
       }}
     >
       {isOAuthProvider && isOAuthConnected ? (
-        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
-          <p className="font-medium text-foreground">{providerName} is connected via OAuth</p>
-          <p className="leading-6 text-muted-foreground">
-            Access and refresh tokens are stored encrypted. Projects, jobs, glossaries, and
-            translation memories load live from {providerName} when you open those pages.
-          </p>
-          {credential.oauthExpiresAt ? (
-            <p className="text-xs text-muted-foreground">
-              Access token expires {new Date(credential.oauthExpiresAt).toLocaleString()}
+        <>
+          <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+            <p className="font-medium text-foreground">{providerName} is connected via OAuth</p>
+            <p className="leading-6 text-muted-foreground">
+              Access and refresh tokens are stored encrypted. Projects, jobs, glossaries, and
+              translation memories load live from {providerName} when you open those pages.
             </p>
-          ) : null}
-        </div>
+            {credential.oauthExpiresAt ? (
+              <p className="text-xs text-muted-foreground">
+                Access token expires {new Date(credential.oauthExpiresAt).toLocaleString()}
+              </p>
+            ) : null}
+          </div>
+          <TmsOAuthUserAccountBanner
+            organizationSlug={organizationSlug}
+            providerKind={providerKind as TmsUserConnectProviderKind}
+            providerName={providerName}
+          />
+        </>
       ) : null}
 
       {isOAuthProvider && !isOAuthConnected ? (
