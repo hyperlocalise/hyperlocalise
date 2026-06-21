@@ -11,12 +11,14 @@ import { JobSourceFilesPanel } from "./job-source-files-panel";
 export function SyncedJobSourceFilesSection({
   organizationSlug,
   projectId,
+  encodedJobId,
   providerKind,
   sourceFiles,
   highlightLocale,
 }: {
   organizationSlug: string;
   projectId: string;
+  encodedJobId: string;
   providerKind: string;
   sourceFiles: ProviderSourceFile[];
   highlightLocale?: string | null;
@@ -37,6 +39,7 @@ export function SyncedJobSourceFilesSection({
     <JobSourceFilesPanel
       organizationSlug={organizationSlug}
       projectId={projectId}
+      encodedJobId={encodedJobId}
       files={files}
       emptyMessage="No synced source files linked to this job."
       highlightLocale={highlightLocale ?? null}

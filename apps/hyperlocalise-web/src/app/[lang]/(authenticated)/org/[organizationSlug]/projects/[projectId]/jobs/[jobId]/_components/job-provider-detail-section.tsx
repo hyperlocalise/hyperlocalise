@@ -119,6 +119,7 @@ export function JobProviderDetailSection({
         <SyncedJobSourceFilesSection
           organizationSlug={orgSlug}
           projectId={projId}
+          encodedJobId={jobId}
           providerKind={providerJob.externalProviderKind}
           sourceFiles={providerJob.providerSourceFiles ?? []}
           highlightLocale={providerJob.externalTargetLocales?.[0] ?? null}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useState, type ReactNode } from "react";
 import {
   ArrowLeft02Icon,
   AiMagicIcon,
@@ -9,6 +9,7 @@ import {
   StopCircleIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { ListIcon } from "lucide-react";
 
 import {
   AlertDialog,
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyH2 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
 
 import { toneClass } from "../../../../../_components/workspace-resource-shared";
 
@@ -139,6 +141,8 @@ export function NativeJobDetailView({
   const showActions = job
     ? canRetryJob(job) || canMarkJobFailed(job) || canRunAgentOnNativeFileJob(job)
     : false;
+  const catHref = job ? buildJobCatHref(organizationSlug, projectId, job) : null;
+  const showCatAction = job ? canOpenJobCat(job) : false;
   const jobsListHref = buildJobsListHrefProp(organizationSlug, projectId);
 
   return (
@@ -161,8 +165,14 @@ export function NativeJobDetailView({
             >
               {job.status}
             </Badge>
-            {showActions ? (
+            {showActions || showCatAction ? (
               <div className="flex flex-wrap gap-2 sm:justify-end">
+                {showCatAction && catHref ? (
+                  <Button size="sm" variant="outline" render={<Link href={catHref} />}>
+                    <ListIcon />
+                    CAT
+                  </Button>
+                ) : null}
                 {canRunAgentOnNativeFileJob(job) && onRunAgent ? (
                   <Button
                     size="sm"

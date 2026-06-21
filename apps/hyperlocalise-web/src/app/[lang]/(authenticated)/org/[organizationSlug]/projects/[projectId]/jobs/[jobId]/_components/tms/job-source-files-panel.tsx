@@ -8,6 +8,7 @@ import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH4, TypographyP } from "@/components/ui/typography";
+import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 
 import { ProjectFilesTree } from "../../../../files/_components/project-files-tree";
 import { ProjectFileDetailPanel } from "../../../../files/_components/project-file-detail-panel";
@@ -64,7 +65,11 @@ export function JobSourceFilesPanel({
       ? highlightLocale
       : (selectedFile?.provider?.targetLocales?.[0] ?? highlightLocale);
   const canViewStrings = Boolean(
-    encodedJobId && selectedFile?.provider && activeSourcePath && targetLocale,
+    encodedJobId &&
+    selectedFile &&
+    supportsProviderCatFile(selectedFile) &&
+    activeSourcePath &&
+    targetLocale,
   );
 
   return (

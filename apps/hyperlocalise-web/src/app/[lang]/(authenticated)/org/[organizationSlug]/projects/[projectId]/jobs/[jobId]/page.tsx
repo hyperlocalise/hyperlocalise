@@ -11,18 +11,9 @@ export default async function ProjectJobDetailPage({
 }) {
   const { organizationSlug, projectId: rawProjectId, jobId } = await params;
   const projectId = normalizeProjectId(rawProjectId);
-  const auth = await requireAppAuthContext({ organizationSlug });
-  const canEditProviderJobDescription =
-    auth.membership.role === "admin" ||
-    (auth.membership.role === "localization_manager" &&
-      hasCapability(auth.membership.role, "jobs:write"));
+  await requireAppAuthContext({ organizationSlug });
 
   return (
-    <JobDetailPageContent
-      jobId={jobId}
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      canEditProviderJobDescription={canEditProviderJobDescription}
-    />
+    <JobDetailPageContent jobId={jobId} organizationSlug={organizationSlug} projectId={projectId} />
   );
 }

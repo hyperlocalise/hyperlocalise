@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 
 import {
   ProjectPageShell,
@@ -286,9 +286,9 @@ export function ProjectFilesPageContentView({
     () => files.find((file) => file.sourcePath === selectedSourcePath) ?? null,
     [files, selectedSourcePath],
   );
-  const isProviderProject =
-    Boolean(parseProviderProjectId(projectId)) || files.some((file) => file.provider);
-  const canUploadFiles = !isProviderProject;
+  const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
+  const isProviderProject = projectCapabilities.isProviderProject;
+  const canUploadFiles = projectCapabilities.canUploadFiles;
 
   return (
     <ProjectPageShell className="gap-8">

@@ -2,6 +2,7 @@
 
 import { useEffect, useId, useState, type ReactNode } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Alert02Icon, Delete02Icon, Key01Icon, SaveIcon } from "@hugeicons/core-free-icons";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -216,7 +217,7 @@ type TmsIntegrationConfig =
       name: string;
       providerKind: "native";
       detail: string;
-      comingSoon: true;
+      included: true;
     }
   | {
       name: string;
@@ -231,8 +232,9 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
   {
     name: "Hyperlocalise Native",
     providerKind: "native",
-    comingSoon: true,
-    detail: "Built-in TMS for projects, jobs, and memories without an external provider.",
+    included: true,
+    detail:
+      "Built-in TMS for projects, jobs, files, and translation memories. No external provider required.",
   },
   {
     name: "Crowdin",
@@ -557,6 +559,7 @@ function TmsIntegrationRow({
   integration,
   credential,
   activeExternalProviderKind,
+  organizationSlug,
   userIsAdmin,
   expanded,
   onExpandedChange,
@@ -566,14 +569,16 @@ function TmsIntegrationRow({
   integration: TmsIntegrationConfig;
   credential?: ExternalTmsProviderCredentialListItem;
   activeExternalProviderKind?: ExternalTmsProviderKind | null;
+  organizationSlug: string;
   userIsAdmin: boolean;
   expanded: boolean;
   onExpandedChange: (expanded: boolean) => void;
   isLast: boolean;
   children?: ReactNode;
 }) {
-  const isConnected = !!credential;
-  const isComingSoon = integration.providerKind === "native" || Boolean(integration.comingSoon);
+  const isIncluded = integration.providerKind === "native";
+  const isConnected = isIncluded || !!credential;
+  const isComingSoon = !isIncluded && Boolean(integration.comingSoon);
   const integrationProviderKind =
     integration.providerKind === "native" ? null : integration.providerKind;
   const isBlockedByActiveProvider =
@@ -632,7 +637,17 @@ function TmsIntegrationRow({
         </div>
 
         <div className="shrink-0">
-          {isComingSoon ? (
+          {isIncluded ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<Link href={`/org/${organizationSlug}/projects`} />}
+            >
+              View projects
+            </Button>
+          ) : isComingSoon ? (
             <Button type="button" variant="outline" size="sm" disabled>
               Coming soon
             </Button>
@@ -997,6 +1012,7 @@ export function IntegrationsPageContent({
                       integration={integration}
                       credential={tmsCredential}
                       activeExternalProviderKind={activeExternalTmsProviderCredential?.providerKind}
+                      organizationSlug={organizationSlug}
                       userIsAdmin={userIsAdmin}
                       isLast={index === tmsIntegrations.length - 1}
                       expanded={

@@ -13,7 +13,7 @@ Proposed
 Hyperlocalise currently operates TMS data across three partially connected modes:
 
 1. **Native projects** (`source: native`) — Postgres-backed projects, jobs, and files owned by Hyperlocalise.
-2. **Live external reads** (`tms-provider-live`) — On-demand provider API calls for projects, jobs, files, glossaries, and translation memories. Enabled in shell mode (`TMS_PROVIDER_SHELL_MODE`).
+2. **Live external reads** (`tms-provider-live`) — On-demand provider API calls for detail views and CAT editing where synced data is not enough (for example segment writeback).
 3. **Durable sync schema** (`provider_sync_intents`, `provider_sync_runs`, `external_tms_files`) — Designed for webhook-driven and scheduled reconciliation, but **not wired** after TMS provider webhooks were deprecated.
 
 Recent Contentful work improved the middle ground: `ensureOrganizationProjectRecord` materializes external TMS projects into `projects` when a connection needs a real FK (for example `contentful_connections.project_id`). That path calls the live API once and upserts project metadata with `lastSyncedAt`, but it does not sync files, jobs, glossaries, or memories.

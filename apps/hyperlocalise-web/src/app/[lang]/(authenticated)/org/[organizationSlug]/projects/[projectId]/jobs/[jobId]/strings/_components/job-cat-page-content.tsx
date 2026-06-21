@@ -17,16 +17,16 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 
 import { ProjectPageShell } from "../../../../_components/project-page-shell";
-import { tmsLiveFileToProjectFileRecord } from "../../_components/tms/job-source-file-mappers";
 import {
   catFileRepositoryPreferenceKey,
   readCatFileRepositoryPreference,
   writeCatFileRepositoryPreference,
 } from "./job-cat-repository-preference";
 import { selectJobCatTargetLocale } from "./job-cat-target-locale";
+import { loadJobCatProviderFiles, loadJobCatTargetFile } from "./load-job-cat-files";
 import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file-cat-workspace";
 
@@ -36,8 +36,23 @@ type JobCatGithubRepository = {
   archived: boolean;
 };
 
-function tmsLiveJobFilesQueryKey(organizationSlug: string, encodedJobId: string) {
-  return ["tms-provider-job-files", organizationSlug, encodedJobId] as const;
+function projectJobCatTargetFileQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath: string | null,
+  storedFileId: string | null,
+) {
+  return [
+    "project-job-cat-target-file",
+    organizationSlug,
+    projectId,
+    sourcePath,
+    storedFileId,
+  ] as const;
+}
+
+function projectJobCatProviderFilesQueryKey(organizationSlug: string, projectId: string) {
+  return ["project-job-cat-provider-files", organizationSlug, projectId] as const;
 }
 
 function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
@@ -48,14 +63,22 @@ function stringsPageHref(input: {
   organizationSlug: string;
   projectId: string;
   jobId: string;
-  sourcePath: string;
+  sourcePath?: string;
+  storedFileId?: string;
   targetLocale: string;
   segment?: string | null;
 }) {
   const params = new URLSearchParams({
-    sourcePath: input.sourcePath,
     targetLocale: input.targetLocale,
   });
+
+  if (input.sourcePath) {
+    params.set("sourcePath", input.sourcePath);
+  }
+
+  if (input.storedFileId) {
+    params.set("storedFileId", input.storedFileId);
+  }
 
   if (input.segment) {
     params.set("segment", input.segment);
@@ -69,6 +92,7 @@ export function JobCatPageContent({
   projectId,
   jobId,
   sourcePath,
+  storedFileId = null,
   targetLocale,
   initialSegmentKey = null,
 }: {
@@ -76,33 +100,40 @@ export function JobCatPageContent({
   projectId: string;
   jobId: string;
   sourcePath: string | null;
+  storedFileId?: string | null;
   targetLocale: string | null;
   initialSegmentKey?: string | null;
 }) {
   const router = useRouter();
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
-  const filesQuery = useQuery({
-    queryKey: tmsLiveJobFilesQueryKey(organizationSlug, jobId),
-    enabled: Boolean(sourcePath),
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
-        ":encodedJobId"
-      ].files.$get({
-        param: { organizationSlug, encodedJobId: jobId },
-      });
+  const hasFileReference = Boolean(sourcePath || storedFileId);
+  const isNativeJob = Boolean(storedFileId);
+  const targetFileQuery = useQuery({
+    queryKey: projectJobCatTargetFileQueryKey(
+      organizationSlug,
+      projectId,
+      sourcePath,
+      storedFileId,
+    ),
+    enabled: hasFileReference,
+    queryFn: () =>
+      loadJobCatTargetFile({
+        organizationSlug,
+        projectId,
+        sourcePath,
+        storedFileId,
+      }),
+  });
 
-      if (!response.ok) {
-        throw new Error(`Failed to load task files (${response.status})`);
-      }
-
-      const body = (await response.json()) as { files: TmsProviderLiveFile[] };
-      return body.files.map(tmsLiveFileToProjectFileRecord);
-    },
+  const providerFilesQuery = useQuery({
+    queryKey: projectJobCatProviderFilesQueryKey(organizationSlug, projectId),
+    enabled: hasFileReference && !isNativeJob,
+    queryFn: () => loadJobCatProviderFiles({ organizationSlug, projectId }),
   });
 
   const repositoriesQuery = useQuery({
     queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
-    enabled: Boolean(sourcePath),
+    enabled: hasFileReference && !isNativeJob,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["github-installation"][
         "repositories"
@@ -120,14 +151,16 @@ export function JobCatPageContent({
     },
   });
 
-  const taskFiles = useMemo(
-    () => sortJobCatProviderFiles(filesQuery.data ?? []),
-    [filesQuery.data],
+  const providerFiles = useMemo(
+    () =>
+      sortJobCatProviderFiles(providerFilesQuery.data ?? []).filter(
+        (file) => file.provider && supportsProviderCatFile(file),
+      ),
+    [providerFilesQuery.data],
   );
 
-  const providerFiles = useMemo(() => taskFiles.filter((file) => file.provider), [taskFiles]);
-
-  const selectedFile = sourcePath ? taskFiles.find((file) => file.sourcePath === sourcePath) : null;
+  const selectedFile = targetFileQuery.data?.status === "found" ? targetFileQuery.data.file : null;
+  const isNativeFile = isNativeJob || Boolean(selectedFile && !selectedFile.provider);
 
   const enabledRepositoryFullNames = useMemo(
     () =>
@@ -160,7 +193,7 @@ export function JobCatPageContent({
 
   const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
 
-  if (!sourcePath) {
+  if (!hasFileReference) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
@@ -172,7 +205,7 @@ export function JobCatPageContent({
     );
   }
 
-  if (filesQuery.isLoading || repositoriesQuery.isLoading) {
+  if (targetFileQuery.isLoading) {
     return (
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
@@ -183,14 +216,31 @@ export function JobCatPageContent({
     );
   }
 
-  if (filesQuery.isError) {
+  if (targetFileQuery.isError) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
-            {filesQuery.error instanceof Error
-              ? filesQuery.error.message
+            {targetFileQuery.error instanceof Error
+              ? targetFileQuery.error.message
               : "Unable to load task files."}
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (targetFileQuery.data?.status === "list_truncated") {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="font-mono text-sm text-foreground">
+            {targetFileQuery.data.reference}
+          </TypographyP>
+          <TypographyP className="mt-2 text-sm text-muted-foreground">
+            This project has more than {targetFileQuery.data.fetchedCount.toLocaleString()} files,
+            so the source file could not be resolved from the loaded file list. Open CAT from the
+            project Files page instead, or ask support to narrow the project file list.
           </TypographyP>
         </div>
       </ProjectPageShell>
@@ -201,7 +251,9 @@ export function JobCatPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="font-mono text-sm text-foreground">{sourcePath}</TypographyP>
+          <TypographyP className="font-mono text-sm text-foreground">
+            {sourcePath ?? storedFileId}
+          </TypographyP>
           <TypographyP className="mt-2 text-sm text-muted-foreground">
             This source file is not linked to the task anymore.
           </TypographyP>
@@ -210,12 +262,54 @@ export function JobCatPageContent({
     );
   }
 
-  if (!selectedFile.provider) {
+  if (isNativeFile) {
+    return (
+      <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+        <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button variant="outline" size="sm" render={<Link href={taskHref} />}>
+              <ArrowLeftIcon />
+              Task
+            </Button>
+            <TypographyP className="truncate font-mono text-xs text-muted-foreground">
+              {selectedFile.sourcePath}
+            </TypographyP>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
+          <ProjectFileCatWorkspace
+            key={selectedFile.sourcePath}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourcePath={selectedFile.sourcePath}
+            targetLocale={targetLocale ?? undefined}
+            highlightLocale={targetLocale}
+            initialSegmentKey={initialSegmentKey}
+            layout="fullscreen"
+          />
+        </div>
+      </main>
+    );
+  }
+
+  if (repositoriesQuery.isLoading) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (!supportsProviderCatFile(selectedFile) || !selectedFile.provider) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            String editing is only available for provider task files.
+            String editing is only available for supported provider task files.
           </TypographyP>
         </div>
       </ProjectPageShell>
