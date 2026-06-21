@@ -545,9 +545,9 @@ func TestParseASTErrors(t *testing.T) {
 		err  string
 	}{
 		{
-			name: "unclosed brace at top level",
-			msg:  "Hello {name",
-			err:  "expected ',' or '}' at 11",
+			name: "expected comma or brace after argument",
+			msg:  "Hello {name plural}",
+			err:  "expected ',' or '}' at 12",
 		},
 		{
 			name: "unexpected closing brace at top level",
@@ -560,7 +560,7 @@ func TestParseASTErrors(t *testing.T) {
 			err:  "expected argument name at 7",
 		},
 		{
-			name: "expected ',' or '}'",
+			name: "unclosed brace in plural option body",
 			msg:  "{name, plural, other {x",
 			err:  "unclosed brace at 23",
 		},
