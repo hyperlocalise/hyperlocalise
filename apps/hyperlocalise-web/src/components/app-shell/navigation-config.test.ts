@@ -3,14 +3,24 @@ import { describe, expect, it } from "vite-plus/test";
 import { buildProjectPath, isNavigationItemActive, parseProjectRoute } from "./navigation-config";
 
 describe("navigation-config", () => {
-  it("encodes external project ids as one path segment and parses them back", () => {
+  it("uses external project ids in paths and parses them back", () => {
     const projectId = "ext:crowdin:902807";
     const path = buildProjectPath("hyperlocalise", projectId, "files");
 
-    expect(path).toBe("/org/hyperlocalise/projects/ext%3Acrowdin%3A902807/files");
+    expect(path).toBe("/org/hyperlocalise/projects/902807/files");
     expect(parseProjectRoute(path)).toEqual({
       organizationSlug: "hyperlocalise",
-      projectId,
+      projectId: "902807",
+      section: "files",
+    });
+  });
+
+  it("still parses legacy encoded external project paths", () => {
+    const legacyPath = "/org/hyperlocalise/projects/ext%3Acrowdin%3A902807/files";
+
+    expect(parseProjectRoute(legacyPath)).toEqual({
+      organizationSlug: "hyperlocalise",
+      projectId: "ext:crowdin:902807",
       section: "files",
     });
   });
@@ -42,7 +52,7 @@ describe("navigation-config", () => {
     ).toBe(true);
   });
 
-  it("keeps project overview active state exact for encoded external project ids", () => {
+  it("keeps project overview active state exact for external project ids", () => {
     const projectId = "ext:crowdin:902807";
     const overviewHref = buildProjectPath("hyperlocalise", projectId);
     const filesPath = buildProjectPath("hyperlocalise", projectId, "files");
