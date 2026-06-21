@@ -2,17 +2,20 @@
 
 ## Tooling
 
-This plugin uses [Vite+](https://vite.plus) (`vp`) for formatting (oxfmt), linting (oxlint), type checks, and tests (Vitest).
+This plugin uses [Vite+](https://vite.plus) (`vp`) for formatting (oxfmt), linting (oxlint), type checks, tests (Vitest), and production builds.
 
 - `vp install` — install dependencies
 - `vp check --fix` — format, lint, and typecheck
 - `vp test` — run Vitest
-- `vp run dev` — watch and rebuild the Figma webpack bundle
-- `vp run build` — production webpack bundle for import or publish
+- `vp run dev` — watch and rebuild `dist/ui.html` and `dist/code.js`
+- `vp run build` — production Vite bundle for import or publish
 
 Do not install Vitest, Oxlint, or Oxfmt directly. Import test utilities from `vite-plus/test`.
 
-Figma preview and bundling use webpack via `vp run dev` and `vp run build` because plugins ship as `code.js` plus an inlined `ui.html`.
+Figma bundling uses two Vite builds:
+
+- `vite.config.ts` — React UI inlined into `dist/ui.html` via `vite-plugin-singlefile`
+- `vite.code.config.ts` — plugin sandbox logic bundled to `dist/code.js`
 
 ## Before Finalizing
 
