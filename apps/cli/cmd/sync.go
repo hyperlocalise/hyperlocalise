@@ -7,11 +7,10 @@ import (
 )
 
 type syncCommonOptions struct {
-	configPath   string
-	locales      []string
-	dryRun       bool
-	output       string
-	manifestPath string
+	configPath string
+	locales    []string
+	dryRun     bool
+	output     string
 }
 
 func defaultSyncCommonOptions() syncCommonOptions {
@@ -23,7 +22,7 @@ func defaultSyncCommonOptions() syncCommonOptions {
 func newSyncCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "sync",
-		Short: "submit and download Hyperlocalise translation files",
+		Short: "upload source files and download translated files from Hyperlocalise",
 	}
 
 	cmd.AddCommand(newSyncPullCmd())
@@ -37,7 +36,6 @@ func addSyncCommonFlags(cmd *cobra.Command, o *syncCommonOptions) {
 	cmd.Flags().StringSliceVar(&o.locales, "locale", nil, "target locale(s) to sync")
 	cmd.Flags().BoolVar(&o.dryRun, "dry-run", o.dryRun, "preview changes without applying")
 	cmd.Flags().StringVar(&o.output, "output", o.output, "output format: text, json, or markdown")
-	cmd.Flags().StringVar(&o.manifestPath, "manifest", o.manifestPath, "path to Hyperlocalise jobs manifest")
 }
 
 func backgroundContext() context.Context {

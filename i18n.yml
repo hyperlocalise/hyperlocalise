@@ -155,7 +155,6 @@ llm:
 #   project_id: project_123
 #   api_base_url: https://hyperlocalise.com/api
 #   api_key_env: HYPERLOCALISE_API_KEY
-#   manifest_path: .hyperlocalise/jobs.json
 #   timeout_seconds: 1200
 
 # Optional remote caching client config for the run pipeline.

@@ -111,7 +111,6 @@ type HyperlocaliseConfig struct {
 	ProjectIDEnv   string `json:"project_id_env,omitempty"`
 	APIBaseURL     string `json:"api_base_url,omitempty"`
 	APIKeyEnv      string `json:"api_key_env,omitempty"`
-	ManifestPath   string `json:"manifest_path,omitempty"`
 	TimeoutSeconds int    `json:"timeout_seconds,omitempty"`
 }
 
@@ -299,9 +298,6 @@ func (c *HyperlocaliseConfig) applyDefaults() {
 	}
 	if strings.TrimSpace(c.ProjectIDEnv) == "" {
 		c.ProjectIDEnv = "HYPERLOCALISE_PROJECT_ID"
-	}
-	if strings.TrimSpace(c.ManifestPath) == "" {
-		c.ManifestPath = ".hyperlocalise/jobs.json"
 	}
 	if c.TimeoutSeconds == 0 {
 		c.TimeoutSeconds = 1200
@@ -816,9 +812,6 @@ func (c I18NConfig) validateHyperlocalise() error {
 	}
 	if strings.TrimSpace(c.Hyperlocalise.ProjectID) == "" && strings.TrimSpace(c.Hyperlocalise.ProjectIDEnv) == "" {
 		return fmt.Errorf("hyperlocalise.project_id: must be set when hyperlocalise.project_id_env is empty")
-	}
-	if strings.TrimSpace(c.Hyperlocalise.ManifestPath) == "" {
-		return fmt.Errorf("hyperlocalise.manifest_path: must not be empty")
 	}
 	if c.Hyperlocalise.TimeoutSeconds < 0 {
 		return fmt.Errorf("hyperlocalise.timeout_seconds: must be >= 0")

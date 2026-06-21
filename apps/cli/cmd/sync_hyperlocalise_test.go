@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestHyperlocaliseDownloadFileRejectsOversizedResponse(t *testing.T) {
+func TestHyperlocaliseDownloadTranslationExportRejectsOversizedResponse(t *testing.T) {
 	oldMaxDownloadBytes := hyperlocaliseMaxDownloadBytes
 	hyperlocaliseMaxDownloadBytes = 5
 	t.Cleanup(func() {
@@ -26,7 +26,7 @@ func TestHyperlocaliseDownloadFileRejectsOversizedResponse(t *testing.T) {
 		httpClient: server.Client(),
 	}
 
-	content, err := client.downloadFile(context.Background(), "file_1")
+	content, err := client.downloadTranslationExport(context.Background(), "project-1", "locales/en.json", "fr")
 	if err == nil {
 		t.Fatalf("expected oversized download error")
 	}

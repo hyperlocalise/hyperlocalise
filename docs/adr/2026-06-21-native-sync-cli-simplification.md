@@ -2,7 +2,7 @@
 
 ## Status
 
-Proposed
+Accepted
 
 ## Context
 
@@ -43,17 +43,13 @@ Exit non-zero only when one or more uploads fail. Partial failure reports list f
 - For each `(sourcePath, locale)` pair, asks the API for the canonical export
 - Writes files to resolved local target paths
 
-**Primary export path (default):**
+**Primary export path (only CLI path):**
 
 `GET /v1/projects/:projectId/translations/download?sourcePath=&locale=`
 
-This reconstructs translated content from Hyperlocalise's segment store (AI job output, CAT edits, approved strings). No job IDs required.
+This reconstructs translated content from Hyperlocalise's segment store (AI job output, CAT edits, approved strings). The CLI never reads job IDs.
 
-**Secondary path (when job file output exists and is newer):**
-
-Prefer succeeded file-job `outputFiles` when they represent the latest materialized artifact for that source path. The server resolves this; the CLI does not track job IDs.
-
-`sync pull` never reads `jobs.json`. The `--manifest` flag and `hyperlocalise.manifest_path` config are removed.
+The server is responsible for resolving the canonical export for each `(sourcePath, locale)` pair, including materialized job outputs when those are newer than segment state.
 
 ### 3. Job creation moves to automation
 

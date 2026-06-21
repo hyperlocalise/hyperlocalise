@@ -26,23 +26,16 @@ import (
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
 )
 
-const hyperlocaliseManifestVersion = 1
-
-var (
-	hyperlocaliseJobPollInterval        = 5 * time.Second
-	hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
-)
+var hyperlocaliseMaxDownloadBytes int64 = 50 * 1024 * 1024 // 50 MB
 
 type hyperlocaliseSyncRuntime struct {
-	cfg          *config.I18NConfig
-	configPath   string
-	configRoot   string
-	projectID    string
-	apiBaseURL   string
-	apiKey       string
-	manifestPath string
-	timeout      time.Duration
-	client       *hyperlocaliseAPIClient
+	cfg        *config.I18NConfig
+	configPath string
+	configRoot string
+	projectID  string
+	apiBaseURL string
+	apiKey     string
+	client     *hyperlocaliseAPIClient
 }
 
 type hyperlocaliseFilePlan struct {
@@ -55,57 +48,21 @@ type hyperlocaliseFilePlan struct {
 	TargetPaths   map[string]string `json:"targetPaths"`
 }
 
-type hyperlocaliseSyncManifest struct {
-	Version            int                         `json:"version"`
-	Complete           bool                        `json:"complete"`
-	GeneratedAt        time.Time                   `json:"generatedAt"`
-	ProjectID          string                      `json:"projectId"`
-	APIBaseURL         string                      `json:"apiBaseUrl"`
-	ConfigPath         string                      `json:"configPath,omitempty"`
-	Repository         string                      `json:"repository,omitempty"`
-	Ref                string                      `json:"ref,omitempty"`
-	CommitSHA          string                      `json:"commitSha,omitempty"`
-	WorkflowRunID      string                      `json:"workflowRunId,omitempty"`
-	WorkflowRunAttempt string                      `json:"workflowRunAttempt,omitempty"`
-	Jobs               []hyperlocaliseManifestJob  `json:"jobs"`
-	FailedItems        []hyperlocaliseManifestFail `json:"failedItems,omitempty"`
-}
-
-type hyperlocaliseManifestJob struct {
-	JobID         string            `json:"jobId"`
-	SourceFileID  string            `json:"sourceFileId"`
-	Bucket        string            `json:"bucket"`
-	SourcePath    string            `json:"sourcePath"`
-	SourceHash    string            `json:"sourceHash"`
-	FileFormat    string            `json:"fileFormat"`
-	SourceLocale  string            `json:"sourceLocale"`
-	TargetLocales []string          `json:"targetLocales"`
-	TargetPaths   map[string]string `json:"targetPaths"`
-	Status        string            `json:"status"`
-}
-
-type hyperlocaliseManifestFail struct {
-	SourcePath string `json:"sourcePath"`
-	Message    string `json:"message"`
-}
-
 type hyperlocalisePushReport struct {
-	Action       string `json:"action"`
-	Complete     bool   `json:"complete"`
-	PlannedFiles int    `json:"plannedFiles"`
-	CreatedJobs  int    `json:"createdJobs"`
-	FailedItems  int    `json:"failedItems"`
-	ManifestPath string `json:"manifestPath,omitempty"`
-	DryRun       bool   `json:"dryRun"`
+	Action        string `json:"action"`
+	Complete      bool   `json:"complete"`
+	PlannedFiles  int    `json:"plannedFiles"`
+	UploadedFiles int    `json:"uploadedFiles"`
+	FailedItems   int    `json:"failedItems"`
+	DryRun        bool   `json:"dryRun"`
 }
 
 type hyperlocalisePullReport struct {
 	Action       string `json:"action"`
 	Complete     bool   `json:"complete"`
-	Jobs         int    `json:"jobs"`
+	PlannedFiles int    `json:"plannedFiles"`
 	Downloaded   int    `json:"downloaded"`
 	Skipped      int    `json:"skipped"`
-	ManifestPath string `json:"manifestPath,omitempty"`
 	DryRun       bool   `json:"dryRun"`
 }
 
@@ -135,37 +92,7 @@ type hyperlocaliseUploadFileResponse struct {
 	} `json:"file"`
 }
 
-type hyperlocaliseCreateJobResponse struct {
-	Job struct {
-		ID     string `json:"id"`
-		Type   string `json:"type"`
-		Status string `json:"status"`
-	} `json:"job"`
-}
-
-type hyperlocaliseJobResponse struct {
-	Job hyperlocaliseJob `json:"job"`
-}
-
-type hyperlocaliseJob struct {
-	ID             string          `json:"id"`
-	Status         string          `json:"status"`
-	LastError      string          `json:"lastError"`
-	OutputFiles    json.RawMessage `json:"outputFiles"`
-	OutcomePayload json.RawMessage `json:"outcomePayload"`
-}
-
-type hyperlocaliseFileJobOutcome struct {
-	OutputFiles []hyperlocaliseOutputFile `json:"outputFiles"`
-}
-
-type hyperlocaliseOutputFile struct {
-	FileID   string `json:"fileId"`
-	Locale   string `json:"locale"`
-	Filename string `json:"filename"`
-}
-
-func newHyperlocaliseSyncRuntime(configPath, manifestOverride string, requireManifest bool) (*hyperlocaliseSyncRuntime, error) {
+func newHyperlocaliseSyncRuntime(configPath string) (*hyperlocaliseSyncRuntime, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return nil, err
@@ -188,14 +115,6 @@ func newHyperlocaliseSyncRuntime(configPath, manifestOverride string, requireMan
 		return nil, fmt.Errorf("hyperlocalise api key is required: set %s", apiKeyEnv)
 	}
 
-	manifestPath := strings.TrimSpace(manifestOverride)
-	if manifestPath == "" {
-		manifestPath = strings.TrimSpace(cfg.Hyperlocalise.ManifestPath)
-	}
-	if requireManifest && manifestPath == "" {
-		return nil, fmt.Errorf("hyperlocalise manifest path is required")
-	}
-
 	timeout := time.Duration(cfg.Hyperlocalise.TimeoutSeconds) * time.Second
 	if timeout <= 0 {
 		timeout = 20 * time.Minute
@@ -210,14 +129,12 @@ func newHyperlocaliseSyncRuntime(configPath, manifestOverride string, requireMan
 		return nil, fmt.Errorf("resolve hyperlocalise config directory: %w", err)
 	}
 	return &hyperlocaliseSyncRuntime{
-		cfg:          cfg,
-		configPath:   configPath,
-		configRoot:   configRoot,
-		projectID:    projectID,
-		apiBaseURL:   apiBaseURL,
-		apiKey:       apiKey,
-		manifestPath: manifestPath,
-		timeout:      timeout,
+		cfg:        cfg,
+		configPath: configPath,
+		configRoot: configRoot,
+		projectID:  projectID,
+		apiBaseURL: apiBaseURL,
+		apiKey:     apiKey,
 		client: &hyperlocaliseAPIClient{
 			baseURL:    apiBaseURL,
 			apiKey:     apiKey,
@@ -235,146 +152,33 @@ func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	report := hyperlocalisePushReport{
 		Action:       "push",
 		PlannedFiles: len(plans),
-		ManifestPath: rt.manifestPath,
 		DryRun:       o.dryRun,
 	}
 	if o.dryRun {
 		report.Complete = true
+		report.UploadedFiles = len(plans)
 		return report, nil
 	}
 
-	manifest := newHyperlocaliseManifest(rt)
+	var failedItems []string
 	for _, plan := range plans {
-		sourceFileID, uploadErr := rt.client.uploadFile(ctx, rt.projectID, plan)
-		if uploadErr != nil {
-			manifest.FailedItems = append(manifest.FailedItems, hyperlocaliseManifestFail{
-				SourcePath: plan.SourcePath,
-				Message:    uploadErr.Error(),
-			})
+		if _, uploadErr := rt.client.uploadFile(ctx, rt.projectID, plan); uploadErr != nil {
+			failedItems = append(failedItems, fmt.Sprintf("%s: %v", plan.SourcePath, uploadErr))
 			continue
 		}
-
-		job, createErr := rt.client.createFileJob(ctx, rt.projectID, sourceFileID, plan)
-		if createErr != nil {
-			manifest.FailedItems = append(manifest.FailedItems, hyperlocaliseManifestFail{
-				SourcePath: plan.SourcePath,
-				Message:    createErr.Error(),
-			})
-			continue
-		}
-
-		manifest.Jobs = append(manifest.Jobs, hyperlocaliseManifestJob{
-			JobID:         job.Job.ID,
-			SourceFileID:  sourceFileID,
-			Bucket:        plan.Bucket,
-			SourcePath:    plan.SourcePath,
-			SourceHash:    plan.SourceHash,
-			FileFormat:    plan.FileFormat,
-			SourceLocale:  plan.SourceLocale,
-			TargetLocales: append([]string(nil), plan.TargetLocales...),
-			TargetPaths:   cloneStringMap(plan.TargetPaths),
-			Status:        job.Job.Status,
-		})
+		report.UploadedFiles++
 	}
 
-	manifest.Complete = len(manifest.FailedItems) == 0
-	if err := writeHyperlocaliseManifest(rt.manifestPath, manifest); err != nil {
-		return report, err
-	}
-
-	report.Complete = manifest.Complete
-	report.CreatedJobs = len(manifest.Jobs)
-	report.FailedItems = len(manifest.FailedItems)
-	if !manifest.Complete {
-		return report, fmt.Errorf("hyperlocalise push failed for %d item(s); wrote partial manifest to %s", len(manifest.FailedItems), rt.manifestPath)
+	report.FailedItems = len(failedItems)
+	report.Complete = len(failedItems) == 0
+	if !report.Complete {
+		return report, fmt.Errorf("hyperlocalise push failed for %d item(s): %s", len(failedItems), strings.Join(failedItems, "; "))
 	}
 
 	return report, nil
 }
 
-func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions, timeout time.Duration) (hyperlocalisePullReport, error) {
-	manifest, hasManifest, err := readHyperlocaliseManifestIfPresent(rt.manifestPath)
-	if err != nil {
-		return hyperlocalisePullReport{}, err
-	}
-	if !hasManifest {
-		return runHyperlocalisePullLatest(ctx, rt, o)
-	}
-	if !manifest.Complete {
-		return hyperlocalisePullReport{}, fmt.Errorf("hyperlocalise manifest is incomplete; rerun sync push before pulling")
-	}
-	if manifest.ProjectID != "" && manifest.ProjectID != rt.projectID {
-		return hyperlocalisePullReport{}, fmt.Errorf("hyperlocalise manifest project %q does not match configured project %q", manifest.ProjectID, rt.projectID)
-	}
-	for _, manifestJob := range manifest.Jobs {
-		for locale, targetPath := range manifestJob.TargetPaths {
-			targetPath = strings.TrimSpace(targetPath)
-			if targetPath == "" {
-				continue
-			}
-			if _, err := rt.resolveManifestTargetPath(targetPath); err != nil {
-				return hyperlocalisePullReport{}, fmt.Errorf("manifest job %q target path for locale %q: %w", manifestJob.JobID, locale, err)
-			}
-		}
-	}
-
-	if timeout <= 0 {
-		timeout = rt.timeout
-	}
-
-	report := hyperlocalisePullReport{
-		Action:       "pull",
-		Complete:     true,
-		Jobs:         len(manifest.Jobs),
-		ManifestPath: rt.manifestPath,
-		DryRun:       o.dryRun,
-	}
-
-	deadline := time.Now().Add(timeout)
-	for i, manifestJob := range manifest.Jobs {
-		job, err := waitForHyperlocaliseJob(ctx, rt.client, manifestJob, deadline)
-		if err != nil {
-			var timeoutErr *hyperlocaliseJobTimeoutError
-			if errors.As(err, &timeoutErr) {
-				return report, fmt.Errorf("timed out waiting for hyperlocalise jobs: %s", describePendingHyperlocaliseJobs(manifest.Jobs[i:], manifestJob.JobID, timeoutErr.Status))
-			}
-			return report, err
-		}
-
-		outcome, err := parseHyperlocaliseFileOutcome(job)
-		if err != nil {
-			return report, err
-		}
-
-		for _, outputFile := range outcome.OutputFiles {
-			targetPath := strings.TrimSpace(manifestJob.TargetPaths[outputFile.Locale])
-			if targetPath == "" {
-				report.Skipped++
-				continue
-			}
-			resolvedTargetPath, err := rt.resolveManifestTargetPath(targetPath)
-			if err != nil {
-				return report, fmt.Errorf("manifest target path for locale %q: %w", outputFile.Locale, err)
-			}
-			if o.dryRun {
-				report.Downloaded++
-				continue
-			}
-			content, err := rt.client.downloadFile(ctx, outputFile.FileID)
-			if err != nil {
-				return report, fmt.Errorf("download output file %s for job %s: %w", outputFile.FileID, manifestJob.JobID, err)
-			}
-			if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
-				return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
-			}
-			report.Downloaded++
-		}
-	}
-
-	return report, nil
-}
-
-func runHyperlocalisePullLatest(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions) (hyperlocalisePullReport, error) {
+func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions) (hyperlocalisePullReport, error) {
 	plans, err := planHyperlocaliseFilesWithOptions(rt.cfg, o.locales, false)
 	if err != nil {
 		return hyperlocalisePullReport{}, err
@@ -383,57 +187,33 @@ func runHyperlocalisePullLatest(ctx context.Context, rt *hyperlocaliseSyncRuntim
 	report := hyperlocalisePullReport{
 		Action:       "pull",
 		Complete:     true,
-		Jobs:         len(plans),
-		ManifestPath: rt.manifestPath,
+		PlannedFiles: len(plans),
 		DryRun:       o.dryRun,
 	}
 
 	for _, plan := range plans {
-		job, err := rt.client.getLatestJob(ctx, rt.projectID, plan.SourcePath)
-		if err != nil {
-			if isHyperlocaliseNotFound(err) {
-				downloaded, skipped, downloadErr := rt.downloadTranslationExportsForPlan(ctx, plan, o)
-				report.Downloaded += downloaded
-				report.Skipped += skipped
-				if downloadErr != nil {
-					return report, downloadErr
-				}
-				continue
-			}
-			return report, fmt.Errorf("latest job for source %q: %w", plan.SourcePath, err)
-		}
-		if job.Status != "succeeded" {
-			downloaded, skipped, downloadErr := rt.downloadTranslationExportsForPlan(ctx, plan, o)
-			report.Downloaded += downloaded
-			report.Skipped += skipped
-			if downloadErr != nil {
-				return report, downloadErr
-			}
-			continue
-		}
-
-		outcome, err := parseHyperlocaliseFileOutcome(job)
-		if err != nil {
-			return report, err
-		}
-
-		for _, outputFile := range outcome.OutputFiles {
-			targetPath := strings.TrimSpace(plan.TargetPaths[outputFile.Locale])
+		for _, locale := range plan.TargetLocales {
+			targetPath := strings.TrimSpace(plan.TargetPaths[locale])
 			if targetPath == "" {
 				report.Skipped++
 				continue
 			}
-			resolvedTargetPath, err := rt.resolveManifestTargetPath(targetPath)
+			resolvedTargetPath, err := rt.resolveTargetPath(targetPath)
 			if err != nil {
-				return report, fmt.Errorf("target path for locale %q: %w", outputFile.Locale, err)
+				return report, fmt.Errorf("target path for source %q locale %q: %w", plan.SourcePath, locale, err)
 			}
 			if o.dryRun {
 				report.Downloaded++
 				continue
 			}
-			content, err := rt.client.downloadFile(ctx, outputFile.FileID)
+
+			content, err := rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
 			if err != nil {
-				return report, fmt.Errorf("download output file %s for source %q: %w", outputFile.FileID, plan.SourcePath, err)
+				if isHyperlocaliseNotFound(err) {
+					report.Skipped++
+					continue
+				}
+				return report, fmt.Errorf("download translation for source %q locale %q: %w", plan.SourcePath, locale, err)
 			}
 			if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
 				return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
@@ -445,38 +225,7 @@ func runHyperlocalisePullLatest(ctx context.Context, rt *hyperlocaliseSyncRuntim
 	return report, nil
 }
 
-func (rt *hyperlocaliseSyncRuntime) downloadTranslationExportsForPlan(ctx context.Context, plan hyperlocaliseFilePlan, o syncCommonOptions) (downloaded, skipped int, err error) {
-	for _, locale := range plan.TargetLocales {
-		targetPath := strings.TrimSpace(plan.TargetPaths[locale])
-		if targetPath == "" {
-			skipped++
-			continue
-		}
-		resolvedTargetPath, err := rt.resolveManifestTargetPath(targetPath)
-		if err != nil {
-			return downloaded, skipped, fmt.Errorf("target path for locale %q: %w", locale, err)
-		}
-		if o.dryRun {
-			downloaded++
-			continue
-		}
-		content, err := rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
-		if err != nil {
-			if isHyperlocaliseNotFound(err) {
-				skipped++
-				continue
-			}
-			return downloaded, skipped, fmt.Errorf("download translation export for source %q locale %q: %w", plan.SourcePath, locale, err)
-		}
-		if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
-			return downloaded, skipped, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
-		}
-		downloaded++
-	}
-	return downloaded, skipped, nil
-}
-
-func (rt *hyperlocaliseSyncRuntime) resolveManifestTargetPath(targetPath string) (string, error) {
+func (rt *hyperlocaliseSyncRuntime) resolveTargetPath(targetPath string) (string, error) {
 	trimmed := strings.TrimSpace(targetPath)
 	if trimmed == "" {
 		return "", fmt.Errorf("target path is empty")
@@ -495,122 +244,10 @@ func (rt *hyperlocaliseSyncRuntime) resolveManifestTargetPath(targetPath string)
 	return candidate, nil
 }
 
-type hyperlocaliseJobTimeoutError struct {
-	Status string
-}
-
-func (e *hyperlocaliseJobTimeoutError) Error() string {
-	return "timed out waiting for hyperlocalise job"
-}
-
-func waitForHyperlocaliseJob(ctx context.Context, client *hyperlocaliseAPIClient, manifestJob hyperlocaliseManifestJob, deadline time.Time) (hyperlocaliseJob, error) {
-	jobID := manifestJob.JobID
-	for {
-		if !time.Now().Before(deadline) {
-			return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: "unknown"}
-		}
-
-		requestCtx, cancel := context.WithDeadline(ctx, deadline)
-		job, err := client.getJob(requestCtx, jobID)
-		cancel()
-		if err != nil {
-			if ctxErr := ctx.Err(); ctxErr != nil {
-				return hyperlocaliseJob{}, ctxErr
-			}
-			if errors.Is(err, context.DeadlineExceeded) {
-				return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: "unknown"}
-			}
-			return hyperlocaliseJob{}, err
-		}
-
-		switch job.Status {
-		case "succeeded":
-			return job, nil
-		case "failed", "cancelled":
-			if strings.TrimSpace(job.LastError) != "" {
-				return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s %s: %s", jobID, job.Status, job.LastError)
-			}
-			return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s %s", jobID, job.Status)
-		case "queued", "running", "waiting_for_review":
-			if !time.Now().Before(deadline) {
-				return hyperlocaliseJob{}, &hyperlocaliseJobTimeoutError{Status: job.Status}
-			}
-
-			wait := time.Until(deadline)
-			if wait > hyperlocaliseJobPollInterval {
-				wait = hyperlocaliseJobPollInterval
-			}
-
-			timer := time.NewTimer(wait)
-			select {
-			case <-ctx.Done():
-				if !timer.Stop() {
-					<-timer.C
-				}
-				return hyperlocaliseJob{}, ctx.Err()
-			case <-timer.C:
-			}
-		default:
-			return hyperlocaliseJob{}, fmt.Errorf("hyperlocalise job %s has unknown status %q", jobID, job.Status)
-		}
-	}
-}
-
-func describePendingHyperlocaliseJobs(manifestJobs []hyperlocaliseManifestJob, statusJobID, status string) string {
-	descriptions := make([]string, 0, len(manifestJobs))
-	for _, manifestJob := range manifestJobs {
-		jobStatus := ""
-		if manifestJob.JobID == statusJobID {
-			jobStatus = status
-		}
-		descriptions = append(descriptions, describePendingHyperlocaliseJob(manifestJob, jobStatus))
-	}
-	return strings.Join(descriptions, "; ")
-}
-
-func describePendingHyperlocaliseJob(manifestJob hyperlocaliseManifestJob, status string) string {
-	var parts []string
-	if jobID := strings.TrimSpace(manifestJob.JobID); jobID != "" {
-		parts = append(parts, "job_id="+jobID)
-	}
-	if sourcePath := strings.TrimSpace(manifestJob.SourcePath); sourcePath != "" {
-		parts = append(parts, "source_path="+sourcePath)
-	}
-	if len(manifestJob.TargetLocales) > 0 {
-		parts = append(parts, "target_locales="+strings.Join(manifestJob.TargetLocales, ","))
-	}
-	if status = strings.TrimSpace(status); status != "" {
-		parts = append(parts, "status="+status)
-	}
-	if len(parts) == 0 {
-		return "unknown pending job"
-	}
-	return strings.Join(parts, " ")
-}
-
-func newHyperlocaliseManifest(rt *hyperlocaliseSyncRuntime) hyperlocaliseSyncManifest {
-	return hyperlocaliseSyncManifest{
-		Version:            hyperlocaliseManifestVersion,
-		Complete:           false,
-		GeneratedAt:        time.Now().UTC(),
-		ProjectID:          rt.projectID,
-		APIBaseURL:         rt.apiBaseURL,
-		ConfigPath:         rt.configPath,
-		Repository:         os.Getenv("GITHUB_REPOSITORY"),
-		Ref:                os.Getenv("GITHUB_REF"),
-		CommitSHA:          os.Getenv("GITHUB_SHA"),
-		WorkflowRunID:      os.Getenv("GITHUB_RUN_ID"),
-		WorkflowRunAttempt: os.Getenv("GITHUB_RUN_ATTEMPT"),
-	}
-}
-
 func planHyperlocaliseFiles(cfg *config.I18NConfig, localeFilter []string) ([]hyperlocaliseFilePlan, error) {
 	return planHyperlocaliseFilesWithOptions(cfg, localeFilter, true)
 }
 
-// planHyperlocaliseFilesWithOptions builds the file plan for push or pull.
-// When hashSources is false, source files are not hashed (used for pull-without-manifest
-// where the CLI queries the API for the latest completed job instead).
 func planHyperlocaliseFilesWithOptions(cfg *config.I18NConfig, localeFilter []string, hashSources bool) ([]hyperlocaliseFilePlan, error) {
 	targetLocales, err := resolveHyperlocaliseTargetLocales(cfg.Locales.Targets, localeFilter)
 	if err != nil {
@@ -780,78 +417,6 @@ func (c *hyperlocaliseAPIClient) uploadFile(ctx context.Context, projectID strin
 	return response.File.ID, nil
 }
 
-func (c *hyperlocaliseAPIClient) createFileJob(ctx context.Context, projectID, sourceFileID string, plan hyperlocaliseFilePlan) (hyperlocaliseCreateJobResponse, error) {
-	payload := map[string]any{
-		"type":      "file",
-		"projectId": projectID,
-		"fileInput": map[string]any{
-			"sourceFileId":  sourceFileID,
-			"fileFormat":    plan.FileFormat,
-			"sourceLocale":  plan.SourceLocale,
-			"targetLocales": plan.TargetLocales,
-			"metadata":      hyperlocaliseJobMetadata(plan),
-		},
-	}
-
-	var body bytes.Buffer
-	if err := json.NewEncoder(&body).Encode(payload); err != nil {
-		return hyperlocaliseCreateJobResponse{}, err
-	}
-
-	var response hyperlocaliseCreateJobResponse
-	if err := c.doJSON(ctx, http.MethodPost, "/v1/jobs", "application/json", &body, &response); err != nil {
-		return hyperlocaliseCreateJobResponse{}, err
-	}
-	if strings.TrimSpace(response.Job.ID) == "" {
-		return hyperlocaliseCreateJobResponse{}, fmt.Errorf("create job response did not include job id")
-	}
-	return response, nil
-}
-
-func hyperlocaliseJobMetadata(plan hyperlocaliseFilePlan) map[string]string {
-	metadata := map[string]string{
-		"sourcePath": plan.SourcePath,
-		"sourceHash": plan.SourceHash,
-		"bucket":     plan.Bucket,
-	}
-	for _, item := range []struct {
-		key string
-		env string
-	}{
-		{key: "repository", env: "GITHUB_REPOSITORY"},
-		{key: "ref", env: "GITHUB_REF"},
-		{key: "commitSha", env: "GITHUB_SHA"},
-		{key: "workflowRunId", env: "GITHUB_RUN_ID"},
-		{key: "workflowRunAttempt", env: "GITHUB_RUN_ATTEMPT"},
-	} {
-		if value := strings.TrimSpace(os.Getenv(item.env)); value != "" {
-			metadata[item.key] = value
-		}
-	}
-	return metadata
-}
-
-func (c *hyperlocaliseAPIClient) getLatestJob(ctx context.Context, projectID, sourcePath string) (hyperlocaliseJob, error) {
-	query := url.Values{}
-	query.Set("projectId", projectID)
-	query.Set("sourcePath", sourcePath)
-
-	var response hyperlocaliseJobResponse
-	path := "/v1/jobs/latest?" + query.Encode()
-	if err := c.doJSON(ctx, http.MethodGet, path, "", nil, &response); err != nil {
-		return hyperlocaliseJob{}, err
-	}
-	return response.Job, nil
-}
-
-func (c *hyperlocaliseAPIClient) getJob(ctx context.Context, jobID string) (hyperlocaliseJob, error) {
-	var response hyperlocaliseJobResponse
-	if err := c.doJSON(ctx, http.MethodGet, "/v1/jobs/"+jobID, "", nil, &response); err != nil {
-		return hyperlocaliseJob{}, err
-	}
-	return response.Job, nil
-}
-
 func (c *hyperlocaliseAPIClient) downloadTranslationExport(ctx context.Context, projectID, sourcePath, locale string) ([]byte, error) {
 	query := url.Values{}
 	query.Set("sourcePath", sourcePath)
@@ -889,34 +454,6 @@ func (c *hyperlocaliseAPIClient) downloadTranslationExport(ctx context.Context, 
 	return content, nil
 }
 
-func (c *hyperlocaliseAPIClient) downloadFile(ctx context.Context, fileID string) ([]byte, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/v1/files/"+fileID+"/download", nil)
-	if err != nil {
-		return nil, err
-	}
-	req.Header.Set("x-api-key", c.apiKey)
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = resp.Body.Close() }()
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
-		return nil, &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
-	}
-
-	content, err := io.ReadAll(io.LimitReader(resp.Body, hyperlocaliseMaxDownloadBytes+1))
-	if err != nil {
-		return nil, err
-	}
-	if int64(len(content)) > hyperlocaliseMaxDownloadBytes {
-		return nil, fmt.Errorf("downloaded file exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
-	}
-	return content, nil
-}
-
 func (c *hyperlocaliseAPIClient) doJSON(ctx context.Context, method, path, contentType string, body io.Reader, out any) error {
 	req, err := http.NewRequestWithContext(ctx, method, c.baseURL+path, body)
 	if err != nil {
@@ -945,117 +482,6 @@ func (c *hyperlocaliseAPIClient) doJSON(ctx context.Context, method, path, conte
 		return fmt.Errorf("decode hyperlocalise response: %w", err)
 	}
 	return nil
-}
-
-func parseHyperlocaliseFileOutcome(job hyperlocaliseJob) (hyperlocaliseFileJobOutcome, error) {
-	if rawJSONPresent(job.OutputFiles) {
-		outputFiles, err := parseHyperlocaliseOutputFiles(job.ID, job.OutputFiles)
-		if err != nil {
-			return hyperlocaliseFileJobOutcome{}, err
-		}
-		return hyperlocaliseFileJobOutcome{OutputFiles: outputFiles}, nil
-	}
-
-	if len(job.OutcomePayload) == 0 || string(job.OutcomePayload) == "null" {
-		return hyperlocaliseFileJobOutcome{}, fmt.Errorf("hyperlocalise job %s has no output payload", job.ID)
-	}
-
-	var rawOutcome struct {
-		OutputFiles json.RawMessage `json:"outputFiles"`
-	}
-	if err := json.Unmarshal(job.OutcomePayload, &rawOutcome); err != nil {
-		return hyperlocaliseFileJobOutcome{}, fmt.Errorf("decode output payload for job %s: %w", job.ID, err)
-	}
-	if !rawJSONPresent(rawOutcome.OutputFiles) {
-		return hyperlocaliseFileJobOutcome{}, fmt.Errorf("hyperlocalise job %s has no output files", job.ID)
-	}
-
-	outputFiles, err := parseHyperlocaliseOutputFiles(job.ID, rawOutcome.OutputFiles)
-	if err != nil {
-		return hyperlocaliseFileJobOutcome{}, err
-	}
-	return hyperlocaliseFileJobOutcome{OutputFiles: outputFiles}, nil
-}
-
-func rawJSONPresent(raw json.RawMessage) bool {
-	return len(raw) > 0 && string(raw) != "null"
-}
-
-func parseHyperlocaliseOutputFiles(jobID string, raw json.RawMessage) ([]hyperlocaliseOutputFile, error) {
-	var outputFiles []hyperlocaliseOutputFile
-	if err := json.Unmarshal(raw, &outputFiles); err != nil {
-		return nil, fmt.Errorf("decode output files for job %s: %w", jobID, err)
-	}
-	if len(outputFiles) == 0 {
-		return nil, fmt.Errorf("hyperlocalise job %s has no output files", jobID)
-	}
-	for index, outputFile := range outputFiles {
-		var missing []string
-		if strings.TrimSpace(outputFile.FileID) == "" {
-			missing = append(missing, "fileId")
-		}
-		if strings.TrimSpace(outputFile.Locale) == "" {
-			missing = append(missing, "locale")
-		}
-		if strings.TrimSpace(outputFile.Filename) == "" {
-			missing = append(missing, "filename")
-		}
-		if len(missing) > 0 {
-			return nil, fmt.Errorf("hyperlocalise job %s output file %d is missing %s", jobID, index+1, strings.Join(missing, ", "))
-		}
-	}
-	return outputFiles, nil
-}
-
-func writeHyperlocaliseManifest(path string, manifest hyperlocaliseSyncManifest) error {
-	if strings.TrimSpace(path) == "" {
-		return fmt.Errorf("manifest path is required")
-	}
-	if dir := filepath.Dir(path); dir != "." && dir != "" {
-		if err := os.MkdirAll(dir, 0o755); err != nil {
-			return err
-		}
-	}
-	content, err := json.MarshalIndent(manifest, "", "  ")
-	if err != nil {
-		return err
-	}
-	content = append(content, '\n')
-	return writeFileAtomic(path, content)
-}
-
-func readHyperlocaliseManifestIfPresent(path string) (hyperlocaliseSyncManifest, bool, error) {
-	trimmed := strings.TrimSpace(path)
-	if trimmed == "" {
-		return hyperlocaliseSyncManifest{}, false, nil
-	}
-	if _, err := os.Stat(trimmed); err != nil {
-		if os.IsNotExist(err) {
-			return hyperlocaliseSyncManifest{}, false, nil
-		}
-		return hyperlocaliseSyncManifest{}, false, fmt.Errorf("stat hyperlocalise manifest %q: %w", trimmed, err)
-	}
-
-	manifest, err := readHyperlocaliseManifest(trimmed)
-	if err != nil {
-		return hyperlocaliseSyncManifest{}, false, err
-	}
-	return manifest, true, nil
-}
-
-func readHyperlocaliseManifest(path string) (hyperlocaliseSyncManifest, error) {
-	content, err := os.ReadFile(path)
-	if err != nil {
-		return hyperlocaliseSyncManifest{}, fmt.Errorf("read hyperlocalise manifest %q: %w", path, err)
-	}
-	var manifest hyperlocaliseSyncManifest
-	if err := json.Unmarshal(content, &manifest); err != nil {
-		return hyperlocaliseSyncManifest{}, fmt.Errorf("decode hyperlocalise manifest %q: %w", path, err)
-	}
-	if manifest.Version != hyperlocaliseManifestVersion {
-		return hyperlocaliseSyncManifest{}, fmt.Errorf("unsupported hyperlocalise manifest version %d", manifest.Version)
-	}
-	return manifest, nil
 }
 
 func writeFileAtomic(path string, content []byte) error {
@@ -1092,14 +518,13 @@ func writeHyperlocalisePushReport(w io.Writer, report hyperlocalisePushReport, o
 	case "", "text":
 		_, err := fmt.Fprintf(
 			w,
-			"action=%s complete=%t planned_files=%d created_jobs=%d failed_items=%d dry_run=%t manifest=%s\n",
+			"action=%s complete=%t planned_files=%d uploaded_files=%d failed_items=%d dry_run=%t\n",
 			report.Action,
 			report.Complete,
 			report.PlannedFiles,
-			report.CreatedJobs,
+			report.UploadedFiles,
 			report.FailedItems,
 			report.DryRun,
-			report.ManifestPath,
 		)
 		return err
 	case "json":
@@ -1107,7 +532,14 @@ func writeHyperlocalisePushReport(w io.Writer, report hyperlocalisePushReport, o
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
 	case "md", "markdown":
-		_, err := fmt.Fprintf(w, "## Hyperlocalise Push\n\n- Complete: `%t`\n- Planned files: `%d`\n- Created jobs: `%d`\n- Failed items: `%d`\n- Manifest: `%s`\n", report.Complete, report.PlannedFiles, report.CreatedJobs, report.FailedItems, report.ManifestPath)
+		_, err := fmt.Fprintf(
+			w,
+			"## Hyperlocalise Push\n\n- Complete: `%t`\n- Planned files: `%d`\n- Uploaded files: `%d`\n- Failed items: `%d`\n",
+			report.Complete,
+			report.PlannedFiles,
+			report.UploadedFiles,
+			report.FailedItems,
+		)
 		return err
 	default:
 		return fmt.Errorf("unsupported output format %q", output)
@@ -1119,14 +551,13 @@ func writeHyperlocalisePullReport(w io.Writer, report hyperlocalisePullReport, o
 	case "", "text":
 		_, err := fmt.Fprintf(
 			w,
-			"action=%s complete=%t jobs=%d downloaded=%d skipped=%d dry_run=%t manifest=%s\n",
+			"action=%s complete=%t planned_files=%d downloaded=%d skipped=%d dry_run=%t\n",
 			report.Action,
 			report.Complete,
-			report.Jobs,
+			report.PlannedFiles,
 			report.Downloaded,
 			report.Skipped,
 			report.DryRun,
-			report.ManifestPath,
 		)
 		return err
 	case "json":
@@ -1134,7 +565,14 @@ func writeHyperlocalisePullReport(w io.Writer, report hyperlocalisePullReport, o
 		enc.SetIndent("", "  ")
 		return enc.Encode(report)
 	case "md", "markdown":
-		_, err := fmt.Fprintf(w, "## Hyperlocalise Pull\n\n- Complete: `%t`\n- Jobs: `%d`\n- Downloaded: `%d`\n- Skipped: `%d`\n- Manifest: `%s`\n", report.Complete, report.Jobs, report.Downloaded, report.Skipped, report.ManifestPath)
+		_, err := fmt.Fprintf(
+			w,
+			"## Hyperlocalise Pull\n\n- Complete: `%t`\n- Planned files: `%d`\n- Downloaded: `%d`\n- Skipped: `%d`\n",
+			report.Complete,
+			report.PlannedFiles,
+			report.Downloaded,
+			report.Skipped,
+		)
 		return err
 	default:
 		return fmt.Errorf("unsupported output format %q", output)
@@ -1159,15 +597,4 @@ func contentTypeForPath(path string) string {
 
 func escapeQuotes(value string) string {
 	return strings.ReplaceAll(value, `"`, `\"`)
-}
-
-func cloneStringMap(input map[string]string) map[string]string {
-	if input == nil {
-		return nil
-	}
-	out := make(map[string]string, len(input))
-	for key, value := range input {
-		out[key] = value
-	}
-	return out
 }
