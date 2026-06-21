@@ -12,7 +12,7 @@ import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-con
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
 
 import {
@@ -120,7 +120,7 @@ export function JobsPageContent({
     statusFilter,
     projectId ?? "workspace",
   ];
-  const isProviderProject = Boolean(parseProviderProjectId(projectId));
+  const projectCapabilities = projectId ? getProjectWorkspaceCapabilities({ projectId }) : null;
 
   const jobsQuery = useQuery({
     queryKey: jobsQueryKey,
@@ -228,7 +228,9 @@ export function JobsPageContent({
       }
       isSyncingProviderJobs={syncProviderJobs.isPending}
       jobs={jobsQuery.data ?? []}
-      onSyncProviderJobs={isProviderProject ? syncProviderJobs.mutate : undefined}
+      onSyncProviderJobs={
+        projectCapabilities?.canSyncProviderJobs ? syncProviderJobs.mutate : undefined
+      }
       onStatusFilterChange={setStatusFilter}
       organizationSlug={organizationSlug}
       projectId={projectId}

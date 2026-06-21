@@ -30,7 +30,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
@@ -244,7 +243,7 @@ export function GlossariesPageContent({
     hasActiveFilters,
   } = useGlossaryFilters(searchParams);
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
-  const useLiveProviderGlossaries = isTmsProviderShellModeEnabled() && Boolean(activeTmsProvider);
+  const useLiveProviderGlossaries = Boolean(activeTmsProvider);
   const allowCreateGlossaries = canCreateGlossaries && !useLiveProviderGlossaries;
 
   const projectsQuery = useQuery({

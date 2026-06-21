@@ -65,16 +65,6 @@ describe("jobs-view-helpers", () => {
           type: "file",
         }),
       ),
-    ).toBe(true);
-    expect(
-      canOpenJobCat(
-        createJob({
-          externalProviderKind: null,
-          id: "job_native",
-          kind: "translation",
-          type: "string",
-        }),
-      ),
     ).toBe(false);
   });
 

@@ -17,10 +17,10 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import type { TmsProviderLiveFile } from "@/lib/providers/tms-provider-live";
+import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 
 import { ProjectPageShell } from "../../../../_components/project-page-shell";
-import { tmsLiveFileToProjectFileRecord } from "../../_components/tms/job-source-file-mappers";
 import {
   catFileRepositoryPreferenceKey,
   readCatFileRepositoryPreference,
@@ -36,8 +36,8 @@ type JobCatGithubRepository = {
   archived: boolean;
 };
 
-function tmsLiveJobFilesQueryKey(organizationSlug: string, encodedJobId: string) {
-  return ["tms-provider-job-files", organizationSlug, encodedJobId] as const;
+function projectJobFilesQueryKey(organizationSlug: string, projectId: string) {
+  return ["project-job-cat-files", organizationSlug, projectId] as const;
 }
 
 function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
@@ -82,21 +82,22 @@ export function JobCatPageContent({
   const router = useRouter();
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const filesQuery = useQuery({
-    queryKey: tmsLiveJobFilesQueryKey(organizationSlug, jobId),
+    queryKey: projectJobFilesQueryKey(organizationSlug, projectId),
     enabled: Boolean(sourcePath),
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
-        ":encodedJobId"
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
       ].files.$get({
-        param: { organizationSlug, encodedJobId: jobId },
+        param: { organizationSlug, projectId },
+        query: { limit: "500" },
       });
 
       if (!response.ok) {
         throw new Error(`Failed to load task files (${response.status})`);
       }
 
-      const body = (await response.json()) as { files: TmsProviderLiveFile[] };
-      return body.files.map(tmsLiveFileToProjectFileRecord);
+      const body = (await response.json()) as { files: ProjectFileRecord[] };
+      return body.files;
     },
   });
 
@@ -125,7 +126,10 @@ export function JobCatPageContent({
     [filesQuery.data],
   );
 
-  const providerFiles = useMemo(() => taskFiles.filter((file) => file.provider), [taskFiles]);
+  const providerFiles = useMemo(
+    () => taskFiles.filter((file) => file.provider && supportsProviderCatFile(file)),
+    [taskFiles],
+  );
 
   const selectedFile = sourcePath ? taskFiles.find((file) => file.sourcePath === sourcePath) : null;
 
@@ -210,12 +214,12 @@ export function JobCatPageContent({
     );
   }
 
-  if (!selectedFile.provider) {
+  if (!selectedFile || !supportsProviderCatFile(selectedFile) || !selectedFile.provider) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-muted-foreground">
-            String editing is only available for provider task files.
+            String editing is only available for supported provider task files.
           </TypographyP>
         </div>
       </ProjectPageShell>

@@ -4,17 +4,11 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
-import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
-import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
-
-import { useActiveTmsProvider } from "../../../../../_hooks/use-active-tms-provider";
 
 import type { JobDetailRecord } from "./job-detail-types";
 import { JobProviderDetailSection } from "./job-provider-detail-section";
 import { NativeJobDetailView } from "./native-job-detail-view";
-import { ProviderLiveJobDetailContent } from "./provider-live-job-detail-content";
 
 async function parseActionError(response: Response, fallback: string) {
   let error: string | undefined;
@@ -30,55 +24,6 @@ async function parseActionError(response: Response, fallback: string) {
 }
 
 export function JobDetailPageContent({
-  jobId,
-  organizationSlug,
-  projectId,
-  canEditProviderJobDescription,
-}: {
-  jobId: string;
-  organizationSlug: string;
-  projectId: string;
-  canEditProviderJobDescription: boolean;
-}) {
-  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
-  const encodedProviderJob = parseProviderJobId(jobId);
-  const useLiveProviderJob =
-    isTmsProviderShellModeEnabled() &&
-    Boolean(activeTmsProviderQuery.data) &&
-    encodedProviderJob?.providerKind === activeTmsProviderQuery.data?.providerKind;
-
-  if (encodedProviderJob && activeTmsProviderQuery.isLoading) {
-    return (
-      <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
-        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-          <Skeleton className="h-5 w-48 bg-foreground/8" />
-          <Skeleton className="mt-4 h-40 w-full bg-foreground/8" />
-        </div>
-      </main>
-    );
-  }
-
-  if (useLiveProviderJob) {
-    return (
-      <ProviderLiveJobDetailContent
-        jobId={jobId}
-        organizationSlug={organizationSlug}
-        projectId={projectId}
-        canEditProviderJobDescription={canEditProviderJobDescription}
-      />
-    );
-  }
-
-  return (
-    <NativeJobDetailPageContent
-      jobId={jobId}
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-    />
-  );
-}
-
-function NativeJobDetailPageContent({
   jobId,
   organizationSlug,
   projectId,

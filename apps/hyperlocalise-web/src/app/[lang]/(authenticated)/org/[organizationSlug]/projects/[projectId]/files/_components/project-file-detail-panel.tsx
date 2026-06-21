@@ -13,6 +13,7 @@ import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 import { cn } from "@/lib/primitives/cn";
 import { formatBytes } from "./project-files-shared";
 
@@ -232,6 +233,13 @@ export function ProjectFileDetailPanelView({
         ...jobsByLocale.filter((group) => group.locale !== highlightLocale),
       ]
     : jobsByLocale;
+  const showNativeCat = Boolean(sourcePath && !file.provider);
+  const showProviderCat = Boolean(sourcePath && file.provider && supportsProviderCatFile(file));
+  const providerTargetLocales = provider?.targetLocales ?? [];
+  const providerHighlightLocale =
+    highlightLocale && providerTargetLocales.includes(highlightLocale)
+      ? highlightLocale
+      : (providerTargetLocales[0] ?? null);
 
   return (
     <div className="flex min-h-0 flex-col gap-6 px-5 py-4">
@@ -283,7 +291,7 @@ export function ProjectFileDetailPanelView({
         ) : null}
       </header>
 
-      {!file.provider && sourcePath ? (
+      {showNativeCat ? (
         <section className="flex min-h-[min(32rem,70vh)] flex-col gap-3">
           <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
             CAT workspace
@@ -293,6 +301,23 @@ export function ProjectFileDetailPanelView({
             projectId={projectId}
             sourcePath={sourcePath}
             targetLocales={targetLocales}
+            highlightLocale={highlightLocale}
+            layout="default"
+            className="min-h-[min(28rem,60vh)]"
+          />
+        </section>
+      ) : null}
+
+      {showProviderCat && providerHighlightLocale ? (
+        <section className="flex min-h-[min(32rem,70vh)] flex-col gap-3">
+          <TypographyP className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
+            CAT workspace
+          </TypographyP>
+          <ProjectFileCatWorkspace
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourcePath={sourcePath}
+            targetLocale={providerHighlightLocale}
             highlightLocale={highlightLocale}
             layout="default"
             className="min-h-[min(28rem,60vh)]"

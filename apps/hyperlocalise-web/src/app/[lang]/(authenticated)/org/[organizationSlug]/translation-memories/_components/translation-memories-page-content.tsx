@@ -29,7 +29,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
 import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { isTmsProviderShellModeEnabled } from "@/lib/providers/tms-provider-shell-mode";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 
@@ -170,7 +169,7 @@ export function TranslationMemoriesPageContent({
   const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
   const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
-  const useLiveProviderMemories = isTmsProviderShellModeEnabled() && Boolean(activeTmsProvider);
+  const useLiveProviderMemories = Boolean(activeTmsProvider);
   const allowCreateMemories = canCreateMemories && !useLiveProviderMemories;
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),

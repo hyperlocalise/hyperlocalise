@@ -1,4 +1,4 @@
-import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+import { canOpenProviderJobCat } from "@/lib/projects/workspace-resource-capabilities";
 
 export type JobsViewMode = "row" | "kanban";
 
@@ -80,15 +80,7 @@ export function buildJobDetailHref(
 }
 
 export function canOpenJobCat(job: JobCatTarget) {
-  if (job.kind !== "translation" && job.kind !== "review") {
-    return false;
-  }
-
-  if (job.externalProviderKind || parseProviderJobId(job.id)) {
-    return true;
-  }
-
-  return job.kind === "translation" && job.type === "file";
+  return canOpenProviderJobCat(job);
 }
 
 export function buildJobCatHref(
