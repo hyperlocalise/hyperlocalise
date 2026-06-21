@@ -17,7 +17,6 @@ import {
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
-import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 
 import { ProjectPageShell } from "../../../../_components/project-page-shell";
@@ -27,6 +26,7 @@ import {
   writeCatFileRepositoryPreference,
 } from "./job-cat-repository-preference";
 import { selectJobCatTargetLocale } from "./job-cat-target-locale";
+import { loadJobCatProviderFiles, loadJobCatTargetFile } from "./load-job-cat-files";
 import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file-cat-workspace";
 
@@ -36,8 +36,23 @@ type JobCatGithubRepository = {
   archived: boolean;
 };
 
-function projectJobFilesQueryKey(organizationSlug: string, projectId: string) {
-  return ["project-job-cat-files", organizationSlug, projectId] as const;
+function projectJobCatTargetFileQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  sourcePath: string | null,
+  storedFileId: string | null,
+) {
+  return [
+    "project-job-cat-target-file",
+    organizationSlug,
+    projectId,
+    sourcePath,
+    storedFileId,
+  ] as const;
+}
+
+function projectJobCatProviderFilesQueryKey(organizationSlug: string, projectId: string) {
+  return ["project-job-cat-provider-files", organizationSlug, projectId] as const;
 }
 
 function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
@@ -72,21 +87,6 @@ function stringsPageHref(input: {
   return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}/strings?${params.toString()}`;
 }
 
-function resolveJobCatFile(
-  files: ProjectFileRecord[],
-  input: { sourcePath: string | null; storedFileId: string | null },
-) {
-  if (input.sourcePath) {
-    return files.find((file) => file.sourcePath === input.sourcePath) ?? null;
-  }
-
-  if (input.storedFileId) {
-    return files.find((file) => file.storedFileId === input.storedFileId) ?? null;
-  }
-
-  return null;
-}
-
 export function JobCatPageContent({
   organizationSlug,
   projectId,
@@ -107,29 +107,33 @@ export function JobCatPageContent({
   const router = useRouter();
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
   const hasFileReference = Boolean(sourcePath || storedFileId);
-  const filesQuery = useQuery({
-    queryKey: projectJobFilesQueryKey(organizationSlug, projectId),
+  const isNativeJob = Boolean(storedFileId);
+  const targetFileQuery = useQuery({
+    queryKey: projectJobCatTargetFileQueryKey(
+      organizationSlug,
+      projectId,
+      sourcePath,
+      storedFileId,
+    ),
     enabled: hasFileReference,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].files.$get({
-        param: { organizationSlug, projectId },
-        query: { limit: "500" },
-      });
+    queryFn: () =>
+      loadJobCatTargetFile({
+        organizationSlug,
+        projectId,
+        sourcePath,
+        storedFileId,
+      }),
+  });
 
-      if (!response.ok) {
-        throw new Error(`Failed to load task files (${response.status})`);
-      }
-
-      const body = (await response.json()) as { files: ProjectFileRecord[] };
-      return body.files;
-    },
+  const providerFilesQuery = useQuery({
+    queryKey: projectJobCatProviderFilesQueryKey(organizationSlug, projectId),
+    enabled: hasFileReference && !isNativeJob,
+    queryFn: () => loadJobCatProviderFiles({ organizationSlug, projectId }),
   });
 
   const repositoriesQuery = useQuery({
     queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
-    enabled: hasFileReference,
+    enabled: hasFileReference && !isNativeJob,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["github-installation"][
         "repositories"
@@ -147,21 +151,16 @@ export function JobCatPageContent({
     },
   });
 
-  const taskFiles = useMemo(
-    () => sortJobCatProviderFiles(filesQuery.data ?? []),
-    [filesQuery.data],
-  );
-
   const providerFiles = useMemo(
-    () => taskFiles.filter((file) => file.provider && supportsProviderCatFile(file)),
-    [taskFiles],
+    () =>
+      sortJobCatProviderFiles(providerFilesQuery.data ?? []).filter(
+        (file) => file.provider && supportsProviderCatFile(file),
+      ),
+    [providerFilesQuery.data],
   );
 
-  const selectedFile = useMemo(
-    () => resolveJobCatFile(taskFiles, { sourcePath, storedFileId }),
-    [sourcePath, storedFileId, taskFiles],
-  );
-  const isNativeFile = Boolean(selectedFile && !selectedFile.provider);
+  const selectedFile = targetFileQuery.data?.status === "found" ? targetFileQuery.data.file : null;
+  const isNativeFile = isNativeJob || Boolean(selectedFile && !selectedFile.provider);
 
   const enabledRepositoryFullNames = useMemo(
     () =>
@@ -206,7 +205,7 @@ export function JobCatPageContent({
     );
   }
 
-  if (filesQuery.isLoading) {
+  if (targetFileQuery.isLoading) {
     return (
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
@@ -217,14 +216,31 @@ export function JobCatPageContent({
     );
   }
 
-  if (filesQuery.isError) {
+  if (targetFileQuery.isError) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
           <TypographyP className="text-sm text-flame-100">
-            {filesQuery.error instanceof Error
-              ? filesQuery.error.message
+            {targetFileQuery.error instanceof Error
+              ? targetFileQuery.error.message
               : "Unable to load task files."}
+          </TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (targetFileQuery.data?.status === "list_truncated") {
+    return (
+      <ProjectPageShell>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <TypographyP className="font-mono text-sm text-foreground">
+            {targetFileQuery.data.reference}
+          </TypographyP>
+          <TypographyP className="mt-2 text-sm text-muted-foreground">
+            This project has more than {targetFileQuery.data.fetchedCount.toLocaleString()} files,
+            so the source file could not be resolved from the loaded file list. Open CAT from the
+            project Files page instead, or ask support to narrow the project file list.
           </TypographyP>
         </div>
       </ProjectPageShell>
