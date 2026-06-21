@@ -1,9 +1,4 @@
 import { buildJobCatHref, canOpenJobCat, type JobCatTarget } from "@/lib/projects/job-cat-routing";
-import {
-  buildJobDetailHrefFromRecords,
-  type JobPathInput,
-  type ProjectPathInput,
-} from "@/lib/projects/routing/resource-path-id";
 
 export type JobsViewMode = "row" | "kanban";
 
@@ -59,15 +54,10 @@ export function buildJobDetailHref(
   organizationSlug: string,
   projectId: string | null | undefined,
   jobId: string,
-  hints?: Partial<ProjectPathInput & JobPathInput>,
 ) {
   if (!projectId) {
     return null;
   }
 
-  return buildJobDetailHrefFromRecords(
-    organizationSlug,
-    { id: projectId, ...hints },
-    { id: jobId, ...hints },
-  );
+  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
 }

@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { isJobProviderActionAllowed } from "@/api/auth/capability-guards";
 import { hasCapability } from "@/api/auth/policy";
-import { getOwnedProjectRecord } from "@/api/routes/project/project.shared";
+import { ownedProjectWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
@@ -12,7 +12,7 @@ import {
   notFoundResponse,
   serviceUnavailableResponse,
 } from "@/api/errors";
-import { schema } from "@/lib/database";
+import { db, schema } from "@/lib/database";
 import { createAgentRun, failAgentRun } from "@/lib/providers/agent-runs/agent-runs";
 import {
   getJobProviderActionDefinition,
@@ -436,7 +436,15 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return badRequestResponse(c, "invalid_encoded_job_id", "Job id is not a provider job id");
       }
 
-      const project = await getOwnedProjectRecord(c.var.auth, payload.projectId);
+      const [project] = await db
+        .select({
+          id: schema.projects.id,
+          externalProjectId: schema.projects.externalProjectId,
+          externalProviderKind: schema.projects.externalProviderKind,
+        })
+        .from(schema.projects)
+        .where(await ownedProjectWhere(c.var.auth, payload.projectId))
+        .limit(1);
 
       if (!project) {
         return notFoundResponse(c, "project_not_found", "Project not found");
@@ -516,7 +524,7 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         inputSnapshot: {
           ...actionDefinition.inputSnapshot,
           action: payload.action,
-          projectId: project.id,
+          projectId: payload.projectId,
           encodedJobId,
           providerPayload: job.externalProviderPayload,
           sourceFiles,

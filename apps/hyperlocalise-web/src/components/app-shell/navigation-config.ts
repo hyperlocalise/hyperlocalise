@@ -2,11 +2,6 @@ import type { ComponentProps } from "react";
 
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import {
-  buildProjectDetailHref,
-  formatProjectPathSegment,
-  type ProjectPathInput,
-} from "@/lib/projects/routing/resource-path-id";
-import {
   AiBrain01Icon,
   BookOpenTextIcon,
   Chat01Icon,
@@ -42,20 +37,9 @@ export function buildOrganizationPath(organizationSlug: string, section: string)
   return `/org/${organizationSlug}/${section}`;
 }
 
-export function buildProjectPath(
-  organizationSlug: string,
-  projectId: string,
-  section?: string,
-  hints?: Pick<ProjectPathInput, "source" | "externalProjectId">,
-) {
-  return buildProjectDetailHref(organizationSlug, { id: projectId, ...hints }, section);
-}
-
-export function formatProjectIdForPath(
-  projectId: string,
-  hints?: Pick<ProjectPathInput, "source" | "externalProjectId">,
-) {
-  return formatProjectPathSegment({ id: projectId, ...hints });
+export function buildProjectPath(organizationSlug: string, projectId: string, section?: string) {
+  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}`;
+  return section ? `${base}/${section}` : base;
 }
 
 export function buildGlobalNavigationGroups(organizationSlug: string): readonly NavigationGroup[] {
