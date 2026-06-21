@@ -387,4 +387,22 @@ describe("saveLokaliseLiveCatComment", () => {
       author: "reviewer@example.com",
     });
   });
+
+  it("throws lokalise_comment_create_failed when Lokalise returns no comment", async () => {
+    globalThis.fetch = vi.fn(
+      async () => new Response(JSON.stringify({ comments: [] }), { status: 200 }),
+    ) as typeof fetch;
+
+    await expect(
+      saveLokaliseLiveCatComment({
+        secretMaterial: "token",
+        externalProjectId: "123.abc",
+        targetLocale: "fr",
+        externalStringId: "42",
+        text: "Needs review",
+      }),
+    ).rejects.toMatchObject({
+      code: "lokalise_comment_create_failed",
+    });
+  });
 });

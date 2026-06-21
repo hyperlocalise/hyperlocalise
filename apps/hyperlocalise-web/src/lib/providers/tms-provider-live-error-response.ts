@@ -10,7 +10,7 @@ type JsonContext = {
   ): Response & TypedResponse<T, U, "json">;
 };
 
-export type TmsProviderLiveErrorStatus = 400 | 401 | 404 | 500 | 501;
+export type TmsProviderLiveErrorStatus = 400 | 401 | 404 | 500 | 501 | 502;
 export type TmsProviderLiveErrorBody = { error: string; message: string };
 
 export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErrorStatus {
@@ -41,6 +41,8 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "provider_comments_read_unsupported":
     case "provider_cat_unsupported":
       return 501;
+    case "lokalise_comment_create_failed":
+      return 502;
     default:
       return 500;
   }

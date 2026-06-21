@@ -13,6 +13,7 @@ describe("getTmsProviderLiveErrorStatus", () => {
     ["invalid_encoded_job_id", 400],
     ["provider_fetcher_unavailable", 501],
     ["provider_description_edit_unsupported", 501],
+    ["lokalise_comment_create_failed", 502],
     ["unknown_code", 500],
   ] as const)("maps %s to %i", (code, status) => {
     expect(getTmsProviderLiveErrorStatus(code)).toBe(status);
