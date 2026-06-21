@@ -189,3 +189,7 @@
 ## 2026-10-10 - Optimizing Apple Stringsdict parser and renderer
 **Learning:** XML-based pluralization formats like stringsdict benefit significantly from document-order processing. Since the XML decoder visits tokens sequentially, entries can be collected in order, allowing the renderer to bypass expensive sorting and cloning. Additionally, heuristic capacity hints for stacks and maps in recursive-like XML structures (nested dicts) reduce GC pressure.
 **Action:** Removed redundant sorting/cloning in `render` and implemented capacity hints in `parseStringsdictDocument` and helpers in `internal/i18n/translationfileparser/stringsdict_parser.go`.
+
+## 2026-10-15 - Optimizing Liquid parser via byte-level scanning and allocation reduction
+**Learning:** For template parsers that perform masking or delimiter scanning: 1) converting the entire input to a string is an avoidable large allocation; 2) manual byte-by-byte loops for literal text can be replaced with `bytes.IndexAny` to skip uninteresting segments; 3) `fmt.Sprintf`, `hex.EncodeToString`, and `strings.ToUpper` in hot-path token generation create significant GC pressure that can be mitigated with stack buffers and manual hex tables.
+**Action:** Optimized `maskLiquidSyntax`, `liquidPlaceholderToken`, `liquidSegmentKey`, and associated helpers in `internal/i18n/translationfileparser/liquid_parser.go`.
