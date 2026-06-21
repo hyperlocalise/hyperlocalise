@@ -105,6 +105,7 @@ export async function markSourceFileIngestStateStep(input: {
   ingestError?: string | null;
   ingestWorkflowRunId?: string | null;
   ingestedAt?: Date | null;
+  fromIngestingWorkflowRunId?: string;
 }) {
   "use step";
   const { markSourceFileIngestState } = await import("@/lib/projects/files/source-file-ingest");

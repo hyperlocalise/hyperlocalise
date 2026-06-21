@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, or } from "drizzle-orm";
 
 import type { ProjectSourceStringEntry } from "@/api/routes/project/project.schema";
 import { dispatchWorkspaceAutomationsForSourceUpload } from "@/lib/agents/workspace-automation-dispatcher";
@@ -59,7 +59,20 @@ export async function markSourceFileIngestState(input: {
   ingestError?: string | null;
   ingestWorkflowRunId?: string | null;
   ingestedAt?: Date | null;
+  fromIngestingWorkflowRunId?: string;
 }) {
+  const whereConditions = [
+    eq(schema.repositorySourceFileVersions.id, input.sourceFileVersionId),
+    eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
+  ];
+
+  if (input.fromIngestingWorkflowRunId) {
+    whereConditions.push(
+      eq(schema.repositorySourceFileVersions.ingestState, "ingesting"),
+      eq(schema.repositorySourceFileVersions.ingestWorkflowRunId, input.fromIngestingWorkflowRunId),
+    );
+  }
+
   const [updated] = await db
     .update(schema.repositorySourceFileVersions)
     .set({
@@ -68,13 +81,14 @@ export async function markSourceFileIngestState(input: {
       ingestWorkflowRunId: input.ingestWorkflowRunId ?? null,
       ingestedAt: input.ingestedAt ?? null,
     })
-    .where(
-      and(
-        eq(schema.repositorySourceFileVersions.id, input.sourceFileVersionId),
-        eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
-      ),
-    )
+    .where(and(...whereConditions))
     .returning({ id: schema.repositorySourceFileVersions.id });
+
+  if (input.fromIngestingWorkflowRunId && !updated) {
+    throw new Error(
+      `failed to mark source file version ${input.sourceFileVersionId} as ${input.ingestState}; not owned by workflow ${input.fromIngestingWorkflowRunId}`,
+    );
+  }
 
   return updated ?? null;
 }
@@ -96,7 +110,13 @@ export async function claimSourceFileIngest(input: {
       and(
         eq(schema.repositorySourceFileVersions.id, input.sourceFileVersionId),
         eq(schema.repositorySourceFileVersions.organizationId, input.organizationId),
-        inArray(schema.repositorySourceFileVersions.ingestState, ["pending", "failed"]),
+        or(
+          inArray(schema.repositorySourceFileVersions.ingestState, ["pending", "failed"]),
+          and(
+            eq(schema.repositorySourceFileVersions.ingestState, "ingesting"),
+            eq(schema.repositorySourceFileVersions.ingestWorkflowRunId, input.workflowRunId),
+          ),
+        ),
       ),
     )
     .returning({

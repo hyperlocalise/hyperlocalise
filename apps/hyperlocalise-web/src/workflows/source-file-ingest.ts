@@ -91,6 +91,7 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       ingestState: "ingested",
       ingestWorkflowRunId: workflowRunId,
       ingestedAt: new Date(),
+      fromIngestingWorkflowRunId: workflowRunId,
     });
 
     await dispatchSourceUploadAutomationsStep({
@@ -114,7 +115,8 @@ export async function sourceFileIngestWorkflow(event: SourceFileIngestEventData)
       ingestState: "failed",
       ingestError: reason,
       ingestWorkflowRunId: workflowRunId,
-    }).catch(() => undefined);
+      fromIngestingWorkflowRunId: workflowRunId,
+    });
 
     throw error;
   } finally {
