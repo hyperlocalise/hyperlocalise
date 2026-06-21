@@ -33,14 +33,12 @@ import {
   getProjectFileDetail,
   listFilteredProjectFiles,
 } from "@/lib/projects/files/project-file-service";
-import { parseTranslationFileEntries } from "@/lib/projects/files/parse-translation-file-entries";
+import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/string-context/project-string-context-service";
 import {
   getRepositorySourceFileByPath,
   loadProjectTranslationsAsPrefilledEntries,
-  upsertProjectTranslationKeysFromEntries,
 } from "@/lib/projects/translations/project-translation-service";
-import { dispatchWorkspaceAutomationsForSourceUpload } from "@/lib/agents/workspace-automation-dispatcher";
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
 import type { JobQueue, ProviderSyncQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createProviderSyncQueue, createTranslationJobEventQueue } from "@/workflows/adapters";
@@ -1149,7 +1147,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
 
         const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
         let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
-        const fileText = await file.text();
 
         const { storedFile, version } = await db
           .transaction(async (tx) => {
@@ -1193,60 +1190,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             throw error;
           });
 
-        const parseResult = parseTranslationFileEntries({
-          filename: parsed.data.sourcePath,
-          text: fileText,
-        });
-
-        if (isErr(parseResult)) {
-          console.warn("[file-upload] translation key parse failed, skipping import", {
-            projectId: params.projectId,
-            code: parseResult.error.code,
-          });
-        }
-
-        const entries = isErr(parseResult) ? [] : parseResult.value;
-
-        if (entries.length > 0) {
-          try {
-            const [sourceFile] = await db
-              .select({ id: schema.repositorySourceFiles.id })
-              .from(schema.repositorySourceFiles)
-              .where(
-                and(
-                  eq(
-                    schema.repositorySourceFiles.organizationId,
-                    c.var.auth.organization.localOrganizationId,
-                  ),
-                  eq(schema.repositorySourceFiles.projectId, params.projectId),
-                  eq(schema.repositorySourceFiles.sourcePath, parsed.data.sourcePath),
-                ),
-              )
-              .limit(1);
-
-            if (sourceFile) {
-              await upsertProjectTranslationKeysFromEntries({
-                organizationId: c.var.auth.organization.localOrganizationId,
-                projectId: params.projectId,
-                repositorySourceFileId: sourceFile.id,
-                sourceFileVersionId: version.id,
-                entries,
-              });
-            }
-          } catch (keyImportError) {
-            console.warn("[file-upload] key import failed, continuing", {
-              projectId: params.projectId,
-              error: keyImportError instanceof Error ? keyImportError.message : "unknown",
-            });
-          }
-        }
-
-        void dispatchWorkspaceAutomationsForSourceUpload({
+        void enqueueSourceFileIngestAfterUpload({
           organizationId: c.var.auth.organization.localOrganizationId,
           projectId: params.projectId,
-          sourceFileId: storedFile.id,
+          storedFileId: storedFile.id,
           sourceFileVersionId: version.id,
           sourcePath: parsed.data.sourcePath,
+          sourceHash: parsed.data.sourceHash ?? storedFile.sha256,
         }).catch((error) => {
           projectFileRouteLogger.warn(
             {
@@ -1254,7 +1204,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               sourceFileVersionId: version.id,
               error: error instanceof Error ? error.message : "unknown",
             },
-            "file-upload source upload automation dispatch failed",
+            "file-upload source ingest enqueue failed",
           );
         });
 

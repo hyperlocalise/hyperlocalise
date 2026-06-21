@@ -18,6 +18,7 @@ import type {
   ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
+  SourceFileIngestQueue,
   WorkspaceAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
@@ -115,6 +116,16 @@ export function createProviderSyncQueue(): ProviderSyncQueue {
   return {
     async enqueue(event) {
       const run = await start(providerSyncWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createSourceFileIngestQueue(): SourceFileIngestQueue {
+  return {
+    async enqueue(event) {
+      const { sourceFileIngestWorkflow } = await import("@/workflows/source-file-ingest");
+      const run = await start(sourceFileIngestWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

@@ -1,6 +1,7 @@
 import { db } from "@/lib/database";
 import { getFileStorageAdapter } from "@/lib/file-storage";
 import { createLogger } from "@/lib/log";
+import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 import {
   createRepositorySourceFileVersion,
   createStoredFile,
@@ -135,6 +136,25 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
         outcome: "uploaded",
         fileId: storedFile.id,
         sourceFileVersionId: version.id,
+      });
+
+      void enqueueSourceFileIngestAfterUpload({
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        storedFileId: storedFile.id,
+        sourceFileVersionId: version.id,
+        sourcePath: normalizedPath,
+        sourceHash,
+      }).catch((error) => {
+        logger.warn(
+          {
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            sourceFileVersionId: version.id,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          "repository source file ingest enqueue failed",
+        );
       });
     } catch (error) {
       if (uploadedStorageKey) {
