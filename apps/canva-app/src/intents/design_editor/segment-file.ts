@@ -2,8 +2,8 @@ import type { DesignSegment } from "./types";
 
 const SEGMENT_KEY_PREFIX = "canva.segment.";
 
-export function segmentKey(contentIndex: number, regionIndex: number): string {
-  return `${SEGMENT_KEY_PREFIX}${contentIndex}.${regionIndex}`;
+export function segmentKey(pageIndex: number, contentIndex: number, regionIndex: number): string {
+  return `${SEGMENT_KEY_PREFIX}${pageIndex}.${contentIndex}.${regionIndex}`;
 }
 
 export function segmentsToTranslationFile(segments: DesignSegment[]): Record<string, string> {

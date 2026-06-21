@@ -48,3 +48,8 @@
   align-items: center;
   gap: var(--ui-kit-space-100);
 }
+
+.pageActions {
+  display: flex;
+  gap: var(--ui-kit-space-150);
+}

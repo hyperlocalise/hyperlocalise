@@ -1,13 +1,14 @@
 # Hyperlocalise Canva App
 
-Canva design editor app that uploads the current page as a JSON translation file to Hyperlocalise, runs a localization job, and syncs translated text back into the design.
+Canva design editor app that uploads selected pages from a design as a JSON translation file to Hyperlocalise, runs a localization job, and syncs translated text back into the design.
 
 ## What it does
 
-1. **Extract** text from the current Canva page (with optional inline formatting preservation).
-2. **Upload** a JSON source file to Hyperlocalise via the public API.
-3. **Translate** through a Hyperlocalise file job.
-4. **Sync** the selected target locale back into the Canva design.
+1. **Select pages** from the full design (all editable pages are selected by default).
+2. **Extract** text from the selected pages (with optional inline formatting preservation).
+3. **Upload** a JSON source file to Hyperlocalise via the public API.
+4. **Translate** through a Hyperlocalise file job.
+5. **Sync** the selected target locale back into the selected Canva pages.
 
 When `HYPERLOCALISE_API_KEY` is not configured, the backend falls back to preview mode and applies simulated translations so you can test the UI flow locally.
 
@@ -49,6 +50,7 @@ In the Canva app UI, provide:
 - **Source locale** — language of the current design text
 - **Target locales** — comma-separated locale codes (for example `es, fr, de`)
 - **Apply locale** — which translated locale to write back into Canva
+- **Pages to localize** — choose one or more editable pages from the design
 
 Each design is stored at a stable source path: `canva/designs/<design-id>.json`.
 

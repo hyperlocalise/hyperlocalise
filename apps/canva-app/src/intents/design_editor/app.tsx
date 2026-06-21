@@ -3,7 +3,9 @@ import {
   Badge,
   Box,
   Button,
+  CheckboxGroup,
   FormField,
+  LinkButton,
   ProgressBar,
   Rows,
   Select,
@@ -16,10 +18,16 @@ import { getDesignToken } from "@canva/design";
 import { useEffect, useMemo, useState } from "react";
 
 import * as styles from "../../../styles/components.css";
-import { applyTranslationsToCurrentPage, extractCurrentPageContent } from "./design-content";
+import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
 import { HyperlocaliseClientError, localizeDesign } from "./hyperlocalise-client";
-import { loadSettings, parseTargetLocales, saveSettings } from "./settings";
-import type { AppSettings, WorkflowStep } from "./types";
+import {
+  loadSettings,
+  parseSelectedPageValues,
+  parseTargetLocales,
+  saveSettings,
+  selectedPageValues,
+} from "./settings";
+import type { AppSettings, DesignPageInfo, WorkflowStep } from "./types";
 
 const LOCALE_OPTIONS = [
   { value: "en", label: "English (en)" },
@@ -62,8 +70,23 @@ function activeStepLabel(step: WorkflowStep): string {
   return WORKFLOW_STEPS.find((workflowStep) => workflowStep.id === step)?.label ?? "Ready";
 }
 
+function defaultSelectedPages(pages: DesignPageInfo[]): number[] {
+  return pages.filter((page) => page.editable).map((page) => page.index);
+}
+
+function pageDescription(page: DesignPageInfo): string {
+  if (!page.editable) {
+    return page.locked ? "Locked page" : "Unsupported page type";
+  }
+
+  return "Editable page";
+}
+
 export const App = () => {
   const [settings, setSettings] = useState<AppSettings>(() => loadSettings());
+  const [designPages, setDesignPages] = useState<DesignPageInfo[]>([]);
+  const [pagesLoading, setPagesLoading] = useState(true);
+  const [pagesError, setPagesError] = useState<string | null>(null);
   const [workflowStep, setWorkflowStep] = useState<WorkflowStep>("idle");
   const [segmentCount, setSegmentCount] = useState(0);
   const [selectedLocale, setSelectedLocale] = useState("");
@@ -75,12 +98,69 @@ export const App = () => {
     () => parseTargetLocales(settings.targetLocales),
     [settings.targetLocales],
   );
+  const editablePages = useMemo(() => designPages.filter((page) => page.editable), [designPages]);
+  const selectedPageIndices = useMemo(() => {
+    if (settings.selectedPageIndices.length > 0) {
+      return settings.selectedPageIndices.filter((index) =>
+        editablePages.some((page) => page.index === index),
+      );
+    }
+
+    return defaultSelectedPages(designPages);
+  }, [designPages, editablePages, settings.selectedPageIndices]);
   const isBusy = workflowStep !== "idle" && workflowStep !== "done";
   const canLocalize =
     settings.projectId.trim().length > 0 &&
     settings.sourceLocale.trim().length > 0 &&
     targetLocales.length > 0 &&
+    selectedPageIndices.length > 0 &&
+    !pagesLoading &&
     !isBusy;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadPages() {
+      setPagesLoading(true);
+      setPagesError(null);
+
+      try {
+        const pages = await listDesignPages();
+        if (cancelled) {
+          return;
+        }
+
+        setDesignPages(pages);
+
+        setSettings((current) => {
+          if (current.selectedPageIndices.length > 0) {
+            return current;
+          }
+
+          const next = {
+            ...current,
+            selectedPageIndices: defaultSelectedPages(pages),
+          };
+          saveSettings(next);
+          return next;
+        });
+      } catch (error) {
+        if (!cancelled) {
+          setPagesError(error instanceof Error ? error.message : "Unable to load design pages.");
+        }
+      } finally {
+        if (!cancelled) {
+          setPagesLoading(false);
+        }
+      }
+    }
+
+    void loadPages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (targetLocales.length === 0) {
@@ -101,6 +181,14 @@ export const App = () => {
     });
   };
 
+  const selectAllEditablePages = () => {
+    updateSettings({ selectedPageIndices: defaultSelectedPages(designPages) });
+  };
+
+  const clearPageSelection = () => {
+    updateSettings({ selectedPageIndices: [] });
+  };
+
   const localizeDesignFlow = async () => {
     setErrorMessage(null);
     setStatusMessage(null);
@@ -108,11 +196,14 @@ export const App = () => {
 
     try {
       setWorkflowStep("extracting");
-      const extracted = await extractCurrentPageContent(settings.preserveFormatting);
+      const extracted = await extractDesignContent(
+        selectedPageIndices,
+        settings.preserveFormatting,
+      );
       setSegmentCount(extracted.segments.length);
 
       if (extracted.segments.length === 0) {
-        throw new Error("Add text to the current page before localizing.");
+        throw new Error("Add text to the selected pages before localizing.");
       }
 
       const { token } = await getDesignToken();
@@ -138,13 +229,17 @@ export const App = () => {
       }
 
       setWorkflowStep("applying");
-      await applyTranslationsToCurrentPage(translations, settings.preserveFormatting);
+      await applyTranslationsToDesign(
+        translations,
+        selectedPageIndices,
+        settings.preserveFormatting,
+      );
 
       setWorkflowStep("done");
       setStatusMessage(
         response.mode === "preview"
-          ? `Preview applied for ${localeToApply}. Configure HYPERLOCALISE_API_KEY on the backend to use live translation.`
-          : `Localized ${extracted.segments.length} text segments and synced ${localeToApply} back to your design.`,
+          ? `Preview applied to ${selectedPageIndices.length} page(s) for ${localeToApply}. Configure HYPERLOCALISE_API_KEY on the backend to use live translation.`
+          : `Localized ${extracted.segments.length} text segments across ${selectedPageIndices.length} page(s) and synced ${localeToApply} back to your design.`,
       );
     } catch (error) {
       setWorkflowStep("idle");
@@ -163,8 +258,8 @@ export const App = () => {
         <Rows spacing="1u">
           <Title size="small">Hyperlocalise for Canva</Title>
           <Text>
-            Upload the current page as a JSON translation file, run localization in Hyperlocalise,
-            then sync the translated text back into your design.
+            Upload selected pages from your design as a JSON translation file, run localization in
+            Hyperlocalise, then sync the translated text back into Canva.
           </Text>
         </Rows>
 
@@ -174,6 +269,12 @@ export const App = () => {
               The backend is running without a Hyperlocalise API key, so translations are simulated
               locally.
             </Text>
+          </Alert>
+        ) : null}
+
+        {pagesError ? (
+          <Alert tone="warn" title="Pages unavailable">
+            <Text>{pagesError}</Text>
           </Alert>
         ) : null}
 
@@ -188,6 +289,50 @@ export const App = () => {
             <Text>{statusMessage}</Text>
           </Alert>
         ) : null}
+
+        <Box padding="2u" className={styles.panel}>
+          <Rows spacing="1.5u">
+            <Rows spacing="0.5u">
+              <Title size="xsmall">Pages to localize</Title>
+              <Text size="small" tone="secondary">
+                Choose which pages to include in the upload and sync workflow.
+              </Text>
+            </Rows>
+
+            {pagesLoading ? (
+              <Text size="small" tone="secondary">
+                Loading pages from your design...
+              </Text>
+            ) : (
+              <Rows spacing="1u">
+                <Rows spacing="0.5u">
+                  <Text size="small">
+                    {selectedPageIndices.length} of {editablePages.length} editable pages selected
+                  </Text>
+                  <div className={styles.pageActions}>
+                    <LinkButton onClick={selectAllEditablePages}>Select all</LinkButton>
+                    <LinkButton onClick={clearPageSelection}>Clear</LinkButton>
+                  </div>
+                </Rows>
+
+                <CheckboxGroup
+                  value={selectedPageValues(selectedPageIndices)}
+                  onChange={(values) =>
+                    updateSettings({
+                      selectedPageIndices: parseSelectedPageValues(values),
+                    })
+                  }
+                  options={designPages.map((page) => ({
+                    value: String(page.index),
+                    label: page.label,
+                    description: pageDescription(page),
+                    disabled: !page.editable,
+                  }))}
+                />
+              </Rows>
+            )}
+          </Rows>
+        </Box>
 
         <Box padding="2u" className={styles.panel}>
           <Rows spacing="1.5u">
@@ -271,7 +416,8 @@ export const App = () => {
             <Rows spacing="0.5u">
               <Title size="xsmall">Workflow</Title>
               <Text size="small" tone="secondary">
-                Extract text, upload a source file, translate, then write results back to Canva.
+                Extract text from selected pages, upload a source file, translate, then write
+                results back to Canva.
               </Text>
             </Rows>
 
@@ -301,13 +447,14 @@ export const App = () => {
                 <Text size="small" tone="secondary">
                   {activeStepLabel(workflowStep)}
                   {segmentCount > 0 ? ` · ${segmentCount} segments` : ""}
+                  {selectedPageIndices.length > 0 ? ` · ${selectedPageIndices.length} pages` : ""}
                 </Text>
               </Rows>
             ) : (
               <Text size="small" tone="secondary">
-                {segmentCount > 0
-                  ? `${segmentCount} text segments ready on the current page.`
-                  : "Text segments will be detected from the current page."}
+                {selectedPageIndices.length > 0
+                  ? `${selectedPageIndices.length} page(s) selected for localization.`
+                  : "Select at least one editable page to continue."}
               </Text>
             )}
 

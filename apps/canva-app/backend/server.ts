@@ -60,6 +60,7 @@ app.post("/api/localize", async (request, response) => {
       segment,
     ): segment is {
       key: string;
+      pageIndex: number;
       contentIndex: number;
       regionIndex: number;
       text: string;
@@ -67,6 +68,7 @@ app.post("/api/localize", async (request, response) => {
       typeof segment?.key === "string" &&
       typeof segment?.text === "string" &&
       segment.text.trim().length > 0 &&
+      typeof segment?.pageIndex === "number" &&
       typeof segment?.contentIndex === "number" &&
       typeof segment?.regionIndex === "number",
   );
@@ -74,7 +76,7 @@ app.post("/api/localize", async (request, response) => {
   if (normalizedSegments.length === 0) {
     response.status(400).json({
       error: "no_translatable_text",
-      message: "Add text to the current page before localizing.",
+      message: "Add text to the selected pages before localizing.",
     });
     return;
   }

@@ -1,5 +1,13 @@
+export type DesignPageInfo = {
+  index: number;
+  label: string;
+  locked: boolean;
+  editable: boolean;
+};
+
 export type DesignSegment = {
   key: string;
+  pageIndex: number;
   contentIndex: number;
   regionIndex: number;
   text: string;
@@ -7,6 +15,7 @@ export type DesignSegment = {
 
 export type ExtractedDesignContent = {
   segments: DesignSegment[];
+  pageIndices: number[];
   preserveFormatting: boolean;
 };
 
@@ -38,4 +47,5 @@ export type AppSettings = {
   sourceLocale: string;
   targetLocales: string;
   preserveFormatting: boolean;
+  selectedPageIndices: number[];
 };
