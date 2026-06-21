@@ -230,6 +230,18 @@ Prompt variables:
 
 `llm.rules` is optional. When no rule matches a group, Hyperlocalise falls back to `llm.profiles.default`.
 
+## Hyperlocalise
+
+`hyperlocalise` configures the public Hyperlocalise web API for `sync push` and `sync pull`.
+
+- `project_id` (required unless `project_id_env` is set): Hyperlocalise project ID.
+- `project_id_env` (optional): environment variable that contains the project ID.
+- `api_base_url` (optional): API base URL. Defaults to `https://hyperlocalise.com/api`.
+- `api_key_env` (optional): environment variable that contains the API key. Defaults to `HYPERLOCALISE_API_KEY`.
+- `timeout_seconds` (optional): HTTP timeout for sync API calls. Defaults to `1200`.
+
+`sync push` uploads source files. `sync pull` downloads translated files reconstructed by the API. Translation jobs are created by Hyperlocalise automation or in the web app, not by the CLI.
+
 ## Cache
 
 `cache` configures the remote caching client.
@@ -302,7 +314,6 @@ hyperlocalise:
   project_id: project_123
   api_base_url: https://hyperlocalise.com/api
   api_key_env: HYPERLOCALISE_API_KEY
-  manifest_path: .hyperlocalise/jobs.json
   timeout_seconds: 1200
 
 cache:
@@ -326,5 +337,5 @@ Then edit the generated `i18n.yml` for your project.
 - Keep group targets inside `locales.targets`.
 - Keep group buckets aligned with `buckets` keys.
 - Keep profile names consistent between `profiles` and `rules`.
-- Use `hyperlocalise` for `sync push` and `sync pull` jobs.
+- Use `hyperlocalise` for `sync push` and `sync pull`.
 - Keep `storage` for provider-specific TMS adapter configuration.

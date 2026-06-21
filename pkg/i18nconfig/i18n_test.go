@@ -882,9 +882,6 @@ func TestLoadAllowsOptionalHyperlocaliseConfig(t *testing.T) {
 	if cfg.Hyperlocalise.APIKeyEnv != "HYPERLOCALISE_API_KEY" {
 		t.Fatalf("unexpected api key env: %q", cfg.Hyperlocalise.APIKeyEnv)
 	}
-	if cfg.Hyperlocalise.ManifestPath != ".hyperlocalise/jobs.json" {
-		t.Fatalf("unexpected manifest path: %q", cfg.Hyperlocalise.ManifestPath)
-	}
 	if cfg.Storage == nil || cfg.Storage.Adapter != "poeditor" {
 		t.Fatalf("expected storage config to remain available: %+v", cfg.Storage)
 	}

@@ -12,13 +12,13 @@ func newSyncPushCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:          "push",
-		Short:        "submit source files to Hyperlocalise jobs",
+		Short:        "upload source files to Hyperlocalise",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			if forceConflicts {
-				return fmt.Errorf("sync push through Hyperlocalise jobs does not support --force-conflicts")
+				return fmt.Errorf("sync push does not support --force-conflicts")
 			}
-			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath, true)
+			rt, err := newHyperlocaliseSyncRuntime(o.configPath)
 			if err != nil {
 				return fmt.Errorf("initialize sync runtime: %w", err)
 			}
