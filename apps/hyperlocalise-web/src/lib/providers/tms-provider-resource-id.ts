@@ -106,36 +106,23 @@ export function resolveEncodedProviderJobId(input: {
     return null;
   }
 
+  const parsedProjectId = parseProviderProjectId(input.projectId);
+  if (!parsedProjectId) {
+    return null;
+  }
+
+  if (parsedProjectId.providerKind !== input.externalProviderKind) {
+    return null;
+  }
+
   const externalJobId = input.externalJobId ?? input.externalTaskId;
   if (!externalJobId) {
     return null;
   }
 
-  const parsedProjectId = parseProviderProjectId(input.projectId);
-  if (parsedProjectId) {
-    if (parsedProjectId.providerKind !== input.externalProviderKind) {
-      return null;
-    }
-
-    return encodeProviderJobId({
-      providerKind: parsedProjectId.providerKind,
-      externalProjectId: parsedProjectId.externalProjectId,
-      externalJobId,
-    });
-  }
-
-  if (!isExternalTmsProviderKind(input.externalProviderKind)) {
-    return null;
-  }
-
-  const normalizedProjectId = normalizeProjectId(input.projectId);
-  if (typeof normalizedProjectId !== "string" || !normalizedProjectId) {
-    return null;
-  }
-
   return encodeProviderJobId({
-    providerKind: input.externalProviderKind,
-    externalProjectId: normalizedProjectId,
+    providerKind: parsedProjectId.providerKind,
+    externalProjectId: parsedProjectId.externalProjectId,
     externalJobId,
   });
 }

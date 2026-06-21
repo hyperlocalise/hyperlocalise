@@ -1,10 +1,10 @@
-import { and, eq } from "drizzle-orm";
 import {
   buildAccessibleProjectsWhere,
   getVisibleTeamIds,
   hasOrganizationWideProjectAccess,
   ownedProjectWhere as teamOwnedProjectWhere,
 } from "@/api/auth/team-access";
+import { and, eq } from "drizzle-orm";
 import {
   badRequestResponse,
   forbiddenResponse as sharedForbiddenResponse,
@@ -15,10 +15,8 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
 import { getTmsProviderConnection } from "@/lib/providers/tms-provider-live";
 import { tmsProviderLiveErrorResponse } from "@/lib/providers/tms-provider-live-error-response";
-import { resolveCanonicalProjectId } from "@/lib/projects/routing/resource-path-resolver";
 import {
   parseProviderProjectId,
   type EncodedProviderProjectId,
@@ -78,66 +76,10 @@ export async function resolveProjectResourceTarget(
   projectId: string,
 ): Promise<ProjectResourceTarget> {
   const encodedProject = parseProviderProjectId(projectId);
-  if (encodedProject) {
-    return resolveEncodedProviderProjectTarget(auth, encodedProject);
+  if (!encodedProject) {
+    return { kind: "native", projectId };
   }
 
-  const organizationId = auth.organization.localOrganizationId;
-
-  const [projectById] = await db
-    .select({ id: schema.projects.id })
-    .from(schema.projects)
-    .where(
-      and(eq(schema.projects.organizationId, organizationId), eq(schema.projects.id, projectId)),
-    )
-    .limit(1);
-
-  if (projectById) {
-    return { kind: "native", projectId: projectById.id };
-  }
-
-  const [projectRecord] = await db
-    .select({
-      id: schema.projects.id,
-      source: schema.projects.source,
-      externalProviderKind: schema.projects.externalProviderKind,
-      externalProjectId: schema.projects.externalProjectId,
-    })
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.organizationId, organizationId),
-        eq(schema.projects.externalProjectId, projectId),
-      ),
-    )
-    .limit(1);
-
-  if (
-    projectRecord?.source === "external_tms" &&
-    projectRecord.externalProviderKind &&
-    projectRecord.externalProjectId
-  ) {
-    return resolveEncodedProviderProjectTarget(auth, {
-      providerKind: projectRecord.externalProviderKind,
-      externalProjectId: projectRecord.externalProjectId,
-    });
-  }
-
-  const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
-  if (credential) {
-    return resolveEncodedProviderProjectTarget(auth, {
-      providerKind: credential.providerKind,
-      externalProjectId: projectId,
-    });
-  }
-
-  return { kind: "native", projectId };
-}
-
-async function resolveEncodedProviderProjectTarget(
-  auth: ApiAuthContext,
-  encodedProject: EncodedProviderProjectId,
-): Promise<ProjectResourceTarget> {
   const connection = await getTmsProviderConnection(auth.organization.localOrganizationId);
   if (!connection) {
     return {
@@ -156,11 +98,6 @@ async function resolveEncodedProviderProjectTarget(
   }
 
   return { kind: "provider", ...encodedProject };
-}
-
-export async function resolveOwnedProjectId(auth: ApiAuthContext, projectPathSegment: string) {
-  const organizationId = auth.organization.localOrganizationId;
-  return resolveCanonicalProjectId(organizationId, projectPathSegment);
 }
 
 export function providerProjectUnavailableResponse(
@@ -284,8 +221,7 @@ export async function ownedProjectWhere(auth: ApiAuthContext, projectId: string)
   return teamOwnedProjectWhere(auth, projectId);
 }
 
-export async function getOwnedProject(auth: ApiAuthContext, projectPathSegment: string) {
-  const projectId = await resolveOwnedProjectId(auth, projectPathSegment);
+export async function getOwnedProject(auth: ApiAuthContext, projectId: string) {
   const [project] = await db
     .select({ id: schema.projects.id })
     .from(schema.projects)
@@ -295,8 +231,7 @@ export async function getOwnedProject(auth: ApiAuthContext, projectPathSegment: 
   return project ?? null;
 }
 
-export async function getOwnedProjectRecord(auth: ApiAuthContext, projectPathSegment: string) {
-  const projectId = await resolveOwnedProjectId(auth, projectPathSegment);
+export async function getOwnedProjectRecord(auth: ApiAuthContext, projectId: string) {
   const [project] = await db
     .select()
     .from(schema.projects)
