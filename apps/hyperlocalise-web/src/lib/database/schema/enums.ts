@@ -303,3 +303,13 @@ export const projectTranslationProvenanceEnum = pgEnum("project_translation_prov
   "import",
   "agent",
 ]);
+/**
+ * Tracks source file key extraction lifecycle for repository source file versions.
+ */
+export const repositorySourceFileIngestStateEnum = pgEnum("repository_source_file_ingest_state", [
+  "pending",
+  "ingesting",
+  "ingested",
+  "skipped",
+  "failed",
+]);

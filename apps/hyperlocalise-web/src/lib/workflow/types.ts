@@ -115,3 +115,13 @@ export type ProviderSyncEventData = {
 };
 
 export type ProviderSyncQueue = JobQueue<ProviderSyncEventData>;
+
+export type SourceFileIngestEventData = {
+  sourceFileVersionId: string;
+  organizationId: string;
+  projectId: string;
+  storedFileId: string;
+  sourcePath: string;
+};
+
+export type SourceFileIngestQueue = JobQueue<SourceFileIngestEventData>;

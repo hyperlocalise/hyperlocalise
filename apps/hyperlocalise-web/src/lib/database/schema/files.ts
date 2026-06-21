@@ -13,6 +13,7 @@ import {
 import {
   externalTmsProviderKindEnum,
   externalTmsResourceTypeEnum,
+  repositorySourceFileIngestStateEnum,
   storedFileRoleEnum,
   storedFileSourceKindEnum,
 } from "./enums";
@@ -149,6 +150,10 @@ export const repositorySourceFileVersions = pgTable(
       onDelete: "set null",
     }),
     uploadSurface: text("upload_surface"),
+    ingestState: repositorySourceFileIngestStateEnum("ingest_state").notNull().default("pending"),
+    ingestError: text("ingest_error"),
+    ingestedAt: timestamp("ingested_at", { withTimezone: true }),
+    ingestWorkflowRunId: text("ingest_workflow_run_id"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -164,6 +169,10 @@ export const repositorySourceFileVersions = pgTable(
     ),
     index("idx_repository_source_file_versions_workflow_run").on(table.workflowRunId),
     index("idx_repository_source_file_versions_api_key").on(table.uploadedByApiKeyId),
+    index("idx_repository_source_file_versions_ingest_state").on(
+      table.projectId,
+      table.ingestState,
+    ),
   ],
 );
 
