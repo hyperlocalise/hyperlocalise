@@ -1,6 +1,6 @@
 import "dotenv/config";
 
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it } from "vite-plus/test";
 
@@ -198,6 +198,7 @@ describe("publicTranslationRoutes", () => {
       .select({ id: schema.projectTranslationKeys.id })
       .from(schema.projectTranslationKeys)
       .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .orderBy(desc(schema.projectTranslationKeys.key))
       .limit(1);
 
     await db.insert(schema.projectTranslations).values({

@@ -8,6 +8,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, notFoundResponse } from "@/api/errors";
+import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
@@ -1035,11 +1036,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (result.translatedKeyCount === 0) {
-          return notFoundResponse(
-            c,
-            "translations_not_found",
-            "No translations are available for this source file and locale.",
-          );
+          return translationsNotFoundResponse(c);
         }
 
         const extension = path.extname(query.sourcePath);
