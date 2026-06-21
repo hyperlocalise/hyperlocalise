@@ -1,6 +1,6 @@
 import type { MemoryRecord } from "@/api/routes/memory/memory.schema";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { formatProjectPathSegment } from "@/lib/projects/routing/resource-path-id";
 import type { TmsProviderLiveTranslationMemory } from "@/lib/providers/tms-provider-live";
 
 export type ApiMemory = MemoryRecord;
@@ -146,10 +146,7 @@ export function mapLiveTmsProviderMemoryToListRow(
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,
     updatedAt: "Live",
-    projectLinkId: encodeProviderProjectId({
-      providerKind,
-      externalProjectId: memory.externalProjectId,
-    }),
+    projectLinkId: memory.externalProjectId,
   };
 }
 
@@ -166,7 +163,17 @@ export function buildProjectIdByExternalKey(
   for (const project of projects) {
     const key = externalProjectLookupKey(project.externalProviderKind, project.externalProjectId);
     if (key && !map.has(key)) {
-      map.set(key, project.id);
+      map.set(
+        key,
+        formatProjectPathSegment({
+          id: project.id,
+          source:
+            project.source === "native" || project.source === "external_tms"
+              ? project.source
+              : undefined,
+          externalProjectId: project.externalProjectId,
+        }),
+      );
     }
   }
 

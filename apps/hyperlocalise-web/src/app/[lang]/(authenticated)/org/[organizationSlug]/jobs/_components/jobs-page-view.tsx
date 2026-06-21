@@ -74,6 +74,7 @@ export type ApiJob = {
   assetType: string | null;
   assetOperation: string | null;
   externalProviderKind: string | null;
+  externalJobId?: string | null;
   externalTaskId: string | null;
   externalStatus: string | null;
   externalTitle: string | null;

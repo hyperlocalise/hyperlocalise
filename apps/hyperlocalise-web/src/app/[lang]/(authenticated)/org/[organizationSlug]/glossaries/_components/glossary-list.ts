@@ -1,6 +1,6 @@
 import type { GlossaryRecord } from "@/api/routes/glossary/glossary.schema";
 import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { formatProjectPathSegment } from "@/lib/projects/routing/resource-path-id";
 import type { TmsProviderLiveGlossary } from "@/lib/providers/tms-provider-live";
 import {
   formatTermCapabilityLabel,
@@ -181,16 +181,14 @@ export function mapLiveTmsProviderGlossaryToListRow(
     lastSyncErrorAt: null,
     lastSyncErrorMessage: null,
     updatedAt: "Live",
-    projectLinkId: encodeProviderProjectId({
-      providerKind,
-      externalProjectId: glossary.externalProjectId,
-    }),
+    projectLinkId: glossary.externalProjectId,
   };
 }
 
 export function buildProjectIdByExternalKey(
   projects: readonly {
     id: string;
+    source?: "native" | "external_tms" | null;
     externalProviderKind?: string | null;
     externalProjectId?: string | null;
   }[],
@@ -200,7 +198,17 @@ export function buildProjectIdByExternalKey(
   for (const project of projects) {
     const key = externalProjectLookupKey(project.externalProviderKind, project.externalProjectId);
     if (key && !map.has(key)) {
-      map.set(key, project.id);
+      map.set(
+        key,
+        formatProjectPathSegment({
+          id: project.id,
+          source:
+            project.source === "native" || project.source === "external_tms"
+              ? project.source
+              : undefined,
+          externalProjectId: project.externalProjectId,
+        }),
+      );
     }
   }
 

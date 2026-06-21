@@ -1,4 +1,9 @@
 import {
+  buildOrgJobHref,
+  formatJobPathSegment,
+  formatProjectPathSegment,
+} from "@/lib/projects/routing/resource-path-id";
+import {
   canOpenNativeJobCat,
   canOpenProviderJobCat,
 } from "@/lib/projects/workspace-resource-capabilities";
@@ -8,9 +13,12 @@ export type JobCatTarget = {
   kind: "translation" | "research" | "review" | "sync" | "asset_management";
   type: "string" | "file" | null;
   externalProviderKind: string | null;
+  externalJobId?: string | null;
   externalTargetLocales: string[] | null;
   reviewTargetLocale: string | null;
   inputPayload: unknown;
+  projectSource?: "native" | "external_tms" | null;
+  externalProjectId?: string | null;
 };
 
 function getInputPayloadString(job: JobCatTarget, key: string) {
@@ -73,7 +81,20 @@ export function buildJobCatHref(
     }
   }
 
-  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}/strings`;
+  const base = buildOrgJobHref(
+    organizationSlug,
+    formatProjectPathSegment({
+      id: projectId,
+      source: job.projectSource,
+      externalProjectId: job.externalProjectId,
+    }),
+    formatJobPathSegment({
+      id: job.id,
+      externalProviderKind: job.externalProviderKind,
+      externalJobId: job.externalJobId,
+    }),
+    "strings",
+  );
   const query = params.toString();
   return query ? `${base}?${query}` : base;
 }

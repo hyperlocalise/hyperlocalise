@@ -16,6 +16,7 @@ import {
   type ProjectFileRecord,
 } from "@/api/routes/project/project.schema";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
+import { buildJobDetailHrefFromRecords } from "@/lib/projects/routing/resource-path-id";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -48,8 +49,12 @@ import { getJobName, jobTone, type ApiJob } from "../../../jobs/_components/jobs
 import type { ProjectListRow } from "../../_components/project-list";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
 
-function buildProjectJobHref(organizationSlug: string, projectId: string, jobId: string) {
-  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
+function buildProjectJobHref(
+  organizationSlug: string,
+  project: Pick<ProjectListRow, "id" | "source" | "externalProjectId">,
+  job: Pick<ApiJob, "id" | "externalProviderKind" | "externalJobId">,
+) {
+  return buildJobDetailHrefFromRecords(organizationSlug, project, job) ?? "#";
 }
 
 function buildProjectFileHref(organizationSlug: string, projectId: string, sourcePath: string) {
@@ -278,7 +283,7 @@ export function ProjectOverviewPageContentView({
                     title={getJobName(job)}
                     statusLine={formatJobStatusLine(job)}
                     statusTone={jobTone(job.status)}
-                    viewHref={buildProjectJobHref(organizationSlug, projectId, job.id)}
+                    viewHref={project ? buildProjectJobHref(organizationSlug, project, job) : "#"}
                   />
                 ))
               ) : (
