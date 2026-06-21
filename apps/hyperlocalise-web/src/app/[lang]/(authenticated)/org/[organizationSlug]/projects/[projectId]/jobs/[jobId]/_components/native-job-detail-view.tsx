@@ -40,6 +40,7 @@ import {
   jobDetailStatusTone,
   type JobDetailRecord,
 } from "./job-detail-types";
+import { JobAssigneeSection } from "./job-assignee-section";
 
 export type JobDetailBackLinkRenderer = (props: { href: string; children: ReactNode }) => ReactNode;
 
@@ -243,6 +244,8 @@ export function NativeJobDetailView({
               <DetailRow label="Last error" value={job.lastError} />
             </dl>
           </section>
+
+          <JobAssigneeSection canEdit job={job} jobId={jobId} organizationSlug={organizationSlug} />
 
           {isProviderBackedJob(job) && renderProviderDetailSection
             ? renderProviderDetailSection({

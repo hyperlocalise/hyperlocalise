@@ -17,6 +17,7 @@ const ROUTE_TITLES = {
   members: "Members",
   "my-jobs": "My Jobs",
   "my-work": "My Jobs",
+  "review-queue": "Review queue",
   "new-request": "New Request",
   projects: "Projects",
   qa: "QA",

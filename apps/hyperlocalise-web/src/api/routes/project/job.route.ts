@@ -101,6 +101,11 @@ import {
   jobProjectParamsSchema,
   workspaceJobParamsSchema,
 } from "./job.schema";
+import { updateJobAssignmentBodySchema } from "./job-assignment.schema";
+import {
+  resolveDefaultJobAssignee,
+  updateJobAssignment,
+} from "@/lib/projects/jobs/job-assignment-service";
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
@@ -123,6 +128,7 @@ const jobSelect = {
   projectId: schema.jobs.projectId,
   createdByUserId: schema.jobs.createdByUserId,
   ownerUserId: schema.jobs.ownerUserId,
+  assigneeRole: schema.jobs.assigneeRole,
   kind: schema.jobs.kind,
   type: schema.translationJobDetails.type,
   status: schema.jobs.status,
@@ -304,6 +310,21 @@ async function enrichProviderBackedJob(job: Record<string, unknown>) {
   };
 }
 
+const validateUpdateJobAssignmentBody = validator("json", (value, c) => {
+  const parsed = updateJobAssignmentBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return validationErrorResponse(
+      c,
+      "invalid_job_assignment_payload",
+      "Invalid job assignment payload",
+      parsed.error.issues,
+    );
+  }
+
+  return parsed.data;
+});
+
 const validateCreateJobBody = validator("json", (value, c) => {
   const parsed = createJobBodySchema.safeParse(value);
 
@@ -442,6 +463,12 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const jobId = `job_${randomUUID()}`;
+      const defaultAssignee = await resolveDefaultJobAssignee({
+        organizationId: c.var.auth.organization.localOrganizationId,
+        projectId: params.projectId,
+        role: "translator",
+        targetLocales: inputPayload.targetLocales,
+      });
       const [job] = await db.transaction(async (tx) => {
         const sourceFileVersion =
           payload.type === "file"
@@ -460,6 +487,8 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             createdByUserId: c.var.auth.user.localUserId,
+            ownerUserId: defaultAssignee?.userId ?? null,
+            assigneeRole: defaultAssignee ? "translator" : null,
             kind: "translation",
             status: "queued",
             inputPayload,
@@ -645,6 +674,10 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
     .use("*", workosAuthMiddleware)
     .get("/", validateJobListQuery, async (c) => {
       const query = c.req.valid("query");
+      if (query.reviewQueue && !hasCapability(c.var.auth.membership.role, "reviews:read")) {
+        return forbiddenResponse(c);
+      }
+
       const jobs = await listOrganizationJobs(c.var.auth, query);
       return c.json({ jobs }, 200);
     })
@@ -658,6 +691,44 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
 
       return c.json({ job: await enrichProviderBackedJob(job) }, 200);
     })
+    .patch(
+      "/:jobId/assignment",
+      validateWorkspaceJobParams,
+      validateUpdateJobAssignmentBody,
+      async (c) => {
+        if (!isJobMutationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const payload = c.req.valid("json");
+        const result = await updateJobAssignment({
+          auth: c.var.auth,
+          jobId: params.jobId,
+          assigneeWorkosUserId: payload.assigneeWorkosUserId,
+          assigneeRole: payload.assigneeRole,
+        });
+
+        if (isErr(result)) {
+          if (result.error.code === "job_not_found") {
+            return notFoundResponse(c, "job_not_found", "Job not found");
+          }
+
+          if (result.error.code === "assignee_not_found") {
+            return notFoundResponse(c, "assignee_not_found", "Assignee is not a workspace member");
+          }
+
+          return badRequestResponse(c, result.error.code, "Invalid job assignment");
+        }
+
+        const job = await getOrganizationJobById(c.var.auth, params.jobId);
+        if (!job) {
+          return notFoundResponse(c, "job_not_found", "Job not found");
+        }
+
+        return c.json({ job: await enrichProviderBackedJob(job) }, 200);
+      },
+    )
     .get("/:jobId/agent-runs", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");
       const organizationId = c.var.auth.organization.localOrganizationId;

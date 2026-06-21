@@ -7,6 +7,7 @@ import type {
   memories,
   jobs,
   jobKindEnum,
+  jobAssigneeRoleEnum,
   jobStatusEnum,
   llmProviderEnum,
   mcpOAuthClients,
@@ -51,6 +52,7 @@ export type NewProject = typeof projects.$inferInsert;
 export type Job = typeof jobs.$inferSelect;
 export type NewJob = typeof jobs.$inferInsert;
 export type JobKind = (typeof jobKindEnum.enumValues)[number];
+export type JobAssigneeRole = (typeof jobAssigneeRoleEnum.enumValues)[number];
 export type JobStatus = (typeof jobStatusEnum.enumValues)[number];
 export type TranslationJobDetails = typeof translationJobDetails.$inferSelect;
 export type NewTranslationJobDetails = typeof translationJobDetails.$inferInsert;

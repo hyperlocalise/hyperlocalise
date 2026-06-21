@@ -53,6 +53,8 @@ async function insertNativeJob(input: {
   projectId: string;
   createdByUserId?: string | null;
   ownerUserId?: string | null;
+  assigneeRole?: "translator" | "reviewer" | null;
+  status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
 }) {
   return db
     .insert(schema.jobs)
@@ -62,8 +64,9 @@ async function insertNativeJob(input: {
       projectId: input.projectId,
       createdByUserId: input.createdByUserId ?? null,
       ownerUserId: input.ownerUserId ?? null,
+      assigneeRole: input.assigneeRole ?? null,
       kind: "translation",
-      status: "queued",
+      status: input.status ?? "queued",
       inputPayload: {
         sourceText: "Hello",
         sourceLocale: "en-US",
@@ -382,5 +385,81 @@ describe("workspace job list", () => {
 
     expect(createdProjectIds).toEqual([alphaProjectBody.project.id]);
     expect(createdProjectIds).not.toContain(betaProjectBody.project.id);
+  });
+
+  it("updates native job assignment", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const [job] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs[":jobId"].assignment.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          jobId: job.id,
+        },
+        json: {
+          assigneeWorkosUserId: identity.user.workosUserId,
+          assigneeRole: "reviewer",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as {
+      job: { ownerUserId: string; assigneeRole: string };
+    };
+    expect(body.job.ownerUserId).toBe(user.id);
+    expect(body.job.assigneeRole).toBe("reviewer");
+  });
+
+  it("lists review queue jobs scoped to assigned reviewers", async () => {
+    const { identity, organization, project, user } =
+      await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+
+    const [assignedReviewJob] = await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      ownerUserId: user.id,
+      assigneeRole: "reviewer",
+      status: "waiting_for_review",
+    });
+    await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      status: "waiting_for_review",
+    });
+    await insertNativeJob({
+      organizationId: organization.id,
+      projectId: project.id,
+      ownerUserId: user.id,
+      assigneeRole: "translator",
+      status: "waiting_for_review",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].jobs.$get(
+      {
+        param: { organizationSlug: identity.organization.slug ?? "missing-slug" },
+        query: {
+          reviewQueue: true,
+          relationship: "assigned",
+          assigneeRole: "reviewer",
+          status: "waiting_for_review",
+          limit: "100",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as WorkspaceJobsResponse;
+    expect(body.jobs.map((job) => job.id)).toEqual([assignedReviewJob.id]);
   });
 });

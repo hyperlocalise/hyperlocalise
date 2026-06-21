@@ -54,6 +54,10 @@ export type ApiJob = {
   id: string;
   projectId: string | null;
   createdByUserId: string | null;
+  ownerUserId?: string | null;
+  assigneeRole?: "translator" | "reviewer" | null;
+  ownerDisplayName?: string | null;
+  ownerEmail?: string | null;
   kind: "translation" | "research" | "review" | "sync" | "asset_management";
   type: "string" | "file" | null;
   status: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
@@ -189,7 +193,9 @@ function targetLocales(job: ApiJob) {
 
 function assignees(job: ApiJob) {
   if (job.externalAssignedUsers?.length) return job.externalAssignedUsers.join(", ");
-  return "—";
+  if (!job.ownerUserId) return "—";
+  const name = job.ownerDisplayName ?? job.ownerEmail ?? "Assigned";
+  return job.assigneeRole ? `${name} (${job.assigneeRole})` : name;
 }
 
 function formatJobName(value: string) {

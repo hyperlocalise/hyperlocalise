@@ -37,6 +37,7 @@ import {
   useProjectPageQuery,
 } from "../../_components/project-page-shell";
 import { ProjectNativeConnectCliPanel } from "./project-native-connect-cli-panel";
+import { ProjectLocaleAssignmentsSection } from "./project-locale-assignments-section";
 
 const providerLabels: Record<NonNullable<ProjectListRow["externalProviderKind"]>, string> = {
   crowdin: "Crowdin",
@@ -358,6 +359,14 @@ export function ProjectSettingsPageContent({
         </section>
 
         <ProjectSourceDetails project={project} />
+
+        {project.source === "native" ? (
+          <ProjectLocaleAssignmentsSection
+            canEdit={settingsEditable}
+            organizationSlug={organizationSlug}
+            project={project}
+          />
+        ) : null}
 
         {project.source === "native" ? (
           <ProjectNativeConnectCliPanel organizationSlug={organizationSlug} projectId={projectId} />

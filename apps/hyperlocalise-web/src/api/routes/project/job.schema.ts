@@ -65,6 +65,10 @@ export const jobListQuerySchema = z.object({
   status: z.enum(schema.jobStatusEnum.enumValues).optional(),
   open: z.coerce.boolean().optional(),
   relationship: z.enum(["assigned", "created"]).optional(),
+  assigneeRole: z.enum(schema.jobAssigneeRoleEnum.enumValues).optional(),
+  projectId: projectIdSchema.optional(),
+  locale: z.string().trim().min(1).max(32).optional(),
+  reviewQueue: z.coerce.boolean().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 
@@ -75,6 +79,9 @@ export const jobRecordSchema = z
     projectId: z.string().nullable(),
     createdByUserId: z.string().nullable(),
     ownerUserId: z.string().nullable(),
+    assigneeRole: z.enum(schema.jobAssigneeRoleEnum.enumValues).nullable(),
+    ownerDisplayName: z.string().nullable().optional(),
+    ownerEmail: z.string().nullable().optional(),
     kind: z.enum(schema.jobKindEnum.enumValues),
     type: z.enum(schema.translationJobTypeEnum.enumValues).nullable(),
     status: z.enum(schema.jobStatusEnum.enumValues),

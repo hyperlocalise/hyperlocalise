@@ -79,8 +79,12 @@ Finer boundaries are layered separately:
 
 - **Team membership** (`team_memberships.role`: `manager` | `member`) limits
   which projects and resources appear in listings.
-- **Project / job / locale assignment** (future) further restricts translators
-  to assigned work even when org capabilities would allow broader reads.
+- **Project / job / locale assignment** restricts translators and reviewers to
+  assigned work. Native jobs store `ownerUserId` and `assigneeRole`
+  (`translator` | `reviewer`). Projects can define default locale assignments via
+  `project_locale_assignments`, applied when new translation jobs are created.
+  The review queue (`/review-queue`) lists jobs in `waiting_for_review` status,
+  filterable by project, locale, and assignee.
 
 `bun run workos:setup` also syncs WorkOS environment permissions (additive) so
 role slugs in the WorkOS dashboard mirror the capability slugs below.

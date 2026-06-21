@@ -89,6 +89,7 @@ import {
   unsupportedProjectFileResponse,
 } from "./project.shared";
 import { createJobRoutes } from "./job.route";
+import { createProjectLocaleAssignmentRoutes } from "./project-locale-assignment.route";
 import { generateCatAiRecommendation } from "@/lib/translation/generate-cat-ai-recommendation";
 import { loadCatSegmentConcordance } from "@/lib/translation/load-cat-segment-concordance";
 import { loadCatSegmentVisualContext } from "@/lib/translation/load-cat-segment-visual-context";
@@ -502,6 +503,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue, providerSyncQueue }))
+    .route("/:projectId/locale-assignments", createProjectLocaleAssignmentRoutes())
     .get(
       "/:projectId/files/detail/cat",
       validateProjectParams,

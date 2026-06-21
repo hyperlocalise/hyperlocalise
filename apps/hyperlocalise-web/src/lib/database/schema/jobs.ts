@@ -12,6 +12,7 @@ import {
 
 import {
   externalTmsProviderKindEnum,
+  jobAssigneeRoleEnum,
   jobKindEnum,
   jobStatusEnum,
   translationJobOutcomeKindEnum,
@@ -43,8 +44,10 @@ export const jobs = pgTable(
     createdByUserId: uuid("created_by_user_id").references(() => users.id, {
       onDelete: "set null",
     }),
-    // Owner assigned for review or human oversight.
+    // Owner assigned for translation or review work.
     ownerUserId: uuid("owner_user_id").references(() => users.id, { onDelete: "set null" }),
+    // Whether the owner is assigned as a translator or reviewer.
+    assigneeRole: jobAssigneeRoleEnum("assignee_role"),
     // High-level job category used by routing, workers, and workspace job lists.
     kind: jobKindEnum("kind").notNull(),
     // App-level lifecycle state mirrored into Postgres for UI/API reads.
@@ -84,6 +87,7 @@ export const jobs = pgTable(
     index("idx_jobs_project_created_at").on(table.projectId, table.createdAt),
     index("idx_jobs_created_by_user_id").on(table.createdByUserId),
     index("idx_jobs_owner_user_id").on(table.ownerUserId),
+    index("idx_jobs_assignee_role").on(table.assigneeRole),
     index("idx_jobs_kind_status").on(table.kind, table.status),
     index("idx_jobs_workflow_run_id").on(table.workflowRunId),
     index("idx_jobs_status").on(table.status),

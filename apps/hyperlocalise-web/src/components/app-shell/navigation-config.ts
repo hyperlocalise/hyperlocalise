@@ -15,6 +15,7 @@ import {
   Task01Icon,
   UserMultiple02Icon,
   WorkHistoryIcon,
+  CheckmarkCircle02Icon,
 } from "@hugeicons/core-free-icons";
 import type { HugeiconsIcon } from "@hugeicons/react";
 
@@ -63,6 +64,12 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           label: "My Jobs",
           href: org("my-work"),
           icon: WorkHistoryIcon,
+        },
+        {
+          label: "Review queue",
+          href: org("review-queue"),
+          icon: CheckmarkCircle02Icon,
+          description: "Jobs waiting for reviewer approval",
         },
         {
           label: "Overview",

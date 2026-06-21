@@ -34,6 +34,10 @@ export const translationJobOutcomeKindEnum = pgEnum("translation_job_outcome_kin
   "error",
 ]);
 /**
+ * Distinguishes whether a job owner is assigned as a translator or reviewer.
+ */
+export const jobAssigneeRoleEnum = pgEnum("job_assignee_role", ["translator", "reviewer"]);
+/**
  * Defines workspace-level authorization roles for organization memberships.
  * Role slugs are mirrored 1:1 in WorkOS; capability checks use `api/auth/policy.ts`.
  */

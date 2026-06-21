@@ -1,12 +1,16 @@
-import { and, desc, eq, inArray, isNull, ne, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, ne, or, sql, type SQL } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { buildAccessibleJobsWhere, buildOrganizationJobsListWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
+import type { JobAssigneeRole } from "@/lib/database/types";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
 import { providerAssignedUsersMatch } from "@/lib/providers/tms-provider-assignee-match";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
+
+const ownerUser = alias(schema.users, "owner_user");
 
 const jobWithProjectSelect = {
   id: schema.jobs.id,
@@ -14,6 +18,10 @@ const jobWithProjectSelect = {
   projectId: schema.jobs.projectId,
   createdByUserId: schema.jobs.createdByUserId,
   ownerUserId: schema.jobs.ownerUserId,
+  assigneeRole: schema.jobs.assigneeRole,
+  ownerEmail: ownerUser.email,
+  ownerFirstName: ownerUser.firstName,
+  ownerLastName: ownerUser.lastName,
   kind: schema.jobs.kind,
   type: schema.translationJobDetails.type,
   status: schema.jobs.status,
@@ -57,8 +65,64 @@ type JobListQuery = {
   status?: "queued" | "running" | "succeeded" | "failed" | "waiting_for_review" | "cancelled";
   open?: boolean;
   relationship?: "assigned" | "created";
+  assigneeRole?: JobAssigneeRole;
+  projectId?: string;
+  locale?: string;
+  reviewQueue?: boolean;
   limit: number;
 };
+
+function formatOwnerDisplayName(input: {
+  ownerFirstName: string | null;
+  ownerLastName: string | null;
+  ownerEmail: string | null;
+}) {
+  const parts = [input.ownerFirstName, input.ownerLastName].filter(Boolean);
+  if (parts.length > 0) {
+    return parts.join(" ");
+  }
+
+  return input.ownerEmail;
+}
+
+function mapJobRow<
+  T extends {
+    ownerFirstName: string | null;
+    ownerLastName: string | null;
+    ownerEmail: string | null;
+  },
+>(
+  row: T,
+): Omit<T, "ownerFirstName" | "ownerLastName"> & {
+  ownerDisplayName: string | null;
+  ownerEmail: string | null;
+} {
+  const ownerDisplayName = formatOwnerDisplayName({
+    ownerFirstName: row.ownerFirstName,
+    ownerLastName: row.ownerLastName,
+    ownerEmail: row.ownerEmail,
+  });
+
+  const { ownerFirstName: _ownerFirstName, ownerLastName: _ownerLastName, ...rest } = row;
+
+  return {
+    ...rest,
+    ownerDisplayName: ownerDisplayName ?? null,
+    ownerEmail: row.ownerEmail ?? null,
+  };
+}
+
+function jobLocaleFilter(locale: string): SQL {
+  return or(
+    eq(schema.reviewJobDetails.targetLocale, locale),
+    sql`exists (
+      select 1
+      from jsonb_array_elements_text(${schema.jobs.inputPayload}->'targetLocales') as target(locale)
+      where target.locale = ${locale}
+    )`,
+    sql`${schema.externalJobDetails.targetLocales} @> ${JSON.stringify([locale])}::jsonb`,
+  )!;
+}
 
 function jobListFilters(input: {
   kind?: JobListQuery["kind"];
@@ -66,6 +130,10 @@ function jobListFilters(input: {
   status?: JobListQuery["status"];
   open?: JobListQuery["open"];
   relationship?: JobListQuery["relationship"];
+  assigneeRole?: JobAssigneeRole;
+  projectId?: string;
+  locale?: string;
+  reviewQueue?: boolean;
   userId?: string;
   providerAssigneeCandidates?: string[];
 }) {
@@ -85,6 +153,27 @@ function jobListFilters(input: {
     filters.push(eq(schema.jobs.status, input.status));
   }
 
+  if (input.assigneeRole) {
+    filters.push(eq(schema.jobs.assigneeRole, input.assigneeRole));
+  }
+
+  if (input.projectId) {
+    filters.push(eq(schema.jobs.projectId, input.projectId));
+  }
+
+  if (input.locale) {
+    filters.push(jobLocaleFilter(input.locale));
+  }
+
+  if (input.reviewQueue) {
+    filters.push(
+      or(
+        eq(schema.jobs.status, "waiting_for_review"),
+        and(eq(schema.jobs.kind, "review"), inArray(schema.jobs.status, [...openJobStatusValues])),
+      )!,
+    );
+  }
+
   if (input.userId) {
     const relationship = input.relationship;
     const assignedFilter = or(
@@ -101,6 +190,50 @@ function jobListFilters(input: {
   }
 
   return filters;
+}
+
+function buildJobSelectQuery(database: typeof db) {
+  return database
+    .select(jobWithProjectSelect)
+    .from(schema.jobs)
+    .leftJoin(
+      schema.projects,
+      and(
+        eq(schema.projects.id, schema.jobs.projectId),
+        eq(schema.projects.organizationId, schema.jobs.organizationId),
+      ),
+    )
+    .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+    .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
+    .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
+    .leftJoin(
+      schema.assetManagementJobDetails,
+      eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
+    )
+    .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
+    .leftJoin(ownerUser, eq(ownerUser.id, schema.jobs.ownerUserId));
+}
+
+function buildJobListFilterInput(
+  query: JobListQuery,
+  input: {
+    userId?: string;
+    providerAssigneeCandidates?: string[];
+  } = {},
+) {
+  return jobListFilters({
+    kind: query.kind,
+    type: query.type,
+    status: query.status,
+    open: query.open,
+    relationship: query.relationship,
+    assigneeRole: query.assigneeRole,
+    projectId: query.projectId,
+    locale: query.locale,
+    reviewQueue: query.reviewQueue,
+    userId: input.userId,
+    providerAssigneeCandidates: input.providerAssigneeCandidates,
+  });
 }
 
 function visibleSyncedJobConditions() {
@@ -125,27 +258,7 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
         ? await getCurrentUserProviderAssigneeCandidates(auth)
         : undefined;
 
-    const jobs = await this.database
-      .select(jobWithProjectSelect)
-      .from(schema.jobs)
-      .leftJoin(
-        schema.translationJobDetails,
-        eq(schema.translationJobDetails.jobId, schema.jobs.id),
-      )
-      .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
-      .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
-      .leftJoin(
-        schema.assetManagementJobDetails,
-        eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
-      )
-      .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-      .leftJoin(
-        schema.projects,
-        and(
-          eq(schema.projects.id, schema.jobs.projectId),
-          eq(schema.projects.organizationId, schema.jobs.organizationId),
-        ),
-      )
+    const jobs = await buildJobSelectQuery(this.database)
       .where(
         and(
           await buildOrganizationJobsListWhere(auth, {
@@ -153,11 +266,12 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
             providerAssigneeCandidates,
           }),
           ...visibleSyncedJobConditions(),
-          ...jobListFilters({
-            kind: query.kind,
-            type: query.type,
-            status: query.status,
-            open: query.open,
+          ...buildJobListFilterInput(query, {
+            userId:
+              query.relationship === "assigned" || query.relationship === "created"
+                ? auth.user.localUserId
+                : undefined,
+            providerAssigneeCandidates,
           }),
         ),
       )
@@ -173,7 +287,7 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
       "listed organization jobs",
     );
 
-    return jobs;
+    return jobs.map((job) => mapJobRow(job));
   }
 
   async listForProject(auth: ApiAuthContext, projectId: string, query: JobListQuery) {
@@ -182,38 +296,13 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
         ? await getCurrentUserProviderAssigneeCandidates(auth)
         : undefined;
 
-    const jobs = await this.database
-      .select(jobWithProjectSelect)
-      .from(schema.jobs)
-      .leftJoin(
-        schema.translationJobDetails,
-        eq(schema.translationJobDetails.jobId, schema.jobs.id),
-      )
-      .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
-      .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
-      .leftJoin(
-        schema.assetManagementJobDetails,
-        eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
-      )
-      .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-      .leftJoin(
-        schema.projects,
-        and(
-          eq(schema.projects.id, schema.jobs.projectId),
-          eq(schema.projects.organizationId, schema.jobs.organizationId),
-        ),
-      )
+    const jobs = await buildJobSelectQuery(this.database)
       .where(
         and(
           eq(schema.jobs.organizationId, auth.organization.localOrganizationId),
           eq(schema.jobs.projectId, projectId),
           ...visibleSyncedJobConditions(),
-          ...jobListFilters({
-            kind: query.kind,
-            type: query.type,
-            status: query.status,
-            open: query.open,
-            relationship: query.relationship,
+          ...buildJobListFilterInput(query, {
             userId: auth.user.localUserId,
             providerAssigneeCandidates,
           }),
@@ -232,31 +321,11 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
       "listed organization project jobs",
     );
 
-    return jobs;
+    return jobs.map((job) => mapJobRow(job));
   }
 
   async getById(auth: ApiAuthContext, jobId: string) {
-    const [job] = await this.database
-      .select(jobWithProjectSelect)
-      .from(schema.jobs)
-      .leftJoin(
-        schema.translationJobDetails,
-        eq(schema.translationJobDetails.jobId, schema.jobs.id),
-      )
-      .leftJoin(schema.reviewJobDetails, eq(schema.reviewJobDetails.jobId, schema.jobs.id))
-      .leftJoin(schema.syncJobDetails, eq(schema.syncJobDetails.jobId, schema.jobs.id))
-      .leftJoin(
-        schema.assetManagementJobDetails,
-        eq(schema.assetManagementJobDetails.jobId, schema.jobs.id),
-      )
-      .leftJoin(schema.externalJobDetails, eq(schema.externalJobDetails.jobId, schema.jobs.id))
-      .leftJoin(
-        schema.projects,
-        and(
-          eq(schema.projects.id, schema.jobs.projectId),
-          eq(schema.projects.organizationId, schema.jobs.organizationId),
-        ),
-      )
+    const [job] = await buildJobSelectQuery(this.database)
       .where(and(await buildAccessibleJobsWhere(auth), eq(schema.jobs.id, jobId)))
       .limit(1);
 
@@ -268,7 +337,7 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
       return null;
     }
 
-    return job;
+    return mapJobRow(job);
   }
 }
 
