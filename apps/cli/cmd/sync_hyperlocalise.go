@@ -13,6 +13,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"net/textproto"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -123,6 +124,11 @@ func (e *hyperlocaliseAPIError) Error() string {
 	return fmt.Sprintf("hyperlocalise api returned %d: %s", e.StatusCode, strings.TrimSpace(e.Body))
 }
 
+func isHyperlocaliseNotFound(err error) bool {
+	var apiErr *hyperlocaliseAPIError
+	return errors.As(err, &apiErr) && apiErr.StatusCode == http.StatusNotFound
+}
+
 type hyperlocaliseUploadFileResponse struct {
 	File struct {
 		ID string `json:"id"`
@@ -159,7 +165,7 @@ type hyperlocaliseOutputFile struct {
 	Filename string `json:"filename"`
 }
 
-func newHyperlocaliseSyncRuntime(configPath, manifestOverride string) (*hyperlocaliseSyncRuntime, error) {
+func newHyperlocaliseSyncRuntime(configPath, manifestOverride string, requireManifest bool) (*hyperlocaliseSyncRuntime, error) {
 	cfg, err := config.Load(configPath)
 	if err != nil {
 		return nil, err
@@ -186,7 +192,7 @@ func newHyperlocaliseSyncRuntime(configPath, manifestOverride string) (*hyperloc
 	if manifestPath == "" {
 		manifestPath = strings.TrimSpace(cfg.Hyperlocalise.ManifestPath)
 	}
-	if manifestPath == "" {
+	if requireManifest && manifestPath == "" {
 		return nil, fmt.Errorf("hyperlocalise manifest path is required")
 	}
 
@@ -287,9 +293,12 @@ func runHyperlocalisePush(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 }
 
 func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions, timeout time.Duration) (hyperlocalisePullReport, error) {
-	manifest, err := readHyperlocaliseManifest(rt.manifestPath)
+	manifest, hasManifest, err := readHyperlocaliseManifestIfPresent(rt.manifestPath)
 	if err != nil {
 		return hyperlocalisePullReport{}, err
+	}
+	if !hasManifest {
+		return runHyperlocalisePullLatest(ctx, rt, o)
 	}
 	if !manifest.Complete {
 		return hyperlocalisePullReport{}, fmt.Errorf("hyperlocalise manifest is incomplete; rerun sync push before pulling")
@@ -363,6 +372,108 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 	}
 
 	return report, nil
+}
+
+func runHyperlocalisePullLatest(ctx context.Context, rt *hyperlocaliseSyncRuntime, o syncCommonOptions) (hyperlocalisePullReport, error) {
+	plans, err := planHyperlocaliseFilesWithOptions(rt.cfg, o.locales, false)
+	if err != nil {
+		return hyperlocalisePullReport{}, err
+	}
+
+	report := hyperlocalisePullReport{
+		Action:       "pull",
+		Complete:     true,
+		Jobs:         len(plans),
+		ManifestPath: rt.manifestPath,
+		DryRun:       o.dryRun,
+	}
+
+	for _, plan := range plans {
+		job, err := rt.client.getLatestJob(ctx, rt.projectID, plan.SourcePath)
+		if err != nil {
+			if isHyperlocaliseNotFound(err) {
+				downloaded, skipped, downloadErr := rt.downloadTranslationExportsForPlan(ctx, plan, o)
+				report.Downloaded += downloaded
+				report.Skipped += skipped
+				if downloadErr != nil {
+					return report, downloadErr
+				}
+				continue
+			}
+			return report, fmt.Errorf("latest job for source %q: %w", plan.SourcePath, err)
+		}
+		if job.Status != "succeeded" {
+			downloaded, skipped, downloadErr := rt.downloadTranslationExportsForPlan(ctx, plan, o)
+			report.Downloaded += downloaded
+			report.Skipped += skipped
+			if downloadErr != nil {
+				return report, downloadErr
+			}
+			continue
+		}
+
+		outcome, err := parseHyperlocaliseFileOutcome(job)
+		if err != nil {
+			return report, err
+		}
+
+		for _, outputFile := range outcome.OutputFiles {
+			targetPath := strings.TrimSpace(plan.TargetPaths[outputFile.Locale])
+			if targetPath == "" {
+				report.Skipped++
+				continue
+			}
+			resolvedTargetPath, err := rt.resolveManifestTargetPath(targetPath)
+			if err != nil {
+				return report, fmt.Errorf("target path for locale %q: %w", outputFile.Locale, err)
+			}
+			if o.dryRun {
+				report.Downloaded++
+				continue
+			}
+			content, err := rt.client.downloadFile(ctx, outputFile.FileID)
+			if err != nil {
+				return report, fmt.Errorf("download output file %s for source %q: %w", outputFile.FileID, plan.SourcePath, err)
+			}
+			if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+				return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
+			}
+			report.Downloaded++
+		}
+	}
+
+	return report, nil
+}
+
+func (rt *hyperlocaliseSyncRuntime) downloadTranslationExportsForPlan(ctx context.Context, plan hyperlocaliseFilePlan, o syncCommonOptions) (downloaded, skipped int, err error) {
+	for _, locale := range plan.TargetLocales {
+		targetPath := strings.TrimSpace(plan.TargetPaths[locale])
+		if targetPath == "" {
+			skipped++
+			continue
+		}
+		resolvedTargetPath, err := rt.resolveManifestTargetPath(targetPath)
+		if err != nil {
+			return downloaded, skipped, fmt.Errorf("target path for locale %q: %w", locale, err)
+		}
+		if o.dryRun {
+			downloaded++
+			continue
+		}
+		content, err := rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
+		if err != nil {
+			if isHyperlocaliseNotFound(err) {
+				skipped++
+				continue
+			}
+			return downloaded, skipped, fmt.Errorf("download translation export for source %q locale %q: %w", plan.SourcePath, locale, err)
+		}
+		if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+			return downloaded, skipped, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
+		}
+		downloaded++
+	}
+	return downloaded, skipped, nil
 }
 
 func (rt *hyperlocaliseSyncRuntime) resolveManifestTargetPath(targetPath string) (string, error) {
@@ -720,12 +831,62 @@ func hyperlocaliseJobMetadata(plan hyperlocaliseFilePlan) map[string]string {
 	return metadata
 }
 
+func (c *hyperlocaliseAPIClient) getLatestJob(ctx context.Context, projectID, sourcePath string) (hyperlocaliseJob, error) {
+	query := url.Values{}
+	query.Set("projectId", projectID)
+	query.Set("sourcePath", sourcePath)
+
+	var response hyperlocaliseJobResponse
+	path := "/v1/jobs/latest?" + query.Encode()
+	if err := c.doJSON(ctx, http.MethodGet, path, "", nil, &response); err != nil {
+		return hyperlocaliseJob{}, err
+	}
+	return response.Job, nil
+}
+
 func (c *hyperlocaliseAPIClient) getJob(ctx context.Context, jobID string) (hyperlocaliseJob, error) {
 	var response hyperlocaliseJobResponse
 	if err := c.doJSON(ctx, http.MethodGet, "/v1/jobs/"+jobID, "", nil, &response); err != nil {
 		return hyperlocaliseJob{}, err
 	}
 	return response.Job, nil
+}
+
+func (c *hyperlocaliseAPIClient) downloadTranslationExport(ctx context.Context, projectID, sourcePath, locale string) ([]byte, error) {
+	query := url.Values{}
+	query.Set("sourcePath", sourcePath)
+	query.Set("locale", locale)
+
+	req, err := http.NewRequestWithContext(
+		ctx,
+		http.MethodGet,
+		c.baseURL+"/v1/projects/"+url.PathEscape(projectID)+"/translations/download?"+query.Encode(),
+		nil,
+	)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("x-api-key", c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
+		return nil, &hyperlocaliseAPIError{StatusCode: resp.StatusCode, Body: string(body)}
+	}
+
+	content, err := io.ReadAll(io.LimitReader(resp.Body, hyperlocaliseMaxDownloadBytes+1))
+	if err != nil {
+		return nil, err
+	}
+	if int64(len(content)) > hyperlocaliseMaxDownloadBytes {
+		return nil, fmt.Errorf("downloaded translation export exceeds maximum size of %d bytes", hyperlocaliseMaxDownloadBytes)
+	}
+	return content, nil
 }
 
 func (c *hyperlocaliseAPIClient) downloadFile(ctx context.Context, fileID string) ([]byte, error) {
@@ -861,6 +1022,25 @@ func writeHyperlocaliseManifest(path string, manifest hyperlocaliseSyncManifest)
 	}
 	content = append(content, '\n')
 	return writeFileAtomic(path, content)
+}
+
+func readHyperlocaliseManifestIfPresent(path string) (hyperlocaliseSyncManifest, bool, error) {
+	trimmed := strings.TrimSpace(path)
+	if trimmed == "" {
+		return hyperlocaliseSyncManifest{}, false, nil
+	}
+	if _, err := os.Stat(trimmed); err != nil {
+		if os.IsNotExist(err) {
+			return hyperlocaliseSyncManifest{}, false, nil
+		}
+		return hyperlocaliseSyncManifest{}, false, fmt.Errorf("stat hyperlocalise manifest %q: %w", trimmed, err)
+	}
+
+	manifest, err := readHyperlocaliseManifest(trimmed)
+	if err != nil {
+		return hyperlocaliseSyncManifest{}, false, err
+	}
+	return manifest, true, nil
 }
 
 func readHyperlocaliseManifest(path string) (hyperlocaliseSyncManifest, error) {

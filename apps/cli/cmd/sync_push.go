@@ -18,7 +18,7 @@ func newSyncPushCmd() *cobra.Command {
 			if forceConflicts {
 				return fmt.Errorf("sync push through Hyperlocalise jobs does not support --force-conflicts")
 			}
-			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath)
+			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath, true)
 			if err != nil {
 				return fmt.Errorf("initialize sync runtime: %w", err)
 			}

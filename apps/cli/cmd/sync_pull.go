@@ -13,10 +13,10 @@ func newSyncPullCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:          "pull",
-		Short:        "pull completed Hyperlocalise job outputs",
+		Short:        "download completed Hyperlocalise translation files",
 		SilenceUsage: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath)
+			rt, err := newHyperlocaliseSyncRuntime(o.configPath, o.manifestPath, false)
 			if err != nil {
 				return fmt.Errorf("initialize sync runtime: %w", err)
 			}

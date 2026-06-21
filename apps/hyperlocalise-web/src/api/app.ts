@@ -33,6 +33,7 @@ import { createProjectRoutes } from "./routes/project/project.route";
 import { createProviderCredentialRoutes } from "./routes/provider-credential/provider-credential.route";
 import { createPublicFileRoutes } from "./routes/public-files/public-files.route";
 import { createPublicJobRoutes } from "./routes/public-jobs/public-jobs.route";
+import { createPublicTranslationRoutes } from "./routes/public-translations/public-translations.route";
 import { createResendWebhookRoutes } from "./routes/resend-webhook/resend-webhook.route";
 import { createSlackOAuthRoutes } from "./routes/slack-oauth/slack-oauth.route";
 import { createSlackWebhookRoutes } from "./routes/slack-webhook/slack-webhook.route";
@@ -186,7 +187,8 @@ function createPublicApiRoutes(
 ) {
   return new Hono()
     .route("/files", createPublicFileRoutes({ fileStorageAdapter: options.fileStorageAdapter }))
-    .route("/jobs", createPublicJobRoutes(options));
+    .route("/jobs", createPublicJobRoutes(options))
+    .route("/projects", createPublicTranslationRoutes());
 }
 
 function createWebhookRoutes(options: CreateAppOptions) {

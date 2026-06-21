@@ -120,7 +120,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
     organizationId: string;
     projectId: string;
     repositorySourceFileId: string;
-    sourceFileVersionId: string;
+    sourceFileVersionId?: string | null;
     entries: ProjectSourceStringEntry[];
   }) {
     const entries = input.entries
@@ -175,7 +175,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
           normalizedSourceText: entry.normalizedSourceText,
           context: entry.context,
           type: entry.type,
-          sourceFileVersionId: input.sourceFileVersionId,
+          sourceFileVersionId: input.sourceFileVersionId ?? null,
         })),
       )
       .onConflictDoUpdate({
