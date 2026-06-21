@@ -1,1 +1,4 @@
 packages: []
+
+overrides:
+  "undici@^7.0.0": "7.28.0"
