@@ -137,4 +137,92 @@ describe("publicTranslationRoutes", () => {
     const body = (await response.json()) as { error: string };
     expect(body.error).toBe("source_file_not_found");
   });
+
+  it("returns 404 when source keys exist but no translations are ready", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: [...defaultApiKeyPermissions] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+    const sourcePath = "lang/en-pending.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath, locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(404);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("translations_not_found");
+  });
+
+  it("exports every source key while preserving translated values", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: [...defaultApiKeyPermissions] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+    const sourcePath = "lang/en-partial.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [
+        { key: "greeting", text: "Hello", context: null },
+        { key: "farewell", text: "Goodbye", context: null },
+      ],
+    });
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+
+    await db.insert(schema.projectTranslations).values({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      translationKeyId: translationKey.id,
+      targetLocale: "fr",
+      text: "Bonjour",
+      status: "approved",
+      provenance: "import",
+    });
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath, locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(200);
+    const content = await response.text();
+    expect(JSON.parse(content)).toEqual({
+      greeting: "Bonjour",
+      farewell: "Goodbye",
+    });
+  });
 });

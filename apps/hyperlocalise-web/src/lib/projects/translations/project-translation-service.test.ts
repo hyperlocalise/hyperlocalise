@@ -82,6 +82,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       truncated: false,
       loadedKeyCount: 0,
       maxKeyCount: 5_000,
+      translatedKeyCount: 0,
     });
     expect(selectMock).toHaveBeenCalledTimes(1);
   });
@@ -126,6 +127,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
       truncated: false,
       loadedKeyCount: 3,
       maxKeyCount: 5_000,
+      translatedKeyCount: 2,
     });
     expect(selectMock).toHaveBeenCalledTimes(3);
   });
@@ -164,6 +166,46 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.prefilled).toEqual({});
     expect(result.truncated).toBe(false);
     expect(result.loadedKeyCount).toBe(1);
+    expect(result.translatedKeyCount).toBe(0);
+  });
+
+  it("exports every source key with source fallback when includeAllSourceKeys is enabled", async () => {
+    repoLimitMock.mockResolvedValueOnce([{ id: "repo_file_1", sourcePath: "locales/en.json" }]);
+    offsetMock.mockResolvedValueOnce([
+      { id: "key_1", key: "greeting", sourceText: "Hello" },
+      { id: "key_2", key: "farewell", sourceText: "Goodbye" },
+      { id: "key_3", key: "empty", sourceText: "Pending" },
+    ]);
+
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(() => ({
+      limit: repoLimitMock,
+      orderBy: orderByMock,
+    }));
+    whereMock.mockImplementationOnce(
+      () =>
+        Promise.resolve([
+          { id: "translation_1", translationKeyId: "key_1", text: "Bonjour", status: "approved" },
+        ]) as unknown as { limit: typeof repoLimitMock; orderBy: typeof orderByMock },
+    );
+
+    const result = await loadProjectTranslationsAsPrefilledEntries({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      includeAllSourceKeys: true,
+    });
+
+    expect(result.prefilled).toEqual({
+      greeting: "Bonjour",
+      farewell: "Goodbye",
+      empty: "Pending",
+    });
+    expect(result.translatedKeyCount).toBe(1);
   });
 
   it("reports truncation when the source file exceeds the prefill key cap", async () => {
@@ -202,6 +244,7 @@ describe("loadProjectTranslationsAsPrefilledEntries", () => {
     expect(result.truncated).toBe(true);
     expect(result.loadedKeyCount).toBe(5_000);
     expect(result.maxKeyCount).toBe(5_000);
+    expect(result.translatedKeyCount).toBe(0);
     expect(Object.keys(result.prefilled)).toHaveLength(0);
   });
 });

@@ -1023,6 +1023,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           projectId: params.projectId,
           sourcePath: query.sourcePath,
           targetLocale: query.locale,
+          includeAllSourceKeys: true,
         });
 
         if (result.truncated) {
@@ -1030,6 +1031,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             c,
             "source_file_too_large",
             `Translation export exceeds the ${result.maxKeyCount} key limit.`,
+          );
+        }
+
+        if (result.translatedKeyCount === 0) {
+          return notFoundResponse(
+            c,
+            "translations_not_found",
+            "No translations are available for this source file and locale.",
           );
         }
 

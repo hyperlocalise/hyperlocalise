@@ -22,6 +22,7 @@ import {
   projectNotFoundResponse,
   sourceFileNotFoundResponse,
   sourceFileTooLargeResponse,
+  translationsNotFoundResponse,
 } from "./public-translations.shared";
 
 const validateProjectParams = validator("param", (value, c) => {
@@ -82,10 +83,15 @@ export function createPublicTranslationRoutes() {
           projectId: project.id,
           sourcePath: query.sourcePath,
           targetLocale: query.locale,
+          includeAllSourceKeys: true,
         });
 
         if (result.truncated) {
           return sourceFileTooLargeResponse(c, result.maxKeyCount);
+        }
+
+        if (result.translatedKeyCount === 0) {
+          return translationsNotFoundResponse(c);
         }
 
         const content = JSON.stringify(result.prefilled, null, 2) + "\n";
