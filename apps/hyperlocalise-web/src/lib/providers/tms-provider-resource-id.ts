@@ -89,3 +89,40 @@ export function parseProviderJobId(value: string | null | undefined): EncodedPro
     externalJobId,
   };
 }
+
+export function resolveEncodedProviderJobId(input: {
+  jobId: string;
+  projectId: string | null;
+  externalProviderKind: string | null;
+  externalJobId: string | null;
+  externalTaskId: string | null;
+}): string | null {
+  const parsedJobId = parseProviderJobId(input.jobId);
+  if (parsedJobId) {
+    return input.jobId;
+  }
+
+  if (!input.externalProviderKind || !input.projectId) {
+    return null;
+  }
+
+  const parsedProjectId = parseProviderProjectId(input.projectId);
+  if (!parsedProjectId) {
+    return null;
+  }
+
+  if (parsedProjectId.providerKind !== input.externalProviderKind) {
+    return null;
+  }
+
+  const externalJobId = input.externalJobId ?? input.externalTaskId;
+  if (!externalJobId) {
+    return null;
+  }
+
+  return encodeProviderJobId({
+    providerKind: parsedProjectId.providerKind,
+    externalProjectId: parsedProjectId.externalProjectId,
+    externalJobId,
+  });
+}

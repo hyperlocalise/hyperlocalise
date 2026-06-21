@@ -1,11 +1,17 @@
-import { describe, expect, it } from "vite-plus/test";
+import { describe, expect, it, vi } from "vite-plus/test";
 
 import {
   extractProviderFileIds,
+  mapLiveProviderFilesToProviderSourceFiles,
   readProviderAgentRunSourceFilesFromSnapshot,
   readProviderPayloadFromInputSnapshot,
   resolveProviderAgentRunSourceFiles,
+  resolveProviderSourceFilesForJob,
 } from "@/lib/providers/job-provider-source-files";
+
+vi.mock("@/lib/providers/tms-provider-live", () => ({
+  listTmsProviderLiveJobFiles: vi.fn(),
+}));
 
 describe("extractProviderFileIds", () => {
   it.each([
@@ -90,6 +96,72 @@ describe("provider agent run source files", () => {
         displayName: "home.json",
         sourcePath: "marketing/home.json",
         resourceType: null,
+        externalUrl: null,
+      },
+    ]);
+  });
+});
+
+describe("resolveProviderSourceFilesForJob", () => {
+  it("maps live provider files into provider source file records", () => {
+    expect(
+      mapLiveProviderFilesToProviderSourceFiles([
+        {
+          sourcePath: "marketing/home.json",
+          filename: "home.json",
+          provider: {
+            externalResourceId: "1001",
+            resourceType: "json",
+            externalUrl: "https://crowdin.example/files/1001",
+          },
+        },
+      ]),
+    ).toEqual([
+      {
+        id: "1001",
+        displayName: "home.json",
+        sourcePath: "marketing/home.json",
+        resourceType: "json",
+        externalUrl: "https://crowdin.example/files/1001",
+      },
+    ]);
+  });
+
+  it("prefers live provider files over synced resolution", async () => {
+    const { listTmsProviderLiveJobFiles } = await import("@/lib/providers/tms-provider-live");
+
+    vi.mocked(listTmsProviderLiveJobFiles).mockResolvedValue([
+      {
+        sourcePath: "marketing/home.json",
+        filename: "home.json",
+        provider: {
+          externalResourceId: "1001",
+          resourceType: "json",
+          externalUrl: null,
+        },
+      },
+    ] as never);
+
+    const sourceFiles = await resolveProviderSourceFilesForJob({
+      organizationId: "org_1",
+      projectId: "ext:crowdin:902807",
+      providerKind: "crowdin",
+      providerPayload: { fileIds: ["99"] },
+      jobId: "job_crowdin_1204",
+      externalJobId: "2001",
+      externalTaskId: null,
+      actorUserId: "user_1",
+    });
+
+    expect(listTmsProviderLiveJobFiles).toHaveBeenCalledWith("org_1", "ext:crowdin:902807:2001", {
+      actorUserId: "user_1",
+    });
+    expect(sourceFiles).toEqual([
+      {
+        id: "1001",
+        displayName: "home.json",
+        sourcePath: "marketing/home.json",
+        resourceType: "json",
         externalUrl: null,
       },
     ]);

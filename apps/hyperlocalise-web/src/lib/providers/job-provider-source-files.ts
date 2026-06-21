@@ -2,7 +2,27 @@ import { and, desc, eq, inArray, or, sql } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
+import { resolveEncodedProviderJobId } from "@/lib/providers/tms-provider-resource-id";
+
 import type { ExternalTmsProviderKind } from "./organization-external-tms-provider-credentials";
+
+export type ProviderSourceFileRecord = {
+  id: string;
+  displayName: string;
+  sourcePath: string | null;
+  resourceType: string | null;
+  externalUrl: string | null;
+};
+
+type LiveProviderFileLike = {
+  sourcePath: string;
+  filename: string;
+  provider?: {
+    externalResourceId?: string;
+    resourceType?: string | null;
+    externalUrl?: string | null;
+  } | null;
+};
 
 export function extractProviderFileIds(
   providerPayload: Record<string, unknown> | null | undefined,
@@ -95,6 +115,59 @@ export async function resolveProviderAgentRunSourceFiles(input: {
     projectId: input.projectId,
     providerKind: input.providerKind,
     providerPayload,
+  });
+}
+
+export function mapLiveProviderFilesToProviderSourceFiles(
+  files: LiveProviderFileLike[],
+): ProviderSourceFileRecord[] {
+  return files.map((file) => ({
+    id: file.provider?.externalResourceId ?? file.sourcePath,
+    displayName: file.filename,
+    sourcePath: file.sourcePath,
+    resourceType: file.provider?.resourceType ?? null,
+    externalUrl: file.provider?.externalUrl ?? null,
+  }));
+}
+
+export async function resolveProviderSourceFilesForJob(input: {
+  organizationId: string;
+  projectId: string;
+  providerKind: ExternalTmsProviderKind;
+  providerPayload: Record<string, unknown> | null | undefined;
+  jobId: string;
+  externalJobId: string | null;
+  externalTaskId: string | null;
+  actorUserId?: string | null;
+}): Promise<ProviderSourceFileRecord[]> {
+  const encodedJobId = resolveEncodedProviderJobId({
+    jobId: input.jobId,
+    projectId: input.projectId,
+    externalProviderKind: input.providerKind,
+    externalJobId: input.externalJobId,
+    externalTaskId: input.externalTaskId,
+  });
+
+  if (encodedJobId) {
+    try {
+      const { listTmsProviderLiveJobFiles } = await import("@/lib/providers/tms-provider-live");
+      const liveFiles = await listTmsProviderLiveJobFiles(input.organizationId, encodedJobId, {
+        actorUserId: input.actorUserId,
+      });
+
+      if (liveFiles !== null) {
+        return mapLiveProviderFilesToProviderSourceFiles(liveFiles);
+      }
+    } catch {
+      // Fall back to synced resolution below.
+    }
+  }
+
+  return resolveProviderSourceFiles({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+    providerKind: input.providerKind,
+    providerPayload: input.providerPayload,
   });
 }
 

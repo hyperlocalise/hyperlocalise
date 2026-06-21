@@ -5,6 +5,7 @@ import {
   encodeProviderProjectId,
   parseProviderJobId,
   parseProviderProjectId,
+  resolveEncodedProviderJobId,
 } from "@/lib/providers/tms-provider-resource-id";
 
 describe("tms-provider-resource-id", () => {
@@ -86,5 +87,41 @@ describe("tms-provider-resource-id", () => {
     expect(parseProviderProjectId("project_123")).toBeNull();
     expect(parseProviderJobId("ext:crowdin:42")).toBeNull();
     expect(parseProviderJobId("ext:unknown:1:2")).toBeNull();
+  });
+
+  it("returns encoded job ids unchanged", () => {
+    expect(
+      resolveEncodedProviderJobId({
+        jobId: "ext:crowdin:42:9001",
+        projectId: "ext:crowdin:42",
+        externalProviderKind: "crowdin",
+        externalJobId: "9001",
+        externalTaskId: null,
+      }),
+    ).toBe("ext:crowdin:42:9001");
+  });
+
+  it("builds encoded job ids from synced job records", () => {
+    expect(
+      resolveEncodedProviderJobId({
+        jobId: "job_crowdin_1204",
+        projectId: "ext:crowdin:902807",
+        externalProviderKind: "crowdin",
+        externalJobId: "2001",
+        externalTaskId: null,
+      }),
+    ).toBe("ext:crowdin:902807:2001");
+  });
+
+  it("prefers externalJobId over externalTaskId when building encoded ids", () => {
+    expect(
+      resolveEncodedProviderJobId({
+        jobId: "job_crowdin_1204",
+        projectId: "ext:crowdin:902807",
+        externalProviderKind: "crowdin",
+        externalJobId: "2001",
+        externalTaskId: "9999",
+      }),
+    ).toBe("ext:crowdin:902807:2001");
   });
 });

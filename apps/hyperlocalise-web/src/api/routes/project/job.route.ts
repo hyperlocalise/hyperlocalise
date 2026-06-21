@@ -78,7 +78,7 @@ import {
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
 } from "@/lib/providers/job-provider-actions";
-import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
+import { resolveProviderSourceFilesForJob } from "@/lib/providers/job-provider-source-files";
 import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
@@ -279,8 +279,15 @@ function serializeAgentRun(run: typeof schema.agentRuns.$inferSelect): Record<st
   };
 }
 
-async function enrichProviderBackedJob(job: Record<string, unknown>) {
-  if (!job.externalProviderKind || !job.externalJobId || !job.projectId || !job.organizationId) {
+async function enrichProviderBackedJob(
+  job: Record<string, unknown>,
+  options?: { actorUserId?: string | null },
+) {
+  if (!job.externalProviderKind || !job.projectId || !job.organizationId) {
+    return job;
+  }
+
+  if (!job.externalJobId && !job.externalTaskId) {
     return job;
   }
 
@@ -288,11 +295,15 @@ async function enrichProviderBackedJob(job: Record<string, unknown>) {
     job.externalProviderKind as (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
 
   const [providerSourceFiles, providerActions] = await Promise.all([
-    resolveProviderSourceFiles({
+    resolveProviderSourceFilesForJob({
       organizationId: job.organizationId as string,
       projectId: job.projectId as string,
       providerKind,
       providerPayload: (job.externalProviderPayload as Record<string, unknown> | null) ?? null,
+      jobId: job.id as string,
+      externalJobId: (job.externalJobId as string | null) ?? null,
+      externalTaskId: (job.externalTaskId as string | null) ?? null,
+      actorUserId: options?.actorUserId,
     }),
     Promise.resolve(getJobProviderActionAvailability(providerKind)),
   ]);
@@ -656,7 +667,14 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
-      return c.json({ job: await enrichProviderBackedJob(job) }, 200);
+      return c.json(
+        {
+          job: await enrichProviderBackedJob(job, {
+            actorUserId: c.var.auth.user.localUserId,
+          }),
+        },
+        200,
+      );
     })
     .get("/:jobId/agent-runs", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");

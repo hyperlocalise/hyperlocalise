@@ -126,6 +126,8 @@ export function JobProviderDetailSectionView({
   renderExternalLink = defaultRenderExternalLink,
   renderQaFindings,
   renderSourceFiles,
+  showAgentActions = true,
+  showProviderMetadata = true,
 }: {
   agentRuns?: AgentRunRecord[];
   agentRunsError?: unknown;
@@ -140,6 +142,8 @@ export function JobProviderDetailSectionView({
   renderExternalLink?: JobProviderExternalLinkRenderer;
   renderQaFindings?: JobProviderQaFindingsRenderer;
   renderSourceFiles?: JobProviderSourceFilesRenderer;
+  showAgentActions?: boolean;
+  showProviderMetadata?: boolean;
 }) {
   const visibleActions = (job.providerActions ?? []).filter((action) => action.visible);
   const crowdinDescription =
@@ -147,76 +151,78 @@ export function JobProviderDetailSectionView({
 
   return (
     <>
-      <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
-            Provider Details
-          </TypographyH2>
-          <Badge variant="outline" className="rounded-full capitalize">
-            {job.externalProviderKind}
-          </Badge>
-        </div>
-        <dl className="mt-3 divide-y divide-foreground/8">
-          <DetailRow label="Provider title" value={job.externalTitle} />
-          <DetailRow label="Provider status" value={job.externalStatus} />
-          <DetailRow label="Sync state" value={job.externalSyncState} />
-          <DetailRow label="Last sync" value={formatJobDetailDate(job.updatedAt)} />
-          {job.externalProviderKind === "crowdin" ? (
-            <>
-              <DetailRow
-                label="Language"
-                value={getCrowdinLanguageLabel(job.externalProviderPayload) ?? "—"}
-              />
-              <DetailRow
-                label="Target locales"
-                value={formatLocaleList(
-                  getCrowdinTargetLocales(
-                    job.externalProviderPayload,
-                    job.externalTargetLocales ?? [],
-                  ),
-                )}
-              />
-              <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
-                <dt className="text-sm text-foreground/42">Description</dt>
-                <dd className="min-w-0 text-sm text-foreground/74">
-                  {crowdinDescription ? (
-                    <MarkdownDescriptionPreview
-                      value={crowdinDescription}
-                      className="border-foreground/8 bg-transparent"
-                    />
-                  ) : (
-                    "—"
+      {showProviderMetadata ? (
+        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+              Provider Details
+            </TypographyH2>
+            <Badge variant="outline" className="rounded-full capitalize">
+              {job.externalProviderKind}
+            </Badge>
+          </div>
+          <dl className="mt-3 divide-y divide-foreground/8">
+            <DetailRow label="Provider title" value={job.externalTitle} />
+            <DetailRow label="Provider status" value={job.externalStatus} />
+            <DetailRow label="Sync state" value={job.externalSyncState} />
+            <DetailRow label="Last sync" value={formatJobDetailDate(job.updatedAt)} />
+            {job.externalProviderKind === "crowdin" ? (
+              <>
+                <DetailRow
+                  label="Language"
+                  value={getCrowdinLanguageLabel(job.externalProviderPayload) ?? "—"}
+                />
+                <DetailRow
+                  label="Target locales"
+                  value={formatLocaleList(
+                    getCrowdinTargetLocales(
+                      job.externalProviderPayload,
+                      job.externalTargetLocales ?? [],
+                    ),
                   )}
-                </dd>
-              </div>
-            </>
-          ) : (
-            <DetailRow label="Target locales" value={job.externalTargetLocales?.join(", ")} />
-          )}
-          <DetailRow label="Assignees" value={job.externalAssignedUsers?.join(", ")} />
-          <DetailRow label="Deadline" value={formatJobDetailDate(job.externalDueDate)} />
-          <DetailRow label="External job ID" value={job.externalJobId} />
-          <DetailRow label="External task ID" value={job.externalTaskId} />
-          <DetailRow
-            label="Provider link"
-            value={
-              job.externalUrl
-                ? renderExternalLink({
-                    href: job.externalUrl,
-                    label: `Open in ${job.externalProviderKind}`,
-                  })
-                : "—"
-            }
-          />
-          <DetailRow label="Raw error" value={job.lastError} />
-        </dl>
-      </section>
+                />
+                <div className="grid gap-1 py-3 sm:grid-cols-[12rem_minmax(0,1fr)] sm:gap-4">
+                  <dt className="text-sm text-foreground/42">Description</dt>
+                  <dd className="min-w-0 text-sm text-foreground/74">
+                    {crowdinDescription ? (
+                      <MarkdownDescriptionPreview
+                        value={crowdinDescription}
+                        className="border-foreground/8 bg-transparent"
+                      />
+                    ) : (
+                      "—"
+                    )}
+                  </dd>
+                </div>
+              </>
+            ) : (
+              <DetailRow label="Target locales" value={job.externalTargetLocales?.join(", ")} />
+            )}
+            <DetailRow label="Assignees" value={job.externalAssignedUsers?.join(", ")} />
+            <DetailRow label="Deadline" value={formatJobDetailDate(job.externalDueDate)} />
+            <DetailRow label="External job ID" value={job.externalJobId} />
+            <DetailRow label="External task ID" value={job.externalTaskId} />
+            <DetailRow
+              label="Provider link"
+              value={
+                job.externalUrl
+                  ? renderExternalLink({
+                      href: job.externalUrl,
+                      label: `Open in ${job.externalProviderKind}`,
+                    })
+                  : "—"
+              }
+            />
+            <DetailRow label="Raw error" value={job.lastError} />
+          </dl>
+        </section>
+      ) : null}
 
       {projectId && renderSourceFiles
         ? renderSourceFiles({ job, organizationSlug, projectId })
         : null}
 
-      {visibleActions.length > 0 ? (
+      {showAgentActions && visibleActions.length > 0 ? (
         <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
           <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
             Agent Actions
