@@ -1,4 +1,4 @@
-import { canOpenProviderJobCat } from "@/lib/projects/workspace-resource-capabilities";
+import { buildJobCatHref, canOpenJobCat, type JobCatTarget } from "@/lib/projects/job-cat-routing";
 
 export type JobsViewMode = "row" | "kanban";
 
@@ -19,24 +19,7 @@ export function isKanbanStatus(status: string): status is KanbanStatus {
   return (kanbanStatusColumns as readonly string[]).includes(status);
 }
 
-type JobCatTarget = {
-  id: string;
-  kind: "translation" | "research" | "review" | "sync" | "asset_management";
-  type: "string" | "file" | null;
-  externalProviderKind: string | null;
-  externalTargetLocales: string[] | null;
-  reviewTargetLocale: string | null;
-  inputPayload: unknown;
-};
-
-function getInputPayloadString(job: JobCatTarget, key: string) {
-  if (typeof job.inputPayload !== "object" || !job.inputPayload || !(key in job.inputPayload)) {
-    return null;
-  }
-
-  const value = (job.inputPayload as Record<string, unknown>)[key];
-  return typeof value === "string" && value.length > 0 ? value : null;
-}
+export { buildJobCatHref, canOpenJobCat, type JobCatTarget };
 
 export function readJobsViewMode(): JobsViewMode {
   if (typeof window === "undefined") {
@@ -77,33 +60,4 @@ export function buildJobDetailHref(
   }
 
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
-}
-
-export function canOpenJobCat(job: JobCatTarget) {
-  return canOpenProviderJobCat(job);
-}
-
-export function buildJobCatHref(
-  organizationSlug: string,
-  projectId: string | null | undefined,
-  job: JobCatTarget,
-) {
-  if (!projectId || !canOpenJobCat(job)) {
-    return null;
-  }
-
-  const params = new URLSearchParams();
-  const targetLocale = job.externalTargetLocales?.[0] ?? job.reviewTargetLocale;
-  if (targetLocale) {
-    params.set("targetLocale", targetLocale);
-  }
-
-  const sourcePath = getInputPayloadString(job, "sourceFileId");
-  if (sourcePath) {
-    params.set("sourcePath", sourcePath);
-  }
-
-  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}/strings`;
-  const query = params.toString();
-  return query ? `${base}?${query}` : base;
 }

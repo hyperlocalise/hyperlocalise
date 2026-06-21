@@ -31,6 +31,13 @@ export function getProjectWorkspaceCapabilities(input: {
   };
 }
 
+export function isProviderBackedWorkspaceJob(job: {
+  id: string;
+  externalProviderKind: string | null;
+}) {
+  return Boolean(job.externalProviderKind || parseProviderJobId(job.id));
+}
+
 export function canOpenProviderJobCat(job: {
   id: string;
   kind: "translation" | "research" | "review" | "sync" | "asset_management";
@@ -40,5 +47,32 @@ export function canOpenProviderJobCat(job: {
     return false;
   }
 
-  return Boolean(job.externalProviderKind || parseProviderJobId(job.id));
+  return isProviderBackedWorkspaceJob(job);
+}
+
+export function canOpenNativeJobCat(job: {
+  id: string;
+  kind: "translation" | "research" | "review" | "sync" | "asset_management";
+  type: "string" | "file" | null;
+  externalProviderKind: string | null;
+  inputPayload: unknown;
+}) {
+  if (isProviderBackedWorkspaceJob(job)) {
+    return false;
+  }
+
+  if (job.kind !== "translation" || job.type !== "file") {
+    return false;
+  }
+
+  if (
+    typeof job.inputPayload !== "object" ||
+    !job.inputPayload ||
+    !("sourceFileId" in job.inputPayload)
+  ) {
+    return false;
+  }
+
+  const sourceFileId = (job.inputPayload as Record<string, unknown>).sourceFileId;
+  return typeof sourceFileId === "string" && sourceFileId.length > 0;
 }

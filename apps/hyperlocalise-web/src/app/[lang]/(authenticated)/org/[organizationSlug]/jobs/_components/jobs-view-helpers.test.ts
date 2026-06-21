@@ -56,24 +56,50 @@ describe("jobs-view-helpers", () => {
     expect(canOpenJobCat(createJob())).toBe(true);
     expect(canOpenJobCat(createJob({ kind: "review" }))).toBe(true);
     expect(canOpenJobCat(createJob({ kind: "sync" }))).toBe(false);
+  });
+
+  it("allows CAT for native file translation jobs", () => {
     expect(
       canOpenJobCat(
         createJob({
           externalProviderKind: null,
           id: "job_native",
-          kind: "translation",
-          type: "file",
+          externalTargetLocales: null,
+          inputPayload: {
+            sourceFileId: "file_home_json",
+            targetLocales: ["fr-FR"],
+          },
         }),
       ),
-    ).toBe(false);
+    ).toBe(true);
   });
 
-  it("builds CAT hrefs with locale and source path when available", () => {
+  it("builds provider CAT hrefs with locale and source path when available", () => {
     expect(buildJobCatHref("acme", "project-1", createJob())).toBe(
       "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json",
     );
     expect(buildJobCatHref("acme", null, createJob())).toBeNull();
     expect(buildJobCatHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
+  });
+
+  it("builds native CAT hrefs with stored file id and target locale", () => {
+    expect(
+      buildJobCatHref(
+        "acme",
+        "project-1",
+        createJob({
+          externalProviderKind: null,
+          id: "job_native",
+          externalTargetLocales: null,
+          inputPayload: {
+            sourceFileId: "file_home_json",
+            targetLocales: ["fr-FR"],
+          },
+        }),
+      ),
+    ).toBe(
+      "/org/acme/projects/project-1/jobs/job_native/strings?storedFileId=file_home_json&targetLocale=fr-FR",
+    );
   });
 
   it("identifies known kanban statuses", () => {

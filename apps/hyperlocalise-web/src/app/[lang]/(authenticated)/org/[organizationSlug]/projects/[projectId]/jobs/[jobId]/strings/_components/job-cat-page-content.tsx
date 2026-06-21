@@ -48,14 +48,22 @@ function stringsPageHref(input: {
   organizationSlug: string;
   projectId: string;
   jobId: string;
-  sourcePath: string;
+  sourcePath?: string;
+  storedFileId?: string;
   targetLocale: string;
   segment?: string | null;
 }) {
   const params = new URLSearchParams({
-    sourcePath: input.sourcePath,
     targetLocale: input.targetLocale,
   });
+
+  if (input.sourcePath) {
+    params.set("sourcePath", input.sourcePath);
+  }
+
+  if (input.storedFileId) {
+    params.set("storedFileId", input.storedFileId);
+  }
 
   if (input.segment) {
     params.set("segment", input.segment);
@@ -64,11 +72,27 @@ function stringsPageHref(input: {
   return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.jobId)}/strings?${params.toString()}`;
 }
 
+function resolveJobCatFile(
+  files: ProjectFileRecord[],
+  input: { sourcePath: string | null; storedFileId: string | null },
+) {
+  if (input.sourcePath) {
+    return files.find((file) => file.sourcePath === input.sourcePath) ?? null;
+  }
+
+  if (input.storedFileId) {
+    return files.find((file) => file.storedFileId === input.storedFileId) ?? null;
+  }
+
+  return null;
+}
+
 export function JobCatPageContent({
   organizationSlug,
   projectId,
   jobId,
   sourcePath,
+  storedFileId = null,
   targetLocale,
   initialSegmentKey = null,
 }: {
@@ -76,14 +100,16 @@ export function JobCatPageContent({
   projectId: string;
   jobId: string;
   sourcePath: string | null;
+  storedFileId?: string | null;
   targetLocale: string | null;
   initialSegmentKey?: string | null;
 }) {
   const router = useRouter();
   const taskHref = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
+  const hasFileReference = Boolean(sourcePath || storedFileId);
   const filesQuery = useQuery({
     queryKey: projectJobFilesQueryKey(organizationSlug, projectId),
-    enabled: Boolean(sourcePath),
+    enabled: hasFileReference,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -103,7 +129,7 @@ export function JobCatPageContent({
 
   const repositoriesQuery = useQuery({
     queryKey: githubInstallationRepositoriesQueryKey(organizationSlug),
-    enabled: Boolean(sourcePath),
+    enabled: hasFileReference,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["github-installation"][
         "repositories"
@@ -131,7 +157,11 @@ export function JobCatPageContent({
     [taskFiles],
   );
 
-  const selectedFile = sourcePath ? taskFiles.find((file) => file.sourcePath === sourcePath) : null;
+  const selectedFile = useMemo(
+    () => resolveJobCatFile(taskFiles, { sourcePath, storedFileId }),
+    [sourcePath, storedFileId, taskFiles],
+  );
+  const isNativeFile = Boolean(selectedFile && !selectedFile.provider);
 
   const enabledRepositoryFullNames = useMemo(
     () =>
@@ -164,7 +194,7 @@ export function JobCatPageContent({
 
   const selectedRepositoryFullName = repositoryOverride ?? autoSelectedRepositoryFullName;
 
-  if (!sourcePath) {
+  if (!hasFileReference) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
@@ -176,7 +206,7 @@ export function JobCatPageContent({
     );
   }
 
-  if (filesQuery.isLoading || repositoriesQuery.isLoading) {
+  if (filesQuery.isLoading) {
     return (
       <ProjectPageShell>
         <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
@@ -205,7 +235,9 @@ export function JobCatPageContent({
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="font-mono text-sm text-foreground">{sourcePath}</TypographyP>
+          <TypographyP className="font-mono text-sm text-foreground">
+            {sourcePath ?? storedFileId}
+          </TypographyP>
           <TypographyP className="mt-2 text-sm text-muted-foreground">
             This source file is not linked to the task anymore.
           </TypographyP>
@@ -214,7 +246,49 @@ export function JobCatPageContent({
     );
   }
 
-  if (!selectedFile || !supportsProviderCatFile(selectedFile) || !selectedFile.provider) {
+  if (isNativeFile) {
+    return (
+      <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+        <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <Button variant="outline" size="sm" render={<Link href={taskHref} />}>
+              <ArrowLeftIcon />
+              Task
+            </Button>
+            <TypographyP className="truncate font-mono text-xs text-muted-foreground">
+              {selectedFile.sourcePath}
+            </TypographyP>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
+          <ProjectFileCatWorkspace
+            key={selectedFile.sourcePath}
+            organizationSlug={organizationSlug}
+            projectId={projectId}
+            sourcePath={selectedFile.sourcePath}
+            targetLocale={targetLocale ?? undefined}
+            highlightLocale={targetLocale}
+            initialSegmentKey={initialSegmentKey}
+            layout="fullscreen"
+          />
+        </div>
+      </main>
+    );
+  }
+
+  if (repositoriesQuery.isLoading) {
+    return (
+      <ProjectPageShell>
+        <div className="flex min-h-48 items-center justify-center gap-2 rounded-lg border border-border bg-card p-5">
+          <Spinner />
+          <TypographyP className="text-sm text-muted-foreground">Loading workspace…</TypographyP>
+        </div>
+      </ProjectPageShell>
+    );
+  }
+
+  if (!supportsProviderCatFile(selectedFile) || !selectedFile.provider) {
     return (
       <ProjectPageShell>
         <div className="rounded-lg border border-border bg-card p-5">
