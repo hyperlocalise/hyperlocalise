@@ -158,7 +158,13 @@ export async function enqueueSourceFileIngestAfterUpload(
       "source file ingest skipped; hash already ingested",
     );
 
-    void dispatchSourceUploadAutomations(input).catch((error) => {
+    void dispatchSourceUploadAutomations({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourceFileId: input.storedFileId,
+      sourceFileVersionId: input.sourceFileVersionId,
+      sourcePath: input.sourcePath,
+    }).catch((error) => {
       logger.warn(
         {
           organizationId: input.organizationId,

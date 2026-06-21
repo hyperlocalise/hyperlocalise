@@ -140,7 +140,7 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
 
       void enqueueSourceFileIngestAfterUpload({
         organizationId: input.organizationId,
-        projectId,
+        projectId: input.projectId,
         storedFileId: storedFile.id,
         sourceFileVersionId: version.id,
         sourcePath: normalizedPath,
@@ -149,7 +149,7 @@ export async function uploadRepositorySourceFilesFromSandbox(input: {
         logger.warn(
           {
             organizationId: input.organizationId,
-            projectId,
+            projectId: input.projectId,
             sourceFileVersionId: version.id,
             error: error instanceof Error ? error.message : String(error),
           },
