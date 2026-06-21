@@ -17,6 +17,7 @@ import {
 import {
   invalidTranslationPayloadResponse,
   projectNotFoundResponse,
+  sourceFileTooLargeResponse,
 } from "./public-translations.shared";
 
 const validateProjectParams = validator("param", (value, c) => {
@@ -69,6 +70,10 @@ export function createPublicTranslationRoutes() {
           sourcePath: query.sourcePath,
           targetLocale: query.locale,
         });
+
+        if (result.truncated) {
+          return sourceFileTooLargeResponse(c, result.maxKeyCount);
+        }
 
         const content = JSON.stringify(result.prefilled, null, 2) + "\n";
         const filename = downloadFilename(query.sourcePath, query.locale);

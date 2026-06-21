@@ -7,3 +7,13 @@ export function invalidTranslationPayloadResponse(c: JsonContext) {
 export function projectNotFoundResponse(c: JsonContext) {
   return notFoundResponse(c, "project_not_found");
 }
+
+export function sourceFileTooLargeResponse(c: JsonContext, maxKeyCount: number) {
+  return c.json(
+    {
+      error: "source_file_too_large",
+      message: `Source file exceeds the maximum of ${maxKeyCount} keys`,
+    },
+    422,
+  );
+}

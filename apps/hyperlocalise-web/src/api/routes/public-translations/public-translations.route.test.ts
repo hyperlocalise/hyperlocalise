@@ -77,4 +77,44 @@ describe("publicTranslationRoutes", () => {
     const content = await response.text();
     expect(JSON.parse(content)).toEqual({ greeting: "Bonjour" });
   });
+
+  it("rejects downloads when the source file exceeds the key limit", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: [...defaultApiKeyPermissions] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+    const sourcePath = "lang/en-large.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const keys = Array.from({ length: 5_001 }, (_, index) => ({
+      organizationId: project.organizationId,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      key: `entry_${index}`,
+      sourceText: `Hello ${index}`,
+      normalizedSourceText: `hello ${index}`,
+    }));
+
+    for (let offset = 0; offset < keys.length; offset += 1_000) {
+      await db.insert(schema.projectTranslationKeys).values(keys.slice(offset, offset + 1_000));
+    }
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath, locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(422);
+    const body = (await response.json()) as { error: string; message?: string };
+    expect(body.error).toBe("source_file_too_large");
+    expect(body.message).toContain("5000");
+  });
 });
