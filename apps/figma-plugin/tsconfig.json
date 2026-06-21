@@ -1,0 +1,25 @@
+{
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "lib": ["dom", "dom.iterable", "es2020"],
+    "types": ["node", "@figma/plugin-typings"],
+    "composite": false,
+    "declaration": false,
+    "declarationMap": false,
+    "moduleResolution": "bundler",
+    "esModuleInterop": true,
+    "rootDir": ".",
+    "outDir": "dist",
+    "strict": true,
+    "skipLibCheck": true,
+    "target": "ES2020",
+    "sourceMap": true,
+    "module": "ESNext",
+    "noImplicitAny": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedIndexedAccess": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["./src/**/*", "./declarations/declarations.d.ts", "./webpack.config.ts"]
+}

@@ -1,0 +1,37 @@
+{
+  "name": "figma-plugin",
+  "private": true,
+  "description": "Figma text translation plugin template (placeholder)",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "build": "webpack --config webpack.config.ts --mode production",
+    "dev": "webpack --config webpack.config.ts --mode development --watch"
+  },
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.123.0",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "24.13.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "css-loader": "7.1.4",
+    "esbuild-register": "3.6.0",
+    "html-inline-script-webpack-plugin": "^3.2.1",
+    "html-webpack-plugin": "^5.6.3",
+    "jsdom": "^29.1.1",
+    "style-loader": "4.0.0",
+    "ts-loader": "9.6.0",
+    "tsx": "4.22.4",
+    "typescript": "5.9.3",
+    "vite-plus": "0.1.24",
+    "webpack": "5.107.2",
+    "webpack-cli": "6.0.1"
+  },
+  "engines": {
+    "node": "^22 || ^24"
+  },
+  "packageManager": "pnpm@11.6.0"
+}
