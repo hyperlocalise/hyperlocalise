@@ -126,7 +126,7 @@ hyperlocalise:
   project_id: project_123
   api_base_url: https://hyperlocalise.com/api
   api_key_env: HYPERLOCALISE_API_KEY
-  timeout_seconds: 1200   # used by --wait only
+  timeout_seconds: 1200   # HTTP timeout for each API call; also used by --wait once that ships
 ```
 
 ## CI examples
@@ -147,7 +147,7 @@ jobs:
       - run: hyperlocalise sync push
         env:
           HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
-      - run: hyperlocalise sync pull --wait 30m
+      - run: hyperlocalise sync pull  # add --wait <duration> once the sync-status endpoint ships
         env:
           HYPERLOCALISE_API_KEY: ${{ secrets.HYPERLOCALISE_API_KEY }}
 ```

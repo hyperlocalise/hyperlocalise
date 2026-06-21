@@ -219,7 +219,7 @@ func TestHyperlocalisePullResolvesRelativeTargetAgainstConfigRoot(t *testing.T) 
 	}
 
 	relativeTarget := filepath.Join("locales", "fr.json")
-	targetPattern := filepath.Join(projectDir, "locales", "{{target}}.json")
+	writtenPath := filepath.Join(projectDir, relativeTarget)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download") {
 			_, _ = w.Write([]byte(`{"hello":"Bonjour"}`))
@@ -238,8 +238,8 @@ func TestHyperlocalisePullResolvesRelativeTargetAgainstConfigRoot(t *testing.T) 
 			Buckets: map[string]config.BucketConfig{
 				"json": {
 					Files: []config.BucketFileMapping{{
-						From: filepath.Join(projectDir, "locales", "{{source}}.json"),
-						To:   targetPattern,
+						From: "locales/{{source}}.json",
+						To:   "locales/{{target}}.json",
 					}},
 				},
 			},
@@ -253,35 +253,13 @@ func TestHyperlocalisePullResolvesRelativeTargetAgainstConfigRoot(t *testing.T) 
 		},
 	}
 
-	// Override target path in plan to relative path for this test.
-	plans, err := planHyperlocaliseFilesWithOptions(rt.cfg, nil, false)
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
 	if err != nil {
-		t.Fatalf("plan files: %v", err)
+		t.Fatalf("pull with relative target: %v", err)
 	}
-	plans[0].TargetPaths["fr"] = relativeTarget
-
-	report := hyperlocalisePullReport{Action: "pull", Complete: true, PlannedFiles: 1}
-	for _, plan := range plans {
-		for _, locale := range plan.TargetLocales {
-			resolvedTargetPath, err := rt.resolveTargetPath(plan.TargetPaths[locale])
-			if err != nil {
-				t.Fatalf("resolve target: %v", err)
-			}
-			content, err := rt.client.downloadTranslationExport(context.Background(), rt.projectID, plan.SourcePath, locale)
-			if err != nil {
-				t.Fatalf("download export: %v", err)
-			}
-			if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
-				t.Fatalf("write target: %v", err)
-			}
-			report.Downloaded++
-		}
-	}
-
 	if report.Downloaded != 1 {
 		t.Fatalf("report = %#v, want one downloaded file", report)
 	}
-	writtenPath := filepath.Join(projectDir, relativeTarget)
 	content, err := os.ReadFile(writtenPath)
 	if err != nil {
 		t.Fatalf("read resolved target: %v", err)
