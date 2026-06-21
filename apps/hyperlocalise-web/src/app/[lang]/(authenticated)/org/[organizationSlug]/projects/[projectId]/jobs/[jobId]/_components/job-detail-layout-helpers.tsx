@@ -9,6 +9,7 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/primitives/cn";
+import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
 import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
 
 import { formatJobStatusLabel } from "../../../../../jobs/_components/jobs-page-view";
@@ -66,8 +67,7 @@ function formatJobKind(kind: string) {
 }
 
 function formatProviderKind(kind: string | null | undefined) {
-  if (!kind) return "Native";
-  return kind.charAt(0).toUpperCase() + kind.slice(1);
+  return getTmsProviderBranding(kind).name;
 }
 
 function getProgressValue(payload: Record<string, unknown> | null) {

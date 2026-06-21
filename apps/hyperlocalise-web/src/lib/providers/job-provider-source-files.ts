@@ -158,8 +158,12 @@ export async function resolveProviderSourceFilesForJob(input: {
       if (liveFiles !== null) {
         return mapLiveProviderFilesToProviderSourceFiles(liveFiles);
       }
-    } catch {
+    } catch (err) {
       // Fall back to synced resolution below.
+      console.warn(
+        "[job-provider-source-files] live file fetch failed, falling back to synced resolution",
+        { jobId: input.jobId, providerKind: input.providerKind, err },
+      );
     }
   }
 

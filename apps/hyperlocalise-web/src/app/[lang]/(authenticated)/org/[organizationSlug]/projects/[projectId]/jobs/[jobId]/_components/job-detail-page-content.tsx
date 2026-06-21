@@ -66,8 +66,8 @@ export function JobDetailPageContent({
       activeTmsProviderQuery.data?.providerKind;
 
   if (
-    !encodedProviderJobFromRoute &&
-    (activeTmsProviderQuery.isLoading || routingJobQuery.isLoading)
+    activeTmsProviderQuery.isLoading ||
+    (!encodedProviderJobFromRoute && routingJobQuery.isLoading)
   ) {
     return (
       <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
