@@ -17,3 +17,7 @@ export function sourceFileTooLargeResponse(c: JsonContext, maxKeyCount: number) 
     422,
   );
 }
+
+export function sourceFileNotFoundResponse(c: JsonContext) {
+  return notFoundResponse(c, "source_file_not_found", "Source file not found");
+}

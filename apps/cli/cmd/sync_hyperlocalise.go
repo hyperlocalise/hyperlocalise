@@ -462,6 +462,10 @@ func (rt *hyperlocaliseSyncRuntime) downloadTranslationExportsForPlan(ctx contex
 		}
 		content, err := rt.client.downloadTranslationExport(ctx, rt.projectID, plan.SourcePath, locale)
 		if err != nil {
+			if isHyperlocaliseNotFound(err) {
+				skipped++
+				continue
+			}
 			return downloaded, skipped, fmt.Errorf("download translation export for source %q locale %q: %w", plan.SourcePath, locale, err)
 		}
 		if err := writeFileAtomic(resolvedTargetPath, content); err != nil {

@@ -117,4 +117,24 @@ describe("publicTranslationRoutes", () => {
     expect(body.error).toBe("source_file_too_large");
     expect(body.message).toContain("5000");
   });
+
+  it("returns 404 when the source path is not registered in the project", async () => {
+    const { apiKey, project } = await createPublicApiFixture();
+    await db
+      .update(schema.organizationApiKeys)
+      .set({ permissions: [...defaultApiKeyPermissions] })
+      .where(eq(schema.organizationApiKeys.keyHash, hashApiKey(apiKey)));
+
+    const response = await client.api.v1.projects[":projectId"].translations.download.$get(
+      {
+        param: { projectId: project.id },
+        query: { sourcePath: "lang/missing.json", locale: "fr" },
+      },
+      { headers: { "x-api-key": apiKey } },
+    );
+
+    expect(response.status).toBe(404);
+    const body = (await response.json()) as { error: string };
+    expect(body.error).toBe("source_file_not_found");
+  });
 });

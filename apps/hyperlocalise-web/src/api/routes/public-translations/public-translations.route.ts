@@ -8,7 +8,7 @@ import {
   type ApiKeyAuthVariables,
 } from "@/api/auth/api-key";
 import { getAccessibleProjectForApiKey } from "@/api/auth/api-key-access";
-import { loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
+import { getRepositorySourceFileByPath, loadProjectTranslationsAsPrefilledEntries } from "@/lib/projects/translations/project-translation-service";
 
 import {
   downloadPublicTranslationsQuerySchema,
@@ -17,6 +17,7 @@ import {
 import {
   invalidTranslationPayloadResponse,
   projectNotFoundResponse,
+  sourceFileNotFoundResponse,
   sourceFileTooLargeResponse,
 } from "./public-translations.shared";
 
@@ -62,6 +63,15 @@ export function createPublicTranslationRoutes() {
         );
         if (!project) {
           return projectNotFoundResponse(c);
+        }
+
+        const sourceFile = await getRepositorySourceFileByPath({
+          organizationId,
+          projectId: project.id,
+          sourcePath: query.sourcePath,
+        });
+        if (!sourceFile) {
+          return sourceFileNotFoundResponse(c);
         }
 
         const result = await loadProjectTranslationsAsPrefilledEntries({

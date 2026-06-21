@@ -206,6 +206,70 @@ func TestHyperlocalisePullWithoutManifestFallsBackToTranslationExport(t *testing
 	}
 }
 
+func TestHyperlocalisePullExportFallbackSkipsUnregisteredSourcePath(t *testing.T) {
+	dir := t.TempDir()
+	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
+	targetPath := filepath.Join(dir, "locales", "fr.json")
+	if err := os.MkdirAll(filepath.Dir(targetPath), 0o755); err != nil {
+		t.Fatalf("mkdir target dir: %v", err)
+	}
+	existingContent := []byte(`{"hello":"Existing"}`)
+	if err := os.WriteFile(targetPath, existingContent, 0o644); err != nil {
+		t.Fatalf("write existing target: %v", err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/v1/jobs/latest":
+			http.NotFound(w, r)
+		case strings.HasPrefix(r.URL.Path, "/v1/projects/project-1/translations/download"):
+			http.NotFound(w, r)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"json": {
+					Files: []config.BucketFileMapping{{
+						From: "locales/{{source}}.json",
+						To:   targetPattern,
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    server.URL,
+			apiKey:     "test-key",
+			httpClient: server.Client(),
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{}, time.Second)
+	if err != nil {
+		t.Fatalf("pull with missing export source: %v", err)
+	}
+	if report.Downloaded != 0 || report.Skipped != 1 {
+		t.Fatalf("report = %#v, want skipped export without download", report)
+	}
+	content, err := os.ReadFile(targetPath)
+	if err != nil {
+		t.Fatalf("read target: %v", err)
+	}
+	if string(content) != string(existingContent) {
+		t.Fatalf("target content = %q, want existing file preserved", string(content))
+	}
+}
+
 func TestHyperlocalisePullUsesManifestJobWhenNewerSameFileJobExists(t *testing.T) {
 	dir := t.TempDir()
 	targetPattern := filepath.Join(dir, "locales", "{{target}}.json")
