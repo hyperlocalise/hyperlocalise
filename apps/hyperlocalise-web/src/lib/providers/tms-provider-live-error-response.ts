@@ -20,6 +20,7 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "crowdin_auth_invalid":
     case "crowdin_user_auth_invalid":
     case "crowdin_user_connection_required":
+    case "phrase_auth_invalid":
     case "phrase_user_auth_invalid":
     case "phrase_user_connection_required":
     case "lokalise_user_auth_invalid":
@@ -28,6 +29,8 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "invalid_encoded_job_id":
     case "invalid_crowdin_project_or_file_id":
     case "invalid_crowdin_project_or_string_id":
+    case "invalid_phrase_project_id":
+    case "phrase_target_locale_not_found":
       return 400;
     case "provider_fetcher_unavailable":
     case "provider_description_edit_unsupported":

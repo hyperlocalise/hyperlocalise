@@ -27,6 +27,24 @@ export function mapPhraseTranslationReadiness(input: {
   return "unverified";
 }
 
+export function parsePhraseExternalResourceId(externalResourceId: string) {
+  const trimmed = externalResourceId.trim();
+  const separatorIndex = trimmed.indexOf("::");
+  if (separatorIndex === -1) {
+    return {
+      branch: null as string | null,
+      resourceId: trimmed,
+    };
+  }
+
+  const branch = trimmed.slice(0, separatorIndex).trim() || null;
+  const resourceId = trimmed.slice(separatorIndex + 2).trim();
+  return {
+    branch,
+    resourceId,
+  };
+}
+
 export function buildPhraseKeyExternalResourceId(keyId: string, branch: string | null) {
   const trimmedId = keyId.trim();
   const trimmedBranch = branch?.trim();

@@ -312,6 +312,52 @@ export class PhraseApiClient {
     });
   }
 
+  async getKey(
+    projectId: string,
+    keyId: string,
+    options: PhraseListOptions = {},
+  ): Promise<PhraseKey | null> {
+    try {
+      const record = await this.get<PhraseKeyApiRecord>(
+        this.buildPath(
+          `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}`,
+          { branch: options.branch },
+        ),
+      );
+      return normalizePhraseKey(record);
+    } catch (error) {
+      if (error instanceof PhraseApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async createKeyComment(
+    projectId: string,
+    keyId: string,
+    input: {
+      message: string;
+      localeName?: string | null;
+    },
+    options: PhraseListOptions = {},
+  ): Promise<PhraseKeyComment> {
+    const payload: Record<string, unknown> = {
+      message: input.message,
+    };
+    if (input.localeName?.trim()) {
+      payload.locale = { name: input.localeName.trim() };
+    }
+
+    const record = await this.post<PhraseKeyCommentApiRecord>(
+      `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/comments`,
+      payload,
+      { branch: options.branch },
+    );
+
+    return normalizePhraseKeyComment(record);
+  }
+
   async listKeyComments(
     projectId: string,
     keyId: string,
@@ -366,6 +412,25 @@ export class PhraseApiClient {
           locale_name: localeName,
           branch: options.branch,
         }),
+      normalize: (record) => normalizePhraseTranslation(record as PhraseTranslationApiRecord),
+    });
+  }
+
+  async listKeyTranslations(
+    projectId: string,
+    keyId: string,
+    options: PhraseListOptions = {},
+  ): Promise<PhraseTranslation[]> {
+    return this.paginate({
+      buildPath: (page, perPage) =>
+        this.buildPath(
+          `/projects/${encodeURIComponent(projectId)}/keys/${encodeURIComponent(keyId)}/translations`,
+          {
+            page,
+            per_page: perPage,
+            branch: options.branch,
+          },
+        ),
       normalize: (record) => normalizePhraseTranslation(record as PhraseTranslationApiRecord),
     });
   }

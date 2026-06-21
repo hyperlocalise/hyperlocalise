@@ -98,6 +98,10 @@ describe("resolveAvailableCatQueueFilters", () => {
   it("includes has issues for Crowdin projects", () => {
     expect(resolveAvailableCatQueueFilters("crowdin")).toContain("has_issues");
   });
+
+  it("includes has issues for Phrase projects", () => {
+    expect(resolveAvailableCatQueueFilters("phrase")).toContain("has_issues");
+  });
 });
 
 describe("resolveVisibleQueueSegments", () => {
