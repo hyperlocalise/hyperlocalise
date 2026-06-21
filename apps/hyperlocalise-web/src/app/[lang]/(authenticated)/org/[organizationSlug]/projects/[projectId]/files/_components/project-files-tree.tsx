@@ -9,7 +9,7 @@ import {
   resolveFileLocaleReadiness,
   summarizeNativeLocaleReadiness,
 } from "@/lib/projects/files/native-locale-readiness";
-import { summarizeLocaleReadiness } from "../../../_components/workspace-files-shared";
+import { summarizeLocaleReadiness } from "../../../../_components/workspace-files-shared";
 import { formatBytes } from "./project-files-shared";
 
 const DATE_FORMATTER = new Intl.DateTimeFormat(undefined, {

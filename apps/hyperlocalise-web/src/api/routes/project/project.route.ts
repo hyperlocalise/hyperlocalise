@@ -7,7 +7,7 @@ import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { badRequestResponse } from "@/api/errors";
+import { badRequestResponse, notFoundResponse } from "@/api/errors";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
@@ -82,7 +82,6 @@ import {
   invalidProjectPayloadResponse,
   isProjectCreateAllowed,
   isProjectMutationAllowed,
-  notFoundResponse,
   ownedProjectWhere,
   projectNotFoundResponse,
   providerProjectUnavailableResponse,

@@ -1,4 +1,3 @@
-import { hasCapability } from "@/api/auth/policy";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 

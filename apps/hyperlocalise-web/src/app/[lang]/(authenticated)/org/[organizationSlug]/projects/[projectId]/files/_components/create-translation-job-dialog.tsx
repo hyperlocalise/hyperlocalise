@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -15,7 +14,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
 import { Spinner } from "@/components/ui/spinner";
 import { readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
@@ -133,9 +131,11 @@ export function CreateTranslationJobDialog({
                   key={locale}
                   className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-3 py-2 text-sm"
                 >
-                  <Checkbox
+                  <input
+                    type="checkbox"
+                    className="size-4 rounded border border-input accent-primary"
                     checked={selectedLocales.includes(locale)}
-                    onCheckedChange={() => toggleLocale(locale)}
+                    onChange={() => toggleLocale(locale)}
                   />
                   <span>{locale}</span>
                 </label>
