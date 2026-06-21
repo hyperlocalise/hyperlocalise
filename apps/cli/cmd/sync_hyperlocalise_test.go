@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	config "github.com/hyperlocalise/hyperlocalise/pkg/i18nconfig"
@@ -54,7 +55,7 @@ func TestHyperlocalisePushUploadsSourceFileMultipart(t *testing.T) {
 	t.Setenv("GITHUB_RUN_ID", "run-456")
 
 	expectedHash := fmt.Sprintf("%x", sha256.Sum256([]byte(sourceContent)))
-	requestedUpload := false
+	var requestedUpload atomic.Bool
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/files" {
 			t.Fatalf("unexpected path: %s", r.URL.Path)
@@ -68,7 +69,7 @@ func TestHyperlocalisePushUploadsSourceFileMultipart(t *testing.T) {
 		if err := r.ParseMultipartForm(1024 * 1024); err != nil {
 			t.Fatalf("parse multipart form: %v", err)
 		}
-		requestedUpload = true
+		requestedUpload.Store(true)
 		if got := r.FormValue("projectId"); got != "project-1" {
 			t.Fatalf("projectId = %q, want project-1", got)
 		}
@@ -112,7 +113,7 @@ func TestHyperlocalisePushUploadsSourceFileMultipart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("push source file: %v", err)
 	}
-	if !requestedUpload {
+	if !requestedUpload.Load() {
 		t.Fatalf("expected sync push to upload source file")
 	}
 	if !report.Complete || report.PlannedFiles != 1 || report.UploadedFiles != 1 || report.FailedItems != 0 {
@@ -125,10 +126,10 @@ func TestHyperlocalisePushDryRunPlansWithoutUploading(t *testing.T) {
 	t.Chdir(dir)
 	writePushSourceFile(t, "locales/en.json", `{"hello":"Hello"}`)
 
-	requestCount := 0
+	var requestCount atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestCount++
-		t.Fatalf("unexpected dry-run request: %s %s", r.Method, r.URL.Path)
+		requestCount.Add(1)
+		t.Fail()
 	}))
 	t.Cleanup(server.Close)
 
@@ -138,8 +139,8 @@ func TestHyperlocalisePushDryRunPlansWithoutUploading(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dry-run push: %v", err)
 	}
-	if requestCount != 0 {
-		t.Fatalf("requestCount = %d, want no upload requests", requestCount)
+	if requestCount.Load() != 0 {
+		t.Fatalf("requestCount = %d, want no upload requests", requestCount.Load())
 	}
 	if !report.Complete || !report.DryRun || report.PlannedFiles != 1 || report.UploadedFiles != 1 || report.FailedItems != 0 {
 		t.Fatalf("report = %#v, want complete dry-run plan", report)
