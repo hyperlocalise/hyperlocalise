@@ -71,7 +71,11 @@ describe("buildPhraseLiveCatFile", () => {
         );
       }
 
-      if (path.includes("/keys/key-1") && !path.includes("/comments") && !path.includes("/translations")) {
+      if (
+        path.includes("/keys/key-1") &&
+        !path.includes("/comments") &&
+        !path.includes("/translations")
+      ) {
         return new Response(
           JSON.stringify({
             id: "key-1",
@@ -498,11 +502,28 @@ describe("savePhraseLiveCatComment", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a key comment in Phrase", async () => {
+  it("creates a key comment in Phrase with the resolved locale name", async () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const path = String(url);
 
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
       if (path.includes("/comments") && init?.method === "POST") {
+        const rawBody = init.body;
+        const body =
+          typeof rawBody === "string"
+            ? (JSON.parse(rawBody) as { locale?: { name?: string } })
+            : {};
+        expect(body.locale?.name).toBe("fr");
+
         return new Response(
           JSON.stringify({
             id: "comment-new",
@@ -524,7 +545,7 @@ describe("savePhraseLiveCatComment", () => {
       secretMaterial: "token",
       externalProjectId: "project-1",
       file: createPhraseKeyFile(),
-      targetLocale: "fr",
+      targetLocale: "fr-FR",
       externalStringId: "key-1",
       text: "Please review wording",
     });
@@ -536,5 +557,35 @@ describe("savePhraseLiveCatComment", () => {
       locale: "fr-FR",
       author: "Editor",
     });
+  });
+
+  it("throws when creating a comment for an unmatched target locale", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-de", name: "de", code: "de-DE", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await expect(
+      savePhraseLiveCatComment({
+        secretMaterial: "token",
+        externalProjectId: "project-1",
+        file: createPhraseKeyFile(),
+        targetLocale: "fr-FR",
+        externalStringId: "key-1",
+        text: "Please review wording",
+      }),
+    ).rejects.toBeInstanceOf(PhraseLiveCatError);
   });
 });

@@ -563,6 +563,15 @@ export async function savePhraseLiveCatComment(input: {
   });
   const listOptions = scope.branch ? { branch: scope.branch } : {};
 
+  let locales: PhraseLocale[];
+  try {
+    locales = await client.listLocales(scope.stringsProjectId, listOptions);
+  } catch (error) {
+    mapPhraseApiError(error);
+  }
+
+  const resolvedLocale = resolvePhraseTargetLocale(input.targetLocale, locales);
+
   let created: Awaited<ReturnType<typeof client.createKeyComment>>;
   try {
     created = await client.createKeyComment(
@@ -570,7 +579,7 @@ export async function savePhraseLiveCatComment(input: {
       input.externalStringId,
       {
         message: input.text,
-        localeName: input.targetLocale,
+        localeName: resolvedLocale.name,
       },
       listOptions,
     );
