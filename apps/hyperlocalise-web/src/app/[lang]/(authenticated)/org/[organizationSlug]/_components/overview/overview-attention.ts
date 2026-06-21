@@ -1,4 +1,8 @@
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import {
+  fileNeedsAttentionFromReadiness,
+  resolveFileLocaleReadiness,
+} from "@/lib/projects/files/native-locale-readiness";
 
 export type OverviewJobStatus =
   | "queued"
@@ -20,10 +24,7 @@ export function isActiveJobStatus(status: OverviewJobStatus) {
 }
 
 export function fileNeedsAttention(file: ProjectFileRecord) {
-  const readiness = file.provider?.localeReadiness ?? {};
-  return Object.values(readiness).some(
-    (value) => value === "missing" || value === "stale" || value === "changed",
-  );
+  return fileNeedsAttentionFromReadiness(resolveFileLocaleReadiness(file));
 }
 
 export function countFilesNeedingAttention(files: readonly ProjectFileRecord[]) {

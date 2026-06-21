@@ -9,7 +9,12 @@ import {
   type WorkspaceAutomationTemplate,
 } from "./workspace-automation-templates";
 
-export type WorkspaceAutomationTriggerMode = "manual" | "scheduled" | "github" | "contentful";
+export type WorkspaceAutomationTriggerMode =
+  | "manual"
+  | "scheduled"
+  | "github"
+  | "contentful"
+  | "source_upload";
 
 export type WorkspaceAutomationFormState = {
   name: string;
@@ -43,6 +48,10 @@ export type WorkspaceAutomationFormState = {
   contentfulOverwriteDraftLocales: boolean;
   contentfulRunQa: boolean;
   contentfulWriteDrafts: boolean;
+  translationEnabled: boolean;
+  translationProjectId: string;
+  translationUseProjectTargetLocales: boolean;
+  translationTargetLocales: string[];
 };
 
 export type WorkspaceAutomationFieldErrors = Partial<
@@ -59,6 +68,8 @@ export type WorkspaceAutomationFieldErrors = Partial<
     | "contentfulProjectId"
     | "contentfulTargetLocales"
     | "contentfulEntryId"
+    | "translationProjectId"
+    | "translationTargetLocales"
     | "form",
     string
   >
@@ -79,6 +90,9 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   contentful_project_required: "Choose a Hyperlocalise project for Contentful translation.",
   contentful_target_locales_required: "Add at least one target locale for Contentful translation.",
   contentful_entry_id_required: "Scheduled Contentful automations need an entry ID.",
+  translation_project_required: "Choose a Hyperlocalise project for translation jobs.",
+  translation_target_locales_required: "Add at least one target locale for translation jobs.",
+  source_upload_workflow_required: "Source upload triggers require translation jobs to be enabled.",
   github_repository_not_enabled: "Enable this repository before configuring automation.",
   github_repository_archived: "Archived repositories cannot use automations.",
   project_not_found: "The selected project could not be found.",
@@ -117,6 +131,10 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     contentfulOverwriteDraftLocales: false,
     contentfulRunQa: true,
     contentfulWriteDrafts: true,
+    translationEnabled: false,
+    translationProjectId: "",
+    translationUseProjectTargetLocales: true,
+    translationTargetLocales: [],
   };
 }
 
@@ -127,6 +145,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
   const slack = automation.toolConfig.slack;
   const email = automation.toolConfig.email;
   const contentful = automation.toolConfig.contentful;
+  const translation = automation.toolConfig.translation;
 
   return {
     name: automation.name,
@@ -176,6 +195,10 @@ export function createWorkspaceAutomationFormStateFromRecord(
     contentfulOverwriteDraftLocales: Boolean(contentful?.overwriteDraftLocales),
     contentfulRunQa: contentful?.runQa ?? true,
     contentfulWriteDrafts: contentful?.writeDrafts ?? true,
+    translationEnabled: Boolean(translation?.enabled),
+    translationProjectId: translation?.projectId ?? "",
+    translationUseProjectTargetLocales: translation?.useProjectTargetLocales ?? true,
+    translationTargetLocales: translation?.targetLocales ? [...translation.targetLocales] : [],
   };
 }
 
@@ -238,7 +261,9 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
           }
         : form.triggerMode === "contentful"
           ? { mode: "contentful" }
-          : { mode: "manual" };
+          : form.triggerMode === "source_upload"
+            ? { mode: "source_upload" }
+            : { mode: "manual" };
 
   const repositoryTarget: WorkspaceAutomationRepositoryTarget =
     form.githubEnabled && form.githubInstallationRepositoryId
@@ -290,6 +315,18 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
             overwriteDraftLocales: form.contentfulOverwriteDraftLocales,
             runQa: form.contentfulRunQa,
             writeDrafts: form.contentfulWriteDrafts,
+          },
+        }
+      : {}),
+    ...(form.translationEnabled
+      ? {
+          translation: {
+            enabled: true,
+            projectId: form.translationProjectId.trim() || undefined,
+            useProjectTargetLocales: form.translationUseProjectTargetLocales,
+            targetLocales: form.translationUseProjectTargetLocales
+              ? []
+              : form.translationTargetLocales,
           },
         }
       : {}),
@@ -359,6 +396,19 @@ export function validateWorkspaceAutomationFormState(
     }
   }
 
+  if (form.translationEnabled) {
+    if (!form.translationProjectId.trim()) {
+      errors.translationProjectId = "Choose a Hyperlocalise project.";
+    }
+    if (!form.translationUseProjectTargetLocales && form.translationTargetLocales.length === 0) {
+      errors.translationTargetLocales = "Add at least one target locale.";
+    }
+  }
+
+  if (form.triggerMode === "source_upload" && !form.translationEnabled) {
+    errors.trigger = "Source upload triggers require translation jobs to be enabled.";
+  }
+
   return errors;
 }
 
@@ -380,6 +430,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { githubProjectId: message };
     case "github_trigger_required":
     case "scheduled_workflow_required":
+    case "source_upload_workflow_required":
       return { trigger: message };
     case "github_push_branches_required":
       return { pushBranches: message };
@@ -397,11 +448,21 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
       return { contentfulTargetLocales: message };
     case "contentful_entry_id_required":
       return { contentfulEntryId: message };
+    case "translation_project_required":
+      return { translationProjectId: message };
+    case "translation_target_locales_required":
+      return { translationTargetLocales: message };
     default:
       return { form: message };
   }
 }
 
 export function workspaceAutomationFormCanActivate(form: WorkspaceAutomationFormState) {
-  return form.githubEnabled || form.slackEnabled || form.emailEnabled || form.contentfulEnabled;
+  return (
+    form.githubEnabled ||
+    form.slackEnabled ||
+    form.emailEnabled ||
+    form.contentfulEnabled ||
+    form.translationEnabled
+  );
 }

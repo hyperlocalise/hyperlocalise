@@ -334,3 +334,26 @@ export async function findLatestSucceededCommitAfter(input: {
 
   return row?.commitAfter ?? null;
 }
+
+export async function listGithubRepositoryAutomationJobs(input: {
+  organizationId: string;
+  githubInstallationRepositoryId: string;
+  limit?: number;
+}): Promise<GithubRepositoryAutomationJobRecord[]> {
+  const rows = await db
+    .select()
+    .from(schema.githubRepositoryAutomationJobs)
+    .where(
+      and(
+        eq(schema.githubRepositoryAutomationJobs.organizationId, input.organizationId),
+        eq(
+          schema.githubRepositoryAutomationJobs.githubInstallationRepositoryId,
+          input.githubInstallationRepositoryId,
+        ),
+      ),
+    )
+    .orderBy(desc(schema.githubRepositoryAutomationJobs.createdAt))
+    .limit(input.limit ?? 20);
+
+  return rows.map(serializeJob);
+}

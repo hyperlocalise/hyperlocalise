@@ -25,6 +25,7 @@ import {
   getGithubRepositoryAutomationSettings,
   upsertGithubRepositoryAutomationSettings,
 } from "@/lib/agents/github/github-repository-automation-settings-store";
+import { listGithubRepositoryAutomationJobs } from "@/lib/agents/github/github-repository-automation-jobs";
 
 import {
   githubRepositoryIdParamSchema,
@@ -249,6 +250,49 @@ export function createGithubInstallationRoutes() {
       });
 
       return c.json({ githubRepositoryAutomationSettings: record }, 200);
+    })
+    .get("/repositories/:githubRepositoryId/automation-jobs", async (c) => {
+      if (!isIntegrationsReadAllowed(c.var.auth.membership.role)) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const parsedParams = githubRepositoryIdParamSchema.safeParse(c.req.param());
+      if (!parsedParams.success) {
+        return badRequestResponse(c, "invalid_github_repository_id");
+      }
+
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const repository = await getOwnedRepository({
+        organizationId,
+        githubRepositoryId: parsedParams.data.githubRepositoryId,
+      });
+
+      if (!repository) {
+        return notFoundResponse(c, "github_repository_not_found");
+      }
+
+      const automationJobs = await listGithubRepositoryAutomationJobs({
+        organizationId,
+        githubInstallationRepositoryId: repository.id,
+        limit: 20,
+      });
+
+      return c.json(
+        {
+          automationJobs: automationJobs.map((job) => ({
+            id: job.id,
+            status: job.status,
+            triggerMode: job.triggerMode,
+            triggerBranch: job.triggerBranch,
+            lastError: job.lastError,
+            skipReason: job.skipReason,
+            resultSummary: job.resultSummary,
+            createdAt: job.createdAt,
+            completedAt: job.completedAt,
+          })),
+        },
+        200,
+      );
     })
     .put(
       "/repositories/:githubRepositoryId/automation-settings",

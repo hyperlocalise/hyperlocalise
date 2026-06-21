@@ -351,6 +351,13 @@
       "when": 1781473367429,
       "tag": "0049_thin_madrox",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1782014246067,
+      "tag": "0050_fast_mentor",
+      "breakpoints": true
     }
   ]
 }

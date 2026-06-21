@@ -13,6 +13,10 @@ import { db, schema } from "@/lib/database";
 import type { FileStorageAdapter } from "@/lib/file-storage";
 import { normalizeSourcePath } from "@/lib/file-storage/records";
 import { normalizeProjectFileContent } from "@/lib/projects/files/project-file-content";
+import {
+  buildJobsByLocaleFromRecords,
+  buildNativeFileLocaleReadiness,
+} from "@/lib/projects/files/native-locale-readiness";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { bufferFromStream } from "@/lib/primitives/streams";
@@ -308,6 +312,26 @@ export class ProjectFileService extends ProjectServiceBase {
       : [];
 
     const versionIds = versions.map((v) => v.versionId);
+
+    const [projectLocales] = await this.database
+      .select({
+        targetLocales: schema.projects.targetLocales,
+      })
+      .from(schema.projects)
+      .where(
+        and(
+          eq(schema.projects.id, input.projectId),
+          eq(schema.projects.organizationId, input.organizationId),
+        ),
+      )
+      .limit(1);
+
+    const projectTargetLocales = Array.isArray(projectLocales?.targetLocales)
+      ? projectLocales.targetLocales.filter(
+          (locale): locale is string => typeof locale === "string",
+        )
+      : [];
+
     const [project] = shouldLoadProviderFiles
       ? await this.database
           .select({
@@ -394,8 +418,57 @@ export class ProjectFileService extends ProjectServiceBase {
       }
     }
 
+    const jobsByVersionId = new Map<
+      string,
+      Array<{ status: string; createdAt: Date; inputPayload: unknown }>
+    >();
+
+    if (versionIds.length > 0) {
+      const versionJobs = await this.database
+        .select({
+          versionId: schema.translationJobDetails.sourceFileVersionId,
+          status: schema.jobs.status,
+          createdAt: schema.jobs.createdAt,
+          inputPayload: schema.jobs.inputPayload,
+        })
+        .from(schema.jobs)
+        .innerJoin(
+          schema.translationJobDetails,
+          eq(schema.translationJobDetails.jobId, schema.jobs.id),
+        )
+        .where(
+          and(
+            eq(schema.jobs.projectId, input.projectId),
+            inArray(schema.translationJobDetails.sourceFileVersionId, versionIds),
+          ),
+        )
+        .orderBy(desc(schema.jobs.createdAt));
+
+      for (const job of versionJobs) {
+        if (!job.versionId) {
+          continue;
+        }
+
+        const existing = jobsByVersionId.get(job.versionId) ?? [];
+        existing.push({
+          status: job.status,
+          createdAt: job.createdAt,
+          inputPayload: job.inputPayload,
+        });
+        jobsByVersionId.set(job.versionId, existing);
+      }
+    }
+
     const nativeFiles: ProjectFileRecord[] = versions.map((v) => {
       const job = latestJobs.get(v.versionId);
+      const localeReadiness =
+        projectTargetLocales.length > 0
+          ? buildNativeFileLocaleReadiness({
+              targetLocales: projectTargetLocales,
+              jobsByLocale: buildJobsByLocaleFromRecords(jobsByVersionId.get(v.versionId) ?? []),
+            })
+          : undefined;
+
       return {
         origin: "repository" as const,
         sourcePath: v.sourcePath,
@@ -408,6 +481,7 @@ export class ProjectFileService extends ProjectServiceBase {
         filename: v.filename,
         byteSize: v.byteSize,
         provider: null,
+        localeReadiness,
         latestJob: job
           ? {
               id: job.jobId,

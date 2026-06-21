@@ -7,6 +7,7 @@ import {
   buildWorkspaceGithubPushAutomationIdempotencyKey,
   buildWorkspaceManualAutomationIdempotencyKey,
   buildWorkspaceScheduledAutomationIdempotencyKey,
+  buildWorkspaceSourceUploadAutomationIdempotencyKey,
 } from "./workspace-automation-idempotency";
 import {
   hasWorkspaceAutomationGithubWorkflow,
@@ -17,7 +18,9 @@ import {
   createWorkspaceAutomationRun,
   getWorkspaceAutomationRunByIdempotencyKey,
   hasWorkspaceAutomationContentfulWorkflow,
+  hasWorkspaceAutomationTranslationWorkflow,
   listDueContentfulWorkspaceAutomations,
+  listSourceUploadWorkspaceAutomations,
   listWorkspaceAutomations,
   updateWorkspaceAutomationRun,
   type WorkspaceAutomationRecord,
@@ -513,6 +516,70 @@ export async function dispatchDueContentfulWorkspaceAutomations(input?: {
           error: error instanceof Error ? error.message : String(error),
         },
         "workspace automation contentful scheduled dispatch failed",
+      );
+    }
+  }
+
+  return results;
+}
+
+export async function dispatchWorkspaceAutomationsForSourceUpload(input: {
+  organizationId: string;
+  projectId: string;
+  sourceFileId: string;
+  sourceFileVersionId: string;
+  sourcePath: string;
+  queue?: WorkspaceAutomationExecutionQueue;
+}): Promise<WorkspaceAutomationDispatchResult[]> {
+  const automations = await listSourceUploadWorkspaceAutomations({
+    organizationId: input.organizationId,
+    projectId: input.projectId,
+  });
+
+  logger.info(
+    {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourceFileVersionId: input.sourceFileVersionId,
+      automationCount: automations.length,
+    },
+    "workspace automation source upload automations resolved",
+  );
+
+  const results: WorkspaceAutomationDispatchResult[] = [];
+
+  for (const automation of automations) {
+    if (!hasWorkspaceAutomationTranslationWorkflow(automation.toolConfig)) {
+      continue;
+    }
+
+    try {
+      const result = await dispatchWorkspaceAutomationViaOrchestrator({
+        organizationId: input.organizationId,
+        automation,
+        triggerSource: "source_upload",
+        idempotencyKey: buildWorkspaceSourceUploadAutomationIdempotencyKey({
+          automationId: automation.id,
+          configVersion: automation.configVersion,
+          sourceFileVersionId: input.sourceFileVersionId,
+        }),
+        inputSnapshot: {
+          projectId: input.projectId,
+          sourceFileId: input.sourceFileId,
+          sourceFileVersionId: input.sourceFileVersionId,
+          sourcePath: input.sourcePath,
+        },
+        queue: input.queue,
+      });
+      results.push(result);
+    } catch (error) {
+      logger.error(
+        {
+          automationId: automation.id,
+          sourceFileVersionId: input.sourceFileVersionId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "workspace automation source upload dispatch failed",
       );
     }
   }

@@ -39,6 +39,10 @@ import {
   providerLabel,
   summarizeLocaleReadiness,
 } from "../../../_components/workspace-files-shared";
+import {
+  countReadyLocales,
+  resolveFileLocaleReadiness,
+} from "@/lib/projects/files/native-locale-readiness";
 import type { Tone } from "../../../_components/workspace-resource-shared";
 import { getJobName, jobTone, type ApiJob } from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
@@ -106,19 +110,31 @@ function formatJobStatusLine(job: ApiJob) {
 }
 
 function formatFileStatusLine(file: ProjectFileRecord) {
-  const summary = summarizeLocaleReadiness(file.provider?.localeReadiness ?? {});
+  const readiness = resolveFileLocaleReadiness(file);
+  const summary = summarizeLocaleReadiness(readiness);
   return summary ?? "Needs attention";
 }
 
 function fileStatusTone(file: ProjectFileRecord): Tone {
-  const readiness = file.provider?.localeReadiness ?? {};
+  const readiness = resolveFileLocaleReadiness(file);
   const hasMissing = Object.values(readiness).some(
-    (value) => value === "missing" || value === "stale",
+    (value) => value === "missing" || value === "stale" || value === "changed",
   );
   if (hasMissing) {
     return "watch";
   }
   return "info";
+}
+
+function countReadyToPullFiles(files: readonly ProjectFileRecord[], targetLocaleCount: number) {
+  if (targetLocaleCount === 0) {
+    return 0;
+  }
+
+  return files.filter((file) => {
+    const readiness = resolveFileLocaleReadiness(file);
+    return countReadyLocales(readiness) > 0;
+  }).length;
 }
 
 export type ProjectOverviewPageContentViewProps = {
@@ -153,6 +169,7 @@ export function ProjectOverviewPageContentView({
   const ongoingJobs = selectOngoingJobs(jobs);
   const attentionFiles = selectFilesNeedingAttention(files);
   const ongoingCount = ongoingJobs.length + attentionFiles.length;
+  const readyToPullCount = project ? countReadyToPullFiles(files, project.targetLocales.length) : 0;
 
   const heroCopy = project ? buildHeroCopy(project, filesNeedingAttention, pendingCount) : null;
 
@@ -332,6 +349,33 @@ export function ProjectOverviewPageContentView({
           )}
         </div>
       </section>
+
+      {project && project.source === "native" && readyToPullCount > 0 ? (
+        <Card className="rounded-2xl border border-foreground/8 bg-foreground/2.5 py-0 ring-0">
+          <CardContent className="flex flex-col gap-3 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <TypographyP className="text-sm font-medium text-foreground">
+                Ready to pull
+              </TypographyP>
+              <TypographyP className="mt-1 text-sm text-muted-foreground">
+                {readyToPullCount} {readyToPullCount === 1 ? "file has" : "files have"} completed
+                translations you can download or sync with{" "}
+                <span className="font-mono text-foreground/80">sync pull</span>.
+              </TypographyP>
+            </div>
+            <Button
+              nativeButton={false}
+              render={<Link href={buildProjectPath(organizationSlug, projectId, "files")} />}
+              variant="outline"
+              size="sm"
+              className="w-fit rounded-full"
+            >
+              <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} />
+              Open files
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {project ? (
         <Card

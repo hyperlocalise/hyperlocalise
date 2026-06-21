@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
@@ -36,8 +37,10 @@ import { parseTranslationFileEntries } from "@/lib/projects/files/parse-translat
 import { lookupProjectFileStringRepositoryContext } from "@/lib/projects/string-context/project-string-context-service";
 import {
   getRepositorySourceFileByPath,
+  loadProjectTranslationsAsPrefilledEntries,
   upsertProjectTranslationKeysFromEntries,
 } from "@/lib/projects/translations/project-translation-service";
+import { dispatchWorkspaceAutomationsForSourceUpload } from "@/lib/agents/workspace-automation-dispatcher";
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
 import type { JobQueue, ProviderSyncQueue, TranslationJobEventData } from "@/lib/workflow/types";
 import { createProviderSyncQueue, createTranslationJobEventQueue } from "@/workflows/adapters";
@@ -55,6 +58,7 @@ import {
   projectFileDetailQuerySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
+  projectFileTranslationDownloadQuerySchema,
   projectFilesQuerySchema,
   projectIdParamsSchema,
   updateProjectBodySchema,
@@ -78,6 +82,7 @@ import {
   invalidProjectPayloadResponse,
   isProjectCreateAllowed,
   isProjectMutationAllowed,
+  notFoundResponse,
   ownedProjectWhere,
   projectNotFoundResponse,
   providerProjectUnavailableResponse,
@@ -986,6 +991,64 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         return c.json({ stringContext: result.value }, 200);
       },
     )
+    .get(
+      "/:projectId/files/translations/download",
+      validateProjectParams,
+      validator("query", (value, c) => {
+        const parsed = projectFileTranslationDownloadQuerySchema.safeParse(value);
+        if (!parsed.success) {
+          return invalidProjectPayloadResponse(c);
+        }
+        return parsed.data;
+      }),
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const project = await getOwnedProject(c.var.auth, params.projectId);
+
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const sourceFile = await getRepositorySourceFileByPath({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+        });
+        if (!sourceFile) {
+          return notFoundResponse(c, "source_file_not_found", "Source file not found");
+        }
+
+        const result = await loadProjectTranslationsAsPrefilledEntries({
+          organizationId,
+          projectId: params.projectId,
+          sourcePath: query.sourcePath,
+          targetLocale: query.locale,
+        });
+
+        if (result.truncated) {
+          return badRequestResponse(
+            c,
+            "source_file_too_large",
+            `Translation export exceeds the ${result.maxKeyCount} key limit.`,
+          );
+        }
+
+        const extension = path.extname(query.sourcePath);
+        const baseName = path.basename(query.sourcePath, extension);
+        const suffix = baseName.endsWith(`-${query.locale}`)
+          ? baseName
+          : `${baseName}-${query.locale}`;
+        const filename = extension ? `${suffix}${extension}` : `${suffix}.json`;
+        const content = JSON.stringify(result.prefilled, null, 2) + "\n";
+
+        return c.body(content, 200, {
+          "Content-Type": "application/json; charset=utf-8",
+          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
+        });
+      },
+    )
     .get("/:projectId/files", validateProjectParams, validateProjectFilesQuery, async (c) => {
       const params = c.req.valid("param");
       const query = c.req.valid("query");
@@ -1177,6 +1240,19 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             });
           }
         }
+
+        void dispatchWorkspaceAutomationsForSourceUpload({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourceFileId: storedFile.id,
+          sourceFileVersionId: version.id,
+          sourcePath: parsed.data.sourcePath,
+        }).catch((error) => {
+          console.warn("[file-upload] source upload automation dispatch failed", {
+            projectId: params.projectId,
+            error: error instanceof Error ? error.message : "unknown",
+          });
+        });
 
         return c.json(
           {

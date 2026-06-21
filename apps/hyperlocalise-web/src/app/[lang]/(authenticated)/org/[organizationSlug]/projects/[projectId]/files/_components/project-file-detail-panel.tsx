@@ -1,7 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Download01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import type {
   ProjectFileDetailResponse,
@@ -9,6 +12,7 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file-cat-workspace";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiError } from "@/lib/api-error";
@@ -16,6 +20,12 @@ import { apiClient } from "@/lib/api-client-instance";
 import { supportsProviderCatFile } from "@/lib/providers/provider-cat-capabilities";
 import { cn } from "@/lib/primitives/cn";
 import { formatBytes } from "./project-files-shared";
+import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
+import {
+  countReadyLocales,
+  resolveFileLocaleReadiness,
+  summarizeNativeLocaleReadiness,
+} from "@/lib/projects/files/native-locale-readiness";
 
 type ProjectFileDetail = ProjectFileDetailResponse["file"];
 
@@ -134,23 +144,28 @@ export function ProjectFileDetailPanel({
         throw new Error(await readApiError(response, "Failed to load project"));
       }
 
-      const body = (await response.json()) as { project: { targetLocales: string[] } };
+      const body = (await response.json()) as {
+        project: { targetLocales: string[]; sourceLocale: string | null };
+      };
       return body.project;
     },
   });
 
   return (
-    <ProjectFileDetailPanelView
-      organizationSlug={organizationSlug}
-      projectId={projectId}
-      file={file}
-      requestedSourcePath={requestedSourcePath}
-      highlightLocale={highlightLocale}
-      targetLocales={projectQuery.data?.targetLocales ?? []}
-      isLoading={detailQuery.isLoading}
-      error={detailQuery.isError ? detailQuery.error : undefined}
-      detail={detailQuery.data}
-    />
+    <>
+      <ProjectFileDetailPanelView
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        file={file}
+        requestedSourcePath={requestedSourcePath}
+        highlightLocale={highlightLocale}
+        targetLocales={projectQuery.data?.targetLocales ?? []}
+        sourceLocale={projectQuery.data?.sourceLocale ?? "en"}
+        isLoading={detailQuery.isLoading}
+        error={detailQuery.isError ? detailQuery.error : undefined}
+        detail={detailQuery.data}
+      />
+    </>
   );
 }
 
@@ -161,6 +176,7 @@ export function ProjectFileDetailPanelView({
   requestedSourcePath,
   highlightLocale,
   targetLocales = [],
+  sourceLocale = "en",
   isLoading,
   error,
   detail,
@@ -171,10 +187,12 @@ export function ProjectFileDetailPanelView({
   requestedSourcePath: string | null;
   highlightLocale: string | null;
   targetLocales?: string[];
+  sourceLocale?: string;
   isLoading: boolean;
   error?: unknown;
   detail?: ProjectFileDetail;
 }) {
+  const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
   const sourcePath = file?.sourcePath ?? null;
 
   if (!file || !sourcePath) {
@@ -240,9 +258,31 @@ export function ProjectFileDetailPanelView({
     highlightLocale && providerTargetLocales.includes(highlightLocale)
       ? highlightLocale
       : (providerTargetLocales[0] ?? null);
+  const localeReadiness = resolveFileLocaleReadiness(file);
+  const readinessSummary = summarizeNativeLocaleReadiness(localeReadiness, targetLocales.length);
+  const readyLocaleCount = countReadyLocales(localeReadiness);
+  const downloadableLocales = targetLocales.filter(
+    (locale) => localeReadiness[locale] === "ready" || localeReadiness[locale] === "complete",
+  );
+
+  function downloadTranslation(locale: string) {
+    if (!sourcePath) return;
+    const params = new URLSearchParams({ sourcePath, locale });
+    const href = `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files/translations/download?${params.toString()}`;
+    window.open(href, "_blank", "noopener,noreferrer");
+  }
 
   return (
     <div className="flex min-h-0 flex-col gap-6 px-5 py-4">
+      <CreateTranslationJobDialog
+        open={translateDialogOpen}
+        onOpenChange={setTranslateDialogOpen}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        file={file}
+        sourceLocale={sourceLocale}
+        targetLocales={targetLocales}
+      />
       <header className="space-y-2 border-b border-border pb-4">
         <TypographyP className="font-mono text-sm font-medium text-foreground">
           {sourcePath}
@@ -285,6 +325,35 @@ export function ProjectFileDetailPanelView({
             {provider.targetLocales.length > 0 ? (
               <TypographyP className="text-xs text-muted-foreground">
                 Targets {provider.targetLocales.join(", ")}
+              </TypographyP>
+            ) : null}
+          </div>
+        ) : null}
+        {!provider && readinessSummary ? (
+          <TypographyP className="text-xs text-muted-foreground">{readinessSummary}</TypographyP>
+        ) : null}
+        {!provider ? (
+          <div className="flex flex-wrap gap-2 pt-1">
+            <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
+              <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
+              Translate
+            </Button>
+            {downloadableLocales.length > 0 ? (
+              downloadableLocales.map((locale) => (
+                <Button
+                  key={locale}
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => downloadTranslation(locale)}
+                >
+                  <HugeiconsIcon icon={Download01Icon} strokeWidth={1.8} />
+                  Download {locale}
+                </Button>
+              ))
+            ) : readyLocaleCount === 0 && targetLocales.length > 0 ? (
+              <TypographyP className="self-center text-xs text-muted-foreground">
+                Translations will be downloadable after jobs complete.
               </TypographyP>
             ) : null}
           </div>

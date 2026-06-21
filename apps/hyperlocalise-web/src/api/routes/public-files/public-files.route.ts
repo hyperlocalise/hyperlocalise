@@ -12,6 +12,7 @@ import { canAccessStoredFile } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
+import { dispatchWorkspaceAutomationsForSourceUpload } from "@/lib/agents/workspace-automation-dispatcher";
 import { inferSupportedFileTranslationFileFormat } from "@/lib/translation/file-formats";
 
 import { payloadTooLargeResponse } from "@/api/response.schema";
@@ -123,6 +124,14 @@ export function createPublicFileRoutes(options: CreatePublicFileRoutesOptions = 
             }
             throw error;
           });
+
+        void dispatchWorkspaceAutomationsForSourceUpload({
+          organizationId,
+          projectId: project.id,
+          sourceFileId: storedFile.id,
+          sourceFileVersionId: version.id,
+          sourcePath: parsed.data.sourcePath,
+        }).catch(() => undefined);
 
         return c.json(
           {

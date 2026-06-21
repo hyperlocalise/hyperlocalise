@@ -173,6 +173,12 @@ export const projectFileRecordSchema = z.object({
       type: z.enum(["string", "file"]),
     })
     .nullable(),
+  localeReadiness: z.record(z.string(), z.unknown()).optional(),
+});
+
+export const projectFileTranslationDownloadQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  locale: z.string().trim().min(1).max(32),
 });
 
 export const projectFilesResponseSchema = z.object({
