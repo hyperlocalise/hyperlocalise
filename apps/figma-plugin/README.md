@@ -1,6 +1,6 @@
 # Figma Text Translation Plugin
 
-Placeholder Figma plugin based on the [webpack + React sample](https://github.com/figma/plugin-samples/tree/main/webpack-react) from the Figma plugin samples.
+Placeholder Figma plugin based on the [esbuild + React sample](https://github.com/figma/plugin-samples/tree/main/esbuild-react) from the Figma plugin samples.
 
 This template demonstrates bulk text editing on the current page, with two modes:
 
@@ -22,7 +22,7 @@ vp install
 vp run dev
 ```
 
-Webpack writes `dist/code.js` and `dist/ui.html`. Import the plugin in Figma using `manifest.json`.
+Vite writes `dist/ui.html` and `dist/code.js`. Import the plugin in Figma using `manifest.json`.
 
 Use `vp check --fix` for formatting, oxlint, and TypeScript checks. Use `vp test` for Vitest.
 
@@ -48,13 +48,14 @@ See the [Figma plugin docs](https://www.figma.com/plugin-docs/) for bundling, UI
 apps/figma-plugin/
 ├── src/
 │   ├── code.ts                 # Plugin sandbox logic and text translation
-│   ├── ui.tsx                  # React UI for translation actions
+│   ├── app.tsx                 # React UI for translation actions
+│   ├── ui.tsx                  # UI entry point
 │   ├── ui.html                 # UI shell template
 │   ├── ui.css                  # Plugin UI styles
 │   └── lorem_generator.ts      # Placeholder translation helper
 ├── manifest.json               # Plugin manifest (main + ui entry points)
-├── vite.config.ts              # Vite+ (oxlint, oxfmt, vitest)
-└── webpack.config.ts           # Figma plugin bundle configuration
+├── vite.config.ts              # Vite+ UI build, format, lint, and Vitest
+└── vite.code.config.ts         # Vite+ plugin sandbox bundle
 ```
 
 ## License

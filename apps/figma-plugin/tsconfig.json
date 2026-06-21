@@ -21,5 +21,10 @@
     "noUncheckedIndexedAccess": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["./src/**/*", "./declarations/declarations.d.ts", "./webpack.config.ts"]
+  "include": [
+    "./src/**/*",
+    "./declarations/declarations.d.ts",
+    "./vite.config.ts",
+    "./vite.code.config.ts"
+  ]
 }
