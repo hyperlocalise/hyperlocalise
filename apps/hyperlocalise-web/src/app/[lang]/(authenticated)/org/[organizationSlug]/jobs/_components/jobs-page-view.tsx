@@ -27,6 +27,8 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
+import { TmsProviderBrandMark } from "@/lib/providers/tms-provider-brand-mark";
+import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
 
 import { JobsKanbanBoard, JobRowActions } from "./jobs-kanban-board";
 import {
@@ -72,6 +74,7 @@ export type ApiJob = {
   assetType: string | null;
   assetOperation: string | null;
   externalProviderKind: string | null;
+  externalJobId?: string | null;
   externalTaskId: string | null;
   externalStatus: string | null;
   externalTitle: string | null;
@@ -107,15 +110,23 @@ export type JobsLinkRenderer = (props: {
 
 export type JobsErrorRenderer = (props: { error: unknown; organizationSlug: string }) => ReactNode;
 
-const statusFilterLabels = {
-  all: "All status",
+const jobStatusLabels = {
   queued: "Queued",
   running: "Running",
   succeeded: "Succeeded",
   failed: "Failed",
   waiting_for_review: "Waiting for review",
   cancelled: "Cancelled",
+} as const satisfies Record<ApiJob["status"], string>;
+
+const statusFilterLabels = {
+  all: "All status",
+  ...jobStatusLabels,
 } as const satisfies Record<JobsStatusFilter, string>;
+
+export function formatJobStatusLabel(status: ApiJob["status"]) {
+  return jobStatusLabels[status];
+}
 
 const jobsFilterTriggerClassName =
   "h-9 min-h-9 w-full border-foreground/14 bg-transparent px-3 text-sm text-foreground data-[size=default]:h-9";
@@ -124,7 +135,7 @@ const jobsFilterSelectContentClassName =
   "w-max min-w-[var(--anchor-width)] max-w-[min(16rem,calc(100vw-2rem))]";
 
 const jobsTableGridClassName =
-  "grid grid-cols-[minmax(13rem,1.35fr)_7.5rem_minmax(8rem,0.8fr)_7.5rem_minmax(10rem,1fr)_minmax(11rem,auto)] gap-3";
+  "grid grid-cols-[minmax(13rem,1.35fr)_minmax(9rem,1fr)_minmax(8rem,0.8fr)_7.5rem_minmax(10rem,1fr)_minmax(11rem,auto)] gap-3";
 
 function JobsFilterField({
   label,
@@ -178,7 +189,20 @@ export function formatRelativeTime(value: string | null, now = Date.now()) {
 }
 
 export function sourceLabel(job: ApiJob) {
-  return job.externalProviderKind ? `Provider · ${job.externalProviderKind}` : "Native";
+  return getTmsProviderBranding(job.externalProviderKind).name;
+}
+
+export function JobSourceLabel({ job, compact = false }: { job: ApiJob; compact?: boolean }) {
+  const { name } = getTmsProviderBranding(job.externalProviderKind);
+
+  return (
+    <span className="inline-flex min-w-0 max-w-full items-center gap-2">
+      <TmsProviderBrandMark providerKind={job.externalProviderKind} compact={compact} />
+      <span className={cn("truncate font-medium text-foreground", compact ? "text-xs" : "text-sm")}>
+        {name}
+      </span>
+    </span>
+  );
 }
 
 function targetLocales(job: ApiJob) {
@@ -370,17 +394,15 @@ function JobsList({
                     <JobListItemTitle job={job} />
                   </div>
                 )}
-                <Badge variant="outline" className="w-fit rounded-full">
-                  {sourceLabel(job)}
-                </Badge>
+                <JobSourceLabel job={job} />
                 <TypographyP className="truncate text-sm text-foreground/58">
                   {job.projectName ?? job.projectId ?? "Workspace"}
                 </TypographyP>
                 <Badge
                   variant="outline"
-                  className={cn("w-fit rounded-full capitalize", toneClass(jobTone(job.status)))}
+                  className={cn("w-fit rounded-full", toneClass(jobTone(job.status)))}
                 >
-                  {job.status}
+                  {formatJobStatusLabel(job.status)}
                 </Badge>
                 <div className="min-w-0">
                   <TypographyP className="truncate text-sm text-foreground/68">

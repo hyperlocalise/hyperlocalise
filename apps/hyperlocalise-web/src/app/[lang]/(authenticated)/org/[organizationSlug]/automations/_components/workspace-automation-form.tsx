@@ -326,9 +326,13 @@ function HeaderProjectSelector({
   projects: ProjectOption[];
 }) {
   const usesTranslationProject =
-    form.translationEnabled && (form.triggerMode === "source_upload" || !form.githubEnabled);
+    form.triggerMode === "source_upload" ||
+    (form.translationEnabled && (form.triggerMode !== "github" || !form.githubEnabled));
+  const selectableProjects = usesTranslationProject
+    ? projects.filter((project) => project.source !== "external_tms")
+    : projects;
   const activeProjectId = usesTranslationProject ? form.translationProjectId : form.githubProjectId;
-  const selectedProject = projects.find((project) => project.id === activeProjectId);
+  const selectedProject = selectableProjects.find((project) => project.id === activeProjectId);
   const triggerLabel =
     selectedProject?.name ?? (activeProjectId ? "Unknown project" : "Select project");
 
@@ -373,10 +377,10 @@ function HeaderProjectSelector({
         <DropdownMenuGroup>
           <DropdownMenuLabel>Projects</DropdownMenuLabel>
           {isError ? <DropdownMenuItem disabled>Unable to load projects</DropdownMenuItem> : null}
-          {!isLoading && projects.length === 0 ? (
+          {!isLoading && selectableProjects.length === 0 ? (
             <DropdownMenuItem disabled>No projects found</DropdownMenuItem>
           ) : null}
-          {projects.map((project) => (
+          {selectableProjects.map((project) => (
             <DropdownMenuItem key={project.id} onClick={() => handleProjectSelect(project.id)}>
               <HugeiconsIcon icon={FolderLibraryIcon} strokeWidth={1.8} className="size-4" />
               {project.name}
@@ -623,6 +627,7 @@ function AddTriggerMenu({
                   triggerMode: "source_upload",
                   translationEnabled: true,
                   translationUseProjectTargetLocales: true,
+                  translationProjectId: form.translationProjectId || form.githubProjectId || "",
                 })
               }
             >
@@ -646,7 +651,6 @@ function TriggerSettings({
   form,
   githubConnected,
   onChange,
-  projects,
   repositories,
 }: {
   contentfulConnected: boolean;
@@ -655,7 +659,6 @@ function TriggerSettings({
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
-  projects: ProjectOption[];
   repositories: GithubRepositoryOption[];
 }) {
   return (
@@ -829,43 +832,8 @@ function TriggerSettings({
           <EditorRow
             icon={<HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />}
             title="Source upload"
-            description="Runs when a source file is uploaded to the selected native project."
-          >
-            <div className="grid gap-1.5">
-              <Label className="text-xs text-muted-foreground">Project</Label>
-              <Select
-                value={form.translationProjectId || undefined}
-                onValueChange={(value) => {
-                  if (!value) {
-                    return;
-                  }
-                  onChange({
-                    ...form,
-                    translationProjectId: value,
-                    translationEnabled: true,
-                  });
-                }}
-                disabled={disabled}
-              >
-                <SelectTrigger className="h-8 w-full rounded-lg">
-                  <span className="truncate">
-                    {projects.find((project) => project.id === form.translationProjectId)?.name ??
-                      "Select project"}
-                  </span>
-                </SelectTrigger>
-                <SelectContent>
-                  {projects
-                    .filter((project) => project.source !== "external_tms")
-                    .map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              <FieldError message={errors.translationProjectId} />
-            </div>
-          </EditorRow>
+            description="Runs when a source file is uploaded to the project selected above."
+          />
         ) : null}
 
         <AddTriggerMenu
@@ -996,12 +964,13 @@ function AddToolMenu({
                   ...form,
                   translationEnabled: true,
                   translationUseProjectTargetLocales: true,
+                  translationProjectId: form.translationProjectId || form.githubProjectId || "",
                   triggerMode: form.triggerMode === "manual" ? "source_upload" : form.triggerMode,
                 })
               }
             >
               <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />
-              Translate on upload
+              Translate
               {form.translationEnabled ? <DropdownMenuShortcut>Added</DropdownMenuShortcut> : null}
             </DropdownMenuItem>
           </DropdownMenuGroup>
@@ -1143,7 +1112,6 @@ function ToolsSettings({
   );
   const translationAvailableTargetLocales = selectedTranslationProject?.targetLocales ?? [];
   const translationTargetLocalesFieldId = "translation-target-locales";
-  const nativeProjects = projects.filter((project) => project.source !== "external_tms");
 
   return (
     <EditorSection title="Tools">
@@ -1553,12 +1521,12 @@ function ToolsSettings({
         {form.translationEnabled ? (
           <EditorRow
             icon={<HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} className="size-4" />}
-            title="Translate on upload"
-            description="Queue translation jobs when source files are uploaded to a native project."
+            title="Translate"
+            description="Queue translation jobs for uploaded source files in the project selected above."
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label="Remove translate on upload"
+                label="Remove Translate"
                 onClick={() =>
                   onChange({
                     ...form,
@@ -1572,38 +1540,6 @@ function ToolsSettings({
             }
           >
             <div className="grid gap-3">
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Project</Label>
-                <Select
-                  value={form.translationProjectId || undefined}
-                  disabled={disabled}
-                  onValueChange={(value) => {
-                    if (!value) {
-                      return;
-                    }
-                    onChange({ ...form, translationProjectId: value });
-                  }}
-                >
-                  <SelectTrigger className="h-8 w-full rounded-lg">
-                    <span className="truncate">
-                      {selectedTranslationProject?.name ?? "Select project"}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {nativeProjects.length === 0 ? (
-                      <SelectItem value="__no_native_projects" disabled>
-                        No native projects found
-                      </SelectItem>
-                    ) : null}
-                    {nativeProjects.map((project) => (
-                      <SelectItem key={project.id} value={project.id}>
-                        {project.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldError message={errors.translationProjectId} />
-              </div>
               <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
                 <span className="text-xs text-foreground">Use project target locales</span>
                 <Switch
@@ -1630,7 +1566,7 @@ function ToolsSettings({
                   <ContentfulTargetLocalesPicker
                     availableLocales={translationAvailableTargetLocales}
                     disabled={disabled}
-                    emptyMessage="Select a project to choose target locales."
+                    emptyMessage="Choose a project above to pick target locales."
                     error={errors.translationTargetLocales}
                     labelledBy={translationTargetLocalesFieldId}
                     selectedLocales={form.translationTargetLocales}
@@ -1914,7 +1850,6 @@ export function WorkspaceAutomationEditor({
             form={form}
             githubConnected={githubConnected}
             onChange={onChange}
-            projects={projectsQuery.data ?? []}
             repositories={repositories}
           />
 

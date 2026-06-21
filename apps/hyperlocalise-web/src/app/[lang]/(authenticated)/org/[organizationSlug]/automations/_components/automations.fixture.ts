@@ -1,4 +1,12 @@
+import {
+  WORKSPACE_AUTOMATION_TEMPLATES_BASE,
+  type WorkspaceAutomationTemplate,
+} from "@/lib/agents/workspace-automation-templates";
 import type { WorkspaceAutomationRecord } from "@/lib/agents/workspace-automations";
+
+/** Client-safe template data for Storybook and component tests. */
+export const automationTemplatesFixture: WorkspaceAutomationTemplate[] =
+  WORKSPACE_AUTOMATION_TEMPLATES_BASE;
 
 const fixedNow = "2026-06-07T12:00:00.000Z";
 

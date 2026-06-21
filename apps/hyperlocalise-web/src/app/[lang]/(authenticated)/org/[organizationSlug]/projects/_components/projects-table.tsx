@@ -13,6 +13,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 
 import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-connection-prompt";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
+import { buildProjectDetailHref } from "@/lib/projects/routing/resource-path-id";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -237,7 +238,11 @@ export function ProjectsTable({
             >
               <div className="flex items-start justify-between gap-4">
                 <Link
-                  href={`/org/${organizationSlug}/projects/${project.id}`}
+                  href={buildProjectDetailHref(organizationSlug, {
+                    id: project.id,
+                    source: project.source,
+                    externalProjectId: project.externalProjectId,
+                  })}
                   className="min-w-0 flex-1"
                 >
                   <div className="flex items-center gap-2">
@@ -351,7 +356,15 @@ export function ProjectsTable({
                   <dd className="mt-1 truncate text-sm text-foreground/54">
                     {project.openJobCount > 0 ? (
                       <Link
-                        href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
+                        href={buildProjectDetailHref(
+                          organizationSlug,
+                          {
+                            id: project.id,
+                            source: project.source,
+                            externalProjectId: project.externalProjectId,
+                          },
+                          "jobs",
+                        )}
                         className="text-foreground/72 hover:text-foreground hover:underline"
                       >
                         {project.openJobCount} {project.openJobCount === 1 ? "job" : "jobs"}

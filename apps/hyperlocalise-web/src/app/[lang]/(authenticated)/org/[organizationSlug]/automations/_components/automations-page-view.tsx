@@ -242,7 +242,7 @@ export function AutomationsPageView({
         </div>
       </section>
 
-      <section className="flex flex-col gap-4">
+      <section className="mt-6 flex flex-col gap-4">
         <div>
           <h2 className="font-sans text-base font-medium text-balance text-foreground">
             Templates
