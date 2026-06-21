@@ -186,7 +186,6 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 
 	report := hyperlocalisePullReport{
 		Action:       "pull",
-		Complete:     true,
 		PlannedFiles: len(plans),
 		DryRun:       o.dryRun,
 	}
@@ -200,6 +199,7 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 			}
 			resolvedTargetPath, err := rt.resolveTargetPath(targetPath)
 			if err != nil {
+				report.Complete = false
 				return report, fmt.Errorf("target path for source %q locale %q: %w", plan.SourcePath, locale, err)
 			}
 			if o.dryRun {
@@ -213,15 +213,18 @@ func runHyperlocalisePull(ctx context.Context, rt *hyperlocaliseSyncRuntime, o s
 					report.Skipped++
 					continue
 				}
+				report.Complete = false
 				return report, fmt.Errorf("download translation for source %q locale %q: %w", plan.SourcePath, locale, err)
 			}
 			if err := writeFileAtomic(resolvedTargetPath, content); err != nil {
+				report.Complete = false
 				return report, fmt.Errorf("write target file %q: %w", resolvedTargetPath, err)
 			}
 			report.Downloaded++
 		}
 	}
 
+	report.Complete = true
 	return report, nil
 }
 

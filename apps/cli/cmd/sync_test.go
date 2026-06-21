@@ -292,3 +292,41 @@ func TestHyperlocalisePullRejectsTargetOutsideConfigRoot(t *testing.T) {
 		t.Fatalf("error = %v, want root escape rejection", err)
 	}
 }
+
+func TestHyperlocalisePullReportMarksIncompleteOnFailure(t *testing.T) {
+	dir := t.TempDir()
+	outside := t.TempDir()
+	outsideTarget := filepath.Join(outside, "fr.json")
+
+	rt := &hyperlocaliseSyncRuntime{
+		cfg: &config.I18NConfig{
+			Locales: config.LocaleConfig{
+				Source:  "en",
+				Targets: []string{"fr"},
+			},
+			Buckets: map[string]config.BucketConfig{
+				"json": {
+					Files: []config.BucketFileMapping{{
+						From: "locales/{{source}}.json",
+						To:   outsideTarget,
+					}},
+				},
+			},
+		},
+		configRoot: dir,
+		projectID:  "project-1",
+		client: &hyperlocaliseAPIClient{
+			baseURL:    "http://example.invalid",
+			apiKey:     "test-key",
+			httpClient: &http.Client{},
+		},
+	}
+
+	report, err := runHyperlocalisePull(context.Background(), rt, syncCommonOptions{})
+	if err == nil {
+		t.Fatalf("expected pull to fail")
+	}
+	if report.Complete {
+		t.Fatalf("report.Complete = true, want false on failure")
+	}
+}
