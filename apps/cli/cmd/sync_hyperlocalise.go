@@ -402,6 +402,15 @@ func runHyperlocalisePullLatest(ctx context.Context, rt *hyperlocaliseSyncRuntim
 			}
 			return report, fmt.Errorf("latest job for source %q: %w", plan.SourcePath, err)
 		}
+		if job.Status != "succeeded" {
+			downloaded, skipped, downloadErr := rt.downloadTranslationExportsForPlan(ctx, plan, o)
+			report.Downloaded += downloaded
+			report.Skipped += skipped
+			if downloadErr != nil {
+				return report, downloadErr
+			}
+			continue
+		}
 
 		outcome, err := parseHyperlocaliseFileOutcome(job)
 		if err != nil {

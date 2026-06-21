@@ -75,7 +75,7 @@ export function createPublicTranslationRoutes() {
 
         return c.body(content, 200, {
           "Content-Type": "application/json; charset=utf-8",
-          "Content-Disposition": `attachment; filename="${filename}"`,
+          "Content-Disposition": `attachment; filename*=UTF-8''${encodeURIComponent(filename)}`,
         });
       },
     );
