@@ -87,3 +87,7 @@
 ## 2026-07-10 - [Robust Markdown Link Title Parentheses Handling]
 **Learning:** Naive depth-counting scanners for Markdown link destinations (e.g., `[](/url "title")`) fail when parentheses appear inside quoted titles (e.g., `[link](/url "title )")`). The scanner prematurely terminates the destination segment at the first unquoted closing parenthesis, leading to corrupted metadata and broken round-trips.
 **Action:** Always implement quote-aware scanning for link destinations and titles. Parentheses encountered while inside a single or double-quoted literal must be ignored by depth counters to ensure the full span of the link is correctly identified and protected.
+
+## 2025-07-15 - [ICU Parser Error Robustness]
+**Learning:** ICU parsers should provide clear error messages for common syntax mistakes like unclosed braces, mismatched tags, or missing options. While leniency is good for some things (like unclosed quotes), structural errors should be caught to prevent malformed ASTs that could lead to incorrect translations or application crashes.
+**Action:** Include comprehensive error-case tests for the parser to ensure it correctly identifies and reports syntax errors in ICU messages and HTML tags.
