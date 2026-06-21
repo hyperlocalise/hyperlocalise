@@ -218,9 +218,13 @@ func maskLiquidSyntax(filePath string, content []byte) ([]byte, map[string]strin
 			// BOLT OPTIMIZATION: Use bytes.IndexAny to skip uninteresting literal text
 			// and reduce loop iterations.
 			if !inHTMLTag {
-				if next := bytes.IndexAny(content[i:], "{<"); next > 0 {
+				next := bytes.IndexAny(content[i:], "{<")
+				if next > 0 {
 					out.Write(content[i : i+next])
 					i += next
+				} else if next == -1 {
+					out.Write(content[i:])
+					i = len(content)
 				}
 			}
 		}
@@ -246,7 +250,8 @@ func appendLiquidBoundaryPlaceholder(literal string, placeholders map[string]str
 
 func liquidPlaceholderToken(index int, literal string) string {
 	// BOLT OPTIMIZATION: Reduce allocations by using a stack buffer for hashing
-	// and manually encoding hex in uppercase to avoid extra string operations.
+	// (avoids heap for short literals) and manually encoding hex in uppercase
+	// to avoid extra string operations.
 	var buf [64]byte
 	hInput := strconv.AppendInt(buf[:0], int64(index), 10)
 	hInput = append(hInput, ':')
@@ -306,8 +311,8 @@ func isLikelyLiquidHTMLTagStart(input []byte, index int) bool {
 }
 
 func findLiquidDelimiterEnd(input []byte, start int, close []byte) (int, bool) {
-	// BOLT OPTIMIZATION: Use bytes.Index to skip ahead in the common case
-	// where there are no quotes or escapes in the Liquid expression.
+	// BOLT OPTIMIZATION: Use bytes.HasPrefix to operate directly on []byte
+	// without string conversion.
 	if len(input[start:]) < 2 {
 		return 0, false
 	}
