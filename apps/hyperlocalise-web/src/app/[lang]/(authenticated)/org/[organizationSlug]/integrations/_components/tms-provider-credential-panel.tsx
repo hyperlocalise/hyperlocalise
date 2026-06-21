@@ -92,7 +92,31 @@ function TmsOAuthUserAccountBanner({
         ? query.data?.lokaliseUserConnection
         : query.data?.crowdinUserConnection;
 
-  if (query.isLoading || shouldConnect == null) {
+  if (query.isLoading) {
+    return null;
+  }
+
+  if (query.isError) {
+    return (
+      <div className="space-y-3 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+        <div>
+          <p className="font-medium text-foreground">
+            Unable to load {providerName} account status
+          </p>
+          <p className="mt-1 leading-6 text-muted-foreground">
+            {query.error instanceof Error
+              ? query.error.message
+              : "Hyperlocalise could not verify whether your personal account is linked."}
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={() => void query.refetch()}>
+          Retry
+        </Button>
+      </div>
+    );
+  }
+
+  if (shouldConnect == null) {
     return null;
   }
 

@@ -100,5 +100,6 @@ export interface CatWorkspaceState {
   primaryActionLabel?: string;
   canEditTranslations?: boolean;
   canAddComments?: boolean;
+  canAddIssueComments?: boolean;
   providerKind?: string | null;
 }

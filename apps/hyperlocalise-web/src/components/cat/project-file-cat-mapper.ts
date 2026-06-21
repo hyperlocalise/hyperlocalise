@@ -249,6 +249,9 @@ export function projectFileCatToWorkspaceState(
         catFile.provider?.kind === "lokalise") &&
       catFile.canEditTranslations,
     ),
+    canAddIssueComments: Boolean(
+      catFile.provider?.kind === "crowdin" && catFile.canEditTranslations,
+    ),
     providerKind: catFile.provider?.kind ?? null,
   };
 }

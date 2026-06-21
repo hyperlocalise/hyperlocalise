@@ -120,17 +120,14 @@ function mapLokaliseTargetTranslation(
   };
 }
 
-function mapLokaliseKeyComment(
-  comment: LokaliseComment,
-  targetLocale: string,
-): ProjectFileCatComment {
+function mapLokaliseKeyComment(comment: LokaliseComment): ProjectFileCatComment {
   return {
     externalCommentId: String(comment.commentId),
     type: "comment",
     status: null,
     text: comment.comment,
     createdAt: comment.addedAt,
-    locale: targetLocale || null,
+    locale: null,
     author: comment.addedByEmail,
   };
 }
@@ -340,7 +337,7 @@ export async function buildLokaliseLiveCatFile(input: {
 
       commentsByKeyId.set(
         key.keyId,
-        comments.map((comment) => mapLokaliseKeyComment(comment, targetLanguage.langIso)),
+        comments.map((comment) => mapLokaliseKeyComment(comment)),
       );
     } catch (error) {
       if (error instanceof LokaliseApiError && error.status === 404) {
@@ -523,7 +520,7 @@ export async function saveLokaliseLiveCatComment(input: {
     );
   }
 
-  return mapLokaliseKeyComment(comment, input.targetLocale);
+  return mapLokaliseKeyComment(comment);
 }
 
 function readBaseLanguageId(file: TmsProviderLiveFile) {
