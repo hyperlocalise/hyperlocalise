@@ -30,6 +30,7 @@ describe("settings", () => {
     });
 
     saveSettings({
+      connectionToken: "hl_canva_test_token",
       projectId: "project_123",
       sourceLocale: "en",
       targetLocales: "es,fr",
@@ -38,6 +39,7 @@ describe("settings", () => {
     });
 
     expect(loadSettings()).toEqual({
+      connectionToken: "hl_canva_test_token",
       projectId: "project_123",
       sourceLocale: "en",
       targetLocales: "es,fr",

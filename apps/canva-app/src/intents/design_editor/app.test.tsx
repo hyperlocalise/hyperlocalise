@@ -41,7 +41,7 @@ describe("Hyperlocalise Canva app", () => {
     vi.mocked(getDesignToken).mockResolvedValue({ token: "design-token" });
     vi.mocked(localizeDesign).mockResolvedValue({
       jobId: "job_test",
-      mode: "preview",
+      mode: "hyperlocalise",
       translationsByLocale: {
         es: {
           "canva.segment.0.0.0": "Hola",
@@ -62,7 +62,7 @@ describe("Hyperlocalise Canva app", () => {
     });
 
     expect(result.getByRole("button", { name: "Localize and sync design" })).toBeTruthy();
-    expect(result.getByText("Project settings")).toBeTruthy();
+    expect(result.getByText("Connection settings")).toBeTruthy();
     expect(result.getByText("Workflow")).toBeTruthy();
   });
 });

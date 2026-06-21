@@ -2,6 +2,8 @@ import type { LocalizeRequest, LocalizeResponse } from "./types";
 
 declare const BACKEND_HOST: string;
 
+const CONNECTION_TOKEN_HEADER = "X-Hyperlocalise-Connection-Token";
+
 export class HyperlocaliseClientError extends Error {
   readonly code: string;
 
@@ -24,13 +26,20 @@ async function getAuthorizationHeader(): Promise<string | undefined> {
 
 export async function localizeDesign(request: LocalizeRequest): Promise<LocalizeResponse> {
   const authorization = await getAuthorizationHeader();
-  const response = await fetch(`${BACKEND_HOST}/api/localize`, {
+  const response = await fetch(`${BACKEND_HOST}/api/integrations/canva/localize`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      [CONNECTION_TOKEN_HEADER]: request.connectionToken,
       ...(authorization ? { Authorization: authorization } : {}),
     },
-    body: JSON.stringify(request),
+    body: JSON.stringify({
+      designToken: request.designToken,
+      segments: request.segments,
+      ...(request.projectId ? { projectId: request.projectId } : {}),
+      sourceLocale: request.sourceLocale,
+      targetLocales: request.targetLocales,
+    }),
   });
 
   const payload = (await response.json().catch(() => null)) as

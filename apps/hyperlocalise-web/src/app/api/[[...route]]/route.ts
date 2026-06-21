@@ -11,3 +11,5 @@ export const PATCH = handler;
 export const DELETE = handler;
 export const OPTIONS = handler;
 export const HEAD = handler;
+
+export const maxDuration = 300;

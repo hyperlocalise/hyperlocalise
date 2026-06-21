@@ -1,8 +1,9 @@
 import type { AppSettings } from "./types";
 
-const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v2";
+const SETTINGS_STORAGE_KEY = "hyperlocalise:canva-app:settings:v3";
 
 const defaultSettings: AppSettings = {
+  connectionToken: "",
   projectId: "",
   sourceLocale: "en",
   targetLocales: "es,fr,de",
@@ -23,6 +24,7 @@ export function loadSettings(): AppSettings {
 
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
     return {
+      connectionToken: parsed.connectionToken ?? defaultSettings.connectionToken,
       projectId: parsed.projectId ?? defaultSettings.projectId,
       sourceLocale: parsed.sourceLocale ?? defaultSettings.sourceLocale,
       targetLocales: parsed.targetLocales ?? defaultSettings.targetLocales,
@@ -38,18 +40,23 @@ export function loadSettings(): AppSettings {
 
 function loadLegacySettings(): AppSettings {
   try {
-    const raw = window.localStorage.getItem("hyperlocalise:canva-app:settings:v1");
+    const raw =
+      window.localStorage.getItem("hyperlocalise:canva-app:settings:v2") ??
+      window.localStorage.getItem("hyperlocalise:canva-app:settings:v1");
     if (!raw) {
       return defaultSettings;
     }
 
     const parsed = JSON.parse(raw) as Partial<AppSettings>;
     return {
+      connectionToken: parsed.connectionToken ?? defaultSettings.connectionToken,
       projectId: parsed.projectId ?? defaultSettings.projectId,
       sourceLocale: parsed.sourceLocale ?? defaultSettings.sourceLocale,
       targetLocales: parsed.targetLocales ?? defaultSettings.targetLocales,
       preserveFormatting: parsed.preserveFormatting ?? defaultSettings.preserveFormatting,
-      selectedPageIndices: defaultSettings.selectedPageIndices,
+      selectedPageIndices: Array.isArray(parsed.selectedPageIndices)
+        ? parsed.selectedPageIndices.filter((index) => Number.isInteger(index))
+        : defaultSettings.selectedPageIndices,
     };
   } catch {
     return defaultSettings;

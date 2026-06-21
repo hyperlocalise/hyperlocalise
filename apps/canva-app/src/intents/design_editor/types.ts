@@ -20,18 +20,19 @@ export type ExtractedDesignContent = {
 };
 
 export type LocalizeRequest = {
-  projectId: string;
+  connectionToken: string;
   sourceLocale: string;
   targetLocales: string[];
   designToken: string;
   segments: DesignSegment[];
+  projectId?: string;
   preserveFormatting: boolean;
 };
 
 export type LocalizeResponse = {
   jobId: string;
   translationsByLocale: Record<string, Record<string, string>>;
-  mode: "hyperlocalise" | "preview";
+  mode: "hyperlocalise";
 };
 
 export type WorkflowStep =
@@ -43,6 +44,7 @@ export type WorkflowStep =
   | "done";
 
 export type AppSettings = {
+  connectionToken: string;
   projectId: string;
   sourceLocale: string;
   targetLocales: string;

@@ -92,7 +92,6 @@ export const App = () => {
   const [selectedLocale, setSelectedLocale] = useState("");
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [previewMode, setPreviewMode] = useState(false);
 
   const targetLocales = useMemo(
     () => parseTargetLocales(settings.targetLocales),
@@ -110,7 +109,7 @@ export const App = () => {
   }, [designPages, editablePages, settings.selectedPageIndices]);
   const isBusy = workflowStep !== "idle" && workflowStep !== "done";
   const canLocalize =
-    settings.projectId.trim().length > 0 &&
+    settings.connectionToken.trim().length > 0 &&
     settings.sourceLocale.trim().length > 0 &&
     targetLocales.length > 0 &&
     selectedPageIndices.length > 0 &&
@@ -192,7 +191,6 @@ export const App = () => {
   const localizeDesignFlow = async () => {
     setErrorMessage(null);
     setStatusMessage(null);
-    setPreviewMode(false);
 
     try {
       setWorkflowStep("extracting");
@@ -212,15 +210,14 @@ export const App = () => {
       setWorkflowStep("translating");
 
       const response = await localizeDesign({
-        projectId: settings.projectId.trim(),
+        connectionToken: settings.connectionToken.trim(),
+        projectId: settings.projectId.trim() || undefined,
         sourceLocale: settings.sourceLocale.trim(),
         targetLocales,
         designToken: token,
         segments: extracted.segments,
         preserveFormatting: settings.preserveFormatting,
       });
-
-      setPreviewMode(response.mode === "preview");
 
       const localeToApply = selectedLocale || targetLocales[0] || "";
       const translations = localeToApply ? response.translationsByLocale[localeToApply] : undefined;
@@ -237,9 +234,7 @@ export const App = () => {
 
       setWorkflowStep("done");
       setStatusMessage(
-        response.mode === "preview"
-          ? `Preview applied to ${selectedPageIndices.length} page(s) for ${localeToApply}. Configure HYPERLOCALISE_API_KEY on the backend to use live translation.`
-          : `Localized ${extracted.segments.length} text segments across ${selectedPageIndices.length} page(s) and synced ${localeToApply} back to your design.`,
+        `Localized ${extracted.segments.length} text segments across ${selectedPageIndices.length} page(s) and synced ${localeToApply} back to your design.`,
       );
     } catch (error) {
       setWorkflowStep("idle");
@@ -262,15 +257,6 @@ export const App = () => {
             Hyperlocalise, then sync the translated text back into Canva.
           </Text>
         </Rows>
-
-        {previewMode ? (
-          <Alert tone="info" title="Preview mode">
-            <Text>
-              The backend is running without a Hyperlocalise API key, so translations are simulated
-              locally.
-            </Text>
-          </Alert>
-        ) : null}
 
         {pagesError ? (
           <Alert tone="warn" title="Pages unavailable">
@@ -337,14 +323,27 @@ export const App = () => {
         <Box padding="2u" className={styles.panel}>
           <Rows spacing="1.5u">
             <Rows spacing="0.5u">
-              <Title size="xsmall">Project settings</Title>
+              <Title size="xsmall">Connection settings</Title>
               <Text size="small" tone="secondary">
-                Use a Hyperlocalise project ID and locales for this design.
+                Paste the connection token from your Hyperlocalise workspace Canva integration.
               </Text>
             </Rows>
 
             <FormField
-              label="Project ID"
+              label="Connection token"
+              value={settings.connectionToken}
+              control={(props) => (
+                <TextInput
+                  {...props}
+                  placeholder="hl_canva_..."
+                  onChange={(value) => updateSettings({ connectionToken: value })}
+                />
+              )}
+            />
+
+            <FormField
+              label="Project ID override"
+              description="Optional. Leave blank to use the project configured on the connection."
               value={settings.projectId}
               control={(props) => (
                 <TextInput
