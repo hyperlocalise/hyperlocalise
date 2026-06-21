@@ -298,7 +298,7 @@ export function ProjectFilesPageContentView({
         description={
           isProviderProject
             ? "Browse source files from the connected TMS provider, then select one to preview its source content when the provider exposes it."
-            : "Upload source files, then select one to inspect content and related translation jobs."
+            : "Upload source files, then select one to preview its content and related translation jobs."
         }
         actions={
           canUploadFiles ? (

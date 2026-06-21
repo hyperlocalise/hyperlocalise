@@ -22,7 +22,12 @@ export function createNativeJobDetail(overrides: Partial<JobDetailRecord> = {}):
     kind: "translation",
     type: "file",
     status: "running",
-    inputPayload: { sourceFileId: "marketing/home.json" },
+    inputPayload: {
+      sourceFileId: "marketing/home.json",
+      sourceLocale: "en",
+      targetLocales: ["fr-FR", "de-DE"],
+      fileFormat: "json",
+    },
     outcomeKind: null,
     outcomePayload: null,
     lastError: null,

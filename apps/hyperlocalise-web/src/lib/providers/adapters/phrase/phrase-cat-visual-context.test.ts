@@ -5,6 +5,8 @@ import { loadPhraseCatVisualContextWithClient } from "./phrase-cat-visual-contex
 
 describe("loadPhraseCatVisualContextWithClient", () => {
   it("maps Phrase key screenshot markers without scanning project screenshots", async () => {
+    const listScreenshots = vi.fn();
+    const listScreenshotMarkers = vi.fn();
     const client = {
       listKeyScreenshots: vi.fn(async () => [
         {
@@ -25,8 +27,8 @@ describe("loadPhraseCatVisualContextWithClient", () => {
           ],
         },
       ]),
-      listScreenshots: vi.fn(),
-      listScreenshotMarkers: vi.fn(),
+      listScreenshots,
+      listScreenshotMarkers,
     } as unknown as PhraseApiClient;
 
     const visualContext = await loadPhraseCatVisualContextWithClient({
@@ -45,8 +47,8 @@ describe("loadPhraseCatVisualContextWithClient", () => {
         markers: [{ left: 12.5, top: 20, width: 30, height: 15 }],
       },
     ]);
-    expect(client.listScreenshots).not.toHaveBeenCalled();
-    expect(client.listScreenshotMarkers).not.toHaveBeenCalled();
+    expect(listScreenshots).not.toHaveBeenCalled();
+    expect(listScreenshotMarkers).not.toHaveBeenCalled();
   });
 
   it("filters key screenshot markers to the requested key only", async () => {

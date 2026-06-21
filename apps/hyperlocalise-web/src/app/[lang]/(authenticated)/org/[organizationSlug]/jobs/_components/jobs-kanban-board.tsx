@@ -7,12 +7,12 @@ import { cn } from "@/lib/primitives/cn";
 
 import {
   formatJobKind,
+  formatJobStatusLabel,
   formatRelativeTime,
   getJobName,
+  JobSourceLabel,
   jobTone,
-  sourceLabel,
   taskDetailSummary,
-  type ApiJob,
   type JobRow,
   type JobsLinkRenderer,
 } from "./jobs-page-view";
@@ -24,15 +24,6 @@ import {
   type KanbanStatus,
 } from "./jobs-view-helpers";
 import { toneClass, type Tone } from "../../_components/workspace-resource-shared";
-
-const kanbanStatusLabels: Record<ApiJob["status"], string> = {
-  queued: "Queued",
-  running: "Running",
-  waiting_for_review: "Waiting for review",
-  succeeded: "Succeeded",
-  failed: "Failed",
-  cancelled: "Cancelled",
-};
 
 type KanbanColumnDef = {
   key: string;
@@ -60,7 +51,7 @@ export function JobRowActions({
 
   return (
     <div className="flex flex-wrap items-center justify-end gap-2">
-      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: "CAT" }) : null}
+      {catHref ? renderJobLink({ href: catHref, kind: "cat", children: "View strings" }) : null}
       {detailHref ? (
         renderJobLink({ href: detailHref, kind: "details", children: "Details" })
       ) : (
@@ -119,9 +110,7 @@ function JobKanbanCard({
       )}
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="w-fit rounded-full text-[11px]">
-          {sourceLabel(job)}
-        </Badge>
+        <JobSourceLabel job={job} compact />
         {!projectId ? (
           <Badge variant="outline" className="w-fit rounded-full text-[11px]">
             {job.projectName ?? job.projectId ?? "Workspace"}
@@ -164,7 +153,7 @@ function KanbanColumn({
     <section className="flex min-w-[17rem] flex-1 flex-col rounded-xl border border-foreground/10 bg-foreground/2">
       <header className="flex items-center justify-between gap-2 border-b border-foreground/8 px-3 py-3">
         <TypographyP className="text-sm font-medium text-foreground">{label}</TypographyP>
-        <Badge variant="outline" className={cn("rounded-full capitalize", toneClass(statusTone))}>
+        <Badge variant="outline" className={cn("rounded-full", toneClass(statusTone))}>
           {jobs.length}
         </Badge>
       </header>
@@ -233,7 +222,7 @@ export function JobsKanbanBoard({
     .filter((status) => (jobsByStatus.get(status)?.length ?? 0) > 0)
     .map((status) => ({
       key: status,
-      label: kanbanStatusLabels[status],
+      label: formatJobStatusLabel(status),
       statusTone: jobTone(status),
       jobs: jobsByStatus.get(status) ?? [],
     }));

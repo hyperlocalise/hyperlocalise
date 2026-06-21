@@ -58,9 +58,11 @@ import {
   getOwnedProjectRecord,
   projectNotFoundResponse,
   providerProjectUnavailableResponse,
+  resolveOwnedProjectId,
   resolveProjectResourceTarget,
   scheduleProjectNotFoundDiagnostics,
 } from "./project.shared";
+import { resolveCanonicalJobId } from "@/lib/projects/routing/resource-path-resolver";
 import {
   applyAgentRunProposalReviewUpdates,
   applyBulkAgentRunProposalReview,
@@ -78,7 +80,7 @@ import {
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
 } from "@/lib/providers/job-provider-actions";
-import { resolveProviderSourceFiles } from "@/lib/providers/job-provider-source-files";
+import { resolveProviderSourceFilesForJob } from "@/lib/providers/job-provider-source-files";
 import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
@@ -164,7 +166,13 @@ const jobWithProjectSelect = {
   projectName: schema.projects.name,
 };
 
-async function getOwnedJob(projectId: string, jobId: string) {
+async function getOwnedJob(
+  auth: ApiAuthContext,
+  projectPathSegment: string,
+  jobPathSegment: string,
+) {
+  const projectId = await resolveOwnedProjectId(auth, projectPathSegment);
+  const jobId = await resolveCanonicalJobId(projectId, jobPathSegment);
   const [job] = await db
     .select(jobSelect)
     .from(schema.jobs)
@@ -279,8 +287,15 @@ function serializeAgentRun(run: typeof schema.agentRuns.$inferSelect): Record<st
   };
 }
 
-async function enrichProviderBackedJob(job: Record<string, unknown>) {
-  if (!job.externalProviderKind || !job.externalJobId || !job.projectId || !job.organizationId) {
+async function enrichProviderBackedJob(
+  job: Record<string, unknown>,
+  options?: { actorUserId?: string | null },
+) {
+  if (!job.externalProviderKind || !job.projectId || !job.organizationId) {
+    return job;
+  }
+
+  if (!job.externalJobId && !job.externalTaskId) {
     return job;
   }
 
@@ -288,11 +303,15 @@ async function enrichProviderBackedJob(job: Record<string, unknown>) {
     job.externalProviderKind as (typeof schema.externalTmsProviderKindEnum.enumValues)[number];
 
   const [providerSourceFiles, providerActions] = await Promise.all([
-    resolveProviderSourceFiles({
+    resolveProviderSourceFilesForJob({
       organizationId: job.organizationId as string,
       projectId: job.projectId as string,
       providerKind,
       providerPayload: (job.externalProviderPayload as Record<string, unknown> | null) ?? null,
+      jobId: job.id as string,
+      externalJobId: (job.externalJobId as string | null) ?? null,
+      externalTaskId: (job.externalTaskId as string | null) ?? null,
+      actorUserId: options?.actorUserId,
     }),
     Promise.resolve(getJobProviderActionAvailability(providerKind)),
   ]);
@@ -371,7 +390,11 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         }
       }
 
-      const jobs = await listOrganizationProjectJobs(c.var.auth, params.projectId, query);
+      const jobs = await listOrganizationProjectJobs(
+        c.var.auth,
+        await resolveOwnedProjectId(c.var.auth, params.projectId),
+        query,
+      );
       return c.json({ jobs }, 200);
     })
     .post("/", validateProjectParams, validateCreateJobBody, async (c) => {
@@ -412,7 +435,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       if (payload.type === "file") {
         const sourceFile = await getStoredFileForJobScope({
           organizationId: c.var.auth.organization.localOrganizationId,
-          projectId: params.projectId,
+          projectId: project.id,
           fileId: payload.fileInput.sourceFileId,
         });
 
@@ -448,7 +471,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             ? await ensureRepositorySourceFileVersionForStoredFile({
                 db: tx,
                 organizationId: c.var.auth.organization.localOrganizationId,
-                projectId: params.projectId,
+                projectId: project.id,
                 fileId: payload.fileInput.sourceFileId,
               })
             : null;
@@ -458,7 +481,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
           .values({
             id: jobId,
             organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
+            projectId: project.id,
             createdByUserId: c.var.auth.user.localUserId,
             kind: "translation",
             status: "queued",
@@ -495,7 +518,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         await options.jobQueue.enqueue({
           kind: "translation",
           jobId: job.id,
-          projectId: job.projectId ?? params.projectId,
+          projectId: job.projectId ?? project.id,
           type: job.type,
         });
       } catch (error) {
@@ -505,12 +528,12 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
             status: "failed",
             lastError: error instanceof Error ? error.message : "translation job queue unavailable",
           })
-          .where(and(eq(schema.jobs.projectId, params.projectId), eq(schema.jobs.id, job.id)));
+          .where(and(eq(schema.jobs.projectId, project.id), eq(schema.jobs.id, job.id)));
 
         return serviceUnavailableResponse(c, "job_queue_unavailable", "Job queue is unavailable");
       }
 
-      const createdJob = await getOwnedJob(params.projectId, job.id);
+      const createdJob = await getOwnedJob(c.var.auth, params.projectId, job.id);
       if (!createdJob) {
         throw new Error(`created translation job ${job.id} was not found after insert`);
       }
@@ -591,7 +614,7 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return projectNotFoundResponse(c);
       }
 
-      const job = await getOwnedJob(params.projectId, params.jobId);
+      const job = await getOwnedJob(c.var.auth, params.projectId, params.jobId);
 
       if (!job) {
         return notFoundResponse(c, "job_not_found", "Job not found");
@@ -656,7 +679,14 @@ export function createWorkspaceJobRoutes(options: CreateWorkspaceJobRoutesOption
         return notFoundResponse(c, "job_not_found", "Job not found");
       }
 
-      return c.json({ job: await enrichProviderBackedJob(job) }, 200);
+      return c.json(
+        {
+          job: await enrichProviderBackedJob(job, {
+            actorUserId: c.var.auth.user.localUserId,
+          }),
+        },
+        200,
+      );
     })
     .get("/:jobId/agent-runs", validateWorkspaceJobParams, async (c) => {
       const params = c.req.valid("param");

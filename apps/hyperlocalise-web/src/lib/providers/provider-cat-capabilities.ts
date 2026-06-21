@@ -2,10 +2,14 @@ import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external
 
 type ProviderCatFile = {
   provider?: {
-    kind?: ExternalTmsProviderKind | string;
+    kind?: string;
     resourceType?: string | null;
   } | null;
 };
+
+function isExternalTmsProviderKind(kind: string): kind is ExternalTmsProviderKind {
+  return kind === "crowdin" || kind === "phrase" || kind === "lokalise" || kind === "smartling";
+}
 
 /**
  * Whether a provider-backed file can open the shared CAT workspace.
@@ -13,7 +17,7 @@ type ProviderCatFile = {
  */
 export function supportsProviderCatFile(file: ProviderCatFile): boolean {
   const provider = file.provider;
-  if (!provider?.kind) {
+  if (!provider?.kind || !isExternalTmsProviderKind(provider.kind)) {
     return false;
   }
 

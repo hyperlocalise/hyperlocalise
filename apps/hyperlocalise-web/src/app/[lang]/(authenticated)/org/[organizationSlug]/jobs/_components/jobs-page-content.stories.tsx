@@ -97,6 +97,8 @@ export const WorkspaceJobs: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("heading", { name: "Jobs" })).toBeInTheDocument();
     await expect(canvas.getByText("Translate marketing homepage")).toBeInTheDocument();
+    await expect(canvas.getByText("Running")).toBeInTheDocument();
+    await expect(canvas.getByText("Waiting for review")).toBeInTheDocument();
   },
 };
 
@@ -136,7 +138,7 @@ export const ProjectJobs: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByRole("button", { name: "Row" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Board" })).toBeInTheDocument();
-    await expect(canvas.getAllByRole("link", { name: "CAT" }).length).toBeGreaterThan(0);
+    await expect(canvas.getAllByRole("link", { name: "View strings" }).length).toBeGreaterThan(0);
     await expect(canvas.getAllByRole("link", { name: "Details" }).length).toBeGreaterThan(0);
   },
 };
@@ -153,6 +155,7 @@ export const ProjectJobsKanban: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Board" }));
     await expect(canvas.getByText("Queued")).toBeInTheDocument();
     await expect(canvas.getByText("Running")).toBeInTheDocument();
+    await expect(canvas.getByText("Waiting for review")).toBeInTheDocument();
   },
 };
 

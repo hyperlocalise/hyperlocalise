@@ -547,7 +547,10 @@ describe("tmsProviderRoutes", () => {
     });
   });
 
-  it("accepts URL-encoded project ids when starting translate_with_agent", async () => {
+  it.each([
+    { requestProjectId: "ext%3Acrowdin%3A902807", label: "URL-encoded encoded project id" },
+    { requestProjectId: "902807", label: "clean external project id" },
+  ])("accepts $label when starting translate_with_agent", async ({ requestProjectId }) => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);
     const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
@@ -655,7 +658,7 @@ describe("tmsProviderRoutes", () => {
           encodedJobId: "ext:crowdin:902807:99",
         },
         json: {
-          projectId: "ext%3Acrowdin%3A902807",
+          projectId: requestProjectId,
           action: "translate_with_agent",
         },
       },

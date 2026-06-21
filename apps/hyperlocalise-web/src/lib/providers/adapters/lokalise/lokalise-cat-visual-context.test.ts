@@ -5,6 +5,24 @@ import { loadLokaliseCatVisualContext } from "./lokalise-cat-visual-context";
 
 describe("loadLokaliseCatVisualContext", () => {
   it("fetches screenshot details when the list response omits key coordinates", async () => {
+    const getScreenshot = vi.fn(async () => ({
+      screenshotId: 123,
+      title: "Homepage",
+      description: null,
+      imageUrl: "https://example.com/screenshot.png",
+      width: 800,
+      height: 600,
+      keyIds: [4242],
+      keyAreas: [
+        {
+          keyId: 4242,
+          left: 40,
+          top: 80,
+          width: 120,
+          height: 24,
+        },
+      ],
+    }));
     const client = {
       listScreenshotsForKey: vi.fn(async () => [
         {
@@ -18,24 +36,7 @@ describe("loadLokaliseCatVisualContext", () => {
           keyAreas: [],
         },
       ]),
-      getScreenshot: vi.fn(async () => ({
-        screenshotId: 123,
-        title: "Homepage",
-        description: null,
-        imageUrl: "https://example.com/screenshot.png",
-        width: 800,
-        height: 600,
-        keyIds: [4242],
-        keyAreas: [
-          {
-            keyId: 4242,
-            left: 40,
-            top: 80,
-            width: 120,
-            height: 24,
-          },
-        ],
-      })),
+      getScreenshot,
     } as unknown as LokaliseApiClient;
 
     const visualContext = await loadLokaliseCatVisualContext({
@@ -44,7 +45,7 @@ describe("loadLokaliseCatVisualContext", () => {
       externalStringId: "4242",
     });
 
-    expect(client.getScreenshot).toHaveBeenCalledWith("proj.123", 123);
+    expect(getScreenshot).toHaveBeenCalledWith("proj.123", 123);
     expect(visualContext.screenshots).toEqual([
       {
         id: "123",

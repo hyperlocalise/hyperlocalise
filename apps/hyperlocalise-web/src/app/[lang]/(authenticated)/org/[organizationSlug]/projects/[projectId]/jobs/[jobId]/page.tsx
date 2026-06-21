@@ -1,3 +1,4 @@
+import { hasCapability } from "@/api/auth/policy";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
@@ -10,9 +11,15 @@ export default async function ProjectJobDetailPage({
 }) {
   const { organizationSlug, projectId: rawProjectId, jobId } = await params;
   const projectId = normalizeProjectId(rawProjectId);
-  await requireAppAuthContext({ organizationSlug });
+  const auth = await requireAppAuthContext({ organizationSlug });
+  const canEditProviderJobDescription = hasCapability(auth.membership.role, "jobs:write");
 
   return (
-    <JobDetailPageContent jobId={jobId} organizationSlug={organizationSlug} projectId={projectId} />
+    <JobDetailPageContent
+      jobId={jobId}
+      organizationSlug={organizationSlug}
+      projectId={projectId}
+      canEditProviderJobDescription={canEditProviderJobDescription}
+    />
   );
 }

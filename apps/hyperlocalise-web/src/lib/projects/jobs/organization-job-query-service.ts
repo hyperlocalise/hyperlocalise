@@ -6,6 +6,7 @@ import { buildAccessibleJobsWhere, buildOrganizationJobsListWhere } from "@/api/
 import { db, schema } from "@/lib/database";
 import { getCurrentUserProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-candidates";
 import { providerAssignedUsersMatch } from "@/lib/providers/tms-provider-assignee-match";
+import { resolveOrganizationJobId } from "@/lib/projects/routing/resource-path-resolver";
 import { ProjectServiceBase } from "@/lib/projects/project-service-base";
 
 const jobWithProjectSelect = {
@@ -235,7 +236,9 @@ export class OrganizationJobQueryService extends ProjectServiceBase {
     return jobs;
   }
 
-  async getById(auth: ApiAuthContext, jobId: string) {
+  async getById(auth: ApiAuthContext, jobPathSegment: string) {
+    const organizationId = auth.organization.localOrganizationId;
+    const jobId = await resolveOrganizationJobId(organizationId, jobPathSegment);
     const [job] = await this.database
       .select(jobWithProjectSelect)
       .from(schema.jobs)

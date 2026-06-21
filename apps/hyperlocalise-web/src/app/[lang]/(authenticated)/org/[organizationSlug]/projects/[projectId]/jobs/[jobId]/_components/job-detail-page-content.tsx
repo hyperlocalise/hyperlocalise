@@ -1,156 +1,101 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useQuery } from "@tanstack/react-query";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
+import { jobBelongsToRouteProject } from "@/lib/projects/routing/resource-path-id";
+import {
+  parseProviderJobId,
+  resolveEncodedProviderJobId,
+} from "@/lib/providers/tms-provider-resource-id";
+
+import { useActiveTmsProvider } from "../../../../../_hooks/use-active-tms-provider";
 
 import type { JobDetailRecord } from "./job-detail-types";
-import { JobProviderDetailSection } from "./job-provider-detail-section";
-import { NativeJobDetailView } from "./native-job-detail-view";
-
-async function parseActionError(response: Response, fallback: string) {
-  let error: string | undefined;
-
-  try {
-    const body = (await response.json()) as { error?: string };
-    error = body.error;
-  } catch {
-    error = undefined;
-  }
-
-  return error ? `${fallback}: ${error}` : `${fallback} (${response.status})`;
-}
+import { NativeJobDetailContent } from "./native-job-detail-content";
+import { ProviderLiveJobDetailContent } from "./provider-live-job-detail-content";
 
 export function JobDetailPageContent({
   jobId,
   organizationSlug,
   projectId,
+  canEditProviderJobDescription,
 }: {
   jobId: string;
   organizationSlug: string;
   projectId: string;
+  canEditProviderJobDescription: boolean;
 }) {
-  const [markFailedDialogOpen, setMarkFailedDialogOpen] = useState(false);
-  const queryClient = useQueryClient();
-  const jobQueryKey = ["job", organizationSlug, projectId, jobId] as const;
-  const jobQuery = useQuery({
-    queryKey: jobQueryKey,
+  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const encodedProviderJobFromRoute = parseProviderJobId(jobId);
+
+  const routingJobQuery = useQuery({
+    queryKey: ["job-routing", organizationSlug, projectId, jobId],
+    enabled: !encodedProviderJobFromRoute,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].$get({
         param: { organizationSlug, jobId },
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to load job (${response.status})`);
+        return null;
       }
 
       const body = (await response.json()) as { job: JobDetailRecord };
-      if (body.job.projectId !== projectId) {
-        throw new Error("Job does not belong to this project");
-      }
-      return body.job;
+      return jobBelongsToRouteProject(body.job, projectId) ? body.job : null;
     },
   });
 
-  const runAgentJob = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"][
-        "run-agent"
-      ].$post({
-        param: { organizationSlug, jobId },
-      });
+  const encodedProviderJobId =
+    encodedProviderJobFromRoute !== null
+      ? jobId
+      : routingJobQuery.data
+        ? resolveEncodedProviderJobId({
+            jobId,
+            projectId,
+            externalProviderKind: routingJobQuery.data.externalProviderKind,
+            externalJobId: routingJobQuery.data.externalJobId,
+            externalTaskId: routingJobQuery.data.externalTaskId,
+          })
+        : null;
 
-      if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to start agent on job"));
-      }
+  const useLiveProviderJob =
+    Boolean(encodedProviderJobId) &&
+    Boolean(activeTmsProviderQuery.data) &&
+    parseProviderJobId(encodedProviderJobId)?.providerKind ===
+      activeTmsProviderQuery.data?.providerKind;
 
-      await response.json();
-    },
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: jobQueryKey });
-      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
-      toast.success("Translation agent is running");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to start agent on job");
-    },
-  });
+  if (
+    activeTmsProviderQuery.isLoading ||
+    (!encodedProviderJobFromRoute && routingJobQuery.isLoading)
+  ) {
+    return (
+      <main className="mx-auto flex w-full max-w-6xl flex-col gap-5">
+        <div className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+          <Skeleton className="h-5 w-48 bg-foreground/8" />
+          <Skeleton className="mt-4 h-40 w-full bg-foreground/8" />
+        </div>
+      </main>
+    );
+  }
 
-  const retryJob = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"].retry.$post({
-        param: { organizationSlug, jobId },
-      });
-
-      if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to retry job"));
-      }
-
-      const body = (await response.json()) as { job: JobDetailRecord };
-      return body.job;
-    },
-    onSuccess: async (updatedJob) => {
-      queryClient.setQueryData(jobQueryKey, updatedJob);
-      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
-      toast.success("Job queued for retry");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to retry job");
-    },
-  });
-
-  const markJobFailed = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].jobs[":jobId"][
-        "mark-failed"
-      ].$post({
-        param: { organizationSlug, jobId },
-      });
-
-      if (!response.ok) {
-        throw new Error(await parseActionError(response, "Failed to mark job as failed"));
-      }
-
-      const body = (await response.json()) as { job: JobDetailRecord };
-      return body.job;
-    },
-    onSuccess: async (updatedJob) => {
-      queryClient.setQueryData(jobQueryKey, updatedJob);
-      await queryClient.invalidateQueries({ queryKey: ["jobs", organizationSlug] });
-      setMarkFailedDialogOpen(false);
-      toast.success("Job marked as failed");
-    },
-    onError: (error) => {
-      toast.error(error instanceof Error ? error.message : "Failed to mark job as failed");
-    },
-  });
+  if (useLiveProviderJob && encodedProviderJobId) {
+    return (
+      <ProviderLiveJobDetailContent
+        jobId={encodedProviderJobId}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        canEditProviderJobDescription={canEditProviderJobDescription}
+      />
+    );
+  }
 
   return (
-    <NativeJobDetailView
+    <NativeJobDetailContent
       jobId={jobId}
       organizationSlug={organizationSlug}
       projectId={projectId}
-      job={jobQuery.data}
-      isLoading={jobQuery.isLoading}
-      error={jobQuery.isError ? jobQuery.error : undefined}
-      isRetryPending={retryJob.isPending}
-      isRunAgentPending={runAgentJob.isPending}
-      isMarkFailedPending={markJobFailed.isPending}
-      markFailedDialogOpen={markFailedDialogOpen}
-      onMarkFailedDialogOpenChange={setMarkFailedDialogOpen}
-      onRetry={() => retryJob.mutate()}
-      onRunAgent={() => runAgentJob.mutate()}
-      onMarkFailed={() => markJobFailed.mutate()}
-      renderProviderDetailSection={(props) => (
-        <JobProviderDetailSection
-          job={props.job}
-          jobId={props.jobId}
-          organizationSlug={props.organizationSlug}
-          projectId={props.projectId}
-        />
-      )}
     />
   );
 }

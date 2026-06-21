@@ -1,14 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect } from "storybook/test";
 
-import { mergeWorkspaceTemplateSkills } from "@/agents/automations/workspace/agent/workspace-template-manifest";
-import { WORKSPACE_AUTOMATION_TEMPLATES_BASE } from "@/lib/agents/workspace-automation-templates";
-
-import { automationsFixture } from "./automations.fixture";
+import { automationTemplatesFixture, automationsFixture } from "./automations.fixture";
 import { AutomationsPageView } from "./automations-page-view";
 
 const fixedNow = Date.UTC(2026, 5, 7, 12, 0, 0);
-const templates = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE);
 
 const meta = {
   title: "App/Automations/Page",
@@ -19,7 +15,7 @@ const meta = {
   args: {
     organizationSlug: "acme",
     automations: automationsFixture,
-    templates,
+    templates: automationTemplatesFixture,
     isLoading: false,
     now: fixedNow,
   },

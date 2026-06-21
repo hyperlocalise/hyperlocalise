@@ -252,6 +252,7 @@ type TmsIntegrationConfig =
   | {
       name: string;
       providerKind: "native";
+      logo: string;
       detail: string;
       included: true;
     }
@@ -271,6 +272,7 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
   {
     name: "Hyperlocalise Native",
     providerKind: "native",
+    logo: "/images/logo.png",
     included: true,
     detail:
       "Built-in TMS for projects, jobs, files, and translation memories. No external provider required.",
@@ -650,8 +652,6 @@ function TmsIntegrationRow({
         >
           {"icon" in integration && integration.icon ? (
             <SimpleBrandIcon icon={integration.icon} colored={isConnected && !isComingSoon} />
-          ) : integration.providerKind === "native" ? (
-            <span className="text-sm font-semibold tracking-tight text-foreground">HL</span>
           ) : (
             <Image
               src={integration.logo}

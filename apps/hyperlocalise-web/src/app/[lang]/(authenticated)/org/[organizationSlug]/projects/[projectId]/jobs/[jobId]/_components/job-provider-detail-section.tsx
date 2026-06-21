@@ -5,12 +5,14 @@ import { toast } from "sonner";
 
 import { apiClient } from "@/lib/api-client-instance";
 import type { JobProviderActionId } from "@/lib/providers/job-provider-actions";
+import { resolveEncodedProviderJobId } from "@/lib/providers/tms-provider-resource-id";
 
 import { JobAgentRunDiffReviewSection } from "./job-agent-run-diff-review-section";
 import { JobProviderDetailSectionView } from "./job-provider-detail-section-view";
 import { JobQaFindingsSection } from "./job-qa-findings-section";
 import type { AgentRunRecord, ProviderBackedJobFields } from "./job-detail-types";
 import { SyncedJobSourceFilesSection } from "./tms/synced-job-source-files-section";
+import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
 
 export type {
   AgentRunRecord,
@@ -37,11 +39,15 @@ export function JobProviderDetailSection({
   jobId,
   organizationSlug,
   projectId,
+  showAgentActions = true,
+  showProviderMetadata = true,
 }: {
   job: ProviderBackedJobFields;
   jobId: string;
   organizationSlug: string;
   projectId: string | null;
+  showAgentActions?: boolean;
+  showProviderMetadata?: boolean;
 }) {
   const queryClient = useQueryClient();
   const jobQueryKey = ["job", organizationSlug, projectId ?? "workspace", jobId] as const;
@@ -110,21 +116,44 @@ export function JobProviderDetailSection({
       jobId={jobId}
       organizationSlug={organizationSlug}
       projectId={projectId}
+      showProviderMetadata={showProviderMetadata}
+      showAgentActions={showAgentActions}
       agentRuns={agentRunsQuery.data}
       agentRunsLoading={agentRunsQuery.isLoading}
       agentRunsError={agentRunsQuery.isError ? agentRunsQuery.error : undefined}
       pendingActionId={startAgentRun.isPending ? startAgentRun.variables : null}
       onStartAgentRun={(actionId) => startAgentRun.mutate(actionId)}
-      renderSourceFiles={({ job: providerJob, organizationSlug: orgSlug, projectId: projId }) => (
-        <SyncedJobSourceFilesSection
-          organizationSlug={orgSlug}
-          projectId={projId}
-          encodedJobId={jobId}
-          providerKind={providerJob.externalProviderKind}
-          sourceFiles={providerJob.providerSourceFiles ?? []}
-          highlightLocale={providerJob.externalTargetLocales?.[0] ?? null}
-        />
-      )}
+      renderSourceFiles={({ job: providerJob, organizationSlug: orgSlug, projectId: projId }) => {
+        const encodedJobId = resolveEncodedProviderJobId({
+          jobId,
+          projectId: projId,
+          externalProviderKind: providerJob.externalProviderKind,
+          externalJobId: providerJob.externalJobId,
+          externalTaskId: providerJob.externalTaskId,
+        });
+
+        if (encodedJobId) {
+          return (
+            <TmsLiveJobFilesSection
+              organizationSlug={orgSlug}
+              projectId={projId}
+              encodedJobId={encodedJobId}
+              highlightLocale={providerJob.externalTargetLocales?.[0] ?? null}
+            />
+          );
+        }
+
+        return (
+          <SyncedJobSourceFilesSection
+            organizationSlug={orgSlug}
+            projectId={projId}
+            encodedJobId={jobId}
+            providerKind={providerJob.externalProviderKind}
+            sourceFiles={providerJob.providerSourceFiles ?? []}
+            highlightLocale={providerJob.externalTargetLocales?.[0] ?? null}
+          />
+        );
+      }}
       renderQaFindings={(props) => (
         <JobQaFindingsSection
           jobId={props.jobId}
