@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import "./ui.css";
 
@@ -18,11 +18,16 @@ export function App() {
     postPluginMessage({ type: "translate", mode });
   };
 
-  window.onmessage = (event: MessageEvent<{ pluginMessage?: { type: string } }>) => {
-    if (event.data.pluginMessage?.type === "done") {
-      setInProgressMode(undefined);
-    }
-  };
+  useEffect(() => {
+    const handler = (event: MessageEvent<{ pluginMessage?: { type: string } }>) => {
+      if (event.data.pluginMessage?.type === "done") {
+        setInProgressMode(undefined);
+      }
+    };
+
+    window.addEventListener("message", handler);
+    return () => window.removeEventListener("message", handler);
+  }, []);
 
   return (
     <div className="container">

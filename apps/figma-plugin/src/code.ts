@@ -4,7 +4,7 @@ type TranslateMode = "with-formatting" | "without-formatting";
 
 type PluginMessage = { type: "translate"; mode: TranslateMode } | { type: "cancel" };
 
-figma.showUI("", { themeColors: true, width: 320, height: 360 });
+figma.showUI(__html__, { themeColors: true, width: 320, height: 360 });
 
 figma.ui.onmessage = async (msg: PluginMessage) => {
   if (msg.type === "cancel") {
@@ -61,8 +61,12 @@ async function translateWithFormatting(nodes: TextNode[]) {
         continue;
       }
 
+      const fontName = segment.fontName;
+
       node.deleteCharacters(segment.start, segment.end);
       node.insertCharacters(segment.start, translatedText);
+      await figma.loadFontAsync(fontName);
+      node.setRangeFontName(segment.start, segment.start + translatedText.length, fontName);
     }
   }
 }
