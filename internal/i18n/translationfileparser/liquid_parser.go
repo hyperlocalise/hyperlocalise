@@ -1,6 +1,7 @@
 package translationfileparser
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -171,48 +172,61 @@ func parseLiquidDocument(filePath string, content []byte) (liquidDocument, map[s
 }
 
 func maskLiquidSyntax(filePath string, content []byte) ([]byte, map[string]string, error) {
-	input := string(content)
 	placeholders := map[string]string{}
 	var out strings.Builder
+	out.Grow(len(content))
 	inHTMLTag := false
 	var htmlQuote byte
 
-	for i := 0; i < len(input); {
+	for i := 0; i < len(content); {
 		switch {
-		case strings.HasPrefix(input[i:], "{{"):
-			end, ok := findLiquidDelimiterEnd(input, i, "}}")
+		case bytes.HasPrefix(content[i:], []byte("{{")):
+			end, ok := findLiquidDelimiterEnd(content, i, []byte("}}"))
 			if !ok {
 				return nil, nil, &LiquidParseError{FilePath: filePath, Offset: i, Message: "unclosed liquid output delimiter"}
 			}
-			out.WriteString(appendLiquidPlaceholder(input[i:end], placeholders))
+			out.WriteString(appendLiquidPlaceholder(string(content[i:end]), placeholders))
 			i = end
-		case strings.HasPrefix(input[i:], "{%"):
-			end, ok := findLiquidDelimiterEnd(input, i, "%}")
+		case bytes.HasPrefix(content[i:], []byte("{%")):
+			end, ok := findLiquidDelimiterEnd(content, i, []byte("%}"))
 			if !ok {
 				return nil, nil, &LiquidParseError{FilePath: filePath, Offset: i, Message: "unclosed liquid tag delimiter"}
 			}
-			tag := input[i:end]
+			tag := content[i:end]
 			tagName := liquidTagName(tag)
 			if isLiquidSkippedBlockStart(tagName) {
-				blockEnd, ok := findLiquidSkippedBlockEnd(input, end, tagName)
+				blockEnd, ok := findLiquidSkippedBlockEnd(content, end, tagName)
 				if !ok {
 					return nil, nil, &LiquidParseError{FilePath: filePath, Offset: i, Message: "unclosed liquid " + tagName + " block"}
 				}
-				out.WriteString(appendLiquidBoundaryPlaceholder(input[i:blockEnd], placeholders))
+				out.WriteString(appendLiquidBoundaryPlaceholder(string(content[i:blockEnd]), placeholders))
 				i = blockEnd
 				continue
 			}
 			if inHTMLTag {
-				out.WriteString(appendLiquidPlaceholder(tag, placeholders))
+				out.WriteString(appendLiquidPlaceholder(string(tag), placeholders))
 			} else {
-				out.WriteString(appendLiquidBoundaryPlaceholder(tag, placeholders))
+				out.WriteString(appendLiquidBoundaryPlaceholder(string(tag), placeholders))
 			}
 			i = end
 		default:
-			ch := input[i]
+			ch := content[i]
 			out.WriteByte(ch)
-			updateLiquidHTMLTagState(input, i, ch, &inHTMLTag, &htmlQuote)
+			updateLiquidHTMLTagState(content, i, ch, &inHTMLTag, &htmlQuote)
 			i++
+
+			// BOLT OPTIMIZATION: Use bytes.IndexAny to skip uninteresting literal text
+			// and reduce loop iterations.
+			if !inHTMLTag {
+				next := bytes.IndexAny(content[i:], "{<")
+				if next > 0 {
+					out.Write(content[i : i+next])
+					i += next
+				} else if next == -1 {
+					out.Write(content[i:])
+					i = len(content)
+				}
+			}
 		}
 	}
 
@@ -235,12 +249,32 @@ func appendLiquidBoundaryPlaceholder(literal string, placeholders map[string]str
 }
 
 func liquidPlaceholderToken(index int, literal string) string {
-	// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
-	sum := sha256.Sum256([]byte(strconv.Itoa(index) + ":" + literal))
-	return "\x1eHLLQPH_" + strings.ToUpper(hex.EncodeToString(sum[:])[:12]) + "_" + strconv.Itoa(index) + "\x1f"
+	// BOLT OPTIMIZATION: Reduce allocations by using a stack buffer for hashing
+	// (avoids heap for short literals) and manually encoding hex in uppercase
+	// to avoid extra string operations.
+	var buf [64]byte
+	hInput := strconv.AppendInt(buf[:0], int64(index), 10)
+	hInput = append(hInput, ':')
+	hInput = append(hInput, literal...)
+	sum := sha256.Sum256(hInput)
+
+	var res strings.Builder
+	res.Grow(32)
+	res.WriteString("\x1eHLLQPH_")
+	for i := 0; i < 6; i++ {
+		b := sum[i]
+		res.WriteByte(upperHexTable[b>>4])
+		res.WriteByte(upperHexTable[b&0x0f])
+	}
+	res.WriteByte('_')
+	res.WriteString(strconv.Itoa(index))
+	res.WriteByte('\x1f')
+	return res.String()
 }
 
-func updateLiquidHTMLTagState(input string, index int, ch byte, inHTMLTag *bool, htmlQuote *byte) {
+const upperHexTable = "0123456789ABCDEF"
+
+func updateLiquidHTMLTagState(input []byte, index int, ch byte, inHTMLTag *bool, htmlQuote *byte) {
 	if !*inHTMLTag {
 		if ch == '<' && isLikelyLiquidHTMLTagStart(input, index) {
 			*inHTMLTag = true
@@ -264,7 +298,7 @@ func updateLiquidHTMLTagState(input string, index int, ch byte, inHTMLTag *bool,
 	}
 }
 
-func isLikelyLiquidHTMLTagStart(input string, index int) bool {
+func isLikelyLiquidHTMLTagStart(input []byte, index int) bool {
 	if index+1 >= len(input) {
 		return false
 	}
@@ -276,10 +310,16 @@ func isLikelyLiquidHTMLTagStart(input string, index int) bool {
 		next == '?'
 }
 
-func findLiquidDelimiterEnd(input string, start int, close string) (int, bool) {
+func findLiquidDelimiterEnd(input []byte, start int, close []byte) (int, bool) {
+	// BOLT OPTIMIZATION: Use bytes.HasPrefix to operate directly on []byte
+	// without string conversion.
+	if len(input[start:]) < 2 {
+		return 0, false
+	}
+
 	var quote byte
 	escaped := false
-	for i := start + 2; i+1 < len(input); i++ {
+	for i := start + 2; i+len(close)-1 < len(input); i++ {
 		ch := input[i]
 		if quote != 0 {
 			if escaped {
@@ -299,29 +339,40 @@ func findLiquidDelimiterEnd(input string, start int, close string) (int, bool) {
 			quote = ch
 			continue
 		}
-		if input[i:i+2] == close {
-			return i + 2, true
+		if bytes.HasPrefix(input[i:], close) {
+			return i + len(close), true
 		}
 	}
 	return 0, false
 }
 
-func liquidTagName(tag string) string {
-	inner := strings.TrimSpace(tag)
-	inner = strings.TrimPrefix(inner, "{%")
-	inner = strings.TrimSuffix(inner, "%}")
-	inner = strings.TrimSpace(inner)
-	inner = strings.TrimPrefix(inner, "-")
-	inner = strings.TrimSuffix(inner, "-")
-	inner = strings.TrimSpace(inner)
-	if inner == "" {
+func liquidTagName(tag []byte) string {
+	// BOLT OPTIMIZATION: Avoid multiple strings.Trim* and strings.Fields calls
+	// by manually scanning for the tag name in the []byte.
+	s := tag
+	if bytes.HasPrefix(s, []byte("{%")) {
+		s = s[2:]
+	}
+	if bytes.HasSuffix(s, []byte("%}")) {
+		s = s[:len(s)-2]
+	}
+	s = bytes.Trim(s, " \t\n\r-")
+
+	if len(s) == 0 {
 		return ""
 	}
-	fields := strings.Fields(inner)
-	if len(fields) == 0 {
-		return ""
+
+	// Find the first word
+	end := 0
+	for end < len(s) && !isSpace(s[end]) {
+		end++
 	}
-	return strings.ToLower(fields[0])
+
+	return strings.ToLower(string(s[:end]))
+}
+
+func isSpace(b byte) bool {
+	return b == ' ' || b == '\t' || b == '\n' || b == '\r'
 }
 
 func isLiquidSkippedBlockStart(tagName string) bool {
@@ -341,12 +392,13 @@ var liquidSkippedBlockEndPatterns = map[string]*regexp.Regexp{
 	"stylesheet": regexp.MustCompile(`(?is)\{%-?\s*endstylesheet\b.*?-?%\}`),
 }
 
-func findLiquidSkippedBlockEnd(input string, from int, tagName string) (int, bool) {
+func findLiquidSkippedBlockEnd(input []byte, from int, tagName string) (int, bool) {
 	pattern, ok := liquidSkippedBlockEndPatterns[tagName]
 	if !ok {
 		return 0, false
 	}
-	loc := pattern.FindStringIndex(input[from:])
+	// BOLT OPTIMIZATION: Use FindIndex on []byte to avoid string conversion.
+	loc := pattern.FindIndex(input[from:])
 	if loc == nil {
 		return 0, false
 	}
@@ -384,7 +436,9 @@ func renderLiquidSourcePart(part htmlPart, liquidReplacer *strings.Replacer) str
 
 func liquidSegmentKey(segment string, occurrences map[string]int) string {
 	sum := sha256.Sum256([]byte(segment))
-	hash := hex.EncodeToString(sum[:])[:16]
+	// BOLT OPTIMIZATION: Encode only the first 8 bytes of the hash to produce
+	// the required 16-character hex string, reducing encoding overhead.
+	hash := hex.EncodeToString(sum[:8])
 	count := occurrences[hash]
 	occurrences[hash] = count + 1
 	if count == 0 {
