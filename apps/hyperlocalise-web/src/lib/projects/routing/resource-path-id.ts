@@ -1,5 +1,6 @@
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import {
+  encodeProviderProjectId,
   parseProviderJobId,
   parseProviderProjectId,
 } from "@/lib/providers/tms-provider-resource-id";
@@ -94,4 +95,41 @@ export function buildJobDetailHrefFromRecords(
 export function isEncodedProviderPathSegment(value: string) {
   const normalized = normalizeProjectId(value);
   return typeof normalized === "string" && normalized.startsWith("ext:");
+}
+
+export function jobBelongsToRouteProject(
+  job: { projectId: string | null },
+  routeProjectId: string,
+): boolean {
+  if (!job.projectId) {
+    return true;
+  }
+
+  const normalizedRouteProjectId = normalizeProjectId(routeProjectId);
+  if (typeof normalizedRouteProjectId !== "string") {
+    return false;
+  }
+
+  if (job.projectId === normalizedRouteProjectId) {
+    return true;
+  }
+
+  const jobProject = parseProviderProjectId(job.projectId);
+  if (jobProject && jobProject.externalProjectId === normalizedRouteProjectId) {
+    return true;
+  }
+
+  const routeProject = parseProviderProjectId(normalizedRouteProjectId);
+  if (routeProject) {
+    if (jobProject) {
+      return (
+        routeProject.providerKind === jobProject.providerKind &&
+        routeProject.externalProjectId === jobProject.externalProjectId
+      );
+    }
+
+    return job.projectId === encodeProviderProjectId(routeProject);
+  }
+
+  return false;
 }

@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client-instance";
+import { jobBelongsToRouteProject } from "@/lib/projects/routing/resource-path-id";
 import {
   parseProviderJobId,
   resolveEncodedProviderJobId,
@@ -42,7 +43,7 @@ export function JobDetailPageContent({
       }
 
       const body = (await response.json()) as { job: JobDetailRecord };
-      return body.job.projectId === projectId ? body.job : null;
+      return jobBelongsToRouteProject(body.job, projectId) ? body.job : null;
     },
   });
 

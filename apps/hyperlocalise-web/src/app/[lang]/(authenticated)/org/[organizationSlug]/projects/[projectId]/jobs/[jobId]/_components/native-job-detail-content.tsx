@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { apiClient } from "@/lib/api-client-instance";
 import { buildJobCatHref, canOpenJobCat } from "@/lib/projects/job-cat-routing";
+import { jobBelongsToRouteProject } from "@/lib/projects/routing/resource-path-id";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
@@ -87,7 +88,7 @@ export function NativeJobDetailContent({
       }
 
       const body = (await response.json()) as { job: JobDetailRecord };
-      if (body.job.projectId !== projectId) {
+      if (!jobBelongsToRouteProject(body.job, projectId)) {
         throw new Error("Job does not belong to this project");
       }
       return body.job;

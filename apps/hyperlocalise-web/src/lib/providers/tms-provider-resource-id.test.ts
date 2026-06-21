@@ -124,4 +124,16 @@ describe("tms-provider-resource-id", () => {
       }),
     ).toBe("ext:crowdin:902807:2001");
   });
+
+  it("builds encoded job ids from clean external project route segments", () => {
+    expect(
+      resolveEncodedProviderJobId({
+        jobId: "job_crowdin_1204",
+        projectId: "902807",
+        externalProviderKind: "crowdin",
+        externalJobId: "2001",
+        externalTaskId: null,
+      }),
+    ).toBe("ext:crowdin:902807:2001");
+  });
 });

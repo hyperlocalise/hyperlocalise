@@ -7,6 +7,7 @@ import {
   formatJobPathSegment,
   formatProjectPathSegment,
   isEncodedProviderPathSegment,
+  jobBelongsToRouteProject,
 } from "./resource-path-id";
 
 describe("resource-path-id", () => {
@@ -54,5 +55,16 @@ describe("resource-path-id", () => {
   it("detects encoded provider path segments", () => {
     expect(isEncodedProviderPathSegment("ext:crowdin:902807")).toBe(true);
     expect(isEncodedProviderPathSegment("902807")).toBe(false);
+  });
+
+  it("matches jobs to clean external project route segments", () => {
+    expect(jobBelongsToRouteProject({ projectId: "ext:crowdin:902807" }, "902807")).toBe(true);
+    expect(
+      jobBelongsToRouteProject({ projectId: "ext:crowdin:902807" }, "ext:crowdin:902807"),
+    ).toBe(true);
+    expect(jobBelongsToRouteProject({ projectId: "project_website" }, "project_website")).toBe(
+      true,
+    );
+    expect(jobBelongsToRouteProject({ projectId: "project_website" }, "902807")).toBe(false);
   });
 });
