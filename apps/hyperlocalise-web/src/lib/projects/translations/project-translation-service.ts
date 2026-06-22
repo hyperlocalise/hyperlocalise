@@ -313,11 +313,14 @@ export class ProjectTranslationService extends ProjectServiceBase {
     projectId: string;
     sourcePath: string;
     targetLocale: string;
+    /** When true, export every source key (translation text or source fallback). Used by sync pull. */
+    includeAllSourceKeys?: boolean;
   }): Promise<{
     prefilled: Record<string, string>;
     truncated: boolean;
     loadedKeyCount: number;
     maxKeyCount: number;
+    translatedKeyCount: number;
   }> {
     const sourceFile = await this.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
@@ -326,7 +329,13 @@ export class ProjectTranslationService extends ProjectServiceBase {
     });
 
     if (!sourceFile) {
-      return { prefilled: {}, truncated: false, loadedKeyCount: 0, maxKeyCount: maxKeysPerImport };
+      return {
+        prefilled: {},
+        truncated: false,
+        loadedKeyCount: 0,
+        maxKeyCount: maxKeysPerImport,
+        translatedKeyCount: 0,
+      };
     }
 
     const keys = await this.listKeysForFile({
@@ -345,6 +354,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
         truncated,
         loadedKeyCount: 0,
         maxKeyCount: maxKeysPerImport,
+        translatedKeyCount: 0,
       };
     }
 
@@ -359,12 +369,22 @@ export class ProjectTranslationService extends ProjectServiceBase {
     );
 
     const prefilled: Record<string, string> = {};
+    let translatedKeyCount = 0;
+
     for (const key of visibleKeys) {
       const translation = translationByKeyId.get(key.id);
-      if (!translation?.text?.trim() || translation.status === "rejected") {
+      const hasValidTranslation =
+        Boolean(translation?.text?.trim()) && translation?.status !== "rejected";
+
+      if (hasValidTranslation) {
+        prefilled[key.key] = translation!.text;
+        translatedKeyCount += 1;
         continue;
       }
-      prefilled[key.key] = translation.text;
+
+      if (input.includeAllSourceKeys) {
+        prefilled[key.key] = key.sourceText;
+      }
     }
 
     return {
@@ -372,6 +392,7 @@ export class ProjectTranslationService extends ProjectServiceBase {
       truncated,
       loadedKeyCount: visibleKeys.length,
       maxKeyCount: maxKeysPerImport,
+      translatedKeyCount,
     };
   }
 

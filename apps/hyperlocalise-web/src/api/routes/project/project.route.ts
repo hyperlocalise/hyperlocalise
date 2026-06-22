@@ -8,6 +8,7 @@ import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import { badRequestResponse, notFoundResponse } from "@/api/errors";
+import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
@@ -1023,6 +1024,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           projectId: params.projectId,
           sourcePath: query.sourcePath,
           targetLocale: query.locale,
+          includeAllSourceKeys: true,
         });
 
         if (result.truncated) {
@@ -1031,6 +1033,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             "source_file_too_large",
             `Translation export exceeds the ${result.maxKeyCount} key limit.`,
           );
+        }
+
+        if (result.translatedKeyCount === 0) {
+          return translationsNotFoundResponse(c);
         }
 
         const extension = path.extname(query.sourcePath);

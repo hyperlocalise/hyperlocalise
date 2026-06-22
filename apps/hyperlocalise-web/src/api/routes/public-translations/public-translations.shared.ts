@@ -21,3 +21,11 @@ export function sourceFileTooLargeResponse(c: JsonContext, maxKeyCount: number) 
 export function sourceFileNotFoundResponse(c: JsonContext) {
   return notFoundResponse(c, "source_file_not_found", "Source file not found");
 }
+
+export function translationsNotFoundResponse(c: JsonContext) {
+  return notFoundResponse(
+    c,
+    "translations_not_found",
+    "No translations are available for this source file and locale.",
+  );
+}
