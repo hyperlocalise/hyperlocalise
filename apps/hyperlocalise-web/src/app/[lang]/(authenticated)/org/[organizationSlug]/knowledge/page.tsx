@@ -1,5 +1,6 @@
 import { hasCapability } from "@/api/auth/policy";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { requireWorkspaceFeatureFlag, workspaceKnowledgeFlag } from "@/lib/flags/workspace-flags";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 import { KnowledgeMemoryEditor } from "./_components/knowledge-memory-editor";
@@ -11,6 +12,7 @@ export default async function KnowledgePage({
 }) {
   const { organizationSlug } = await params;
   const auth = await requireAppAuthContext({ organizationSlug });
+  await requireWorkspaceFeatureFlag(workspaceKnowledgeFlag, auth);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-8">

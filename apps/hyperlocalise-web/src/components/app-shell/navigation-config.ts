@@ -2,6 +2,10 @@ import type { ComponentProps } from "react";
 
 import { normalizeAppLocale } from "@/lib/app-i18n/locales";
 import {
+  WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_KNOWLEDGE_FLAG,
+} from "@/lib/flags/workos-flag-entities";
+import {
   AiBrain01Icon,
   BookOpenTextIcon,
   Chat01Icon,
@@ -26,6 +30,7 @@ export type NavigationItem = {
   icon: NavigationIcon;
   description?: string;
   badge?: string;
+  featureFlagKey?: typeof WORKSPACE_AUTOMATIONS_FLAG | typeof WORKSPACE_KNOWLEDGE_FLAG;
 };
 
 export type NavigationGroup = {
@@ -75,6 +80,7 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           icon: Task01Icon,
           description: "Scheduled and GitHub-triggered deterministic workflows",
           badge: "Beta",
+          featureFlagKey: WORKSPACE_AUTOMATIONS_FLAG,
         },
       ],
     },
@@ -91,7 +97,7 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
           href: org("knowledge"),
           icon: AiBrain01Icon,
           description: "Workspace memory for agents and teams",
-          badge: "Coming soon",
+          featureFlagKey: WORKSPACE_KNOWLEDGE_FLAG,
         },
         {
           label: "Glossaries",

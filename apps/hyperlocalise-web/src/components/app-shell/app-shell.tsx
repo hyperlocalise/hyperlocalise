@@ -1,14 +1,18 @@
 import type { ReactNode } from "react";
 
 import { hasCapability } from "@/api/auth/policy";
-import { requireAppAuthContext } from "@/lib/workos/app-auth";
 import { AppShellClient } from "@/components/app-shell/app-shell-client";
 import { AppShellNavigation } from "@/components/app-shell/app-shell-navigation";
 import { buildGlobalNavigationGroups } from "@/components/app-shell/navigation-config";
 import {
+  evaluateWorkspaceFeatureFlags,
+  filterNavigationByWorkspaceFlags,
+} from "@/lib/flags/workspace-flags";
+import {
   getTmsUserConnectCtaState,
   type TmsUserConnectCta,
 } from "@/lib/providers/tms-user-connection";
+import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 export type AppShellProps = {
   children: ReactNode;
@@ -22,7 +26,11 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
   const displayName =
     [auth.sessionUser.firstName, auth.sessionUser.lastName].filter(Boolean).join(" ") ||
     auth.sessionUser.email;
-  const navigationGroups = buildGlobalNavigationGroups(activeOrganizationSlug);
+  const workspaceFeatureFlags = await evaluateWorkspaceFeatureFlags(auth);
+  const navigationGroups = filterNavigationByWorkspaceFlags(
+    buildGlobalNavigationGroups(activeOrganizationSlug),
+    workspaceFeatureFlags,
+  );
   const tmsUserConnectCta: TmsUserConnectCta = hasCapability(auth.membership.role, "jobs:read")
     ? await getTmsUserConnectCtaState({
         organizationId: auth.activeOrganization.localOrganizationId,
