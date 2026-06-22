@@ -59,7 +59,7 @@ describe("workosAdapter", () => {
     });
 
     expect(enabled).toBe(true);
-    expect(waitUntilReady).toHaveBeenCalledWith({ timeoutMs: 5_000 });
+    expect(waitUntilReady).toHaveBeenCalledWith({ timeoutMs: 2_000 });
     expect(isEnabled).toHaveBeenCalledWith(WORKSPACE_AUTOMATIONS_FLAG, {
       organizationId: "org_456",
       userId: "user_123",

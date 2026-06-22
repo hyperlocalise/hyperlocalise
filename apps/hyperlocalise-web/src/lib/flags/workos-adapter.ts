@@ -30,7 +30,7 @@ export function createWorkosAdapter() {
 
         try {
           const client = getFeatureFlagsRuntimeClient();
-          await client.waitUntilReady({ timeoutMs: 5_000 });
+          await client.waitUntilReady({ timeoutMs: 2_000 });
           return client.isEnabled(key, {
             organizationId: context?.organization?.id,
             userId: context?.user?.id,
