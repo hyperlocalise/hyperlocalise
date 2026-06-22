@@ -1113,6 +1113,63 @@ export function IntegrationsPageContent({
               </div>
             )}
           </section>
+
+          <section className="flex flex-col gap-3">
+            <IntegrationCategoryLabel>Content Management System</IntegrationCategoryLabel>
+            {isLoadingContentful ? (
+              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+                <div className="px-5 py-4">
+                  <Skeleton className="h-14 rounded-lg" />
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
+                <CmsIntegrationRow
+                  connection={contentfulConnections?.[0]}
+                  userIsAdmin={userIsAdmin}
+                  expanded={expandedContentful}
+                  onExpandedChange={handleContentfulExpandedChange}
+                >
+                  <ContentfulConnectionPanel
+                    connection={contentfulConnections?.[0]}
+                    disabled={!userIsAdmin}
+                    form={contentfulForm}
+                    onFormChange={setContentfulForm}
+                    lastWebhookSecret={lastContentfulWebhookSecret}
+                    isSaving={saveContentfulConnection.isPending}
+                    organizationSlug={organizationSlug}
+                    onSave={() => {
+                      const accessToken = contentfulForm.accessToken.trim();
+                      const existingConnection = contentfulConnections?.[0];
+
+                      const payload = {
+                        displayName: contentfulForm.displayName.trim(),
+                        spaceId: contentfulForm.spaceId.trim(),
+                        environmentId: contentfulForm.environmentId.trim() || "master",
+                        contentTypeIds: contentfulForm.contentTypeIds,
+                      };
+
+                      saveContentfulConnection.mutate(
+                        existingConnection
+                          ? {
+                              ...payload,
+                              connectionId: existingConnection.id,
+                              ...(accessToken ? { accessToken } : {}),
+                            }
+                          : { ...payload, accessToken },
+                        {
+                          onSuccess: (result) => {
+                            setContentfulForm((current) => ({ ...current, accessToken: "" }));
+                            setLastContentfulWebhookSecret(result.webhookSecret ?? "");
+                          },
+                        },
+                      );
+                    }}
+                  />
+                </CmsIntegrationRow>
+              </div>
+            )}
+          </section>
         </>
       ) : null}
 
@@ -1174,63 +1231,6 @@ export function IntegrationsPageContent({
                     />
                   );
                 })}
-              </div>
-            )}
-          </section>
-
-          <section className="flex flex-col gap-3">
-            <IntegrationCategoryLabel>Content Management System</IntegrationCategoryLabel>
-            {isLoadingContentful ? (
-              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-                <div className="px-5 py-4">
-                  <Skeleton className="h-14 rounded-lg" />
-                </div>
-              </div>
-            ) : (
-              <div className="overflow-hidden rounded-lg border border-border bg-card text-card-foreground">
-                <CmsIntegrationRow
-                  connection={contentfulConnections?.[0]}
-                  userIsAdmin={userIsAdmin}
-                  expanded={expandedContentful}
-                  onExpandedChange={handleContentfulExpandedChange}
-                >
-                  <ContentfulConnectionPanel
-                    connection={contentfulConnections?.[0]}
-                    disabled={!userIsAdmin}
-                    form={contentfulForm}
-                    onFormChange={setContentfulForm}
-                    lastWebhookSecret={lastContentfulWebhookSecret}
-                    isSaving={saveContentfulConnection.isPending}
-                    organizationSlug={organizationSlug}
-                    onSave={() => {
-                      const accessToken = contentfulForm.accessToken.trim();
-                      const existingConnection = contentfulConnections?.[0];
-
-                      const payload = {
-                        displayName: contentfulForm.displayName.trim(),
-                        spaceId: contentfulForm.spaceId.trim(),
-                        environmentId: contentfulForm.environmentId.trim() || "master",
-                        contentTypeIds: contentfulForm.contentTypeIds,
-                      };
-
-                      saveContentfulConnection.mutate(
-                        existingConnection
-                          ? {
-                              ...payload,
-                              connectionId: existingConnection.id,
-                              ...(accessToken ? { accessToken } : {}),
-                            }
-                          : { ...payload, accessToken },
-                        {
-                          onSuccess: (result) => {
-                            setContentfulForm((current) => ({ ...current, accessToken: "" }));
-                            setLastContentfulWebhookSecret(result.webhookSecret ?? "");
-                          },
-                        },
-                      );
-                    }}
-                  />
-                </CmsIntegrationRow>
               </div>
             )}
           </section>

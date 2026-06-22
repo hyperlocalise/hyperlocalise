@@ -3,7 +3,7 @@
 import { MicrosoftIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import type { SimpleIcon } from "simple-icons";
-import { siGitlab, siGooglechat, siLinear, siTelegram, siWhatsapp } from "simple-icons";
+import { siGitlab, siLinear } from "simple-icons";
 
 import { EmailIntegrationRow } from "./email-integration-row";
 import { GitHubIntegrationRow } from "./github-integration-row";
@@ -37,21 +37,6 @@ const comingSoonCollaborationAgents: readonly ComingSoonAgent[] = [
     name: "Linear",
     description: "Create issues from translation blockers and keep launch tasks in sync.",
     icon: siLinear,
-  },
-  {
-    name: "Google Chat",
-    description: "Send review prompts and translation status to Google Chat spaces.",
-    icon: siGooglechat,
-  },
-  {
-    name: "Telegram",
-    description: "Receive lightweight release alerts and approve routine agent actions.",
-    icon: siTelegram,
-  },
-  {
-    name: "WhatsApp",
-    description: "Coordinate urgent localization approvals with WhatsApp notifications.",
-    icon: siWhatsapp,
   },
 ] as const;
 
