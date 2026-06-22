@@ -26,10 +26,11 @@ import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organ
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { buildSourcePath, parseTranslationFile, segmentsToTranslationFile } from "./segment-file";
-import type { CanvaDesignSegment, LocalizeCanvaDesignResult } from "./types";
-
-const POLL_INTERVAL_MS = 1_500;
-const MAX_POLL_ATTEMPTS = 120;
+import type {
+  CanvaDesignSegment,
+  CanvaLocalizationStatus,
+  StartCanvaLocalizationResult,
+} from "./types";
 
 type PublicJobOutputFile = {
   fileId: string;
@@ -82,46 +83,59 @@ function publicJobOutputFiles(input: {
   return parsed;
 }
 
-async function waitForTranslationJob(input: { jobId: string; organizationId: string }) {
-  for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
-    const [job] = await db
-      .select({
-        id: schema.jobs.id,
-        status: schema.jobs.status,
-        lastError: schema.jobs.lastError,
-        type: schema.translationJobDetails.type,
-        outcomeKind: schema.translationJobDetails.outcomeKind,
-        outcomePayload: schema.jobs.outcomePayload,
-      })
-      .from(schema.jobs)
-      .leftJoin(
-        schema.translationJobDetails,
-        eq(schema.translationJobDetails.jobId, schema.jobs.id),
-      )
-      .where(
-        and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
-      )
-      .limit(1);
+async function loadTranslationsByLocale(input: {
+  organizationId: string;
+  projectId: string;
+  outputFiles: PublicJobOutputFile[];
+}) {
+  const translationsByLocale: Record<string, Record<string, string>> = {};
 
-    if (!job) {
-      throw new Error("translation_job_not_found");
+  for (const outputFile of input.outputFiles) {
+    const { content } = await getStoredFileContent({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      fileId: outputFile.fileId,
+    });
+
+    let parsed: Record<string, unknown>;
+    try {
+      parsed = JSON.parse(content.toString("utf8")) as Record<string, unknown>;
+    } catch {
+      throw new Error("translation_output_parse_failed");
     }
 
-    if (job.status === "succeeded") {
-      return job;
-    }
-
-    if (job.status === "failed" || job.status === "cancelled") {
-      throw new Error(job.lastError ?? "translation_job_failed");
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
+    translationsByLocale[outputFile.locale] = parseTranslationFile(parsed);
   }
 
-  throw new Error("translation_job_timed_out");
+  return translationsByLocale;
 }
 
-export async function localizeCanvaDesign(input: {
+async function getTranslationJobSnapshot(input: { jobId: string; organizationId: string }) {
+  const [job] = await db
+    .select({
+      id: schema.jobs.id,
+      status: schema.jobs.status,
+      projectId: schema.jobs.projectId,
+      lastError: schema.jobs.lastError,
+      type: schema.translationJobDetails.type,
+      outcomeKind: schema.translationJobDetails.outcomeKind,
+      outcomePayload: schema.jobs.outcomePayload,
+    })
+    .from(schema.jobs)
+    .leftJoin(schema.translationJobDetails, eq(schema.translationJobDetails.jobId, schema.jobs.id))
+    .where(
+      and(eq(schema.jobs.id, input.jobId), eq(schema.jobs.organizationId, input.organizationId)),
+    )
+    .limit(1);
+
+  if (!job) {
+    throw new Error("translation_job_not_found");
+  }
+
+  return job;
+}
+
+export async function startCanvaLocalization(input: {
   organizationId: string;
   apiKeyId: string;
   projectId: string;
@@ -131,7 +145,7 @@ export async function localizeCanvaDesign(input: {
   segments: CanvaDesignSegment[];
   jobQueue?: JobQueue<TranslationJobEventData>;
   fileStorageAdapter?: FileStorageAdapter;
-}): Promise<LocalizeCanvaDesignResult> {
+}): Promise<StartCanvaLocalizationResult> {
   const [apiKey] = await db
     .select({
       id: schema.organizationApiKeys.id,
@@ -295,25 +309,36 @@ export async function localizeCanvaDesign(input: {
     }
   }
 
-  const completedJob = await waitForTranslationJob({
-    jobId,
-    organizationId: input.organizationId,
-  });
-  const outputFiles = publicJobOutputFiles(completedJob) ?? [];
-  const translationsByLocale: Record<string, Record<string, string>> = {};
+  return { jobId };
+}
 
-  for (const outputFile of outputFiles) {
-    const { content } = await getStoredFileContent({
+export async function getCanvaLocalizationStatus(input: {
+  jobId: string;
+  organizationId: string;
+}): Promise<CanvaLocalizationStatus> {
+  const job = await getTranslationJobSnapshot(input);
+
+  if (job.status === "succeeded") {
+    const outputFiles = publicJobOutputFiles(job) ?? [];
+    const translationsByLocale = await loadTranslationsByLocale({
       organizationId: input.organizationId,
-      projectId: project.id,
-      fileId: outputFile.fileId,
+      projectId: job.projectId,
+      outputFiles,
     });
-    const parsed = JSON.parse(content.toString("utf8")) as Record<string, unknown>;
-    translationsByLocale[outputFile.locale] = parseTranslationFile(parsed);
+
+    return {
+      jobId: job.id,
+      status: "succeeded",
+      translationsByLocale,
+    };
+  }
+
+  if (job.status === "failed" || job.status === "cancelled") {
+    throw new Error(job.lastError ?? "translation_job_failed");
   }
 
   return {
-    jobId,
-    translationsByLocale,
+    jobId: job.id,
+    status: job.status === "running" ? "running" : "queued",
   };
 }

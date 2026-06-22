@@ -27,10 +27,20 @@ export type CanvaConnectionSecretResult = {
   connectionToken: string;
 };
 
-export type LocalizeCanvaDesignResult = {
+export type StartCanvaLocalizationResult = {
   jobId: string;
-  translationsByLocale: Record<string, Record<string, string>>;
 };
+
+export type CanvaLocalizationStatus =
+  | {
+      jobId: string;
+      status: "queued" | "running";
+    }
+  | {
+      jobId: string;
+      status: "succeeded";
+      translationsByLocale: Record<string, Record<string, string>>;
+    };
 
 export type CanvaVerifiedUser = {
   userId: string;

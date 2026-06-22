@@ -281,39 +281,64 @@ export async function getCanvaConnectionByToken(connectionToken: string) {
   return connection ?? null;
 }
 
+function isUniqueViolation(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  if ("code" in error && error.code === "23505") {
+    return true;
+  }
+
+  const cause = "cause" in error ? error.cause : undefined;
+  return typeof cause === "object" && cause !== null && "code" in cause && cause.code === "23505";
+}
+
 export async function bindCanvaConnectionBrand(input: {
   connectionId: string;
   organizationId: string;
   canvaBrandId: string;
 }) {
-  const [existingBrandConnection] = await db
-    .select({ id: schema.canvaConnections.id })
-    .from(schema.canvaConnections)
-    .where(
-      and(
-        eq(schema.canvaConnections.organizationId, input.organizationId),
-        eq(schema.canvaConnections.canvaBrandId, input.canvaBrandId),
-      ),
-    )
-    .limit(1);
+  try {
+    await db.transaction(async (tx) => {
+      const [existingBrandConnection] = await tx
+        .select({ id: schema.canvaConnections.id })
+        .from(schema.canvaConnections)
+        .where(
+          and(
+            eq(schema.canvaConnections.organizationId, input.organizationId),
+            eq(schema.canvaConnections.canvaBrandId, input.canvaBrandId),
+          ),
+        )
+        .limit(1);
 
-  if (existingBrandConnection && existingBrandConnection.id !== input.connectionId) {
-    throw new Error("canva_brand_already_bound");
+      if (existingBrandConnection && existingBrandConnection.id !== input.connectionId) {
+        throw new Error("canva_brand_already_bound");
+      }
+
+      await tx
+        .update(schema.canvaConnections)
+        .set({
+          canvaBrandId: input.canvaBrandId,
+          lastUsedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(schema.canvaConnections.id, input.connectionId),
+            eq(schema.canvaConnections.organizationId, input.organizationId),
+            isNull(schema.canvaConnections.canvaBrandId),
+          ),
+        );
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message === "canva_brand_already_bound") {
+      throw error;
+    }
+    if (isUniqueViolation(error)) {
+      throw new Error("canva_brand_already_bound");
+    }
+    throw error;
   }
-
-  await db
-    .update(schema.canvaConnections)
-    .set({
-      canvaBrandId: input.canvaBrandId,
-      lastUsedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(schema.canvaConnections.id, input.connectionId),
-        eq(schema.canvaConnections.organizationId, input.organizationId),
-        isNull(schema.canvaConnections.canvaBrandId),
-      ),
-    );
 }
 
 export async function touchCanvaConnectionUsage(connectionId: string) {

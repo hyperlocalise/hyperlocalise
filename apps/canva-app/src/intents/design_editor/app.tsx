@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import * as styles from "../../../styles/components.css";
 import { applyTranslationsToDesign, extractDesignContent, listDesignPages } from "./design-content";
-import { HyperlocaliseClientError, localizeDesign } from "./hyperlocalise-client";
+import { HyperlocaliseClientError, pollLocalizeDesign, startLocalizeDesign } from "./hyperlocalise-client";
 import {
   loadSettings,
   parseSelectedPageValues,
@@ -207,9 +207,7 @@ export const App = () => {
       const { token } = await getDesignToken();
 
       setWorkflowStep("uploading");
-      setWorkflowStep("translating");
-
-      const response = await localizeDesign({
+      const started = await startLocalizeDesign({
         connectionToken: settings.connectionToken.trim(),
         projectId: settings.projectId.trim() || undefined,
         sourceLocale: settings.sourceLocale.trim(),
@@ -217,6 +215,12 @@ export const App = () => {
         designToken: token,
         segments: extracted.segments,
         preserveFormatting: settings.preserveFormatting,
+      });
+
+      setWorkflowStep("translating");
+      const response = await pollLocalizeDesign({
+        connectionToken: settings.connectionToken.trim(),
+        jobId: started.jobId,
       });
 
       const localeToApply = selectedLocale || targetLocales[0] || "";

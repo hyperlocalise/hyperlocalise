@@ -5,16 +5,23 @@ import jwksClient from "jwks-rsa";
 
 import type { CanvaVerifiedUser } from "./types";
 
-function createJwksClient(appId: string) {
-  return jwksClient({
-    jwksUri: `https://api.canva.com/rest/v1/apps/${appId}/jwks`,
-    cache: true,
-    rateLimit: true,
-  });
+const jwksClients = new Map<string, ReturnType<typeof jwksClient>>();
+
+function getJwksClient(appId: string) {
+  let client = jwksClients.get(appId);
+  if (!client) {
+    client = jwksClient({
+      jwksUri: `https://api.canva.com/rest/v1/apps/${appId}/jwks`,
+      cache: true,
+      rateLimit: true,
+    });
+    jwksClients.set(appId, client);
+  }
+  return client;
 }
 
 async function verifyCanvaToken(token: string, appId: string) {
-  const client = createJwksClient(appId);
+  const client = getJwksClient(appId);
   const decodedHeader = jwt.decode(token, { complete: true });
   const keyId = decodedHeader?.header.kid;
   if (!keyId) {
