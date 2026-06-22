@@ -271,6 +271,15 @@ describe("resolveGithubWorkflowsIdempotencyKey", () => {
         commitAfter: "def",
       }),
     );
-    expect(keyB).not.toBe(keyA);
+    expect(keyB).toBe(
+      buildWorkspaceGithubPushCommitAutomationIdempotencyKey({
+        automationId: "automation-2",
+        configVersion: 3,
+        branch: "main",
+        commitBefore: "abc",
+        commitAfter: "def",
+      }),
+    );
+    expect(keyA).not.toBe(keyB);
   });
 });
