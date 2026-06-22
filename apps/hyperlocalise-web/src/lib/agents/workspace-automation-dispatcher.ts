@@ -478,6 +478,7 @@ export async function dispatchDueContentfulWorkspaceAutomations(input?: {
   now?: Date;
   limit?: number;
   queue?: WorkspaceAutomationExecutionQueue;
+  skipAutomationIds?: ReadonlySet<string>;
 }) {
   const now = input?.now ?? new Date();
   const automations = await listDueContentfulWorkspaceAutomations({
@@ -487,6 +488,10 @@ export async function dispatchDueContentfulWorkspaceAutomations(input?: {
 
   const results: WorkspaceAutomationDispatchResult[] = [];
   for (const automation of automations) {
+    if (input?.skipAutomationIds?.has(automation.id)) {
+      continue;
+    }
+
     if (
       hasWorkspaceAutomationGithubWorkflow(automation.toolConfig) &&
       automation.repositoryTarget.kind === "github"

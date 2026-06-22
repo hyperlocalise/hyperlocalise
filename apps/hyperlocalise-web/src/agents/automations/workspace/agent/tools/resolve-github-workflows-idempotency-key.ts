@@ -1,10 +1,7 @@
 import {
-  buildGithubPushAutomationIdempotencyKey,
-  buildGithubScheduledAutomationIdempotencyKey,
-} from "@/lib/agents/github/github-repository-automation-idempotency";
-import {
   buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
   buildWorkspaceGithubPushAutomationIdempotencyKey,
+  buildWorkspaceGithubPushCommitAutomationIdempotencyKey,
   buildWorkspaceManualAutomationIdempotencyKey,
   buildWorkspaceScheduledAutomationIdempotencyKey,
 } from "@/lib/agents/workspace-automation-idempotency";
@@ -35,8 +32,8 @@ export function resolveGithubWorkflowsIdempotencyKey(input: {
   if (triggerSource === "scheduled") {
     const scheduledRunAt =
       typeof snapshot.scheduledRunAt === "string" ? new Date(snapshot.scheduledRunAt) : new Date();
-    return buildGithubScheduledAutomationIdempotencyKey({
-      githubInstallationRepositoryId: input.repositoryId,
+    return buildWorkspaceScheduledAutomationIdempotencyKey({
+      automationId: input.session.automation.id,
       configVersion: input.configVersion,
       scheduledRunAt,
     });
@@ -52,14 +49,12 @@ export function resolveGithubWorkflowsIdempotencyKey(input: {
         : input.session.run.id;
 
     if (pushBranch && commitAfter) {
-      return buildGithubPushAutomationIdempotencyKey({
-        organizationId: input.session.organizationId,
-        githubInstallationRepositoryId: input.repositoryId,
-        githubRepositoryId: input.githubRepositoryId,
+      return buildWorkspaceGithubPushCommitAutomationIdempotencyKey({
+        automationId: input.session.automation.id,
+        configVersion: input.configVersion,
         branch: pushBranch,
         commitBefore,
         commitAfter,
-        configVersion: input.configVersion,
       });
     }
 

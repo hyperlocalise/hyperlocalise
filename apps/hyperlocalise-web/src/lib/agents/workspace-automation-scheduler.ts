@@ -25,9 +25,11 @@ export async function runWorkspaceAutomationScheduler(input?: {
     now,
     limit: input?.limit,
   });
+  const githubDueAutomationIds = new Set(dueAutomations.map((entry) => entry.automation.id));
   const contentfulResults = await dispatchDueContentfulWorkspaceAutomations({
     now,
     limit: input?.limit,
+    skipAutomationIds: githubDueAutomationIds,
   });
 
   let enqueued = 0;
