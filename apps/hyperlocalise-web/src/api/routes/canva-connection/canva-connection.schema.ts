@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
+import { optionalProjectIdSchema, projectIdSchema } from "@/lib/projects/identity/project-id";
 
 export const canvaConnectionIdParamSchema = z.object({
   connectionId: z.string().uuid(),
@@ -9,14 +9,14 @@ export const canvaConnectionIdParamSchema = z.object({
 export const createCanvaConnectionBodySchema = z.object({
   displayName: z.string().trim().min(1).max(256),
   apiKeyId: z.string().uuid(),
-  projectId: optionalProjectIdSchema,
+  projectId: projectIdSchema,
   sourceLocale: z.string().trim().min(1).max(32).default("en"),
   targetLocales: z
     .array(z.string().trim().min(1).max(32))
     .min(1)
     .max(20)
     .default(["es", "fr", "de"]),
-  enabled: z.boolean().default(true),
+  enabled: z.boolean().optional(),
 });
 
 export const updateCanvaConnectionBodySchema = z.object({
