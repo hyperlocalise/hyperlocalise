@@ -213,7 +213,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   }
 
   const useLiveProviderProjects = Boolean(activeTmsProviderQuery.data);
-  const isProviderModeResolved = activeTmsProviderQuery.isSuccess;
+  const isProviderModeResolved = activeTmsProviderQuery.isSuccess || activeTmsProviderQuery.isError;
 
   const createProjectAction = (
     <Button
