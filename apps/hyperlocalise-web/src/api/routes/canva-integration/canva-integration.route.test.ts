@@ -112,6 +112,78 @@ describe("canvaIntegrationRoutes", () => {
       jobId: "job_test",
       mode: "hyperlocalise",
     });
+    expect(mocks.startCanvaLocalizationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId,
+        apiKeyId: apiKeyBody.apiKey.id,
+        canvaConnectionId: created.connection.id,
+        projectId: projectBody.project.id,
+      }),
+    );
+  });
+
+  it("scopes localization to the connection project even when projectId is sent", async () => {
+    const identity = apiKeyFixture.createWorkosIdentityWithRole("admin");
+    await apiKeyFixture.authHeadersFor(identity);
+    const auth = globalThis.__testApiAuthContext!;
+    const organizationId = auth.organization.localOrganizationId;
+
+    const apiKeyResponse = await apiKeyFixture.createApiKeyViaApi(identity, {
+      name: "Canva localize key",
+    });
+    const apiKeyBody = (await apiKeyResponse.json()) as { apiKey: { id: string } };
+
+    const boundProjectResponse = await projectFixture.createProjectViaApi(identity);
+    const boundProjectBody = (await boundProjectResponse.json()) as { project: { id: string } };
+    const otherProjectResponse = await projectFixture.createProjectViaApi(identity);
+    const otherProjectBody = (await otherProjectResponse.json()) as { project: { id: string } };
+
+    const created = await createCanvaConnection({
+      organizationId,
+      userId: auth.user.localUserId,
+      displayName: "Canva test",
+      apiKeyId: apiKeyBody.apiKey.id,
+      projectId: boundProjectBody.project.id,
+      sourceLocale: "en",
+      targetLocales: ["es"],
+    });
+
+    mocks.startCanvaLocalizationMock.mockResolvedValue({
+      jobId: "job_test",
+    });
+
+    const payload = {
+      designToken: "design-token",
+      projectId: otherProjectBody.project.id,
+      segments: [
+        {
+          key: "canva.segment.0.0.0",
+          pageIndex: 0,
+          contentIndex: 0,
+          regionIndex: 0,
+          text: "Hello",
+        },
+      ],
+    };
+
+    const response = await client.api.integrations.canva.localize.$post(
+      {
+        json: payload as Parameters<typeof client.api.integrations.canva.localize.$post>[0]["json"],
+      },
+      {
+        headers: {
+          "X-Hyperlocalise-Connection-Token": created.connectionToken,
+        },
+      },
+    );
+
+    expect(response.status).toBe(202);
+    expect(mocks.startCanvaLocalizationMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: boundProjectBody.project.id,
+        canvaConnectionId: created.connection.id,
+      }),
+    );
   });
 
   it("returns localization results for a completed job", async () => {
@@ -171,6 +243,13 @@ describe("canvaIntegrationRoutes", () => {
         },
       },
       mode: "hyperlocalise",
+    });
+    expect(mocks.getCanvaLocalizationStatusMock).toHaveBeenCalledWith({
+      jobId: "job_test",
+      organizationId,
+      canvaConnectionId: created.connection.id,
+      projectId: projectBody.project.id,
+      apiKeyId: apiKeyBody.apiKey.id,
     });
   });
 

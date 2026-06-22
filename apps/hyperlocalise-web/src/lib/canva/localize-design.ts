@@ -110,12 +110,77 @@ async function loadTranslationsByLocale(input: {
   return translationsByLocale;
 }
 
+function readCanvaConnectionIdFromJobInput(inputPayload: unknown): string | null {
+  if (!inputPayload || typeof inputPayload !== "object") {
+    return null;
+  }
+
+  const fileInput = (inputPayload as Record<string, unknown>).fileInput;
+  if (!fileInput || typeof fileInput !== "object") {
+    return null;
+  }
+
+  const metadata = (fileInput as Record<string, unknown>).metadata;
+  if (!metadata || typeof metadata !== "object") {
+    return null;
+  }
+
+  const canvaConnectionId = (metadata as Record<string, unknown>).canvaConnectionId;
+  return typeof canvaConnectionId === "string" && canvaConnectionId.length > 0
+    ? canvaConnectionId
+    : null;
+}
+
+function isCanvaIntegrationJob(inputPayload: unknown) {
+  if (!inputPayload || typeof inputPayload !== "object") {
+    return false;
+  }
+
+  const fileInput = (inputPayload as Record<string, unknown>).fileInput;
+  if (!fileInput || typeof fileInput !== "object") {
+    return false;
+  }
+
+  const metadata = (fileInput as Record<string, unknown>).metadata;
+  if (!metadata || typeof metadata !== "object") {
+    return false;
+  }
+
+  return (metadata as Record<string, unknown>).integration === "canva-app";
+}
+
+function assertCanvaConnectionJobAccess(input: {
+  job: {
+    projectId: string | null;
+    apiKeyId: string | null;
+    inputPayload: unknown;
+  };
+  canvaConnectionId: string;
+  projectId: string;
+  apiKeyId: string;
+}) {
+  if (input.job.projectId !== input.projectId || input.job.apiKeyId !== input.apiKeyId) {
+    throw new Error("translation_job_not_found");
+  }
+
+  if (!isCanvaIntegrationJob(input.job.inputPayload)) {
+    throw new Error("translation_job_not_found");
+  }
+
+  const storedConnectionId = readCanvaConnectionIdFromJobInput(input.job.inputPayload);
+  if (storedConnectionId && storedConnectionId !== input.canvaConnectionId) {
+    throw new Error("translation_job_not_found");
+  }
+}
+
 async function getTranslationJobSnapshot(input: { jobId: string; organizationId: string }) {
   const [job] = await db
     .select({
       id: schema.jobs.id,
       status: schema.jobs.status,
       projectId: schema.jobs.projectId,
+      apiKeyId: schema.jobs.apiKeyId,
+      inputPayload: schema.jobs.inputPayload,
       lastError: schema.jobs.lastError,
       type: schema.translationJobDetails.type,
       outcomeKind: schema.translationJobDetails.outcomeKind,
@@ -138,6 +203,7 @@ async function getTranslationJobSnapshot(input: { jobId: string; organizationId:
 export async function startCanvaLocalization(input: {
   organizationId: string;
   apiKeyId: string;
+  canvaConnectionId: string;
   projectId: string;
   sourceLocale: string;
   targetLocales: string[];
@@ -263,6 +329,7 @@ export async function startCanvaLocalization(input: {
           targetLocales: input.targetLocales,
           metadata: {
             integration: "canva-app",
+            canvaConnectionId: input.canvaConnectionId,
           },
         },
       },
@@ -315,8 +382,17 @@ export async function startCanvaLocalization(input: {
 export async function getCanvaLocalizationStatus(input: {
   jobId: string;
   organizationId: string;
+  canvaConnectionId: string;
+  projectId: string;
+  apiKeyId: string;
 }): Promise<CanvaLocalizationStatus> {
   const job = await getTranslationJobSnapshot(input);
+  assertCanvaConnectionJobAccess({
+    job,
+    canvaConnectionId: input.canvaConnectionId,
+    projectId: input.projectId,
+    apiKeyId: input.apiKeyId,
+  });
 
   if (job.status === "succeeded") {
     const projectId = job.projectId;

@@ -124,7 +124,8 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           const result = await startCanvaLocalization({
             organizationId: connection.organizationId,
             apiKeyId: connection.apiKeyId,
-            projectId: payload.projectId ?? connection.projectId,
+            canvaConnectionId: connection.id,
+            projectId: connection.projectId,
             sourceLocale: payload.sourceLocale ?? connection.sourceLocale,
             targetLocales: payload.targetLocales ?? connection.targetLocales,
             designId,
@@ -157,6 +158,9 @@ export function createCanvaIntegrationRoutes(options: CreateCanvaIntegrationRout
           const status = await getCanvaLocalizationStatus({
             jobId,
             organizationId: connection.organizationId,
+            canvaConnectionId: connection.id,
+            projectId: connection.projectId,
+            apiKeyId: connection.apiKeyId,
           });
 
           return c.json(

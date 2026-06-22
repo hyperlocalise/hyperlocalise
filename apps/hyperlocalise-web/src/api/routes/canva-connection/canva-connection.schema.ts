@@ -41,7 +41,6 @@ export const localizeCanvaDesignBodySchema = z.object({
       }),
     )
     .min(1),
-  projectId: optionalProjectIdSchema.optional(),
   sourceLocale: z.string().trim().min(1).max(32).optional(),
   targetLocales: z.array(z.string().trim().min(1).max(32)).min(1).max(20).optional(),
 });
