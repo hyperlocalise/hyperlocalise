@@ -3,7 +3,6 @@ package translationfileparser
 import (
 	"bytes"
 	"encoding/json"
-	"regexp"
 	"strings"
 
 	"github.com/tidwall/jsonc"
@@ -12,8 +11,6 @@ import (
 // JSONCParser parses JSONC translation files by stripping comments/trailing commas
 // before delegating to the JSON parser logic.
 type JSONCParser struct{}
-
-var jsoncObjectKeyPattern = regexp.MustCompile(`^"((?:\\.|[^"\\])*)"\s*:\s*(.*)$`)
 
 func (p JSONCParser) Parse(content []byte) (map[string]string, error) {
 	values, _, err := p.ParseWithContext(content)
@@ -71,22 +68,20 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 			s = s[idx+1:]
 		}
 
-		trimmedLine := bytes.TrimSpace(rawLine)
-		if len(trimmedLine) == 0 {
+		line := bytes.TrimSpace(rawLine)
+		if len(line) == 0 {
 			continue
 		}
 
-		line := string(trimmedLine)
-
 		if inBlockComment {
-			if idx := strings.Index(line, "*/"); idx >= 0 {
+			if idx := bytes.Index(line, []byte("*/")); idx >= 0 {
 				comment := cleanJSONCCommentText(line[:idx])
 				if comment != "" {
 					pendingComments = append(pendingComments, comment)
 				}
-				line = strings.TrimSpace(line[idx+2:])
+				line = bytes.TrimSpace(line[idx+2:])
 				inBlockComment = false
-				if line == "" {
+				if len(line) == 0 {
 					continue
 				}
 			} else {
@@ -98,22 +93,22 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 			}
 		}
 
-		if strings.HasPrefix(line, "//") {
+		if bytes.HasPrefix(line, []byte("//")) {
 			comment := cleanJSONCCommentText(line)
 			if comment != "" {
 				pendingComments = append(pendingComments, comment)
 			}
 			continue
 		}
-		if strings.HasPrefix(line, "/*") {
-			end := strings.Index(line[2:], "*/")
+		if bytes.HasPrefix(line, []byte("/*")) {
+			end := bytes.Index(line[2:], []byte("*/"))
 			if end >= 0 {
 				comment := cleanJSONCCommentText(line[:end+4])
 				if comment != "" {
 					pendingComments = append(pendingComments, comment)
 				}
-				line = strings.TrimSpace(line[end+4:])
-				if line == "" {
+				line = bytes.TrimSpace(line[end+4:])
+				if len(line) == 0 {
 					continue
 				}
 			} else {
@@ -129,7 +124,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		inlineComment := ""
 		if idx := indexJSONCLineComment(line); idx >= 0 {
 			inlineComment = cleanJSONCCommentText(line[idx:])
-			line = strings.TrimSpace(line[:idx])
+			line = bytes.TrimSpace(line[:idx])
 		}
 
 		for len(line) > 0 && line[0] == '}' {
@@ -140,15 +135,17 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 				stackPrefix = stackPrefix[:len(stackPrefix)-len(popped)-1]
 				pendingComments = nil
 			}
-			line = strings.TrimSpace(line[1:])
+			line = bytes.TrimSpace(line[1:])
 		}
 
-		matches := jsoncObjectKeyPattern.FindStringSubmatch(line)
-		if len(matches) == 0 {
+		// BOLT OPTIMIZATION: Manual scan for JSON object key/value pair avoids regex overhead.
+		// Expected format: "key": value
+		key, valuePart, ok := scanJSONCKeyLine(line)
+		if !ok {
 			continue
 		}
 
-		decodedKey, err := decodeJSONKey(matches[1])
+		decodedKey, err := decodeJSONKey(key)
 		if err != nil {
 			continue
 		}
@@ -171,8 +168,7 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 			}
 		}
 
-		valuePart := strings.TrimSpace(matches[2])
-		if strings.HasPrefix(valuePart, "{") && jsoncObjectValueSpansMultipleLines(valuePart) {
+		if bytes.HasPrefix(valuePart, []byte("{")) && jsoncObjectValueSpansMultipleLines(valuePart) {
 			// BOLT OPTIMIZATION: Avoid repeated strings.Join(stack, ".") by incrementally updating stackPrefix.
 			stack = append(stack, decodedKey)
 			stackPrefix += decodedKey + "."
@@ -183,6 +179,55 @@ func parseJSONCKeyComments(content []byte) map[string]string {
 		return nil
 	}
 	return contexts
+}
+
+func scanJSONCKeyLine(line []byte) (string, []byte, bool) {
+	if len(line) == 0 || line[0] != '"' {
+		return "", nil, false
+	}
+
+	// Find the end of the quoted key.
+	escaped := false
+	endKey := -1
+	for i := 1; i < len(line); i++ {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if line[i] == '\\' {
+			escaped = true
+			continue
+		}
+		if line[i] == '"' {
+			endKey = i
+			break
+		}
+	}
+
+	if endKey == -1 {
+		return "", nil, false
+	}
+
+	// Look for the colon.
+	remaining := line[endKey+1:]
+	colonIdx := bytes.IndexByte(remaining, ':')
+	if colonIdx == -1 {
+		return "", nil, false
+	}
+
+	// Check if only whitespace exists between end quote and colon.
+	for i := 0; i < colonIdx; i++ {
+		ch := remaining[i]
+		if ch != ' ' && ch != '\t' && ch != '\n' && ch != '\r' {
+			return "", nil, false
+		}
+	}
+
+	// Extract the key (without surrounding quotes).
+	key := string(line[1:endKey])
+	valuePart := bytes.TrimSpace(remaining[colonIdx+1:])
+
+	return key, valuePart, true
 }
 
 func decodeJSONKey(raw string) (string, error) {
@@ -200,16 +245,16 @@ func decodeJSONKey(raw string) (string, error) {
 	return decoded, nil
 }
 
-func cleanJSONCCommentText(comment string) string {
-	comment = strings.TrimSpace(comment)
-	comment = strings.TrimPrefix(comment, "//")
-	comment = strings.TrimPrefix(comment, "/*")
-	comment = strings.TrimSuffix(comment, "*/")
-	comment = strings.TrimSpace(comment)
-	return comment
+func cleanJSONCCommentText(comment []byte) string {
+	comment = bytes.TrimSpace(comment)
+	comment = bytes.TrimPrefix(comment, []byte("//"))
+	comment = bytes.TrimPrefix(comment, []byte("/*"))
+	comment = bytes.TrimSuffix(comment, []byte("*/"))
+	comment = bytes.TrimSpace(comment)
+	return string(comment)
 }
 
-func indexJSONCLineComment(line string) int {
+func indexJSONCLineComment(line []byte) int {
 	inString := false
 	escaped := false
 
@@ -243,7 +288,7 @@ func indexJSONCLineComment(line string) int {
 	return -1
 }
 
-func jsoncObjectValueSpansMultipleLines(valuePart string) bool {
+func jsoncObjectValueSpansMultipleLines(valuePart []byte) bool {
 	depth := 0
 	inString := false
 	escaped := false
