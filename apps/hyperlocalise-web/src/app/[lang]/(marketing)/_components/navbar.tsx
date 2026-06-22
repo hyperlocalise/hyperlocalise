@@ -26,24 +26,10 @@ const navigationLinks: { href: string; label: string; active?: boolean }[] = [
   { href: "/product/self-evolving-knowledge", label: "Knowledge" },
   { href: "/blog", label: "Blog" },
 ];
-const githubRepoUrl = "https://github.com/hyperlocalise/hyperlocalise";
+const signInHref = "/auth/sign-in";
 
 const mobileNavLinkClassName =
   "flex min-h-11 items-center rounded-3xl px-4 py-3 text-base font-medium text-foreground/88 transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 data-[active=true]:bg-muted data-[active=true]:text-foreground";
-
-function GitHubMark({ className = "size-4" }: { className?: string }) {
-  return (
-    <svg
-      aria-hidden="true"
-      className={className}
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M12 1.5a10.5 10.5 0 0 0-3.32 20.46c.52.1.7-.22.7-.5v-1.74c-2.86.62-3.47-1.22-3.47-1.22-.46-1.16-1.12-1.46-1.12-1.46-.92-.63.07-.62.07-.62 1.01.08 1.54 1.04 1.54 1.04.9 1.54 2.36 1.1 2.94.84.1-.65.35-1.1.64-1.36-2.28-.26-4.68-1.14-4.68-5.07 0-1.12.4-2.03 1.04-2.75-.1-.26-.45-1.32.1-2.74 0 0 .85-.27 2.79 1.04A9.6 9.6 0 0 1 12 6.34c.85 0 1.72.11 2.52.33 1.94-1.31 2.79-1.04 2.79-1.04.55 1.42.2 2.48.1 2.74.65.72 1.04 1.63 1.04 2.75 0 3.94-2.4 4.8-4.69 5.06.36.31.69.93.69 1.89v2.8c0 .28.18.61.7.5A10.5 10.5 0 0 0 12 1.5Z" />
-    </svg>
-  );
-}
 
 function Logo() {
   return (
@@ -119,16 +105,15 @@ function MobileNavigation() {
           </nav>
         </div>
         <SheetFooter className="gap-2 border-t border-border/70 px-5 py-5">
-          <SheetClose render={<a href={githubRepoUrl} />} className="w-full">
+          <SheetClose render={<Link href={signInHref} prefetch={false} />} className="w-full">
             <Button
               variant="ghost"
               size="lg"
-              className="w-full gap-2"
+              className="w-full"
               nativeButton={false}
               render={<span />}
             >
-              <GitHubMark />
-              Star on Github
+              Sign in
             </Button>
           </SheetClose>
           <SheetClose render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />} className="w-full">
@@ -168,12 +153,10 @@ export default function Navbar() {
         <div className="hidden items-center gap-2 md:flex">
           <Button
             variant="ghost"
-            className="gap-2"
             nativeButton={false}
-            render={<a href={githubRepoUrl} />}
+            render={<Link href={signInHref} prefetch={false} />}
           >
-            <GitHubMark />
-            Star on Github
+            Sign in
           </Button>
           <Button nativeButton={false} render={<a href={env.NEXT_PUBLIC_WAITLIST_URL} />}>
             Join waitlist
