@@ -319,10 +319,15 @@ export async function getCanvaLocalizationStatus(input: {
   const job = await getTranslationJobSnapshot(input);
 
   if (job.status === "succeeded") {
+    const projectId = job.projectId;
+    if (!projectId) {
+      throw new Error("translation_job_missing_project");
+    }
+
     const outputFiles = publicJobOutputFiles(job) ?? [];
     const translationsByLocale = await loadTranslationsByLocale({
       organizationId: input.organizationId,
-      projectId: job.projectId,
+      projectId,
       outputFiles,
     });
 
