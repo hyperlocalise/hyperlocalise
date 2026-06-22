@@ -1,6 +1,7 @@
 package model
 
 import (
+	"encoding/json"
 	"errors"
 	"net/url"
 	"strconv"
@@ -137,6 +138,18 @@ type (
 		LanguageIDs []string `json:"languageIds,omitempty"`
 	}
 )
+
+// UnmarshalJSON accepts both object and array tmPenalties payloads from Crowdin.
+// Some projects return an empty array instead of an object.
+func (p *ProjectTMPenalties) UnmarshalJSON(data []byte) error {
+	if len(data) > 0 && data[0] == '[' {
+		*p = ProjectTMPenalties{}
+		return nil
+	}
+
+	type projectTMPenaltiesAlias ProjectTMPenalties
+	return json.Unmarshal(data, (*projectTMPenaltiesAlias)(p))
+}
 
 // ProjectsListOptions specifies the optional parameters to the ProjectsService.List method.
 type ProjectsListOptions struct {

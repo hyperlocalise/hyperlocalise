@@ -1,10 +1,55 @@
 package model
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+func TestProjectTMPenaltiesUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		data string
+		want *ProjectTMPenalties
+	}{
+		{
+			name: "object",
+			data: `{"autoSubstitution":1,"multipleTranslations":1}`,
+			want: &ProjectTMPenalties{AutoSubstitution: 1, MultipleTranslations: 1},
+		},
+		{
+			name: "empty array",
+			data: `[]`,
+			want: &ProjectTMPenalties{},
+		},
+		{
+			name: "non-empty array",
+			data: `[1,2,3]`,
+			want: &ProjectTMPenalties{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var actual ProjectTMPenalties
+			err := actual.UnmarshalJSON([]byte(tt.data))
+			assert.NoError(t, err)
+			assert.Equal(t, tt.want, &actual)
+		})
+	}
+
+	t.Run("project response with array tmPenalties", func(t *testing.T) {
+		const payload = `{"data":{"id":1,"type":0,"userId":1,"sourceLanguageId":"en","targetLanguageIds":["fr"],"languageAccessPolicy":"all","name":"Test","identifier":"test","description":"","visibility":"private","logo":"","publicDownloads":false,"createdAt":"","updatedAt":"","lastActivity":"","webUrl":"","tmPenalties":[]}}`
+
+		var resp ProjectsGetResponse
+		err := json.Unmarshal([]byte(payload), &resp)
+		assert.NoError(t, err)
+		assert.NotNil(t, resp.Data)
+		assert.NotNil(t, resp.Data.TMPenalties)
+		assert.Equal(t, &ProjectTMPenalties{}, resp.Data.TMPenalties)
+	})
+}
 
 func TestProjectsListOptionsValues(t *testing.T) {
 	tests := []struct {
