@@ -23,7 +23,7 @@ ALTER TABLE "canva_connections" ADD CONSTRAINT "canva_connections_project_id_pro
 ALTER TABLE "canva_connections" ADD CONSTRAINT "canva_connections_created_by_user_id_users_id_fk" FOREIGN KEY ("created_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "canva_connections" ADD CONSTRAINT "canva_connections_updated_by_user_id_users_id_fk" FOREIGN KEY ("updated_by_user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 CREATE UNIQUE INDEX "canva_connections_token_hash_key" ON "canva_connections" USING btree ("connection_token_hash");--> statement-breakpoint
-CREATE UNIQUE INDEX "canva_connections_org_brand_key" ON "canva_connections" USING btree ("organization_id","canva_brand_id") WHERE "canva_brand_id" IS NOT NULL;--> statement-breakpoint
+CREATE UNIQUE INDEX "canva_connections_org_brand_key" ON "canva_connections" USING btree ("organization_id","canva_brand_id") WHERE "canva_connections"."canva_brand_id" IS NOT NULL;--> statement-breakpoint
 CREATE INDEX "idx_canva_connections_org" ON "canva_connections" USING btree ("organization_id");--> statement-breakpoint
 CREATE INDEX "idx_canva_connections_api_key" ON "canva_connections" USING btree ("api_key_id");--> statement-breakpoint
 CREATE INDEX "idx_canva_connections_project" ON "canva_connections" USING btree ("project_id");
