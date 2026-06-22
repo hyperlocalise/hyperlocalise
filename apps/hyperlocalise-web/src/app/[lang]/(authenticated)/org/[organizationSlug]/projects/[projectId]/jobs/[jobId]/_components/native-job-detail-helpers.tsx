@@ -110,6 +110,7 @@ export function NativeJobSourceFilesSection({
     <JobSourceFilesPanel
       organizationSlug={organizationSlug}
       projectId={projectId}
+      encodedJobId={job.id}
       files={[file]}
       highlightLocale={highlightLocale}
       emptyMessage="No source file linked to this job."

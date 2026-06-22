@@ -30,6 +30,8 @@ import { loadJobCatProviderFiles, loadJobCatTargetFile } from "./load-job-cat-fi
 import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file-cat-workspace";
 
+import { JobCatSourceFilePicker } from "./job-cat-source-file-picker";
+
 type JobCatGithubRepository = {
   fullName: string;
   enabled: boolean;
@@ -195,13 +197,12 @@ export function JobCatPageContent({
 
   if (!hasFileReference) {
     return (
-      <ProjectPageShell>
-        <div className="rounded-lg border border-border bg-card p-5">
-          <TypographyP className="text-sm text-muted-foreground">
-            Choose a source file from the task, then open View strings.
-          </TypographyP>
-        </div>
-      </ProjectPageShell>
+      <JobCatSourceFilePicker
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        jobId={jobId}
+        targetLocale={targetLocale}
+      />
     );
   }
 
