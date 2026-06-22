@@ -65,14 +65,14 @@ export function createUseGithubRepositoryTool(session: WorkspaceOrchestratorSess
       const userInstructions =
         session.automation.instructions.trim() ||
         (typeof session.run.inputSnapshot.instructions === "string"
-          ? session.run.inputSnapshot.instructions.trim()
-          : "");
+          ? session.run.inputSnapshot.instructions.trim() || undefined
+          : undefined);
 
       let sandboxId: string | null = null;
 
       try {
         sandboxId = await createGithubRepositoryAutomationSandbox({
-          installationId: session.repository.githubInstallationId,
+          installationId: repositoryRow.githubInstallationId,
           repositoryFullName: repositoryRow.fullName,
           revision: branch,
           cloneDepth: 50,
