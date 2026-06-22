@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import { eq } from "drizzle-orm";
 
 import { env } from "@/lib/env";
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import { createLogger } from "@/lib/log";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -82,8 +82,10 @@ async function persistWebhookSubscriptionState(input: {
   providerWebhookId?: string | null;
   lastError?: string | null;
   secretHash?: string;
+  db?: DatabaseClient;
 }) {
-  const [row] = await db
+  const database = input.db ?? db;
+  const [row] = await database
     .update(schema.contentfulWebhookSubscriptions)
     .set({
       ...(input.providerWebhookId !== undefined
@@ -174,6 +176,7 @@ export async function syncContentfulProviderWebhook(input: {
   subscription: ContentfulWebhookSubscriptionRow;
   accessToken: string;
   webhookSecret?: string | null;
+  db?: DatabaseClient;
 }): Promise<{
   subscription: ContentfulWebhookSubscriptionRow;
   webhookSecret: string | null;
@@ -183,6 +186,7 @@ export async function syncContentfulProviderWebhook(input: {
     const subscription = await persistWebhookSubscriptionState({
       subscriptionId: input.subscription.id,
       lastError: "Set HYPERLOCALISE_PUBLIC_APP_URL to register the Contentful webhook.",
+      db: input.db,
     });
     return { subscription, webhookSecret: null };
   }
@@ -247,6 +251,7 @@ export async function syncContentfulProviderWebhook(input: {
         ...(shouldPersistPendingSecret && pendingSecret
           ? { secretHash: hashContentfulWebhookSecret(pendingSecret) }
           : {}),
+        db: input.db,
       });
       return { subscription, webhookSecret: pendingSecret };
     }
@@ -264,6 +269,7 @@ export async function syncContentfulProviderWebhook(input: {
       providerWebhookId: createdResult.value.sys.id,
       lastError: null,
       secretHash: hashContentfulWebhookSecret(createSecret),
+      db: input.db,
     });
     return {
       subscription,
@@ -283,6 +289,7 @@ export async function syncContentfulProviderWebhook(input: {
     const subscription = await persistWebhookSubscriptionState({
       subscriptionId: input.subscription.id,
       lastError: message,
+      db: input.db,
     });
     return { subscription, webhookSecret: pendingSecret };
   }
