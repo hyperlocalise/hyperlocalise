@@ -90,6 +90,24 @@ describe("workosAdapter", () => {
     expect(isEnabled).toHaveBeenCalledTimes(2);
   });
 
+  it("returns false when isEnabled rejects", async () => {
+    isEnabled.mockRejectedValue(new Error("WorkOS API error"));
+
+    const { createWorkosAdapter } = await import("./workos-adapter");
+    const adapter = createWorkosAdapter()();
+    const enabled = await adapter.decide({
+      key: WORKSPACE_AUTOMATIONS_FLAG,
+      entities: {
+        user: { id: "user_123" },
+        organization: { id: "org_456" },
+      },
+      headers: new Headers(),
+      cookies: createMockCookies(),
+    });
+
+    expect(enabled).toBe(false);
+  });
+
   it("returns false when WorkOS is disabled", async () => {
     vi.resetModules();
     vi.doMock("@/lib/workos/config", () => ({
