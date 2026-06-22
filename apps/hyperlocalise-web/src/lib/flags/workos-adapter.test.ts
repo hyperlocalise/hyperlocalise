@@ -29,6 +29,7 @@ vi.mock("@/lib/workos/config", () => ({
 
 describe("workosAdapter", () => {
   beforeEach(() => {
+    vi.resetModules();
     isEnabled.mockReset();
     waitUntilReady.mockClear();
     waitUntilReady.mockResolvedValue(undefined);
@@ -59,11 +60,34 @@ describe("workosAdapter", () => {
     });
 
     expect(enabled).toBe(true);
+    expect(waitUntilReady).toHaveBeenCalledTimes(1);
     expect(waitUntilReady).toHaveBeenCalledWith({ timeoutMs: 2_000 });
     expect(isEnabled).toHaveBeenCalledWith(WORKSPACE_AUTOMATIONS_FLAG, {
       organizationId: "org_456",
       userId: "user_123",
     });
+  });
+
+  it("waits for feature flag readiness only once per process", async () => {
+    isEnabled.mockResolvedValue(false);
+
+    const { createWorkosAdapter } = await import("./workos-adapter");
+    const adapter = createWorkosAdapter()();
+    const decideArgs = {
+      key: WORKSPACE_AUTOMATIONS_FLAG,
+      entities: {
+        user: { id: "user_123" },
+        organization: { id: "org_456" },
+      },
+      headers: new Headers(),
+      cookies: createMockCookies(),
+    };
+
+    await adapter.decide(decideArgs);
+    await adapter.decide({ ...decideArgs, key: WORKSPACE_KNOWLEDGE_FLAG });
+
+    expect(waitUntilReady).toHaveBeenCalledTimes(1);
+    expect(isEnabled).toHaveBeenCalledTimes(2);
   });
 
   it("returns false when WorkOS is disabled", async () => {

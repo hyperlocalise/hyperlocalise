@@ -15,12 +15,14 @@ import {
 
 export const workspaceAutomationsFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_AUTOMATIONS_FLAG,
+  defaultValue: false,
   description: "Workspace automations for scheduled and GitHub-triggered workflows.",
   adapter: workosAdapter(),
 });
 
 export const workspaceKnowledgeFlag = flag<boolean, WorkosFlagEntities>({
   key: WORKSPACE_KNOWLEDGE_FLAG,
+  defaultValue: false,
   description: "Workspace knowledge memory for agents and teams.",
   adapter: workosAdapter(),
 });

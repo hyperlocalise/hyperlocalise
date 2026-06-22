@@ -6,12 +6,29 @@ import { getWorkosAuthKitConfig } from "@/lib/workos/config";
 import type { WorkosFlagEntities } from "./workos-flag-entities";
 
 const WORKOS_ADAPTER_ID = Symbol("workos-feature-flags");
+const FEATURE_FLAGS_READY_TIMEOUT_MS = 2_000;
 
 let defaultWorkosAdapter: ReturnType<typeof createWorkosAdapter> | undefined;
+let featureFlagsReadyPromise: Promise<void> | undefined;
 
 function isWorkosFeatureFlagsEnabled() {
   const config = getWorkosAuthKitConfig();
   return Boolean(config?.apiKey);
+}
+
+function waitForFeatureFlagsReady(
+  client: ReturnType<typeof getFeatureFlagsRuntimeClient>,
+): Promise<void> {
+  if (!featureFlagsReadyPromise) {
+    featureFlagsReadyPromise = client
+      .waitUntilReady({ timeoutMs: FEATURE_FLAGS_READY_TIMEOUT_MS })
+      .catch((error) => {
+        featureFlagsReadyPromise = undefined;
+        throw error;
+      });
+  }
+
+  return featureFlagsReadyPromise;
 }
 
 export function createWorkosAdapter() {
@@ -30,7 +47,7 @@ export function createWorkosAdapter() {
 
         try {
           const client = getFeatureFlagsRuntimeClient();
-          await client.waitUntilReady({ timeoutMs: 2_000 });
+          await waitForFeatureFlagsReady(client);
           return client.isEnabled(key, {
             organizationId: context?.organization?.id,
             userId: context?.user?.id,
