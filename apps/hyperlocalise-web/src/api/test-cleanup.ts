@@ -119,6 +119,10 @@ export async function cleanupWorkosTestRecords(input: {
         "DELETE FROM project_memories WHERE organization_id = ANY($1::uuid[])",
         orgParams,
       );
+      await client.query(
+        "DELETE FROM canva_connections WHERE organization_id = ANY($1::uuid[])",
+        orgParams,
+      );
       await client.query("DELETE FROM projects WHERE organization_id = ANY($1::uuid[])", orgParams);
       await client.query(
         "DELETE FROM glossary_terms WHERE glossary_id IN (SELECT id FROM glossaries WHERE organization_id = ANY($1::uuid[]))",

@@ -13,7 +13,7 @@ importers:
     dependencies:
       '@canva/app-hooks':
         specifier: ^0.0.0-beta.4
-        version: 0.0.0-beta.4(@canva/design@2.9.0(@canva/error@2.2.1))(@canva/platform@2.2.2(@canva/error@2.2.1))(react@19.2.7)
+        version: 0.0.0-beta.4(@canva/design@2.9.1-alpha.0(@canva/error@2.2.1))(@canva/platform@2.2.2(@canva/error@2.2.1))(react@19.2.7)
       '@canva/app-i18n-kit':
         specifier: ^1.2.0
         version: 1.2.0(@formatjs/intl@4.1.13)(intl-messageformat@11.2.8)(react-dom@19.2.7(react@19.2.7))(react-intl@10.1.13(@types/react@19.2.17)(react@19.2.7))(react@19.2.7)
@@ -24,8 +24,8 @@ importers:
         specifier: ^2.3.0
         version: 2.3.0(@canva/error@2.2.1)
       '@canva/design':
-        specifier: ^2.9.0
-        version: 2.9.0(@canva/error@2.2.1)
+        specifier: 2.9.1-alpha.0
+        version: 2.9.1-alpha.0(@canva/error@2.2.1)
       '@canva/error':
         specifier: ^2.2.1
         version: 2.2.1
@@ -822,8 +822,8 @@ packages:
     engines: {node: '>=22.0.0'}
     hasBin: true
 
-  '@canva/design@2.9.0':
-    resolution: {integrity: sha512-QB6BVHUu2sYUeYCtuM1MJLlPI3XnmM7L30TnyKAEVLTfvgu5uHRUjASYUV79FPuhDdXLxf/SN/BNP7pujQtLGg==}
+  '@canva/design@2.9.1-alpha.0':
+    resolution: {integrity: sha512-x11qBykYgbqAle77hxN0qM8Dy0xQJ9BgIDq59RH3wP/7xY+lI1cO2nCxQ/iPno+425AcLYYQFAwS3SC4IzUq4g==}
     peerDependencies:
       '@canva/error': ^2.0.0
 
@@ -5857,9 +5857,9 @@ snapshots:
     dependencies:
       css-tree: 3.2.1
 
-  '@canva/app-hooks@0.0.0-beta.4(@canva/design@2.9.0(@canva/error@2.2.1))(@canva/platform@2.2.2(@canva/error@2.2.1))(react@19.2.7)':
+  '@canva/app-hooks@0.0.0-beta.4(@canva/design@2.9.1-alpha.0(@canva/error@2.2.1))(@canva/platform@2.2.2(@canva/error@2.2.1))(react@19.2.7)':
     dependencies:
-      '@canva/design': 2.9.0(@canva/error@2.2.1)
+      '@canva/design': 2.9.1-alpha.0(@canva/error@2.2.1)
       '@canva/platform': 2.2.2(@canva/error@2.2.1)
       react: 19.2.7
 
@@ -5915,7 +5915,7 @@ snapshots:
       - utf-8-validate
       - zod
 
-  '@canva/design@2.9.0(@canva/error@2.2.1)':
+  '@canva/design@2.9.1-alpha.0(@canva/error@2.2.1)':
     dependencies:
       '@canva/error': 2.2.1
 

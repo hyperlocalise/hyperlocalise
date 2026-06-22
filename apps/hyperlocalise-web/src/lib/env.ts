@@ -177,6 +177,15 @@ export const env = createEnv({
       .int()
       .positive()
       .default(100),
+
+    /** Canva app ID used to verify Canva JWTs for the integration API. */
+    CANVA_APP_ID: z.string().min(1).optional(),
+
+    /** Comma-separated browser origins allowed to call the Canva integration API. */
+    CANVA_CORS_ORIGINS: z.string().min(1).optional(),
+
+    /** Optional Canva app origin used for local development CORS. */
+    CANVA_APP_ORIGIN: z.string().url().optional(),
   },
   client: {
     /** Public URL for the waitlist/sign-up page. Required for client-side redirects. */
@@ -267,6 +276,9 @@ export const env = createEnv({
       process.env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
+    CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),
+    CANVA_CORS_ORIGINS: process.env.CANVA_CORS_ORIGINS,
+    CANVA_APP_ORIGIN: process.env.CANVA_APP_ORIGIN,
     NEXT_PUBLIC_WAITLIST_URL:
       process.env.NEXT_PUBLIC_WAITLIST_URL ??
       (isTestEnv ? "https://example.com/waitlist" : undefined),
