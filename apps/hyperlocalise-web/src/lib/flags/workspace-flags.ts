@@ -8,6 +8,7 @@ import { createWorkosIdentify } from "./identify-workos-context";
 import { workosAdapter } from "./workos-adapter";
 import {
   WORKSPACE_AUTOMATIONS_FLAG,
+  WORKSPACE_FEATURE_UNAVAILABLE_REASON,
   WORKSPACE_KNOWLEDGE_FLAG,
   type WorkosFlagEntities,
   type WorkspaceFeatureFlagState,
@@ -52,7 +53,9 @@ export async function requireWorkspaceFeatureFlag(
 
   const organizationSlug = auth.activeOrganization.slug;
   if (organizationSlug) {
-    redirect(`/org/${organizationSlug}/command-center?reason=feature-unavailable`);
+    redirect(
+      `/org/${organizationSlug}/command-center?reason=${WORKSPACE_FEATURE_UNAVAILABLE_REASON}`,
+    );
   }
 
   redirect("/auth/select-organization");
