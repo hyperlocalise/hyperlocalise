@@ -123,10 +123,10 @@ export function JobsPageContent({
     statusFilter,
     projectId ?? "workspace",
   ];
-  const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
-    enabled: Boolean(projectId),
-  });
   const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
+    enabled: Boolean(projectId) && !parsedProviderProject,
+  });
   const projectCapabilities = projectId
     ? getProjectWorkspaceCapabilities({
         projectId,
