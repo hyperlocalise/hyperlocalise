@@ -744,3 +744,66 @@ func TestParseASTSelectOrdinal(t *testing.T) {
 		}
 	}
 }
+
+func TestParseASTEscaping(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		want string
+	}{
+		{name: "escaped open brace", msg: "'{'", want: "{"},
+		{name: "escaped close brace", msg: "'}'", want: "}"},
+		{name: "escaped pound", msg: "'#'", want: "#"},
+		{name: "escaped open angle", msg: "'<'", want: "<"},
+		{name: "escaped close angle", msg: "'>'", want: ">"},
+		{name: "doubled apostrophe", msg: "''", want: "'"},
+		{name: "escaped block", msg: "'{name}'", want: "{name}"},
+		{name: "escaped tag", msg: "'<b>'", want: "<b>"},
+		{name: "mixed escaped and literal", msg: "a'{'b'}'c", want: "a{b}c"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			elems, err := Parse(tt.msg, nil)
+			if err != nil {
+				t.Fatalf("Parse(%q) failed: %v", tt.msg, err)
+			}
+			if len(elems) != 1 {
+				t.Fatalf("expected 1 element, got %d", len(elems))
+			}
+			lit, ok := elems[0].(LiteralElement)
+			if !ok {
+				t.Fatalf("expected LiteralElement, got %T", elems[0])
+			}
+			if lit.Value != tt.want {
+				t.Errorf("expected %q, got %q", tt.want, lit.Value)
+			}
+		})
+	}
+}
+
+func TestParseASTPoundNesting(t *testing.T) {
+	// Inside the select branch, # should still refer to the plural argument 'n'.
+	msg := "{n, plural, other {{gender, select, male {# he} other {# they}}}}"
+	elems, err := Parse(msg, nil)
+	if err != nil {
+		t.Fatalf("Parse failed: %v", err)
+	}
+
+	pl := elems[0].(PluralElement)
+	opt := pl.Options[0] // other
+	sel := opt.Value[0].(SelectElement)
+
+	for _, sopt := range sel.Options {
+		foundPound := false
+		for _, el := range sopt.Value {
+			if el.Type() == TypePound {
+				foundPound = true
+				break
+			}
+		}
+		if !foundPound {
+			t.Errorf("expected PoundElement in select option %q", sopt.Selector)
+		}
+	}
+}
