@@ -13,7 +13,10 @@ import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { getProjectWorkspaceCapabilities } from "@/lib/projects/workspace-resource-capabilities";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
+
+import { useProjectPageQuery } from "../../projects/[projectId]/_components/project-page-shell";
 
 import {
   JobsPageErrorMessage,
@@ -120,7 +123,20 @@ export function JobsPageContent({
     statusFilter,
     projectId ?? "workspace",
   ];
-  const projectCapabilities = projectId ? getProjectWorkspaceCapabilities({ projectId }) : null;
+  const parsedProviderProject = projectId ? parseProviderProjectId(projectId) : null;
+  const projectQuery = useProjectPageQuery(organizationSlug, projectId ?? "", {
+    enabled: Boolean(projectId) && !parsedProviderProject,
+  });
+  const projectCapabilities = projectId
+    ? getProjectWorkspaceCapabilities({
+        projectId,
+        source: projectQuery.data?.source,
+      })
+    : null;
+  const canSyncProviderJobs = Boolean(projectCapabilities?.canSyncProviderJobs);
+  const syncJobsReady = parsedProviderProject
+    ? true
+    : projectQuery.isSuccess || projectQuery.isError;
 
   const jobsQuery = useQuery({
     queryKey: jobsQueryKey,
@@ -229,7 +245,7 @@ export function JobsPageContent({
       isSyncingProviderJobs={syncProviderJobs.isPending}
       jobs={jobsQuery.data ?? []}
       onSyncProviderJobs={
-        projectCapabilities?.canSyncProviderJobs ? syncProviderJobs.mutate : undefined
+        canSyncProviderJobs && syncJobsReady ? syncProviderJobs.mutate : undefined
       }
       onStatusFilterChange={setStatusFilter}
       organizationSlug={organizationSlug}

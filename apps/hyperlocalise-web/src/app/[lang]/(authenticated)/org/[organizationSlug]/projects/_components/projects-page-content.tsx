@@ -1,13 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Add01Icon, FolderKanbanIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, DatabaseSyncIcon, FolderKanbanIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/spinner";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 
@@ -16,6 +17,7 @@ import {
   WorkspaceFilterField,
   WorkspacePageShell,
 } from "../../_components/workspace-resource-shared";
+import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import {
   createEmptyProjectForm,
@@ -28,10 +30,6 @@ import { mapProjectToListRow, type ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
 
 const projectQueryKey = (organizationSlug: string) => ["translation-projects", organizationSlug];
-const tmsConnectionQueryKey = (organizationSlug: string) => [
-  "tms-provider-connection",
-  organizationSlug,
-];
 
 function useProjectSearch(projects: ProjectListRow[]) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,28 +72,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       return body.projects.map(mapProjectToListRow);
     },
   });
-  const tmsConnectionQuery = useQuery({
-    queryKey: tmsConnectionQueryKey(organizationSlug),
-    enabled: projectsQuery.isSuccess && (projectsQuery.data ?? []).length === 0,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"][
-        "tms-provider"
-      ].connection.$get({
-        param: { organizationSlug },
-      });
-
-      if (response.status === 404) {
-        return null;
-      }
-
-      if (response.status !== 200) {
-        throw await readApiResponseError(response, "Failed to load TMS provider connection");
-      }
-
-      const body = await response.json();
-      return body.connection;
-    },
-  });
+  const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const createProject = useMutation({
     mutationFn: async (values: ProjectFormValues) => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$post({
@@ -235,7 +212,44 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     createProject.mutate(values);
   }
 
-  const hasExternalProjects = projects.some((p) => p.source === "external_tms");
+  const useLiveProviderProjects = Boolean(activeTmsProviderQuery.data);
+  const isProviderModeResolved = activeTmsProviderQuery.isSuccess || activeTmsProviderQuery.isError;
+
+  const createProjectAction = (
+    <Button
+      type="button"
+      onClick={openCreateProjectDialog}
+      className="w-full sm:w-fit"
+      disabled={isSavingProject}
+    >
+      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+      Create project
+    </Button>
+  );
+
+  const syncProjectsAction = useLiveProviderProjects ? (
+    <Button
+      type="button"
+      variant="outline"
+      className="w-full sm:w-fit"
+      onClick={() => syncProviderProjects.mutate()}
+      disabled={syncProviderProjects.isPending}
+    >
+      {syncProviderProjects.isPending ? (
+        <Spinner className="size-4" />
+      ) : (
+        <HugeiconsIcon icon={DatabaseSyncIcon} strokeWidth={1.8} />
+      )}
+      Sync projects
+    </Button>
+  ) : null;
+
+  const headerActions = !isProviderModeResolved ? null : (
+    <>
+      {syncProjectsAction}
+      {createProjectAction}
+    </>
+  );
 
   return (
     <WorkspacePageShell>
@@ -244,19 +258,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         label="Workspace"
         title="Projects"
         description="Track localization programs before they move into translation jobs."
-        actions={
-          hasExternalProjects ? null : (
-            <Button
-              type="button"
-              onClick={openCreateProjectDialog}
-              className="w-full sm:w-fit"
-              disabled={isSavingProject}
-            >
-              <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-              Create project
-            </Button>
-          )
-        }
+        actions={headerActions}
       />
 
       {projectsQuery.isSuccess && projects.length > 0 ? (
@@ -291,8 +293,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           projectsQuery={projectsQuery}
           isSavingProject={isSavingProject}
           isDeletingProject={deleteProjectMutation.isPending}
-          hasActiveTmsConnection={Boolean(tmsConnectionQuery.data)}
-          isCheckingTmsConnection={tmsConnectionQuery.isLoading}
+          hasActiveTmsConnection={Boolean(activeTmsProviderQuery.data)}
+          isCheckingTmsConnection={
+            activeTmsProviderQuery.isLoading && projectsQuery.isSuccess && projects.length === 0
+          }
           isSyncingProviderProjects={syncProviderProjects.isPending}
           organizationSlug={organizationSlug}
           onSyncProviderProjects={syncProviderProjects.mutate}

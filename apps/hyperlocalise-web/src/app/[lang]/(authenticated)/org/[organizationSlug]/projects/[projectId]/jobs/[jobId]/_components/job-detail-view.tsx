@@ -4,7 +4,6 @@ import { useState, type ReactNode } from "react";
 import { ArrowDown01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyH4 } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -15,6 +14,7 @@ import {
   type JobDetailBackLinkRenderer,
   type JobDetailErrorRenderer,
 } from "./job-detail-shared";
+import { JobDetailSkeleton } from "./job-detail-skeleton";
 import { buildJobsListHref } from "./job-detail-types";
 
 export type JobDetailViewMetric = {
@@ -132,6 +132,10 @@ export function JobDetailView({
 }) {
   const jobsListHref = buildJobsListHrefProp(organizationSlug, projectId);
 
+  if (isLoading) {
+    return <JobDetailSkeleton />;
+  }
+
   return (
     <main className="mx-auto flex w-full max-w-7xl flex-col gap-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -153,16 +157,9 @@ export function JobDetailView({
         ) : null}
       </div>
 
-      {isLoading ? (
-        <div className="rounded-lg border border-border bg-card p-5">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="mt-4 h-40 w-full" />
-        </div>
-      ) : null}
-
       {error ? renderError({ error }) : null}
 
-      {!isLoading && !error ? (
+      {!error ? (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_20rem]">
           <div className="flex min-w-0 flex-col gap-5">{renderMain?.()}</div>
           <aside className="flex min-w-0 flex-col gap-5">
