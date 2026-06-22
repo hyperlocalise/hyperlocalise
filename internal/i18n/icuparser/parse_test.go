@@ -2,6 +2,7 @@ package icuparser
 
 import (
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -534,6 +535,162 @@ func TestParseASTSelect(t *testing.T) {
 		if !ok || lit.Value != val {
 			t.Errorf("expected literal %q for option %q, got %v", val, opt.Selector, opt.Value[0])
 		}
+	}
+}
+
+func TestParseASTErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		msg  string
+		err  string
+	}{
+		{
+			name: "expected comma or brace after argument",
+			msg:  "Hello {name plural}",
+			err:  "expected ',' or '}' at 12",
+		},
+		{
+			name: "unexpected closing brace at top level",
+			msg:  "Hello {name}}",
+			err:  "unexpected closing brace at 12",
+		},
+		{
+			name: "expected argument name",
+			msg:  "Hello {, plural, other {x}}",
+			err:  "expected argument name at 7",
+		},
+		{
+			name: "unclosed brace in plural option body",
+			msg:  "{name, plural, other {x",
+			err:  "unclosed brace at 23",
+		},
+		{
+			name: "expected format type",
+			msg:  "{n, }",
+			err:  "expected format type at 4",
+		},
+		{
+			name: "empty date skeleton",
+			msg:  "{ts, date, ::}",
+			err:  "date/time skeleton cannot be empty",
+		},
+		{
+			name: "empty time skeleton",
+			msg:  "{t, time, ::}",
+			err:  "date/time skeleton cannot be empty",
+		},
+		{
+			name: "missing comma before select options",
+			msg:  "{g, select}",
+			err:  "expected ',' before select options at 10",
+		},
+		{
+			name: "missing comma before plural options",
+			msg:  "{n, plural}",
+			err:  "expected ',' before plural options at 10",
+		},
+		{
+			name: "unclosed simple formatter style",
+			msg:  "{n, number, style",
+			err:  "unclosed simple formatter style",
+		},
+		{
+			name: "unclosed brace in select options",
+			msg:  "{g, select, other {He}",
+			err:  "unclosed brace at 22",
+		},
+		{
+			name: "select argument missing options",
+			msg:  "{g, select, }",
+			err:  "select argument missing options at 12",
+		},
+		{
+			name: "expected select selector",
+			msg:  "{g, select, {body}}",
+			err:  "expected select selector at 12",
+		},
+		{
+			name: "expected select option body",
+			msg:  "{g, select, other}",
+			err:  "expected select option body at 17",
+		},
+		{
+			name: "unclosed brace in plural options",
+			msg:  "{n, plural, other {#}",
+			err:  "unclosed brace at 21",
+		},
+		{
+			name: "plural argument missing options",
+			msg:  "{n, plural, }",
+			err:  "ICU argument missing options at 12",
+		},
+		{
+			name: "expected ICU selector",
+			msg:  "{n, plural, {body}}",
+			err:  "expected ICU selector at 12",
+		},
+		{
+			name: "expected ':' after offset keyword",
+			msg:  "{n, plural, offset 1 one {x} other {y}}",
+			err:  "expected ':' after offset keyword at 19",
+		},
+		{
+			name: "invalid plural offset",
+			msg:  "{n, plural, offset:abc one {x} other {y}}",
+			err:  `invalid plural offset "abc"`,
+		},
+		{
+			name: "expected ICU option body",
+			msg:  "{n, plural, other}",
+			err:  "expected ICU option body at 17",
+		},
+		{
+			name: "unclosed opening tag",
+			msg:  "<b",
+			err:  `unclosed opening tag "b" at 0`,
+		},
+		{
+			name: "unclosed tag with body",
+			msg:  "<b>",
+			err:  `unclosed tag "b"`,
+		},
+		{
+			name: "unclosed tag body",
+			msg:  "<b>content",
+			err:  `unclosed tag "b"`,
+		},
+		{
+			name: "expected closing '>' for tag",
+			msg:  "<b>content</b",
+			err:  `expected closing '>' for tag "b"`,
+		},
+		{
+			name: "mismatched closing tag",
+			msg:  "<b>content</i>",
+			err:  `mismatched closing tag: got "i" want "b"`,
+		},
+		{
+			name: "unexpected closing brace in tag body",
+			msg:  "<b>}</b>",
+			err:  "unexpected closing brace at 3",
+		},
+		{
+			name: "expected offset number",
+			msg:  "{n, plural, offset: }",
+			err:  "expected offset number at 20",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Parse(tt.msg, nil)
+			if err == nil {
+				t.Fatalf("Parse(%q) expected error, got nil", tt.msg)
+			}
+			if !strings.Contains(err.Error(), tt.err) {
+				t.Errorf("Parse(%q) error %q, want it to contain %q", tt.msg, err, tt.err)
+			}
+		})
 	}
 }
 
