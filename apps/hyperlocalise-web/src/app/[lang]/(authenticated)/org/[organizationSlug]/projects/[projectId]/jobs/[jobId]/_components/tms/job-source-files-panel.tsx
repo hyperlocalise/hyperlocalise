@@ -23,13 +23,21 @@ function stringsHref(input: {
   organizationSlug: string;
   projectId: string;
   encodedJobId: string;
-  sourcePath: string;
   targetLocale: string;
+  sourcePath?: string;
+  storedFileId?: string;
 }) {
   const params = new URLSearchParams({
-    sourcePath: input.sourcePath,
     targetLocale: input.targetLocale,
   });
+
+  if (input.sourcePath) {
+    params.set("sourcePath", input.sourcePath);
+  }
+
+  if (input.storedFileId) {
+    params.set("storedFileId", input.storedFileId);
+  }
 
   return `/org/${input.organizationSlug}/projects/${encodeURIComponent(input.projectId)}/jobs/${encodeURIComponent(input.encodedJobId)}/strings?${params.toString()}`;
 }
@@ -60,17 +68,22 @@ export function JobSourceFilesPanel({
   const selectedFile =
     sortedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? sortedFiles[0] ?? null;
   const activeSourcePath = selectedFile?.sourcePath ?? null;
-  const targetLocale =
-    highlightLocale && selectedFile?.provider?.targetLocales?.includes(highlightLocale)
+  const targetLocale = selectedFile?.provider
+    ? highlightLocale && selectedFile.provider.targetLocales?.includes(highlightLocale)
       ? highlightLocale
-      : (selectedFile?.provider?.targetLocales?.[0] ?? highlightLocale);
+      : (selectedFile.provider.targetLocales?.[0] ?? highlightLocale)
+    : highlightLocale;
+  const isProviderCatFile = Boolean(selectedFile && supportsProviderCatFile(selectedFile));
+  const isNativeCatFile = Boolean(
+    selectedFile && !selectedFile.provider && selectedFile.storedFileId,
+  );
   const canViewStrings = Boolean(
     encodedJobId &&
     selectedFile &&
-    supportsProviderCatFile(selectedFile) &&
-    activeSourcePath &&
-    targetLocale,
+    targetLocale &&
+    ((isProviderCatFile && activeSourcePath) || isNativeCatFile),
   );
+  const showStringsAction = isProviderCatFile || isNativeCatFile;
 
   return (
     <section className="rounded-lg border border-border bg-card p-5">
@@ -104,11 +117,11 @@ export function JobSourceFilesPanel({
             />
           </aside>
           <div className="min-h-[min(20rem,50vh)] overflow-y-auto">
-            {selectedFile?.provider ? (
+            {showStringsAction ? (
               <div className="flex flex-col gap-2 border-b border-border px-5 py-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <TypographyP className="font-mono text-xs text-foreground">
-                    {selectedFile.sourcePath}
+                    {selectedFile?.sourcePath}
                   </TypographyP>
                   <TypographyP className="text-xs text-muted-foreground">
                     {targetLocale
@@ -127,8 +140,10 @@ export function JobSourceFilesPanel({
                           organizationSlug,
                           projectId,
                           encodedJobId: encodedJobId as string,
-                          sourcePath: activeSourcePath as string,
                           targetLocale: targetLocale as string,
+                          ...(isProviderCatFile
+                            ? { sourcePath: activeSourcePath as string }
+                            : { storedFileId: selectedFile?.storedFileId as string }),
                         })}
                       />
                     ) : undefined
