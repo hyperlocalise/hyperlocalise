@@ -104,7 +104,7 @@ async function withNewIntegrationLimit<T>(
     )
     .limit(1);
 
-  if (existing) return ok(await run(db));
+  if (existing) return ok(await db.transaction(run));
 
   return withWorkspaceResourceLimit(
     {
