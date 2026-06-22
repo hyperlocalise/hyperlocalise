@@ -43,6 +43,7 @@ function automation(): WorkspaceAutomationRecord {
     toolConfig: {
       github: {
         enabled: true,
+        mode: "sync",
         projectId: "project-1",
         pushSource: true,
         pullTranslations: false,

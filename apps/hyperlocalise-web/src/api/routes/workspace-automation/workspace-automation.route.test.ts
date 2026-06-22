@@ -290,6 +290,7 @@ describe("workspace automation routes", () => {
           toolConfig: {
             github: {
               enabled: true,
+              mode: "sync",
               pushSource: true,
               pullTranslations: false,
               validation: false,
@@ -324,6 +325,7 @@ describe("workspace automation routes", () => {
           toolConfig: {
             github: {
               enabled: false,
+              mode: "sync",
               projectId,
               pushSource: false,
               pullTranslations: false,
@@ -378,6 +380,7 @@ describe("workspace automation routes", () => {
           toolConfig: {
             github: {
               enabled: true,
+              mode: "sync",
               projectId,
               pushSource: true,
               pullTranslations: false,

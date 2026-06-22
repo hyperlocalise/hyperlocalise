@@ -9,15 +9,41 @@ import type {
   WorkspaceAutomationTriggerConfig,
 } from "./workspace-automations";
 
+export function resolveWorkspaceAutomationGithubMode(
+  toolConfig: WorkspaceAutomationToolConfig,
+): "agent" | "sync" | null {
+  const github = toolConfig.github;
+  if (!github?.enabled) {
+    return null;
+  }
+
+  return github.mode ?? "sync";
+}
+
+export function hasWorkspaceAutomationGithubAgentTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return resolveWorkspaceAutomationGithubMode(toolConfig) === "agent";
+}
+
 export function hasWorkspaceAutomationGithubWorkflow(
   toolConfig: WorkspaceAutomationToolConfig,
 ): boolean {
   const github = toolConfig.github;
-  if (!github?.enabled) {
+  if (!github?.enabled || resolveWorkspaceAutomationGithubMode(toolConfig) !== "sync") {
     return false;
   }
 
   return Boolean(github.pushSource || github.pullTranslations || github.validation);
+}
+
+export function hasWorkspaceAutomationGithubTool(
+  toolConfig: WorkspaceAutomationToolConfig,
+): boolean {
+  return (
+    hasWorkspaceAutomationGithubAgentTool(toolConfig) ||
+    hasWorkspaceAutomationGithubWorkflow(toolConfig)
+  );
 }
 
 export function workspaceAutomationToGithubSettings(

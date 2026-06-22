@@ -5,7 +5,10 @@ import { db, schema } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
-import { hasWorkspaceAutomationGithubWorkflow } from "./workspace-automation-github-mapping";
+import {
+  hasWorkspaceAutomationGithubAgentTool,
+  hasWorkspaceAutomationGithubWorkflow,
+} from "./workspace-automation-github-mapping";
 import { resolveNextRunAtForWorkspaceAutomation } from "./workspace-automation-schedule";
 
 export const workspaceAutomationStatusSchema = z.enum(["active", "paused", "archived"]);
@@ -59,12 +62,21 @@ const repositoryTargetSchema = z
 const githubToolConfigSchema = z
   .object({
     enabled: z.boolean().default(false),
+    mode: z.enum(["agent", "sync"]).default("sync"),
     projectId: optionalProjectIdSchema,
     pushSource: z.boolean().default(false),
     pullTranslations: z.boolean().default(false),
     validation: z.boolean().default(false),
   })
-  .default({ enabled: false, pushSource: false, pullTranslations: false, validation: false });
+  .default({
+    enabled: false,
+    mode: "sync",
+    pushSource: false,
+    pullTranslations: false,
+    validation: false,
+  });
+
+export type WorkspaceAutomationGithubToolMode = z.infer<typeof githubToolConfigSchema>["mode"];
 
 const slackToolConfigSchema = z
   .object({
@@ -151,6 +163,10 @@ export type WorkspaceAutomationConfigValidationError =
   | {
       code: "github_trigger_required";
       message: "Enabled GitHub tools require a scheduled or GitHub push trigger.";
+    }
+  | {
+      code: "github_agent_trigger_required";
+      message: "GitHub repo agent automations support scheduled or manual triggers only.";
     }
   | {
       code: "github_push_branches_required";
@@ -284,26 +300,38 @@ function validateWorkspaceAutomationConfig(input: {
       });
     }
 
-    if (!githubTools.projectId) {
-      return err({
-        code: "github_project_required",
-        message: "Enabled GitHub tools require a project.",
-      });
-    }
+    const githubMode = githubTools.mode ?? "sync";
 
-    if (
-      input.triggerConfig.mode === "github" &&
-      (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
-    ) {
-      return err({
-        code: "github_push_branches_required",
-        message: "GitHub push triggers require at least one branch pattern.",
-      });
+    if (githubMode === "agent") {
+      if (input.triggerConfig.mode === "github") {
+        return err({
+          code: "github_agent_trigger_required",
+          message: "GitHub repo agent automations support scheduled or manual triggers only.",
+        });
+      }
+    } else {
+      if (!githubTools.projectId) {
+        return err({
+          code: "github_project_required",
+          message: "Enabled GitHub tools require a project.",
+        });
+      }
+
+      if (
+        input.triggerConfig.mode === "github" &&
+        (!input.triggerConfig.branches || input.triggerConfig.branches.length === 0)
+      ) {
+        return err({
+          code: "github_push_branches_required",
+          message: "GitHub push triggers require at least one branch pattern.",
+        });
+      }
     }
   }
 
   if (
     input.triggerConfig.mode === "scheduled" &&
+    !hasWorkspaceAutomationGithubAgentTool(input.toolConfig) &&
     !hasWorkspaceAutomationGithubWorkflow(input.toolConfig) &&
     !hasWorkspaceAutomationContentfulWorkflow(input.toolConfig)
   ) {

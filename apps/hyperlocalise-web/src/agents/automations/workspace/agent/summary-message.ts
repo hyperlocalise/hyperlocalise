@@ -1,6 +1,11 @@
 import type { WorkspaceOrchestratorSession } from "./context";
 
 export function buildOrchestratorRunSummaryMessage(session: WorkspaceOrchestratorSession) {
+  const githubAgentResult = session.stepResults.use_github_repository;
+  if (githubAgentResult && typeof githubAgentResult.digest === "string") {
+    return githubAgentResult.digest.trim();
+  }
+
   const statusLabel = (session.terminalStatus ?? session.run.status).toUpperCase();
   const lines = [
     `Automation "${session.automation.name}" finished with status ${statusLabel}.`,

@@ -42,6 +42,7 @@ export function createAutomationSummary(
     toolConfig: {
       github: {
         enabled: true,
+        mode: "sync",
         pushSource: false,
         pullTranslations: false,
         validation: true,
@@ -81,6 +82,7 @@ export const automationsFixture: WorkspaceAutomationRecord[] = [
     toolConfig: {
       github: {
         enabled: true,
+        mode: "sync",
         pushSource: true,
         pullTranslations: true,
         validation: false,
@@ -104,6 +106,7 @@ export const automationsFixture: WorkspaceAutomationRecord[] = [
     toolConfig: {
       github: {
         enabled: false,
+        mode: "sync",
         pushSource: false,
         pullTranslations: false,
         validation: false,

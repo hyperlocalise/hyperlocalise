@@ -149,6 +149,7 @@ describe("workspace automations", () => {
       toolConfig: {
         github: {
           enabled: true,
+          mode: "sync",
           pushSource: true,
           pullTranslations: false,
           validation: false,
@@ -173,6 +174,7 @@ describe("workspace automations", () => {
       toolConfig: {
         github: {
           enabled: true,
+          mode: "sync",
           pushSource: true,
           pullTranslations: false,
           validation: false,
@@ -321,6 +323,7 @@ describe("workspace automations", () => {
       toolConfig: {
         github: {
           enabled: true,
+          mode: "sync",
           projectId: scope.projectId,
           pushSource: true,
           pullTranslations: false,
@@ -386,6 +389,7 @@ describe("workspace automations", () => {
         toolConfig: {
           github: {
             enabled: true,
+            mode: "sync",
             projectId: scope.projectId,
             pushSource: true,
             pullTranslations: false,
