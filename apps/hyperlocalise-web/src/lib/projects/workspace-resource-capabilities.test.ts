@@ -28,6 +28,22 @@ describe("getProjectWorkspaceCapabilities", () => {
       canSyncProviderJobs: true,
     });
   });
+
+  it("returns provider sync capabilities for synced external projects", () => {
+    expect(
+      getProjectWorkspaceCapabilities({
+        projectId: "project_abc123",
+        source: "external_tms",
+      }),
+    ).toEqual({
+      source: "external_tms",
+      isProviderProject: false,
+      canUploadFiles: false,
+      canEditProjectSettings: false,
+      canDeleteProject: false,
+      canSyncProviderJobs: true,
+    });
+  });
 });
 
 describe("canOpenProviderJobCat", () => {

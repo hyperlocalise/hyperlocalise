@@ -14,9 +14,14 @@ import {
 
 import { mapProjectToListRow } from "../../_components/project-list";
 
-export function useProjectPageQuery(organizationSlug: string, projectId: string) {
+export function useProjectPageQuery(
+  organizationSlug: string,
+  projectId: string,
+  options?: { enabled?: boolean },
+) {
   return useQuery({
     queryKey: ["translation-project", organizationSlug, projectId],
+    enabled: options?.enabled ?? true,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[":projectId"].$get({
         param: { organizationSlug, projectId },
