@@ -1,4 +1,5 @@
 import type {
+  WorkspaceAutomationGithubToolMode,
   WorkspaceAutomationRecord,
   WorkspaceAutomationRepositoryTarget,
   WorkspaceAutomationToolConfig,
@@ -29,6 +30,7 @@ export type WorkspaceAutomationFormState = {
   repositoryTargetKind: "none" | "github";
   githubInstallationRepositoryId: string;
   githubEnabled: boolean;
+  githubMode: WorkspaceAutomationGithubToolMode;
   githubProjectId: string;
   pushSourceEnabled: boolean;
   pullTranslationsEnabled: boolean;
@@ -79,6 +81,8 @@ export const WORKSPACE_AUTOMATION_API_ERROR_MESSAGES: Record<string, string> = {
   github_repository_target_required: "Choose a GitHub repository before enabling GitHub tools.",
   github_project_required: "Choose a Hyperlocalise project for GitHub workflows.",
   github_trigger_required: "Choose a schedule or GitHub push trigger for GitHub workflows.",
+  github_agent_trigger_required:
+    "Use GitHub repo automations with a scheduled or manual trigger, not GitHub push.",
   github_push_branches_required: "Add at least one branch pattern for GitHub push triggers.",
   scheduled_workflow_required:
     "Scheduled automations require at least one GitHub or Contentful workflow.",
@@ -112,6 +116,7 @@ export function createDefaultWorkspaceAutomationFormState(): WorkspaceAutomation
     repositoryTargetKind: "none",
     githubInstallationRepositoryId: "",
     githubEnabled: false,
+    githubMode: "sync",
     githubProjectId: "",
     pushSourceEnabled: false,
     pullTranslationsEnabled: false,
@@ -176,6 +181,7 @@ export function createWorkspaceAutomationFormStateFromRecord(
     githubInstallationRepositoryId:
       automation.repositoryTarget.githubInstallationRepositoryId ?? "",
     githubEnabled: Boolean(github?.enabled),
+    githubMode: github?.mode ?? "sync",
     githubProjectId: github?.projectId ?? "",
     pushSourceEnabled: Boolean(github?.pushSource),
     pullTranslationsEnabled: Boolean(github?.pullTranslations),
@@ -278,10 +284,12 @@ export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationF
       ? {
           github: {
             enabled: true,
-            projectId: form.githubProjectId.trim() || undefined,
-            pushSource: form.pushSourceEnabled,
-            pullTranslations: form.pullTranslationsEnabled,
-            validation: form.validationEnabled,
+            mode: form.githubMode,
+            projectId:
+              form.githubMode === "sync" ? form.githubProjectId.trim() || undefined : undefined,
+            pushSource: form.githubMode === "sync" ? form.pushSourceEnabled : false,
+            pullTranslations: form.githubMode === "sync" ? form.pullTranslationsEnabled : false,
+            validation: form.githubMode === "sync" ? form.validationEnabled : false,
           },
         }
       : {}),
@@ -359,17 +367,23 @@ export function validateWorkspaceAutomationFormState(
     if (!form.githubInstallationRepositoryId) {
       errors.githubRepository = "Choose a GitHub repository.";
     }
-    if (!form.githubProjectId.trim()) {
-      errors.githubProjectId = "Choose a Hyperlocalise project.";
-    }
-    if (!form.pushSourceEnabled && !form.pullTranslationsEnabled && !form.validationEnabled) {
-      errors.form = "Enable at least one GitHub workflow.";
-    }
-    if (form.triggerMode === "manual") {
-      errors.trigger = "Choose a schedule or GitHub push trigger.";
-    }
-    if (form.triggerMode === "github" && form.pushBranches.length === 0) {
-      errors.pushBranches = "Add at least one branch pattern.";
+
+    if (form.githubMode === "sync") {
+      if (!form.githubProjectId.trim()) {
+        errors.githubProjectId = "Choose a Hyperlocalise project.";
+      }
+      if (!form.pushSourceEnabled && !form.pullTranslationsEnabled && !form.validationEnabled) {
+        errors.form = "Enable at least one GitHub workflow.";
+      }
+      if (form.triggerMode === "manual") {
+        errors.trigger = "Choose a schedule or GitHub push trigger.";
+      }
+      if (form.triggerMode === "github" && form.pushBranches.length === 0) {
+        errors.pushBranches = "Add at least one branch pattern.";
+      }
+    } else if (form.triggerMode === "github") {
+      errors.trigger =
+        "Use GitHub repo automations with a scheduled or manual trigger, not GitHub push.";
     }
   }
 
@@ -429,6 +443,7 @@ export function mapWorkspaceAutomationApiErrorToFieldErrors(
     case "project_not_found":
       return { githubProjectId: message };
     case "github_trigger_required":
+    case "github_agent_trigger_required":
     case "scheduled_workflow_required":
     case "source_upload_workflow_required":
       return { trigger: message };

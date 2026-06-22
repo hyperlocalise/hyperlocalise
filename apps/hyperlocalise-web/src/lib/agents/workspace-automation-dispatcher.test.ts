@@ -131,6 +131,7 @@ describe("workspace automation dispatcher", () => {
         toolConfig: {
           github: {
             enabled: true,
+            mode: "sync",
             projectId: scope.projectId,
             pushSource: false,
             pullTranslations: false,
@@ -253,6 +254,7 @@ describe("workspace automation dispatcher", () => {
           toolConfig: {
             github: {
               enabled: true,
+              mode: "sync",
               projectId: scope.projectId,
               pushSource: false,
               pullTranslations: false,

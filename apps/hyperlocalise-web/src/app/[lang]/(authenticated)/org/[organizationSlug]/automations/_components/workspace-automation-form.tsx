@@ -288,6 +288,70 @@ function selectedRepositoryLabel(
   );
 }
 
+function resolveDefaultGithubRepositoryId(
+  form: WorkspaceAutomationFormState,
+  repositories: GithubRepositoryOption[],
+) {
+  if (
+    form.githubInstallationRepositoryId &&
+    repositories.some((repository) => repository.id === form.githubInstallationRepositoryId)
+  ) {
+    return form.githubInstallationRepositoryId;
+  }
+
+  return repositories.find((repository) => repository.enabled)?.id ?? repositories[0]?.id ?? "";
+}
+
+function GithubRepositorySelect({
+  disabled,
+  error,
+  form,
+  onChange,
+  repositories,
+}: {
+  disabled?: boolean;
+  error?: string;
+  form: WorkspaceAutomationFormState;
+  onChange: (next: WorkspaceAutomationFormState) => void;
+  repositories: GithubRepositoryOption[];
+}) {
+  return (
+    <div className="grid gap-1.5">
+      <Label className="text-xs text-muted-foreground">Repository</Label>
+      <Select
+        value={form.githubInstallationRepositoryId || undefined}
+        onValueChange={(value) => {
+          if (!value) {
+            return;
+          }
+          onChange({
+            ...form,
+            githubInstallationRepositoryId: value,
+            repositoryTargetKind: "github",
+          });
+        }}
+        disabled={disabled || repositories.length === 0}
+      >
+        <SelectTrigger className="h-8 w-full rounded-lg">
+          <span className="truncate">
+            {repositories.length === 0
+              ? "Connect GitHub to choose a repository"
+              : selectedRepositoryLabel(form.githubInstallationRepositoryId, repositories)}
+          </span>
+        </SelectTrigger>
+        <SelectContent>
+          {repositories.map((repository) => (
+            <SelectItem key={repository.id} value={repository.id}>
+              {formatRepositoryOptionLabel(repository)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <FieldError message={error} />
+    </div>
+  );
+}
+
 function selectedSlackChannelLabel(channelId: string, channels: SlackChannelOption[]) {
   if (!channelId) {
     return "Select channel";
@@ -572,7 +636,11 @@ function AddTriggerMenu({
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
-              disabled={form.triggerMode === "github" || !githubConnected}
+              disabled={
+                form.triggerMode === "github" ||
+                !githubConnected ||
+                (form.githubEnabled && form.githubMode === "agent")
+              }
               onClick={() => {
                 const defaultRepositoryId =
                   form.githubInstallationRepositoryId ||
@@ -599,6 +667,8 @@ function AddTriggerMenu({
                 <DropdownMenuShortcut>Added</DropdownMenuShortcut>
               ) : !githubConnected ? (
                 <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+              ) : form.githubEnabled && form.githubMode === "agent" ? (
+                <DropdownMenuShortcut>Sync only</DropdownMenuShortcut>
               ) : null}
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -857,6 +927,7 @@ function AddToolMenu({
   form,
   githubConnected,
   onChange,
+  repositories,
   slackConnected,
 }: {
   contentfulConnected: boolean;
@@ -865,6 +936,7 @@ function AddToolMenu({
   form: WorkspaceAutomationFormState;
   githubConnected: boolean;
   onChange: (next: WorkspaceAutomationFormState) => void;
+  repositories: GithubRepositoryOption[];
   slackConnected: boolean;
 }) {
   return (
@@ -893,21 +965,51 @@ function AddToolMenu({
             <DropdownMenuLabel>Supported tools</DropdownMenuLabel>
             <DropdownMenuItem
               disabled={form.githubEnabled || !githubConnected}
-              onClick={() =>
+              onClick={() => {
+                const defaultRepositoryId = resolveDefaultGithubRepositoryId(form, repositories);
+
                 onChange({
                   ...form,
                   githubEnabled: true,
+                  githubMode: "agent",
                   repositoryTargetKind: "github",
+                  githubInstallationRepositoryId: defaultRepositoryId,
+                  githubProjectId: "",
+                  pushSourceEnabled: false,
+                  pullTranslationsEnabled: false,
+                  validationEnabled: false,
+                });
+              }}
+            >
+              <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
+              Use GitHub repo
+              {form.githubEnabled && form.githubMode === "agent" ? (
+                <DropdownMenuShortcut>Added</DropdownMenuShortcut>
+              ) : !githubConnected ? (
+                <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
+              ) : null}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={form.githubEnabled || !githubConnected}
+              onClick={() => {
+                const defaultRepositoryId = resolveDefaultGithubRepositoryId(form, repositories);
+
+                onChange({
+                  ...form,
+                  githubEnabled: true,
+                  githubMode: "sync",
+                  repositoryTargetKind: "github",
+                  githubInstallationRepositoryId: defaultRepositoryId,
                   validationEnabled:
                     form.pushSourceEnabled || form.pullTranslationsEnabled
                       ? form.validationEnabled
                       : true,
-                })
-              }
+                });
+              }}
             >
               <HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />
-              GitHub workflows
-              {form.githubEnabled ? (
+              GitHub sync workflows
+              {form.githubEnabled && form.githubMode === "sync" ? (
                 <DropdownMenuShortcut>Added</DropdownMenuShortcut>
               ) : !githubConnected ? (
                 <DropdownMenuShortcut>Connect first</DropdownMenuShortcut>
@@ -1116,15 +1218,45 @@ function ToolsSettings({
   return (
     <EditorSection title="Tools">
       <EditorPanel>
-        {form.githubEnabled ? (
+        {form.githubEnabled && form.githubMode === "agent" ? (
           <EditorRow
             icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
-            title="GitHub workflows"
+            title="Use GitHub repo"
+            description="Read the repository and follow your instructions. GitHub skills apply automatically."
+            action={
+              <DeleteToolButton
+                disabled={disabled}
+                label="Remove GitHub repo tool"
+                onClick={() =>
+                  onChange({
+                    ...form,
+                    githubEnabled: false,
+                    repositoryTargetKind: "none",
+                    githubInstallationRepositoryId: "",
+                  })
+                }
+              />
+            }
+          >
+            <GithubRepositorySelect
+              disabled={disabled}
+              error={errors.githubRepository}
+              form={form}
+              onChange={onChange}
+              repositories={repositories}
+            />
+          </EditorRow>
+        ) : null}
+
+        {form.githubEnabled && form.githubMode === "sync" ? (
+          <EditorRow
+            icon={<HugeiconsIcon icon={GitBranchIcon} strokeWidth={1.8} className="size-4" />}
+            title="GitHub sync workflows"
             description="Push source, pull translations, and validation checks."
             action={
               <DeleteToolButton
                 disabled={disabled}
-                label="Remove GitHub workflows"
+                label="Remove GitHub sync workflows"
                 onClick={() =>
                   onChange({
                     ...form,
@@ -1139,36 +1271,13 @@ function ToolsSettings({
             }
           >
             <div className="grid gap-3">
-              <div className="grid gap-1.5">
-                <Label className="text-xs text-muted-foreground">Repository</Label>
-                <Select
-                  value={form.githubInstallationRepositoryId || undefined}
-                  onValueChange={(value) => {
-                    if (!value) {
-                      return;
-                    }
-                    onChange({
-                      ...form,
-                      githubInstallationRepositoryId: value,
-                    });
-                  }}
-                  disabled={disabled}
-                >
-                  <SelectTrigger className="h-8 w-full rounded-lg">
-                    <span className="truncate">
-                      {selectedRepositoryLabel(form.githubInstallationRepositoryId, repositories)}
-                    </span>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {repositories.map((repository) => (
-                      <SelectItem key={repository.id} value={repository.id}>
-                        {formatRepositoryOptionLabel(repository)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FieldError message={errors.githubRepository} />
-              </div>
+              <GithubRepositorySelect
+                disabled={disabled}
+                error={errors.githubRepository}
+                form={form}
+                onChange={onChange}
+                repositories={repositories}
+              />
               <div className="grid gap-2 md:grid-cols-3">
                 <label className="flex items-center justify-between gap-3 rounded-lg border border-foreground/8 px-3 py-2">
                   <span className="text-xs text-foreground">Push source</span>
@@ -1587,6 +1696,7 @@ function ToolsSettings({
           form={form}
           githubConnected={githubConnected}
           onChange={onChange}
+          repositories={repositories}
           slackConnected={slackConnected}
         />
       </EditorPanel>
@@ -1806,15 +1916,22 @@ export function WorkspaceAutomationEditor({
             />
             <span>{form.status === "active" ? "Active" : "Paused"}</span>
           </label>
-          <span className="text-foreground/20">|</span>
-          <HeaderProjectSelector
-            disabled={disabled}
-            form={form}
-            isError={projectsQuery.isError}
-            isLoading={projectsQuery.isLoading}
-            onChange={onChange}
-            projects={projectsQuery.data ?? []}
-          />
+          {form.translationEnabled ||
+          form.contentfulEnabled ||
+          (form.githubEnabled && form.githubMode === "sync") ||
+          form.triggerMode === "source_upload" ? (
+            <>
+              <span className="text-foreground/20">|</span>
+              <HeaderProjectSelector
+                disabled={disabled}
+                form={form}
+                isError={projectsQuery.isError}
+                isLoading={projectsQuery.isLoading}
+                onChange={onChange}
+                projects={projectsQuery.data ?? []}
+              />
+            </>
+          ) : null}
           {form.triggerMode !== "manual" ? (
             <>
               <span className="text-foreground/20">|</span>

@@ -30,4 +30,23 @@ describe("workspace template manifest", () => {
     expect(getTemplateExecutorAgent("validate-localisation-on-push")).toBe("github-repository");
     expect(getTemplateCategoryFromSkill("validate-localisation-on-push")).toBe("quality");
   });
+
+  it("keeps summarize changes daily template content from base definition", () => {
+    const [template] = mergeWorkspaceTemplateSkills(WORKSPACE_AUTOMATION_TEMPLATES_BASE).filter(
+      (entry) => entry.id === "summarize-changes-daily",
+    );
+
+    expect(template).toMatchObject({
+      name: "Summarize changes daily",
+      category: "popular",
+      activatable: true,
+      defaultForm: expect.objectContaining({
+        githubMode: "agent",
+        triggerMode: "scheduled",
+        scheduledCadence: "daily",
+      }),
+    });
+    expect(template?.description).toContain("GitHub repository");
+    expect(template?.instructions).toContain("daily engineering digest");
+  });
 });

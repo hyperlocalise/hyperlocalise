@@ -7,11 +7,13 @@ import { createNotifySlackTool } from "./tools/notify_slack";
 import { createRunContentfulTranslationTool } from "./tools/run_contentful_translation";
 import { createRunGithubWorkflowsTool } from "./tools/run_github_workflows";
 import { createTranslationJobsTool } from "./tools/create_translation_jobs";
+import { createUseGithubRepositoryTool } from "./tools/use_github_repository";
 
 const TOOL_BUILDERS: Record<
   WorkspaceOrchestratorToolName,
   (session: WorkspaceOrchestratorSession) => ToolSet[string]
 > = {
+  use_github_repository: createUseGithubRepositoryTool,
   run_github_workflows: createRunGithubWorkflowsTool,
   run_contentful_translation: createRunContentfulTranslationTool,
   create_translation_jobs: createTranslationJobsTool,

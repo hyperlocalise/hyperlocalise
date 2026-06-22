@@ -104,6 +104,50 @@ describe("workspace automation view model", () => {
     expect(form?.instructions).toContain("Contentful help center article");
   });
 
+  it("prefills the summarize changes daily template", () => {
+    const form = createWorkspaceAutomationFormStateFromTemplate(
+      "summarize-changes-daily",
+      mergedTemplates,
+    );
+
+    expect(form).toMatchObject({
+      name: "Summarize changes daily",
+      triggerMode: "scheduled",
+      scheduledCadence: "daily",
+      githubEnabled: true,
+      githubMode: "agent",
+      slackEnabled: true,
+      pushSourceEnabled: false,
+      pullTranslationsEnabled: false,
+      validationEnabled: false,
+    });
+    expect(form?.instructions).toContain("daily engineering digest");
+  });
+
+  it("validates GitHub agent mode without a Hyperlocalise project", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Daily digest",
+      instructions: "Summarize recent commits.",
+      triggerMode: "scheduled" as const,
+      githubEnabled: true,
+      githubMode: "agent" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+    };
+
+    expect(validateWorkspaceAutomationFormState(form)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(form).toolConfig.github).toMatchObject({
+      enabled: true,
+      mode: "agent",
+      pushSource: false,
+      pullTranslations: false,
+      validation: false,
+    });
+    expect(
+      formStateToWorkspaceAutomationPayload(form).toolConfig.github?.projectId,
+    ).toBeUndefined();
+  });
+
   it("maps Contentful tool settings to API payload", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),

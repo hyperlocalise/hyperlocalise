@@ -49,6 +49,18 @@ export function composeContentfulAutomationInstructions(input: {
   });
 }
 
+export function composeGithubRepoInstructions(input: {
+  userOverride?: string | null;
+  dynamicSections?: string[];
+}) {
+  return composeInstructions({
+    automationId: "github-repository",
+    skills: ["github-repo-agent"],
+    dynamicSections: input.dynamicSections,
+    userOverride: input.userOverride,
+  });
+}
+
 export function getTemplateExecutorAgent(skillId: string): string | null {
   const skill = getAgentManifest({ automationId: "workspace" }).skills[skillId];
   return skill?.frontmatter.executorAgent ?? null;
