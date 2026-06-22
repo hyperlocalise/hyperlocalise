@@ -143,6 +143,8 @@ describe("glossaryRoutes", () => {
         json: {
           sourceTerm: "Checkout",
           targetTerm: "Pago",
+          caseSensitive: false,
+          forbidden: false,
         },
       },
       { headers },
