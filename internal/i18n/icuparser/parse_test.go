@@ -789,10 +789,33 @@ func TestParseASTPoundNesting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Parse failed: %v", err)
 	}
+	if len(elems) != 1 {
+		t.Fatalf("expected 1 element, got %d", len(elems))
+	}
 
-	pl := elems[0].(PluralElement)
+	pl, ok := elems[0].(PluralElement)
+	if !ok {
+		t.Fatalf("expected PluralElement, got %T", elems[0])
+	}
+	if pl.Value != "n" {
+		t.Errorf("expected plural arg 'n', got %q", pl.Value)
+	}
+	if len(pl.Options) == 0 {
+		t.Fatalf("expected plural options")
+	}
+
 	opt := pl.Options[0] // other
-	sel := opt.Value[0].(SelectElement)
+	if len(opt.Value) == 0 {
+		t.Fatalf("expected elements in plural option body")
+	}
+
+	sel, ok := opt.Value[0].(SelectElement)
+	if !ok {
+		t.Fatalf("expected SelectElement inside plural option, got %T", opt.Value[0])
+	}
+	if sel.Value != "gender" {
+		t.Errorf("expected select arg 'gender', got %q", sel.Value)
+	}
 
 	for _, sopt := range sel.Options {
 		foundPound := false
