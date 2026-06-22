@@ -7,9 +7,20 @@ import { bodyLimit } from "hono/body-limit";
 import { validator } from "hono/validator";
 
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
-import { badRequestResponse, notFoundResponse } from "@/api/errors";
+import {
+  badRequestResponse,
+  conflictResponse,
+  notFoundResponse,
+  serviceUnavailableResponse,
+} from "@/api/errors";
 import { translationsNotFoundResponse } from "@/api/routes/public-translations/public-translations.shared";
-import { db, schema } from "@/lib/database";
+import {
+  withWorkspaceResourceLimit,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+} from "@/lib/billing/workspace-resource-limits";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getFileStorageAdapter, type FileStorageAdapter } from "@/lib/file-storage";
 import { createLogger } from "@/lib/log";
@@ -119,7 +130,11 @@ const projectLocalePatchErrorMessages: Record<
 
 type ProjectStore = {
   list(auth: ApiAuthContext): Promise<Project[]>;
-  create(auth: ApiAuthContext, payload: CreateProjectBody): Promise<Project>;
+  create(
+    auth: ApiAuthContext,
+    payload: CreateProjectBody,
+    database?: DatabaseClient,
+  ): Promise<Project>;
   getById(auth: ApiAuthContext, projectId: string): Promise<Project | null>;
   update(
     auth: ApiAuthContext,
@@ -182,13 +197,13 @@ const projectStore: ProjectStore = {
       .where(await buildAccessibleProjectsWhere(auth))
       .orderBy(desc(schema.projects.createdAt));
   },
-  async create(auth, payload) {
+  async create(auth, payload, database = db) {
     const teamId = await resolveProjectTeamId(auth, payload.teamId);
     if (!teamId) {
       throw new Error("invalid_project_team");
     }
 
-    const [project] = await db
+    const [project] = await database
       .insert(schema.projects)
       .values({
         id: `project_${randomUUID()}`,
@@ -491,8 +506,33 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       }
 
       const payload = c.req.valid("json");
+
       try {
-        const project = await projectStore.create(c.var.auth, payload);
+        const limitResult = await withWorkspaceResourceLimit(
+          {
+            organizationId: c.var.auth.organization.localOrganizationId,
+            featureId: workspaceResourceFeatureIds.projects,
+          },
+          async (tx) => projectStore.create(c.var.auth, payload, tx),
+        );
+        if (!limitResult.ok) {
+          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+            return serviceUnavailableResponse(
+              c,
+              limitResult.error.code,
+              "Unable to verify project limits. Try again later.",
+            );
+          }
+
+          return conflictResponse(
+            c,
+            limitResult.error.code,
+            workspaceResourceLimitMessage(limitResult.error.featureId),
+            workspaceResourceLimitErrorDetails(limitResult.error),
+          );
+        }
+
+        const project = limitResult.value;
         return c.json({ project: { ...project, openJobCount: 0 } }, 201);
       } catch (error) {
         if (error instanceof Error && error.message === "invalid_project_team") {

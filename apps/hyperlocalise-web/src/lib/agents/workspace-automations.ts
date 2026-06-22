@@ -1,7 +1,7 @@
 import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
 
@@ -509,6 +509,7 @@ export async function createWorkspaceAutomation(input: {
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
   nextRunAt?: Date | null;
+  db?: DatabaseClient;
 }): Promise<Result<WorkspaceAutomationRecord, WorkspaceAutomationConfigValidationError>> {
   const config = workspaceAutomationConfigSchema.parse({
     triggerConfig: input.triggerConfig ?? {},
@@ -552,7 +553,9 @@ export async function createWorkspaceAutomation(input: {
       ? input.nextRunAt
       : resolveNextRunAtForWorkspaceAutomation(draftAutomation);
 
-  const [row] = await db
+  const database = input.db ?? db;
+
+  const [row] = await database
     .insert(schema.workspaceAutomations)
     .values({
       organizationId: input.organizationId,
@@ -588,6 +591,7 @@ export async function updateWorkspaceAutomation(input: {
   repositoryTarget?: WorkspaceAutomationRepositoryTarget;
   toolConfig?: WorkspaceAutomationToolConfig;
   nextRunAt?: Date | null;
+  db?: DatabaseClient;
 }): Promise<Result<WorkspaceAutomationRecord | null, WorkspaceAutomationConfigValidationError>> {
   const existing = await getWorkspaceAutomationById({
     automationId: input.automationId,
@@ -664,7 +668,9 @@ export async function updateWorkspaceAutomation(input: {
     updateConditions.push(eq(schema.workspaceAutomations.configVersion, existing.configVersion));
   }
 
-  const [row] = await db
+  const database = input.db ?? db;
+
+  const [row] = await database
     .update(schema.workspaceAutomations)
     .set({
       ...(input.status !== undefined ? { status: input.status } : {}),

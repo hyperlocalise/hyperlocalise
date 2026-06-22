@@ -11,8 +11,18 @@ import {
   markPendingMembershipReplacingInvitation,
   revokeOrganizationMembershipAccess,
 } from "@/api/auth/workos-sync";
-import { internalErrorResponse, serviceUnavailableResponse } from "@/api/response.schema";
-import { db, schema } from "@/lib/database";
+import {
+  conflictResponse,
+  internalErrorResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
+import {
+  withWorkspaceResourceLimit,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+} from "@/lib/billing/workspace-resource-limits";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { membershipRoleToWorkosRoleSlug } from "@/lib/workos/membership-role";
@@ -97,10 +107,12 @@ async function inviteOrganizationMember(input: {
   email: string;
   role: OrganizationMembershipRole;
   placeholderWorkosUserId: string;
+  db?: DatabaseClient;
 }) {
+  const database = input.db ?? db;
   const normalizedEmail = input.email.trim().toLowerCase();
 
-  const [existingMembership] = await db
+  const [existingMembership] = await database
     .select({
       membershipId: schema.organizationMemberships.id,
       workosMembershipId: schema.organizationMemberships.workosMembershipId,
@@ -134,7 +146,7 @@ async function inviteOrganizationMember(input: {
     const previousRole = existingMembership.role;
 
     if (roleChanged) {
-      await db
+      await database
         .update(schema.organizationMemberships)
         .set({ role: input.role })
         .where(eq(schema.organizationMemberships.id, existingMembership.membershipId));
@@ -162,7 +174,7 @@ async function inviteOrganizationMember(input: {
     };
   }
 
-  const [existingUser] = await db
+  const [existingUser] = await database
     .select({
       id: schema.users.id,
       workosUserId: schema.users.workosUserId,
@@ -179,7 +191,7 @@ async function inviteOrganizationMember(input: {
   const user =
     existingUser ??
     (
-      await db
+      await database
         .insert(schema.users)
         .values({
           workosUserId: input.placeholderWorkosUserId,
@@ -194,7 +206,7 @@ async function inviteOrganizationMember(input: {
         })
     )[0];
 
-  const [membership] = await db
+  const [membership] = await database
     .insert(schema.organizationMemberships)
     .values({
       organizationId: input.organizationId,
@@ -443,12 +455,66 @@ export function createMemberRoutes() {
       }
 
       const normalizedEmail = payload.email.trim().toLowerCase();
-      const pendingInvite = await inviteOrganizationMember({
-        organizationId,
-        email: normalizedEmail,
-        role: payload.role,
-        placeholderWorkosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
-      });
+      const [existingMembershipForEmail] = await db
+        .select({ id: schema.organizationMemberships.id })
+        .from(schema.users)
+        .innerJoin(
+          schema.organizationMemberships,
+          eq(schema.organizationMemberships.userId, schema.users.id),
+        )
+        .where(
+          and(
+            eq(schema.organizationMemberships.organizationId, organizationId),
+            eq(schema.users.email, normalizedEmail),
+          ),
+        )
+        .limit(1);
+
+      let pendingInvite:
+        | Awaited<ReturnType<typeof inviteOrganizationMember>>
+        | { error: "member_already_exists" };
+
+      if (!existingMembershipForEmail) {
+        const limitResult = await withWorkspaceResourceLimit(
+          {
+            organizationId,
+            featureId: workspaceResourceFeatureIds.seats,
+          },
+          async (tx) =>
+            inviteOrganizationMember({
+              organizationId,
+              email: normalizedEmail,
+              role: payload.role,
+              placeholderWorkosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
+              db: tx,
+            }),
+        );
+        if (!limitResult.ok) {
+          if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+            return serviceUnavailableResponse(
+              c,
+              limitResult.error.code,
+              "Unable to verify seat limits. Try again later.",
+            );
+          }
+
+          return conflictResponse(
+            c,
+            limitResult.error.code,
+            workspaceResourceLimitMessage(limitResult.error.featureId),
+            workspaceResourceLimitErrorDetails(limitResult.error),
+          );
+        }
+
+        pendingInvite = limitResult.value;
+      } else {
+        pendingInvite = await inviteOrganizationMember({
+          organizationId,
+          email: normalizedEmail,
+          role: payload.role,
+          placeholderWorkosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
+        });
+      }
 
       if ("error" in pendingInvite) {
         return memberAlreadyExistsResponse(c);

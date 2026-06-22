@@ -421,4 +421,33 @@ export async function completeFileTranslationJobStep(input: {
       `translation job ${input.jobId} is not owned by workflow run ${input.workflowRunId}`,
     );
   }
+
+  const {
+    formatUsageControlError,
+    markUsageEventSucceededByOperationKey,
+    trackUsageEventInAutumnByOperationKey,
+  } = await import("@/lib/billing/usage-control");
+  const { isErr } = await import("@/lib/primitives/result/results");
+  const operationKey = `job:${input.jobId}:translation_jobs`;
+  const markUsageResult = await markUsageEventSucceededByOperationKey({
+    operationKey,
+    quantity: 1,
+    dimensions: {
+      autumn_event_name: "translation_job.completed",
+      unit: "job",
+    },
+  });
+
+  if (isErr(markUsageResult)) {
+    throw new Error(formatUsageControlError(markUsageResult.error));
+  }
+
+  const trackUsageResult = await trackUsageEventInAutumnByOperationKey({ operationKey });
+  if (isErr(trackUsageResult)) {
+    console.error("[file-translation-job] Autumn usage tracking failed after job succeeded", {
+      jobId: input.jobId,
+      operationKey,
+      error: formatUsageControlError(trackUsageResult.error),
+    });
+  }
 }

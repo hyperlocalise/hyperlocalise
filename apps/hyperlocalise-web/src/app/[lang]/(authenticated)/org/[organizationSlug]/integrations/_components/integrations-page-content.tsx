@@ -307,7 +307,9 @@ function useSaveProviderCredential(organizationSlug: string) {
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "provider_validation_failed" }));
         throw new Error(
-          "message" in error ? String(error.message) : "Unable to validate provider credential",
+          "message" in error && typeof error.message === "string"
+            ? error.message
+            : "Unable to validate provider credential",
         );
       }
 
@@ -389,7 +391,9 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
           .json()
           .catch(() => ({ error: "external_tms_provider_save_failed" }));
         throw new Error(
-          "message" in error ? String(error.message) : "Unable to save external TMS provider",
+          "message" in error && typeof error.message === "string"
+            ? error.message
+            : "Unable to save external TMS provider",
         );
       }
 
@@ -432,7 +436,9 @@ function useSaveCrowdinOAuthApp(organizationSlug: string) {
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "crowdin_oauth_start_failed" }));
         throw new Error(
-          "message" in error ? String(error.message) : "Unable to start Crowdin OAuth",
+          "message" in error && typeof error.message === "string"
+            ? error.message
+            : "Unable to start Crowdin OAuth",
         );
       }
 
@@ -480,7 +486,9 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "phrase_oauth_start_failed" }));
         throw new Error(
-          "message" in error ? String(error.message) : "Unable to start Phrase OAuth",
+          "message" in error && typeof error.message === "string"
+            ? error.message
+            : "Unable to start Phrase OAuth",
         );
       }
 
@@ -528,7 +536,9 @@ function useSaveLokaliseOAuthApp(organizationSlug: string) {
       if (!res.ok) {
         const error = await res.json().catch(() => ({ error: "lokalise_oauth_start_failed" }));
         throw new Error(
-          "message" in error ? String(error.message) : "Unable to start Lokalise OAuth",
+          "message" in error && typeof error.message === "string"
+            ? error.message
+            : "Unable to start Lokalise OAuth",
         );
       }
 

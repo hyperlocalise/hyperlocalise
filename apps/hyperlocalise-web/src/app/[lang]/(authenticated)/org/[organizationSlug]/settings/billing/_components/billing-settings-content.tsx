@@ -12,7 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Separator } from "@/components/ui/separator";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { formatAutumnBillingError } from "@/lib/billing/autumn-errors";
-import { getUsageFeatureLabel, meteredUsageFeatureIds } from "@/lib/billing/usage-feature-labels";
+import { billingBalanceFeatureIds, getUsageFeatureLabel } from "@/lib/billing/usage-feature-labels";
 
 function SurfaceCard({
   children,
@@ -54,8 +54,7 @@ function BillingSettingsHeader() {
           Billing
         </TypographyH1>
         <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          View your workspace plan, metered usage balances, and manage subscription billing through
-          Autumn.
+          View your workspace plan, AI token balance, workspace limits, and subscription billing.
         </TypographyP>
       </div>
     </section>
@@ -99,7 +98,7 @@ function BillingSettingsPanel({
   const isScheduledForCancel = Boolean(
     activeSubscription?.canceledAt && activeSubscription.status === "active",
   );
-  const usageRows = meteredUsageFeatureIds.map((featureId) => {
+  const usageRows = billingBalanceFeatureIds.map((featureId) => {
     const balance = customer?.balances?.[featureId];
     return {
       featureId,
@@ -303,10 +302,10 @@ function BillingSettingsPanel({
 
       <SurfaceCard>
         <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Usage balances</CardTitle>
+          <CardTitle className="text-lg font-medium text-foreground">Plan usage</CardTitle>
           <CardDescription className="text-foreground/52">
-            Metered usage for this billing cycle. Enforcement happens server-side; this panel is for
-            visibility only.
+            AI token usage resets each billing cycle. Seats, projects, automations, and integrations
+            are workspace limits.
           </CardDescription>
         </CardHeader>
         <Separator className="bg-foreground/8" />

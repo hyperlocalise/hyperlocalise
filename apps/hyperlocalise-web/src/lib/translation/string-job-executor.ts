@@ -26,13 +26,21 @@ const stringTranslationOutputSchema = z.object({
   ),
 });
 
+const tokenUsageSchema = z.object({
+  inputTokens: z.number().int().nonnegative(),
+  outputTokens: z.number().int().nonnegative(),
+  totalTokens: z.number().int().nonnegative(),
+});
+
 function estimateMaxOutputTokens(input: StringTranslationJobInput) {
   const sourceBudget = Math.ceil(input.sourceText.length / 2);
   const localeBudget = input.targetLocales.length * 256;
   return Math.min(16_000, Math.max(1_000, sourceBudget + localeBudget));
 }
 
-export type StringTranslationJobResult = z.infer<typeof stringTranslationOutputSchema>;
+export type StringTranslationJobResult = z.infer<typeof stringTranslationOutputSchema> & {
+  tokenUsage?: z.infer<typeof tokenUsageSchema>;
+};
 
 export type StringTranslationGeneratorInput = {
   projectName: string;
@@ -167,7 +175,8 @@ function buildPrompt(input: StringTranslationGeneratorInput) {
  */
 function normalizeTranslations(
   jobInput: StringTranslationJobInput,
-  result: StringTranslationJobResult,
+  result: z.infer<typeof stringTranslationOutputSchema>,
+  tokenUsage?: StringTranslationJobResult["tokenUsage"],
 ): StringTranslationJobResult {
   const translationsByLocale = new Map<string, string>();
 
@@ -205,7 +214,26 @@ function normalizeTranslations(
     return { locale, text };
   });
 
-  return { translations };
+  return { translations, ...(tokenUsage ? { tokenUsage } : {}) };
+}
+
+function normalizeAiSdkTokenUsage(
+  usage: unknown,
+): StringTranslationJobResult["tokenUsage"] | undefined {
+  const rawUsage = usage as
+    | {
+        inputTokens?: number;
+        outputTokens?: number;
+        totalTokens?: number;
+      }
+    | undefined;
+
+  const inputTokens = rawUsage?.inputTokens ?? 0;
+  const outputTokens = rawUsage?.outputTokens ?? 0;
+  const totalTokens = rawUsage?.totalTokens ?? inputTokens + outputTokens;
+  const parsedUsage = tokenUsageSchema.safeParse({ inputTokens, outputTokens, totalTokens });
+
+  return parsedUsage.success ? parsedUsage.data : undefined;
 }
 
 /**
@@ -218,7 +246,7 @@ export function createStringTranslationGenerator({
   model,
 }: CreateStringTranslationGeneratorOptions): StringTranslationGenerator {
   return async (input) => {
-    const { output } = await generateText({
+    const { output, usage } = await generateText({
       model,
       output: Output.object({
         schema: stringTranslationOutputSchema,
@@ -229,7 +257,7 @@ export function createStringTranslationGenerator({
       maxOutputTokens: estimateMaxOutputTokens(input.jobInput),
     });
 
-    return normalizeTranslations(input.jobInput, output);
+    return normalizeTranslations(input.jobInput, output, normalizeAiSdkTokenUsage(usage));
   };
 }
 

@@ -2,7 +2,7 @@ import { and, desc, eq, inArray, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { assertCapability } from "@/api/auth/policy";
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import type { OrganizationMembershipRole } from "@/lib/database/types";
 import {
   decryptProviderCredential,
@@ -37,6 +37,14 @@ export const API_TOKEN_AUTH_MODE = "api_token";
 export const CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 export const PHRASE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 export const LOKALISE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+
+async function runInDatabaseTransaction<T>(
+  database: DatabaseClient | undefined,
+  run: (tx: DatabaseClient) => Promise<T>,
+): Promise<T> {
+  if (database) return run(database);
+  return db.transaction(run);
+}
 
 const crowdinOAuthTokenBundleSchema = z.object({
   clientId: z.string().min(1),
@@ -262,6 +270,7 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
   secretMaterial: string;
   region?: string | null;
   baseUrl?: string | null;
+  db?: DatabaseClient;
 }) {
   assertExternalTmsCredentialAdmin(input.role);
 
@@ -273,7 +282,7 @@ export async function upsertOrganizationExternalTmsProviderCredential(input: {
     baseUrl: input.baseUrl ?? null,
   });
 
-  const credential = await db.transaction(async (tx) => {
+  const credential = await runInDatabaseTransaction(input.db, async (tx) => {
     await tx
       .delete(schema.organizationExternalTmsProviderCredentials)
       .where(
@@ -346,6 +355,7 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
   oauthClient?: CrowdinOAuthClientMaterial;
   tokenBundle?: CrowdinOAuthTokenBundle;
   baseUrl?: string | null;
+  db?: DatabaseClient;
 }) {
   assertExternalTmsCredentialAdmin(input.role);
 
@@ -366,7 +376,7 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
     baseUrl: input.baseUrl ?? null,
   });
 
-  const credential = await db.transaction(async (tx) => {
+  const credential = await runInDatabaseTransaction(input.db, async (tx) => {
     await tx
       .delete(schema.organizationExternalTmsProviderCredentials)
       .where(
@@ -438,6 +448,7 @@ export async function upsertPhraseOAuthProviderCredential(input: {
   displayName: string;
   oauthClient: PhraseOAuthClientMaterial;
   baseUrl?: string | null;
+  db?: DatabaseClient;
 }) {
   assertExternalTmsCredentialAdmin(input.role);
 
@@ -449,7 +460,7 @@ export async function upsertPhraseOAuthProviderCredential(input: {
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(secretMaterial));
   const baseUrl = await normalizePhraseOAuthCredentialBaseUrl(input.baseUrl ?? null);
 
-  const credential = await db.transaction(async (tx) => {
+  const credential = await runInDatabaseTransaction(input.db, async (tx) => {
     await tx
       .delete(schema.organizationExternalTmsProviderCredentials)
       .where(
@@ -521,6 +532,7 @@ export async function upsertLokaliseOAuthProviderCredential(input: {
   displayName: string;
   oauthClient: LokaliseOAuthClientMaterial;
   baseUrl?: string | null;
+  db?: DatabaseClient;
 }) {
   assertExternalTmsCredentialAdmin(input.role);
 
@@ -536,7 +548,7 @@ export async function upsertLokaliseOAuthProviderCredential(input: {
     baseUrl: input.baseUrl ?? null,
   });
 
-  const credential = await db.transaction(async (tx) => {
+  const credential = await runInDatabaseTransaction(input.db, async (tx) => {
     await tx
       .delete(schema.organizationExternalTmsProviderCredentials)
       .where(

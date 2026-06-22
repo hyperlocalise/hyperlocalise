@@ -1,7 +1,15 @@
 import { and, desc, eq, inArray, sql, type SQL } from "drizzle-orm";
 
+import {
+  formatUsageControlError,
+  markUsageEventSucceededByOperationKey,
+  reserveUsageEvent,
+  trackUsageEventInAutumnByOperationKey,
+  usageFeatureIds,
+} from "@/lib/billing/usage-control";
 import { db, schema } from "@/lib/database";
 import type { AgentRunKind, AgentRunStatus } from "@/lib/database/types";
+import { isErr } from "@/lib/primitives/result/results";
 
 import type { ExternalTmsProviderKind } from "../organization-external-tms-provider-credentials";
 
@@ -19,24 +27,41 @@ export async function createAgentRun(input: {
   inputSnapshot?: AgentRunInputSnapshot;
   hyperlocaliseJobId?: string | null;
 }) {
-  const [run] = await db
-    .insert(schema.agentRuns)
-    .values({
-      organizationId: input.organizationId,
-      providerKind: input.providerKind,
-      externalJobId: input.externalJobId,
-      externalTaskId: input.externalTaskId ?? null,
-      kind: input.kind,
-      status: "queued",
-      actorUserId: input.actorUserId ?? null,
-      inputSnapshot: input.inputSnapshot ?? {},
-      hyperlocaliseJobId: input.hyperlocaliseJobId ?? null,
-    })
-    .returning();
+  const run = await db.transaction(async (tx) => {
+    const [createdRun] = await tx
+      .insert(schema.agentRuns)
+      .values({
+        organizationId: input.organizationId,
+        providerKind: input.providerKind,
+        externalJobId: input.externalJobId,
+        externalTaskId: input.externalTaskId ?? null,
+        kind: input.kind,
+        status: "queued",
+        actorUserId: input.actorUserId ?? null,
+        inputSnapshot: input.inputSnapshot ?? {},
+        hyperlocaliseJobId: input.hyperlocaliseJobId ?? null,
+      })
+      .returning();
 
-  if (!run) {
-    throw new Error("Failed to create agent run");
-  }
+    if (!createdRun) {
+      throw new Error("Failed to create agent run");
+    }
+
+    const usageEventResult = await reserveUsageEvent({
+      db: tx,
+      organizationId: input.organizationId,
+      featureId: usageFeatureIds.agentRuns,
+      operationKey: `agent-run:${createdRun.id}:agent_runs`,
+      source: "agent_run_create",
+      quantity: 1,
+    });
+
+    if (isErr(usageEventResult)) {
+      throw new Error(formatUsageControlError(usageEventResult.error));
+    }
+
+    return createdRun;
+  });
 
   return run;
 }
@@ -98,6 +123,19 @@ export async function createOrReuseActivePushApprovedWriteBackAgentRun(input: {
       throw new Error("Failed to create agent run");
     }
 
+    const usageEventResult = await reserveUsageEvent({
+      db: tx,
+      organizationId: input.organizationId,
+      featureId: usageFeatureIds.agentRuns,
+      operationKey: `agent-run:${run.id}:agent_runs`,
+      source: "agent_run_create",
+      quantity: 1,
+    });
+
+    if (isErr(usageEventResult)) {
+      throw new Error(formatUsageControlError(usageEventResult.error));
+    }
+
     return { run, reused: false };
   });
 }
@@ -134,7 +172,7 @@ export async function completeAgentRun(input: {
   changedItems?: AgentRunChangedItem[];
   warnings?: string[];
 }) {
-  return finishAgentRun({
+  const run = await finishAgentRun({
     runId: input.runId,
     organizationId: input.organizationId,
     status: "succeeded",
@@ -142,6 +180,14 @@ export async function completeAgentRun(input: {
     changedItems: input.changedItems,
     warnings: input.warnings,
   });
+
+  await trackCompletedAgentRunUsage({
+    runId: input.runId,
+    organizationId: input.organizationId,
+    outputSummary: input.outputSummary,
+  });
+
+  return run;
 }
 
 export async function failAgentRun(input: {
@@ -225,6 +271,63 @@ async function finishAgentRun(input: {
   }
 
   return run;
+}
+
+async function trackCompletedAgentRunUsage(input: {
+  runId: string;
+  organizationId: string;
+  outputSummary?: AgentRunOutputSummary;
+}) {
+  const operationKey = `agent-run:${input.runId}:agent_runs`;
+  const tokenUsage = extractAgentRunTokenUsage(input.outputSummary);
+  const markUsageResult = await markUsageEventSucceededByOperationKey({
+    operationKey,
+    quantity: tokenUsage?.totalTokens && tokenUsage.totalTokens > 0 ? tokenUsage.totalTokens : 1,
+    dimensions: {
+      autumn_event_name: "agent_run.completed",
+      unit: tokenUsage ? "model_tokens" : "run",
+      input_tokens: tokenUsage?.inputTokens ?? null,
+      output_tokens: tokenUsage?.outputTokens ?? null,
+    },
+  });
+
+  if (isErr(markUsageResult)) {
+    console.error("[agent-run] Autumn usage event completion failed", {
+      runId: input.runId,
+      organizationId: input.organizationId,
+      operationKey,
+      error: formatUsageControlError(markUsageResult.error),
+    });
+    return;
+  }
+
+  const trackUsageResult = await trackUsageEventInAutumnByOperationKey({ operationKey });
+  if (isErr(trackUsageResult)) {
+    console.error("[agent-run] Autumn usage tracking failed after run succeeded", {
+      runId: input.runId,
+      organizationId: input.organizationId,
+      operationKey,
+      error: formatUsageControlError(trackUsageResult.error),
+    });
+  }
+}
+
+function extractAgentRunTokenUsage(outputSummary: AgentRunOutputSummary | undefined) {
+  const tokenUsage = outputSummary?.tokenUsage;
+  if (!tokenUsage || typeof tokenUsage !== "object") return null;
+
+  const usage = tokenUsage as {
+    inputTokens?: unknown;
+    outputTokens?: unknown;
+    totalTokens?: unknown;
+  };
+  const inputTokens = typeof usage.inputTokens === "number" ? usage.inputTokens : 0;
+  const outputTokens = typeof usage.outputTokens === "number" ? usage.outputTokens : 0;
+  const totalTokens =
+    typeof usage.totalTokens === "number" ? usage.totalTokens : inputTokens + outputTokens;
+
+  if (totalTokens <= 0) return null;
+  return { inputTokens, outputTokens, totalTokens };
 }
 
 export async function updateAgentRun(input: {

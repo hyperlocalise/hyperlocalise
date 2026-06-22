@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 
 import { and, desc, eq } from "drizzle-orm";
 
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import {
   decryptProviderCredential,
   encryptProviderCredential,
@@ -81,8 +81,10 @@ function generateWebhookSecret() {
 export async function ensureContentfulWebhookSubscription(input: {
   organizationId: string;
   connectionId: string;
+  db?: DatabaseClient;
 }): Promise<{ row: ContentfulWebhookSubscriptionRow; webhookSecret: string | null }> {
-  const [existing] = await db
+  const database = input.db ?? db;
+  const [existing] = await database
     .select()
     .from(schema.contentfulWebhookSubscriptions)
     .where(
@@ -98,7 +100,7 @@ export async function ensureContentfulWebhookSubscription(input: {
   }
 
   const webhookSecret = generateWebhookSecret();
-  const [row] = await db
+  const [row] = await database
     .insert(schema.contentfulWebhookSubscriptions)
     .values({
       organizationId: input.organizationId,
@@ -120,12 +122,14 @@ async function syncConnectionProviderWebhook(input: {
   subscription: ContentfulWebhookSubscriptionRow;
   accessToken: string;
   webhookSecret?: string | null;
+  db?: DatabaseClient;
 }): Promise<ContentfulConnectionSecretResult> {
   const synced = await syncContentfulProviderWebhook({
     connection: input.connection,
     subscription: input.subscription,
     accessToken: input.accessToken,
     webhookSecret: input.webhookSecret,
+    db: input.db,
   });
 
   return {
@@ -193,9 +197,11 @@ export async function createContentfulConnection(input: {
   projectId?: string | null;
   sourceLocale?: string | null;
   targetLocales?: string[];
+  db?: DatabaseClient;
 }): Promise<ContentfulConnectionSecretResult> {
+  const database = input.db ?? db;
   const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken));
-  const [connection] = await db
+  const [connection] = await database
     .insert(schema.contentfulConnections)
     .values({
       organizationId: input.organizationId,
@@ -227,6 +233,7 @@ export async function createContentfulConnection(input: {
   const webhook = await ensureContentfulWebhookSubscription({
     organizationId: input.organizationId,
     connectionId: connection.id,
+    db: database,
   });
 
   return syncConnectionProviderWebhook({
@@ -234,6 +241,7 @@ export async function createContentfulConnection(input: {
     subscription: webhook.row,
     accessToken: input.accessToken,
     webhookSecret: webhook.webhookSecret,
+    db: database,
   });
 }
 
@@ -248,7 +256,9 @@ export async function updateContentfulConnection(input: {
   fieldConfig?: ContentfulConnectionFieldConfig;
   accessToken?: string;
   enabled?: boolean;
+  db?: DatabaseClient;
 }): Promise<ContentfulConnectionSecretResult | null> {
+  const database = input.db ?? db;
   const encrypted = input.accessToken
     ? unwrapProviderCredentialCrypto(encryptProviderCredential(input.accessToken))
     : null;
@@ -305,7 +315,7 @@ export async function updateContentfulConnection(input: {
     previousSubscription.providerWebhookId = null;
   }
 
-  const [connection] = await db
+  const [connection] = await database
     .update(schema.contentfulConnections)
     .set({
       updatedByUserId: input.userId,
@@ -349,6 +359,7 @@ export async function updateContentfulConnection(input: {
   const webhook = await ensureContentfulWebhookSubscription({
     organizationId: input.organizationId,
     connectionId: connection.id,
+    db: database,
   });
 
   const accessToken = encrypted ? input.accessToken! : previousToken;
@@ -358,6 +369,7 @@ export async function updateContentfulConnection(input: {
     subscription: webhook.row,
     accessToken,
     webhookSecret: webhook.webhookSecret,
+    db: database,
   });
 }
 

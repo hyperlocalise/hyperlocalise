@@ -5,10 +5,19 @@ import { hasCapability } from "@/api/auth/policy";
 import { workosAuthMiddleware, type AuthVariables } from "@/api/auth/workos";
 import {
   badRequestResponse,
+  conflictResponse,
   forbiddenResponse,
   notFoundResponse,
+  serviceUnavailableResponse,
   unauthorizedResponse,
 } from "@/api/response.schema";
+import {
+  withWorkspaceResourceLimit,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+  type WorkspaceResourceLimitError,
+} from "@/lib/billing/workspace-resource-limits";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   createContentfulConnection,
@@ -113,6 +122,26 @@ function mapDiscoveryErrorResponse(
   }
 }
 
+function mapWorkspaceResourceLimitError(
+  c: Parameters<typeof conflictResponse>[0],
+  error: WorkspaceResourceLimitError,
+) {
+  if (error.code === "workspace_resource_limit_check_failed") {
+    return serviceUnavailableResponse(
+      c,
+      error.code,
+      "Unable to verify integration limits. Try again later.",
+    );
+  }
+
+  return conflictResponse(
+    c,
+    error.code,
+    workspaceResourceLimitMessage(error.featureId),
+    workspaceResourceLimitErrorDetails(error),
+  );
+}
+
 export function createContentfulConnectionRoutes() {
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -153,8 +182,9 @@ export function createContentfulConnectionRoutes() {
       }
 
       const payload = c.req.valid("json");
-      const result = await createContentfulConnection({
-        organizationId: c.var.auth.organization.localOrganizationId,
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const connectionInput = {
+        organizationId,
         userId: c.var.auth.user.localUserId,
         displayName: payload.displayName,
         spaceId: payload.spaceId,
@@ -163,12 +193,29 @@ export function createContentfulConnectionRoutes() {
         fieldConfig: payload.fieldConfig,
         accessToken: payload.accessToken,
         enabled: payload.enabled,
-      });
+      };
+
+      let connectionResult;
+      if (payload.enabled) {
+        const limitResult = await withWorkspaceResourceLimit(
+          {
+            organizationId,
+            featureId: workspaceResourceFeatureIds.integrations,
+          },
+          (tx) => createContentfulConnection({ ...connectionInput, db: tx }),
+        );
+        if (!limitResult.ok) {
+          return mapWorkspaceResourceLimitError(c, limitResult.error);
+        }
+        connectionResult = limitResult.value;
+      } else {
+        connectionResult = await createContentfulConnection(connectionInput);
+      }
 
       return c.json(
         {
-          contentfulConnection: result.connection,
-          webhookSecret: result.webhookSecret,
+          contentfulConnection: connectionResult.connection,
+          webhookSecret: connectionResult.webhookSecret,
         },
         201,
       );
@@ -196,8 +243,21 @@ export function createContentfulConnectionRoutes() {
 
       const { connectionId } = c.req.valid("param");
       const payload = c.req.valid("json");
-      const result = await updateContentfulConnection({
-        organizationId: c.var.auth.organization.localOrganizationId,
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const existing =
+        payload.enabled === true
+          ? await getContentfulConnection({
+              organizationId,
+              connectionId,
+            })
+          : null;
+
+      if (payload.enabled === true && !existing) {
+        return notFoundResponse(c, "contentful_connection_not_found");
+      }
+
+      const updateInput = {
+        organizationId,
         userId: c.var.auth.user.localUserId,
         connectionId,
         displayName: payload.displayName,
@@ -207,7 +267,27 @@ export function createContentfulConnectionRoutes() {
         fieldConfig: payload.fieldConfig,
         accessToken: payload.accessToken,
         enabled: payload.enabled,
-      });
+      };
+      const shouldEnforceIntegrationLimit =
+        payload.enabled === true && existing && !existing.enabled;
+
+      let result;
+      if (shouldEnforceIntegrationLimit) {
+        const limitResult = await withWorkspaceResourceLimit(
+          {
+            organizationId,
+            featureId: workspaceResourceFeatureIds.integrations,
+          },
+          (tx) => updateContentfulConnection({ ...updateInput, db: tx }),
+        );
+        if (!limitResult.ok) {
+          return mapWorkspaceResourceLimitError(c, limitResult.error);
+        }
+        result = limitResult.value;
+      } else {
+        result = await updateContentfulConnection(updateInput);
+      }
+
       if (!result) {
         return notFoundResponse(c, "contentful_connection_not_found");
       }

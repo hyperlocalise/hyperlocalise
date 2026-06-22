@@ -376,7 +376,19 @@ export async function completeTranslationJob(input: {
   }
 
   const operationKey = `job:${input.jobId}:translation_jobs`;
-  const markUsageResult = await markUsageEventSucceededByOperationKey({ operationKey });
+  const tokenUsage = input.result.tokenUsage;
+  const usageQuantity =
+    tokenUsage?.totalTokens && tokenUsage.totalTokens > 0 ? tokenUsage.totalTokens : 1;
+  const markUsageResult = await markUsageEventSucceededByOperationKey({
+    operationKey,
+    quantity: usageQuantity,
+    dimensions: {
+      autumn_event_name: "translation_job.completed",
+      unit: tokenUsage ? "model_tokens" : "job",
+      input_tokens: tokenUsage?.inputTokens ?? null,
+      output_tokens: tokenUsage?.outputTokens ?? null,
+    },
+  });
   if (isErr(markUsageResult)) {
     throw new Error(formatUsageControlError(markUsageResult.error));
   }

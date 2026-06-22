@@ -5,16 +5,26 @@ import { Hono } from "hono";
 import { validator } from "hono/validator";
 
 import { isIntegrationsReadAllowed } from "@/api/auth/capability-guards";
-import { forbiddenResponse } from "@/api/response.schema";
+import {
+  conflictResponse,
+  forbiddenResponse,
+  serviceUnavailableResponse,
+} from "@/api/response.schema";
 import { type AuthVariables, workosAuthMiddleware } from "@/api/auth/workos";
 import { getSlackRedirectUri } from "@/api/routes/slack-oauth/slack-oauth.route";
+import {
+  withWorkspaceResourceLimit,
+  workspaceResourceFeatureIds,
+  workspaceResourceLimitErrorDetails,
+  workspaceResourceLimitMessage,
+} from "@/lib/billing/workspace-resource-limits";
 import { getSlackBot } from "@/lib/agents/slack/bot";
 import {
   createSlackState,
   getSlackStateSecret,
   SLACK_STATE_TTL_MS,
 } from "@/lib/agents/slack/oauth-state";
-import { db, schema } from "@/lib/database";
+import { db, schema, type DatabaseClient } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createLogger, serializeErrorForLog } from "@/lib/log";
 import { err, fromThrowableAsync, isErr, ok, type Result } from "@/lib/primitives/result/results";
@@ -299,25 +309,75 @@ export function createAgentSlackRoutes() {
         return c.json({ error: "forbidden" as const }, 403);
       }
 
-      const [connector] = await db
-        .insert(schema.connectors)
-        .values({
-          organizationId,
-          kind: "slack",
-          enabled: payload.enabled,
-          config: {},
-        })
-        .onConflictDoUpdate({
-          target: [schema.connectors.organizationId, schema.connectors.kind],
-          set: {
+      const upsertSlackConnector = async (database: DatabaseClient) => {
+        const [connector] = await database
+          .insert(schema.connectors)
+          .values({
+            organizationId,
+            kind: "slack",
             enabled: payload.enabled,
-            updatedAt: new Date(),
-          },
-        })
-        .returning();
+            config: {},
+          })
+          .onConflictDoUpdate({
+            target: [schema.connectors.organizationId, schema.connectors.kind],
+            set: {
+              enabled: payload.enabled,
+              updatedAt: new Date(),
+            },
+          })
+          .returning();
 
-      if (!connector) {
-        return c.json({ error: "organization_not_found" as const }, 404);
+        if (!connector) {
+          throw new Error("organization_not_found");
+        }
+
+        return connector;
+      };
+
+      let connector;
+      if (payload.enabled) {
+        const [existingConnector] = await db
+          .select({ enabled: schema.connectors.enabled })
+          .from(schema.connectors)
+          .where(
+            and(
+              eq(schema.connectors.organizationId, organizationId),
+              eq(schema.connectors.kind, "slack"),
+            ),
+          )
+          .limit(1);
+
+        if (!existingConnector?.enabled) {
+          const limitResult = await withWorkspaceResourceLimit(
+            {
+              organizationId,
+              featureId: workspaceResourceFeatureIds.integrations,
+            },
+            upsertSlackConnector,
+          );
+          if (!limitResult.ok) {
+            if (limitResult.error.code === "workspace_resource_limit_check_failed") {
+              return serviceUnavailableResponse(
+                c,
+                limitResult.error.code,
+                "Unable to verify integration limits. Try again later.",
+              );
+            }
+
+            return conflictResponse(
+              c,
+              limitResult.error.code,
+              workspaceResourceLimitMessage(limitResult.error.featureId),
+              workspaceResourceLimitErrorDetails(limitResult.error),
+            );
+          }
+
+          connector = limitResult.value;
+        } else {
+          connector = await upsertSlackConnector(db);
+        }
+      } else {
+        connector = await upsertSlackConnector(db);
       }
 
       const config = (connector.config ?? {}) as SlackConnectorConfig;

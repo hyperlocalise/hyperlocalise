@@ -8,32 +8,48 @@ export const autumnPlanIds = {
   /** Free / dev sandbox plan for onboarding and local testing. */
   free: "free",
   /** Paid workspace subscription plan. */
-  team: "team",
+  growth: "growth",
+  /** Custom enterprise subscription plan. */
+  enterprise: "enterprise",
 } as const;
 
 export type AutumnPlanId = (typeof autumnPlanIds)[keyof typeof autumnPlanIds];
 
 /**
- * Metered usage feature IDs aligned with HL-418 usage control.
- * These must match Autumn feature definitions and `usage_events.feature_id`.
+ * Autumn feature IDs configured in the Autumn dashboard.
+ * These include credit-system balances, non-consumable limits, and boolean gates.
+ */
+export const autumnFeatureIds = {
+  aiTokens: "ai_tokens",
+  translationJobs: "translation_jobs",
+  agentRuns: "agent_runs",
+  seats: "seats",
+  projects: "projects",
+  automations: "automations",
+  integrations: "integrations",
+  aiFeatures: "ai_features",
+} as const;
+
+export type AutumnFeatureId = (typeof autumnFeatureIds)[keyof typeof autumnFeatureIds];
+
+/**
+ * Locally tracked usage event feature IDs.
+ * These must match `usage_events.feature_id` until the enum is migrated.
  */
 export const usageFeatureIds = {
-  translationJobs: "translation_jobs",
-  translationUnits: "translation_units",
-  sourceCharacters: "source_characters",
-  aiTokens: "ai_tokens",
-  apiRequests: "api_requests",
-  agentRuns: "agent_runs",
+  translationJobs: autumnFeatureIds.translationJobs,
+  agentRuns: autumnFeatureIds.agentRuns,
 } as const;
 
 export type UsageFeatureId = (typeof usageFeatureIds)[keyof typeof usageFeatureIds];
 
-/** Metered features shown on the billing settings usage panel. */
-export const meteredUsageFeatureIds = [
+/** Customer-facing balances shown on the billing settings usage panel. */
+export const billingBalanceFeatureIds = [
+  autumnFeatureIds.aiTokens,
   usageFeatureIds.translationJobs,
-  usageFeatureIds.translationUnits,
-  usageFeatureIds.sourceCharacters,
-  usageFeatureIds.aiTokens,
-  usageFeatureIds.apiRequests,
   usageFeatureIds.agentRuns,
-] as const satisfies readonly UsageFeatureId[];
+  autumnFeatureIds.seats,
+  autumnFeatureIds.projects,
+  autumnFeatureIds.automations,
+  autumnFeatureIds.integrations,
+] as const satisfies readonly AutumnFeatureId[];
