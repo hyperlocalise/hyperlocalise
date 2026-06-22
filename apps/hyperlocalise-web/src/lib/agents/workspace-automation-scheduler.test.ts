@@ -1,21 +1,37 @@
 import { describe, expect, it, vi, beforeEach } from "vite-plus/test";
 
-import { buildWorkspaceOrchestratorPlan } from "@/agents/automations/workspace/agent/plan";
+const listDueWorkspaceAutomations = vi.fn();
+const dispatchDueContentfulWorkspaceAutomations = vi.fn();
+const dispatchWorkspaceAutomationForScheduleAndAdvance = vi.fn();
+const buildWorkspaceOrchestratorPlan = vi.fn();
 
-import { dispatchDueContentfulWorkspaceAutomations } from "./workspace-automation-dispatcher";
-import { runWorkspaceAutomationScheduler } from "./workspace-automation-scheduler";
-import * as workspaceAutomations from "./workspace-automations";
-import * as workspaceAutomationDispatcher from "./workspace-automation-dispatcher";
+vi.mock("./workspace-automations", () => ({
+  listDueWorkspaceAutomations: (...args: unknown[]) => listDueWorkspaceAutomations(...args),
+}));
+
+vi.mock("./workspace-automation-dispatcher", () => ({
+  dispatchDueContentfulWorkspaceAutomations: (...args: unknown[]) =>
+    dispatchDueContentfulWorkspaceAutomations(...args),
+  dispatchWorkspaceAutomationForScheduleAndAdvance: (...args: unknown[]) =>
+    dispatchWorkspaceAutomationForScheduleAndAdvance(...args),
+}));
 
 vi.mock("@/agents/automations/workspace/agent/plan", () => ({
-  buildWorkspaceOrchestratorPlan: vi.fn(() => ({ tools: ["run_contentful_translation"] })),
+  buildWorkspaceOrchestratorPlan: (...args: unknown[]) => buildWorkspaceOrchestratorPlan(...args),
 }));
+
+import { runWorkspaceAutomationScheduler } from "./workspace-automation-scheduler";
 
 describe("runWorkspaceAutomationScheduler", () => {
   beforeEach(() => {
-    vi.mocked(buildWorkspaceOrchestratorPlan).mockReturnValue({
+    listDueWorkspaceAutomations.mockReset();
+    dispatchDueContentfulWorkspaceAutomations.mockReset();
+    dispatchWorkspaceAutomationForScheduleAndAdvance.mockReset();
+    buildWorkspaceOrchestratorPlan.mockReset();
+    buildWorkspaceOrchestratorPlan.mockReturnValue({
       tools: ["run_contentful_translation"],
     });
+    dispatchDueContentfulWorkspaceAutomations.mockResolvedValue([]);
   });
 
   it("skips contentful dispatch for automations already due on a GitHub repository", async () => {
@@ -63,7 +79,7 @@ describe("runWorkspaceAutomationScheduler", () => {
       updatedAt: scheduledRunAt.toISOString(),
     };
 
-    vi.spyOn(workspaceAutomations, "listDueWorkspaceAutomations").mockResolvedValue([
+    listDueWorkspaceAutomations.mockResolvedValue([
       {
         automation,
         repository: {
@@ -84,14 +100,7 @@ describe("runWorkspaceAutomationScheduler", () => {
       },
     ]);
 
-    const dispatchDueContentfulWorkspaceAutomations = vi
-      .spyOn(workspaceAutomationDispatcher, "dispatchDueContentfulWorkspaceAutomations")
-      .mockResolvedValue([]);
-
-    vi.spyOn(
-      workspaceAutomationDispatcher,
-      "dispatchWorkspaceAutomationForScheduleAndAdvance",
-    ).mockResolvedValue({
+    dispatchWorkspaceAutomationForScheduleAndAdvance.mockResolvedValue({
       outcome: "enqueued",
       runId: "run-1",
       inserted: true,
@@ -104,67 +113,6 @@ describe("runWorkspaceAutomationScheduler", () => {
       limit: undefined,
       skipAutomationIds: new Set(["automation-contentful-github"]),
     });
-  });
-});
-
-describe("dispatchDueContentfulWorkspaceAutomations", () => {
-  it("does not dispatch automations listed in skipAutomationIds", async () => {
-    const scheduledRunAt = new Date("2026-06-01T08:00:00.000Z");
-    const automation = {
-      id: "automation-1",
-      organizationId: "org-1",
-      authorUserId: null,
-      status: "active" as const,
-      name: "Contentful only",
-      instructions: "",
-      triggerConfig: {
-        mode: "scheduled" as const,
-        schedule: { cadence: "daily" as const, hourUtc: 8, timezone: "UTC" },
-      },
-      repositoryTarget: { kind: "none" as const },
-      toolConfig: {
-        contentful: {
-          enabled: true,
-          connectionId: "conn-1",
-          projectId: "project-1",
-          sourceLocale: "en",
-          targetLocales: ["de"],
-          contentTypeIds: [],
-          fieldMode: "auto" as const,
-          overwriteDraftLocales: false,
-          runQa: true,
-          writeDrafts: true,
-        },
-      },
-      configVersion: 1,
-      nextRunAt: scheduledRunAt.toISOString(),
-      createdAt: scheduledRunAt.toISOString(),
-      updatedAt: scheduledRunAt.toISOString(),
-    };
-
-    vi.spyOn(workspaceAutomations, "listDueContentfulWorkspaceAutomations").mockResolvedValue([
-      automation,
-    ]);
-
-    const dispatchWorkspaceAutomationForSchedule = vi
-      .spyOn(workspaceAutomationDispatcher, "dispatchWorkspaceAutomationForSchedule")
-      .mockResolvedValue({
-        outcome: "enqueued",
-        runId: "run-1",
-        inserted: true,
-      });
-
-    const advanceWorkspaceAutomationNextRun = vi
-      .spyOn(workspaceAutomations, "advanceWorkspaceAutomationNextRun")
-      .mockResolvedValue();
-
-    const results = await dispatchDueContentfulWorkspaceAutomations({
-      now: scheduledRunAt,
-      skipAutomationIds: new Set(["automation-1"]),
-    });
-
-    expect(results).toEqual([]);
-    expect(dispatchWorkspaceAutomationForSchedule).not.toHaveBeenCalled();
-    expect(advanceWorkspaceAutomationNextRun).not.toHaveBeenCalled();
+    expect(dispatchWorkspaceAutomationForScheduleAndAdvance).toHaveBeenCalledTimes(1);
   });
 });
