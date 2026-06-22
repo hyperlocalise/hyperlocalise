@@ -106,7 +106,13 @@ function MobileNavigation() {
         </div>
         <SheetFooter className="gap-2 border-t border-border/70 px-5 py-5">
           <SheetClose render={<Link href={signInHref} prefetch={false} />} className="w-full">
-            <Button variant="ghost" size="lg" className="w-full" nativeButton={false} render={<span />}>
+            <Button
+              variant="ghost"
+              size="lg"
+              className="w-full"
+              nativeButton={false}
+              render={<span />}
+            >
               Sign in
             </Button>
           </SheetClose>
