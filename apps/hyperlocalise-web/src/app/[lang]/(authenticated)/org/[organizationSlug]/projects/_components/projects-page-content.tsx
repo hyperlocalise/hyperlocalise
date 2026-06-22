@@ -215,7 +215,19 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const useLiveProviderProjects = Boolean(activeTmsProviderQuery.data);
   const isProviderModeResolved = activeTmsProviderQuery.isSuccess;
 
-  const headerActions = !isProviderModeResolved ? null : useLiveProviderProjects ? (
+  const createProjectAction = (
+    <Button
+      type="button"
+      onClick={openCreateProjectDialog}
+      className="w-full sm:w-fit"
+      disabled={isSavingProject}
+    >
+      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
+      Create project
+    </Button>
+  );
+
+  const syncProjectsAction = useLiveProviderProjects ? (
     <Button
       type="button"
       variant="outline"
@@ -230,16 +242,13 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       )}
       Sync projects
     </Button>
-  ) : (
-    <Button
-      type="button"
-      onClick={openCreateProjectDialog}
-      className="w-full sm:w-fit"
-      disabled={isSavingProject}
-    >
-      <HugeiconsIcon icon={Add01Icon} strokeWidth={1.8} />
-      Create project
-    </Button>
+  ) : null;
+
+  const headerActions = !isProviderModeResolved ? null : (
+    <>
+      {syncProjectsAction}
+      {createProjectAction}
+    </>
   );
 
   return (
