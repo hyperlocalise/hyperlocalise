@@ -91,3 +91,7 @@
 ## 2025-07-15 - [ICU Parser Error Robustness]
 **Learning:** ICU parsers should provide clear error messages for common syntax mistakes like unclosed braces, mismatched tags, or missing options. While leniency is good for some things (like unclosed quotes), structural errors should be caught to prevent malformed ASTs that could lead to incorrect translations or application crashes.
 **Action:** Include comprehensive error-case tests for the parser to ensure it correctly identifies and reports syntax errors in ICU messages and HTML tags.
+
+## 2025-07-20 - [ICU Element Type and Nesting Validation]
+**Learning:** ICU `PluralElement` can represent both `plural` and `selectordinal` types. Structural parity checks rely on the `Type()` method, which correctly chooses the type based on the `Ordinal` flag or an explicit override. Additionally, pound signs (`#`) must be identified as `PoundElement` even when nested inside non-plural blocks (like `select`) if they are ultimately contained by a `plural` or `selectordinal` block.
+**Action:** Always test the `Type()` method for all AST elements, especially for polymorphic elements like `PluralElement`. Ensure nesting tests cover cases where markers like `#` are separated from their parent block by other types of ICU blocks.
