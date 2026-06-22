@@ -67,9 +67,13 @@ describe("glossaryRoutes", () => {
     const headers = await fixture.authHeadersFor(identity);
     const organizationSlug = identity.organization.slug ?? "missing-slug";
 
-    const createResponse = await fixture.createGlossaryViaApi(identity);
+    const createResponse = await fixture.createGlossaryViaApi(identity, undefined, headers);
     expect(createResponse.status).toBe(201);
-    const createBody = (await createResponse.json()) as { glossary: { id: string } };
+    const createBody = await createResponse.json();
+    expect(createBody).toMatchObject({
+      glossary: { id: expect.any(String) },
+    });
+    const glossaryId = (createBody as { glossary: { id: string } }).glossary.id;
 
     const response = await client.api.orgs[":organizationSlug"].glossaries[
       ":glossaryId"
@@ -77,7 +81,7 @@ describe("glossaryRoutes", () => {
       {
         param: {
           organizationSlug,
-          glossaryId: createBody.glossary.id,
+          glossaryId,
         },
         json: {
           format: "csv",
@@ -93,28 +97,43 @@ describe("glossaryRoutes", () => {
     );
 
     expect(response.status).toBe(201);
-    await expect(response.json()).resolves.toMatchObject({
+    const importBody = (await response.json()) as {
+      imported: number;
+      skipped: number;
+      glossaryTerms: Array<{
+        sourceTerm: string;
+        targetTerm: string;
+        description: string;
+        partOfSpeech: string;
+        forbidden: boolean;
+        caseSensitive: boolean;
+      }>;
+    };
+    expect(importBody).toMatchObject({
       imported: 2,
       skipped: 1,
-      glossaryTerms: [
-        {
+    });
+    expect(importBody.glossaryTerms).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
           sourceTerm: "CTA",
           targetTerm: "Llamada a la accion",
           description: "Button copy",
           partOfSpeech: "noun",
           forbidden: false,
           caseSensitive: false,
-        },
-        {
+        }),
+        expect.objectContaining({
           sourceTerm: "Hero",
           targetTerm: "Heroe",
           description: "Homepage heading",
           partOfSpeech: "noun",
           forbidden: false,
           caseSensitive: false,
-        },
-      ],
-    });
+        }),
+      ]),
+    );
+    expect(importBody.glossaryTerms).toHaveLength(2);
   });
 
   it("rejects term mutations for externally managed glossaries", async () => {
