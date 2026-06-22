@@ -16,7 +16,11 @@ type Client = ReturnType<typeof testClient<AppType>>;
 export function createGlossaryTestFixture(client?: Client) {
   const authFixture = createAuthTestFixture();
 
-  async function createGlossaryViaApi(identity: WorkosAuthIdentity, input?: CreateGlossaryInput) {
+  async function createGlossaryViaApi(
+    identity: WorkosAuthIdentity,
+    input?: CreateGlossaryInput,
+    headers?: Awaited<ReturnType<typeof authFixture.authHeadersFor>>,
+  ) {
     if (!client) {
       throw new Error("createGlossaryViaApi requires a test client");
     }
@@ -32,7 +36,7 @@ export function createGlossaryTestFixture(client?: Client) {
         },
       },
       {
-        headers: await authFixture.authHeadersFor(identity),
+        headers: headers ?? (await authFixture.authHeadersFor(identity)),
       },
     );
   }
