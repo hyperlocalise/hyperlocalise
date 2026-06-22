@@ -24,6 +24,23 @@ export function buildWorkspaceGithubPushAutomationIdempotencyKey(input: {
   ].join(":");
 }
 
+export function buildWorkspaceGithubPushCommitAutomationIdempotencyKey(input: {
+  automationId: string;
+  configVersion: number;
+  branch: string;
+  commitBefore: string;
+  commitAfter: string;
+}): string {
+  return [
+    "workspace-automation:github-push-commit",
+    input.automationId,
+    String(input.configVersion),
+    input.branch,
+    input.commitBefore,
+    input.commitAfter,
+  ].join(":");
+}
+
 export function buildWorkspaceManualAutomationIdempotencyKey(input: {
   automationId: string;
   configVersion: number;

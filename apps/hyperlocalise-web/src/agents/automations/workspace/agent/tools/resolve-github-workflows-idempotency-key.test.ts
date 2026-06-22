@@ -4,7 +4,11 @@ import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automations";
-import { buildWorkspaceContentfulWebhookAutomationIdempotencyKey } from "@/lib/agents/workspace-automation-idempotency";
+import {
+  buildWorkspaceContentfulWebhookAutomationIdempotencyKey,
+  buildWorkspaceGithubPushCommitAutomationIdempotencyKey,
+  buildWorkspaceScheduledAutomationIdempotencyKey,
+} from "@/lib/agents/workspace-automation-idempotency";
 
 import { createWorkspaceOrchestratorSession } from "../context";
 import { resolveGithubWorkflowsIdempotencyKey } from "./resolve-github-workflows-idempotency-key";
@@ -142,5 +146,131 @@ describe("resolveGithubWorkflowsIdempotencyKey", () => {
         contentfulWebhookEventId: "run-1",
       }),
     );
+  });
+
+  it("scopes scheduled GitHub job keys per automation so shared repos do not collide", () => {
+    const scheduledRunAt = new Date("2026-06-01T08:00:00.000Z");
+    const automationA = baseAutomation();
+    const automationB = { ...baseAutomation(), id: "automation-2" };
+    const run = baseRun({
+      triggerSource: "scheduled",
+      inputSnapshot: { scheduledRunAt: scheduledRunAt.toISOString() },
+    });
+
+    const sessionA = createWorkspaceOrchestratorSession({
+      organizationId: "org-1",
+      automation: automationA,
+      run,
+      plan: { tools: ["run_github_workflows"] },
+      repository: {
+        id: "repo-install-1",
+        githubInstallationId: "install-1",
+        githubRepositoryId: "12345",
+      },
+      composedInstructions: "Run the automation.",
+    });
+    const sessionB = createWorkspaceOrchestratorSession({
+      organizationId: "org-1",
+      automation: automationB,
+      run: { ...run, automationId: "automation-2" },
+      plan: { tools: ["run_github_workflows"] },
+      repository: {
+        id: "repo-install-1",
+        githubInstallationId: "install-1",
+        githubRepositoryId: "12345",
+      },
+      composedInstructions: "Run the automation.",
+    });
+
+    const keyA = resolveGithubWorkflowsIdempotencyKey({
+      session: sessionA,
+      configVersion: 3,
+      repositoryId: "repo-install-1",
+      githubRepositoryId: "12345",
+    });
+    const keyB = resolveGithubWorkflowsIdempotencyKey({
+      session: sessionB,
+      configVersion: 3,
+      repositoryId: "repo-install-1",
+      githubRepositoryId: "12345",
+    });
+
+    expect(keyA).toBe(
+      buildWorkspaceScheduledAutomationIdempotencyKey({
+        automationId: "automation-1",
+        configVersion: 3,
+        scheduledRunAt,
+      }),
+    );
+    expect(keyB).toBe(
+      buildWorkspaceScheduledAutomationIdempotencyKey({
+        automationId: "automation-2",
+        configVersion: 3,
+        scheduledRunAt,
+      }),
+    );
+    expect(keyA).not.toBe(keyB);
+  });
+
+  it("scopes push GitHub job keys per automation when branch and commits are present", () => {
+    const automationA = baseAutomation();
+    const automationB = { ...baseAutomation(), id: "automation-2" };
+    const run = baseRun({
+      triggerSource: "github",
+      inputSnapshot: {
+        pushBranch: "main",
+        commitBefore: "abc",
+        commitAfter: "def",
+      },
+    });
+
+    const sessionA = createWorkspaceOrchestratorSession({
+      organizationId: "org-1",
+      automation: automationA,
+      run,
+      plan: { tools: ["run_github_workflows"] },
+      repository: {
+        id: "repo-install-1",
+        githubInstallationId: "install-1",
+        githubRepositoryId: "12345",
+      },
+      composedInstructions: "Run the automation.",
+    });
+    const sessionB = createWorkspaceOrchestratorSession({
+      organizationId: "org-1",
+      automation: automationB,
+      run: { ...run, automationId: "automation-2" },
+      plan: { tools: ["run_github_workflows"] },
+      repository: {
+        id: "repo-install-1",
+        githubInstallationId: "install-1",
+        githubRepositoryId: "12345",
+      },
+      composedInstructions: "Run the automation.",
+    });
+
+    const keyA = resolveGithubWorkflowsIdempotencyKey({
+      session: sessionA,
+      configVersion: 3,
+      repositoryId: "repo-install-1",
+      githubRepositoryId: "12345",
+    });
+    const keyB = resolveGithubWorkflowsIdempotencyKey({
+      session: sessionB,
+      configVersion: 3,
+      repositoryId: "repo-install-1",
+      githubRepositoryId: "12345",
+    });
+
+    expect(keyA).toBe(
+      buildWorkspaceGithubPushCommitAutomationIdempotencyKey({
+        automationId: "automation-1",
+        configVersion: 3,
+        branch: "main",
+        commitBefore: "abc",
+        commitAfter: "def",
+      }),
+    );
+    expect(keyB).not.toBe(keyA);
   });
 });
