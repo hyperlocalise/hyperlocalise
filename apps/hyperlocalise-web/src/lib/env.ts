@@ -58,6 +58,9 @@ export const env = createEnv({
     /** Secret used by WorkOS to sign webhook payloads. Required for secure WorkOS webhook handling. */
     WORKOS_WEBHOOK_SECRET: z.string().min(1).optional(),
 
+    /** Secret used by Flags SDK for toolbar overrides and encrypted flag values. */
+    FLAGS_SECRET: z.string().min(32).optional(),
+
     /** Resend API key for sending and receiving emails. Required for email bot integration. */
     RESEND_API_KEY: z.string().min(1).optional(),
 
@@ -226,6 +229,9 @@ export const env = createEnv({
       (isTestEnv ? "test-workos-cookie-password-at-least-32-chars" : undefined),
     WORKOS_WEBHOOK_SECRET:
       process.env.WORKOS_WEBHOOK_SECRET ?? (isTestEnv ? "test-workos-webhook-secret" : undefined),
+    FLAGS_SECRET:
+      process.env.FLAGS_SECRET ??
+      (isTestEnv ? "test-flags-secret-at-least-32-characters-long" : undefined),
     RESEND_API_KEY: process.env.RESEND_API_KEY ?? (isTestEnv ? "test-resend-api-key" : undefined),
     RESEND_WEBHOOK_SECRET:
       process.env.RESEND_WEBHOOK_SECRET ?? (isTestEnv ? "test-resend-webhook-secret" : undefined),
