@@ -194,6 +194,10 @@
 **Learning:** For template parsers that perform masking or delimiter scanning: 1) converting the entire input to a string is an avoidable large allocation; 2) manual byte-by-byte loops for literal text can be replaced with `bytes.IndexAny` to skip uninteresting segments; 3) `fmt.Sprintf`, `hex.EncodeToString`, and `strings.ToUpper` in hot-path token generation create significant GC pressure that can be mitigated with stack buffers and manual hex tables.
 **Action:** Optimized `maskLiquidSyntax`, `liquidPlaceholderToken`, `liquidSegmentKey`, and associated helpers in `internal/i18n/translationfileparser/liquid_parser.go`.
 
+## 2026-10-18 - Eliminating O(N²) allocations in whitespace checks and optimizing case-insensitive comparisons
+**Learning:** Performing `string(data)` conversion inside a loop (as seen in the original `isAllXMLWhitespace`) leads to $O(N^2)$ allocations. Replacing this with a zero-allocation `utf8.DecodeRune` loop and a fast-path for ASCII significantly improves efficiency. Additionally, replacing `strings.ToLower(strings.TrimSpace(name))` with `strings.EqualFold(strings.TrimSpace(name), ...)` avoids unnecessary string allocations during repeated name checks.
+**Action:** Refactored and optimized whitespace checks and tag name comparisons in `internal/i18n/translationfileparser/generic_xml_parser.go` and centralized utilities in `xml_util.go`.
+
 ## 2026-10-20 - Optimizing JSONC comment parsing via manual byte scanning
 **Learning:** Replacing line-by-line regular expression matching with a manual `[]byte` scanner and avoiding per-line `string` conversions significantly reduces allocation overhead and CPU time in translation file parsers. Regex overhead, especially for simple key/value patterns, is often a hidden bottleneck compared to optimized byte scanning.
 **Action:** Optimized `parseJSONCKeyComments` and its helper functions in `internal/i18n/translationfileparser/jsonc_parser.go` to operate entirely on `[]byte`, resulting in a ~30% speedup and ~17% fewer allocations.

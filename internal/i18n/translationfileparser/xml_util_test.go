@@ -114,3 +114,49 @@ func TestAttrValue(t *testing.T) {
 		}
 	})
 }
+
+func TestIsAllXMLWhitespace(t *testing.T) {
+	tests := []struct {
+		in   string
+		want bool
+	}{
+		{"", true},
+		{"   ", true},
+		{"\n\t\r ", true},
+		{"  a  ", false},
+		{"a", false},
+		{"\u00A0", true}, // non-breaking space
+		{" \u00A0 ", true},
+		{" \u00A0 a", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			if got := isAllXMLWhitespace([]byte(tt.in)); got != tt.want {
+				t.Errorf("isAllXMLWhitespace(%q) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestIsXMLWhitespace(t *testing.T) {
+	tests := []struct {
+		in   byte
+		want bool
+	}{
+		{' ', true},
+		{'\t', true},
+		{'\n', true},
+		{'\r', true},
+		{'a', false},
+		{0, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(string(tt.in), func(t *testing.T) {
+			if got := isXMLWhitespace(tt.in); got != tt.want {
+				t.Errorf("isXMLWhitespace(%v) = %v, want %v", tt.in, got, tt.want)
+			}
+		})
+	}
+}

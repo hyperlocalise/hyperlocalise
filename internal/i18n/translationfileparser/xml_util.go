@@ -2,7 +2,11 @@ package translationfileparser
 
 import (
 	"encoding/xml"
+	"errors"
+	"io"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -72,6 +76,38 @@ func isXMLDecimalCharacterReference(s string) bool {
 		}
 	}
 	return true
+}
+
+func isAllXMLWhitespace(data []byte) bool {
+	for i := 0; i < len(data); {
+		b := data[i]
+		if b < 0x80 {
+			if b != ' ' && b != '\t' && b != '\n' && b != '\r' {
+				return false
+			}
+			i++
+			continue
+		}
+		r, size := utf8.DecodeRune(data[i:])
+		if !unicode.IsSpace(r) {
+			return false
+		}
+		i += size
+	}
+	return true
+}
+
+func isXMLWhitespace(ch byte) bool {
+	switch ch {
+	case ' ', '\t', '\n', '\r':
+		return true
+	default:
+		return false
+	}
+}
+
+func isEOFError(err error) bool {
+	return errors.Is(err, io.EOF)
 }
 
 func attrValue(attrs []xml.Attr, name string) string {

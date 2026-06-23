@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"slices"
 	"strings"
-	"unicode"
 )
 
 // GenericXMLParser parses non-Android XML locale files whose translatable
@@ -436,35 +435,13 @@ func isGenericXMLLocaleAttrName(name string) bool {
 		return true
 	}
 
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "xml:lang", "lang", "locale", "language", "code":
-		return true
-	default:
-		return false
-	}
-}
-
-func isAllXMLWhitespace(data []byte) bool {
-	for _, b := range data {
-		if b >= 0x80 {
-			// Non-ASCII byte: fall back to rune-aware Unicode whitespace check.
-			for _, r := range string(data) {
-				if !unicode.IsSpace(r) {
-					return false
-				}
-			}
-			return true
-		}
-		if b != ' ' && b != '\t' && b != '\n' && b != '\r' {
-			return false
-		}
-	}
-	return true
-}
-
-func isXMLWhitespace(ch byte) bool {
-	switch ch {
-	case ' ', '\t', '\n', '\r':
+	trimmed := strings.TrimSpace(name)
+	switch {
+	case strings.EqualFold(trimmed, "xml:lang"),
+		strings.EqualFold(trimmed, "lang"),
+		strings.EqualFold(trimmed, "locale"),
+		strings.EqualFold(trimmed, "language"),
+		strings.EqualFold(trimmed, "code"):
 		return true
 	default:
 		return false
@@ -544,8 +521,21 @@ func isGenericXMLMetadataElement(name string) bool {
 		return true
 	}
 
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "meta", "metadata", "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment", "resheader", "assembly":
+	trimmed := strings.TrimSpace(name)
+	switch {
+	case strings.EqualFold(trimmed, "meta"),
+		strings.EqualFold(trimmed, "metadata"),
+		strings.EqualFold(trimmed, "comment"),
+		strings.EqualFold(trimmed, "comments"),
+		strings.EqualFold(trimmed, "description"),
+		strings.EqualFold(trimmed, "descriptions"),
+		strings.EqualFold(trimmed, "note"),
+		strings.EqualFold(trimmed, "notes"),
+		strings.EqualFold(trimmed, "context"),
+		strings.EqualFold(trimmed, "extracomment"),
+		strings.EqualFold(trimmed, "developercomment"),
+		strings.EqualFold(trimmed, "resheader"),
+		strings.EqualFold(trimmed, "assembly"):
 		return true
 	default:
 		return false
@@ -559,8 +549,17 @@ func isGenericXMLKeyedMetadataConflict(name string) bool {
 		return true
 	}
 
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment":
+	trimmed := strings.TrimSpace(name)
+	switch {
+	case strings.EqualFold(trimmed, "comment"),
+		strings.EqualFold(trimmed, "comments"),
+		strings.EqualFold(trimmed, "description"),
+		strings.EqualFold(trimmed, "descriptions"),
+		strings.EqualFold(trimmed, "note"),
+		strings.EqualFold(trimmed, "notes"),
+		strings.EqualFold(trimmed, "context"),
+		strings.EqualFold(trimmed, "extracomment"),
+		strings.EqualFold(trimmed, "developercomment"):
 		return true
 	default:
 		return false
@@ -573,12 +572,7 @@ func isGenericXMLValueElement(name string) bool {
 		return true
 	}
 
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "value":
-		return true
-	default:
-		return false
-	}
+	return strings.EqualFold(strings.TrimSpace(name), "value")
 }
 
 func isGenericXMLSpecializedRoot(name string) bool {
@@ -588,8 +582,11 @@ func isGenericXMLSpecializedRoot(name string) bool {
 		return true
 	}
 
-	switch strings.ToLower(strings.TrimSpace(name)) {
-	case "resources", "xliff", "plist":
+	trimmed := strings.TrimSpace(name)
+	switch {
+	case strings.EqualFold(trimmed, "resources"),
+		strings.EqualFold(trimmed, "xliff"),
+		strings.EqualFold(trimmed, "plist"):
 		return true
 	default:
 		return false

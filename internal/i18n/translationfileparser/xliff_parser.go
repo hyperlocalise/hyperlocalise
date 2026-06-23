@@ -3,7 +3,6 @@ package translationfileparser
 import (
 	"bytes"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -105,9 +104,6 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 	return out, nil
 }
 
-func isEOFError(err error) bool {
-	return errors.Is(err, io.EOF)
-}
 
 func resolveXLIFFUnitKey(attrs []xml.Attr) string {
 	// BOLT OPTIMIZATION: Single-pass attribute scan with priority (id > name > resname).
