@@ -104,7 +104,6 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 	return out, nil
 }
 
-
 func resolveXLIFFUnitKey(attrs []xml.Attr) string {
 	// BOLT OPTIMIZATION: Single-pass attribute scan with priority (id > name > resname).
 	var name, resname string
