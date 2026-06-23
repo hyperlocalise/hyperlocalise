@@ -11,18 +11,30 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
+import { PlanUsageSummaryContent } from "@/components/billing/plan-usage-summary";
+import { PlanUsageHashScroll } from "@/components/billing/plan-usage-hash-scroll";
 import { formatAutumnBillingError } from "@/lib/billing/autumn-errors";
+import {
+  getActiveSubscription,
+  availablePlansSectionId,
+  planUsagePrimaryFeatureId,
+  planUsageSectionId,
+  resolvePlanUsageSummary,
+} from "@/lib/billing/plan-usage";
 import { billingBalanceFeatureIds, getUsageFeatureLabel } from "@/lib/billing/usage-feature-labels";
 
 function SurfaceCard({
   children,
   className = "",
+  id,
 }: {
   children: React.ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <Card
+      id={id}
       className={`rounded-lg border border-foreground/8 bg-foreground/2.5 py-0 text-foreground ring-0 ${className}`}
     >
       {children}
@@ -54,10 +66,24 @@ function BillingSettingsHeader() {
           Billing
         </TypographyH1>
         <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          View your workspace plan, AI token balance, workspace limits, and subscription billing.
+          View your workspace plan, word usage, workspace limits, and subscription billing.
         </TypographyP>
       </div>
     </section>
+  );
+}
+
+function BillingUnavailableCard() {
+  return (
+    <SurfaceCard>
+      <CardHeader className="px-5 py-5">
+        <CardTitle className="text-lg font-medium text-foreground">Billing unavailable</CardTitle>
+        <CardDescription className="text-foreground/52">
+          Autumn is not configured in this environment. Add a sandbox `AUTUMN_API_KEY` to enable
+          billing for this workspace.
+        </CardDescription>
+      </CardHeader>
+    </SurfaceCard>
   );
 }
 
@@ -67,6 +93,25 @@ function BillingSettingsPanel({
   organizationSlug,
 }: {
   autumnConfigured: boolean;
+  canManageBilling: boolean;
+  organizationSlug: string;
+}) {
+  if (!autumnConfigured) {
+    return <BillingUnavailableCard />;
+  }
+
+  return (
+    <ConfiguredBillingSettingsPanel
+      canManageBilling={canManageBilling}
+      organizationSlug={organizationSlug}
+    />
+  );
+}
+
+function ConfiguredBillingSettingsPanel({
+  canManageBilling,
+  organizationSlug,
+}: {
   canManageBilling: boolean;
   organizationSlug: string;
 }) {
@@ -82,34 +127,36 @@ function BillingSettingsPanel({
   } = useCustomer();
   const { data: plans, isLoading: plansLoading, error: plansError } = useListPlans();
 
-  const activeSubscription = useMemo(() => {
-    if (!customer?.subscriptions?.length) {
-      return null;
-    }
-
-    return (
-      customer.subscriptions.find((subscription) => subscription.status === "active") ??
-      customer.subscriptions[0] ??
-      null
-    );
-  }, [customer?.subscriptions]);
+  const activeSubscription = useMemo(
+    () => getActiveSubscription(customer?.subscriptions),
+    [customer?.subscriptions],
+  );
 
   const activePlanId = activeSubscription?.planId ?? null;
-  const isScheduledForCancel = Boolean(
-    activeSubscription?.canceledAt && activeSubscription.status === "active",
+  const planUsageSummary = useMemo(
+    () =>
+      resolvePlanUsageSummary({
+        subscriptions: customer?.subscriptions,
+        balances: customer?.balances,
+        plans,
+      }),
+    [customer?.balances, customer?.subscriptions, plans],
   );
-  const usageRows = billingBalanceFeatureIds.map((featureId) => {
-    const balance = customer?.balances?.[featureId];
-    return {
-      featureId,
-      label: getUsageFeatureLabel(featureId),
-      usage: balance?.usage ?? 0,
-      remaining: balance?.remaining ?? 0,
-      granted: balance?.granted ?? 0,
-      unlimited: balance?.unlimited ?? false,
-      nextResetAt: balance?.nextResetAt ?? null,
-    };
-  });
+  const isScheduledForCancel = planUsageSummary.isScheduledForCancel;
+  const usageRows = billingBalanceFeatureIds
+    .filter((featureId) => featureId !== planUsagePrimaryFeatureId)
+    .map((featureId) => {
+      const balance = customer?.balances?.[featureId];
+      return {
+        featureId,
+        label: getUsageFeatureLabel(featureId),
+        usage: balance?.usage ?? 0,
+        remaining: balance?.remaining ?? 0,
+        granted: balance?.granted ?? 0,
+        unlimited: balance?.unlimited ?? false,
+        nextResetAt: balance?.nextResetAt ?? null,
+      };
+    });
 
   const billingError = customerError ?? plansError;
   const isLoading = customerLoading || plansLoading;
@@ -165,20 +212,6 @@ function BillingSettingsPanel({
     await runBillingAction("portal", () => openCustomerPortal({ returnUrl }));
   }
 
-  if (!autumnConfigured) {
-    return (
-      <SurfaceCard>
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Billing unavailable</CardTitle>
-          <CardDescription className="text-foreground/52">
-            Autumn is not configured in this environment. Add a sandbox `AUTUMN_API_KEY` to enable
-            billing for this workspace.
-          </CardDescription>
-        </CardHeader>
-      </SurfaceCard>
-    );
-  }
-
   if (isLoading) {
     return (
       <SurfaceCard>
@@ -220,12 +253,12 @@ function BillingSettingsPanel({
           <CardHeader className="px-5 py-5">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <CardTitle className="text-lg font-medium text-foreground">
-                  {activeSubscription?.plan?.name ?? "No active plan"}
-                </CardTitle>
+                <CardTitle className="text-lg font-medium text-foreground">Subscription</CardTitle>
                 <CardDescription className="mt-1 text-foreground/52">
                   {activeSubscription
-                    ? `Status: ${activeSubscription.status.replaceAll("_", " ")}`
+                    ? isScheduledForCancel
+                      ? "Your subscription stays active until the current billing period ends."
+                      : "Manage cancellation for this workspace subscription."
                     : "Choose a plan below to start a subscription for this workspace."}
                 </CardDescription>
               </div>
@@ -241,11 +274,6 @@ function BillingSettingsPanel({
           </CardHeader>
           <Separator className="bg-foreground/8" />
           <CardContent className="px-5 py-5">
-            {activeSubscription?.currentPeriodEnd ? (
-              <TypographyP className="text-sm text-foreground/52">
-                Current period ends {formatResetDate(activeSubscription.currentPeriodEnd)}
-              </TypographyP>
-            ) : null}
             {canManageBilling && isScheduledForCancel ? (
               <div className="mt-4">
                 <Button
@@ -276,9 +304,9 @@ function BillingSettingsPanel({
             <div className="flex size-10 items-center justify-center rounded-lg border border-foreground/10 bg-foreground/5">
               <HugeiconsIcon icon={Wallet03Icon} strokeWidth={1.8} className="size-5" />
             </div>
-            <CardTitle className="text-base font-medium text-foreground">Stripe portal</CardTitle>
+            <CardTitle className="text-base font-medium text-foreground">Billing portal</CardTitle>
             <CardDescription className="leading-6 text-foreground/52">
-              Update payment methods, review invoices, and manage subscription details in Stripe.
+              Update payment methods, review invoices, and manage subscription billing details.
             </CardDescription>
           </CardHeader>
           <Separator className="bg-foreground/8" />
@@ -289,7 +317,7 @@ function BillingSettingsPanel({
               disabled={!canManageBilling || actionPending !== null}
               onClick={() => void handleOpenPortal()}
             >
-              {actionPending === "portal" ? "Opening…" : "Open billing portal"}
+              {actionPending === "portal" ? "Opening…" : "Manage billing"}
             </Button>
             {!canManageBilling ? (
               <TypographyP className="mt-3 text-xs text-foreground/42">
@@ -300,14 +328,21 @@ function BillingSettingsPanel({
         </SurfaceCard>
       </section>
 
-      <SurfaceCard>
+      <SurfaceCard
+        id={planUsageSectionId}
+        className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
+      >
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Plan usage</CardTitle>
           <CardDescription className="text-foreground/52">
-            AI token usage resets each billing cycle. Seats, projects, automations, and integrations
-            are workspace limits.
+            Word usage resets each billing cycle. Seats, projects, automations, and integrations are
+            workspace limits.
           </CardDescription>
         </CardHeader>
+        <Separator className="bg-foreground/8" />
+        <div className="px-5 py-5">
+          <PlanUsageSummaryContent summary={planUsageSummary} variant="billing" />
+        </div>
         <Separator className="bg-foreground/8" />
         <CardContent className="divide-y divide-foreground/8 px-5 py-0">
           {usageRows.map((row) => (
@@ -337,7 +372,10 @@ function BillingSettingsPanel({
         </CardContent>
       </SurfaceCard>
 
-      <SurfaceCard>
+      <SurfaceCard
+        id={availablePlansSectionId}
+        className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
+      >
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Available plans</CardTitle>
           <CardDescription className="text-foreground/52">
@@ -404,6 +442,7 @@ export function BillingSettingsPageContent({
 }) {
   return (
     <main className="space-y-5">
+      <PlanUsageHashScroll organizationSlug={organizationSlug} />
       <BillingSettingsHeader />
       <BillingSettingsPanel
         autumnConfigured={autumnConfigured}

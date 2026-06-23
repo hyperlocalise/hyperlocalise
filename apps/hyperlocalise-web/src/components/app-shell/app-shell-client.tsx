@@ -2,9 +2,8 @@
 
 import type { CSSProperties, ReactNode } from "react";
 import Image from "next/image";
-import { ArrowRight01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
 
+import { PlanUsageSidebarWidget } from "@/components/billing/plan-usage-summary";
 import {
   Sidebar,
   SidebarContent,
@@ -24,6 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { TypographyP } from "@/components/ui/typography";
 
 type AppShellClientProps = {
+  autumnConfigured?: boolean;
   children: ReactNode;
   navigation: ReactNode;
   activeOrganization: {
@@ -45,6 +45,7 @@ type AppShellClientProps = {
 };
 
 export function AppShellClient({
+  autumnConfigured = false,
   children,
   navigation,
   activeOrganization,
@@ -90,30 +91,8 @@ export function AppShellClient({
         <SidebarContent className="gap-0 px-2 py-2">
           {navigation}
 
-          {showBillingLink ? (
-            <div className="mt-auto px-1 pb-2 group-data-[collapsible=icon]:hidden">
-              <div className="rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-3">
-                <TypographyP className="text-xs font-medium text-sidebar-foreground">
-                  Plan usage
-                </TypographyP>
-                <TypographyP className="mt-3 text-xs text-sidebar-foreground/80">
-                  Enterprise
-                </TypographyP>
-                <TypographyP className="mt-1 text-xs text-sidebar-foreground/70">
-                  Renews on Aug 24, 2027
-                </TypographyP>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-sidebar-foreground/10">
-                  <div className="h-full w-[60%] rounded-full bg-bud-500" />
-                </div>
-                <TypographyP className="mt-3 text-xs text-sidebar-foreground/68">
-                  1.2M / 2M words used
-                </TypographyP>
-                <div className="mt-3 flex items-center gap-2 text-xs text-sidebar-foreground/58">
-                  <span>View usage</span>
-                  <HugeiconsIcon icon={ArrowRight01Icon} strokeWidth={1.7} className="size-3.5" />
-                </div>
-              </div>
-            </div>
+          {showBillingLink && autumnConfigured ? (
+            <PlanUsageSidebarWidget organizationSlug={organizationSlug} />
           ) : null}
         </SidebarContent>
 

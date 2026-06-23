@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { buildOrganizationSwitchHref } from "@/components/team-switcher";
+import { buildPlanUsageHref } from "@/lib/billing/plan-usage";
 
 type OrganizationOption = {
   name: string;
@@ -128,7 +129,7 @@ export function NavUser({
             </DropdownMenuItem>
           ) : null}
           {showBillingLink ? (
-            <DropdownMenuItem render={<Link href={`/org/${organizationSlug}/settings/billing`} />}>
+            <DropdownMenuItem render={<Link href={buildPlanUsageHref(organizationSlug)} />}>
               <HugeiconsIcon icon={CreditCardIcon} strokeWidth={2} className="size-4" />
               Billing
             </DropdownMenuItem>
