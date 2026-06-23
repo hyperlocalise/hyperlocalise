@@ -35,6 +35,54 @@ func TestJSONCParserParseWithContextCombinesPendingAndInlineComments(t *testing.
 	}
 }
 
+func TestJSONCParserParseWithContextHandlesEscapedQuotedKeys(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  "home": {
+    // CTA with a quoted key segment.
+    "title\"cta": "Start now"
+  }
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages[`home.title"cta`] != "Start now" {
+		t.Fatalf("unexpected escaped key message: %q", messages[`home.title"cta`])
+	}
+	if contextByKey[`home.title"cta`] != "CTA with a quoted key segment." {
+		t.Fatalf("unexpected escaped key context: %q", contextByKey[`home.title"cta`])
+	}
+}
+
+func TestJSONCParserParseWithContextFindsInlineCommentAfterEscapedStringValue(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  "quote": "Open \"https://example.com\"" // Link copy hint.
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["quote"] != `Open "https://example.com"` {
+		t.Fatalf("unexpected quote message: %q", messages["quote"])
+	}
+	if contextByKey["quote"] != "Link copy hint." {
+		t.Fatalf("unexpected quote context: %q", contextByKey["quote"])
+	}
+}
+
+func TestJSONCParserParseWithContextUsesSameLineBlockCommentBeforeKey(t *testing.T) {
+	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
+  /* Checkout submit button. */ "checkout_submit": "Submit"
+}`))
+	if err != nil {
+		t.Fatalf("parse with context: %v", err)
+	}
+	if messages["checkout_submit"] != "Submit" {
+		t.Fatalf("unexpected checkout_submit message: %q", messages["checkout_submit"])
+	}
+	if contextByKey["checkout_submit"] != "Checkout submit button." {
+		t.Fatalf("unexpected checkout_submit context: %q", contextByKey["checkout_submit"])
+	}
+}
+
 func TestJSONCParserParseWithContextDoesNotLeakTrailingNestedCommentsToSiblingKey(t *testing.T) {
 	messages, contextByKey, err := (JSONCParser{}).ParseWithContext([]byte(`{
   "nested": {
