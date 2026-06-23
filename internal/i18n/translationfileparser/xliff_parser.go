@@ -3,7 +3,6 @@ package translationfileparser
 import (
 	"bytes"
 	"encoding/xml"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -103,10 +102,6 @@ func (p XLIFFParser) Parse(content []byte) (map[string]string, error) {
 		finalizeXLIFFUnit(out, &unit)
 	}
 	return out, nil
-}
-
-func isEOFError(err error) bool {
-	return errors.Is(err, io.EOF)
 }
 
 func resolveXLIFFUnitKey(attrs []xml.Attr) string {
