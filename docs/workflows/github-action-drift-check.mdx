@@ -62,6 +62,18 @@ jobs:
           fail-on-findings: true
 ```
 
+When source files use [`extract --prefix-id`](/commands/extract) keys but target files use packed ids from [`pack --prefix-id`](/commands/pack), set `prefix-id: true` so `check` strips source prefixes before comparing keys. This also applies to changed keys when `github-diff` is enabled.
+
+```yaml
+- uses: hyperlocalise/hyperlocalise@v1
+  with:
+    check: check
+    config-path: i18n.yml
+    prefix-id: true
+    github-diff: true
+    fail-on-findings: true
+```
+
 External repositories can use the moving `v1` ref for the latest stable v1 release. Pin an exact tag if you want stricter change control.
 
 ```yaml
@@ -79,6 +91,7 @@ External repositories can use the moving `v1` ref for the latest stable v1 relea
 - `fail-on-drift`: fail the workflow when drift is detected. Defaults to `true`.
 - `fail-on-findings`: fail the workflow when check findings are detected. Defaults to `true`.
 - `github-diff`: in `check` mode on pull requests, fetch the GitHub PR diff and pass it to `hyperlocalise check --diff-stdin`. Defaults to `false`.
+- `prefix-id`: in `check` mode, pass [`check --prefix-id`](/commands/check) so prefixed source keys are compared against packed target ids. Only supported when `check` is `check`. Defaults to `false`.
 - `upload-artifact`: upload the JSON and text artifacts. Defaults to `true`.
 
 ## Drift detection
