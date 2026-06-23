@@ -95,3 +95,7 @@
 ## 2025-07-20 - [ICU Element Type and Nesting Validation]
 **Learning:** ICU `PluralElement` can represent both `plural` and `selectordinal` types. Structural parity checks rely on the `Type()` method, which correctly chooses the type based on the `Ordinal` flag or an explicit override. Additionally, pound signs (`#`) must be identified as `PoundElement` even when nested inside non-plural blocks (like `select`) if they are ultimately contained by a `plural` or `selectordinal` block.
 **Action:** Always test the `Type()` method for all AST elements, especially for polymorphic elements like `PluralElement`. Ensure nesting tests cover cases where markers like `#` are separated from their parent block by other types of ICU blocks.
+
+## 2026-06-23 - [Translator Request Validation Safety]
+**Learning:** Shared request types in the translator package (Request, ImageEditRequest) lack explicit validation tests, despite being critical internal APIs. Adding dedicated tests for their validation logic ensures that contract requirements (like mandatory fields or supported image formats) are consistently enforced across all provider implementations.
+**Action:** Always include comprehensive success and failure test cases for validation helpers when introducing or modifying shared data structures to prevent regressions in API contract enforcement.
