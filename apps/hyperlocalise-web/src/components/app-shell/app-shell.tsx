@@ -15,11 +15,16 @@ import {
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
 
 export type AppShellProps = {
+  autumnConfigured?: boolean;
   children: ReactNode;
   organizationSlug: string;
 };
 
-export async function AppShell({ children, organizationSlug }: AppShellProps) {
+export async function AppShell({
+  autumnConfigured = false,
+  children,
+  organizationSlug,
+}: AppShellProps) {
   const auth = await requireAppAuthContext({ organizationSlug });
   const activeOrganizationSlug = auth.activeOrganization.slug ?? organizationSlug;
 
@@ -41,6 +46,7 @@ export async function AppShell({ children, organizationSlug }: AppShellProps) {
   return (
     <AppShellClient
       activeOrganization={auth.activeOrganization}
+      autumnConfigured={autumnConfigured}
       organizations={auth.organizations}
       tmsUserConnectCta={tmsUserConnectCta}
       showApiKeysLink={hasCapability(auth.membership.role, "api_keys:read")}
