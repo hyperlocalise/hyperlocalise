@@ -73,12 +73,45 @@ function BillingSettingsHeader() {
   );
 }
 
+function BillingUnavailableCard() {
+  return (
+    <SurfaceCard>
+      <CardHeader className="px-5 py-5">
+        <CardTitle className="text-lg font-medium text-foreground">Billing unavailable</CardTitle>
+        <CardDescription className="text-foreground/52">
+          Autumn is not configured in this environment. Add a sandbox `AUTUMN_API_KEY` to enable
+          billing for this workspace.
+        </CardDescription>
+      </CardHeader>
+    </SurfaceCard>
+  );
+}
+
 function BillingSettingsPanel({
   autumnConfigured,
   canManageBilling,
   organizationSlug,
 }: {
   autumnConfigured: boolean;
+  canManageBilling: boolean;
+  organizationSlug: string;
+}) {
+  if (!autumnConfigured) {
+    return <BillingUnavailableCard />;
+  }
+
+  return (
+    <ConfiguredBillingSettingsPanel
+      canManageBilling={canManageBilling}
+      organizationSlug={organizationSlug}
+    />
+  );
+}
+
+function ConfiguredBillingSettingsPanel({
+  canManageBilling,
+  organizationSlug,
+}: {
   canManageBilling: boolean;
   organizationSlug: string;
 }) {
@@ -177,20 +210,6 @@ function BillingSettingsPanel({
         : undefined;
 
     await runBillingAction("portal", () => openCustomerPortal({ returnUrl }));
-  }
-
-  if (!autumnConfigured) {
-    return (
-      <SurfaceCard>
-        <CardHeader className="px-5 py-5">
-          <CardTitle className="text-lg font-medium text-foreground">Billing unavailable</CardTitle>
-          <CardDescription className="text-foreground/52">
-            Autumn is not configured in this environment. Add a sandbox `AUTUMN_API_KEY` to enable
-            billing for this workspace.
-          </CardDescription>
-        </CardHeader>
-      </SurfaceCard>
-    );
   }
 
   if (isLoading) {
