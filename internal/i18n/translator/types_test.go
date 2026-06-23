@@ -50,6 +50,15 @@ func TestValidateRequest(t *testing.T) {
 			wantErr: "target language is required",
 		},
 		{
+			name: "whitespace target language",
+			req: Request{
+				Source:         "hello",
+				TargetLanguage: "   ",
+				Model:          "gpt-4o",
+			},
+			wantErr: "target language is required",
+		},
+		{
 			name: "missing model",
 			req: Request{
 				Source:         "hello",
@@ -58,23 +67,31 @@ func TestValidateRequest(t *testing.T) {
 			},
 			wantErr: "model is required",
 		},
+		{
+			name: "whitespace model",
+			req: Request{
+				Source:         "hello",
+				TargetLanguage: "fr",
+				Model:          "   ",
+			},
+			wantErr: "model is required",
+		},
 	}
 
 	for _, tt := range tests {
-		tc := tt
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := validateRequest(tc.req)
-			if tc.wantErr == "" {
+			err := validateRequest(tt.req)
+			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
 			} else {
 				if err == nil {
-					t.Fatalf("expected error containing %q, got nil", tc.wantErr)
+					t.Fatalf("expected error containing %q, got nil", tt.wantErr)
 				}
-				if !strings.Contains(err.Error(), tc.wantErr) {
-					t.Fatalf("error %q does not contain %q", err.Error(), tc.wantErr)
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("error %q does not contain %q", err.Error(), tt.wantErr)
 				}
 			}
 		})
@@ -103,9 +120,20 @@ func TestValidateImageEditRequest(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "missing source image",
+			name: "missing source image (nil)",
 			req: ImageEditRequest{
 				SourceImage:    nil,
+				TargetLanguage: "es",
+				Model:          "dall-e-3",
+				Prompt:         "translate text in image",
+				OutputFormat:   "png",
+			},
+			wantErr: "source image is required",
+		},
+		{
+			name: "missing source image (empty slice)",
+			req: ImageEditRequest{
+				SourceImage:    []byte{},
 				TargetLanguage: "es",
 				Model:          "dall-e-3",
 				Prompt:         "translate text in image",
@@ -125,11 +153,33 @@ func TestValidateImageEditRequest(t *testing.T) {
 			wantErr: "target language is required",
 		},
 		{
+			name: "whitespace target language",
+			req: ImageEditRequest{
+				SourceImage:    validImg,
+				TargetLanguage: "   ",
+				Model:          "dall-e-3",
+				Prompt:         "translate text in image",
+				OutputFormat:   "png",
+			},
+			wantErr: "target language is required",
+		},
+		{
 			name: "missing model",
 			req: ImageEditRequest{
 				SourceImage:    validImg,
 				TargetLanguage: "es",
 				Model:          "",
+				Prompt:         "translate text in image",
+				OutputFormat:   "png",
+			},
+			wantErr: "model is required",
+		},
+		{
+			name: "whitespace model",
+			req: ImageEditRequest{
+				SourceImage:    validImg,
+				TargetLanguage: "es",
+				Model:          "   ",
 				Prompt:         "translate text in image",
 				OutputFormat:   "png",
 			},
@@ -142,6 +192,17 @@ func TestValidateImageEditRequest(t *testing.T) {
 				TargetLanguage: "es",
 				Model:          "dall-e-3",
 				Prompt:         "",
+				OutputFormat:   "png",
+			},
+			wantErr: "prompt is required",
+		},
+		{
+			name: "whitespace prompt",
+			req: ImageEditRequest{
+				SourceImage:    validImg,
+				TargetLanguage: "es",
+				Model:          "dall-e-3",
+				Prompt:         "   ",
 				OutputFormat:   "png",
 			},
 			wantErr: "prompt is required",
@@ -171,20 +232,19 @@ func TestValidateImageEditRequest(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tc := tt
-		t.Run(tc.name, func(t *testing.T) {
+		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			err := validateImageEditRequest(tc.req)
-			if tc.wantErr == "" {
+			err := validateImageEditRequest(tt.req)
+			if tt.wantErr == "" {
 				if err != nil {
 					t.Fatalf("unexpected error: %v", err)
 				}
 			} else {
 				if err == nil {
-					t.Fatalf("expected error containing %q, got nil", tc.wantErr)
+					t.Fatalf("expected error containing %q, got nil", tt.wantErr)
 				}
-				if !strings.Contains(err.Error(), tc.wantErr) {
-					t.Fatalf("error %q does not contain %q", err.Error(), tc.wantErr)
+				if !strings.Contains(err.Error(), tt.wantErr) {
+					t.Fatalf("error %q does not contain %q", err.Error(), tt.wantErr)
 				}
 			}
 		})
@@ -205,11 +265,10 @@ func TestNormalizeProvider(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		tc := tt
-		t.Run(tc.in, func(t *testing.T) {
+		t.Run(tt.in, func(t *testing.T) {
 			t.Parallel()
-			if got := normalizeProvider(tc.in); got != tc.want {
-				t.Fatalf("normalizeProvider(%q) = %q, want %q", tc.in, got, tc.want)
+			if got := normalizeProvider(tt.in); got != tt.want {
+				t.Fatalf("normalizeProvider(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
 	}
