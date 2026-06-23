@@ -16,6 +16,7 @@ import { PlanUsageHashScroll } from "@/components/billing/plan-usage-hash-scroll
 import { formatAutumnBillingError } from "@/lib/billing/autumn-errors";
 import {
   getActiveSubscription,
+  availablePlansSectionId,
   planUsagePrimaryFeatureId,
   planUsageSectionId,
   resolvePlanUsageSummary,
@@ -352,7 +353,10 @@ function BillingSettingsPanel({
         </CardContent>
       </SurfaceCard>
 
-      <SurfaceCard>
+      <SurfaceCard
+        id={availablePlansSectionId}
+        className="scroll-mt-[calc(var(--app-shell-header-height)+1rem)]"
+      >
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Available plans</CardTitle>
           <CardDescription className="text-foreground/52">

@@ -4,8 +4,19 @@ import { getUsageFeatureLabel } from "@/lib/billing/usage-feature-labels";
 /** DOM id for the billing page plan usage section. */
 export const planUsageSectionId = "plan-usage";
 
+/** DOM id for the billing page available plans section. */
+export const availablePlansSectionId = "available-plans";
+
+export function buildBillingSectionHref(organizationSlug: string, sectionId: string) {
+  return `/org/${organizationSlug}/settings/billing#${sectionId}`;
+}
+
 export function buildPlanUsageHref(organizationSlug: string) {
-  return `/org/${organizationSlug}/settings/billing#${planUsageSectionId}`;
+  return buildBillingSectionHref(organizationSlug, planUsageSectionId);
+}
+
+export function buildAvailablePlansHref(organizationSlug: string) {
+  return buildBillingSectionHref(organizationSlug, availablePlansSectionId);
 }
 
 export function isPlanUsageBillingPath(pathname: string, organizationSlug: string) {
@@ -13,9 +24,9 @@ export function isPlanUsageBillingPath(pathname: string, organizationSlug: strin
   return pathname === billingPath || pathname.endsWith(billingPath);
 }
 
-export function scrollToPlanUsageSection(behavior: ScrollBehavior = "smooth") {
+export function scrollToBillingSection(sectionId: string, behavior: ScrollBehavior = "smooth") {
   const attemptScroll = (retriesLeft: number) => {
-    const element = document.getElementById(planUsageSectionId);
+    const element = document.getElementById(sectionId);
     if (element) {
       element.scrollIntoView({ behavior, block: "start" });
       return;
@@ -27,6 +38,10 @@ export function scrollToPlanUsageSection(behavior: ScrollBehavior = "smooth") {
   };
 
   attemptScroll(90);
+}
+
+export function scrollToPlanUsageSection(behavior: ScrollBehavior = "smooth") {
+  scrollToBillingSection(planUsageSectionId, behavior);
 }
 
 /** Primary meter shown in plan usage summaries (sidebar and billing). */
@@ -132,7 +147,9 @@ export function formatPrimaryUsageSummary(input: {
   unitLabel?: string;
 }) {
   const unitLabel = (
-    input.unitLabel ?? getUsageFeatureLabel(planUsagePrimaryFeatureId)
+    input.unitLabel ??
+    getUsageFeatureLabel(planUsagePrimaryFeatureId) ??
+    "usage"
   ).toLowerCase();
 
   if (input.unlimited) {

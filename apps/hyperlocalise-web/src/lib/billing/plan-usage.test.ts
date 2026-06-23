@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  buildAvailablePlansHref,
   buildPlanUsageHref,
   formatCompactUsageValue,
   formatPrimaryUsageSummary,
@@ -14,6 +15,7 @@ import {
 describe("plan usage helpers", () => {
   it("builds billing usage links and detects billing routes", () => {
     expect(buildPlanUsageHref("acme")).toBe("/org/acme/settings/billing#plan-usage");
+    expect(buildAvailablePlansHref("acme")).toBe("/org/acme/settings/billing#available-plans");
     expect(isPlanUsageBillingPath("/org/acme/settings/billing", "acme")).toBe(true);
     expect(isPlanUsageBillingPath("/en/org/acme/settings/billing", "acme")).toBe(true);
     expect(isPlanUsageBillingPath("/org/acme/dashboard", "acme")).toBe(false);
@@ -99,6 +101,8 @@ describe("plan usage helpers", () => {
         },
       },
       plans: [{ id: "enterprise", name: "Enterprise" }],
+    });
+
     expect(cancelingSummary.renewalCopy).toMatch(/^Access until /);
   });
 

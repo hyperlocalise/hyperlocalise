@@ -4,10 +4,13 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 import {
+  availablePlansSectionId,
   isPlanUsageBillingPath,
   planUsageSectionId,
-  scrollToPlanUsageSection,
+  scrollToBillingSection,
 } from "@/lib/billing/plan-usage";
+
+const billingSectionHashes = new Set([planUsageSectionId, availablePlansSectionId]);
 
 export function PlanUsageHashScroll({ organizationSlug }: { organizationSlug: string }) {
   const pathname = usePathname();
@@ -17,12 +20,13 @@ export function PlanUsageHashScroll({ organizationSlug }: { organizationSlug: st
       return;
     }
 
-    if (window.location.hash !== `#${planUsageSectionId}`) {
+    const sectionId = window.location.hash.slice(1);
+    if (!billingSectionHashes.has(sectionId)) {
       return;
     }
 
     requestAnimationFrame(() => {
-      scrollToPlanUsageSection();
+      scrollToBillingSection(sectionId);
     });
   }, [organizationSlug, pathname]);
 

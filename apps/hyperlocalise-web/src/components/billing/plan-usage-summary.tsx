@@ -9,12 +9,14 @@ import { useCustomer, useListPlans } from "autumn-js/react";
 
 import { TypographyP } from "@/components/ui/typography";
 import {
+  availablePlansSectionId,
+  buildAvailablePlansHref,
   buildPlanUsageHref,
   hasPlanUsageMeter,
   isPlanUsageBillingPath,
   planUsageSectionId,
   resolvePlanUsageSummary,
-  scrollToPlanUsageSection,
+  scrollToBillingSection,
   type ResolvedPlanUsageSummary,
 } from "@/lib/billing/plan-usage";
 
@@ -43,17 +45,17 @@ function PlanUsageSummarySkeleton({ variant }: { variant: "sidebar" | "billing" 
 
 function SidebarPlanUsageShell({
   children,
-  organizationSlug,
+  href,
   onViewUsageClick,
 }: {
   children: React.ReactNode;
-  organizationSlug: string;
+  href: string;
   onViewUsageClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <div className="mt-auto px-1 pb-2 group-data-[collapsible=icon]:hidden">
       <Link
-        href={buildPlanUsageHref(organizationSlug)}
+        href={href}
         onClick={onViewUsageClick}
         className="block rounded-lg border border-sidebar-border bg-sidebar-accent px-3 py-3 transition-colors hover:bg-sidebar-accent/80"
       >
@@ -88,7 +90,9 @@ export function PlanUsageSummaryContent({
   return (
     <>
       {isSidebar ? (
-        <TypographyP className="text-xs font-medium text-sidebar-foreground">Plan usage</TypographyP>
+        <TypographyP className="text-xs font-medium text-sidebar-foreground">
+          Plan usage
+        </TypographyP>
       ) : null}
       <TypographyP className={planNameClassName}>{planName}</TypographyP>
       {summary.renewalCopy ? (
@@ -115,16 +119,8 @@ export function PlanUsageSummaryContent({
 
 export function PlanUsageSidebarWidget({ organizationSlug }: { organizationSlug: string }) {
   const pathname = usePathname();
-  const {
-    data: customer,
-    isLoading: customerLoading,
-    error: customerError,
-  } = useCustomer();
-  const {
-    data: plans,
-    isLoading: plansLoading,
-    error: plansError,
-  } = useListPlans();
+  const { data: customer, isLoading: customerLoading, error: customerError } = useCustomer();
+  const { data: plans, isLoading: plansLoading, error: plansError } = useListPlans();
 
   const summary = useMemo(
     () =>
@@ -136,14 +132,25 @@ export function PlanUsageSidebarWidget({ organizationSlug }: { organizationSlug:
     [customer?.balances, customer?.subscriptions, plans],
   );
 
-  function handleViewUsageClick(event: React.MouseEvent<HTMLAnchorElement>) {
+  function handleBillingSectionClick(
+    sectionId: string,
+    event: React.MouseEvent<HTMLAnchorElement>,
+  ) {
     if (!isPlanUsageBillingPath(pathname, organizationSlug)) {
       return;
     }
 
     event.preventDefault();
-    scrollToPlanUsageSection();
-    window.history.replaceState(null, "", `#${planUsageSectionId}`);
+    scrollToBillingSection(sectionId);
+    window.history.replaceState(null, "", `#${sectionId}`);
+  }
+
+  function handleViewUsageClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    handleBillingSectionClick(planUsageSectionId, event);
+  }
+
+  function handleViewPlansClick(event: React.MouseEvent<HTMLAnchorElement>) {
+    handleBillingSectionClick(availablePlansSectionId, event);
   }
 
   if (customerLoading || plansLoading) {
@@ -156,8 +163,10 @@ export function PlanUsageSidebarWidget({ organizationSlug }: { organizationSlug:
 
   if (customerError || plansError) {
     return (
-      <SidebarPlanUsageShell organizationSlug={organizationSlug}>
-        <TypographyP className="text-xs font-medium text-sidebar-foreground">Plan usage</TypographyP>
+      <SidebarPlanUsageShell href={buildPlanUsageHref(organizationSlug)}>
+        <TypographyP className="text-xs font-medium text-sidebar-foreground">
+          Plan usage
+        </TypographyP>
         <TypographyP className="mt-3 text-xs text-sidebar-foreground/70">
           Couldn&apos;t load usage right now.
         </TypographyP>
@@ -171,9 +180,16 @@ export function PlanUsageSidebarWidget({ organizationSlug }: { organizationSlug:
 
   if (!summary.activePlanName && !hasPlanUsageMeter(summary)) {
     return (
-      <SidebarPlanUsageShell organizationSlug={organizationSlug} onViewUsageClick={handleViewUsageClick}>
-        <TypographyP className="text-xs font-medium text-sidebar-foreground">Plan usage</TypographyP>
-        <TypographyP className="mt-3 text-xs text-sidebar-foreground/80">No active plan</TypographyP>
+      <SidebarPlanUsageShell
+        href={buildAvailablePlansHref(organizationSlug)}
+        onViewUsageClick={handleViewPlansClick}
+      >
+        <TypographyP className="text-xs font-medium text-sidebar-foreground">
+          Plan usage
+        </TypographyP>
+        <TypographyP className="mt-3 text-xs text-sidebar-foreground/80">
+          No active plan
+        </TypographyP>
         <TypographyP className="mt-1 text-xs text-sidebar-foreground/70">
           Choose a plan to start tracking usage.
         </TypographyP>
@@ -186,7 +202,10 @@ export function PlanUsageSidebarWidget({ organizationSlug }: { organizationSlug:
   }
 
   return (
-    <SidebarPlanUsageShell organizationSlug={organizationSlug} onViewUsageClick={handleViewUsageClick}>
+    <SidebarPlanUsageShell
+      href={buildPlanUsageHref(organizationSlug)}
+      onViewUsageClick={handleViewUsageClick}
+    >
       <PlanUsageSummaryContent summary={summary} variant="sidebar" />
     </SidebarPlanUsageShell>
   );
