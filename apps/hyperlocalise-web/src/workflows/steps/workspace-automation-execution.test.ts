@@ -1,10 +1,18 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 const { runWorkspaceOrchestratorMock } = vi.hoisted(() => ({
-  runWorkspaceOrchestratorMock: vi.fn(async () => ({
-    ok: true,
-    value: { runId: "run-1", status: "succeeded" as const },
-  })),
+  runWorkspaceOrchestratorMock: vi.fn(async () => {
+    class OkResult {
+      readonly ok = true;
+
+      constructor(readonly value: { runId: string; status: "succeeded" }) {}
+    }
+
+    return new OkResult({
+      runId: "run-1",
+      status: "succeeded" as const,
+    });
+  }),
 }));
 
 vi.mock("@/agents/automations/workspace/agent/run-workspace-orchestrator", () => ({
@@ -27,6 +35,7 @@ describe("executeWorkspaceAutomationStep", () => {
       organizationId: "org-1",
     });
     expect(result.ok).toBe(true);
+    expect(Object.getPrototypeOf(result)).toBe(Object.prototype);
     if (result.ok) {
       expect(result.value.status).toBe("succeeded");
     }
