@@ -176,23 +176,22 @@ describe("createRunContentfulTranslationTool", () => {
       }),
     );
 
-    const testSession = session({ inputSnapshot: { contentTypeId: "article" } });
+    const testSession = session({
+      inputSnapshot: { entryId: "entry-from-webhook", contentTypeId: "article" },
+    });
     const tool = createRunContentfulTranslationTool(testSession);
 
     if (!tool.execute) {
       throw new Error("run_contentful_translation tool is missing execute");
     }
 
-    const result = await tool.execute(
-      { entryId: "entry-from-agent" },
-      { toolCallId: "test-tool-call", messages: [] },
-    );
+    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
 
     expect(mocks.createContentfulTranslationRun).toHaveBeenCalledWith(
       expect.objectContaining({
         organizationId: "org-1",
         workspaceAutomationRunId: "run-1",
-        entryId: "entry-from-agent",
+        entryId: "entry-from-webhook",
         contentTypeId: "article",
         sourceLocale: "en",
         targetLocales: ["fr-FR"],
