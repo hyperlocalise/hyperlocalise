@@ -235,9 +235,13 @@ export async function runWorkspaceOrchestrator(input: {
     const terminalStatus = deriveTerminalStatus(session);
     const notificationWarnings = collectNotificationWarnings(session);
 
-    const outputSummary = buildWorkspaceOrchestratorOutputSummary(run.outputSummary, session.stepResults, {
-      notificationWarnings,
-    });
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      run.outputSummary,
+      session.stepResults,
+      {
+        notificationWarnings,
+      },
+    );
 
     await updateWorkspaceAutomationRun({
       runId: run.id,
@@ -273,7 +277,10 @@ export async function runWorkspaceOrchestrator(input: {
       organizationId: input.organizationId,
       status: "failed",
       error: { message },
-      outputSummary: buildWorkspaceOrchestratorOutputSummary(run.outputSummary, session.stepResults),
+      outputSummary: buildWorkspaceOrchestratorOutputSummary(
+        run.outputSummary,
+        session.stepResults,
+      ),
       completedAt: new Date(),
     });
 

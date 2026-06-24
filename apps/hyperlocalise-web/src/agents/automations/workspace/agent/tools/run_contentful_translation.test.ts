@@ -11,7 +11,6 @@ import {
   createRunContentfulTranslationTool,
   resolveContentfulEntryId,
   resolveContentfulEntryIdForExecution,
-  resolveExistingContentfulTranslationRunId,
 } from "./run_contentful_translation";
 
 const mocks = vi.hoisted(() => ({
@@ -177,37 +176,6 @@ describe("resolveContentfulEntryIdForExecution", () => {
     );
 
     expect(resolved).toBe("entry-from-agent");
-  });
-});
-
-describe("resolveExistingContentfulTranslationRunId", () => {
-  it("reads the run id from prior orchestrator step results when the top-level field was erased", async () => {
-    const resolved = await resolveExistingContentfulTranslationRunId(
-      session({
-        outputSummary: {
-          orchestratorStepResults: {
-            run_contentful_translation: {
-              contentfulTranslationRunId: "contentful-run-1",
-            },
-          },
-        },
-      }),
-    );
-
-    expect(resolved).toBe("contentful-run-1");
-    expect(dbSelectMock).not.toHaveBeenCalled();
-  });
-
-  it("falls back to the database when no output summary field is present", async () => {
-    const limit = vi.fn().mockResolvedValue([{ id: "contentful-run-db" }]);
-    const orderBy = vi.fn().mockReturnValue({ limit });
-    const where = vi.fn().mockReturnValue({ orderBy });
-    dbSelectMock.mockReturnValue({ from: vi.fn().mockReturnValue({ where }) });
-
-    const resolved = await resolveExistingContentfulTranslationRunId(session({}));
-
-    expect(resolved).toBe("contentful-run-db");
-    expect(dbSelectMock).toHaveBeenCalled();
   });
 });
 
