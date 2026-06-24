@@ -372,6 +372,13 @@
       "when": 1782102858083,
       "tag": "0052_sour_maverick",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1782265082491,
+      "tag": "0053_lean_blizzard",
+      "breakpoints": true
     }
   ]
 }

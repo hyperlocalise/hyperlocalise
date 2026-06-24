@@ -85,6 +85,42 @@ async function countWorkspaceResourceUsage(input: {
   }
 }
 
+export async function getWorkspaceResourceUsage(input: {
+  db?: DatabaseClient;
+  organizationId: string;
+}): Promise<Record<WorkspaceResourceFeatureId, number>> {
+  const database = input.db ?? db;
+  const [seats, projects, automations, integrations] = await Promise.all([
+    countWorkspaceResourceUsage({
+      db: database,
+      organizationId: input.organizationId,
+      featureId: workspaceResourceFeatureIds.seats,
+    }),
+    countWorkspaceResourceUsage({
+      db: database,
+      organizationId: input.organizationId,
+      featureId: workspaceResourceFeatureIds.projects,
+    }),
+    countWorkspaceResourceUsage({
+      db: database,
+      organizationId: input.organizationId,
+      featureId: workspaceResourceFeatureIds.automations,
+    }),
+    countWorkspaceResourceUsage({
+      db: database,
+      organizationId: input.organizationId,
+      featureId: workspaceResourceFeatureIds.integrations,
+    }),
+  ]);
+
+  return {
+    [workspaceResourceFeatureIds.seats]: seats,
+    [workspaceResourceFeatureIds.projects]: projects,
+    [workspaceResourceFeatureIds.automations]: automations,
+    [workspaceResourceFeatureIds.integrations]: integrations,
+  };
+}
+
 async function countActiveIntegrations(database: DatabaseClient, organizationId: string) {
   const [[tmsCredentials], [githubInstallations], [contentfulConnections], [connectors]] =
     await Promise.all([

@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { CreditCardIcon, Wallet03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useCustomer, useListPlans } from "autumn-js/react";
 import { toast } from "sonner";
 
@@ -19,9 +20,23 @@ import {
   availablePlansSectionId,
   planUsagePrimaryFeatureId,
   planUsageSectionId,
+  resolveUsageDisplayBalance,
   resolvePlanUsageSummary,
 } from "@/lib/billing/plan-usage";
+import { autumnFeatureIds } from "@/lib/billing/autumn-ids";
 import { billingBalanceFeatureIds, getUsageFeatureLabel } from "@/lib/billing/usage-feature-labels";
+import { apiClient } from "@/lib/api-client-instance";
+
+const workspaceResourceFeatureIds = [
+  autumnFeatureIds.seats,
+  autumnFeatureIds.projects,
+  autumnFeatureIds.automations,
+  autumnFeatureIds.integrations,
+] as const;
+
+type WorkspaceResourceFeatureId = (typeof workspaceResourceFeatureIds)[number];
+
+const workspaceResourceUsageFeatureIds = new Set<string>(workspaceResourceFeatureIds);
 
 function SurfaceCard({
   children,
@@ -52,6 +67,10 @@ function formatResetDate(timestamp: number | null | undefined) {
   }
 
   return new Intl.DateTimeFormat(undefined, { dateStyle: "medium" }).format(new Date(timestamp));
+}
+
+function isWorkspaceResourceFeatureId(featureId: string): featureId is WorkspaceResourceFeatureId {
+  return workspaceResourceUsageFeatureIds.has(featureId);
 }
 
 function BillingSettingsHeader() {
@@ -126,6 +145,22 @@ function ConfiguredBillingSettingsPanel({
     openCustomerPortal,
   } = useCustomer();
   const { data: plans, isLoading: plansLoading, error: plansError } = useListPlans();
+  const resourceUsageQuery = useQuery({
+    queryKey: ["billing-resource-usage", organizationSlug],
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"].billing[
+        "resource-usage"
+      ].$get({
+        param: { organizationSlug },
+      });
+      if (!response.ok) {
+        throw new Error("Failed to load workspace resource usage");
+      }
+
+      const body = await response.json();
+      return body.resourceUsage;
+    },
+  });
 
   const activeSubscription = useMemo(
     () => getActiveSubscription(customer?.subscriptions),
@@ -147,14 +182,17 @@ function ConfiguredBillingSettingsPanel({
     .filter((featureId) => featureId !== planUsagePrimaryFeatureId)
     .map((featureId) => {
       const balance = customer?.balances?.[featureId];
+      const isResourceFeature = isWorkspaceResourceFeatureId(featureId);
+      const localUsage = isWorkspaceResourceFeatureId(featureId)
+        ? resourceUsageQuery.data?.[featureId]
+        : undefined;
+      const displayBalance = resolveUsageDisplayBalance({ balance, localUsage });
       return {
         featureId,
         label: getUsageFeatureLabel(featureId),
-        usage: balance?.usage ?? 0,
-        remaining: balance?.remaining ?? 0,
-        granted: balance?.granted ?? 0,
-        unlimited: balance?.unlimited ?? false,
-        nextResetAt: balance?.nextResetAt ?? null,
+        usageUnavailable:
+          isResourceFeature && (resourceUsageQuery.isLoading || resourceUsageQuery.isError),
+        ...displayBalance,
       };
     });
 
@@ -357,13 +395,19 @@ function ConfiguredBillingSettingsPanel({
               </div>
               <div className="text-right">
                 <TypographyP className="text-sm font-medium text-foreground">
-                  {row.unlimited
-                    ? "Unlimited"
-                    : `${formatUsageValue(row.usage)} / ${formatUsageValue(row.granted)} used`}
+                  {row.usageUnavailable
+                    ? "Usage unavailable"
+                    : row.unlimited
+                      ? "Unlimited"
+                      : `${formatUsageValue(row.usage)} / ${formatUsageValue(row.granted)} used`}
                 </TypographyP>
-                {!row.unlimited ? (
+                {!row.unlimited && !row.usageUnavailable ? (
                   <TypographyP className="text-xs text-foreground/42">
                     {formatUsageValue(row.remaining)} remaining
+                  </TypographyP>
+                ) : row.usageUnavailable ? (
+                  <TypographyP className="text-xs text-foreground/42">
+                    Plan limit {formatUsageValue(row.granted)}
                   </TypographyP>
                 ) : null}
               </div>
