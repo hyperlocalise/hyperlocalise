@@ -127,6 +127,13 @@ afterEach(() => {
   dbSelectMock.mockReset();
 });
 
+function mockEmptyContentfulRunLookup() {
+  const limit = vi.fn().mockResolvedValue([]);
+  const orderBy = vi.fn().mockReturnValue({ limit });
+  const where = vi.fn().mockReturnValue({ orderBy });
+  dbSelectMock.mockReturnValue({ from: vi.fn().mockReturnValue({ where }) });
+}
+
 describe("resolveContentfulEntryId", () => {
   it("prefers the webhook snapshot entry ID over automation config", () => {
     const resolved = resolveContentfulEntryId(
@@ -231,6 +238,7 @@ describe("createRunContentfulTranslationTool", () => {
   });
 
   it("fails the workspace run when fields are detected but no draft values are written", async () => {
+    mockEmptyContentfulRunLookup();
     mocks.createContentfulTranslationRun.mockResolvedValue({ id: "contentful-run-1" });
     mocks.runContentfulAgent.mockResolvedValue(
       ok({

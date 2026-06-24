@@ -236,7 +236,7 @@ export async function runWorkspaceOrchestrator(input: {
     const notificationWarnings = collectNotificationWarnings(session);
 
     const outputSummary = buildWorkspaceOrchestratorOutputSummary(
-      run.outputSummary,
+      session.run.outputSummary,
       session.stepResults,
       {
         notificationWarnings,
@@ -278,7 +278,7 @@ export async function runWorkspaceOrchestrator(input: {
       status: "failed",
       error: { message },
       outputSummary: buildWorkspaceOrchestratorOutputSummary(
-        run.outputSummary,
+        session.run.outputSummary,
         session.stepResults,
       ),
       completedAt: new Date(),

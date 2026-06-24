@@ -8,46 +8,12 @@ import { enqueueFileTranslationJob } from "@/lib/projects/jobs/enqueue-file-tran
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 
 import type { WorkspaceOrchestratorSession } from "../context";
-import { mergeToolOutputSummaryIntoSessionRun } from "../workspace-orchestrator-output-summary";
+import {
+  mergeToolOutputSummaryIntoSessionRun,
+  readCreateTranslationJobs,
+} from "../workspace-orchestrator-output-summary";
 
 const jobQueue = createTranslationJobEventQueue();
-
-function readCreateTranslationJobsOutput(
-  outputSummary: Record<string, unknown>,
-  stepResults: WorkspaceOrchestratorSession["stepResults"],
-): Record<string, unknown> | null {
-  const fromCurrentStep = stepResults.create_translation_jobs;
-  if (fromCurrentStep && typeof fromCurrentStep.jobId === "string") {
-    return fromCurrentStep;
-  }
-
-  const fromOutput = outputSummary.createTranslationJobs;
-  if (fromOutput && typeof fromOutput === "object" && !Array.isArray(fromOutput)) {
-    const record = fromOutput as Record<string, unknown>;
-    if (typeof record.jobId === "string") {
-      return record;
-    }
-  }
-
-  const priorStepResults = outputSummary.orchestratorStepResults;
-  if (
-    priorStepResults &&
-    typeof priorStepResults === "object" &&
-    !Array.isArray(priorStepResults)
-  ) {
-    const fromPriorStep = (priorStepResults as Record<string, unknown>).create_translation_jobs;
-    if (
-      fromPriorStep &&
-      typeof fromPriorStep === "object" &&
-      !Array.isArray(fromPriorStep) &&
-      typeof (fromPriorStep as Record<string, unknown>).jobId === "string"
-    ) {
-      return fromPriorStep as Record<string, unknown>;
-    }
-  }
-
-  return null;
-}
 
 export function createTranslationJobsTool(session: WorkspaceOrchestratorSession) {
   return defineAgentTool({
@@ -65,7 +31,7 @@ export function createTranslationJobsTool(session: WorkspaceOrchestratorSession)
         throw new Error("translation_workflow_not_configured");
       }
 
-      const existingOutput = readCreateTranslationJobsOutput(
+      const existingOutput = readCreateTranslationJobs(
         session.run.outputSummary,
         session.stepResults,
       );

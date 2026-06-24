@@ -39,7 +39,7 @@ function readContentfulTranslationRunId(
   );
 }
 
-function readCreateTranslationJobs(
+export function readCreateTranslationJobs(
   outputSummary: Record<string, unknown>,
   stepResults: Partial<Record<WorkspaceOrchestratorToolName, Record<string, unknown>>>,
 ): Record<string, unknown> | null {
