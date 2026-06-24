@@ -1,12 +1,15 @@
 import { z } from "zod";
+import { and, desc, eq } from "drizzle-orm";
 
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { runContentfulAgent } from "@/agents/automations/contentful/agent/run-contentful-agent";
 import { createContentfulTranslationRun } from "@/lib/contentful/automation-executor";
 import { hasContentfulNoWriteback } from "@/lib/contentful/types";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
+import { db, schema } from "@/lib/database";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { mergeToolOutputSummaryIntoSessionRun } from "../workspace-orchestrator-output-summary";
 
 export function resolveContentfulEntryId(session: WorkspaceOrchestratorSession) {
   const snapshot = session.run.inputSnapshot;
@@ -27,6 +30,112 @@ export function resolveContentfulEntryIdForExecution(
   }
 
   return entryIdOverride?.trim() ?? null;
+}
+
+function readContentfulTranslationRunId(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function readContentfulTranslationRunIdFromStepResult(
+  stepResult: Record<string, unknown> | undefined,
+): string | null {
+  return readContentfulTranslationRunId(stepResult?.contentfulTranslationRunId);
+}
+
+export async function resolveExistingContentfulTranslationRunId(
+  session: WorkspaceOrchestratorSession,
+): Promise<string | null> {
+  const fromOutput = readContentfulTranslationRunId(session.run.outputSummary.contentfulTranslationRunId);
+  if (fromOutput) {
+    return fromOutput;
+  }
+
+  const fromCurrentStep = readContentfulTranslationRunIdFromStepResult(
+    session.stepResults.run_contentful_translation,
+  );
+  if (fromCurrentStep) {
+    return fromCurrentStep;
+  }
+
+  const priorStepResults = session.run.outputSummary.orchestratorStepResults;
+  if (
+    priorStepResults &&
+    typeof priorStepResults === "object" &&
+    !Array.isArray(priorStepResults)
+  ) {
+    const fromPriorStep = readContentfulTranslationRunIdFromStepResult(
+      (priorStepResults as Record<string, unknown>).run_contentful_translation as
+        | Record<string, unknown>
+        | undefined,
+    );
+    if (fromPriorStep) {
+      return fromPriorStep;
+    }
+  }
+
+  const [existingRun] = await db
+    .select({ id: schema.contentfulTranslationRuns.id })
+    .from(schema.contentfulTranslationRuns)
+    .where(
+      and(
+        eq(schema.contentfulTranslationRuns.workspaceAutomationRunId, session.run.id),
+        eq(schema.contentfulTranslationRuns.organizationId, session.organizationId),
+      ),
+    )
+    .orderBy(desc(schema.contentfulTranslationRuns.createdAt))
+    .limit(1);
+
+  return existingRun?.id ?? null;
+}
+
+async function loadCompletedContentfulTranslationRunSummary(runId: string, organizationId: string) {
+  const [run] = await db
+    .select({
+      id: schema.contentfulTranslationRuns.id,
+      status: schema.contentfulTranslationRuns.status,
+      detectedFields: schema.contentfulTranslationRuns.detectedFields,
+      writebackSummary: schema.contentfulTranslationRuns.writebackSummary,
+      qaSummary: schema.contentfulTranslationRuns.qaSummary,
+    })
+    .from(schema.contentfulTranslationRuns)
+    .where(
+      and(
+        eq(schema.contentfulTranslationRuns.id, runId),
+        eq(schema.contentfulTranslationRuns.organizationId, organizationId),
+      ),
+    )
+    .limit(1);
+
+  if (!run) {
+    return null;
+  }
+
+  if (run.status !== "succeeded" && run.status !== "succeeded_with_warnings") {
+    return null;
+  }
+
+  const writebackSummary =
+    run.writebackSummary && typeof run.writebackSummary === "object"
+      ? (run.writebackSummary as Record<string, unknown>)
+      : {};
+  const localeValuesWritten =
+    typeof writebackSummary.localeValuesWritten === "number"
+      ? writebackSummary.localeValuesWritten
+      : 0;
+  const qaSummary =
+    run.qaSummary && typeof run.qaSummary === "object"
+      ? (run.qaSummary as Record<string, unknown>)
+      : {};
+  const qaFindingCount = typeof qaSummary.total === "number" ? qaSummary.total : 0;
+
+  return {
+    contentfulTranslationRunId: run.id,
+    status: "succeeded" as const,
+    runId: run.id,
+    fieldsDetected: Array.isArray(run.detectedFields) ? run.detectedFields.length : 0,
+    localeValuesWritten,
+    qaFindingCount,
+  };
 }
 
 const runContentfulTranslationInputSchema = z.object({
@@ -68,10 +177,22 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
       }
 
       const snapshot = session.run.inputSnapshot;
-      const existingRunId =
-        typeof session.run.outputSummary.contentfulTranslationRunId === "string"
-          ? session.run.outputSummary.contentfulTranslationRunId
-          : null;
+      const existingRunId = await resolveExistingContentfulTranslationRunId(session);
+
+      if (existingRunId) {
+        const completedSummary = await loadCompletedContentfulTranslationRunSummary(
+          existingRunId,
+          session.organizationId,
+        );
+        if (completedSummary) {
+          mergeToolOutputSummaryIntoSessionRun(session, {
+            contentfulTranslationRunId: existingRunId,
+          });
+          session.terminalStatus = "succeeded";
+          session.stepResults.run_contentful_translation = completedSummary;
+          return completedSummary;
+        }
+      }
 
       const translationRun =
         existingRunId != null
@@ -103,6 +224,9 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
             ...session.run.outputSummary,
             contentfulTranslationRunId: translationRun.id,
           },
+        });
+        mergeToolOutputSummaryIntoSessionRun(session, {
+          contentfulTranslationRunId: translationRun.id,
         });
       }
 
