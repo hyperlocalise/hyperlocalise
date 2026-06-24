@@ -56,7 +56,10 @@ function readCreateTranslationJobs(
     }
   }
 
-  const fromPriorStep = readStepResult(outputSummary.orchestratorStepResults, "create_translation_jobs");
+  const fromPriorStep = readStepResult(
+    outputSummary.orchestratorStepResults,
+    "create_translation_jobs",
+  );
   if (fromPriorStep && readString(fromPriorStep.jobId)) {
     return fromPriorStep;
   }
