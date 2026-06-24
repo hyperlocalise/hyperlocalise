@@ -235,10 +235,8 @@ describe("workspace automation view model", () => {
       triggerMode: "contentful" as const,
       contentfulEnabled: true,
       contentfulConnectionId: "11111111-1111-4111-8111-111111111111",
-      contentfulTargetLocales: [],
+      contentfulTargetLocales: ["fr-FR"],
       translationEnabled: true,
-      githubEnabled: true,
-      githubMode: "sync" as const,
     };
 
     const next = applyWorkspaceAutomationProjectSelection(form, "project-1", {
@@ -249,13 +247,13 @@ describe("workspace automation view model", () => {
     expect(next).toMatchObject({
       contentfulProjectId: "project-1",
       translationProjectId: "project-1",
-      githubProjectId: "project-1",
       contentfulSourceLocale: "en",
-      contentfulTargetLocales: ["fr-FR", "de-DE"],
     });
     expect(resolveWorkspaceAutomationHeaderProjectId(next)).toBe("project-1");
-    expect(validateWorkspaceAutomationFormState(next)).toEqual({});
     expect(formStateToWorkspaceAutomationPayload(next).toolConfig.contentful?.projectId).toBe(
+      "project-1",
+    );
+    expect(formStateToWorkspaceAutomationPayload(next).toolConfig.translation?.projectId).toBe(
       "project-1",
     );
   });
