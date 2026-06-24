@@ -30,4 +30,30 @@ describe("buildWorkspaceOrchestratorUserMessage", () => {
 
     expect(message).not.toContain("Contentful entry ID");
   });
+
+  it("omits Contentful entry context when the snapshot has no entry ID", () => {
+    const message = buildWorkspaceOrchestratorUserMessage({
+      automationName: "Translate Contentful article",
+      triggerSource: "contentful",
+      inputSnapshot: {},
+    });
+
+    expect(message).toContain("Trigger source: contentful.");
+    expect(message).not.toContain("Contentful entry ID");
+    expect(message).not.toContain("Contentful content type");
+  });
+
+  it("omits Contentful entry context when the snapshot entry ID is blank", () => {
+    const message = buildWorkspaceOrchestratorUserMessage({
+      automationName: "Translate Contentful article",
+      triggerSource: "contentful",
+      inputSnapshot: {
+        entryId: "   ",
+        contentTypeId: "helpCenterArticle",
+      },
+    });
+
+    expect(message).not.toContain("Contentful entry ID");
+    expect(message).toContain("Contentful content type: helpCenterArticle.");
+  });
 });

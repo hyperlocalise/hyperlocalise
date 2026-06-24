@@ -88,6 +88,23 @@ describe("resolveContentfulEntryId", () => {
 
     expect(resolved).toBe("entry-from-webhook");
   });
+
+  it("falls back to automation config when the snapshot has no entry ID", () => {
+    const resolved = resolveContentfulEntryId(
+      session({
+        inputSnapshot: {},
+        toolConfigEntryId: "entry-from-config",
+      }),
+    );
+
+    expect(resolved).toBe("entry-from-config");
+  });
+
+  it("returns null when neither the snapshot nor automation config provides an entry ID", () => {
+    const resolved = resolveContentfulEntryId(session({ inputSnapshot: {} }));
+
+    expect(resolved).toBeNull();
+  });
 });
 
 describe("resolveContentfulEntryIdForExecution", () => {
