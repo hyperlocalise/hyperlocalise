@@ -217,6 +217,14 @@ export type ContentfulAutomationExecutionSuccess = {
   qaFindingCount: number;
 };
 
+export function hasContentfulNoWriteback(input: {
+  writeDrafts?: boolean | null;
+  fieldsDetected: number;
+  localeValuesWritten: number;
+}) {
+  return input.writeDrafts !== false && input.fieldsDetected > 0 && input.localeValuesWritten === 0;
+}
+
 export type ContentfulAutomationExecutionError = {
   code: "contentful_automation_failed";
   runId: string;

@@ -11,10 +11,11 @@ import type {
   ContentfulAutomationExecutionError,
   ContentfulAutomationExecutionSuccess,
 } from "@/lib/contentful/types";
+import { hasContentfulNoWriteback } from "@/lib/contentful/types";
 import { loadOrganizationTranslationGenerator } from "@/lib/translation/load-organization-translation-generator";
 import { composeContentfulAutomationInstructions } from "@/agents/automations/workspace/agent/workspace-template-manifest";
 
-import { createContentfulAgentSession } from "./context";
+import { createContentfulAgentSession, type ContentfulAgentSession } from "./context";
 import {
   buildContentfulAgentTools,
   CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME,
@@ -72,16 +73,14 @@ export async function runContentfulAgent(
     userOverride: userInstructions,
   });
 
-  await db
-    .update(schema.contentfulTranslationRuns)
-    .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
-    .where(eq(schema.contentfulTranslationRuns.id, run.id));
   if (manageWorkspaceRunStatus) {
     await db
       .update(schema.workspaceAutomationRuns)
       .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
       .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
   }
+
+  let session: ContentfulAgentSession | undefined;
 
   try {
     const generator = await loadOrganizationTranslationGenerator(run.projectId);
@@ -94,7 +93,7 @@ export async function runContentfulAgent(
       connectionId: run.connectionId,
     });
 
-    const session = createContentfulAgentSession({
+    session = createContentfulAgentSession({
       organizationId: input.organizationId,
       runId: run.id,
       entryId: run.entryId,
@@ -169,6 +168,51 @@ export async function runContentfulAgent(
       "contentful agent translation finished",
     );
 
+    if (
+      manageWorkspaceRunStatus &&
+      hasContentfulNoWriteback({
+        writeDrafts: run.writeDrafts,
+        fieldsDetected: session.executionResult.fieldsDetected,
+        localeValuesWritten: session.executionResult.localeValuesWritten,
+      })
+    ) {
+      const message = "contentful_no_draft_writebacks";
+      const completedAt = new Date();
+
+      await db
+        .update(schema.workspaceAutomationRuns)
+        .set({
+          status: "failed",
+          outputSummary: {
+            contentfulTranslationRunId: run.id,
+            fieldsDetected: session.executionResult.fieldsDetected,
+            localeValuesWritten: session.executionResult.localeValuesWritten,
+            error: message,
+          },
+          completedAt,
+          updatedAt: completedAt,
+        })
+        .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
+
+      logger.warn(
+        {
+          contentfulTranslationRunId: run.id,
+          workspaceAutomationRunId: input.workspaceAutomationRunId,
+          organizationId: input.organizationId,
+          entryId: run.entryId,
+          fieldsDetected: session.executionResult.fieldsDetected,
+          localeValuesWritten: session.executionResult.localeValuesWritten,
+        },
+        "contentful agent translation finished with no draft writebacks",
+      );
+
+      return err({
+        code: "contentful_automation_failed",
+        message,
+        runId: run.id,
+      });
+    }
+
     if (manageWorkspaceRunStatus) {
       const completedAt = new Date();
       await db
@@ -192,15 +236,17 @@ export async function runContentfulAgent(
     const message = error instanceof Error ? error.message : "contentful_agent_failed";
     const completedAt = new Date();
 
-    await db
-      .update(schema.contentfulTranslationRuns)
-      .set({
-        status: "failed",
-        error: { message },
-        completedAt,
-        updatedAt: completedAt,
-      })
-      .where(eq(schema.contentfulTranslationRuns.id, run.id));
+    if (!session?.executionError) {
+      await db
+        .update(schema.contentfulTranslationRuns)
+        .set({
+          status: "failed",
+          error: { message },
+          completedAt,
+          updatedAt: completedAt,
+        })
+        .where(eq(schema.contentfulTranslationRuns.id, run.id));
+    }
 
     if (manageWorkspaceRunStatus) {
       await db

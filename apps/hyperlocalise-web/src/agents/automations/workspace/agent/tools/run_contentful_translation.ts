@@ -3,6 +3,7 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { runContentfulAgent } from "@/agents/automations/contentful/agent/run-contentful-agent";
 import { createContentfulTranslationRun } from "@/lib/contentful/automation-executor";
+import { hasContentfulNoWriteback } from "@/lib/contentful/types";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
 
 import type { WorkspaceOrchestratorSession } from "../context";
@@ -126,9 +127,11 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
         return failure;
       }
 
-      const writeDrafts = contentful.writeDrafts ?? true;
-      const noWriteback =
-        writeDrafts && result.value.fieldsDetected > 0 && result.value.localeValuesWritten === 0;
+      const noWriteback = hasContentfulNoWriteback({
+        writeDrafts: contentful.writeDrafts ?? true,
+        fieldsDetected: result.value.fieldsDetected,
+        localeValuesWritten: result.value.localeValuesWritten,
+      });
 
       if (noWriteback) {
         const message = "contentful_no_draft_writebacks";
