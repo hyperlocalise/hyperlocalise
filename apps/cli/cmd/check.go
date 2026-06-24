@@ -68,25 +68,26 @@ var (
 )
 
 type checkOptions struct {
-	configPath    string
-	locales       []string
-	group         string
-	bucket        string
-	file          string
-	key           string
-	prefixID      bool
-	diffStdin     bool
-	diffContent   []byte
-	checks        []string
-	excludeChecks []string
-	format        string
-	outputFile    string
-	jsonReport    string
-	noFail        bool
-	fix           bool
-	fixDryRun     bool
-	workers       int
-	quiet         bool
+	configPath        string
+	locales           []string
+	group             string
+	bucket            string
+	file              string
+	key               string
+	prefixID          bool
+	ignoreDuplicateID bool
+	diffStdin         bool
+	diffContent       []byte
+	checks            []string
+	excludeChecks     []string
+	format            string
+	outputFile        string
+	jsonReport        string
+	noFail            bool
+	fix               bool
+	fixDryRun         bool
+	workers           int
+	quiet             bool
 }
 
 type checkFinding struct {
@@ -298,6 +299,7 @@ func newCheckLikeCmd(use, short string, fixDefault bool) *cobra.Command {
 	cmd.Flags().StringVar(&o.file, "file", "", "filter by source file path")
 	cmd.Flags().StringVar(&o.key, "key", "", "filter by translation key")
 	cmd.Flags().BoolVar(&o.prefixID, "prefix-id", false, "strip extract --prefix-id filename prefixes from source keys before comparing with targets (same rules as pack --prefix-id)")
+	cmd.Flags().BoolVar(&o.ignoreDuplicateID, "ignore-duplicate-id", false, "ignore duplicate packed ids and keep the first value (same rules as pack --ignore-duplicate-id)")
 	cmd.Flags().BoolVar(&o.diffStdin, "diff-stdin", false, "read a unified diff from stdin and validate changed keys only for supported key-value files")
 	cmd.Flags().StringSliceVar(&o.checks, "check", nil, "check(s) to run")
 	cmd.Flags().StringSliceVar(&o.excludeChecks, "exclude-check", nil, "default check(s) to skip")
@@ -406,7 +408,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 		return checkReport{}, err
 	}
 	if o.diffStdin {
-		selection, err = buildCheckSelectionFromDiff(index, o.diffContent, o.key, o.prefixID, prefixIndex)
+		selection, err = buildCheckSelectionFromDiff(index, o.diffContent, o.key, o.prefixID, o.ignoreDuplicateID, prefixIndex)
 		if err != nil {
 			return checkReport{}, err
 		}
@@ -414,7 +416,7 @@ func runCheck(ctx context.Context, o checkOptions) (checkReport, error) {
 	}
 
 	_, collectSpan := tr.Start(ctx, "check.collect_findings")
-	collected, err := collectCheckFindings(index, enabledChecks, selection, o.prefixID, prefixIndex)
+	collected, err := collectCheckFindings(index, enabledChecks, selection, o.prefixID, o.ignoreDuplicateID, prefixIndex)
 	if err != nil {
 		collectSpan.SetStatus(codes.Error, "collect_findings")
 		collectSpan.End()
@@ -509,7 +511,7 @@ func buildCheckSelection(index *checkConfigIndex, sourceFileFilter, keyFilter st
 	return selection, nil
 }
 
-func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, keyFilter string, prefixID bool, prefixIndex packPrefixIndex) (checkSelection, error) {
+func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, keyFilter string, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex) (checkSelection, error) {
 	changedFiles, err := parseUnifiedDiffChangedFiles(diffContent)
 	if err != nil {
 		return checkSelection{}, err
@@ -530,7 +532,7 @@ func buildCheckSelectionFromDiff(index *checkConfigIndex, diffContent []byte, ke
 		if prefixID {
 			if _, isSource := index.sourceByPath[changedPath]; isSource {
 				var err error
-				changedKeys, err = normalizeCheckChangedKeys(changed.keys, prefixIndex)
+				changedKeys, err = normalizeCheckChangedKeys(changed.keys, prefixIndex, ignoreDuplicateID)
 				if err != nil {
 					return checkSelection{}, err
 				}
@@ -893,7 +895,7 @@ func stripCheckPrefixID(id string, prefixIndex packPrefixIndex) string {
 	return stripPackPrefixID(id, prefixIndex)
 }
 
-func normalizeCheckSourceEntries(entries map[string]string, prefixIndex packPrefixIndex) (map[string]string, map[string]string, error) {
+func normalizeCheckSourceEntries(entries map[string]string, prefixIndex packPrefixIndex, ignoreDuplicateID bool) (map[string]string, map[string]string, error) {
 	if len(entries) == 0 {
 		return entries, nil, nil
 	}
@@ -909,6 +911,9 @@ func normalizeCheckSourceEntries(entries map[string]string, prefixIndex packPref
 	for _, id := range ids {
 		packedID := stripCheckPrefixID(id, prefixIndex)
 		if existingSourceID, ok := packedToSource[packedID]; ok {
+			if ignoreDuplicateID {
+				continue
+			}
 			return nil, nil, packPrefixIDCollisionError(existingSourceID, id, packedID)
 		}
 		packedToSource[packedID] = id
@@ -918,7 +923,7 @@ func normalizeCheckSourceEntries(entries map[string]string, prefixIndex packPref
 	return out, packedToSource, nil
 }
 
-func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPrefixIndex) (map[string]struct{}, error) {
+func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPrefixIndex, ignoreDuplicateID bool) (map[string]struct{}, error) {
 	if len(changed) == 0 {
 		return changed, nil
 	}
@@ -933,6 +938,9 @@ func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPref
 	for _, key := range keys {
 		packedID := stripCheckPrefixID(key, prefixIndex)
 		if existingSourceID, ok := sourceByPackedID[packedID]; ok {
+			if ignoreDuplicateID {
+				continue
+			}
 			return nil, packPrefixIDCollisionError(existingSourceID, key, packedID)
 		}
 		sourceByPackedID[packedID] = key
@@ -941,7 +949,7 @@ func normalizeCheckChangedKeys(changed map[string]struct{}, prefixIndex packPref
 	return out, nil
 }
 
-func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID bool, prefixIndex packPrefixIndex) (checkReport, error) {
+func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selection checkSelection, prefixID, ignoreDuplicateID bool, prefixIndex packPrefixIndex) (checkReport, error) {
 	parser := translationfileparser.NewDefaultStrategy()
 	resolver := checkLocationResolver{content: make(map[string][]byte)}
 	checkSet := make(map[string]struct{}, len(enabledChecks))
@@ -961,7 +969,7 @@ func collectCheckFindings(index *checkConfigIndex, enabledChecks []string, selec
 		}
 		if prefixID {
 			var packedToSource map[string]string
-			sourceEntries, packedToSource, err = normalizeCheckSourceEntries(sourceEntries, prefixIndex)
+			sourceEntries, packedToSource, err = normalizeCheckSourceEntries(sourceEntries, prefixIndex, ignoreDuplicateID)
 			if err != nil {
 				return checkReport{}, err
 			}
