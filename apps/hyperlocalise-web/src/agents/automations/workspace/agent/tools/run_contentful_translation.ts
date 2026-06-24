@@ -8,7 +8,7 @@ import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations
 
 import type { WorkspaceOrchestratorSession } from "../context";
 
-function resolveContentfulEntryId(session: WorkspaceOrchestratorSession) {
+export function resolveContentfulEntryId(session: WorkspaceOrchestratorSession) {
   const snapshot = session.run.inputSnapshot;
   if (typeof snapshot.entryId === "string" && snapshot.entryId.trim()) {
     return snapshot.entryId.trim();
@@ -17,21 +17,37 @@ function resolveContentfulEntryId(session: WorkspaceOrchestratorSession) {
   return session.automation.toolConfig.contentful?.entryId?.trim() ?? null;
 }
 
+export function resolveContentfulEntryIdForExecution(
+  session: WorkspaceOrchestratorSession,
+  entryIdOverride?: string,
+) {
+  const resolvedEntryId = resolveContentfulEntryId(session);
+  if (resolvedEntryId) {
+    return resolvedEntryId;
+  }
+
+  return entryIdOverride?.trim() ?? null;
+}
+
+const runContentfulTranslationInputSchema = z.object({
+  entryId: z
+    .string()
+    .trim()
+    .min(1)
+    .describe("Contentful entry ID to translate when none was provided by the trigger."),
+});
+
 export function createRunContentfulTranslationTool(session: WorkspaceOrchestratorSession) {
+  const presetEntryId = resolveContentfulEntryId(session);
+
   return defineAgentTool({
-    description:
-      "Translate the configured Contentful entry into target locales, run QA when enabled, and write drafts.",
-    inputSchema: z.object({
-      entryId: z
-        .string()
-        .trim()
-        .min(1)
-        .optional()
-        .describe(
-          "Optional entry ID override; defaults to the trigger payload or automation config.",
-        ),
-    }),
-    execute: async ({ entryId: entryIdOverride }) => {
+    description: presetEntryId
+      ? `Translate Contentful entry ${presetEntryId} into target locales, run QA when enabled, and write drafts.`
+      : "Translate the configured Contentful entry into target locales, run QA when enabled, and write drafts.",
+    inputSchema: presetEntryId ? z.object({}) : runContentfulTranslationInputSchema,
+    execute: async (input) => {
+      const entryIdOverride =
+        "entryId" in input && typeof input.entryId === "string" ? input.entryId : undefined;
       const contentful = session.automation.toolConfig.contentful;
       if (!contentful?.enabled || !contentful.connectionId || !contentful.projectId) {
         throw new Error("contentful_workflow_not_configured");
@@ -39,7 +55,7 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
 
       const sourceLocale = contentful.sourceLocale?.trim();
       const targetLocales = contentful.targetLocales ?? [];
-      const entryId = entryIdOverride?.trim() || resolveContentfulEntryId(session);
+      const entryId = resolveContentfulEntryIdForExecution(session, entryIdOverride);
 
       if (!sourceLocale) {
         throw new Error("contentful_source_locale_missing");

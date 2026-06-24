@@ -7,6 +7,7 @@ import {
   getWorkspaceAutomationById,
   getWorkspaceAutomationRunById,
   updateWorkspaceAutomationRun,
+  type WorkspaceAutomationRunRecord,
   type WorkspaceAutomationRunStatus,
 } from "@/lib/agents/workspace-automations";
 
@@ -35,6 +36,32 @@ export type WorkspaceOrchestratorExecutionSuccess = {
 
 function resolveTemplateSkillId(inputSnapshot: Record<string, unknown>) {
   return typeof inputSnapshot.templateSkillId === "string" ? inputSnapshot.templateSkillId : null;
+}
+
+export function buildWorkspaceOrchestratorUserMessage(input: {
+  automationName: string;
+  triggerSource: WorkspaceAutomationRunRecord["triggerSource"];
+  inputSnapshot: Record<string, unknown>;
+}) {
+  const lines = [
+    `Execute automation "${input.automationName}" using the planned tools in order.`,
+    `Trigger source: ${input.triggerSource}.`,
+  ];
+
+  if (input.triggerSource === "contentful") {
+    if (typeof input.inputSnapshot.entryId === "string" && input.inputSnapshot.entryId.trim()) {
+      lines.push(`Contentful entry ID: ${input.inputSnapshot.entryId.trim()}.`);
+    }
+    if (
+      typeof input.inputSnapshot.contentTypeId === "string" &&
+      input.inputSnapshot.contentTypeId.trim()
+    ) {
+      lines.push(`Contentful content type: ${input.inputSnapshot.contentTypeId.trim()}.`);
+    }
+  }
+
+  lines.push("Apply customer instructions when running workflow tools.");
+  return lines.join("\n");
 }
 
 function collectNotificationWarnings(session: WorkspaceOrchestratorSession) {
@@ -195,11 +222,11 @@ export async function runWorkspaceOrchestrator(input: {
       messages: [
         {
           role: "user",
-          content: [
-            `Execute automation "${automation.name}" using the planned tools in order.`,
-            `Trigger source: ${run.triggerSource}.`,
-            "Apply customer instructions when running workflow tools.",
-          ].join("\n"),
+          content: buildWorkspaceOrchestratorUserMessage({
+            automationName: automation.name,
+            triggerSource: run.triggerSource,
+            inputSnapshot: run.inputSnapshot,
+          }),
         },
       ],
     });
