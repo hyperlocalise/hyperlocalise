@@ -15,6 +15,7 @@ import { createWorkspaceOrchestratorAgent } from "./agent";
 import { composeWorkspaceAutomationInstructions } from "./compose-workspace-instructions";
 import { createWorkspaceOrchestratorSession, type WorkspaceOrchestratorSession } from "./context";
 import { buildWorkspaceOrchestratorPlan } from "./plan";
+import { buildWorkspaceOrchestratorOutputSummary } from "./workspace-orchestrator-output-summary";
 
 const logger = createLogger("workspace-orchestrator");
 
@@ -234,11 +235,13 @@ export async function runWorkspaceOrchestrator(input: {
     const terminalStatus = deriveTerminalStatus(session);
     const notificationWarnings = collectNotificationWarnings(session);
 
-    const outputSummary = {
-      ...run.outputSummary,
-      orchestratorStepResults: session.stepResults,
-      ...(notificationWarnings.length > 0 ? { notificationWarnings } : {}),
-    };
+    const outputSummary = buildWorkspaceOrchestratorOutputSummary(
+      session.run.outputSummary,
+      session.stepResults,
+      {
+        notificationWarnings,
+      },
+    );
 
     await updateWorkspaceAutomationRun({
       runId: run.id,
@@ -274,10 +277,10 @@ export async function runWorkspaceOrchestrator(input: {
       organizationId: input.organizationId,
       status: "failed",
       error: { message },
-      outputSummary: {
-        ...run.outputSummary,
-        orchestratorStepResults: session.stepResults,
-      },
+      outputSummary: buildWorkspaceOrchestratorOutputSummary(
+        session.run.outputSummary,
+        session.stepResults,
+      ),
       completedAt: new Date(),
     });
 

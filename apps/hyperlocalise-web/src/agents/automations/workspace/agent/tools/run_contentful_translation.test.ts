@@ -19,6 +19,10 @@ const mocks = vi.hoisted(() => ({
   updateWorkspaceAutomationRun: vi.fn(),
 }));
 
+const { dbSelectMock } = vi.hoisted(() => ({
+  dbSelectMock: vi.fn(),
+}));
+
 vi.mock("@/agents/automations/contentful/agent/run-contentful-agent", () => ({
   runContentfulAgent: mocks.runContentfulAgent,
 }));
@@ -31,10 +35,30 @@ vi.mock("@/lib/agents/workspace-automations", () => ({
   updateWorkspaceAutomationRun: mocks.updateWorkspaceAutomationRun,
 }));
 
+vi.mock("@/lib/database", () => ({
+  db: {
+    select: dbSelectMock,
+  },
+  schema: {
+    contentfulTranslationRuns: {
+      id: "id",
+      workspaceAutomationRunId: "workspaceAutomationRunId",
+      organizationId: "organizationId",
+      createdAt: "createdAt",
+      status: "status",
+      detectedFields: "detectedFields",
+      writebackSummary: "writebackSummary",
+      qaSummary: "qaSummary",
+    },
+  },
+}));
+
 function session(input: {
   inputSnapshot?: Record<string, unknown>;
   toolConfigEntryId?: string;
   automationName?: string;
+  outputSummary?: Record<string, unknown>;
+  stepResults?: WorkspaceOrchestratorSession["stepResults"];
 }): WorkspaceOrchestratorSession {
   const automation = {
     id: "automation-1",
@@ -73,7 +97,7 @@ function session(input: {
     triggerSource: "contentful",
     status: "queued",
     inputSnapshot: input.inputSnapshot ?? {},
-    outputSummary: {},
+    outputSummary: input.outputSummary ?? {},
     error: null,
     githubRepositoryAutomationJobId: null,
     idempotencyKey: null,
@@ -90,7 +114,7 @@ function session(input: {
     plan: { tools: ["run_contentful_translation"] },
     repository: null,
     composedInstructions: "",
-    stepResults: {},
+    stepResults: input.stepResults ?? {},
     terminalStatus: null,
     terminalError: null,
   };
@@ -100,7 +124,15 @@ afterEach(() => {
   mocks.createContentfulTranslationRun.mockReset();
   mocks.runContentfulAgent.mockReset();
   mocks.updateWorkspaceAutomationRun.mockReset();
+  dbSelectMock.mockReset();
 });
+
+function mockEmptyContentfulRunLookup() {
+  const limit = vi.fn().mockResolvedValue([]);
+  const orderBy = vi.fn().mockReturnValue({ limit });
+  const where = vi.fn().mockReturnValue({ orderBy });
+  dbSelectMock.mockReturnValue({ from: vi.fn().mockReturnValue({ where }) });
+}
 
 describe("resolveContentfulEntryId", () => {
   it("prefers the webhook snapshot entry ID over automation config", () => {
@@ -165,7 +197,48 @@ describe("createRunContentfulTranslationTool", () => {
     expect(tool.description).toContain("entry-from-webhook");
   });
 
+  it("returns the completed summary without re-running translation on retry", async () => {
+    const limit = vi.fn().mockResolvedValue([
+      {
+        id: "contentful-run-1",
+        status: "succeeded",
+        detectedFields: [{ field: "title" }],
+        writebackSummary: { localeValuesWritten: 3 },
+        qaSummary: { total: 1 },
+      },
+    ]);
+    const where = vi.fn().mockReturnValue({ limit });
+    dbSelectMock.mockReturnValue({ from: vi.fn().mockReturnValue({ where }) });
+
+    const testSession = session({
+      inputSnapshot: { entryId: "entry-from-webhook" },
+      outputSummary: { contentfulTranslationRunId: "contentful-run-1" },
+    });
+    const tool = createRunContentfulTranslationTool(testSession);
+
+    if (!tool.execute) {
+      throw new Error("run_contentful_translation tool is missing execute");
+    }
+
+    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
+
+    expect(mocks.createContentfulTranslationRun).not.toHaveBeenCalled();
+    expect(mocks.runContentfulAgent).not.toHaveBeenCalled();
+    expect(result).toEqual({
+      contentfulTranslationRunId: "contentful-run-1",
+      status: "succeeded",
+      runId: "contentful-run-1",
+      fieldsDetected: 1,
+      localeValuesWritten: 3,
+      qaFindingCount: 1,
+    });
+    expect(testSession.terminalStatus).toBe("succeeded");
+    expect(testSession.run.outputSummary.contentfulTranslationRunId).toBe("contentful-run-1");
+    expect(testSession.stepResults.run_contentful_translation).toEqual(result);
+  });
+
   it("fails the workspace run when fields are detected but no draft values are written", async () => {
+    mockEmptyContentfulRunLookup();
     mocks.createContentfulTranslationRun.mockResolvedValue({ id: "contentful-run-1" });
     mocks.runContentfulAgent.mockResolvedValue(
       ok({

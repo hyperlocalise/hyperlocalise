@@ -7,6 +7,11 @@ import { hasContentfulNoWriteback } from "@/lib/contentful/types";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import { mergeToolOutputSummaryIntoSessionRun } from "../workspace-orchestrator-output-summary";
+import {
+  loadCompletedContentfulTranslationRunSummary,
+  resolveExistingContentfulTranslationRunId,
+} from "./resolve-existing-contentful-translation-run";
 
 export function resolveContentfulEntryId(session: WorkspaceOrchestratorSession) {
   const snapshot = session.run.inputSnapshot;
@@ -68,10 +73,22 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
       }
 
       const snapshot = session.run.inputSnapshot;
-      const existingRunId =
-        typeof session.run.outputSummary.contentfulTranslationRunId === "string"
-          ? session.run.outputSummary.contentfulTranslationRunId
-          : null;
+      const existingRunId = await resolveExistingContentfulTranslationRunId(session);
+
+      if (existingRunId) {
+        const completedSummary = await loadCompletedContentfulTranslationRunSummary(
+          existingRunId,
+          session.organizationId,
+        );
+        if (completedSummary) {
+          mergeToolOutputSummaryIntoSessionRun(session, {
+            contentfulTranslationRunId: existingRunId,
+          });
+          session.terminalStatus = "succeeded";
+          session.stepResults.run_contentful_translation = completedSummary;
+          return completedSummary;
+        }
+      }
 
       const translationRun =
         existingRunId != null
@@ -103,6 +120,9 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
             ...session.run.outputSummary,
             contentfulTranslationRunId: translationRun.id,
           },
+        });
+        mergeToolOutputSummaryIntoSessionRun(session, {
+          contentfulTranslationRunId: translationRun.id,
         });
       }
 

@@ -8,6 +8,10 @@ import { enqueueFileTranslationJob } from "@/lib/projects/jobs/enqueue-file-tran
 import { createTranslationJobEventQueue } from "@/lib/workflow/queues";
 
 import type { WorkspaceOrchestratorSession } from "../context";
+import {
+  mergeToolOutputSummaryIntoSessionRun,
+  readCreateTranslationJobs,
+} from "../workspace-orchestrator-output-summary";
 
 const jobQueue = createTranslationJobEventQueue();
 
@@ -25,6 +29,15 @@ export function createTranslationJobsTool(session: WorkspaceOrchestratorSession)
       const translationConfig = session.automation.toolConfig.translation;
       if (!translationConfig?.enabled || !translationConfig.projectId) {
         throw new Error("translation_workflow_not_configured");
+      }
+
+      const existingOutput = readCreateTranslationJobs(
+        session.run.outputSummary,
+        session.stepResults,
+      );
+      if (existingOutput) {
+        session.stepResults.create_translation_jobs = existingOutput;
+        return existingOutput;
       }
 
       const snapshot = session.run.inputSnapshot;
@@ -94,6 +107,7 @@ export function createTranslationJobsTool(session: WorkspaceOrchestratorSession)
           createTranslationJobs: output,
         },
       });
+      mergeToolOutputSummaryIntoSessionRun(session, { createTranslationJobs: output });
 
       return output;
     },
