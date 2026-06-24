@@ -104,6 +104,42 @@ describe("billing routes", () => {
     });
   });
 
+  it("returns a failure status when billing usage partially fails to sync", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    syncWorkspaceResourceUsageToAutumnMock.mockResolvedValue({
+      status: "partial_failed",
+      resourceUsage: { seats: 1, projects: 0, automations: 0, integrations: 0 },
+      results: [
+        {
+          featureId: "seats",
+          localUsage: 1,
+          previousSyncedUsage: 0,
+          delta: 1,
+          status: "failed",
+          operationKey: "workspace-resource:org_123:seats:1",
+          error: "autumn_sync_failed",
+        },
+      ],
+    });
+
+    const response = await app.request(
+      billingUrl(identity.organization.slug ?? "missing-slug", "resource-usage/sync"),
+      { method: "POST", headers },
+    );
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "billing_resource_usage_sync_partial_failed",
+      details: {
+        syncResult: {
+          status: "partial_failed",
+          results: [{ featureId: "seats", status: "failed" }],
+        },
+      },
+    });
+  });
+
   it("forbids resource usage syncs without billing write access", async () => {
     const identity = fixture.createWorkosIdentityWithRole("member");
     const headers = await fixture.authHeadersFor(identity);
