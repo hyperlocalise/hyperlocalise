@@ -74,14 +74,14 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 				return nil, nil, err
 			}
 			for _, ref := range refs {
-				value, ok, err := xcstringsValueForRef(entry, sourceLanguage, ref)
+				translatedValue, ok, err := xcstringsValueForRef(entry, sourceLanguage, ref)
 				if err != nil {
 					return nil, nil, err
 				}
 				if !ok {
-					value = key
+					translatedValue = key
 				}
-				out[ref.key] = value
+				out[ref.key] = translatedValue
 				if ctx := xcstringsLeafContext(baseContext, ref.steps); ctx != "" {
 					contextByKey[ref.key] = ctx
 				}
@@ -296,7 +296,10 @@ func collectXCStringsLeafRefs(baseKey string, loc map[string]any, steps []xcstri
 		} else if !ok {
 			return 0, fmt.Errorf("xcstrings key %q: stringUnit.value is required in source localization", baseKey)
 		}
-		*refs = append(*refs, xcstringsLeafRef{key: xcstringsKeyForSteps(baseKey, steps), steps: append([]xcstringsPathStep(nil), steps...)})
+		// BOLT OPTIMIZATION: Optimize slice cloning to avoid multiple allocations.
+		stepsCopy := make([]xcstringsPathStep, len(steps))
+		copy(stepsCopy, steps)
+		*refs = append(*refs, xcstringsLeafRef{key: xcstringsKeyForSteps(baseKey, steps), steps: stepsCopy})
 		count++
 	}
 

@@ -2,6 +2,7 @@ package translationfileparser
 
 import (
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -62,14 +63,13 @@ func BenchmarkXCStringsParser_Parse(b *testing.B) {
 
 func BenchmarkXCStringsParser_ParseLarge(b *testing.B) {
 	numEntries := 500
-	content := `{
-  "sourceLanguage": "en",
-  "strings": {`
+	var sb strings.Builder
+	sb.WriteString("{\n  \"sourceLanguage\": \"en\",\n  \"strings\": {")
 	for i := 0; i < numEntries; i++ {
 		if i > 0 {
-			content += ","
+			sb.WriteByte(',')
 		}
-		content += fmt.Sprintf(`
+		fmt.Fprintf(&sb, `
     "key_%d": {
       "comment": "Comment for key %d",
       "localizations": {
@@ -82,11 +82,8 @@ func BenchmarkXCStringsParser_ParseLarge(b *testing.B) {
       }
     }`, i, i, i)
 	}
-	content += `
-  },
-  "version": "1.0"
-}`
-	contentBytes := []byte(content)
+	sb.WriteString("\n  },\n  \"version\": \"1.0\"\n}")
+	contentBytes := []byte(sb.String())
 	parser := XCStringsParser{}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -124,16 +121,15 @@ func BenchmarkMarshalXCStrings(b *testing.B) {
 
 func BenchmarkMarshalXCStrings_Large(b *testing.B) {
 	numEntries := 500
-	content := `{
-  "sourceLanguage": "en",
-  "strings": {`
+	var sb strings.Builder
+	sb.WriteString("{\n  \"sourceLanguage\": \"en\",\n  \"strings\": {")
 	values := map[string]string{}
 	for i := 0; i < numEntries; i++ {
 		if i > 0 {
-			content += ","
+			sb.WriteByte(',')
 		}
 		key := fmt.Sprintf("key_%d", i)
-		content += fmt.Sprintf(`
+		fmt.Fprintf(&sb, `
     "%s": {
       "localizations": {
         "en": {
@@ -146,11 +142,8 @@ func BenchmarkMarshalXCStrings_Large(b *testing.B) {
     }`, key, i)
 		values[key] = fmt.Sprintf("Translated %d", i)
 	}
-	content += `
-  },
-  "version": "1.0"
-}`
-	contentBytes := []byte(content)
+	sb.WriteString("\n  },\n  \"version\": \"1.0\"\n}")
+	contentBytes := []byte(sb.String())
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		_, _ = MarshalXCStrings(contentBytes, contentBytes, values, "en", "fr")
