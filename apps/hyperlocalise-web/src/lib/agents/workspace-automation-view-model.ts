@@ -264,21 +264,25 @@ export function applyWorkspaceAutomationProjectSelection(
   projectId: string,
   project?: { sourceLocale: string | null; targetLocales: string[] },
 ): WorkspaceAutomationFormState {
-  const next: WorkspaceAutomationFormState = {
-    ...form,
-    ...(form.githubEnabled && form.githubMode === "sync" ? { githubProjectId: projectId } : {}),
-    ...(form.translationEnabled || form.triggerMode === "source_upload"
-      ? { translationProjectId: projectId }
-      : {}),
-    ...(form.contentfulEnabled ? { contentfulProjectId: projectId } : {}),
-  };
+  const next: WorkspaceAutomationFormState = { ...form };
 
-  if (form.contentfulEnabled && project) {
-    next.contentfulSourceLocale = project.sourceLocale ?? form.contentfulSourceLocale;
-    next.contentfulTargetLocales =
-      project.targetLocales.length > 0 && form.contentfulTargetLocales.length === 0
-        ? [...project.targetLocales]
-        : form.contentfulTargetLocales.filter((locale) => project.targetLocales.includes(locale));
+  if (form.githubEnabled && form.githubMode === "sync") {
+    next.githubProjectId = projectId;
+  }
+
+  if (form.translationEnabled || form.triggerMode === "source_upload") {
+    next.translationProjectId = projectId;
+  }
+
+  if (form.contentfulEnabled) {
+    next.contentfulProjectId = projectId;
+    if (project) {
+      next.contentfulSourceLocale = project.sourceLocale ?? form.contentfulSourceLocale;
+      next.contentfulTargetLocales =
+        project.targetLocales.length > 0 && form.contentfulTargetLocales.length === 0
+          ? [...project.targetLocales]
+          : form.contentfulTargetLocales.filter((locale) => project.targetLocales.includes(locale));
+    }
   }
 
   return next;

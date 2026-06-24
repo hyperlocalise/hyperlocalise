@@ -62,6 +62,7 @@ export function AutomationsNewPageContent({
     },
     onError: (error) => {
       if (error.message === "validation_failed") {
+        toast.error("Fix the highlighted fields before saving.");
         return;
       }
       toast.error("Unable to create automation right now");

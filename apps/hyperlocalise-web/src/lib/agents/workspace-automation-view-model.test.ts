@@ -268,4 +268,27 @@ describe("workspace automation view model", () => {
 
     expect(resolveWorkspaceAutomationHeaderProjectId(form)).toBe("project-2");
   });
+
+  it("applies header project selection for GitHub sync automations", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Full localisation sync",
+      instructions: "Sync repository strings.",
+      triggerMode: "scheduled" as const,
+      githubEnabled: true,
+      githubMode: "sync" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      pushSourceEnabled: true,
+      pullTranslationsEnabled: true,
+      validationEnabled: true,
+    };
+
+    const next = applyWorkspaceAutomationProjectSelection(form, "project-3");
+
+    expect(next.githubProjectId).toBe("project-3");
+    expect(resolveWorkspaceAutomationHeaderProjectId(next)).toBe("project-3");
+    expect(formStateToWorkspaceAutomationPayload(next).toolConfig.github?.projectId).toBe(
+      "project-3",
+    );
+  });
 });

@@ -45,13 +45,24 @@ export function AutomationDetailPageContent({
   const [form, setForm] = useState<ReturnType<
     typeof createWorkspaceAutomationFormStateFromRecord
   > | null>(null);
+  const [hasLocalEdits, setHasLocalEdits] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
 
   useEffect(() => {
-    if (automation) {
+    setHasLocalEdits(false);
+    setErrors({});
+  }, [automationId]);
+
+  useEffect(() => {
+    if (automation && !hasLocalEdits) {
       setForm(createWorkspaceAutomationFormStateFromRecord(automation));
     }
-  }, [automation]);
+  }, [automation, hasLocalEdits]);
+
+  function handleFormChange(next: ReturnType<typeof createWorkspaceAutomationFormStateFromRecord>) {
+    setHasLocalEdits(true);
+    setForm(next);
+  }
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -85,17 +96,19 @@ export function AutomationDetailPageContent({
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
+      setForm(createWorkspaceAutomationFormStateFromRecord(data.automation));
+      setHasLocalEdits(false);
+      setErrors({});
       toast.success("Automation updated");
-      void queryClient.invalidateQueries({
-        queryKey: ["workspace-automation", organizationSlug, automationId],
-      });
+      queryClient.setQueryData(["workspace-automation", organizationSlug, automationId], data);
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automations", organizationSlug],
       });
     },
     onError: (error) => {
       if (error.message === "validation_failed") {
+        toast.error("Fix the highlighted fields before saving.");
         return;
       }
       toast.error("Unable to save automation right now");
@@ -143,7 +156,7 @@ export function AutomationDetailPageContent({
         organizationSlug={organizationSlug}
         form={form}
         errors={errors}
-        onChange={setForm}
+        onChange={handleFormChange}
         runHistory={recentRuns}
         actions={
           <div className="flex gap-2">
