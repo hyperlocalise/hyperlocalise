@@ -51,6 +51,7 @@ import { createTeamRoutes } from "./routes/team/team.route";
 import { createWorkspaceRoutes } from "./routes/workspace/workspace.route";
 import { workosWebhookRoutes } from "./routes/workos-webhook/workos-webhook.route";
 import { createAutumnRoutes } from "./routes/autumn/autumn.route";
+import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
 import { createTmsScheduledReconciliationRoutes } from "./routes/cron/tms-scheduled-reconciliation.route";
@@ -182,6 +183,7 @@ function createOrgScopedAppRoutes(
     )
     .route("/github-installation", createGithubInstallationRoutes())
     .route("/api-keys", createApiKeyRoutes())
+    .route("/billing", createBillingRoutes())
     .route("/members", createMemberRoutes())
     .route("/workspace", createWorkspaceRoutes());
 }

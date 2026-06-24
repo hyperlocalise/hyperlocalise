@@ -62,7 +62,7 @@ type AutumnSubscription = {
   } | null;
 };
 
-type AutumnUsageBalance = {
+export type AutumnUsageBalance = {
   usage?: number | null;
   remaining?: number | null;
   granted?: number | null;
@@ -138,6 +138,26 @@ export function getUsageProgressPercent(input: {
   }
 
   return Math.min(100, Math.max(0, (input.usage / input.granted) * 100));
+}
+
+export function resolveUsageDisplayBalance(input: {
+  balance: AutumnUsageBalance | undefined;
+  localUsage?: number;
+}) {
+  const granted = input.balance?.granted ?? 0;
+  const unlimited = input.balance?.unlimited ?? false;
+  const usage = input.localUsage ?? input.balance?.usage ?? 0;
+
+  return {
+    usage,
+    granted,
+    unlimited,
+    remaining:
+      input.localUsage === undefined || unlimited
+        ? (input.balance?.remaining ?? 0)
+        : Math.max(0, granted - usage),
+    nextResetAt: input.balance?.nextResetAt ?? null,
+  };
 }
 
 export function formatPrimaryUsageSummary(input: {

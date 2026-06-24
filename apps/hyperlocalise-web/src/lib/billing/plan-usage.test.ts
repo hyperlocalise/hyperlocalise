@@ -10,6 +10,7 @@ import {
   isPlanUsageBillingPath,
   resolveActivePlanName,
   resolvePlanUsageSummary,
+  resolveUsageDisplayBalance,
 } from "@/lib/billing/plan-usage";
 
 describe("plan usage helpers", () => {
@@ -130,5 +131,44 @@ describe("plan usage helpers", () => {
         unlimited: false,
       }),
     ).toBe(true);
+  });
+
+  it("uses local workspace resource usage when provided", () => {
+    expect(
+      resolveUsageDisplayBalance({
+        balance: {
+          usage: 0,
+          remaining: 1,
+          granted: 1,
+          unlimited: false,
+          nextResetAt: 1_812_601_600_000,
+        },
+        localUsage: 1,
+      }),
+    ).toEqual({
+      usage: 1,
+      remaining: 0,
+      granted: 1,
+      unlimited: false,
+      nextResetAt: 1_812_601_600_000,
+    });
+  });
+
+  it("preserves Autumn remaining balance when local usage is unavailable", () => {
+    expect(
+      resolveUsageDisplayBalance({
+        balance: {
+          usage: 0,
+          remaining: 1,
+          granted: 1,
+          unlimited: false,
+          nextResetAt: null,
+        },
+      }),
+    ).toMatchObject({
+      usage: 0,
+      remaining: 1,
+      granted: 1,
+    });
   });
 });

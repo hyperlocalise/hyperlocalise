@@ -9,6 +9,7 @@ import { db, schema } from "@/lib/database";
 import { isErr } from "@/lib/primitives/result/results";
 import {
   ensureWorkspaceResourceLimitAvailable,
+  getWorkspaceResourceUsage,
   withWorkspaceResourceLimit,
   workspaceResourceFeatureIds,
 } from "./workspace-resource-limits";
@@ -29,6 +30,14 @@ async function createOrganization() {
 }
 
 describe("workspace resource limits", () => {
+  it("counts the default workspace member as one used seat", async () => {
+    const { organization } = await createOrganization();
+
+    const usage = await getWorkspaceResourceUsage({ organizationId: organization.id });
+
+    expect(usage[workspaceResourceFeatureIds.seats]).toBe(1);
+  });
+
   it("allows the first Free project and blocks the next one with the local fallback", async () => {
     const { organization, user } = await createOrganization();
 
