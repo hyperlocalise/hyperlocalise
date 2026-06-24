@@ -59,8 +59,12 @@ import {
   addBranchPattern,
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
 import { getLocaleLabel } from "@/lib/i18n/locales";
-import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
-import { workspaceAutomationFormCanActivate } from "@/lib/agents/workspace-automation-view-model";
+import {
+  applyWorkspaceAutomationProjectSelection,
+  resolveWorkspaceAutomationHeaderProjectId,
+  workspaceAutomationFormCanActivate,
+  type WorkspaceAutomationFormState,
+} from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 import { cn } from "@/lib/primitives/cn";
 
@@ -395,26 +399,14 @@ function HeaderProjectSelector({
   const selectableProjects = usesTranslationProject
     ? projects.filter((project) => project.source !== "external_tms")
     : projects;
-  const activeProjectId = usesTranslationProject ? form.translationProjectId : form.githubProjectId;
+  const activeProjectId = resolveWorkspaceAutomationHeaderProjectId(form);
   const selectedProject = selectableProjects.find((project) => project.id === activeProjectId);
   const triggerLabel =
     selectedProject?.name ?? (activeProjectId ? "Unknown project" : "Select project");
 
   function handleProjectSelect(projectId: string) {
-    if (usesTranslationProject) {
-      onChange({
-        ...form,
-        translationProjectId: projectId,
-        ...(form.githubEnabled ? { githubProjectId: projectId } : {}),
-      });
-      return;
-    }
-
-    onChange({
-      ...form,
-      githubProjectId: projectId,
-      ...(form.translationEnabled ? { translationProjectId: projectId } : {}),
-    });
+    const project = projects.find((entry) => entry.id === projectId);
+    onChange(applyWorkspaceAutomationProjectSelection(form, projectId, project));
   }
 
   return (
@@ -1945,6 +1937,7 @@ export function WorkspaceAutomationEditor({
         </div>
         <FieldError message={errors.githubProjectId} />
         <FieldError message={errors.translationProjectId} />
+        <FieldError message={errors.contentfulProjectId} />
         {!canActivate ? (
           <p className="text-xs text-muted-foreground">
             Add at least one supported tool to activate this automation.

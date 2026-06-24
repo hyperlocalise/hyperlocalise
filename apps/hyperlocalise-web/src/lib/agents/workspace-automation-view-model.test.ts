@@ -9,7 +9,9 @@ import {
 import {
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromTemplate,
+  applyWorkspaceAutomationProjectSelection,
   formStateToWorkspaceAutomationPayload,
+  resolveWorkspaceAutomationHeaderProjectId,
   validateWorkspaceAutomationFormState,
 } from "./workspace-automation-view-model";
 
@@ -223,5 +225,49 @@ describe("workspace automation view model", () => {
     expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
       trigger: "Source upload triggers require translation jobs to be enabled.",
     });
+  });
+
+  it("applies header project selection to all enabled tool project fields", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Contentful automation",
+      instructions: "Translate updates.",
+      triggerMode: "contentful" as const,
+      contentfulEnabled: true,
+      contentfulConnectionId: "11111111-1111-4111-8111-111111111111",
+      contentfulTargetLocales: [],
+      translationEnabled: true,
+      githubEnabled: true,
+      githubMode: "sync" as const,
+    };
+
+    const next = applyWorkspaceAutomationProjectSelection(form, "project-1", {
+      sourceLocale: "en",
+      targetLocales: ["fr-FR", "de-DE"],
+    });
+
+    expect(next).toMatchObject({
+      contentfulProjectId: "project-1",
+      translationProjectId: "project-1",
+      githubProjectId: "project-1",
+      contentfulSourceLocale: "en",
+      contentfulTargetLocales: ["fr-FR", "de-DE"],
+    });
+    expect(resolveWorkspaceAutomationHeaderProjectId(next)).toBe("project-1");
+    expect(validateWorkspaceAutomationFormState(next)).toEqual({});
+    expect(formStateToWorkspaceAutomationPayload(next).toolConfig.contentful?.projectId).toBe(
+      "project-1",
+    );
+  });
+
+  it("resolves the header project from Contentful settings", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      contentfulEnabled: true,
+      contentfulProjectId: "project-2",
+      githubProjectId: "project-1",
+    };
+
+    expect(resolveWorkspaceAutomationHeaderProjectId(form)).toBe("project-2");
   });
 });
