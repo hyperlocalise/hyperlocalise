@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 const { runWorkspaceOrchestratorMock } = vi.hoisted(() => ({
-  runWorkspaceOrchestratorMock: vi.fn(async () => {
+  runWorkspaceOrchestratorMock: vi.fn(async (): Promise<unknown> => {
     class OkResult {
       readonly ok = true;
 
