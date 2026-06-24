@@ -23,21 +23,13 @@ vi.mock("@/agents/automations/contentful/agent/run-contentful-agent", () => ({
   runContentfulAgent: mocks.runContentfulAgent,
 }));
 
-vi.mock("@/lib/contentful/automation-executor", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/lib/contentful/automation-executor")>();
-  return {
-    ...original,
-    createContentfulTranslationRun: mocks.createContentfulTranslationRun,
-  };
-});
+vi.mock("@/lib/contentful/automation-executor", () => ({
+  createContentfulTranslationRun: mocks.createContentfulTranslationRun,
+}));
 
-vi.mock("@/lib/agents/workspace-automations", async (importOriginal) => {
-  const original = await importOriginal<typeof import("@/lib/agents/workspace-automations")>();
-  return {
-    ...original,
-    updateWorkspaceAutomationRun: mocks.updateWorkspaceAutomationRun,
-  };
-});
+vi.mock("@/lib/agents/workspace-automations", () => ({
+  updateWorkspaceAutomationRun: mocks.updateWorkspaceAutomationRun,
+}));
 
 function session(input: {
   inputSnapshot?: Record<string, unknown>;
