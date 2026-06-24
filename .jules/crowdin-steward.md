@@ -173,3 +173,15 @@
 **Learning:** Several list response models in the Crowdin Go SDK were missing the `pagination` field, preventing callers from handling multi-page results for translation progress, QA checks, and group managers. Additionally, the `ManagerListOptions.Values()` method was using a manual loop for slice joining, which is less efficient and consistent than the `JoinSlice` helper.
 
 **Action:** Added `Pagination *Pagination` to `TranslationProgressResponse`, `QAChecksResponse`, and `ManagerResponse`. Refactored `ManagerListOptions.Values()` to use `JoinSlice`. Added comprehensive unmarshaling tests to verify that the new pagination fields are correctly populated from API responses. Verified with `go test` in the fork.
+
+## 2026-10-10 - Improve Enterprise Task parity and fix test typos
+
+**Learning:** The Crowdin Enterprise API v2 supports  in , but it was missing from the SDK model. Additionally, several test function names in  contained typos (e.g., "Tepmlate").
+
+**Action:** Added  string field to  in . Corrected "Tepmlate" to "Template" and "Tepmlates" to "Templates" in . Added  to verify parity.
+
+## 2026-10-10 - Improve Enterprise Task parity and fix test typos
+
+**Learning:** The Crowdin Enterprise API v2 supports `dateFrom` in `EnterpriseVendorTaskCreateForm`, but it was missing from the SDK model. Additionally, several test function names in `tasks_test.go` contained typos (e.g., "Tepmlate").
+
+**Action:** Added `DateFrom` string field to `EnterpriseVendorTaskCreateForm` in `model/tasks.go`. Corrected "Tepmlate" to "Template" and "Tepmlates" to "Templates" in `tasks_test.go`. Added `TestTasksService_Add_EnterpriseVendorTaskCreateForm` to verify parity.
