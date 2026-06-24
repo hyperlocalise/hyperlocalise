@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"slices"
 	"strings"
 )
 
@@ -58,9 +57,12 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 
 	out := map[string]string{}
 	contextByKey := map[string]string{}
-	for _, key := range sortedXCStringsKeys(stringsNode) {
+
+	// BOLT OPTIMIZATION: Avoid redundant O(N log N) sorting of all keys as map[string]string
+	// is unordered and sorting adds unnecessary allocations and CPU overhead.
+	for key, value := range stringsNode {
 		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-		entry, err := xcstringsObjectValue(stringsNode[key], "strings."+key)
+		entry, err := xcstringsObjectValue(value, "strings."+key)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -129,15 +131,6 @@ func decodeXCStringsObject(content []byte) (map[string]any, error) {
 		return nil, fmt.Errorf("xcstrings decode: expected JSON object")
 	}
 	return root, nil
-}
-
-func sortedXCStringsKeys(obj map[string]any) []string {
-	keys := make([]string, 0, len(obj))
-	for key := range obj {
-		keys = append(keys, key)
-	}
-	slices.Sort(keys)
-	return keys
 }
 
 func xcstringsObjectField(obj map[string]any, name string) (map[string]any, error) {
@@ -312,19 +305,25 @@ func collectXCStringsLeafRefs(baseKey string, loc map[string]any, steps []xcstri
 		return 0, err
 	}
 	if ok {
-		for _, dimension := range sortedXCStringsKeys(variations) {
+		// BOLT OPTIMIZATION: Avoid redundant O(N log N) sorting of keys as the result
+		// is appended to a slice where order doesn't impact correctness.
+		for dimension, rawOptions := range variations {
 			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-			options, err := xcstringsObjectValue(variations[dimension], "variations."+dimension)
+			options, err := xcstringsObjectValue(rawOptions, "variations."+dimension)
 			if err != nil {
 				return 0, err
 			}
-			for _, option := range sortedXCStringsKeys(options) {
+			for option, rawChild := range options {
 				// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-				child, err := xcstringsObjectValue(options[option], "variations."+dimension+"."+option)
+				child, err := xcstringsObjectValue(rawChild, "variations."+dimension+"."+option)
 				if err != nil {
 					return 0, err
 				}
-				childSteps := append(append([]xcstringsPathStep(nil), steps...), xcstringsPathStep{kind: "variation", name: dimension, option: option})
+				// BOLT OPTIMIZATION: Optimize slice cloning to avoid multiple allocations.
+				childSteps := make([]xcstringsPathStep, len(steps)+1)
+				copy(childSteps, steps)
+				childSteps[len(steps)] = xcstringsPathStep{kind: "variation", name: dimension, option: option}
+
 				childCount, err := collectXCStringsLeafRefs(baseKey, child, childSteps, refs)
 				if err != nil {
 					return 0, err
@@ -339,13 +338,18 @@ func collectXCStringsLeafRefs(baseKey string, loc map[string]any, steps []xcstri
 		return 0, err
 	}
 	if ok {
-		for _, name := range sortedXCStringsKeys(substitutions) {
+		// BOLT OPTIMIZATION: Avoid redundant O(N log N) sorting of keys.
+		for name, rawChild := range substitutions {
 			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-			child, err := xcstringsObjectValue(substitutions[name], "substitutions."+name)
+			child, err := xcstringsObjectValue(rawChild, "substitutions."+name)
 			if err != nil {
 				return 0, err
 			}
-			childSteps := append(append([]xcstringsPathStep(nil), steps...), xcstringsPathStep{kind: "substitution", name: name})
+			// BOLT OPTIMIZATION: Optimize slice cloning.
+			childSteps := make([]xcstringsPathStep, len(steps)+1)
+			copy(childSteps, steps)
+			childSteps[len(steps)] = xcstringsPathStep{kind: "substitution", name: name}
+
 			childCount, err := collectXCStringsLeafRefs(baseKey, child, childSteps, refs)
 			if err != nil {
 				return 0, err
@@ -367,19 +371,24 @@ func collectXCStringsVariationLeaves(baseKey string, loc map[string]any, out map
 	}
 
 	count := 0
-	for _, dimension := range sortedXCStringsKeys(variations) {
+	// BOLT OPTIMIZATION: Avoid redundant sorting of map keys during leaf collection.
+	for dimension, rawOptions := range variations {
 		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-		options, err := xcstringsObjectValue(variations[dimension], "variations."+dimension)
+		options, err := xcstringsObjectValue(rawOptions, "variations."+dimension)
 		if err != nil {
 			return 0, err
 		}
-		for _, option := range sortedXCStringsKeys(options) {
+		for option, rawChild := range options {
 			// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-			child, err := xcstringsObjectValue(options[option], "variations."+dimension+"."+option)
+			child, err := xcstringsObjectValue(rawChild, "variations."+dimension+"."+option)
 			if err != nil {
 				return 0, err
 			}
-			childSteps := append(append([]xcstringsPathStep(nil), steps...), xcstringsPathStep{kind: "variation", name: dimension, option: option})
+			// BOLT OPTIMIZATION: Optimize slice cloning.
+			childSteps := make([]xcstringsPathStep, len(steps)+1)
+			copy(childSteps, steps)
+			childSteps[len(steps)] = xcstringsPathStep{kind: "variation", name: dimension, option: option}
+
 			childCount, err := collectXCStringsLeaves(baseKey, child, out, contextByKey, baseContext, childSteps)
 			if err != nil {
 				return 0, err
@@ -400,13 +409,18 @@ func collectXCStringsSubstitutionLeaves(baseKey string, loc map[string]any, out 
 	}
 
 	count := 0
-	for _, name := range sortedXCStringsKeys(substitutions) {
+	// BOLT OPTIMIZATION: Avoid redundant sorting of map keys.
+	for name, rawChild := range substitutions {
 		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-		child, err := xcstringsObjectValue(substitutions[name], "substitutions."+name)
+		child, err := xcstringsObjectValue(rawChild, "substitutions."+name)
 		if err != nil {
 			return 0, err
 		}
-		childSteps := append(append([]xcstringsPathStep(nil), steps...), xcstringsPathStep{kind: "substitution", name: name})
+		// BOLT OPTIMIZATION: Optimize slice cloning.
+		childSteps := make([]xcstringsPathStep, len(steps)+1)
+		copy(childSteps, steps)
+		childSteps[len(steps)] = xcstringsPathStep{kind: "substitution", name: name}
+
 		childCount, err := collectXCStringsLeaves(baseKey, child, out, contextByKey, baseContext, childSteps)
 		if err != nil {
 			return 0, err
@@ -511,16 +525,28 @@ func xcstringsLocalizationHasStructuredContainers(loc map[string]any) bool {
 }
 
 func xcstringsKeyForSteps(baseKey string, steps []xcstringsPathStep) string {
-	key := escapeXCStringsBaseKey(baseKey)
+	if len(steps) == 0 {
+		return escapeXCStringsBaseKey(baseKey)
+	}
+
+	// BOLT OPTIMIZATION: Use strings.Builder to minimize allocations for compound keys.
+	var b strings.Builder
+	b.Grow(len(baseKey) + len(steps)*24) // Heuristic growth
+	b.WriteString(escapeXCStringsBaseKey(baseKey))
+
 	for _, step := range steps {
 		switch step.kind {
 		case "variation":
-			key += "::" + step.name + "." + step.option
+			b.WriteString("::")
+			b.WriteString(step.name)
+			b.WriteByte('.')
+			b.WriteString(step.option)
 		case "substitution":
-			key += "::substitution." + step.name
+			b.WriteString("::substitution.")
+			b.WriteString(step.name)
 		}
 	}
-	return key
+	return b.String()
 }
 
 func escapeXCStringsBaseKey(key string) string {
@@ -531,33 +557,55 @@ func escapeXCStringsBaseKey(key string) string {
 }
 
 func xcstringsEntryContext(entry map[string]any, sourceLanguage string) string {
-	parts := []string{}
-	if comment, ok := entry["comment"].(string); ok && strings.TrimSpace(comment) != "" {
-		parts = append(parts, "Comment: "+strings.TrimSpace(comment))
+	// BOLT OPTIMIZATION: Use strings.Builder instead of strings.Join to avoid intermediate slice allocations.
+	var b strings.Builder
+	if comment, ok := entry["comment"].(string); ok {
+		if trimmed := strings.TrimSpace(comment); trimmed != "" {
+			b.WriteString("Comment: ")
+			b.WriteString(trimmed)
+		}
 	}
-	if extractionState, ok := entry["extractionState"].(string); ok && strings.TrimSpace(extractionState) != "" {
-		parts = append(parts, "Extraction state: "+strings.TrimSpace(extractionState))
+	if extractionState, ok := entry["extractionState"].(string); ok {
+		if trimmed := strings.TrimSpace(extractionState); trimmed != "" {
+			if b.Len() > 0 {
+				b.WriteByte('\n')
+			}
+			b.WriteString("Extraction state: ")
+			b.WriteString(trimmed)
+		}
 	}
 	if sourceLanguage != "" {
-		parts = append(parts, "String catalog source language: "+sourceLanguage)
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
+		b.WriteString("String catalog source language: ")
+		b.WriteString(sourceLanguage)
 	}
-	return strings.Join(parts, "\n")
+	return b.String()
 }
 
 func xcstringsLeafContext(base string, steps []xcstringsPathStep) string {
-	parts := []string{}
-	if strings.TrimSpace(base) != "" {
-		parts = append(parts, base)
+	// BOLT OPTIMIZATION: Use strings.Builder to avoid intermediate slice allocations.
+	var b strings.Builder
+	if trimmed := strings.TrimSpace(base); trimmed != "" {
+		b.WriteString(trimmed)
 	}
 	for _, step := range steps {
+		if b.Len() > 0 {
+			b.WriteByte('\n')
+		}
 		switch step.kind {
 		case "variation":
-			parts = append(parts, "String catalog variation: "+step.name+"."+step.option)
+			b.WriteString("String catalog variation: ")
+			b.WriteString(step.name)
+			b.WriteByte('.')
+			b.WriteString(step.option)
 		case "substitution":
-			parts = append(parts, "String catalog substitution: "+step.name)
+			b.WriteString("String catalog substitution: ")
+			b.WriteString(step.name)
 		}
 	}
-	return strings.Join(parts, "\n")
+	return b.String()
 }
 
 // MarshalXCStrings rewrites target-locale stringUnit values while preserving catalog metadata.
@@ -591,9 +639,11 @@ func MarshalXCStrings(template, sourceTemplate []byte, values map[string]string,
 		}
 	}
 
-	for _, key := range sortedXCStringsKeys(sourceStrings) {
+	// BOLT OPTIMIZATION: Avoid redundant O(N log N) sorting as json.MarshalIndent
+	// below will handle deterministic sorting for the final output.
+	for key, value := range sourceStrings {
 		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-		sourceEntry, err := xcstringsObjectValue(sourceStrings[key], "source strings."+key)
+		sourceEntry, err := xcstringsObjectValue(value, "source strings."+key)
 		if err != nil {
 			return nil, err
 		}
