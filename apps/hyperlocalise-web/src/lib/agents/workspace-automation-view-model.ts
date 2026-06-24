@@ -241,6 +241,21 @@ export function applyTemplateToWorkspaceAutomationFormState(
   };
 }
 
+export function reconcileContentfulTargetLocalesForProject(
+  currentLocales: string[],
+  projectTargetLocales?: string[],
+): string[] {
+  if (!projectTargetLocales || projectTargetLocales.length === 0) {
+    return currentLocales;
+  }
+
+  if (currentLocales.length === 0) {
+    return [...projectTargetLocales];
+  }
+
+  return currentLocales.filter((locale) => projectTargetLocales.includes(locale));
+}
+
 export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationFormState): {
   name: string;
   instructions: string;

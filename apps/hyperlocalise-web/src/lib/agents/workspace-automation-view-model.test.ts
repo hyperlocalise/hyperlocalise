@@ -10,6 +10,7 @@ import {
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromTemplate,
   formStateToWorkspaceAutomationPayload,
+  reconcileContentfulTargetLocalesForProject,
   validateWorkspaceAutomationFormState,
 } from "./workspace-automation-view-model";
 
@@ -177,6 +178,26 @@ describe("workspace automation view model", () => {
       runQa: true,
       writeDrafts: true,
     });
+  });
+
+  it("preserves Contentful target locales when the selected project has no target locales", () => {
+    expect(reconcileContentfulTargetLocalesForProject(["fr-FR", "de-DE"], [])).toEqual([
+      "fr-FR",
+      "de-DE",
+    ]);
+  });
+
+  it("prefills Contentful target locales from the selected project when the form is empty", () => {
+    expect(reconcileContentfulTargetLocalesForProject([], ["fr-FR", "de-DE"])).toEqual([
+      "fr-FR",
+      "de-DE",
+    ]);
+  });
+
+  it("keeps only Contentful target locales supported by the selected project", () => {
+    expect(reconcileContentfulTargetLocalesForProject(["fr-FR", "es-ES"], ["fr-FR"])).toEqual([
+      "fr-FR",
+    ]);
   });
 
   it("requires Contentful connection, project, and locales when enabled", () => {
