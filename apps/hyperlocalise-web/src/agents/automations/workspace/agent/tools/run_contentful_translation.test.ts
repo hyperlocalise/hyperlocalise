@@ -1,9 +1,10 @@
-import { describe, expect, it } from "vite-plus/test";
+import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
 import type {
   WorkspaceAutomationRecord,
   WorkspaceAutomationRunRecord,
 } from "@/lib/agents/workspace-automations";
+import { ok } from "@/lib/primitives/result/results";
 
 import type { WorkspaceOrchestratorSession } from "../context";
 import {
@@ -11,6 +12,32 @@ import {
   resolveContentfulEntryId,
   resolveContentfulEntryIdForExecution,
 } from "./run_contentful_translation";
+
+const mocks = vi.hoisted(() => ({
+  createContentfulTranslationRun: vi.fn(),
+  runContentfulAgent: vi.fn(),
+  updateWorkspaceAutomationRun: vi.fn(),
+}));
+
+vi.mock("@/agents/automations/contentful/agent/run-contentful-agent", () => ({
+  runContentfulAgent: mocks.runContentfulAgent,
+}));
+
+vi.mock("@/lib/contentful/automation-executor", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/contentful/automation-executor")>();
+  return {
+    ...original,
+    createContentfulTranslationRun: mocks.createContentfulTranslationRun,
+  };
+});
+
+vi.mock("@/lib/agents/workspace-automations", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/agents/workspace-automations")>();
+  return {
+    ...original,
+    updateWorkspaceAutomationRun: mocks.updateWorkspaceAutomationRun,
+  };
+});
 
 function session(input: {
   inputSnapshot?: Record<string, unknown>;
@@ -77,6 +104,12 @@ function session(input: {
   };
 }
 
+afterEach(() => {
+  mocks.createContentfulTranslationRun.mockReset();
+  mocks.runContentfulAgent.mockReset();
+  mocks.updateWorkspaceAutomationRun.mockReset();
+});
+
 describe("resolveContentfulEntryId", () => {
   it("prefers the webhook snapshot entry ID over automation config", () => {
     const resolved = resolveContentfulEntryId(
@@ -138,5 +171,67 @@ describe("createRunContentfulTranslationTool", () => {
     );
 
     expect(tool.description).toContain("entry-from-webhook");
+  });
+
+  it("fails the workspace run when fields are detected but no draft values are written", async () => {
+    mocks.createContentfulTranslationRun.mockResolvedValue({ id: "contentful-run-1" });
+    mocks.runContentfulAgent.mockResolvedValue(
+      ok({
+        runId: "contentful-run-1",
+        fieldsDetected: 2,
+        localeValuesWritten: 0,
+        qaFindingCount: 0,
+      }),
+    );
+
+    const testSession = session({ inputSnapshot: { contentTypeId: "article" } });
+    const tool = createRunContentfulTranslationTool(testSession);
+
+    if (!tool.execute) {
+      throw new Error("run_contentful_translation tool is missing execute");
+    }
+
+    const result = await tool.execute(
+      { entryId: "entry-from-agent" },
+      { toolCallId: "test-tool-call", messages: [] },
+    );
+
+    expect(mocks.createContentfulTranslationRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        organizationId: "org-1",
+        workspaceAutomationRunId: "run-1",
+        entryId: "entry-from-agent",
+        contentTypeId: "article",
+        sourceLocale: "en",
+        targetLocales: ["fr-FR"],
+        writeDrafts: true,
+      }),
+    );
+    expect(mocks.runContentfulAgent).toHaveBeenCalledWith(
+      {
+        contentfulTranslationRunId: "contentful-run-1",
+        workspaceAutomationRunId: "run-1",
+        organizationId: "org-1",
+      },
+      { manageWorkspaceRunStatus: false },
+    );
+    expect(mocks.updateWorkspaceAutomationRun).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        runId: "run-1",
+        organizationId: "org-1",
+        status: "failed",
+        error: { message: "contentful_no_draft_writebacks" },
+      }),
+    );
+    expect(testSession.terminalStatus).toBe("failed");
+    expect(testSession.terminalError).toBe("contentful_no_draft_writebacks");
+    expect(result).toEqual({
+      contentfulTranslationRunId: "contentful-run-1",
+      status: "failed",
+      message: "contentful_no_draft_writebacks",
+      fieldsDetected: 2,
+      localeValuesWritten: 0,
+    });
+    expect(testSession.stepResults.run_contentful_translation).toEqual(result);
   });
 });
