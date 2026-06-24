@@ -201,3 +201,7 @@
 ## 2026-10-20 - Optimizing JSONC comment parsing via manual byte scanning
 **Learning:** Replacing line-by-line regular expression matching with a manual `[]byte` scanner and avoiding per-line `string` conversions significantly reduces allocation overhead and CPU time in translation file parsers. Regex overhead, especially for simple key/value patterns, is often a hidden bottleneck compared to optimized byte scanning.
 **Action:** Optimized `parseJSONCKeyComments` and its helper functions in `internal/i18n/translationfileparser/jsonc_parser.go` to operate entirely on `[]byte`, resulting in a ~30% speedup and ~17% fewer allocations.
+
+## 2026-10-25 - Optimizing XCStrings parser and marshaler via sort elimination and string building
+**Learning:** For structured catalog formats like Apple's XCStrings (JSON-based), intermediate O(N log N) sorting of map keys during traversal is often redundant and adds significant CPU/allocation overhead for large files. Direct map iteration is sufficient when the final output is either a map or passed to `json.MarshalIndent` (which sorts keys internally). Additionally, using `strings.Builder` with heuristic `Grow` hints for compound key and multiline context generation further reduces allocation pressure.
+**Action:** Removed redundant sorting and refactored string/slice manipulation in `internal/i18n/translationfileparser/xcstrings_parser.go`.
