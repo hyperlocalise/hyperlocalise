@@ -164,8 +164,15 @@ export const footerColumns: MarketingFooterColumn[] = [
       { label: "Blog", href: "/en/blog" },
       { labelKey: "footerGitHubAction", href: githubActionUrl },
       { labelKey: "footerGitHub", href: githubRepoUrl },
-      { label: "Trust Center", href: "/en/trust-center" },
       { labelKey: "footerContact", href: "mailto:minh@hyperlocalise.com" },
+    ],
+  },
+  {
+    title: "Legal",
+    links: [
+      { label: "Terms", href: "/en/terms" },
+      { label: "Privacy", href: "/en/privacy" },
+      { label: "Trust Center", href: "/en/trust-center" },
     ],
   },
 ];

@@ -17,6 +17,9 @@ export default function PrivacyPage() {
         This page describes the default privacy posture for Hyperlocalise documentation and product
         surfaces.
       </TypographyP>
+      <TypographyP>
+        Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667.
+      </TypographyP>
 
       <LegalSection title="Scope">
         <TypographyP>
@@ -69,6 +72,9 @@ export default function PrivacyPage() {
           When you connect third-party AI providers, translation platforms, storage systems, or
           other integrations, your data may be sent to those services based on your configuration.
           Their handling of that data is governed by their own terms and privacy policies.
+        </TypographyP>
+        <TypographyP>
+          For data processing agreement requests, contact: <code>minh@hyperlocalise.com</code>
         </TypographyP>
       </LegalSection>
 
@@ -137,7 +143,7 @@ export default function PrivacyPage() {
 
       <LegalSection title="Contact">
         <TypographyP>
-          For privacy questions or requests, contact: <code>privacy@hyperlocalise.com</code>
+          For privacy questions or requests, contact: <code>minh@hyperlocalise.com</code>
         </TypographyP>
         <TypographyP>
           Effective date: <code>2026-04-17</code>

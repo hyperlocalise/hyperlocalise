@@ -13,7 +13,13 @@ export default function TermsPage() {
       title="Terms of service"
       description="The baseline terms that govern use of Hyperlocalise websites, docs, and services."
     >
-      <TypographyP>This page is a starting point for Hyperlocalise terms of service.</TypographyP>
+      <TypographyP>
+        These terms describe the baseline rules for using Hyperlocalise websites, documentation,
+        APIs, CLI tools, and hosted services.
+      </TypographyP>
+      <TypographyP>
+        Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN 87698557667.
+      </TypographyP>
 
       <LegalSection title="Acceptance of terms">
         <TypographyP>
@@ -123,7 +129,8 @@ export default function TermsPage() {
         </TypographyP>
         <TypographyP>
           AI-generated output and synced content may contain errors, omissions, bias, or unsupported
-          translations. You are responsible for review and approval before production use.
+          translations. You remain responsible for human review, compliance, and production use of
+          any output or synced content.
         </TypographyP>
       </LegalSection>
 
@@ -165,7 +172,10 @@ export default function TermsPage() {
 
       <LegalSection title="Contact">
         <TypographyP>
-          For legal questions about these terms, contact: <code>legal@hyperlocalise.com</code>
+          For legal questions about these terms, contact: <code>minh@hyperlocalise.com</code>
+        </TypographyP>
+        <TypographyP>
+          For data processing agreement requests, contact: <code>minh@hyperlocalise.com</code>
         </TypographyP>
         <TypographyP>
           Effective date: <code>2026-04-17</code>

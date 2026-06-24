@@ -54,7 +54,7 @@ export function MarketingFooter({ columns }: MarketingFooterProps) {
         </div>
       </div>
 
-      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
         {columns.map((column) => (
           <div key={column.titleKey ?? column.title}>
             <div className="text-sm font-medium text-foreground">

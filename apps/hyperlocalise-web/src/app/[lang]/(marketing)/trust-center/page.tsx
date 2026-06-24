@@ -57,6 +57,8 @@ const certificationStatuses = [
   },
 ] as const;
 
+const contactEmail = "minh@hyperlocalise.com";
+
 const subprocessors = [
   {
     name: "Vercel",
@@ -135,13 +137,13 @@ export default function TrustCenterPage() {
                 A practical view of how Hyperlocalise handles security, subprocessors, and
                 certification work while the formal trust program matures.
               </TypographyP>
+              <TypographyP className="max-w-2xl text-base leading-7 text-muted-foreground">
+                Hyperlocalise is operated by Hyperlocalise Pty Ltd, ACN 698 557 667, ABN
+                87698557667.
+              </TypographyP>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row">
-              <Button
-                size="lg"
-                className="gap-2"
-                render={<a href="mailto:security@hyperlocalise.com" />}
-              >
+              <Button size="lg" className="gap-2" render={<a href={`mailto:${contactEmail}`} />}>
                 <MailIcon data-icon="inline-start" />
                 Contact us
               </Button>
@@ -284,6 +286,9 @@ export default function TrustCenterPage() {
                 not treated as default platform subprocessors here because customers choose whether
                 to connect them and which accounts or projects are in scope.
               </TypographyP>
+              <TypographyP>
+                For data processing agreement requests, contact: <code>{contactEmail}</code>
+              </TypographyP>
             </div>
           </div>
         </section>
@@ -296,14 +301,10 @@ export default function TrustCenterPage() {
               </TypographyH2>
               <TypographyP className="mt-2 text-muted-foreground">
                 Contact us for current security information, vendor review questions, or
-                certification roadmap details.
+                certification roadmap details, including data processing agreement requests.
               </TypographyP>
             </div>
-            <Button
-              size="lg"
-              className="gap-2"
-              render={<a href="mailto:security@hyperlocalise.com" />}
-            >
+            <Button size="lg" className="gap-2" render={<a href={`mailto:${contactEmail}`} />}>
               <MailIcon data-icon="inline-start" />
               Contact us
             </Button>
