@@ -7,7 +7,7 @@ func EscapeFormula(value string) string {
 		return value
 	}
 	switch value[0] {
-	case '=', '+', '-', '@', '\t', '\r':
+	case '=', '+', '-', '@', '\t', '\r', '\n':
 		return "'" + value
 	default:
 		return value

@@ -99,3 +99,7 @@
 ## 2026-06-23 - [Translator Request Validation Safety]
 **Learning:** Shared request types in the translator package (Request, ImageEditRequest) lack explicit validation tests, despite being critical internal APIs. Adding dedicated tests for their validation logic ensures that contract requirements (like mandatory fields or supported image formats) are consistently enforced across all provider implementations.
 **Action:** Always include comprehensive success and failure test cases for validation helpers when introducing or modifying shared data structures to prevent regressions in API contract enforcement.
+
+## 2026-06-24 - [CSV Injection: Escaping Line Feeds]
+**Learning:** Security best practices (OWASP) for CSV injection/Formula injection require escaping not just '=', '+', '-', and '@', but also whitespace characters like Tab (0x09), Carriage Return (0x0D), and Line Feed (0x0A). If these characters appear at the start of a cell, some spreadsheet software may interpret the following content as a formula.
+**Action:** Always include '\n' (Line Feed) in the set of characters that trigger formula escaping (prepending a single quote) in CSV cell values.
