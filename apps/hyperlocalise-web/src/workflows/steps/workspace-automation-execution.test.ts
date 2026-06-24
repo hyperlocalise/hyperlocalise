@@ -11,6 +11,8 @@ const { runWorkspaceOrchestratorMock } = vi.hoisted(() => ({
     return new OkResult({
       runId: "run-1",
       status: "succeeded" as const,
+      planTools: [],
+      stepResults: {},
     });
   }),
 }));
