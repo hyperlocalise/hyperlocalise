@@ -60,10 +60,7 @@ import {
 } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/integrations/_components/github-repository-automation-view-model";
 import { getLocaleLabel } from "@/lib/i18n/locales";
 import type { WorkspaceAutomationFormState } from "@/lib/agents/workspace-automation-view-model";
-import {
-  reconcileContentfulTargetLocalesForProject,
-  workspaceAutomationFormCanActivate,
-} from "@/lib/agents/workspace-automation-view-model";
+import { workspaceAutomationFormCanActivate } from "@/lib/agents/workspace-automation-view-model";
 import type { WorkspaceAutomationRunRecord } from "@/lib/agents/workspace-automations";
 import { cn } from "@/lib/primitives/cn";
 
@@ -1531,10 +1528,12 @@ function ToolsSettings({
                         contentfulProjectId: value,
                         contentfulSourceLocale:
                           project?.sourceLocale ?? form.contentfulSourceLocale,
-                        contentfulTargetLocales: reconcileContentfulTargetLocalesForProject(
-                          form.contentfulTargetLocales,
-                          project?.targetLocales,
-                        ),
+                        contentfulTargetLocales:
+                          project?.targetLocales && form.contentfulTargetLocales.length === 0
+                            ? project.targetLocales
+                            : form.contentfulTargetLocales.filter((locale) =>
+                                project?.targetLocales.includes(locale),
+                              ),
                       });
                     }}
                   >

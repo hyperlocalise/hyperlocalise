@@ -24,10 +24,9 @@ export function AutomationDetailPageContent({
   automationId: string;
 }) {
   const queryClient = useQueryClient();
-  const automationQueryKey = ["workspace-automation", organizationSlug, automationId] as const;
 
   const automationQuery = useQuery({
-    queryKey: automationQueryKey,
+    queryKey: ["workspace-automation", organizationSlug, automationId],
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].automations[
         ":automationId"
@@ -86,14 +85,10 @@ export function AutomationDetailPageContent({
 
       return response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       toast.success("Automation updated");
-      queryClient.setQueryData<typeof data>(automationQueryKey, (current) => ({
-        automation: data.automation,
-        recentRuns: data.recentRuns ?? current?.recentRuns ?? [],
-      }));
       void queryClient.invalidateQueries({
-        queryKey: automationQueryKey,
+        queryKey: ["workspace-automation", organizationSlug, automationId],
       });
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automations", organizationSlug],
@@ -125,7 +120,7 @@ export function AutomationDetailPageContent({
     onSuccess: () => {
       toast.success("Manual run queued");
       void queryClient.invalidateQueries({
-        queryKey: automationQueryKey,
+        queryKey: ["workspace-automation", organizationSlug, automationId],
       });
     },
     onError: () => {
