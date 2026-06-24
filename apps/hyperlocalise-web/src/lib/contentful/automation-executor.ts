@@ -47,6 +47,10 @@ export type ContentfulAutomationExecutionEvent = {
   organizationId: string;
 };
 
+export type ExecuteContentfulAutomationOptions = {
+  manageWorkspaceRunStatus?: boolean;
+};
+
 type ContentfulAutomationFieldLogContext = ContentfulAutomationExecutionEvent & {
   runId: string;
   fieldId: string;
@@ -604,7 +608,9 @@ export async function createContentfulTranslationRun(input: {
 
 export async function executeContentfulAutomation(
   input: ContentfulAutomationExecutionEvent,
+  options: ExecuteContentfulAutomationOptions = {},
 ): Promise<Result<ContentfulAutomationExecutionSuccess, ContentfulAutomationExecutionError>> {
+  const manageWorkspaceRunStatus = options.manageWorkspaceRunStatus ?? true;
   const executionContext = {
     contentfulTranslationRunId: input.contentfulTranslationRunId,
     workspaceAutomationRunId: input.workspaceAutomationRunId,
@@ -633,15 +639,17 @@ export async function executeContentfulAutomation(
     .update(schema.contentfulTranslationRuns)
     .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
     .where(eq(schema.contentfulTranslationRuns.id, run.id));
-  await db
-    .update(schema.workspaceAutomationRuns)
-    .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
-    .where(
-      and(
-        eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
-        eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
-      ),
-    );
+  if (manageWorkspaceRunStatus) {
+    await db
+      .update(schema.workspaceAutomationRuns)
+      .set({ status: "running", startedAt: new Date(), updatedAt: new Date() })
+      .where(
+        and(
+          eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
+          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+        ),
+      );
+  }
 
   try {
     const loaded = await loadContentfulConnectionWithToken({
@@ -852,25 +860,27 @@ export async function executeContentfulAutomation(
         updatedAt: completedAt,
       })
       .where(eq(schema.contentfulTranslationRuns.id, run.id));
-    await db
-      .update(schema.workspaceAutomationRuns)
-      .set({
-        status: "succeeded",
-        outputSummary: {
-          contentfulTranslationRunId: run.id,
-          fieldsDetected: units.length,
-          localeValuesWritten: translations.length,
-          qaFindings: qaFindings.length,
-        },
-        completedAt,
-        updatedAt: completedAt,
-      })
-      .where(
-        and(
-          eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
-          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
-        ),
-      );
+    if (manageWorkspaceRunStatus) {
+      await db
+        .update(schema.workspaceAutomationRuns)
+        .set({
+          status: "succeeded",
+          outputSummary: {
+            contentfulTranslationRunId: run.id,
+            fieldsDetected: units.length,
+            localeValuesWritten: translations.length,
+            qaFindings: qaFindings.length,
+          },
+          completedAt,
+          updatedAt: completedAt,
+        })
+        .where(
+          and(
+            eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
+            eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+          ),
+        );
+    }
 
     if (run.webhookEventId) {
       await syncContentfulWebhookEventStatus({
@@ -892,7 +902,12 @@ export async function executeContentfulAutomation(
       "contentful automation execution succeeded",
     );
 
-    return ok({ runId: run.id });
+    return ok({
+      runId: run.id,
+      fieldsDetected: units.length,
+      localeValuesWritten: translations.length,
+      qaFindingCount: qaFindings.length,
+    });
   } catch (error) {
     const completedAt = new Date();
     const message = isContentfulClientError(error)
@@ -918,20 +933,22 @@ export async function executeContentfulAutomation(
         updatedAt: completedAt,
       })
       .where(eq(schema.contentfulTranslationRuns.id, run.id));
-    await db
-      .update(schema.workspaceAutomationRuns)
-      .set({
-        status: "failed",
-        error: { message },
-        completedAt,
-        updatedAt: completedAt,
-      })
-      .where(
-        and(
-          eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
-          eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
-        ),
-      );
+    if (manageWorkspaceRunStatus) {
+      await db
+        .update(schema.workspaceAutomationRuns)
+        .set({
+          status: "failed",
+          error: { message },
+          completedAt,
+          updatedAt: completedAt,
+        })
+        .where(
+          and(
+            eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId),
+            eq(schema.workspaceAutomationRuns.organizationId, input.organizationId),
+          ),
+        );
+    }
     if (run.webhookEventId) {
       await syncContentfulWebhookEventStatus({
         eventId: run.webhookEventId,

@@ -126,11 +126,41 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
         return failure;
       }
 
+      const writeDrafts = contentful.writeDrafts ?? true;
+      const noWriteback =
+        writeDrafts && result.value.fieldsDetected > 0 && result.value.localeValuesWritten === 0;
+
+      if (noWriteback) {
+        const message = "contentful_no_draft_writebacks";
+        session.terminalStatus = "failed";
+        session.terminalError = message;
+        await updateWorkspaceAutomationRun({
+          runId: session.run.id,
+          organizationId: session.organizationId,
+          status: "failed",
+          error: { message },
+          completedAt: new Date(),
+        });
+
+        const failure = {
+          contentfulTranslationRunId: translationRun.id,
+          status: "failed",
+          message,
+          fieldsDetected: result.value.fieldsDetected,
+          localeValuesWritten: result.value.localeValuesWritten,
+        };
+        session.stepResults.run_contentful_translation = failure;
+        return failure;
+      }
+
       session.terminalStatus = "succeeded";
       const success = {
         contentfulTranslationRunId: translationRun.id,
         status: "succeeded",
         runId: result.value.runId,
+        fieldsDetected: result.value.fieldsDetected,
+        localeValuesWritten: result.value.localeValuesWritten,
+        qaFindingCount: result.value.qaFindingCount,
       };
       session.stepResults.run_contentful_translation = success;
       return success;

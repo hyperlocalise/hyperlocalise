@@ -4,6 +4,7 @@ import {
 } from "@/lib/contentful/automation-executor";
 import type { ContentfulManagementClient } from "@/lib/contentful/client";
 import type {
+  ContentfulAutomationExecutionSuccess,
   ContentfulConnectionFieldConfig,
   ContentfulDraftTranslation,
   ContentfulTranslatableFieldUnit,
@@ -35,6 +36,8 @@ export type ContentfulAgentSession = {
   translations: ContentfulDraftTranslation[];
   qaFindings: Array<Record<string, unknown>>;
   defaultLocale?: string;
+  executionResult?: ContentfulAutomationExecutionSuccess;
+  executionError?: string;
 };
 
 export function createContentfulAgentSession(

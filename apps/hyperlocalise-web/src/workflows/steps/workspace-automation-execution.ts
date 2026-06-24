@@ -47,9 +47,15 @@ export async function executeWorkspaceAutomationStep(
     }
 
     logger.info(
-      { ...stepContext, status: result.value.status },
+      { ...stepContext, status: result.value.status, planTools: result.value.planTools },
       "workspace automation orchestrator step completed successfully",
     );
+    if (Object.keys(result.value.stepResults).length > 0) {
+      logger.info(
+        { ...stepContext, stepResults: result.value.stepResults },
+        "workspace automation orchestrator step results",
+      );
+    }
     return { ok: true, value: result.value };
   } catch (error) {
     const message = error instanceof Error ? error.message : "workspace_orchestrator_step_failed";

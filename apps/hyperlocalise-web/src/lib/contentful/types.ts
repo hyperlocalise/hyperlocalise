@@ -212,6 +212,9 @@ export type ContentfulDiscoveryError =
 
 export type ContentfulAutomationExecutionSuccess = {
   runId: string;
+  fieldsDetected: number;
+  localeValuesWritten: number;
+  qaFindingCount: number;
 };
 
 export type ContentfulAutomationExecutionError = {

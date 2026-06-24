@@ -5,6 +5,7 @@ import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { WORKFLOW_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import type { ContentfulAutomationExecutionEvent } from "@/lib/contentful/automation-executor";
 import { db, schema } from "@/lib/database";
+import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import type {
   ContentfulAutomationExecutionError,
@@ -16,10 +17,12 @@ import { composeContentfulAutomationInstructions } from "@/agents/automations/wo
 import { createContentfulAgentSession } from "./context";
 import {
   buildContentfulAgentTools,
+  CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME,
   loadContentfulAgentClient,
 } from "./tools/build-contentful-tools";
 
-const CONTENTFUL_AGENT_STEP_LIMIT = 20;
+const CONTENTFUL_AGENT_STEP_LIMIT = 2;
+const logger = createLogger("contentful-agent");
 
 export type RunContentfulAgentOptions = {
   manageWorkspaceRunStatus?: boolean;
@@ -116,9 +119,22 @@ export async function runContentfulAgent(
       model: getHyperlocaliseAgentModel(),
       instructions: composedInstructions,
       tools,
+      activeTools: [CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME],
       stopWhen: stepCountIs(CONTENTFUL_AGENT_STEP_LIMIT),
       timeout: WORKFLOW_AGENT_TIMEOUT,
       experimental_context: session,
+      prepareStep: ({ stepNumber }) => {
+        if (stepNumber === 0) {
+          return {
+            activeTools: [CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME],
+            toolChoice: { type: "tool", toolName: CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME },
+          };
+        }
+
+        return {
+          toolChoice: "none",
+        };
+      },
     });
 
     await agent.generate({
@@ -129,45 +145,41 @@ export async function runContentfulAgent(
             `Translate Contentful entry ${run.entryId}.`,
             `Source locale: ${run.sourceLocale}.`,
             `Target locales: ${run.targetLocales.join(", ")}.`,
-            "Use tools to fetch the entry, detect fields, translate, QA, and write drafts as configured.",
+            "Call run_translation to execute the translation pipeline.",
           ].join("\n"),
         },
       ],
     });
 
-    const qaErrorCount = session.qaFindings.filter(
-      (finding) => finding.severity === "error",
-    ).length;
-    const completedAt = new Date();
+    if (!session.executionResult) {
+      const message = session.executionError ?? "contentful_translation_executor_not_called";
+      throw new Error(message);
+    }
 
-    await db
-      .update(schema.contentfulTranslationRuns)
-      .set({
-        status: qaErrorCount > 0 ? "succeeded_with_warnings" : "succeeded",
-        qaSummary: {
-          total: session.qaFindings.length,
-          errors: qaErrorCount,
-          warnings: session.qaFindings.filter((finding) => finding.severity === "warning").length,
-        },
-        writebackSummary: {
-          fieldsWritten: new Set(session.translations.map((item) => item.fieldId)).size,
-          localeValuesWritten: session.translations.length,
-          blockedByQaErrors: qaErrorCount,
-        },
-        completedAt,
-        updatedAt: completedAt,
-      })
-      .where(eq(schema.contentfulTranslationRuns.id, run.id));
+    logger.info(
+      {
+        contentfulTranslationRunId: run.id,
+        workspaceAutomationRunId: input.workspaceAutomationRunId,
+        organizationId: input.organizationId,
+        entryId: run.entryId,
+        fieldsDetected: session.executionResult.fieldsDetected,
+        localeValuesWritten: session.executionResult.localeValuesWritten,
+        qaFindingCount: session.executionResult.qaFindingCount,
+      },
+      "contentful agent translation finished",
+    );
 
     if (manageWorkspaceRunStatus) {
+      const completedAt = new Date();
       await db
         .update(schema.workspaceAutomationRuns)
         .set({
           status: "succeeded",
           outputSummary: {
             contentfulTranslationRunId: run.id,
-            qaFindingCount: session.qaFindings.length,
-            qaErrorCount,
+            fieldsDetected: session.executionResult.fieldsDetected,
+            localeValuesWritten: session.executionResult.localeValuesWritten,
+            qaFindingCount: session.executionResult.qaFindingCount,
           },
           completedAt,
           updatedAt: completedAt,
@@ -175,9 +187,7 @@ export async function runContentfulAgent(
         .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
     }
 
-    return ok({
-      runId: run.id,
-    });
+    return ok(session.executionResult);
   } catch (error) {
     const message = error instanceof Error ? error.message : "contentful_agent_failed";
     const completedAt = new Date();
@@ -203,6 +213,17 @@ export async function runContentfulAgent(
         })
         .where(eq(schema.workspaceAutomationRuns.id, input.workspaceAutomationRunId));
     }
+
+    logger.error(
+      {
+        contentfulTranslationRunId: run.id,
+        workspaceAutomationRunId: input.workspaceAutomationRunId,
+        organizationId: input.organizationId,
+        entryId: run.entryId,
+        message,
+      },
+      "contentful agent translation failed",
+    );
 
     return err({
       code: "contentful_automation_failed",
