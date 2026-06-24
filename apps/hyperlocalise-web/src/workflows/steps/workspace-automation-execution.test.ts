@@ -1,16 +1,20 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import type { WorkspaceOrchestratorExecutionSuccess } from "@/agents/automations/workspace/agent/run-workspace-orchestrator";
+
 const { runWorkspaceOrchestratorMock } = vi.hoisted(() => ({
   runWorkspaceOrchestratorMock: vi.fn(async (): Promise<unknown> => {
     class OkResult {
       readonly ok = true;
 
-      constructor(readonly value: { runId: string; status: "succeeded" }) {}
+      constructor(readonly value: WorkspaceOrchestratorExecutionSuccess) {}
     }
 
     return new OkResult({
       runId: "run-1",
       status: "succeeded" as const,
+      planTools: [],
+      stepResults: {},
     });
   }),
 }));

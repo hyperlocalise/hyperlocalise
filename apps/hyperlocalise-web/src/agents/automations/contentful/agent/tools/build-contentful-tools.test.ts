@@ -1,56 +1,25 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
 import type { ContentfulManagementClient } from "@/lib/contentful/client";
-import type { ContentfulContentType, ContentfulEntry } from "@/lib/contentful/types";
+import { ok } from "@/lib/primitives/result/results";
 
 import { createContentfulAgentSession } from "../context";
-import { buildContentfulAgentTools } from "./build-contentful-tools";
+import {
+  buildContentfulAgentTools,
+  CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME,
+} from "./build-contentful-tools";
 
-const contentType: ContentfulContentType = {
-  sys: { id: "helpCenterArticle" },
-  fields: [
-    { id: "title", name: "Title", type: "Symbol", localized: true },
-    { id: "body", name: "Body", type: "RichText", localized: true },
-    { id: "slug", name: "Slug", type: "Symbol", localized: true },
-  ],
-};
+const mocks = vi.hoisted(() => ({
+  executeContentfulAutomation: vi.fn(),
+}));
 
-const entry: ContentfulEntry = {
-  sys: {
-    id: "entry-1",
-    version: 1,
-    contentType: { sys: { id: "helpCenterArticle" } },
-  },
-  fields: {
-    title: {
-      "en-US": "Reset your password",
-      "fr-FR": "Réinitialisez votre mot de passe",
-    },
-    body: {
-      "en-US": {
-        nodeType: "document",
-        data: {},
-        content: [
-          {
-            nodeType: "paragraph",
-            data: {},
-            content: [
-              {
-                nodeType: "text",
-                value: "Visit https://example.com/reset.",
-                marks: [],
-                data: {},
-              },
-            ],
-          },
-        ],
-      },
-    },
-    slug: {
-      "en-US": "reset-password",
-    },
-  },
-};
+vi.mock("@/lib/contentful/automation-executor", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/contentful/automation-executor")>();
+  return {
+    ...original,
+    executeContentfulAutomation: mocks.executeContentfulAutomation,
+  };
+});
 
 function createTestSession() {
   return createContentfulAgentSession({
@@ -62,8 +31,8 @@ function createTestSession() {
     instructions: "Translate help center content.",
     sourceLocale: "en-US",
     targetLocales: ["fr-FR"],
-    runQa: false,
-    writeDrafts: false,
+    runQa: true,
+    writeDrafts: true,
     overwriteDraftLocales: false,
     fieldConfig: {
       fieldMode: "configured",
@@ -77,26 +46,40 @@ function createTestSession() {
 }
 
 describe("buildContentfulAgentTools", () => {
-  it("respects configured field allow-lists when listing translatable fields", async () => {
-    const session = createTestSession();
-    session.entry = entry as unknown as Record<string, unknown>;
-    session.contentType = contentType as unknown as Record<string, unknown>;
-
-    const tools = buildContentfulAgentTools(session);
-    const listTranslatableFields = tools.list_translatable_fields;
-
-    if (!listTranslatableFields?.execute) {
-      throw new Error("list_translatable_fields tool is missing execute");
-    }
-
-    const result = await listTranslatableFields.execute(
-      {},
-      { toolCallId: "test-tool-call", messages: [] },
+  it("exposes run_translation as the executor tool", async () => {
+    mocks.executeContentfulAutomation.mockResolvedValue(
+      ok({
+        runId: "run_123",
+        fieldsDetected: 2,
+        localeValuesWritten: 2,
+        qaFindingCount: 0,
+      }),
     );
 
+    const session = createTestSession();
+    const tools = buildContentfulAgentTools(session);
+    const runTranslation = tools[CONTENTFUL_TRANSLATION_EXECUTOR_TOOL_NAME];
+
+    if (!runTranslation?.execute) {
+      throw new Error("run_translation tool is missing execute");
+    }
+
+    const result = await runTranslation.execute({}, { toolCallId: "test-tool-call", messages: [] });
+
+    expect(mocks.executeContentfulAutomation).toHaveBeenCalledWith(
+      {
+        contentfulTranslationRunId: "run_123",
+        workspaceAutomationRunId: "workspace_run_123",
+        organizationId: "org_123",
+      },
+      { manageWorkspaceRunStatus: false },
+    );
     expect(result).toEqual({
-      count: 1,
-      fields: [{ fieldId: "body", kind: "text" }],
+      runId: "run_123",
+      fieldsDetected: 2,
+      localeValuesWritten: 2,
+      qaFindingCount: 0,
     });
+    expect(session.executionResult).toEqual(result);
   });
 });

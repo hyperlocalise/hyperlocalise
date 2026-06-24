@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import { createLogger } from "@/lib/log";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
   getWorkspaceAutomationById,
@@ -14,6 +15,8 @@ import { composeWorkspaceAutomationInstructions } from "./compose-workspace-inst
 import { createWorkspaceOrchestratorSession, type WorkspaceOrchestratorSession } from "./context";
 import { buildWorkspaceOrchestratorPlan } from "./plan";
 
+const logger = createLogger("workspace-orchestrator");
+
 export type WorkspaceOrchestratorExecutionError = {
   code:
     | "workspace_automation_not_found"
@@ -26,6 +29,8 @@ export type WorkspaceOrchestratorExecutionError = {
 export type WorkspaceOrchestratorExecutionSuccess = {
   runId: string;
   status: WorkspaceAutomationRunStatus;
+  planTools: string[];
+  stepResults: Record<string, unknown>;
 };
 
 function resolveTemplateSkillId(inputSnapshot: Record<string, unknown>) {
@@ -172,6 +177,8 @@ export async function runWorkspaceOrchestrator(input: {
     return ok({
       runId: run.id,
       status: "skipped",
+      planTools: plan.tools,
+      stepResults: {},
     });
   }
 
@@ -215,9 +222,23 @@ export async function runWorkspaceOrchestrator(input: {
       completedAt: new Date(),
     });
 
+    logger.info(
+      {
+        workspaceAutomationRunId: run.id,
+        organizationId: input.organizationId,
+        planTools: plan.tools,
+        terminalStatus,
+        stepResults: session.stepResults,
+        ...(session.terminalError ? { terminalError: session.terminalError } : {}),
+      },
+      "workspace orchestrator finished",
+    );
+
     return ok({
       runId: run.id,
       status: terminalStatus,
+      planTools: plan.tools,
+      stepResults: session.stepResults,
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "workspace_orchestrator_failed";

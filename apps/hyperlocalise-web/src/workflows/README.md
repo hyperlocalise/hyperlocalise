@@ -57,7 +57,7 @@ workspaceAutomationExecutionWorkflow
 runWorkspaceOrchestrator (ToolLoopAgent)
         |
         +-- run_github_workflows ----> githubRepositoryAutomationWorkflow (poll to terminal)
-        +-- run_contentful_translation -> runContentfulAgent (inline)
+        +-- run_contentful_translation -> runContentfulAgent -> run_translation tool (executor)
         +-- notify_slack
         `-- notify_email
 ```

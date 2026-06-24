@@ -3,6 +3,7 @@ import { z } from "zod";
 import { defineAgentTool } from "@/agents/_runtime/define-agent-tool";
 import { runContentfulAgent } from "@/agents/automations/contentful/agent/run-contentful-agent";
 import { createContentfulTranslationRun } from "@/lib/contentful/automation-executor";
+import { hasContentfulNoWriteback } from "@/lib/contentful/types";
 import { updateWorkspaceAutomationRun } from "@/lib/agents/workspace-automations";
 
 import type { WorkspaceOrchestratorSession } from "../context";
@@ -126,11 +127,43 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
         return failure;
       }
 
+      const noWriteback = hasContentfulNoWriteback({
+        writeDrafts: contentful.writeDrafts ?? true,
+        fieldsDetected: result.value.fieldsDetected,
+        localeValuesWritten: result.value.localeValuesWritten,
+      });
+
+      if (noWriteback) {
+        const message = "contentful_no_draft_writebacks";
+        session.terminalStatus = "failed";
+        session.terminalError = message;
+        await updateWorkspaceAutomationRun({
+          runId: session.run.id,
+          organizationId: session.organizationId,
+          status: "failed",
+          error: { message },
+          completedAt: new Date(),
+        });
+
+        const failure = {
+          contentfulTranslationRunId: translationRun.id,
+          status: "failed",
+          message,
+          fieldsDetected: result.value.fieldsDetected,
+          localeValuesWritten: result.value.localeValuesWritten,
+        };
+        session.stepResults.run_contentful_translation = failure;
+        return failure;
+      }
+
       session.terminalStatus = "succeeded";
       const success = {
         contentfulTranslationRunId: translationRun.id,
         status: "succeeded",
         runId: result.value.runId,
+        fieldsDetected: result.value.fieldsDetected,
+        localeValuesWritten: result.value.localeValuesWritten,
+        qaFindingCount: result.value.qaFindingCount,
       };
       session.stepResults.run_contentful_translation = success;
       return success;
