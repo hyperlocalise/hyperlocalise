@@ -689,6 +689,39 @@ func TestTasksService_Delete(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 }
 
+func TestTasksService_Add_EnterpriseVendorTaskCreateForm(t *testing.T) {
+	client, mux, teardown := setupClient()
+	defer teardown()
+
+	const path = "/api/v2/projects/1/tasks"
+	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		testMethod(t, r, http.MethodPost)
+		testURL(t, r, path)
+		testJSONBody(t, r, `{
+			"workflowStepId": 10,
+			"branchIds": [1, 2],
+			"title": "Vendor Task",
+			"languageId": "fr",
+			"dateFrom": "2023-08-23T09:04:29+00:00",
+			"dateTo": "2023-09-23T09:04:29+00:00"
+		}`)
+
+		fmt.Fprint(w, `{"data":{"id":2}}`)
+	})
+
+	req := &model.EnterpriseVendorTaskCreateForm{
+		WorkflowStepID: 10,
+		BranchIDs:      []int{1, 2},
+		Title:          "Vendor Task",
+		LanguageID:     "fr",
+		DateFrom:       "2023-08-23T09:04:29+00:00",
+		DateTo:         "2023-09-23T09:04:29+00:00",
+	}
+	task, _, err := client.Tasks.Add(context.Background(), 1, req)
+	require.NoError(t, err)
+	assert.Equal(t, 2, task.ID)
+}
+
 func TestTasksService_ListUserTasks(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -865,7 +898,7 @@ func TestTasksService_ExportStrings_NoStrings(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, resp.StatusCode)
 }
 
-func TestTasksService_GetSettingsTepmlate(t *testing.T) {
+func TestTasksService_GetSettingsTemplate(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 
@@ -913,7 +946,7 @@ func TestTasksService_GetSettingsTepmlate(t *testing.T) {
 	assert.Equal(t, expected, template)
 }
 
-func TestTasksService_ListSettingsTepmlates(t *testing.T) {
+func TestTasksService_ListSettingsTemplates(t *testing.T) {
 	tests := []struct {
 		name string
 		opts *model.ListOptions
@@ -1036,7 +1069,7 @@ func TestTasksService_ListSettingsTepmlates(t *testing.T) {
 	}
 }
 
-func TestTasksService_ListSettingsTepmlates_invalidJSON(t *testing.T) {
+func TestTasksService_ListSettingsTemplates_invalidJSON(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 
@@ -1049,7 +1082,7 @@ func TestTasksService_ListSettingsTepmlates_invalidJSON(t *testing.T) {
 	assert.Nil(t, res)
 }
 
-func TestTasksService_AddSettingsTepmlates(t *testing.T) {
+func TestTasksService_AddSettingsTemplates(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 
@@ -1110,7 +1143,7 @@ func TestTasksService_AddSettingsTepmlates(t *testing.T) {
 	assert.Equal(t, expected, template)
 }
 
-func TestTasksService_EditSettingsTepmlates(t *testing.T) {
+func TestTasksService_EditSettingsTemplates(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 
@@ -1166,7 +1199,7 @@ func TestTasksService_EditSettingsTepmlates(t *testing.T) {
 	assert.Equal(t, expected, template)
 }
 
-func TestTasksService_DeleteSettingsTepmlates(t *testing.T) {
+func TestTasksService_DeleteSettingsTemplates(t *testing.T) {
 	client, mux, teardown := setupClient()
 	defer teardown()
 

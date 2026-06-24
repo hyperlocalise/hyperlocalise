@@ -597,6 +597,8 @@ type (
 		Deadline string `json:"deadline,omitempty"`
 		// Task started date. Format: UTC, ISO 8601.
 		StartedAt string `json:"startedAt,omitempty"`
+		// Start date for interval when strings were modified. Format: UTC, ISO 8601.
+		DateFrom string `json:"dateFrom,omitempty"`
 		// End date for interval when strings were modified. Format: UTC, ISO 8601.
 		DateTo string `json:"dateTo,omitempty"`
 		// Fields for task.
