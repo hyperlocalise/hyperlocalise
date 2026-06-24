@@ -15,6 +15,11 @@ describe("hasContentfulNoWriteback", () => {
       expected: true,
     },
     {
+      name: "treats null writeDrafts as draft writing enabled",
+      input: { writeDrafts: null, fieldsDetected: 1, localeValuesWritten: 0 },
+      expected: true,
+    },
+    {
       name: "does not fail when draft writing is disabled",
       input: { writeDrafts: false, fieldsDetected: 1, localeValuesWritten: 0 },
       expected: false,

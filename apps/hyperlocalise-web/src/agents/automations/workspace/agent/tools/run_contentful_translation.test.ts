@@ -206,6 +206,7 @@ describe("createRunContentfulTranslationTool", () => {
       },
       { manageWorkspaceRunStatus: false },
     );
+    expect(mocks.updateWorkspaceAutomationRun).toHaveBeenCalledTimes(3);
     expect(mocks.updateWorkspaceAutomationRun).toHaveBeenLastCalledWith(
       expect.objectContaining({
         runId: "run-1",
