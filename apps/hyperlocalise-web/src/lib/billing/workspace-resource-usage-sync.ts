@@ -146,7 +146,7 @@ async function syncWorkspaceResourceFeatureUsage(input: {
       await tx
         .update(schema.workspaceResourceUsageSyncStates)
         .set({
-          status: "synced",
+          status: "up_to_date",
           lastSyncError: null,
           lastSyncedAt: new Date(),
         })
@@ -240,18 +240,17 @@ export async function syncWorkspaceResourceUsageToAutumn(input: {
     };
   }
 
-  const results = [];
-  for (const featureId of workspaceResourceFeatureIdValues()) {
-    results.push(
-      await syncWorkspaceResourceFeatureUsage({
+  const results = await Promise.all(
+    workspaceResourceFeatureIdValues().map((featureId) =>
+      syncWorkspaceResourceFeatureUsage({
         organizationId: input.organizationId,
         featureId,
         localUsage: localUsage[featureId],
         autumnApiKey,
         fetchFn: input.fetchFn ?? fetch,
       }),
-    );
-  }
+    ),
+  );
 
   return {
     status: results.some((result) => result.status === "failed")

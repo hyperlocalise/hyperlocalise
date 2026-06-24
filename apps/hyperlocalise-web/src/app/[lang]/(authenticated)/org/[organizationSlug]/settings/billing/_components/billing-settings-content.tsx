@@ -191,7 +191,10 @@ function ConfiguredBillingSettingsPanel({
         featureId,
         label: getUsageFeatureLabel(featureId),
         usageUnavailable:
-          isResourceFeature && (resourceUsageQuery.isLoading || resourceUsageQuery.isError),
+          isResourceFeature &&
+          (resourceUsageQuery.isLoading ||
+            resourceUsageQuery.isError ||
+            (!balance && resourceUsageQuery.isSuccess)),
         ...displayBalance,
       };
     });
