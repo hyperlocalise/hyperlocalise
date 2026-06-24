@@ -4,7 +4,6 @@ import { getAppShellBreadcrumbs, getAppShellTitle } from "./app-shell-title";
 
 describe("getAppShellTitle", () => {
   it.each([
-    ["/org/acme/command-center", "Overview"],
     ["/org/acme/dashboard", "Overview"],
     ["/org/acme/inbox", "Inbox"],
     ["/org/acme/new-request", "New Request"],

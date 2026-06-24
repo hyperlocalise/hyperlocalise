@@ -7,6 +7,7 @@ const {
   withAuthMock,
   resolveApiAuthContextFromSessionMock,
   getStoredActiveOrganizationSlugMock,
+  setStoredActiveOrganizationSlugMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
@@ -14,6 +15,7 @@ const {
   withAuthMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(),
   getStoredActiveOrganizationSlugMock: vi.fn(),
+  setStoredActiveOrganizationSlugMock: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -34,6 +36,7 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 
 vi.mock("@/lib/workos/active-organization", () => ({
   getStoredActiveOrganizationSlug: getStoredActiveOrganizationSlugMock,
+  setStoredActiveOrganizationSlug: setStoredActiveOrganizationSlugMock,
 }));
 
 describe("requireAppAuthContext", () => {
@@ -117,5 +120,29 @@ describe("requireAppAuthContext", () => {
       organizationSlug: undefined,
       session,
     });
+  });
+
+  it("preserves dashboard query params when redirecting a stale organization slug", async () => {
+    const session = {
+      user: { id: "user_123", email: "person@example.com" },
+      organizationId: null,
+    };
+    const { StaleOrganizationSlugError } = await import("@/api/auth/workos-session");
+
+    withAuthMock.mockResolvedValue(session);
+    getStoredActiveOrganizationSlugMock.mockResolvedValue("old-slug");
+    resolveApiAuthContextFromSessionMock.mockRejectedValue(
+      new StaleOrganizationSlugError("old-slug", "new-slug"),
+    );
+
+    const { getDefaultOrganizationDashboardPath } = await import("./app-auth");
+
+    await expect(
+      getDefaultOrganizationDashboardPath({
+        staleOrganizationRedirectSearch: "?error=oauth_callback",
+      }),
+    ).rejects.toThrow("redirect:/org/new-slug/dashboard?error=oauth_callback");
+    expect(setStoredActiveOrganizationSlugMock).toHaveBeenCalledWith("new-slug");
+    expect(redirectMock).toHaveBeenCalledWith("/org/new-slug/dashboard?error=oauth_callback");
   });
 });

@@ -18,9 +18,13 @@ export type AppAuthContext = ApiAuthContext & {
   sessionUser: NonNullable<Awaited<ReturnType<typeof withAuth>>["user"]>;
 };
 
-export async function requireAppAuthContext(
-  options: { organizationSlug?: string; ignoreStoredActiveOrganization?: boolean } = {},
-) {
+type RequireAppAuthContextOptions = {
+  organizationSlug?: string;
+  ignoreStoredActiveOrganization?: boolean;
+  staleOrganizationRedirectSearch?: string;
+};
+
+export async function requireAppAuthContext(options: RequireAppAuthContextOptions = {}) {
   const session = await withAuth({ ensureSignedIn: true });
 
   let auth: ApiAuthContext | null;
@@ -38,7 +42,9 @@ export async function requireAppAuthContext(
   } catch (error) {
     if (error instanceof StaleOrganizationSlugError) {
       await setStoredActiveOrganizationSlug(error.currentSlug);
-      redirect(`/org/${error.currentSlug}/dashboard`);
+      redirect(
+        `/org/${error.currentSlug}/dashboard${options.staleOrganizationRedirectSearch ?? ""}`,
+      );
     }
 
     if (error instanceof OrganizationSlugUnresolvableError) {
@@ -72,7 +78,7 @@ export async function requireAppAuthContext(
 
 export async function requireAppCapability(
   capability: OrganizationCapability,
-  options: { organizationSlug?: string; ignoreStoredActiveOrganization?: boolean } = {},
+  options: RequireAppAuthContextOptions = {},
 ) {
   const auth = await requireAppAuthContext(options);
 
@@ -83,8 +89,10 @@ export async function requireAppCapability(
   return auth;
 }
 
-export async function getDefaultOrganizationDashboardPath() {
-  const auth = await requireAppAuthContext();
+export async function getDefaultOrganizationDashboardPath(
+  options: RequireAppAuthContextOptions = {},
+) {
+  const auth = await requireAppAuthContext(options);
   const organizationSlug = auth.activeOrganization.slug;
 
   if (!organizationSlug) {
