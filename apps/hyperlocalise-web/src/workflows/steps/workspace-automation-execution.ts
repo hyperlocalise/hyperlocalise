@@ -4,13 +4,22 @@ import type {
   WorkspaceOrchestratorExecutionError,
   WorkspaceOrchestratorExecutionSuccess,
 } from "@/agents/automations/workspace/agent/run-workspace-orchestrator";
-import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const logger = createLogger("workspace-automation-step");
 
+export type WorkspaceAutomationStepResult =
+  | {
+      ok: true;
+      value: WorkspaceOrchestratorExecutionSuccess;
+    }
+  | {
+      ok: false;
+      error: WorkspaceOrchestratorExecutionError;
+    };
+
 export async function executeWorkspaceAutomationStep(
   event: WorkspaceAutomationExecutionEventData,
-): Promise<Result<WorkspaceOrchestratorExecutionSuccess, WorkspaceOrchestratorExecutionError>> {
+): Promise<WorkspaceAutomationStepResult> {
   "use step";
 
   const stepContext = {
@@ -34,21 +43,24 @@ export async function executeWorkspaceAutomationStep(
         { ...stepContext, message: result.error.message },
         "workspace automation orchestrator step completed with execution error",
       );
-      return err(result.error);
+      return { ok: false, error: result.error };
     }
 
     logger.info(
       { ...stepContext, status: result.value.status },
       "workspace automation orchestrator step completed successfully",
     );
-    return ok(result.value);
+    return { ok: true, value: result.value };
   } catch (error) {
     const message = error instanceof Error ? error.message : "workspace_orchestrator_step_failed";
     logger.error({ ...stepContext, message }, "workspace automation orchestrator step threw");
-    return err({
-      code: "workspace_orchestrator_failed",
-      message,
-      runId: event.workspaceAutomationRunId,
-    });
+    return {
+      ok: false,
+      error: {
+        code: "workspace_orchestrator_failed",
+        message,
+        runId: event.workspaceAutomationRunId,
+      },
+    };
   }
 }
