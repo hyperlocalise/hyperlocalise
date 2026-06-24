@@ -279,9 +279,13 @@ export function applyWorkspaceAutomationProjectSelection(
     if (project) {
       next.contentfulSourceLocale = project.sourceLocale ?? form.contentfulSourceLocale;
       next.contentfulTargetLocales =
-        project.targetLocales.length > 0 && form.contentfulTargetLocales.length === 0
-          ? [...project.targetLocales]
-          : form.contentfulTargetLocales.filter((locale) => project.targetLocales.includes(locale));
+        project.targetLocales.length === 0
+          ? form.contentfulTargetLocales
+          : form.contentfulTargetLocales.length === 0
+            ? [...project.targetLocales]
+            : form.contentfulTargetLocales.filter((locale) =>
+                project.targetLocales.includes(locale),
+              );
     }
   }
 

@@ -101,7 +101,16 @@ export function AutomationDetailPageContent({
       setHasLocalEdits(false);
       setErrors({});
       toast.success("Automation updated");
-      queryClient.setQueryData(["workspace-automation", organizationSlug, automationId], data);
+      queryClient.setQueryData(
+        ["workspace-automation", organizationSlug, automationId],
+        (previous: { automation: typeof data.automation; recentRuns: unknown[] } | undefined) => ({
+          automation: data.automation,
+          recentRuns:
+            "recentRuns" in data && Array.isArray(data.recentRuns)
+              ? data.recentRuns
+              : (previous?.recentRuns ?? []),
+        }),
+      );
       void queryClient.invalidateQueries({
         queryKey: ["workspace-automations", organizationSlug],
       });

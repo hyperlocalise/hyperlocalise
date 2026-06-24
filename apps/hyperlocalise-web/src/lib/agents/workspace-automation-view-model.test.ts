@@ -258,6 +258,22 @@ describe("workspace automation view model", () => {
     );
   });
 
+  it("preserves Contentful target locales when the selected project has none configured", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      contentfulEnabled: true,
+      contentfulConnectionId: "11111111-1111-4111-8111-111111111111",
+      contentfulTargetLocales: ["fr-FR", "de-DE"],
+    };
+
+    const next = applyWorkspaceAutomationProjectSelection(form, "project-1", {
+      sourceLocale: "en",
+      targetLocales: [],
+    });
+
+    expect(next.contentfulTargetLocales).toEqual(["fr-FR", "de-DE"]);
+  });
+
   it("resolves the header project from Contentful settings", () => {
     const form = {
       ...createDefaultWorkspaceAutomationFormState(),
