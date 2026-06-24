@@ -2,8 +2,8 @@ import "dotenv/config";
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-const { resolveApiAuthContextFromSessionMock, syncWorkspaceResourceUsageToAutumnMock } =
-  vi.hoisted(() => ({
+const { resolveApiAuthContextFromSessionMock, syncWorkspaceResourceUsageToAutumnMock } = vi.hoisted(
+  () => ({
     resolveApiAuthContextFromSessionMock: vi.fn(
       (options) =>
         globalThis.__resolveTestApiAuthContextFromSession?.(options) ??
@@ -11,7 +11,8 @@ const { resolveApiAuthContextFromSessionMock, syncWorkspaceResourceUsageToAutumn
         null,
     ),
     syncWorkspaceResourceUsageToAutumnMock: vi.fn(),
-  }));
+  }),
+);
 
 vi.mock("@/api/auth/workos-session", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/api/auth/workos-session")>();

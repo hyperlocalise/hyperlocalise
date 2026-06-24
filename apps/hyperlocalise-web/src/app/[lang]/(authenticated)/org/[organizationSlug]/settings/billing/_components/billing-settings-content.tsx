@@ -148,11 +148,11 @@ function ConfiguredBillingSettingsPanel({
   const resourceUsageQuery = useQuery({
     queryKey: ["billing-resource-usage", organizationSlug],
     queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].billing[
-        "resource-usage"
-      ].$get({
-        param: { organizationSlug },
-      });
+      const response = await apiClient.api.orgs[":organizationSlug"].billing["resource-usage"].$get(
+        {
+          param: { organizationSlug },
+        },
+      );
       if (!response.ok) {
         throw new Error("Failed to load workspace resource usage");
       }
