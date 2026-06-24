@@ -53,9 +53,7 @@ export async function requireWorkspaceFeatureFlag(
 
   const organizationSlug = auth.activeOrganization.slug;
   if (organizationSlug) {
-    redirect(
-      `/org/${organizationSlug}/command-center?reason=${WORKSPACE_FEATURE_UNAVAILABLE_REASON}`,
-    );
+    redirect(`/org/${organizationSlug}/dashboard?reason=${WORKSPACE_FEATURE_UNAVAILABLE_REASON}`);
   }
 
   redirect("/auth/select-organization");

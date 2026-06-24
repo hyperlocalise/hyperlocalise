@@ -5,7 +5,6 @@ const ROUTE_TITLES = {
   "api-keys": "API Keys",
   billing: "Billing",
   chat: "New Request",
-  "command-center": "Overview",
   dashboard: "Overview",
   files: "Files",
   glossaries: "Glossaries",
@@ -95,7 +94,7 @@ export function getAppShellBreadcrumbs(
 ): AppShellBreadcrumb[] {
   const orgRoute = parseOrgRoute(pathname);
   if (!orgRoute) {
-    return [{ label: ROUTE_TITLES["command-center"] }];
+    return [{ label: ROUTE_TITLES.dashboard }];
   }
 
   const { organizationSlug, routeSegments } = orgRoute;
@@ -154,10 +153,10 @@ export function getAppShellBreadcrumbs(
     return [{ label: ROUTE_TITLES[section] }];
   }
 
-  return [{ label: ROUTE_TITLES["command-center"] }];
+  return [{ label: ROUTE_TITLES.dashboard }];
 }
 
 export function getAppShellTitle(pathname: string | null): string {
   const breadcrumbs = getAppShellBreadcrumbs(pathname);
-  return breadcrumbs[breadcrumbs.length - 1]?.label ?? ROUTE_TITLES["command-center"];
+  return breadcrumbs[breadcrumbs.length - 1]?.label ?? ROUTE_TITLES.dashboard;
 }

@@ -71,7 +71,7 @@ export function buildGlobalNavigationGroups(organizationSlug: string): readonly 
         },
         {
           label: "Overview",
-          href: org("command-center"),
+          href: org("dashboard"),
           icon: DashboardSquare01Icon,
         },
         {
@@ -229,13 +229,6 @@ export function isNavigationItemActive(
   }
 
   if (normalizedPathname.startsWith(`${itemPathname}/`)) {
-    return true;
-  }
-
-  if (
-    itemPathname.endsWith("/command-center") &&
-    normalizedPathname.startsWith(itemPathname.replace("command-center", "dashboard"))
-  ) {
     return true;
   }
 
