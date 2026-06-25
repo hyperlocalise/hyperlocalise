@@ -54,6 +54,15 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 	sourceLanguage, _ := root["sourceLanguage"].(string)
 	sourceLanguage = strings.TrimSpace(sourceLanguage)
 	sourceMode := strings.TrimSpace(locale) == ""
+	targetLocale := strings.TrimSpace(locale)
+	if !sourceMode {
+		if resolved, ok := resolveXCStringsLocalizationKey(
+			targetLocale,
+			collectXCStringsCatalogLocales(stringsNode),
+		); ok {
+			targetLocale = resolved
+		}
+	}
 
 	out := map[string]string{}
 	contextByKey := map[string]string{}
@@ -96,12 +105,12 @@ func parseXCStringsCatalog(content []byte, locale string) (map[string]string, ma
 		if !ok {
 			continue
 		}
-		locRaw, ok := locs[locale]
+		locRaw, ok := locs[targetLocale]
 		if !ok {
 			continue
 		}
 		// BOLT OPTIMIZATION: Use string concatenation instead of fmt.Sprintf
-		loc, err := xcstringsObjectValue(locRaw, "strings."+key+".localizations."+locale)
+		loc, err := xcstringsObjectValue(locRaw, "strings."+key+".localizations."+targetLocale)
 		if err != nil {
 			return nil, nil, err
 		}
