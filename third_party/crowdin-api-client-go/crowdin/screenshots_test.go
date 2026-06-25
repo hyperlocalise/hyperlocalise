@@ -61,6 +61,7 @@ func TestScreenshotsService_GetScreenshot(t *testing.T) {
 	expected := &model.Screenshot{
 		ID:     2,
 		UserID: 6,
+		URL:    "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
 		WebURL: "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
 		Name:   "translate_with_siri.jpg",
 		Size: struct {

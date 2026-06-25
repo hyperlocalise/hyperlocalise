@@ -11,6 +11,7 @@ import (
 type Screenshot struct {
 	ID     int    `json:"id"`
 	UserID int    `json:"userId"`
+	URL    string `json:"url"`
 	WebURL string `json:"webUrl"`
 	Name   string `json:"name"`
 	Size   struct {
