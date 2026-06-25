@@ -132,7 +132,6 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 	return out, nil
 }
 
-
 func (p *astParser) parseArgumentLike(ctx parseCtx) (Element, error) {
 	if !p.consume('{') {
 		return nil, fmt.Errorf("expected '{' at %d", p.pos)
@@ -593,8 +592,6 @@ func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, 
 	}
 	return nil, fmt.Errorf("unclosed tag %q", name)
 }
-
-
 
 func (p *astParser) startsQuotedLiteral() bool {
 	if p.pos >= len(p.src) || p.src[p.pos] != '\'' || p.pos+1 >= len(p.src) {
