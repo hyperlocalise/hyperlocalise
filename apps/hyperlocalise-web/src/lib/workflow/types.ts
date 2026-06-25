@@ -125,3 +125,14 @@ export type SourceFileIngestEventData = {
 };
 
 export type SourceFileIngestQueue = JobQueue<SourceFileIngestEventData>;
+
+export type TranslationFileImportEventData = {
+  organizationId: string;
+  projectId: string;
+  storedFileId: string;
+  sourcePath: string;
+  targetLocale: string;
+  actorUserId?: string | null;
+};
+
+export type TranslationFileImportQueue = JobQueue<TranslationFileImportEventData>;

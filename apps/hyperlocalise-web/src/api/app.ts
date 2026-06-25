@@ -11,6 +11,7 @@ import type {
   ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
+  TranslationFileImportQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 import { handleUnexpectedError, notFoundHandler } from "./errors";
@@ -74,6 +75,7 @@ type CreateAppOptions = {
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
   providerSyncQueue?: ProviderSyncQueue;
   fileStorageAdapter?: FileStorageAdapter;
+  translationFileImportQueue?: TranslationFileImportQueue;
 };
 
 export function createApp(options: CreateAppOptions = {}) {
