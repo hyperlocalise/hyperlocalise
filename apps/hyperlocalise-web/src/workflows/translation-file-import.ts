@@ -1,14 +1,16 @@
 import type { TranslationFileImportEventData } from "@/lib/workflow/types";
 import {
   createSourceIngestSandboxStep,
-  extractSourceIngestEntriesStep,
   getStoredFileMetadataStep,
   prepareSourceIngestSandboxStep,
   stopSourceIngestSandboxStep,
   writeSourceIngestFileStep,
 } from "./steps/source-file-ingest";
 import { getStoredFileContentStep } from "./steps/translation-job";
-import { importTranslationsFromEntriesStep } from "./steps/translation-file-import";
+import {
+  extractTranslationImportEntriesStep,
+  importTranslationsFromEntriesStep,
+} from "./steps/translation-file-import";
 
 function sanitizeSandboxFilename(filename: string): string {
   return filename.replace(/[^a-zA-Z0-9._-]/g, "_");
@@ -39,7 +41,11 @@ export async function translationFileImportWorkflow(event: TranslationFileImport
     await prepareSourceIngestSandboxStep(sandboxId);
     await writeSourceIngestFileStep(sandboxId, inputFilename, content);
 
-    const entries = await extractSourceIngestEntriesStep(sandboxId, inputFilename);
+    const entries = await extractTranslationImportEntriesStep({
+      sandboxId,
+      filePath: inputFilename,
+      targetLocale: event.targetLocale,
+    });
 
     const result = await importTranslationsFromEntriesStep({
       organizationId: event.organizationId,

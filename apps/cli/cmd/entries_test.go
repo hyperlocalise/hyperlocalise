@@ -32,3 +32,49 @@ func TestEntriesCommandOutputsParsedEntries(t *testing.T) {
 		t.Fatalf("unexpected payload: %+v", payload)
 	}
 }
+
+func TestEntriesCommandUsesLocaleForXCStrings(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "Localizable.xcstrings")
+	content := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hello"
+          }
+        },
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bonjour"
+          }
+        }
+      }
+    }
+  }
+}`)
+	if err := os.WriteFile(path, content, 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	root := newRootCmd("test")
+	out := bytes.NewBuffer(nil)
+	root.SetOut(out)
+	root.SetErr(out)
+	root.SetArgs([]string{"entries", path, "--locale", "fr"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("execute entries: %v", err)
+	}
+
+	var payload map[string]string
+	if err := json.Unmarshal(out.Bytes(), &payload); err != nil {
+		t.Fatalf("decode output: %v", err)
+	}
+	if payload["hello"] != "Bonjour" {
+		t.Fatalf("expected French target locale value, got %+v", payload)
+	}
+}

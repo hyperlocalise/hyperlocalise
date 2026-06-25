@@ -295,11 +295,14 @@ export async function writeCrowdinFileSandboxConfig(input: {
 export async function extractSandboxEntries(
   sandboxId: string,
   path: string,
+  options?: { locale?: string },
 ): Promise<Record<string, string> | null> {
+  const locale = options?.locale?.trim();
+  const localeFlag = locale ? ` --locale ${shellQuote(locale)}` : "";
   const result = await runSandboxCommand(
     sandboxId,
     "bash",
-    ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries ${shellQuote(path)}`],
+    ["-lc", `export PATH="$HOME/.local/bin:$PATH"; hl entries ${shellQuote(path)}${localeFlag}`],
     { env: getSandboxTranslationEnv(), output: "stdout" },
   );
   if (result.exitCode !== 0) {

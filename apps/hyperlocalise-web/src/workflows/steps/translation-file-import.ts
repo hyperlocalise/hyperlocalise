@@ -1,3 +1,19 @@
+export async function extractTranslationImportEntriesStep(input: {
+  sandboxId: string;
+  filePath: string;
+  targetLocale: string;
+}) {
+  "use step";
+  const { extractSandboxEntries } = await import("@/lib/translation/sandbox-translation");
+  const entries = await extractSandboxEntries(input.sandboxId, input.filePath, {
+    locale: input.targetLocale,
+  });
+  if (!entries) {
+    throw new Error(`failed to extract entries for ${input.filePath}`);
+  }
+  return entries;
+}
+
 export async function importTranslationsFromEntriesStep(input: {
   organizationId: string;
   projectId: string;
