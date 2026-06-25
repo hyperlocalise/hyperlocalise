@@ -102,6 +102,32 @@ msgstr "value2"
 	}
 }
 
+func TestPOParserUnknownFieldDoesNotLeakContinuation(t *testing.T) {
+	// Continuation lines (quoted strings) following an unknown or ignored field
+	// MUST NOT be appended to the previous valid active field (like msgstr).
+	content := `msgid "key"
+msgstr "value"
+unknown "ignored"
+" leaked"
+
+msgid "next"
+msgstr "val"
+`
+	got, err := (POFileParser{}).Parse([]byte(content))
+	if err != nil {
+		t.Fatalf("Parse() error = %v", err)
+	}
+
+	expected := map[string]string{
+		"key":  "value",
+		"next": "val",
+	}
+
+	if !reflect.DeepEqual(got, expected) {
+		t.Errorf("got %v, want %v", got, expected)
+	}
+}
+
 func TestPOParserMsgctxtWithDuplicateMsgidCollidesByMsgid(t *testing.T) {
 	content := []byte(`msgctxt "nav"
 msgid "home"
