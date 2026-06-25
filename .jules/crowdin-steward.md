@@ -185,3 +185,9 @@
 **Learning:** The Crowdin Enterprise API v2 supports `dateFrom` in `EnterpriseVendorTaskCreateForm`, but it was missing from the SDK model. Additionally, several test function names in `tasks_test.go` contained typos (e.g., "Tepmlate").
 
 **Action:** Added `DateFrom` string field to `EnterpriseVendorTaskCreateForm` in `model/tasks.go`. Corrected "Tepmlate" to "Template" and "Tepmlates" to "Templates" in `tasks_test.go`. Added `TestTasksService_Add_EnterpriseVendorTaskCreateForm` to verify parity.
+
+## 2026-10-17 - Improve Screenshot model parity for URL field
+
+**Learning:** The Crowdin Screenshots API v2 returns a `url` field in its response, which is used to download the screenshot. While the `webUrl` field was already present, the `url` field was missing from the `Screenshot` model, leading to incomplete parsing of API responses.
+
+**Action:** Added the `URL` field to the `Screenshot` struct in `model/screenshot.go`. Updated the `TestScreenshotsService_GetScreenshot` and label-related tests in `labels_test.go` to include the `URL` field in expected results, ensuring documentation parity and correct unmarshaling. Verified with `go test` in the fork.
