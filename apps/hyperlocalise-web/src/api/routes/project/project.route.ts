@@ -1377,6 +1377,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             actorUserId: c.var.auth.user.localUserId,
           });
         } catch (error) {
+          await db
+            .delete(schema.storedFiles)
+            .where(eq(schema.storedFiles.id, storedFile.id))
+            .catch(() => undefined);
           await adapter.delete({ keyOrUrl: storedFile.storageKey }).catch(() => undefined);
           throw error;
         }
