@@ -19,6 +19,7 @@ import type {
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
   SourceFileIngestQueue,
+  TranslationFileImportQueue,
   WorkspaceAutomationExecutionQueue,
   RepositoryAgentTaskQueue,
 } from "@/lib/workflow/types";
@@ -126,6 +127,16 @@ export function createSourceFileIngestQueue(): SourceFileIngestQueue {
     async enqueue(event) {
       const { sourceFileIngestWorkflow } = await import("@/workflows/source-file-ingest");
       const run = await start(sourceFileIngestWorkflow, [event]);
+      return { ids: [run.runId] };
+    },
+  };
+}
+
+export function createTranslationFileImportQueue(): TranslationFileImportQueue {
+  return {
+    async enqueue(event) {
+      const { translationFileImportWorkflow } = await import("@/workflows/translation-file-import");
+      const run = await start(translationFileImportWorkflow, [event]);
       return { ids: [run.runId] };
     },
   };

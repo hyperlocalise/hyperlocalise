@@ -4,7 +4,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Download01Icon, TranslateIcon } from "@hugeicons/core-free-icons";
+import { Download01Icon, TranslateIcon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import type {
@@ -22,6 +22,7 @@ import { parseSourceStringsFromFileContent } from "@/lib/projects/files/project-
 import { cn } from "@/lib/primitives/cn";
 import { formatBytes } from "./project-files-shared";
 import { CreateTranslationJobDialog } from "./create-translation-job-dialog";
+import { ImportTranslationsDialog } from "./import-translations-dialog";
 import { ProjectFileSourceStringsPreview } from "./project-file-source-strings-preview";
 import {
   countReadyLocales,
@@ -224,6 +225,7 @@ export function ProjectFileDetailPanelView({
   renderSourceStringsPreview?: ProjectFileSourceStringsPreviewRenderer;
 }) {
   const [translateDialogOpen, setTranslateDialogOpen] = useState(false);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
   const sourcePath = file?.sourcePath ?? null;
 
   if (!file || !sourcePath) {
@@ -311,6 +313,16 @@ export function ProjectFileDetailPanelView({
         sourceLocale={sourceLocale}
         targetLocales={targetLocales}
       />
+      {!provider ? (
+        <ImportTranslationsDialog
+          open={importDialogOpen}
+          onOpenChange={setImportDialogOpen}
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          sourcePath={sourcePath}
+          targetLocales={targetLocales}
+        />
+      ) : null}
       <header className="space-y-2 border-b border-border pb-4">
         <TypographyP className="font-mono text-sm font-medium text-foreground">
           {sourcePath}
@@ -365,6 +377,15 @@ export function ProjectFileDetailPanelView({
             <Button type="button" size="sm" onClick={() => setTranslateDialogOpen(true)}>
               <HugeiconsIcon icon={TranslateIcon} strokeWidth={1.8} />
               Translate
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => setImportDialogOpen(true)}
+            >
+              <HugeiconsIcon icon={Upload01Icon} strokeWidth={1.8} />
+              Import translations
             </Button>
             {downloadableLocales.length > 0 ? (
               downloadableLocales.map((locale) => (

@@ -280,6 +280,11 @@ export const projectFileUploadBodySchema = z.object({
   workflowRunId: z.string().trim().min(1).max(256).optional(),
 });
 
+export const projectFileTranslationImportBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  locale: z.string().trim().min(1).max(32),
+});
+
 export const projectSourceStringEntrySchema = z.object({
   key: z.string(),
   text: z.string(),

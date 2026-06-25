@@ -718,6 +718,121 @@ export class ProjectTranslationService extends ProjectServiceBase {
         },
       });
   }
+
+  /**
+   * Migrates already-translated entries into a target locale, matching them to
+   * existing source keys for the given file. Imported translations are stored as
+   * approved (provenance: import) and overwrite any existing translation for the
+   * key/locale pair, since the caller is explicitly importing known-good content.
+   */
+  async importApprovedTranslationsFromEntries(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    targetLocale: string;
+    entries: Record<string, string>;
+    actorUserId?: string | null;
+  }): Promise<{ matched: number; imported: number; skipped: number }> {
+    const entryKeys = Object.keys(input.entries);
+    if (entryKeys.length === 0) {
+      return { matched: 0, imported: 0, skipped: 0 };
+    }
+
+    const [sourceFile] = await this.database
+      .select({ id: schema.repositorySourceFiles.id })
+      .from(schema.repositorySourceFiles)
+      .where(
+        and(
+          eq(schema.repositorySourceFiles.organizationId, input.organizationId),
+          eq(schema.repositorySourceFiles.projectId, input.projectId),
+          eq(schema.repositorySourceFiles.sourcePath, input.sourcePath),
+        ),
+      )
+      .limit(1);
+
+    if (!sourceFile) {
+      return { matched: 0, imported: 0, skipped: entryKeys.length };
+    }
+
+    const keys = await this.database
+      .select({
+        id: schema.projectTranslationKeys.id,
+        key: schema.projectTranslationKeys.key,
+      })
+      .from(schema.projectTranslationKeys)
+      .where(
+        and(
+          eq(schema.projectTranslationKeys.projectId, input.projectId),
+          eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
+          inArray(schema.projectTranslationKeys.key, entryKeys),
+        ),
+      );
+
+    const reviewedAt = new Date();
+    const reviewedByUserId = input.actorUserId ?? null;
+
+    const translationValues = keys.flatMap((key) => {
+      const text = input.entries[key.key];
+      if (!text?.trim()) {
+        return [];
+      }
+
+      return [
+        {
+          organizationId: input.organizationId,
+          projectId: input.projectId,
+          translationKeyId: key.id,
+          targetLocale: input.targetLocale,
+          text,
+          status: "approved" as const,
+          provenance: "import" as const,
+          reviewedAt,
+          reviewedByUserId,
+        },
+      ];
+    });
+
+    const matched = keys.length;
+    const imported = translationValues.length;
+    const skipped = entryKeys.length - imported;
+
+    if (translationValues.length === 0) {
+      return { matched, imported, skipped };
+    }
+
+    await this.database
+      .insert(schema.projectTranslations)
+      .values(translationValues)
+      .onConflictDoUpdate({
+        target: [
+          schema.projectTranslations.translationKeyId,
+          schema.projectTranslations.targetLocale,
+        ],
+        set: {
+          text: sql`excluded.text`,
+          status: sql`excluded.status`,
+          provenance: sql`excluded.provenance`,
+          sourceJobId: sql`NULL`,
+          reviewedAt: sql`excluded.reviewed_at`,
+          reviewedByUserId: sql`excluded.reviewed_by_user_id`,
+          updatedAt: sql`now()`,
+        },
+      });
+
+    this.log.info(
+      {
+        organizationId: input.organizationId,
+        projectId: input.projectId,
+        targetLocale: input.targetLocale,
+        matched,
+        imported,
+        skipped,
+      },
+      "imported approved project translations",
+    );
+
+    return { matched, imported, skipped };
+  }
 }
 
 export const projectTranslationService = new ProjectTranslationService();
@@ -757,3 +872,7 @@ export const persistStringJobTranslations = (
 export const persistFileJobTranslations = (
   input: Parameters<ProjectTranslationService["persistFileJobTranslations"]>[0],
 ) => projectTranslationService.persistFileJobTranslations(input);
+
+export const importApprovedProjectTranslationsFromEntries = (
+  input: Parameters<ProjectTranslationService["importApprovedTranslationsFromEntries"]>[0],
+) => projectTranslationService.importApprovedTranslationsFromEntries(input);

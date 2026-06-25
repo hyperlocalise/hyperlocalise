@@ -52,8 +52,17 @@ import {
   loadProjectTranslationsAsPrefilledEntries,
 } from "@/lib/projects/translations/project-translation-service";
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
-import type { JobQueue, ProviderSyncQueue, TranslationJobEventData } from "@/lib/workflow/types";
-import { createProviderSyncQueue, createTranslationJobEventQueue } from "@/workflows/adapters";
+import type {
+  JobQueue,
+  ProviderSyncQueue,
+  TranslationFileImportQueue,
+  TranslationJobEventData,
+} from "@/lib/workflow/types";
+import {
+  createProviderSyncQueue,
+  createTranslationFileImportQueue,
+  createTranslationJobEventQueue,
+} from "@/workflows/adapters";
 
 import {
   createProjectBodySchema,
@@ -68,6 +77,7 @@ import {
   projectFileDetailQuerySchema,
   projectFileStringContextBodySchema,
   projectFileUploadBodySchema,
+  projectFileTranslationImportBodySchema,
   projectFileTranslationDownloadQuerySchema,
   projectFilesQuerySchema,
   projectIdParamsSchema,
@@ -488,11 +498,14 @@ type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
   providerSyncQueue?: ProviderSyncQueue;
   fileStorageAdapter?: FileStorageAdapter;
+  translationFileImportQueue?: TranslationFileImportQueue;
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
   const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
+  const translationFileImportQueue =
+    options.translationFileImportQueue ?? createTranslationFileImportQueue();
 
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
@@ -1266,6 +1279,121 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             },
           },
           201,
+        );
+      },
+    )
+    .post(
+      "/:projectId/files/translations/import",
+      validateProjectParams,
+      bodyLimit({
+        maxSize: maxProjectFileUploadBytes,
+        onError: (c) => badRequestResponse(c, "file_upload_too_large", "File upload is too large"),
+      }),
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind === "provider") {
+          return badRequestResponse(
+            c,
+            "provider_import_unsupported",
+            "Translation imports are only available for workspace files.",
+          );
+        }
+
+        const project = await getOwnedProjectRecord(c.var.auth, params.projectId);
+        if (!project) {
+          return projectNotFoundResponse(c);
+        }
+
+        const body = await c.req.parseBody({ all: true });
+        const parsed = projectFileTranslationImportBodySchema.safeParse({
+          sourcePath: asString(body.sourcePath),
+          locale: asString(body.locale),
+        });
+
+        if (!parsed.success) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        const file = asFile(body.file);
+        if (!file) {
+          return invalidProjectPayloadResponse(c);
+        }
+
+        if (!inferSupportedFileTranslationFileFormat(parsed.data.sourcePath)) {
+          return unsupportedProjectFileResponse(c, parsed.data.sourcePath);
+        }
+
+        if (!project.targetLocales.includes(parsed.data.locale)) {
+          return badRequestResponse(
+            c,
+            "invalid_target_locale",
+            "Locale is not a target locale of this project.",
+          );
+        }
+
+        const sourceFile = await getRepositorySourceFileByPath({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          sourcePath: parsed.data.sourcePath,
+        });
+        if (!sourceFile) {
+          return notFoundResponse(c, "source_file_not_found", "Source file not found");
+        }
+
+        const adapter = options.fileStorageAdapter ?? getFileStorageAdapter();
+        const storedFile = await createStoredFile({
+          organizationId: c.var.auth.organization.localOrganizationId,
+          projectId: params.projectId,
+          createdByUserId: c.var.auth.user.localUserId,
+          role: "reference",
+          sourceKind: "tms_file",
+          filename: file.name,
+          contentType: file.type || sourceContentType(parsed.data.sourcePath),
+          content: await file.arrayBuffer(),
+          metadata: {
+            sourcePath: parsed.data.sourcePath,
+            targetLocale: parsed.data.locale,
+            uploadSurface: "files_page_translation_import",
+          },
+          adapter,
+        });
+
+        try {
+          await translationFileImportQueue.enqueue({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            storedFileId: storedFile.id,
+            sourcePath: parsed.data.sourcePath,
+            targetLocale: parsed.data.locale,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+        } catch (error) {
+          await db
+            .delete(schema.storedFiles)
+            .where(eq(schema.storedFiles.id, storedFile.id))
+            .catch(() => undefined);
+          await adapter.delete({ keyOrUrl: storedFile.storageKey }).catch(() => undefined);
+          throw error;
+        }
+
+        return c.json(
+          {
+            import: {
+              status: "queued" as const,
+              sourcePath: parsed.data.sourcePath,
+              locale: parsed.data.locale,
+            },
+          },
+          200,
         );
       },
     )
