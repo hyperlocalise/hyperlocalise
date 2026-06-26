@@ -34,40 +34,94 @@ type astParser struct {
 }
 
 func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, error) {
-	var out []Element
+	// BOLT OPTIMIZATION: Initial capacity hint to minimize re-allocations.
+	out := make([]Element, 0, 4)
 	var text strings.Builder
+	// BOLT OPTIMIZATION: Track lastPos to allow slicing p.src for literal text
+	// when no unescaping is required, avoiding strings.Builder overhead.
+	lastPos := p.pos
 
 	flushText := func() {
-		if text.Len() == 0 {
-			return
+		if text.Len() > 0 {
+			if p.pos > lastPos {
+				text.WriteString(p.src[lastPos:p.pos])
+			}
+			out = append(out, LiteralElement{Value: text.String()})
+			text.Reset()
+			lastPos = p.pos
+		} else if p.pos > lastPos {
+			out = append(out, LiteralElement{Value: p.src[lastPos:p.pos]})
+			lastPos = p.pos
 		}
-		out = append(out, LiteralElement{Value: text.String()})
-		text.Reset()
 	}
 
 	for p.pos < len(p.src) {
 		// BOLT OPTIMIZATION: Literal text chunking using strings.IndexAny to skip
-		// ahead to the next special character. This avoids byte-by-byte iteration
-		// and multiple handleMessageChar calls for plain text.
-		// We must stop at '}' as well to correctly handle nested structures
-		// when untilBrace is true, or to report an error otherwise.
+		// ahead to the next special character.
 		idx := strings.IndexAny(p.src[p.pos:], "{#<}'}")
 		if idx == -1 {
-			text.WriteString(p.src[p.pos:])
 			p.pos = len(p.src)
 			break
 		}
-		if idx > 0 {
-			text.WriteString(p.src[p.pos : p.pos+idx])
-			p.pos += idx
-		}
+		p.pos += idx
 
-		stop, err := p.handleMessageChar(&out, &text, ctx, untilBrace, flushText)
-		if err != nil {
-			return nil, err
-		}
-		if stop {
+		switch p.src[p.pos] {
+		case '{':
+			flushText()
+			el, err := p.parseArgumentLike(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, el)
+			lastPos = p.pos
+		case '}':
+			if !untilBrace {
+				return nil, fmt.Errorf("unexpected closing brace at %d", p.pos)
+			}
+			flushText()
 			return out, nil
+		case '#':
+			if !ctx.inPlural {
+				// Hash in non-plural context is just text.
+				p.pos++
+			} else {
+				flushText()
+				out = append(out, PoundElement{})
+				p.pos++
+				lastPos = p.pos
+			}
+		case '<':
+			if p.opts.IgnoreTag {
+				p.pos++
+			} else {
+				flushText()
+				tag, ok, err := p.tryParseTag(ctx)
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					out = append(out, tag)
+					lastPos = p.pos
+				} else {
+					p.pos++
+				}
+			}
+		case '\'':
+			if p.startsQuotedLiteral() {
+				// Quoted literal starts; we need the builder to unescape it.
+				// First, flush any pending pure literal text into the builder.
+				if p.pos > lastPos {
+					text.WriteString(p.src[lastPos:p.pos])
+				}
+				p.consumeQuotedInto(&text)
+				lastPos = p.pos
+			} else {
+				// Lone apostrophe is just text.
+				p.pos++
+			}
+		default:
+			// Should not be reached due to IndexAny, but for safety:
+			p.pos++
 		}
 	}
 
@@ -76,83 +130,6 @@ func (p *astParser) parseMessage(ctx parseCtx, untilBrace bool) ([]Element, erro
 		return nil, fmt.Errorf("unclosed brace at %d", p.pos)
 	}
 	return out, nil
-}
-
-func (p *astParser) handleMessageChar(out *[]Element, text *strings.Builder, ctx parseCtx, untilBrace bool, flushText func()) (bool, error) {
-	switch p.src[p.pos] {
-	case '{':
-		flushText()
-		el, err := p.parseArgumentLike(ctx)
-		if err != nil {
-			return false, err
-		}
-		*out = append(*out, el)
-	case '}':
-		if !untilBrace {
-			return false, fmt.Errorf("unexpected closing brace at %d", p.pos)
-		}
-		flushText()
-		return true, nil
-	case '#':
-		if p.handlePound(text, ctx, out, flushText) {
-			return false, nil
-		}
-	case '<':
-		handled, err := p.handleOpenTag(text, ctx, out, flushText)
-		if err != nil {
-			return false, err
-		}
-		if handled {
-			return false, nil
-		}
-	case '\'':
-		if p.startsQuotedLiteral() {
-			p.consumeQuotedInto(text)
-			return false, nil
-		}
-		text.WriteByte('\'')
-		p.pos++
-	default:
-		text.WriteByte(p.src[p.pos])
-		p.pos++
-	}
-
-	return false, nil
-}
-
-func (p *astParser) handlePound(text *strings.Builder, ctx parseCtx, out *[]Element, flushText func()) bool {
-	if !ctx.inPlural {
-		text.WriteByte(p.src[p.pos])
-		p.pos++
-		return true
-	}
-
-	flushText()
-	*out = append(*out, PoundElement{})
-	p.pos++
-	return true
-}
-
-func (p *astParser) handleOpenTag(text *strings.Builder, ctx parseCtx, out *[]Element, flushText func()) (bool, error) {
-	if p.opts.IgnoreTag {
-		text.WriteByte(p.src[p.pos])
-		p.pos++
-		return true, nil
-	}
-
-	tag, ok, err := p.tryParseTag(ctx)
-	if err != nil {
-		return false, err
-	}
-	if ok {
-		flushText()
-		*out = append(*out, tag)
-		return true, nil
-	}
-
-	text.WriteByte(p.src[p.pos])
-	p.pos++
-	return true, nil
 }
 
 func (p *astParser) parseArgumentLike(ctx parseCtx) (Element, error) {
@@ -366,7 +343,8 @@ func (p *astParser) parseSimpleStyle() (string, error) {
 }
 
 func (p *astParser) parseSelectOptions(ctx parseCtx) ([]SelectOption, error) {
-	var out []SelectOption
+	// BOLT OPTIMIZATION: Heuristic capacity hint (usually 2+ options).
+	out := make([]SelectOption, 0, 2)
 	for {
 		if p.pos >= len(p.src) {
 			return nil, fmt.Errorf("unclosed brace at %d", p.pos)
@@ -398,7 +376,8 @@ func (p *astParser) parseSelectOptions(ctx parseCtx) ([]SelectOption, error) {
 
 func (p *astParser) parsePluralOptions() (int, []PluralOption, error) {
 	offset := 0
-	var out []PluralOption
+	// BOLT OPTIMIZATION: Heuristic capacity hint (usually 2+ options).
+	out := make([]PluralOption, 0, 2)
 	for {
 		if p.pos >= len(p.src) {
 			return 0, nil, fmt.Errorf("unclosed brace at %d", p.pos)
@@ -514,108 +493,104 @@ func (p *astParser) skipTagAttributeQuotedLiteral(quote byte) {
 }
 
 func (p *astParser) parseUntilClosingTag(name string, ctx parseCtx) ([]Element, error) {
-	var out []Element
+	// BOLT OPTIMIZATION: Initial capacity hint.
+	out := make([]Element, 0, 4)
 	var text strings.Builder
+	// BOLT OPTIMIZATION: Track lastPos to allow slicing p.src for literal text.
+	lastPos := p.pos
+
 	flushText := func() {
-		if text.Len() == 0 {
-			return
+		if text.Len() > 0 {
+			if p.pos > lastPos {
+				text.WriteString(p.src[lastPos:p.pos])
+			}
+			out = append(out, LiteralElement{Value: text.String()})
+			text.Reset()
+			lastPos = p.pos
+		} else if p.pos > lastPos {
+			out = append(out, LiteralElement{Value: p.src[lastPos:p.pos]})
+			lastPos = p.pos
 		}
-		out = append(out, LiteralElement{Value: text.String()})
-		text.Reset()
 	}
 
 	for p.pos < len(p.src) {
-		// BOLT OPTIMIZATION: Literal text chunking using strings.IndexAny to skip
-		// ahead to the next special character.
-		// We must stop at '}' to correctly detect the closing tag or nested structure boundaries.
+		// BOLT OPTIMIZATION: Literal text chunking.
 		idx := strings.IndexAny(p.src[p.pos:], "{#<}'}")
 		if idx == -1 {
-			text.WriteString(p.src[p.pos:])
 			p.pos = len(p.src)
 			break
 		}
-		if idx > 0 {
-			text.WriteString(p.src[p.pos : p.pos+idx])
-			p.pos += idx
+		p.pos += idx
+
+		if strings.HasPrefix(p.src[p.pos:], "</") {
+			flushText()
+			save := p.pos
+			p.pos += 2
+			closeName, ok := p.readTagName()
+			if ok {
+				p.skipSpaces()
+				if !p.consume('>') {
+					return nil, fmt.Errorf("expected closing '>' for tag %q", closeName)
+				}
+				if closeName != name {
+					return nil, fmt.Errorf("mismatched closing tag: got %q want %q", closeName, name)
+				}
+				return out, nil
+			}
+			p.pos = save
 		}
 
-		closed, err := p.consumeClosingTagIfPresent(name, flushText)
-		if err != nil {
-			return nil, err
-		}
-		if closed {
-			return out, nil
-		}
-
-		if err := p.handleTagBodyChar(&out, &text, ctx, flushText); err != nil {
-			return nil, err
+		switch p.peek() {
+		case '{':
+			flushText()
+			el, err := p.parseArgumentLike(ctx)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, el)
+			lastPos = p.pos
+		case '}':
+			return nil, fmt.Errorf("unexpected closing brace at %d", p.pos)
+		case '#':
+			if !ctx.inPlural {
+				p.pos++
+			} else {
+				flushText()
+				out = append(out, PoundElement{})
+				p.pos++
+				lastPos = p.pos
+			}
+		case '<':
+			if p.opts.IgnoreTag {
+				p.pos++
+			} else {
+				flushText()
+				tag, ok, err := p.tryParseTag(ctx)
+				if err != nil {
+					return nil, err
+				}
+				if ok {
+					out = append(out, tag)
+					lastPos = p.pos
+				} else {
+					p.pos++
+				}
+			}
+		case '\'':
+			if p.startsQuotedLiteral() {
+				if p.pos > lastPos {
+					text.WriteString(p.src[lastPos:p.pos])
+				}
+				p.consumeQuotedInto(&text)
+				lastPos = p.pos
+			} else {
+				p.pos++
+			}
+		default:
+			p.pos++
 		}
 	}
 	return nil, fmt.Errorf("unclosed tag %q", name)
-}
-
-func (p *astParser) consumeClosingTagIfPresent(name string, flushText func()) (bool, error) {
-	if !strings.HasPrefix(p.src[p.pos:], "</") {
-		return false, nil
-	}
-
-	save := p.pos
-	p.pos += 2
-	closeName, ok := p.readTagName()
-	if !ok {
-		p.pos = save
-		return false, nil
-	}
-	p.skipSpaces()
-	if !p.consume('>') {
-		return false, fmt.Errorf("expected closing '>' for tag %q", closeName)
-	}
-	if closeName != name {
-		return false, fmt.Errorf("mismatched closing tag: got %q want %q", closeName, name)
-	}
-	flushText()
-	return true, nil
-}
-
-func (p *astParser) handleTagBodyChar(out *[]Element, text *strings.Builder, ctx parseCtx, flushText func()) error {
-	switch p.peek() {
-	case '{':
-		flushText()
-		el, err := p.parseArgumentLike(ctx)
-		if err != nil {
-			return err
-		}
-		*out = append(*out, el)
-	case '}':
-		return fmt.Errorf("unexpected closing brace at %d", p.pos)
-	case '#':
-		if p.handlePound(text, ctx, out, flushText) {
-			return nil
-		}
-	case '<':
-		tag, ok, err := p.tryParseTag(ctx)
-		if err != nil {
-			return err
-		}
-		if ok {
-			flushText()
-			*out = append(*out, tag)
-			return nil
-		}
-		text.WriteByte('<')
-		p.pos++
-	case '\'':
-		if p.startsQuotedLiteral() {
-			p.consumeQuotedInto(text)
-			return nil
-		}
-		text.WriteByte('\'')
-		p.pos++
-	default:
-		text.WriteByte(p.src[p.pos])
-		p.pos++
-	}
-	return nil
 }
 
 func (p *astParser) startsQuotedLiteral() bool {
