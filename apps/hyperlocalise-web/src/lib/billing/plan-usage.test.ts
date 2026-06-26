@@ -56,7 +56,7 @@ describe("plan usage helpers", () => {
   it("computes usage progress and summary copy", () => {
     expect(getUsageProgressPercent({ usage: 1_200_000, granted: 2_000_000 })).toBe(60);
     expect(formatPrimaryUsageSummary({ usage: 1_200_000, granted: 2_000_000 })).toMatch(
-      /1\.2M.*2M.*words used/,
+      /1\.2M.*2M.*AI credits used/,
     );
   });
 
@@ -83,7 +83,7 @@ describe("plan usage helpers", () => {
     expect(summary.renewalCopy).toMatch(/^Renews on /);
     expect(summary.renewalLabel).toContain("2027");
     expect(summary.usageProgressPercent).toBe(60);
-    expect(summary.usageSummary).toMatch(/words used/);
+    expect(summary.usageSummary).toMatch(/AI credits used/);
 
     const cancelingSummary = resolvePlanUsageSummary({
       subscriptions: [
@@ -114,7 +114,7 @@ describe("plan usage helpers", () => {
         isScheduledForCancel: false,
         renewalLabel: null,
         renewalCopy: null,
-        usageSummary: "0 / 0 words used",
+        usageSummary: "0 / 0 AI credits used",
         usageProgressPercent: null,
         unlimited: false,
       }),
@@ -126,7 +126,7 @@ describe("plan usage helpers", () => {
         isScheduledForCancel: false,
         renewalLabel: "Aug 24, 2027",
         renewalCopy: "Renews on Aug 24, 2027",
-        usageSummary: "1.2M / 2M words used",
+        usageSummary: "1.2M / 2M AI credits used",
         usageProgressPercent: 60,
         unlimited: false,
       }),

@@ -2,7 +2,7 @@ import { billingBalanceFeatureIds, type AutumnFeatureId } from "@/lib/billing/au
 
 /** Display labels for Autumn feature balances shown on billing settings. */
 export const usageFeatureLabels: Partial<Record<AutumnFeatureId, string>> = {
-  ai_tokens: "Words",
+  ai_tokens: "AI Credit",
   translation_jobs: "Translation jobs",
   agent_runs: "Agent runs",
   seats: "Seats",
