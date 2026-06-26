@@ -103,3 +103,7 @@
 ## 2026-06-24 - [CSV Injection: Escaping Line Feeds]
 **Learning:** Security best practices (OWASP) for CSV injection/Formula injection require escaping not just '=', '+', '-', and '@', but also whitespace characters like Tab (0x09), Carriage Return (0x0D), and Line Feed (0x0A). If these characters appear at the start of a cell, some spreadsheet software may interpret the following content as a formula.
 **Action:** Always include '\n' (Line Feed) in the set of characters that trigger formula escaping (prepending a single quote) in CSV cell values.
+
+## 2026-06-26 - [ICU Pound Summation in Sibling Blocks]
+**Learning:** In ICU message invariant analysis, pound signs (#) within sibling conditional blocks (like multiple 'select' blocks inside a single 'plural' branch) must be summed to correctly identify the maximum possible pound usage. While 'select' branches are mutually exclusive within a single block, sibling blocks are independent and both will contribute their respective 'active' branch content to the final message.
+**Action:** When calculating pound invariants for a plural block, ensure that sibling elements correctly accumulate their counts, while only mutually exclusive branches (like those within a single 'select' or 'plural') take the maximum.
