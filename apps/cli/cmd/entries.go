@@ -12,6 +12,8 @@ import (
 )
 
 func newEntriesCmd() *cobra.Command {
+	var locale string
+
 	cmd := &cobra.Command{
 		Use:          "entries <translation-file>",
 		Short:        "print parsed translation entries as key/value JSON",
@@ -26,7 +28,13 @@ func newEntriesCmd() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("read entries input %q: %w", path, err)
 			}
-			entries, err := translationfileparser.NewDefaultStrategy().Parse(path, content)
+			strategy := translationfileparser.NewDefaultStrategy()
+			var entries map[string]string
+			if strings.TrimSpace(locale) != "" {
+				entries, err = strategy.ParseWithLocale(path, content, locale)
+			} else {
+				entries, err = strategy.Parse(path, content)
+			}
 			if err != nil {
 				return err
 			}
@@ -41,5 +49,11 @@ func newEntriesCmd() *cobra.Command {
 			return err
 		},
 	}
+	cmd.Flags().StringVar(
+		&locale,
+		"locale",
+		"",
+		"target locale for multi-locale files such as .xcstrings",
+	)
 	return cmd
 }
