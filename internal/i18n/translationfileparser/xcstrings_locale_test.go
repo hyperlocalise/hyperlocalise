@@ -58,6 +58,45 @@ func TestParseXCStringsLocaleResolvesProjectLocaleAliases(t *testing.T) {
 	}
 }
 
+func TestParseXCStringsLocaleResolvesAliasPerEntry(t *testing.T) {
+	content := []byte(`{
+  "sourceLanguage": "en",
+  "strings": {
+    "hello": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bonjour"
+          }
+        }
+      }
+    },
+    "goodbye": {
+      "localizations": {
+        "fr-FR": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Au revoir"
+          }
+        }
+      }
+    }
+  }
+}`)
+
+	got, err := ParseXCStringsLocale(content, "fr-FR")
+	if err != nil {
+		t.Fatalf("parse target locale: %v", err)
+	}
+	if got["hello"] != "Bonjour" {
+		t.Fatalf("unexpected hello translation: %q", got["hello"])
+	}
+	if got["goodbye"] != "Au revoir" {
+		t.Fatalf("unexpected goodbye translation: %q", got["goodbye"])
+	}
+}
+
 func TestStrategyParseWithLocaleResolvesXCStringsProjectLocale(t *testing.T) {
 	s := NewDefaultStrategy()
 

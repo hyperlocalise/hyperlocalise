@@ -14,5 +14,6 @@ go_library(
         "@com_github_yuin_goldmark//text",
         "@in_gopkg_yaml_v3//:yaml_v3",
         "@org_golang_x_net//html",
+        "@org_golang_x_text//language",
     ],
 )

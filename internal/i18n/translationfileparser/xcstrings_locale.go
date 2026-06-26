@@ -132,27 +132,10 @@ func resolveXCStringsLocalizationKey(requested string, available []string) (stri
 	return "", false
 }
 
-func collectXCStringsCatalogLocales(stringsNode map[string]any) []string {
-	locales := map[string]struct{}{}
-	for _, value := range stringsNode {
-		entry, ok := value.(map[string]any)
-		if !ok {
-			continue
-		}
-		locs, ok, err := xcstringsOptionalObjectField(entry, "localizations")
-		if err != nil || !ok {
-			continue
-		}
-		for locName := range locs {
-			locName = strings.TrimSpace(locName)
-			if locName != "" {
-				locales[locName] = struct{}{}
-			}
-		}
+func xcstringsLocalizationKeys(locs map[string]any) []string {
+	keys := make([]string, 0, len(locs))
+	for key := range locs {
+		keys = append(keys, key)
 	}
-	out := make([]string, 0, len(locales))
-	for loc := range locales {
-		out = append(out, loc)
-	}
-	return out
+	return keys
 }
