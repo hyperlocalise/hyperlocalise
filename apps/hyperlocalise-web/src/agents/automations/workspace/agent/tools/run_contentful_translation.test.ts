@@ -197,6 +197,53 @@ describe("createRunContentfulTranslationTool", () => {
     expect(tool.description).toContain("entry-from-webhook");
   });
 
+  it("fails idempotent retry when a completed run wrote no draft values", async () => {
+    const limit = vi.fn().mockResolvedValue([
+      {
+        id: "contentful-run-1",
+        status: "succeeded",
+        detectedFields: [{ field: "title" }, { field: "body" }],
+        writebackSummary: { localeValuesWritten: 0 },
+        qaSummary: { total: 0 },
+      },
+    ]);
+    const where = vi.fn().mockReturnValue({ limit });
+    dbSelectMock.mockReturnValue({ from: vi.fn().mockReturnValue({ where }) });
+
+    const testSession = session({
+      inputSnapshot: { entryId: "entry-from-webhook" },
+      outputSummary: { contentfulTranslationRunId: "contentful-run-1" },
+    });
+    const tool = createRunContentfulTranslationTool(testSession);
+
+    if (!tool.execute) {
+      throw new Error("run_contentful_translation tool is missing execute");
+    }
+
+    const result = await tool.execute({}, { toolCallId: "test-tool-call", messages: [] });
+
+    expect(mocks.createContentfulTranslationRun).not.toHaveBeenCalled();
+    expect(mocks.runContentfulAgent).not.toHaveBeenCalled();
+    expect(mocks.updateWorkspaceAutomationRun).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "run-1",
+        organizationId: "org-1",
+        status: "failed",
+        error: { message: "contentful_no_draft_writebacks" },
+      }),
+    );
+    expect(result).toEqual({
+      contentfulTranslationRunId: "contentful-run-1",
+      status: "failed",
+      message: "contentful_no_draft_writebacks",
+      fieldsDetected: 2,
+      localeValuesWritten: 0,
+    });
+    expect(testSession.terminalStatus).toBe("failed");
+    expect(testSession.terminalError).toBe("contentful_no_draft_writebacks");
+    expect(testSession.stepResults.run_contentful_translation).toEqual(result);
+  });
+
   it("returns the completed summary without re-running translation on retry", async () => {
     const limit = vi.fn().mockResolvedValue([
       {
