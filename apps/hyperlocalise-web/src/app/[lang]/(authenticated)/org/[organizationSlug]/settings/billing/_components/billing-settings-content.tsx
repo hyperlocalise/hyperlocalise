@@ -85,7 +85,7 @@ function BillingSettingsHeader() {
           Billing
         </TypographyH1>
         <TypographyP className="mt-2 text-pretty text-sm leading-6 text-muted-foreground">
-          View your workspace plan, word usage, workspace limits, and subscription billing.
+          View your workspace plan, AI credit usage, workspace limits, and subscription billing.
         </TypographyP>
       </div>
     </section>
@@ -376,8 +376,8 @@ function ConfiguredBillingSettingsPanel({
         <CardHeader className="px-5 py-5">
           <CardTitle className="text-lg font-medium text-foreground">Plan usage</CardTitle>
           <CardDescription className="text-foreground/52">
-            Word usage resets each billing cycle. Seats, projects, automations, and integrations are
-            workspace limits.
+            AI credit usage resets each billing cycle. Seats, projects, automations, and
+            integrations are workspace limits.
           </CardDescription>
         </CardHeader>
         <Separator className="bg-foreground/8" />

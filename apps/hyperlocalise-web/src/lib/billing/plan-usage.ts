@@ -166,17 +166,14 @@ export function formatPrimaryUsageSummary(input: {
   unlimited?: boolean | null;
   unitLabel?: string;
 }) {
-  const unitLabel = (
-    input.unitLabel ??
-    getUsageFeatureLabel(planUsagePrimaryFeatureId) ??
-    "usage"
-  ).toLowerCase();
+  const unitLabel = input.unitLabel ?? getUsageFeatureLabel(planUsagePrimaryFeatureId) ?? "usage";
+  const summaryUnitLabel = unitLabel === "AI Credit" ? "AI credits" : unitLabel.toLowerCase();
 
   if (input.unlimited) {
     return "Unlimited usage";
   }
 
-  return `${formatCompactUsageValue(input.usage)} / ${formatCompactUsageValue(input.granted)} ${unitLabel} used`;
+  return `${formatCompactUsageValue(input.usage)} / ${formatCompactUsageValue(input.granted)} ${summaryUnitLabel} used`;
 }
 
 export function resolvePlanUsageSummary(input: {
