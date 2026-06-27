@@ -13,17 +13,7 @@ import (
 )
 
 func parseCSVForTargetLocale(content []byte, targetLocale string) (map[string]string, error) {
-	locale := strings.TrimSpace(targetLocale)
-	if locale != "" {
-		hasColumn, err := csvHasColumn(content, locale)
-		if err != nil {
-			return nil, err
-		}
-		if hasColumn {
-			return (translationfileparser.CSVParser{ValueColumn: locale}).Parse(content)
-		}
-	}
-	return (translationfileparser.CSVParser{}).Parse(content)
+	return translationfileparser.ParseCSVLocale(content, targetLocale)
 }
 
 func marshalCSVTarget(template []byte, values map[string]string, targetLocale string) ([]byte, error) {

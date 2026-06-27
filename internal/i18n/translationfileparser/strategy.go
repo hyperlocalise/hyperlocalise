@@ -108,8 +108,18 @@ func (s *Strategy) Parse(path string, content []byte) (map[string]string, error)
 func (s *Strategy) ParseWithLocale(path string, content []byte, locale string) (map[string]string, error) {
 	locale = strings.TrimSpace(locale)
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
-	if ext == ".xcstrings" && locale != "" {
+	if locale == "" {
+		return s.Parse(path, content)
+	}
+	if ext == ".xcstrings" {
 		values, err := ParseXCStringsLocale(content, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, nil
+	}
+	if ext == ".csv" {
+		values, err := ParseCSVLocale(content, locale)
 		if err != nil {
 			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}
