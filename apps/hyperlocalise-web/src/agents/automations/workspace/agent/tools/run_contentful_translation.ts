@@ -81,6 +81,34 @@ export function createRunContentfulTranslationTool(session: WorkspaceOrchestrato
           session.organizationId,
         );
         if (completedSummary) {
+          const noWriteback = hasContentfulNoWriteback({
+            writeDrafts: contentful.writeDrafts ?? true,
+            fieldsDetected: completedSummary.fieldsDetected,
+            localeValuesWritten: completedSummary.localeValuesWritten,
+          });
+          if (noWriteback) {
+            const message = "contentful_no_draft_writebacks";
+            session.terminalStatus = "failed";
+            session.terminalError = message;
+            await updateWorkspaceAutomationRun({
+              runId: session.run.id,
+              organizationId: session.organizationId,
+              status: "failed",
+              error: { message },
+              completedAt: new Date(),
+            });
+
+            const failure = {
+              contentfulTranslationRunId: existingRunId,
+              status: "failed" as const,
+              message,
+              fieldsDetected: completedSummary.fieldsDetected,
+              localeValuesWritten: completedSummary.localeValuesWritten,
+            };
+            session.stepResults.run_contentful_translation = failure;
+            return failure;
+          }
+
           mergeToolOutputSummaryIntoSessionRun(session, {
             contentfulTranslationRunId: existingRunId,
           });
