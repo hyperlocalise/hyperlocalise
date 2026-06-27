@@ -350,7 +350,7 @@ func isPlaceholderName(s string) bool {
 		ch := s[i]
 		if ch < 0x80 {
 			if i == 0 {
-				if !isASCIIPlaceholderFirst(ch) {
+				if !isASCIIPlaceholderFirst(ch) || ch == '.' {
 					return false
 				}
 				i++
@@ -379,6 +379,11 @@ func isPlaceholderName(s string) bool {
 
 			if !isASCIIPlaceholderSubsequent(ch) {
 				return false
+			}
+			if ch == '.' {
+				if i+1 >= len(s) || s[i+1] == '.' || s[i+1] == '[' {
+					return false
+				}
 			}
 			i++
 			continue
