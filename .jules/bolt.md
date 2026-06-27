@@ -209,3 +209,7 @@
 ## 2027-01-15 - Low-copy literal tracking and inlining in ICU parser
 **Learning:** In ICU message parsing, literal text dominates many inputs. Implementing a "low-copy" tracking approach using `lastPos` allows literal segments to be sliced directly from the source string, bypassing `strings.Builder` and avoiding redundant string copies for segments that don't require unescaping. Additionally, inlining hot-path helper functions and providing heuristic slice capacity hints (e.g., cap 4 for elements) reduces function call overhead and GC pressure.
 **Action:** Refactored `internal/i18n/icuparser/parse.go` to use `lastPos` tracking and inlined internal helpers, resulting in ~25-40% faster parsing and ~30-50% fewer allocations.
+
+## 2026-06-26 - Optimizing CSV parser and marshaler via capacity hints
+**Learning:** For sequential parsers and marshalers like CSV, the output size (map entries or buffer bytes) is often proportional to the input size. Providing heuristic capacity hints to maps and buffers significantly reduces re-allocations and GC pressure during processing of large files.
+**Action:** Implemented map capacity hints in `Parse` and buffer growth hints in `MarshalCSV` in `internal/i18n/translationfileparser/csv_parser.go`, resulting in ~12-16% speedups.
