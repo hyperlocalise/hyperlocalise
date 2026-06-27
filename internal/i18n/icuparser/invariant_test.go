@@ -379,6 +379,8 @@ func TestHasDuplicatePounds(t *testing.T) {
 		{"select block", "{gender, select, male {he} female {she} other {they}}", false},
 		{"selectordinal duplicate", "{n, selectordinal, one {##st} other {#th}}", true},
 		{"mustache placeholder", "Hello {{name}}", false},
+		{"sibling selects with duplicates", "{n, plural, other {{g1, select, male {#} other {#}} {g2, select, male {#} other {#}}}}", true},
+		{"nested select with duplicate", "{n, plural, other {{g, select, other {{s, select, other {##}}}}}}", true},
 	}
 
 	for _, tt := range tests {
@@ -578,6 +580,15 @@ func TestCountPoundsComplexNesting(t *testing.T) {
 			msg:  "{n, plural, other {<a href=\"#foo\">#</a>}}",
 			want: []BlockSignature{
 				{Arg: "n", Type: "plural", Options: []string{"other"}, Pounds: []int{1}},
+			},
+		},
+		{
+			name: "sibling selects sum pounds",
+			msg:  "{n, plural, other {{g1, select, male {#} other {##}} {g2, select, other {###}}}}",
+			want: []BlockSignature{
+				{Arg: "g1", Type: "select", Options: []string{"male", "other"}},
+				{Arg: "g2", Type: "select", Options: []string{"other"}},
+				{Arg: "n", Type: "plural", Options: []string{"other"}, Pounds: []int{5}},
 			},
 		},
 	}
