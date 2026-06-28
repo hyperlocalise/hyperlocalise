@@ -473,6 +473,7 @@ func TestLabelsService_AssignToScreenshots(t *testing.T) {
 				{
 					"data": {
 						"id": 2,
+						"projectId": 1,
 						"userId": 6,
 						"url": "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
 						"webUrl": "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
@@ -516,11 +517,12 @@ func TestLabelsService_AssignToScreenshots(t *testing.T) {
 
 	expected := []*model.Screenshot{
 		{
-			ID:     2,
-			UserID: 6,
-			URL:    "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
-			WebURL: "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
-			Name:   "translate_with_siri.jpg",
+			ID:        2,
+			ProjectID: 1,
+			UserID:    6,
+			URL:       "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
+			WebURL:    "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
+			Name:      "translate_with_siri.jpg",
 			Size: struct {
 				Width  int `json:"width"`
 				Height int `json:"height"`
@@ -592,6 +594,7 @@ func TestLabelsService_UnassignFromScreenshots(t *testing.T) {
 				{
 					"data": {
 						"id": 2,
+						"projectId": 1,
 						"userId": 6,
 						"url": "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
 						"webUrl": "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
@@ -635,11 +638,12 @@ func TestLabelsService_UnassignFromScreenshots(t *testing.T) {
 
 	expected := []*model.Screenshot{
 		{
-			ID:     2,
-			UserID: 6,
-			URL:    "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
-			WebURL: "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
-			Name:   "translate_with_siri.jpg",
+			ID:        2,
+			ProjectID: 1,
+			UserID:    6,
+			URL:       "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
+			WebURL:    "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
+			Name:      "translate_with_siri.jpg",
 			Size: struct {
 				Width  int `json:"width"`
 				Height int `json:"height"`

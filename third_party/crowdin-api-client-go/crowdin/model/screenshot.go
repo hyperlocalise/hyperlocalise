@@ -9,12 +9,13 @@ import (
 // Screenshot represents a screenshot, which provides translators
 // with additional context for the source strings.
 type Screenshot struct {
-	ID     int    `json:"id"`
-	UserID int    `json:"userId"`
-	URL    string `json:"url"`
-	WebURL string `json:"webUrl"`
-	Name   string `json:"name"`
-	Size   struct {
+	ID        int    `json:"id"`
+	ProjectID int    `json:"projectId"`
+	UserID    int    `json:"userId"`
+	URL       string `json:"url"`
+	WebURL    string `json:"webUrl"`
+	Name      string `json:"name"`
+	Size      struct {
 		Width  int `json:"width"`
 		Height int `json:"height"`
 	} `json:"size"`
