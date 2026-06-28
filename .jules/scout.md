@@ -107,3 +107,7 @@
 ## 2026-06-26 - [ICU Pound Summation in Sibling Blocks]
 **Learning:** In ICU message invariant analysis, pound signs (#) within sibling conditional blocks (like multiple 'select' blocks inside a single 'plural' branch) must be summed to correctly identify the maximum possible pound usage. While 'select' branches are mutually exclusive within a single block, sibling blocks are independent and both will contribute their respective 'active' branch content to the final message.
 **Action:** When calculating pound invariants for a plural block, ensure that sibling elements correctly accumulate their counts, while only mutually exclusive branches (like those within a single 'select' or 'plural') take the maximum.
+
+## 2025-07-25 - [Strict ICU Identifier Dot Validation]
+**Learning:** ICU placeholder names that support property paths (dots) must not allow leading, trailing, or consecutive dots (e.g., `.name`, `name.`, `name..last`). Additionally, dots should not immediately precede an array index bracket (e.g., `items.[0]`). Failing to enforce these constraints can lead to malformed identifiers being collected during invariant analysis.
+**Action:** When validating identifiers with dots, ensure each dot is followed by a valid subsequent character that is not another dot or an opening bracket.

@@ -66,6 +66,40 @@ func TestSameICUBlocks(t *testing.T) {
 	}
 }
 
+func TestIsPlaceholderNameEdgeCases(t *testing.T) {
+	tests := []struct {
+		name string
+		val  string
+		want bool
+	}{
+		{"valid simple", "name", true},
+		{"valid path", "a.b.c", true},
+		{"trailing dot", "a.b.", false},
+		{"multiple dots", "a..b", false},
+		{"leading dot", ".a", false},
+		{"valid dash", "my-arg", true},
+		{"trailing dash", "my-arg-", true},
+		{"valid underscore", "my_arg", true},
+		{"valid dollar", "$amount", true},
+		{"valid array index", "items[0]", true},
+		{"valid nested array", "a.b[0].c", true},
+		{"malformed array", "items[0]suffix", false},
+		{"dot before bracket", "items.[0]", false},
+		{"empty", "", false},
+		{"unicode", "π", true},
+		{"unicode path", "π.val", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isPlaceholderName(tt.val)
+			if got != tt.want {
+				t.Errorf("isPlaceholderName(%q) = %v, want %v", tt.val, got, tt.want)
+			}
+		})
+	}
+}
+
 func TestFormatICUBlocks(t *testing.T) {
 	tests := []struct {
 		name   string
