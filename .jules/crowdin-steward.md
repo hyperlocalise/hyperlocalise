@@ -191,3 +191,9 @@
 **Learning:** The Crowdin Screenshots API v2 returns a `url` field in its response, which is used to download the screenshot. While the `webUrl` field was already present, the `url` field was missing from the `Screenshot` model, leading to incomplete parsing of API responses.
 
 **Action:** Added the `URL` field to the `Screenshot` struct in `model/screenshot.go`. Updated the `TestScreenshotsService_GetScreenshot` and label-related tests in `labels_test.go` to include the `URL` field in expected results, ensuring documentation parity and correct unmarshaling. Verified with `go test` in the fork.
+
+## 2026-10-24 - Improve Screenshot and Distribution model parity
+
+**Learning:** The Crowdin Screenshots API v2 returns a `projectId` field which was missing from the SDK. Additionally, the Distributions API supports `branchIds` and `directoryIds` in both response models and addition requests, allowing for distribution of content from specific branches or directories.
+
+**Action:** Added `ProjectID` to the `Screenshot` struct in `model/screenshot.go`. Added `BranchIDs` and `DirectoryIDs` to both `Distribution` and `DistributionAddRequest` in `model/distributions.go`. Updated contract tests in `screenshots_test.go`, `labels_test.go`, and `distributions_test.go` to verify correct parsing and serialization of these new fields.

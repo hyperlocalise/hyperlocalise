@@ -50,6 +50,8 @@ func TestDistributionsService_List(t *testing.T) {
 							"hash": "50fb350641274ba88296f97dc7e3e0c3",
 							"name": "Export Bundle",
 							"bundleIds": [45, 62],
+							"branchIds": [1, 2],
+							"directoryIds": [3, 4],
 							"createdAt": "2023-09-16T13:48:04+00:00",
 							"updatedAt": "2023-09-19T13:25:27+00:00",
 							"exportMode": "bundle",
@@ -62,6 +64,8 @@ func TestDistributionsService_List(t *testing.T) {
 							"hash": "50fb350641274ba88296f97dc7e3e0c4",
 							"name": "Export Bundle",
 							"bundleIds": [47],
+							"branchIds": [5],
+							"directoryIds": [6],
 							"createdAt": "2023-09-16T13:48:04+00:00",
 							"updatedAt": "2023-09-19T13:25:27+00:00",
 							"exportMode": "bundle",
@@ -83,20 +87,24 @@ func TestDistributionsService_List(t *testing.T) {
 
 		expected := []*model.Distribution{
 			{
-				Hash:        "50fb350641274ba88296f97dc7e3e0c3",
-				Name:        "Export Bundle",
-				BundleIDs:   []int{45, 62},
-				CreatedAt:   "2023-09-16T13:48:04+00:00",
+				Hash:         "50fb350641274ba88296f97dc7e3e0c3",
+				Name:         "Export Bundle",
+				BundleIDs:    []int{45, 62},
+				BranchIDs:    []int{1, 2},
+				DirectoryIDs: []int{3, 4},
+				CreatedAt:    "2023-09-16T13:48:04+00:00",
 				UpdatedAt:   "2023-09-19T13:25:27+00:00",
 				ExportMode:  "bundle",
 				FileIDs:     []int{24, 25, 38},
 				ManifestURL: "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
 			},
 			{
-				Hash:        "50fb350641274ba88296f97dc7e3e0c4",
-				Name:        "Export Bundle",
-				BundleIDs:   []int{47},
-				CreatedAt:   "2023-09-16T13:48:04+00:00",
+				Hash:         "50fb350641274ba88296f97dc7e3e0c4",
+				Name:         "Export Bundle",
+				BundleIDs:    []int{47},
+				BranchIDs:    []int{5},
+				DirectoryIDs: []int{6},
+				CreatedAt:    "2023-09-16T13:48:04+00:00",
 				UpdatedAt:   "2023-09-19T13:25:27+00:00",
 				ExportMode:  "bundle",
 				FileIDs:     []int{25},
@@ -134,6 +142,8 @@ func TestDistributionsService_Get(t *testing.T) {
 				"hash": "50fb350641274ba88296f97dc7e3e0c3",
 				"name": "Export Bundle",
 				"bundleIds": [45, 62],
+				"branchIds": [1, 2],
+				"directoryIds": [3, 4],
 				"createdAt": "2023-09-16T13:48:04+00:00",
 				"updatedAt": "2023-09-19T13:25:27+00:00",
 				"exportMode": "bundle",
@@ -148,10 +158,12 @@ func TestDistributionsService_Get(t *testing.T) {
 	assert.NotNil(t, resp)
 
 	expected := &model.Distribution{
-		Hash:        "50fb350641274ba88296f97dc7e3e0c3",
-		Name:        "Export Bundle",
-		BundleIDs:   []int{45, 62},
-		CreatedAt:   "2023-09-16T13:48:04+00:00",
+		Hash:         "50fb350641274ba88296f97dc7e3e0c3",
+		Name:         "Export Bundle",
+		BundleIDs:    []int{45, 62},
+		BranchIDs:    []int{1, 2},
+		DirectoryIDs: []int{3, 4},
+		CreatedAt:    "2023-09-16T13:48:04+00:00",
 		UpdatedAt:   "2023-09-19T13:25:27+00:00",
 		ExportMode:  "bundle",
 		FileIDs:     []int{24, 25, 38},
@@ -168,7 +180,7 @@ func TestDistributionsService_Add(t *testing.T) {
 	mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		testMethod(t, r, http.MethodPost)
 		testURL(t, r, path)
-		testBody(t, r, `{"name":"Export Bundle","exportMode":"bundle","bundleIds":[45,62]}`+"\n")
+		testBody(t, r, `{"name":"Export Bundle","exportMode":"bundle","bundleIds":[45,62],"branchIds":[1,2],"directoryIds":[3,4]}`+"\n")
 
 		w.WriteHeader(http.StatusCreated)
 		fmt.Fprint(w, `{
@@ -176,6 +188,8 @@ func TestDistributionsService_Add(t *testing.T) {
 				"hash": "50fb350641274ba88296f97dc7e3e0c3",
 				"name": "Export Bundle",
 				"bundleIds": [45, 62],
+				"branchIds": [1, 2],
+				"directoryIds": [3, 4],
 				"createdAt": "2023-09-16T13:48:04+00:00",
 				"updatedAt": "2023-09-19T13:25:27+00:00",
 				"exportMode": "bundle",
@@ -186,19 +200,23 @@ func TestDistributionsService_Add(t *testing.T) {
 	})
 
 	req := &model.DistributionAddRequest{
-		Name:       "Export Bundle",
-		ExportMode: model.ExportModeBundle,
-		BundleIDs:  []int{45, 62},
+		Name:         "Export Bundle",
+		ExportMode:   model.ExportModeBundle,
+		BundleIDs:    []int{45, 62},
+		BranchIDs:    []int{1, 2},
+		DirectoryIDs: []int{3, 4},
 	}
 	distribution, resp, err := client.Distributions.Add(context.Background(), 1, req)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusCreated, resp.StatusCode)
 
 	expected := &model.Distribution{
-		Hash:        "50fb350641274ba88296f97dc7e3e0c3",
-		Name:        "Export Bundle",
-		BundleIDs:   []int{45, 62},
-		CreatedAt:   "2023-09-16T13:48:04+00:00",
+		Hash:         "50fb350641274ba88296f97dc7e3e0c3",
+		Name:         "Export Bundle",
+		BundleIDs:    []int{45, 62},
+		BranchIDs:    []int{1, 2},
+		DirectoryIDs: []int{3, 4},
+		CreatedAt:    "2023-09-16T13:48:04+00:00",
 		UpdatedAt:   "2023-09-19T13:25:27+00:00",
 		ExportMode:  "bundle",
 		FileIDs:     []int{24, 25, 38},
@@ -222,6 +240,8 @@ func TestDistributionsService_Edit(t *testing.T) {
 				"hash": "50fb350641274ba88296f97dc7e3e0c3",
 				"name": "Export Bundle",
 				"bundleIds": [45, 62],
+				"branchIds": [1, 2],
+				"directoryIds": [3, 4],
 				"createdAt": "2023-09-16T13:48:04+00:00",
 				"updatedAt": "2023-09-19T13:25:27+00:00",
 				"exportMode": "bundle",
@@ -243,10 +263,12 @@ func TestDistributionsService_Edit(t *testing.T) {
 	assert.NotNil(t, resp)
 
 	expected := &model.Distribution{
-		Hash:        "50fb350641274ba88296f97dc7e3e0c3",
-		Name:        "Export Bundle",
-		BundleIDs:   []int{45, 62},
-		CreatedAt:   "2023-09-16T13:48:04+00:00",
+		Hash:         "50fb350641274ba88296f97dc7e3e0c3",
+		Name:         "Export Bundle",
+		BundleIDs:    []int{45, 62},
+		BranchIDs:    []int{1, 2},
+		DirectoryIDs: []int{3, 4},
+		CreatedAt:    "2023-09-16T13:48:04+00:00",
 		UpdatedAt:   "2023-09-19T13:25:27+00:00",
 		ExportMode:  "bundle",
 		FileIDs:     []int{24, 25, 38},

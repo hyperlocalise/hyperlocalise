@@ -23,6 +23,7 @@ func TestScreenshotsService_GetScreenshot(t *testing.T) {
 		fmt.Fprint(w, `{
 			"data": {
 				"id": 2,
+				"projectId": 2,
 				"userId": 6,
 				"url": "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
 				"webUrl": "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
@@ -59,9 +60,10 @@ func TestScreenshotsService_GetScreenshot(t *testing.T) {
 	assert.NotNil(t, resp)
 
 	expected := &model.Screenshot{
-		ID:     2,
-		UserID: 6,
-		URL:    "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
+		ID:        2,
+		ProjectID: 2,
+		UserID:    6,
+		URL:       "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
 		WebURL: "https://production-enterprise-screenshots.downloads.crowdin.com/992000002/6/2/middle.jpg",
 		Name:   "translate_with_siri.jpg",
 		Size: struct {
