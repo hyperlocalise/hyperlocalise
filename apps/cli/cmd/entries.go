@@ -53,7 +53,7 @@ func newEntriesCmd() *cobra.Command {
 		&locale,
 		"locale",
 		"",
-		"target locale for multi-locale files such as .xcstrings",
+		"target locale for multi-locale files such as .xcstrings and .csv",
 	)
 	return cmd
 }
