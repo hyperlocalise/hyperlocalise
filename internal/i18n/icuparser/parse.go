@@ -321,7 +321,8 @@ func (p *astParser) parseSimpleStyle() (string, error) {
 	start := p.pos
 	depth := 0
 	for p.pos < len(p.src) {
-		switch p.src[p.pos] {
+		ch := p.src[p.pos]
+		switch ch {
 		case '{':
 			depth++
 			p.pos++
@@ -336,7 +337,14 @@ func (p *astParser) parseSimpleStyle() (string, error) {
 		case '\'':
 			p.skipQuotedLiteral()
 		default:
-			p.pos++
+			// BOLT OPTIMIZATION: Use strings.IndexAny to skip literal text segments
+			// when we are not already at a special character.
+			idx := strings.IndexAny(p.src[p.pos+1:], "{}'")
+			if idx == -1 {
+				p.pos = len(p.src)
+			} else {
+				p.pos += idx + 1
+			}
 		}
 	}
 	return "", fmt.Errorf("unclosed simple formatter style")
