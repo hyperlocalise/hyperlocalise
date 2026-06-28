@@ -125,6 +125,8 @@
 **Action:** Implemented `cloneXMLToken` for safe buffering and used a conditional normalization helper in `XLIFFParser.Parse` to balance speed and correctness.
 
 ## 2026-06-01 - Optimizing ARB parsing via single-pass and map hinting
+**Learning:** For sequential JSON-based formats like ARB, the standard `json.Unmarshal` for metadata extraction can be slow due to multiple passes and redundant string operations. A single-pass scan of the object fields allows for simultaneous message key collection and metadata indexing. Replacing `strings.HasPrefix`/`TrimPrefix` with direct indexing and slicing further reduces allocations.
+**Action:** Optimized `arbMessageMetadataFields` and `MarshalARB` in `internal/i18n/translationfileparser/arb_parser.go` by implementing single-pass field scanning and direct string indexing.
 
 ## 2026-09-01 - Optimizing GenericXMLParser via single-pass and allocation avoidance
 **Learning:** XML parsing hot paths, especially `xml.CharData` and attribute scanning, can be significant allocation bottlenecks. Converting `[]byte` tokens to `string` just for whitespace checks or multiple passes over attributes for key discovery adds avoidable overhead. Custom byte-level checks (`isAllXMLWhitespace`) and single-pass priority-based scans are much more efficient.

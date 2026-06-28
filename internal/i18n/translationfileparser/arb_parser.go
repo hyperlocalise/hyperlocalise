@@ -80,13 +80,18 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 	}
 	normalizedTargetLocale := strings.TrimSpace(targetLocale)
 
-	templateMessageKeys := make(map[string]struct{}, len(fields))
+	templateMessageKeys := make(map[string]struct{}, len(fields)/2+1)
 	hasLocaleField := false
-	for _, field := range fields {
+	metaIndices := make([]int, 0, len(fields)/2+1)
+
+	for i, field := range fields {
 		if field.Key == "@@locale" {
 			hasLocaleField = true
 		}
 		if isARBMetadataKey(field.Key) {
+			if len(field.Key) > 1 && field.Key[1] != '@' {
+				metaIndices = append(metaIndices, i)
+			}
 			continue
 		}
 		templateMessageKeys[field.Key] = struct{}{}
@@ -94,13 +99,15 @@ func MarshalARB(template []byte, sourceTemplate []byte, values map[string]string
 
 	var sourceMessageMetadata map[string]json.RawMessage
 	if bytes.Equal(template, sourceTemplate) {
-		sourceMessageMetadata = make(map[string]json.RawMessage)
-		for _, field := range fields {
-			messageKey, isMessageMeta := arbMessageMetadataKey(field.Key, templateMessageKeys)
-			if !isMessageMeta {
-				continue
+		// BOLT OPTIMIZATION: Resolve metadata in a single pass after collecting
+		// all message keys to avoid redundant passes over the fields slice.
+		sourceMessageMetadata = make(map[string]json.RawMessage, len(metaIndices))
+		for _, i := range metaIndices {
+			field := fields[i]
+			messageKey := field.Key[1:]
+			if _, ok := templateMessageKeys[messageKey]; ok {
+				sourceMessageMetadata[messageKey] = field.RawValue
 			}
-			sourceMessageMetadata[messageKey] = field.RawValue
 		}
 	} else {
 		var err error
@@ -234,8 +241,8 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 		return nil, fmt.Errorf("expected object")
 	}
 
-	// Heuristic pre-allocation: approx 1 field per 100 bytes of content.
-	fields := make([]arbObjectField, 0, len(content)/100)
+	// Heuristic pre-allocation: approx 1 field per 64 bytes of content.
+	fields := make([]arbObjectField, 0, len(content)/64)
 	for dec.More() {
 		tok, err := dec.Token()
 		if err != nil {
@@ -274,11 +281,15 @@ func parseARBObjectFields(content []byte) ([]arbObjectField, error) {
 }
 
 func arbMessageMetadataKey(metaKey string, templateMessageKeys map[string]struct{}) (string, bool) {
-	if !isARBMetadataKey(metaKey) || strings.HasPrefix(metaKey, "@@") {
+	// ARB metadata keys for messages start with a single '@'.
+	// Keys starting with '@@' are global ARB metadata (like @@locale).
+	if !isARBMetadataKey(metaKey) || (len(metaKey) > 1 && metaKey[1] == '@') {
 		return "", false
 	}
 
-	messageKey := strings.TrimPrefix(metaKey, "@")
+	// BOLT OPTIMIZATION: Use slicing instead of strings.TrimPrefix to avoid
+	// redundant string operations and potential allocations.
+	messageKey := metaKey[1:]
 	if _, ok := templateMessageKeys[messageKey]; ok {
 		return messageKey, true
 	}
@@ -291,21 +302,28 @@ func arbMessageMetadataFields(content []byte) (map[string]json.RawMessage, error
 		return nil, err
 	}
 
-	messageKeys := make(map[string]struct{}, len(fields))
-	for _, field := range fields {
+	// BOLT OPTIMIZATION: Collect message keys and record metadata indices in a
+	// single pass to reduce iteration overhead.
+	messageKeys := make(map[string]struct{}, len(fields)/2+1)
+	metaIndices := make([]int, 0, len(fields)/2+1)
+
+	for i, field := range fields {
 		if isARBMetadataKey(field.Key) {
+			if len(field.Key) > 1 && field.Key[1] != '@' {
+				metaIndices = append(metaIndices, i)
+			}
 			continue
 		}
 		messageKeys[field.Key] = struct{}{}
 	}
 
-	metadataByKey := make(map[string]json.RawMessage)
-	for _, field := range fields {
-		messageKey, isMessageMeta := arbMessageMetadataKey(field.Key, messageKeys)
-		if !isMessageMeta {
-			continue
+	metadataByKey := make(map[string]json.RawMessage, len(metaIndices))
+	for _, i := range metaIndices {
+		field := fields[i]
+		messageKey := field.Key[1:]
+		if _, ok := messageKeys[messageKey]; ok {
+			metadataByKey[messageKey] = field.RawValue
 		}
-		metadataByKey[messageKey] = field.RawValue
 	}
 	return metadataByKey, nil
 }
