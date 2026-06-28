@@ -93,10 +93,10 @@ func TestDistributionsService_List(t *testing.T) {
 				BranchIDs:    []int{1, 2},
 				DirectoryIDs: []int{3, 4},
 				CreatedAt:    "2023-09-16T13:48:04+00:00",
-				UpdatedAt:   "2023-09-19T13:25:27+00:00",
-				ExportMode:  "bundle",
-				FileIDs:     []int{24, 25, 38},
-				ManifestURL: "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
+				UpdatedAt:    "2023-09-19T13:25:27+00:00",
+				ExportMode:   "bundle",
+				FileIDs:      []int{24, 25, 38},
+				ManifestURL:  "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
 			},
 			{
 				Hash:         "50fb350641274ba88296f97dc7e3e0c4",
@@ -105,10 +105,10 @@ func TestDistributionsService_List(t *testing.T) {
 				BranchIDs:    []int{5},
 				DirectoryIDs: []int{6},
 				CreatedAt:    "2023-09-16T13:48:04+00:00",
-				UpdatedAt:   "2023-09-19T13:25:27+00:00",
-				ExportMode:  "bundle",
-				FileIDs:     []int{25},
-				ManifestURL: "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
+				UpdatedAt:    "2023-09-19T13:25:27+00:00",
+				ExportMode:   "bundle",
+				FileIDs:      []int{25},
+				ManifestURL:  "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
 			},
 		}
 		require.Equal(t, expected, distributions)
@@ -164,10 +164,10 @@ func TestDistributionsService_Get(t *testing.T) {
 		BranchIDs:    []int{1, 2},
 		DirectoryIDs: []int{3, 4},
 		CreatedAt:    "2023-09-16T13:48:04+00:00",
-		UpdatedAt:   "2023-09-19T13:25:27+00:00",
-		ExportMode:  "bundle",
-		FileIDs:     []int{24, 25, 38},
-		ManifestURL: "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
+		UpdatedAt:    "2023-09-19T13:25:27+00:00",
+		ExportMode:   "bundle",
+		FileIDs:      []int{24, 25, 38},
+		ManifestURL:  "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
 	}
 	require.Equal(t, expected, distribution)
 }
@@ -217,10 +217,10 @@ func TestDistributionsService_Add(t *testing.T) {
 		BranchIDs:    []int{1, 2},
 		DirectoryIDs: []int{3, 4},
 		CreatedAt:    "2023-09-16T13:48:04+00:00",
-		UpdatedAt:   "2023-09-19T13:25:27+00:00",
-		ExportMode:  "bundle",
-		FileIDs:     []int{24, 25, 38},
-		ManifestURL: "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
+		UpdatedAt:    "2023-09-19T13:25:27+00:00",
+		ExportMode:   "bundle",
+		FileIDs:      []int{24, 25, 38},
+		ManifestURL:  "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
 	}
 	assert.Equal(t, expected, distribution)
 }
@@ -269,10 +269,10 @@ func TestDistributionsService_Edit(t *testing.T) {
 		BranchIDs:    []int{1, 2},
 		DirectoryIDs: []int{3, 4},
 		CreatedAt:    "2023-09-16T13:48:04+00:00",
-		UpdatedAt:   "2023-09-19T13:25:27+00:00",
-		ExportMode:  "bundle",
-		FileIDs:     []int{24, 25, 38},
-		ManifestURL: "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
+		UpdatedAt:    "2023-09-19T13:25:27+00:00",
+		ExportMode:   "bundle",
+		FileIDs:      []int{24, 25, 38},
+		ManifestURL:  "https://distributions.crowdin.net/50fb350641274ba88296f97dc7e3e0c3/manifest.json",
 	}
 	assert.Equal(t, expected, distribution)
 }

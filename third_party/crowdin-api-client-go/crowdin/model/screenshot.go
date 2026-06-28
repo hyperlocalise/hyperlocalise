@@ -13,9 +13,9 @@ type Screenshot struct {
 	ProjectID int    `json:"projectId"`
 	UserID    int    `json:"userId"`
 	URL       string `json:"url"`
-	WebURL string `json:"webUrl"`
-	Name   string `json:"name"`
-	Size   struct {
+	WebURL    string `json:"webUrl"`
+	Name      string `json:"name"`
+	Size      struct {
 		Width  int `json:"width"`
 		Height int `json:"height"`
 	} `json:"size"`

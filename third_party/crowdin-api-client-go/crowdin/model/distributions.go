@@ -7,12 +7,12 @@ type Distribution struct {
 	Hash         string `json:"hash"`
 	Name         string `json:"name"`
 	BundleIDs    []int  `json:"bundleIds"`
-	BranchIDs    []int  `json:"branchIds,omitempty"`
-	DirectoryIDs []int  `json:"directoryIds,omitempty"`
+	BranchIDs    []int  `json:"branchIds"`
+	DirectoryIDs []int  `json:"directoryIds"`
+	FileIDs      []int  `json:"fileIds"`
 	CreatedAt    string `json:"createdAt"`
 	UpdatedAt    string `json:"updatedAt"`
 	ExportMode   string `json:"exportMode"`
-	FileIDs      []int  `json:"fileIds"`
 	ManifestURL  string `json:"manifestUrl"`
 }
 
