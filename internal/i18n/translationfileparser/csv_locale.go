@@ -13,7 +13,7 @@ import (
 func ParseCSVLocale(content []byte, locale string) (map[string]string, error) {
 	locale = strings.TrimSpace(locale)
 	if locale != "" {
-		hasColumn, err := csvHasLocaleColumn(content, locale)
+		hasColumn, err := CSVHasLocaleColumn(content, locale)
 		if err != nil {
 			return nil, err
 		}
@@ -24,7 +24,9 @@ func ParseCSVLocale(content []byte, locale string) (map[string]string, error) {
 	return (CSVParser{}).Parse(content)
 }
 
-func csvHasLocaleColumn(content []byte, column string) (bool, error) {
+// CSVHasLocaleColumn reports whether the CSV header row contains a column
+// matching locale (case-insensitive, BOM-safe).
+func CSVHasLocaleColumn(content []byte, column string) (bool, error) {
 	normalizedColumn := strings.ToLower(strings.TrimSpace(column))
 	if normalizedColumn == "" {
 		return false, nil
