@@ -84,6 +84,7 @@ func TestIsPlaceholderNameEdgeCases(t *testing.T) {
 		{"valid array index", "items[0]", true},
 		{"valid nested array", "a.b[0].c", true},
 		{"malformed array", "items[0]suffix", false},
+		{"dot before bracket", "items.[0]", false},
 		{"empty", "", false},
 		{"unicode", "π", true},
 		{"unicode path", "π.val", true},

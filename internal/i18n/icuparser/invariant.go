@@ -350,7 +350,7 @@ func isPlaceholderName(s string) bool {
 		ch := s[i]
 		if ch < 0x80 {
 			if i == 0 {
-				if !isASCIIPlaceholderFirst(ch) || ch == '.' {
+				if !isASCIIPlaceholderFirst(ch) {
 					return false
 				}
 				i++
