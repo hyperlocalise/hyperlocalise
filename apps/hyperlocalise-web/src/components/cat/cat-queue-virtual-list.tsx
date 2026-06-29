@@ -7,10 +7,11 @@ import { useIntl } from "react-intl";
 import { cn } from "@/lib/primitives/cn";
 
 import { catQueuePanelMessages } from "./cat.messages";
+import { CatSegmentTags } from "./cat-segment-tags";
 import { QueueStatusDot } from "./cat-segment-status";
 import type { CatSegment } from "./types";
 
-const ESTIMATED_ROW_HEIGHT = 72;
+const ESTIMATED_ROW_HEIGHT = 88;
 
 export function CatQueueVirtualList({
   segments,
@@ -119,6 +120,9 @@ export function CatQueueVirtualList({
                         {segment.key}
                       </span>
                     </div>
+                    {segment.tags && segment.tags.length > 0 ? (
+                      <CatSegmentTags tags={segment.tags} />
+                    ) : null}
                   </div>
                   <div className="mt-1 flex shrink-0 flex-col items-center gap-1">
                     {isDirty ? (
