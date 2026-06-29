@@ -24,6 +24,7 @@ import type {
   CatWorkspaceViewProps,
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
+import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { CatWorkspaceView } from "./cat-workspace";
 import {
   buildSavedTargetTextMap,
@@ -1283,49 +1284,57 @@ export function CatWorkspaceContainer({
 
   return (
     <>
-      <CatWorkspaceView
-        state={queueViewState}
-        editorState={state}
-        dependencies={dependencies}
-        dirtySegmentIds={dirtySegmentIds}
-        isValidating={isValidating}
-        isApproving={isApproving}
-        isPostingComment={isPostingComment}
-        isResolvingComment={isResolvingComment}
-        resolvingCommentId={resolvingCommentId}
-        commentPostError={commentPostError}
-        isLookingUpContext={isLookingUpContext}
-        isConcordanceLoading={isLoadingConcordance}
-        isVisualContextLoading={isLoadingVisualContext}
-        isAiSuggestionLoading={isGeneratingAiRecommendation && canUseAiRecommendation}
-        isFormatChecksLoading={isRunningFormatChecks || isValidating}
-        canLookupContext={canLookupContext}
-        showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
-        showVisualContext={canLoadVisualContext}
-        canUseAiRecommendation={canUseAiRecommendation}
+      <CatPanelErrorBoundary
+        scope="workspace"
         className={className}
-        queueSearch={queueSearch}
-        onQueueSearchChange={onQueueSearchChange}
-        isQueueSearchPending={isQueueSearchPending}
-        isQueueFetchingPage={isQueueFetchingPage}
-        queuePagination={queuePagination}
-        onQueuePreviousPage={
-          onQueuePreviousPage ? () => attemptPageNavigation(onQueuePreviousPage) : undefined
-        }
-        onQueueNextPage={onQueueNextPage ? () => attemptPageNavigation(onQueueNextPage) : undefined}
-        onQueueNearEnd={onQueueNearEnd}
-        queueFilter={queueFilter}
-        onQueueFilterChange={handleQueueFilterChange}
-        availableQueueFilters={availableQueueFilters}
-        checkedSegmentIds={checkedSegmentIds}
-        onToggleSegmentChecked={handleToggleSegmentChecked}
-        onSelectAllVisible={handleSelectAllVisible}
-        onClearChecked={handleClearChecked}
-        onBulkApprove={() => void handleBulkApprove()}
-        onBulkSkip={() => void handleBulkSkip()}
-        isBulkActionPending={isBulkActionPending}
-        buildSegmentShareUrl={resolvedBuildSegmentShareUrl}
-      />
+        resetKeys={[state.selectedSegmentId, queueFilter, queueSearch, queuePagination?.offset]}
+      >
+        <CatWorkspaceView
+          state={queueViewState}
+          editorState={state}
+          dependencies={dependencies}
+          dirtySegmentIds={dirtySegmentIds}
+          isValidating={isValidating}
+          isApproving={isApproving}
+          isPostingComment={isPostingComment}
+          isResolvingComment={isResolvingComment}
+          resolvingCommentId={resolvingCommentId}
+          commentPostError={commentPostError}
+          isLookingUpContext={isLookingUpContext}
+          isConcordanceLoading={isLoadingConcordance}
+          isVisualContextLoading={isLoadingVisualContext}
+          isAiSuggestionLoading={isGeneratingAiRecommendation && canUseAiRecommendation}
+          isFormatChecksLoading={isRunningFormatChecks || isValidating}
+          canLookupContext={canLookupContext}
+          showAgentContext={revealedAgentContextSegmentIds.has(state.selectedSegmentId)}
+          showVisualContext={canLoadVisualContext}
+          canUseAiRecommendation={canUseAiRecommendation}
+          className={className}
+          queueSearch={queueSearch}
+          onQueueSearchChange={onQueueSearchChange}
+          isQueueSearchPending={isQueueSearchPending}
+          isQueueFetchingPage={isQueueFetchingPage}
+          queuePagination={queuePagination}
+          onQueuePreviousPage={
+            onQueuePreviousPage ? () => attemptPageNavigation(onQueuePreviousPage) : undefined
+          }
+          onQueueNextPage={
+            onQueueNextPage ? () => attemptPageNavigation(onQueueNextPage) : undefined
+          }
+          onQueueNearEnd={onQueueNearEnd}
+          queueFilter={queueFilter}
+          onQueueFilterChange={handleQueueFilterChange}
+          availableQueueFilters={availableQueueFilters}
+          checkedSegmentIds={checkedSegmentIds}
+          onToggleSegmentChecked={handleToggleSegmentChecked}
+          onSelectAllVisible={handleSelectAllVisible}
+          onClearChecked={handleClearChecked}
+          onBulkApprove={() => void handleBulkApprove()}
+          onBulkSkip={() => void handleBulkSkip()}
+          isBulkActionPending={isBulkActionPending}
+          buildSegmentShareUrl={resolvedBuildSegmentShareUrl}
+        />
+      </CatPanelErrorBoundary>
 
       <AlertDialog
         open={unsavedNavigationPrompt !== null}
