@@ -143,4 +143,27 @@ describe("NativeCatService.getCatFile", () => {
 
     expect(result?.segments[0]?.maxLength).toBe(24);
   });
+
+  it("omits maxLength when the translation key has a non-positive value", async () => {
+    listKeysForFile.mockResolvedValue([
+      {
+        id: "key_1",
+        key: "hero.cta",
+        sourceText: "Get started",
+        context: null,
+        type: "text",
+        maxLength: 0,
+      },
+    ]);
+
+    const result = await service.getCatFile({
+      organizationId: "org_1",
+      projectId: "project_1",
+      sourcePath: "locales/en.json",
+      targetLocale: "fr",
+      canEditTranslations: true,
+    });
+
+    expect(result?.segments[0]?.maxLength).toBeUndefined();
+  });
 });

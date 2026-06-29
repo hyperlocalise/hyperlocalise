@@ -158,6 +158,28 @@ describe("projectFileCatToWorkspaceState", () => {
 
     expect(state.segments[0]?.maxLength).toBe(24);
   });
+
+  it("omits maxLength from workspace state when the CAT segment has a non-positive value", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        segments: [
+          {
+            externalStringId: "limited-string",
+            key: "hero.cta",
+            sourceText: "Get started",
+            context: null,
+            type: "text",
+            maxLength: 0,
+            target: null,
+            comments: [],
+          },
+        ],
+      }),
+      testIntl,
+    );
+
+    expect(state.segments[0]?.maxLength).toBeUndefined();
+  });
 });
 
 describe("formatCheckForSegment", () => {
