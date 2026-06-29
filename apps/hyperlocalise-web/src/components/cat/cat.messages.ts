@@ -159,6 +159,34 @@ export const catQueuePanelMessages = defineMessages({
   },
 });
 
+export const catSegmentStatusMessages = defineMessages({
+  pending: {
+    defaultMessage: "Untranslated",
+    id: "pmgrWye2G2",
+    description: "CAT segment status label for segments without a target translation",
+  },
+  needsReview: {
+    defaultMessage: "Needs review",
+    id: "18VKZNqtbO",
+    description: "CAT segment status label for translated segments awaiting review",
+  },
+  reviewed: {
+    defaultMessage: "Approved",
+    id: "kGM2czQvBa",
+    description: "CAT segment status label for approved segments",
+  },
+  skipped: {
+    defaultMessage: "Skipped",
+    id: "9Pt2hFyO/v",
+    description: "CAT segment status label for skipped segments",
+  },
+  statusDotAria: {
+    defaultMessage: "Status: {status}",
+    id: "ecBrADENW6",
+    description: "Accessible label for segment status indicator dot in the CAT queue",
+  },
+});
+
 export const catGlossaryChecksMessages = defineMessages({
   complianceLabel: {
     defaultMessage: "Glossary compliance",
@@ -463,13 +491,13 @@ export const catEditorPanelMessages = defineMessages({
     description: "Accessible label for the next segment navigation button",
   },
   previousSegmentTitle: {
-    defaultMessage: "Previous segment (⌘←)",
-    id: "fjCr7YjlbN",
+    defaultMessage: "Previous segment ({shortcut})",
+    id: "VGayu+ZFkL",
     description: "Tooltip for the previous segment navigation button",
   },
   nextSegmentTitle: {
-    defaultMessage: "Next segment (⌘→)",
-    id: "A4pgNxiL6F",
+    defaultMessage: "Next segment ({shortcut})",
+    id: "kHLqanH9yi",
     description: "Tooltip for the next segment navigation button",
   },
   sourceHeading: {

@@ -7,21 +7,10 @@ import { useIntl } from "react-intl";
 import { cn } from "@/lib/primitives/cn";
 
 import { catQueuePanelMessages } from "./cat.messages";
+import { QueueStatusDot } from "./cat-segment-status";
 import type { CatSegment } from "./types";
 
 const ESTIMATED_ROW_HEIGHT = 72;
-
-function QueueStatusDot({ status }: { status: CatSegment["status"] }) {
-  if (status === "reviewed") {
-    return <span className="size-2.5 rounded-full bg-grove-300" />;
-  }
-
-  if (status === "needs_review") {
-    return <span className="size-2.5 rounded-full bg-bud-400" />;
-  }
-
-  return <span className="size-2.5 rounded-full border border-foreground/25" />;
-}
 
 export function CatQueueVirtualList({
   segments,
