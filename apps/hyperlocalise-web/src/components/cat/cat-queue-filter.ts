@@ -56,10 +56,15 @@ export function findSegmentIdByKeyOrId(segments: CatSegment[], segmentIdOrKey: s
   return match?.id ?? null;
 }
 
+function isOpenIssueStatus(status: string | null | undefined) {
+  return status === "open" || status === "unresolved";
+}
+
 export function segmentHasOpenIssues(segment: CatSegment) {
   return (
-    segment.comments?.some((comment) => comment.type === "issue" && comment.status === "open") ??
-    false
+    segment.comments?.some(
+      (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
+    ) ?? false
   );
 }
 

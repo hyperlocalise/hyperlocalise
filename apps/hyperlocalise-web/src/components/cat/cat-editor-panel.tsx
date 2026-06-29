@@ -10,8 +10,16 @@ import { FormattedMessage, useIntl, type IntlShape } from "react-intl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/primitives/cn";
 
@@ -19,7 +27,14 @@ import { CatFormatChecks } from "./cat-format-checks";
 import { catEditorPanelMessages } from "./cat.messages";
 import { analyzeCatMessageFormat } from "./cat-message-format";
 import { CatIcuStructureSummary, CatMessagePreview, CatTargetEditor } from "./cat-target-editor";
-import type { CatFormatCheck, CatSegment, CatSegmentIntelligence } from "./types";
+import type {
+  CatFormatCheck,
+  CatSegment,
+  CatSegmentCommentInput,
+  CatSegmentCommentType,
+  CatSegmentIntelligence,
+  CrowdinIssueType,
+} from "./types";
 
 function ShortcutKbd({ keys, className }: { keys: string[]; className?: string }) {
   return (
@@ -48,6 +63,20 @@ function formatCommentTimestamp(intl: IntlShape, createdAt: string) {
   });
 }
 
+function isOpenIssueStatus(status: string | null | undefined) {
+  return status === "open" || status === "unresolved";
+}
+
+const crowdinIssueTypeOptions: Array<{
+  value: CrowdinIssueType;
+  message: (typeof catEditorPanelMessages)[keyof typeof catEditorPanelMessages];
+}> = [
+  { value: "general_question", message: catEditorPanelMessages.issueTypeGeneralQuestion },
+  { value: "translation_mistake", message: catEditorPanelMessages.issueTypeTranslationMistake },
+  { value: "context_request", message: catEditorPanelMessages.issueTypeContextRequest },
+  { value: "source_mistake", message: catEditorPanelMessages.issueTypeSourceMistake },
+];
+
 export function CatEditorPanel({
   segment,
   segmentPosition,
@@ -66,13 +95,17 @@ export function CatEditorPanel({
   canUseAiRecommendation = false,
   isTargetDirty = false,
   isPostingComment = false,
+  isResolvingComment = false,
+  resolvingCommentId = null,
   commentPostError,
+  providerKind = null,
   onTargetChange,
   onCopySource,
   onClearTarget,
   onUseAiSuggestion,
   onApprove,
   onAddComment,
+  onResolveComment,
   primaryActionLabel,
   onAskQuestion,
   onGenerateAiRecommendation,
@@ -100,13 +133,16 @@ export function CatEditorPanel({
   canUseAiRecommendation?: boolean;
   isTargetDirty?: boolean;
   isPostingComment?: boolean;
+  isResolvingComment?: boolean;
+  resolvingCommentId?: string | null;
   commentPostError?: string;
   onTargetChange: (value: string) => void;
   onCopySource: () => void;
   onClearTarget: () => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
-  onAddComment?: (text: string) => void | Promise<void>;
+  onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
+  onResolveComment?: (commentId: string) => void | Promise<void>;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
   onGenerateAiRecommendation?: () => void;
@@ -116,15 +152,23 @@ export function CatEditorPanel({
   hasPreviousSegment: boolean;
   hasNextSegment: boolean;
   segmentShareUrl?: string | null;
+  providerKind?: string | null;
 }) {
   const intl = useIntl();
   const [shareLinkState, setShareLinkState] = useState<"idle" | "copied" | "error">("idle");
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
   const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const [commentInputTypes, setCommentInputTypes] = useState<Record<string, CatSegmentCommentType>>(
+    {},
+  );
+  const [issueTypes, setIssueTypes] = useState<Record<string, CrowdinIssueType>>({});
   const commentDraft = commentDrafts[segment.id] ?? "";
+  const commentInputType = commentInputTypes[segment.id] ?? "comment";
+  const issueType = issueTypes[segment.id] ?? "general_question";
   const segmentComments = segment.comments ?? [];
   const trimmedCommentDraft = commentDraft.trim();
+  const supportsCrowdinIssues = providerKind === "crowdin" && canAddComment;
   const isActionBlocked =
     isApproving ||
     isPostingComment ||
@@ -197,8 +241,36 @@ export function CatEditorPanel({
       return;
     }
 
-    await onAddComment(trimmedCommentDraft);
+    const input: CatSegmentCommentInput = {
+      text: trimmedCommentDraft,
+      ...(supportsCrowdinIssues && commentInputType === "issue"
+        ? { type: "issue" as const, issueType }
+        : {}),
+    };
+
+    await onAddComment(input);
     handleCommentDraftChange("");
+  }
+
+  function handleCommentInputTypeChange(value: string) {
+    if (value !== "comment" && value !== "issue") {
+      return;
+    }
+
+    setCommentInputTypes((current) => ({ ...current, [segment.id]: value }));
+  }
+
+  function handleIssueTypeChange(value: CrowdinIssueType | null) {
+    if (
+      value !== "general_question" &&
+      value !== "translation_mistake" &&
+      value !== "context_request" &&
+      value !== "source_mistake"
+    ) {
+      return;
+    }
+
+    setIssueTypes((current) => ({ ...current, [segment.id]: value }));
   }
 
   async function handleShareSegment() {
@@ -509,6 +581,31 @@ export function CatEditorPanel({
                       {comment.status ? <span className="capitalize">{comment.status}</span> : null}
                     </div>
                     <p className="text-sm leading-relaxed text-foreground/88">{comment.text}</p>
+                    {comment.type === "issue" &&
+                    isOpenIssueStatus(comment.status) &&
+                    onResolveComment ? (
+                      <div className="flex justify-end pt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => void onResolveComment(comment.id)}
+                          disabled={
+                            isResolvingComment ||
+                            isPostingComment ||
+                            (resolvingCommentId !== null && resolvingCommentId !== comment.id)
+                          }
+                        >
+                          {isResolvingComment && resolvingCommentId === comment.id ? (
+                            <Spinner className="size-4" />
+                          ) : null}
+                          {isResolvingComment && resolvingCommentId === comment.id ? (
+                            <FormattedMessage {...catEditorPanelMessages.resolvingIssue} />
+                          ) : (
+                            <FormattedMessage {...catEditorPanelMessages.resolveIssue} />
+                          )}
+                        </Button>
+                      </div>
+                    ) : null}
                   </li>
                 ))}
               </ul>
@@ -522,9 +619,42 @@ export function CatEditorPanel({
               onChange={(event) => handleCommentDraftChange(event.currentTarget.value)}
               className="min-h-20 resize-y rounded-xl border-foreground/12 bg-background px-3 py-3 text-sm leading-relaxed"
               placeholder={intl.formatMessage(catEditorPanelMessages.commentPlaceholder)}
-              disabled={!canAddComment || isPostingComment}
+              disabled={!canAddComment || isPostingComment || isResolvingComment}
               data-cat-comment-input="true"
             />
+            {supportsCrowdinIssues ? (
+              <div className="flex flex-wrap items-center gap-3">
+                <Tabs value={commentInputType} onValueChange={handleCommentInputTypeChange}>
+                  <TabsList className="h-8">
+                    <TabsTrigger value="comment" className="px-3 text-xs">
+                      <FormattedMessage {...catEditorPanelMessages.commentTypeComment} />
+                    </TabsTrigger>
+                    <TabsTrigger value="issue" className="px-3 text-xs">
+                      <FormattedMessage {...catEditorPanelMessages.commentTypeIssue} />
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                {commentInputType === "issue" ? (
+                  <div className="flex min-w-48 flex-1 items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      <FormattedMessage {...catEditorPanelMessages.issueTypeLabel} />
+                    </span>
+                    <Select value={issueType} onValueChange={handleIssueTypeChange}>
+                      <SelectTrigger className="h-8 flex-1 text-xs">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {crowdinIssueTypeOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            <FormattedMessage {...option.message} />
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             {commentPostError ? <p className="text-sm text-flame-100">{commentPostError}</p> : null}
             <div className="flex justify-end">
               <Button
@@ -532,12 +662,18 @@ export function CatEditorPanel({
                 size="sm"
                 onClick={() => void handleAddComment()}
                 disabled={
-                  !canAddComment || !trimmedCommentDraft || isPostingComment || !onAddComment
+                  !canAddComment ||
+                  !trimmedCommentDraft ||
+                  isPostingComment ||
+                  isResolvingComment ||
+                  !onAddComment
                 }
               >
                 {isPostingComment ? <Spinner className="size-4" /> : null}
                 {isPostingComment ? (
                   <FormattedMessage {...catEditorPanelMessages.postingComment} />
+                ) : supportsCrowdinIssues && commentInputType === "issue" ? (
+                  <FormattedMessage {...catEditorPanelMessages.addIssue} />
                 ) : (
                   <FormattedMessage {...catEditorPanelMessages.addComment} />
                 )}

@@ -592,10 +592,65 @@ export const catEditorPanelMessages = defineMessages({
     id: "wAW00AgfLK",
     description: "Error message when posting a segment comment to the TMS fails",
   },
+  commentResolveFailed: {
+    defaultMessage: "Failed to resolve issue. Try again.",
+    id: "i6rHhL31CZ",
+    description: "Error message when resolving a Crowdin issue comment fails",
+  },
   postingComment: {
     defaultMessage: "Posting…",
     id: "j+ggKPYEzH",
     description: "Button label while a segment comment is being posted to the TMS",
+  },
+  commentTypeComment: {
+    defaultMessage: "Comment",
+    id: "yn7Eufu4t+",
+    description: "Toggle option to post a plain comment to Crowdin",
+  },
+  commentTypeIssue: {
+    defaultMessage: "Issue",
+    id: "qHwoyBJJm0",
+    description: "Toggle option to raise a Crowdin issue on the current segment",
+  },
+  addIssue: {
+    defaultMessage: "Raise issue",
+    id: "cIUvYdnnCL",
+    description: "Button to submit a new Crowdin issue on the current segment",
+  },
+  resolveIssue: {
+    defaultMessage: "Resolve",
+    id: "gOG3lApYkM",
+    description: "Button to mark a Crowdin issue comment as resolved",
+  },
+  resolvingIssue: {
+    defaultMessage: "Resolving…",
+    id: "E8rEmEqTpX",
+    description: "Button label while a Crowdin issue is being resolved",
+  },
+  issueTypeGeneralQuestion: {
+    defaultMessage: "General question",
+    id: "2oU/YE7MsU",
+    description: "Crowdin issue type for general questions",
+  },
+  issueTypeTranslationMistake: {
+    defaultMessage: "Translation mistake",
+    id: "p83H7uOHst",
+    description: "Crowdin issue type for translation mistakes",
+  },
+  issueTypeContextRequest: {
+    defaultMessage: "Context request",
+    id: "YNB1czGowu",
+    description: "Crowdin issue type for context requests",
+  },
+  issueTypeSourceMistake: {
+    defaultMessage: "Source mistake",
+    id: "LMW/LqnbFb",
+    description: "Crowdin issue type for source mistakes",
+  },
+  issueTypeLabel: {
+    defaultMessage: "Issue type",
+    id: "t/OSX7F5nd",
+    description: "Label for the Crowdin issue type selector",
   },
   unsavedChanges: {
     defaultMessage: "Unsaved",
