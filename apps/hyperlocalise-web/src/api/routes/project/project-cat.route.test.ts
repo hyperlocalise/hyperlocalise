@@ -766,7 +766,6 @@ describe("project file CAT routes", () => {
         },
         json: {
           sourcePath: "crowdin/home.json",
-          targetLocale: "fr",
           externalResourceId: "101",
         },
       },

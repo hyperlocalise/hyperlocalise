@@ -529,7 +529,6 @@ export const projectFileCatCommentResponseSchema = z.object({
 
 export const projectFileCatCommentResolveBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
-  targetLocale: z.string().trim().min(1).max(32),
   externalResourceId: z.string().trim().min(1).max(128).optional(),
 });
 

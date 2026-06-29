@@ -24,6 +24,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/primitives/cn";
 
 import { CatFormatChecks } from "./cat-format-checks";
+import { isOpenIssueStatus } from "./cat-queue-filter";
 import { catEditorPanelMessages } from "./cat.messages";
 import { analyzeCatMessageFormat } from "./cat-message-format";
 import { CatIcuStructureSummary, CatMessagePreview, CatTargetEditor } from "./cat-target-editor";
@@ -61,10 +62,6 @@ function formatCommentTimestamp(intl: IntlShape, createdAt: string) {
     hour: "numeric",
     minute: "2-digit",
   });
-}
-
-function isOpenIssueStatus(status: string | null | undefined) {
-  return status === "open" || status === "unresolved";
 }
 
 const crowdinIssueTypeOptions: Array<{

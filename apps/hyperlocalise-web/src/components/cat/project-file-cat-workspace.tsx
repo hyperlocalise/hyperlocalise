@@ -40,6 +40,7 @@ import type {
   CatSegment,
   CatSegmentCommentInput,
   CatSegmentIntelligence,
+  CrowdinIssueType,
 } from "./types";
 
 function initialTargetLocale(targetLocales: string[], highlightLocale: string | null) {
@@ -169,7 +170,7 @@ export function ProjectFileCatWorkspace({
       externalStringId: string;
       text: string;
       type?: "comment" | "issue";
-      issueType?: string;
+      issueType?: CrowdinIssueType;
     }) => {
       const externalResourceId = catQuery.data?.provider
         ? requireProviderExternalResourceId(catQuery.data)
@@ -186,12 +187,7 @@ export function ProjectFileCatWorkspace({
           externalResourceId,
           text: input.text,
           type: input.type,
-          issueType: input.issueType as
-            | "general_question"
-            | "translation_mistake"
-            | "context_request"
-            | "source_mistake"
-            | undefined,
+          issueType: input.issueType,
         },
       });
 
@@ -224,7 +220,6 @@ export function ProjectFileCatWorkspace({
         },
         json: {
           sourcePath,
-          targetLocale,
           externalResourceId,
         },
       });
