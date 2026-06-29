@@ -344,7 +344,10 @@ describe("project file CAT routes", () => {
 
   it("rejects native CAT comment posts with provider_cat_unsupported", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
-    const translator = projectFixture.createWorkosIdentityForOrganization(organization, "translator");
+    const translator = projectFixture.createWorkosIdentityForOrganization(
+      organization,
+      "translator",
+    );
     const headers = await projectFixture.authHeadersFor(translator);
 
     const response = await client.api.orgs[":organizationSlug"].projects[
@@ -372,7 +375,10 @@ describe("project file CAT routes", () => {
 
   it("rejects native CAT comment resolution with provider_cat_unsupported", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
-    const translator = projectFixture.createWorkosIdentityForOrganization(organization, "translator");
+    const translator = projectFixture.createWorkosIdentityForOrganization(
+      organization,
+      "translator",
+    );
     const headers = await projectFixture.authHeadersFor(translator);
 
     const response = await client.api.orgs[":organizationSlug"].projects[
