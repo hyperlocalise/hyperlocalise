@@ -32,6 +32,18 @@ func TestSameICUBlocks(t *testing.T) {
 			want: true,
 		},
 		{
+			name: "plural vs selectordinal mismatch",
+			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}}},
+			b:    []BlockSignature{{Arg: "n", Type: "selectordinal", Options: []string{"one"}}},
+			want: false,
+		},
+		{
+			name: "number vs date mismatch",
+			a:    []BlockSignature{{Arg: "n", Type: "number"}},
+			b:    []BlockSignature{{Arg: "n", Type: "date"}},
+			want: false,
+		},
+		{
 			name: "type mismatch",
 			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}}},
 			b:    []BlockSignature{{Arg: "n", Type: "select", Options: []string{"one"}}},
@@ -47,6 +59,12 @@ func TestSameICUBlocks(t *testing.T) {
 			name: "options mismatch",
 			a:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"one"}}},
 			b:    []BlockSignature{{Arg: "n", Type: "plural", Options: []string{"other"}}},
+			want: false,
+		},
+		{
+			name: "options mismatch in typed formatter",
+			a:    []BlockSignature{{Arg: "n", Type: "number", Options: []string{"currency"}}},
+			b:    []BlockSignature{{Arg: "n", Type: "number", Options: []string{"percent"}}},
 			want: false,
 		},
 		{
@@ -83,6 +101,9 @@ func TestIsPlaceholderNameEdgeCases(t *testing.T) {
 		{"valid dollar", "$amount", true},
 		{"valid array index", "items[0]", true},
 		{"valid nested array", "a.b[0].c", true},
+		{"multi-dimensional array index", "matrix[0][1]", true},
+		{"mixed path and array", "items[0].field", true},
+		{"starts with digit", "0.name", true},
 		{"malformed array", "items[0]suffix", false},
 		{"dot before bracket", "items.[0]", false},
 		{"empty", "", false},
