@@ -55,6 +55,7 @@ import type {
   CatFormatCheck,
   CatGlossaryTerm,
   CatSegment,
+  CatSegmentCommentInput,
   CatTranslationMemoryMatch,
   CatWorkspaceState,
 } from "./types";
@@ -325,6 +326,8 @@ export function CatWorkspaceContainer({
   const [isApproving, setIsApproving] = useState(false);
   const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [isResolvingComment, setIsResolvingComment] = useState(false);
+  const [resolvingCommentId, setResolvingCommentId] = useState<string | null>(null);
   const [commentPostError, setCommentPostError] = useState<string | undefined>();
   const [isLookingUpContext, setIsLookingUpContext] = useState(false);
   const [isLoadingConcordance, setIsLoadingConcordance] = useState(false);
@@ -369,6 +372,7 @@ export function CatWorkspaceContainer({
   const onApprove = reviewOverrides?.onApprove;
   const onSaveDraft = reviewOverrides?.onSaveDraft;
   const onAddComment = reviewOverrides?.onAddComment;
+  const onResolveComment = reviewOverrides?.onResolveComment;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
   const onReviewWithAi = reviewOverrides?.onReviewWithAi;
   const onSkip = reviewOverrides?.onSkip;
@@ -1012,53 +1016,57 @@ export function CatWorkspaceContainer({
           setIsApproving(false);
         }
       },
-      onSaveDraft: async (segmentId: string, targetText: string) => {
-        if (!onSaveDraft) {
-          return;
-        }
-
-        setIsSavingDraft(true);
-        try {
-          const nextStatus = (await onSaveDraft(segmentId, targetText)) ?? "needs_review";
-          setState((current) => {
-            const previousSegment = current.segments.find((segment) => segment.id === segmentId);
-            const segments = updateSegmentTarget(
-              updateSegmentStatus(current.segments, segmentId, nextStatus),
-              segmentId,
-              targetText,
-            );
-            return {
-              ...current,
-              segments,
-              queueSummary: previousSegment
-                ? adjustQueueSummaryForStatusChange(
-                    current.queueSummary,
-                    previousSegment.status,
-                    nextStatus,
-                  )
-                : current.queueSummary,
-            };
-          });
-          setSavedTargetTexts((saved) => markSegmentTargetSaved(saved, segmentId, targetText));
-        } catch (error) {
-          const message =
-            error instanceof Error
-              ? error.message
-              : intl.formatMessage(catWorkspaceContainerMessages.saveTranslationFailed);
-          setState((current) => ({
-            ...current,
-            ...addSaveFailureFormatCheck(
-              current,
-              segmentId,
-              message,
-              intl.formatMessage(catWorkspaceContainerMessages.saveFailedLabel),
-            ),
-          }));
-        } finally {
-          setIsSavingDraft(false);
-        }
-      },
-      onAddComment: async (segmentId: string, text: string) => {
+      ...(onSaveDraft
+        ? {
+            onSaveDraft: async (segmentId: string, targetText: string) => {
+              setIsSavingDraft(true);
+              try {
+                const nextStatus = (await onSaveDraft(segmentId, targetText)) ?? "needs_review";
+                setState((current) => {
+                  const previousSegment = current.segments.find(
+                    (segment) => segment.id === segmentId,
+                  );
+                  const segments = updateSegmentTarget(
+                    updateSegmentStatus(current.segments, segmentId, nextStatus),
+                    segmentId,
+                    targetText,
+                  );
+                  return {
+                    ...current,
+                    segments,
+                    queueSummary: previousSegment
+                      ? adjustQueueSummaryForStatusChange(
+                          current.queueSummary,
+                          previousSegment.status,
+                          nextStatus,
+                        )
+                      : current.queueSummary,
+                  };
+                });
+                setSavedTargetTexts((saved) =>
+                  markSegmentTargetSaved(saved, segmentId, targetText),
+                );
+              } catch (error) {
+                const message =
+                  error instanceof Error
+                    ? error.message
+                    : intl.formatMessage(catWorkspaceContainerMessages.saveTranslationFailed);
+                setState((current) => ({
+                  ...current,
+                  ...addSaveFailureFormatCheck(
+                    current,
+                    segmentId,
+                    message,
+                    intl.formatMessage(catWorkspaceContainerMessages.saveFailedLabel),
+                  ),
+                }));
+              } finally {
+                setIsSavingDraft(false);
+              }
+            },
+          }
+        : {}),
+      onAddComment: async (segmentId: string, input: CatSegmentCommentInput) => {
         if (!onAddComment) {
           return;
         }
@@ -1066,7 +1074,7 @@ export function CatWorkspaceContainer({
         setCommentPostError(undefined);
         setIsPostingComment(true);
         try {
-          await onAddComment(segmentId, text);
+          await onAddComment(segmentId, input);
         } catch (error) {
           const message =
             error instanceof Error
@@ -1076,6 +1084,28 @@ export function CatWorkspaceContainer({
           throw error;
         } finally {
           setIsPostingComment(false);
+        }
+      },
+      onResolveComment: async (segmentId: string, commentId: string) => {
+        if (!onResolveComment) {
+          return;
+        }
+
+        setCommentPostError(undefined);
+        setResolvingCommentId(commentId);
+        setIsResolvingComment(true);
+        try {
+          await onResolveComment(segmentId, commentId);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : intl.formatMessage(catEditorPanelMessages.commentResolveFailed);
+          setCommentPostError(message);
+          throw error;
+        } finally {
+          setIsResolvingComment(false);
+          setResolvingCommentId(null);
         }
       },
       onAskQuestion: async (segmentId: string) => {
@@ -1185,6 +1215,7 @@ export function CatWorkspaceContainer({
     onApprove,
     onSaveDraft,
     onAddComment,
+    onResolveComment,
     onAskQuestion,
     intl,
     onNextSegment,
@@ -1320,6 +1351,8 @@ export function CatWorkspaceContainer({
           isApproving={isApproving}
           isSavingDraft={isSavingDraft}
           isPostingComment={isPostingComment}
+          isResolvingComment={isResolvingComment}
+          resolvingCommentId={resolvingCommentId}
           commentPostError={commentPostError}
           isLookingUpContext={isLookingUpContext}
           isConcordanceLoading={isLoadingConcordance}

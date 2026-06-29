@@ -11,6 +11,10 @@ export const projectIdParamsSchema = z.object({
   projectId: projectIdSchema,
 });
 
+export const projectFileCatCommentIdParamsSchema = projectIdParamsSchema.extend({
+  commentId: z.string().trim().min(1).max(128),
+});
+
 export const externalTmsContentSyncBodySchema = z.object({
   externalJobId: z.string().trim().min(1).max(128),
 });
@@ -502,6 +506,13 @@ export const projectFileCatCommentSchema = z.object({
   author: z.string().nullable().optional(),
 });
 
+export const crowdinIssueTypes = [
+  "general_question",
+  "translation_mistake",
+  "context_request",
+  "source_mistake",
+] as const;
+
 export const projectFileCatCommentBodySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
   targetLocale: z.string().trim().min(1).max(32),
@@ -509,9 +520,19 @@ export const projectFileCatCommentBodySchema = z.object({
   externalResourceId: z.string().trim().min(1).max(128).optional(),
   text: z.string().trim().min(1).max(16_384),
   type: z.enum(["comment", "issue"]).optional(),
+  issueType: z.enum(crowdinIssueTypes).optional(),
 });
 
 export const projectFileCatCommentResponseSchema = z.object({
+  comment: projectFileCatCommentSchema,
+});
+
+export const projectFileCatCommentResolveBodySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
+});
+
+export const projectFileCatCommentResolveResponseSchema = z.object({
   comment: projectFileCatCommentSchema,
 });
 
@@ -589,6 +610,12 @@ export type ProjectFileDetailResponse = z.infer<typeof projectFileDetailResponse
 export type ProjectFileCatComment = z.infer<typeof projectFileCatCommentSchema>;
 export type ProjectFileCatCommentBody = z.infer<typeof projectFileCatCommentBodySchema>;
 export type ProjectFileCatCommentResponse = z.infer<typeof projectFileCatCommentResponseSchema>;
+export type ProjectFileCatCommentResolveBody = z.infer<
+  typeof projectFileCatCommentResolveBodySchema
+>;
+export type ProjectFileCatCommentResolveResponse = z.infer<
+  typeof projectFileCatCommentResolveResponseSchema
+>;
 export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
 export type ProjectFileCatQueueSummary = z.infer<typeof projectFileCatQueueSummarySchema>;

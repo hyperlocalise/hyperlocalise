@@ -57,6 +57,25 @@ describe("segmentMatchesQueueFilter", () => {
     expect(segmentMatchesQueueFilter(withIssue, "needs_review")).toBe(false);
   });
 
+  it("treats Crowdin unresolved issue status as open", () => {
+    const withUnresolvedIssue = createSegment({
+      status: "needs_review",
+      comments: [
+        {
+          id: "c-1",
+          type: "issue",
+          status: "unresolved",
+          text: "Wrong tone",
+          createdAt: "2026-01-01T00:00:00.000Z",
+          locale: "vi",
+        },
+      ],
+    });
+
+    expect(segmentMatchesQueueFilter(withUnresolvedIssue, "has_issues")).toBe(true);
+    expect(segmentMatchesQueueFilter(withUnresolvedIssue, "needs_review")).toBe(false);
+  });
+
   it("ignores resolved issue comments for the has issues filter", () => {
     const withResolvedIssue = createSegment({
       status: "needs_review",

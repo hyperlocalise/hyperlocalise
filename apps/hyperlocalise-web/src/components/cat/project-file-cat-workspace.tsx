@@ -35,7 +35,13 @@ import {
   validateSegmentFormat,
 } from "./project-file-cat-mapper";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
-import type { CatGlossaryTerm, CatSegment, CatSegmentIntelligence } from "./types";
+import type {
+  CatGlossaryTerm,
+  CatSegment,
+  CatSegmentCommentInput,
+  CatSegmentIntelligence,
+  CrowdinIssueType,
+} from "./types";
 
 function initialTargetLocale(targetLocales: string[], highlightLocale: string | null) {
   if (highlightLocale && targetLocales.includes(highlightLocale)) {
@@ -161,7 +167,12 @@ export function ProjectFileCatWorkspace({
   const saveTranslation = saveMutation.mutateAsync;
 
   const commentMutation = useMutation({
-    mutationFn: async (input: { externalStringId: string; text: string }) => {
+    mutationFn: async (input: {
+      externalStringId: string;
+      text: string;
+      type?: "comment" | "issue";
+      issueType?: CrowdinIssueType;
+    }) => {
       const externalResourceId = catQuery.data?.provider
         ? requireProviderExternalResourceId(catQuery.data)
         : undefined;
@@ -176,6 +187,8 @@ export function ProjectFileCatWorkspace({
           externalStringId: input.externalStringId,
           externalResourceId,
           text: input.text,
+          type: input.type,
+          issueType: input.issueType,
         },
       });
 
@@ -191,6 +204,39 @@ export function ProjectFileCatWorkspace({
     },
   });
   const postComment = commentMutation.mutateAsync;
+
+  const resolveCommentMutation = useMutation({
+    mutationFn: async (input: { externalCommentId: string }) => {
+      const externalResourceId = catQuery.data?.provider
+        ? requireProviderExternalResourceId(catQuery.data)
+        : undefined;
+
+      const response = await apiClient.api.orgs[":organizationSlug"].projects[
+        ":projectId"
+      ].files.detail.cat.comments[":commentId"].resolve.$patch({
+        param: {
+          organizationSlug,
+          projectId,
+          commentId: input.externalCommentId,
+        },
+        json: {
+          sourcePath,
+          externalResourceId,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(await readApiError(response, "Failed to resolve issue"));
+      }
+
+      const body = (await response.json()) as { comment: ProjectFileCatComment };
+      return body.comment;
+    },
+    onSuccess: async () => {
+      await invalidateCurrentPage();
+    },
+  });
+  const resolveComment = resolveCommentMutation.mutateAsync;
 
   const workspaceState = useMemo(
     () => (catQuery.data ? projectFileCatToWorkspaceState(catQuery.data, intl) : null),
@@ -238,17 +284,30 @@ export function ProjectFileCatWorkspace({
   );
 
   const handleAddComment = useCallback(
-    async (segmentId: string, text: string) => {
+    async (segmentId: string, input: CatSegmentCommentInput) => {
       if (!catQuery.data?.canEditTranslations) {
         throw new Error("Your role cannot post comments to the provider.");
       }
 
       await postComment({
         externalStringId: segmentId,
-        text,
+        text: input.text,
+        type: input.type,
+        issueType: input.issueType,
       });
     },
     [catQuery.data?.canEditTranslations, postComment],
+  );
+
+  const handleResolveComment = useCallback(
+    async (_segmentId: string, commentId: string) => {
+      if (!catQuery.data?.canEditTranslations) {
+        throw new Error("Your role cannot resolve issues in the provider.");
+      }
+
+      await resolveComment({ externalCommentId: commentId });
+    },
+    [catQuery.data?.canEditTranslations, resolveComment],
   );
 
   const handleBulkApprove = useCallback(
@@ -490,6 +549,8 @@ export function ProjectFileCatWorkspace({
           onApprove: handleApprove,
           onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
           onAddComment: handleAddComment,
+          onResolveComment:
+            catQuery.data?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
           onBulkApprove: handleBulkApprove,
         }}
         initialSegmentKeyOrId={initialSegmentKey}

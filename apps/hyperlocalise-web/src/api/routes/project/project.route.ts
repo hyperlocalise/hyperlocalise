@@ -33,6 +33,7 @@ import {
   listTmsProviderLiveFilesForProject,
   saveTmsProviderLiveCatTranslation,
   saveTmsProviderLiveCatComment,
+  resolveTmsProviderLiveCatComment,
 } from "@/lib/providers/tms-provider-live";
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
@@ -70,6 +71,7 @@ import {
   projectFileCatQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
+  projectFileCatCommentResolveBodySchema,
   projectFileCatRecommendationBodySchema,
   projectFileCatStatusBodySchema,
   projectFileCatTranslationBodySchema,
@@ -81,6 +83,7 @@ import {
   projectFileTranslationDownloadQuerySchema,
   projectFilesQuerySchema,
   projectIdParamsSchema,
+  projectFileCatCommentIdParamsSchema,
   updateProjectBodySchema,
   type CreateProjectBody,
   type UpdateProjectBody,
@@ -338,6 +341,16 @@ const validateProjectParams = validator("param", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileCatCommentIdParams = validator("param", (value, c) => {
+  const parsed = projectFileCatCommentIdParamsSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileDetailQuery = validator("query", (value, c) => {
   const parsed = projectFileDetailQuerySchema.safeParse(value);
 
@@ -370,6 +383,16 @@ const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
 
 const validateProjectFileCatCommentBody = validator("json", (value, c) => {
   const parsed = projectFileCatCommentBodySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatCommentResolveBody = validator("json", (value, c) => {
+  const parsed = projectFileCatCommentResolveBodySchema.safeParse(value);
 
   if (!parsed.success) {
     return invalidProjectPayloadResponse(c);
@@ -737,6 +760,52 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               externalResourceId: body.externalResourceId,
               text: body.text,
               type: body.type,
+              issueType: body.issueType,
+            },
+            { actorUserId: c.var.auth.user.localUserId },
+          );
+          if (!comment) {
+            return projectNotFoundResponse(c);
+          }
+
+          return c.json({ comment }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .patch(
+      "/:projectId/files/detail/cat/comments/:commentId/resolve",
+      validateProjectFileCatCommentIdParams,
+      validateProjectFileCatCommentResolveBody,
+      async (c) => {
+        if (!isWriteBackTranslationAllowed(c.var.auth.membership.role)) {
+          return forbiddenResponse(c);
+        }
+
+        const params = c.req.valid("param");
+        const body = c.req.valid("json");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          return badRequestResponse(
+            c,
+            "provider_cat_unsupported",
+            "CAT comments are only available for provider-connected projects.",
+          );
+        }
+
+        try {
+          const comment = await resolveTmsProviderLiveCatComment(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            body.sourcePath,
+            {
+              externalCommentId: params.commentId,
+              externalResourceId: body.externalResourceId,
             },
             { actorUserId: c.var.auth.user.localUserId },
           );

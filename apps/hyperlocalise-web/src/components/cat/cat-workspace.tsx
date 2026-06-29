@@ -45,6 +45,8 @@ export function CatWorkspaceView({
   isApproving = false,
   isSavingDraft = false,
   isPostingComment = false,
+  isResolvingComment = false,
+  resolvingCommentId = null,
   commentPostError,
   isLookingUpContext = false,
   isConcordanceLoading = false,
@@ -146,7 +148,10 @@ export function CatWorkspaceView({
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
           isPostingComment={isPostingComment}
+          isResolvingComment={isResolvingComment}
+          resolvingCommentId={resolvingCommentId}
           commentPostError={commentPostError}
+          providerKind={fullState.providerKind ?? null}
           canApprove={canApprove}
           canAddComment={canAddComment}
           canEditTranslations={canApprove}
@@ -168,7 +173,12 @@ export function CatWorkspaceView({
           }
           onAddComment={
             review.onAddComment
-              ? (text) => review.onAddComment?.(selectedSegment.id, text)
+              ? (input) => review.onAddComment?.(selectedSegment.id, input)
+              : undefined
+          }
+          onResolveComment={
+            review.onResolveComment
+              ? (commentId) => review.onResolveComment?.(selectedSegment.id, commentId)
               : undefined
           }
           primaryActionLabel={fullState.primaryActionLabel}

@@ -22,6 +22,7 @@ const {
   getTmsProviderLiveCatFileMock,
   saveTmsProviderLiveCatTranslationMock,
   saveTmsProviderLiveCatCommentMock,
+  resolveTmsProviderLiveCatCommentMock,
   loadCatSegmentConcordanceMock,
   loadCatSegmentVisualContextMock,
   generateCatAiRecommendationMock,
@@ -31,6 +32,7 @@ const {
   getTmsProviderLiveCatFileMock: vi.fn(),
   saveTmsProviderLiveCatTranslationMock: vi.fn(),
   saveTmsProviderLiveCatCommentMock: vi.fn(),
+  resolveTmsProviderLiveCatCommentMock: vi.fn(),
   loadCatSegmentConcordanceMock: vi.fn(),
   loadCatSegmentVisualContextMock: vi.fn(),
   generateCatAiRecommendationMock: vi.fn(),
@@ -64,6 +66,8 @@ vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
       saveTmsProviderLiveCatTranslationMock(...args),
     saveTmsProviderLiveCatComment: (...args: unknown[]) =>
       saveTmsProviderLiveCatCommentMock(...args),
+    resolveTmsProviderLiveCatComment: (...args: unknown[]) =>
+      resolveTmsProviderLiveCatCommentMock(...args),
   };
 });
 
@@ -683,6 +687,99 @@ describe("project file CAT routes", () => {
         externalResourceId: "101",
         text: "Please clarify tone.",
         type: undefined,
+        issueType: undefined,
+      },
+      expect.objectContaining({ actorUserId: expect.any(String) }),
+    );
+  });
+
+  it("posts Crowdin CAT issues with issue type for users with write-back permission", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    saveTmsProviderLiveCatCommentMock.mockResolvedValue({
+      externalCommentId: "5002",
+      type: "issue",
+      status: "unresolved",
+      text: "Wrong tone.",
+      createdAt: "2026-06-19T00:00:00.000Z",
+      locale: "fr",
+      author: "Reviewer",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments.$post(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          targetLocale: "fr",
+          externalStringId: "1001",
+          externalResourceId: "101",
+          text: "Wrong tone.",
+          type: "issue",
+          issueType: "translation_mistake",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(saveTmsProviderLiveCatCommentMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      "crowdin/home.json",
+      {
+        targetLocale: "fr",
+        externalStringId: "1001",
+        externalResourceId: "101",
+        text: "Wrong tone.",
+        type: "issue",
+        issueType: "translation_mistake",
+      },
+      expect.objectContaining({ actorUserId: expect.any(String) }),
+    );
+  });
+
+  it("resolves Crowdin CAT issues for users with write-back permission", async () => {
+    const translator = projectFixture.createWorkosIdentityWithRole("translator");
+    resolveTmsProviderLiveCatCommentMock.mockResolvedValue({
+      externalCommentId: "5002",
+      type: "issue",
+      status: "resolved",
+      text: "Wrong tone.",
+      createdAt: "2026-06-19T00:00:00.000Z",
+      locale: "fr",
+      author: "Reviewer",
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments[":commentId"].resolve.$patch(
+      {
+        param: {
+          organizationSlug: translator.organization.slug ?? "missing-slug",
+          projectId: "ext:crowdin:42",
+          commentId: "5002",
+        },
+        json: {
+          sourcePath: "crowdin/home.json",
+          externalResourceId: "101",
+        },
+      },
+      { headers: await projectFixture.authHeadersFor(translator) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(resolveTmsProviderLiveCatCommentMock).toHaveBeenCalledWith(
+      expect.any(String),
+      "42",
+      "crowdin/home.json",
+      {
+        externalCommentId: "5002",
+        externalResourceId: "101",
       },
       expect.objectContaining({ actorUserId: expect.any(String) }),
     );

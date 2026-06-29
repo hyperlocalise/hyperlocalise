@@ -1236,6 +1236,7 @@ async function saveCrowdinLiveCatComment(input: {
   externalStringId: string;
   text: string;
   type?: "comment" | "issue";
+  issueType?: string;
 }): Promise<ProjectFileCatComment> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const stringId = Number(input.externalStringId);
@@ -1251,15 +1252,52 @@ async function saveCrowdinLiveCatComment(input: {
     baseUrl: input.context.credential.baseUrl ?? undefined,
   });
 
+  const commentType = input.type ?? "comment";
+
   try {
     const created = await client.addStringComment(projectId, {
       text: input.text,
       stringId,
       targetLanguageId: input.targetLocale,
-      type: input.type ?? "comment",
+      type: commentType,
+      ...(commentType === "issue" ? { issueType: input.issueType ?? "general_question" } : {}),
     });
 
     return mapCrowdinStringComment(created);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    throw error;
+  }
+}
+
+async function resolveCrowdinLiveCatComment(input: {
+  context: ActiveTmsProviderContext;
+  file: TmsProviderLiveFile;
+  externalCommentId: string;
+}): Promise<ProjectFileCatComment> {
+  const projectId = Number(input.file.provider?.externalProjectId);
+  const commentId = Number(input.externalCommentId);
+  if (Number.isNaN(projectId) || Number.isNaN(commentId)) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_comment_id",
+      "Crowdin project or comment identifier is invalid.",
+    );
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const updated = await client.editStringComment(projectId, commentId, [
+      { op: "replace", path: "/issueStatus", value: "resolved" },
+    ]);
+
+    return mapCrowdinStringComment(updated);
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
@@ -1779,6 +1817,7 @@ export async function saveTmsProviderLiveCatComment(
     text: string;
     externalResourceId?: string | null;
     type?: "comment" | "issue";
+    issueType?: string;
   },
   options?: { actorUserId?: string | null },
 ): Promise<ProjectFileCatComment | null> {
@@ -1834,6 +1873,52 @@ export async function saveTmsProviderLiveCatComment(
     externalStringId: input.externalStringId,
     text: input.text,
     type: input.type,
+    issueType: input.issueType,
+  });
+}
+
+export async function resolveTmsProviderLiveCatComment(
+  organizationId: string,
+  externalProjectId: string,
+  sourcePath: string,
+  input: {
+    externalCommentId: string;
+    externalResourceId?: string | null;
+  },
+  options?: { actorUserId?: string | null },
+): Promise<ProjectFileCatComment | null> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  const file = await resolveLiveCatFile({
+    organizationId,
+    externalProjectId,
+    sourcePath,
+    externalResourceId: input.externalResourceId,
+    context,
+  });
+  if (!file) {
+    return null;
+  }
+
+  if (!supportsLiveProviderCat(context.providerKind, file)) {
+    throw new TmsProviderLiveError(
+      "provider_cat_unsupported",
+      "CAT comments are not available for this provider file yet.",
+    );
+  }
+
+  if (context.providerKind !== "crowdin") {
+    throw new TmsProviderLiveError(
+      "provider_cat_unsupported",
+      "Resolving issue comments is only available for Crowdin files.",
+    );
+  }
+
+  return resolveCrowdinLiveCatComment({
+    context,
+    file,
+    externalCommentId: input.externalCommentId,
   });
 }
 
