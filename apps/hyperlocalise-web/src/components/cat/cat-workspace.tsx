@@ -9,6 +9,7 @@ import { cn } from "@/lib/primitives/cn";
 
 import { CatEditorPanel } from "./cat-editor-panel";
 import { CatIntelligencePanel } from "./cat-intelligence-panel";
+import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { CatQueuePanel } from "./cat-queue-panel";
 import { catWorkspaceMessages } from "./cat.messages";
 import type { CatWorkspaceViewProps } from "./dependencies";
@@ -130,7 +131,11 @@ export function CatWorkspaceView({
 
   function renderEditorPanel() {
     return (
-      <CatEditorPanel
+      <CatPanelErrorBoundary
+        scope="editor"
+        resetKeys={[selectedSegment.id, selectedSegment.targetText]}
+      >
+        <CatEditorPanel
         segment={selectedSegment}
         segmentPosition={segmentPosition}
         totalSegments={totalSegments}
@@ -171,12 +176,17 @@ export function CatWorkspaceView({
         hasPreviousSegment={hasPreviousSegment}
         hasNextSegment={hasNextSegment}
       />
+      </CatPanelErrorBoundary>
     );
   }
 
   function renderQueuePanel() {
     return (
-      <CatQueuePanel
+      <CatPanelErrorBoundary
+        scope="queue"
+        resetKeys={[state.segments.length, selectedSegment.id, queueSearch, queueFilter]}
+      >
+        <CatQueuePanel
         segments={state.segments}
         selectedSegmentId={selectedSegment.id}
         summary={fullState.queueSummary}
@@ -206,12 +216,17 @@ export function CatWorkspaceView({
         onNextPage={onQueueNextPage}
         onNearEnd={onQueueNearEnd}
       />
+      </CatPanelErrorBoundary>
     );
   }
 
   function renderIntelligencePanel() {
     return (
-      <CatIntelligencePanel
+      <CatPanelErrorBoundary
+        scope="intelligence"
+        resetKeys={[selectedSegment.id, selectedSegment.targetText]}
+      >
+        <CatIntelligencePanel
         intelligence={selectedSegmentIntelligence}
         targetText={selectedSegment.targetText}
         isLookingUpContext={isLookingUpContext}
@@ -225,6 +240,7 @@ export function CatWorkspaceView({
           editing.onUseGlossaryTerm(selectedSegment.id, term, selectedSegment.sourceText)
         }
       />
+      </CatPanelErrorBoundary>
     );
   }
 

@@ -24,6 +24,7 @@ import type {
   CatWorkspaceViewProps,
   PartialCatWorkspaceDependencies,
 } from "./dependencies";
+import { CatPanelErrorBoundary } from "./cat-panel-error-boundary";
 import { CatWorkspaceView } from "./cat-workspace";
 import {
   buildSavedTargetTextMap,
@@ -1256,7 +1257,12 @@ export function CatWorkspaceContainer({
 
   return (
     <>
-      <CatWorkspaceView
+      <CatPanelErrorBoundary
+        scope="workspace"
+        className={className}
+        resetKeys={[state.selectedSegmentId, queueFilter, queueSearch, queuePagination?.offset]}
+      >
+        <CatWorkspaceView
         state={queueViewState}
         editorState={state}
         dependencies={dependencies}
@@ -1297,6 +1303,7 @@ export function CatWorkspaceContainer({
         isBulkActionPending={isBulkActionPending}
         buildSegmentShareUrl={resolvedBuildSegmentShareUrl}
       />
+      </CatPanelErrorBoundary>
 
       <AlertDialog
         open={unsavedNavigationPrompt !== null}
