@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertCircleIcon } from "lucide-react";
-import { type ReactNode } from "react";
+import { type ErrorInfo, type ReactNode } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { FormattedMessage } from "react-intl";
 
@@ -27,10 +27,12 @@ const panelTitleMessageByScope = {
   workspace: catPanelErrorBoundaryMessages.workspaceTitle,
 } as const;
 
-function logCatPanelError(scope: CatPanelErrorBoundaryScope, error: Error) {
+function logCatPanelError(scope: CatPanelErrorBoundaryScope, error: Error, info: ErrorInfo) {
   console.error(`[cat:${scope}]`, {
     name: error.name,
     message: error.message,
+    stack: error.stack,
+    componentStack: info.componentStack,
   });
 }
 
@@ -82,9 +84,9 @@ export function CatPanelErrorBoundary({
       fallbackRender={(fallbackProps) => (
         <CatPanelErrorFallback {...fallbackProps} scope={scope} className={className} />
       )}
-      onError={(error) => {
+      onError={(error, info) => {
         if (error instanceof Error) {
-          logCatPanelError(scope, error);
+          logCatPanelError(scope, error, info);
         }
       }}
       resetKeys={resetKeys}

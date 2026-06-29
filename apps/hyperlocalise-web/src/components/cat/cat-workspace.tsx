@@ -131,10 +131,7 @@ export function CatWorkspaceView({
 
   function renderEditorPanel() {
     return (
-      <CatPanelErrorBoundary
-        scope="editor"
-        resetKeys={[selectedSegment.id, selectedSegment.targetText]}
-      >
+      <CatPanelErrorBoundary scope="editor" resetKeys={[selectedSegment.id]}>
         <CatEditorPanel
           segment={selectedSegment}
           segmentPosition={segmentPosition}
