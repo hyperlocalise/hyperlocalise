@@ -215,3 +215,7 @@
 ## 2026-06-26 - Optimizing CSV parser and marshaler via capacity hints
 **Learning:** For sequential parsers and marshalers like CSV, the output size (map entries or buffer bytes) is often proportional to the input size. Providing heuristic capacity hints to maps and buffers significantly reduces re-allocations and GC pressure during processing of large files.
 **Action:** Implemented map capacity hints in `Parse` and buffer growth hints in `MarshalCSV` in `internal/i18n/translationfileparser/csv_parser.go`, resulting in ~12-16% speedups.
+
+## 2027-02-10 - Optimizing Java Properties comment formatting and extraction
+**Learning:** Using `strings.Join` and `strings.TrimSpace` on a per-entry basis during translation extraction creates significant allocation overhead. A custom helper using `strings.Builder` with capacity hints, combined with pre-allocating the results map, measurably improves performance. Additionally, slice reuse for pending comments must be handled with care to avoid data corruption across entries.
+**Action:** Implemented `formatPropertiesComments` and map pre-allocation in `internal/i18n/translationfileparser/properties_parser.go`, resulting in ~15% faster extraction and ~9% fewer bytes allocated.

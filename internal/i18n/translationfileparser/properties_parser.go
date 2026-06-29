@@ -5,6 +5,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"unicode"
 	"unicode/utf16"
 	"unicode/utf8"
 )
@@ -52,14 +53,12 @@ func (p JavaPropertiesParser) ParseWithContext(content []byte) (map[string]strin
 	}
 
 	values := make(map[string]string, len(doc.entries))
-	contextByKey := map[string]string{}
+	// BOLT OPTIMIZATION: Pre-allocate context map to avoid re-allocations during extraction.
+	contextByKey := make(map[string]string, len(doc.entries))
 	for _, entry := range doc.entries {
 		values[entry.key] = entry.sourceValue
-		if len(entry.comments) == 0 {
-			continue
-		}
-		context := strings.TrimSpace(strings.Join(entry.comments, "\n"))
-		if context != "" {
+		// BOLT OPTIMIZATION: Use formatPropertiesComments to avoid strings.Join allocations.
+		if context := formatPropertiesComments(entry.comments); context != "" {
 			contextByKey[entry.key] = context
 		}
 	}
@@ -101,7 +100,13 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 			continue
 		}
 		if rawLine[first] == '#' || rawLine[first] == '!' {
-			pendingComments = append(pendingComments, strings.TrimSpace(rawLine[first+1:]))
+			// BOLT OPTIMIZATION: Defer strings.TrimSpace to formatPropertiesComments to avoid redundant allocations.
+			// Handle the common space after # and ! without fully trimming every line.
+			comment := rawLine[first+1:]
+			if len(comment) > 0 && (comment[0] == ' ' || comment[0] == '\t') {
+				comment = comment[1:]
+			}
+			pendingComments = append(pendingComments, comment)
 			currentLine += strings.Count(text[pos:next], "\n")
 			pos = next
 			continue
@@ -540,4 +545,56 @@ func writeJavaPropertiesEscapedRune(b *strings.Builder, r rune) bool {
 		return true
 	}
 	return false
+}
+
+func formatPropertiesComments(comments []string) string {
+	if len(comments) == 0 {
+		return ""
+	}
+
+	// Find the first and last lines that are not just whitespace.
+	firstIdx := -1
+	lastIdx := -1
+	for i, comment := range comments {
+		if strings.TrimSpace(comment) != "" {
+			if firstIdx == -1 {
+				firstIdx = i
+			}
+			lastIdx = i
+		}
+	}
+
+	if firstIdx == -1 {
+		return ""
+	}
+
+	// BOLT OPTIMIZATION: Fast-path for single non-empty comment to avoid strings.Builder.
+	if firstIdx == lastIdx {
+		return strings.TrimSpace(comments[firstIdx])
+	}
+
+	// BOLT OPTIMIZATION: Use strings.Builder to avoid intermediate slice and Join.
+	var b strings.Builder
+	// BOLT OPTIMIZATION: Pre-calculate total length to avoid re-allocations.
+	totalLen := 0
+	for i := firstIdx; i <= lastIdx; i++ {
+		totalLen += len(comments[i]) + 1
+	}
+	b.Grow(totalLen)
+
+	for i := firstIdx; i <= lastIdx; i++ {
+		line := comments[i]
+		if i == firstIdx {
+			line = strings.TrimLeftFunc(line, unicode.IsSpace)
+		}
+		if i == lastIdx {
+			line = strings.TrimRightFunc(line, unicode.IsSpace)
+		}
+		if i > firstIdx {
+			b.WriteByte('\n')
+		}
+		b.WriteString(line)
+	}
+
+	return b.String()
 }
