@@ -515,6 +515,11 @@ export const catEditorPanelMessages = defineMessages({
     id: "0+GXVlndL6",
     description: "Primary action to approve the current CAT translation",
   },
+  saveAsDraft: {
+    defaultMessage: "Save as draft",
+    id: "YdeVnuUNms",
+    description: "Secondary action to save the current translation without approving it",
+  },
   findContextTitle: {
     defaultMessage: "Look up where this string appears in the connected repository",
     id: "BnZ3uPwDP7",

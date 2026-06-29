@@ -106,6 +106,19 @@ describe("projectFileCatToWorkspaceState", () => {
     });
   });
 
+  it("uses Approve as the primary action label for native projects", () => {
+    const state = projectFileCatToWorkspaceState(catFile({ provider: null }), testIntl);
+
+    expect(state.primaryActionLabel).toBe("Approve");
+    expect(state.providerKind).toBeNull();
+  });
+
+  it("uses Save to provider as the primary action label for TMS projects", () => {
+    const state = projectFileCatToWorkspaceState(catFile(), testIntl);
+
+    expect(state.primaryActionLabel).toBe("Save to provider");
+  });
+
   it("uses pagination offset for segment indices and file-level queue totals", () => {
     const state = projectFileCatToWorkspaceState(
       catFile({

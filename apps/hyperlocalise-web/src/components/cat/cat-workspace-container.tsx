@@ -324,6 +324,7 @@ export function CatWorkspaceContainer({
   const initialSegmentJumpAppliedRef = useRef(false);
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [isResolvingComment, setIsResolvingComment] = useState(false);
   const [resolvingCommentId, setResolvingCommentId] = useState<string | null>(null);
@@ -369,6 +370,7 @@ export function CatWorkspaceContainer({
   const onTargetChange = editingOverrides?.onTargetChange;
   const onUseAiSuggestion = editingOverrides?.onUseAiSuggestion;
   const onApprove = reviewOverrides?.onApprove;
+  const onSaveDraft = reviewOverrides?.onSaveDraft;
   const onAddComment = reviewOverrides?.onAddComment;
   const onResolveComment = reviewOverrides?.onResolveComment;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
@@ -1014,6 +1016,56 @@ export function CatWorkspaceContainer({
           setIsApproving(false);
         }
       },
+      ...(onSaveDraft
+        ? {
+            onSaveDraft: async (segmentId: string, targetText: string) => {
+              setIsSavingDraft(true);
+              try {
+                const nextStatus = (await onSaveDraft(segmentId, targetText)) ?? "needs_review";
+                setState((current) => {
+                  const previousSegment = current.segments.find(
+                    (segment) => segment.id === segmentId,
+                  );
+                  const segments = updateSegmentTarget(
+                    updateSegmentStatus(current.segments, segmentId, nextStatus),
+                    segmentId,
+                    targetText,
+                  );
+                  return {
+                    ...current,
+                    segments,
+                    queueSummary: previousSegment
+                      ? adjustQueueSummaryForStatusChange(
+                          current.queueSummary,
+                          previousSegment.status,
+                          nextStatus,
+                        )
+                      : current.queueSummary,
+                  };
+                });
+                setSavedTargetTexts((saved) =>
+                  markSegmentTargetSaved(saved, segmentId, targetText),
+                );
+              } catch (error) {
+                const message =
+                  error instanceof Error
+                    ? error.message
+                    : intl.formatMessage(catWorkspaceContainerMessages.saveTranslationFailed);
+                setState((current) => ({
+                  ...current,
+                  ...addSaveFailureFormatCheck(
+                    current,
+                    segmentId,
+                    message,
+                    intl.formatMessage(catWorkspaceContainerMessages.saveFailedLabel),
+                  ),
+                }));
+              } finally {
+                setIsSavingDraft(false);
+              }
+            },
+          }
+        : {}),
       onAddComment: async (segmentId: string, input: CatSegmentCommentInput) => {
         if (!onAddComment) {
           return;
@@ -1161,6 +1213,7 @@ export function CatWorkspaceContainer({
     attemptPageNavigation,
     attemptSegmentNavigation,
     onApprove,
+    onSaveDraft,
     onAddComment,
     onResolveComment,
     onAskQuestion,
@@ -1296,6 +1349,7 @@ export function CatWorkspaceContainer({
           dirtySegmentIds={dirtySegmentIds}
           isValidating={isValidating}
           isApproving={isApproving}
+          isSavingDraft={isSavingDraft}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}

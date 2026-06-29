@@ -43,6 +43,10 @@ export interface CatWorkspaceReview {
     segmentId: string,
     targetText: string,
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
+  onSaveDraft?: (
+    segmentId: string,
+    targetText: string,
+  ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
   onAddComment?: (segmentId: string, input: CatSegmentCommentInput) => void | Promise<void>;
   onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
   onAskQuestion: (segmentId: string) => void | Promise<void>;
@@ -88,6 +92,7 @@ export interface CatWorkspaceViewProps {
   dependencies: CatWorkspaceDependencies;
   isValidating?: boolean;
   isApproving?: boolean;
+  isSavingDraft?: boolean;
   isPostingComment?: boolean;
   isResolvingComment?: boolean;
   resolvingCommentId?: string | null;

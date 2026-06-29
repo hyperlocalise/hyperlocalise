@@ -134,7 +134,7 @@ export function ProjectFileCatWorkspace({
   }, [availableQueueFilters, queueFilter, setQueueFilter]);
 
   const saveMutation = useMutation({
-    mutationFn: async (input: { externalStringId: string; text: string }) => {
+    mutationFn: async (input: { externalStringId: string; text: string; approve?: boolean }) => {
       const externalResourceId = catQuery.data?.provider
         ? requireProviderExternalResourceId(catQuery.data)
         : undefined;
@@ -149,6 +149,7 @@ export function ProjectFileCatWorkspace({
           externalStringId: input.externalStringId,
           externalResourceId,
           text: input.text,
+          approve: input.approve,
         },
       });
 
@@ -248,6 +249,8 @@ export function ProjectFileCatWorkspace({
     [intl],
   );
 
+  const isNativeProject = !catQuery.data?.provider;
+
   const handleApprove = useCallback(
     async (segmentId: string, targetText: string) => {
       if (!catQuery.data?.canEditTranslations) {
@@ -257,8 +260,25 @@ export function ProjectFileCatWorkspace({
       const translation = await saveTranslation({
         externalStringId: segmentId,
         text: targetText,
+        approve: isNativeProject ? true : undefined,
       });
       return translation.isApproved ? "reviewed" : "needs_review";
+    },
+    [catQuery.data?.canEditTranslations, isNativeProject, saveTranslation],
+  );
+
+  const handleSaveDraft = useCallback(
+    async (segmentId: string, targetText: string) => {
+      if (!catQuery.data?.canEditTranslations) {
+        throw new Error("Your role cannot write translations back.");
+      }
+
+      await saveTranslation({
+        externalStringId: segmentId,
+        text: targetText,
+        approve: false,
+      });
+      return "needs_review" as const;
     },
     [catQuery.data?.canEditTranslations, saveTranslation],
   );
@@ -527,6 +547,7 @@ export function ProjectFileCatWorkspace({
         }}
         review={{
           onApprove: handleApprove,
+          onSaveDraft: isNativeProject ? handleSaveDraft : undefined,
           onAddComment: handleAddComment,
           onResolveComment:
             catQuery.data?.provider?.kind === "crowdin" ? handleResolveComment : undefined,

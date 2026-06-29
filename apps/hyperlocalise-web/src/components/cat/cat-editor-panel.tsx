@@ -99,6 +99,7 @@ export function CatEditorPanel({
   intelligence,
   isEditorBusy,
   isApproving = false,
+  isSavingDraft = false,
   isLookingUpContext = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
@@ -118,6 +119,7 @@ export function CatEditorPanel({
   onClearTarget,
   onUseAiSuggestion,
   onApprove,
+  onSaveDraft,
   onAddComment,
   onResolveComment,
   primaryActionLabel,
@@ -137,6 +139,7 @@ export function CatEditorPanel({
   intelligence: CatSegmentIntelligence;
   isEditorBusy?: boolean;
   isApproving?: boolean;
+  isSavingDraft?: boolean;
   isLookingUpContext?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
@@ -155,6 +158,7 @@ export function CatEditorPanel({
   onClearTarget: () => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
+  onSaveDraft?: () => void;
   onAddComment?: (input: CatSegmentCommentInput) => void | Promise<void>;
   onResolveComment?: (commentId: string) => void | Promise<void>;
   primaryActionLabel?: string;
@@ -186,6 +190,7 @@ export function CatEditorPanel({
   const supportsCrowdinIssues = providerKind === "crowdin" && canAddComment;
   const isActionBlocked =
     isApproving ||
+    isSavingDraft ||
     isPostingComment ||
     isLookingUpContext ||
     isAiSuggestionLoading ||
@@ -194,6 +199,7 @@ export function CatEditorPanel({
   const canTriggerFindContext =
     canLookupContext &&
     !isApproving &&
+    !isSavingDraft &&
     !isLookingUpContext &&
     !isAiSuggestionLoading &&
     !isFormatChecksLoading;
@@ -450,6 +456,17 @@ export function CatEditorPanel({
               {resolvedPrimaryActionLabel}
               <ShortcutKbd shortcut="approve" isMac={isMac} className="bg-white/15 text-white" />
             </Button>
+            {onSaveDraft ? (
+              <Button
+                variant="outline"
+                className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
+                onClick={onSaveDraft}
+                disabled={!canTriggerApprove}
+              >
+                {isSavingDraft ? <Spinner className="size-4" /> : null}
+                <FormattedMessage {...catEditorPanelMessages.saveAsDraft} />
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
@@ -473,7 +490,7 @@ export function CatEditorPanel({
               variant="ghost"
               className="hidden lg:inline-flex"
               onClick={onPrevious}
-              disabled={isApproving || isLookingUpContext || !hasPreviousSegment}
+              disabled={isApproving || isSavingDraft || isLookingUpContext || !hasPreviousSegment}
             >
               <FormattedMessage {...catEditorPanelMessages.previous} />
               <ShortcutKbd shortcut="previous" isMac={isMac} />
@@ -482,7 +499,7 @@ export function CatEditorPanel({
               variant="ghost"
               className="hidden lg:inline-flex"
               onClick={onNext}
-              disabled={isApproving || isLookingUpContext || !hasNextSegment}
+              disabled={isApproving || isSavingDraft || isLookingUpContext || !hasNextSegment}
             >
               <FormattedMessage {...catEditorPanelMessages.next} />
               <ShortcutKbd shortcut="next" isMac={isMac} />

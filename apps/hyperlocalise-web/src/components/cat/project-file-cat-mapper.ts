@@ -242,7 +242,7 @@ export function projectFileCatToWorkspaceState(
       ]),
     ),
     breadcrumbs: [catFile.provider?.kind ?? "native", catFile.filename, catFile.targetLocale],
-    primaryActionLabel: catFile.provider ? "Save to provider" : "Save translation",
+    primaryActionLabel: catFile.provider ? "Save to provider" : "Approve",
     canEditTranslations: catFile.canEditTranslations,
     canAddComments: Boolean(
       (catFile.provider?.kind === "crowdin" || catFile.provider?.kind === "phrase") &&

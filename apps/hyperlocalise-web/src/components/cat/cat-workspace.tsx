@@ -43,6 +43,7 @@ export function CatWorkspaceView({
   dependencies,
   isValidating: _isValidating = false,
   isApproving = false,
+  isSavingDraft = false,
   isPostingComment = false,
   isResolvingComment = false,
   resolvingCommentId = null,
@@ -125,7 +126,7 @@ export function CatWorkspaceView({
   const aiRecommendationError = selectedSegmentFormatChecks.find(
     (check) => check.id === `ai-recommendation-failed-${selectedSegment.id}`,
   )?.message;
-  const isEditorBusy = isApproving;
+  const isEditorBusy = isApproving || isSavingDraft;
   const canApprove = fullState.canEditTranslations !== false;
   const canAddComment = fullState.canAddComments === true;
   const isTargetDirty = dirtySegmentIds?.has(selectedSegment.id) ?? false;
@@ -142,6 +143,7 @@ export function CatWorkspaceView({
           intelligence={selectedSegmentIntelligence}
           isEditorBusy={isEditorBusy}
           isApproving={isApproving}
+          isSavingDraft={isSavingDraft}
           isLookingUpContext={isLookingUpContext}
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
@@ -164,6 +166,11 @@ export function CatWorkspaceView({
           onClearTarget={() => editing.onTargetChange(selectedSegment.id, "")}
           onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
           onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
+          onSaveDraft={
+            review.onSaveDraft
+              ? () => void review.onSaveDraft?.(selectedSegment.id, selectedSegment.targetText)
+              : undefined
+          }
           onAddComment={
             review.onAddComment
               ? (input) => review.onAddComment?.(selectedSegment.id, input)
