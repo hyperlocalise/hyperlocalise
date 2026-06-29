@@ -143,3 +143,23 @@ func assertPropertyValue(t *testing.T, got map[string]string, key, want string) 
 		t.Fatalf("properties key %q = %q, want %q", key, got[key], want)
 	}
 }
+
+func TestJavaPropertiesParserPreservesCommentStructure(t *testing.T) {
+	content := []byte(`# First paragraph.
+#
+#   Indented line.
+# Last paragraph.
+key = value
+`)
+
+	_, contextByKey, err := (JavaPropertiesParser{}).ParseWithContext(content)
+	if err != nil {
+		t.Fatalf("parse properties: %v", err)
+	}
+
+	want := "First paragraph.\n\n  Indented line.\nLast paragraph."
+	got := contextByKey["key"]
+	if got != want {
+		t.Fatalf("unexpected context for key:\ngot:  %q\nwant: %q", got, want)
+	}
+}
