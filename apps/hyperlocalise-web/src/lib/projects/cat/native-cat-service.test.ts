@@ -110,6 +110,7 @@ describe("NativeCatService.getCatFile", () => {
       externalStringId: "key_51",
       key: "hero.title",
       sourceText: "Welcome",
+      comments: [],
     });
     expect(result?.segments[0]?.maxLength).toBeUndefined();
     expect(result?.queueSummary).toEqual({

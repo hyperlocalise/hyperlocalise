@@ -159,6 +159,29 @@ describe("projectFileCatToWorkspaceState", () => {
     expect(state.segments[0]?.maxLength).toBe(24);
   });
 
+  it("disables comment actions for native projects", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        provider: null,
+        segments: [
+          {
+            externalStringId: "native-string",
+            key: "hero.title",
+            sourceText: "Welcome",
+            context: null,
+            type: "text",
+            target: null,
+            comments: [],
+          },
+        ],
+      }),
+      testIntl,
+    );
+
+    expect(state.canAddComments).toBe(false);
+    expect(state.segments[0]?.comments).toEqual([]);
+  });
+
   it("omits maxLength from workspace state when the CAT segment has a non-positive value", () => {
     const state = projectFileCatToWorkspaceState(
       catFile({

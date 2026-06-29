@@ -5,6 +5,8 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { app } from "@/api/app";
 import { db } from "@/lib/database";
+import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -301,6 +303,97 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: "visual_context_unavailable" });
+  });
+
+  it("returns native CAT segments with empty comments", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFileCatResponse;
+    expect(body.catFile.provider).toBeNull();
+    expect(body.catFile.segments).toHaveLength(1);
+    expect(body.catFile.segments[0]?.comments).toEqual([]);
+  });
+
+  it("rejects native CAT comment posts with provider_cat_unsupported", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const translator = projectFixture.createWorkosIdentityForOrganization(organization, "translator");
+    const headers = await projectFixture.authHeadersFor(translator);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath: "locales/en.json",
+          targetLocale: "fr-FR",
+          externalStringId: "segment-1",
+          text: "Please clarify tone.",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "provider_cat_unsupported" });
+    expect(saveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects native CAT comment resolution with provider_cat_unsupported", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const translator = projectFixture.createWorkosIdentityForOrganization(organization, "translator");
+    const headers = await projectFixture.authHeadersFor(translator);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments[":commentId"].resolve.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          commentId: "comment-1",
+        },
+        json: {
+          sourcePath: "locales/en.json",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ error: "provider_cat_unsupported" });
+    expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
   });
 
   it("returns Crowdin CAT content for an encoded provider project", async () => {
