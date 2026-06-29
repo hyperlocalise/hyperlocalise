@@ -52,14 +52,12 @@ func (p JavaPropertiesParser) ParseWithContext(content []byte) (map[string]strin
 	}
 
 	values := make(map[string]string, len(doc.entries))
-	contextByKey := map[string]string{}
+	// BOLT OPTIMIZATION: Pre-allocate context map to avoid re-allocations during extraction.
+	contextByKey := make(map[string]string, len(doc.entries))
 	for _, entry := range doc.entries {
 		values[entry.key] = entry.sourceValue
-		if len(entry.comments) == 0 {
-			continue
-		}
-		context := strings.TrimSpace(strings.Join(entry.comments, "\n"))
-		if context != "" {
+		// BOLT OPTIMIZATION: Use formatPropertiesComments to avoid strings.Join allocations.
+		if context := formatPropertiesComments(entry.comments); context != "" {
 			contextByKey[entry.key] = context
 		}
 	}
@@ -101,7 +99,8 @@ func parseJavaPropertiesDocument(content []byte) (propertiesDocument, error) {
 			continue
 		}
 		if rawLine[first] == '#' || rawLine[first] == '!' {
-			pendingComments = append(pendingComments, strings.TrimSpace(rawLine[first+1:]))
+			// BOLT OPTIMIZATION: Defer strings.TrimSpace to formatPropertiesComments to avoid redundant allocations.
+			pendingComments = append(pendingComments, rawLine[first+1:])
 			currentLine += strings.Count(text[pos:next], "\n")
 			pos = next
 			continue
@@ -540,4 +539,37 @@ func writeJavaPropertiesEscapedRune(b *strings.Builder, r rune) bool {
 		return true
 	}
 	return false
+}
+
+func formatPropertiesComments(comments []string) string {
+	if len(comments) == 0 {
+		return ""
+	}
+	// BOLT OPTIMIZATION: Fast-path for single comments to avoid strings.Builder.
+	if len(comments) == 1 {
+		return strings.TrimSpace(comments[0])
+	}
+
+	// BOLT OPTIMIZATION: Use strings.Builder to avoid intermediate slice and Join.
+	var b strings.Builder
+	// BOLT OPTIMIZATION: Pre-calculate total length to avoid re-allocations.
+	totalLen := 0
+	for _, c := range comments {
+		totalLen += len(c) + 1
+	}
+	b.Grow(totalLen)
+
+	first := true
+	for _, comment := range comments {
+		clean := strings.TrimSpace(comment)
+		if clean == "" {
+			continue
+		}
+		if !first {
+			b.WriteByte('\n')
+		}
+		b.WriteString(clean)
+		first = false
+	}
+	return b.String()
 }
