@@ -98,7 +98,11 @@ import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/org
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
-import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
+import {
+  isAiActionAllowed,
+  isReviewApproveAllowed,
+  isWriteBackTranslationAllowed,
+} from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
   forbiddenResponse,
@@ -816,6 +820,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             projectId: params.projectId,
             commentId: params.commentId,
             actorUserId: c.var.auth.user.localUserId,
+            canResolveOthersIssues: isReviewApproveAllowed(c.var.auth.membership.role),
           });
 
           if (!comment) {

@@ -20,6 +20,33 @@ function formatCommentAuthor(
   return name || user.email;
 }
 
+type CommentAuthorFields = {
+  authorFirstName: string | null;
+  authorLastName: string | null;
+  authorEmail: string | null;
+};
+
+async function fetchCommentAuthorFields(
+  database: typeof db,
+  userId: string,
+): Promise<CommentAuthorFields> {
+  const [author] = await database
+    .select({
+      authorFirstName: schema.users.firstName,
+      authorLastName: schema.users.lastName,
+      authorEmail: schema.users.email,
+    })
+    .from(schema.users)
+    .where(eq(schema.users.id, userId))
+    .limit(1);
+
+  return {
+    authorFirstName: author?.authorFirstName ?? null,
+    authorLastName: author?.authorLastName ?? null,
+    authorEmail: author?.authorEmail ?? null,
+  };
+}
+
 function toCatComment(row: {
   id: string;
   type: "comment" | "issue";
@@ -131,6 +158,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
       .where(
         and(
           eq(schema.projectTranslationKeys.id, input.translationKeyId),
+          eq(schema.projectTranslationKeys.organizationId, input.organizationId),
           eq(schema.projectTranslationKeys.projectId, input.projectId),
           eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id),
         ),
@@ -142,6 +170,14 @@ export class NativeCatCommentService extends ProjectServiceBase {
     }
 
     const commentType = input.type ?? "comment";
+    const authorFields = input.actorUserId
+      ? await fetchCommentAuthorFields(this.database, input.actorUserId)
+      : {
+          authorFirstName: null,
+          authorLastName: null,
+          authorEmail: null,
+        };
+
     const [saved] = await this.database
       .insert(schema.projectTranslationComments)
       .values({
@@ -168,19 +204,6 @@ export class NativeCatCommentService extends ProjectServiceBase {
       return null;
     }
 
-    const author = input.actorUserId
-      ? await this.database
-          .select({
-            firstName: schema.users.firstName,
-            lastName: schema.users.lastName,
-            email: schema.users.email,
-          })
-          .from(schema.users)
-          .where(eq(schema.users.id, input.actorUserId))
-          .limit(1)
-          .then((rows) => rows[0] ?? null)
-      : null;
-
     this.log.debug(
       {
         organizationId: input.organizationId,
@@ -193,9 +216,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
 
     return toCatComment({
       ...saved,
-      authorFirstName: author?.firstName ?? null,
-      authorLastName: author?.lastName ?? null,
-      authorEmail: author?.email ?? null,
+      ...authorFields,
     });
   }
 
@@ -204,6 +225,7 @@ export class NativeCatCommentService extends ProjectServiceBase {
     projectId: string;
     commentId: string;
     actorUserId?: string;
+    canResolveOthersIssues?: boolean;
   }): Promise<ProjectFileCatComment | null> {
     const [existing] = await this.database
       .select({
@@ -214,8 +236,12 @@ export class NativeCatCommentService extends ProjectServiceBase {
         createdAt: schema.projectTranslationComments.createdAt,
         targetLocale: schema.projectTranslationComments.targetLocale,
         authorUserId: schema.projectTranslationComments.authorUserId,
+        authorFirstName: schema.users.firstName,
+        authorLastName: schema.users.lastName,
+        authorEmail: schema.users.email,
       })
       .from(schema.projectTranslationComments)
+      .leftJoin(schema.users, eq(schema.projectTranslationComments.authorUserId, schema.users.id))
       .where(
         and(
           eq(schema.projectTranslationComments.id, input.commentId),
@@ -226,6 +252,15 @@ export class NativeCatCommentService extends ProjectServiceBase {
       .limit(1);
 
     if (!existing || existing.type !== "issue" || existing.status === "resolved") {
+      return null;
+    }
+
+    if (
+      input.actorUserId &&
+      existing.authorUserId &&
+      existing.authorUserId !== input.actorUserId &&
+      !input.canResolveOthersIssues
+    ) {
       return null;
     }
 
@@ -249,19 +284,6 @@ export class NativeCatCommentService extends ProjectServiceBase {
       return null;
     }
 
-    const author = existing.authorUserId
-      ? await this.database
-          .select({
-            firstName: schema.users.firstName,
-            lastName: schema.users.lastName,
-            email: schema.users.email,
-          })
-          .from(schema.users)
-          .where(eq(schema.users.id, existing.authorUserId))
-          .limit(1)
-          .then((rows) => rows[0] ?? null)
-      : null;
-
     this.log.debug(
       {
         organizationId: input.organizationId,
@@ -274,9 +296,9 @@ export class NativeCatCommentService extends ProjectServiceBase {
 
     return toCatComment({
       ...updated,
-      authorFirstName: author?.firstName ?? null,
-      authorLastName: author?.lastName ?? null,
-      authorEmail: author?.email ?? null,
+      authorFirstName: existing.authorFirstName,
+      authorLastName: existing.authorLastName,
+      authorEmail: existing.authorEmail,
     });
   }
 }

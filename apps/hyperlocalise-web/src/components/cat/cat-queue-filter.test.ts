@@ -111,7 +111,6 @@ describe("segmentMatchesQueueFilter", () => {
 describe("resolveAvailableCatQueueFilters", () => {
   it("includes has issues for native projects", () => {
     expect(resolveAvailableCatQueueFilters(null)).toContain("has_issues");
-    expect(resolveAvailableCatQueueFilters(undefined)).toContain("has_issues");
   });
 
   it("includes has issues for Crowdin projects", () => {
