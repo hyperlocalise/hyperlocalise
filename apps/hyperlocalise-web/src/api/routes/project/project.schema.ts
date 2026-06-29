@@ -548,6 +548,7 @@ export const projectFileCatSegmentSchema = z.object({
   sourceText: z.string(),
   context: z.string().nullable(),
   type: z.string().nullable(),
+  maxLength: z.number().int().positive().optional(),
   target: projectFileCatTranslationSchema.nullable(),
   comments: z.array(projectFileCatCommentSchema),
   repositoryContext: z.string().nullable().optional(),
