@@ -5,9 +5,8 @@ export async function extractTranslationImportEntriesStep(input: {
 }) {
   "use step";
   const { extractSandboxEntries } = await import("@/lib/translation/sandbox-translation");
-  const isXCStringsCatalog = input.filePath.toLowerCase().endsWith(".xcstrings");
   const entries = await extractSandboxEntries(input.sandboxId, input.filePath, {
-    locale: isXCStringsCatalog ? input.targetLocale : undefined,
+    locale: input.targetLocale,
   });
   if (!entries) {
     throw new Error(`failed to extract entries for ${input.filePath}`);

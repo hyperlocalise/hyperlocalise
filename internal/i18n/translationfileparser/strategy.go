@@ -103,13 +103,23 @@ func (s *Strategy) Parse(path string, content []byte) (map[string]string, error)
 }
 
 // ParseWithLocale parses content for a specific target locale when the format
-// stores multiple locales in one file (for example Apple .xcstrings catalogs).
-// For other formats, locale is ignored and Parse is used.
+// stores multiple locales in one file (for example Apple .xcstrings catalogs or
+// multi-column CSV files). For other formats, locale is ignored and Parse is used.
 func (s *Strategy) ParseWithLocale(path string, content []byte, locale string) (map[string]string, error) {
 	locale = strings.TrimSpace(locale)
 	ext := strings.ToLower(filepath.Ext(strings.TrimSpace(path)))
-	if ext == ".xcstrings" && locale != "" {
+	if locale == "" {
+		return s.Parse(path, content)
+	}
+	if ext == ".xcstrings" {
 		values, err := ParseXCStringsLocale(content, locale)
+		if err != nil {
+			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
+		}
+		return values, nil
+	}
+	if ext == ".csv" {
+		values, err := ParseCSVLocale(content, locale)
 		if err != nil {
 			return nil, fmt.Errorf("translation file parser: parse %q: %w", path, err)
 		}
