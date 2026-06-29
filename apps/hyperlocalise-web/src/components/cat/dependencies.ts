@@ -3,6 +3,7 @@ import type {
   CatFormatCheck,
   CatGlossaryTerm,
   CatSegment,
+  CatSegmentCommentInput,
   CatSegmentIntelligence,
   CatSegmentStatus,
   CatTranslationMemoryMatch,
@@ -42,7 +43,8 @@ export interface CatWorkspaceReview {
     segmentId: string,
     targetText: string,
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
-  onAddComment?: (segmentId: string, text: string) => void | Promise<void>;
+  onAddComment?: (segmentId: string, input: CatSegmentCommentInput) => void | Promise<void>;
+  onResolveComment?: (segmentId: string, commentId: string) => void | Promise<void>;
   onAskQuestion: (segmentId: string) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;
   onSkip: (segmentId: string) => void;
@@ -87,6 +89,8 @@ export interface CatWorkspaceViewProps {
   isValidating?: boolean;
   isApproving?: boolean;
   isPostingComment?: boolean;
+  isResolvingComment?: boolean;
+  resolvingCommentId?: string | null;
   commentPostError?: string;
   isLookingUpContext?: boolean;
   isConcordanceLoading?: boolean;

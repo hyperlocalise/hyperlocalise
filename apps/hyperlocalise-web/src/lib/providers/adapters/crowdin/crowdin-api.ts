@@ -876,6 +876,18 @@ export class CrowdinApiClient {
     return response.data;
   }
 
+  async editStringComment(
+    projectId: number,
+    commentId: number,
+    operations: CrowdinPatchOperation[],
+  ): Promise<CrowdinStringComment> {
+    const response = await this.patch<CrowdinGetResponse<CrowdinStringComment>>(
+      `/projects/${projectId}/comments/${commentId}`,
+      operations,
+    );
+    return response.data;
+  }
+
   /**
    * Search translation memory concordance for source expressions.
    */

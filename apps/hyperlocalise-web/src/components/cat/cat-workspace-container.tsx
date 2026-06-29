@@ -55,6 +55,7 @@ import type {
   CatFormatCheck,
   CatGlossaryTerm,
   CatSegment,
+  CatSegmentCommentInput,
   CatTranslationMemoryMatch,
   CatWorkspaceState,
 } from "./types";
@@ -324,6 +325,8 @@ export function CatWorkspaceContainer({
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
+  const [isResolvingComment, setIsResolvingComment] = useState(false);
+  const [resolvingCommentId, setResolvingCommentId] = useState<string | null>(null);
   const [commentPostError, setCommentPostError] = useState<string | undefined>();
   const [isLookingUpContext, setIsLookingUpContext] = useState(false);
   const [isLoadingConcordance, setIsLoadingConcordance] = useState(false);
@@ -367,6 +370,7 @@ export function CatWorkspaceContainer({
   const onUseAiSuggestion = editingOverrides?.onUseAiSuggestion;
   const onApprove = reviewOverrides?.onApprove;
   const onAddComment = reviewOverrides?.onAddComment;
+  const onResolveComment = reviewOverrides?.onResolveComment;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
   const onReviewWithAi = reviewOverrides?.onReviewWithAi;
   const onSkip = reviewOverrides?.onSkip;
@@ -1010,7 +1014,7 @@ export function CatWorkspaceContainer({
           setIsApproving(false);
         }
       },
-      onAddComment: async (segmentId: string, text: string) => {
+      onAddComment: async (segmentId: string, input: CatSegmentCommentInput) => {
         if (!onAddComment) {
           return;
         }
@@ -1018,7 +1022,7 @@ export function CatWorkspaceContainer({
         setCommentPostError(undefined);
         setIsPostingComment(true);
         try {
-          await onAddComment(segmentId, text);
+          await onAddComment(segmentId, input);
         } catch (error) {
           const message =
             error instanceof Error
@@ -1028,6 +1032,28 @@ export function CatWorkspaceContainer({
           throw error;
         } finally {
           setIsPostingComment(false);
+        }
+      },
+      onResolveComment: async (segmentId: string, commentId: string) => {
+        if (!onResolveComment) {
+          return;
+        }
+
+        setCommentPostError(undefined);
+        setResolvingCommentId(commentId);
+        setIsResolvingComment(true);
+        try {
+          await onResolveComment(segmentId, commentId);
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : intl.formatMessage(catEditorPanelMessages.commentResolveFailed);
+          setCommentPostError(message);
+          throw error;
+        } finally {
+          setIsResolvingComment(false);
+          setResolvingCommentId(null);
         }
       },
       onAskQuestion: async (segmentId: string) => {
@@ -1136,6 +1162,7 @@ export function CatWorkspaceContainer({
     attemptSegmentNavigation,
     onApprove,
     onAddComment,
+    onResolveComment,
     onAskQuestion,
     intl,
     onNextSegment,
@@ -1270,6 +1297,8 @@ export function CatWorkspaceContainer({
           isValidating={isValidating}
           isApproving={isApproving}
           isPostingComment={isPostingComment}
+          isResolvingComment={isResolvingComment}
+          resolvingCommentId={resolvingCommentId}
           commentPostError={commentPostError}
           isLookingUpContext={isLookingUpContext}
           isConcordanceLoading={isLoadingConcordance}

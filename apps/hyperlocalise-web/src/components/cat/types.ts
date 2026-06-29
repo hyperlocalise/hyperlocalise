@@ -10,6 +10,18 @@ export type CatFormatCheckStatus = "pass" | "warn" | "fail";
 
 export type CatSegmentCommentType = "comment" | "issue";
 
+export type CrowdinIssueType =
+  | "general_question"
+  | "translation_mistake"
+  | "context_request"
+  | "source_mistake";
+
+export interface CatSegmentCommentInput {
+  text: string;
+  type?: CatSegmentCommentType;
+  issueType?: CrowdinIssueType;
+}
+
 export interface CatSegmentComment {
   id: string;
   type: CatSegmentCommentType;
