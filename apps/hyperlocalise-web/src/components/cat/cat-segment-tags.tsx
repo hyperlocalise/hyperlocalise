@@ -38,12 +38,12 @@ export function CatSegmentTags({ tags }: { tags: string[] }) {
 
   return (
     <div className="flex flex-wrap gap-1">
-      {tags.map((tag) => {
+      {tags.map((tag, index) => {
         const kind = getSegmentTagKind(tag);
 
         return (
           <Badge
-            key={tag}
+            key={`${tag}-${index}`}
             variant="outline"
             className={cn("max-w-full font-normal", segmentTagClassName(kind))}
           >
