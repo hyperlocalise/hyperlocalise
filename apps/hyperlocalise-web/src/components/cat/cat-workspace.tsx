@@ -159,6 +159,11 @@ export function CatWorkspaceView({
           onClearTarget={() => editing.onTargetChange(selectedSegment.id, "")}
           onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
           onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
+          onSaveDraft={
+            review.onSaveDraft
+              ? () => void review.onSaveDraft?.(selectedSegment.id, selectedSegment.targetText)
+              : undefined
+          }
           onAddComment={
             review.onAddComment
               ? (text) => review.onAddComment?.(selectedSegment.id, text)

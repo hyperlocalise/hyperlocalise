@@ -72,6 +72,7 @@ export function CatEditorPanel({
   onClearTarget,
   onUseAiSuggestion,
   onApprove,
+  onSaveDraft,
   onAddComment,
   primaryActionLabel,
   onAskQuestion,
@@ -106,6 +107,7 @@ export function CatEditorPanel({
   onClearTarget: () => void;
   onUseAiSuggestion: () => void;
   onApprove: () => void;
+  onSaveDraft?: () => void;
   onAddComment?: (text: string) => void | Promise<void>;
   primaryActionLabel?: string;
   onAskQuestion: () => void;
@@ -338,6 +340,16 @@ export function CatEditorPanel({
               {resolvedPrimaryActionLabel}
               <ShortcutKbd keys={["⌘", "↵"]} className="bg-white/15 text-white" />
             </Button>
+            {onSaveDraft ? (
+              <Button
+                variant="outline"
+                className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
+                onClick={onSaveDraft}
+                disabled={!canTriggerApprove}
+              >
+                <FormattedMessage {...catEditorPanelMessages.saveAsDraft} />
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               className="min-h-11 flex-1 sm:flex-none lg:min-h-0"

@@ -366,6 +366,7 @@ export function CatWorkspaceContainer({
   const onTargetChange = editingOverrides?.onTargetChange;
   const onUseAiSuggestion = editingOverrides?.onUseAiSuggestion;
   const onApprove = reviewOverrides?.onApprove;
+  const onSaveDraft = reviewOverrides?.onSaveDraft;
   const onAddComment = reviewOverrides?.onAddComment;
   const onAskQuestion = reviewOverrides?.onAskQuestion;
   const onReviewWithAi = reviewOverrides?.onReviewWithAi;
@@ -1010,6 +1011,52 @@ export function CatWorkspaceContainer({
           setIsApproving(false);
         }
       },
+      onSaveDraft: async (segmentId: string, targetText: string) => {
+        if (!onSaveDraft) {
+          return;
+        }
+
+        setIsApproving(true);
+        try {
+          const nextStatus = (await onSaveDraft(segmentId, targetText)) ?? "needs_review";
+          setState((current) => {
+            const previousSegment = current.segments.find((segment) => segment.id === segmentId);
+            const segments = updateSegmentTarget(
+              updateSegmentStatus(current.segments, segmentId, nextStatus),
+              segmentId,
+              targetText,
+            );
+            return {
+              ...current,
+              segments,
+              queueSummary: previousSegment
+                ? adjustQueueSummaryForStatusChange(
+                    current.queueSummary,
+                    previousSegment.status,
+                    nextStatus,
+                  )
+                : current.queueSummary,
+            };
+          });
+          setSavedTargetTexts((saved) => markSegmentTargetSaved(saved, segmentId, targetText));
+        } catch (error) {
+          const message =
+            error instanceof Error
+              ? error.message
+              : intl.formatMessage(catWorkspaceContainerMessages.saveTranslationFailed);
+          setState((current) => ({
+            ...current,
+            ...addSaveFailureFormatCheck(
+              current,
+              segmentId,
+              message,
+              intl.formatMessage(catWorkspaceContainerMessages.saveFailedLabel),
+            ),
+          }));
+        } finally {
+          setIsApproving(false);
+        }
+      },
       onAddComment: async (segmentId: string, text: string) => {
         if (!onAddComment) {
           return;
@@ -1135,6 +1182,7 @@ export function CatWorkspaceContainer({
     attemptPageNavigation,
     attemptSegmentNavigation,
     onApprove,
+    onSaveDraft,
     onAddComment,
     onAskQuestion,
     intl,

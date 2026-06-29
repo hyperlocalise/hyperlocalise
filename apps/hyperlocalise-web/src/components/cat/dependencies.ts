@@ -42,6 +42,10 @@ export interface CatWorkspaceReview {
     segmentId: string,
     targetText: string,
   ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
+  onSaveDraft?: (
+    segmentId: string,
+    targetText: string,
+  ) => void | CatSegmentStatus | Promise<void | CatSegmentStatus>;
   onAddComment?: (segmentId: string, text: string) => void | Promise<void>;
   onAskQuestion: (segmentId: string) => void | Promise<void>;
   onReviewWithAi: (segmentId: string) => void | Promise<void>;
