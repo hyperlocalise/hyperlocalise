@@ -13,15 +13,32 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { useIsMac } from "@/hooks/use-is-mac";
 import { cn } from "@/lib/primitives/cn";
 
 import { CatFormatChecks } from "./cat-format-checks";
 import { catEditorPanelMessages } from "./cat.messages";
 import { analyzeCatMessageFormat } from "./cat-message-format";
+import {
+  getCatShortcutKeys,
+  getCatShortcutLabel,
+  type CatEditorShortcut,
+} from "./cat-keyboard-shortcuts";
+import { SegmentStatusBadge } from "./cat-segment-status";
 import { CatIcuStructureSummary, CatMessagePreview, CatTargetEditor } from "./cat-target-editor";
 import type { CatFormatCheck, CatSegment, CatSegmentIntelligence } from "./types";
 
-function ShortcutKbd({ keys, className }: { keys: string[]; className?: string }) {
+function ShortcutKbd({
+  shortcut,
+  isMac,
+  className,
+}: {
+  shortcut: CatEditorShortcut;
+  isMac: boolean;
+  className?: string;
+}) {
+  const keys = getCatShortcutKeys(isMac, shortcut);
+
   return (
     <KbdGroup aria-hidden="true" className="ms-2 hidden items-center gap-1 lg:inline-flex">
       {keys.map((key) => (
@@ -122,6 +139,7 @@ export function CatEditorPanel({
   segmentShareUrl?: string | null;
 }) {
   const intl = useIntl();
+  const isMac = useIsMac();
   const [shareLinkState, setShareLinkState] = useState<"idle" | "copied" | "error">("idle");
   const resolvedPrimaryActionLabel =
     primaryActionLabel ?? intl.formatMessage(catEditorPanelMessages.approve);
@@ -137,6 +155,13 @@ export function CatEditorPanel({
     isAiSuggestionLoading ||
     isFormatChecksLoading;
   const canTriggerApprove = canApprove && !isActionBlocked;
+  const canTriggerFindContext =
+    canLookupContext &&
+    !isApproving &&
+    !isSavingDraft &&
+    !isLookingUpContext &&
+    !isAiSuggestionLoading &&
+    !isFormatChecksLoading;
   const canEditTarget = canEditTranslations && !isEditorBusy;
   const sourceMessageAnalysis = useMemo(
     () => analyzeCatMessageFormat(segment.sourceText),
@@ -193,6 +218,20 @@ export function CatEditorPanel({
     [canTriggerApprove, onApprove],
   );
 
+  useHotkeys(
+    "mod+k",
+    (event) => {
+      event.preventDefault();
+      onAskQuestion();
+    },
+    {
+      enabled: canTriggerFindContext,
+      enableOnFormTags: false,
+      preventDefault: true,
+    },
+    [canTriggerFindContext, onAskQuestion],
+  );
+
   function handleCommentDraftChange(value: string) {
     setCommentDrafts((current) => ({ ...current, [segment.id]: value }));
   }
@@ -229,10 +268,11 @@ export function CatEditorPanel({
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3 lg:px-5">
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <span className="font-mono text-xs text-muted-foreground tabular-nums">
             {String(segmentPosition).padStart(2, "0")} / {String(totalSegments).padStart(2, "0")}
           </span>
+          <SegmentStatusBadge status={segment.status} />
           {isTargetDirty ? (
             <Badge variant="outline" className="border-bud-500/40 bg-bud-500/10 text-bud-300">
               <FormattedMessage {...catEditorPanelMessages.unsavedChanges} />
@@ -267,7 +307,9 @@ export function CatEditorPanel({
             onClick={onPrevious}
             disabled={!hasPreviousSegment}
             aria-label={intl.formatMessage(catEditorPanelMessages.previousSegmentAria)}
-            title={intl.formatMessage(catEditorPanelMessages.previousSegmentTitle)}
+            title={intl.formatMessage(catEditorPanelMessages.previousSegmentTitle, {
+              shortcut: getCatShortcutLabel(isMac, "previous"),
+            })}
           >
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
           </Button>
@@ -277,7 +319,9 @@ export function CatEditorPanel({
             onClick={onNext}
             disabled={!hasNextSegment}
             aria-label={intl.formatMessage(catEditorPanelMessages.nextSegmentAria)}
-            title={intl.formatMessage(catEditorPanelMessages.nextSegmentTitle)}
+            title={intl.formatMessage(catEditorPanelMessages.nextSegmentTitle, {
+              shortcut: getCatShortcutLabel(isMac, "next"),
+            })}
           >
             <HugeiconsIcon icon={ArrowRight01Icon} className="size-4" />
           </Button>
@@ -341,7 +385,7 @@ export function CatEditorPanel({
             >
               {isApproving ? <Spinner className="size-4 text-white" /> : null}
               {resolvedPrimaryActionLabel}
-              <ShortcutKbd keys={["⌘", "↵"]} className="bg-white/15 text-white" />
+              <ShortcutKbd shortcut="approve" isMac={isMac} className="bg-white/15 text-white" />
             </Button>
             {onSaveDraft ? (
               <Button
@@ -358,14 +402,7 @@ export function CatEditorPanel({
               variant="outline"
               className="min-h-11 flex-1 sm:flex-none lg:min-h-0"
               onClick={onAskQuestion}
-              disabled={
-                !canLookupContext ||
-                isApproving ||
-                isSavingDraft ||
-                isLookingUpContext ||
-                isAiSuggestionLoading ||
-                isFormatChecksLoading
-              }
+              disabled={!canTriggerFindContext}
               title={
                 canLookupContext
                   ? intl.formatMessage(catEditorPanelMessages.findContextTitle)
@@ -378,7 +415,7 @@ export function CatEditorPanel({
               ) : (
                 <FormattedMessage {...catEditorPanelMessages.findContext} />
               )}
-              <ShortcutKbd keys={["⌘", "K"]} />
+              <ShortcutKbd shortcut="findContext" isMac={isMac} />
             </Button>
             <Button
               variant="ghost"
@@ -387,7 +424,7 @@ export function CatEditorPanel({
               disabled={isApproving || isSavingDraft || isLookingUpContext || !hasPreviousSegment}
             >
               <FormattedMessage {...catEditorPanelMessages.previous} />
-              <ShortcutKbd keys={["⌘", "←"]} />
+              <ShortcutKbd shortcut="previous" isMac={isMac} />
             </Button>
             <Button
               variant="ghost"
@@ -396,7 +433,7 @@ export function CatEditorPanel({
               disabled={isApproving || isSavingDraft || isLookingUpContext || !hasNextSegment}
             >
               <FormattedMessage {...catEditorPanelMessages.next} />
-              <ShortcutKbd keys={["⌘", "→"]} />
+              <ShortcutKbd shortcut="next" isMac={isMac} />
             </Button>
           </div>
 
