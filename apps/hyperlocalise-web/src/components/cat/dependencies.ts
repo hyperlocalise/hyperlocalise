@@ -90,6 +90,7 @@ export interface CatWorkspaceViewProps {
   dependencies: CatWorkspaceDependencies;
   isValidating?: boolean;
   isApproving?: boolean;
+  isSavingDraft?: boolean;
   isPostingComment?: boolean;
   commentPostError?: string;
   isLookingUpContext?: boolean;

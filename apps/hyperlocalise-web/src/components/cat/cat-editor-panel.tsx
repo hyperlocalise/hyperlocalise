@@ -56,6 +56,7 @@ export function CatEditorPanel({
   intelligence,
   isEditorBusy,
   isApproving = false,
+  isSavingDraft = false,
   isLookingUpContext = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
@@ -91,6 +92,7 @@ export function CatEditorPanel({
   intelligence: CatSegmentIntelligence;
   isEditorBusy?: boolean;
   isApproving?: boolean;
+  isSavingDraft?: boolean;
   isLookingUpContext?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
@@ -129,6 +131,7 @@ export function CatEditorPanel({
   const trimmedCommentDraft = commentDraft.trim();
   const isActionBlocked =
     isApproving ||
+    isSavingDraft ||
     isPostingComment ||
     isLookingUpContext ||
     isAiSuggestionLoading ||
@@ -347,6 +350,7 @@ export function CatEditorPanel({
                 onClick={onSaveDraft}
                 disabled={!canTriggerApprove}
               >
+                {isSavingDraft ? <Spinner className="size-4" /> : null}
                 <FormattedMessage {...catEditorPanelMessages.saveAsDraft} />
               </Button>
             ) : null}
@@ -357,6 +361,7 @@ export function CatEditorPanel({
               disabled={
                 !canLookupContext ||
                 isApproving ||
+                isSavingDraft ||
                 isLookingUpContext ||
                 isAiSuggestionLoading ||
                 isFormatChecksLoading
@@ -379,7 +384,7 @@ export function CatEditorPanel({
               variant="ghost"
               className="hidden lg:inline-flex"
               onClick={onPrevious}
-              disabled={isApproving || isLookingUpContext || !hasPreviousSegment}
+              disabled={isApproving || isSavingDraft || isLookingUpContext || !hasPreviousSegment}
             >
               <FormattedMessage {...catEditorPanelMessages.previous} />
               <ShortcutKbd keys={["⌘", "←"]} />
@@ -388,7 +393,7 @@ export function CatEditorPanel({
               variant="ghost"
               className="hidden lg:inline-flex"
               onClick={onNext}
-              disabled={isApproving || isLookingUpContext || !hasNextSegment}
+              disabled={isApproving || isSavingDraft || isLookingUpContext || !hasNextSegment}
             >
               <FormattedMessage {...catEditorPanelMessages.next} />
               <ShortcutKbd keys={["⌘", "→"]} />

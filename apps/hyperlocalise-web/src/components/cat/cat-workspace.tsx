@@ -43,6 +43,7 @@ export function CatWorkspaceView({
   dependencies,
   isValidating: _isValidating = false,
   isApproving = false,
+  isSavingDraft = false,
   isPostingComment = false,
   commentPostError,
   isLookingUpContext = false,
@@ -123,7 +124,7 @@ export function CatWorkspaceView({
   const aiRecommendationError = selectedSegmentFormatChecks.find(
     (check) => check.id === `ai-recommendation-failed-${selectedSegment.id}`,
   )?.message;
-  const isEditorBusy = isApproving;
+  const isEditorBusy = isApproving || isSavingDraft;
   const canApprove = fullState.canEditTranslations !== false;
   const canAddComment = fullState.canAddComments === true;
   const isTargetDirty = dirtySegmentIds?.has(selectedSegment.id) ?? false;
@@ -140,6 +141,7 @@ export function CatWorkspaceView({
           intelligence={selectedSegmentIntelligence}
           isEditorBusy={isEditorBusy}
           isApproving={isApproving}
+          isSavingDraft={isSavingDraft}
           isLookingUpContext={isLookingUpContext}
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}

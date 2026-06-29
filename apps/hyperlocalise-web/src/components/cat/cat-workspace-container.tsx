@@ -323,6 +323,7 @@ export function CatWorkspaceContainer({
   const initialSegmentJumpAppliedRef = useRef(false);
   const [isValidating, setIsValidating] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+  const [isSavingDraft, setIsSavingDraft] = useState(false);
   const [isPostingComment, setIsPostingComment] = useState(false);
   const [commentPostError, setCommentPostError] = useState<string | undefined>();
   const [isLookingUpContext, setIsLookingUpContext] = useState(false);
@@ -1016,7 +1017,7 @@ export function CatWorkspaceContainer({
           return;
         }
 
-        setIsApproving(true);
+        setIsSavingDraft(true);
         try {
           const nextStatus = (await onSaveDraft(segmentId, targetText)) ?? "needs_review";
           setState((current) => {
@@ -1054,7 +1055,7 @@ export function CatWorkspaceContainer({
             ),
           }));
         } finally {
-          setIsApproving(false);
+          setIsSavingDraft(false);
         }
       },
       onAddComment: async (segmentId: string, text: string) => {
@@ -1317,6 +1318,7 @@ export function CatWorkspaceContainer({
           dirtySegmentIds={dirtySegmentIds}
           isValidating={isValidating}
           isApproving={isApproving}
+          isSavingDraft={isSavingDraft}
           isPostingComment={isPostingComment}
           commentPostError={commentPostError}
           isLookingUpContext={isLookingUpContext}
