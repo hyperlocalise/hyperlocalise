@@ -187,7 +187,8 @@ export function CatEditorPanel({
   const issueType = issueTypes[segment.id] ?? "general_question";
   const segmentComments = segment.comments ?? [];
   const trimmedCommentDraft = commentDraft.trim();
-  const supportsCrowdinIssues = providerKind === "crowdin" && canAddComment;
+  const supportsIssueComments =
+    (providerKind === "crowdin" || providerKind === null) && canAddComment;
   const isActionBlocked =
     isApproving ||
     isSavingDraft ||
@@ -284,7 +285,7 @@ export function CatEditorPanel({
 
     const input: CatSegmentCommentInput = {
       text: trimmedCommentDraft,
-      ...(supportsCrowdinIssues && commentInputType === "issue"
+      ...(supportsIssueComments && commentInputType === "issue"
         ? { type: "issue" as const, issueType }
         : {}),
     };
@@ -673,7 +674,7 @@ export function CatEditorPanel({
               disabled={!canAddComment || isPostingComment || isResolvingComment}
               data-cat-comment-input="true"
             />
-            {supportsCrowdinIssues ? (
+            {supportsIssueComments ? (
               <div className="flex flex-wrap items-center gap-3">
                 <Tabs value={commentInputType} onValueChange={handleCommentInputTypeChange}>
                   <TabsList className="h-8">
@@ -723,7 +724,7 @@ export function CatEditorPanel({
                 {isPostingComment ? <Spinner className="size-4" /> : null}
                 {isPostingComment ? (
                   <FormattedMessage {...catEditorPanelMessages.postingComment} />
-                ) : supportsCrowdinIssues && commentInputType === "issue" ? (
+                ) : supportsIssueComments && commentInputType === "issue" ? (
                   <FormattedMessage {...catEditorPanelMessages.addIssue} />
                 ) : (
                   <FormattedMessage {...catEditorPanelMessages.addComment} />

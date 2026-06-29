@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 import type { ProjectStringContextService } from "@/lib/projects/string-context/project-string-context-service";
 import type { ProjectTranslationService } from "@/lib/projects/translations/project-translation-service";
 
+import { NativeCatCommentService } from "./native-cat-comment-service";
 import { NativeCatService } from "./native-cat-service";
 
 describe("NativeCatService.getCatFile", () => {
@@ -10,6 +11,7 @@ describe("NativeCatService.getCatFile", () => {
   const listKeysForFile = vi.fn();
   const countKeysForFile = vi.fn();
   const getTranslationsByKeyIds = vi.fn();
+  const listCommentsByKeyIds = vi.fn();
   const listCached = vi.fn();
 
   let service: NativeCatService;
@@ -18,6 +20,7 @@ describe("NativeCatService.getCatFile", () => {
     vi.clearAllMocks();
     getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     getTranslationsByKeyIds.mockResolvedValue([]);
+    listCommentsByKeyIds.mockResolvedValue(new Map());
     countKeysForFile.mockImplementation(async (input) => {
       if (input.queueFilter === "reviewed") {
         return 45;
@@ -45,7 +48,11 @@ describe("NativeCatService.getCatFile", () => {
       listCached,
     } as unknown as ProjectStringContextService;
 
-    service = new NativeCatService(undefined as never, translations, stringContext);
+    const comments = {
+      listByKeyIds: listCommentsByKeyIds,
+    } as unknown as NativeCatCommentService;
+
+    service = new NativeCatService(undefined as never, translations, stringContext, comments);
   });
 
   it("returns null when the source file is missing", async () => {

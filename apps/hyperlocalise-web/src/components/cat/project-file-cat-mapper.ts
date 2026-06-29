@@ -134,8 +134,9 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
     0,
   );
   const providerKind = catFile.provider?.kind;
-
-  const providerSupportsComments = providerKind === "crowdin" || providerKind === "phrase";
+  const isNativeProject = !catFile.provider;
+  const supportsComments =
+    isNativeProject || providerKind === "crowdin" || providerKind === "phrase";
 
   return {
     intent: `Translate ${catFile.filename} into ${catFile.targetLocale}.`,
@@ -143,10 +144,12 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
     filePath: catFile.sourcePath,
     componentName: catFile.provider?.format ?? providerKind ?? undefined,
     productMeaning:
-      providerSupportsComments && commentCount > 0
-        ? `${commentCount} provider comment${commentCount === 1 ? "" : "s"} are attached to this file${providerKind === "crowdin" && issueCount > 0 ? `, including ${issueCount} issue${issueCount === 1 ? "" : "s"}` : ""}.`
-        : providerSupportsComments
-          ? "The provider did not return comments for this file."
+      supportsComments && commentCount > 0
+        ? `${commentCount} ${isNativeProject ? "" : "provider "}comment${commentCount === 1 ? "" : "s"} are attached to this file${!isNativeProject && providerKind === "crowdin" && issueCount > 0 ? `, including ${issueCount} issue${issueCount === 1 ? "" : "s"}` : isNativeProject && issueCount > 0 ? `, including ${issueCount} issue${issueCount === 1 ? "" : "s"}` : ""}.`
+        : supportsComments
+          ? isNativeProject
+            ? "No comments are attached to this file yet."
+            : "The provider did not return comments for this file."
           : undefined,
     reviewerPreference: catFile.canEditTranslations
       ? providerKind
@@ -168,8 +171,9 @@ function segmentIntelligenceFor(
   const context = segment.context?.trim();
   const repositoryContext = segment.repositoryContext?.trim();
   const providerKind = catFile.provider?.kind;
-
-  const providerSupportsComments = providerKind === "crowdin" || providerKind === "phrase";
+  const isNativeProject = !catFile.provider;
+  const supportsComments =
+    isNativeProject || providerKind === "crowdin" || providerKind === "phrase";
 
   return {
     intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
@@ -178,10 +182,12 @@ function segmentIntelligenceFor(
     componentName: segment.type ?? catFile.provider?.format ?? providerKind ?? undefined,
     productMeaning:
       context ||
-      (providerSupportsComments && comments > 0
-        ? `${comments} provider comment${comments === 1 ? "" : "s"} ${comments === 1 ? "is" : "are"} attached to this string${providerKind === "crowdin" && issues > 0 ? `, including ${issues} issue${issues === 1 ? "" : "s"}` : ""}.`
-        : providerSupportsComments
-          ? "The provider did not return context or comments for this string."
+      (supportsComments && comments > 0
+        ? `${comments} ${isNativeProject ? "" : "provider "}comment${comments === 1 ? "" : "s"} ${comments === 1 ? "is" : "are"} attached to this string${!isNativeProject && providerKind === "crowdin" && issues > 0 ? `, including ${issues} issue${issues === 1 ? "" : "s"}` : isNativeProject && issues > 0 ? `, including ${issues} issue${issues === 1 ? "" : "s"}` : ""}.`
+        : supportsComments
+          ? isNativeProject
+            ? "No comments are attached to this string yet."
+            : "The provider did not return context or comments for this string."
           : undefined),
     agentContext: repositoryContext || undefined,
     reviewerPreference: catFile.canEditTranslations
@@ -244,10 +250,7 @@ export function projectFileCatToWorkspaceState(
     breadcrumbs: [catFile.provider?.kind ?? "native", catFile.filename, catFile.targetLocale],
     primaryActionLabel: catFile.provider ? "Save to provider" : "Approve",
     canEditTranslations: catFile.canEditTranslations,
-    canAddComments: Boolean(
-      (catFile.provider?.kind === "crowdin" || catFile.provider?.kind === "phrase") &&
-      catFile.canEditTranslations,
-    ),
+    canAddComments: Boolean(catFile.canEditTranslations),
     providerKind: catFile.provider?.kind ?? null,
   };
 }

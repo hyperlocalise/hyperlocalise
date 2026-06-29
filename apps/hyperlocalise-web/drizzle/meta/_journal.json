@@ -379,6 +379,13 @@
       "when": 1782265082491,
       "tag": "0053_lean_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1782707952287,
+      "tag": "0054_mean_speed",
+      "breakpoints": true
     }
   ]
 }

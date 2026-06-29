@@ -6,6 +6,7 @@ import type {
 } from "@/api/routes/project/project.schema";
 import { legacyNativeCatSegmentLimit } from "@/api/routes/project/project.schema";
 import { db, schema } from "@/lib/database";
+import { NativeCatCommentService } from "@/lib/projects/cat/native-cat-comment-service";
 import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
@@ -34,15 +35,18 @@ function toCatTranslation(row: {
 export class NativeCatService extends ProjectServiceBase {
   private readonly translations: ProjectTranslationService;
   private readonly stringContext: ProjectStringContextService;
+  private readonly comments: NativeCatCommentService;
 
   constructor(
     database: typeof db = db,
     translations: ProjectTranslationService = new ProjectTranslationService(database),
     stringContext: ProjectStringContextService = new ProjectStringContextService(database),
+    comments?: NativeCatCommentService,
   ) {
     super(database, "projects.cat");
     this.translations = translations;
     this.stringContext = stringContext;
+    this.comments = comments ?? new NativeCatCommentService(database, translations);
   }
 
   async getCatFile(input: {
@@ -153,12 +157,21 @@ export class NativeCatService extends ProjectServiceBase {
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
     queueSummary: Awaited<ReturnType<typeof countNativeFileQueueSummary>>;
   }): Promise<ProjectFileCatResponse["catFile"]> {
-    const translations = await this.translations.getTranslationsByKeyIds({
-      organizationId: input.input.organizationId,
-      projectId: input.input.projectId,
-      translationKeyIds: input.visibleKeys.map((key) => key.id),
-      targetLocale: input.input.targetLocale,
-    });
+    const translationKeyIds = input.visibleKeys.map((key) => key.id);
+    const [translations, comments] = await Promise.all([
+      this.translations.getTranslationsByKeyIds({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        translationKeyIds,
+        targetLocale: input.input.targetLocale,
+      }),
+      this.comments.listByKeyIds({
+        organizationId: input.input.organizationId,
+        projectId: input.input.projectId,
+        translationKeyIds,
+        targetLocale: input.input.targetLocale,
+      }),
+    ]);
     const translationByKeyId = new Map(
       translations.map((translation) => [translation.translationKeyId, translation]),
     );
@@ -182,10 +195,18 @@ export class NativeCatService extends ProjectServiceBase {
           type: key.type,
           ...(key.maxLength != null && key.maxLength > 0 ? { maxLength: key.maxLength } : {}),
           target: translation ? toCatTranslation(translation) : null,
-          comments: [],
+          comments: comments.get(key.id) ?? [],
         };
       }),
     };
+  }
+
+  async saveComment(input: Parameters<NativeCatCommentService["save"]>[0]) {
+    return this.comments.save(input);
+  }
+
+  async resolveComment(input: Parameters<NativeCatCommentService["resolve"]>[0]) {
+    return this.comments.resolve(input);
   }
 
   async saveTranslation(input: {
@@ -408,6 +429,14 @@ export const getNativeProjectCatFile = (input: Parameters<NativeCatService["getC
 export const saveNativeProjectCatTranslation = (
   input: Parameters<NativeCatService["saveTranslation"]>[0],
 ) => nativeCatService.saveTranslation(input);
+
+export const saveNativeProjectCatComment = (
+  input: Parameters<NativeCatService["saveComment"]>[0],
+) => nativeCatService.saveComment(input);
+
+export const resolveNativeProjectCatComment = (
+  input: Parameters<NativeCatService["resolveComment"]>[0],
+) => nativeCatService.resolveComment(input);
 
 export const updateNativeProjectTranslationStatus = (
   input: Parameters<NativeCatService["updateTranslationStatus"]>[0],

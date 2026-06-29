@@ -3,8 +3,12 @@ import "dotenv/config";
 import { testClient } from "hono/testing";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+import { eq } from "drizzle-orm";
+
 import { app } from "@/api/app";
-import { db } from "@/lib/database";
+import { db, schema } from "@/lib/database";
+import { ensureRepositorySourceFile } from "@/lib/file-storage/records";
+import { upsertProjectTranslationKeysFromEntries } from "@/lib/projects/translations/project-translation-service";
 import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
 
 import { createProjectTestFixture } from "./project.fixture";
@@ -301,6 +305,153 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(400);
     expect(await response.json()).toMatchObject({ error: "visual_context_unavailable" });
+  });
+
+  it("returns native CAT comments on segments", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    const { imported } = await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+    expect(imported).toBe(1);
+
+    const [translationKey] = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    expect(translationKey).toBeDefined();
+
+    const postResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKey!.id,
+          text: "Please clarify tone.",
+        },
+      },
+      { headers },
+    );
+
+    expect(postResponse.status).toBe(200);
+    expect(saveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
+
+    const response = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as ProjectFileCatResponse;
+    expect(body.catFile.segments[0]?.comments).toMatchObject([
+      {
+        type: "comment",
+        text: "Please clarify tone.",
+        author: expect.any(String),
+      },
+    ]);
+    expect(body.catFile.segments[0]?.comments[0]?.externalCommentId).toBeTruthy();
+  });
+
+  it("posts and resolves native CAT issues", async () => {
+    const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
+    const headers = await projectFixture.authHeadersFor(identity);
+    const sourcePath = "locales/en.json";
+    const sourceFile = await ensureRepositorySourceFile({
+      organizationId: organization.id,
+      projectId: project.id,
+      sourcePath,
+    });
+
+    await upsertProjectTranslationKeysFromEntries({
+      organizationId: organization.id,
+      projectId: project.id,
+      repositorySourceFileId: sourceFile.id,
+      entries: [{ key: "greeting", text: "Hello", context: null }],
+    });
+
+    const keys = await db
+      .select({ id: schema.projectTranslationKeys.id })
+      .from(schema.projectTranslationKeys)
+      .where(eq(schema.projectTranslationKeys.repositorySourceFileId, sourceFile.id))
+      .limit(1);
+    const translationKeyId = keys[0]!.id;
+
+    const postResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments.$post(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+        },
+        json: {
+          sourcePath,
+          targetLocale: "fr-FR",
+          externalStringId: translationKeyId,
+          text: "Wrong tone.",
+          type: "issue",
+          issueType: "translation_mistake",
+        },
+      },
+      { headers },
+    );
+
+    expect(postResponse.status).toBe(200);
+    const posted = (await postResponse.json()) as ProjectFileCatCommentResponse;
+    expect(posted.comment).toMatchObject({
+      type: "issue",
+      status: "unresolved",
+      text: "Wrong tone.",
+    });
+
+    const resolveResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.comments[":commentId"].resolve.$patch(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          commentId: posted.comment.externalCommentId,
+        },
+        json: { sourcePath },
+      },
+      { headers },
+    );
+
+    expect(resolveResponse.status).toBe(200);
+    expect(await resolveResponse.json()).toMatchObject({
+      comment: {
+        externalCommentId: posted.comment.externalCommentId,
+        status: "resolved",
+      },
+    });
+    expect(resolveTmsProviderLiveCatCommentMock).not.toHaveBeenCalled();
   });
 
   it("returns Crowdin CAT content for an encoded provider project", async () => {

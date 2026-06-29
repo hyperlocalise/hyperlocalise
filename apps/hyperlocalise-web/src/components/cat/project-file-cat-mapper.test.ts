@@ -111,6 +111,7 @@ describe("projectFileCatToWorkspaceState", () => {
 
     expect(state.primaryActionLabel).toBe("Approve");
     expect(state.providerKind).toBeNull();
+    expect(state.canAddComments).toBe(true);
   });
 
   it("uses Save to provider as the primary action label for TMS projects", () => {

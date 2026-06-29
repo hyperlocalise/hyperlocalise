@@ -304,6 +304,13 @@ export const projectTranslationProvenanceEnum = pgEnum("project_translation_prov
   "agent",
 ]);
 /**
+ * Distinguishes regular CAT comments from review issues on native project strings.
+ */
+export const projectTranslationCommentTypeEnum = pgEnum("project_translation_comment_type", [
+  "comment",
+  "issue",
+]);
+/**
  * Tracks source file key extraction lifecycle for repository source file versions.
  */
 export const repositorySourceFileIngestStateEnum = pgEnum("repository_source_file_ingest_state", [
