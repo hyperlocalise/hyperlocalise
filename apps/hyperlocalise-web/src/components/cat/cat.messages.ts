@@ -660,32 +660,33 @@ export const catVisualContextPanelMessages = defineMessages({
 export const catPanelErrorBoundaryMessages = defineMessages({
   queuePanelTitle: {
     defaultMessage: "Queue panel failed to load",
-    id: "kQp3mN8vXa",
+    id: "ppXDMSLgyj",
     description: "Error boundary title when the CAT queue panel crashes",
   },
   editorPanelTitle: {
     defaultMessage: "Editor panel failed to load",
-    id: "rTn7wL2bYc",
+    id: "6PFnjoc6zP",
     description: "Error boundary title when the CAT editor panel crashes",
   },
   intelligencePanelTitle: {
     defaultMessage: "Intelligence panel failed to load",
-    id: "hFs9dK4mZp",
+    id: "W5kKZQXtt1",
     description: "Error boundary title when the CAT intelligence panel crashes",
   },
   workspaceTitle: {
     defaultMessage: "CAT workspace failed to load",
-    id: "vBw6jR1nQe",
+    id: "Kdwno+5sGa",
     description: "Error boundary title when the full CAT workspace crashes",
   },
   description: {
-    defaultMessage: "Something went wrong in this part of the tool. You can retry or keep working in the other panels.",
-    id: "cDx8pM5tRu",
+    defaultMessage:
+      "Something went wrong in this part of the tool. You can retry or keep working in the other panels.",
+    id: "e7p8bFrcw5",
     description: "Error boundary description shown when a CAT panel crashes",
   },
   retry: {
     defaultMessage: "Try again",
-    id: "nGy2sV7wKf",
+    id: "27qrEmB3yO",
     description: "Button label to retry rendering a crashed CAT panel",
   },
 });

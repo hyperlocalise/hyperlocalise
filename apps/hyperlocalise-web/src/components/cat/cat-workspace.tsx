@@ -136,46 +136,50 @@ export function CatWorkspaceView({
         resetKeys={[selectedSegment.id, selectedSegment.targetText]}
       >
         <CatEditorPanel
-        segment={selectedSegment}
-        segmentPosition={segmentPosition}
-        totalSegments={totalSegments}
-        formatChecks={selectedSegmentFormatChecks}
-        intelligence={selectedSegmentIntelligence}
-        isEditorBusy={isEditorBusy}
-        isApproving={isApproving}
-        isLookingUpContext={isLookingUpContext}
-        isAiSuggestionLoading={isAiSuggestionLoading}
-        isFormatChecksLoading={isFormatChecksLoading}
-        isPostingComment={isPostingComment}
-        commentPostError={commentPostError}
-        canApprove={canApprove}
-        canAddComment={canAddComment}
-        canEditTranslations={canApprove}
-        isTargetDirty={isTargetDirty}
-        canLookupContext={canLookupContext}
-        canUseAiRecommendation={canUseAiRecommendation}
-        segmentShareUrl={segmentShareUrl}
-        onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
-        onCopySource={() => editing.onTargetChange(selectedSegment.id, selectedSegment.sourceText)}
-        onClearTarget={() => editing.onTargetChange(selectedSegment.id, "")}
-        onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
-        onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
-        onAddComment={
-          review.onAddComment
-            ? (text) => review.onAddComment?.(selectedSegment.id, text)
-            : undefined
-        }
-        primaryActionLabel={fullState.primaryActionLabel}
-        onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
-        onGenerateAiRecommendation={
-          canUseAiRecommendation ? () => void review.onReviewWithAi(selectedSegment.id) : undefined
-        }
-        aiRecommendationError={aiRecommendationError}
-        onPrevious={navigation.onPreviousSegment}
-        onNext={navigation.onNextSegment}
-        hasPreviousSegment={hasPreviousSegment}
-        hasNextSegment={hasNextSegment}
-      />
+          segment={selectedSegment}
+          segmentPosition={segmentPosition}
+          totalSegments={totalSegments}
+          formatChecks={selectedSegmentFormatChecks}
+          intelligence={selectedSegmentIntelligence}
+          isEditorBusy={isEditorBusy}
+          isApproving={isApproving}
+          isLookingUpContext={isLookingUpContext}
+          isAiSuggestionLoading={isAiSuggestionLoading}
+          isFormatChecksLoading={isFormatChecksLoading}
+          isPostingComment={isPostingComment}
+          commentPostError={commentPostError}
+          canApprove={canApprove}
+          canAddComment={canAddComment}
+          canEditTranslations={canApprove}
+          isTargetDirty={isTargetDirty}
+          canLookupContext={canLookupContext}
+          canUseAiRecommendation={canUseAiRecommendation}
+          segmentShareUrl={segmentShareUrl}
+          onTargetChange={(value) => editing.onTargetChange(selectedSegment.id, value)}
+          onCopySource={() =>
+            editing.onTargetChange(selectedSegment.id, selectedSegment.sourceText)
+          }
+          onClearTarget={() => editing.onTargetChange(selectedSegment.id, "")}
+          onUseAiSuggestion={() => editing.onUseAiSuggestion(selectedSegment.id)}
+          onApprove={() => void review.onApprove(selectedSegment.id, selectedSegment.targetText)}
+          onAddComment={
+            review.onAddComment
+              ? (text) => review.onAddComment?.(selectedSegment.id, text)
+              : undefined
+          }
+          primaryActionLabel={fullState.primaryActionLabel}
+          onAskQuestion={() => review.onAskQuestion(selectedSegment.id)}
+          onGenerateAiRecommendation={
+            canUseAiRecommendation
+              ? () => void review.onReviewWithAi(selectedSegment.id)
+              : undefined
+          }
+          aiRecommendationError={aiRecommendationError}
+          onPrevious={navigation.onPreviousSegment}
+          onNext={navigation.onNextSegment}
+          hasPreviousSegment={hasPreviousSegment}
+          hasNextSegment={hasNextSegment}
+        />
       </CatPanelErrorBoundary>
     );
   }
@@ -187,35 +191,35 @@ export function CatWorkspaceView({
         resetKeys={[state.segments.length, selectedSegment.id, queueSearch, queueFilter]}
       >
         <CatQueuePanel
-        segments={state.segments}
-        selectedSegmentId={selectedSegment.id}
-        summary={fullState.queueSummary}
-        dirtySegmentIds={dirtySegmentIds}
-        onSelectSegment={(segmentId) => {
-          navigation.onSelectSegment(segmentId);
-          if (isCompact) {
-            setActivePanel("edit");
-          }
-        }}
-        search={queueSearch}
-        onSearchChange={onQueueSearchChange}
-        isSearching={isQueueSearchPending}
-        queueFilter={queueFilter}
-        onQueueFilterChange={onQueueFilterChange}
-        availableQueueFilters={availableQueueFilters}
-        checkedSegmentIds={checkedSegmentIds}
-        onToggleSegmentChecked={onToggleSegmentChecked}
-        onSelectAllVisible={onSelectAllVisible}
-        onClearChecked={onClearChecked}
-        onBulkApprove={onBulkApprove}
-        onBulkSkip={onBulkSkip}
-        isBulkActionPending={isBulkActionPending}
-        isFetchingPage={isQueueFetchingPage}
-        pagination={queuePagination}
-        onPreviousPage={onQueuePreviousPage}
-        onNextPage={onQueueNextPage}
-        onNearEnd={onQueueNearEnd}
-      />
+          segments={state.segments}
+          selectedSegmentId={selectedSegment.id}
+          summary={fullState.queueSummary}
+          dirtySegmentIds={dirtySegmentIds}
+          onSelectSegment={(segmentId) => {
+            navigation.onSelectSegment(segmentId);
+            if (isCompact) {
+              setActivePanel("edit");
+            }
+          }}
+          search={queueSearch}
+          onSearchChange={onQueueSearchChange}
+          isSearching={isQueueSearchPending}
+          queueFilter={queueFilter}
+          onQueueFilterChange={onQueueFilterChange}
+          availableQueueFilters={availableQueueFilters}
+          checkedSegmentIds={checkedSegmentIds}
+          onToggleSegmentChecked={onToggleSegmentChecked}
+          onSelectAllVisible={onSelectAllVisible}
+          onClearChecked={onClearChecked}
+          onBulkApprove={onBulkApprove}
+          onBulkSkip={onBulkSkip}
+          isBulkActionPending={isBulkActionPending}
+          isFetchingPage={isQueueFetchingPage}
+          pagination={queuePagination}
+          onPreviousPage={onQueuePreviousPage}
+          onNextPage={onQueueNextPage}
+          onNearEnd={onQueueNearEnd}
+        />
       </CatPanelErrorBoundary>
     );
   }
@@ -227,19 +231,19 @@ export function CatWorkspaceView({
         resetKeys={[selectedSegment.id, selectedSegment.targetText]}
       >
         <CatIntelligencePanel
-        intelligence={selectedSegmentIntelligence}
-        targetText={selectedSegment.targetText}
-        isLookingUpContext={isLookingUpContext}
-        isConcordanceLoading={isConcordanceLoading}
-        isVisualContextLoading={isVisualContextLoading}
-        showAgentContext={showAgentContext}
-        showVisualContext={showVisualContext}
-        canEditTranslations={fullState.canEditTranslations !== false}
-        onUseTmMatch={(match) => editing.onUseTmMatch(selectedSegment.id, match)}
-        onUseGlossaryTerm={(term) =>
-          editing.onUseGlossaryTerm(selectedSegment.id, term, selectedSegment.sourceText)
-        }
-      />
+          intelligence={selectedSegmentIntelligence}
+          targetText={selectedSegment.targetText}
+          isLookingUpContext={isLookingUpContext}
+          isConcordanceLoading={isConcordanceLoading}
+          isVisualContextLoading={isVisualContextLoading}
+          showAgentContext={showAgentContext}
+          showVisualContext={showVisualContext}
+          canEditTranslations={fullState.canEditTranslations !== false}
+          onUseTmMatch={(match) => editing.onUseTmMatch(selectedSegment.id, match)}
+          onUseGlossaryTerm={(term) =>
+            editing.onUseGlossaryTerm(selectedSegment.id, term, selectedSegment.sourceText)
+          }
+        />
       </CatPanelErrorBoundary>
     );
   }

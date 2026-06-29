@@ -17,7 +17,7 @@ type CatPanelErrorBoundaryProps = {
   children: ReactNode;
   scope: CatPanelErrorBoundaryScope;
   className?: string;
-  resetKeys?: ReadonlyArray<unknown>;
+  resetKeys?: unknown[];
 };
 
 const panelTitleMessageByScope = {
@@ -40,6 +40,8 @@ function CatPanelErrorFallback({
   scope,
   className,
 }: FallbackProps & { scope: CatPanelErrorBoundaryScope; className?: string }) {
+  const errorMessage = error instanceof Error ? error.message : null;
+
   return (
     <div
       className={cn(
@@ -57,8 +59,8 @@ function CatPanelErrorFallback({
           <p>
             <FormattedMessage {...catPanelErrorBoundaryMessages.description} />
           </p>
-          {process.env.NODE_ENV !== "production" && error.message ? (
-            <p className="font-mono text-xs break-words">{error.message}</p>
+          {process.env.NODE_ENV !== "production" && errorMessage ? (
+            <p className="font-mono text-xs break-words">{errorMessage}</p>
           ) : null}
           <Button type="button" variant="outline" size="sm" onClick={resetErrorBoundary}>
             <FormattedMessage {...catPanelErrorBoundaryMessages.retry} />
@@ -81,7 +83,9 @@ export function CatPanelErrorBoundary({
         <CatPanelErrorFallback {...fallbackProps} scope={scope} className={className} />
       )}
       onError={(error) => {
-        logCatPanelError(scope, error);
+        if (error instanceof Error) {
+          logCatPanelError(scope, error);
+        }
       }}
       resetKeys={resetKeys}
     >
