@@ -197,3 +197,9 @@
 **Learning:** The Crowdin Screenshots API v2 returns a `projectId` field which was missing from the SDK. Additionally, the Distributions API supports `branchIds` and `directoryIds` in both response models and addition requests, allowing for distribution of content from specific branches or directories.
 
 **Action:** Added `ProjectID` to the `Screenshot` struct in `model/screenshot.go`. Added `BranchIDs` and `DirectoryIDs` to both `Distribution` and `DistributionAddRequest` in `model/distributions.go`. Updated contract tests in `screenshots_test.go`, `labels_test.go`, and `distributions_test.go` to verify correct parsing and serialization of these new fields.
+
+## 2026-10-31 - Fix Distribution validation for branch and directory IDs
+
+**Learning:** The Crowdin API v2 for creating distributions allows specifying content via `fileIds`, `branchIds`, or `directoryIds` when using the 'default' export mode. The Go SDK was incorrectly requiring `fileIds` exclusively, causing validation failures for valid branch or directory-based distribution requests.
+
+**Action:** Updated `DistributionAddRequest.Validate` in `model/distributions.go` to check that at least one of `fileIds`, `branchIds`, or `directoryIds` is provided for the default export mode. Expanded `model/distributions_test.go` with contract tests verifying each of these valid configurations.

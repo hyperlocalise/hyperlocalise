@@ -68,8 +68,9 @@ func (r *DistributionAddRequest) Validate() error {
 	if r.ExportMode == ExportModeBundle && len(r.BundleIDs) == 0 {
 		return errors.New("bundleIds is required for bundle export mode")
 	}
-	if r.ExportMode == ExportModeDefault && len(r.FileIDs) == 0 {
-		return errors.New("fileIds is required for default export mode")
+	if (r.ExportMode == "" || r.ExportMode == ExportModeDefault) &&
+		len(r.FileIDs) == 0 && len(r.BranchIDs) == 0 && len(r.DirectoryIDs) == 0 {
+		return errors.New("one of fileIds, branchIds or directoryIds is required for default export mode")
 	}
 
 	return nil
