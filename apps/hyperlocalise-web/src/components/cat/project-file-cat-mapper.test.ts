@@ -136,6 +136,28 @@ describe("projectFileCatToWorkspaceState", () => {
       hasIssues: 5,
     });
   });
+
+  it("maps maxLength from CAT segments into workspace state", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        segments: [
+          {
+            externalStringId: "limited-string",
+            key: "hero.cta",
+            sourceText: "Get started",
+            context: null,
+            type: "text",
+            maxLength: 24,
+            target: null,
+            comments: [],
+          },
+        ],
+      }),
+      testIntl,
+    );
+
+    expect(state.segments[0]?.maxLength).toBe(24);
+  });
 });
 
 describe("formatCheckForSegment", () => {

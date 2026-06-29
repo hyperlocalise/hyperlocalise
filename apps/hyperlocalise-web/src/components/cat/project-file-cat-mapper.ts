@@ -221,6 +221,7 @@ export function projectFileCatToWorkspaceState(
       contextLabel: segment.context ?? undefined,
       status: segmentStatusFor(segment),
       tags,
+      ...(segment.maxLength != null ? { maxLength: segment.maxLength } : {}),
       comments: mapSegmentComments(segment),
     };
   });

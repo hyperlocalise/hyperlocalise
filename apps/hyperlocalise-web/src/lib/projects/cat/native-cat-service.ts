@@ -180,6 +180,7 @@ export class NativeCatService extends ProjectServiceBase {
           sourceText: key.sourceText,
           context: key.context,
           type: key.type,
+          ...(key.maxLength != null ? { maxLength: key.maxLength } : {}),
           target: translation ? toCatTranslation(translation) : null,
           comments: [],
         };
