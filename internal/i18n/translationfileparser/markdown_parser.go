@@ -96,7 +96,9 @@ func (d markdownDocument) keyContexts() []markdownKeyContext {
 
 func markdownSegmentKey(segment string, occurrences map[string]int) string {
 	sum := sha256.Sum256([]byte(segment))
-	hash := hex.EncodeToString(sum[:])[:16]
+	// BOLT OPTIMIZATION: Encode only the first 8 bytes of the hash to produce
+	// the required 16-character hex string, reducing encoding overhead.
+	hash := hex.EncodeToString(sum[:8])
 	count := occurrences[hash]
 	occurrences[hash] = count + 1
 	if count == 0 {
@@ -328,9 +330,27 @@ func protectMarkdownInlineSyntax(segment string) (string, map[string]string, str
 	placeholderCount := 0
 
 	appendPlaceholder := func(literal string) {
-		// BOLT OPTIMIZATION: Use string concatenation and strconv.Itoa instead of fmt.Sprintf
-		sum := sha256.Sum256([]byte(strconv.Itoa(placeholderCount) + ":" + literal))
-		placeholder := "\x1eHLMDPH_" + strings.ToUpper(hex.EncodeToString(sum[:])[:12]) + "_" + strconv.Itoa(placeholderCount) + "\x1f"
+		// BOLT OPTIMIZATION: Reduce allocations by using a stack buffer for hashing
+		// and manual hex encoding to avoid hex.EncodeToString and strings.ToUpper.
+		var buf [128]byte
+		hInput := strconv.AppendInt(buf[:0], int64(placeholderCount), 10)
+		hInput = append(hInput, ':')
+		hInput = append(hInput, literal...)
+		sum := sha256.Sum256(hInput)
+
+		var sb strings.Builder
+		sb.Grow(32)
+		sb.WriteString("\x1eHLMDPH_")
+		for i := 0; i < 6; i++ {
+			b := sum[i]
+			sb.WriteByte(hexDigits[b>>4])
+			sb.WriteByte(hexDigits[b&0x0f])
+		}
+		sb.WriteByte('_')
+		sb.WriteString(strconv.Itoa(placeholderCount))
+		sb.WriteByte('\x1f')
+		placeholder := sb.String()
+
 		placeholderCount++
 		// Placeholder sentinels are exposed through Parse() and must survive translation
 		// round-trips so renderMarkdownPart can restore protected markdown/JSX literals.
