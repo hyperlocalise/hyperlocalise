@@ -264,8 +264,10 @@ export async function startCanvaLocalization(input: {
 
   let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
   let uploadedStorageKey: string | null = null;
+  let storedFile: typeof schema.storedFiles.$inferSelect;
+  let version: typeof schema.repositorySourceFileVersions.$inferSelect;
   try {
-    const { storedFile, version } = await db.transaction(async (tx) => {
+    const created = await db.transaction(async (tx) => {
       const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
         tx,
         input.organizationId,
@@ -346,15 +348,8 @@ export async function startCanvaLocalization(input: {
 
       return { storedFile: uploadedFile, version: createdVersion };
     });
-
-    void enqueueSourceFileIngestAfterUpload({
-      organizationId: input.organizationId,
-      projectId: project.id,
-      storedFileId: storedFile.id,
-      sourceFileVersionId: version.id,
-      sourcePath,
-      sourceHash,
-    }).catch(() => {});
+    storedFile = created.storedFile;
+    version = created.version;
   } catch (error) {
     if (uploadedStorageKey) {
       await adapter.delete({ keyOrUrl: uploadedStorageKey }).catch(() => {});
@@ -381,6 +376,15 @@ export async function startCanvaLocalization(input: {
       throw new Error("translation_job_queue_unavailable");
     }
   }
+
+  void enqueueSourceFileIngestAfterUpload({
+    organizationId: input.organizationId,
+    projectId: project.id,
+    storedFileId: storedFile.id,
+    sourceFileVersionId: version.id,
+    sourcePath,
+    sourceHash,
+  }).catch(() => {});
 
   return { jobId };
 }
