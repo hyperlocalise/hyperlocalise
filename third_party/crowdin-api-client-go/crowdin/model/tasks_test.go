@@ -24,10 +24,10 @@ func TestTasksListOptionsValues(t *testing.T) {
 			name: "all options",
 			opts: &TasksListOptions{
 				OrderBy: "createdAt desc,name", Status: []TaskStatus{TaskStatusTodo, TaskStatusDone},
-				AssigneeID: 1, ListOptions: ListOptions{Limit: 10, Offset: 5},
+				AssigneeID: 1, CreatorID: 2, ListOptions: ListOptions{Limit: 10, Offset: 5},
 				LabelIDs: []int{1, 2}, ExcludeLabelIDs: []int{3, 4},
 			},
-			out: "assigneeId=1&excludeLabelIds=3%2C4&labelIds=1%2C2&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone",
+			out: "assigneeId=1&creatorId=2&excludeLabelIds=3%2C4&labelIds=1%2C2&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone",
 		},
 	}
 
@@ -68,9 +68,9 @@ func TestUserTasksListOptionsValues(t *testing.T) {
 			name: "all options",
 			opts: &UserTasksListOptions{
 				OrderBy: "createdAt desc,name", Status: []TaskStatus{TaskStatusTodo, TaskStatusDone},
-				IsArchived: toPtr(1), ListOptions: ListOptions{Limit: 10, Offset: 5},
+				ProjectID: 123, IsArchived: toPtr(1), ListOptions: ListOptions{Limit: 10, Offset: 5},
 			},
-			out: "isArchived=1&limit=10&offset=5&orderBy=createdAt+desc%2Cname&status=todo%2Cdone",
+			out: "isArchived=1&limit=10&offset=5&orderBy=createdAt+desc%2Cname&projectId=123&status=todo%2Cdone",
 		},
 	}
 

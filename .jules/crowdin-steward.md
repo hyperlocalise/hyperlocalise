@@ -203,3 +203,9 @@
 **Learning:** The Crowdin API v2 for creating distributions allows specifying content via `fileIds`, `branchIds`, or `directoryIds` when using the 'default' export mode. The Go SDK was incorrectly requiring `fileIds` exclusively, causing validation failures for valid branch or directory-based distribution requests.
 
 **Action:** Updated `DistributionAddRequest.Validate` in `model/distributions.go` to check that at least one of `fileIds`, `branchIds`, or `directoryIds` is provided for the default export mode. Expanded `model/distributions_test.go` with contract tests verifying each of these valid configurations.
+
+## 2026-06-30 - Improve Task model parity for creatorId and projectId
+
+**Learning:** The Crowdin Tasks API v2 supports filtering by `creatorId` when listing project tasks and by `projectId` when listing user tasks. These parameters were missing from the SDK's `TasksListOptions` and `UserTasksListOptions` respectively.
+
+**Action:** Added `CreatorID` to `TasksListOptions` and `ProjectID` to `UserTasksListOptions` in `model/tasks.go`. Updated their `Values()` methods to correctly encode these parameters in query strings. Verified with updated unit tests in `tasks_test.go`.

@@ -110,6 +110,8 @@ type TasksListOptions struct {
 	Status []TaskStatus `json:"status,omitempty"`
 	// List tasks for specified assignee.
 	AssigneeID int `json:"assigneeId,omitempty"`
+	// List tasks for specified creator.
+	CreatorID int `json:"creatorId,omitempty"`
 	// List tasks for specified workflow step.
 	WorkflowStepID int `json:"workflowStepId,omitempty"`
 	// Filter tasks by labelIds.
@@ -137,6 +139,9 @@ func (o *TasksListOptions) Values() (url.Values, bool) {
 	}
 	if o.AssigneeID > 0 {
 		v.Add("assigneeId", strconv.Itoa(o.AssigneeID))
+	}
+	if o.CreatorID > 0 {
+		v.Add("creatorId", strconv.Itoa(o.CreatorID))
 	}
 	if o.WorkflowStepID > 0 {
 		v.Add("workflowStepId", strconv.Itoa(o.WorkflowStepID))
@@ -944,6 +949,8 @@ type UserTasksListOptions struct {
 	// or a list of status values.
 	// Enum: todo, in_progress, done, closed.
 	Status []TaskStatus `json:"status,omitempty"`
+	// Project identifier.
+	ProjectID int `json:"projectId,omitempty"`
 	// List archived/not archived tasks for the authorized user.
 	// Enum: 1 - archived, 0 - not archived. Default: 0.
 	IsArchived *int `json:"isArchived,omitempty"`
@@ -965,6 +972,9 @@ func (o *UserTasksListOptions) Values() (url.Values, bool) {
 	}
 	if len(o.Status) > 0 {
 		v.Add("status", JoinSlice(o.Status))
+	}
+	if o.ProjectID > 0 {
+		v.Add("projectId", strconv.Itoa(o.ProjectID))
 	}
 	if o.IsArchived != nil {
 		v.Add("isArchived", strconv.Itoa(*o.IsArchived))
