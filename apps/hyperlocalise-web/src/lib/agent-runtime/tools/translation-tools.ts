@@ -25,6 +25,7 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
 
 import {
   toolAccessibleJobsWhere,
@@ -66,6 +67,7 @@ const reviewJobQueue = createReviewJobEventQueue();
 type JobCreationError =
   | { code: "job_permission_denied"; message: string }
   | { code: "job_insert_failed"; message: string }
+  | { code: "organization_job_budget_exceeded"; message: string }
   | { code: "usage_event_reservation_failed"; message: string };
 
 type CreateTranslationJobToolError =
@@ -104,6 +106,20 @@ function jobCreatePermissionDeniedError(): JobCreationError {
 function assertAgentJobCreateAllowed(ctx: ToolContext): Result<void, JobCreationError> {
   if (!isJobCreateAllowed(ctx.membershipRole)) {
     return err(jobCreatePermissionDeniedError());
+  }
+
+  return ok(undefined);
+}
+
+async function assertAgentOrganizationJobBudget(
+  organizationId: string,
+): Promise<Result<void, JobCreationError>> {
+  const budget = await assertOrganizationCanEnqueueTranslationJob(organizationId);
+  if (isErr(budget)) {
+    return err({
+      code: "organization_job_budget_exceeded",
+      message: budget.error.message,
+    });
   }
 
   return ok(undefined);
@@ -279,6 +295,11 @@ async function createQueuedJob(
   const permissionResult = assertAgentJobCreateAllowed(ctx);
   if (isErr(permissionResult)) {
     return permissionResult;
+  }
+
+  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
+  if (isErr(budgetResult)) {
+    return budgetResult;
   }
 
   try {
@@ -462,6 +483,11 @@ async function createTranslationJobRecord(
   input: CreateTranslationJobInput,
   preparedInput: PreparedTranslationJobInput,
 ): Promise<Result<JobRecord, JobCreationError>> {
+  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
+  if (isErr(budgetResult)) {
+    return budgetResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const sourceFileVersion = preparedInput.sourceFileId
@@ -651,6 +677,11 @@ async function createReviewJobRecord(
   const permissionResult = assertAgentJobCreateAllowed(ctx);
   if (isErr(permissionResult)) {
     return permissionResult;
+  }
+
+  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
+  if (isErr(budgetResult)) {
+    return budgetResult;
   }
 
   try {
@@ -861,6 +892,11 @@ async function createSyncJobRecord(
     return permissionResult;
   }
 
+  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
+  if (isErr(budgetResult)) {
+    return budgetResult;
+  }
+
   try {
     const job = await ctx.db.transaction(async (tx) => {
       const [createdJob] = await tx
@@ -950,6 +986,11 @@ async function createAssetManagementJobRecord(
   const permissionResult = assertAgentJobCreateAllowed(ctx);
   if (isErr(permissionResult)) {
     return permissionResult;
+  }
+
+  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
+  if (isErr(budgetResult)) {
+    return budgetResult;
   }
 
   try {

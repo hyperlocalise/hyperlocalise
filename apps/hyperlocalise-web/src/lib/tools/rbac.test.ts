@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
+import { err, ok } from "@/lib/primitives/result/results";
+
 // Mock environment and database before importing tools
 vi.mock("@/lib/env", () => ({
   env: {
@@ -14,6 +16,14 @@ vi.mock("@/lib/billing/usage-control", () => ({
     translationJobs: "translation_jobs",
     agentRuns: "agent_runs",
   },
+}));
+
+const { assertOrganizationCanEnqueueTranslationJobMock } = vi.hoisted(() => ({
+  assertOrganizationCanEnqueueTranslationJobMock: vi.fn(async () => ok(undefined)),
+}));
+
+vi.mock("@/lib/security/organization-operation-budget", () => ({
+  assertOrganizationCanEnqueueTranslationJob: assertOrganizationCanEnqueueTranslationJobMock,
 }));
 
 vi.mock("@/lib/file-storage/records", () => ({
@@ -152,6 +162,27 @@ describe("Agent Tools RBAC", () => {
       });
       // It fails later because of enqueuing/db, but we check that it didn't fail at the RBAC check
       expect(result.error).not.toContain("permission");
+    });
+
+    it("denies job creation when the organization job budget is exceeded", async () => {
+      assertOrganizationCanEnqueueTranslationJobMock.mockResolvedValueOnce(
+        err({
+          code: "organization_job_budget_exceeded",
+          message: "Organization job creation rate limit exceeded. Try again later.",
+        }),
+      );
+
+      const tool = createTranslationJobTool(mockCtx("admin"));
+      const result = await executeTool(tool, {
+        type: "string",
+        sourceText: "hello",
+        sourceLocale: "en",
+        targetLocales: ["fr"],
+      });
+
+      expect(assertOrganizationCanEnqueueTranslationJobMock).toHaveBeenCalledWith("org_123");
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("rate limit exceeded");
     });
 
     it("denies file translation jobs for inaccessible workspace source files", async () => {
