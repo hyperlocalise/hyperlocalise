@@ -255,6 +255,16 @@ export async function startCanvaLocalization(input: {
     throw new Error(localeValidation.error.code);
   }
 
+  await db.transaction(async (tx) => {
+    const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+      tx,
+      input.organizationId,
+    );
+    if (isErr(jobBudget)) {
+      throw new OrganizationJobBudgetExceededError(jobBudget.error);
+    }
+  });
+
   const sourcePath = buildSourcePath(input.designId);
   const translationFile = segmentsToTranslationFile(input.segments);
   const fileBody = JSON.stringify(translationFile, null, 2);
@@ -300,67 +310,72 @@ export async function startCanvaLocalization(input: {
       throw error;
     });
 
-  void enqueueSourceFileIngestAfterUpload({
-    organizationId: input.organizationId,
-    projectId: project.id,
-    storedFileId: storedFile.id,
-    sourceFileVersionId: version.id,
-    sourcePath,
-    sourceHash,
-  }).catch(() => {});
-
   const jobId = `job_${randomUUID()}`;
-  await db.transaction(async (tx) => {
-    const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
-      tx,
-      input.organizationId,
-    );
-    if (isErr(jobBudget)) {
-      throw new OrganizationJobBudgetExceededError(jobBudget.error);
-    }
+  try {
+    await db.transaction(async (tx) => {
+      const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+        tx,
+        input.organizationId,
+      );
+      if (isErr(jobBudget)) {
+        throw new OrganizationJobBudgetExceededError(jobBudget.error);
+      }
 
-    await tx.insert(schema.jobs).values({
-      id: jobId,
-      organizationId: input.organizationId,
-      projectId: project.id,
-      kind: "translation",
-      status: "queued",
-      inputPayload: {
-        type: "file",
+      await tx.insert(schema.jobs).values({
+        id: jobId,
+        organizationId: input.organizationId,
         projectId: project.id,
-        fileInput: {
-          sourceFileId: storedFile.id,
-          fileFormat: "json",
-          sourceLocale: input.sourceLocale,
-          targetLocales: input.targetLocales,
-          metadata: {
-            integration: "canva-app",
-            canvaConnectionId: input.canvaConnectionId,
+        kind: "translation",
+        status: "queued",
+        inputPayload: {
+          type: "file",
+          projectId: project.id,
+          fileInput: {
+            sourceFileId: storedFile.id,
+            fileFormat: "json",
+            sourceLocale: input.sourceLocale,
+            targetLocales: input.targetLocales,
+            metadata: {
+              integration: "canva-app",
+              canvaConnectionId: input.canvaConnectionId,
+            },
           },
         },
-      },
-      apiKeyId: input.apiKeyId,
+        apiKeyId: input.apiKeyId,
+      });
+
+      await tx.insert(schema.translationJobDetails).values({
+        jobId,
+        type: "file",
+        sourceFileVersionId: version.id,
+      });
+
+      const usageEventResult = await reserveUsageEvent({
+        db: tx,
+        organizationId: input.organizationId,
+        featureId: usageFeatureIds.translationJobs,
+        operationKey: `job:${jobId}:translation_jobs`,
+        source: "translation_job_create",
+        jobId,
+        quantity: 1,
+      });
+      if (isErr(usageEventResult)) {
+        throw new Error(formatUsageControlError(usageEventResult.error));
+      }
     });
 
-    await tx.insert(schema.translationJobDetails).values({
-      jobId,
-      type: "file",
-      sourceFileVersionId: version.id,
-    });
-
-    const usageEventResult = await reserveUsageEvent({
-      db: tx,
+    void enqueueSourceFileIngestAfterUpload({
       organizationId: input.organizationId,
-      featureId: usageFeatureIds.translationJobs,
-      operationKey: `job:${jobId}:translation_jobs`,
-      source: "translation_job_create",
-      jobId,
-      quantity: 1,
-    });
-    if (isErr(usageEventResult)) {
-      throw new Error(formatUsageControlError(usageEventResult.error));
-    }
-  });
+      projectId: project.id,
+      storedFileId: storedFile.id,
+      sourceFileVersionId: version.id,
+      sourcePath,
+      sourceHash,
+    }).catch(() => {});
+  } catch (error) {
+    await adapter.delete({ keyOrUrl: storedFile.storageKey }).catch(() => {});
+    throw error;
+  }
 
   if (input.jobQueue) {
     try {
