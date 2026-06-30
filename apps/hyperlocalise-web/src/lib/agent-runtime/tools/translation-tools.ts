@@ -25,7 +25,8 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
-import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
+import { assertOrganizationCanEnqueueTranslationJobInTransaction } from "@/lib/security/organization-operation-budget";
+import type { DatabaseTransaction } from "@/lib/database";
 
 import {
   toolAccessibleJobsWhere,
@@ -112,9 +113,10 @@ function assertAgentJobCreateAllowed(ctx: ToolContext): Result<void, JobCreation
 }
 
 async function assertAgentOrganizationJobBudget(
+  tx: DatabaseTransaction,
   organizationId: string,
 ): Promise<Result<void, JobCreationError>> {
-  const budget = await assertOrganizationCanEnqueueTranslationJob(organizationId);
+  const budget = await assertOrganizationCanEnqueueTranslationJobInTransaction(tx, organizationId);
   if (isErr(budget)) {
     return err({
       code: "organization_job_budget_exceeded",
@@ -297,13 +299,13 @@ async function createQueuedJob(
     return permissionResult;
   }
 
-  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
-  if (isErr(budgetResult)) {
-    return budgetResult;
-  }
-
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values(queuedJobValues(ctx, input))
@@ -483,13 +485,13 @@ async function createTranslationJobRecord(
   input: CreateTranslationJobInput,
   preparedInput: PreparedTranslationJobInput,
 ): Promise<Result<JobRecord, JobCreationError>> {
-  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
-  if (isErr(budgetResult)) {
-    return budgetResult;
-  }
-
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const sourceFileVersion = preparedInput.sourceFileId
         ? await ensureRepositorySourceFileVersionForStoredFile({
             db: tx,
@@ -679,13 +681,13 @@ async function createReviewJobRecord(
     return permissionResult;
   }
 
-  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
-  if (isErr(budgetResult)) {
-    return budgetResult;
-  }
-
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values(
@@ -892,13 +894,13 @@ async function createSyncJobRecord(
     return permissionResult;
   }
 
-  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
-  if (isErr(budgetResult)) {
-    return budgetResult;
-  }
-
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values(
@@ -988,13 +990,13 @@ async function createAssetManagementJobRecord(
     return permissionResult;
   }
 
-  const budgetResult = await assertAgentOrganizationJobBudget(ctx.organizationId);
-  if (isErr(budgetResult)) {
-    return budgetResult;
-  }
-
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values(

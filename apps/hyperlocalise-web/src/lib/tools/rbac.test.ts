@@ -18,12 +18,13 @@ vi.mock("@/lib/billing/usage-control", () => ({
   },
 }));
 
-const { assertOrganizationCanEnqueueTranslationJobMock } = vi.hoisted(() => ({
-  assertOrganizationCanEnqueueTranslationJobMock: vi.fn(async () => ok(undefined)),
+const { assertOrganizationCanEnqueueTranslationJobInTransactionMock } = vi.hoisted(() => ({
+  assertOrganizationCanEnqueueTranslationJobInTransactionMock: vi.fn(async () => ok(undefined)),
 }));
 
 vi.mock("@/lib/security/organization-operation-budget", () => ({
-  assertOrganizationCanEnqueueTranslationJob: assertOrganizationCanEnqueueTranslationJobMock,
+  assertOrganizationCanEnqueueTranslationJobInTransaction:
+    assertOrganizationCanEnqueueTranslationJobInTransactionMock,
 }));
 
 vi.mock("@/lib/file-storage/records", () => ({
@@ -91,6 +92,7 @@ describe("Agent Tools RBAC", () => {
     db: {
       transaction: vi.fn(async (cb) =>
         cb({
+          execute: vi.fn(async () => undefined),
           insert: vi.fn(() => ({
             values: vi.fn(() => ({
               returning: vi.fn(() => [{ id: "mutated_123" }]),
@@ -165,7 +167,7 @@ describe("Agent Tools RBAC", () => {
     });
 
     it("denies job creation when the organization job budget is exceeded", async () => {
-      assertOrganizationCanEnqueueTranslationJobMock.mockResolvedValueOnce(
+      assertOrganizationCanEnqueueTranslationJobInTransactionMock.mockResolvedValueOnce(
         err({
           code: "organization_job_budget_exceeded",
           message: "Organization job creation rate limit exceeded. Try again later.",
@@ -180,7 +182,10 @@ describe("Agent Tools RBAC", () => {
         targetLocales: ["fr"],
       });
 
-      expect(assertOrganizationCanEnqueueTranslationJobMock).toHaveBeenCalledWith("org_123");
+      expect(assertOrganizationCanEnqueueTranslationJobInTransactionMock).toHaveBeenCalledWith(
+        expect.anything(),
+        "org_123",
+      );
       expect(result.success).toBe(false);
       expect(result.error).toContain("rate limit exceeded");
     });
