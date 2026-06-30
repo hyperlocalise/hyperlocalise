@@ -238,8 +238,8 @@ func mdxParseContainerLiteral(literal string) (mdxContainer, bool, bool, bool) {
 	sb.WriteByte('[')
 	for i := 0; i < 6; i++ {
 		b := sum[i]
-		sb.WriteByte(hexDigits[b>>4])
-		sb.WriteByte(hexDigits[b&0x0f])
+		sb.WriteByte(hexDigitsLower[b>>4])
+		sb.WriteByte(hexDigitsLower[b&0x0f])
 	}
 	sb.WriteByte(']')
 
