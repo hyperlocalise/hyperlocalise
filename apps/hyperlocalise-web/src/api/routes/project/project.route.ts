@@ -38,6 +38,8 @@ import {
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectCatFile,
+  resolveNativeProjectCatComment,
+  saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
@@ -96,7 +98,11 @@ import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/org
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
-import { isAiActionAllowed, isWriteBackTranslationAllowed } from "@/api/auth/capability-guards";
+import {
+  isAiActionAllowed,
+  isReviewApproveAllowed,
+  isWriteBackTranslationAllowed,
+} from "@/api/auth/capability-guards";
 import {
   buildAccessibleProjectsWhere,
   forbiddenResponse,
@@ -598,14 +604,6 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
-          if (query.queueFilter === "has_issues") {
-            return badRequestResponse(
-              c,
-              "unsupported_queue_filter",
-              "The has issues filter is only available for Crowdin projects.",
-            );
-          }
-
           const catFile = await getNativeProjectCatFile({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
@@ -742,11 +740,32 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (target.kind !== "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "CAT comments are only available for provider-connected projects.",
-          );
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          const comment = await saveNativeProjectCatComment({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: body.sourcePath,
+            targetLocale: body.targetLocale,
+            translationKeyId: body.externalStringId,
+            text: body.text,
+            type: body.type,
+            issueType: body.issueType,
+            actorUserId: c.var.auth.user.localUserId,
+          });
+
+          if (!comment) {
+            return badRequestResponse(
+              c,
+              "translation_key_not_found",
+              "Translation key not found for the given file.",
+            );
+          }
+
+          return c.json({ comment }, 200);
         }
 
         try {
@@ -791,11 +810,28 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         }
 
         if (target.kind !== "provider") {
-          return badRequestResponse(
-            c,
-            "provider_cat_unsupported",
-            "CAT comments are only available for provider-connected projects.",
-          );
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          const comment = await resolveNativeProjectCatComment({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            commentId: params.commentId,
+            actorUserId: c.var.auth.user.localUserId,
+            canResolveOthersIssues: isReviewApproveAllowed(c.var.auth.membership.role),
+          });
+
+          if (!comment) {
+            return badRequestResponse(
+              c,
+              "comment_not_found",
+              "Comment not found or not resolvable.",
+            );
+          }
+
+          return c.json({ comment }, 200);
         }
 
         try {

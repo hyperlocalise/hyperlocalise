@@ -123,6 +123,55 @@ export async function validateSegmentFormat(
   return formatCheckForSegment(segment, value, intl, glossaryTerms);
 }
 
+function buildCommentIssueSuffix(
+  issueCount: number,
+  isNativeProject: boolean,
+  providerKind?: string | null,
+) {
+  if (issueCount <= 0) {
+    return "";
+  }
+
+  if (isNativeProject || providerKind === "crowdin") {
+    return `, including ${issueCount} issue${issueCount === 1 ? "" : "s"}`;
+  }
+
+  return "";
+}
+
+function buildCommentProductMeaning(input: {
+  supportsComments: boolean;
+  commentCount: number;
+  issueCount: number;
+  isNativeProject: boolean;
+  providerKind?: string | null;
+  entity: "file" | "string";
+}) {
+  if (!input.supportsComments) {
+    return undefined;
+  }
+
+  if (input.commentCount > 0) {
+    const providerPrefix = input.isNativeProject ? "" : "provider ";
+    const verb = input.entity === "file" ? "are" : input.commentCount === 1 ? "is" : "are";
+    const issueSuffix = buildCommentIssueSuffix(
+      input.issueCount,
+      input.isNativeProject,
+      input.providerKind,
+    );
+
+    return `${input.commentCount} ${providerPrefix}comment${input.commentCount === 1 ? "" : "s"} ${verb} attached to this ${input.entity}${issueSuffix}.`;
+  }
+
+  if (input.isNativeProject) {
+    return `No comments are attached to this ${input.entity} yet.`;
+  }
+
+  return input.entity === "file"
+    ? "The provider did not return comments for this file."
+    : "The provider did not return context or comments for this string.";
+}
+
 function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
   const issueCount = catFile.segments.reduce(
     (count, segment) =>
@@ -134,20 +183,23 @@ function intelligenceFor(catFile: CatFile): CatSegmentIntelligence {
     0,
   );
   const providerKind = catFile.provider?.kind;
-
-  const providerSupportsComments = providerKind === "crowdin" || providerKind === "phrase";
+  const isNativeProject = !catFile.provider;
+  const supportsComments =
+    isNativeProject || providerKind === "crowdin" || providerKind === "phrase";
 
   return {
     intent: `Translate ${catFile.filename} into ${catFile.targetLocale}.`,
     locationBreadcrumb: catFile.sourcePath,
     filePath: catFile.sourcePath,
     componentName: catFile.provider?.format ?? providerKind ?? undefined,
-    productMeaning:
-      providerSupportsComments && commentCount > 0
-        ? `${commentCount} provider comment${commentCount === 1 ? "" : "s"} are attached to this file${providerKind === "crowdin" && issueCount > 0 ? `, including ${issueCount} issue${issueCount === 1 ? "" : "s"}` : ""}.`
-        : providerSupportsComments
-          ? "The provider did not return comments for this file."
-          : undefined,
+    productMeaning: buildCommentProductMeaning({
+      supportsComments,
+      commentCount,
+      issueCount,
+      isNativeProject,
+      providerKind,
+      entity: "file",
+    }),
     reviewerPreference: catFile.canEditTranslations
       ? providerKind
         ? "Approve writes the current target text back to the provider."
@@ -168,8 +220,9 @@ function segmentIntelligenceFor(
   const context = segment.context?.trim();
   const repositoryContext = segment.repositoryContext?.trim();
   const providerKind = catFile.provider?.kind;
-
-  const providerSupportsComments = providerKind === "crowdin" || providerKind === "phrase";
+  const isNativeProject = !catFile.provider;
+  const supportsComments =
+    isNativeProject || providerKind === "crowdin" || providerKind === "phrase";
 
   return {
     intent: `Translate ${segment.key} into ${catFile.targetLocale}.`,
@@ -178,11 +231,14 @@ function segmentIntelligenceFor(
     componentName: segment.type ?? catFile.provider?.format ?? providerKind ?? undefined,
     productMeaning:
       context ||
-      (providerSupportsComments && comments > 0
-        ? `${comments} provider comment${comments === 1 ? "" : "s"} ${comments === 1 ? "is" : "are"} attached to this string${providerKind === "crowdin" && issues > 0 ? `, including ${issues} issue${issues === 1 ? "" : "s"}` : ""}.`
-        : providerSupportsComments
-          ? "The provider did not return context or comments for this string."
-          : undefined),
+      buildCommentProductMeaning({
+        supportsComments,
+        commentCount: comments,
+        issueCount: issues,
+        isNativeProject,
+        providerKind,
+        entity: "string",
+      }),
     agentContext: repositoryContext || undefined,
     reviewerPreference: catFile.canEditTranslations
       ? providerKind
@@ -244,10 +300,7 @@ export function projectFileCatToWorkspaceState(
     breadcrumbs: [catFile.provider?.kind ?? "native", catFile.filename, catFile.targetLocale],
     primaryActionLabel: catFile.provider ? "Save to provider" : "Approve",
     canEditTranslations: catFile.canEditTranslations,
-    canAddComments: Boolean(
-      (catFile.provider?.kind === "crowdin" || catFile.provider?.kind === "phrase") &&
-      catFile.canEditTranslations,
-    ),
+    canAddComments: Boolean(catFile.canEditTranslations),
     providerKind: catFile.provider?.kind ?? null,
   };
 }
