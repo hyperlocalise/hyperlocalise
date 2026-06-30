@@ -34,7 +34,10 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { isErr } from "@/lib/primitives/result/results";
-import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
+import {
+  assertOrganizationCanEnqueueTranslationJobInTransaction,
+  OrganizationJobBudgetExceededError,
+} from "@/lib/security/organization-operation-budget";
 import {
   getOrganizationJobById,
   listOrganizationJobs,
@@ -413,13 +416,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return badRequestResponse(c, localeValidation.error.code, localeValidation.error.message);
       }
 
-      const jobBudget = await assertOrganizationCanEnqueueTranslationJob(
-        c.var.auth.organization.localOrganizationId,
-      );
-      if (isErr(jobBudget)) {
-        return c.json({ error: jobBudget.error.code, message: jobBudget.error.message }, 429);
-      }
-
       if (payload.type === "file") {
         const sourceFile = await getStoredFileForJobScope({
           organizationId: c.var.auth.organization.localOrganizationId,
@@ -453,54 +449,70 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       const jobId = `job_${randomUUID()}`;
-      const [job] = await db.transaction(async (tx) => {
-        const sourceFileVersion =
-          payload.type === "file"
-            ? await ensureRepositorySourceFileVersionForStoredFile({
-                db: tx,
-                organizationId: c.var.auth.organization.localOrganizationId,
-                projectId: params.projectId,
-                fileId: payload.fileInput.sourceFileId,
-              })
-            : null;
+      let job;
+      try {
+        [job] = await db.transaction(async (tx) => {
+          const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+            tx,
+            c.var.auth.organization.localOrganizationId,
+          );
+          if (isErr(jobBudget)) {
+            throw new OrganizationJobBudgetExceededError(jobBudget.error);
+          }
 
-        const [createdJob] = await tx
-          .insert(schema.jobs)
-          .values({
-            id: jobId,
+          const sourceFileVersion =
+            payload.type === "file"
+              ? await ensureRepositorySourceFileVersionForStoredFile({
+                  db: tx,
+                  organizationId: c.var.auth.organization.localOrganizationId,
+                  projectId: params.projectId,
+                  fileId: payload.fileInput.sourceFileId,
+                })
+              : null;
+
+          const [createdJob] = await tx
+            .insert(schema.jobs)
+            .values({
+              id: jobId,
+              organizationId: c.var.auth.organization.localOrganizationId,
+              projectId: params.projectId,
+              createdByUserId: c.var.auth.user.localUserId,
+              kind: "translation",
+              status: "queued",
+              inputPayload,
+            })
+            .returning();
+
+          const [details] = await tx
+            .insert(schema.translationJobDetails)
+            .values({
+              jobId,
+              type: payload.type,
+              sourceFileVersionId: sourceFileVersion?.id ?? null,
+            })
+            .returning();
+
+          const usageEventResult = await reserveUsageEvent({
+            db: tx,
             organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            createdByUserId: c.var.auth.user.localUserId,
-            kind: "translation",
-            status: "queued",
-            inputPayload,
-          })
-          .returning();
-
-        const [details] = await tx
-          .insert(schema.translationJobDetails)
-          .values({
+            featureId: usageFeatureIds.translationJobs,
+            operationKey: `job:${jobId}:translation_jobs`,
+            source: "translation_job_create",
             jobId,
-            type: payload.type,
-            sourceFileVersionId: sourceFileVersion?.id ?? null,
-          })
-          .returning();
+            quantity: 1,
+          });
+          if (isErr(usageEventResult)) {
+            throw new Error(formatUsageControlError(usageEventResult.error));
+          }
 
-        const usageEventResult = await reserveUsageEvent({
-          db: tx,
-          organizationId: c.var.auth.organization.localOrganizationId,
-          featureId: usageFeatureIds.translationJobs,
-          operationKey: `job:${jobId}:translation_jobs`,
-          source: "translation_job_create",
-          jobId,
-          quantity: 1,
+          return [{ ...createdJob, type: details.type }];
         });
-        if (isErr(usageEventResult)) {
-          throw new Error(formatUsageControlError(usageEventResult.error));
+      } catch (error) {
+        if (error instanceof OrganizationJobBudgetExceededError) {
+          return c.json({ error: error.budgetError.code, message: error.budgetError.message }, 429);
         }
-
-        return [{ ...createdJob, type: details.type }];
-      });
+        throw error;
+      }
 
       try {
         await options.jobQueue.enqueue({

@@ -22,7 +22,10 @@ import {
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 import { isErr } from "@/lib/primitives/result/results";
-import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
+import {
+  assertOrganizationCanEnqueueTranslationJobInTransaction,
+  OrganizationJobBudgetExceededError,
+} from "@/lib/security/organization-operation-budget";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { buildSourcePath, parseTranslationFile, segmentsToTranslationFile } from "./segment-file";
@@ -252,11 +255,6 @@ export async function startCanvaLocalization(input: {
     throw new Error(localeValidation.error.code);
   }
 
-  const jobBudget = await assertOrganizationCanEnqueueTranslationJob(input.organizationId);
-  if (isErr(jobBudget)) {
-    throw new Error(jobBudget.error.code);
-  }
-
   const sourcePath = buildSourcePath(input.designId);
   const translationFile = segmentsToTranslationFile(input.segments);
   const fileBody = JSON.stringify(translationFile, null, 2);
@@ -313,6 +311,14 @@ export async function startCanvaLocalization(input: {
 
   const jobId = `job_${randomUUID()}`;
   await db.transaction(async (tx) => {
+    const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+      tx,
+      input.organizationId,
+    );
+    if (isErr(jobBudget)) {
+      throw new OrganizationJobBudgetExceededError(jobBudget.error);
+    }
+
     await tx.insert(schema.jobs).values({
       id: jobId,
       organizationId: input.organizationId,

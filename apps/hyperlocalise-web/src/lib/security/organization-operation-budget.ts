@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, sql } from "drizzle-orm";
 
-import { db, schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database";
+import { schema, type DatabaseClient, type DatabaseTransaction } from "@/lib/database";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 
 const OPEN_JOB_STATUSES = ["queued", "running", "waiting_for_review"] as const;
@@ -69,11 +69,11 @@ function evaluateOrganizationJobBudgetUsage(counts: {
   return ok(undefined);
 }
 
-export async function assertOrganizationCanEnqueueTranslationJob(
-  organizationId: string,
-): Promise<Result<void, OrganizationOperationBudgetError>> {
-  const counts = await countOrganizationJobBudgetUsage(db, organizationId);
-  return evaluateOrganizationJobBudgetUsage(counts);
+export class OrganizationJobBudgetExceededError extends Error {
+  constructor(readonly budgetError: OrganizationOperationBudgetError) {
+    super(budgetError.message);
+    this.name = "OrganizationJobBudgetExceededError";
+  }
 }
 
 export async function assertOrganizationCanEnqueueTranslationJobInTransaction(
