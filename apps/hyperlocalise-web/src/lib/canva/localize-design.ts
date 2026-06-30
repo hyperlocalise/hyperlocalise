@@ -255,25 +255,25 @@ export async function startCanvaLocalization(input: {
     throw new Error(localeValidation.error.code);
   }
 
-  await db.transaction(async (tx) => {
-    const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
-      tx,
-      input.organizationId,
-    );
-    if (isErr(jobBudget)) {
-      throw new OrganizationJobBudgetExceededError(jobBudget.error);
-    }
-  });
-
   const sourcePath = buildSourcePath(input.designId);
   const translationFile = segmentsToTranslationFile(input.segments);
   const fileBody = JSON.stringify(translationFile, null, 2);
   const sourceHash = createHash("sha256").update(fileBody).digest("hex");
   const adapter = input.fileStorageAdapter ?? getFileStorageAdapter();
+  const jobId = `job_${randomUUID()}`;
 
   let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
-  const { storedFile, version } = await db
-    .transaction(async (tx) => {
+  let uploadedStorageKey: string | null = null;
+  try {
+    const { storedFile, version } = await db.transaction(async (tx) => {
+      const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+        tx,
+        input.organizationId,
+      );
+      if (isErr(jobBudget)) {
+        throw new OrganizationJobBudgetExceededError(jobBudget.error);
+      }
+
       uploadedFile = await createStoredFile({
         organizationId: input.organizationId,
         projectId: project.id,
@@ -291,6 +291,7 @@ export async function startCanvaLocalization(input: {
         adapter,
         db: tx,
       });
+      uploadedStorageKey = uploadedFile.storageKey;
 
       const createdVersion = await createRepositorySourceFileVersion({
         storedFile: uploadedFile,
@@ -300,26 +301,6 @@ export async function startCanvaLocalization(input: {
         uploadSurface: "canva_integration",
         db: tx,
       });
-
-      return { storedFile: uploadedFile, version: createdVersion };
-    })
-    .catch(async (error) => {
-      if (uploadedFile) {
-        await adapter.delete({ keyOrUrl: uploadedFile.storageKey }).catch(() => {});
-      }
-      throw error;
-    });
-
-  const jobId = `job_${randomUUID()}`;
-  try {
-    await db.transaction(async (tx) => {
-      const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
-        tx,
-        input.organizationId,
-      );
-      if (isErr(jobBudget)) {
-        throw new OrganizationJobBudgetExceededError(jobBudget.error);
-      }
 
       await tx.insert(schema.jobs).values({
         id: jobId,
@@ -331,7 +312,7 @@ export async function startCanvaLocalization(input: {
           type: "file",
           projectId: project.id,
           fileInput: {
-            sourceFileId: storedFile.id,
+            sourceFileId: uploadedFile.id,
             fileFormat: "json",
             sourceLocale: input.sourceLocale,
             targetLocales: input.targetLocales,
@@ -347,7 +328,7 @@ export async function startCanvaLocalization(input: {
       await tx.insert(schema.translationJobDetails).values({
         jobId,
         type: "file",
-        sourceFileVersionId: version.id,
+        sourceFileVersionId: createdVersion.id,
       });
 
       const usageEventResult = await reserveUsageEvent({
@@ -362,6 +343,8 @@ export async function startCanvaLocalization(input: {
       if (isErr(usageEventResult)) {
         throw new Error(formatUsageControlError(usageEventResult.error));
       }
+
+      return { storedFile: uploadedFile, version: createdVersion };
     });
 
     void enqueueSourceFileIngestAfterUpload({
@@ -373,7 +356,9 @@ export async function startCanvaLocalization(input: {
       sourceHash,
     }).catch(() => {});
   } catch (error) {
-    await adapter.delete({ keyOrUrl: storedFile.storageKey }).catch(() => {});
+    if (uploadedStorageKey) {
+      await adapter.delete({ keyOrUrl: uploadedStorageKey }).catch(() => {});
+    }
     throw error;
   }
 
