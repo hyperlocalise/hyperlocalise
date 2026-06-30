@@ -29,3 +29,10 @@ func TestResolveSourcePath(t *testing.T) {
 		t.Fatalf("ResolveSourcePath = %q, want %q", got, "content/en/en.json")
 	}
 }
+
+func TestResolveTargetPathLeadingSlash(t *testing.T) {
+	got := ResolveTargetPath("{{localeDir}}/index.mdx", "en", "en")
+	if got != "index.mdx" {
+		t.Errorf("ResolveTargetPath leading slash = %q, want %q", got, "index.mdx")
+	}
+}

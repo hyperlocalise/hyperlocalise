@@ -32,5 +32,5 @@ func resolve(pattern, sourceLocale, targetLocale string) string {
 		path = strings.ReplaceAll(path, "//", "/")
 	}
 
-	return path
+	return strings.TrimPrefix(path, "/")
 }
