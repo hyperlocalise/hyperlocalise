@@ -6,7 +6,10 @@ import (
 	"strings"
 )
 
-const hexDigits = "0123456789ABCDEF"
+const (
+	hexDigits      = "0123456789ABCDEF"
+	hexDigitsLower = "0123456789abcdef"
+)
 
 // Parser parses translation file content into key/value pairs.
 type Parser interface {
