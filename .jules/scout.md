@@ -111,3 +111,7 @@
 ## 2025-07-25 - [Strict ICU Identifier Dot Validation]
 **Learning:** ICU placeholder names that support property paths (dots) must not allow leading, trailing, or consecutive dots (e.g., `.name`, `name.`, `name..last`). Additionally, dots should not immediately precede an array index bracket (e.g., `items.[0]`). Failing to enforce these constraints can lead to malformed identifiers being collected during invariant analysis.
 **Action:** When validating identifiers with dots, ensure each dot is followed by a valid subsequent character that is not another dot or an opening bracket.
+
+## 2025-08-01 - [Preserving Path Relativity with Empty Tokens]
+**Learning:** Path resolution patterns starting with tokens (e.g., `{{localeDir}}/index.mdx`) can become absolute (e.g., `/index.mdx`) if the token resolves to an empty string. This causes "path escapes root" errors in security-sensitive CLI operations that expect relative paths.
+**Action:** When resolving paths, only trim leading slashes if the original pattern was relative. Use `strings.TrimPrefix(path, "/")` conditionally based on the original pattern's prefix to preserve both absolute paths and intended relativity.

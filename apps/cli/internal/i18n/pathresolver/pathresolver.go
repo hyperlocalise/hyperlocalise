@@ -32,5 +32,12 @@ func resolve(pattern, sourceLocale, targetLocale string) string {
 		path = strings.ReplaceAll(path, "//", "/")
 	}
 
+	// If the original pattern was relative, ensure the resolved path remains relative
+	// by trimming any leading slash that might have been introduced by tokens
+	// at the start of the pattern resolving to empty strings.
+	if !strings.HasPrefix(pattern, "/") && !strings.HasPrefix(pattern, `\`) {
+		path = strings.TrimPrefix(path, "/")
+	}
+
 	return path
 }
