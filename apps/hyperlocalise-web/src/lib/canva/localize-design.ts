@@ -22,7 +22,10 @@ import {
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import { enqueueSourceFileIngestAfterUpload } from "@/lib/projects/files/source-file-ingest";
 import { isErr } from "@/lib/primitives/result/results";
-import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
+import {
+  assertOrganizationCanEnqueueTranslationJobInTransaction,
+  OrganizationJobBudgetExceededError,
+} from "@/lib/security/organization-operation-budget";
 import type { JobQueue, TranslationJobEventData } from "@/lib/workflow/types";
 
 import { buildSourcePath, parseTranslationFile, segmentsToTranslationFile } from "./segment-file";
@@ -252,20 +255,27 @@ export async function startCanvaLocalization(input: {
     throw new Error(localeValidation.error.code);
   }
 
-  const jobBudget = await assertOrganizationCanEnqueueTranslationJob(input.organizationId);
-  if (isErr(jobBudget)) {
-    throw new Error(jobBudget.error.code);
-  }
-
   const sourcePath = buildSourcePath(input.designId);
   const translationFile = segmentsToTranslationFile(input.segments);
   const fileBody = JSON.stringify(translationFile, null, 2);
   const sourceHash = createHash("sha256").update(fileBody).digest("hex");
   const adapter = input.fileStorageAdapter ?? getFileStorageAdapter();
+  const jobId = `job_${randomUUID()}`;
 
   let uploadedFile: typeof schema.storedFiles.$inferSelect | null = null;
-  const { storedFile, version } = await db
-    .transaction(async (tx) => {
+  let uploadedStorageKey: string | null = null;
+  let storedFile: typeof schema.storedFiles.$inferSelect;
+  let version: typeof schema.repositorySourceFileVersions.$inferSelect;
+  try {
+    const created = await db.transaction(async (tx) => {
+      const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+        tx,
+        input.organizationId,
+      );
+      if (isErr(jobBudget)) {
+        throw new OrganizationJobBudgetExceededError(jobBudget.error);
+      }
+
       uploadedFile = await createStoredFile({
         organizationId: input.organizationId,
         projectId: project.id,
@@ -283,6 +293,7 @@ export async function startCanvaLocalization(input: {
         adapter,
         db: tx,
       });
+      uploadedStorageKey = uploadedFile.storageKey;
 
       const createdVersion = await createRepositorySourceFileVersion({
         storedFile: uploadedFile,
@@ -293,68 +304,58 @@ export async function startCanvaLocalization(input: {
         db: tx,
       });
 
-      return { storedFile: uploadedFile, version: createdVersion };
-    })
-    .catch(async (error) => {
-      if (uploadedFile) {
-        await adapter.delete({ keyOrUrl: uploadedFile.storageKey }).catch(() => {});
-      }
-      throw error;
-    });
-
-  void enqueueSourceFileIngestAfterUpload({
-    organizationId: input.organizationId,
-    projectId: project.id,
-    storedFileId: storedFile.id,
-    sourceFileVersionId: version.id,
-    sourcePath,
-    sourceHash,
-  }).catch(() => {});
-
-  const jobId = `job_${randomUUID()}`;
-  await db.transaction(async (tx) => {
-    await tx.insert(schema.jobs).values({
-      id: jobId,
-      organizationId: input.organizationId,
-      projectId: project.id,
-      kind: "translation",
-      status: "queued",
-      inputPayload: {
-        type: "file",
+      await tx.insert(schema.jobs).values({
+        id: jobId,
+        organizationId: input.organizationId,
         projectId: project.id,
-        fileInput: {
-          sourceFileId: storedFile.id,
-          fileFormat: "json",
-          sourceLocale: input.sourceLocale,
-          targetLocales: input.targetLocales,
-          metadata: {
-            integration: "canva-app",
-            canvaConnectionId: input.canvaConnectionId,
+        kind: "translation",
+        status: "queued",
+        inputPayload: {
+          type: "file",
+          projectId: project.id,
+          fileInput: {
+            sourceFileId: uploadedFile.id,
+            fileFormat: "json",
+            sourceLocale: input.sourceLocale,
+            targetLocales: input.targetLocales,
+            metadata: {
+              integration: "canva-app",
+              canvaConnectionId: input.canvaConnectionId,
+            },
           },
         },
-      },
-      apiKeyId: input.apiKeyId,
-    });
+        apiKeyId: input.apiKeyId,
+      });
 
-    await tx.insert(schema.translationJobDetails).values({
-      jobId,
-      type: "file",
-      sourceFileVersionId: version.id,
-    });
+      await tx.insert(schema.translationJobDetails).values({
+        jobId,
+        type: "file",
+        sourceFileVersionId: createdVersion.id,
+      });
 
-    const usageEventResult = await reserveUsageEvent({
-      db: tx,
-      organizationId: input.organizationId,
-      featureId: usageFeatureIds.translationJobs,
-      operationKey: `job:${jobId}:translation_jobs`,
-      source: "translation_job_create",
-      jobId,
-      quantity: 1,
+      const usageEventResult = await reserveUsageEvent({
+        db: tx,
+        organizationId: input.organizationId,
+        featureId: usageFeatureIds.translationJobs,
+        operationKey: `job:${jobId}:translation_jobs`,
+        source: "translation_job_create",
+        jobId,
+        quantity: 1,
+      });
+      if (isErr(usageEventResult)) {
+        throw new Error(formatUsageControlError(usageEventResult.error));
+      }
+
+      return { storedFile: uploadedFile, version: createdVersion };
     });
-    if (isErr(usageEventResult)) {
-      throw new Error(formatUsageControlError(usageEventResult.error));
+    storedFile = created.storedFile;
+    version = created.version;
+  } catch (error) {
+    if (uploadedStorageKey) {
+      await adapter.delete({ keyOrUrl: uploadedStorageKey }).catch(() => {});
     }
-  });
+    throw error;
+  }
 
   if (input.jobQueue) {
     try {
@@ -375,6 +376,15 @@ export async function startCanvaLocalization(input: {
       throw new Error("translation_job_queue_unavailable");
     }
   }
+
+  void enqueueSourceFileIngestAfterUpload({
+    organizationId: input.organizationId,
+    projectId: project.id,
+    storedFileId: storedFile.id,
+    sourceFileVersionId: version.id,
+    sourcePath,
+    sourceHash,
+  }).catch(() => {});
 
   return { jobId };
 }

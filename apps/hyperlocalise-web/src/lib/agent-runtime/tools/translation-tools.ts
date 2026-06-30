@@ -25,6 +25,8 @@ import {
   usageFeatureIds,
 } from "@/lib/billing/usage-control";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
+import { assertOrganizationCanEnqueueTranslationJobInTransaction } from "@/lib/security/organization-operation-budget";
+import type { DatabaseTransaction } from "@/lib/database";
 
 import {
   toolAccessibleJobsWhere,
@@ -66,6 +68,7 @@ const reviewJobQueue = createReviewJobEventQueue();
 type JobCreationError =
   | { code: "job_permission_denied"; message: string }
   | { code: "job_insert_failed"; message: string }
+  | { code: "organization_job_budget_exceeded"; message: string }
   | { code: "usage_event_reservation_failed"; message: string };
 
 type CreateTranslationJobToolError =
@@ -104,6 +107,21 @@ function jobCreatePermissionDeniedError(): JobCreationError {
 function assertAgentJobCreateAllowed(ctx: ToolContext): Result<void, JobCreationError> {
   if (!isJobCreateAllowed(ctx.membershipRole)) {
     return err(jobCreatePermissionDeniedError());
+  }
+
+  return ok(undefined);
+}
+
+async function assertAgentOrganizationJobBudget(
+  tx: DatabaseTransaction,
+  organizationId: string,
+): Promise<Result<void, JobCreationError>> {
+  const budget = await assertOrganizationCanEnqueueTranslationJobInTransaction(tx, organizationId);
+  if (isErr(budget)) {
+    return err({
+      code: "organization_job_budget_exceeded",
+      message: budget.error.message,
+    });
   }
 
   return ok(undefined);
@@ -283,6 +301,11 @@ async function createQueuedJob(
 
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values(queuedJobValues(ctx, input))
@@ -464,6 +487,11 @@ async function createTranslationJobRecord(
 ): Promise<Result<JobRecord, JobCreationError>> {
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const sourceFileVersion = preparedInput.sourceFileId
         ? await ensureRepositorySourceFileVersionForStoredFile({
             db: tx,
@@ -655,6 +683,11 @@ async function createReviewJobRecord(
 
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values(
@@ -863,6 +896,11 @@ async function createSyncJobRecord(
 
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values(
@@ -954,6 +992,11 @@ async function createAssetManagementJobRecord(
 
   try {
     const job = await ctx.db.transaction(async (tx) => {
+      const budgetResult = await assertAgentOrganizationJobBudget(tx, ctx.organizationId);
+      if (isErr(budgetResult)) {
+        rollbackJobCreation(budgetResult.error);
+      }
+
       const [createdJob] = await tx
         .insert(schema.jobs)
         .values(

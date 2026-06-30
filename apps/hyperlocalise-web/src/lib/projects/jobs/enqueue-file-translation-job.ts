@@ -14,7 +14,10 @@ import {
 } from "@/lib/file-storage/records";
 import { validateJobLocalesAgainstProject } from "@/lib/i18n/project-job-locales";
 import { isErr } from "@/lib/primitives/result/results";
-import { assertOrganizationCanEnqueueTranslationJob } from "@/lib/security/organization-operation-budget";
+import {
+  assertOrganizationCanEnqueueTranslationJobInTransaction,
+  OrganizationJobBudgetExceededError,
+} from "@/lib/security/organization-operation-budget";
 import {
   inferSupportedFileTranslationFileFormat,
   type SupportedFileTranslationFileFormat,
@@ -73,11 +76,6 @@ export async function enqueueFileTranslationJob(
     };
   }
 
-  const jobBudget = await assertOrganizationCanEnqueueTranslationJob(input.organizationId);
-  if (isErr(jobBudget)) {
-    return { ok: false, code: jobBudget.error.code, message: jobBudget.error.message };
-  }
-
   const sourceFile = await getStoredFileForJobScope({
     organizationId: input.organizationId,
     projectId: input.projectId,
@@ -118,6 +116,14 @@ export async function enqueueFileTranslationJob(
 
   try {
     const job = await db.transaction(async (tx) => {
+      const jobBudget = await assertOrganizationCanEnqueueTranslationJobInTransaction(
+        tx,
+        input.organizationId,
+      );
+      if (isErr(jobBudget)) {
+        throw new OrganizationJobBudgetExceededError(jobBudget.error);
+      }
+
       const sourceFileVersion = await ensureRepositorySourceFileVersionForStoredFile({
         db: tx,
         organizationId: input.organizationId,
@@ -170,6 +176,14 @@ export async function enqueueFileTranslationJob(
 
     return { ok: true, jobId: job.id };
   } catch (error) {
+    if (error instanceof OrganizationJobBudgetExceededError) {
+      return {
+        ok: false,
+        code: error.budgetError.code,
+        message: error.budgetError.message,
+      };
+    }
+
     try {
       await db
         .update(schema.jobs)
