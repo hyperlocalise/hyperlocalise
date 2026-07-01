@@ -81,6 +81,7 @@ import {
   upsertExternalTmsProviderCredentialBodySchema,
 } from "./external-tms-provider-credential.schema";
 import { normalizeUserOAuthReturnTo } from "./normalize-user-oauth-return-to";
+import { buildTmsUserOAuthProfileLookupLogContext } from "./tms-user-oauth-profile-lookup-log-context";
 
 const CROWDIN_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 const PHRASE_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
@@ -436,7 +437,11 @@ async function completeCrowdinUserOAuthLink(
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         providerCredentialId: input.credential.id,
-        status: error instanceof CrowdinApiError ? error.status : null,
+        ...buildTmsUserOAuthProfileLookupLogContext({
+          provider: "crowdin",
+          credentialBaseUrl: input.credential.baseUrl,
+          error,
+        }),
       },
       "crowdin user oauth profile lookup failed",
     );
@@ -655,7 +660,11 @@ async function completePhraseUserOAuthLink(
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         providerCredentialId: input.credential.id,
-        status: error instanceof PhraseTmsApiError ? error.status : null,
+        ...buildTmsUserOAuthProfileLookupLogContext({
+          provider: "phrase",
+          credentialBaseUrl: input.credential.baseUrl,
+          error,
+        }),
       },
       "phrase user oauth profile lookup failed",
     );
@@ -862,8 +871,12 @@ async function completeLokaliseUserOAuthLink(
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         providerCredentialId: input.credential.id,
-        status: error instanceof LokaliseApiError ? error.status : null,
-        resolutionCode: error instanceof LokaliseOAuthUserResolutionError ? error.code : null,
+        ...buildTmsUserOAuthProfileLookupLogContext({
+          provider: "lokalise",
+          credentialBaseUrl: input.credential.baseUrl,
+          error,
+          resolutionCode: error instanceof LokaliseOAuthUserResolutionError ? error.code : null,
+        }),
       },
       "lokalise user oauth profile lookup failed",
     );
