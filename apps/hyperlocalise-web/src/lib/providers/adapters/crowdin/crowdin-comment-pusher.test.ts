@@ -83,6 +83,7 @@ describe("pushCrowdinProviderComments", () => {
       providerKind: "crowdin",
       externalProjectId: "1",
       externalJobId: "9",
+      credential: { baseUrl: null },
       secretMaterial: "token",
       feedback: [{ findingId, finding }],
       knownExternalIds: new Map(),
@@ -143,6 +144,7 @@ describe("pushCrowdinProviderComments", () => {
       providerKind: "crowdin",
       externalProjectId: "1",
       externalJobId: "9",
+      credential: { baseUrl: null },
       secretMaterial: "token",
       feedback: [{ findingId, finding }],
       knownExternalIds: new Map(),
@@ -153,5 +155,53 @@ describe("pushCrowdinProviderComments", () => {
     expect(result.skipped).toBe(1);
     expect(result.changedItems[0]?.status).toBe("skipped");
     expect(result.changedItems[0]?.externalCommentUid).toBe("77");
+  });
+
+  it("uses the configured Crowdin API base URL when set", async () => {
+    const finding = sampleFinding();
+    const findingId = buildFindingId(finding);
+    const enterpriseBaseUrl = "https://enterprise.crowdin.test/api/v2";
+
+    const fetchMock = vi.fn(async (url, init) => {
+      const path = String(url);
+      const method = init?.method ?? "GET";
+
+      expect(path.startsWith(enterpriseBaseUrl)).toBe(true);
+
+      if (path.includes("/projects/1/comments") && method === "GET") {
+        return crowdinListResponse([]);
+      }
+
+      if (path.endsWith("/projects/1/comments") && method === "POST") {
+        return crowdinItemResponse({
+          id: 55,
+          text: buildHyperlocaliseFindingMarker(findingId),
+          userId: 1,
+          stringId: 100,
+          languageId: "fr",
+          type: "issue",
+          projectId: 1,
+          createdAt: "2026-05-01T10:00:00Z",
+        });
+      }
+
+      return new Response("Not Found", { status: 404 });
+    });
+
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    await pushCrowdinProviderComments({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      providerKind: "crowdin",
+      externalProjectId: "1",
+      externalJobId: "9",
+      credential: { baseUrl: enterpriseBaseUrl },
+      secretMaterial: "token",
+      feedback: [{ findingId, finding }],
+      knownExternalIds: new Map(),
+    });
+
+    expect(fetchMock).toHaveBeenCalled();
   });
 });

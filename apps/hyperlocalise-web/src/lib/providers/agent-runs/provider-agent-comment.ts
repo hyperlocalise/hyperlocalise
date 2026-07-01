@@ -394,6 +394,7 @@ export async function executeProviderAgentComment(input: {
       providerKind: run.providerKind,
       externalProjectId: project.externalProjectId,
       externalJobId: run.externalJobId,
+      credential,
       secretMaterial,
       feedback,
       knownExternalIds,

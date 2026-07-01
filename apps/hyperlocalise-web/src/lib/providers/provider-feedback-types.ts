@@ -1,6 +1,9 @@
 import type { ProviderReviewContext } from "@/lib/providers/provider-job-review/types";
 import type { ProviderQaFinding } from "@/lib/providers/provider-job-qa/types";
-import type { ExternalTmsProviderKind } from "@/lib/providers/organization-external-tms-provider-credentials";
+import type {
+  ExternalTmsCredential,
+  ExternalTmsProviderKind,
+} from "@/lib/providers/organization-external-tms-provider-credentials";
 
 export type ProviderQaFeedbackUpload = {
   findingId: string;
@@ -37,6 +40,7 @@ export type ExternalTmsCommentPusher = (input: {
   providerKind: ExternalTmsProviderKind;
   externalProjectId: string;
   externalJobId: string;
+  credential: Pick<ExternalTmsCredential, "baseUrl">;
   secretMaterial: string;
   feedback: ProviderQaFeedbackUpload[];
   knownExternalIds: Map<string, { issueUid: string; commentUid?: string | null }>;

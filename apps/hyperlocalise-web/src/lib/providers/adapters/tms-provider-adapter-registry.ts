@@ -154,6 +154,7 @@ function asCommentPusher(adapter: TmsProviderAdapter): ExternalTmsCommentPusher 
       projectId: input.projectId,
       externalProjectId: input.externalProjectId,
       externalJobId: input.externalJobId,
+      credential: input.credential,
       secretMaterial: input.secretMaterial,
       feedback: input.feedback,
       knownExternalIds: input.knownExternalIds,
