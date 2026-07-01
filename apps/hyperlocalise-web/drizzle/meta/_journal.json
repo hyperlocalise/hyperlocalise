@@ -386,6 +386,13 @@
       "when": 1782707952287,
       "tag": "0054_mean_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1782892403774,
+      "tag": "0055_serious_enchantress",
+      "breakpoints": true
     }
   ]
 }

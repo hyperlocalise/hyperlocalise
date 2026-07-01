@@ -17,6 +17,7 @@ import {
   resolveLokaliseUserConnectionSecretMaterial,
 } from "./adapters/lokalise/lokalise-user-connections";
 import {
+  crowdinUsesPerUserAuth,
   OAUTH_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
@@ -171,7 +172,8 @@ export async function resolveExternalTmsSecretMaterialForActor(input: {
 }) {
   if (
     !(
-      input.credential.providerKind === "crowdin" && input.credential.authMode === OAUTH_AUTH_MODE
+      input.credential.providerKind === "crowdin" &&
+      crowdinUsesPerUserAuth(input.credential.authMode)
     ) &&
     !(
       input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE
@@ -220,7 +222,10 @@ export async function resolveExternalTmsSecretMaterialForActor(input: {
     throw new Error("crowdin_user_connection_required");
   }
 
-  return resolveCrowdinUserConnectionSecretMaterial({ connection });
+  return resolveCrowdinUserConnectionSecretMaterial({
+    connection,
+    authMode: input.credential.authMode ?? OAUTH_AUTH_MODE,
+  });
 }
 
 async function loadExternalTmsProjectContext(input: {

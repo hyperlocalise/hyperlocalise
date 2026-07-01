@@ -9,6 +9,7 @@ export type TmsUserConnectCta =
       showConnectCta: true;
       providerKind: TmsUserConnectProviderKind;
       providerDisplayName: string;
+      connectMethod: "oauth" | "pat";
     };
 
 const DEFAULT_PROVIDER_LABELS: Record<TmsUserConnectProviderKind, string> = {
@@ -33,6 +34,7 @@ export function tmsUserConnectionRequiredMessage(
 export function isTmsUserConnectionRequiredError(error: unknown) {
   return (
     isApiResponseErrorCode(error, "crowdin_user_connection_required") ||
+    isApiResponseErrorCode(error, "crowdin_user_connection_auth_mode_mismatch") ||
     isApiResponseErrorCode(error, "phrase_user_connection_required") ||
     isApiResponseErrorCode(error, "lokalise_user_connection_required")
   );

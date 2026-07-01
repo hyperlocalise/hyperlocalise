@@ -2,8 +2,12 @@ import { redirect } from "next/navigation";
 import { and, eq, isNull, or } from "drizzle-orm";
 
 import { reconcileWorkosMembershipsForUser } from "@/api/auth/workos-membership-reconcile";
+import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
+import { createLogger } from "@/lib/log";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+
+const logger = createLogger("missing-organization-access");
 
 const pendingMembershipConditions = [
   eq(schema.organizations.lifecycleStatus, "active"),
@@ -60,7 +64,12 @@ export async function redirectForMissingOrganizationAccess(
 
   if (await hasPendingOrganizationMembership(email)) {
     if (workosUserId) {
-      await reconcileWorkosMembershipsForUser(db, {
+      await promoteInvitedPlaceholderUser(db, {
+        email,
+        workosUserId,
+      });
+
+      const reconcileResult = await reconcileWorkosMembershipsForUser(db, {
         workosUserId,
         email,
         force: true,
@@ -69,6 +78,18 @@ export async function redirectForMissingOrganizationAccess(
       if (!(await hasPendingOrganizationMembership(email))) {
         redirect("/dashboard");
       }
+
+      logger.warn("pending_invite_reconcile_did_not_clear_membership", {
+        workosUserId,
+        reconcileStatus: reconcileResult.status,
+        ...(reconcileResult.status === "reconciled"
+          ? {
+              added: reconcileResult.added,
+              updated: reconcileResult.updated,
+              revoked: reconcileResult.revoked,
+            }
+          : {}),
+      });
     }
 
     redirect("/auth/access-denied?reason=pending-invite");

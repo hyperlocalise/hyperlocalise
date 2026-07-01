@@ -3,17 +3,28 @@ import "dotenv/config";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
+import {
+  decryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { db, schema } from "@/lib/database";
+import { isErr } from "@/lib/primitives/result/results";
 import {
+  decryptCrowdinOAuthTokenBundle,
   mapCrowdinOAuthTokenResponse,
   mapLokaliseOAuthTokenResponse,
   mapPhraseOAuthTokenResponse,
   resolveExternalTmsSecretMaterial,
   upsertCrowdinOAuthProviderCredential,
+  upsertCrowdinPatProviderCredential,
   upsertLokaliseOAuthProviderCredential,
   upsertPhraseOAuthProviderCredential,
 } from "./organization-external-tms-provider-credentials";
+import {
+  getCrowdinUserConnection,
+  upsertCrowdinUserConnection,
+} from "./adapters/crowdin/crowdin-user-connections";
 
 const fixture = createAuthTestFixture();
 
@@ -318,6 +329,110 @@ describe("organization external TMS provider credentials", () => {
       expect(updated.id).toBe(credential.id);
       expect(updated.displayName).toBe("Lokalise EU");
       expect(updated.ciphertext).toBe(credential.ciphertext);
+    });
+
+    it("replaces encrypted OAuth material when switching Crowdin to PAT mode", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      await fixture.authHeadersFor(identity);
+      const authContext = globalThis.__testApiAuthContext!;
+
+      const credential = await upsertCrowdinOAuthProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Crowdin Production",
+        oauthClient: {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+        },
+        baseUrl: "https://crowdin.test/api/v2",
+      });
+
+      const updated = await upsertCrowdinPatProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Crowdin Production",
+        baseUrl: "https://crowdin.test/api/v2",
+      });
+
+      expect(updated.id).toBe(credential.id);
+      expect(updated.authMode).toBe("pat");
+      expect(updated.maskedSecretSuffix).toBe("pat");
+      expect(updated.ciphertext).not.toBe(credential.ciphertext);
+      expect(() => decryptCrowdinOAuthTokenBundle(updated)).toThrow("crowdin_oauth_token_invalid");
+
+      const secretMaterial = unwrapProviderCredentialCrypto(
+        decryptProviderCredential({
+          algorithm: updated.encryptionAlgorithm,
+          keyVersion: updated.keyVersion,
+          ciphertext: updated.ciphertext,
+          iv: updated.iv,
+          authTag: updated.authTag,
+        }),
+      );
+      expect(JSON.parse(secretMaterial)).toEqual({ kind: "crowdin_pat" });
+    });
+
+    it("removes Crowdin user connections when switching between OAuth and PAT mode", async () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      await fixture.authHeadersFor(identity);
+      const authContext = globalThis.__testApiAuthContext!;
+
+      const credential = await upsertCrowdinOAuthProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Crowdin Production",
+        oauthClient: {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+        },
+        tokenBundle: {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+          accessToken: "fresh-access-token",
+          refreshToken: "refresh-token",
+          tokenType: "bearer",
+          expiresAt: "2026-01-01T01:00:00.000Z",
+        },
+        baseUrl: "https://crowdin.test/api/v2",
+      });
+
+      const upsertResult = await upsertCrowdinUserConnection({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        providerCredentialId: credential.id,
+        tokenBundle: {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+          accessToken: "user-access-token",
+          refreshToken: "user-refresh-token",
+          tokenType: "bearer",
+          expiresAt: "2026-01-01T01:00:00.000Z",
+        },
+        crowdinUser: {
+          id: 12345,
+          username: "crowdin-user",
+        },
+      });
+      expect(isErr(upsertResult)).toBe(false);
+
+      await upsertCrowdinPatProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Crowdin Production",
+        baseUrl: "https://crowdin.test/api/v2",
+      });
+
+      const connection = await getCrowdinUserConnection({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+      });
+      expect(connection).toBeNull();
     });
   });
 

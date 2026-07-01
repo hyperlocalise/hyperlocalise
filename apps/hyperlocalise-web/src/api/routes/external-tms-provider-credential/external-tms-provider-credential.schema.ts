@@ -33,6 +33,15 @@ const oauthAppSettingsBodySchema = z
 
 export const crowdinOAuthStartBodySchema = oauthAppSettingsBodySchema;
 
+export const crowdinPatSetupBodySchema = z.object({
+  displayName: z.string().trim().min(1).max(256),
+  baseUrl: z.string().trim().url().max(2048).optional(),
+});
+
+export const crowdinUserPatBodySchema = z.object({
+  personalAccessToken: z.string().trim().min(1).max(4096),
+});
+
 export const phraseOAuthStartBodySchema = crowdinOAuthStartBodySchema;
 export const lokaliseOAuthStartBodySchema = crowdinOAuthStartBodySchema;
 

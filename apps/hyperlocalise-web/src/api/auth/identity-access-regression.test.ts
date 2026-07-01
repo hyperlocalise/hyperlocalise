@@ -259,6 +259,64 @@ describe("enterprise identity access regression", () => {
       );
     });
 
+    it("links pending invites when the WorkOS session organization pointer targets another workspace", async () => {
+      const invitedOrgIdentity = createWorkosIdentity();
+      const otherOrgIdentity = createWorkosIdentity();
+      const invitedOrgSynced = await syncWorkosIdentity(db, invitedOrgIdentity);
+      const existingUserSynced = await syncWorkosIdentity(db, otherOrgIdentity);
+      const workosMembershipId = `om_${randomUUID()}`;
+
+      await db.insert(schema.organizationMemberships).values({
+        organizationId: invitedOrgSynced.organization.id,
+        userId: existingUserSynced.user.id,
+        role: "member",
+        workosMembershipId: null,
+      });
+
+      listMembershipsMock.mockResolvedValue({
+        autoPagination: async () => [
+          {
+            id: workosMembershipId,
+            organizationId: invitedOrgIdentity.organization.workosOrganizationId,
+            status: "active",
+            role: { slug: "member" },
+          },
+        ],
+      });
+      getOrganizationMock.mockResolvedValue({
+        id: invitedOrgIdentity.organization.workosOrganizationId,
+        name: invitedOrgIdentity.organization.name,
+      });
+
+      withAuthMock.mockResolvedValue({
+        user: {
+          id: otherOrgIdentity.user.workosUserId,
+          email: otherOrgIdentity.user.email,
+          firstName: null,
+          lastName: null,
+          profilePictureUrl: null,
+        },
+        organizationId: otherOrgIdentity.organization.workosOrganizationId,
+      });
+
+      const { resolveApiAuthContextFromSession } = await import("./workos-session");
+      const auth = await resolveApiAuthContextFromSession({
+        organizationSlug: invitedOrgIdentity.organization.slug,
+      });
+
+      expect(listMembershipsMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          userId: otherOrgIdentity.user.workosUserId,
+          statuses: ["active"],
+        }),
+      );
+      expect(listMembershipsMock.mock.calls.at(-1)?.[0]?.organizationId).toBeUndefined();
+      expect(auth?.membership.accessSource).toBe("workos_authoritative");
+      expect(auth?.activeOrganization.workosOrganizationId).toBe(
+        invitedOrgIdentity.organization.workosOrganizationId,
+      );
+    });
+
     it("denies access while invite replacement sentinel is set", async () => {
       const identity = createWorkosIdentity();
       const synced = await syncWorkosIdentity(db, identity);

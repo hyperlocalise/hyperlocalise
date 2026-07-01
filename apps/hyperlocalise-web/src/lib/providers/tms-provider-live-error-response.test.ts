@@ -6,6 +6,7 @@ describe("getTmsProviderLiveErrorStatus", () => {
   it.each([
     ["crowdin_user_auth_invalid", 401],
     ["crowdin_user_connection_required", 401],
+    ["crowdin_user_connection_auth_mode_mismatch", 401],
     ["phrase_user_auth_invalid", 401],
     ["phrase_user_connection_required", 401],
     ["crowdin_auth_invalid", 401],

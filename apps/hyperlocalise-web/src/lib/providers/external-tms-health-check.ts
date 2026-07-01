@@ -7,7 +7,9 @@ import { parseSmartlingCredentials } from "./adapters/smartling/smartling-creden
 import { classifySmartlingHttpError } from "./adapters/smartling/smartling-api";
 import { resolvePhraseBaseUrl } from "./adapters/phrase/phrase-base-url";
 import {
+  crowdinUsesPerUserAuth,
   OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
   resolveExternalTmsSecretMaterial,
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
@@ -70,6 +72,24 @@ export async function checkExternalTmsProviderHealth(input: {
 
   if (!credential) {
     return { credential: null, health: null };
+  }
+
+  if (credential.providerKind === "crowdin" && crowdinUsesPerUserAuth(credential.authMode)) {
+    return {
+      credential,
+      health: {
+        status: "connected",
+        availability: "unknown",
+        authValidity: "unknown",
+        errorCode: null,
+        message:
+          credential.authMode === PAT_AUTH_MODE
+            ? "Crowdin is configured. Each member connects with their own personal access token."
+            : "Crowdin OAuth is configured. Each member connects their Crowdin account.",
+        rateLimit: emptyRateLimitHints(),
+        lastSuccessfulSyncAt: null,
+      },
+    };
   }
 
   if (credential.providerKind === "phrase" && credential.authMode === OAUTH_AUTH_MODE) {

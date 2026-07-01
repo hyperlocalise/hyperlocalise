@@ -119,6 +119,7 @@ export function AppShellClient({
                     organizationSlug={organizationSlug}
                     providerKind={resolvedTmsUserConnectCta.providerKind}
                     providerDisplayName={resolvedTmsUserConnectCta.providerDisplayName}
+                    connectMethod={resolvedTmsUserConnectCta.connectMethod}
                   />
                 ) : null}
                 <ThemeToggle />

@@ -11,11 +11,7 @@ import {
   unwrapProviderCredentialCrypto,
   type EncryptedProviderCredential,
 } from "@/lib/security/provider-credential-crypto";
-import {
-  getTmsProviderCapability,
-  type TmsProviderCapability,
-  type TmsProviderCapabilityAction,
-} from "@/lib/providers/tms-capabilities";
+import { getTmsProviderCapability } from "@/lib/providers/tms-capabilities";
 import { assertProviderUrlResolvable } from "@/lib/providers/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
 import { resolvePhraseBaseUrl } from "@/lib/providers/adapters/phrase/phrase-base-url";
@@ -23,6 +19,25 @@ import { resolvePhraseTmsBaseUrl } from "@/lib/providers/adapters/phrase/phrase-
 
 export type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import {
+  API_TOKEN_AUTH_MODE,
+  crowdinUsesPerUserAuth,
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+  type ExternalTmsProviderCredentialListItem,
+  type ExternalTmsProviderCredentialSummary,
+} from "@/lib/providers/contracts/external-tms-provider-credential";
+export {
+  API_TOKEN_AUTH_MODE,
+  crowdinUsesPerUserAuth,
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+  type ExternalTmsProviderCredentialListItem,
+  type ExternalTmsProviderCredentialSummary,
+} from "@/lib/providers/contracts/external-tms-provider-credential";
+export const CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+export const PHRASE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+export const LOKALISE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 type OrganizationExternalTmsProviderCredential =
   typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
@@ -32,12 +47,6 @@ export type ExternalTmsCredential = Omit<
   "authMode" | "oauthExpiresAt"
 > &
   Partial<Pick<OrganizationExternalTmsProviderCredential, "authMode" | "oauthExpiresAt">>;
-
-export const OAUTH_AUTH_MODE = "oauth";
-export const API_TOKEN_AUTH_MODE = "api_token";
-export const CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
-export const PHRASE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
-export const LOKALISE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 async function runInDatabaseTransaction<T>(
   database: DatabaseClient | undefined,
@@ -104,6 +113,43 @@ async function resolveOAuthCredentialCryptoForUpsert(input: {
   };
 }
 
+async function invalidateCrowdinUserConnectionsOnCredentialAuthModeChange(
+  database: DatabaseClient,
+  input: {
+    organizationId: string;
+    nextAuthMode: typeof OAUTH_AUTH_MODE | typeof PAT_AUTH_MODE;
+  },
+) {
+  const [existingCredential] = await database
+    .select({
+      id: schema.organizationExternalTmsProviderCredentials.id,
+      authMode: schema.organizationExternalTmsProviderCredentials.authMode,
+    })
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+      ),
+    )
+    .limit(1);
+
+  if (
+    !existingCredential ||
+    existingCredential.authMode === input.nextAuthMode ||
+    (existingCredential.authMode !== OAUTH_AUTH_MODE &&
+      existingCredential.authMode !== PAT_AUTH_MODE)
+  ) {
+    return 0;
+  }
+
+  const result = await database
+    .delete(schema.crowdinUserConnections)
+    .where(eq(schema.crowdinUserConnections.providerCredentialId, existingCredential.id));
+
+  return Number(result.rowCount ?? 0);
+}
+
 const crowdinOAuthTokenBundleSchema = z.object({
   clientId: z.string().min(1),
   clientSecret: z.string().min(1),
@@ -161,28 +207,6 @@ export type LokaliseOAuthClientMaterial = z.infer<typeof lokaliseOAuthClientMate
 export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRole) {
   assertCapability(role, "provider_credentials:write");
 }
-
-export type ExternalTmsProviderCredentialSummary = {
-  id: string;
-  providerKind: ExternalTmsProviderKind;
-  displayName: string;
-  authMode: string;
-  region: string | null;
-  baseUrl: string | null;
-  oauthExpiresAt: string | null;
-  validationStatus: string;
-  validationMessage: string | null;
-  lastValidatedAt: string | null;
-  maskedSecretSuffix: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ExternalTmsProviderCredentialListItem = ExternalTmsProviderCredentialSummary & {
-  lastSuccessfulSyncAt: string | null;
-  projectCount: number;
-  capabilities: Record<TmsProviderCapabilityAction, TmsProviderCapability>;
-};
 
 function summarizeExternalCredential(
   credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect,
@@ -426,6 +450,11 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
   });
 
   const credential = await runInDatabaseTransaction(input.db, async (tx) => {
+    await invalidateCrowdinUserConnectionsOnCredentialAuthModeChange(tx, {
+      organizationId: input.organizationId,
+      nextAuthMode: OAUTH_AUTH_MODE,
+    });
+
     const { encrypted, maskedSecretSuffix, replacesOAuthClient } =
       await resolveOAuthCredentialCryptoForUpsert({
         organizationId: input.organizationId,
@@ -490,10 +519,104 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
         set: {
           updatedByUserId: input.userId,
           displayName: input.displayName,
+          authMode: OAUTH_AUTH_MODE,
           region: null,
           baseUrl,
           updatedAt: now,
           ...credentialReplacementFields,
+        },
+      })
+      .returning();
+
+    return row;
+  });
+
+  return credential;
+}
+
+const CROWDIN_PAT_ORG_PLACEHOLDER = JSON.stringify({ kind: "crowdin_pat" });
+
+export async function upsertCrowdinPatProviderCredential(input: {
+  organizationId: string;
+  userId: string;
+  role: OrganizationMembershipRole;
+  displayName: string;
+  baseUrl?: string | null;
+  db?: DatabaseClient;
+}) {
+  assertExternalTmsCredentialAdmin(input.role);
+
+  const now = new Date();
+  const baseUrl = await normalizeExternalTmsCredentialBaseUrl({
+    providerKind: "crowdin",
+    region: null,
+    baseUrl: input.baseUrl ?? null,
+  });
+
+  const credential = await runInDatabaseTransaction(input.db, async (tx) => {
+    await invalidateCrowdinUserConnectionsOnCredentialAuthModeChange(tx, {
+      organizationId: input.organizationId,
+      nextAuthMode: PAT_AUTH_MODE,
+    });
+
+    const encrypted = unwrapProviderCredentialCrypto(
+      encryptProviderCredential(CROWDIN_PAT_ORG_PLACEHOLDER),
+    );
+
+    await tx
+      .delete(schema.organizationExternalTmsProviderCredentials)
+      .where(
+        and(
+          eq(
+            schema.organizationExternalTmsProviderCredentials.organizationId,
+            input.organizationId,
+          ),
+          ne(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+        ),
+      );
+
+    const [row] = await tx
+      .insert(schema.organizationExternalTmsProviderCredentials)
+      .values({
+        organizationId: input.organizationId,
+        createdByUserId: input.userId,
+        updatedByUserId: input.userId,
+        providerKind: "crowdin",
+        displayName: input.displayName,
+        authMode: PAT_AUTH_MODE,
+        region: null,
+        baseUrl,
+        oauthExpiresAt: null,
+        validationStatus: "unvalidated",
+        encryptionAlgorithm: encrypted.algorithm,
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        keyVersion: encrypted.keyVersion,
+        maskedSecretSuffix: "pat",
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.organizationExternalTmsProviderCredentials.organizationId,
+          schema.organizationExternalTmsProviderCredentials.providerKind,
+        ],
+        set: {
+          updatedByUserId: input.userId,
+          displayName: input.displayName,
+          authMode: PAT_AUTH_MODE,
+          region: null,
+          baseUrl,
+          oauthExpiresAt: null,
+          validationStatus: "unvalidated",
+          validationMessage: null,
+          lastValidatedAt: null,
+          updatedAt: now,
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          maskedSecretSuffix: "pat",
         },
       })
       .returning();
@@ -890,7 +1013,7 @@ export async function resolveExternalTmsSecretMaterial(input: {
 
   if (
     input.credential.providerKind !== "crowdin" ||
-    input.credential.authMode !== OAUTH_AUTH_MODE
+    !crowdinUsesPerUserAuth(input.credential.authMode)
   ) {
     if (
       input.credential.providerKind === "phrase" &&
@@ -1232,7 +1355,7 @@ export async function revealOrganizationExternalTmsProviderCredential(input: {
     .limit(1);
 
   if (!credential) return null;
-  if (credential.providerKind === "crowdin" && credential.authMode === OAUTH_AUTH_MODE) {
+  if (credential.providerKind === "crowdin" && crowdinUsesPerUserAuth(credential.authMode)) {
     throw new Error("crowdin_oauth_secret_unavailable");
   }
   if (credential.providerKind === "phrase" && credential.authMode === OAUTH_AUTH_MODE) {

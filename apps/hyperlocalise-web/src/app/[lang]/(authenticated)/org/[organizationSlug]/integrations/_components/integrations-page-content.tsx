@@ -20,8 +20,12 @@ import { createApiClient } from "@/lib/api-client";
 import type {
   ExternalTmsProviderCredentialListItem,
   ExternalTmsProviderCredentialSummary,
-  ExternalTmsProviderKind,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/contracts/external-tms-provider-credential";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import {
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+} from "@/lib/providers/contracts/external-tms-provider-credential";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -374,6 +378,55 @@ function buildTmsOAuthAppPayload(input: {
   }
 
   return payload;
+}
+
+function useSaveCrowdinPatSetup(organizationSlug: string) {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: { displayName: string; baseUrl?: string }) => {
+      const res = await api.api.orgs[":organizationSlug"][
+        "external-tms-provider-credential"
+      ].crowdin["pat-setup"].$post({
+        param: { organizationSlug },
+        json: payload,
+      });
+      if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: "crowdin_pat_setup_failed" }));
+        throw new Error(
+          "message" in error && typeof error.message === "string"
+            ? error.message
+            : "Unable to save Crowdin personal access token settings",
+        );
+      }
+
+      return res.json();
+    },
+    onSuccess: async (result, payload) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["external-tms-credentials", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["tms-provider-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["crowdin-user-connection", organizationSlug],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
+        }),
+      ]);
+      if (result.shouldConnectCrowdinUser) {
+        toast.success(`${payload.displayName} saved. Connect your Crowdin token to continue.`);
+        return;
+      }
+      toast.success(`${payload.displayName} settings saved`);
+    },
+    onError: (error) => {
+      toast.error(error.message);
+    },
+  });
 }
 
 function useSaveCrowdinOAuthApp(organizationSlug: string) {
@@ -820,6 +873,7 @@ export function IntegrationsPageContent({
     useContentfulConnections(organizationSlug);
   const saveExternalTms = useSaveExternalTmsCredential(organizationSlug);
   const saveCrowdinOAuthApp = useSaveCrowdinOAuthApp(organizationSlug);
+  const saveCrowdinPatSetup = useSaveCrowdinPatSetup(organizationSlug);
   const savePhraseOAuthApp = useSavePhraseOAuthApp(organizationSlug);
   const saveLokaliseOAuthApp = useSaveLokaliseOAuthApp(organizationSlug);
   const saveContentfulConnection = useSaveContentfulConnection(organizationSlug);
@@ -832,6 +886,9 @@ export function IntegrationsPageContent({
   const [tmsOauthClientId, setTmsOauthClientId] = useState("");
   const [tmsOauthClientSecret, setTmsOauthClientSecret] = useState("");
   const [tmsBaseUrl, setTmsBaseUrl] = useState("");
+  const [tmsCrowdinAuthMode, setTmsCrowdinAuthMode] = useState<
+    typeof OAUTH_AUTH_MODE | typeof PAT_AUTH_MODE
+  >(OAUTH_AUTH_MODE);
   const [showTmsSecret, setShowTmsSecret] = useState(false);
   const [disconnectingTmsProvider, setDisconnectingTmsProvider] =
     useState<ExternalTmsProviderKind | null>(null);
@@ -850,6 +907,7 @@ export function IntegrationsPageContent({
   const tmsOauthClientSecretFieldId = useId();
   const tmsOauthRedirectUriFieldId = useId();
   const tmsBaseUrlFieldId = useId();
+  const tmsCrowdinAuthModeFieldId = useId();
   const userIsAdmin = canManageIntegrations(membershipRole);
   const userCanManageAgents = canManageAgents(membershipRole);
 
@@ -894,6 +952,13 @@ export function IntegrationsPageContent({
     setTmsOauthClientId("");
     setTmsOauthClientSecret("");
     setTmsBaseUrl(existingCredential?.baseUrl ?? "");
+    setTmsCrowdinAuthMode(
+      existingCredential?.providerKind === "crowdin" &&
+        (existingCredential.authMode === PAT_AUTH_MODE ||
+          existingCredential.authMode === "api_token")
+        ? PAT_AUTH_MODE
+        : OAUTH_AUTH_MODE,
+    );
     setShowTmsSecret(false);
   }
 
@@ -1020,6 +1085,8 @@ export function IntegrationsPageContent({
                           onDisplayNameChange={setTmsDisplayName}
                           secret={tmsSecret}
                           onSecretChange={setTmsSecret}
+                          crowdinAuthMode={tmsCrowdinAuthMode}
+                          onCrowdinAuthModeChange={setTmsCrowdinAuthMode}
                           oauthClientId={tmsOauthClientId}
                           onOauthClientIdChange={setTmsOauthClientId}
                           oauthClientSecret={tmsOauthClientSecret}
@@ -1038,6 +1105,21 @@ export function IntegrationsPageContent({
                             });
 
                             if (integration.providerKind === "crowdin") {
+                              if (tmsCrowdinAuthMode === PAT_AUTH_MODE) {
+                                saveCrowdinPatSetup.mutate(
+                                  {
+                                    displayName: tmsDisplayName.trim(),
+                                    ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                                  },
+                                  {
+                                    onSuccess: () => {
+                                      setShowTmsSecret(false);
+                                    },
+                                  },
+                                );
+                                return;
+                              }
+
                               saveCrowdinOAuthApp.mutate(oauthPayload, {
                                 onSuccess: () => {
                                   setTmsOauthClientId("");
@@ -1086,6 +1168,7 @@ export function IntegrationsPageContent({
                           isSaving={
                             saveExternalTms.isPending ||
                             saveCrowdinOAuthApp.isPending ||
+                            saveCrowdinPatSetup.isPending ||
                             savePhraseOAuthApp.isPending ||
                             saveLokaliseOAuthApp.isPending
                           }
@@ -1096,6 +1179,7 @@ export function IntegrationsPageContent({
                           oauthClientSecretFieldId={tmsOauthClientSecretFieldId}
                           redirectUriFieldId={tmsOauthRedirectUriFieldId}
                           baseUrlFieldId={tmsBaseUrlFieldId}
+                          crowdinAuthModeFieldId={tmsCrowdinAuthModeFieldId}
                         />
                       ) : null}
                     </TmsIntegrationRow>
@@ -1360,6 +1444,7 @@ export function IntegrationsPageContent({
                         setTmsDisplayName("");
                         setTmsSecret("");
                         setTmsBaseUrl("");
+                        setTmsCrowdinAuthMode(OAUTH_AUTH_MODE);
                         setShowTmsSecret(false);
                       },
                     });
