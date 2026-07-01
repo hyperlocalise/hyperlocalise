@@ -18,13 +18,14 @@ import {
 const CONVERSATION_AGENT_ID = "hyperlocalise";
 
 const REPO_TOOL_NAMES = new Set<string>(repositoryWorkspaceToolNames);
-const PROJECT_GATED_TOOL_NAMES = new Set(["translate_string"]);
+const FILE_JOB_GATED_TOOL_NAMES = new Set(["createTranslationJob"]);
 
 export type ConversationSkillMetadata = {
   id: string;
   always: boolean;
   requiresSandbox: boolean;
   requiresProjectId: boolean;
+  requiresTmsIntegration: boolean;
   requiresFileAttachments?: boolean;
   requiresProjectOrAttachments: boolean;
   tools: string[];
@@ -41,6 +42,7 @@ export type ConversationSkillActivationContext = {
   hasFileAttachments: boolean;
   hasProjectId: boolean;
   hasSandbox: boolean;
+  hasTmsIntegration: boolean;
 };
 
 type ConversationSkillToolFactory = (toolContext: ToolContext) => ToolSet[string];
@@ -85,6 +87,7 @@ export function parseConversationSkillMetadata(
     always: frontmatter.always === "true",
     requiresSandbox: frontmatter.requiresSandbox === "true",
     requiresProjectId: frontmatter.requiresProjectId === "true",
+    requiresTmsIntegration: frontmatter.requiresTmsIntegration === "true",
     requiresFileAttachments: parseBooleanFlag(frontmatter.requiresFileAttachments),
     requiresProjectOrAttachments: frontmatter.requiresProjectOrAttachments === "true",
     tools: parseCommaSeparated(frontmatter.tools),
@@ -98,12 +101,16 @@ export function listConversationSkills(): ConversationSkillMetadata[] {
 }
 
 export function toConversationSkillActivationContext(
-  runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
+  runtime: Pick<
+    HyperlocaliseAgentRuntimeContext,
+    "hasFileAttachments" | "hasTmsIntegration" | "toolContext"
+  >,
 ): ConversationSkillActivationContext {
   return {
     hasFileAttachments: runtime.hasFileAttachments,
     hasProjectId: Boolean(runtime.toolContext.projectId),
     hasSandbox: Boolean(runtime.toolContext.sandboxId),
+    hasTmsIntegration: runtime.hasTmsIntegration,
   };
 }
 
@@ -116,6 +123,10 @@ export function isConversationSkillActivated(
   }
 
   if (skill.requiresSandbox && !context.hasSandbox) {
+    return false;
+  }
+
+  if (skill.requiresTmsIntegration && !context.hasTmsIntegration) {
     return false;
   }
 
@@ -137,6 +148,7 @@ export function isConversationSkillActivated(
 
   const hasActivationRule =
     skill.requiresSandbox ||
+    skill.requiresTmsIntegration ||
     skill.requiresProjectId ||
     skill.requiresFileAttachments !== undefined ||
     skill.requiresProjectOrAttachments;
@@ -145,7 +157,10 @@ export function isConversationSkillActivated(
 }
 
 export function buildConversationSkillPlan(
-  runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
+  runtime: Pick<
+    HyperlocaliseAgentRuntimeContext,
+    "hasFileAttachments" | "hasTmsIntegration" | "toolContext"
+  >,
 ): ConversationSkillPlan {
   const context = toConversationSkillActivationContext(runtime);
   const activeSkills = listConversationSkills().filter((skill) =>
@@ -161,10 +176,14 @@ export function buildConversationSkillPlan(
 
 export function filterAvailableConversationToolNames(
   toolNames: readonly string[],
-  runtime: Pick<HyperlocaliseAgentRuntimeContext, "toolContext">,
+  runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
 ): string[] {
   return toolNames.filter((toolName) => {
-    if (PROJECT_GATED_TOOL_NAMES.has(toolName) && !runtime.toolContext.projectId) {
+    if (
+      FILE_JOB_GATED_TOOL_NAMES.has(toolName) &&
+      !runtime.toolContext.projectId &&
+      !runtime.hasFileAttachments
+    ) {
       return false;
     }
 
@@ -177,7 +196,7 @@ export function filterAvailableConversationToolNames(
 }
 
 export function buildConversationSkillTools(
-  runtime: Pick<HyperlocaliseAgentRuntimeContext, "toolContext">,
+  runtime: Pick<HyperlocaliseAgentRuntimeContext, "hasFileAttachments" | "toolContext">,
   toolNames: readonly string[],
 ): ToolSet {
   const ctx = runtime.toolContext;
@@ -206,7 +225,7 @@ export function buildConversationSkillTools(
       continue;
     }
 
-    if (toolName === "translate_string" && ctx.projectId) {
+    if (toolName === "translate_string") {
       tools[toolName] = createTranslateStringTool(ctx);
       continue;
     }

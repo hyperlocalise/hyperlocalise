@@ -58,6 +58,7 @@ describe("task tool", () => {
       createToolExecutionOptions({
         surface: "web",
         hasFileAttachments: true,
+        hasTmsIntegration: false,
         toolContext: {
           conversationId: "conv_1",
           organizationId: "org_1",
@@ -95,6 +96,7 @@ describe("task tool", () => {
       createToolExecutionOptions({
         surface: "web",
         hasFileAttachments: true,
+        hasTmsIntegration: false,
         toolContext: {
           conversationId: "conv_1",
           organizationId: "org_1",
@@ -125,6 +127,7 @@ describe("task tool", () => {
       createToolExecutionOptions({
         surface: "slack",
         hasFileAttachments: false,
+        hasTmsIntegration: false,
         toolContext: {
           conversationId: "conv_1",
           organizationId: "org_1",
@@ -176,6 +179,7 @@ describe("task tool", () => {
       createToolExecutionOptions({
         surface: "slack",
         hasFileAttachments: false,
+        hasTmsIntegration: false,
         toolContext: {
           conversationId: "conv_1",
           organizationId: "org_1",
