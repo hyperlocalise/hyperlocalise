@@ -113,7 +113,6 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
       {crowdinProgress ? <JobDetailRow label="Progress" value={crowdinProgress} /> : null}
       {crowdinWordsToDo ? <JobDetailRow label="Words to do" value={crowdinWordsToDo} /> : null}
       <JobDetailRow label="Due date" value={formatDateTime(job.externalDueDate)} />
-      <JobDetailRow label="Last sync" value={formatDateTime(job.updatedAt)} />
       {job.externalJobId ? (
         <JobDetailRow label="External job ID" value={job.externalJobId} />
       ) : null}

@@ -45,7 +45,6 @@ export type JobDetailTaskLayoutInput = {
   status: JobDetailRecord["status"];
   title: string | null;
   updatedAt: string;
-  updatedMetricLabel?: "Last synced" | "Updated";
 };
 
 function statusTone(status: JobDetailRecord["status"]) {
@@ -118,7 +117,7 @@ export function jobDetailTaskMetrics(input: JobDetailTaskLayoutInput): JobDetail
     },
     {
       icon: Clock01Icon,
-      label: `${input.updatedMetricLabel ?? "Last synced"} ${formatJobDetailDate(input.updatedAt)}`,
+      label: `Updated ${formatJobDetailDate(input.updatedAt)}`,
     },
   ];
 }
@@ -185,7 +184,6 @@ export function jobDetailTaskProperties(input: JobDetailTaskLayoutInput): {
       label: "Language",
       value: getCrowdinLanguageLabel(payload) ?? "—",
     },
-    { label: "Last sync", value: formatJobDetailDate(input.updatedAt) },
     { label: "External job ID", value: input.externalJobId },
     { label: "External task ID", value: input.externalTaskId },
   ];
@@ -218,7 +216,6 @@ export function jobDetailTaskLayoutFromRecord(job: JobDetailRecord): {
     projectName: job.projectName,
     kind: job.kind,
     sourceFilesMetric: sourcePath ?? (isProviderBackedJob(job) ? null : "Source files linked"),
-    updatedMetricLabel: isProviderBackedJob(job) ? "Last synced" : "Updated",
   };
 
   const { properties, secondaryProperties } = jobDetailTaskProperties(input);
@@ -255,7 +252,6 @@ export function jobDetailTaskLayoutFromLiveJob(job: TmsProviderLiveJobDetail): {
     projectId: job.projectId,
     projectName: job.projectName,
     kind: job.kind,
-    updatedMetricLabel: "Last synced",
   };
 
   const { properties, secondaryProperties } = jobDetailTaskProperties(input);

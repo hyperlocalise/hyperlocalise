@@ -165,7 +165,6 @@ export function JobProviderDetailSectionView({
             <DetailRow label="Provider title" value={job.externalTitle} />
             <DetailRow label="Provider status" value={job.externalStatus} />
             <DetailRow label="Sync state" value={job.externalSyncState} />
-            <DetailRow label="Last sync" value={formatJobDetailDate(job.updatedAt)} />
             {job.externalProviderKind === "crowdin" ? (
               <>
                 <DetailRow

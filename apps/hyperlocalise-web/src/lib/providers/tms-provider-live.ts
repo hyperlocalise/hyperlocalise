@@ -1525,14 +1525,23 @@ export async function getTmsProviderLiveProject(
 
     try {
       const project = await client.getProject(crowdinProjectId);
-      return mapLiveProject(context.providerKind, {
+      const projectMetadata: ExternalTmsProjectMetadata = {
         externalProjectId: String(project.id),
         name: project.name,
         sourceLocale: project.sourceLanguageId,
         targetLocales: project.targetLanguageIds,
         externalProjectUrl: project.webUrl,
         isActive: !project.isSuspended,
-      });
+      };
+      const mappedProject = mapLiveProject(context.providerKind, projectMetadata);
+      const [projectWithOpenJobCount] = await attachOpenJobCountsToLiveProjects(
+        organizationId,
+        [mappedProject],
+        context,
+        [projectMetadata],
+        options,
+      );
+      return projectWithOpenJobCount ?? null;
     } catch (error) {
       if (error instanceof CrowdinApiError && error.status === 404) {
         return null;

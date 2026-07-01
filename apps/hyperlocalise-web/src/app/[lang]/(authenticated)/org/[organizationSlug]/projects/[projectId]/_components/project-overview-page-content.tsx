@@ -191,12 +191,16 @@ export function ProjectOverviewPageContentView({
               ? providerLabel(project.externalProviderKind)
               : "Native project",
         },
-        {
-          label: "Last sync",
-          value: project.lastSyncedAt
-            ? formatRelativeTimestamp(project.lastSyncedAt)
-            : "Not synced yet",
-        },
+        ...(project.source === "native"
+          ? [
+              {
+                label: "Last sync",
+                value: project.lastSyncedAt
+                  ? formatRelativeTimestamp(project.lastSyncedAt)
+                  : "Not synced yet",
+              },
+            ]
+          : []),
         {
           label: "Open jobs",
           value: String(project.openJobCount),
@@ -377,7 +381,7 @@ export function ProjectOverviewPageContentView({
         </Card>
       ) : null}
 
-      {project ? (
+      {project && project.source === "native" ? (
         <Card
           className={cn(
             "rounded-2xl border py-0 ring-0",

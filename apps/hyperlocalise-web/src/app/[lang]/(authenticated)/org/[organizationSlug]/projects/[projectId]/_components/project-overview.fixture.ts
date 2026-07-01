@@ -35,6 +35,10 @@ export const projectOverviewCaughtUpFixture: ProjectListRow = {
 
 export const projectOverviewSyncErrorFixture: ProjectListRow = {
   ...projectOverviewFixture,
+  source: "native",
+  externalProviderKind: null,
+  externalProjectId: null,
+  externalProjectUrl: null,
   lastSyncErrorAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
   lastSyncErrorMessage: "Provider credentials expired during the last sync.",
 };
