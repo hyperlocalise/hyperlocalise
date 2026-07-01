@@ -51,6 +51,7 @@ ${subagentSummaryLines}
 
 WHEN TO USE:
 - Translation requests with attached files → \`translation\`
+- Crowdin or TMS progress/status for projects, files, or strings → \`translation\`
 - Finding localization context for source strings, messages, keys, or uploaded-file segments in GitHub → \`repository\`
 - Any work that matches an agent description above
 

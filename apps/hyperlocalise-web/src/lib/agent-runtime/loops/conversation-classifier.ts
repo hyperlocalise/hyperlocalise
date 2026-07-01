@@ -52,7 +52,7 @@ function buildConversationClassificationPrompt(input: ClassifyConversationInput)
     "Classify this Hyperlocalise agent conversation for routing and GitHub repository tooling.",
     "",
     "Intent rules (return one or more in `intents`):",
-    '- "translation": translate or localize uploaded files/images, create translation jobs, or set locales for attached sources.',
+    '- "translation": translate or localize uploaded files/images, create translation jobs, set locales for attached sources, or check TMS progress (Crowdin project/file/string status).',
     '- "repository": read-only localization context from a connected GitHub repo (where a string/key/copy appears, surrounding text, product context, nearby words).',
     '- "general": greetings, product questions, job status, glossary, or requests outside translation/repo lookup.',
     "",

@@ -1365,14 +1365,70 @@ export class CrowdinApiClient {
   /**
    * Get translation progress for each target language in a project.
    */
-  async listProjectLanguageProgress(projectId: number): Promise<CrowdinLanguageProgress[]> {
+  async listProjectLanguageProgress(
+    projectId: number,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
+    return this.listTranslationProgress(`/projects/${projectId}/languages/progress`, options);
+  }
+
+  /**
+   * Get translation progress for each target language in a file.
+   */
+  async listFileLanguageProgress(
+    projectId: number,
+    fileId: number,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
+    return this.listTranslationProgress(
+      `/projects/${projectId}/files/${fileId}/languages/progress`,
+      options,
+    );
+  }
+
+  /**
+   * Get translation progress for each target language in a branch.
+   */
+  async listBranchLanguageProgress(
+    projectId: number,
+    branchId: number,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
+    return this.listTranslationProgress(
+      `/projects/${projectId}/branches/${branchId}/languages/progress`,
+      options,
+    );
+  }
+
+  /**
+   * Get translation progress for each target language in a directory.
+   */
+  async listDirectoryLanguageProgress(
+    projectId: number,
+    directoryId: number,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
+    return this.listTranslationProgress(
+      `/projects/${projectId}/directories/${directoryId}/languages/progress`,
+      options,
+    );
+  }
+
+  private async listTranslationProgress(
+    path: string,
+    options?: { languageIds?: string[] },
+  ): Promise<CrowdinLanguageProgress[]> {
     const progress: CrowdinLanguageProgress[] = [];
     let offset = 0;
     const limit = 500;
+    const languageFilter =
+      options?.languageIds?.length && options.languageIds.length > 0
+        ? `&languageIds=${options.languageIds.join(",")}`
+        : "";
 
     while (true) {
       const response = await this.get<CrowdinListResponse<CrowdinLanguageProgress>>(
-        `/projects/${projectId}/languages/progress?limit=${limit}&offset=${offset}`,
+        `${path}?limit=${limit}&offset=${offset}${languageFilter}`,
       );
       const page = response.data.map((item) => item.data);
       progress.push(...page);

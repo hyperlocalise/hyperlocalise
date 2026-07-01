@@ -1009,4 +1009,34 @@ describe("CrowdinApiClient", () => {
       approvalProgress: 60,
     });
   });
+
+  it("lists file language progress with language filter", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      expect(url).toContain("/projects/1/files/9/languages/progress");
+      expect(url).toContain("languageIds=fr");
+
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                languageId: "fr",
+                words: { total: 20, translated: 10, approved: 5 },
+                phrases: { total: 10, translated: 5, approved: 2 },
+                translationProgress: 50,
+                approvalProgress: 25,
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const progress = await client.listFileLanguageProgress(1, 9, { languageIds: ["fr"] });
+
+    expect(progress[0]?.languageId).toBe("fr");
+    expect(progress[0]?.translationProgress).toBe(50);
+  });
 });

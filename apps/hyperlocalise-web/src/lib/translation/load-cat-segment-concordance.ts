@@ -2,6 +2,10 @@ import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/ca
 import { inferTmMatchKind } from "@/components/cat/tm-match-quality";
 import { searchCrowdinCatConcordance } from "@/lib/providers/adapters/crowdin/crowdin-cat-concordance";
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import {
+  decryptCrowdinCredentialToken,
+  loadCrowdinProjectCredential,
+} from "@/lib/providers/adapters/crowdin/load-crowdin-project-credential";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
@@ -11,12 +15,6 @@ import {
 } from "@/lib/providers/match-resolution";
 import { loadGlossaryMatchesForContext } from "@/lib/translation/load-glossary-matches";
 import { loadTranslationMemoryMatchesForContext } from "@/lib/translation/load-translation-memory-matches";
-import {
-  decryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
-import { db, schema } from "@/lib/database";
-import { and, eq } from "drizzle-orm";
 
 export type { CatConcordanceForAiRecommendation } from "./map-cat-concordance-for-ai-recommendation";
 export { mapCatConcordanceForAiRecommendation } from "./map-cat-concordance-for-ai-recommendation";
@@ -52,53 +50,6 @@ function toCatTranslationMemoryMatch(
   };
 }
 
-async function loadCrowdinProjectCredential(input: { organizationId: string; projectId: string }) {
-  const [project] = await db
-    .select({
-      externalProjectId: schema.projects.externalProjectId,
-      externalProviderCredentialId: schema.projects.externalProviderCredentialId,
-      externalProviderKind: schema.projects.externalProviderKind,
-    })
-    .from(schema.projects)
-    .where(
-      and(
-        eq(schema.projects.id, input.projectId),
-        eq(schema.projects.organizationId, input.organizationId),
-        eq(schema.projects.externalProviderKind, "crowdin"),
-        eq(schema.projects.source, "external_tms"),
-      ),
-    )
-    .limit(1);
-
-  if (!project?.externalProjectId || !project.externalProviderCredentialId) {
-    return null;
-  }
-
-  const [credential] = await db
-    .select()
-    .from(schema.organizationExternalTmsProviderCredentials)
-    .where(
-      and(
-        eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
-        eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
-        eq(
-          schema.organizationExternalTmsProviderCredentials.id,
-          project.externalProviderCredentialId,
-        ),
-      ),
-    )
-    .limit(1);
-
-  if (!credential) {
-    return null;
-  }
-
-  return {
-    externalProjectId: project.externalProjectId,
-    credential,
-  };
-}
-
 type CrowdinLiveConcordance = {
   glossaryTerms: NormalizedGlossaryMatch[];
   translationMemoryMatches: NormalizedTranslationMemoryMatch[];
@@ -120,18 +71,8 @@ async function loadCrowdinLiveConcordance(input: {
   }
 
   const { credential, externalProjectId } = projectCredential;
-  const secretMaterial = unwrapProviderCredentialCrypto(
-    decryptProviderCredential({
-      algorithm: credential.encryptionAlgorithm,
-      keyVersion: credential.keyVersion,
-      ciphertext: credential.ciphertext,
-      iv: credential.iv,
-      authTag: credential.authTag,
-    }),
-  );
-
   const client = new CrowdinApiClient({
-    token: secretMaterial,
+    token: decryptCrowdinCredentialToken(credential),
     baseUrl: credential.baseUrl ?? undefined,
   });
 
