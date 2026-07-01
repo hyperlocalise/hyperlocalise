@@ -13,8 +13,6 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
@@ -79,26 +77,7 @@ export async function toolCanAccessProject(ctx: ToolContext, projectId: string) 
     .where(await ownedProjectWhere(apiAuthContextFromToolContext(ctx), normalizedProjectId))
     .limit(1);
 
-  if (project) {
-    return project;
-  }
-
-  const encodedProject = parseProviderProjectId(normalizedProjectId);
-  if (!encodedProject) {
-    return null;
-  }
-
-  const liveProject = await getTmsProviderLiveProject(
-    ctx.organizationId,
-    encodedProject.externalProjectId,
-    { actorUserId: ctx.localUserId },
-  ).catch(() => null);
-
-  if (!liveProject || liveProject.id !== normalizedProjectId) {
-    return null;
-  }
-
-  return { id: liveProject.id };
+  return project ?? null;
 }
 
 export function toolCanAccessGlossary(ctx: ToolContext, glossaryId: string) {
