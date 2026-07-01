@@ -270,7 +270,9 @@ export function JobsPageContent({
     <JobsPageView
       assignedNativeJobs={assignedNativeJobs}
       createdNativeJobs={createdNativeJobs}
-      hasActiveTmsConnection={hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
+      hasActiveTmsConnection={
+        hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching
+      }
       isNativeLoading={isNativeLoading}
       isProviderProjectScope={isProviderProjectScope}
       isTmsLoading={tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}

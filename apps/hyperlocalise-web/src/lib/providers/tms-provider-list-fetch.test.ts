@@ -23,9 +23,9 @@ describe("readTmsProviderListResponse", () => {
       },
     );
 
-    await expect(readTmsProviderListResponse(response, "jobs", "Failed to load TMS jobs")).rejects.toBeInstanceOf(
-      ApiResponseError,
-    );
+    await expect(
+      readTmsProviderListResponse(response, "jobs", "Failed to load TMS jobs"),
+    ).rejects.toBeInstanceOf(ApiResponseError);
   });
 
   it("returns list items from a successful response", async () => {
@@ -34,6 +34,8 @@ describe("readTmsProviderListResponse", () => {
       headers: { "Content-Type": "application/json" },
     });
 
-    await expect(readTmsProviderListResponse(response, "projects", "Failed")).resolves.toEqual([{ id: "1" }]);
+    await expect(readTmsProviderListResponse(response, "projects", "Failed")).resolves.toEqual([
+      { id: "1" },
+    ]);
   });
 });
