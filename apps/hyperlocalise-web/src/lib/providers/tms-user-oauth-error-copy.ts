@@ -12,12 +12,17 @@ export const tmsUserOAuthErrorCopyByCode = {
   crowdin_user_oauth_invalid: {
     title: "Crowdin account link failed",
     description:
-      "Crowdin rejected the access token returned during authorization. Try connecting again, then verify the OAuth app credentials if it repeats.",
+      "Crowdin returned an access token, but the Crowdin API rejected it when loading your profile. Try connecting again. If it keeps failing, verify the OAuth app client ID and secret in Integrations.",
+  },
+  crowdin_user_oauth_enterprise_mismatch: {
+    title: "Crowdin Enterprise account link failed",
+    description:
+      "Crowdin returned an access token, but your Enterprise API rejected it when loading your profile. Create the OAuth app under Organization Settings → OAuth Apps in your Enterprise workspace (yourorg.crowdin.com), use that app's client ID and secret in Integrations, and when authorizing sign in with your Enterprise account—not a personal crowdin.com account.",
   },
   crowdin_user_lookup_failed: {
     title: "Crowdin account link failed",
     description:
-      "Hyperlocalise received a token but could not load the authorized Crowdin user. For Crowdin Enterprise, verify the API base URL uses your organization domain.",
+      "Hyperlocalise received a token but could not load the authorized Crowdin user. Try connecting again, or ask an admin to verify the integration base URL and OAuth app settings.",
   },
   crowdin_integration_not_connected: {
     title: "Crowdin integration is not connected",

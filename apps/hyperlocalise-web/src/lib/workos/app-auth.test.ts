@@ -87,7 +87,10 @@ describe("requireAppAuthContext", () => {
     await expect(requireAppAuthContext({ organizationSlug: "stale-slug" })).rejects.toThrow(
       "redirect:/auth/onboarding",
     );
-    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith("person@example.com");
+    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith({
+      email: "person@example.com",
+      workosUserId: "user_123",
+    });
   });
 
   it("routes users without memberships through the shared redirect helper", async () => {
@@ -102,7 +105,10 @@ describe("requireAppAuthContext", () => {
     const { requireAppAuthContext } = await import("./app-auth");
 
     await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/onboarding");
-    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith("person@example.com");
+    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith({
+      email: "person@example.com",
+      workosUserId: "user_123",
+    });
   });
 
   it("can ignore the stored active organization when resolving memberships", async () => {

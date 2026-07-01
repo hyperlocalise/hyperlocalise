@@ -57,7 +57,10 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
     }
 
     if (error instanceof Error && error.message === "organization_access_denied") {
-      return redirectForMissingOrganizationAccess(session.user.email);
+      return redirectForMissingOrganizationAccess({
+        email: session.user.email,
+        workosUserId: session.user.id,
+      });
     }
 
     if (error instanceof Error && error.message === "workos_membership_lookup_failed") {
@@ -68,7 +71,10 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
   }
 
   if (!auth) {
-    return redirectForMissingOrganizationAccess(session.user.email);
+    return redirectForMissingOrganizationAccess({
+      email: session.user.email,
+      workosUserId: session.user.id,
+    });
   }
 
   return {

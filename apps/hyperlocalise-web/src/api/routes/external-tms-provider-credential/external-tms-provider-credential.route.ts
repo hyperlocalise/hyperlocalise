@@ -40,6 +40,7 @@ import {
   checkExternalTmsProviderHealth,
   persistExternalTmsProviderHealth,
 } from "@/lib/providers/external-tms-health-check";
+import { isCrowdinEnterpriseApiBaseUrl } from "@/lib/providers/adapters/crowdin/crowdin-base-url";
 import { getCrowdinOAuthScopeString } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import {
@@ -487,7 +488,9 @@ async function completeCrowdinUserOAuthLink(
       return redirectToUserOAuthReturnTo(c, {
         returnTo: input.returnTo,
         organizationSlug: input.organizationSlug,
-        error: "crowdin_user_oauth_invalid",
+        error: isCrowdinEnterpriseApiBaseUrl(input.credential.baseUrl)
+          ? "crowdin_user_oauth_enterprise_mismatch"
+          : "crowdin_user_oauth_invalid",
       });
     }
     return redirectToUserOAuthReturnTo(c, {

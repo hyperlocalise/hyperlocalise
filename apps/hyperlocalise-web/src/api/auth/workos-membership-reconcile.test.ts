@@ -1,5 +1,6 @@
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
@@ -267,6 +268,69 @@ describe("reconcileWorkosMembershipsForUser", () => {
     });
 
     expect(result.status).toBe("lookup_failed");
+  });
+
+  it("links accepted WorkOS memberships when the role slug is unknown but a pending local invite exists", async () => {
+    const ownerIdentity = createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+
+    const pendingEmail = `pending-role-${randomUUID()}@example.com`;
+    const realWorkosUserId = `user_${randomUUID()}`;
+    const workosMembershipId = `om_${randomUUID()}`;
+
+    await syncWorkosIdentity(db, {
+      user: {
+        workosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
+        email: pendingEmail,
+      },
+      organization: ownerIdentity.organization,
+      membership: {
+        role: "member",
+      },
+    });
+
+    listMembershipsMock.mockResolvedValue({
+      autoPagination: async () => [
+        {
+          id: workosMembershipId,
+          organizationId: ownerIdentity.organization.workosOrganizationId,
+          status: "active",
+          role: { slug: "unsupported-workos-role" },
+        },
+      ],
+    });
+    getOrganizationMock.mockResolvedValue({
+      id: ownerIdentity.organization.workosOrganizationId,
+      name: ownerIdentity.organization.name,
+    });
+
+    const { reconcileWorkosMembershipsForUser } = await import("./workos-membership-reconcile");
+    const result = await reconcileWorkosMembershipsForUser(db, {
+      workosUserId: realWorkosUserId,
+      email: pendingEmail,
+      force: true,
+    });
+
+    expect(result).toMatchObject({ status: "reconciled", updated: 1 });
+
+    const [membership] = await db
+      .select({
+        workosMembershipId: schema.organizationMemberships.workosMembershipId,
+        role: schema.organizationMemberships.role,
+        workosUserId: schema.users.workosUserId,
+      })
+      .from(schema.organizationMemberships)
+      .innerJoin(schema.users, eq(schema.organizationMemberships.userId, schema.users.id))
+      .innerJoin(
+        schema.organizations,
+        eq(schema.organizationMemberships.organizationId, schema.organizations.id),
+      )
+      .where(eq(schema.users.email, pendingEmail))
+      .limit(1);
+
+    expect(membership?.workosUserId).toBe(realWorkosUserId);
+    expect(membership?.workosMembershipId).toBe(workosMembershipId);
+    expect(membership?.role).toBe("member");
   });
 });
 
