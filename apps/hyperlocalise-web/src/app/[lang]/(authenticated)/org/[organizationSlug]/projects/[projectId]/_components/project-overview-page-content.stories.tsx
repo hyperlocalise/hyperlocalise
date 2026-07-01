@@ -6,7 +6,6 @@ import {
   projectOverviewFilesFixture,
   projectOverviewFixture,
   projectOverviewJobsFixture,
-  projectOverviewSyncErrorFixture,
 } from "./project-overview.fixture";
 import { ProjectOverviewPageContentView } from "./project-overview-page-content";
 
@@ -52,18 +51,6 @@ export const CaughtUp: Story = {
   play: async ({ canvas }) => {
     await expect(canvas.getByText("You're all caught up")).toBeInTheDocument();
     await expect(canvas.getByText("Browse files")).toBeInTheDocument();
-  },
-};
-
-export const SyncError: Story = {
-  args: {
-    project: projectOverviewSyncErrorFixture,
-  },
-  play: async ({ canvas }) => {
-    await expect(canvas.getByText("Sync needs attention")).toBeInTheDocument();
-    await expect(
-      canvas.getByText("Provider credentials expired during the last sync."),
-    ).toBeInTheDocument();
   },
 };
 

@@ -53,19 +53,14 @@ describe("overview-attention", () => {
     expect(fileNeedsAttention(createFile({ fr: "stale" }))).toBe(true);
   });
 
-  it("counts pending actions from jobs, sync errors, and files", () => {
+  it("counts pending actions from jobs and files", () => {
     const files = [
       createFile({ fr: "missing" }, "a.json"),
       createFile({ fr: "changed" }, "b.json"),
       createFile({ fr: "ready" }, "c.json"),
     ];
 
-    expect(
-      computeProjectPendingActionCount(
-        { openJobCount: 2, lastSyncErrorAt: "2026-01-01T00:00:00.000Z" },
-        files,
-      ),
-    ).toBe(5);
+    expect(computeProjectPendingActionCount({ openJobCount: 2 }, files)).toBe(4);
   });
 
   it("formats large pending counts", () => {

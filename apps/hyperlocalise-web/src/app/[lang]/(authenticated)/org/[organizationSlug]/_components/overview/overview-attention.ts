@@ -34,7 +34,6 @@ export function countFilesNeedingAttention(files: readonly ProjectFileRecord[]) 
 export function computeProjectPendingActionCount(
   project: {
     openJobCount: number;
-    lastSyncErrorAt: string | null;
   },
   files: readonly ProjectFileRecord[],
 ) {
@@ -42,10 +41,6 @@ export function computeProjectPendingActionCount(
 
   if (project.openJobCount > 0) {
     count += project.openJobCount;
-  }
-
-  if (project.lastSyncErrorAt) {
-    count += 1;
   }
 
   count += countFilesNeedingAttention(files);
