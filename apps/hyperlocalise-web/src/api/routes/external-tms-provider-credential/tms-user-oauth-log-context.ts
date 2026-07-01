@@ -344,8 +344,7 @@ export function buildTmsUserOAuthProfileLookupLogContext(input: {
     context.status = input.error.status;
     context.apiEndpoint = buildProfileLookupEndpoint({
       resolvedBaseUrl,
-      requestPath:
-        extractRequestPathFromProviderApiError(input.error) ?? config.defaultRequestPath,
+      requestPath: extractRequestPathFromProviderApiError(input.error) ?? config.defaultRequestPath,
     });
 
     const sanitizedResponse = sanitizeProviderApiErrorResponseBody(input.error.responseBody);
@@ -365,8 +364,7 @@ export function buildTmsUserOAuthProfileLookupLogContext(input: {
     context.errorType = input.error.constructor.name;
     context.apiEndpoint = buildProfileLookupEndpoint({
       resolvedBaseUrl,
-      requestPath:
-        extractRequestPathFromProviderApiError(input.error) ?? config.defaultRequestPath,
+      requestPath: extractRequestPathFromProviderApiError(input.error) ?? config.defaultRequestPath,
     });
     return context;
   }
