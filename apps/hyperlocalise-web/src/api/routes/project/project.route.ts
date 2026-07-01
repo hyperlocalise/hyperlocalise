@@ -1628,7 +1628,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             "live provider project lookup succeeded",
           );
 
-          return c.json({ project: { ...project, openJobCount: 0 } }, 200);
+          return c.json({ project: { ...project, openJobCount: project.openJobCount } }, 200);
         } catch (error) {
           projectDetailRouteLogger.warn(
             {

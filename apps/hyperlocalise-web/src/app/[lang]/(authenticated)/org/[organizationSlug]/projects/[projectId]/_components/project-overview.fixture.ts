@@ -29,14 +29,6 @@ export const projectOverviewFixture: ProjectListRow = {
 export const projectOverviewCaughtUpFixture: ProjectListRow = {
   ...projectOverviewFixture,
   openJobCount: 0,
-  lastSyncErrorAt: null,
-  lastSyncErrorMessage: null,
-};
-
-export const projectOverviewSyncErrorFixture: ProjectListRow = {
-  ...projectOverviewFixture,
-  lastSyncErrorAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
-  lastSyncErrorMessage: "Provider credentials expired during the last sync.",
 };
 
 export const projectOverviewJobsFixture: ApiJob[] = [

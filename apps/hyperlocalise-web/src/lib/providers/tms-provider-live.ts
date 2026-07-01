@@ -1438,20 +1438,36 @@ async function attachOpenJobCountsToLiveProjects(
     liveProjectMetadata,
     LIVE_PROJECT_JOB_FANOUT_CONCURRENCY,
     async (project) => {
-      const jobs = await listTmsProviderLiveJobsForProject(
-        organizationId,
-        project.externalProjectId,
-        {
-          context,
-          projects: liveProjectMetadata,
-          actorUserId: options?.actorUserId,
-        },
-      );
+      try {
+        const jobs = await listTmsProviderLiveJobsForProject(
+          organizationId,
+          project.externalProjectId,
+          {
+            context,
+            projects: liveProjectMetadata,
+            actorUserId: options?.actorUserId,
+          },
+        );
 
-      return {
-        externalProjectId: project.externalProjectId,
-        openJobCount: countOpenLiveJobs(jobs),
-      };
+        return {
+          externalProjectId: project.externalProjectId,
+          openJobCount: countOpenLiveJobs(jobs),
+        };
+      } catch (error) {
+        logger.warn(
+          {
+            organizationId,
+            externalProjectId: project.externalProjectId,
+            error: error instanceof Error ? error.message : "unknown_error",
+          },
+          "failed to fetch live jobs for open job count enrichment",
+        );
+
+        return {
+          externalProjectId: project.externalProjectId,
+          openJobCount: 0,
+        };
+      }
     },
   );
 
@@ -1525,14 +1541,23 @@ export async function getTmsProviderLiveProject(
 
     try {
       const project = await client.getProject(crowdinProjectId);
-      return mapLiveProject(context.providerKind, {
+      const projectMetadata: ExternalTmsProjectMetadata = {
         externalProjectId: String(project.id),
         name: project.name,
         sourceLocale: project.sourceLanguageId,
         targetLocales: project.targetLanguageIds,
         externalProjectUrl: project.webUrl,
         isActive: !project.isSuspended,
-      });
+      };
+      const mappedProject = mapLiveProject(context.providerKind, projectMetadata);
+      const [projectWithOpenJobCount] = await attachOpenJobCountsToLiveProjects(
+        organizationId,
+        [mappedProject],
+        context,
+        [projectMetadata],
+        options,
+      );
+      return projectWithOpenJobCount ?? null;
     } catch (error) {
       if (error instanceof CrowdinApiError && error.status === 404) {
         return null;

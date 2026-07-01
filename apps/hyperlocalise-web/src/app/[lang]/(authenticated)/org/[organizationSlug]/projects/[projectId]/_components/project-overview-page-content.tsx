@@ -2,12 +2,7 @@
 
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import {
-  AlertCircleIcon,
-  File01Icon,
-  Settings02Icon,
-  Task01Icon,
-} from "@hugeicons/core-free-icons";
+import { File01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 import { jobsResponseSchema } from "@/api/routes/project/job.schema";
@@ -22,7 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
-import { cn } from "@/lib/primitives/cn";
 
 import { OverviewActionCard } from "../../../_components/overview/overview-action-card";
 import {
@@ -87,9 +81,6 @@ function buildHeroCopy(
   const parts: string[] = [];
   if (project.openJobCount > 0) {
     parts.push(`${project.openJobCount} open ${project.openJobCount === 1 ? "job" : "jobs"}`);
-  }
-  if (project.lastSyncErrorAt) {
-    parts.push("sync issue");
   }
   if (filesNeedingAttention > 0) {
     parts.push(
@@ -190,12 +181,6 @@ export function ProjectOverviewPageContentView({
             project.source === "external_tms" && project.externalProviderKind
               ? providerLabel(project.externalProviderKind)
               : "Native project",
-        },
-        {
-          label: "Last sync",
-          value: project.lastSyncedAt
-            ? formatRelativeTimestamp(project.lastSyncedAt)
-            : "Not synced yet",
         },
         {
           label: "Open jobs",
@@ -373,74 +358,6 @@ export function ProjectOverviewPageContentView({
               <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} />
               Open files
             </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      {project ? (
-        <Card
-          className={cn(
-            "rounded-2xl border py-0 ring-0",
-            project.lastSyncErrorAt
-              ? "border-flame-700/20 bg-flame-700/10"
-              : "border-foreground/8 bg-foreground/2.5",
-          )}
-        >
-          <CardContent className="flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-start gap-3">
-              {project.lastSyncErrorAt ? (
-                <HugeiconsIcon
-                  icon={AlertCircleIcon}
-                  strokeWidth={1.8}
-                  className="mt-0.5 size-5 shrink-0 text-flame-100"
-                />
-              ) : null}
-              <div>
-                <TypographyP className="text-sm font-medium text-foreground">
-                  {project.lastSyncErrorAt ? "Sync needs attention" : "Sync health"}
-                </TypographyP>
-                <TypographyP className="mt-1 text-sm text-muted-foreground">
-                  {project.lastSyncErrorAt
-                    ? (project.lastSyncErrorMessage ?? "The last provider sync reported an error.")
-                    : project.lastSyncedAt
-                      ? `Last synced ${formatRelativeTimestamp(project.lastSyncedAt)}.`
-                      : "This project has not synced with a provider yet."}
-                </TypographyP>
-              </div>
-            </div>
-
-            <div className="flex flex-wrap gap-2">
-              <Button
-                nativeButton={false}
-                render={<Link href={buildProjectPath(organizationSlug, projectId, "jobs")} />}
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-              >
-                <HugeiconsIcon icon={Task01Icon} strokeWidth={1.8} />
-                Jobs
-              </Button>
-              <Button
-                nativeButton={false}
-                render={<Link href={buildProjectPath(organizationSlug, projectId, "files")} />}
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-              >
-                <HugeiconsIcon icon={File01Icon} strokeWidth={1.8} />
-                Files
-              </Button>
-              <Button
-                nativeButton={false}
-                render={<Link href={buildProjectPath(organizationSlug, projectId, "settings")} />}
-                variant="outline"
-                size="sm"
-                className="rounded-full"
-              >
-                <HugeiconsIcon icon={Settings02Icon} strokeWidth={1.8} />
-                Settings
-              </Button>
-            </div>
           </CardContent>
         </Card>
       ) : null}
