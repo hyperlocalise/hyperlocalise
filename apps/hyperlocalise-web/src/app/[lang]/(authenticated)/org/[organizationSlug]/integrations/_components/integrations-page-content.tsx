@@ -20,12 +20,12 @@ import { createApiClient } from "@/lib/api-client";
 import type {
   ExternalTmsProviderCredentialListItem,
   ExternalTmsProviderCredentialSummary,
-  ExternalTmsProviderKind,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/contracts/external-tms-provider-credential";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import {
   OAUTH_AUTH_MODE,
   PAT_AUTH_MODE,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/contracts/external-tms-provider-credential";
 import {
   AlertDialog,
   AlertDialogCancel,

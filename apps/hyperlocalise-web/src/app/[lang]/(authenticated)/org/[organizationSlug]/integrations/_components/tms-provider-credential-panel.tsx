@@ -12,14 +12,12 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { ChevronDownIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import { toast } from "sonner";
 
-import type {
-  ExternalTmsProviderCredentialListItem,
-  ExternalTmsProviderKind,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
+import type { ExternalTmsProviderCredentialListItem } from "@/lib/providers/contracts/external-tms-provider-credential";
+import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import {
   OAUTH_AUTH_MODE,
   PAT_AUTH_MODE,
-} from "@/lib/providers/organization-external-tms-provider-credentials";
+} from "@/lib/providers/contracts/external-tms-provider-credential";
 import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import { PHRASE_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { Button } from "@/components/ui/button";

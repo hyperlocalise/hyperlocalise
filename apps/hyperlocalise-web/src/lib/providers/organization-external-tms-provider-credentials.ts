@@ -11,11 +11,7 @@ import {
   unwrapProviderCredentialCrypto,
   type EncryptedProviderCredential,
 } from "@/lib/security/provider-credential-crypto";
-import {
-  getTmsProviderCapability,
-  type TmsProviderCapability,
-  type TmsProviderCapabilityAction,
-} from "@/lib/providers/tms-capabilities";
+import { getTmsProviderCapability } from "@/lib/providers/tms-capabilities";
 import { assertProviderUrlResolvable } from "@/lib/providers/provider-url-resolve";
 import { normalizeProviderBaseUrl } from "@/lib/providers/provider-url-safety";
 import { resolvePhraseBaseUrl } from "@/lib/providers/adapters/phrase/phrase-base-url";
@@ -23,6 +19,25 @@ import { resolvePhraseTmsBaseUrl } from "@/lib/providers/adapters/phrase/phrase-
 
 export type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
+import {
+  API_TOKEN_AUTH_MODE,
+  crowdinUsesPerUserAuth,
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+  type ExternalTmsProviderCredentialListItem,
+  type ExternalTmsProviderCredentialSummary,
+} from "@/lib/providers/contracts/external-tms-provider-credential";
+export {
+  API_TOKEN_AUTH_MODE,
+  crowdinUsesPerUserAuth,
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+  type ExternalTmsProviderCredentialListItem,
+  type ExternalTmsProviderCredentialSummary,
+} from "@/lib/providers/contracts/external-tms-provider-credential";
+export const CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+export const PHRASE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
+export const LOKALISE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 type OrganizationExternalTmsProviderCredential =
   typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
@@ -32,18 +47,6 @@ export type ExternalTmsCredential = Omit<
   "authMode" | "oauthExpiresAt"
 > &
   Partial<Pick<OrganizationExternalTmsProviderCredential, "authMode" | "oauthExpiresAt">>;
-
-export const OAUTH_AUTH_MODE = "oauth";
-export const API_TOKEN_AUTH_MODE = "api_token";
-/** Per-user personal access tokens; org credential stores base URL only. */
-export const PAT_AUTH_MODE = "pat";
-
-export function crowdinUsesPerUserAuth(authMode: string | null | undefined) {
-  return authMode === OAUTH_AUTH_MODE || authMode === PAT_AUTH_MODE;
-}
-export const CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
-export const PHRASE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
-export const LOKALISE_OAUTH_TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000;
 
 async function runInDatabaseTransaction<T>(
   database: DatabaseClient | undefined,
@@ -167,28 +170,6 @@ export type LokaliseOAuthClientMaterial = z.infer<typeof lokaliseOAuthClientMate
 export function assertExternalTmsCredentialAdmin(role: OrganizationMembershipRole) {
   assertCapability(role, "provider_credentials:write");
 }
-
-export type ExternalTmsProviderCredentialSummary = {
-  id: string;
-  providerKind: ExternalTmsProviderKind;
-  displayName: string;
-  authMode: string;
-  region: string | null;
-  baseUrl: string | null;
-  oauthExpiresAt: string | null;
-  validationStatus: string;
-  validationMessage: string | null;
-  lastValidatedAt: string | null;
-  maskedSecretSuffix: string;
-  createdAt: string;
-  updatedAt: string;
-};
-
-export type ExternalTmsProviderCredentialListItem = ExternalTmsProviderCredentialSummary & {
-  lastSuccessfulSyncAt: string | null;
-  projectCount: number;
-  capabilities: Record<TmsProviderCapabilityAction, TmsProviderCapability>;
-};
 
 function summarizeExternalCredential(
   credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect,
@@ -530,29 +511,9 @@ export async function upsertCrowdinPatProviderCredential(input: {
   });
 
   const credential = await runInDatabaseTransaction(input.db, async (tx) => {
-    const [existing] = await tx
-      .select()
-      .from(schema.organizationExternalTmsProviderCredentials)
-      .where(
-        and(
-          eq(
-            schema.organizationExternalTmsProviderCredentials.organizationId,
-            input.organizationId,
-          ),
-          eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
-        ),
-      )
-      .limit(1);
-
-    const encrypted = existing
-      ? ({
-          algorithm: existing.encryptionAlgorithm,
-          ciphertext: existing.ciphertext,
-          iv: existing.iv,
-          authTag: existing.authTag,
-          keyVersion: existing.keyVersion,
-        } satisfies EncryptedProviderCredential)
-      : unwrapProviderCredentialCrypto(encryptProviderCredential(CROWDIN_PAT_ORG_PLACEHOLDER));
+    const encrypted = unwrapProviderCredentialCrypto(
+      encryptProviderCredential(CROWDIN_PAT_ORG_PLACEHOLDER),
+    );
 
     await tx
       .delete(schema.organizationExternalTmsProviderCredentials)
@@ -602,16 +563,12 @@ export async function upsertCrowdinPatProviderCredential(input: {
           validationMessage: null,
           lastValidatedAt: null,
           updatedAt: now,
-          ...(existing
-            ? {}
-            : {
-                encryptionAlgorithm: encrypted.algorithm,
-                ciphertext: encrypted.ciphertext,
-                iv: encrypted.iv,
-                authTag: encrypted.authTag,
-                keyVersion: encrypted.keyVersion,
-                maskedSecretSuffix: "pat",
-              }),
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          maskedSecretSuffix: "pat",
         },
       })
       .returning();
