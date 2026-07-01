@@ -2,12 +2,13 @@ import "dotenv/config";
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { syncWorkosIdentity } from "@/api/auth/workos-sync";
+import { syncWorkosIdentity, promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
 import { eq } from "drizzle-orm";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
+import { INVITED_WORKOS_USER_ID_PREFIX } from "@/lib/workos/constants";
 
 const { withAuthMock, reconcileWorkosMembershipsMock, promoteInvitedPlaceholderUserMock } =
   vi.hoisted(() => ({
@@ -360,6 +361,53 @@ describe("resolveApiAuthContextFromSession", () => {
       expect.objectContaining({
         workosUserId: identity.user.workosUserId,
         force: true,
+      }),
+    );
+  });
+
+  it("reconciles all WorkOS memberships when the user still has a pending local invite", async () => {
+    const ownerIdentity = fixture.createWorkosIdentity();
+    await syncWorkosIdentity(db, ownerIdentity);
+
+    const pendingEmail = `pending-session-${randomUUID()}@example.com`;
+    const realWorkosUserId = `user_${randomUUID()}`;
+
+    await syncWorkosIdentity(db, {
+      user: {
+        workosUserId: `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`,
+        email: pendingEmail,
+      },
+      organization: ownerIdentity.organization,
+      membership: {
+        role: "member",
+      },
+    });
+
+    await promoteInvitedPlaceholderUser(db, {
+      email: pendingEmail,
+      workosUserId: realWorkosUserId,
+    });
+
+    withAuthMock.mockResolvedValue({
+      user: {
+        id: realWorkosUserId,
+        email: pendingEmail,
+        firstName: null,
+        lastName: null,
+        profilePictureUrl: null,
+      },
+      organizationId: "org_unrelated_session_pointer",
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+    await resolveApiAuthContextFromSession();
+
+    expect(reconcileWorkosMembershipsMock).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        workosUserId: realWorkosUserId,
+        force: true,
+        workosOrganizationId: undefined,
       }),
     );
   });

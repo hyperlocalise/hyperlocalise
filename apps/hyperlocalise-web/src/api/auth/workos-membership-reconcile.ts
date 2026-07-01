@@ -186,6 +186,35 @@ async function findPendingLocalMembershipRole(input: {
   return isPending ? membership.role : null;
 }
 
+/**
+ * WorkOS active membership is authoritative. Prefer the WorkOS role slug, then a
+ * pending local invite role, then the lowest-privilege default so the local row
+ * is always linked when WorkOS confirms access.
+ */
+export async function resolveWorkosMembershipRoleForSync(
+  database: DatabaseClient,
+  input: {
+    workosUserId: string;
+    email: string;
+    workosOrganizationId: string;
+    remoteRoleField: unknown;
+  },
+): Promise<OrganizationMembershipRole> {
+  const fromWorkos = membershipRoleFromUnknownRoleField(input.remoteRoleField);
+  if (fromWorkos) {
+    return fromWorkos;
+  }
+
+  const fromPendingInvite = await findPendingLocalMembershipRole({
+    database,
+    workosUserId: input.workosUserId,
+    email: input.email,
+    workosOrganizationId: input.workosOrganizationId,
+  });
+
+  return fromPendingInvite ?? "member";
+}
+
 async function ensureLocalOrganizationForWorkosMembership(
   database: DatabaseClient,
   membership: OrganizationMembership,
@@ -222,10 +251,18 @@ export async function reconcileWorkosMembershipsForUser(
   input: ReconcileWorkosMembershipsInput,
 ): Promise<ReconcileWorkosMembershipsResult> {
   if (isInvitedPlaceholderWorkosUserId(input.workosUserId)) {
+    logger.warn("workos_membership_reconcile_skipped", {
+      workosUserId: input.workosUserId,
+      reason: "invited_placeholder_session_user",
+    });
     return { status: "skipped" };
   }
 
   if (!isWorkosMembershipApiEnabled()) {
+    logger.warn("workos_membership_reconcile_skipped", {
+      workosUserId: input.workosUserId,
+      reason: "workos_api_unavailable",
+    });
     return { status: "skipped" };
   }
 
@@ -282,30 +319,27 @@ export async function reconcileWorkosMembershipsForUser(
       continue;
     }
 
-    let role = membershipRoleFromUnknownRoleField(remoteMembership.role);
-    if (!role) {
-      role = await findPendingLocalMembershipRole({
-        database,
-        workosUserId: input.workosUserId,
-        email: input.email,
-        workosOrganizationId: remoteMembership.organizationId,
-      });
+    const roleFromWorkos = membershipRoleFromUnknownRoleField(remoteMembership.role);
+    const role = await resolveWorkosMembershipRoleForSync(database, {
+      workosUserId: input.workosUserId,
+      email: input.email,
+      workosOrganizationId: remoteMembership.organizationId,
+      remoteRoleField: remoteMembership.role,
+    });
 
-      if (!role) {
-        logger.warn("workos_membership_unknown_role_slug", {
+    if (!roleFromWorkos) {
+      const usedPendingInviteRole = role !== "member";
+      logger.info(
+        usedPendingInviteRole
+          ? "workos_membership_linked_pending_invite_with_local_role"
+          : "workos_membership_linked_with_default_member_role",
+        {
           workosUserId: input.workosUserId,
           workosMembershipId: remoteMembership.id,
           workosOrganizationId: remoteMembership.organizationId,
-        });
-        continue;
-      }
-
-      logger.info("workos_membership_linked_pending_invite_with_local_role", {
-        workosUserId: input.workosUserId,
-        workosMembershipId: remoteMembership.id,
-        workosOrganizationId: remoteMembership.organizationId,
-        role,
-      });
+          role,
+        },
+      );
     }
 
     authoritativeMembershipIds.add(remoteMembership.id);

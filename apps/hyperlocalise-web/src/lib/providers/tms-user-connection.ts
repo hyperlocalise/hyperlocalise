@@ -1,5 +1,7 @@
 import {
+  crowdinUsesPerUserAuth,
   OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   type ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
@@ -29,6 +31,7 @@ async function resolveCrowdinUserConnectCta(input: {
   organizationId: string;
   userId: string;
   displayName: string;
+  connectMethod: "oauth" | "pat";
 }): Promise<TmsUserConnectCta> {
   const connection = await getCrowdinUserConnection({
     organizationId: input.organizationId,
@@ -58,6 +61,7 @@ async function resolveCrowdinUserConnectCta(input: {
     showConnectCta: true,
     providerKind: "crowdin",
     providerDisplayName: input.displayName,
+    connectMethod: input.connectMethod,
   };
 }
 
@@ -94,6 +98,7 @@ async function resolvePhraseUserConnectCta(input: {
     showConnectCta: true,
     providerKind: "phrase",
     providerDisplayName: input.displayName,
+    connectMethod: "oauth",
   };
 }
 
@@ -130,6 +135,7 @@ async function resolveLokaliseUserConnectCta(input: {
     showConnectCta: true,
     providerKind: "lokalise",
     providerDisplayName: input.displayName,
+    connectMethod: "oauth",
   };
 }
 
@@ -160,12 +166,13 @@ export async function getTmsUserConnectCtaState(input: {
     credential.displayName.trim() ||
     formatTmsUserConnectProviderLabel(providerKind as TmsUserConnectProviderKind);
 
-  if (providerKind === "crowdin" && credential.authMode === OAUTH_AUTH_MODE) {
+  if (providerKind === "crowdin" && crowdinUsesPerUserAuth(credential.authMode)) {
     logger.info(
       {
         organizationId: input.organizationId,
         userId: input.userId,
         providerCredentialId: credential.id,
+        authMode: credential.authMode,
       },
       "tms user connect cta checking crowdin connection",
     );
@@ -173,6 +180,7 @@ export async function getTmsUserConnectCtaState(input: {
       organizationId: input.organizationId,
       userId: input.userId,
       displayName,
+      connectMethod: credential.authMode === PAT_AUTH_MODE ? "pat" : "oauth",
     });
   }
 

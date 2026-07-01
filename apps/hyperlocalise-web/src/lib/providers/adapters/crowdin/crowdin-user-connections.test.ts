@@ -10,12 +10,14 @@ import {
   CROWDIN_OAUTH_TOKEN_REFRESH_BUFFER_MS,
   decryptCrowdinOAuthTokenBundle,
   upsertCrowdinOAuthProviderCredential,
+  upsertCrowdinPatProviderCredential,
   type CrowdinOAuthTokenBundle,
 } from "../../organization-external-tms-provider-credentials";
 import {
   getCrowdinUserConnection,
   resolveCrowdinUserConnectionSecretMaterial,
   upsertCrowdinUserConnection,
+  upsertCrowdinUserPatConnection,
 } from "./crowdin-user-connections";
 
 const fixture = createAuthTestFixture();
@@ -42,6 +44,21 @@ async function createCrowdinOAuthCredential() {
     role: "admin",
     displayName: "Crowdin",
     tokenBundle: tokenBundle(),
+  });
+
+  return { authContext, credential, identity };
+}
+
+async function createCrowdinPatCredential() {
+  const identity = fixture.createWorkosIdentityWithRole("admin");
+  await fixture.authHeadersFor(identity);
+  const authContext = globalThis.__testApiAuthContext!;
+  const credential = await upsertCrowdinPatProviderCredential({
+    organizationId: authContext.organization.localOrganizationId,
+    userId: authContext.user.localUserId,
+    role: "admin",
+    displayName: "Crowdin",
+    baseUrl: "https://enterprise.crowdin.test/api/v2",
   });
 
   return { authContext, credential, identity };
@@ -224,6 +241,7 @@ describe("crowdin user connections", () => {
 
     const accessToken = await resolveCrowdinUserConnectionSecretMaterial({
       connection: connection!,
+      authMode: "oauth",
       fetchFn: fetchMock,
     });
 
@@ -271,6 +289,7 @@ describe("crowdin user connections", () => {
 
     const accessToken = await resolveCrowdinUserConnectionSecretMaterial({
       connection: connection!,
+      authMode: "oauth",
       fetchFn: fetchMock,
     });
 
@@ -331,9 +350,40 @@ describe("crowdin user connections", () => {
     await expect(
       resolveCrowdinUserConnectionSecretMaterial({
         connection: connection!,
+        authMode: "oauth",
         fetchFn: fetchMock,
       }),
     ).rejects.toThrow("crowdin_oauth_refresh_failed");
     expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("returns stored PAT material without refresh for pat auth mode", async () => {
+    const { authContext, credential } = await createCrowdinPatCredential();
+    const upsertResult = await upsertCrowdinUserPatConnection({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      providerCredentialId: credential.id,
+      personalAccessToken: "member-pat-token",
+      crowdinUser: {
+        id: 54321,
+        username: "crowdin-pat-user",
+      },
+    });
+    expect(isErr(upsertResult)).toBe(false);
+    const connection = await getCrowdinUserConnection({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+    });
+    expect(connection).not.toBeNull();
+    const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+
+    const accessToken = await resolveCrowdinUserConnectionSecretMaterial({
+      connection: connection!,
+      authMode: "pat",
+      fetchFn: fetchMock,
+    });
+
+    expect(accessToken).toBe("member-pat-token");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

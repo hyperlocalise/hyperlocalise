@@ -255,7 +255,11 @@ export async function resolveApiAuthContextFromSession(
     firstName: session.user.firstName ?? undefined,
     lastName: session.user.lastName ?? undefined,
     avatarUrl: session.user.profilePictureUrl ?? undefined,
-    workosOrganizationId: session.organizationId ?? undefined,
+    // Pending local invites may belong to a different org than the WorkOS session
+    // pointer. Always reconcile all active WorkOS memberships before denying access.
+    workosOrganizationId: hasPendingLocalMembership
+      ? undefined
+      : (session.organizationId ?? undefined),
     force: promotedPlaceholder || Boolean(session.organizationId) || hasPendingLocalMembership,
   });
 

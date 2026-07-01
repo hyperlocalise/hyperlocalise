@@ -5,6 +5,7 @@ import { Key01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { toast } from "sonner";
 
+import { CrowdinUserPatConnectDialog } from "@/components/app-shell/crowdin-user-pat-connect-dialog";
 import { Button } from "@/components/ui/button";
 import { apiClient } from "@/lib/api-client-instance";
 import { cn } from "@/lib/primitives/cn";
@@ -17,17 +18,20 @@ export function TmsUserConnectButton({
   organizationSlug,
   providerKind,
   providerDisplayName,
+  connectMethod = "oauth",
   className,
 }: {
   organizationSlug: string;
   providerKind: TmsUserConnectProviderKind;
   providerDisplayName?: string;
+  connectMethod?: "oauth" | "pat";
   className?: string;
 }) {
   const label = providerDisplayName ?? formatTmsUserConnectProviderLabel(providerKind);
   const [isPending, setIsPending] = useState(false);
+  const [patDialogOpen, setPatDialogOpen] = useState(false);
 
-  async function handleConnect() {
+  async function handleOAuthConnect() {
     if (isPending) return;
 
     setIsPending(true);
@@ -63,17 +67,37 @@ export function TmsUserConnectButton({
     }
   }
 
+  function handleClick() {
+    if (providerKind === "crowdin" && connectMethod === "pat") {
+      setPatDialogOpen(true);
+      return;
+    }
+
+    void handleOAuthConnect();
+  }
+
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant="outline"
-      className={cn("hidden sm:inline-flex", className)}
-      disabled={isPending}
-      onClick={handleConnect}
-    >
-      <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
-      {isPending ? "Connecting..." : `Connect ${label}`}
-    </Button>
+    <>
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className={cn("hidden sm:inline-flex", className)}
+        disabled={isPending}
+        onClick={handleClick}
+      >
+        <HugeiconsIcon icon={Key01Icon} strokeWidth={2} className="size-4" />
+        {isPending ? "Connecting..." : `Connect ${label}`}
+      </Button>
+
+      {providerKind === "crowdin" && connectMethod === "pat" ? (
+        <CrowdinUserPatConnectDialog
+          organizationSlug={organizationSlug}
+          providerDisplayName={label}
+          open={patDialogOpen}
+          onOpenChange={setPatDialogOpen}
+        />
+      ) : null}
+    </>
   );
 }

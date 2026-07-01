@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 
+import { resolveWorkosMembershipRoleForSync } from "@/api/auth/workos-membership-reconcile";
 import {
   promoteInvitedPlaceholderUser,
   removePendingOrganizationMembershipForInvite,
@@ -15,7 +16,6 @@ import {
 import { env } from "@/lib/env";
 import { createLogger } from "@/lib/log";
 import * as schema from "@/lib/database/schema";
-import { membershipRoleFromUnknownRoleField } from "@/lib/workos/membership-role";
 import { getWorkosServerClient } from "@/lib/workos/server-client";
 import { type WorkosWebhookEvent, workosWebhookEventSchema } from "./workos-webhook.schema";
 
@@ -242,15 +242,12 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
       return;
     }
 
-    const role = membershipRoleFromUnknownRoleField(data["role"]);
-    if (!role) {
-      logger.warn("workos_webhook_unknown_role_slug", {
-        workosUserId,
-        workosMembershipId,
-        workosOrganizationId,
-      });
-      return;
-    }
+    const role = await resolveWorkosMembershipRoleForSync(db, {
+      workosUserId,
+      email: existingUser.email,
+      workosOrganizationId,
+      remoteRoleField: data["role"],
+    });
 
     await syncWorkosIdentity(db, {
       user: {

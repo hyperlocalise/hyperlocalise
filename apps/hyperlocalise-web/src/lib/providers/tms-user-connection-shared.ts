@@ -9,6 +9,7 @@ export type TmsUserConnectCta =
       showConnectCta: true;
       providerKind: TmsUserConnectProviderKind;
       providerDisplayName: string;
+      connectMethod: "oauth" | "pat";
     };
 
 const DEFAULT_PROVIDER_LABELS: Record<TmsUserConnectProviderKind, string> = {

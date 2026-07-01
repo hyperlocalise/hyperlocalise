@@ -52,6 +52,7 @@ import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-wi
 import { normalizeProviderAssigneeCandidates } from "@/lib/providers/tms-provider-assignee-match";
 import {
   API_TOKEN_AUTH_MODE,
+  crowdinUsesPerUserAuth,
   OAUTH_AUTH_MODE,
   getActiveOrganizationExternalTmsProviderCredentialRow,
   resolveExternalTmsSecretMaterial,
@@ -341,7 +342,7 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
 }) {
   if (
     input.credential.providerKind === "crowdin" &&
-    input.credential.authMode === OAUTH_AUTH_MODE
+    crowdinUsesPerUserAuth(input.credential.authMode)
   ) {
     logger.info(
       {
@@ -379,15 +380,16 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
     );
   }
 
-  const usesCrowdinUserOAuth =
-    input.credential.providerKind === "crowdin" && input.credential.authMode === OAUTH_AUTH_MODE;
+  const usesCrowdinPerUserAuth =
+    input.credential.providerKind === "crowdin" &&
+    crowdinUsesPerUserAuth(input.credential.authMode);
   const usesPhraseUserOAuth =
     input.credential.providerKind === "phrase" && input.credential.authMode === OAUTH_AUTH_MODE;
   const usesLokaliseUserOAuth =
     input.credential.providerKind === "lokalise" && input.credential.authMode === OAUTH_AUTH_MODE;
 
   if (
-    (!usesCrowdinUserOAuth && !usesPhraseUserOAuth && !usesLokaliseUserOAuth) ||
+    (!usesCrowdinPerUserAuth && !usesPhraseUserOAuth && !usesLokaliseUserOAuth) ||
     !input.actorUserId
   ) {
     return resolveExternalTmsSecretMaterial({ credential: input.credential });
@@ -486,6 +488,7 @@ async function resolveActiveTmsProviderSecretMaterial(input: {
 
   return resolveCrowdinUserConnectionSecretMaterial({
     connection: crowdinUserConnection,
+    authMode: input.credential.authMode ?? OAUTH_AUTH_MODE,
   });
 }
 
@@ -2269,6 +2272,7 @@ export async function updateTmsProviderLiveJobDescription(
   try {
     userAccessToken = await resolveCrowdinUserConnectionSecretMaterial({
       connection: crowdinUserConnection,
+      authMode: context.credential.authMode ?? OAUTH_AUTH_MODE,
     });
   } catch (error) {
     if (

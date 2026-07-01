@@ -11,6 +11,8 @@ import {
 
 vi.mock("@/lib/providers/organization-external-tms-provider-credentials", () => ({
   OAUTH_AUTH_MODE: "oauth",
+  PAT_AUTH_MODE: "pat",
+  crowdinUsesPerUserAuth: (authMode: string) => authMode === "oauth" || authMode === "pat",
   getActiveOrganizationExternalTmsProviderCredentialRow: vi.fn(),
 }));
 
@@ -64,6 +66,25 @@ describe("getTmsUserConnectCtaState", () => {
       showConnectCta: true,
       providerKind: "crowdin",
       providerDisplayName: "My Crowdin",
+      connectMethod: "oauth",
+    });
+  });
+
+  it("returns connect CTA for Crowdin PAT without a user link", async () => {
+    vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue({
+      providerKind: "crowdin",
+      authMode: "pat",
+      displayName: "My Crowdin",
+    } as never);
+    vi.mocked(getCrowdinUserConnection).mockResolvedValue(null);
+
+    await expect(
+      getTmsUserConnectCtaState({ organizationId: "org-1", userId: "user-1" }),
+    ).resolves.toEqual({
+      showConnectCta: true,
+      providerKind: "crowdin",
+      providerDisplayName: "My Crowdin",
+      connectMethod: "pat",
     });
   });
 
@@ -94,6 +115,7 @@ describe("getTmsUserConnectCtaState", () => {
       showConnectCta: true,
       providerKind: "phrase",
       providerDisplayName: "My Phrase",
+      connectMethod: "oauth",
     });
   });
 

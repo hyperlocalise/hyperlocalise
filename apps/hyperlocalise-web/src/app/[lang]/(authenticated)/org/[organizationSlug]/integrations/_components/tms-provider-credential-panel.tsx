@@ -16,12 +16,23 @@ import type {
   ExternalTmsProviderCredentialListItem,
   ExternalTmsProviderKind,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
+import {
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+} from "@/lib/providers/organization-external-tms-provider-credentials";
 import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import { PHRASE_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   InputGroup,
   InputGroupAddon,
@@ -207,6 +218,8 @@ function getTmsBaseUrlPlaceholder(providerKind: ExternalTmsProviderKind): string
   }
 }
 
+type CrowdinAuthMode = typeof OAUTH_AUTH_MODE | typeof PAT_AUTH_MODE;
+
 type TmsProviderCredentialPanelProps = {
   providerKind: ExternalTmsProviderKind;
   providerName: string;
@@ -217,6 +230,8 @@ type TmsProviderCredentialPanelProps = {
   onDisplayNameChange: (value: string) => void;
   secret: string;
   onSecretChange: (value: string) => void;
+  crowdinAuthMode?: CrowdinAuthMode;
+  onCrowdinAuthModeChange?: (value: CrowdinAuthMode) => void;
   oauthClientId: string;
   onOauthClientIdChange: (value: string) => void;
   oauthClientSecret: string;
@@ -235,6 +250,7 @@ type TmsProviderCredentialPanelProps = {
   oauthClientSecretFieldId: string;
   redirectUriFieldId: string;
   baseUrlFieldId: string;
+  crowdinAuthModeFieldId?: string;
 };
 
 export function TmsProviderCredentialPanel({
@@ -247,6 +263,8 @@ export function TmsProviderCredentialPanel({
   onDisplayNameChange,
   secret,
   onSecretChange,
+  crowdinAuthMode = OAUTH_AUTH_MODE,
+  onCrowdinAuthModeChange,
   oauthClientId,
   onOauthClientIdChange,
   oauthClientSecret,
@@ -265,9 +283,13 @@ export function TmsProviderCredentialPanel({
   oauthClientSecretFieldId,
   redirectUriFieldId,
   baseUrlFieldId,
+  crowdinAuthModeFieldId,
 }: TmsProviderCredentialPanelProps) {
   const isCrowdin = providerKind === "crowdin";
-  const isOAuthProvider = isCrowdin || providerKind === "phrase" || providerKind === "lokalise";
+  const isCrowdinOAuthMode = isCrowdin && crowdinAuthMode === OAUTH_AUTH_MODE;
+  const isCrowdinPatMode = isCrowdin && crowdinAuthMode === PAT_AUTH_MODE;
+  const isOAuthProvider =
+    isCrowdinOAuthMode || providerKind === "phrase" || providerKind === "lokalise";
   const oauthRedirectUri =
     typeof window === "undefined"
       ? ""
@@ -302,19 +324,26 @@ export function TmsProviderCredentialPanel({
     }, 2000);
   };
 
-  const isOAuthConnected = isOAuthProvider && credential?.authMode === "oauth";
+  const isOAuthConnected =
+    isOAuthProvider &&
+    credential?.authMode === OAUTH_AUTH_MODE &&
+    (!isCrowdin || crowdinAuthMode === OAUTH_AUTH_MODE);
+  const isPatConnected =
+    isCrowdin && credential?.authMode === PAT_AUTH_MODE && crowdinAuthMode === PAT_AUTH_MODE;
   const [oauthReconnectOpen, setOauthReconnectOpen] = useState(false);
   const showOAuthSetupFields = !isOAuthConnected || oauthReconnectOpen;
   const hasPartialOAuthCredentials =
     Boolean(oauthClientId.trim()) !== Boolean(oauthClientSecret.trim());
 
-  const canSubmit = isOAuthProvider
-    ? isOAuthConnected && !oauthReconnectOpen
-      ? Boolean(displayName.trim()) && !hasPartialOAuthCredentials
-      : Boolean(displayName.trim()) &&
-        !hasPartialOAuthCredentials &&
-        (isOAuthConnected || Boolean(oauthClientId.trim() && oauthClientSecret.trim()))
-    : Boolean(displayName.trim() && secret.trim());
+  const canSubmit = isCrowdinPatMode
+    ? Boolean(displayName.trim())
+    : isOAuthProvider
+      ? isOAuthConnected && !oauthReconnectOpen
+        ? Boolean(displayName.trim()) && !hasPartialOAuthCredentials
+        : Boolean(displayName.trim()) &&
+          !hasPartialOAuthCredentials &&
+          (isOAuthConnected || Boolean(oauthClientId.trim() && oauthClientSecret.trim()))
+      : Boolean(displayName.trim() && secret.trim());
 
   return (
     <form
@@ -328,8 +357,9 @@ export function TmsProviderCredentialPanel({
         <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
           <p className="font-medium text-foreground">{providerName} is connected via OAuth</p>
           <p className="leading-6 text-muted-foreground">
-            Access and refresh tokens are stored encrypted. Projects, jobs, glossaries, and
-            translation memories load live from {providerName} when you open those pages.
+            Each workspace member connects their own {providerName} account. Projects, jobs,
+            glossaries, and translation memories load live from {providerName} when you open those
+            pages.
           </p>
           {credential.oauthExpiresAt ? (
             <p className="text-xs text-muted-foreground">
@@ -339,9 +369,50 @@ export function TmsProviderCredentialPanel({
         </div>
       ) : null}
 
+      {isPatConnected ? (
+        <div className="space-y-2 rounded-lg border border-border bg-muted/30 p-4 text-sm">
+          <p className="font-medium text-foreground">{providerName} is ready for member tokens</p>
+          <p className="leading-6 text-muted-foreground">
+            The API base URL is saved for this workspace. Each member connects with their own
+            Crowdin personal access token—no OAuth app required.
+          </p>
+        </div>
+      ) : null}
+
+      {isCrowdin && onCrowdinAuthModeChange && crowdinAuthModeFieldId ? (
+        <Field className="gap-2">
+          <FieldLabel htmlFor={crowdinAuthModeFieldId}>Authentication method</FieldLabel>
+          <FieldDescription>
+            OAuth works when your Enterprise OAuth app is configured. Personal access tokens let
+            each member paste a token from Crowdin without OAuth setup.
+          </FieldDescription>
+          <Select
+            value={crowdinAuthMode}
+            onValueChange={(value) => {
+              if (value === OAUTH_AUTH_MODE || value === PAT_AUTH_MODE) {
+                onCrowdinAuthModeChange(value);
+              }
+            }}
+          >
+            <SelectTrigger id={crowdinAuthModeFieldId} className="h-9 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={OAUTH_AUTH_MODE}>OAuth app (recommended)</SelectItem>
+              <SelectItem value={PAT_AUTH_MODE}>Personal access token (per member)</SelectItem>
+            </SelectContent>
+          </Select>
+        </Field>
+      ) : null}
+
       {isOAuthProvider && !isOAuthConnected ? (
         <p className="text-sm leading-6 text-muted-foreground">
-          {`Connect ${providerName} with an OAuth App. Projects, jobs, glossaries, and translation memories load live from ${providerName}. API-token setup is disabled in Hyperlocalise.`}
+          {`Connect ${providerName} with an OAuth App. Each member links their own account before using ${providerName} data in Hyperlocalise.`}
+        </p>
+      ) : isCrowdinPatMode && !isPatConnected ? (
+        <p className="text-sm leading-6 text-muted-foreground">
+          Set the Crowdin API base URL once for this workspace. After you save, members connect by
+          pasting their own personal access token—nothing else to configure.
         </p>
       ) : !isOAuthProvider ? (
         <p className="text-sm leading-6 text-muted-foreground">
@@ -359,6 +430,19 @@ export function TmsProviderCredentialPanel({
           placeholder="e.g. Crowdin Production"
         />
       </Field>
+
+      {isCrowdinPatMode ? (
+        <Field className="gap-2">
+          <FieldLabel htmlFor={baseUrlFieldId}>API base URL</FieldLabel>
+          <FieldDescription>{getTmsBaseUrlGuidance(providerKind)}</FieldDescription>
+          <Input
+            id={baseUrlFieldId}
+            value={baseUrl}
+            onChange={(event) => onBaseUrlChange(event.target.value)}
+            placeholder={getTmsBaseUrlPlaceholder(providerKind)}
+          />
+        </Field>
+      ) : null}
 
       {isOAuthProvider && isOAuthConnected ? (
         <Collapsible open={oauthReconnectOpen} onOpenChange={setOauthReconnectOpen}>
@@ -456,39 +540,41 @@ export function TmsProviderCredentialPanel({
         </Field>
       ) : null}
 
-      <Collapsible open={advancedSettingsOpen} onOpenChange={setAdvancedSettingsOpen}>
-        <CollapsibleTrigger
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
-            >
-              Advanced settings
-              <ChevronDownIcon
-                className={cn(
-                  "size-3.5 shrink-0 transition-transform",
-                  advancedSettingsOpen && "rotate-180",
-                )}
-                strokeWidth={2}
+      {!isCrowdinPatMode ? (
+        <Collapsible open={advancedSettingsOpen} onOpenChange={setAdvancedSettingsOpen}>
+          <CollapsibleTrigger
+            render={
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 w-full justify-between px-2 text-muted-foreground hover:text-foreground"
+              >
+                Advanced settings
+                <ChevronDownIcon
+                  className={cn(
+                    "size-3.5 shrink-0 transition-transform",
+                    advancedSettingsOpen && "rotate-180",
+                  )}
+                  strokeWidth={2}
+                />
+              </Button>
+            }
+          />
+          <CollapsibleContent className="pt-1">
+            <Field className="gap-2">
+              <FieldLabel htmlFor={baseUrlFieldId}>Base URL (optional)</FieldLabel>
+              <FieldDescription>{getTmsBaseUrlGuidance(providerKind)}</FieldDescription>
+              <Input
+                id={baseUrlFieldId}
+                value={baseUrl}
+                onChange={(event) => onBaseUrlChange(event.target.value)}
+                placeholder={getTmsBaseUrlPlaceholder(providerKind)}
               />
-            </Button>
-          }
-        />
-        <CollapsibleContent className="pt-1">
-          <Field className="gap-2">
-            <FieldLabel htmlFor={baseUrlFieldId}>Base URL (optional)</FieldLabel>
-            <FieldDescription>{getTmsBaseUrlGuidance(providerKind)}</FieldDescription>
-            <Input
-              id={baseUrlFieldId}
-              value={baseUrl}
-              onChange={(event) => onBaseUrlChange(event.target.value)}
-              placeholder={getTmsBaseUrlPlaceholder(providerKind)}
-            />
-          </Field>
-        </CollapsibleContent>
-      </Collapsible>
+            </Field>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         {credential && userIsAdmin ? (
@@ -503,13 +589,17 @@ export function TmsProviderCredentialPanel({
           <HugeiconsIcon icon={SaveIcon} strokeWidth={1.8} />
           {isSaving
             ? "Saving..."
-            : isOAuthProvider
-              ? isOAuthConnected && !oauthReconnectOpen
+            : isCrowdinPatMode
+              ? isPatConnected
                 ? `Save ${providerName} settings`
-                : isOAuthConnected
-                  ? `Update ${providerName}`
-                  : `Save ${providerName}`
-              : "Save provider"}
+                : `Enable ${providerName} tokens`
+              : isOAuthProvider
+                ? isOAuthConnected && !oauthReconnectOpen
+                  ? `Save ${providerName} settings`
+                  : isOAuthConnected
+                    ? `Update ${providerName}`
+                    : `Save ${providerName}`
+                : "Save provider"}
         </Button>
       </div>
     </form>

@@ -34,6 +34,7 @@ export function TmsUserConnectionErrorPanel({
           organizationSlug={organizationSlug}
           providerKind={resolved.providerKind}
           providerDisplayName={resolved.providerDisplayName}
+          connectMethod={resolved.connectMethod}
           className="mt-4 flex"
         />
       ) : null}

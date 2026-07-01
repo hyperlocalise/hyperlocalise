@@ -3,15 +3,17 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
-  encryptProviderCredential,
-  unwrapProviderCredentialCrypto,
-} from "@/lib/security/provider-credential-crypto";
-import {
   decryptCrowdinOAuthTokenBundle,
   isCrowdinOAuthAccessTokenFresh,
+  PAT_AUTH_MODE,
   refreshCrowdinOAuthToken,
   type CrowdinOAuthTokenBundle,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
+import {
+  decryptProviderCredential,
+  encryptProviderCredential,
+  unwrapProviderCredentialCrypto,
+} from "@/lib/security/provider-credential-crypto";
 import { createLogger } from "@/lib/log";
 
 const logger = createLogger("crowdin-user-connections");
@@ -219,10 +221,132 @@ export async function upsertCrowdinUserConnection(input: {
   }
 }
 
+export async function upsertCrowdinUserPatConnection(input: {
+  organizationId: string;
+  userId: string;
+  providerCredentialId: string;
+  personalAccessToken: string;
+  crowdinUser: {
+    id: number;
+    username: string;
+    email?: string | null;
+    fullName?: string | null;
+  };
+}): Promise<Result<CrowdinUserConnectionSummary, CrowdinUserConnectionUpsertError>> {
+  const existingByCrowdinUserId = await findCrowdinUserConnectionOwnerByCrowdinUserId({
+    organizationId: input.organizationId,
+    crowdinUserId: input.crowdinUser.id,
+  });
+  if (existingByCrowdinUserId && existingByCrowdinUserId.userId !== input.userId) {
+    logger.warn(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        existingUserId: existingByCrowdinUserId.userId,
+        providerCredentialId: input.providerCredentialId,
+        crowdinUserId: input.crowdinUser.id,
+      },
+      "crowdin user pat connection upsert rejected: crowdin user already linked",
+    );
+    return err({ code: "crowdin_user_already_linked" });
+  }
+
+  const encrypted = unwrapProviderCredentialCrypto(
+    encryptProviderCredential(input.personalAccessToken),
+  );
+  const now = new Date();
+
+  try {
+    const [connection] = await db
+      .insert(schema.crowdinUserConnections)
+      .values({
+        organizationId: input.organizationId,
+        userId: input.userId,
+        providerCredentialId: input.providerCredentialId,
+        crowdinUserId: input.crowdinUser.id,
+        username: input.crowdinUser.username,
+        email: input.crowdinUser.email ?? null,
+        fullName: input.crowdinUser.fullName ?? null,
+        oauthExpiresAt: null,
+        encryptionAlgorithm: encrypted.algorithm,
+        ciphertext: encrypted.ciphertext,
+        iv: encrypted.iv,
+        authTag: encrypted.authTag,
+        keyVersion: encrypted.keyVersion,
+      })
+      .onConflictDoUpdate({
+        target: [
+          schema.crowdinUserConnections.organizationId,
+          schema.crowdinUserConnections.userId,
+        ],
+        set: {
+          providerCredentialId: input.providerCredentialId,
+          crowdinUserId: input.crowdinUser.id,
+          username: input.crowdinUser.username,
+          email: input.crowdinUser.email ?? null,
+          fullName: input.crowdinUser.fullName ?? null,
+          oauthExpiresAt: null,
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          updatedAt: now,
+        },
+      })
+      .returning();
+
+    logger.info(
+      {
+        organizationId: input.organizationId,
+        userId: input.userId,
+        providerCredentialId: input.providerCredentialId,
+        connectionId: connection.id,
+        crowdinUserId: input.crowdinUser.id,
+      },
+      "crowdin user pat connection upsert completed",
+    );
+
+    return ok(summarizeCrowdinUserConnection(connection));
+  } catch (error) {
+    if (isUniqueViolation(error)) {
+      logger.warn(
+        {
+          organizationId: input.organizationId,
+          userId: input.userId,
+          providerCredentialId: input.providerCredentialId,
+          crowdinUserId: input.crowdinUser.id,
+        },
+        "crowdin user pat connection upsert rejected: unique violation",
+      );
+      return err({ code: "crowdin_user_already_linked" });
+    }
+
+    throw error;
+  }
+}
+
+function decryptCrowdinUserPat(connection: CrowdinUserConnection) {
+  return unwrapProviderCredentialCrypto(
+    decryptProviderCredential({
+      algorithm: connection.encryptionAlgorithm,
+      keyVersion: connection.keyVersion,
+      ciphertext: connection.ciphertext,
+      iv: connection.iv,
+      authTag: connection.authTag,
+    }),
+  );
+}
+
 export async function resolveCrowdinUserConnectionSecretMaterial(input: {
   connection: CrowdinUserConnection;
+  authMode: string;
   fetchFn?: typeof fetch;
 }) {
+  if (input.authMode === PAT_AUTH_MODE) {
+    return decryptCrowdinUserPat(input.connection);
+  }
+
   const tokenBundle = decryptCrowdinOAuthTokenBundle(input.connection);
   if (isCrowdinOAuthAccessTokenFresh(tokenBundle)) {
     return tokenBundle.accessToken;

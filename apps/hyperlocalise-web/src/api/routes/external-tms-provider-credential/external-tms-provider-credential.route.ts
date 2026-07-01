@@ -17,7 +17,9 @@ import {
   type WorkspaceResourceLimitError,
 } from "@/lib/billing/workspace-resource-limits";
 import {
+  crowdinUsesPerUserAuth,
   OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
   assertExternalTmsCredentialAdmin,
   deleteOrganizationExternalTmsProviderCredential,
   getActiveOrganizationExternalTmsProviderCredentialRow,
@@ -32,6 +34,7 @@ import {
   mapPhraseOAuthTokenResponse,
   revealOrganizationExternalTmsProviderCredential,
   upsertCrowdinOAuthProviderCredential,
+  upsertCrowdinPatProviderCredential,
   upsertLokaliseOAuthProviderCredential,
   upsertOrganizationExternalTmsProviderCredential,
   upsertPhraseOAuthProviderCredential,
@@ -46,6 +49,7 @@ import { CrowdinApiClient, CrowdinApiError } from "@/lib/providers/adapters/crow
 import {
   getCrowdinUserConnectionSummary,
   upsertCrowdinUserConnection,
+  upsertCrowdinUserPatConnection,
 } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 import {
   PhraseTmsApiClient,
@@ -72,7 +76,9 @@ import { createLogger } from "@/lib/log";
 
 import {
   crowdinOAuthStartBodySchema,
+  crowdinPatSetupBodySchema,
   crowdinUserOAuthStartBodySchema,
+  crowdinUserPatBodySchema,
   externalTmsProviderKindSchema,
   lokaliseOAuthStartBodySchema,
   lokaliseUserOAuthStartBodySchema,
@@ -163,6 +169,18 @@ const validateCrowdinOAuthStartBody = validator("json", (value, c) => {
 const validateCrowdinUserOAuthStartBody = validator("json", (value, c) => {
   const parsed = crowdinUserOAuthStartBodySchema.safeParse(value);
   if (!parsed.success) return c.json({ error: "invalid_crowdin_user_oauth_start_payload" }, 400);
+  return parsed.data;
+});
+
+const validateCrowdinPatSetupBody = validator("json", (value, c) => {
+  const parsed = crowdinPatSetupBodySchema.safeParse(value);
+  if (!parsed.success) return c.json({ error: "invalid_crowdin_pat_setup_payload" }, 400);
+  return parsed.data;
+});
+
+const validateCrowdinUserPatBody = validator("json", (value, c) => {
+  const parsed = crowdinUserPatBodySchema.safeParse(value);
+  if (!parsed.success) return c.json({ error: "invalid_crowdin_user_pat_payload" }, 400);
   return parsed.data;
 });
 
@@ -546,6 +564,96 @@ async function completeCrowdinUserOAuthLink(
   );
 
   return c.redirect(normalizeUserOAuthReturnTo(input.returnTo, input.organizationSlug));
+}
+
+async function completeCrowdinUserPatLink(
+  c: ExternalTmsProviderCredentialRouteContext,
+  input: {
+    personalAccessToken: string;
+    credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
+  },
+) {
+  let crowdinUser: Awaited<ReturnType<CrowdinApiClient["getAuthenticatedUser"]>>;
+  try {
+    crowdinUser = await new CrowdinApiClient({
+      token: input.personalAccessToken,
+      baseUrl: input.credential.baseUrl ?? undefined,
+    }).getAuthenticatedUser();
+  } catch (error) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        providerCredentialId: input.credential.id,
+        ...buildTmsUserOAuthProfileLookupLogContext({
+          provider: "crowdin",
+          credentialBaseUrl: input.credential.baseUrl,
+          error,
+        }),
+      },
+      "crowdin user pat profile lookup failed",
+    );
+
+    const status = error instanceof CrowdinApiError ? error.status : null;
+    return c.json(
+      {
+        error:
+          status === 401 && isCrowdinEnterpriseApiBaseUrl(input.credential.baseUrl)
+            ? "crowdin_user_pat_enterprise_mismatch"
+            : "crowdin_user_pat_invalid",
+        message:
+          status === 401
+            ? "Crowdin rejected this personal access token. Check that the token was created in the same Crowdin workspace as the configured base URL."
+            : "Unable to verify this Crowdin personal access token.",
+      },
+      400,
+    );
+  }
+
+  const upsertResult = await upsertCrowdinUserPatConnection({
+    organizationId: c.var.auth.organization.localOrganizationId,
+    userId: c.var.auth.user.localUserId,
+    providerCredentialId: input.credential.id,
+    personalAccessToken: input.personalAccessToken,
+    crowdinUser: {
+      id: crowdinUser.id,
+      username: crowdinUser.username,
+      email: crowdinUser.email,
+      fullName: crowdinUser.fullName,
+    },
+  });
+  if (isErr(upsertResult)) {
+    logger.warn(
+      {
+        organizationId: c.var.auth.organization.localOrganizationId,
+        userId: c.var.auth.user.localUserId,
+        providerCredentialId: input.credential.id,
+        crowdinUserId: crowdinUser.id,
+        code: upsertResult.error.code,
+      },
+      "crowdin user pat connection upsert rejected",
+    );
+    return c.json(
+      {
+        error: "crowdin_user_already_linked",
+        message: "This Crowdin account is already linked to another Hyperlocalise user.",
+      },
+      409,
+    );
+  }
+
+  logger.info(
+    {
+      organizationId: c.var.auth.organization.localOrganizationId,
+      userId: c.var.auth.user.localUserId,
+      providerCredentialId: input.credential.id,
+      crowdinUserId: crowdinUser.id,
+      connectionId: upsertResult.value.id,
+    },
+    "crowdin user pat connection linked",
+  );
+
+  return c.json({ crowdinUserConnection: upsertResult.value }, 200);
 }
 
 async function handleCrowdinUserOAuthCallback(
@@ -1245,6 +1353,53 @@ export function createExternalTmsProviderCredentialRoutes() {
         throw error;
       }
     })
+    .post("/crowdin/pat-setup", validateCrowdinPatSetupBody, async (c) => {
+      try {
+        if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
+          return c.json({ error: "forbidden" }, 403);
+        }
+        const payload = c.req.valid("json");
+        const organizationId = c.var.auth.organization.localOrganizationId;
+        const credentialResult = await withNewIntegrationLimit(
+          {
+            organizationId,
+            providerKind: "crowdin",
+          },
+          (database) =>
+            upsertCrowdinPatProviderCredential({
+              organizationId,
+              userId: c.var.auth.user.localUserId,
+              role: c.var.auth.membership.role,
+              displayName: payload.displayName,
+              baseUrl: payload.baseUrl ?? null,
+              db: database,
+            }),
+        );
+        if (!credentialResult.ok) {
+          const limitResponse = integrationLimitErrorResponse(credentialResult.error);
+          return c.json(limitResponse.body, limitResponse.status);
+        }
+
+        return c.json(
+          {
+            externalTmsProviderCredential: credentialResult.value,
+            shouldConnectCrowdinUser: true,
+          },
+          200,
+        );
+      } catch (error) {
+        if (error instanceof Error && error.message === "provider_base_url_invalid") {
+          return c.json(
+            {
+              error: "provider_base_url_invalid",
+              message: "Provider base URL is invalid.",
+            },
+            400,
+          );
+        }
+        throw error;
+      }
+    })
     .post("/phrase/oauth-app", validatePhraseOAuthStartBody, async (c) => {
       try {
         if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
@@ -1677,7 +1832,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         c.var.auth.organization.localOrganizationId,
       );
       const hasCrowdinIntegration =
-        credential?.providerKind === "crowdin" && credential.authMode === OAUTH_AUTH_MODE;
+        credential?.providerKind === "crowdin" && crowdinUsesPerUserAuth(credential.authMode);
       const connection = hasCrowdinIntegration
         ? await getCrowdinUserConnectionSummary({
             organizationId: c.var.auth.organization.localOrganizationId,
@@ -1825,6 +1980,39 @@ export function createExternalTmsProviderCredentialRoutes() {
         200,
       );
     })
+    .post("/crowdin/user/pat", validateCrowdinUserPatBody, async (c) => {
+      if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+
+      const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
+        c.var.auth.organization.localOrganizationId,
+      );
+      if (credential?.providerKind !== "crowdin" || credential.authMode !== PAT_AUTH_MODE) {
+        return c.json(
+          {
+            error: "crowdin_integration_not_connected",
+            message: "Crowdin personal access token mode is not enabled for this workspace.",
+          },
+          404,
+        );
+      }
+
+      const payload = c.req.valid("json");
+      logger.info(
+        {
+          organizationId: c.var.auth.organization.localOrganizationId,
+          userId: c.var.auth.user.localUserId,
+          providerCredentialId: credential.id,
+        },
+        "crowdin user pat link requested",
+      );
+
+      return completeCrowdinUserPatLink(c, {
+        personalAccessToken: payload.personalAccessToken,
+        credential,
+      });
+    })
     .post("/phrase/user/oauth/start", validatePhraseUserOAuthStartBody, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
         return c.json({ error: "forbidden" }, 403);
@@ -1917,8 +2105,9 @@ export function createExternalTmsProviderCredentialRoutes() {
         if (payload.providerKind === "crowdin") {
           return c.json(
             {
-              error: "crowdin_personal_token_deprecated",
-              message: "Crowdin personal-token setup is deprecated. Use OAuth App connection.",
+              error: "crowdin_pat_setup_required",
+              message:
+                "Crowdin must be connected from Integrations using OAuth or personal access token mode.",
             },
             400,
           );
