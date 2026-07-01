@@ -875,6 +875,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             providerKind: target.kind === "provider" ? target.providerKind : null,
+            actorUserId: c.var.auth.user.localUserId,
             sourceLocale: body.sourceLocale,
             targetLocale: body.targetLocale,
             sourceText: body.sourceText,

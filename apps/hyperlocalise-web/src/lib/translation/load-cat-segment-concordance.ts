@@ -3,9 +3,11 @@ import { inferTmMatchKind } from "@/components/cat/tm-match-quality";
 import { searchCrowdinCatConcordance } from "@/lib/providers/adapters/crowdin/crowdin-cat-concordance";
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import {
-  decryptCrowdinCredentialToken,
   loadCrowdinProjectCredential,
+  type CrowdinProjectCredential,
 } from "@/lib/providers/adapters/crowdin/load-crowdin-project-credential";
+import { TmsProviderLiveError } from "@/lib/providers/tms-provider-live";
+import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
 import type { ExternalTmsProviderKind } from "@/lib/providers/contracts/external-tms-provider-kind";
 import type { NormalizedGlossaryMatch } from "@/lib/providers/contracts/glossary-match";
 import type { NormalizedTranslationMemoryMatch } from "@/lib/providers/contracts/translation-memory-match";
@@ -55,9 +57,40 @@ type CrowdinLiveConcordance = {
   translationMemoryMatches: NormalizedTranslationMemoryMatch[];
 };
 
+const CROWDIN_USER_CONNECTION_ERROR_MESSAGES: Record<string, string> = {
+  crowdin_user_connection_required:
+    "Connect your Crowdin account before loading glossary and translation memory matches.",
+  crowdin_user_connection_auth_mode_mismatch:
+    "Reconnect your Crowdin account after the workspace authentication mode changed.",
+};
+
+async function resolveCrowdinConcordanceToken(input: {
+  organizationId: string;
+  credential: CrowdinProjectCredential["credential"];
+  actorUserId?: string | null;
+}): Promise<string> {
+  try {
+    return await resolveExternalTmsSecretMaterialForActor({
+      credential: input.credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      const message = CROWDIN_USER_CONNECTION_ERROR_MESSAGES[error.message];
+      if (message) {
+        throw new TmsProviderLiveError(error.message, message);
+      }
+    }
+
+    throw error;
+  }
+}
+
 async function loadCrowdinLiveConcordance(input: {
   organizationId: string;
   projectId: string;
+  actorUserId?: string | null;
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
@@ -71,8 +104,13 @@ async function loadCrowdinLiveConcordance(input: {
   }
 
   const { credential, externalProjectId } = projectCredential;
+  const token = await resolveCrowdinConcordanceToken({
+    organizationId: input.organizationId,
+    credential,
+    actorUserId: input.actorUserId,
+  });
   const client = new CrowdinApiClient({
-    token: decryptCrowdinCredentialToken(credential),
+    token,
     baseUrl: credential.baseUrl ?? undefined,
   });
 
@@ -89,6 +127,7 @@ export async function loadCatSegmentConcordance(input: {
   organizationId: string;
   projectId: string;
   providerKind?: ExternalTmsProviderKind | null;
+  actorUserId?: string | null;
   sourceLocale: string;
   targetLocale: string;
   sourceText: string;
@@ -97,6 +136,7 @@ export async function loadCatSegmentConcordance(input: {
     const liveMatches = await loadCrowdinLiveConcordance({
       organizationId: input.organizationId,
       projectId: input.projectId,
+      actorUserId: input.actorUserId,
       sourceLocale: input.sourceLocale,
       targetLocale: input.targetLocale,
       sourceText: input.sourceText,
