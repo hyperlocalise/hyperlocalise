@@ -237,10 +237,12 @@ export async function resolveApiAuthContextFromSession(
     return null;
   }
 
-  const promotedPlaceholder = await promoteInvitedPlaceholderUser(db, {
-    email: session.user.email,
-    workosUserId: session.user.id,
-  });
+  const promotedPlaceholder = session.user.email
+    ? await promoteInvitedPlaceholderUser(db, {
+        email: session.user.email,
+        workosUserId: session.user.id,
+      })
+    : false;
 
   const reconcileResult = await reconcileWorkosMembershipsForUser(db, {
     workosUserId: session.user.id,

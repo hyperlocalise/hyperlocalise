@@ -130,6 +130,15 @@ describe("promoteInvitedPlaceholderUser", () => {
 
     expect(promoted).toBe(false);
   });
+
+  it("returns false when the email is blank", async () => {
+    const promoted = await promoteInvitedPlaceholderUser(db, {
+      email: "   ",
+      workosUserId: "user_real",
+    });
+
+    expect(promoted).toBe(false);
+  });
 });
 
 describe("revokeOrganizationMembershipAccess", () => {

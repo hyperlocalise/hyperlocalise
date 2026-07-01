@@ -380,6 +380,72 @@ describe("enterprise identity access regression", () => {
 
       expect(user?.workosUserId).toBe(realWorkosUserId);
     });
+
+    it("promotes invited placeholders during session bootstrap and reconciles accepted membership", async () => {
+      const ownerIdentity = createWorkosIdentity();
+      await syncWorkosIdentity(db, ownerIdentity);
+
+      const pendingEmail = `session-promote-${randomUUID()}@example.com`;
+      const placeholderUserId = `${INVITED_WORKOS_USER_ID_PREFIX}${randomUUID()}`;
+      const realWorkosUserId = `user_${randomUUID()}`;
+      const workosMembershipId = `om_${randomUUID()}`;
+
+      trackWorkosUserId(placeholderUserId);
+      trackWorkosUserId(realWorkosUserId);
+
+      await syncWorkosIdentity(db, {
+        user: {
+          workosUserId: placeholderUserId,
+          email: pendingEmail,
+        },
+        organization: ownerIdentity.organization,
+        membership: {
+          role: "member",
+        },
+      });
+
+      listMembershipsMock.mockResolvedValue({
+        autoPagination: async () => [
+          {
+            id: workosMembershipId,
+            organizationId: ownerIdentity.organization.workosOrganizationId,
+            status: "active",
+            role: { slug: "member" },
+          },
+        ],
+      });
+      getOrganizationMock.mockResolvedValue({
+        id: ownerIdentity.organization.workosOrganizationId,
+        name: ownerIdentity.organization.name,
+      });
+
+      withAuthMock.mockResolvedValue({
+        user: {
+          id: realWorkosUserId,
+          email: pendingEmail,
+          firstName: null,
+          lastName: null,
+          profilePictureUrl: null,
+        },
+        organizationId: ownerIdentity.organization.workosOrganizationId,
+      });
+
+      const { resolveApiAuthContextFromSession } = await import("./workos-session");
+      const auth = await resolveApiAuthContextFromSession();
+
+      expect(auth?.membership.accessSource).toBe("workos_authoritative");
+      expect(auth?.activeOrganization.workosOrganizationId).toBe(
+        ownerIdentity.organization.workosOrganizationId,
+      );
+
+      const [user] = await db
+        .select({ workosUserId: schema.users.workosUserId })
+        .from(schema.users)
+        .where(eq(schema.users.email, pendingEmail))
+        .limit(1);
+
+      expect(user?.workosUserId).toBe(realWorkosUserId);
+    });
   });
 
   describe("route authorization for membership states", () => {
