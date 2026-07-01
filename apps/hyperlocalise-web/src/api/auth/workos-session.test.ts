@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
-import { syncWorkosIdentity, promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
+import { syncWorkosIdentity } from "@/api/auth/workos-sync";
 import { db, schema } from "@/lib/database";
 import { eq } from "drizzle-orm";
 import type { WorkosAuthIdentity } from "@/api/auth/workos";
@@ -384,6 +384,9 @@ describe("resolveApiAuthContextFromSession", () => {
         role: "member",
       },
     });
+
+    const { promoteInvitedPlaceholderUser } =
+      await vi.importActual<typeof import("@/api/auth/workos-sync")>("@/api/auth/workos-sync");
 
     await promoteInvitedPlaceholderUser(db, {
       email: pendingEmail,
