@@ -139,13 +139,13 @@ vi.mock("@/lib/providers/provider-safe-fetch", () => ({
         return listResponse(countStrings(5));
       }
       if (croql.includes("not is approved")) {
-        return listResponse(countStrings(1));
+        return listResponse(countStrings(3));
       }
       if (croql.includes("is approved")) {
         return listResponse(countStrings(2));
       }
       if (croql.includes("is translated")) {
-        return listResponse(countStrings(3));
+        return listResponse(countStrings(4));
       }
       if (croql.includes("has unresolved issue")) {
         return listResponse(countStrings(1));
@@ -375,8 +375,8 @@ describe("checkCrowdinProgress", () => {
           targetLocale: "fr",
           total: 5,
           reviewed: 2,
-          untranslated: 3,
-          needsReview: 1,
+          untranslated: 4,
+          needsReview: 3,
           hasIssues: 1,
         },
       });
@@ -399,6 +399,23 @@ describe("checkCrowdinProgress", () => {
       expect(result.error.message).toContain("Multiple Crowdin files matched");
       expect(result.error.message).toContain("/app/locales/messages.json");
       expect(result.error.message).toContain("/admin/locales/admin.json");
+    }
+  });
+
+  it("returns a not found error when no Crowdin file matches the path", async () => {
+    const result = await checkCrowdinProgress({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      scope: "file",
+      filePath: "nonexistent.json",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatchObject({
+        code: "crowdin_resource_not_found",
+        message: 'No Crowdin file matched "nonexistent.json".',
+      });
     }
   });
 
