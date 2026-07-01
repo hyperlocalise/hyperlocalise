@@ -70,6 +70,7 @@ import { IntegrationCategoryLabel, integrationConnectButtonClassName } from "./i
 import { ModelProviderCard, type ModelProviderCardConfig } from "./model-provider-card";
 import { SimpleBrandIcon } from "./simple-brand-icon";
 import { TmsProviderCredentialPanel } from "./tms-provider-credential-panel";
+import { getTmsUserOAuthErrorCopy } from "@/lib/providers/tms-user-oauth-error-copy";
 import { tmsUserConnectCtaQueryKey } from "../../_hooks/use-tms-user-connect-cta";
 
 const api = createApiClient();
@@ -81,84 +82,12 @@ type IntegrationsPageContentProps = {
   errorCode?: string | null;
 };
 
-type IntegrationErrorCopy = {
-  title: string;
-  description: string;
-};
-
-const integrationErrorCopyByCode = {
-  crowdin_user_oauth_exchange_failed: {
-    title: "Crowdin account link failed",
-    description:
-      "Crowdin did not return an access token. Check that the OAuth app callback URL, client ID, client secret, and app type match the Crowdin OAuth App configuration.",
-  },
-  crowdin_user_oauth_invalid: {
-    title: "Crowdin account link failed",
-    description:
-      "Crowdin rejected the access token returned during authorization. Try connecting again, then verify the OAuth app credentials if it repeats.",
-  },
-  crowdin_user_lookup_failed: {
-    title: "Crowdin account link failed",
-    description:
-      "Hyperlocalise received a token but could not load the authorized Crowdin user. For Crowdin Enterprise, verify the API base URL uses your organization domain.",
-  },
-  crowdin_integration_not_connected: {
-    title: "Crowdin integration is not connected",
-    description: "Save the Crowdin OAuth app credentials before linking a user account.",
-  },
-  crowdin_user_already_linked: {
-    title: "Crowdin account already linked",
-    description:
-      "That Crowdin user is already linked to another Hyperlocalise user in this workspace.",
-  },
-  missing_crowdin_user_oauth_code: {
-    title: "Crowdin account link was cancelled",
-    description: "Crowdin did not return an authorization code. Start the connection again.",
-  },
-  phrase_user_oauth_exchange_failed: {
-    title: "Phrase account link failed",
-    description:
-      "Phrase did not return an access token. Check that the OAuth app callback URL, client ID, and client secret match the Phrase OAuth App configuration.",
-  },
-  phrase_user_oauth_invalid: {
-    title: "Phrase account link failed",
-    description:
-      "Phrase rejected the access token returned during authorization. Try connecting again.",
-  },
-  phrase_user_lookup_failed: {
-    title: "Phrase account link failed",
-    description: "Hyperlocalise received a token but could not load the authorized Phrase user.",
-  },
-  phrase_integration_not_connected: {
-    title: "Phrase integration is not connected",
-    description: "Save the Phrase OAuth app credentials before linking a user account.",
-  },
-  phrase_user_already_linked: {
-    title: "Phrase account already linked",
-    description:
-      "That Phrase user is already linked to another Hyperlocalise user in this workspace.",
-  },
-  missing_phrase_user_oauth_code: {
-    title: "Phrase account link was cancelled",
-    description: "Phrase did not return an authorization code. Start the connection again.",
-  },
-  invalid_phrase_oauth_state: {
-    title: "Phrase account link expired",
-    description: "This Phrase connection link expired. Start Connect Phrase again.",
-  },
-} satisfies Record<string, IntegrationErrorCopy>;
-
 function canManageIntegrations(role: OrganizationMembershipRole) {
   return hasCapability(role, "integrations:write");
 }
 
 function canManageAgents(role: OrganizationMembershipRole) {
   return hasCapability(role, "provider_credentials:write");
-}
-
-function getIntegrationErrorCopy(error: string | null) {
-  if (!error) return null;
-  return integrationErrorCopyByCode[error as keyof typeof integrationErrorCopyByCode] ?? null;
 }
 
 type ProviderCredentialSummary = {
@@ -417,14 +346,44 @@ function useSaveExternalTmsCredential(organizationSlug: string) {
   });
 }
 
+function buildTmsOAuthAppPayload(input: {
+  displayName: string;
+  oauthClientId: string;
+  oauthClientSecret: string;
+  baseUrl: string;
+}) {
+  const payload: {
+    displayName: string;
+    oauthClientId?: string;
+    oauthClientSecret?: string;
+    baseUrl?: string;
+  } = {
+    displayName: input.displayName.trim(),
+  };
+
+  const oauthClientId = input.oauthClientId.trim();
+  const oauthClientSecret = input.oauthClientSecret.trim();
+  if (oauthClientId && oauthClientSecret) {
+    payload.oauthClientId = oauthClientId;
+    payload.oauthClientSecret = oauthClientSecret;
+  }
+
+  const baseUrl = input.baseUrl.trim();
+  if (baseUrl) {
+    payload.baseUrl = baseUrl;
+  }
+
+  return payload;
+}
+
 function useSaveCrowdinOAuthApp(organizationSlug: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
     mutationFn: async (payload: {
       displayName: string;
-      oauthClientId: string;
-      oauthClientSecret: string;
+      oauthClientId?: string;
+      oauthClientSecret?: string;
       baseUrl?: string;
     }) => {
       const res = await api.api.orgs[":organizationSlug"][
@@ -444,7 +403,7 @@ function useSaveCrowdinOAuthApp(organizationSlug: string) {
 
       return res.json();
     },
-    onSuccess: async (_, payload) => {
+    onSuccess: async (result, payload) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["external-tms-credentials", organizationSlug],
@@ -459,7 +418,11 @@ function useSaveCrowdinOAuthApp(organizationSlug: string) {
           queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
         }),
       ]);
-      toast.success(`${payload.displayName} saved. Connect your Crowdin account to continue.`);
+      if (result.shouldConnectCrowdinUser) {
+        toast.success(`${payload.displayName} saved. Connect your Crowdin account to continue.`);
+        return;
+      }
+      toast.success(`${payload.displayName} settings saved`);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -473,8 +436,8 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
   return useMutation({
     mutationFn: async (payload: {
       displayName: string;
-      oauthClientId: string;
-      oauthClientSecret: string;
+      oauthClientId?: string;
+      oauthClientSecret?: string;
       baseUrl?: string;
     }) => {
       const res = await api.api.orgs[":organizationSlug"][
@@ -494,7 +457,7 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
 
       return res.json();
     },
-    onSuccess: async (_, payload) => {
+    onSuccess: async (result, payload) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["external-tms-credentials", organizationSlug],
@@ -509,7 +472,11 @@ function useSavePhraseOAuthApp(organizationSlug: string) {
           queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
         }),
       ]);
-      toast.success(`${payload.displayName} saved. Connect your Phrase account to continue.`);
+      if (result.shouldConnectPhraseUser) {
+        toast.success(`${payload.displayName} saved. Connect your Phrase account to continue.`);
+        return;
+      }
+      toast.success(`${payload.displayName} settings saved`);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -523,8 +490,8 @@ function useSaveLokaliseOAuthApp(organizationSlug: string) {
   return useMutation({
     mutationFn: async (payload: {
       displayName: string;
-      oauthClientId: string;
-      oauthClientSecret: string;
+      oauthClientId?: string;
+      oauthClientSecret?: string;
       baseUrl?: string;
     }) => {
       const res = await api.api.orgs[":organizationSlug"][
@@ -544,7 +511,7 @@ function useSaveLokaliseOAuthApp(organizationSlug: string) {
 
       return res.json();
     },
-    onSuccess: async (_, payload) => {
+    onSuccess: async (result, payload) => {
       await Promise.all([
         queryClient.invalidateQueries({
           queryKey: ["external-tms-credentials", organizationSlug],
@@ -559,7 +526,11 @@ function useSaveLokaliseOAuthApp(organizationSlug: string) {
           queryKey: tmsUserConnectCtaQueryKey(organizationSlug),
         }),
       ]);
-      toast.success(`${payload.displayName} saved. Connect your Lokalise account to continue.`);
+      if (result.shouldConnectLokaliseUser) {
+        toast.success(`${payload.displayName} saved. Connect your Lokalise account to continue.`);
+        return;
+      }
+      toast.success(`${payload.displayName} settings saved`);
     },
     onError: (error) => {
       toast.error(error.message);
@@ -827,7 +798,7 @@ export function IntegrationsPageContent({
   canManageProviderIntegrations,
   errorCode,
 }: IntegrationsPageContentProps) {
-  const integrationError = getIntegrationErrorCopy(errorCode ?? null);
+  const integrationError = getTmsUserOAuthErrorCopy(errorCode ?? null);
   const { data: credential, isLoading } = useProviderCredential(organizationSlug);
   const saveCredential = useSaveProviderCredential(organizationSlug);
   const deleteCredential = useDeleteProviderCredential(organizationSlug);
@@ -1059,30 +1030,40 @@ export function IntegrationsPageContent({
                           onToggleShowSecret={() => setShowTmsSecret((current) => !current)}
                           onDisconnect={() => setDisconnectingTmsProvider(integration.providerKind)}
                           onSave={() => {
+                            const oauthPayload = buildTmsOAuthAppPayload({
+                              displayName: tmsDisplayName,
+                              oauthClientId: tmsOauthClientId,
+                              oauthClientSecret: tmsOauthClientSecret,
+                              baseUrl: tmsBaseUrl,
+                            });
+
                             if (integration.providerKind === "crowdin") {
-                              saveCrowdinOAuthApp.mutate({
-                                displayName: tmsDisplayName.trim(),
-                                oauthClientId: tmsOauthClientId.trim(),
-                                oauthClientSecret: tmsOauthClientSecret.trim(),
-                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              saveCrowdinOAuthApp.mutate(oauthPayload, {
+                                onSuccess: () => {
+                                  setTmsOauthClientId("");
+                                  setTmsOauthClientSecret("");
+                                  setShowTmsSecret(false);
+                                },
                               });
                               return;
                             }
                             if (integration.providerKind === "phrase") {
-                              savePhraseOAuthApp.mutate({
-                                displayName: tmsDisplayName.trim(),
-                                oauthClientId: tmsOauthClientId.trim(),
-                                oauthClientSecret: tmsOauthClientSecret.trim(),
-                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              savePhraseOAuthApp.mutate(oauthPayload, {
+                                onSuccess: () => {
+                                  setTmsOauthClientId("");
+                                  setTmsOauthClientSecret("");
+                                  setShowTmsSecret(false);
+                                },
                               });
                               return;
                             }
                             if (integration.providerKind === "lokalise") {
-                              saveLokaliseOAuthApp.mutate({
-                                displayName: tmsDisplayName.trim(),
-                                oauthClientId: tmsOauthClientId.trim(),
-                                oauthClientSecret: tmsOauthClientSecret.trim(),
-                                ...(tmsBaseUrl.trim() ? { baseUrl: tmsBaseUrl.trim() } : {}),
+                              saveLokaliseOAuthApp.mutate(oauthPayload, {
+                                onSuccess: () => {
+                                  setTmsOauthClientId("");
+                                  setTmsOauthClientSecret("");
+                                  setShowTmsSecret(false);
+                                },
                               });
                               return;
                             }

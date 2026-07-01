@@ -81,7 +81,12 @@ import {
   upsertExternalTmsProviderCredentialBodySchema,
 } from "./external-tms-provider-credential.schema";
 import { normalizeUserOAuthReturnTo } from "./normalize-user-oauth-return-to";
-import { buildTmsUserOAuthProfileLookupLogContext } from "./tms-user-oauth-profile-lookup-log-context";
+import {
+  buildTmsUserOAuthProfileLookupLogContext,
+  buildTmsUserOAuthTokenExchangeErroredLogContext,
+  buildTmsUserOAuthTokenExchangeFailedLogContext,
+  readOAuthTokenErrorResponseBody,
+} from "./tms-user-oauth-log-context";
 
 const CROWDIN_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 const PHRASE_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
@@ -213,6 +218,27 @@ function getLokaliseOAuthRedirectUri(
   organizationSlug: string,
 ) {
   return `${getCrowdinOAuthRequestOrigin(c)}/api/orgs/${encodeURIComponent(organizationSlug)}/external-tms-provider-credential/lokalise/oauth/callback`;
+}
+
+function getOAuthClientFromPayload(payload: {
+  oauthClientId?: string;
+  oauthClientSecret?: string;
+}) {
+  if (!payload.oauthClientId || !payload.oauthClientSecret) {
+    return undefined;
+  }
+
+  return {
+    clientId: payload.oauthClientId,
+    clientSecret: payload.oauthClientSecret,
+  };
+}
+
+function oauthClientRequiredErrorResponse(providerKind: "crowdin" | "phrase" | "lokalise") {
+  return {
+    error: `${providerKind}_oauth_client_required`,
+    message: "OAuth client ID and client secret are required when connecting for the first time.",
+  };
 }
 
 function base64Url(input: Buffer) {
@@ -398,7 +424,13 @@ async function completeCrowdinUserOAuthLink(
           organizationId: c.var.auth.organization.localOrganizationId,
           userId: c.var.auth.user.localUserId,
           providerCredentialId: input.credential.id,
-          status: response.status,
+          ...buildTmsUserOAuthTokenExchangeFailedLogContext({
+            provider: "crowdin",
+            credentialBaseUrl: input.credential.baseUrl,
+            status: response.status,
+            redirectUri: input.redirectUri,
+            responseBody: await readOAuthTokenErrorResponseBody(response),
+          }),
         },
         "crowdin user oauth token exchange failed",
       );
@@ -409,12 +441,18 @@ async function completeCrowdinUserOAuthLink(
       });
     }
     tokenBundle = mapCrowdinOAuthTokenResponse(await response.json(), input.client);
-  } catch {
+  } catch (error) {
     logger.warn(
       {
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         providerCredentialId: input.credential.id,
+        ...buildTmsUserOAuthTokenExchangeErroredLogContext({
+          provider: "crowdin",
+          credentialBaseUrl: input.credential.baseUrl,
+          redirectUri: input.redirectUri,
+          error,
+        }),
       },
       "crowdin user oauth token exchange errored",
     );
@@ -621,7 +659,13 @@ async function completePhraseUserOAuthLink(
           organizationId: c.var.auth.organization.localOrganizationId,
           userId: c.var.auth.user.localUserId,
           providerCredentialId: input.credential.id,
-          status: response.status,
+          ...buildTmsUserOAuthTokenExchangeFailedLogContext({
+            provider: "phrase",
+            credentialBaseUrl: input.credential.baseUrl,
+            status: response.status,
+            redirectUri: input.redirectUri,
+            responseBody: await readOAuthTokenErrorResponseBody(response),
+          }),
         },
         "phrase user oauth token exchange failed",
       );
@@ -632,12 +676,18 @@ async function completePhraseUserOAuthLink(
       });
     }
     tokenBundle = mapPhraseOAuthTokenResponse(await response.json(), input.client);
-  } catch {
+  } catch (error) {
     logger.warn(
       {
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         providerCredentialId: input.credential.id,
+        ...buildTmsUserOAuthTokenExchangeErroredLogContext({
+          provider: "phrase",
+          credentialBaseUrl: input.credential.baseUrl,
+          redirectUri: input.redirectUri,
+          error,
+        }),
       },
       "phrase user oauth token exchange errored",
     );
@@ -832,7 +882,13 @@ async function completeLokaliseUserOAuthLink(
           organizationId: c.var.auth.organization.localOrganizationId,
           userId: c.var.auth.user.localUserId,
           providerCredentialId: input.credential.id,
-          status: response.status,
+          ...buildTmsUserOAuthTokenExchangeFailedLogContext({
+            provider: "lokalise",
+            credentialBaseUrl: input.credential.baseUrl,
+            status: response.status,
+            redirectUri: input.redirectUri,
+            responseBody: await readOAuthTokenErrorResponseBody(response),
+          }),
         },
         "lokalise user oauth token exchange failed",
       );
@@ -843,12 +899,18 @@ async function completeLokaliseUserOAuthLink(
       });
     }
     tokenBundle = mapLokaliseOAuthTokenResponse(await response.json(), input.client);
-  } catch {
+  } catch (error) {
     logger.warn(
       {
         organizationId: c.var.auth.organization.localOrganizationId,
         userId: c.var.auth.user.localUserId,
         providerCredentialId: input.credential.id,
+        ...buildTmsUserOAuthTokenExchangeErroredLogContext({
+          provider: "lokalise",
+          credentialBaseUrl: input.credential.baseUrl,
+          redirectUri: input.redirectUri,
+          error,
+        }),
       },
       "lokalise user oauth token exchange errored",
     );
@@ -1133,6 +1195,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
+        const oauthClient = getOAuthClientFromPayload(payload);
         const credentialResult = await withNewIntegrationLimit(
           {
             organizationId,
@@ -1144,10 +1207,7 @@ export function createExternalTmsProviderCredentialRoutes() {
               userId: c.var.auth.user.localUserId,
               role: c.var.auth.membership.role,
               displayName: payload.displayName,
-              oauthClient: {
-                clientId: payload.oauthClientId,
-                clientSecret: payload.oauthClientSecret,
-              },
+              oauthClient,
               baseUrl: payload.baseUrl ?? null,
               db: database,
             }),
@@ -1162,11 +1222,14 @@ export function createExternalTmsProviderCredentialRoutes() {
         return c.json(
           {
             externalTmsProviderCredential: providerCredential,
-            shouldConnectCrowdinUser: true,
+            shouldConnectCrowdinUser: Boolean(oauthClient),
           },
           200,
         );
       } catch (error) {
+        if (error instanceof Error && error.message === "crowdin_oauth_client_required") {
+          return c.json(oauthClientRequiredErrorResponse("crowdin"), 400);
+        }
         if (error instanceof Error && error.message === "provider_base_url_invalid") {
           return c.json(
             {
@@ -1186,6 +1249,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
+        const oauthClient = getOAuthClientFromPayload(payload);
         const credentialResult = await withNewIntegrationLimit(
           {
             organizationId,
@@ -1197,10 +1261,7 @@ export function createExternalTmsProviderCredentialRoutes() {
               userId: c.var.auth.user.localUserId,
               role: c.var.auth.membership.role,
               displayName: payload.displayName,
-              oauthClient: {
-                clientId: payload.oauthClientId,
-                clientSecret: payload.oauthClientSecret,
-              },
+              oauthClient,
               baseUrl: payload.baseUrl ?? null,
               db: database,
             }),
@@ -1215,11 +1276,14 @@ export function createExternalTmsProviderCredentialRoutes() {
         return c.json(
           {
             externalTmsProviderCredential: providerCredential,
-            shouldConnectPhraseUser: true,
+            shouldConnectPhraseUser: Boolean(oauthClient),
           },
           200,
         );
       } catch (error) {
+        if (error instanceof Error && error.message === "phrase_oauth_client_required") {
+          return c.json(oauthClientRequiredErrorResponse("phrase"), 400);
+        }
         if (error instanceof Error && error.message === "provider_base_url_invalid") {
           return c.json(
             {
@@ -1239,6 +1303,7 @@ export function createExternalTmsProviderCredentialRoutes() {
         }
         const payload = c.req.valid("json");
         const organizationId = c.var.auth.organization.localOrganizationId;
+        const oauthClient = getOAuthClientFromPayload(payload);
         const credentialResult = await withNewIntegrationLimit(
           {
             organizationId,
@@ -1250,10 +1315,7 @@ export function createExternalTmsProviderCredentialRoutes() {
               userId: c.var.auth.user.localUserId,
               role: c.var.auth.membership.role,
               displayName: payload.displayName,
-              oauthClient: {
-                clientId: payload.oauthClientId,
-                clientSecret: payload.oauthClientSecret,
-              },
+              oauthClient,
               baseUrl: payload.baseUrl ?? null,
               db: database,
             }),
@@ -1268,11 +1330,14 @@ export function createExternalTmsProviderCredentialRoutes() {
         return c.json(
           {
             externalTmsProviderCredential: providerCredential,
-            shouldConnectLokaliseUser: true,
+            shouldConnectLokaliseUser: Boolean(oauthClient),
           },
           200,
         );
       } catch (error) {
+        if (error instanceof Error && error.message === "lokalise_oauth_client_required") {
+          return c.json(oauthClientRequiredErrorResponse("lokalise"), 400);
+        }
         if (error instanceof Error && error.message === "provider_base_url_invalid") {
           return c.json(
             {

@@ -9,6 +9,7 @@ import {
   encryptProviderCredential,
   maskProviderCredentialSuffix,
   unwrapProviderCredentialCrypto,
+  type EncryptedProviderCredential,
 } from "@/lib/security/provider-credential-crypto";
 import {
   getTmsProviderCapability,
@@ -44,6 +45,63 @@ async function runInDatabaseTransaction<T>(
 ): Promise<T> {
   if (database) return run(database);
   return db.transaction(run);
+}
+
+type OAuthClientMaterial = {
+  clientId: string;
+  clientSecret: string;
+};
+
+type ResolvedOAuthCredentialCrypto = {
+  encrypted: EncryptedProviderCredential;
+  maskedSecretSuffix: string;
+  replacesOAuthClient: boolean;
+};
+
+async function resolveOAuthCredentialCryptoForUpsert(input: {
+  organizationId: string;
+  providerKind: ExternalTmsProviderKind;
+  oauthClient?: OAuthClientMaterial;
+  db: DatabaseClient;
+}): Promise<ResolvedOAuthCredentialCrypto> {
+  if (input.oauthClient) {
+    const secretMaterial = JSON.stringify({
+      clientId: input.oauthClient.clientId,
+      clientSecret: input.oauthClient.clientSecret,
+    });
+    return {
+      encrypted: unwrapProviderCredentialCrypto(encryptProviderCredential(secretMaterial)),
+      maskedSecretSuffix: "oauth",
+      replacesOAuthClient: true,
+    };
+  }
+
+  const [existing] = await input.db
+    .select()
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, input.providerKind),
+      ),
+    )
+    .limit(1);
+
+  if (!existing) {
+    throw new Error(`${input.providerKind}_oauth_client_required`);
+  }
+
+  return {
+    encrypted: {
+      algorithm: existing.encryptionAlgorithm,
+      ciphertext: existing.ciphertext,
+      iv: existing.iv,
+      authTag: existing.authTag,
+      keyVersion: existing.keyVersion,
+    } satisfies EncryptedProviderCredential,
+    maskedSecretSuffix: existing.maskedSecretSuffix,
+    replacesOAuthClient: false,
+  };
 }
 
 const crowdinOAuthTokenBundleSchema = z.object({
@@ -361,15 +419,6 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
 
   const now = new Date();
   const oauthClient = input.oauthClient ?? input.tokenBundle;
-  if (!oauthClient) {
-    throw new Error("crowdin_oauth_client_required");
-  }
-
-  const secretMaterial = JSON.stringify({
-    clientId: oauthClient.clientId,
-    clientSecret: oauthClient.clientSecret,
-  });
-  const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(secretMaterial));
   const baseUrl = await normalizeExternalTmsCredentialBaseUrl({
     providerKind: "crowdin",
     region: null,
@@ -377,6 +426,14 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
   });
 
   const credential = await runInDatabaseTransaction(input.db, async (tx) => {
+    const { encrypted, maskedSecretSuffix, replacesOAuthClient } =
+      await resolveOAuthCredentialCryptoForUpsert({
+        organizationId: input.organizationId,
+        providerKind: "crowdin",
+        oauthClient,
+        db: tx,
+      });
+
     await tx
       .delete(schema.organizationExternalTmsProviderCredentials)
       .where(
@@ -388,6 +445,22 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
           ne(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
         ),
       );
+
+    const credentialReplacementFields = replacesOAuthClient
+      ? {
+          authMode: OAUTH_AUTH_MODE,
+          oauthExpiresAt: null,
+          validationStatus: "unvalidated" as const,
+          validationMessage: null,
+          lastValidatedAt: null,
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          maskedSecretSuffix,
+        }
+      : {};
 
     const [row] = await tx
       .insert(schema.organizationExternalTmsProviderCredentials)
@@ -407,7 +480,7 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
         iv: encrypted.iv,
         authTag: encrypted.authTag,
         keyVersion: encrypted.keyVersion,
-        maskedSecretSuffix: "oauth",
+        maskedSecretSuffix,
       })
       .onConflictDoUpdate({
         target: [
@@ -417,20 +490,10 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
         set: {
           updatedByUserId: input.userId,
           displayName: input.displayName,
-          authMode: OAUTH_AUTH_MODE,
           region: null,
           baseUrl,
-          oauthExpiresAt: null,
-          validationStatus: "unvalidated",
-          validationMessage: null,
-          lastValidatedAt: null,
-          encryptionAlgorithm: encrypted.algorithm,
-          ciphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
-          authTag: encrypted.authTag,
-          keyVersion: encrypted.keyVersion,
-          maskedSecretSuffix: "oauth",
           updatedAt: now,
+          ...credentialReplacementFields,
         },
       })
       .returning();
@@ -446,21 +509,24 @@ export async function upsertPhraseOAuthProviderCredential(input: {
   userId: string;
   role: OrganizationMembershipRole;
   displayName: string;
-  oauthClient: PhraseOAuthClientMaterial;
+  oauthClient?: PhraseOAuthClientMaterial;
   baseUrl?: string | null;
   db?: DatabaseClient;
 }) {
   assertExternalTmsCredentialAdmin(input.role);
 
   const now = new Date();
-  const secretMaterial = JSON.stringify({
-    clientId: input.oauthClient.clientId,
-    clientSecret: input.oauthClient.clientSecret,
-  });
-  const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(secretMaterial));
   const baseUrl = await normalizePhraseOAuthCredentialBaseUrl(input.baseUrl ?? null);
 
   const credential = await runInDatabaseTransaction(input.db, async (tx) => {
+    const { encrypted, maskedSecretSuffix, replacesOAuthClient } =
+      await resolveOAuthCredentialCryptoForUpsert({
+        organizationId: input.organizationId,
+        providerKind: "phrase",
+        oauthClient: input.oauthClient,
+        db: tx,
+      });
+
     await tx
       .delete(schema.organizationExternalTmsProviderCredentials)
       .where(
@@ -472,6 +538,22 @@ export async function upsertPhraseOAuthProviderCredential(input: {
           ne(schema.organizationExternalTmsProviderCredentials.providerKind, "phrase"),
         ),
       );
+
+    const credentialReplacementFields = replacesOAuthClient
+      ? {
+          authMode: OAUTH_AUTH_MODE,
+          oauthExpiresAt: null,
+          validationStatus: "unvalidated" as const,
+          validationMessage: null,
+          lastValidatedAt: null,
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          maskedSecretSuffix,
+        }
+      : {};
 
     const [row] = await tx
       .insert(schema.organizationExternalTmsProviderCredentials)
@@ -491,7 +573,7 @@ export async function upsertPhraseOAuthProviderCredential(input: {
         iv: encrypted.iv,
         authTag: encrypted.authTag,
         keyVersion: encrypted.keyVersion,
-        maskedSecretSuffix: "oauth",
+        maskedSecretSuffix,
       })
       .onConflictDoUpdate({
         target: [
@@ -501,20 +583,10 @@ export async function upsertPhraseOAuthProviderCredential(input: {
         set: {
           updatedByUserId: input.userId,
           displayName: input.displayName,
-          authMode: OAUTH_AUTH_MODE,
           region: null,
           baseUrl,
-          oauthExpiresAt: null,
-          validationStatus: "unvalidated",
-          validationMessage: null,
-          lastValidatedAt: null,
-          encryptionAlgorithm: encrypted.algorithm,
-          ciphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
-          authTag: encrypted.authTag,
-          keyVersion: encrypted.keyVersion,
-          maskedSecretSuffix: "oauth",
           updatedAt: now,
+          ...credentialReplacementFields,
         },
       })
       .returning();
@@ -530,18 +602,13 @@ export async function upsertLokaliseOAuthProviderCredential(input: {
   userId: string;
   role: OrganizationMembershipRole;
   displayName: string;
-  oauthClient: LokaliseOAuthClientMaterial;
+  oauthClient?: LokaliseOAuthClientMaterial;
   baseUrl?: string | null;
   db?: DatabaseClient;
 }) {
   assertExternalTmsCredentialAdmin(input.role);
 
   const now = new Date();
-  const secretMaterial = JSON.stringify({
-    clientId: input.oauthClient.clientId,
-    clientSecret: input.oauthClient.clientSecret,
-  });
-  const encrypted = unwrapProviderCredentialCrypto(encryptProviderCredential(secretMaterial));
   const baseUrl = await normalizeExternalTmsCredentialBaseUrl({
     providerKind: "lokalise",
     region: null,
@@ -549,6 +616,14 @@ export async function upsertLokaliseOAuthProviderCredential(input: {
   });
 
   const credential = await runInDatabaseTransaction(input.db, async (tx) => {
+    const { encrypted, maskedSecretSuffix, replacesOAuthClient } =
+      await resolveOAuthCredentialCryptoForUpsert({
+        organizationId: input.organizationId,
+        providerKind: "lokalise",
+        oauthClient: input.oauthClient,
+        db: tx,
+      });
+
     await tx
       .delete(schema.organizationExternalTmsProviderCredentials)
       .where(
@@ -560,6 +635,22 @@ export async function upsertLokaliseOAuthProviderCredential(input: {
           ne(schema.organizationExternalTmsProviderCredentials.providerKind, "lokalise"),
         ),
       );
+
+    const credentialReplacementFields = replacesOAuthClient
+      ? {
+          authMode: OAUTH_AUTH_MODE,
+          oauthExpiresAt: null,
+          validationStatus: "unvalidated" as const,
+          validationMessage: null,
+          lastValidatedAt: null,
+          encryptionAlgorithm: encrypted.algorithm,
+          ciphertext: encrypted.ciphertext,
+          iv: encrypted.iv,
+          authTag: encrypted.authTag,
+          keyVersion: encrypted.keyVersion,
+          maskedSecretSuffix,
+        }
+      : {};
 
     const [row] = await tx
       .insert(schema.organizationExternalTmsProviderCredentials)
@@ -579,7 +670,7 @@ export async function upsertLokaliseOAuthProviderCredential(input: {
         iv: encrypted.iv,
         authTag: encrypted.authTag,
         keyVersion: encrypted.keyVersion,
-        maskedSecretSuffix: "oauth",
+        maskedSecretSuffix,
       })
       .onConflictDoUpdate({
         target: [
@@ -589,20 +680,10 @@ export async function upsertLokaliseOAuthProviderCredential(input: {
         set: {
           updatedByUserId: input.userId,
           displayName: input.displayName,
-          authMode: OAUTH_AUTH_MODE,
           region: null,
           baseUrl,
-          oauthExpiresAt: null,
-          validationStatus: "unvalidated",
-          validationMessage: null,
-          lastValidatedAt: null,
-          encryptionAlgorithm: encrypted.algorithm,
-          ciphertext: encrypted.ciphertext,
-          iv: encrypted.iv,
-          authTag: encrypted.authTag,
-          keyVersion: encrypted.keyVersion,
-          maskedSecretSuffix: "oauth",
           updatedAt: now,
+          ...credentialReplacementFields,
         },
       })
       .returning();

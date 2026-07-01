@@ -46,6 +46,7 @@ function CrowdinOAuthSetupFields({
   onOauthClientSecretChange,
   showSecret,
   onToggleShowSecret,
+  allowExistingCredentials,
 }: {
   providerKind: ExternalTmsProviderKind;
   providerName: string;
@@ -61,6 +62,7 @@ function CrowdinOAuthSetupFields({
   onOauthClientSecretChange: (value: string) => void;
   showSecret: boolean;
   onToggleShowSecret: () => void;
+  allowExistingCredentials?: boolean;
 }) {
   return (
     <>
@@ -136,7 +138,11 @@ function CrowdinOAuthSetupFields({
           value={oauthClientId}
           onChange={(event) => onOauthClientIdChange(event.target.value)}
           autoComplete="off"
-          placeholder={`${providerName} OAuth App client ID`}
+          placeholder={
+            allowExistingCredentials
+              ? "Leave blank to keep existing client ID"
+              : `${providerName} OAuth App client ID`
+          }
         />
       </Field>
 
@@ -154,7 +160,11 @@ function CrowdinOAuthSetupFields({
             autoComplete="off"
             value={oauthClientSecret}
             onChange={(event) => onOauthClientSecretChange(event.target.value)}
-            placeholder={`${providerName} OAuth App client secret`}
+            placeholder={
+              allowExistingCredentials
+                ? "Leave blank to keep existing client secret"
+                : `${providerName} OAuth App client secret`
+            }
             className="ps-9 pe-9"
           />
           <button
@@ -295,11 +305,15 @@ export function TmsProviderCredentialPanel({
   const isOAuthConnected = isOAuthProvider && credential?.authMode === "oauth";
   const [oauthReconnectOpen, setOauthReconnectOpen] = useState(false);
   const showOAuthSetupFields = !isOAuthConnected || oauthReconnectOpen;
+  const hasPartialOAuthCredentials =
+    Boolean(oauthClientId.trim()) !== Boolean(oauthClientSecret.trim());
 
   const canSubmit = isOAuthProvider
     ? isOAuthConnected && !oauthReconnectOpen
-      ? false
-      : Boolean(displayName.trim() && oauthClientId.trim() && oauthClientSecret.trim())
+      ? Boolean(displayName.trim()) && !hasPartialOAuthCredentials
+      : Boolean(displayName.trim()) &&
+        !hasPartialOAuthCredentials &&
+        (isOAuthConnected || Boolean(oauthClientId.trim() && oauthClientSecret.trim()))
     : Boolean(displayName.trim() && secret.trim());
 
   return (
@@ -385,6 +399,7 @@ export function TmsProviderCredentialPanel({
               onOauthClientSecretChange={onOauthClientSecretChange}
               showSecret={showSecret}
               onToggleShowSecret={onToggleShowSecret}
+              allowExistingCredentials={isOAuthConnected}
             />
           </CollapsibleContent>
         </Collapsible>
@@ -489,9 +504,11 @@ export function TmsProviderCredentialPanel({
           {isSaving
             ? "Saving..."
             : isOAuthProvider
-              ? isOAuthConnected
-                ? `Update ${providerName}`
-                : `Save ${providerName}`
+              ? isOAuthConnected && !oauthReconnectOpen
+                ? `Save ${providerName} settings`
+                : isOAuthConnected
+                  ? `Update ${providerName}`
+                  : `Save ${providerName}`
               : "Save provider"}
         </Button>
       </div>

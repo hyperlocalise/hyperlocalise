@@ -9,7 +9,7 @@ const CROWDIN_DEFAULT_BASE_URL = "https://api.crowdin.com/api/v2";
 
 const PROVIDER_API_PATH_PATTERN = / returned HTTP \d+ for (.+)$/;
 
-export type TmsUserOAuthProfileLookupProvider = "crowdin" | "phrase" | "lokalise";
+export type TmsUserOAuthProvider = "crowdin" | "phrase" | "lokalise";
 
 type ProviderOAuthProfileLookupConfig = {
   defaultBaseUrl: string;
@@ -18,7 +18,7 @@ type ProviderOAuthProfileLookupConfig = {
 };
 
 const PROVIDER_OAUTH_PROFILE_LOOKUP_CONFIG: Record<
-  TmsUserOAuthProfileLookupProvider,
+  TmsUserOAuthProvider,
   ProviderOAuthProfileLookupConfig
 > = {
   crowdin: {
@@ -46,7 +46,7 @@ type ProviderApiErrorLike = Error & {
 };
 
 export type TmsUserOAuthProfileLookupLogContext = {
-  provider: TmsUserOAuthProfileLookupProvider;
+  provider: TmsUserOAuthProvider;
   apiHostname: string;
   isCustomBaseUrl: boolean;
   requestPath: string;
@@ -56,6 +56,27 @@ export type TmsUserOAuthProfileLookupLogContext = {
   errorName?: string;
   errorType?: string;
   resolutionCode?: string;
+};
+
+export type TmsUserOAuthTokenExchangeFailedLogContext = {
+  provider: TmsUserOAuthProvider;
+  status: number;
+  redirectUri: string;
+  apiHostname: string;
+  isCustomBaseUrl: boolean;
+  oauthError?: string;
+  oauthErrorDescription?: string;
+  providerErrorCode?: string | number;
+  providerErrorMessage?: string;
+};
+
+export type TmsUserOAuthTokenExchangeErroredLogContext = {
+  provider: TmsUserOAuthProvider;
+  redirectUri: string;
+  apiHostname: string;
+  isCustomBaseUrl: boolean;
+  errorName?: string;
+  errorType?: string;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -90,6 +111,19 @@ export function isSafeProviderErrorMessage(value: unknown): value is string {
   }
 
   return true;
+}
+
+export function isSafeOAuthErrorCode(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > 64) {
+    return false;
+  }
+
+  return /^[a-z0-9_]+$/.test(trimmed);
 }
 
 export function sanitizeProviderApiErrorResponseBody(responseBody: unknown): {
@@ -133,6 +167,61 @@ export function sanitizeProviderApiErrorResponseBody(responseBody: unknown): {
   return Object.keys(sanitized).length > 0 ? sanitized : null;
 }
 
+export function sanitizeOAuthTokenErrorResponseBody(responseBody: unknown): {
+  oauthError?: string;
+  oauthErrorDescription?: string;
+  providerErrorCode?: string | number;
+  providerErrorMessage?: string;
+} | null {
+  if (!isRecord(responseBody)) {
+    return sanitizeProviderApiErrorResponseBody(responseBody);
+  }
+
+  if ("access_token" in responseBody || "refresh_token" in responseBody) {
+    return null;
+  }
+
+  const sanitized: {
+    oauthError?: string;
+    oauthErrorDescription?: string;
+    providerErrorCode?: string | number;
+    providerErrorMessage?: string;
+  } = {};
+
+  if (isSafeOAuthErrorCode(responseBody.error)) {
+    sanitized.oauthError = responseBody.error;
+  }
+
+  if (isSafeProviderErrorMessage(responseBody.error_description)) {
+    sanitized.oauthErrorDescription = responseBody.error_description;
+  }
+
+  const providerSanitized = sanitizeProviderApiErrorResponseBody(responseBody);
+  if (providerSanitized?.providerErrorCode !== undefined) {
+    sanitized.providerErrorCode = providerSanitized.providerErrorCode;
+  }
+  if (
+    providerSanitized?.providerErrorMessage &&
+    providerSanitized.providerErrorMessage !== sanitized.oauthError
+  ) {
+    sanitized.providerErrorMessage = providerSanitized.providerErrorMessage;
+  }
+
+  return Object.keys(sanitized).length > 0 ? sanitized : null;
+}
+
+export async function readOAuthTokenErrorResponseBody(response: Response): Promise<unknown> {
+  try {
+    const body = await response.json();
+    if (isRecord(body) && ("access_token" in body || "refresh_token" in body)) {
+      return null;
+    }
+    return body;
+  } catch {
+    return null;
+  }
+}
+
 export function extractRequestPathFromProviderApiError(error: Error): string | null {
   const match = error.message.match(PROVIDER_API_PATH_PATTERN);
   return match?.[1] ?? null;
@@ -142,8 +231,73 @@ function resolveApiHostname(baseUrl: string): string {
   return new URL(baseUrl).hostname;
 }
 
+function buildCredentialHostContext(input: {
+  provider: TmsUserOAuthProvider;
+  credentialBaseUrl: string | null | undefined;
+}) {
+  const config = PROVIDER_OAUTH_PROFILE_LOOKUP_CONFIG[input.provider];
+  const resolvedBaseUrl = config.resolveBaseUrl(input.credentialBaseUrl);
+
+  return {
+    provider: input.provider,
+    apiHostname: resolveApiHostname(resolvedBaseUrl),
+    isCustomBaseUrl: Boolean(input.credentialBaseUrl?.trim()),
+  };
+}
+
+export function buildTmsUserOAuthTokenExchangeFailedLogContext(input: {
+  provider: TmsUserOAuthProvider;
+  credentialBaseUrl: string | null | undefined;
+  status: number;
+  redirectUri: string;
+  responseBody: unknown;
+}): TmsUserOAuthTokenExchangeFailedLogContext {
+  const context: TmsUserOAuthTokenExchangeFailedLogContext = {
+    ...buildCredentialHostContext(input),
+    status: input.status,
+    redirectUri: input.redirectUri,
+  };
+
+  const sanitizedResponse = sanitizeOAuthTokenErrorResponseBody(input.responseBody);
+  if (sanitizedResponse?.oauthError) {
+    context.oauthError = sanitizedResponse.oauthError;
+  }
+  if (sanitizedResponse?.oauthErrorDescription) {
+    context.oauthErrorDescription = sanitizedResponse.oauthErrorDescription;
+  }
+  if (sanitizedResponse?.providerErrorCode !== undefined) {
+    context.providerErrorCode = sanitizedResponse.providerErrorCode;
+  }
+  if (sanitizedResponse?.providerErrorMessage) {
+    context.providerErrorMessage = sanitizedResponse.providerErrorMessage;
+  }
+
+  return context;
+}
+
+export function buildTmsUserOAuthTokenExchangeErroredLogContext(input: {
+  provider: TmsUserOAuthProvider;
+  credentialBaseUrl: string | null | undefined;
+  redirectUri: string;
+  error: unknown;
+}): TmsUserOAuthTokenExchangeErroredLogContext {
+  const context: TmsUserOAuthTokenExchangeErroredLogContext = {
+    ...buildCredentialHostContext(input),
+    redirectUri: input.redirectUri,
+  };
+
+  if (input.error instanceof Error) {
+    context.errorName = input.error.name;
+    context.errorType = input.error.constructor.name;
+  } else {
+    context.errorType = typeof input.error;
+  }
+
+  return context;
+}
+
 export function buildTmsUserOAuthProfileLookupLogContext(input: {
-  provider: TmsUserOAuthProfileLookupProvider;
+  provider: TmsUserOAuthProvider;
   credentialBaseUrl: string | null | undefined;
   error: unknown;
   resolutionCode?: string | null;

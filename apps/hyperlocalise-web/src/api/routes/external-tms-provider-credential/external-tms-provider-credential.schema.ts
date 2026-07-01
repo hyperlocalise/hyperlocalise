@@ -12,12 +12,26 @@ export const upsertExternalTmsProviderCredentialBodySchema = z.object({
   baseUrl: z.string().trim().url().max(2048).optional(),
 });
 
-export const crowdinOAuthStartBodySchema = z.object({
-  displayName: z.string().trim().min(1).max(256),
-  oauthClientId: z.string().trim().min(1).max(512),
-  oauthClientSecret: z.string().trim().min(1).max(4096),
-  baseUrl: z.string().trim().url().max(2048).optional(),
-});
+const oauthAppSettingsBodySchema = z
+  .object({
+    displayName: z.string().trim().min(1).max(256),
+    oauthClientId: z.string().trim().min(1).max(512).optional(),
+    oauthClientSecret: z.string().trim().min(1).max(4096).optional(),
+    baseUrl: z.string().trim().url().max(2048).optional(),
+  })
+  .superRefine((value, ctx) => {
+    const hasClientId = Boolean(value.oauthClientId);
+    const hasClientSecret = Boolean(value.oauthClientSecret);
+    if (hasClientId !== hasClientSecret) {
+      ctx.addIssue({
+        code: "custom",
+        message: "oauth_client_credentials_incomplete",
+        path: hasClientId ? ["oauthClientSecret"] : ["oauthClientId"],
+      });
+    }
+  });
+
+export const crowdinOAuthStartBodySchema = oauthAppSettingsBodySchema;
 
 export const phraseOAuthStartBodySchema = crowdinOAuthStartBodySchema;
 export const lokaliseOAuthStartBodySchema = crowdinOAuthStartBodySchema;

@@ -84,6 +84,76 @@ describe("externalTmsProviderCredentialRoutes", () => {
     expect(oauthStates).toHaveLength(0);
   });
 
+  it("updates Crowdin OAuth app settings without requiring client credentials", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const initialResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Crowdin Production",
+          oauthClientId: "crowdin-client-id",
+          oauthClientSecret: "crowdin-client-secret",
+          baseUrl: "https://crowdin.test/api/v2",
+        },
+      },
+      { headers },
+    );
+    expect(initialResponse.status).toBe(200);
+
+    const updateResponse = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Crowdin Enterprise",
+          baseUrl: "https://enterprise.crowdin.test/api/v2",
+        },
+      },
+      { headers },
+    );
+
+    expect(updateResponse.status).toBe(200);
+    const body = (await updateResponse.json()) as {
+      shouldConnectCrowdinUser: boolean;
+      externalTmsProviderCredential: {
+        displayName: string;
+        baseUrl: string | null;
+      };
+    };
+    expect(body.shouldConnectCrowdinUser).toBe(false);
+    expect(body.externalTmsProviderCredential.displayName).toBe("Crowdin Enterprise");
+    expect(body.externalTmsProviderCredential.baseUrl).toBe(
+      "https://enterprise.crowdin.test/api/v2",
+    );
+  });
+
+  it("rejects Crowdin OAuth app updates that only provide one client credential field", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationSlug = identity.organization.slug ?? "missing-slug";
+
+    const response = await client.api.orgs[":organizationSlug"][
+      "external-tms-provider-credential"
+    ].crowdin["oauth-app"].$post(
+      {
+        param: { organizationSlug },
+        json: {
+          displayName: "Crowdin",
+          oauthClientId: "crowdin-client-id",
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(400);
+  });
+
   it("consumes Crowdin OAuth callback state and links the signed-in user", async () => {
     const identity = fixture.createWorkosIdentityWithRole("admin");
     const headers = await fixture.authHeadersFor(identity);

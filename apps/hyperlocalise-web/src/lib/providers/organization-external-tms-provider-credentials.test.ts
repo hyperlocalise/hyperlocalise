@@ -242,6 +242,85 @@ describe("organization external TMS provider credentials", () => {
     });
   });
 
+  describe("partial OAuth app settings updates", () => {
+    it("updates Crowdin display name and base URL without replacing encrypted OAuth client material", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      await fixture.authHeadersFor(identity);
+      const authContext = globalThis.__testApiAuthContext!;
+
+      const credential = await upsertCrowdinOAuthProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Crowdin Production",
+        oauthClient: {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+        },
+        baseUrl: "https://crowdin.test/api/v2",
+      });
+
+      const updated = await upsertCrowdinOAuthProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Crowdin Enterprise",
+        baseUrl: "https://enterprise.crowdin.test/api/v2",
+      });
+
+      expect(updated.id).toBe(credential.id);
+      expect(updated.displayName).toBe("Crowdin Enterprise");
+      expect(updated.baseUrl).toBe("https://enterprise.crowdin.test/api/v2");
+      expect(updated.ciphertext).toBe(credential.ciphertext);
+      expect(updated.iv).toBe(credential.iv);
+      expect(updated.authTag).toBe(credential.authTag);
+      expect(updated.keyVersion).toBe(credential.keyVersion);
+    });
+
+    it("requires OAuth client material when creating a new Phrase integration", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      await fixture.authHeadersFor(identity);
+      const authContext = globalThis.__testApiAuthContext!;
+
+      await expect(
+        upsertPhraseOAuthProviderCredential({
+          organizationId: authContext.organization.localOrganizationId,
+          userId: authContext.user.localUserId,
+          role: "admin",
+          displayName: "Phrase",
+        }),
+      ).rejects.toThrow("phrase_oauth_client_required");
+    });
+
+    it("updates Lokalise settings while preserving existing OAuth client material", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      await fixture.authHeadersFor(identity);
+      const authContext = globalThis.__testApiAuthContext!;
+
+      const credential = await upsertLokaliseOAuthProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Lokalise",
+        oauthClient: {
+          clientId: "client-id",
+          clientSecret: "client-secret",
+        },
+      });
+
+      const updated = await upsertLokaliseOAuthProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        displayName: "Lokalise EU",
+      });
+
+      expect(updated.id).toBe(credential.id);
+      expect(updated.displayName).toBe("Lokalise EU");
+      expect(updated.ciphertext).toBe(credential.ciphertext);
+    });
+  });
+
   describe("resolveExternalTmsSecretMaterial", () => {
     it("requires a user connection for Crowdin OAuth access tokens", async () => {
       vi.useFakeTimers();
