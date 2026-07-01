@@ -2,19 +2,26 @@ import { describe, expect, it, vi } from "vite-plus/test";
 
 import { checkCrowdinProgress } from "./crowdin-progress";
 
+const baseCredential = {
+  encryptionAlgorithm: "aes-256-gcm",
+  keyVersion: 1,
+  ciphertext: "cipher",
+  iv: "iv",
+  authTag: "tag",
+  baseUrl: null,
+  providerKind: "crowdin" as const,
+  authMode: "api_token",
+};
+
 vi.mock("./load-crowdin-project-credential", () => ({
   loadCrowdinProjectCredential: vi.fn(async () => ({
     externalProjectId: "42",
-    credential: {
-      encryptionAlgorithm: "aes-256-gcm",
-      keyVersion: 1,
-      ciphertext: "cipher",
-      iv: "iv",
-      authTag: "tag",
-      baseUrl: null,
-    },
+    credential: baseCredential,
   })),
-  decryptCrowdinCredentialToken: vi.fn(() => "token"),
+}));
+
+vi.mock("@/lib/providers/tms-provider-content", () => ({
+  resolveExternalTmsSecretMaterialForActor: vi.fn(async () => "token"),
 }));
 
 vi.mock("@/lib/providers/provider-safe-fetch", () => ({
@@ -85,6 +92,27 @@ describe("checkCrowdinProgress", () => {
     }
   });
 
+  it("resolves Crowdin credentials for the acting user", async () => {
+    const { resolveExternalTmsSecretMaterialForActor } = await import(
+      "@/lib/providers/tms-provider-content"
+    );
+
+    vi.mocked(resolveExternalTmsSecretMaterialForActor).mockClear();
+
+    await checkCrowdinProgress({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      actorUserId: "user_1",
+      scope: "project",
+    });
+
+    expect(resolveExternalTmsSecretMaterialForActor).toHaveBeenCalledWith({
+      credential: baseCredential,
+      organizationId: "org_1",
+      actorUserId: "user_1",
+    });
+  });
+
   it("uses the credential enterprise base URL for API requests", async () => {
     const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
     const { providerSafeFetch } = await import("@/lib/providers/provider-safe-fetch");
@@ -93,11 +121,7 @@ describe("checkCrowdinProgress", () => {
     vi.mocked(loadCrowdinProjectCredential).mockResolvedValueOnce({
       externalProjectId: "42",
       credential: {
-        encryptionAlgorithm: "aes-256-gcm",
-        keyVersion: 1,
-        ciphertext: "cipher",
-        iv: "iv",
-        authTag: "tag",
+        ...baseCredential,
         baseUrl: "https://acme.api.crowdin.com/api/v2",
       },
     } as NonNullable<Awaited<ReturnType<typeof loadCrowdinProjectCredential>>>);
@@ -133,6 +157,31 @@ describe("checkCrowdinProgress", () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe("crowdin_not_configured");
+    }
+  });
+
+  it("returns an error when the acting user has not connected Crowdin", async () => {
+    const { resolveExternalTmsSecretMaterialForActor } = await import(
+      "@/lib/providers/tms-provider-content"
+    );
+
+    vi.mocked(resolveExternalTmsSecretMaterialForActor).mockRejectedValueOnce(
+      new Error("crowdin_user_connection_required"),
+    );
+
+    const result = await checkCrowdinProgress({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      actorUserId: "user_1",
+      scope: "project",
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatchObject({
+        code: "crowdin_api_error",
+        message: "Connect your Crowdin account before checking Crowdin progress.",
+      });
     }
   });
 });

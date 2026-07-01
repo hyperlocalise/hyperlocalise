@@ -1,14 +1,13 @@
 import {
   CrowdinApiClient,
+  CrowdinApiError,
   type CrowdinFile,
   type CrowdinSourceString,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { escapeCrowdinCroqlString } from "@/lib/providers/adapters/crowdin/crowdin-croql";
-import {
-  decryptCrowdinCredentialToken,
-  loadCrowdinProjectCredential,
-} from "@/lib/providers/adapters/crowdin/load-crowdin-project-credential";
+import { loadCrowdinProjectCredential } from "@/lib/providers/adapters/crowdin/load-crowdin-project-credential";
 import { countCrowdinFileQueueSummary } from "@/lib/projects/cat/project-file-cat-queue-summary";
+import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
 export type CrowdinProgressScope = "project" | "file" | "string";
@@ -16,6 +15,7 @@ export type CrowdinProgressScope = "project" | "file" | "string";
 export type CheckCrowdinProgressInput = {
   organizationId: string;
   projectId: string;
+  actorUserId?: string | null;
   scope: CrowdinProgressScope;
   languageIds?: string[];
   filePath?: string;
@@ -89,13 +89,21 @@ function normalizePath(value: string) {
   return value.trim().replace(/^\/+/, "").toLowerCase();
 }
 
+const CROWDIN_USER_CONNECTION_ERROR_MESSAGES: Record<string, string> = {
+  crowdin_user_connection_required:
+    "Connect your Crowdin account before checking Crowdin progress.",
+  crowdin_user_connection_auth_mode_mismatch:
+    "Reconnect your Crowdin account after the workspace authentication mode changed.",
+};
+
 async function createCrowdinClient(input: {
   organizationId: string;
   projectId: string;
+  actorUserId?: string | null;
 }): Promise<
   Result<
     { client: CrowdinApiClient; crowdinProjectId: number },
-    Extract<CrowdinProgressError, { code: "crowdin_not_configured" }>
+    Extract<CrowdinProgressError, { code: "crowdin_not_configured" | "crowdin_api_error" }>
   >
 > {
   const projectCredential = await loadCrowdinProjectCredential(input);
@@ -107,13 +115,33 @@ async function createCrowdinClient(input: {
     });
   }
 
-  const token = decryptCrowdinCredentialToken(projectCredential.credential);
   const crowdinProjectId = Number.parseInt(projectCredential.externalProjectId, 10);
   if (!Number.isFinite(crowdinProjectId)) {
     return err({
       code: "crowdin_not_configured" as const,
       message: "The linked Crowdin project ID is invalid.",
     });
+  }
+
+  let token: string;
+  try {
+    token = await resolveExternalTmsSecretMaterialForActor({
+      credential: projectCredential.credential,
+      organizationId: input.organizationId,
+      actorUserId: input.actorUserId,
+    });
+  } catch (error) {
+    if (error instanceof Error) {
+      const message = CROWDIN_USER_CONNECTION_ERROR_MESSAGES[error.message];
+      if (message) {
+        return err({
+          code: "crowdin_api_error" as const,
+          message,
+        });
+      }
+    }
+
+    throw error;
   }
 
   const client = new CrowdinApiClient({
@@ -310,6 +338,7 @@ export async function checkCrowdinProgress(
   const clientResult = await createCrowdinClient({
     organizationId: input.organizationId,
     projectId: input.projectId,
+    actorUserId: input.actorUserId,
   });
   if (isErr(clientResult)) {
     return clientResult;
@@ -421,6 +450,13 @@ export async function checkCrowdinProgress(
       stringTranslations,
     });
   } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      return err({
+        code: "crowdin_api_error",
+        message: "Your Crowdin connection is invalid. Reconnect Crowdin and try again.",
+      });
+    }
+
     return err({
       code: "crowdin_api_error",
       message: error instanceof Error ? error.message : "Crowdin API request failed.",
