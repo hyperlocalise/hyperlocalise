@@ -64,6 +64,14 @@ const CROWDIN_USER_CONNECTION_ERROR_MESSAGES: Record<string, string> = {
     "Reconnect your Crowdin account after the workspace authentication mode changed.",
 };
 
+const CROWDIN_OAUTH_ERROR_CODES = new Set([
+  "crowdin_oauth_refresh_failed",
+  "crowdin_oauth_token_invalid",
+]);
+
+const CROWDIN_USER_AUTH_INVALID_MESSAGE =
+  "Your Crowdin connection is invalid. Reconnect Crowdin and try again.";
+
 async function resolveCrowdinConcordanceToken(input: {
   organizationId: string;
   credential: CrowdinProjectCredential["credential"];
@@ -80,6 +88,10 @@ async function resolveCrowdinConcordanceToken(input: {
       const message = CROWDIN_USER_CONNECTION_ERROR_MESSAGES[error.message];
       if (message) {
         throw new TmsProviderLiveError(error.message, message);
+      }
+
+      if (CROWDIN_OAUTH_ERROR_CODES.has(error.message)) {
+        throw new TmsProviderLiveError("crowdin_user_auth_invalid", CROWDIN_USER_AUTH_INVALID_MESSAGE);
       }
     }
 
