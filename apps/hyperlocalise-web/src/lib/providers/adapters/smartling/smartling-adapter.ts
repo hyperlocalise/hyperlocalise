@@ -57,6 +57,7 @@ export class SmartlingTmsAdapter extends TmsProviderAdapter {
       providerKind: this.kind,
       externalProjectId: scope.externalProjectId,
       externalJobId: scope.externalJobId,
+      credential: scope.credential,
       secretMaterial: scope.secretMaterial,
       feedback: scope.feedback,
       knownExternalIds: scope.knownExternalIds,

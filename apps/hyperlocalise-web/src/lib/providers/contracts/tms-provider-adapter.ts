@@ -52,6 +52,7 @@ export type TmsProviderCommentPushScope = {
   projectId: string;
   externalProjectId: string;
   externalJobId: string;
+  credential: Pick<ExternalTmsCredential, "baseUrl">;
   secretMaterial: string;
   feedback: ProviderQaFeedbackUpload[];
   knownExternalIds: Map<string, { issueUid: string; commentUid?: string | null }>;

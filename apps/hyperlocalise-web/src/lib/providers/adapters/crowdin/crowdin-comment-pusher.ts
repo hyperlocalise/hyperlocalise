@@ -8,11 +8,15 @@ import { buildCrowdinCommentWriteBackEntries } from "./crowdin-comment-write-bac
 export const pushCrowdinProviderComments: ExternalTmsCommentPusher = async ({
   externalProjectId,
   externalJobId,
+  credential,
   secretMaterial,
   feedback,
   knownExternalIds,
 }) => {
-  const client = new CrowdinApiClient({ token: secretMaterial });
+  const client = new CrowdinApiClient({
+    token: secretMaterial,
+    baseUrl: credential.baseUrl ?? undefined,
+  });
   const projectId = Number(externalProjectId.trim());
   if (!externalProjectId.trim() || Number.isNaN(projectId)) {
     throw new Error("invalid_crowdin_project_id");
