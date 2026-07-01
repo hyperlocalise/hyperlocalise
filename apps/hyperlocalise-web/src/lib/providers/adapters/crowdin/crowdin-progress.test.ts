@@ -110,9 +110,13 @@ describe("checkCrowdinProgress", () => {
 
     expect(result.ok).toBe(true);
     expect(
-      vi.mocked(providerSafeFetch).mock.calls.some(([url]) =>
-        String(url).startsWith("https://acme.api.crowdin.com/api/v2/projects/42"),
-      ),
+      vi.mocked(providerSafeFetch).mock.calls.some((call) => {
+        const url = call[0];
+        return (
+          typeof url === "string" &&
+          url.startsWith("https://acme.api.crowdin.com/api/v2/projects/42")
+        );
+      }),
     ).toBe(true);
   });
 
