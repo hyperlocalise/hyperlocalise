@@ -185,6 +185,8 @@ export function createUpdateInteractionProjectTool(ctx: ToolContext) {
           ),
         );
 
+      ctx.projectId = projectId;
+
       return {
         success: true,
         project: {

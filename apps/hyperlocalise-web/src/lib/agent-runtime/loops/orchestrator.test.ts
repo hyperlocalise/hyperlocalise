@@ -44,6 +44,7 @@ describe("conversation orchestrator", () => {
       suggestedMode: "repository",
       availableSubagents: ["repository"],
       preferredSubagents: ["repository"],
+      useCrowdinDirectTools: false,
     });
 
     const marker = "You are Hyperlocalise, a localization assistant.";
@@ -58,6 +59,7 @@ describe("conversation orchestrator", () => {
       suggestedMode: "repository",
       availableSubagents: ["repository"],
       preferredSubagents: ["repository"],
+      useCrowdinDirectTools: false,
     });
 
     const marker =
@@ -73,6 +75,7 @@ describe("conversation orchestrator", () => {
       suggestedMode: "repository",
       availableSubagents: ["repository"],
       preferredSubagents: ["repository"],
+      useCrowdinDirectTools: false,
     });
 
     expect(instructions).toContain("Repository context handoff");
@@ -99,6 +102,7 @@ describe("conversation orchestrator", () => {
       suggestedMode: "general",
       availableSubagents: ["repository", "translation"],
       preferredSubagents: ["repository", "translation"],
+      useCrowdinDirectTools: false,
     });
 
     expect(instructions).toContain("Active intents");
@@ -156,5 +160,62 @@ describe("conversation orchestrator", () => {
       toolChoice: "none",
     });
     expect(settings.prepareStep({ stepNumber: 2 })).toEqual({});
+  });
+
+  it("uses direct Crowdin tools for translation-only TMS requests", () => {
+    const instructions = buildOrchestratorInstructions({
+      surface: "slack",
+      projectId: null,
+      suggestedIntents: ["translation"],
+      suggestedMode: "translation",
+      availableSubagents: ["translation"],
+      preferredSubagents: [],
+      useCrowdinDirectTools: true,
+    });
+
+    expect(instructions).toContain("Crowdin TMS");
+    expect(instructions).toContain("check_crowdin_progress");
+    expect(instructions).toContain("list_projects");
+    expect(instructions).not.toContain("Delegate to `translation`");
+  });
+
+  it("exposes direct Crowdin tools without forcing task delegation", () => {
+    createConversationOrchestratorAgent({
+      surface: "slack",
+      suggestedIntents: ["translation"],
+      suggestedMode: "translation",
+      hasFileAttachments: false,
+      additionalInstructions: undefined,
+      toolContext: {
+        conversationId: "conversation_123",
+        organizationId: "org_123",
+        localUserId: "user_123",
+        membershipRole: "member",
+        projectId: null,
+        db: {} as never,
+      },
+    });
+
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeTools: [
+          "list_projects",
+          "get_project_context",
+          "update_interaction_project",
+          "check_crowdin_progress",
+        ],
+        tools: expect.objectContaining({
+          list_projects: expect.any(Object),
+          check_crowdin_progress: expect.any(Object),
+          task: expect.any(Object),
+        }),
+      }),
+    );
+
+    const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
+      prepareStep: (input: { stepNumber: number }) => unknown;
+    };
+
+    expect(settings.prepareStep({ stepNumber: 0 })).toEqual({});
   });
 });

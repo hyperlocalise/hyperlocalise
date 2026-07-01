@@ -75,6 +75,8 @@ function buildConversationClassificationPrompt(input: ClassifyConversationInput)
     '  Classification: intents ["repository"], needsRepositoryTools true, currentMessageSpecifiesRepository true.',
     '- Latest user message: "Translate this to French" without file attachments',
     '  Classification: intents ["general"], needsRepositoryTools false.',
+    '- Latest user message: "What\'s the progress of the HL test project in Crowdin?"',
+    '  Classification: intents ["translation"], needsRepositoryTools false.',
     "",
     "Use the full recent conversation, not only the latest message.",
     "If the user asks for the context of a string, key, label, word, or copy, they usually mean context in the connected GitHub repository.",
