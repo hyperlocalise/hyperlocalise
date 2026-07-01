@@ -21,7 +21,7 @@ const callOptionsSchema = z.object({
 function buildTranslationSystemPrompt() {
   const base = composeInstructions({
     base: loadSubagentInstructions({ agentId: "hyperlocalise", subagentId: "translation" }),
-    sharedSkills: ["crowdin-progress"],
+    sharedSkills: ["crowdin"],
   });
   return `${base}
 

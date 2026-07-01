@@ -13,14 +13,14 @@ export { SUBAGENT_TYPES, type HyperlocaliseSubagentType };
 export const SUBAGENT_REGISTRY = {
   translation: {
     shortDescription:
-      "Translate uploaded localization files, queue translation jobs, check Crowdin TMS progress, and translate inline strings when a project is attached",
+      "Translate uploaded localization files, queue translation jobs, run Crowdin TMS tools, and translate inline strings when a project is attached",
     agent: translationSubagent,
     isAvailable: (runtime: HyperlocaliseAgentRuntimeContext) =>
       runtime.hasFileAttachments ||
       runtime.suggestedIntents.includes("translation") ||
       Boolean(runtime.toolContext.projectId),
     unavailableMessage: (_runtime) =>
-      "Translation requires an attached localization file with a target language, an attached Crowdin-linked project, or a translation/TMS progress request.",
+      "Translation requires an attached localization file with a target language, an attached Crowdin-linked project, or a translation/Crowdin TMS request.",
   },
   repository: {
     shortDescription:
