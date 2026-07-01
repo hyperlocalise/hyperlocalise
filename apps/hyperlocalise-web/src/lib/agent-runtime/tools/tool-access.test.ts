@@ -6,7 +6,7 @@ const ownedProjectWhereMock = vi.fn(async () => ({}));
 const getTmsProviderLiveProjectMock = vi.fn();
 
 vi.mock("@/api/auth/team-access", () => ({
-  ownedProjectWhere: (...args: unknown[]) => ownedProjectWhereMock(...args),
+  ownedProjectWhere: ownedProjectWhereMock,
   buildAccessibleProjectsWhere: vi.fn(),
   buildAccessibleJobsWhere: vi.fn(),
   buildProjectLinkedGlossaryWhere: vi.fn(),
@@ -17,7 +17,7 @@ vi.mock("@/api/auth/team-access", () => ({
 }));
 
 vi.mock("@/lib/providers/tms-provider-live", () => ({
-  getTmsProviderLiveProject: (...args: unknown[]) => getTmsProviderLiveProjectMock(...args),
+  getTmsProviderLiveProject: getTmsProviderLiveProjectMock,
 }));
 
 vi.mock("@/lib/database", () => ({
