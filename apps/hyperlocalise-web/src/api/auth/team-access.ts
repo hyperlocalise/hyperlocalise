@@ -1,4 +1,4 @@
-import { and, eq, exists, inArray, isNull, or, sql, type SQL } from "drizzle-orm";
+import { and, eq, exists, inArray, isNull, like, or, sql, type SQL } from "drizzle-orm";
 
 import { hasCapability } from "@/api/auth/policy";
 import type { ApiAuthContext } from "@/api/auth/workos";
@@ -199,6 +199,7 @@ export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Pr
   }
 
   const accessibleProjectIds = await getAccessibleProjectIds(auth);
+  const liveTmsProjectFilter = like(schema.interactions.projectId, "ext:%");
   const ownedWorkspaceChatFilter = and(
     isNull(schema.interactions.projectId),
     eq(schema.interactions.source, "chat_ui"),
@@ -219,8 +220,12 @@ export async function buildAccessibleInteractionsWhere(auth: ApiAuthContext): Pr
 
   const projectFilter =
     accessibleProjectIds.length > 0
-      ? or(inArray(schema.interactions.projectId, accessibleProjectIds), ownedWorkspaceChatFilter)
-      : ownedWorkspaceChatFilter;
+      ? or(
+          inArray(schema.interactions.projectId, accessibleProjectIds),
+          liveTmsProjectFilter,
+          ownedWorkspaceChatFilter,
+        )
+      : or(liveTmsProjectFilter, ownedWorkspaceChatFilter);
 
   return and(organizationScope, projectFilter)!;
 }

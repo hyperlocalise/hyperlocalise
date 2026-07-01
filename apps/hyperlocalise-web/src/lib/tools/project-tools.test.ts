@@ -1,9 +1,8 @@
 import { describe, expect, it, vi } from "vite-plus/test";
 
-import { ok } from "@/lib/primitives/result/results";
 import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 
-const ensureOrganizationProjectRecordMock = vi.fn();
+const getTmsProviderLiveProjectMock = vi.fn();
 
 vi.mock("@/lib/database", () => ({
   schema: {
@@ -22,9 +21,8 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/projects/organization/organization-project-service", () => ({
-  ensureOrganizationProjectRecord: (...args: unknown[]) =>
-    ensureOrganizationProjectRecordMock(...args),
+vi.mock("@/lib/providers/tms-provider-live", () => ({
+  getTmsProviderLiveProject: (...args: unknown[]) => getTmsProviderLiveProjectMock(...args),
 }));
 
 vi.mock("@/lib/tools/tool-access", () => ({
@@ -36,26 +34,21 @@ vi.mock("@/lib/tools/list-agent-projects", () => ({
 }));
 
 describe("createUpdateInteractionProjectTool", () => {
-  it("materializes live external projects before attaching the interaction", async () => {
+  it("attaches live external TMS projects without materializing a local projects row", async () => {
     const projectId = encodeProviderProjectId({
       providerKind: "crowdin",
       externalProjectId: "902807",
     });
-    const ensuredProjectId = projectId;
     const update = vi.fn(() => ({
       set: vi.fn(() => ({
         where: vi.fn(async () => undefined),
       })),
     }));
-    const select = vi.fn(() => ({
-      from: vi.fn(() => ({
-        where: vi.fn(() => ({
-          limit: vi.fn(async () => [{ id: ensuredProjectId, name: "HL-Test" }]),
-        })),
-      })),
-    }));
 
-    ensureOrganizationProjectRecordMock.mockResolvedValueOnce(ok(ensuredProjectId));
+    getTmsProviderLiveProjectMock.mockResolvedValueOnce({
+      id: projectId,
+      name: "HL-Test",
+    });
 
     const { createUpdateInteractionProjectTool } = await import("./project-tools");
     const tool = createUpdateInteractionProjectTool({
@@ -66,25 +59,23 @@ describe("createUpdateInteractionProjectTool", () => {
       projectId: null,
       db: {
         update,
-        select,
+        select: vi.fn(),
       },
     } as never);
 
     const result = await tool.execute?.({ projectId }, {} as never);
 
-    expect(ensureOrganizationProjectRecordMock).toHaveBeenCalledWith({
-      organizationId: "org_1",
-      projectId,
-      userId: "user_1",
+    expect(getTmsProviderLiveProjectMock).toHaveBeenCalledWith("org_1", "902807", {
+      actorUserId: "user_1",
     });
     expect(update).toHaveBeenCalledTimes(2);
     expect(update.mock.results[0]?.value.set).toHaveBeenCalledWith(
-      expect.objectContaining({ projectId: ensuredProjectId }),
+      expect.objectContaining({ projectId }),
     );
     expect(result).toEqual({
       success: true,
       project: {
-        id: ensuredProjectId,
+        id: projectId,
         name: "HL-Test",
       },
     });

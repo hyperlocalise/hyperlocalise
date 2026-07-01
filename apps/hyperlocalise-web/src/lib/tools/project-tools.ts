@@ -3,13 +3,50 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import { isErr } from "@/lib/primitives/result/results";
+import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
+import {
+  isEncodedProviderProjectId,
+  parseProviderProjectId,
+} from "@/lib/providers/tms-provider-resource-id";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
-import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 
 import { listAgentProjects } from "@/lib/tools/list-agent-projects";
 import { toolCanAccessProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";
+
+async function resolveAttachedProjectSummary(
+  ctx: ToolContext,
+  projectId: string,
+): Promise<{ id: string; name: string } | null> {
+  const encodedProject = parseProviderProjectId(projectId);
+  if (encodedProject) {
+    const liveProject = await getTmsProviderLiveProject(
+      ctx.organizationId,
+      encodedProject.externalProjectId,
+      { actorUserId: ctx.localUserId },
+    );
+    if (!liveProject) {
+      return null;
+    }
+
+    return {
+      id: liveProject.id,
+      name: liveProject.name,
+    };
+  }
+
+  const project = await ctx.db
+    .select({
+      id: schema.projects.id,
+      name: schema.projects.name,
+    })
+    .from(schema.projects)
+    .where(eq(schema.projects.id, projectId))
+    .limit(1)
+    .then((rows) => rows[0] ?? null);
+
+  return project;
+}
 
 /**
  * List projects in the current organization so the agent can suggest
@@ -48,6 +85,30 @@ export function createGetProjectContextTool(ctx: ToolContext) {
         return { error: `Project ${projectId} not found.` };
       }
 
+      const normalizedProjectId = normalizeProjectId(projectId);
+      if (typeof normalizedProjectId !== "string") {
+        return { error: `Project ${projectId} not found.` };
+      }
+
+      if (isEncodedProviderProjectId(normalizedProjectId)) {
+        const liveProject = await resolveAttachedProjectSummary(ctx, normalizedProjectId);
+        if (!liveProject) {
+          return { error: `Project ${projectId} not found.` };
+        }
+
+        return {
+          project: {
+            id: liveProject.id,
+            name: liveProject.name,
+            description: "",
+            translationContext: "",
+          },
+          glossaries: { count: 0, items: [] },
+          memories: { count: 0, items: [] },
+          tmsLinks: [],
+        };
+      }
+
       const project = await db
         .select({
           id: schema.projects.id,
@@ -56,7 +117,7 @@ export function createGetProjectContextTool(ctx: ToolContext) {
           translationContext: schema.projects.translationContext,
         })
         .from(schema.projects)
-        .where(eq(schema.projects.id, projectId))
+        .where(eq(schema.projects.id, normalizedProjectId))
         .limit(1)
         .then((rows) => rows[0] ?? null);
 
@@ -74,7 +135,7 @@ export function createGetProjectContextTool(ctx: ToolContext) {
         })
         .from(schema.projectGlossaries)
         .innerJoin(schema.glossaries, eq(schema.projectGlossaries.glossaryId, schema.glossaries.id))
-        .where(eq(schema.projectGlossaries.projectId, projectId))
+        .where(eq(schema.projectGlossaries.projectId, normalizedProjectId))
         .orderBy(schema.projectGlossaries.priority);
 
       const attachedMemories = await db
@@ -85,7 +146,7 @@ export function createGetProjectContextTool(ctx: ToolContext) {
         })
         .from(schema.projectMemories)
         .innerJoin(schema.memories, eq(schema.projectMemories.memoryId, schema.memories.id))
-        .where(eq(schema.projectMemories.projectId, projectId))
+        .where(eq(schema.projectMemories.projectId, normalizedProjectId))
         .orderBy(schema.projectMemories.priority);
 
       const tmsLinks = await db
@@ -98,7 +159,7 @@ export function createGetProjectContextTool(ctx: ToolContext) {
         .from(schema.tmsLinks)
         .where(
           and(
-            eq(schema.tmsLinks.projectId, projectId),
+            eq(schema.tmsLinks.projectId, normalizedProjectId),
             eq(schema.tmsLinks.organizationId, ctx.organizationId),
           ),
         );
@@ -142,25 +203,7 @@ export function createUpdateInteractionProjectTool(ctx: ToolContext) {
         return { success: false, error: `Project ${projectId} not found.` };
       }
 
-      const ensured = await ensureOrganizationProjectRecord({
-        organizationId: ctx.organizationId,
-        projectId: normalizedProjectId,
-        userId: ctx.localUserId,
-      });
-      if (isErr(ensured)) {
-        return { success: false, error: `Project ${projectId} not found.` };
-      }
-
-      const project = await db
-        .select({
-          id: schema.projects.id,
-          name: schema.projects.name,
-        })
-        .from(schema.projects)
-        .where(eq(schema.projects.id, ensured.value))
-        .limit(1)
-        .then((rows) => rows[0] ?? null);
-
+      const project = await resolveAttachedProjectSummary(ctx, normalizedProjectId);
       if (!project) {
         return { success: false, error: `Project ${projectId} not found.` };
       }
