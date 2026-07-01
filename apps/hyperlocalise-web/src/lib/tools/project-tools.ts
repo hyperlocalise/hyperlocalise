@@ -1,10 +1,14 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
+import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 
-import { toolAccessibleProjectsWhere, toolCanAccessProject } from "@/lib/tools/tool-access";
+import { listAgentProjects } from "@/lib/tools/list-agent-projects";
+import { toolCanAccessProject } from "@/lib/tools/tool-access";
 import type { ToolContext } from "@/lib/tools/types";
 
 /**
@@ -14,27 +18,11 @@ import type { ToolContext } from "@/lib/tools/types";
 export function createListProjectsTool(ctx: ToolContext) {
   return tool({
     description:
-      "List projects in the current workspace. Use this when the user refers to a project by name but the conversation is not attached to one yet, or when you need to help the user pick a project.",
+      "List projects available in the current workspace. External TMS projects are fetched live from the connected provider; native Hyperlocalise projects come from the workspace database. Use this when the user refers to a project by name but the conversation is not attached to one yet, or when you need to help the user pick a project.",
     inputSchema: z.object({
       limit: z.number().min(1).max(50).default(20).describe("Maximum projects to return."),
     }),
-    execute: async ({ limit }) => {
-      const db = ctx.db;
-
-      const projects = await db
-        .select({
-          id: schema.projects.id,
-          name: schema.projects.name,
-          description: schema.projects.description,
-          translationContext: schema.projects.translationContext,
-        })
-        .from(schema.projects)
-        .where(await toolAccessibleProjectsWhere(ctx))
-        .orderBy(desc(schema.projects.createdAt))
-        .limit(limit);
-
-      return { projects };
-    },
+    execute: async ({ limit }) => listAgentProjects(ctx, limit),
   });
 }
 
@@ -149,15 +137,37 @@ export function createUpdateInteractionProjectTool(ctx: ToolContext) {
         return { success: false, error: `Project ${projectId} not found.` };
       }
 
-      const project = await db
+      const normalizedProjectId = normalizeProjectId(projectId);
+      if (typeof normalizedProjectId !== "string") {
+        return { success: false, error: `Project ${projectId} not found.` };
+      }
+
+      let project = await db
         .select({
           id: schema.projects.id,
           name: schema.projects.name,
         })
         .from(schema.projects)
-        .where(eq(schema.projects.id, projectId))
+        .where(eq(schema.projects.id, normalizedProjectId))
         .limit(1)
         .then((rows) => rows[0] ?? null);
+
+      if (!project) {
+        const encodedProject = parseProviderProjectId(normalizedProjectId);
+        if (encodedProject) {
+          const liveProject = await getTmsProviderLiveProject(
+            ctx.organizationId,
+            encodedProject.externalProjectId,
+            { actorUserId: ctx.localUserId },
+          );
+          if (liveProject) {
+            project = {
+              id: liveProject.id,
+              name: liveProject.name,
+            };
+          }
+        }
+      }
 
       if (!project) {
         return { success: false, error: `Project ${projectId} not found.` };
@@ -167,7 +177,7 @@ export function createUpdateInteractionProjectTool(ctx: ToolContext) {
 
       await db
         .update(schema.interactions)
-        .set({ projectId, updatedAt: now })
+        .set({ projectId: project.id, updatedAt: now })
         .where(
           and(
             eq(schema.interactions.id, ctx.conversationId),
@@ -177,7 +187,7 @@ export function createUpdateInteractionProjectTool(ctx: ToolContext) {
 
       await db
         .update(schema.inboxItems)
-        .set({ projectId, updatedAt: now })
+        .set({ projectId: project.id, updatedAt: now })
         .where(
           and(
             eq(schema.inboxItems.interactionId, ctx.conversationId),
@@ -185,7 +195,7 @@ export function createUpdateInteractionProjectTool(ctx: ToolContext) {
           ),
         );
 
-      ctx.projectId = projectId;
+      ctx.projectId = project.id;
 
       return {
         success: true,

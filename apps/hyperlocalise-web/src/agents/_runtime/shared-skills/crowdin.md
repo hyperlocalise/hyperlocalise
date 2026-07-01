@@ -12,7 +12,7 @@ Use Crowdin tools when the user asks about translation work in a Hyperlocalise p
 
 - The Hyperlocalise project must be linked to a Crowdin TMS project with valid organization credentials.
 - Prefer the conversation's attached project. Pass `projectId` only when the user names a different linked project.
-- When no project is attached, call `list_projects` to find the project by name, then `update_interaction_project` or pass `projectId` to `check_crowdin_progress`.
+- When no project is attached, call `list_projects` to find the project by name from the live TMS provider, then `update_interaction_project` or pass `projectId` to `check_crowdin_progress`.
 - Do not ask the user for Crowdin API tokens or personal access tokens.
 
 ### General rules

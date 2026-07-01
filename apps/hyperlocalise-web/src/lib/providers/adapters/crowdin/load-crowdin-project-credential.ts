@@ -1,6 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
+import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
 import {
   decryptProviderCredential,
   unwrapProviderCredentialCrypto,
@@ -32,31 +34,47 @@ export async function loadCrowdinProjectCredential(input: {
     )
     .limit(1);
 
-  if (!project?.externalProjectId || !project.externalProviderCredentialId) {
+  if (project?.externalProjectId && project.externalProviderCredentialId) {
+    const [credential] = await db
+      .select()
+      .from(schema.organizationExternalTmsProviderCredentials)
+      .where(
+        and(
+          eq(
+            schema.organizationExternalTmsProviderCredentials.organizationId,
+            input.organizationId,
+          ),
+          eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+          eq(
+            schema.organizationExternalTmsProviderCredentials.id,
+            project.externalProviderCredentialId,
+          ),
+        ),
+      )
+      .limit(1);
+
+    if (credential) {
+      return {
+        externalProjectId: project.externalProjectId,
+        credential,
+      };
+    }
+  }
+
+  const encodedProject = parseProviderProjectId(input.projectId);
+  if (encodedProject?.providerKind !== "crowdin") {
     return null;
   }
 
-  const [credential] = await db
-    .select()
-    .from(schema.organizationExternalTmsProviderCredentials)
-    .where(
-      and(
-        eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
-        eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
-        eq(
-          schema.organizationExternalTmsProviderCredentials.id,
-          project.externalProviderCredentialId,
-        ),
-      ),
-    )
-    .limit(1);
-
-  if (!credential) {
+  const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
+    input.organizationId,
+  );
+  if (!credential || credential.providerKind !== "crowdin") {
     return null;
   }
 
   return {
-    externalProjectId: project.externalProjectId,
+    externalProjectId: encodedProject.externalProjectId,
     credential,
   };
 }
