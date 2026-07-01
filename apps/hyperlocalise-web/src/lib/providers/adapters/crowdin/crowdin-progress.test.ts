@@ -93,9 +93,8 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("resolves Crowdin credentials for the acting user", async () => {
-    const { resolveExternalTmsSecretMaterialForActor } = await import(
-      "@/lib/providers/tms-provider-content"
-    );
+    const { resolveExternalTmsSecretMaterialForActor } =
+      await import("@/lib/providers/tms-provider-content");
 
     vi.mocked(resolveExternalTmsSecretMaterialForActor).mockClear();
 
@@ -161,9 +160,8 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns an error when the acting user has not connected Crowdin", async () => {
-    const { resolveExternalTmsSecretMaterialForActor } = await import(
-      "@/lib/providers/tms-provider-content"
-    );
+    const { resolveExternalTmsSecretMaterialForActor } =
+      await import("@/lib/providers/tms-provider-content");
 
     vi.mocked(resolveExternalTmsSecretMaterialForActor).mockRejectedValueOnce(
       new Error("crowdin_user_connection_required"),
