@@ -7,13 +7,12 @@ import {
   resolvePreferredSubagentOrder,
 } from "@/lib/agent-runtime/subagents/registry";
 import type { HyperlocaliseSubagentType } from "@/lib/agent-runtime/subagents/definitions";
-import { buildOrchestratorDirectTools } from "@/lib/agent-runtime/tools/build-orchestrator-tools";
+import { buildConversationSkillInstructions } from "@/lib/agent-runtime/skills/compose-conversation-skill-instructions";
 import {
-  orchestratorDirectToolNames,
-  shouldUseCrowdinDirectTools,
-} from "@/lib/agent-runtime/tools/orchestrator-direct-path";
+  buildConversationSkillPlan,
+  buildConversationSkillTools,
+} from "@/lib/agent-runtime/skills/conversation-skill-registry";
 import { createTaskTool } from "@/lib/agent-runtime/tools/task-tool";
-import { buildOrchestratorBaseInstructions } from "@/agents/hyperlocalise/agent/agent";
 import {
   ORCHESTRATOR_AGENT_TIMEOUT,
   ORCHESTRATOR_STEP_LIMIT,
@@ -25,6 +24,7 @@ import {
   hyperlocaliseAgentMaxOutputTokens,
   type HyperlocaliseAgentSurface,
 } from "./hyperlocalise-agent";
+import type { ConversationSkillPlan } from "@/lib/agent-runtime/skills/conversation-skill-registry";
 
 type OrchestratorTools = ToolSet & { task: ReturnType<typeof createTaskTool> };
 
@@ -40,26 +40,27 @@ export function buildOrchestratorInstructions(input: {
   suggestedMode: HyperlocaliseConversationMode;
   availableSubagents: string[];
   preferredSubagents: HyperlocaliseSubagentType[];
-  useCrowdinDirectTools: boolean;
+  skillPlan: ConversationSkillPlan;
   additionalInstructions?: string;
 }) {
-  const base = buildOrchestratorBaseInstructions({
+  const base = buildConversationSkillInstructions({
     surface: input.surface,
     projectId: input.projectId,
+    skillPlan: input.skillPlan,
     additionalInstructions: input.additionalInstructions,
-    sharedSkills: input.useCrowdinDirectTools ? ["crowdin"] : undefined,
   });
 
   const lines = [base, "", "Available agents:", buildSubagentSummaryLines()];
 
-  if (input.useCrowdinDirectTools) {
+  if (input.skillPlan.skipDelegation) {
     lines.push(
       "",
-      "For this Crowdin/TMS request, use `list_projects`, `update_interaction_project`, and `check_crowdin_progress` directly.",
-      "Resolve the project by name with `list_projects` when the conversation is not attached to one yet.",
-      "Do not delegate read-only Crowdin progress to the translation agent.",
+      `Active intents for this message: ${input.suggestedIntents.map((intent) => `\`${intent}\``).join(", ")}.`,
     );
-  } else if (input.availableSubagents.length === 0) {
+    return lines.join("\n");
+  }
+
+  if (input.availableSubagents.length === 0) {
     lines.push(
       "",
       "No agents are available for this request. Explain what the user should provide (file attachment, GitHub repo access, or a linked Crowdin project).",
@@ -75,10 +76,6 @@ export function buildOrchestratorInstructions(input: {
     "",
     `Active intents for this message: ${input.suggestedIntents.map((intent) => `\`${intent}\``).join(", ")}.`,
   );
-
-  if (input.useCrowdinDirectTools) {
-    return lines.join("\n");
-  }
 
   if (input.preferredSubagents.length === 1) {
     lines.push(`Delegate to \`${input.preferredSubagents[0]}\` for this turn before answering.`);
@@ -101,23 +98,22 @@ export function createConversationOrchestratorAgent(
   runtime: HyperlocaliseAgentRuntimeContext,
   onFinish?: ConversationOrchestratorOnFinish,
 ) {
-  const useCrowdinDirectTools = shouldUseCrowdinDirectTools(runtime);
+  const skillPlan = buildConversationSkillPlan(runtime);
   const available = listAvailableSubagentTypes(runtime);
-  const preferredSubagents = useCrowdinDirectTools ? [] : resolvePreferredSubagentOrder(runtime);
+  const preferredSubagents = skillPlan.skipDelegation ? [] : resolvePreferredSubagentOrder(runtime);
   const taskTool = createTaskTool();
-  const directTools = useCrowdinDirectTools
-    ? buildOrchestratorDirectTools(runtime.toolContext)
-    : {};
+  const skillTools = buildConversationSkillTools(runtime.toolContext, skillPlan.toolNames);
   const tools: OrchestratorTools = {
     task: taskTool,
-    ...directTools,
+    ...skillTools,
   };
   const mustDelegateOnFirstStep = preferredSubagents.length > 0;
-  const activeTools: string[] = useCrowdinDirectTools
-    ? [...orchestratorDirectToolNames]
-    : available.length > 0
-      ? ["task"]
-      : [];
+  const activeTools: string[] =
+    skillPlan.toolNames.length > 0
+      ? [...skillPlan.toolNames]
+      : available.length > 0
+        ? ["task"]
+        : [];
 
   return new ToolLoopAgent<never, OrchestratorTools>({
     model: getHyperlocaliseAgentModel(),
@@ -128,7 +124,7 @@ export function createConversationOrchestratorAgent(
       suggestedMode: runtime.suggestedMode,
       availableSubagents: available,
       preferredSubagents,
-      useCrowdinDirectTools,
+      skillPlan,
       additionalInstructions: runtime.additionalInstructions,
     }),
     tools,

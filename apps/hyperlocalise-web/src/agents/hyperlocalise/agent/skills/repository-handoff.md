@@ -1,3 +1,8 @@
+---
+id: repository-handoff
+always: true
+---
+
 Repository context handoff:
 
 - Use `repository` only for read-only localization context exploration in the connected GitHub repo.

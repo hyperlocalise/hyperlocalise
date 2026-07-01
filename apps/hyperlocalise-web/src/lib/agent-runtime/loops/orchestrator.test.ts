@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 const { stepCountIsMock, toolLoopAgentMock } = vi.hoisted(() => ({
   stepCountIsMock: vi.fn((count: number) => ({ stepLimit: count })),
@@ -27,15 +27,22 @@ vi.mock("@/lib/env", () => ({
   },
 }));
 
+import { clearAgentManifestCache } from "@/agents/_runtime/loader";
 import {
   ORCHESTRATOR_AGENT_TIMEOUT,
   ORCHESTRATOR_STEP_LIMIT,
   SUBAGENT_TIMEOUT,
 } from "@/lib/agent-runtime/subagents/constants";
+import { buildConversationSkillPlan } from "@/lib/agent-runtime/skills/conversation-skill-registry";
 
 import { buildOrchestratorInstructions, createConversationOrchestratorAgent } from "./orchestrator";
 
 describe("conversation orchestrator", () => {
+  beforeEach(() => {
+    clearAgentManifestCache();
+    vi.clearAllMocks();
+  });
+
   it("includes base agent instructions only once", () => {
     const instructions = buildOrchestratorInstructions({
       surface: "web",
@@ -44,7 +51,10 @@ describe("conversation orchestrator", () => {
       suggestedMode: "repository",
       availableSubagents: ["repository"],
       preferredSubagents: ["repository"],
-      useCrowdinDirectTools: false,
+      skillPlan: buildConversationSkillPlan({
+        suggestedIntents: ["repository"],
+        hasFileAttachments: false,
+      }),
     });
 
     const marker = "You are Hyperlocalise, a localization assistant.";
@@ -59,7 +69,10 @@ describe("conversation orchestrator", () => {
       suggestedMode: "repository",
       availableSubagents: ["repository"],
       preferredSubagents: ["repository"],
-      useCrowdinDirectTools: false,
+      skillPlan: buildConversationSkillPlan({
+        suggestedIntents: ["repository"],
+        hasFileAttachments: false,
+      }),
     });
 
     const marker =
@@ -75,7 +88,10 @@ describe("conversation orchestrator", () => {
       suggestedMode: "repository",
       availableSubagents: ["repository"],
       preferredSubagents: ["repository"],
-      useCrowdinDirectTools: false,
+      skillPlan: buildConversationSkillPlan({
+        suggestedIntents: ["repository"],
+        hasFileAttachments: false,
+      }),
     });
 
     expect(instructions).toContain("Repository context handoff");
@@ -102,7 +118,10 @@ describe("conversation orchestrator", () => {
       suggestedMode: "general",
       availableSubagents: ["repository", "translation"],
       preferredSubagents: ["repository", "translation"],
-      useCrowdinDirectTools: false,
+      skillPlan: buildConversationSkillPlan({
+        suggestedIntents: ["translation", "repository"],
+        hasFileAttachments: false,
+      }),
     });
 
     expect(instructions).toContain("Active intents");
@@ -162,7 +181,11 @@ describe("conversation orchestrator", () => {
     expect(settings.prepareStep({ stepNumber: 2 })).toEqual({});
   });
 
-  it("uses direct Crowdin tools for translation-only TMS requests", () => {
+  it("activates crowdin-tms-read skill for translation-only TMS requests", () => {
+    const skillPlan = buildConversationSkillPlan({
+      suggestedIntents: ["translation"],
+      hasFileAttachments: false,
+    });
     const instructions = buildOrchestratorInstructions({
       surface: "slack",
       projectId: null,
@@ -170,16 +193,17 @@ describe("conversation orchestrator", () => {
       suggestedMode: "translation",
       availableSubagents: ["translation"],
       preferredSubagents: [],
-      useCrowdinDirectTools: true,
+      skillPlan,
     });
 
+    expect(instructions).toContain("Crowdin TMS read path");
     expect(instructions).toContain("Crowdin TMS");
     expect(instructions).toContain("check_crowdin_progress");
     expect(instructions).toContain("list_projects");
     expect(instructions).not.toContain("Delegate to `translation`");
   });
 
-  it("exposes direct Crowdin tools without forcing task delegation", () => {
+  it("exposes skill-registry tools without forcing task delegation", () => {
     createConversationOrchestratorAgent({
       surface: "slack",
       suggestedIntents: ["translation"],
