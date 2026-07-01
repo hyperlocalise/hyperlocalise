@@ -296,6 +296,34 @@ describe("resolveApiAuthContextFromSession", () => {
     );
   });
 
+  it("forces membership reconcile when the WorkOS session includes an organization", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    withAuthMock.mockResolvedValue({
+      user: {
+        id: identity.user.workosUserId,
+        email: identity.user.email,
+        firstName: identity.user.firstName ?? null,
+        lastName: identity.user.lastName ?? null,
+        profilePictureUrl: identity.user.avatarUrl ?? null,
+      },
+      organizationId: identity.organization.workosOrganizationId,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+    await resolveApiAuthContextFromSession();
+
+    expect(reconcileWorkosMembershipsMock).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        workosUserId: identity.user.workosUserId,
+        workosOrganizationId: identity.organization.workosOrganizationId,
+        force: true,
+      }),
+    );
+  });
+
   it("uses the injected session without performing another withAuth lookup", async () => {
     const identity = fixture.createWorkosIdentity();
     await syncWorkosIdentity(db, identity);

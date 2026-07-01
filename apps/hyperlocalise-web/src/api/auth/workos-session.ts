@@ -7,6 +7,7 @@ import {
   assertWorkosMembershipReconcileAllowsAccess,
   reconcileWorkosMembershipsForUser,
 } from "@/api/auth/workos-membership-reconcile";
+import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
@@ -236,12 +237,19 @@ export async function resolveApiAuthContextFromSession(
     return null;
   }
 
+  const promotedPlaceholder = await promoteInvitedPlaceholderUser(db, {
+    email: session.user.email,
+    workosUserId: session.user.id,
+  });
+
   const reconcileResult = await reconcileWorkosMembershipsForUser(db, {
     workosUserId: session.user.id,
     email: session.user.email,
     firstName: session.user.firstName ?? undefined,
     lastName: session.user.lastName ?? undefined,
     avatarUrl: session.user.profilePictureUrl ?? undefined,
+    workosOrganizationId: session.organizationId ?? undefined,
+    force: promotedPlaceholder || Boolean(session.organizationId),
   });
 
   await assertWorkosMembershipReconcileAllowsAccess(db, session.user.id, reconcileResult);

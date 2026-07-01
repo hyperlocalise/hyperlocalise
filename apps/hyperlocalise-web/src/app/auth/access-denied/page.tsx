@@ -12,6 +12,7 @@ type AccessDeniedReason =
   | "workspace-archived"
   | "insufficient-permissions"
   | "missing-org-slug"
+  | "pending-invite"
   | "callback";
 
 function getAccessDeniedCopy(reason: AccessDeniedReason | undefined, intl: IntlShape) {
@@ -90,6 +91,27 @@ function getAccessDeniedCopy(reason: AccessDeniedReason | undefined, intl: IntlS
             "Choose an organization from your account or contact support if this continues.",
           id: "I9aLSBsZbT",
           description: "Access denied page guidance when the organization slug is missing",
+        }),
+      };
+    case "pending-invite":
+      return {
+        title: intl.formatMessage({
+          defaultMessage: "Invitation pending",
+          id: "+yMkmaDvaM",
+          description:
+            "Access denied page title when the user has not finished accepting an invite",
+        }),
+        description: intl.formatMessage({
+          defaultMessage:
+            "Your account is signed in, but this workspace invitation has not been confirmed yet.",
+          id: "Xc6qahwRY8",
+          description: "Access denied page summary when the user has a pending workspace invite",
+        }),
+        body: intl.formatMessage({
+          defaultMessage:
+            "Open the invitation email from your workspace admin and finish accepting the invite, then sign in again.",
+          id: "FE2l2eesst",
+          description: "Access denied page guidance when the user has a pending workspace invite",
         }),
       };
     case "callback":
