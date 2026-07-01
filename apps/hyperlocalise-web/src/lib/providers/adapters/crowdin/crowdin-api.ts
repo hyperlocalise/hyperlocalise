@@ -6,11 +6,9 @@
  * attempt to wrap the full Crowdin API surface.
  */
 
+import { resolveCrowdinApiBaseUrl } from "@/lib/providers/adapters/crowdin/crowdin-base-url";
 import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
-import {
-  normalizeProviderDownloadUrl,
-  requireProviderBaseUrl,
-} from "@/lib/providers/provider-url-safety";
+import { normalizeProviderDownloadUrl } from "@/lib/providers/provider-url-safety";
 
 export interface CrowdinApiClientOptions {
   token: string;
@@ -434,11 +432,7 @@ export class CrowdinApiClient {
 
   constructor(options: CrowdinApiClientOptions) {
     this.token = options.token;
-    this.baseUrl = requireProviderBaseUrl(
-      options.baseUrl,
-      "https://api.crowdin.com/api/v2",
-      "Crowdin",
-    );
+    this.baseUrl = resolveCrowdinApiBaseUrl(options.baseUrl);
     this.fetchFn = options.fetchFn ?? providerSafeFetch;
   }
 

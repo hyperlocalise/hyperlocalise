@@ -1,11 +1,14 @@
+import {
+  CROWDIN_DEFAULT_API_BASE_URL,
+  crowdinAuthenticatedUserUrl,
+  resolveCrowdinApiBaseUrl,
+} from "@/lib/providers/adapters/crowdin/crowdin-base-url";
 import { LOKALISE_DEFAULT_BASE_URL } from "@/lib/providers/adapters/lokalise/lokalise-api";
 import {
   PHRASE_TMS_DEFAULT_BASE_URL,
   resolvePhraseTmsBaseUrl,
 } from "@/lib/providers/adapters/phrase/phrase-tms-base-url";
 import { requireProviderBaseUrl } from "@/lib/providers/provider-url-safety";
-
-const CROWDIN_DEFAULT_BASE_URL = "https://api.crowdin.com/api/v2";
 
 const PROVIDER_API_PATH_PATTERN = / returned HTTP \d+ for (.+)$/;
 
@@ -15,6 +18,7 @@ type ProviderOAuthProfileLookupConfig = {
   defaultBaseUrl: string;
   defaultRequestPath: string;
   resolveBaseUrl: (baseUrl?: string | null) => string;
+  resolveProfileLookupEndpoint: (baseUrl?: string | null) => string;
 };
 
 const PROVIDER_OAUTH_PROFILE_LOOKUP_CONFIG: Record<
@@ -22,21 +26,26 @@ const PROVIDER_OAUTH_PROFILE_LOOKUP_CONFIG: Record<
   ProviderOAuthProfileLookupConfig
 > = {
   crowdin: {
-    defaultBaseUrl: CROWDIN_DEFAULT_BASE_URL,
+    defaultBaseUrl: CROWDIN_DEFAULT_API_BASE_URL,
     defaultRequestPath: "/user",
-    resolveBaseUrl: (baseUrl) =>
-      requireProviderBaseUrl(baseUrl, CROWDIN_DEFAULT_BASE_URL, "Crowdin"),
+    resolveBaseUrl: (baseUrl) => resolveCrowdinApiBaseUrl(baseUrl),
+    resolveProfileLookupEndpoint: (baseUrl) =>
+      crowdinAuthenticatedUserUrl(baseUrl) ?? `${CROWDIN_DEFAULT_API_BASE_URL}/user`,
   },
   phrase: {
     defaultBaseUrl: PHRASE_TMS_DEFAULT_BASE_URL,
     defaultRequestPath: "/api2/v1/auth/whoAmI",
     resolveBaseUrl: (baseUrl) => resolvePhraseTmsBaseUrl({ baseUrl }),
+    resolveProfileLookupEndpoint: (baseUrl) =>
+      `${resolvePhraseTmsBaseUrl({ baseUrl })}/api2/v1/auth/whoAmI`,
   },
   lokalise: {
     defaultBaseUrl: LOKALISE_DEFAULT_BASE_URL,
     defaultRequestPath: "/projects",
     resolveBaseUrl: (baseUrl) =>
       requireProviderBaseUrl(baseUrl, LOKALISE_DEFAULT_BASE_URL, "Lokalise"),
+    resolveProfileLookupEndpoint: (baseUrl) =>
+      `${requireProviderBaseUrl(baseUrl, LOKALISE_DEFAULT_BASE_URL, "Lokalise")}/projects`,
   },
 };
 
@@ -49,7 +58,7 @@ export type TmsUserOAuthProfileLookupLogContext = {
   provider: TmsUserOAuthProvider;
   apiHostname: string;
   isCustomBaseUrl: boolean;
-  requestPath: string;
+  apiEndpoint: string;
   status: number | null;
   providerErrorCode?: string | number;
   providerErrorMessage?: string;
@@ -231,6 +240,21 @@ function resolveApiHostname(baseUrl: string): string {
   return new URL(baseUrl).hostname;
 }
 
+function buildProfileLookupEndpoint(input: {
+  resolvedBaseUrl: string;
+  requestPath: string;
+}): string {
+  if (input.requestPath.startsWith("http://") || input.requestPath.startsWith("https://")) {
+    return input.requestPath;
+  }
+
+  const normalizedPath = input.requestPath.startsWith("/")
+    ? input.requestPath
+    : `/${input.requestPath}`;
+
+  return `${input.resolvedBaseUrl}${normalizedPath}`;
+}
+
 function buildCredentialHostContext(input: {
   provider: TmsUserOAuthProvider;
   credentialBaseUrl: string | null | undefined;
@@ -308,7 +332,7 @@ export function buildTmsUserOAuthProfileLookupLogContext(input: {
     provider: input.provider,
     apiHostname: resolveApiHostname(resolvedBaseUrl),
     isCustomBaseUrl: Boolean(input.credentialBaseUrl?.trim()),
-    requestPath: config.defaultRequestPath,
+    apiEndpoint: config.resolveProfileLookupEndpoint(input.credentialBaseUrl),
     status: null,
   };
 
@@ -318,8 +342,11 @@ export function buildTmsUserOAuthProfileLookupLogContext(input: {
 
   if (isProviderApiError(input.error)) {
     context.status = input.error.status;
-    context.requestPath =
-      extractRequestPathFromProviderApiError(input.error) ?? config.defaultRequestPath;
+    context.apiEndpoint = buildProfileLookupEndpoint({
+      resolvedBaseUrl,
+      requestPath:
+        extractRequestPathFromProviderApiError(input.error) ?? config.defaultRequestPath,
+    });
 
     const sanitizedResponse = sanitizeProviderApiErrorResponseBody(input.error.responseBody);
     if (sanitizedResponse?.providerErrorCode !== undefined) {
@@ -336,8 +363,11 @@ export function buildTmsUserOAuthProfileLookupLogContext(input: {
   if (input.error instanceof Error) {
     context.errorName = input.error.name;
     context.errorType = input.error.constructor.name;
-    context.requestPath =
-      extractRequestPathFromProviderApiError(input.error) ?? config.defaultRequestPath;
+    context.apiEndpoint = buildProfileLookupEndpoint({
+      resolvedBaseUrl,
+      requestPath:
+        extractRequestPathFromProviderApiError(input.error) ?? config.defaultRequestPath,
+    });
     return context;
   }
 

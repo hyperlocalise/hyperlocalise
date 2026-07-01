@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 
 import { db, schema } from "@/lib/database";
 
+import { crowdinAuthenticatedUserUrl } from "./adapters/crowdin/crowdin-base-url";
 import { parseSmartlingCredentials } from "./adapters/smartling/smartling-credentials";
 import { classifySmartlingHttpError } from "./adapters/smartling/smartling-api";
 import { resolvePhraseBaseUrl } from "./adapters/phrase/phrase-base-url";
@@ -289,9 +290,13 @@ function buildValidationRequest(input: {
   region: string | null;
 }): { url: string; init: RequestInit } | null {
   if (input.providerKind === "crowdin") {
-    const baseUrl = normalizeProviderBaseUrl(input.baseUrl, "https://api.crowdin.com");
+    const url = crowdinAuthenticatedUserUrl(input.baseUrl);
+    if (!url) {
+      return null;
+    }
+
     return {
-      url: `${baseUrl}/api/v2/user`,
+      url,
       init: { headers: { Authorization: `Bearer ${input.secretMaterial}` } },
     };
   }

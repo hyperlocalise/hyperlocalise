@@ -166,7 +166,7 @@ describe("buildTmsUserOAuthTokenExchangeFailedLogContext", () => {
   it("builds Crowdin token exchange diagnostics for invalid_grant", () => {
     const context = buildTmsUserOAuthTokenExchangeFailedLogContext({
       provider: "crowdin",
-      credentialBaseUrl: "https://heidihealth.api.crowdin.com/api/v2",
+      credentialBaseUrl: "https://enterprise.crowdin.test/api/v2",
       status: 400,
       redirectUri: "https://app.example.com/api/auth/crowdin/callback",
       responseBody: {
@@ -179,7 +179,7 @@ describe("buildTmsUserOAuthTokenExchangeFailedLogContext", () => {
       provider: "crowdin",
       status: 400,
       redirectUri: "https://app.example.com/api/auth/crowdin/callback",
-      apiHostname: "heidihealth.api.crowdin.com",
+      apiHostname: "enterprise.crowdin.test",
       isCustomBaseUrl: true,
       oauthError: "invalid_grant",
       oauthErrorDescription: "The authorization code has expired",
@@ -246,7 +246,7 @@ describe("buildTmsUserOAuthProfileLookupLogContext", () => {
 
     const context = buildTmsUserOAuthProfileLookupLogContext({
       provider: "crowdin",
-      credentialBaseUrl: "https://heidihealth.api.crowdin.com/api/v2",
+      credentialBaseUrl: "https://enterprise.crowdin.test/api/v2",
       error: new CrowdinApiError("Crowdin API returned HTTP 401 for /user", 401, {
         error: { code: 401, message: "Unauthorized" },
       }),
@@ -254,9 +254,9 @@ describe("buildTmsUserOAuthProfileLookupLogContext", () => {
 
     expect(context).toEqual({
       provider: "crowdin",
-      apiHostname: "heidihealth.api.crowdin.com",
+      apiHostname: "enterprise.crowdin.test",
       isCustomBaseUrl: true,
-      requestPath: "/user",
+      apiEndpoint: "https://enterprise.crowdin.test/api/v2/user",
       status: 401,
       providerErrorCode: 401,
       providerErrorMessage: "Unauthorized",
@@ -275,7 +275,7 @@ describe("buildTmsUserOAuthProfileLookupLogContext", () => {
       provider: "crowdin",
       apiHostname: "api.crowdin.com",
       isCustomBaseUrl: false,
-      requestPath: "/user",
+      apiEndpoint: "https://api.crowdin.com/api/v2/user",
       status: null,
       errorName: "Error",
       errorType: "Error",
@@ -302,7 +302,7 @@ describe("buildTmsUserOAuthProfileLookupLogContext", () => {
       provider: "lokalise",
       apiHostname: "api.lokalise.com",
       isCustomBaseUrl: false,
-      requestPath: "/projects",
+      apiEndpoint: "https://api.lokalise.com/api2/projects",
       status: null,
       resolutionCode: "no_projects",
       errorName: "LokaliseOAuthUserResolutionError",
