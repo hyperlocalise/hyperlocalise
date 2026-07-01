@@ -258,6 +258,13 @@ async function handleWorkosEvent(event: WorkosWebhookEvent): Promise<void> {
           workosMembershipId,
           workosOrganizationId,
         });
+        await db.transaction((tx) =>
+          revokeOrganizationMembershipAccess(tx, {
+            workosMembershipId,
+            workosOrganizationId,
+            workosUserId,
+          }),
+        );
         return;
       }
 
