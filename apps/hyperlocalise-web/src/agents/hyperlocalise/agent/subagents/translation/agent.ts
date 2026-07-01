@@ -2,6 +2,7 @@ import { stepCountIs, ToolLoopAgent } from "ai";
 import { z } from "zod";
 
 import { loadSubagentInstructions } from "@/agents/_runtime/loader";
+import { composeInstructions } from "@/agents/_runtime/compose-instructions";
 import { getHyperlocaliseAgentModel } from "@/lib/agent-runtime/loops/model";
 import { buildSubagentToolSet } from "@/lib/agent-runtime/subagents/build-subagent-tools";
 import {
@@ -18,7 +19,10 @@ const callOptionsSchema = z.object({
 });
 
 function buildTranslationSystemPrompt() {
-  const base = loadSubagentInstructions({ agentId: "hyperlocalise", subagentId: "translation" });
+  const base = composeInstructions({
+    base: loadSubagentInstructions({ agentId: "hyperlocalise", subagentId: "translation" }),
+    sharedSkills: ["crowdin"],
+  });
   return `${base}
 
 ## Rules
