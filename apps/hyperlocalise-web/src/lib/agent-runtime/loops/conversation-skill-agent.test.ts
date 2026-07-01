@@ -33,24 +33,27 @@ import { hyperlocaliseAgentStepLimit } from "./hyperlocalise-agent";
 
 import { createConversationSkillAgent } from "./conversation-skill-agent";
 
+const baseToolContext = {
+  conversationId: "conversation_123",
+  organizationId: "org_123",
+  localUserId: "user_123",
+  membershipRole: "member" as const,
+  projectId: null,
+  db: {} as never,
+};
+
 describe("conversation skill agent", () => {
   beforeEach(() => {
     clearAgentManifestCache();
     vi.clearAllMocks();
   });
 
-  it("exposes TMS tools by default without intents", () => {
+  it("exposes project and translation tools without TMS integration", () => {
     createConversationSkillAgent({
       surface: "slack",
       hasFileAttachments: false,
-      toolContext: {
-        conversationId: "conversation_123",
-        organizationId: "org_123",
-        localUserId: "user_123",
-        membershipRole: "member",
-        projectId: null,
-        db: {} as never,
-      },
+      hasTmsIntegration: false,
+      toolContext: baseToolContext,
     });
 
     expect(toolLoopAgentMock).toHaveBeenCalledWith(
@@ -59,11 +62,11 @@ describe("conversation skill agent", () => {
           "list_projects",
           "get_project_context",
           "update_interaction_project",
-          "check_crowdin_progress",
+          "translate_string",
         ]),
         tools: expect.objectContaining({
           list_projects: expect.any(Object),
-          check_crowdin_progress: expect.any(Object),
+          translate_string: expect.any(Object),
         }),
         timeout: DEFAULT_AGENT_TIMEOUT,
         stopWhen: { stepLimit: hyperlocaliseAgentStepLimit },
@@ -72,25 +75,49 @@ describe("conversation skill agent", () => {
 
     const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
       instructions: string;
+      activeTools: string[];
       prepareStep?: unknown;
+    };
+
+    expect(settings.instructions).toContain("Translation tools");
+    expect(settings.instructions).not.toContain("TMS tools");
+    expect(settings.activeTools).not.toContain("check_crowdin_progress");
+    expect(settings.prepareStep).toBeUndefined();
+  });
+
+  it("adds TMS tools when integration is available", () => {
+    createConversationSkillAgent({
+      surface: "slack",
+      hasFileAttachments: false,
+      hasTmsIntegration: true,
+      toolContext: baseToolContext,
+    });
+
+    expect(toolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        activeTools: expect.arrayContaining(["check_crowdin_progress"]),
+        tools: expect.objectContaining({
+          check_crowdin_progress: expect.any(Object),
+        }),
+      }),
+    );
+
+    const settings = toolLoopAgentMock.mock.calls.at(-1)?.[0] as {
+      instructions: string;
     };
 
     expect(settings.instructions).toContain("TMS tools");
     expect(settings.instructions).toContain("Crowdin TMS");
-    expect(settings.prepareStep).toBeUndefined();
   });
 
-  it("adds repo and translation tools when runtime context allows them", () => {
+  it("adds repo and file job tools when runtime context allows them", () => {
     createConversationSkillAgent({
       surface: "slack",
       hasFileAttachments: true,
+      hasTmsIntegration: true,
       toolContext: {
-        conversationId: "conversation_123",
-        organizationId: "org_123",
-        localUserId: "user_123",
-        membershipRole: "member",
+        ...baseToolContext,
         projectId: "proj_123",
-        db: {} as never,
         sandboxId: "sbx_123",
       },
     });

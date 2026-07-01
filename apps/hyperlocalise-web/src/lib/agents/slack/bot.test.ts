@@ -32,6 +32,7 @@ const {
   classifyConversationMock,
   createConversationToolLoopAgentMock,
   loadMessagesMock,
+  resolveOrganizationHasTmsIntegrationMock,
   resolveSlackRepositoryGitHubContextMock,
 } = vi.hoisted(() => ({
   agentGenerateMock: vi.fn(),
@@ -40,6 +41,7 @@ const {
     generate: agentGenerateMock,
   })),
   loadMessagesMock: vi.fn(async () => []),
+  resolveOrganizationHasTmsIntegrationMock: vi.fn(async () => false),
   resolveSlackRepositoryGitHubContextMock: vi.fn(),
 }));
 
@@ -98,6 +100,10 @@ vi.mock("@/lib/agent-runtime/loops/hyperlocalise-agent", () => {
       },
     }));
 });
+
+vi.mock("@/lib/agent-runtime/skills/conversation-tms-integration", () => ({
+  resolveOrganizationHasTmsIntegration: resolveOrganizationHasTmsIntegrationMock,
+}));
 
 vi.mock("@/lib/agents/repository-context", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/agents/repository-context")>();

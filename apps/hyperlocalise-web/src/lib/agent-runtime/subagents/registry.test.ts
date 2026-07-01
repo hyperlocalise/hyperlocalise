@@ -15,6 +15,7 @@ function createRuntime(
   return {
     surface: "slack",
     hasFileAttachments: false,
+    hasTmsIntegration: false,
     toolContext: {
       conversationId: "conv_1",
       organizationId: "org_1",

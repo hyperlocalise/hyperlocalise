@@ -128,6 +128,7 @@ describe("hyperlocalise agent core", () => {
   it("creates a skill-based conversation agent from runtime context", () => {
     createConversationToolLoopAgent({
       surface: "web",
+      hasTmsIntegration: false,
       toolContext: {
         conversationId: "conv_123",
         organizationId: "org_123",
@@ -143,6 +144,7 @@ describe("hyperlocalise agent core", () => {
       expect.objectContaining({
         surface: "web",
         hasFileAttachments: true,
+        hasTmsIntegration: false,
         toolContext: expect.objectContaining({ projectId: "proj_123" }),
       }),
       undefined,

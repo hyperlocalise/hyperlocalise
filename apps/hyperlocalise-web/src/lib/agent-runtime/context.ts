@@ -9,6 +9,7 @@ export type HyperlocaliseAgentRuntimeContext = {
   surface: HyperlocaliseAgentSurface;
   toolContext: ToolContext;
   hasFileAttachments: boolean;
+  hasTmsIntegration: boolean;
   additionalInstructions?: string;
 };
 
@@ -43,6 +44,7 @@ export function resolveAgentRuntimeContext(
     surface: context.surface,
     toolContext: context.toolContext,
     hasFileAttachments: context.hasFileAttachments ?? false,
+    hasTmsIntegration: context.hasTmsIntegration ?? false,
     additionalInstructions: context.additionalInstructions,
   });
 }
