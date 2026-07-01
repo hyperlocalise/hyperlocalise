@@ -20,7 +20,7 @@ import { CROWDIN_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/crowdin/crow
 import { PHRASE_OAUTH_SCOPE_GUIDE } from "@/lib/providers/adapters/phrase/phrase-oauth-scopes";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import {
   InputGroup,
@@ -169,6 +169,32 @@ function CrowdinOAuthSetupFields({
       </Field>
     </>
   );
+}
+
+function getTmsBaseUrlGuidance(providerKind: ExternalTmsProviderKind): string {
+  switch (providerKind) {
+    case "crowdin":
+      return "Leave blank for Crowdin.com. For Crowdin Enterprise, use your organization API URL including /api/v2, for example https://yourorg.api.crowdin.com/api/v2. A trailing slash is optional.";
+    case "phrase":
+      return "Leave blank for Phrase Cloud. For a custom Phrase TMS host, enter the full web API base URL, for example https://cloud.memsource.com/web.";
+    case "lokalise":
+      return "Leave blank for the standard Lokalise API. For a custom host, include the /api2 path, for example https://api.lokalise.com/api2.";
+    case "smartling":
+      return "Leave blank for the standard Smartling API. For a custom host, include the auth API path, for example https://api.smartling.com/auth-api/v2.";
+  }
+}
+
+function getTmsBaseUrlPlaceholder(providerKind: ExternalTmsProviderKind): string {
+  switch (providerKind) {
+    case "crowdin":
+      return "https://yourorg.api.crowdin.com/api/v2";
+    case "phrase":
+      return "https://cloud.memsource.com/web";
+    case "lokalise":
+      return "https://api.lokalise.com/api2";
+    case "smartling":
+      return "https://api.smartling.com/auth-api/v2";
+  }
 }
 
 type TmsProviderCredentialPanelProps = {
@@ -438,11 +464,12 @@ export function TmsProviderCredentialPanel({
         <CollapsibleContent className="pt-1">
           <Field className="gap-2">
             <FieldLabel htmlFor={baseUrlFieldId}>Base URL (optional)</FieldLabel>
+            <FieldDescription>{getTmsBaseUrlGuidance(providerKind)}</FieldDescription>
             <Input
               id={baseUrlFieldId}
               value={baseUrl}
               onChange={(event) => onBaseUrlChange(event.target.value)}
-              placeholder="https://api.example.com"
+              placeholder={getTmsBaseUrlPlaceholder(providerKind)}
             />
           </Field>
         </CollapsibleContent>

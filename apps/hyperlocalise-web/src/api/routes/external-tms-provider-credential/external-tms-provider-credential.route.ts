@@ -80,6 +80,7 @@ import {
   revealExternalTmsProviderCredentialBodySchema,
   upsertExternalTmsProviderCredentialBodySchema,
 } from "./external-tms-provider-credential.schema";
+import { normalizeUserOAuthReturnTo } from "./normalize-user-oauth-return-to";
 
 const CROWDIN_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
 const PHRASE_USER_OAUTH_STATE_TTL_MS = 60 * 60 * 1000;
@@ -219,25 +220,6 @@ function base64Url(input: Buffer) {
 
 function createCodeChallenge(codeVerifier: string) {
   return base64Url(createHash("sha256").update(codeVerifier).digest());
-}
-
-function normalizeUserOAuthReturnTo(value: string | null | undefined, organizationSlug: string) {
-  const fallback = `/org/${organizationSlug}`;
-  if (!value?.trim()) {
-    return fallback;
-  }
-
-  try {
-    const url = new URL(value, "https://app.hyperlocalise.local");
-    const normalized = `${url.pathname}${url.search}`;
-    if (normalized === fallback || normalized.startsWith(`${fallback}/`)) {
-      return normalized;
-    }
-  } catch {
-    return fallback;
-  }
-
-  return fallback;
 }
 
 function appendRelativeRedirectParam(path: string, key: string, value: string) {
@@ -1010,7 +992,7 @@ async function createCrowdinUserOAuthAuthorization(input: {
   c: ExternalTmsProviderCredentialRouteContext;
   credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
   organizationSlug: string;
-  returnTo: string;
+  returnTo: string | null | undefined;
 }) {
   const client = getCrowdinOAuthClientFromCredential(input.credential);
   const nonce = randomBytes(24).toString("hex");
@@ -1045,7 +1027,7 @@ async function createPhraseUserOAuthAuthorization(input: {
   c: ExternalTmsProviderCredentialRouteContext;
   credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
   organizationSlug: string;
-  returnTo: string;
+  returnTo: string | null | undefined;
 }) {
   const client = getPhraseOAuthClientFromCredential(input.credential);
   const nonce = randomBytes(24).toString("hex");
@@ -1082,7 +1064,7 @@ async function createLokaliseUserOAuthAuthorization(input: {
   c: ExternalTmsProviderCredentialRouteContext;
   credential: typeof schema.organizationExternalTmsProviderCredentials.$inferSelect;
   organizationSlug: string;
-  returnTo: string;
+  returnTo: string | null | undefined;
 }) {
   const client = getLokaliseOAuthClientFromCredential(input.credential);
   const nonce = randomBytes(24).toString("hex");
@@ -1757,7 +1739,7 @@ export function createExternalTmsProviderCredentialRoutes() {
           c,
           credential,
           organizationSlug,
-          returnTo: payload.returnTo ?? `/org/${organizationSlug}`,
+          returnTo: payload.returnTo,
         }),
         200,
       );
@@ -1800,7 +1782,7 @@ export function createExternalTmsProviderCredentialRoutes() {
           c,
           credential,
           organizationSlug,
-          returnTo: payload.returnTo ?? `/org/${organizationSlug}`,
+          returnTo: payload.returnTo,
         }),
         200,
       );
@@ -1843,7 +1825,7 @@ export function createExternalTmsProviderCredentialRoutes() {
           c,
           credential,
           organizationSlug,
-          returnTo: payload.returnTo ?? `/org/${organizationSlug}`,
+          returnTo: payload.returnTo,
         }),
         200,
       );
