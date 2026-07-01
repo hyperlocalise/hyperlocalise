@@ -1438,20 +1438,36 @@ async function attachOpenJobCountsToLiveProjects(
     liveProjectMetadata,
     LIVE_PROJECT_JOB_FANOUT_CONCURRENCY,
     async (project) => {
-      const jobs = await listTmsProviderLiveJobsForProject(
-        organizationId,
-        project.externalProjectId,
-        {
-          context,
-          projects: liveProjectMetadata,
-          actorUserId: options?.actorUserId,
-        },
-      );
+      try {
+        const jobs = await listTmsProviderLiveJobsForProject(
+          organizationId,
+          project.externalProjectId,
+          {
+            context,
+            projects: liveProjectMetadata,
+            actorUserId: options?.actorUserId,
+          },
+        );
 
-      return {
-        externalProjectId: project.externalProjectId,
-        openJobCount: countOpenLiveJobs(jobs),
-      };
+        return {
+          externalProjectId: project.externalProjectId,
+          openJobCount: countOpenLiveJobs(jobs),
+        };
+      } catch (error) {
+        logger.warn(
+          {
+            organizationId,
+            externalProjectId: project.externalProjectId,
+            error: error instanceof Error ? error.message : "unknown_error",
+          },
+          "failed to fetch live jobs for open job count enrichment",
+        );
+
+        return {
+          externalProjectId: project.externalProjectId,
+          openJobCount: 0,
+        };
+      }
     },
   );
 

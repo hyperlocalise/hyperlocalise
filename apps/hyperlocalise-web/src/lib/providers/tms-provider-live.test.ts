@@ -1,11 +1,19 @@
 import { afterEach, describe, expect, it, vi } from "vite-plus/test";
 
-vi.mock("@/lib/providers/organization-external-tms-provider-credentials", () => ({
-  API_TOKEN_AUTH_MODE: "api_token",
-  OAUTH_AUTH_MODE: "oauth",
-  getActiveOrganizationExternalTmsProviderCredentialRow: vi.fn(),
-  resolveExternalTmsSecretMaterial: vi.fn(),
-}));
+vi.mock(
+  "@/lib/providers/organization-external-tms-provider-credentials",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/lib/providers/organization-external-tms-provider-credentials")
+      >();
+    return {
+      ...actual,
+      getActiveOrganizationExternalTmsProviderCredentialRow: vi.fn(),
+      resolveExternalTmsSecretMaterial: vi.fn(),
+    };
+  },
+);
 
 vi.mock("@/lib/providers/adapters/crowdin/crowdin-user-connections", () => ({
   getCrowdinUserConnection: vi.fn(),
@@ -17,13 +25,37 @@ vi.mock("@/lib/providers/adapters/phrase/phrase-user-connections", () => ({
   resolvePhraseUserConnectionSecretMaterial: vi.fn(),
 }));
 
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
+vi.mock("@/lib/providers/adapters/crowdin/crowdin-api", () => ({
+  CrowdinApiClient: vi.fn(function CrowdinApiClientMock() {
+    return {
+      getProject: vi.fn(),
+    };
+  }),
+  CrowdinApiError: class CrowdinApiError extends Error {
+    status: number;
+
+    constructor(status: number, message: string) {
+      super(message);
+      this.name = "CrowdinApiError";
+      this.status = status;
+    }
+  },
+}));
+
+import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
+import {
+  getActiveOrganizationExternalTmsProviderCredentialRow,
+  resolveExternalTmsSecretMaterial,
+} from "@/lib/providers/organization-external-tms-provider-credentials";
 import {
   getPhraseUserConnection,
   resolvePhraseUserConnectionSecretMaterial,
 } from "@/lib/providers/adapters/phrase/phrase-user-connections";
 
-import { TmsProviderLiveError, tryLoadActiveTmsProviderContext } from "./tms-provider-live";
+import * as tmsProviderLive from "./tms-provider-live";
+
+const { getTmsProviderLiveProject, TmsProviderLiveError, tryLoadActiveTmsProviderContext } =
+  tmsProviderLive;
 
 const phraseOAuthCredential = {
   id: "credential-1",
@@ -36,6 +68,22 @@ const phraseOAuthCredential = {
   validationStatus: "valid",
   validationMessage: null,
   lastValidatedAt: null,
+};
+
+const crowdinCredential = {
+  id: "credential-crowdin",
+  providerKind: "crowdin",
+  authMode: "api_token",
+  displayName: "Crowdin",
+  region: null,
+  baseUrl: null,
+  oauthExpiresAt: null,
+  validationStatus: "valid",
+  validationMessage: null,
+  lastValidatedAt: null,
+  maskedSecretSuffix: "oken",
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
+  updatedAt: new Date("2026-01-01T00:00:00.000Z"),
 };
 
 describe("tryLoadActiveTmsProviderContext", () => {
@@ -61,4 +109,43 @@ describe("tryLoadActiveTmsProviderContext", () => {
       });
     },
   );
+});
+
+describe("getTmsProviderLiveProject", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("returns the project with openJobCount 0 when job enrichment fails", async () => {
+    vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue(
+      crowdinCredential as never,
+    );
+    vi.mocked(resolveExternalTmsSecretMaterial).mockResolvedValue("crowdin-token");
+
+    const getProject = vi.fn().mockResolvedValue({
+      id: 42,
+      name: "Crowdin Project",
+      sourceLanguageId: "en",
+      targetLanguageIds: ["fr"],
+      webUrl: "https://crowdin.com/project/test",
+      isSuspended: false,
+    });
+    vi.mocked(CrowdinApiClient).mockImplementation(function () {
+      return { getProject } as never;
+    });
+
+    vi.spyOn(tmsProviderLive, "listTmsProviderLiveJobsForProject").mockRejectedValue(
+      new TmsProviderLiveError("crowdin_rate_limited", "Rate limited"),
+    );
+
+    const project = await getTmsProviderLiveProject("org-1", "42");
+
+    expect(project).toMatchObject({
+      name: "Crowdin Project",
+      externalProjectId: "42",
+      openJobCount: 0,
+    });
+    expect(getProject).toHaveBeenCalledWith(42);
+  });
 });
