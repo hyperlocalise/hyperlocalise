@@ -133,47 +133,6 @@ export const env = createEnv({
      */
     CRON_SECRET: z.string().min(1).optional(),
 
-    /** Interval for lightweight file/job scans in minutes. */
-    TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(15),
-
-    /** Interval for TM/glossary import scans in minutes. */
-    TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(60),
-
-    /** Interval for full reconciliation in minutes. */
-    TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(24 * 60),
-
-    /** Interval for provider health and webhook audits in minutes. */
-    TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(24 * 60),
-
-    /** UTC hour for nightly full reconciliation. */
-    TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(3),
-
-    /** UTC hour for daily provider health and webhook audits. */
-    TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC: z.coerce.number().int().min(0).max(23).default(4),
-
-    /** Maximum sync intents enqueued per cron tick. */
-    TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK: z.coerce
-      .number()
-      .int()
-      .positive()
-      .default(500),
-
     /** Maximum repositories processed per GitHub automation dispatch cron tick. */
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK: z.coerce
       .number()
@@ -266,20 +225,6 @@ export const env = createEnv({
       (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined) ??
       (isTestEnv ? "https://app.example.test" : undefined),
     CRON_SECRET: process.env.CRON_SECRET ?? (isTestEnv ? "test-cron-secret" : undefined),
-    TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES:
-      process.env.TMS_SCHEDULED_RECONCILIATION_INCREMENTAL_INTERVAL_MINUTES,
-    TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES:
-      process.env.TMS_SCHEDULED_RECONCILIATION_TM_GLOSSARY_INTERVAL_MINUTES,
-    TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES:
-      process.env.TMS_SCHEDULED_RECONCILIATION_FULL_INTERVAL_MINUTES,
-    TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES:
-      process.env.TMS_SCHEDULED_RECONCILIATION_AUDIT_INTERVAL_MINUTES,
-    TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC:
-      process.env.TMS_SCHEDULED_RECONCILIATION_FULL_HOUR_UTC,
-    TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC:
-      process.env.TMS_SCHEDULED_RECONCILIATION_AUDIT_HOUR_UTC,
-    TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK:
-      process.env.TMS_SCHEDULED_RECONCILIATION_MAX_INTENTS_PER_TICK,
     GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK:
       process.env.GITHUB_REPOSITORY_AUTOMATION_DISPATCH_MAX_REPOS_PER_TICK,
     CANVA_APP_ID: process.env.CANVA_APP_ID ?? (isTestEnv ? "test-canva-app-id" : undefined),

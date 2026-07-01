@@ -27,7 +27,7 @@ export function getProjectWorkspaceCapabilities(input: {
     canUploadFiles: !isProviderProject && source === "native",
     canEditProjectSettings: source === "native",
     canDeleteProject: source === "native",
-    canSyncProviderJobs: isProviderProject || source === "external_tms",
+    canSyncProviderJobs: false,
   };
 }
 
@@ -36,6 +36,10 @@ export function isProviderBackedWorkspaceJob(job: {
   externalProviderKind: string | null;
 }) {
   return Boolean(job.externalProviderKind || parseProviderJobId(job.id));
+}
+
+export function isNativeWorkspaceJob(job: { id: string; externalProviderKind: string | null }) {
+  return !isProviderBackedWorkspaceJob(job);
 }
 
 export function canOpenProviderJobCat(job: {

@@ -1,10 +1,6 @@
 {
   "crons": [
     {
-      "path": "/api/cron/tms-scheduled-reconciliation",
-      "schedule": "*/15 * * * *"
-    },
-    {
       "path": "/api/cron/github-repository-automation-dispatch",
       "schedule": "*/15 * * * *"
     }

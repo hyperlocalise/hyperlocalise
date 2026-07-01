@@ -2,6 +2,7 @@ import {
   canOpenNativeJobCat,
   canOpenProviderJobCat,
 } from "@/lib/projects/workspace-resource-capabilities";
+import { resolveJobProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 export type JobCatTarget = {
   id: string;
@@ -44,7 +45,8 @@ export function buildJobCatHref(
   projectId: string | null | undefined,
   job: JobCatTarget,
 ) {
-  if (!projectId || !canOpenJobCat(job)) {
+  const resolvedProjectId = resolveJobProjectId(projectId, job.id);
+  if (!resolvedProjectId || !canOpenJobCat(job)) {
     return null;
   }
 
@@ -73,7 +75,7 @@ export function buildJobCatHref(
     }
   }
 
-  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(job.id)}/strings`;
+  const base = `/org/${organizationSlug}/projects/${encodeURIComponent(resolvedProjectId)}/jobs/${encodeURIComponent(job.id)}/strings`;
   const query = params.toString();
   return query ? `${base}?${query}` : base;
 }

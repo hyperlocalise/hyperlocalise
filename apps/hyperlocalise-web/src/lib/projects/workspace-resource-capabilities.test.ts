@@ -25,11 +25,11 @@ describe("getProjectWorkspaceCapabilities", () => {
       canUploadFiles: false,
       canEditProjectSettings: false,
       canDeleteProject: false,
-      canSyncProviderJobs: true,
+      canSyncProviderJobs: false,
     });
   });
 
-  it("returns provider sync capabilities for synced external projects", () => {
+  it("returns read-only capabilities for synced external projects", () => {
     expect(
       getProjectWorkspaceCapabilities({
         projectId: "project_abc123",
@@ -41,7 +41,7 @@ describe("getProjectWorkspaceCapabilities", () => {
       canUploadFiles: false,
       canEditProjectSettings: false,
       canDeleteProject: false,
-      canSyncProviderJobs: true,
+      canSyncProviderJobs: false,
     });
   });
 });

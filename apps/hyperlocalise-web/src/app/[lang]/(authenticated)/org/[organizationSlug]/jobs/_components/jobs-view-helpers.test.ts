@@ -50,6 +50,9 @@ describe("jobs-view-helpers", () => {
       "/org/acme/projects/project-1/jobs/job-1",
     );
     expect(buildJobDetailHref("acme", null, "job-1")).toBeNull();
+    expect(buildJobDetailHref("acme", null, "ext:crowdin:project-1:job-1")).toBe(
+      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1",
+    );
   });
 
   it("allows CAT for provider-backed translation and review jobs", () => {
@@ -78,7 +81,10 @@ describe("jobs-view-helpers", () => {
     expect(buildJobCatHref("acme", "project-1", createJob())).toBe(
       "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json",
     );
-    expect(buildJobCatHref("acme", null, createJob())).toBeNull();
+    expect(buildJobCatHref("acme", null, createJob())).toBe(
+      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json",
+    );
+    expect(buildJobCatHref("acme", null, createJob({ id: "job_native" }))).toBeNull();
     expect(buildJobCatHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
   });
 

@@ -3,9 +3,6 @@ import {
   Delete02Icon,
   Edit02Icon,
   ArrowRight01Icon,
-  Alert02Icon,
-  CheckmarkCircle02Icon,
-  DatabaseSyncIcon,
   TranslationIcon,
 } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -15,7 +12,6 @@ import { TmsUserConnectionErrorPanel } from "@/components/app-shell/tms-user-con
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 import type { ProjectListRow } from "./project-list";
@@ -42,34 +38,6 @@ function ProviderBadge({
   );
 }
 
-function HealthBadge({ project }: { project: ProjectListRow }) {
-  if (project.source === "native") return null;
-
-  if (!project.isActive) {
-    return (
-      <Badge variant="outline" className="text-[10px]">
-        Inactive
-      </Badge>
-    );
-  }
-
-  if (project.lastSyncErrorAt) {
-    return (
-      <Badge variant="destructive" className="text-[10px]">
-        <HugeiconsIcon icon={Alert02Icon} strokeWidth={1.8} className="size-3" />
-        Sync error
-      </Badge>
-    );
-  }
-
-  return (
-    <Badge variant="outline" className="text-[10px]">
-      <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={1.8} className="size-3" />
-      Active
-    </Badge>
-  );
-}
-
 function LocaleSummary({ project }: { project: ProjectListRow }) {
   if (project.source === "native") return null;
 
@@ -91,43 +59,13 @@ function LocaleSummary({ project }: { project: ProjectListRow }) {
   );
 }
 
-function SyncInfo({ project }: { project: ProjectListRow }) {
-  if (project.source === "native") return null;
-
-  if (project.lastSyncErrorAt) {
-    return (
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <span className="text-xs text-destructive">
-              Last sync failed {project.lastSyncErrorAt}
-            </span>
-          }
-        />
-        <TooltipContent side="bottom" align="start" className="max-w-xs">
-          <p className="text-xs">{project.lastSyncErrorMessage ?? "Unknown error"}</p>
-        </TooltipContent>
-      </Tooltip>
-    );
-  }
-
-  if (project.lastSyncedAt) {
-    return <span className="text-xs text-foreground/42">Synced {project.lastSyncedAt}</span>;
-  }
-
-  return <span className="text-xs text-foreground/42">Not synced yet</span>;
-}
-
 export function ProjectsTable({
   projects,
   projectsQuery,
   isSavingProject,
   isDeletingProject,
-  hasActiveTmsConnection,
-  isCheckingTmsConnection,
-  isSyncingProviderProjects,
   organizationSlug,
-  onSyncProviderProjects,
+  variant,
   onEditProject,
   onDeleteProject,
 }: {
@@ -135,14 +73,18 @@ export function ProjectsTable({
   projectsQuery: UseQueryResult<ProjectListRow[], Error>;
   isSavingProject: boolean;
   isDeletingProject: boolean;
-  hasActiveTmsConnection: boolean;
-  isCheckingTmsConnection: boolean;
-  isSyncingProviderProjects: boolean;
   organizationSlug: string;
-  onSyncProviderProjects: () => void;
-  onEditProject: (project: ProjectListRow) => void;
-  onDeleteProject: (project: ProjectListRow) => void;
+  variant: "native" | "tms";
+  onEditProject?: (project: ProjectListRow) => void;
+  onDeleteProject?: (project: ProjectListRow) => void;
 }) {
+  const emptyNativeTitle = "Create your first localization project";
+  const emptyNativeDescription =
+    "Track source content, release ownership, and translation context before work moves into translation jobs.";
+  const emptyTmsTitle = "No TMS projects found";
+  const emptyTmsDescription =
+    "Your provider connection is active, but no projects were returned from the live API.";
+
   return (
     <section>
       {projectsQuery.isLoading ? (
@@ -152,7 +94,7 @@ export function ProjectsTable({
       ) : null}
       {projectsQuery.isError ? (
         <div className="border-t border-foreground/8 px-1 py-8">
-          {isTmsUserConnectionRequiredError(projectsQuery.error) ? (
+          {variant === "tms" && isTmsUserConnectionRequiredError(projectsQuery.error) ? (
             <TmsUserConnectionErrorPanel
               organizationSlug={organizationSlug}
               resource="projects"
@@ -173,59 +115,13 @@ export function ProjectsTable({
         </div>
       ) : null}
       {projectsQuery.isSuccess && projects.length === 0 ? (
-        <div className="max-w-xl space-y-3 py-10">
-          {isCheckingTmsConnection ? (
-            <>
-              <TypographyP className="text-sm font-medium text-foreground">
-                Checking TMS connection
-              </TypographyP>
-              <TypographyP className="text-sm leading-6 text-foreground/52">
-                Looking for an active provider connection before showing project setup actions.
-              </TypographyP>
-            </>
-          ) : hasActiveTmsConnection ? (
-            <>
-              <TypographyP className="text-sm font-medium text-foreground">
-                No synced projects yet
-              </TypographyP>
-              <TypographyP className="text-sm leading-6 text-foreground/52">
-                Your TMS connection is active, but no projects have been imported yet. Run a sync to
-                check for available projects.
-              </TypographyP>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={onSyncProviderProjects}
-                disabled={isSyncingProviderProjects}
-              >
-                {isSyncingProviderProjects ? (
-                  <Spinner className="size-3.5" />
-                ) : (
-                  <HugeiconsIcon icon={DatabaseSyncIcon} strokeWidth={1.8} />
-                )}
-                Sync now
-              </Button>
-            </>
-          ) : (
-            <>
-              <TypographyP className="text-sm font-medium text-foreground">
-                Create your first localization project
-              </TypographyP>
-              <TypographyP className="text-sm leading-6 text-foreground/52">
-                Track source content, release ownership, and translation context before work moves
-                into translation jobs. Or connect a TMS provider to import existing projects.
-              </TypographyP>
-              <Button
-                nativeButton={false}
-                render={<Link href={`/org/${organizationSlug}/integrations`} />}
-                variant="outline"
-                size="sm"
-              >
-                Connect a provider
-              </Button>
-            </>
-          )}
+        <div className="max-w-xl space-y-3 py-6">
+          <TypographyP className="text-sm font-medium text-foreground">
+            {variant === "native" ? emptyNativeTitle : emptyTmsTitle}
+          </TypographyP>
+          <TypographyP className="text-sm leading-6 text-foreground/52">
+            {variant === "native" ? emptyNativeDescription : emptyTmsDescription}
+          </TypographyP>
         </div>
       ) : null}
       {projectsQuery.isSuccess && projects.length > 0 ? (
@@ -245,7 +141,11 @@ export function ProjectsTable({
                       {project.name}
                     </TypographyH3>
                     <ProviderBadge externalProviderKind={project.externalProviderKind} />
-                    <HealthBadge project={project} />
+                    {variant === "tms" && !project.isActive ? (
+                      <Badge variant="outline" className="text-[10px]">
+                        Inactive
+                      </Badge>
+                    ) : null}
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
                     <TypographyP className="truncate text-xs text-foreground/36">
@@ -256,7 +156,7 @@ export function ProjectsTable({
                 </Link>
 
                 <div className="flex shrink-0 items-center gap-1">
-                  {project.source === "native" ? (
+                  {variant === "native" && onEditProject && onDeleteProject ? (
                     <>
                       <Tooltip>
                         <TooltipTrigger
@@ -334,16 +234,6 @@ export function ProjectsTable({
               </div>
 
               <dl className="mt-6 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
-                {project.source === "external_tms" ? (
-                  <div className="min-w-0">
-                    <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                      Last sync
-                    </dt>
-                    <dd className="mt-1 truncate text-sm text-foreground/54">
-                      <SyncInfo project={project} />
-                    </dd>
-                  </div>
-                ) : null}
                 <div className="min-w-0">
                   <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
                     Open jobs

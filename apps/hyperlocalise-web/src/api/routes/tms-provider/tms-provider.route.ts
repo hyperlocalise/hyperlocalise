@@ -18,11 +18,8 @@ import {
   getJobProviderActionDefinition,
   isJobProviderActionAvailable,
 } from "@/lib/providers/job-provider-actions";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { enqueueProviderCatalogSyncIntent } from "@/lib/providers/provider-sync-intent";
 import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
-import type { ProviderAgentTranslationQueue, ProviderSyncQueue } from "@/lib/workflow/types";
-import { createProviderSyncQueue } from "@/workflows/adapters";
+import type { ProviderAgentTranslationQueue } from "@/lib/workflow/types";
 import {
   getTmsProviderConnection,
   getTmsProviderLiveJobFileDetail,
@@ -141,12 +138,9 @@ function canEditTmsProviderJobDescription(auth: AuthVariables["auth"]) {
 
 type CreateTmsProviderRoutesOptions = {
   providerAgentTranslationQueue?: ProviderAgentTranslationQueue;
-  providerSyncQueue?: ProviderSyncQueue;
 };
 
 export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions = {}) {
-  const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
-
   return new Hono<{ Variables: AuthVariables }>()
     .use("*", workosAuthMiddleware)
     .get("/connection", async (c) => {
@@ -181,56 +175,6 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
       } catch (error) {
         return tmsProviderLiveErrorResponse(c, error);
       }
-    })
-    .post("/projects/sync", async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
-        return c.json({ error: "forbidden" }, 403);
-      }
-
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const credential =
-        await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
-      if (!credential) {
-        return c.json(
-          {
-            error: "no_active_tms_provider",
-            message: "Connect a TMS provider before syncing projects.",
-          },
-          404,
-        );
-      }
-
-      const result = await enqueueProviderCatalogSyncIntent({
-        organizationId,
-        providerCredentialId: credential.id,
-        providerKind: credential.providerKind,
-        cause: "manual",
-      });
-
-      let workflowRun: { ids: string[] };
-      try {
-        workflowRun = await providerSyncQueue.enqueue({
-          providerSyncIntentId: result.intentId,
-          organizationId,
-        });
-      } catch {
-        return serviceUnavailableResponse(
-          c,
-          "provider_sync_queue_unavailable",
-          "Provider sync workflow could not be started.",
-        );
-      }
-
-      return c.json(
-        {
-          providerProjectSync: {
-            intentId: result.intentId,
-            created: result.created,
-            workflowRunIds: workflowRun.ids,
-          },
-        },
-        202,
-      );
     })
     .get("/projects/:externalProjectId", async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "projects:read")) {

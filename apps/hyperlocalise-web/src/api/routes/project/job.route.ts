@@ -11,7 +11,6 @@ import {
   isJobProviderActionAllowed,
   isReviewApproveAllowed,
 } from "@/api/auth/capability-guards";
-import { hasCapability } from "@/api/auth/policy";
 import { buildAccessibleJobsWhere } from "@/api/auth/team-access";
 import { workosAuthMiddleware, type ApiAuthContext, type AuthVariables } from "@/api/auth/workos";
 import {
@@ -49,7 +48,6 @@ import type {
   ProviderAgentQaQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
-  ProviderSyncQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 
@@ -85,11 +83,6 @@ import { resolveProviderSourceFilesForJob } from "@/lib/providers/job-provider-s
 import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-http-error";
 import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
-import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
-import {
-  enqueueProviderProjectJobSyncIntent,
-  maybeEnqueueProviderProjectJobSync,
-} from "@/lib/providers/provider-sync-intent";
 
 import {
   createJobAgentRunBodySchema,
@@ -107,7 +100,6 @@ import {
 
 type CreateJobRoutesOptions = {
   jobQueue: JobQueue<TranslationJobEventData>;
-  providerSyncQueue: ProviderSyncQueue;
 };
 
 type CreateWorkspaceJobRoutesOptions = {
@@ -358,20 +350,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
         return providerProjectUnavailableResponse(c, target);
       }
 
-      if (target.kind === "provider") {
-        const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
-          c.var.auth.organization.localOrganizationId,
-        );
-        if (credential && credential.providerKind === target.providerKind) {
-          maybeEnqueueProviderProjectJobSync({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            providerCredentialId: credential.id,
-            providerKind: credential.providerKind,
-            projectId: params.projectId,
-          });
-        }
-      }
-
       if (target.kind === "native") {
         const project = await getOwnedProject(c.var.auth, params.projectId);
 
@@ -539,67 +517,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       }
 
       return c.json({ job: createdJob }, 201);
-    })
-    .post("/sync", validateProjectParams, async (c) => {
-      if (!hasCapability(c.var.auth.membership.role, "provider_credentials:write")) {
-        return forbiddenResponse(c);
-      }
-
-      const params = c.req.valid("param");
-      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-      if (target.kind === "provider_unavailable") {
-        return providerProjectUnavailableResponse(c, target);
-      }
-      if (target.kind !== "provider") {
-        return badRequestResponse(
-          c,
-          "provider_project_required",
-          "Job sync is only available for external TMS projects",
-        );
-      }
-
-      const organizationId = c.var.auth.organization.localOrganizationId;
-      const credential =
-        await getActiveOrganizationExternalTmsProviderCredentialRow(organizationId);
-      if (!credential || credential.providerKind !== target.providerKind) {
-        return providerProjectUnavailableResponse(c, {
-          kind: "provider_unavailable",
-          error: "provider_project_not_available",
-          message: `Project belongs to ${target.providerKind}, but no matching active provider is available`,
-        });
-      }
-
-      const result = await enqueueProviderProjectJobSyncIntent({
-        organizationId,
-        providerCredentialId: credential.id,
-        providerKind: credential.providerKind,
-        projectId: params.projectId,
-        cause: "manual",
-      });
-      let workflowRun: { ids: string[] };
-      try {
-        workflowRun = await options.providerSyncQueue.enqueue({
-          providerSyncIntentId: result.intentId,
-          organizationId,
-        });
-      } catch {
-        return serviceUnavailableResponse(
-          c,
-          "provider_sync_queue_unavailable",
-          "Provider sync workflow could not be started",
-        );
-      }
-
-      return c.json(
-        {
-          providerJobSync: {
-            intentId: result.intentId,
-            created: result.created,
-            workflowRunIds: workflowRun.ids,
-          },
-        },
-        202,
-      );
     })
     .get("/:jobId", validateJobParams, async (c) => {
       const params = c.req.valid("param");

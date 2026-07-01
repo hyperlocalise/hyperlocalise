@@ -2,7 +2,6 @@
 
 import { useEffect, useId, useMemo, useState, type ReactNode } from "react";
 import {
-  DatabaseSyncIcon,
   KanbanIcon,
   ListViewIcon,
   SearchIcon,
@@ -16,7 +15,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ButtonGroup } from "@/components/ui/button-group";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
 import {
   Select,
   SelectContent,
@@ -526,18 +524,78 @@ function JobsCollection({
   );
 }
 
-export function JobsPageView({
-  assignedJobs,
+function JobsSectionHeader({ title, description }: { title: string; description?: string }) {
+  return (
+    <div className="space-y-1">
+      <TypographyP className="text-sm font-medium text-foreground">{title}</TypographyP>
+      {description ? (
+        <TypographyP className="text-sm leading-6 text-foreground/52">{description}</TypographyP>
+      ) : null}
+    </div>
+  );
+}
+
+function JobsResourceSection({
   buildJobDetailHref: buildDetailHref = buildJobDetailHref,
-  createdJobs,
+  description,
+  emptyLabel,
   error,
-  initialSearch = "",
-  initialStatusFilter = "all",
   isLoading,
-  isSyncingProviderJobs = false,
   jobs,
   now,
-  onSyncProviderJobs,
+  organizationSlug,
+  projectId,
+  renderError,
+  renderJobLink,
+  title,
+  viewMode,
+}: {
+  buildJobDetailHref?: typeof buildJobDetailHref;
+  description?: string;
+  emptyLabel: string;
+  error?: unknown;
+  isLoading: boolean;
+  jobs: JobRow[];
+  now?: number;
+  organizationSlug: string;
+  projectId?: string;
+  renderError: JobsErrorRenderer;
+  renderJobLink: JobsLinkRenderer;
+  title: string;
+  viewMode: JobsViewMode;
+}) {
+  return (
+    <div className="space-y-3">
+      <JobsSectionHeader title={title} description={description} />
+      {error ? <div>{renderError({ error, organizationSlug })}</div> : null}
+      <JobsCollection
+        buildJobDetailHref={buildDetailHref}
+        emptyLabel={emptyLabel}
+        isLoading={isLoading}
+        jobs={jobs}
+        now={now}
+        organizationSlug={organizationSlug}
+        projectId={projectId}
+        renderJobLink={renderJobLink}
+        viewMode={viewMode}
+      />
+    </div>
+  );
+}
+
+export function JobsPageView({
+  assignedNativeJobs = [],
+  buildJobDetailHref: buildDetailHref = buildJobDetailHref,
+  createdNativeJobs = [],
+  hasActiveTmsConnection = false,
+  initialSearch = "",
+  initialStatusFilter = "all",
+  isNativeLoading,
+  isProviderProjectScope = false,
+  isTmsLoading = false,
+  nativeError,
+  nativeJobs,
+  now,
   onStatusFilterChange,
   organizationSlug,
   projectId,
@@ -545,18 +603,21 @@ export function JobsPageView({
   renderJobLink = defaultRenderJobLink,
   scope = "all",
   statusFilter: controlledStatusFilter,
+  tmsError,
+  tmsJobs = [],
 }: {
-  assignedJobs?: JobRow[];
+  assignedNativeJobs?: JobRow[];
   buildJobDetailHref?: typeof buildJobDetailHref;
-  createdJobs?: JobRow[];
-  error?: unknown;
+  createdNativeJobs?: JobRow[];
+  hasActiveTmsConnection?: boolean;
   initialSearch?: string;
   initialStatusFilter?: JobsStatusFilter;
-  isLoading: boolean;
-  isSyncingProviderJobs?: boolean;
-  jobs: JobRow[];
+  isNativeLoading: boolean;
+  isProviderProjectScope?: boolean;
+  isTmsLoading?: boolean;
+  nativeError?: unknown;
+  nativeJobs: JobRow[];
   now?: number;
-  onSyncProviderJobs?: () => void;
   onStatusFilterChange?: (statusFilter: JobsStatusFilter) => void;
   organizationSlug: string;
   projectId?: string;
@@ -564,6 +625,8 @@ export function JobsPageView({
   renderJobLink?: JobsLinkRenderer;
   scope?: JobsScope;
   statusFilter?: JobsStatusFilter;
+  tmsError?: unknown;
+  tmsJobs?: JobRow[];
 }) {
   const searchId = useId();
   const [search, setSearch] = useState(initialSearch);
@@ -587,51 +650,42 @@ export function JobsPageView({
     }
   };
 
-  const visibleJobs = useMemo(() => {
+  const filterJobs = (jobs: JobRow[]) => {
     const normalizedSearch = search.trim().toLowerCase();
     return jobs.filter((job) => jobMatchesFilters(job, { search: normalizedSearch, statusFilter }));
-  }, [jobs, search, statusFilter]);
+  };
 
-  const visibleAssignedJobs = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    return (assignedJobs ?? []).filter((job) =>
-      jobMatchesFilters(job, { search: normalizedSearch, statusFilter }),
-    );
-  }, [assignedJobs, search, statusFilter]);
-
-  const visibleCreatedJobs = useMemo(() => {
-    const normalizedSearch = search.trim().toLowerCase();
-    return (createdJobs ?? []).filter((job) =>
-      jobMatchesFilters(job, { search: normalizedSearch, statusFilter }),
-    );
-  }, [createdJobs, search, statusFilter]);
+  const visibleNativeJobs = useMemo(
+    () => filterJobs(nativeJobs),
+    [nativeJobs, search, statusFilter],
+  );
+  const visibleTmsJobs = useMemo(() => filterJobs(tmsJobs), [tmsJobs, search, statusFilter]);
+  const visibleAssignedNativeJobs = useMemo(
+    () => filterJobs(assignedNativeJobs),
+    [assignedNativeJobs, search, statusFilter],
+  );
+  const visibleCreatedNativeJobs = useMemo(
+    () => filterJobs(createdNativeJobs),
+    [createdNativeJobs, search, statusFilter],
+  );
 
   const isPersonalWork = scope === "personal";
-  const emptyLabel = projectId
-    ? "No jobs synced for this project yet. Sync jobs from your TMS to populate this list."
+  const showNativeSection = !isProviderProjectScope;
+  const showTmsSection = hasActiveTmsConnection || isProviderProjectScope;
+
+  const nativeEmptyLabel = projectId
+    ? "No Hyperlocalise jobs found for this project yet."
     : scope === "personal"
-      ? "No work items found for your account."
-      : "No jobs found for this workspace.";
-  const syncJobsAction =
-    projectId && onSyncProviderJobs ? (
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full sm:w-fit"
-        onClick={onSyncProviderJobs}
-        disabled={isSyncingProviderJobs}
-      >
-        {isSyncingProviderJobs ? (
-          <Spinner className="size-4" />
-        ) : (
-          <HugeiconsIcon icon={DatabaseSyncIcon} strokeWidth={1.8} />
-        )}
-        Sync jobs
-      </Button>
-    ) : null;
+      ? "No Hyperlocalise work items found for your account."
+      : "No Hyperlocalise jobs found for this workspace.";
+  const tmsEmptyLabel = projectId
+    ? "No TMS jobs found for this project."
+    : scope === "personal"
+      ? "No TMS jobs assigned to you were returned from the live provider API."
+      : "No TMS jobs were returned from the live provider API.";
 
   const jobsSection = (
-    <section className="space-y-5">
+    <section className="space-y-8">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-end">
         <JobsFilterField label="Search" className="min-w-0 flex-1">
           <div className="relative">
@@ -678,58 +732,100 @@ export function JobsPageView({
           </JobsFilterField>
         ) : null}
       </div>
-      {error ? <div>{renderError({ error, organizationSlug })}</div> : null}
+
       {isPersonalWork ? (
-        <div className="space-y-8">
-          <div className="space-y-3">
-            <div>
-              <TypographyP className="text-sm font-medium text-foreground">
-                Jobs assigned to me
-              </TypographyP>
-            </div>
-            <JobsCollection
+        <>
+          <div className="space-y-8">
+            <JobsSectionHeader title="Assigned to me" />
+            {showNativeSection ? (
+              <JobsResourceSection
+                buildJobDetailHref={buildDetailHref}
+                emptyLabel="No assigned Hyperlocalise jobs found."
+                error={nativeError}
+                isLoading={isNativeLoading}
+                jobs={visibleAssignedNativeJobs}
+                now={now}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                renderError={renderError}
+                renderJobLink={renderJobLink}
+                title="Hyperlocalise jobs"
+                viewMode={viewMode}
+              />
+            ) : null}
+            {showTmsSection ? (
+              <JobsResourceSection
+                buildJobDetailHref={buildDetailHref}
+                emptyLabel="No assigned TMS jobs found."
+                error={tmsError}
+                isLoading={isTmsLoading}
+                jobs={visibleTmsJobs}
+                now={now}
+                organizationSlug={organizationSlug}
+                projectId={projectId}
+                renderError={renderError}
+                renderJobLink={renderJobLink}
+                title="TMS jobs"
+                description="Live jobs assigned to you in the connected provider."
+                viewMode={viewMode}
+              />
+            ) : null}
+          </div>
+          <div className="space-y-8">
+            <JobsSectionHeader title="Created by me" />
+            <JobsResourceSection
               buildJobDetailHref={buildDetailHref}
-              emptyLabel="No assigned jobs found for your account."
-              isLoading={isLoading}
-              jobs={visibleAssignedJobs}
+              emptyLabel="No Hyperlocalise jobs created by you found."
+              error={nativeError}
+              isLoading={isNativeLoading}
+              jobs={visibleCreatedNativeJobs}
               now={now}
               organizationSlug={organizationSlug}
               projectId={projectId}
+              renderError={renderError}
               renderJobLink={renderJobLink}
+              title="Hyperlocalise jobs"
               viewMode={viewMode}
             />
           </div>
-          <div className="space-y-3">
-            <div>
-              <TypographyP className="text-sm font-medium text-foreground">
-                Jobs created by me
-              </TypographyP>
-            </div>
-            <JobsCollection
-              buildJobDetailHref={buildDetailHref}
-              emptyLabel="No jobs created by you found."
-              isLoading={isLoading}
-              jobs={visibleCreatedJobs}
-              now={now}
-              organizationSlug={organizationSlug}
-              projectId={projectId}
-              renderJobLink={renderJobLink}
-              viewMode={viewMode}
-            />
-          </div>
-        </div>
+        </>
       ) : (
-        <JobsCollection
-          buildJobDetailHref={buildDetailHref}
-          emptyLabel={emptyLabel}
-          isLoading={isLoading}
-          jobs={visibleJobs}
-          now={now}
-          organizationSlug={organizationSlug}
-          projectId={projectId}
-          renderJobLink={renderJobLink}
-          viewMode={viewMode}
-        />
+        <>
+          {showNativeSection ? (
+            <JobsResourceSection
+              buildJobDetailHref={buildDetailHref}
+              emptyLabel={nativeEmptyLabel}
+              error={nativeError}
+              isLoading={isNativeLoading}
+              jobs={visibleNativeJobs}
+              now={now}
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              renderError={renderError}
+              renderJobLink={renderJobLink}
+              title="Hyperlocalise jobs"
+              description="Jobs created and tracked in this workspace."
+              viewMode={viewMode}
+            />
+          ) : null}
+          {showTmsSection ? (
+            <JobsResourceSection
+              buildJobDetailHref={buildDetailHref}
+              emptyLabel={tmsEmptyLabel}
+              error={tmsError}
+              isLoading={isTmsLoading}
+              jobs={visibleTmsJobs}
+              now={now}
+              organizationSlug={organizationSlug}
+              projectId={projectId}
+              renderError={renderError}
+              renderJobLink={renderJobLink}
+              title="TMS jobs"
+              description="Live jobs fetched from your connected TMS provider."
+              viewMode={viewMode}
+            />
+          ) : null}
+        </>
       )}
     </section>
   );
@@ -740,8 +836,7 @@ export function JobsPageView({
         <ProjectSectionHeader
           icon={Task01Icon}
           section="Jobs"
-          description="Translation, review, QA, and sync work."
-          actions={syncJobsAction}
+          description="Translation, review, QA, and sync work from Hyperlocalise and your TMS."
         />
         {jobsSection}
       </ProjectPageShell>
@@ -756,8 +851,8 @@ export function JobsPageView({
         title={isPersonalWork ? "My Jobs" : "Jobs"}
         description={
           isPersonalWork
-            ? "Translation, review, and sync work assigned to you or created by you."
-            : "Translation, review, QA, and sync work tracked across the workspace."
+            ? "Hyperlocalise and live TMS work assigned to you or created by you."
+            : "Hyperlocalise jobs and live TMS jobs tracked across the workspace."
         }
       />
       {jobsSection}

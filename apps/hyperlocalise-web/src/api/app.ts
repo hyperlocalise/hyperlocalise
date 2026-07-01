@@ -8,7 +8,6 @@ import type {
   JobQueue,
   ProviderAgentCommentQueue,
   ProviderAgentQaQueue,
-  ProviderSyncQueue,
   ProviderAgentTranslationQueue,
   ProviderAgentWritebackQueue,
   TranslationFileImportQueue,
@@ -55,14 +54,12 @@ import { createAutumnRoutes } from "./routes/autumn/autumn.route";
 import { createBillingRoutes } from "./routes/billing/billing.route";
 import { createBlogOgImageRoutes } from "./routes/blog-og-image/blog-og-image.route";
 import { createGithubRepositoryAutomationDispatchRoutes } from "./routes/cron/github-repository-automation-dispatch.route";
-import { createTmsScheduledReconciliationRoutes } from "./routes/cron/tms-scheduled-reconciliation.route";
 import {
   createTranslationJobEventQueue,
   createProviderAgentCommentQueue,
   createProviderAgentQaQueue,
   createProviderAgentTranslationQueue,
   createProviderAgentWritebackQueue,
-  createProviderSyncQueue,
 } from "@/workflows/adapters";
 
 type CreateAppOptions = {
@@ -73,7 +70,6 @@ type CreateAppOptions = {
   providerAgentQaQueue?: ProviderAgentQaQueue;
   providerAgentCommentQueue?: ProviderAgentCommentQueue;
   providerAgentWritebackQueue?: ProviderAgentWritebackQueue;
-  providerSyncQueue?: ProviderSyncQueue;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
 };
@@ -87,7 +83,6 @@ export function createApp(options: CreateAppOptions = {}) {
     options.providerAgentCommentQueue ?? createProviderAgentCommentQueue();
   const providerAgentWritebackQueue =
     options.providerAgentWritebackQueue ?? createProviderAgentWritebackQueue();
-  const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
 
   return new Hono<EvlogVariables>()
     .use("*", secureHeaders())
@@ -108,7 +103,6 @@ export function createApp(options: CreateAppOptions = {}) {
         providerAgentQaQueue,
         providerAgentCommentQueue,
         providerAgentWritebackQueue,
-        providerSyncQueue,
       }),
     )
     .route("/v1", createPublicApiRoutes({ ...options, jobQueue }))
@@ -127,8 +121,7 @@ function createInternalRoutes() {
     .route(
       "/cron/github-repository-automation-dispatch",
       createGithubRepositoryAutomationDispatchRoutes(),
-    )
-    .route("/cron/tms-scheduled-reconciliation", createTmsScheduledReconciliationRoutes());
+    );
 }
 
 function createAuthRoutes() {
@@ -142,7 +135,6 @@ function createOrgScopedAppRoutes(
     providerAgentQaQueue: ProviderAgentQaQueue;
     providerAgentCommentQueue: ProviderAgentCommentQueue;
     providerAgentWritebackQueue: ProviderAgentWritebackQueue;
-    providerSyncQueue: ProviderSyncQueue;
   },
 ) {
   return new Hono()
@@ -167,7 +159,6 @@ function createOrgScopedAppRoutes(
     .route(
       "/tms-provider",
       createTmsProviderRoutes({
-        providerSyncQueue: options.providerSyncQueue,
         providerAgentTranslationQueue: options.providerAgentTranslationQueue,
       }),
     )
