@@ -113,6 +113,43 @@ async function resolveOAuthCredentialCryptoForUpsert(input: {
   };
 }
 
+async function invalidateCrowdinUserConnectionsOnCredentialAuthModeChange(
+  database: DatabaseClient,
+  input: {
+    organizationId: string;
+    nextAuthMode: typeof OAUTH_AUTH_MODE | typeof PAT_AUTH_MODE;
+  },
+) {
+  const [existingCredential] = await database
+    .select({
+      id: schema.organizationExternalTmsProviderCredentials.id,
+      authMode: schema.organizationExternalTmsProviderCredentials.authMode,
+    })
+    .from(schema.organizationExternalTmsProviderCredentials)
+    .where(
+      and(
+        eq(schema.organizationExternalTmsProviderCredentials.organizationId, input.organizationId),
+        eq(schema.organizationExternalTmsProviderCredentials.providerKind, "crowdin"),
+      ),
+    )
+    .limit(1);
+
+  if (
+    !existingCredential ||
+    existingCredential.authMode === input.nextAuthMode ||
+    (existingCredential.authMode !== OAUTH_AUTH_MODE &&
+      existingCredential.authMode !== PAT_AUTH_MODE)
+  ) {
+    return 0;
+  }
+
+  const result = await database
+    .delete(schema.crowdinUserConnections)
+    .where(eq(schema.crowdinUserConnections.providerCredentialId, existingCredential.id));
+
+  return Number(result.rowCount ?? 0);
+}
+
 const crowdinOAuthTokenBundleSchema = z.object({
   clientId: z.string().min(1),
   clientSecret: z.string().min(1),
@@ -413,6 +450,11 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
   });
 
   const credential = await runInDatabaseTransaction(input.db, async (tx) => {
+    await invalidateCrowdinUserConnectionsOnCredentialAuthModeChange(tx, {
+      organizationId: input.organizationId,
+      nextAuthMode: OAUTH_AUTH_MODE,
+    });
+
     const { encrypted, maskedSecretSuffix, replacesOAuthClient } =
       await resolveOAuthCredentialCryptoForUpsert({
         organizationId: input.organizationId,
@@ -477,6 +519,7 @@ export async function upsertCrowdinOAuthProviderCredential(input: {
         set: {
           updatedByUserId: input.userId,
           displayName: input.displayName,
+          authMode: OAUTH_AUTH_MODE,
           region: null,
           baseUrl,
           updatedAt: now,
@@ -511,6 +554,11 @@ export async function upsertCrowdinPatProviderCredential(input: {
   });
 
   const credential = await runInDatabaseTransaction(input.db, async (tx) => {
+    await invalidateCrowdinUserConnectionsOnCredentialAuthModeChange(tx, {
+      organizationId: input.organizationId,
+      nextAuthMode: PAT_AUTH_MODE,
+    });
+
     const encrypted = unwrapProviderCredentialCrypto(
       encryptProviderCredential(CROWDIN_PAT_ORG_PLACEHOLDER),
     );

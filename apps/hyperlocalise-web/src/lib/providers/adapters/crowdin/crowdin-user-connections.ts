@@ -3,9 +3,12 @@ import { and, eq, sql } from "drizzle-orm";
 import { db, schema } from "@/lib/database";
 import { err, ok, type Result } from "@/lib/primitives/result/results";
 import {
+  OAUTH_AUTH_MODE,
+  PAT_AUTH_MODE,
+} from "@/lib/providers/contracts/external-tms-provider-credential";
+import {
   decryptCrowdinOAuthTokenBundle,
   isCrowdinOAuthAccessTokenFresh,
-  PAT_AUTH_MODE,
   refreshCrowdinOAuthToken,
   type CrowdinOAuthTokenBundle,
 } from "@/lib/providers/organization-external-tms-provider-credentials";
@@ -32,6 +35,10 @@ export type CrowdinUserConnectionSummary = {
 type CrowdinUserConnection = typeof schema.crowdinUserConnections.$inferSelect;
 
 export type CrowdinUserConnectionUpsertError = { code: "crowdin_user_already_linked" };
+
+function readCrowdinUserConnectionAuthMode(connection: CrowdinUserConnection) {
+  return connection.authMode === PAT_AUTH_MODE ? PAT_AUTH_MODE : OAUTH_AUTH_MODE;
+}
 
 function isUniqueViolation(error: unknown) {
   if (!(error instanceof Error)) {
@@ -162,6 +169,7 @@ export async function upsertCrowdinUserConnection(input: {
         username: input.crowdinUser.username,
         email: input.crowdinUser.email ?? null,
         fullName: input.crowdinUser.fullName ?? null,
+        authMode: OAUTH_AUTH_MODE,
         oauthExpiresAt: new Date(input.tokenBundle.expiresAt),
         encryptionAlgorithm: encrypted.algorithm,
         ciphertext: encrypted.ciphertext,
@@ -180,6 +188,7 @@ export async function upsertCrowdinUserConnection(input: {
           username: input.crowdinUser.username,
           email: input.crowdinUser.email ?? null,
           fullName: input.crowdinUser.fullName ?? null,
+          authMode: OAUTH_AUTH_MODE,
           oauthExpiresAt: new Date(input.tokenBundle.expiresAt),
           encryptionAlgorithm: encrypted.algorithm,
           ciphertext: encrypted.ciphertext,
@@ -267,6 +276,7 @@ export async function upsertCrowdinUserPatConnection(input: {
         username: input.crowdinUser.username,
         email: input.crowdinUser.email ?? null,
         fullName: input.crowdinUser.fullName ?? null,
+        authMode: PAT_AUTH_MODE,
         oauthExpiresAt: null,
         encryptionAlgorithm: encrypted.algorithm,
         ciphertext: encrypted.ciphertext,
@@ -285,6 +295,7 @@ export async function upsertCrowdinUserPatConnection(input: {
           username: input.crowdinUser.username,
           email: input.crowdinUser.email ?? null,
           fullName: input.crowdinUser.fullName ?? null,
+          authMode: PAT_AUTH_MODE,
           oauthExpiresAt: null,
           encryptionAlgorithm: encrypted.algorithm,
           ciphertext: encrypted.ciphertext,
@@ -343,7 +354,16 @@ export async function resolveCrowdinUserConnectionSecretMaterial(input: {
   authMode: string;
   fetchFn?: typeof fetch;
 }) {
-  if (input.authMode === PAT_AUTH_MODE) {
+  const connectionAuthMode = readCrowdinUserConnectionAuthMode(input.connection);
+
+  if (connectionAuthMode !== input.authMode) {
+    await db
+      .delete(schema.crowdinUserConnections)
+      .where(eq(schema.crowdinUserConnections.id, input.connection.id));
+    throw new Error("crowdin_user_connection_auth_mode_mismatch");
+  }
+
+  if (connectionAuthMode === PAT_AUTH_MODE) {
     return decryptCrowdinUserPat(input.connection);
   }
 

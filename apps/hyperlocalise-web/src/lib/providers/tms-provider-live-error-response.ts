@@ -20,6 +20,7 @@ export function getTmsProviderLiveErrorStatus(code: string): TmsProviderLiveErro
     case "crowdin_auth_invalid":
     case "crowdin_user_auth_invalid":
     case "crowdin_user_connection_required":
+    case "crowdin_user_connection_auth_mode_mismatch":
     case "phrase_auth_invalid":
     case "phrase_user_auth_invalid":
     case "phrase_user_connection_required":

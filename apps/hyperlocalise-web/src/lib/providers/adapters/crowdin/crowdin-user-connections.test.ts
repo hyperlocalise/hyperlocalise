@@ -386,4 +386,39 @@ describe("crowdin user connections", () => {
     expect(accessToken).toBe("member-pat-token");
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("rejects stale user connections when workspace auth mode no longer matches stored material", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+    const { authContext, credential } = await createCrowdinOAuthCredential();
+    const upsertResult = await upsertCrowdinUserConnection({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+      providerCredentialId: credential.id,
+      tokenBundle: tokenBundle({ accessToken: "oauth-user-token" }),
+      crowdinUser: {
+        id: 12345,
+        username: "crowdin-user",
+      },
+    });
+    expect(isErr(upsertResult)).toBe(false);
+    const connection = await getCrowdinUserConnection({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+    });
+    expect(connection).not.toBeNull();
+
+    await expect(
+      resolveCrowdinUserConnectionSecretMaterial({
+        connection: connection!,
+        authMode: "pat",
+      }),
+    ).rejects.toThrow("crowdin_user_connection_auth_mode_mismatch");
+
+    const deletedConnection = await getCrowdinUserConnection({
+      organizationId: authContext.organization.localOrganizationId,
+      userId: authContext.user.localUserId,
+    });
+    expect(deletedConnection).toBeNull();
+  });
 });

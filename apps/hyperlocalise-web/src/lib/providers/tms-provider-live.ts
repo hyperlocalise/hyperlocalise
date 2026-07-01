@@ -95,6 +95,7 @@ const PROVIDER_CONNECTION_SECRET_ERROR_CODES = new Set([
   "crowdin_oauth_refresh_failed",
   "crowdin_oauth_token_invalid",
   "crowdin_user_connection_required",
+  "crowdin_user_connection_auth_mode_mismatch",
   "phrase_oauth_refresh_failed",
   "phrase_oauth_token_invalid",
   "phrase_oauth_token_response_invalid",
@@ -275,6 +276,12 @@ async function buildActiveTmsProviderContext(
         throw new TmsProviderLiveError(
           "crowdin_user_connection_required",
           "Connect your Crowdin account before using Crowdin.",
+        );
+      }
+      if (error.message === "crowdin_user_connection_auth_mode_mismatch") {
+        throw new TmsProviderLiveError(
+          "crowdin_user_connection_auth_mode_mismatch",
+          "Reconnect your Crowdin account after the workspace authentication mode changed.",
         );
       }
       if (error.message === "phrase_user_connection_required") {

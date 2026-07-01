@@ -214,6 +214,8 @@ export const crowdinUserConnections = pgTable(
     username: text("username").notNull(),
     email: text("email"),
     fullName: text("full_name"),
+    /** Whether ciphertext stores an OAuth token bundle or a personal access token. */
+    authMode: text("auth_mode").notNull().default("oauth"),
     oauthExpiresAt: timestamp("oauth_expires_at", { withTimezone: true }),
     encryptionAlgorithm: text("encryption_algorithm").notNull(),
     ciphertext: text("ciphertext").notNull(),
