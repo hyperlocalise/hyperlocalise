@@ -34,6 +34,19 @@ Each package uses Eve-inspired slots under `agent/`:
 
 Child executors remain specialized packages (`contentful`, `github-repository`) but are invoked as orchestrator tools rather than separate dispatch branches.
 
+## Conversational skill agent
+
+The Hyperlocalise conversational agent resolves capability skills from `hyperlocalise/agent/skills/` via `conversation-skill-registry.ts`. No intent classifier routes the agent — skills activate from runtime context:
+
+| Skill               | Activates when                                     |
+| ------------------- | -------------------------------------------------- |
+| `conversation`      | always (includes project resolution tools)         |
+| `tms-tools`         | external TMS integrated                            |
+| `repo-tools`        | GitHub sandbox is connected                        |
+| `translation-tools` | always (`createTranslationJob` when files/project) |
+
+Skill frontmatter declares `tools`, `sharedSkills`, and context requirements (`requiresSandbox`, `requiresTmsIntegration`, `requiresProjectOrAttachments`). The agent uses whichever skills and tools are available for the turn.
+
 ## Authoring
 
 - Edit prompts in markdown; use `composeInstructions()` for dynamic + DB overrides.

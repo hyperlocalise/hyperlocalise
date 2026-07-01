@@ -15,32 +15,17 @@ import { getHyperlocaliseAgentModel } from "./model";
 export { getHyperlocaliseAgentModel, hyperlocaliseAgentModelId } from "./model";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
-import type { HyperlocaliseConversationIntent } from "./conversation-mode";
-import { getPrimarySuggestedMode, normalizeConversationIntents } from "./conversation-classifier";
-import {
-  createConversationOrchestratorAgent,
-  type ConversationOrchestratorOnFinish,
-} from "./orchestrator";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 import {
   buildHyperlocaliseBaseInstructions,
   type HyperlocaliseAgentSurface,
 } from "@/agents/hyperlocalise/agent/agent";
-export type { HyperlocaliseAgentSurface };
+import {
+  createConversationSkillAgent,
+  type ConversationSkillAgentOnFinish,
+} from "./conversation-skill-agent";
 
-export type { HyperlocaliseConversationMode } from "./conversation-mode";
-export { buildConversationModeInstructions } from "./conversation-mode";
-export {
-  classifyConversation,
-  createConversationClassifier,
-  getPrimarySuggestedMode,
-  getRecentUserConversationText,
-  normalizeConversationIntents,
-  shouldAttemptRepositoryContextResolution,
-  shouldRequireRepositoryContextClarification,
-  type ConversationClassification,
-} from "./conversation-classifier";
-export type { HyperlocaliseConversationIntent } from "./conversation-mode";
+export type { HyperlocaliseAgentSurface };
 
 export const hyperlocaliseAgentStepLimit = 10;
 export const hyperlocaliseAgentMaxOutputTokens = 4_000;
@@ -65,9 +50,8 @@ type CreateHyperlocaliseAgentInput<TOOLS extends ToolSet> = {
 type CreateConversationAgentInput = {
   surface: HyperlocaliseAgentSurface;
   toolContext: ToolContext;
-  suggestedIntents: HyperlocaliseConversationIntent[];
   additionalInstructions?: string;
-  onFinish?: ConversationOrchestratorOnFinish;
+  onFinish?: ConversationSkillAgentOnFinish;
 };
 
 export function buildTranslationAttachmentRequiredMessage(surface: HyperlocaliseAgentSurface) {
@@ -154,25 +138,33 @@ export function createHyperlocaliseAgent<TOOLS extends ToolSet>({
   });
 }
 
+export {
+  classifyConversation,
+  createConversationClassifier,
+  getRecentUserConversationText,
+  shouldAttemptRepositoryContextResolution,
+  shouldRequireRepositoryContextClarification,
+  type ConversationClassification,
+} from "./conversation-classifier";
+
 export function createConversationToolLoopAgent({
   surface,
   toolContext,
-  suggestedIntents,
   additionalInstructions,
   onFinish,
   hasFileAttachments = false,
+  hasTmsIntegration = false,
 }: CreateConversationAgentInput & {
   hasFileAttachments?: boolean;
+  hasTmsIntegration?: boolean;
 }) {
-  const normalizedIntents = normalizeConversationIntents(suggestedIntents);
   const runtime: HyperlocaliseAgentRuntimeContext = {
     surface,
     toolContext,
-    suggestedIntents: normalizedIntents,
-    suggestedMode: getPrimarySuggestedMode(normalizedIntents),
     hasFileAttachments,
+    hasTmsIntegration,
     additionalInstructions: additionalInstructions?.trim() || undefined,
   };
 
-  return createConversationOrchestratorAgent(runtime, onFinish);
+  return createConversationSkillAgent(runtime, onFinish);
 }

@@ -46,15 +46,3 @@ export function buildHyperlocaliseBaseInstructions(input: {
     dynamicSections: buildHyperlocaliseDynamicSections(input),
   });
 }
-
-export function buildOrchestratorBaseInstructions(input: {
-  surface: HyperlocaliseAgentSurface;
-  projectId: string | null;
-  additionalInstructions?: string;
-}) {
-  return composeInstructions({
-    agentId: "hyperlocalise",
-    skills: ["orchestration", "repository-handoff"],
-    dynamicSections: buildHyperlocaliseDynamicSections(input),
-  });
-}

@@ -7,8 +7,8 @@ import {
   getRecentUserConversationText,
   loadInteractionModelMessages,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { resolveOrganizationHasTmsIntegration } from "@/lib/agent-runtime/skills/conversation-tms-integration";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import type { HyperlocaliseConversationIntent } from "@/lib/agent-runtime/loops/conversation-mode";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
 
 export async function postStreamingAgentReply(
@@ -46,11 +46,15 @@ export async function runWebChatAgentTurn(input: {
     surface: "web",
   });
 
+  const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(
+    input.toolContext.organizationId,
+  );
+
   const agent = createConversationToolLoopAgent({
     surface: "web",
-    suggestedIntents: classification.intents as HyperlocaliseConversationIntent[],
     toolContext: input.toolContext,
     hasFileAttachments: input.hasTranslationAttachments,
+    hasTmsIntegration,
   });
 
   const result = await agent.stream({ messages: chatMessages });

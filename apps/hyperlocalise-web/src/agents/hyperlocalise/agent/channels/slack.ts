@@ -11,6 +11,7 @@ import {
   shouldAttemptRepositoryContextResolution,
   shouldRequireRepositoryContextClarification,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import { resolveOrganizationHasTmsIntegration } from "@/lib/agent-runtime/skills/conversation-tms-integration";
 import {
   buildRepositoryGitHubContextInstructions,
   resolveSlackRepositoryGitHubContext,
@@ -397,7 +398,6 @@ async function processSlackMessage(
     });
     log.info(
       {
-        conversationIntents: classification.intents,
         shouldResolveRepositoryContext,
         needsRepositoryTools: classification.needsRepositoryTools,
         continuesRepositoryThread: classification.continuesRepositoryThread,
@@ -535,9 +535,10 @@ async function processSlackMessage(
         })
       : null;
 
+    const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(organizationId);
+
     const agent = createConversationToolLoopAgent({
       surface: "slack",
-      suggestedIntents: classification.intents,
       toolContext: {
         conversationId: interactionId,
         organizationId,
@@ -560,6 +561,7 @@ async function processSlackMessage(
           : {}),
       },
       hasFileAttachments: hasTranslationAttachments,
+      hasTmsIntegration,
       additionalInstructions: [
         buildSlackFileTranslationInstructions(),
         repositoryContextInstructions,

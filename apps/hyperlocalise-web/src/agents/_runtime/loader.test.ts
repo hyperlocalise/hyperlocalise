@@ -16,7 +16,7 @@ describe("agent loader", () => {
     clearAgentManifestCache();
     const manifest = getAgentManifest({ agentId: "hyperlocalise" });
     expect(manifest.instructions).toContain("Hyperlocalise");
-    expect(manifest.skills.orchestration?.body).toContain("Orchestration");
+    expect(manifest.skills.conversation?.body).toContain("Conversation");
   });
 
   it("parses skill frontmatter", () => {
@@ -33,11 +33,11 @@ Body content`);
     clearAgentManifestCache();
     const text = composeInstructions({
       agentId: "hyperlocalise",
-      skills: ["orchestration"],
+      skills: ["conversation"],
       userOverride: "Always greet the user.",
     });
     expect(text).toContain("Hyperlocalise");
-    expect(text).toContain("Orchestration");
+    expect(text).toContain("Conversation");
     expect(text).toContain("Customer instructions");
     expect(text).toContain("Always greet the user.");
   });
