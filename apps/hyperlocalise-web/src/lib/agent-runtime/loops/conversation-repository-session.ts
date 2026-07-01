@@ -30,8 +30,14 @@ export function getRepositoryContextKey(context: RepositoryAgentGitHubContext): 
 const WEB_SESSION_TTL_MS = 30 * 60 * 1000;
 const WEB_SESSION_MAX_ENTRIES = 200;
 
+export type WebConversationRepositorySessionState = {
+  session: ConversationRepositorySession;
+  version: number;
+};
+
 type WebSessionEntry = {
   session: ConversationRepositorySession;
+  version: number;
   expiresAt: number;
 };
 
@@ -79,7 +85,7 @@ function pruneExpiredWebSessions(now: number) {
 
 export function getWebConversationRepositorySession(
   conversationId: string,
-): ConversationRepositorySession | null {
+): WebConversationRepositorySessionState | null {
   const now = Date.now();
   pruneExpiredWebSessions(now);
 
@@ -91,18 +97,40 @@ export function getWebConversationRepositorySession(
     return null;
   }
 
-  return entry.session;
+  return {
+    session: entry.session,
+    version: entry.version,
+  };
 }
 
 export function setWebConversationRepositorySession(
   conversationId: string,
-  session: ConversationRepositorySession,
-): void {
+  input: {
+    baseVersion: number | null;
+    session: ConversationRepositorySession;
+  },
+): boolean {
   const now = Date.now();
   pruneExpiredWebSessions(now);
+
+  const existing = webRepositorySessions.get(conversationId);
+  const currentVersion = existing?.version ?? null;
+  if (currentVersion !== input.baseVersion) {
+    releaseWebSessionSandbox(input.session);
+    return false;
+  }
+
+  const existingSandboxId = existing?.session.repositorySandboxSession?.sandboxId;
+  const nextSandboxId = input.session.repositorySandboxSession?.sandboxId;
+  if (existingSandboxId && existingSandboxId !== nextSandboxId) {
+    releaseWebSessionSandbox(existing.session);
+  }
+
   webRepositorySessions.set(conversationId, {
-    session,
+    session: input.session,
+    version: (input.baseVersion ?? 0) + 1,
     expiresAt: now + WEB_SESSION_TTL_MS,
   });
   pruneExpiredWebSessions(now);
+  return true;
 }

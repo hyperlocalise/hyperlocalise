@@ -15,6 +15,7 @@ import {
   resolveConversationRepositoryContext,
 } from "@/lib/agent-runtime/loops/conversation-turn";
 import { resolveOrganizationHasTmsIntegration } from "@/lib/agent-runtime/skills/conversation-tms-integration";
+import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import {
   postThreadMessageWithoutTracking,
@@ -382,10 +383,22 @@ async function processSlackMessage(
       });
       sandboxId = sandboxResult.sandboxId;
       updatedThreadState = sandboxResult.updatedSession;
-      await thread.setState({
-        ...latestThreadState,
-        ...updatedThreadState,
-      });
+      try {
+        await thread.setState({
+          ...latestThreadState,
+          ...updatedThreadState,
+        });
+      } catch (error) {
+        if (sandboxResult.sandboxCreated) {
+          await stopRepositorySandbox(sandboxResult.sandboxId).catch((cleanupError: unknown) => {
+            log.warn(
+              { err: serializeErrorForLog(cleanupError), sandboxId: sandboxResult.sandboxId },
+              "repository sandbox cleanup failed after slack state write failure",
+            );
+          });
+        }
+        throw error;
+      }
     }
 
     const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(organizationId);

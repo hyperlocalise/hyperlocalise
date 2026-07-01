@@ -32,6 +32,7 @@ export async function runWebChatAgentTurn(input: {
   toolContext: ToolContext;
   hasTranslationAttachments: boolean;
 }) {
+  const repositorySessionState = getWebConversationRepositorySession(input.conversationId);
   const prepared = await prepareConversationAgentTurn({
     surface: "web",
     conversationId: input.conversationId,
@@ -41,13 +42,16 @@ export async function runWebChatAgentTurn(input: {
     projectId: input.toolContext.projectId,
     messageText: input.messageText,
     hasTranslationAttachments: input.hasTranslationAttachments,
-    repositorySession: getWebConversationRepositorySession(input.conversationId),
+    repositorySession: repositorySessionState?.session ?? null,
     repositorySource: "chat_ui",
     db: input.toolContext.db,
   });
 
   if (prepared.updatedRepositorySession) {
-    setWebConversationRepositorySession(input.conversationId, prepared.updatedRepositorySession);
+    setWebConversationRepositorySession(input.conversationId, {
+      baseVersion: repositorySessionState?.version ?? null,
+      session: prepared.updatedRepositorySession,
+    });
   }
 
   if (prepared.clarificationFollowUp) {

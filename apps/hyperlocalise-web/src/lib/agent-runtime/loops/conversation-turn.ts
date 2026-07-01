@@ -171,7 +171,11 @@ export async function getOrCreateConversationRepositorySandbox(input: {
   surface: HyperlocaliseAgentSurface;
   githubContext: RepositoryAgentGitHubContext;
   repositorySession: ConversationRepositorySession | null;
-}): Promise<{ sandboxId: string; updatedSession: ConversationRepositorySession }> {
+}): Promise<{
+  sandboxId: string;
+  updatedSession: ConversationRepositorySession;
+  sandboxCreated: boolean;
+}> {
   const log = logger.child({
     conversationId: input.conversationId,
     surface: input.surface,
@@ -195,6 +199,7 @@ export async function getOrCreateConversationRepositorySandbox(input: {
           lastUsedAt: now,
         },
       },
+      sandboxCreated: false,
     };
   }
 
@@ -230,7 +235,7 @@ export async function getOrCreateConversationRepositorySandbox(input: {
     });
   }
 
-  return { sandboxId, updatedSession };
+  return { sandboxId, updatedSession, sandboxCreated: true };
 }
 
 export type PrepareConversationAgentTurnInput = {

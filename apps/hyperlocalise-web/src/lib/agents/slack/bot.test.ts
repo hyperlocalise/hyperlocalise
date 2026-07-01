@@ -780,6 +780,63 @@ describe("handleNewConversation", () => {
     });
   });
 
+  it("stops a newly created sandbox when slack thread state persistence fails", async () => {
+    const { thread, posts } = createThread();
+    const message = createMessage({
+      text: "do you know the context of Knowledge?",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        needsRepositoryTools: true,
+        confidence: 0.95,
+      }),
+    );
+    resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
+      status: "resolved",
+      source: "slack_pr_url",
+      context: {
+        resolved: true,
+        installationId: 12345,
+        repositoryFullName: "acme/web",
+      },
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: {},
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    Object.assign(thread, {
+      setState: vi.fn(async (newState: Record<string, unknown>) => {
+        if ("repositorySandboxSession" in newState) {
+          throw new Error("state write failed");
+        }
+      }),
+    });
+
+    await handleNewConversation(thread, message);
+
+    expect(createRepositorySandbox).toHaveBeenCalled();
+    expect(stopRepositorySandbox).toHaveBeenCalledWith("sbx_test");
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+    expect(posts.at(-1)).toEqual({
+      markdown:
+        "I'm having trouble processing that right now. Attach a supported file or image with a target language and I can help translate it.",
+    });
+  });
+
   it("resolves GitHub context using recent conversation text", async () => {
     const { thread } = createThread();
     const message = createMessage({
