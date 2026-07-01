@@ -3,9 +3,9 @@ import { tool } from "ai";
 import { z } from "zod";
 
 import { schema } from "@/lib/database";
-import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
-import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { isErr } from "@/lib/primitives/result/results";
 import { normalizeProjectId } from "@/lib/projects/identity/project-id";
+import { ensureOrganizationProjectRecord } from "@/lib/projects/organization/organization-project-service";
 
 import { listAgentProjects } from "@/lib/tools/list-agent-projects";
 import { toolCanAccessProject } from "@/lib/tools/tool-access";
@@ -142,32 +142,24 @@ export function createUpdateInteractionProjectTool(ctx: ToolContext) {
         return { success: false, error: `Project ${projectId} not found.` };
       }
 
-      let project = await db
+      const ensured = await ensureOrganizationProjectRecord({
+        organizationId: ctx.organizationId,
+        projectId: normalizedProjectId,
+        userId: ctx.localUserId,
+      });
+      if (isErr(ensured)) {
+        return { success: false, error: `Project ${projectId} not found.` };
+      }
+
+      const project = await db
         .select({
           id: schema.projects.id,
           name: schema.projects.name,
         })
         .from(schema.projects)
-        .where(eq(schema.projects.id, normalizedProjectId))
+        .where(eq(schema.projects.id, ensured.value))
         .limit(1)
         .then((rows) => rows[0] ?? null);
-
-      if (!project) {
-        const encodedProject = parseProviderProjectId(normalizedProjectId);
-        if (encodedProject) {
-          const liveProject = await getTmsProviderLiveProject(
-            ctx.organizationId,
-            encodedProject.externalProjectId,
-            { actorUserId: ctx.localUserId },
-          );
-          if (liveProject) {
-            project = {
-              id: liveProject.id,
-              name: liveProject.name,
-            };
-          }
-        }
-      }
 
       if (!project) {
         return { success: false, error: `Project ${projectId} not found.` };
