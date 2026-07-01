@@ -263,6 +263,7 @@ export type PrepareConversationAgentTurnInput = {
   repositorySource?: RepositoryAgentTaskSource;
   actor?: ToolContext["actor"];
   db: ToolContext["db"];
+  reuseCommittedRepositorySandboxOnly?: boolean;
 };
 
 export type PrepareConversationAgentTurnResult = {
@@ -305,15 +306,24 @@ export async function prepareConversationAgentTurn(
   let staleSandboxId: string | null = null;
 
   if (repositoryResolution.context) {
-    const sandboxResult = await getOrCreateConversationRepositorySandbox({
-      conversationId: input.conversationId,
-      surface: input.surface,
-      githubContext: repositoryResolution.context,
-      repositorySession: updatedRepositorySession,
-    });
-    sandboxId = sandboxResult.sandboxId;
-    updatedRepositorySession = sandboxResult.updatedSession;
-    staleSandboxId = sandboxResult.staleSandboxId;
+    const repositoryContextKey = getRepositoryContextKey(repositoryResolution.context);
+    const storedSandboxSession = updatedRepositorySession?.repositorySandboxSession;
+    const canReuseStoredSandbox =
+      storedSandboxSession?.repositoryContextKey === repositoryContextKey;
+
+    if (input.reuseCommittedRepositorySandboxOnly && !canReuseStoredSandbox) {
+      updatedRepositorySession = input.repositorySession ?? null;
+    } else {
+      const sandboxResult = await getOrCreateConversationRepositorySandbox({
+        conversationId: input.conversationId,
+        surface: input.surface,
+        githubContext: repositoryResolution.context,
+        repositorySession: updatedRepositorySession,
+      });
+      sandboxId = sandboxResult.sandboxId;
+      updatedRepositorySession = sandboxResult.updatedSession;
+      staleSandboxId = sandboxResult.staleSandboxId;
+    }
   }
 
   const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(input.organizationId);

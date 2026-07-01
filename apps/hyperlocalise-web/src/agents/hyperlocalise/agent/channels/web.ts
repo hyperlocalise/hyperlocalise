@@ -61,6 +61,7 @@ async function prepareAndCommitWebConversationTurn(
   return prepareConversationAgentTurn({
     ...prepareInput,
     repositorySession: getWebConversationRepositorySession(conversationId)?.session ?? null,
+    reuseCommittedRepositorySandboxOnly: true,
   });
 }
 

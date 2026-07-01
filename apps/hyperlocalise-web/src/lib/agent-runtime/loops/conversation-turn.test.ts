@@ -248,4 +248,68 @@ describe("conversation turn preparation", () => {
       "sandbox_123",
     );
   });
+
+  it("skips creating a sandbox when only a committed sandbox may be reused", async () => {
+    const storedContext = {
+      resolved: true as const,
+      installationId: 42,
+      repositoryFullName: "acme/web",
+    };
+    const requestedContext = {
+      resolved: true as const,
+      installationId: 99,
+      repositoryFullName: "acme/other",
+    };
+    classifyConversationMock.mockResolvedValue({
+      ...baseClassification,
+      needsRepositoryTools: true,
+      currentMessageSpecifiesRepository: true,
+    });
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "resolved",
+      source: "single_installed_repository",
+      context: requestedContext,
+    });
+
+    const result = await prepareConversationAgentTurn({
+      surface: "web",
+      conversationId: "conv_123",
+      organizationId: "org_123",
+      localUserId: "user_123",
+      membershipRole: "admin",
+      projectId: null,
+      messageText: "search acme/other",
+      hasTranslationAttachments: false,
+      repositorySession: {
+        repositoryGitHubContext: storedContext,
+        repositorySandboxSession: {
+          sandboxId: "sandbox_committed",
+          repositoryContextKey: JSON.stringify({
+            installationId: storedContext.installationId,
+            repositoryFullName: storedContext.repositoryFullName,
+            pullRequestNumber: null,
+            branch: null,
+            commitSha: null,
+            commentId: null,
+          }),
+          createdAt: "2026-07-01T12:00:00.000Z",
+          lastUsedAt: "2026-07-01T12:00:00.000Z",
+        },
+      },
+      reuseCommittedRepositorySandboxOnly: true,
+      db: {} as never,
+    });
+
+    expect(createRepositorySandboxMock).not.toHaveBeenCalled();
+    expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        toolContext: expect.not.objectContaining({
+          sandboxId: expect.anything(),
+        }),
+      }),
+    );
+    expect(result.updatedRepositorySession?.repositorySandboxSession?.sandboxId).toBe(
+      "sandbox_committed",
+    );
+  });
 });
