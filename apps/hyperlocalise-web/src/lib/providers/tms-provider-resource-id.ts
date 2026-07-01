@@ -61,6 +61,10 @@ export function parseProviderProjectId(
   return { providerKind: parsed.providerKind, externalProjectId: parsed.afterKind };
 }
 
+export function isEncodedProviderProjectId(value: string | null | undefined) {
+  return parseProviderProjectId(value) !== null;
+}
+
 export function parseProviderJobId(value: string | null | undefined): EncodedProviderJobId | null {
   const normalizedValue = normalizeProjectId(value);
   if (typeof normalizedValue !== "string" || !normalizedValue.startsWith("ext:")) {

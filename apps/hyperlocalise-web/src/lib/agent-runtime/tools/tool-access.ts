@@ -13,6 +13,9 @@ import {
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { schema } from "@/lib/database";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
+import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { normalizeProjectId } from "@/lib/projects/identity/project-id";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 function organizationRecord(ctx: ToolContext) {
@@ -65,13 +68,54 @@ export function toolProjectLinkedMemoryWhere(ctx: ToolContext) {
 }
 
 export async function toolCanAccessProject(ctx: ToolContext, projectId: string) {
+  const normalizedProjectId = normalizeProjectId(projectId);
+  if (typeof normalizedProjectId !== "string" || normalizedProjectId.length === 0) {
+    return null;
+  }
+
+  const auth = apiAuthContextFromToolContext(ctx);
+
   const [project] = await ctx.db
     .select({ id: schema.projects.id })
     .from(schema.projects)
-    .where(await ownedProjectWhere(apiAuthContextFromToolContext(ctx), projectId))
+    .where(await ownedProjectWhere(auth, normalizedProjectId))
     .limit(1);
 
-  return project ?? null;
+  if (project) {
+    return project;
+  }
+
+  const encodedProject = parseProviderProjectId(normalizedProjectId);
+  if (!encodedProject) {
+    return null;
+  }
+
+  const [organizationProject] = await ctx.db
+    .select({ id: schema.projects.id })
+    .from(schema.projects)
+    .where(
+      and(
+        eq(schema.projects.organizationId, ctx.organizationId),
+        eq(schema.projects.id, normalizedProjectId),
+      ),
+    )
+    .limit(1);
+
+  if (organizationProject) {
+    return null;
+  }
+
+  const liveProject = await getTmsProviderLiveProject(
+    ctx.organizationId,
+    encodedProject.externalProjectId,
+    { actorUserId: ctx.localUserId },
+  ).catch(() => null);
+
+  if (!liveProject || liveProject.id !== normalizedProjectId) {
+    return null;
+  }
+
+  return { id: liveProject.id };
 }
 
 export function toolCanAccessGlossary(ctx: ToolContext, glossaryId: string) {

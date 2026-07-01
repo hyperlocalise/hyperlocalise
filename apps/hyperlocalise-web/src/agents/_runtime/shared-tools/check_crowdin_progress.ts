@@ -110,7 +110,7 @@ export type CheckCrowdinProgressToolInput = z.infer<typeof checkCrowdinProgressI
 export type CheckCrowdinProgressToolOutput = z.infer<typeof checkCrowdinProgressOutputSchema>;
 
 export function createCheckCrowdinProgressTool(
-  ctx: Pick<ToolContext, "organizationId" | "projectId">,
+  ctx: Pick<ToolContext, "organizationId" | "projectId" | "localUserId">,
 ) {
   return defineAgentTool({
     description:
@@ -130,6 +130,7 @@ export function createCheckCrowdinProgressTool(
       const result = await checkCrowdinProgress({
         organizationId: ctx.organizationId,
         projectId,
+        actorUserId: ctx.localUserId,
         scope: input.scope,
         languageIds: input.languageIds,
         filePath: input.filePath,
