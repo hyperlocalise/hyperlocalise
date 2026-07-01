@@ -11,11 +11,7 @@ import {
 import { isErr } from "@/lib/primitives/result/results";
 
 import { executeProviderSyncIntent } from "./provider-sync-executor";
-import {
-  enqueueProviderCatalogSyncIntent,
-  enqueueProviderProjectJobSyncIntent,
-  reclaimExpiredProviderSyncIntentLeases,
-} from "./provider-sync-intent";
+import { reclaimExpiredProviderSyncIntentLeases } from "./provider-sync-intent";
 
 const logger = createLogger("provider-sync-worker");
 
@@ -377,67 +373,4 @@ export async function runProviderSyncWorker(input?: {
     failed,
     skipped: 0,
   };
-}
-
-export async function scheduleIncrementalProviderSyncIntents(input?: {
-  limit?: number;
-}): Promise<{ enqueued: number; skipped: number }> {
-  const limit = input?.limit ?? 100;
-  const credentials = await db
-    .select({
-      organizationId: schema.organizationExternalTmsProviderCredentials.organizationId,
-      providerCredentialId: schema.organizationExternalTmsProviderCredentials.id,
-      providerKind: schema.organizationExternalTmsProviderCredentials.providerKind,
-    })
-    .from(schema.organizationExternalTmsProviderCredentials)
-    .limit(limit);
-
-  let enqueued = 0;
-  let skipped = 0;
-
-  for (const credential of credentials) {
-    const catalogResult = await enqueueProviderCatalogSyncIntent({
-      organizationId: credential.organizationId,
-      providerCredentialId: credential.providerCredentialId,
-      providerKind: credential.providerKind,
-      cause: "scheduled",
-    });
-
-    if (catalogResult.created) {
-      enqueued += 1;
-    } else {
-      skipped += 1;
-    }
-
-    const materializedProjects = await db
-      .select({ id: schema.projects.id })
-      .from(schema.projects)
-      .where(
-        and(
-          eq(schema.projects.organizationId, credential.organizationId),
-          eq(schema.projects.source, "external_tms"),
-          eq(schema.projects.externalProviderKind, credential.providerKind),
-          eq(schema.projects.isActive, true),
-        ),
-      )
-      .limit(limit);
-
-    for (const project of materializedProjects) {
-      const jobSyncResult = await enqueueProviderProjectJobSyncIntent({
-        organizationId: credential.organizationId,
-        providerCredentialId: credential.providerCredentialId,
-        providerKind: credential.providerKind,
-        projectId: project.id,
-        cause: "scheduled",
-      });
-
-      if (jobSyncResult.created) {
-        enqueued += 1;
-      } else {
-        skipped += 1;
-      }
-    }
-  }
-
-  return { enqueued, skipped };
 }

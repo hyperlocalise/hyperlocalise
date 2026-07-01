@@ -1,4 +1,5 @@
 import { buildJobCatHref, canOpenJobCat, type JobCatTarget } from "@/lib/projects/job-cat-routing";
+import { resolveJobProjectId } from "@/lib/providers/tms-provider-resource-id";
 
 export type JobsViewMode = "row" | "kanban";
 
@@ -55,9 +56,10 @@ export function buildJobDetailHref(
   projectId: string | null | undefined,
   jobId: string,
 ) {
-  if (!projectId) {
+  const resolvedProjectId = resolveJobProjectId(projectId, jobId);
+  if (!resolvedProjectId) {
     return null;
   }
 
-  return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
+  return `/org/${organizationSlug}/projects/${encodeURIComponent(resolvedProjectId)}/jobs/${encodeURIComponent(jobId)}`;
 }

@@ -57,12 +57,10 @@ import {
 import type { ExternalTmsFileKeyMetadata } from "@/lib/providers/tms-provider-types";
 import type {
   JobQueue,
-  ProviderSyncQueue,
   TranslationFileImportQueue,
   TranslationJobEventData,
 } from "@/lib/workflow/types";
 import {
-  createProviderSyncQueue,
   createTranslationFileImportQueue,
   createTranslationJobEventQueue,
 } from "@/workflows/adapters";
@@ -525,14 +523,12 @@ const validateUpdateProjectBody = validator("json", (value, c) => {
 
 type CreateProjectRoutesOptions = {
   jobQueue?: JobQueue<TranslationJobEventData>;
-  providerSyncQueue?: ProviderSyncQueue;
   fileStorageAdapter?: FileStorageAdapter;
   translationFileImportQueue?: TranslationFileImportQueue;
 };
 
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
-  const providerSyncQueue = options.providerSyncQueue ?? createProviderSyncQueue();
   const translationFileImportQueue =
     options.translationFileImportQueue ?? createTranslationFileImportQueue();
 
@@ -584,7 +580,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         throw error;
       }
     })
-    .route("/:projectId/jobs", createJobRoutes({ jobQueue, providerSyncQueue }))
+    .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .get(
       "/:projectId/files/detail/cat",
       validateProjectParams,

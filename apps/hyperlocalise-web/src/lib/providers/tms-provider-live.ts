@@ -1,5 +1,6 @@
 import { createLogger } from "@/lib/log";
 import { schema } from "@/lib/database";
+import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import type {
   ProjectFileCatComment,
   ProjectFileCatResponse,
@@ -89,6 +90,7 @@ const logger = createLogger("tms-provider-live");
 
 const LIVE_PROJECT_JOB_FANOUT_CONCURRENCY = 5;
 const LIVE_GLOSSARY_TM_FANOUT_CONCURRENCY = 5;
+const openLiveJobStatuses = new Set<string>(openJobStatusValues);
 const maxLiveProviderInlineTextBytes = 512 * 1024;
 const maxLiveProviderStringPreviewItems = 1_000;
 const PROVIDER_CONNECTION_SECRET_ERROR_CODES = new Set([
@@ -1417,6 +1419,52 @@ async function fetchLiveProjects(context: ActiveTmsProviderContext) {
   }
 }
 
+function countOpenLiveJobs(jobs: TmsProviderLiveJob[]): number {
+  return jobs.filter((job) => openLiveJobStatuses.has(job.status)).length;
+}
+
+async function attachOpenJobCountsToLiveProjects(
+  organizationId: string,
+  projects: TmsProviderLiveProject[],
+  context: ActiveTmsProviderContext,
+  liveProjectMetadata: ExternalTmsProjectMetadata[],
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveProject[]> {
+  if (projects.length === 0) {
+    return projects;
+  }
+
+  const counts = await mapWithConcurrency(
+    liveProjectMetadata,
+    LIVE_PROJECT_JOB_FANOUT_CONCURRENCY,
+    async (project) => {
+      const jobs = await listTmsProviderLiveJobsForProject(
+        organizationId,
+        project.externalProjectId,
+        {
+          context,
+          projects: liveProjectMetadata,
+          actorUserId: options?.actorUserId,
+        },
+      );
+
+      return {
+        externalProjectId: project.externalProjectId,
+        openJobCount: countOpenLiveJobs(jobs),
+      };
+    },
+  );
+
+  const openJobCountByExternalProjectId = new Map(
+    counts.map((entry) => [entry.externalProjectId, entry.openJobCount]),
+  );
+
+  return projects.map((project) => ({
+    ...project,
+    openJobCount: openJobCountByExternalProjectId.get(project.externalProjectId) ?? 0,
+  }));
+}
+
 export async function getTmsProviderConnection(
   organizationId: string,
 ): Promise<TmsProviderConnection | null> {
@@ -1441,10 +1489,18 @@ export async function listTmsProviderLiveProjects(
     actorUserId: options?.actorUserId,
   });
   const projects = await fetchLiveProjects(context);
+  const activeProjects = projects.filter((project) => project.isActive !== false);
+  const mappedProjects = activeProjects.map((project) =>
+    mapLiveProject(context.providerKind, project),
+  );
 
-  return projects
-    .filter((project) => project.isActive !== false)
-    .map((project) => mapLiveProject(context.providerKind, project));
+  return attachOpenJobCountsToLiveProjects(
+    organizationId,
+    mappedProjects,
+    context,
+    activeProjects,
+    options,
+  );
 }
 
 export async function getTmsProviderLiveProject(

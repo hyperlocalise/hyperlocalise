@@ -90,6 +90,26 @@ export function parseProviderJobId(value: string | null | undefined): EncodedPro
   };
 }
 
+export function resolveJobProjectId(
+  projectId: string | null | undefined,
+  jobId: string,
+): string | null {
+  const normalizedProjectId = normalizeProjectId(projectId);
+  if (typeof normalizedProjectId === "string" && normalizedProjectId.length > 0) {
+    return normalizedProjectId;
+  }
+
+  const parsedJobId = parseProviderJobId(jobId);
+  if (!parsedJobId) {
+    return null;
+  }
+
+  return encodeProviderProjectId({
+    providerKind: parsedJobId.providerKind,
+    externalProjectId: parsedJobId.externalProjectId,
+  });
+}
+
 export function resolveEncodedProviderJobId(input: {
   jobId: string;
   projectId: string | null;
