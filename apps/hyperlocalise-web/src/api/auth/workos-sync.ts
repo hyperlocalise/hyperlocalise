@@ -143,7 +143,10 @@ export async function promoteInvitedPlaceholderUser(
   database: DatabaseClient,
   input: { email: string; workosUserId: string },
 ): Promise<boolean> {
-  const normalizedEmail = input.email.trim().toLowerCase();
+  const normalizedEmail = input.email?.trim().toLowerCase();
+  if (!normalizedEmail) {
+    return false;
+  }
 
   const [invitedUser] = await database
     .select({ id: schema.users.id })

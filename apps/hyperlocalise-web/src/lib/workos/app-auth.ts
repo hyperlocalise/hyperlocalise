@@ -13,6 +13,7 @@ import {
   getStoredActiveOrganizationSlug,
   setStoredActiveOrganizationSlug,
 } from "@/lib/workos/active-organization";
+import { redirectForMissingOrganizationAccess } from "@/lib/workos/missing-organization-access";
 
 export type AppAuthContext = ApiAuthContext & {
   sessionUser: NonNullable<Awaited<ReturnType<typeof withAuth>>["user"]>;
@@ -56,7 +57,7 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
     }
 
     if (error instanceof Error && error.message === "organization_access_denied") {
-      redirect("/auth/onboarding");
+      return redirectForMissingOrganizationAccess(session.user.email);
     }
 
     if (error instanceof Error && error.message === "workos_membership_lookup_failed") {
@@ -67,7 +68,7 @@ export async function requireAppAuthContext(options: RequireAppAuthContextOption
   }
 
   if (!auth) {
-    redirect("/auth/onboarding");
+    return redirectForMissingOrganizationAccess(session.user.email);
   }
 
   return {

@@ -8,6 +8,7 @@ const {
   resolveApiAuthContextFromSessionMock,
   getStoredActiveOrganizationSlugMock,
   setStoredActiveOrganizationSlugMock,
+  redirectForMissingOrganizationAccessMock,
 } = vi.hoisted(() => ({
   redirectMock: vi.fn((location: string) => {
     throw new Error(`redirect:${location}`);
@@ -16,6 +17,9 @@ const {
   resolveApiAuthContextFromSessionMock: vi.fn(),
   getStoredActiveOrganizationSlugMock: vi.fn(),
   setStoredActiveOrganizationSlugMock: vi.fn(),
+  redirectForMissingOrganizationAccessMock: vi.fn(async () => {
+    throw new Error("redirect:/auth/onboarding");
+  }),
 }));
 
 vi.mock("next/navigation", () => ({
@@ -37,6 +41,10 @@ vi.mock("@/api/auth/workos-session", async (importOriginal) => {
 vi.mock("@/lib/workos/active-organization", () => ({
   getStoredActiveOrganizationSlug: getStoredActiveOrganizationSlugMock,
   setStoredActiveOrganizationSlug: setStoredActiveOrganizationSlugMock,
+}));
+
+vi.mock("@/lib/workos/missing-organization-access", () => ({
+  redirectForMissingOrganizationAccess: redirectForMissingOrganizationAccessMock,
 }));
 
 describe("requireAppAuthContext", () => {
@@ -65,7 +73,7 @@ describe("requireAppAuthContext", () => {
     expect(redirectMock).toHaveBeenCalledWith("/auth/select-organization");
   });
 
-  it("redirects to onboarding when org access is denied", async () => {
+  it("routes missing organization access through the shared redirect helper", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
       organizationId: null,
@@ -79,10 +87,10 @@ describe("requireAppAuthContext", () => {
     await expect(requireAppAuthContext({ organizationSlug: "stale-slug" })).rejects.toThrow(
       "redirect:/auth/onboarding",
     );
-    expect(redirectMock).toHaveBeenCalledWith("/auth/onboarding");
+    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith("person@example.com");
   });
 
-  it("redirects to onboarding when the signed-in user has no memberships yet", async () => {
+  it("routes users without memberships through the shared redirect helper", async () => {
     const session = {
       user: { id: "user_123", email: "person@example.com" },
       organizationId: null,
@@ -94,7 +102,7 @@ describe("requireAppAuthContext", () => {
     const { requireAppAuthContext } = await import("./app-auth");
 
     await expect(requireAppAuthContext()).rejects.toThrow("redirect:/auth/onboarding");
-    expect(redirectMock).toHaveBeenCalledWith("/auth/onboarding");
+    expect(redirectForMissingOrganizationAccessMock).toHaveBeenCalledWith("person@example.com");
   });
 
   it("can ignore the stored active organization when resolving memberships", async () => {

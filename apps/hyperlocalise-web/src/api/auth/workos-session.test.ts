@@ -9,10 +9,12 @@ import type { WorkosAuthIdentity } from "@/api/auth/workos";
 import { createProjectTestFixture } from "@/api/routes/project/project.fixture";
 import { setMembershipReplacingSentinelForTest } from "@/api/test-cleanup";
 
-const { withAuthMock, reconcileWorkosMembershipsMock } = vi.hoisted(() => ({
-  withAuthMock: vi.fn(),
-  reconcileWorkosMembershipsMock: vi.fn().mockResolvedValue({ status: "skipped" }),
-}));
+const { withAuthMock, reconcileWorkosMembershipsMock, promoteInvitedPlaceholderUserMock } =
+  vi.hoisted(() => ({
+    withAuthMock: vi.fn(),
+    reconcileWorkosMembershipsMock: vi.fn().mockResolvedValue({ status: "skipped" }),
+    promoteInvitedPlaceholderUserMock: vi.fn().mockResolvedValue(false),
+  }));
 
 vi.mock("@workos-inc/authkit-nextjs", () => ({
   withAuth: withAuthMock,
@@ -26,6 +28,14 @@ vi.mock("./workos-membership-reconcile", async (importOriginal) => {
   };
 });
 
+vi.mock("@/api/auth/workos-sync", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/api/auth/workos-sync")>();
+  return {
+    ...actual,
+    promoteInvitedPlaceholderUser: promoteInvitedPlaceholderUserMock,
+  };
+});
+
 describe("resolveApiAuthContextFromSession", () => {
   const fixture = createProjectTestFixture();
 
@@ -36,6 +46,7 @@ describe("resolveApiAuthContextFromSession", () => {
   afterEach(async () => {
     vi.clearAllMocks();
     reconcileWorkosMembershipsMock.mockResolvedValue({ status: "skipped" });
+    promoteInvitedPlaceholderUserMock.mockResolvedValue(false);
     await fixture.cleanup();
   });
 
@@ -293,6 +304,84 @@ describe("resolveApiAuthContextFromSession", () => {
 
     await expect(resolveApiAuthContextFromSession()).rejects.toThrow(
       "workos_membership_lookup_failed",
+    );
+  });
+
+  it("forces membership reconcile when the WorkOS session includes an organization", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    withAuthMock.mockResolvedValue({
+      user: {
+        id: identity.user.workosUserId,
+        email: identity.user.email,
+        firstName: identity.user.firstName ?? null,
+        lastName: identity.user.lastName ?? null,
+        profilePictureUrl: identity.user.avatarUrl ?? null,
+      },
+      organizationId: identity.organization.workosOrganizationId,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+    await resolveApiAuthContextFromSession();
+
+    expect(promoteInvitedPlaceholderUserMock).toHaveBeenCalledWith(db, {
+      email: identity.user.email,
+      workosUserId: identity.user.workosUserId,
+    });
+    expect(reconcileWorkosMembershipsMock).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        workosUserId: identity.user.workosUserId,
+        workosOrganizationId: identity.organization.workosOrganizationId,
+        force: true,
+      }),
+    );
+  });
+
+  it("forces membership reconcile when an invited placeholder user is promoted", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    promoteInvitedPlaceholderUserMock.mockResolvedValueOnce(true);
+    withAuthMock.mockResolvedValue({
+      user: {
+        id: identity.user.workosUserId,
+        email: identity.user.email,
+      },
+      organizationId: null,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+    await resolveApiAuthContextFromSession();
+
+    expect(reconcileWorkosMembershipsMock).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        workosUserId: identity.user.workosUserId,
+        force: true,
+      }),
+    );
+  });
+
+  it("skips placeholder promotion when the session user has no email", async () => {
+    const identity = fixture.createWorkosIdentity();
+    await syncWorkosIdentity(db, identity);
+
+    withAuthMock.mockResolvedValue({
+      user: { id: identity.user.workosUserId },
+      organizationId: identity.organization.workosOrganizationId,
+    });
+
+    const { resolveApiAuthContextFromSession } = await import("./workos-session");
+    await resolveApiAuthContextFromSession();
+
+    expect(promoteInvitedPlaceholderUserMock).not.toHaveBeenCalled();
+    expect(reconcileWorkosMembershipsMock).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        force: true,
+      }),
     );
   });
 
