@@ -116,7 +116,10 @@ async function createCrowdinClient(input: {
     });
   }
 
-  const client = new CrowdinApiClient({ token });
+  const client = new CrowdinApiClient({
+    token,
+    baseUrl: projectCredential.credential.baseUrl ?? undefined,
+  });
   return ok({ client, crowdinProjectId });
 }
 

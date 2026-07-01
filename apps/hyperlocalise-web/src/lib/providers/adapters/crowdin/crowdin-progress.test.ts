@@ -85,6 +85,37 @@ describe("checkCrowdinProgress", () => {
     }
   });
 
+  it("uses the credential enterprise base URL for API requests", async () => {
+    const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
+    const { providerSafeFetch } = await import("@/lib/providers/provider-safe-fetch");
+
+    vi.mocked(providerSafeFetch).mockClear();
+    vi.mocked(loadCrowdinProjectCredential).mockResolvedValueOnce({
+      externalProjectId: "42",
+      credential: {
+        encryptionAlgorithm: "aes-256-gcm",
+        keyVersion: 1,
+        ciphertext: "cipher",
+        iv: "iv",
+        authTag: "tag",
+        baseUrl: "https://acme.api.crowdin.com/api/v2",
+      },
+    } as NonNullable<Awaited<ReturnType<typeof loadCrowdinProjectCredential>>>);
+
+    const result = await checkCrowdinProgress({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      scope: "project",
+    });
+
+    expect(result.ok).toBe(true);
+    expect(
+      vi.mocked(providerSafeFetch).mock.calls.some(([url]) =>
+        String(url).startsWith("https://acme.api.crowdin.com/api/v2/projects/42"),
+      ),
+    ).toBe(true);
+  });
+
   it("returns an error when Crowdin is not configured", async () => {
     const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
     vi.mocked(loadCrowdinProjectCredential).mockResolvedValueOnce(null);
