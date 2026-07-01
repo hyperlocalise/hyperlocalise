@@ -1,16 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { useMemo, useState } from "react";
-import { Add01Icon, DatabaseSyncIcon, FolderKanbanIcon } from "@hugeicons/core-free-icons";
+import { Add01Icon, FolderKanbanIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Spinner } from "@/components/ui/spinner";
+import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
+import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
 
 import {
   PageHeader,
@@ -29,7 +31,11 @@ import { ProjectDialog } from "./project-dialog";
 import { mapProjectToListRow, type ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
 
-const projectQueryKey = (organizationSlug: string) => ["translation-projects", organizationSlug];
+const nativeProjectsQueryKey = (organizationSlug: string) =>
+  ["translation-projects", organizationSlug, "native"] as const;
+
+const tmsProjectsQueryKey = (organizationSlug: string) =>
+  ["translation-projects", organizationSlug, "tms-live"] as const;
 
 function useProjectSearch(projects: ProjectListRow[]) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -52,13 +58,22 @@ function useProjectSearch(projects: ProjectListRow[]) {
   };
 }
 
+function ProjectsSectionHeader({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="space-y-1">
+      <TypographyP className="text-sm font-medium text-foreground">{title}</TypographyP>
+      <TypographyP className="text-sm leading-6 text-foreground/52">{description}</TypographyP>
+    </div>
+  );
+}
+
 export function ProjectsPageContent({ organizationSlug }: { organizationSlug: string }) {
   const queryClient = useQueryClient();
   const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
   const [deleteProject, setDeleteProject] = useState<ProjectListRow | null>(null);
-  const projectsQuery = useQuery({
-    queryKey: projectQueryKey(organizationSlug),
+  const nativeProjectsQuery = useQuery({
+    queryKey: nativeProjectsQueryKey(organizationSlug),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
@@ -73,6 +88,22 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     },
   });
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
+  const tmsProjectsQuery = useQuery({
+    queryKey: tmsProjectsQueryKey(organizationSlug),
+    enabled: Boolean(activeTmsProviderQuery.data),
+    queryFn: async () => {
+      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects.$get({
+        param: { organizationSlug },
+      });
+
+      if (!response.ok) {
+        throw await readApiResponseError(response, "Failed to load TMS projects");
+      }
+
+      const body = await response.json();
+      return body.projects.map(mapProjectToListRow);
+    },
+  });
   const createProject = useMutation({
     mutationFn: async (values: ProjectFormValues) => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$post({
@@ -87,7 +118,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       return response.json();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
+      await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setProjectDialogMode(null);
       toast.success("Project created");
     },
@@ -112,7 +143,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       return response.json();
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
+      await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setProjectDialogMode(null);
       setEditingProject(null);
       toast.success("Project updated");
@@ -134,7 +165,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
+      await queryClient.invalidateQueries({ queryKey: nativeProjectsQueryKey(organizationSlug) });
       setDeleteProject(null);
       toast.success("Project deleted");
     },
@@ -142,33 +173,24 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
       toast.error(error.message);
     },
   });
-  const syncProviderProjects = useMutation({
-    mutationFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"][
-        "tms-provider"
-      ].projects.sync.$post({
-        param: { organizationSlug },
-      });
 
-      if (response.status !== 202) {
-        throw await readApiResponseError(response, "Unable to sync provider projects");
-      }
+  const nativeProjects = nativeProjectsQuery.data ?? [];
+  const tmsProjects = tmsProjectsQuery.data ?? [];
+  const {
+    searchQuery,
+    setSearchQuery,
+    filteredProjects: filteredNativeProjects,
+  } = useProjectSearch(nativeProjects);
+  const filteredTmsProjects = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+    if (!query) return tmsProjects;
 
-      return response.json();
-    },
-    onSuccess: async (body) => {
-      await queryClient.invalidateQueries({ queryKey: projectQueryKey(organizationSlug) });
-      toast.success(
-        body.providerProjectSync.created ? "Project sync queued" : "Project sync is already queued",
-      );
-    },
-    onError: (error) => {
-      toast.error(error.message);
-    },
-  });
-
-  const projects = projectsQuery.data ?? [];
-  const { searchQuery, setSearchQuery, filteredProjects } = useProjectSearch(projects);
+    return tmsProjects.filter((project) => {
+      const matchesName = project.name.toLowerCase().includes(query);
+      const matchesId = project.id.toLowerCase().includes(query);
+      return matchesName || matchesId;
+    });
+  }, [searchQuery, tmsProjects]);
 
   const isSavingProject = createProject.isPending || updateProject.isPending;
   const projectDialogTitle = projectDialogMode === "edit" ? "Edit project" : "Create project";
@@ -183,6 +205,12 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         : createEmptyProjectForm(),
     [editingProject, projectDialogMode],
   );
+
+  const hasAnyProjects = nativeProjects.length > 0 || tmsProjects.length > 0;
+  const hasFilteredResults = filteredNativeProjects.length > 0 || filteredTmsProjects.length > 0;
+  const tmsProviderName = activeTmsProviderQuery.data
+    ? getTmsProviderBranding(activeTmsProviderQuery.data.providerKind).name
+    : "TMS";
 
   function openCreateProjectDialog() {
     setEditingProject(null);
@@ -212,9 +240,6 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     createProject.mutate(values);
   }
 
-  const useLiveProviderProjects = Boolean(activeTmsProviderQuery.data);
-  const isProviderModeResolved = activeTmsProviderQuery.isSuccess || activeTmsProviderQuery.isError;
-
   const createProjectAction = (
     <Button
       type="button"
@@ -227,41 +252,17 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     </Button>
   );
 
-  const syncProjectsAction = useLiveProviderProjects ? (
-    <Button
-      type="button"
-      variant="outline"
-      className="w-full sm:w-fit"
-      onClick={() => syncProviderProjects.mutate()}
-      disabled={syncProviderProjects.isPending}
-    >
-      {syncProviderProjects.isPending ? (
-        <Spinner className="size-4" />
-      ) : (
-        <HugeiconsIcon icon={DatabaseSyncIcon} strokeWidth={1.8} />
-      )}
-      Sync projects
-    </Button>
-  ) : null;
-
-  const headerActions = !isProviderModeResolved ? null : (
-    <>
-      {syncProjectsAction}
-      {createProjectAction}
-    </>
-  );
-
   return (
     <WorkspacePageShell>
       <PageHeader
         icon={FolderKanbanIcon}
         label="Workspace"
         title="Projects"
-        description="Track localization programs before they move into translation jobs."
-        actions={headerActions}
+        description="Browse Hyperlocalise projects and live TMS projects from your connected provider."
+        actions={createProjectAction}
       />
 
-      {projectsQuery.isSuccess && projects.length > 0 ? (
+      {hasAnyProjects ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
           <WorkspaceFilterField label="Search" className="w-full sm:max-w-xs">
             <Input
@@ -274,7 +275,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         </div>
       ) : null}
 
-      {projectsQuery.isSuccess && projects.length > 0 && filteredProjects.length === 0 ? (
+      {hasAnyProjects && !hasFilteredResults ? (
         <div className="border-t border-foreground/8 px-1 py-8 text-sm text-foreground/52">
           No projects match your search.{" "}
           <button
@@ -287,23 +288,59 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
         </div>
       ) : null}
 
-      <section>
-        <ProjectsTable
-          projects={filteredProjects}
-          projectsQuery={projectsQuery}
-          isSavingProject={isSavingProject}
-          isDeletingProject={deleteProjectMutation.isPending}
-          hasActiveTmsConnection={Boolean(activeTmsProviderQuery.data)}
-          isCheckingTmsConnection={
-            activeTmsProviderQuery.isLoading && projectsQuery.isSuccess && projects.length === 0
-          }
-          isSyncingProviderProjects={syncProviderProjects.isPending}
-          organizationSlug={organizationSlug}
-          onSyncProviderProjects={syncProviderProjects.mutate}
-          onEditProject={openEditProjectDialog}
-          onDeleteProject={setDeleteProject}
-        />
-      </section>
+      <div className="space-y-10">
+        <section className="space-y-4">
+          <ProjectsSectionHeader
+            title="Hyperlocalise projects"
+            description="Projects created and managed in this workspace."
+          />
+          <ProjectsTable
+            projects={filteredNativeProjects}
+            projectsQuery={nativeProjectsQuery}
+            isSavingProject={isSavingProject}
+            isDeletingProject={deleteProjectMutation.isPending}
+            organizationSlug={organizationSlug}
+            variant="native"
+            onEditProject={openEditProjectDialog}
+            onDeleteProject={setDeleteProject}
+          />
+        </section>
+
+        {activeTmsProviderQuery.isSuccess && activeTmsProviderQuery.data ? (
+          <section className="space-y-4">
+            <ProjectsSectionHeader
+              title={`${tmsProviderName} projects`}
+              description="Live projects fetched from your connected TMS provider."
+            />
+            <ProjectsTable
+              projects={filteredTmsProjects}
+              projectsQuery={tmsProjectsQuery}
+              isSavingProject={isSavingProject}
+              isDeletingProject={deleteProjectMutation.isPending}
+              organizationSlug={organizationSlug}
+              variant="tms"
+            />
+          </section>
+        ) : activeTmsProviderQuery.isSuccess ? (
+          <section className="space-y-4">
+            <ProjectsSectionHeader
+              title="TMS projects"
+              description="Connect a TMS provider to browse live provider projects here."
+            />
+            <div className="max-w-xl py-4">
+              <Button
+                nativeButton={false}
+                render={<Link href={`/org/${organizationSlug}/integrations`} />}
+                variant="outline"
+                size="sm"
+              >
+                Connect a provider
+              </Button>
+            </div>
+          </section>
+        ) : null}
+      </div>
+
       <ProjectDialog
         open={projectDialogMode !== null}
         title={projectDialogTitle}

@@ -86,10 +86,7 @@ import { mapProviderQaErrorToHttpStatus } from "@/lib/providers/map-provider-qa-
 import { runProviderJobQaForJob } from "@/lib/providers/agent-runs/provider-agent-qa";
 import { maybeEnqueueAutoWriteBackAfterProposalReview } from "@/lib/providers/agent-runs/tms-agent-automation-runner";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
-import {
-  enqueueProviderProjectJobSyncIntent,
-  maybeEnqueueProviderProjectJobSync,
-} from "@/lib/providers/provider-sync-intent";
+import { enqueueProviderProjectJobSyncIntent } from "@/lib/providers/provider-sync-intent";
 
 import {
   createJobAgentRunBodySchema,
@@ -356,20 +353,6 @@ export function createJobRoutes(options: CreateJobRoutesOptions) {
       const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
       if (target.kind === "provider_unavailable") {
         return providerProjectUnavailableResponse(c, target);
-      }
-
-      if (target.kind === "provider") {
-        const credential = await getActiveOrganizationExternalTmsProviderCredentialRow(
-          c.var.auth.organization.localOrganizationId,
-        );
-        if (credential && credential.providerKind === target.providerKind) {
-          maybeEnqueueProviderProjectJobSync({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            providerCredentialId: credential.id,
-            providerKind: credential.providerKind,
-            projectId: params.projectId,
-          });
-        }
       }
 
       if (target.kind === "native") {
