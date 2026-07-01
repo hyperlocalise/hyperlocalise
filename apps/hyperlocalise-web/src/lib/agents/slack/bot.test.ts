@@ -109,7 +109,9 @@ vi.mock("@/lib/agents/repository-context", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/agents/repository-context")>();
   return {
     ...original,
+    resolveConversationRepositoryGitHubContext: resolveSlackRepositoryGitHubContextMock,
     resolveSlackRepositoryGitHubContext: resolveSlackRepositoryGitHubContextMock,
+    getOrganizationRepositoryConnectorConfig: vi.fn(async () => null),
   };
 });
 
@@ -682,11 +684,10 @@ describe("handleNewConversation", () => {
 
     expect(resolveSlackRepositoryGitHubContextMock).not.toHaveBeenCalled();
     const reuseLog = loggerChildMock.info.mock.calls.find(
-      ([, message]) => message === "reusing stored slack thread repository context",
+      ([, message]) => message === "reusing stored repository sandbox for conversation agent",
     );
     expect(reuseLog?.[0]).toEqual({
-      installationId: 12345,
-      hasPullRequestNumber: false,
+      sandboxId: "sbx_existing",
     });
     expect(createConversationToolLoopAgentMock).toHaveBeenCalledWith(
       expect.objectContaining({

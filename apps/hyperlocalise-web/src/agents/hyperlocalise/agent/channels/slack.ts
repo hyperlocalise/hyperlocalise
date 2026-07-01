@@ -8,19 +8,13 @@ import {
   getRecentUserConversationText,
   loadInteractionModelMessages,
   replaceLastUserMessage,
-  shouldAttemptRepositoryContextResolution,
-  shouldRequireRepositoryContextClarification,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
+import {
+  buildFileTranslationInstructions,
+  getOrCreateConversationRepositorySandbox,
+  resolveConversationRepositoryContext,
+} from "@/lib/agent-runtime/loops/conversation-turn";
 import { resolveOrganizationHasTmsIntegration } from "@/lib/agent-runtime/skills/conversation-tms-integration";
-import {
-  buildRepositoryGitHubContextInstructions,
-  resolveSlackRepositoryGitHubContext,
-} from "@/lib/agents/repository-context";
-import {
-  createRepositorySandbox,
-  stopRepositorySandbox,
-} from "@/lib/agent-runtime/workspaces/repository-sandbox";
-import { type RepositoryAgentGitHubContext } from "@/lib/agents/repository-agent-task";
 import { createChatStateAdapter } from "@/lib/agents/runtime/state";
 import {
   postThreadMessageWithoutTracking,
@@ -29,7 +23,6 @@ import {
 import { db } from "@/lib/database";
 import { env } from "@/lib/env";
 import { createChatLogger, createLogger, serializeErrorForLog } from "@/lib/log";
-import { supportedFileTranslationFileFormats } from "@/lib/translation/file-formats";
 import {
   addInteractionMessage,
   createInteraction,
@@ -52,10 +45,7 @@ import {
   handleSlackImageFollowUp,
 } from "@/lib/agents/slack/image-attachments";
 import { threadHasStoredSlackImages } from "@/lib/agents/slack/image-session";
-import {
-  getSlackRepositoryContextKey,
-  type SlackBotThreadState,
-} from "@/lib/agents/slack/repository-session";
+import { type SlackBotThreadState } from "@/lib/agents/slack/repository-session";
 
 type SlackBotState = SlackBotThreadState;
 
@@ -139,10 +129,6 @@ export async function getOrCreateInteraction(
   };
 }
 
-function buildSlackFileTranslationInstructions() {
-  return `When a Slack message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
-}
-
 function getSlackChannelId(thread: Thread<SlackBotState>, message: Message): string | null {
   const channelId = thread.channelId;
   if (typeof channelId === "string" && channelId.length > 0) {
@@ -151,94 +137,6 @@ function getSlackChannelId(thread: Thread<SlackBotState>, message: Message): str
 
   const raw = message.raw as { channel?: string } | undefined;
   return raw?.channel ?? null;
-}
-
-function buildMissingRepositoryContextInstructions(followUp: string) {
-  return [
-    "Repository context is not available for this request.",
-    `If the user asks where a string, message, copy, or localized text appears in code, ask this follow-up exactly: ${followUp}`,
-    "Do not invent a GitHub repository, pull request, branch, installation ID, path, or file contents.",
-  ].join("\n");
-}
-
-function buildResolvedRepositoryContextInstructions(context: RepositoryAgentGitHubContext) {
-  return [
-    buildRepositoryGitHubContextInstructions(context),
-    "Repository read tools are available for this request.",
-    "Use grep with the user's literal string or copy, then read for surrounding lines when needed.",
-    "Only explain where strings, messages, or copy appear and what nearby code implies.",
-    "Do not modify files, upload sources, commit, push, or create jobs from repository context alone.",
-  ].join("\n");
-}
-
-async function getOrCreateSlackRepositorySandbox(input: {
-  thread: Thread<SlackBotState>;
-  state: SlackBotThreadState | null;
-  githubContext: RepositoryAgentGitHubContext;
-  log: ReturnType<typeof logger.child>;
-}): Promise<string> {
-  const repositoryContextKey = getSlackRepositoryContextKey(input.githubContext);
-  const sandboxSession = input.state?.repositorySandboxSession;
-  const now = new Date().toISOString();
-
-  if (sandboxSession?.repositoryContextKey === repositoryContextKey) {
-    await input.thread.setState({
-      ...input.state,
-      repositorySandboxSession: {
-        ...sandboxSession,
-        lastUsedAt: now,
-      },
-    });
-    input.log.info(
-      { sandboxId: sandboxSession.sandboxId },
-      "reusing stored repository sandbox for slack agent",
-    );
-    return sandboxSession.sandboxId;
-  }
-
-  input.log.info(
-    {
-      installationId: input.githubContext.installationId,
-      branch: input.githubContext.branch ?? null,
-      commitSha: input.githubContext.commitSha ?? null,
-    },
-    "creating repository sandbox for slack agent",
-  );
-  const sandboxId = await createRepositorySandbox(input.githubContext);
-  input.log.info({ sandboxId }, "repository sandbox created for slack agent");
-
-  try {
-    await input.thread.setState({
-      ...input.state,
-      repositoryGitHubContext: input.githubContext,
-      repositorySandboxSession: {
-        sandboxId,
-        repositoryContextKey,
-        createdAt: now,
-        lastUsedAt: now,
-      },
-    });
-  } catch (error) {
-    await stopRepositorySandbox(sandboxId).catch((cleanupError: unknown) => {
-      input.log.warn(
-        { err: serializeErrorForLog(cleanupError) },
-        "repository sandbox cleanup failed after slack state write failure",
-      );
-    });
-    throw error;
-  }
-
-  const staleSandboxId = sandboxSession?.sandboxId;
-  if (staleSandboxId) {
-    await stopRepositorySandbox(staleSandboxId).catch((error: unknown) => {
-      input.log.warn(
-        { err: serializeErrorForLog(error), sandboxId: staleSandboxId },
-        "stale repository sandbox cleanup failed",
-      );
-    });
-  }
-
-  return sandboxId;
 }
 
 async function removeEyesReaction(thread: Thread<SlackBotState>, message: Message): Promise<void> {
@@ -392,13 +290,8 @@ async function processSlackMessage(
       hasStoredRepositoryContext: Boolean(storedRepositoryContext),
       surface: "slack",
     });
-    const shouldResolveRepositoryContext = shouldAttemptRepositoryContextResolution({
-      classification,
-      storedRepositoryContext,
-    });
     log.info(
       {
-        shouldResolveRepositoryContext,
         needsRepositoryTools: classification.needsRepositoryTools,
         continuesRepositoryThread: classification.continuesRepositoryThread,
         hasStoredRepositoryContext: Boolean(storedRepositoryContext),
@@ -407,80 +300,33 @@ async function processSlackMessage(
       "slack agent conversation classified",
     );
 
-    let resolvedRepositoryContext: RepositoryAgentGitHubContext | null = null;
-    let repositoryContextInstructions: string | null = null;
-    if (shouldResolveRepositoryContext) {
-      const canReuseStoredRepositoryContext =
-        storedRepositoryContext !== null && !classification.currentMessageSpecifiesRepository;
+    const repositoryResolution = await resolveConversationRepositoryContext({
+      surface: "slack",
+      organizationId,
+      projectId,
+      conversationText,
+      classification,
+      repositorySession: threadState,
+      connectorConfig,
+      channelId,
+    });
 
-      if (canReuseStoredRepositoryContext) {
-        resolvedRepositoryContext = storedRepositoryContext;
-        repositoryContextInstructions =
-          buildResolvedRepositoryContextInstructions(resolvedRepositoryContext);
-        log.info(
-          {
-            installationId: resolvedRepositoryContext.installationId,
-            hasPullRequestNumber: resolvedRepositoryContext.pullRequestNumber !== undefined,
-          },
-          "reusing stored slack thread repository context",
-        );
-      } else {
-        const githubContextResolution = await resolveSlackRepositoryGitHubContext({
-          organizationId,
-          text: conversationText,
-          connectorConfig,
-          projectId,
-          channelId,
-          requirePullRequest: classification.requiresPullRequest,
-        });
-        log.info(
-          {
-            status: githubContextResolution.status,
-            source:
-              githubContextResolution.status === "resolved" ? githubContextResolution.source : null,
-            repositoryFullName:
-              githubContextResolution.status === "resolved"
-                ? githubContextResolution.context.repositoryFullName
-                : null,
-            installationId:
-              githubContextResolution.status === "resolved"
-                ? githubContextResolution.context.installationId
-                : null,
-            unresolvedReason:
-              githubContextResolution.status === "unresolved"
-                ? githubContextResolution.context.reason
-                : null,
-          },
-          "slack agent repository context resolved",
-        );
+    if (repositoryResolution.clarificationFollowUp) {
+      await removeEyesReaction(thread, message);
+      wrapThreadPost(thread, interactionId);
+      await thread.post({ markdown: repositoryResolution.clarificationFollowUp });
+      return;
+    }
 
-        if (githubContextResolution.status === "resolved") {
-          resolvedRepositoryContext = githubContextResolution.context;
-          repositoryContextInstructions =
-            buildResolvedRepositoryContextInstructions(resolvedRepositoryContext);
-          await thread.setState({
-            ...threadState,
-            repositoryGitHubContext: resolvedRepositoryContext,
-          });
-        } else if (githubContextResolution.status === "unresolved") {
-          if (storedRepositoryContext && !classification.currentMessageSpecifiesRepository) {
-            resolvedRepositoryContext = storedRepositoryContext;
-            repositoryContextInstructions =
-              buildResolvedRepositoryContextInstructions(resolvedRepositoryContext);
-          } else {
-            repositoryContextInstructions = buildMissingRepositoryContextInstructions(
-              githubContextResolution.followUp,
-            );
+    const resolvedRepositoryContext = repositoryResolution.context;
+    const repositoryContextInstructions = repositoryResolution.instructions;
+    let updatedThreadState = repositoryResolution.updatedSession;
 
-            if (shouldRequireRepositoryContextClarification(classification)) {
-              await removeEyesReaction(thread, message);
-              wrapThreadPost(thread, interactionId);
-              await thread.post({ markdown: githubContextResolution.followUp });
-              return;
-            }
-          }
-        }
-      }
+    if (updatedThreadState?.repositoryGitHubContext) {
+      await thread.setState({
+        ...threadState,
+        repositoryGitHubContext: updatedThreadState.repositoryGitHubContext,
+      });
     }
 
     const chatMessages = replaceLastUserMessage(
@@ -526,14 +372,21 @@ async function processSlackMessage(
     }
 
     const latestThreadState = (await thread.state) as SlackBotThreadState | null;
-    const sandboxId = resolvedRepositoryContext
-      ? await getOrCreateSlackRepositorySandbox({
-          thread,
-          state: latestThreadState,
-          githubContext: resolvedRepositoryContext,
-          log,
-        })
-      : null;
+    let sandboxId: string | null = null;
+    if (resolvedRepositoryContext) {
+      const sandboxResult = await getOrCreateConversationRepositorySandbox({
+        conversationId: interactionId,
+        surface: "slack",
+        githubContext: resolvedRepositoryContext,
+        repositorySession: updatedThreadState ?? latestThreadState,
+      });
+      sandboxId = sandboxResult.sandboxId;
+      updatedThreadState = sandboxResult.updatedSession;
+      await thread.setState({
+        ...latestThreadState,
+        ...updatedThreadState,
+      });
+    }
 
     const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(organizationId);
 
@@ -562,10 +415,7 @@ async function processSlackMessage(
       },
       hasFileAttachments: hasTranslationAttachments,
       hasTmsIntegration,
-      additionalInstructions: [
-        buildSlackFileTranslationInstructions(),
-        repositoryContextInstructions,
-      ]
+      additionalInstructions: [buildFileTranslationInstructions(), repositoryContextInstructions]
         .filter((instruction): instruction is string => instruction !== null)
         .join("\n\n"),
     });

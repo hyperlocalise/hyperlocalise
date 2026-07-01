@@ -236,7 +236,7 @@ describe("resolveSlackRepositoryGitHubContext", () => {
       status: "unresolved",
       context: {
         resolved: false,
-        reason: "The Slack request matched multiple installed GitHub repositories.",
+        reason: "The request matched multiple installed GitHub repositories.",
       },
       followUp: expect.stringContaining("owner/repository"),
     });
