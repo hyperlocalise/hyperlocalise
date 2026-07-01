@@ -6,7 +6,11 @@ import {
   getWebConversationRepositorySession,
   setWebConversationRepositorySession,
 } from "@/lib/agent-runtime/loops/conversation-repository-session";
-import { prepareConversationAgentTurn } from "@/lib/agent-runtime/loops/conversation-turn";
+import {
+  prepareConversationAgentTurn,
+  type PrepareConversationAgentTurnInput,
+  type PrepareConversationAgentTurnResult,
+} from "@/lib/agent-runtime/loops/conversation-turn";
 
 export async function postStreamingAgentReply(
   thread: Thread<Record<string, unknown>>,
@@ -26,14 +30,47 @@ export async function postStreamingAgentReply(
   return text;
 }
 
+async function prepareAndCommitWebConversationTurn(
+  conversationId: string,
+  prepareInput: Omit<PrepareConversationAgentTurnInput, "repositorySession">,
+): Promise<PrepareConversationAgentTurnResult> {
+  let repositorySessionState = getWebConversationRepositorySession(conversationId);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const prepared = await prepareConversationAgentTurn({
+      ...prepareInput,
+      repositorySession: repositorySessionState?.session ?? null,
+    });
+
+    if (!prepared.updatedRepositorySession) {
+      return prepared;
+    }
+
+    const committed = setWebConversationRepositorySession(conversationId, {
+      baseVersion: repositorySessionState?.version ?? null,
+      session: prepared.updatedRepositorySession,
+    });
+
+    if (committed) {
+      return prepared;
+    }
+
+    repositorySessionState = getWebConversationRepositorySession(conversationId);
+  }
+
+  return prepareConversationAgentTurn({
+    ...prepareInput,
+    repositorySession: getWebConversationRepositorySession(conversationId)?.session ?? null,
+  });
+}
+
 export async function runWebChatAgentTurn(input: {
   conversationId: string;
   messageText: string;
   toolContext: ToolContext;
   hasTranslationAttachments: boolean;
 }) {
-  const repositorySessionState = getWebConversationRepositorySession(input.conversationId);
-  const prepared = await prepareConversationAgentTurn({
+  const prepared = await prepareAndCommitWebConversationTurn(input.conversationId, {
     surface: "web",
     conversationId: input.conversationId,
     organizationId: input.toolContext.organizationId,
@@ -42,17 +79,9 @@ export async function runWebChatAgentTurn(input: {
     projectId: input.toolContext.projectId,
     messageText: input.messageText,
     hasTranslationAttachments: input.hasTranslationAttachments,
-    repositorySession: repositorySessionState?.session ?? null,
     repositorySource: "chat_ui",
     db: input.toolContext.db,
   });
-
-  if (prepared.updatedRepositorySession) {
-    setWebConversationRepositorySession(input.conversationId, {
-      baseVersion: repositorySessionState?.version ?? null,
-      session: prepared.updatedRepositorySession,
-    });
-  }
 
   if (prepared.clarificationFollowUp) {
     return {

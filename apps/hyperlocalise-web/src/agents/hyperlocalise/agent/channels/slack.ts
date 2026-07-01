@@ -13,6 +13,7 @@ import {
   buildFileTranslationInstructions,
   getOrCreateConversationRepositorySandbox,
   resolveConversationRepositoryContext,
+  stopStaleRepositorySandbox,
 } from "@/lib/agent-runtime/loops/conversation-turn";
 import { resolveOrganizationHasTmsIntegration } from "@/lib/agent-runtime/skills/conversation-tms-integration";
 import { stopRepositorySandbox } from "@/lib/agent-runtime/workspaces/repository-sandbox";
@@ -388,6 +389,7 @@ async function processSlackMessage(
           ...latestThreadState,
           ...updatedThreadState,
         });
+        await stopStaleRepositorySandbox(sandboxResult.staleSandboxId, log);
       } catch (error) {
         if (sandboxResult.sandboxCreated) {
           await stopRepositorySandbox(sandboxResult.sandboxId).catch((cleanupError: unknown) => {

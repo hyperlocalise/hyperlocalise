@@ -175,6 +175,7 @@ export async function getOrCreateConversationRepositorySandbox(input: {
   sandboxId: string;
   updatedSession: ConversationRepositorySession;
   sandboxCreated: boolean;
+  staleSandboxId: string | null;
 }> {
   const log = logger.child({
     conversationId: input.conversationId,
@@ -200,6 +201,7 @@ export async function getOrCreateConversationRepositorySandbox(input: {
         },
       },
       sandboxCreated: false,
+      staleSandboxId: null,
     };
   }
 
@@ -225,17 +227,25 @@ export async function getOrCreateConversationRepositorySandbox(input: {
     },
   };
 
-  const staleSandboxId = sandboxSession?.sandboxId;
-  if (staleSandboxId) {
-    await stopRepositorySandbox(staleSandboxId).catch((error: unknown) => {
-      log.warn(
-        { err: serializeErrorForLog(error), sandboxId: staleSandboxId },
-        "stale repository sandbox cleanup failed",
-      );
-    });
+  const staleSandboxId = sandboxSession?.sandboxId ?? null;
+
+  return { sandboxId, updatedSession, sandboxCreated: true, staleSandboxId };
+}
+
+export async function stopStaleRepositorySandbox(
+  staleSandboxId: string | null | undefined,
+  log = logger,
+) {
+  if (!staleSandboxId) {
+    return;
   }
 
-  return { sandboxId, updatedSession, sandboxCreated: true };
+  await stopRepositorySandbox(staleSandboxId).catch((error: unknown) => {
+    log.warn(
+      { err: serializeErrorForLog(error), sandboxId: staleSandboxId },
+      "stale repository sandbox cleanup failed",
+    );
+  });
 }
 
 export type PrepareConversationAgentTurnInput = {
@@ -261,6 +271,7 @@ export type PrepareConversationAgentTurnResult = {
   chatMessages: ModelMessage[];
   clarificationFollowUp: string | null;
   updatedRepositorySession: ConversationRepositorySession | null;
+  staleSandboxId: string | null;
 };
 
 export async function prepareConversationAgentTurn(
@@ -291,6 +302,7 @@ export async function prepareConversationAgentTurn(
 
   let updatedRepositorySession = repositoryResolution.updatedSession;
   let sandboxId: string | null = null;
+  let staleSandboxId: string | null = null;
 
   if (repositoryResolution.context) {
     const sandboxResult = await getOrCreateConversationRepositorySandbox({
@@ -301,6 +313,7 @@ export async function prepareConversationAgentTurn(
     });
     sandboxId = sandboxResult.sandboxId;
     updatedRepositorySession = sandboxResult.updatedSession;
+    staleSandboxId = sandboxResult.staleSandboxId;
   }
 
   const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(input.organizationId);
@@ -344,5 +357,6 @@ export async function prepareConversationAgentTurn(
     chatMessages: preparedMessages,
     clarificationFollowUp: repositoryResolution.clarificationFollowUp,
     updatedRepositorySession,
+    staleSandboxId,
   };
 }

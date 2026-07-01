@@ -837,6 +837,78 @@ describe("handleNewConversation", () => {
     });
   });
 
+  it("keeps the stored repository sandbox when slack thread state persistence fails after a context switch", async () => {
+    const oldContext = {
+      resolved: true as const,
+      installationId: 12345,
+      repositoryFullName: "org/old-repo",
+    };
+    const newContext = {
+      resolved: true as const,
+      installationId: 67890,
+      repositoryFullName: "org/new-repo",
+      branch: "main",
+    };
+    const { thread } = createThread({
+      repositoryGitHubContext: oldContext,
+      repositorySandboxSession: {
+        sandboxId: "sbx_old",
+        repositoryContextKey: getSlackRepositoryContextKey(oldContext),
+        createdAt: "2026-06-01T00:00:00.000Z",
+        lastUsedAt: "2026-06-01T00:00:00.000Z",
+      },
+    });
+    const message = createMessage({
+      text: "Find 'Email agent' in org/new-repo",
+      raw: { team_id: "T123", channel: "C123" },
+    });
+
+    classifyConversationMock.mockResolvedValueOnce(
+      createMockClassification({
+        needsRepositoryTools: true,
+        currentMessageSpecifiesRepository: true,
+        confidence: 0.95,
+      }),
+    );
+    resolveSlackRepositoryGitHubContextMock.mockResolvedValueOnce({
+      status: "resolved",
+      source: "slack_repo_reference",
+      context: newContext,
+    });
+    vi.mocked(findSlackConnector).mockResolvedValue({
+      id: "connector-123",
+      organizationId: "org-123",
+      enabled: true,
+      config: {},
+    } as never);
+    vi.mocked(lookupMembership).mockResolvedValue({
+      role: "member",
+      localUserId: "user-123",
+    } as never);
+    vi.mocked(findInteractionBySourceThreadId).mockResolvedValue({
+      id: "interaction-123",
+      title: "Existing",
+      projectId: null,
+    } as never);
+    vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
+    const setStateCalls = vi.mocked(thread.setState);
+    setStateCalls.mockImplementation(async (newState: Record<string, unknown>) => {
+      const sandboxSession = newState.repositorySandboxSession as
+        | { sandboxId?: string }
+        | undefined;
+      if (sandboxSession?.sandboxId === "sbx_test") {
+        throw new Error("state write failed");
+      }
+    });
+
+    await handleSubscribedMessage(thread, message);
+
+    expect(createRepositorySandbox).toHaveBeenCalledWith(newContext);
+    expect(stopRepositorySandbox).toHaveBeenCalledWith("sbx_test");
+    expect(stopRepositorySandbox).not.toHaveBeenCalledWith("sbx_old");
+    expect(createConversationToolLoopAgentMock).not.toHaveBeenCalled();
+  });
+
   it("resolves GitHub context using recent conversation text", async () => {
     const { thread } = createThread();
     const message = createMessage({
