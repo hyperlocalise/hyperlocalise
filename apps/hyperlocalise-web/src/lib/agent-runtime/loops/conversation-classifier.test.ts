@@ -19,11 +19,8 @@ vi.mock("@/lib/agent-runtime/loops/model", () => ({
 
 import {
   classifyConversation,
-  classificationHasIntent,
   fallbackConversationClassification,
-  getPrimarySuggestedMode,
   getRecentUserConversationText,
-  normalizeConversationIntents,
   shouldAttemptRepositoryContextResolution,
   shouldRequireRepositoryContextClarification,
   type ConversationClassification,
@@ -33,7 +30,6 @@ function repositoryClassification(
   overrides: Partial<ConversationClassification> = {},
 ): ConversationClassification {
   return {
-    intents: ["repository"],
     needsRepositoryTools: true,
     requiresPullRequest: false,
     shouldAskForRepositoryClarification: false,
@@ -44,29 +40,12 @@ function repositoryClassification(
   };
 }
 
-describe("conversation classifier routing", () => {
+describe("conversation classifier", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("normalizes multi-intent output and drops general when specific intents exist", () => {
-    expect(normalizeConversationIntents(["translation", "repository", "general"])).toEqual([
-      "translation",
-      "repository",
-    ]);
-  });
-
-  it("uses general orchestrator mode when translation and repository are both active", () => {
-    expect(getPrimarySuggestedMode(["translation", "repository"])).toBe("general");
-  });
-
-  it("accepts readonly intent arrays when normalizing", () => {
-    const intents = ["translation", "repository"] as const;
-
-    expect(normalizeConversationIntents(intents)).toEqual(["translation", "repository"]);
-  });
-
-  it("enables repository resolution when repository is among intents", () => {
+  it("enables repository resolution when repository tools are needed", () => {
     expect(
       shouldAttemptRepositoryContextResolution({
         classification: repositoryClassification(),
@@ -78,7 +57,6 @@ describe("conversation classifier routing", () => {
     expect(
       shouldAttemptRepositoryContextResolution({
         classification: repositoryClassification({
-          intents: ["repository"],
           needsRepositoryTools: false,
           continuesRepositoryThread: true,
         }),
@@ -89,14 +67,6 @@ describe("conversation classifier routing", () => {
         },
       }),
     ).toBe(true);
-  });
-
-  it("detects translation intent in multi-intent classification", () => {
-    const classification = repositoryClassification({
-      intents: ["translation", "repository"],
-    });
-    expect(classificationHasIntent(classification, "translation")).toBe(true);
-    expect(classificationHasIntent(classification, "repository")).toBe(true);
   });
 
   it("uses model output for repository clarification", () => {
@@ -119,7 +89,6 @@ describe("conversation classifier routing", () => {
   it("classifies conversations through the AI SDK", async () => {
     generateTextMock.mockResolvedValueOnce({
       output: repositoryClassification({
-        intents: ["repository"],
         continuesRepositoryThread: true,
       }),
     });
@@ -134,7 +103,7 @@ describe("conversation classifier routing", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
-        intents: ["repository"],
+        needsRepositoryTools: true,
         continuesRepositoryThread: true,
       }),
     );
@@ -159,7 +128,6 @@ describe("conversation classifier routing", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: true,
         currentMessageSpecifiesRepository: false,
@@ -201,7 +169,6 @@ describe("conversation classifier routing", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: false,
         continuesRepositoryThread: true,
@@ -230,7 +197,7 @@ describe("conversation classifier routing", () => {
     );
   });
 
-  it("falls back to translation intent when attachments are present", () => {
+  it("falls back without repository tooling when classification fails", () => {
     expect(
       fallbackConversationClassification({
         hasFileAttachments: true,
@@ -238,7 +205,7 @@ describe("conversation classifier routing", () => {
       }),
     ).toEqual(
       expect.objectContaining({
-        intents: ["translation"],
+        needsRepositoryTools: false,
         confidence: 0,
       }),
     );

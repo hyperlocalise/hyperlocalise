@@ -40,8 +40,8 @@ vi.mock("@/lib/database", () => ({
   },
 }));
 
-vi.mock("@/lib/agent-runtime/loops/orchestrator", () => ({
-  createConversationOrchestratorAgent: vi.fn((runtime: unknown, onFinish: unknown) => ({
+vi.mock("@/lib/agent-runtime/loops/conversation-skill-agent", () => ({
+  createConversationSkillAgent: vi.fn((runtime: unknown, onFinish: unknown) => ({
     runtime,
     onFinish,
   })),
@@ -56,7 +56,7 @@ import {
   replaceLastUserMessage,
   toModelMessages,
 } from "./hyperlocalise-agent";
-import { createConversationOrchestratorAgent } from "./orchestrator";
+import { createConversationSkillAgent } from "./conversation-skill-agent";
 import { DEFAULT_AGENT_TIMEOUT } from "@/lib/agent-runtime/subagents/constants";
 
 describe("hyperlocalise agent core", () => {
@@ -125,50 +125,25 @@ describe("hyperlocalise agent core", () => {
     );
   });
 
-  it("creates an orchestrator runtime for translation mode", () => {
+  it("creates a skill-based conversation agent from runtime context", () => {
     createConversationToolLoopAgent({
       surface: "web",
-      suggestedIntents: ["translation"],
       toolContext: {
         conversationId: "conv_123",
         organizationId: "org_123",
         localUserId: "user_123",
         membershipRole: "admin",
-        projectId: null,
+        projectId: "proj_123",
         db: {} as never,
       },
       hasFileAttachments: true,
     });
 
-    expect(createConversationOrchestratorAgent).toHaveBeenCalledWith(
+    expect(createConversationSkillAgent).toHaveBeenCalledWith(
       expect.objectContaining({
         surface: "web",
-        suggestedMode: "translation",
         hasFileAttachments: true,
-      }),
-      undefined,
-    );
-  });
-
-  it("creates an orchestrator runtime for repository mode", () => {
-    createConversationToolLoopAgent({
-      surface: "slack",
-      suggestedIntents: ["repository"],
-      toolContext: {
-        conversationId: "conv_123",
-        organizationId: "org_123",
-        localUserId: "user_123",
-        membershipRole: "admin",
-        projectId: null,
-        db: {} as never,
-        sandboxId: "sbx_123",
-      },
-    });
-
-    expect(createConversationOrchestratorAgent).toHaveBeenCalledWith(
-      expect.objectContaining({
-        suggestedMode: "repository",
-        toolContext: expect.objectContaining({ sandboxId: "sbx_123" }),
+        toolContext: expect.objectContaining({ projectId: "proj_123" }),
       }),
       undefined,
     );

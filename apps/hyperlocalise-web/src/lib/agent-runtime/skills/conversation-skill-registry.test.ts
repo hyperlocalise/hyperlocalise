@@ -1,12 +1,12 @@
 import { beforeEach, describe, expect, it } from "vite-plus/test";
 
 import { clearAgentManifestCache } from "@/agents/_runtime/loader";
-
 import {
   buildConversationSkillPlan,
   isConversationSkillActivated,
   listConversationSkills,
   parseConversationSkillMetadata,
+  toConversationSkillActivationContext,
 } from "./conversation-skill-registry";
 
 describe("conversation skill registry", () => {
@@ -14,16 +14,15 @@ describe("conversation skill registry", () => {
     clearAgentManifestCache();
   });
 
-  it("loads crowdin-tms-read metadata from skill frontmatter", () => {
-    const crowdinSkill = listConversationSkills().find((skill) => skill.id === "crowdin-tms-read");
+  it("loads the three capability skills from frontmatter", () => {
+    const skills = listConversationSkills();
+    expect(skills.map((skill) => skill.id).sort()).toEqual(
+      expect.arrayContaining(["conversation", "repo-tools", "tms-tools", "translation-tools"]),
+    );
 
-    expect(crowdinSkill).toEqual({
-      id: "crowdin-tms-read",
-      always: false,
-      activationIntents: ["translation"],
-      excludeIntents: ["repository"],
-      requiresFileAttachments: undefined,
-      requiresNoFileAttachments: true,
+    const tmsSkill = skills.find((skill) => skill.id === "tms-tools");
+    expect(tmsSkill).toMatchObject({
+      always: true,
       tools: [
         "list_projects",
         "get_project_context",
@@ -31,61 +30,74 @@ describe("conversation skill registry", () => {
         "check_crowdin_progress",
       ],
       sharedSkills: ["crowdin"],
-      delegate: false,
     });
   });
 
-  it("treats orchestration and repository-handoff as always-on base skills", () => {
-    const alwaysSkills = listConversationSkills().filter((skill) => skill.always);
-
-    expect(alwaysSkills.map((skill) => skill.id)).toEqual(
-      expect.arrayContaining(["orchestration", "repository-handoff"]),
-    );
-  });
-
-  it("activates crowdin-tms-read for translation-only requests without attachments", () => {
-    const crowdinSkill = listConversationSkills().find((skill) => skill.id === "crowdin-tms-read");
-    expect(crowdinSkill).toBeDefined();
+  it("activates repo-tools when a sandbox is available", () => {
+    const repoSkill = listConversationSkills().find((skill) => skill.id === "repo-tools");
+    expect(repoSkill).toBeDefined();
 
     expect(
-      isConversationSkillActivated(crowdinSkill!, {
-        suggestedIntents: ["translation"],
-        hasFileAttachments: false,
-      }),
+      isConversationSkillActivated(
+        repoSkill!,
+        toConversationSkillActivationContext({
+          hasFileAttachments: false,
+          toolContext: {
+            conversationId: "conv_1",
+            organizationId: "org_1",
+            localUserId: "user_1",
+            membershipRole: "member",
+            projectId: null,
+            db: {} as never,
+            sandboxId: "sbx_1",
+          },
+        }),
+      ),
     ).toBe(true);
   });
 
-  it("does not activate crowdin-tms-read when repository intent is present", () => {
-    const crowdinSkill = listConversationSkills().find((skill) => skill.id === "crowdin-tms-read");
-    expect(crowdinSkill).toBeDefined();
+  it("activates translation-tools when a project is attached", () => {
+    const translationSkill = listConversationSkills().find(
+      (skill) => skill.id === "translation-tools",
+    );
+    expect(translationSkill).toBeDefined();
 
     expect(
-      isConversationSkillActivated(crowdinSkill!, {
-        suggestedIntents: ["translation", "repository"],
-        hasFileAttachments: false,
-      }),
-    ).toBe(false);
+      isConversationSkillActivated(
+        translationSkill!,
+        toConversationSkillActivationContext({
+          hasFileAttachments: false,
+          toolContext: {
+            conversationId: "conv_1",
+            organizationId: "org_1",
+            localUserId: "user_1",
+            membershipRole: "member",
+            projectId: "proj_1",
+            db: {} as never,
+          },
+        }),
+      ),
+    ).toBe(true);
   });
 
-  it("builds a direct-tool plan for translation-only Crowdin requests", () => {
+  it("builds a skill plan from runtime context without intents", () => {
     const plan = buildConversationSkillPlan({
-      suggestedIntents: ["translation"],
       hasFileAttachments: false,
+      toolContext: {
+        conversationId: "conv_1",
+        organizationId: "org_1",
+        localUserId: "user_1",
+        membershipRole: "member",
+        projectId: null,
+        db: {} as never,
+      },
     });
 
-    expect(plan.instructionSkillIds).toEqual([
-      "orchestration",
-      "repository-handoff",
-      "crowdin-tms-read",
-    ]);
-    expect(plan.sharedSkillIds).toEqual(["crowdin"]);
-    expect(plan.toolNames).toEqual([
-      "list_projects",
-      "get_project_context",
-      "update_interaction_project",
-      "check_crowdin_progress",
-    ]);
-    expect(plan.skipDelegation).toBe(true);
+    expect(plan.instructionSkillIds).toEqual(expect.arrayContaining(["conversation", "tms-tools"]));
+    expect(plan.toolNames).toEqual(
+      expect.arrayContaining(["list_projects", "check_crowdin_progress"]),
+    );
+    expect(plan.sharedSkillIds).toContain("crowdin");
   });
 
   it("parses comma-separated frontmatter values", () => {
@@ -93,16 +105,16 @@ describe("conversation skill registry", () => {
       parseConversationSkillMetadata({
         id: "test",
         frontmatter: {
-          activationIntents: "translation, repository",
           tools: "list_projects, check_crowdin_progress",
-          delegate: "false",
+          sharedSkills: "crowdin",
+          requiresSandbox: "true",
         },
         body: "",
       }),
     ).toMatchObject({
-      activationIntents: ["translation", "repository"],
       tools: ["list_projects", "check_crowdin_progress"],
-      delegate: false,
+      sharedSkills: ["crowdin"],
+      requiresSandbox: true,
     });
   });
 });

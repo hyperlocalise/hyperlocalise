@@ -1,16 +1,17 @@
 import { repositoryWorkspaceToolNames } from "@/lib/agent-contracts/repository-workspace-tools";
-import type { HyperlocaliseConversationMode } from "@/lib/agent-runtime/loops/conversation-mode";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 
 export const conversationFileTranslationToolNames = ["createTranslationJob"] as const;
 
 export const conversationRepoSearchToolNames = [...repositoryWorkspaceToolNames] as const;
 
+type ConversationToolMode = "translation" | "repository" | "general";
+
 export function getConversationActiveTools(
   ctx: ToolContext,
   input: {
     hasFileAttachments?: boolean;
-    mode?: HyperlocaliseConversationMode;
+    mode?: ConversationToolMode;
   } = {},
 ): string[] {
   const mode = input.mode ?? "general";

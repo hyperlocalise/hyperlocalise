@@ -397,7 +397,6 @@ async function processSlackMessage(
     });
     log.info(
       {
-        conversationIntents: classification.intents,
         shouldResolveRepositoryContext,
         needsRepositoryTools: classification.needsRepositoryTools,
         continuesRepositoryThread: classification.continuesRepositoryThread,
@@ -537,7 +536,6 @@ async function processSlackMessage(
 
     const agent = createConversationToolLoopAgent({
       surface: "slack",
-      suggestedIntents: classification.intents,
       toolContext: {
         conversationId: interactionId,
         organizationId,

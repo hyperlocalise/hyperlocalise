@@ -17,7 +17,6 @@ function createMockClassification(
   overrides: Partial<ConversationClassification> = {},
 ): ConversationClassification {
   return {
-    intents: ["general"],
     needsRepositoryTools: false,
     requiresPullRequest: false,
     shouldAskForRepositoryClarification: false,
@@ -549,7 +548,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: true,
         confidence: 0.95,
@@ -648,7 +646,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         continuesRepositoryThread: true,
         confidence: 0.95,
@@ -726,7 +723,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         currentMessageSpecifiesRepository: true,
         confidence: 0.95,
@@ -790,7 +786,6 @@ describe("handleNewConversation", () => {
     ] as never);
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         currentMessageSpecifiesRepository: true,
         confidence: 0.95,
@@ -851,7 +846,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         requiresPullRequest: true,
         currentMessageSpecifiesRepository: true,
@@ -897,7 +891,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: true,
         confidence: 0.95,
@@ -942,7 +935,6 @@ describe("handleNewConversation", () => {
 
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["repository"],
         needsRepositoryTools: true,
         shouldAskForRepositoryClarification: true,
         confidence: 0.95,
@@ -1189,7 +1181,6 @@ describe("handleSubscribedMessage", () => {
     ] as never);
     classifyConversationMock.mockResolvedValueOnce(
       createMockClassification({
-        intents: ["translation"],
         confidence: 0.95,
       }),
     );

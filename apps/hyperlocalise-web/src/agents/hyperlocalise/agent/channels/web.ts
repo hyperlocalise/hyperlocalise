@@ -8,7 +8,6 @@ import {
   loadInteractionModelMessages,
 } from "@/lib/agent-runtime/loops/hyperlocalise-agent";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
-import type { HyperlocaliseConversationIntent } from "@/lib/agent-runtime/loops/conversation-mode";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
 
 export async function postStreamingAgentReply(
@@ -48,7 +47,6 @@ export async function runWebChatAgentTurn(input: {
 
   const agent = createConversationToolLoopAgent({
     surface: "web",
-    suggestedIntents: classification.intents as HyperlocaliseConversationIntent[],
     toolContext: input.toolContext,
     hasFileAttachments: input.hasTranslationAttachments,
   });

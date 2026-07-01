@@ -57,8 +57,6 @@ describe("task tool", () => {
       },
       createToolExecutionOptions({
         surface: "web",
-        suggestedIntents: ["translation"],
-        suggestedMode: "translation",
         hasFileAttachments: true,
         toolContext: {
           conversationId: "conv_1",
@@ -96,8 +94,6 @@ describe("task tool", () => {
       },
       createToolExecutionOptions({
         surface: "web",
-        suggestedIntents: ["translation"],
-        suggestedMode: "translation",
         hasFileAttachments: true,
         toolContext: {
           conversationId: "conv_1",
@@ -128,8 +124,6 @@ describe("task tool", () => {
       },
       createToolExecutionOptions({
         surface: "slack",
-        suggestedIntents: ["repository"],
-        suggestedMode: "repository",
         hasFileAttachments: false,
         toolContext: {
           conversationId: "conv_1",
@@ -181,8 +175,6 @@ describe("task tool", () => {
       },
       createToolExecutionOptions({
         surface: "slack",
-        suggestedIntents: ["repository"],
-        suggestedMode: "repository",
         hasFileAttachments: false,
         toolContext: {
           conversationId: "conv_1",

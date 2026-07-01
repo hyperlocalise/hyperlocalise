@@ -34,15 +34,18 @@ Each package uses Eve-inspired slots under `agent/`:
 
 Child executors remain specialized packages (`contentful`, `github-repository`) but are invoked as orchestrator tools rather than separate dispatch branches.
 
-## Conversational skill registry
+## Conversational skill agent
 
-The Hyperlocalise conversational orchestrator resolves skills from `hyperlocalise/agent/skills/` via `conversation-skill-registry.ts`:
+The Hyperlocalise conversational agent resolves capability skills from `hyperlocalise/agent/skills/` via `conversation-skill-registry.ts`. No intent classifier routes the agent — skills activate from runtime context:
 
-- **Base skills** (`always: true`): always included in instructions (`orchestration`, `repository-handoff`)
-- **Activatable skills**: matched from frontmatter (`activationIntents`, `excludeIntents`, `requiresNoFileAttachments`, …)
-- **Skill metadata** drives direct tools (`tools:`), shared skills (`sharedSkills:`), and delegation (`delegate: false`)
+| Skill               | Activates when                               |
+| ------------------- | -------------------------------------------- |
+| `conversation`      | always                                       |
+| `tms-tools`         | always (workspace TMS reads)                 |
+| `repo-tools`        | GitHub sandbox is connected                  |
+| `translation-tools` | project attached or file attachments present |
 
-Example: `crowdin-tms-read.md` activates on translation-only Crowdin progress requests and exposes project + Crowdin tools without subagent delegation. Add new TMS providers by adding a skill file, not orchestrator conditionals.
+Skill frontmatter declares `tools`, `sharedSkills`, and context requirements (`requiresSandbox`, `requiresProjectOrAttachments`). The agent uses whichever skills and tools are available for the turn.
 
 ## Authoring
 
