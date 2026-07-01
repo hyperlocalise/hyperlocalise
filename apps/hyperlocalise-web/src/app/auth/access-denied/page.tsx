@@ -110,7 +110,7 @@ function getAccessDeniedCopy(reason: AccessDeniedReason | undefined, intl: IntlS
         body: intl.formatMessage({
           defaultMessage:
             "Open the invitation email from your workspace admin and finish accepting the invite, then sign in again. If you already accepted, use Try again to refresh your membership.",
-          id: 'MikRGST8w6',
+          id: "MikRGST8w6",
           description: "Access denied page guidance when the user has a pending workspace invite",
         }),
       };
@@ -183,7 +183,7 @@ export default async function AccessDeniedPage({ searchParams }: AccessDeniedPag
   });
   const tryAgainLabel = intl.formatMessage({
     defaultMessage: "Try again",
-    id: 'sAOynMMuiJ',
+    id: "sAOynMMuiJ",
     description: "Button to retry sign-in after a pending workspace invite may have been accepted",
   });
 
