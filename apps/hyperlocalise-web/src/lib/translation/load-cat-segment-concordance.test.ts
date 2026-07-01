@@ -120,27 +120,27 @@ describe("loadCatSegmentConcordance", () => {
     expect(searchCrowdinCatConcordanceMock).not.toHaveBeenCalled();
   });
 
-  it.each([
-  "crowdin_oauth_refresh_failed",
-  "crowdin_oauth_token_invalid",
-  ] as const)("throws a reconnect error when Crowdin OAuth token is invalid (%s)", async (errorCode) => {
-    resolveExternalTmsSecretMaterialForActorMock.mockRejectedValue(new Error(errorCode));
+  it.each(["crowdin_oauth_refresh_failed", "crowdin_oauth_token_invalid"] as const)(
+    "throws a reconnect error when Crowdin OAuth token is invalid (%s)",
+    async (errorCode) => {
+      resolveExternalTmsSecretMaterialForActorMock.mockRejectedValue(new Error(errorCode));
 
-    await expect(
-      loadCatSegmentConcordance({
-        organizationId: "org_1",
-        projectId: "ext:crowdin:42",
-        providerKind: "crowdin",
-        actorUserId: "user_1",
-        sourceLocale: "en",
-        targetLocale: "fr",
-        sourceText: "Hello",
-      }),
-    ).rejects.toMatchObject({
-      code: "crowdin_user_auth_invalid",
-      message: "Your Crowdin connection is invalid. Reconnect Crowdin and try again.",
-    } satisfies Partial<TmsProviderLiveError>);
+      await expect(
+        loadCatSegmentConcordance({
+          organizationId: "org_1",
+          projectId: "ext:crowdin:42",
+          providerKind: "crowdin",
+          actorUserId: "user_1",
+          sourceLocale: "en",
+          targetLocale: "fr",
+          sourceText: "Hello",
+        }),
+      ).rejects.toMatchObject({
+        code: "crowdin_user_auth_invalid",
+        message: "Your Crowdin connection is invalid. Reconnect Crowdin and try again.",
+      } satisfies Partial<TmsProviderLiveError>);
 
-    expect(searchCrowdinCatConcordanceMock).not.toHaveBeenCalled();
-  });
+      expect(searchCrowdinCatConcordanceMock).not.toHaveBeenCalled();
+    },
+  );
 });

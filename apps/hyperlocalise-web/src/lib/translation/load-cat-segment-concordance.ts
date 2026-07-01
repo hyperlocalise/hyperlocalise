@@ -91,7 +91,10 @@ async function resolveCrowdinConcordanceToken(input: {
       }
 
       if (CROWDIN_OAUTH_ERROR_CODES.has(error.message)) {
-        throw new TmsProviderLiveError("crowdin_user_auth_invalid", CROWDIN_USER_AUTH_INVALID_MESSAGE);
+        throw new TmsProviderLiveError(
+          "crowdin_user_auth_invalid",
+          CROWDIN_USER_AUTH_INVALID_MESSAGE,
+        );
       }
     }
 
