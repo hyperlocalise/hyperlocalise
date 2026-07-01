@@ -11,6 +11,7 @@ import { promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
 import type { ApiAuthContext } from "@/api/auth/workos";
 import { db, schema } from "@/lib/database";
 import { REPLACING_WORKOS_MEMBERSHIP_ID } from "@/lib/workos/constants";
+import { hasPendingOrganizationMembershipForWorkosUser } from "@/lib/workos/missing-organization-access";
 import { resolveOrganizationMembershipAccessSource } from "@/lib/workos/membership-access";
 
 type ResolveApiAuthContextOptions = {
@@ -244,6 +245,10 @@ export async function resolveApiAuthContextFromSession(
       })
     : false;
 
+  const hasPendingLocalMembership = await hasPendingOrganizationMembershipForWorkosUser(
+    session.user.id,
+  );
+
   const reconcileResult = await reconcileWorkosMembershipsForUser(db, {
     workosUserId: session.user.id,
     email: session.user.email,
@@ -251,7 +256,7 @@ export async function resolveApiAuthContextFromSession(
     lastName: session.user.lastName ?? undefined,
     avatarUrl: session.user.profilePictureUrl ?? undefined,
     workosOrganizationId: session.organizationId ?? undefined,
-    force: promotedPlaceholder || Boolean(session.organizationId),
+    force: promotedPlaceholder || Boolean(session.organizationId) || hasPendingLocalMembership,
   });
 
   await assertWorkosMembershipReconcileAllowsAccess(db, session.user.id, reconcileResult);

@@ -202,6 +202,63 @@ describe("enterprise identity access regression", () => {
       ).resolves.toBeNull();
     });
 
+    it("grants access when an existing user accepted a pending invite even if reconcile TTL would skip", async () => {
+      const ownerIdentity = createWorkosIdentity();
+      const existingUserIdentity = createWorkosIdentity();
+      const ownerSynced = await syncWorkosIdentity(db, ownerIdentity);
+      const existingSynced = await syncWorkosIdentity(db, existingUserIdentity);
+      const workosMembershipId = `om_${randomUUID()}`;
+
+      await db.insert(schema.organizationMemberships).values({
+        organizationId: ownerSynced.organization.id,
+        userId: existingSynced.user.id,
+        role: "member",
+        workosMembershipId: null,
+      });
+
+      await db
+        .update(schema.users)
+        .set({ workosMembershipsReconciledAt: new Date() })
+        .where(eq(schema.users.workosUserId, existingUserIdentity.user.workosUserId));
+
+      listMembershipsMock.mockResolvedValue({
+        autoPagination: async () => [
+          {
+            id: workosMembershipId,
+            organizationId: ownerIdentity.organization.workosOrganizationId,
+            status: "active",
+            role: { slug: "member" },
+          },
+        ],
+      });
+      getOrganizationMock.mockResolvedValue({
+        id: ownerIdentity.organization.workosOrganizationId,
+        name: ownerIdentity.organization.name,
+      });
+
+      withAuthMock.mockResolvedValue({
+        user: {
+          id: existingUserIdentity.user.workosUserId,
+          email: existingUserIdentity.user.email,
+          firstName: null,
+          lastName: null,
+          profilePictureUrl: null,
+        },
+        organizationId: null,
+      });
+
+      const { resolveApiAuthContextFromSession } = await import("./workos-session");
+      const auth = await resolveApiAuthContextFromSession({
+        organizationSlug: ownerIdentity.organization.slug,
+      });
+
+      expect(listMembershipsMock).toHaveBeenCalled();
+      expect(auth?.membership.accessSource).toBe("workos_authoritative");
+      expect(auth?.activeOrganization.workosOrganizationId).toBe(
+        ownerIdentity.organization.workosOrganizationId,
+      );
+    });
+
     it("denies access while invite replacement sentinel is set", async () => {
       const identity = createWorkosIdentity();
       const synced = await syncWorkosIdentity(db, identity);

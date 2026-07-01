@@ -3,6 +3,7 @@ import { describe, expect, it } from "vite-plus/test";
 import {
   CROWDIN_DEFAULT_API_BASE_URL,
   crowdinAuthenticatedUserUrl,
+  isCrowdinEnterpriseApiBaseUrl,
   normalizeCrowdinApiBaseUrl,
   resolveCrowdinApiBaseUrl,
 } from "./crowdin-base-url";
@@ -17,6 +18,8 @@ describe("crowdin-base-url", () => {
     expect(resolveCrowdinApiBaseUrl("https://enterprise.crowdin.test/api/v2")).toBe(
       "https://enterprise.crowdin.test/api/v2",
     );
+    expect(isCrowdinEnterpriseApiBaseUrl("https://enterprise.crowdin.test/api/v2")).toBe(true);
+    expect(isCrowdinEnterpriseApiBaseUrl()).toBe(false);
   });
 
   it("builds the authenticated user URL without duplicating /api/v2", () => {

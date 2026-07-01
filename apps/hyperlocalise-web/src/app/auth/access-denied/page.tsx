@@ -109,8 +109,8 @@ function getAccessDeniedCopy(reason: AccessDeniedReason | undefined, intl: IntlS
         }),
         body: intl.formatMessage({
           defaultMessage:
-            "Open the invitation email from your workspace admin and finish accepting the invite, then sign in again.",
-          id: "FE2l2eesst",
+            "Open the invitation email from your workspace admin and finish accepting the invite, then sign in again. If you already accepted, use Try again to refresh your membership.",
+          id: "MikRGST8w6",
           description: "Access denied page guidance when the user has a pending workspace invite",
         }),
       };
@@ -181,6 +181,11 @@ export default async function AccessDeniedPage({ searchParams }: AccessDeniedPag
     id: "/14v/WK67D",
     description: "Button to return to the marketing site from the access denied page",
   });
+  const tryAgainLabel = intl.formatMessage({
+    defaultMessage: "Try again",
+    id: "sAOynMMuiJ",
+    description: "Button to retry sign-in after a pending workspace invite may have been accepted",
+  });
 
   return (
     <main className="flex min-h-svh items-center justify-center bg-background px-4 py-10 text-foreground">
@@ -193,6 +198,11 @@ export default async function AccessDeniedPage({ searchParams }: AccessDeniedPag
           <TypographyP className="text-sm leading-6 text-muted-foreground">{copy.body}</TypographyP>
 
           <div className="flex flex-wrap gap-3">
+            {reason === "pending-invite" ? (
+              <Button nativeButton={false} render={<Link href="/dashboard" />}>
+                {tryAgainLabel}
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               nativeButton={false}

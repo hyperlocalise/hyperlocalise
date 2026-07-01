@@ -21,3 +21,12 @@ export function crowdinAuthenticatedUserUrl(baseUrl?: string | null): string | n
 
   return `${normalized}/user`;
 }
+
+export function isCrowdinEnterpriseApiBaseUrl(baseUrl?: string | null): boolean {
+  const normalized = normalizeCrowdinApiBaseUrl(baseUrl);
+  if (!normalized) {
+    return false;
+  }
+
+  return new URL(normalized).hostname !== "api.crowdin.com";
+}
