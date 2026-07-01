@@ -219,3 +219,7 @@
 ## 2027-02-10 - Optimizing Java Properties comment formatting and extraction
 **Learning:** Using `strings.Join` and `strings.TrimSpace` on a per-entry basis during translation extraction creates significant allocation overhead. A custom helper using `strings.Builder` with capacity hints, combined with pre-allocating the results map, measurably improves performance. Additionally, slice reuse for pending comments must be handled with care to avoid data corruption across entries.
 **Action:** Implemented `formatPropertiesComments` and map pre-allocation in `internal/i18n/translationfileparser/properties_parser.go`, resulting in ~15% faster extraction and ~9% fewer bytes allocated.
+
+## 2027-02-15 - Optimizing locale list normalization via capacity hinting and allocation avoidance
+**Learning:** For functions that perform string splitting and deduplication (like `NormalizeList`), pre-calculating the total expected elements (e.g., by counting delimiters) to provide accurate map and slice capacity hints significantly reduces re-allocation overhead. Additionally, manual checks for common string states (like `isAlreadyLower` for ASCII) can bypass expensive standard library calls that might otherwise perform redundant allocations.
+**Action:** Implement capacity hints based on delimiter counts and use fast-path checks for common string properties to avoid unnecessary heap allocations in hot-path utility functions.
