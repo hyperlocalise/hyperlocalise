@@ -7,6 +7,7 @@ const {
   resolveConversationRepositoryGitHubContextMock,
   createRepositorySandboxMock,
   resolveOrganizationHasTmsIntegrationMock,
+  getOrganizationRepositoryConnectorConfigMock,
 } = vi.hoisted(() => ({
   classifyConversationMock: vi.fn(),
   createConversationToolLoopAgentMock: vi.fn(() => ({ stream: vi.fn() })),
@@ -14,6 +15,9 @@ const {
   resolveConversationRepositoryGitHubContextMock: vi.fn(),
   createRepositorySandboxMock: vi.fn(),
   resolveOrganizationHasTmsIntegrationMock: vi.fn(),
+  getOrganizationRepositoryConnectorConfigMock: vi.fn(
+    async (): Promise<Record<string, unknown> | null> => null,
+  ),
 }));
 
 vi.mock("@/lib/env", () => ({
@@ -45,7 +49,7 @@ vi.mock("./hyperlocalise-agent", () => ({
 
 vi.mock("@/lib/agents/repository-context", () => ({
   buildRepositoryGitHubContextInstructions: vi.fn(() => "resolved-context"),
-  getOrganizationRepositoryConnectorConfig: vi.fn(async () => null),
+  getOrganizationRepositoryConnectorConfig: getOrganizationRepositoryConnectorConfigMock,
   resolveConversationRepositoryGitHubContext: resolveConversationRepositoryGitHubContextMock,
 }));
 
@@ -144,6 +148,62 @@ describe("conversation turn preparation", () => {
     });
 
     expect(result.clarificationFollowUp).toBe("Which GitHub repository should I search?");
+  });
+
+  it("does not load Slack connector config for web repository resolution", async () => {
+    getOrganizationRepositoryConnectorConfigMock.mockResolvedValue({
+      repository: { github: { defaultRepositoryFullName: "acme/web" } },
+    });
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "not_applicable",
+    });
+
+    await resolveConversationRepositoryContext({
+      surface: "web",
+      organizationId: "org_123",
+      projectId: null,
+      conversationText: "where is the login copy?",
+      classification: {
+        ...baseClassification,
+        needsRepositoryTools: true,
+      },
+      repositorySession: null,
+    });
+
+    expect(getOrganizationRepositoryConnectorConfigMock).not.toHaveBeenCalled();
+    expect(resolveConversationRepositoryGitHubContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({ connectorConfig: null }),
+    );
+  });
+
+  it("loads Slack connector config for slack when none is provided", async () => {
+    getOrganizationRepositoryConnectorConfigMock.mockResolvedValue({
+      repository: { github: { defaultRepositoryFullName: "acme/web" } },
+    });
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "not_applicable",
+    });
+
+    await resolveConversationRepositoryContext({
+      surface: "slack",
+      organizationId: "org_123",
+      projectId: null,
+      conversationText: "where is the login copy?",
+      classification: {
+        ...baseClassification,
+        needsRepositoryTools: true,
+      },
+      repositorySession: null,
+    });
+
+    expect(getOrganizationRepositoryConnectorConfigMock).toHaveBeenCalledWith("org_123");
+    expect(resolveConversationRepositoryGitHubContextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        connectorConfig: {
+          repository: { github: { defaultRepositoryFullName: "acme/web" } },
+        },
+      }),
+    );
   });
 
   it("creates a sandbox when repository context resolves", async () => {

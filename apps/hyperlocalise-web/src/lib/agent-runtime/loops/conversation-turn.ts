@@ -94,7 +94,10 @@ export async function resolveConversationRepositoryContext(
   }
 
   const connectorConfig =
-    input.connectorConfig ?? (await getOrganizationRepositoryConnectorConfig(input.organizationId));
+    input.connectorConfig ??
+    (input.surface === "slack"
+      ? await getOrganizationRepositoryConnectorConfig(input.organizationId)
+      : null);
 
   const canReuseStoredRepositoryContext =
     storedRepositoryContext !== null && !input.classification.currentMessageSpecifiesRepository;
