@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+import { randomUUID } from "node:crypto";
+
 import { afterEach, beforeAll, describe, expect, it, vi } from "vite-plus/test";
 
 import { syncWorkosIdentity, promoteInvitedPlaceholderUser } from "@/api/auth/workos-sync";
