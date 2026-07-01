@@ -13,6 +13,7 @@ import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
+import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
 
 import {
   PageHeader,
@@ -28,7 +29,7 @@ import {
   type ProjectFormValues,
 } from "./project-form";
 import { ProjectDialog } from "./project-dialog";
-import { mapProjectToListRow, type ProjectListRow } from "./project-list";
+import { mapProjectToListRow, type ApiProject, type ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
 
 const nativeProjectsQueryKey = (organizationSlug: string) =>
@@ -90,18 +91,17 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const tmsProjectsQuery = useQuery({
     queryKey: tmsProjectsQueryKey(organizationSlug),
-    enabled: Boolean(activeTmsProviderQuery.data),
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects.$get({
         param: { organizationSlug },
       });
 
-      if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load TMS projects");
-      }
-
-      const body = await response.json();
-      return body.projects.map(mapProjectToListRow);
+      const projects = await readTmsProviderListResponse<ApiProject>(
+        response,
+        "projects",
+        "Failed to load TMS projects",
+      );
+      return projects.map(mapProjectToListRow);
     },
   });
   const createProject = useMutation({
@@ -208,6 +208,8 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
 
   const hasAnyProjects = nativeProjects.length > 0 || tmsProjects.length > 0;
   const hasFilteredResults = filteredNativeProjects.length > 0 || filteredTmsProjects.length > 0;
+  const hasTmsConnection = Boolean(activeTmsProviderQuery.data);
+  const isTmsProjectsLoading = tmsProjectsQuery.isLoading || tmsProjectsQuery.isFetching;
   const tmsProviderName = activeTmsProviderQuery.data
     ? getTmsProviderBranding(activeTmsProviderQuery.data.providerKind).name
     : "TMS";
@@ -306,7 +308,7 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           />
         </section>
 
-        {activeTmsProviderQuery.isSuccess && activeTmsProviderQuery.data ? (
+        {hasTmsConnection || isTmsProjectsLoading ? (
           <section className="space-y-4">
             <ProjectsSectionHeader
               title={`${tmsProviderName} projects`}

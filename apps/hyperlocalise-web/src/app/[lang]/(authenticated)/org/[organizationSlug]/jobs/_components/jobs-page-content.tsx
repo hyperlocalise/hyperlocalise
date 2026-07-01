@@ -13,6 +13,7 @@ import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { isNativeWorkspaceJob } from "@/lib/projects/workspace-resource-capabilities";
 import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
 import { isTmsUserConnectionRequiredError } from "@/lib/providers/tms-user-connection-shared";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
@@ -164,12 +165,8 @@ async function fetchTmsWorkspaceJobs(organizationSlug: string, mine = false) {
     param: { organizationSlug },
     query: { mine: mine ? "true" : "false" },
   });
-  if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load TMS jobs");
-  }
 
-  const body = await response.json();
-  return body.jobs as JobListResponse[];
+  return readTmsProviderListResponse<JobListResponse>(response, "jobs", "Failed to load TMS jobs");
 }
 
 async function fetchTmsProjectJobs(
@@ -183,12 +180,8 @@ async function fetchTmsProjectJobs(
     param: { organizationSlug, externalProjectId },
     query: { mine: mine ? "true" : "false" },
   });
-  if (!response.ok) {
-    throw await readApiResponseError(response, "Failed to load TMS jobs");
-  }
 
-  const body = await response.json();
-  return body.jobs as JobListResponse[];
+  return readTmsProviderListResponse<JobListResponse>(response, "jobs", "Failed to load TMS jobs");
 }
 
 export function JobsPageContent({
@@ -247,8 +240,7 @@ export function JobsPageContent({
   });
   const tmsJobsQuery = useQuery({
     queryKey: tmsJobsQueryKey,
-    enabled:
-      hasActiveTmsConnection && (isProviderProjectScope || scope !== "personal" || !projectId),
+    enabled: isProviderProjectScope || scope !== "personal" || !projectId,
     queryFn: async () => {
       if (parsedProviderProject) {
         return fetchTmsProjectJobs(
@@ -278,10 +270,10 @@ export function JobsPageContent({
     <JobsPageView
       assignedNativeJobs={assignedNativeJobs}
       createdNativeJobs={createdNativeJobs}
-      hasActiveTmsConnection={hasActiveTmsConnection}
+      hasActiveTmsConnection={hasActiveTmsConnection || tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
       isNativeLoading={isNativeLoading}
       isProviderProjectScope={isProviderProjectScope}
-      isTmsLoading={tmsJobsQuery.isLoading}
+      isTmsLoading={tmsJobsQuery.isLoading || tmsJobsQuery.isFetching}
       nativeError={nativeError}
       nativeJobs={nativeJobs}
       onStatusFilterChange={setStatusFilter}
