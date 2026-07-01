@@ -6,6 +6,7 @@ import {
   parseProviderJobId,
   parseProviderProjectId,
   resolveEncodedProviderJobId,
+  resolveJobProjectId,
 } from "@/lib/providers/tms-provider-resource-id";
 
 describe("tms-provider-resource-id", () => {
@@ -123,5 +124,13 @@ describe("tms-provider-resource-id", () => {
         externalTaskId: "9999",
       }),
     ).toBe("ext:crowdin:902807:2001");
+  });
+
+  it("resolves project ids from explicit values or encoded job ids", () => {
+    expect(resolveJobProjectId("ext:crowdin:902807", "ext:crowdin:902807:2001")).toBe(
+      "ext:crowdin:902807",
+    );
+    expect(resolveJobProjectId(null, "ext:crowdin:902807:2001")).toBe("ext:crowdin:902807");
+    expect(resolveJobProjectId(null, "job_native")).toBeNull();
   });
 });

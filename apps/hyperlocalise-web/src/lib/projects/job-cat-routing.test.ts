@@ -63,7 +63,10 @@ describe("buildJobCatHref", () => {
     expect(buildJobCatHref("acme", "project-1", createJob())).toBe(
       "/org/acme/projects/project-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json",
     );
-    expect(buildJobCatHref("acme", null, createJob())).toBeNull();
+    expect(buildJobCatHref("acme", null, createJob())).toBe(
+      "/org/acme/projects/ext%3Acrowdin%3Aproject-1/jobs/ext%3Acrowdin%3Aproject-1%3Ajob-1/strings?targetLocale=fr-FR&sourcePath=locales%2Fen.json",
+    );
+    expect(buildJobCatHref("acme", null, createJob({ id: "job_native" }))).toBeNull();
     expect(buildJobCatHref("acme", "project-1", createJob({ kind: "sync" }))).toBeNull();
   });
 
