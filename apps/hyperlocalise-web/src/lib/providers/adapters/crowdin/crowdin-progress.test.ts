@@ -28,8 +28,7 @@ vi.mock("@/lib/providers/provider-safe-fetch", () => ({
   providerSafeFetch: vi.fn(async (url: string) => {
     const listResponse = (items: unknown[]) =>
       new Response(JSON.stringify({ data: items.map((data) => ({ data })) }), { status: 200 });
-    const getResponse = (data: unknown) =>
-      new Response(JSON.stringify({ data }), { status: 200 });
+    const getResponse = (data: unknown) => new Response(JSON.stringify({ data }), { status: 200 });
     const sourceString = (input: {
       id: number;
       identifier: string;
@@ -181,9 +180,7 @@ vi.mock("@/lib/providers/provider-safe-fetch", () => ({
         ]);
       }
       if (stringId === "9001" && languageId === "de") {
-        return listResponse([
-          { id: 201, text: "Hallo", createdAt: "2026-01-02T00:00:00Z" },
-        ]);
+        return listResponse([{ id: 201, text: "Hallo", createdAt: "2026-01-02T00:00:00Z" }]);
       }
 
       return listResponse([]);
