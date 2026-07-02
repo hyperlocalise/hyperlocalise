@@ -35,6 +35,9 @@ import {
 
 const logger = createLogger("conversation-turn");
 
+export const REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP =
+  "I'm still preparing repository access for this conversation. Please send your message again in a moment.";
+
 export function buildFileTranslationInstructions() {
   return `When a message includes stored source file IDs, create file translation jobs with type "file", the provided sourceFileId and fileFormat, targetLocales, and sourceLocale. Use sourceLocale "auto" if the user did not specify a source locale. Supported file job formats: ${supportedFileTranslationFileFormats.join(", ")}.`;
 }
@@ -304,6 +307,9 @@ export async function prepareConversationAgentTurn(
   let updatedRepositorySession = repositoryResolution.updatedSession;
   let sandboxId: string | null = null;
   let staleSandboxId: string | null = null;
+  let activeRepositoryContext = repositoryResolution.context;
+  let repositoryInstructions = repositoryResolution.instructions;
+  let clarificationFollowUp = repositoryResolution.clarificationFollowUp;
 
   if (repositoryResolution.context) {
     const repositoryContextKey = getRepositoryContextKey(repositoryResolution.context);
@@ -313,6 +319,9 @@ export async function prepareConversationAgentTurn(
 
     if (input.reuseCommittedRepositorySandboxOnly && !canReuseStoredSandbox) {
       updatedRepositorySession = input.repositorySession ?? null;
+      activeRepositoryContext = null;
+      repositoryInstructions = null;
+      clarificationFollowUp = REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP;
     } else {
       const sandboxResult = await getOrCreateConversationRepositorySandbox({
         conversationId: input.conversationId,
@@ -330,7 +339,7 @@ export async function prepareConversationAgentTurn(
 
   const preparedMessages = replaceLastUserMessage(
     chatMessages,
-    repositoryResolution.context
+    activeRepositoryContext
       ? getRecentUserConversationText(chatMessages, input.messageText)
       : input.messageText,
   );
@@ -347,7 +356,7 @@ export async function prepareConversationAgentTurn(
       ...(sandboxId
         ? {
             sandboxId,
-            githubContext: repositoryResolution.context,
+            githubContext: activeRepositoryContext,
             workMode: "read_only" as const,
             repositorySource: input.repositorySource ?? "chat_ui",
             actor: input.actor,
@@ -356,7 +365,7 @@ export async function prepareConversationAgentTurn(
     },
     hasFileAttachments: input.hasTranslationAttachments,
     hasTmsIntegration,
-    additionalInstructions: [buildFileTranslationInstructions(), repositoryResolution.instructions]
+    additionalInstructions: [buildFileTranslationInstructions(), repositoryInstructions]
       .filter((instruction): instruction is string => instruction !== null)
       .join("\n\n"),
   });
@@ -365,7 +374,7 @@ export async function prepareConversationAgentTurn(
     classification,
     agent,
     chatMessages: preparedMessages,
-    clarificationFollowUp: repositoryResolution.clarificationFollowUp,
+    clarificationFollowUp,
     updatedRepositorySession,
     staleSandboxId,
   };

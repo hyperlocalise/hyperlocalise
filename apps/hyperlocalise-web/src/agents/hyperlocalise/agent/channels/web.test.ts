@@ -12,6 +12,8 @@ const {
 
 vi.mock("@/lib/agent-runtime/loops/conversation-turn", () => ({
   prepareConversationAgentTurn: prepareConversationAgentTurnMock,
+  REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP:
+    "I'm still preparing repository access for this conversation. Please send your message again in a moment.",
 }));
 
 vi.mock("@/lib/agent-runtime/loops/conversation-repository-session", () => ({
@@ -95,5 +97,49 @@ describe("runWebChatAgentTurn", () => {
       }),
     );
     expect(setWebConversationRepositorySessionMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("returns a clarification instead of streaming when repository access is contended", async () => {
+    prepareConversationAgentTurnMock.mockImplementation(async (input) => {
+      if (input.reuseCommittedRepositorySandboxOnly) {
+        return {
+          classification: baseClassification,
+          agent: { stream: vi.fn() },
+          chatMessages: [],
+          clarificationFollowUp:
+            "I'm still preparing repository access for this conversation. Please send your message again in a moment.",
+          updatedRepositorySession: null,
+          staleSandboxId: null,
+        };
+      }
+
+      return {
+        classification: baseClassification,
+        agent: { stream: vi.fn(async () => ({ textStream: (async function* () {})() })) },
+        chatMessages: [],
+        clarificationFollowUp: null,
+        updatedRepositorySession: updatedSession,
+        staleSandboxId: "sandbox_stale",
+      };
+    });
+
+    const turn = await runWebChatAgentTurn({
+      conversationId: "conv_123",
+      messageText: "search acme/other",
+      toolContext: {
+        conversationId: "conv_123",
+        organizationId: "org_123",
+        localUserId: "user_123",
+        membershipRole: "admin",
+        projectId: null,
+        db: {} as never,
+      },
+      hasTranslationAttachments: false,
+    });
+
+    expect(turn.clarificationFollowUp).toBe(
+      "I'm still preparing repository access for this conversation. Please send your message again in a moment.",
+    );
+    expect(turn.textStream).toBeNull();
   });
 });

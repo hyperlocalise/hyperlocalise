@@ -75,6 +75,7 @@ vi.mock("@/lib/log", () => ({
 
 import {
   prepareConversationAgentTurn,
+  REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP,
   resolveConversationRepositoryContext,
 } from "./conversation-turn";
 
@@ -306,8 +307,10 @@ describe("conversation turn preparation", () => {
         toolContext: expect.not.objectContaining({
           sandboxId: expect.anything(),
         }),
+        additionalInstructions: expect.not.stringContaining("Repository read tools are available"),
       }),
     );
+    expect(result.clarificationFollowUp).toBe(REPOSITORY_ACCESS_CONTENTION_FOLLOW_UP);
     expect(result.updatedRepositorySession?.repositorySandboxSession?.sandboxId).toBe(
       "sandbox_committed",
     );
