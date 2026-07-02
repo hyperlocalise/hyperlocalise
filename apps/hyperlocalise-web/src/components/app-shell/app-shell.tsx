@@ -46,12 +46,19 @@ export async function AppShell({
         userId: auth.user.localUserId,
       })
     : { showConnectCta: false };
-  const initialTmsProviderConnection: ActiveTmsProviderConnection | null = hasCapability(
-    auth.membership.role,
-    "provider_credentials:read",
-  )
-    ? await getTmsProviderConnection(auth.activeOrganization.localOrganizationId)
-    : null;
+  let initialTmsProviderConnection: ActiveTmsProviderConnection | null = null;
+  if (hasCapability(auth.membership.role, "provider_credentials:read")) {
+    try {
+      initialTmsProviderConnection = await getTmsProviderConnection(
+        auth.activeOrganization.localOrganizationId,
+      );
+    } catch (error) {
+      console.error("[app-shell] Failed to prefetch TMS provider connection", {
+        organizationId: auth.activeOrganization.localOrganizationId,
+        error,
+      });
+    }
+  }
 
   return (
     <AppShellClient
