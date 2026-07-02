@@ -106,6 +106,45 @@ describe("projectFileCatToWorkspaceState", () => {
     });
   });
 
+  it("ignores resolved issues when computing segment status and tags", () => {
+    const state = projectFileCatToWorkspaceState(
+      catFile({
+        segments: [
+          {
+            externalStringId: "resolved-issue-string",
+            key: "dashboard.title",
+            sourceText: "Dashboard",
+            context: null,
+            type: "text",
+            target: {
+              text: "Bang dieu khien",
+              externalTranslationId: "translation-2",
+              isApproved: false,
+            },
+            comments: [
+              {
+                externalCommentId: "comment-resolved",
+                type: "issue",
+                status: "resolved",
+                text: "Fixed wording",
+                createdAt: "2026-06-10T00:00:00.000Z",
+                locale: "vi",
+              },
+            ],
+          },
+        ],
+      }),
+      testIntl,
+    );
+
+    expect(state.segments[0]).toMatchObject({
+      id: "resolved-issue-string",
+      status: "needs_review",
+      hasOpenIssues: false,
+      tags: ["text", "1 comment"],
+    });
+  });
+
   it("uses Approve as the primary action label for native projects", () => {
     const state = projectFileCatToWorkspaceState(catFile({ provider: null }), testIntl);
 

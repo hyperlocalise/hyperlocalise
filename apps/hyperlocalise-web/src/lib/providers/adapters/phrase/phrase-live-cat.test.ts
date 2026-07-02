@@ -57,7 +57,7 @@ describe("buildPhraseLiveCatFile", () => {
     vi.clearAllMocks();
   });
 
-  it("loads a single key file with source, target, and comments", async () => {
+  it("loads a single key file with source and target without comments", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const path = String(url);
 
@@ -157,12 +157,109 @@ describe("buildPhraseLiveCatFile", () => {
         externalTranslationId: "tr-fr",
         isApproved: true,
       },
-      comments: [{ externalCommentId: "comment-1", type: "comment", text: "Check tone" }],
+      comments: [],
     });
     expect(catFile.queueSummary).toMatchObject({
       total: 1,
       reviewed: 1,
-      hasIssues: 1,
+      hasIssues: 0,
+    });
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/keys/key-1/comments"),
+      expect.anything(),
+    );
+  });
+
+  it("loads comments from the segment detail endpoint", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/keys/key-1") &&
+        !path.includes("/comments") &&
+        !path.includes("/translations")
+      ) {
+        return new Response(
+          JSON.stringify({
+            id: "key-1",
+            name: "home.hero.title",
+            description: "Hero headline",
+            plural: false,
+            tags: ["app"],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-1/translations")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "tr-en",
+              key_id: "key-1",
+              locale_name: "en",
+              content: "Hello",
+              state: "translated",
+              unverified: false,
+              excluded: false,
+            },
+            {
+              id: "tr-fr",
+              key_id: "key-1",
+              locale_name: "fr",
+              content: "Bonjour",
+              state: "translated",
+              unverified: false,
+              excluded: false,
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys/key-1/comments")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "comment-1",
+              message: "Check tone",
+              has_replies: false,
+              user: { id: "user-1", username: "reviewer", name: "Reviewer" },
+              created_at: "2026-06-08T00:01:00Z",
+              locales: [{ id: "loc-fr", name: "fr", code: "fr-FR" }],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const { getPhraseLiveCatSegmentDetail } = await import("./phrase-live-cat");
+    const segment = await getPhraseLiveCatSegmentDetail({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile(),
+      targetLocale: "fr",
+      externalStringId: "key-1",
+    });
+
+    expect(segment).toMatchObject({
+      externalStringId: "key-1",
+      comments: [{ externalCommentId: "comment-1", type: "comment", text: "Check tone" }],
+      commentCount: 1,
     });
   });
 
@@ -386,15 +483,16 @@ describe("buildPhraseLiveCatFile", () => {
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const catFile = await buildPhraseLiveCatFile({
+    const { getPhraseLiveCatSegmentDetail } = await import("./phrase-live-cat");
+    const segment = await getPhraseLiveCatSegmentDetail({
       secretMaterial: "token",
       externalProjectId: "project-1",
       file: createPhraseKeyFile(),
       targetLocale: "fr",
-      canEditTranslations: true,
+      externalStringId: "key-1",
     });
 
-    expect(catFile.segments[0]?.comments[0]?.createdAt).toBeNull();
+    expect(segment?.comments[0]?.createdAt).toBeNull();
   });
 });
 

@@ -29,6 +29,7 @@ import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
   countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveCatFile,
+  getTmsProviderLiveCatSegmentDetail,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
@@ -39,6 +40,7 @@ import {
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectCatFile,
+  getNativeProjectCatSegmentDetail,
   resolveNativeProjectCatComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
@@ -69,6 +71,8 @@ import {
 import {
   createProjectBodySchema,
   maxProjectFileUploadBytes,
+  projectFileCatSegmentParamsSchema,
+  projectFileCatSegmentQuerySchema,
   projectFileCatQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
@@ -366,6 +370,26 @@ const validateProjectFileDetailQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileCatSegmentParams = validator("param", (value, c) => {
+  const parsed = projectFileCatSegmentParamsSchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
+const validateProjectFileCatSegmentQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatSegmentQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileCatQuery = validator("query", (value, c) => {
   const parsed = projectFileCatQuerySchema.safeParse(value);
 
@@ -638,6 +662,60 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           }
 
           return c.json({ catFile }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .get(
+      "/:projectId/files/detail/cat/segments/:externalStringId",
+      validateProjectParams,
+      validateProjectFileCatSegmentParams,
+      validateProjectFileCatSegmentQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          const segment = await getNativeProjectCatSegmentDetail({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: query.sourcePath,
+            targetLocale: query.targetLocale,
+            externalStringId: params.externalStringId,
+            preferredRepositoryFullName: query.repositoryFullName ?? null,
+          });
+
+          if (!segment) {
+            return notFoundResponse(c, "cat_segment_not_found");
+          }
+
+          return c.json({ segment }, 200);
+        }
+
+        try {
+          const segment = await getTmsProviderLiveCatSegmentDetail(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            query.sourcePath,
+            query.targetLocale,
+            params.externalStringId,
+            { actorUserId: c.var.auth.user.localUserId },
+          );
+          if (!segment) {
+            return notFoundResponse(c, "cat_segment_not_found");
+          }
+
+          return c.json({ segment }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
