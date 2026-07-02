@@ -1012,6 +1012,13 @@ export async function resolveExternalTmsSecretMaterial(input: {
   );
 
   if (
+    input.credential.providerKind === "crowdin" &&
+    input.credential.authMode === API_TOKEN_AUTH_MODE
+  ) {
+    throw new Error("crowdin_legacy_api_token_deprecated");
+  }
+
+  if (
     input.credential.providerKind !== "crowdin" ||
     !crowdinUsesPerUserAuth(input.credential.authMode)
   ) {

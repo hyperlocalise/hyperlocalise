@@ -85,8 +85,8 @@ export const organizationExternalTmsProviderCredentials = pgTable(
     providerKind: externalTmsProviderKindEnum("provider_kind").notNull(),
     displayName: text("display_name").notNull(),
     /**
-     * Crowdin supports `oauth` or `pat` (per-user tokens via `crowdin_user_connections`),
-     * or legacy `api_token` (one shared token for the workspace).
+     * Crowdin supports `oauth` or `pat` (per-user tokens via `crowdin_user_connections`).
+     * Legacy `api_token` rows must be re-saved as PAT mode in Integrations.
      */
     authMode: text("auth_mode").notNull().default("api_token"),
     region: text("region"),

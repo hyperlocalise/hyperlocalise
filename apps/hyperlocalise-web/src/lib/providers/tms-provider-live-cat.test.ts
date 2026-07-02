@@ -5,11 +5,46 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
 import { maxCrowdinSourceStringCountCeiling } from "@/api/routes/project/project.schema";
 import { db } from "@/lib/database";
+import { upsertCrowdinUserPatConnection } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
 import { buildCrowdinFileQueueCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
-import { upsertOrganizationExternalTmsProviderCredential } from "./organization-external-tms-provider-credentials";
+import { isErr } from "@/lib/primitives/result/results";
+import { upsertCrowdinPatProviderCredential } from "./organization-external-tms-provider-credentials";
 import { getTmsProviderLiveCatFile, saveTmsProviderLiveCatTranslation } from "./tms-provider-live";
 
 const fixture = createAuthTestFixture();
+
+async function setupCrowdinPatCredential(input: {
+  organizationId: string;
+  userId: string;
+  baseUrl?: string;
+}) {
+  const credential = await upsertCrowdinPatProviderCredential({
+    organizationId: input.organizationId,
+    userId: input.userId,
+    role: "admin",
+    displayName: "Crowdin",
+    baseUrl: input.baseUrl ?? "https://api.crowdin.test/api/v2",
+  });
+
+  const connectionResult = await upsertCrowdinUserPatConnection({
+    organizationId: input.organizationId,
+    userId: input.userId,
+    providerCredentialId: credential.id,
+    personalAccessToken: "token",
+    crowdinUser: {
+      id: 1,
+      username: "crowdin-test-user",
+      email: "crowdin-test-user@example.com",
+      fullName: "Crowdin Test User",
+    },
+  });
+
+  if (isErr(connectionResult)) {
+    throw new Error(`Failed to set up Crowdin PAT connection: ${connectionResult.error.code}`);
+  }
+
+  return credential;
+}
 
 describe("getTmsProviderLiveCatFile", () => {
   let originalFetch: typeof fetch;
@@ -32,14 +67,9 @@ describe("getTmsProviderLiveCatFile", () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
-    await upsertOrganizationExternalTmsProviderCredential({
+    await setupCrowdinPatCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "admin",
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      secretMaterial: "token",
-      baseUrl: "https://api.crowdin.test/api/v2",
     });
 
     const fetchMock = vi.fn(async (url, init) => {
@@ -252,6 +282,7 @@ describe("getTmsProviderLiveCatFile", () => {
     globalThis.fetch = fetchMock as typeof fetch;
 
     const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
+      actorUserId: user.id,
       canEditTranslations: true,
     });
 
@@ -310,14 +341,9 @@ describe("getTmsProviderLiveCatFile", () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
-    await upsertOrganizationExternalTmsProviderCredential({
+    await setupCrowdinPatCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "admin",
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      secretMaterial: "token",
-      baseUrl: "https://api.crowdin.test/api/v2",
     });
 
     const fetchMock = vi.fn(async (url) => {
@@ -452,6 +478,7 @@ describe("getTmsProviderLiveCatFile", () => {
     globalThis.fetch = fetchMock as typeof fetch;
 
     const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
+      actorUserId: user.id,
       canEditTranslations: true,
     });
 
@@ -465,14 +492,9 @@ describe("getTmsProviderLiveCatFile", () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
-    await upsertOrganizationExternalTmsProviderCredential({
+    await setupCrowdinPatCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "admin",
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      secretMaterial: "token",
-      baseUrl: "https://api.crowdin.test/api/v2",
     });
 
     let approvalRequestCount = 0;
@@ -615,6 +637,7 @@ describe("getTmsProviderLiveCatFile", () => {
         externalStringId: "1001",
         text: "Bonjour amélioré",
       },
+      { actorUserId: user.id },
     );
 
     expect(translation).toEqual({
@@ -646,14 +669,9 @@ describe("getTmsProviderLiveCatFile", () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
-    await upsertOrganizationExternalTmsProviderCredential({
+    await setupCrowdinPatCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "admin",
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      secretMaterial: "token",
-      baseUrl: "https://api.crowdin.test/api/v2",
     });
 
     const fetchMock = vi.fn(async (url, init) => {
@@ -777,6 +795,7 @@ describe("getTmsProviderLiveCatFile", () => {
         externalStringId: "1001",
         text: "Bonjour amélioré",
       },
+      { actorUserId: user.id },
     );
 
     expect(translation).toEqual({
@@ -804,14 +823,9 @@ describe("getTmsProviderLiveCatFile", () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
-    await upsertOrganizationExternalTmsProviderCredential({
+    await setupCrowdinPatCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "admin",
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      secretMaterial: "token",
-      baseUrl: "https://api.crowdin.test/api/v2",
     });
 
     const stringPage = (offset: number, limit: number) =>
@@ -908,6 +922,7 @@ describe("getTmsProviderLiveCatFile", () => {
     globalThis.fetch = fetchMock as typeof fetch;
 
     const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
+      actorUserId: user.id,
       canEditTranslations: true,
       pagination: {
         offset: 0,
@@ -930,14 +945,9 @@ describe("getTmsProviderLiveCatFile", () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
-    await upsertOrganizationExternalTmsProviderCredential({
+    await setupCrowdinPatCredential({
       organizationId: organization.id,
       userId: user.id,
-      role: "admin",
-      providerKind: "crowdin",
-      displayName: "Crowdin",
-      secretMaterial: "token",
-      baseUrl: "https://api.crowdin.test/api/v2",
     });
 
     const stringsRequests: URL[] = [];
@@ -1056,6 +1066,7 @@ describe("getTmsProviderLiveCatFile", () => {
     globalThis.fetch = fetchMock as typeof fetch;
 
     const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
+      actorUserId: user.id,
       canEditTranslations: true,
       pagination: {
         offset: 0,

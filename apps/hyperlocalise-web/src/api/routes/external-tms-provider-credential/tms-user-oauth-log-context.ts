@@ -1,6 +1,7 @@
 import {
   CROWDIN_DEFAULT_API_BASE_URL,
   crowdinAuthenticatedUserUrl,
+  isCrowdinEnterpriseApiBaseUrl,
   resolveCrowdinApiBaseUrl,
 } from "@/lib/providers/adapters/crowdin/crowdin-base-url";
 import { LOKALISE_DEFAULT_BASE_URL } from "@/lib/providers/adapters/lokalise/lokalise-api";
@@ -65,6 +66,16 @@ export type TmsUserOAuthProfileLookupLogContext = {
   errorName?: string;
   errorType?: string;
   resolutionCode?: string;
+};
+
+export type TmsUserPatLinkLogContext = {
+  credentialAuthMode: string;
+  storedBaseUrlConfigured: boolean;
+  usingDefaultBaseUrl: boolean;
+  resolvedBaseUrlHostname: string;
+  resolvedApiEndpoint: string;
+  isEnterpriseWorkspace: boolean;
+  personalAccessTokenLength: number;
 };
 
 export type TmsUserOAuthTokenExchangeFailedLogContext = {
@@ -318,6 +329,29 @@ export function buildTmsUserOAuthTokenExchangeErroredLogContext(input: {
   }
 
   return context;
+}
+
+export function buildTmsUserPatLinkLogContext(input: {
+  credentialAuthMode: string;
+  credentialBaseUrl: string | null | undefined;
+  personalAccessTokenLength: number;
+}): TmsUserPatLinkLogContext {
+  const storedBaseUrlConfigured = Boolean(input.credentialBaseUrl?.trim());
+  const resolvedBaseUrl = resolveCrowdinApiBaseUrl(input.credentialBaseUrl);
+  const resolvedApiEndpoint =
+    crowdinAuthenticatedUserUrl(input.credentialBaseUrl) ?? `${resolvedBaseUrl}/user`;
+
+  return {
+    credentialAuthMode: input.credentialAuthMode,
+    storedBaseUrlConfigured,
+    usingDefaultBaseUrl: !storedBaseUrlConfigured,
+    resolvedBaseUrlHostname: resolveApiHostname(resolvedBaseUrl),
+    resolvedApiEndpoint,
+    isEnterpriseWorkspace:
+      isCrowdinEnterpriseApiBaseUrl(input.credentialBaseUrl) ||
+      resolveApiHostname(resolvedBaseUrl) !== "api.crowdin.com",
+    personalAccessTokenLength: input.personalAccessTokenLength,
+  };
 }
 
 export function buildTmsUserOAuthProfileLookupLogContext(input: {

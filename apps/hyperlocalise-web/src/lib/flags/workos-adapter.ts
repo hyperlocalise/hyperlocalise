@@ -48,10 +48,12 @@ export function createWorkosAdapter() {
         try {
           const client = getFeatureFlagsRuntimeClient();
           await waitForFeatureFlagsReady(client);
-          return (await client.isEnabled(key, {
-            organizationId: context?.organization?.id,
-            userId: context?.user?.id,
-          })) as ValueType;
+          return (await Promise.resolve(
+            client.isEnabled(key, {
+              organizationId: context?.organization?.id,
+              userId: context?.user?.id,
+            }),
+          )) as ValueType;
         } catch {
           return false as ValueType;
         }

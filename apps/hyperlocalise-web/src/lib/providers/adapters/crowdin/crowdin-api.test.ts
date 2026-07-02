@@ -1,8 +1,26 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { beforeEach, describe, expect, it, vi } from "vite-plus/test";
+
+const { infoMock } = vi.hoisted(() => ({
+  infoMock: vi.fn(),
+}));
+
+vi.mock("@/lib/log", () => ({
+  createLogger: vi.fn(() => ({
+    info: infoMock,
+    warn: vi.fn(),
+    debug: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(),
+  })),
+}));
 
 import { CrowdinApiClient, CrowdinApiError } from "./crowdin-api";
 
 describe("CrowdinApiClient", () => {
+  beforeEach(() => {
+    infoMock.mockClear();
+  });
+
   function createClient(fetchFn: typeof fetch) {
     return new CrowdinApiClient({
       token: "test-token",
@@ -1038,5 +1056,66 @@ describe("CrowdinApiClient", () => {
 
     expect(progress[0]?.languageId).toBe("fr");
     expect(progress[0]?.translationProgress).toBe(50);
+  });
+
+  it("logs each API request with method and endpoint", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1,
+            username: "tester",
+            email: "tester@example.com",
+            fullName: "Tester",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.getAuthenticatedUser();
+
+    expect(infoMock).toHaveBeenCalledWith(
+      {
+        method: "GET",
+        endpoint: "https://api.crowdin.test/api/v2/user",
+      },
+      "Crowdin API request",
+    );
+  });
+
+  it("uses globalThis.fetch when fetchFn is omitted", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1,
+            username: "tester",
+            email: "tester@example.com",
+            fullName: "Tester",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const client = new CrowdinApiClient({
+        token: "test-token",
+        baseUrl: "https://api.crowdin.test/api/v2",
+      });
+      await client.getAuthenticatedUser();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/user",
+      expect.objectContaining({ method: "GET", redirect: "error" }),
+    );
   });
 });

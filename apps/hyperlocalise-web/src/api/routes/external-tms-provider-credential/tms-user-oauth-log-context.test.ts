@@ -1,9 +1,15 @@
 import { describe, expect, it } from "vite-plus/test";
 
 import {
+  EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
+  EXAMPLE_CROWDIN_ENTERPRISE_API_HOSTNAME,
+  EXAMPLE_CROWDIN_ENTERPRISE_AUTHENTICATED_USER_URL,
+} from "@/lib/providers/adapters/crowdin/crowdin-test-urls";
+import {
   buildTmsUserOAuthProfileLookupLogContext,
   buildTmsUserOAuthTokenExchangeErroredLogContext,
   buildTmsUserOAuthTokenExchangeFailedLogContext,
+  buildTmsUserPatLinkLogContext,
   extractRequestPathFromProviderApiError,
   isSafeOAuthErrorCode,
   isSafeProviderErrorMessage,
@@ -307,6 +313,42 @@ describe("buildTmsUserOAuthProfileLookupLogContext", () => {
       resolutionCode: "no_projects",
       errorName: "LokaliseOAuthUserResolutionError",
       errorType: "LokaliseOAuthUserResolutionError",
+    });
+  });
+});
+
+describe("buildTmsUserPatLinkLogContext", () => {
+  it("marks enterprise workspaces and resolved endpoints from stored base URLs", () => {
+    expect(
+      buildTmsUserPatLinkLogContext({
+        credentialAuthMode: "pat",
+        credentialBaseUrl: EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
+        personalAccessTokenLength: 96,
+      }),
+    ).toMatchObject({
+      credentialAuthMode: "pat",
+      storedBaseUrlConfigured: true,
+      usingDefaultBaseUrl: false,
+      resolvedBaseUrlHostname: EXAMPLE_CROWDIN_ENTERPRISE_API_HOSTNAME,
+      resolvedApiEndpoint: EXAMPLE_CROWDIN_ENTERPRISE_AUTHENTICATED_USER_URL,
+      isEnterpriseWorkspace: true,
+      personalAccessTokenLength: 96,
+    });
+  });
+
+  it("falls back to crowdin.com when no base URL is configured", () => {
+    expect(
+      buildTmsUserPatLinkLogContext({
+        credentialAuthMode: "pat",
+        credentialBaseUrl: null,
+        personalAccessTokenLength: 64,
+      }),
+    ).toMatchObject({
+      storedBaseUrlConfigured: false,
+      usingDefaultBaseUrl: true,
+      resolvedBaseUrlHostname: "api.crowdin.com",
+      resolvedApiEndpoint: "https://api.crowdin.com/api/v2/user",
+      isEnterpriseWorkspace: false,
     });
   });
 });

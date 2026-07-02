@@ -342,6 +342,7 @@ export function TmsProviderCredentialPanel({
           !hasPartialOAuthCredentials &&
           (isOAuthConnected || Boolean(oauthClientId.trim() && oauthClientSecret.trim()))
       : Boolean(displayName.trim() && secret.trim());
+  const showOrgApiTokenField = !isOAuthProvider && !isCrowdinPatMode;
 
   return (
     <form
@@ -508,7 +509,7 @@ export function TmsProviderCredentialPanel({
         />
       ) : null}
 
-      {!isOAuthProvider ? (
+      {showOrgApiTokenField ? (
         <Field className="gap-2">
           <FieldLabel htmlFor={secretFieldId}>API token / secret</FieldLabel>
           <div className="relative">
