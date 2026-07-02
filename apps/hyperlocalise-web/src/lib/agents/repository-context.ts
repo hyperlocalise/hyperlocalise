@@ -169,18 +169,10 @@ export async function resolveConversationRepositoryGitHubContext(input: {
       );
     }
 
-    if (installedRepositories.length > 1) {
-      return unresolved(
-        "Multiple GitHub repositories are enabled and the request did not identify which one to use.",
-        "Reply with owner/repository, a GitHub URL, or the repository name from the list.",
-        buildMultipleRepositorySelectionFollowUp(installedRepositories),
-      );
-    }
-
     return unresolved(
-      "No GitHub repository context was configured for this request.",
-      "Provide a GitHub pull request URL, repo name, or configure a project repository fallback.",
-      "Please send a GitHub pull request URL, include the repository name, or configure a default repository for this project.",
+      "Multiple GitHub repositories are enabled and the request did not identify which one to use.",
+      "Reply with owner/repository, a GitHub URL, or the repository name from the list.",
+      buildMultipleRepositorySelectionFollowUp(installedRepositories),
     );
   }
 
@@ -561,9 +553,10 @@ function findRepositoriesReferencedInText(
     return byRepositoryName;
   }
 
-  const byOwnerName = installedRepositories.filter((repository) =>
-    slackTextContainsToken(text, repository.repositoryFullName.split("/")[0] ?? ""),
-  );
+  const byOwnerName = installedRepositories.filter((repository) => {
+    const owner = repository.repositoryFullName.split("/")[0] ?? "";
+    return slackTextContainsOwnerReference(text, owner);
+  });
   if (byOwnerName.length > 0) {
     return byOwnerName;
   }
@@ -577,6 +570,24 @@ function slackTextContainsToken(text: string, token: string) {
   }
 
   return new RegExp(`(^|[^A-Za-z0-9_.-])${escapeRegExp(token)}($|[^A-Za-z0-9_.-])`, "i").test(text);
+}
+
+function slackTextContainsOwnerReference(text: string, owner: string) {
+  if (!owner) {
+    return false;
+  }
+
+  const escapedOwner = escapeRegExp(owner);
+  const contextualPatterns = [
+    new RegExp(`\\bin\\s+${escapedOwner}\\b`, "i"),
+    new RegExp(`\\bfrom\\s+${escapedOwner}\\b`, "i"),
+    new RegExp(`\\bon\\s+${escapedOwner}\\b`, "i"),
+    new RegExp(`\\bfor\\s+${escapedOwner}\\b`, "i"),
+    new RegExp(`\\b${escapedOwner}'s\\b`, "i"),
+    new RegExp(`\\b${escapedOwner}/`, "i"),
+  ];
+
+  return contextualPatterns.some((pattern) => pattern.test(text));
 }
 
 function repositoryFullNameFromConfigValue(value: unknown): string | null {

@@ -278,6 +278,33 @@ describe("resolveSlackRepositoryGitHubContext", () => {
     });
   });
 
+  it("does not match owner names without repository context in the message", async () => {
+    const resolution = await resolveSlackRepositoryGitHubContext({
+      organizationId: "org_123",
+      text: "check the new copy for the login page",
+      requirePullRequest: false,
+      dependencies: createDependencies({
+        listEnabledRepositories: vi.fn(async () => [
+          {
+            installationId: 12345,
+            repositoryFullName: "new/web",
+            defaultBranch: "main",
+          },
+          {
+            installationId: 67890,
+            repositoryFullName: "other/api",
+            defaultBranch: "main",
+          },
+        ]),
+      }),
+    });
+
+    expect(resolution).toMatchObject({
+      status: "unresolved",
+      followUp: expect.stringContaining("Which repository should I use"),
+    });
+  });
+
   it("returns a Slack follow-up when repository access validation fails", async () => {
     const resolution = await resolveSlackRepositoryGitHubContext({
       organizationId: "org_123",
