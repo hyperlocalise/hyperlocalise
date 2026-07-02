@@ -92,7 +92,23 @@ export async function resolveWebProjectRepositoryGitHubContext(input: {
   });
 }
 
-export async function resolveSlackRepositoryGitHubContext(input: {
+export async function getOrganizationRepositoryConnectorConfig(organizationId: string) {
+  const [connector] = await db
+    .select({ config: schema.connectors.config })
+    .from(schema.connectors)
+    .where(
+      and(
+        eq(schema.connectors.organizationId, organizationId),
+        eq(schema.connectors.kind, "slack"),
+        eq(schema.connectors.enabled, true),
+      ),
+    )
+    .limit(1);
+
+  return (connector?.config ?? null) as Record<string, unknown> | null;
+}
+
+export async function resolveConversationRepositoryGitHubContext(input: {
   organizationId: string;
   text: string;
   connectorConfig?: Record<string, unknown> | null;
@@ -162,9 +178,9 @@ export async function resolveSlackRepositoryGitHubContext(input: {
     }
 
     return unresolved(
-      "No GitHub repository context was configured for this Slack request.",
-      "Provide a GitHub pull request URL, repo name, or configure a project/channel repository fallback.",
-      "Please send a GitHub pull request URL, include the repository name, or configure a default repository for this project or Slack channel.",
+      "No GitHub repository context was configured for this request.",
+      "Provide a GitHub pull request URL, repo name, or configure a project repository fallback.",
+      "Please send a GitHub pull request URL, include the repository name, or configure a default repository for this project.",
     );
   }
 
@@ -205,6 +221,9 @@ export async function resolveSlackRepositoryGitHubContext(input: {
     dependencies,
   });
 }
+
+/** @deprecated Use resolveConversationRepositoryGitHubContext */
+export const resolveSlackRepositoryGitHubContext = resolveConversationRepositoryGitHubContext;
 
 export async function resolveGitHubRepositoryGitHubContext(input: {
   raw: GitHubRawMessage;
@@ -470,7 +489,7 @@ function resolveSlackReferencedRepository(input: {
     return {
       status: "unresolved",
       resolution: unresolved(
-        "The Slack request matched multiple installed GitHub repositories.",
+        "The request matched multiple installed GitHub repositories.",
         "Please include owner/repository or a pull request URL.",
         buildAmbiguousRepositoryMatchFollowUp(uniqueMatches),
       ),
