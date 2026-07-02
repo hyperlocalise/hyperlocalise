@@ -223,3 +223,7 @@
 ## 2027-02-15 - Optimizing locale list normalization via capacity hinting and allocation avoidance
 **Learning:** For functions that perform string splitting and deduplication (like `NormalizeList`), pre-calculating the total expected elements (e.g., by counting delimiters) to provide accurate map and slice capacity hints significantly reduces re-allocation overhead. Additionally, manual checks for common string states (like `isAlreadyLower` for ASCII) can bypass expensive standard library calls that might otherwise perform redundant allocations.
 **Action:** Implement capacity hints based on delimiter counts and use fast-path checks for common string properties to avoid unnecessary heap allocations in hot-path utility functions.
+
+## 2027-02-20 - [Optimizing Generic XML parser via capacity hints and redundant trim removal]
+**Learning:** [For sequential tree-based parsers like GenericXMLParser: 1) Providing capacity hints for slices (entries, stack) and maps (seenKeys) based on input size significantly reduces re-allocation overhead. 2) strings.Builder.Grow(len(template)) in renderers avoids multiple data copies. 3) redundant strings.TrimSpace calls on tag/attribute names can be removed when using encoding/xml, as it already returns normalized names.]
+**Action:** [Apply capacity hinting and remove redundant normalization in other tree-based parsers.]

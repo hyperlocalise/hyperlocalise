@@ -88,12 +88,19 @@ func MarshalGenericXMLWithTargetLocale(template []byte, values map[string]string
 
 func parseGenericXMLDocument(content []byte) (genericXMLDocument, error) {
 	text := string(content)
-	doc := genericXMLDocument{template: text, entries: []genericXMLEntry{}}
+	// BOLT OPTIMIZATION: Hint capacity for entries based on content size.
+	// Typically an XML entry is at least 60-80 bytes.
+	entryCapacity := len(content) / 80
+	if entryCapacity < 4 {
+		entryCapacity = 4
+	}
+	doc := genericXMLDocument{template: text, entries: make([]genericXMLEntry, 0, entryCapacity)}
 
 	decoder := xml.NewDecoder(bytes.NewReader(content))
-	stack := []*genericXMLFrame{}
+	// BOLT OPTIMIZATION: Hint stack capacity.
+	stack := make([]*genericXMLFrame, 0, 8)
 	rootName := ""
-	seenKeys := map[string]struct{}{}
+	seenKeys := make(map[string]struct{}, entryCapacity)
 
 	for {
 		tokenStart := int(decoder.InputOffset())
@@ -310,6 +317,7 @@ func (d genericXMLDocument) render(values map[string]string, sourceLocale, targe
 	})
 
 	var b strings.Builder
+	b.Grow(len(d.template))
 	cursor := 0
 	for _, replacement := range replacements {
 		if replacement.start < cursor {
@@ -430,18 +438,18 @@ func genericXMLAttrNameBoundaryAfter(s string, offset int) bool {
 
 func isGenericXMLLocaleAttrName(name string) bool {
 	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed attribute names.
+	// encoding/xml provides normalized attribute names.
 	switch name {
 	case "xml:lang", "lang", "locale", "language", "code":
 		return true
 	}
 
-	trimmed := strings.TrimSpace(name)
 	switch {
-	case strings.EqualFold(trimmed, "xml:lang"),
-		strings.EqualFold(trimmed, "lang"),
-		strings.EqualFold(trimmed, "locale"),
-		strings.EqualFold(trimmed, "language"),
-		strings.EqualFold(trimmed, "code"):
+	case strings.EqualFold(name, "xml:lang"),
+		strings.EqualFold(name, "lang"),
+		strings.EqualFold(name, "locale"),
+		strings.EqualFold(name, "language"),
+		strings.EqualFold(name, "code"):
 		return true
 	default:
 		return false
@@ -516,26 +524,26 @@ func genericXMLKeyAttr(attrs []xml.Attr) string {
 
 func isGenericXMLMetadataElement(name string) bool {
 	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed element names.
+	// encoding/xml provides normalized element names.
 	switch name {
 	case "meta", "metadata", "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment", "resheader", "assembly":
 		return true
 	}
 
-	trimmed := strings.TrimSpace(name)
 	switch {
-	case strings.EqualFold(trimmed, "meta"),
-		strings.EqualFold(trimmed, "metadata"),
-		strings.EqualFold(trimmed, "comment"),
-		strings.EqualFold(trimmed, "comments"),
-		strings.EqualFold(trimmed, "description"),
-		strings.EqualFold(trimmed, "descriptions"),
-		strings.EqualFold(trimmed, "note"),
-		strings.EqualFold(trimmed, "notes"),
-		strings.EqualFold(trimmed, "context"),
-		strings.EqualFold(trimmed, "extracomment"),
-		strings.EqualFold(trimmed, "developercomment"),
-		strings.EqualFold(trimmed, "resheader"),
-		strings.EqualFold(trimmed, "assembly"):
+	case strings.EqualFold(name, "meta"),
+		strings.EqualFold(name, "metadata"),
+		strings.EqualFold(name, "comment"),
+		strings.EqualFold(name, "comments"),
+		strings.EqualFold(name, "description"),
+		strings.EqualFold(name, "descriptions"),
+		strings.EqualFold(name, "note"),
+		strings.EqualFold(name, "notes"),
+		strings.EqualFold(name, "context"),
+		strings.EqualFold(name, "extracomment"),
+		strings.EqualFold(name, "developercomment"),
+		strings.EqualFold(name, "resheader"),
+		strings.EqualFold(name, "assembly"):
 		return true
 	default:
 		return false
@@ -544,22 +552,22 @@ func isGenericXMLMetadataElement(name string) bool {
 
 func isGenericXMLKeyedMetadataConflict(name string) bool {
 	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed element names.
+	// encoding/xml provides normalized element names.
 	switch name {
 	case "comment", "comments", "description", "descriptions", "note", "notes", "context", "extracomment", "developercomment":
 		return true
 	}
 
-	trimmed := strings.TrimSpace(name)
 	switch {
-	case strings.EqualFold(trimmed, "comment"),
-		strings.EqualFold(trimmed, "comments"),
-		strings.EqualFold(trimmed, "description"),
-		strings.EqualFold(trimmed, "descriptions"),
-		strings.EqualFold(trimmed, "note"),
-		strings.EqualFold(trimmed, "notes"),
-		strings.EqualFold(trimmed, "context"),
-		strings.EqualFold(trimmed, "extracomment"),
-		strings.EqualFold(trimmed, "developercomment"):
+	case strings.EqualFold(name, "comment"),
+		strings.EqualFold(name, "comments"),
+		strings.EqualFold(name, "description"),
+		strings.EqualFold(name, "descriptions"),
+		strings.EqualFold(name, "note"),
+		strings.EqualFold(name, "notes"),
+		strings.EqualFold(name, "context"),
+		strings.EqualFold(name, "extracomment"),
+		strings.EqualFold(name, "developercomment"):
 		return true
 	default:
 		return false
@@ -568,25 +576,26 @@ func isGenericXMLKeyedMetadataConflict(name string) bool {
 
 func isGenericXMLValueElement(name string) bool {
 	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed element names.
+	// encoding/xml provides normalized element names.
 	if name == "value" {
 		return true
 	}
 
-	return strings.EqualFold(strings.TrimSpace(name), "value")
+	return strings.EqualFold(name, "value")
 }
 
 func isGenericXMLSpecializedRoot(name string) bool {
 	// BOLT OPTIMIZATION: Fast-path for common lowercase, trimmed element names.
+	// encoding/xml provides normalized element names.
 	switch name {
 	case "resources", "xliff", "plist":
 		return true
 	}
 
-	trimmed := strings.TrimSpace(name)
 	switch {
-	case strings.EqualFold(trimmed, "resources"),
-		strings.EqualFold(trimmed, "xliff"),
-		strings.EqualFold(trimmed, "plist"):
+	case strings.EqualFold(name, "resources"),
+		strings.EqualFold(name, "xliff"),
+		strings.EqualFold(name, "plist"):
 		return true
 	default:
 		return false
