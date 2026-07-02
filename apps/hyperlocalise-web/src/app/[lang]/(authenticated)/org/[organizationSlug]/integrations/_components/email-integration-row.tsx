@@ -142,6 +142,7 @@ export function EmailIntegrationRow({
       onExpandedChange={setExpanded}
       onConnect={() => void toggleEnabled(true)}
       isConnecting={updateEmailAgentState.isPending}
+      isLoading={isLoading}
       isLast={isLast}
     >
       <div className="flex flex-col gap-4">
