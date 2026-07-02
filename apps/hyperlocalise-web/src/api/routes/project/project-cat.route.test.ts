@@ -18,6 +18,7 @@ import type {
   ProjectFileCatCommentResponse,
   ProjectFileCatRecommendationResponse,
   ProjectFileCatResponse,
+  ProjectFileCatSegmentResponse,
   ProjectFileCatTranslationResponse,
 } from "./project.schema";
 
@@ -308,7 +309,7 @@ describe("project file CAT routes", () => {
     expect(await response.json()).toMatchObject({ error: "visual_context_unavailable" });
   });
 
-  it("returns native CAT comments on segments", async () => {
+  it("returns native CAT comment counts on list and comments on segment detail", async () => {
     const { identity, project, organization } = await projectFixture.createStoredProjectFixture();
     const headers = await projectFixture.authHeadersFor(identity);
     const sourcePath = "locales/en.json";
@@ -369,14 +370,33 @@ describe("project file CAT routes", () => {
 
     expect(response.status).toBe(200);
     const body = (await response.json()) as ProjectFileCatResponse;
-    expect(body.catFile.segments[0]?.comments).toMatchObject([
+    expect(body.catFile.segments[0]?.comments).toEqual([]);
+    expect(body.catFile.segments[0]?.commentCount).toBe(1);
+
+    const detailResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(detailResponse.status).toBe(200);
+    const detailBody = (await detailResponse.json()) as ProjectFileCatSegmentResponse;
+    expect(detailBody.segment.comments).toMatchObject([
       {
         type: "comment",
         text: "Please clarify tone.",
         author: expect.any(String),
       },
     ]);
-    expect(body.catFile.segments[0]?.comments[0]?.externalCommentId).toBeTruthy();
+    expect(detailBody.segment.comments[0]?.externalCommentId).toBeTruthy();
   });
 
   it("posts and resolves native CAT issues", async () => {
@@ -498,16 +518,8 @@ describe("project file CAT routes", () => {
           context: null,
           type: "text",
           target: { text: "Bonjour", externalTranslationId: "9001", isApproved: true },
-          comments: [
-            {
-              externalCommentId: "42",
-              type: "issue",
-              status: "unresolved",
-              text: "Needs product wording",
-              createdAt: "2026-06-08T00:00:00Z",
-              locale: "fr",
-            },
-          ],
+          comments: [],
+          unresolvedIssueCount: 1,
         },
       ],
     });
@@ -530,7 +542,7 @@ describe("project file CAT routes", () => {
     expect(body.catFile.segments[0]).toMatchObject({
       externalStringId: "1001",
       target: { text: "Bonjour", isApproved: true },
-      comments: [{ type: "issue", status: "unresolved" }],
+      comments: [],
     });
     expect(getTmsProviderLiveCatFileMock).toHaveBeenCalledWith(
       expect.any(String),

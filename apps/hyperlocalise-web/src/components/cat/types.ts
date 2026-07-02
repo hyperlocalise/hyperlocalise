@@ -42,6 +42,7 @@ export interface CatSegment {
   targetLocale: string;
   contextLabel?: string;
   status: CatSegmentStatus;
+  hasOpenIssues?: boolean;
   tags?: string[];
   maxLength?: number;
   comments?: CatSegmentComment[];

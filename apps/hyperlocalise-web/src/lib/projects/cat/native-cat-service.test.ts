@@ -11,7 +11,7 @@ describe("NativeCatService.getCatFile", () => {
   const listKeysForFile = vi.fn();
   const countKeysForFile = vi.fn();
   const getTranslationsByKeyIds = vi.fn();
-  const listCommentsByKeyIds = vi.fn();
+  const countCommentsByKeyIds = vi.fn();
   const listCached = vi.fn();
 
   let service: NativeCatService;
@@ -20,7 +20,7 @@ describe("NativeCatService.getCatFile", () => {
     vi.clearAllMocks();
     getRepositorySourceFileByPath.mockResolvedValue({ id: "file_1" });
     getTranslationsByKeyIds.mockResolvedValue([]);
-    listCommentsByKeyIds.mockResolvedValue(new Map());
+    countCommentsByKeyIds.mockResolvedValue(new Map());
     countKeysForFile.mockImplementation(async (input) => {
       if (input.queueFilter === "reviewed") {
         return 45;
@@ -49,7 +49,7 @@ describe("NativeCatService.getCatFile", () => {
     } as unknown as ProjectStringContextService;
 
     const comments = {
-      listByKeyIds: listCommentsByKeyIds,
+      countByKeyIds: countCommentsByKeyIds,
     } as unknown as NativeCatCommentService;
 
     service = new NativeCatService(undefined as never, translations, stringContext, comments);

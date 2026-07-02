@@ -556,7 +556,25 @@ export const projectFileCatSegmentSchema = z.object({
   maxLength: z.number().int().positive().optional(),
   target: projectFileCatTranslationSchema.nullable(),
   comments: z.array(projectFileCatCommentSchema),
+  commentCount: z.number().int().min(0).optional(),
+  unresolvedIssueCount: z.number().int().min(0).optional(),
   repositoryContext: z.string().nullable().optional(),
+});
+
+export const projectFileCatSegmentParamsSchema = z.object({
+  organizationSlug: z.string().trim().min(1).max(128),
+  projectId: z.string().trim().min(1).max(128),
+  externalStringId: z.string().trim().min(1).max(128),
+});
+
+export const projectFileCatSegmentQuerySchema = z.object({
+  sourcePath: z.string().trim().min(1).max(2048),
+  targetLocale: z.string().trim().min(1).max(32),
+  repositoryFullName: z.string().trim().min(1).max(256).optional(),
+});
+
+export const projectFileCatSegmentResponseSchema = z.object({
+  segment: projectFileCatSegmentSchema,
 });
 
 export const projectFileCatResponseSchema = z.object({
@@ -624,6 +642,9 @@ export type ProjectFileCatCommentResolveResponse = z.infer<
 >;
 export type ProjectFileCatTranslation = z.infer<typeof projectFileCatTranslationSchema>;
 export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
+export type ProjectFileCatSegmentParams = z.infer<typeof projectFileCatSegmentParamsSchema>;
+export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
+export type ProjectFileCatSegmentResponse = z.infer<typeof projectFileCatSegmentResponseSchema>;
 export type ProjectFileCatQueueSummary = z.infer<typeof projectFileCatQueueSummarySchema>;
 export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;
 export type ProjectFileCatTranslationResponse = z.infer<

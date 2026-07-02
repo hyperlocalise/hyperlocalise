@@ -838,6 +838,7 @@ export class CrowdinApiClient {
       stringId?: number;
       type?: "comment" | "issue";
       issueStatus?: "resolved" | "unresolved";
+      targetLanguageId?: string;
     },
   ): Promise<CrowdinStringComment[]> {
     const params = new URLSearchParams();
@@ -849,6 +850,9 @@ export class CrowdinApiClient {
     }
     if (options?.issueStatus) {
       params.set("issueStatus", options.issueStatus);
+    }
+    if (options?.targetLanguageId) {
+      params.set("targetLanguageId", options.targetLanguageId);
     }
 
     const query = params.toString();

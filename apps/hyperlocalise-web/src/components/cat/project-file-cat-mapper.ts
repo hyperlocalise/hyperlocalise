@@ -20,8 +20,19 @@ import type {
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/types";
+import { isOpenIssueStatus } from "@/components/cat/cat-queue-filter";
 
 type CatFile = ProjectFileCatResponse["catFile"];
+
+function countOpenIssues(segment: ProjectFileCatSegment) {
+  if (segment.comments.length > 0) {
+    return segment.comments.filter(
+      (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
+    ).length;
+  }
+
+  return segment.unresolvedIssueCount ?? 0;
+}
 
 function mapSegmentComments(segment: ProjectFileCatSegment): CatSegmentComment[] {
   return segment.comments.map((comment) => ({
@@ -40,7 +51,9 @@ export function segmentStatusFor(segment: ProjectFileCatSegment): CatSegment["st
     return "reviewed";
   }
 
-  if (segment.comments.some((comment) => comment.type === "issue")) {
+  const hasUnresolvedIssue = countOpenIssues(segment) > 0;
+
+  if (hasUnresolvedIssue) {
     return "needs_review";
   }
 
@@ -215,8 +228,8 @@ function segmentIntelligenceFor(
   catFile: CatFile,
   segment: ProjectFileCatSegment,
 ): CatSegmentIntelligence {
-  const comments = segment.comments.length;
-  const issues = segment.comments.filter((comment) => comment.type === "issue").length;
+  const comments = segment.comments.length || segment.commentCount || 0;
+  const issues = countOpenIssues(segment);
   const context = segment.context?.trim();
   const repositoryContext = segment.repositoryContext?.trim();
   const providerKind = catFile.provider?.kind;
@@ -258,11 +271,11 @@ export function projectFileCatToWorkspaceState(
   const sourceLocale = catFile.provider?.sourceLocale ?? "source";
   const segmentOffset = catFile.pagination?.offset ?? 0;
   const segments = catFile.segments.map((segment, index): CatSegment => {
-    const comments = segment.comments.length;
-    const issueComments = segment.comments.filter((comment) => comment.type === "issue").length;
+    const commentCount = segment.comments.length || segment.commentCount || 0;
+    const issueComments = countOpenIssues(segment);
     const tags = [
       segment.type,
-      comments > 0 ? `${comments} comment${comments === 1 ? "" : "s"}` : null,
+      commentCount > 0 ? `${commentCount} comment${commentCount === 1 ? "" : "s"}` : null,
       issueComments > 0 ? `${issueComments} issue${issueComments === 1 ? "" : "s"}` : null,
     ].filter((tag): tag is string => Boolean(tag));
 
@@ -276,6 +289,7 @@ export function projectFileCatToWorkspaceState(
       targetLocale: catFile.targetLocale,
       contextLabel: segment.context ?? undefined,
       status: segmentStatusFor(segment),
+      hasOpenIssues: issueComments > 0,
       tags,
       ...(segment.maxLength != null && segment.maxLength > 0
         ? { maxLength: segment.maxLength }
@@ -302,6 +316,52 @@ export function projectFileCatToWorkspaceState(
     canEditTranslations: catFile.canEditTranslations,
     canAddComments: Boolean(catFile.canEditTranslations),
     providerKind: catFile.provider?.kind ?? null,
+  };
+}
+
+export function applyCatSegmentDetailToWorkspaceState(
+  state: CatWorkspaceState,
+  catFile: CatFile,
+  segmentDetail: ProjectFileCatSegment,
+  intl: CatFormatMessageIntl,
+): CatWorkspaceState {
+  const mergedSegment = {
+    ...catFile.segments.find(
+      (segment) => segment.externalStringId === segmentDetail.externalStringId,
+    ),
+    ...segmentDetail,
+  };
+
+  if (!mergedSegment.externalStringId) {
+    return state;
+  }
+
+  const nextCatFile: CatFile = {
+    ...catFile,
+    segments: catFile.segments.map((segment) =>
+      segment.externalStringId === segmentDetail.externalStringId ? mergedSegment : segment,
+    ),
+  };
+  const detailState = projectFileCatToWorkspaceState(nextCatFile, intl);
+  const detailSegment = detailState.segments.find(
+    (segment) => segment.id === segmentDetail.externalStringId,
+  );
+
+  if (!detailSegment) {
+    return state;
+  }
+
+  return {
+    ...state,
+    segments: state.segments.map((segment) =>
+      segment.id === detailSegment.id ? detailSegment : segment,
+    ),
+    segmentIntelligence: {
+      ...state.segmentIntelligence,
+      [detailSegment.id]: detailState.segmentIntelligence?.[detailSegment.id] ?? {
+        ...state.intelligence,
+      },
+    },
   };
 }
 

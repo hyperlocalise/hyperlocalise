@@ -9,7 +9,11 @@ import { upsertCrowdinUserPatConnection } from "@/lib/providers/adapters/crowdin
 import { buildCrowdinFileQueueCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
 import { isErr } from "@/lib/primitives/result/results";
 import { upsertCrowdinPatProviderCredential } from "./organization-external-tms-provider-credentials";
-import { getTmsProviderLiveCatFile, saveTmsProviderLiveCatTranslation } from "./tms-provider-live";
+import {
+  getTmsProviderLiveCatFile,
+  getTmsProviderLiveCatSegmentDetail,
+  saveTmsProviderLiveCatTranslation,
+} from "./tms-provider-live";
 
 const fixture = createAuthTestFixture();
 
@@ -84,7 +88,7 @@ describe("getTmsProviderLiveCatFile", () => {
     await fixture.cleanup();
   });
 
-  it("aggregates Crowdin strings, target translations, approvals, and unresolved comments", async () => {
+  it("aggregates Crowdin strings, target translations, approvals, and unresolved issue flags", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
@@ -172,6 +176,34 @@ describe("getTmsProviderLiveCatFile", () => {
                   labelIds: null,
                 },
               },
+              {
+                data: {
+                  id: 1002,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "hero.cta",
+                  text: { one: "Start", other: "Start all" },
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/projects/42/strings?") &&
+        path.includes("croql=") &&
+        path.includes("has+unresolved+issue")
+      ) {
+        return new Response(
+          JSON.stringify({
+            data: [
               {
                 data: {
                   id: 1002,
@@ -303,22 +335,22 @@ describe("getTmsProviderLiveCatFile", () => {
       key: "hero.title",
       sourceText: "Hello",
       target: { text: "Bonjour", externalTranslationId: "9001", isApproved: true },
-      comments: [{ externalCommentId: "501", type: "comment" }],
+      comments: [],
     });
     expect(catFile?.segments[1]).toMatchObject({
       externalStringId: "1002",
       sourceText: JSON.stringify({ one: "Start", other: "Start all" }),
       target: null,
-      comments: [{ externalCommentId: "502", type: "issue", status: "unresolved" }],
+      comments: [],
+      unresolvedIssueCount: 1,
     });
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
     expect(
       requestedPaths.some(
         (path) =>
-          path.includes("/projects/42/comments?") &&
-          path.includes("stringId=1001") &&
-          path.includes("type=comment") &&
-          !path.includes("languageId="),
+          path.includes("/projects/42/strings?") &&
+          path.includes("croql=") &&
+          path.includes("has+unresolved+issue"),
       ),
     ).toBe(true);
     expect(
@@ -333,12 +365,10 @@ describe("getTmsProviderLiveCatFile", () => {
       requestedPaths.some(
         (path) =>
           path.includes("/projects/42/comments?") &&
-          path.includes("stringId=1002") &&
-          path.includes("type=issue") &&
-          !path.includes("languageId=") &&
-          path.includes("issueStatus=unresolved"),
+          path.includes("stringId=1001") &&
+          path.includes("type=comment"),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("prefers approved Crowdin translations over newer unapproved suggestions", async () => {
@@ -1005,21 +1035,243 @@ describe("getTmsProviderLiveCatFile", () => {
     // buildCrowdinLiveCatFile currently issues parallel count + page requests; croql/fileId
     // assertions above guard the regression regardless of how many calls are made.
     expect(stringsRequests.length).toBeGreaterThanOrEqual(1);
-    expect(queueSummaryCroqls.sort()).toEqual(
-      [
-        buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "reviewed" }),
-        buildCrowdinFileQueueCroql({
-          fileId: 101,
-          targetLocale: "fr",
-          queueFilter: "untranslated",
-        }),
-        buildCrowdinFileQueueCroql({
-          fileId: 101,
-          targetLocale: "fr",
-          queueFilter: "needs_review",
-        }),
-        buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "has_issues" }),
-      ].sort(),
+    const expectedQueueSummaryCroqls = [
+      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "reviewed" }),
+      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "untranslated" }),
+      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "needs_review" }),
+      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "has_issues" }),
+    ];
+    for (const croql of expectedQueueSummaryCroqls) {
+      expect(queueSummaryCroqls).toContain(croql);
+    }
+    expect(
+      queueSummaryCroqls.filter(
+        (croql) =>
+          croql ===
+          buildCrowdinFileQueueCroql({
+            fileId: 101,
+            targetLocale: "fr",
+            queueFilter: "has_issues",
+          }),
+      ).length,
+    ).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("getTmsProviderLiveCatSegmentDetail", () => {
+  let originalFetch: typeof fetch;
+
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+    await fixture.cleanup();
+  });
+
+  it("scopes Crowdin comments and unresolved issues to the requested target locale", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
     );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const commentRequests: string[] = [];
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 7,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/strings?") && path.includes("croql=")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "hero.title",
+                  text: "Hello",
+                  type: "text",
+                  context: "Hero",
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/languages/fr/translations?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  stringId: 1001,
+                  contentType: "text",
+                  translationId: 9001,
+                  text: "Bonjour",
+                  createdAt: "2026-06-08T00:00:00Z",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/approvals?") && path.includes("stringId=1001")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/comments?")) {
+        commentRequests.push(path);
+
+        if (path.includes("type=comment")) {
+          return new Response(
+            JSON.stringify({
+              data: [
+                {
+                  data: {
+                    id: 501,
+                    text: "French note",
+                    userId: 1,
+                    stringId: 1001,
+                    languageId: "fr",
+                    type: "comment",
+                    createdAt: "2026-06-08T00:01:00Z",
+                    projectId: 42,
+                  },
+                },
+                {
+                  data: {
+                    id: 502,
+                    text: "German note",
+                    userId: 1,
+                    stringId: 1001,
+                    languageId: "de",
+                    type: "comment",
+                    createdAt: "2026-06-08T00:02:00Z",
+                    projectId: 42,
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+
+        if (path.includes("type=issue")) {
+          return new Response(
+            JSON.stringify({
+              data: [
+                {
+                  data: {
+                    id: 601,
+                    text: "French issue",
+                    userId: 1,
+                    stringId: 1001,
+                    languageId: "fr",
+                    type: "issue",
+                    issueStatus: "unresolved",
+                    createdAt: "2026-06-08T00:03:00Z",
+                    projectId: 42,
+                  },
+                },
+                {
+                  data: {
+                    id: 602,
+                    text: "German issue",
+                    userId: 1,
+                    stringId: 1001,
+                    languageId: "de",
+                    type: "issue",
+                    issueStatus: "unresolved",
+                    createdAt: "2026-06-08T00:04:00Z",
+                    projectId: 42,
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const segment = await getTmsProviderLiveCatSegmentDetail(
+      organization.id,
+      "42",
+      "home.json",
+      "fr",
+      "1001",
+      { actorUserId: user.id },
+    );
+
+    expect(segment).toMatchObject({
+      externalStringId: "1001",
+      key: "hero.title",
+      unresolvedIssueCount: 1,
+    });
+    expect(segment?.comments).toHaveLength(2);
+    expect(segment?.comments.map((comment) => comment.locale)).toEqual(["fr", "fr"]);
+    expect(segment?.comments.map((comment) => comment.text)).toEqual([
+      "French issue",
+      "French note",
+    ]);
+    expect(commentRequests).toHaveLength(2);
+    for (const path of commentRequests) {
+      expect(path).toContain("targetLanguageId=fr");
+      expect(path).toContain("stringId=1001");
+    }
   });
 });

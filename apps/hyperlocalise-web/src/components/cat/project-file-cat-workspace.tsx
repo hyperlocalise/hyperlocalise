@@ -30,10 +30,12 @@ import { CatWorkspaceContainer } from "./cat-workspace-container";
 import { buildCatSegmentShareUrl } from "./cat-segment-share-link";
 import { resolveAvailableCatQueueFilters } from "./cat-queue-filter";
 import {
+  applyCatSegmentDetailToWorkspaceState,
   projectFileCatToWorkspaceState,
   requireProviderExternalResourceId,
   validateSegmentFormat,
 } from "./project-file-cat-mapper";
+import { useCatSegmentDetail, useInvalidateCatSegmentDetail } from "./use-cat-segment-detail";
 import { useCatSegmentQuery } from "./use-cat-segment-query";
 import type {
   CatGlossaryTerm,
@@ -75,6 +77,8 @@ export function ProjectFileCatWorkspace({
   className?: string;
 }) {
   const intl = useIntl();
+  const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
+  const invalidateSegmentDetail = useInvalidateCatSegmentDetail();
   const [targetLocaleState, setTargetLocaleState] = useState(
     () => targetLocaleProp ?? initialTargetLocale(targetLocales ?? [], highlightLocale),
   );
@@ -199,14 +203,22 @@ export function ProjectFileCatWorkspace({
       const body = (await response.json()) as { comment: ProjectFileCatComment };
       return body.comment;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       await invalidateCurrentPage();
+      await invalidateSegmentDetail({
+        organizationSlug,
+        projectId,
+        sourcePath,
+        targetLocale,
+        externalStringId: variables.externalStringId,
+        repositoryFullName,
+      });
     },
   });
   const postComment = commentMutation.mutateAsync;
 
   const resolveCommentMutation = useMutation({
-    mutationFn: async (input: { externalCommentId: string }) => {
+    mutationFn: async (input: { externalStringId: string; externalCommentId: string }) => {
       const externalResourceId = catQuery.data?.provider
         ? requireProviderExternalResourceId(catQuery.data)
         : undefined;
@@ -232,8 +244,16 @@ export function ProjectFileCatWorkspace({
       const body = (await response.json()) as { comment: ProjectFileCatComment };
       return body.comment;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       await invalidateCurrentPage();
+      await invalidateSegmentDetail({
+        organizationSlug,
+        projectId,
+        sourcePath,
+        targetLocale,
+        externalStringId: variables.externalStringId,
+        repositoryFullName,
+      });
     },
   });
   const resolveComment = resolveCommentMutation.mutateAsync;
@@ -242,6 +262,52 @@ export function ProjectFileCatWorkspace({
     () => (catQuery.data ? projectFileCatToWorkspaceState(catQuery.data, intl) : null),
     [catQuery.data, intl],
   );
+
+  useEffect(() => {
+    if (!workspaceState) {
+      return;
+    }
+
+    setActiveSegmentId((current) => {
+      if (current && workspaceState.segments.some((segment) => segment.id === current)) {
+        return current;
+      }
+
+      if (initialSegmentKey) {
+        const matched = workspaceState.segments.find(
+          (segment) => segment.id === initialSegmentKey || segment.key === initialSegmentKey,
+        );
+        if (matched) {
+          return matched.id;
+        }
+      }
+
+      return workspaceState.segments[0]?.id ?? null;
+    });
+  }, [initialSegmentKey, workspaceState]);
+
+  const segmentDetailQuery = useCatSegmentDetail({
+    organizationSlug,
+    projectId,
+    sourcePath,
+    targetLocale,
+    externalStringId: activeSegmentId,
+    repositoryFullName,
+    enabled: Boolean(catQuery.data),
+  });
+
+  const enrichedWorkspaceState = useMemo(() => {
+    if (!workspaceState || !catQuery.data || !segmentDetailQuery.data) {
+      return workspaceState;
+    }
+
+    return applyCatSegmentDetailToWorkspaceState(
+      workspaceState,
+      catQuery.data,
+      segmentDetailQuery.data,
+      intl,
+    );
+  }, [catQuery.data, intl, segmentDetailQuery.data, workspaceState]);
 
   const validateFormat = useCallback(
     (segment: CatSegment, value: string, glossaryTerms: CatGlossaryTerm[] = []) =>
@@ -300,12 +366,12 @@ export function ProjectFileCatWorkspace({
   );
 
   const handleResolveComment = useCallback(
-    async (_segmentId: string, commentId: string) => {
+    async (segmentId: string, commentId: string) => {
       if (!catQuery.data?.canEditTranslations) {
         throw new Error("Your role cannot resolve issues in the provider.");
       }
 
-      await resolveComment({ externalCommentId: commentId });
+      await resolveComment({ externalStringId: segmentId, externalCommentId: commentId });
     },
     [catQuery.data?.canEditTranslations, resolveComment],
   );
@@ -483,7 +549,7 @@ export function ProjectFileCatWorkspace({
     );
   }
 
-  if (!workspaceState || workspaceState.segments.length === 0) {
+  if (!enrichedWorkspaceState || enrichedWorkspaceState.segments.length === 0) {
     return (
       <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
         <TypographyP className="text-sm">
@@ -533,8 +599,13 @@ export function ProjectFileCatWorkspace({
 
       <CatWorkspaceContainer
         key={`${sourcePath}:${targetLocale}:${repositoryFullName ?? "default"}:${debouncedSearch}:${queueFilter}:${pagination?.offset ?? 0}`}
-        initialState={workspaceState}
+        initialState={enrichedWorkspaceState}
         className={cn("min-h-0 flex-1", isFullscreen && "rounded-lg border border-border")}
+        navigation={{
+          onSelectSegment: (segmentId) => {
+            setActiveSegmentId(segmentId);
+          },
+        }}
         services={{
           validateFormat,
           lookupSegmentConcordance,
