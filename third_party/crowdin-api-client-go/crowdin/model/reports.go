@@ -79,6 +79,7 @@ const (
 	ReportGroupTranslationActivity         ReportName = "group-translation-activity"
 
 	ReportGroupTranslationCosts           ReportName = "group-translation-costs"
+	ReportGroupCostsEstimation            ReportName = "group-costs-estimation"
 	ReportGroupCostsEstimationPostEditing ReportName = "group-costs-estimation-pe"
 	ReportGroupTranslationCostsTM         ReportName = "group-translation-costs-tm"
 	ReportGroupCostsEstimationTM          ReportName = "group-costs-estimation-tm"
