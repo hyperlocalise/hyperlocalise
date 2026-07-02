@@ -25,6 +25,7 @@ export function providerSourceFileToProjectFileRecord(
   file: ProviderSourceFile,
   providerKind: string,
   externalProjectId: string,
+  targetLocales: readonly string[] = [],
 ): ProjectFileRecord | null {
   if (!file.sourcePath) {
     return null;
@@ -49,7 +50,7 @@ export function providerSourceFileToProjectFileRecord(
       externalUrl: file.externalUrl,
       syncState: "synced",
       sourceLocale: null,
-      targetLocales: [],
+      targetLocales: [...targetLocales],
       localeReadiness: {},
       revision: null,
       format: null,

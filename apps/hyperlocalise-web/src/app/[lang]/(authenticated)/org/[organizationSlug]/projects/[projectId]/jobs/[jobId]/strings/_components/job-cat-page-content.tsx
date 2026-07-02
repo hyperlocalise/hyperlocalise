@@ -26,7 +26,7 @@ import {
   writeCatFileRepositoryPreference,
 } from "./job-cat-repository-preference";
 import { selectJobCatTargetLocale } from "./job-cat-target-locale";
-import { loadJobCatProviderFiles, loadJobCatTargetFile } from "./load-job-cat-files";
+import { loadJobCatProviderJobFiles, loadJobCatTargetFile } from "./load-job-cat-files";
 import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
 import { ProjectFileCatWorkspace } from "@/components/cat/project-file-cat-workspace";
 
@@ -53,8 +53,12 @@ function projectJobCatTargetFileQueryKey(
   ] as const;
 }
 
-function projectJobCatProviderFilesQueryKey(organizationSlug: string, projectId: string) {
-  return ["project-job-cat-provider-files", organizationSlug, projectId] as const;
+function projectJobCatProviderFilesQueryKey(
+  organizationSlug: string,
+  projectId: string,
+  jobId: string,
+) {
+  return ["project-job-cat-provider-files", organizationSlug, projectId, jobId] as const;
 }
 
 function githubInstallationRepositoriesQueryKey(organizationSlug: string) {
@@ -128,9 +132,9 @@ export function JobCatPageContent({
   });
 
   const providerFilesQuery = useQuery({
-    queryKey: projectJobCatProviderFilesQueryKey(organizationSlug, projectId),
+    queryKey: projectJobCatProviderFilesQueryKey(organizationSlug, projectId, jobId),
     enabled: hasFileReference && !isNativeJob,
-    queryFn: () => loadJobCatProviderFiles({ organizationSlug, projectId }),
+    queryFn: () => loadJobCatProviderJobFiles({ organizationSlug, projectId, jobId, targetLocale }),
   });
 
   const repositoriesQuery = useQuery({
