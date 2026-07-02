@@ -1,0 +1,34 @@
+{
+  "name": "figma-plugin",
+  "private": true,
+  "description": "Figma text translation plugin template (placeholder)",
+  "license": "SEE LICENSE IN LICENSE",
+  "scripts": {
+    "build": "vp build && vp build --config vite.code.config.ts",
+    "build:ui": "vp build",
+    "build:code": "vp build --config vite.code.config.ts",
+    "dev": "concurrently -n ui,code \"vp build --watch\" \"vp build --config vite.code.config.ts --watch\""
+  },
+  "dependencies": {
+    "react": "^19.2.3",
+    "react-dom": "^19.2.3"
+  },
+  "devDependencies": {
+    "@figma/plugin-typings": "^1.123.0",
+    "@testing-library/react": "16.3.2",
+    "@types/node": "24.13.2",
+    "@types/react": "19.2.17",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "^5.1.4",
+    "concurrently": "^9.2.1",
+    "jsdom": "^29.1.1",
+    "tsx": "4.22.4",
+    "typescript": "5.9.3",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vite-plus": "0.1.24"
+  },
+  "engines": {
+    "node": "^22 || ^24"
+  },
+  "packageManager": "pnpm@11.6.0"
+}
