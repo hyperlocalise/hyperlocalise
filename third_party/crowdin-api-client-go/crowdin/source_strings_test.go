@@ -524,14 +524,6 @@ func TestSourceStringsService_AddWithValidationErrors(t *testing.T) {
 			},
 			"text cannot be empty",
 		},
-		{
-			"empty fileID, branchID and directoryID",
-			&model.SourceStringsAddRequest{
-				Text:       "Not all videos are shown to users.",
-				Identifier: "name",
-			},
-			"fileId, branchId or directoryId is required",
-		},
 	}
 
 	for _, tt := range cases {
@@ -808,8 +800,9 @@ func TestSourceStringsService_GetUploadStatus(t *testing.T) {
 				ImportTranslations      bool           `json:"importTranslations"`
 				Scheme                  map[string]int `json:"scheme"`
 			} `json:"importOptions"`
-			UpdateStrings bool `json:"updateStrings"`
-			CleanupMode   bool `json:"cleanupMode"`
+			UpdateStrings bool   `json:"updateStrings"`
+			UpdateOption  string `json:"updateOption"`
+			CleanupMode   bool   `json:"cleanupMode"`
 		}{
 			BranchID:      38,
 			StorageID:     38,
@@ -932,8 +925,9 @@ func TestSourceStringsService_Upload(t *testing.T) {
 				ImportTranslations      bool           `json:"importTranslations"`
 				Scheme                  map[string]int `json:"scheme"`
 			} `json:"importOptions"`
-			UpdateStrings bool `json:"updateStrings"`
-			CleanupMode   bool `json:"cleanupMode"`
+			UpdateStrings bool   `json:"updateStrings"`
+			UpdateOption  string `json:"updateOption"`
+			CleanupMode   bool   `json:"cleanupMode"`
 		}{
 			BranchID:      38,
 			StorageID:     38,
@@ -997,7 +991,6 @@ func TestSourceStringsService_UploadWithValidationError(t *testing.T) {
 	}{
 		{"nil request", nil, "request cannot be nil"},
 		{"empty storageId", &model.SourceStringsUploadRequest{BranchID: 34}, "storageId is required"},
-		{"empty branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61}, "branchId or directoryId is required"},
 		{"both branchId and directoryId", &model.SourceStringsUploadRequest{StorageID: 61, BranchID: 34, DirectoryID: 12}, "only one of branchId or directoryId may be set"},
 		{"misconfigured updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: ToPtr(false), UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},
 		{"nil updateStrings for non-empty updateOption", &model.SourceStringsUploadRequest{BranchID: 34, StorageID: 61, UpdateStrings: nil, UpdateOption: "clear_translations_and_approvals"}, "updateStrings must be set to true to use updateOption"},

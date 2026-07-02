@@ -218,9 +218,6 @@ func (r *SourceStringsAddRequest) Validate() error {
 		return errors.New("text must be a string or map of strings")
 	}
 
-	if r.FileID == 0 && r.BranchID == 0 && r.DirectoryID == 0 {
-		return errors.New("fileId, branchId or directoryId is required")
-	}
 	if (r.FileID != 0 && r.BranchID != 0) || (r.FileID != 0 && r.DirectoryID != 0) || (r.BranchID != 0 && r.DirectoryID != 0) {
 		return errors.New("only one of fileId, branchId or directoryId may be set")
 	}
@@ -245,8 +242,9 @@ type SourceStringsUpload struct {
 			ImportTranslations      bool           `json:"importTranslations"`
 			Scheme                  map[string]int `json:"scheme"`
 		} `json:"importOptions"`
-		UpdateStrings bool `json:"updateStrings"`
-		CleanupMode   bool `json:"cleanupMode"`
+		UpdateStrings bool   `json:"updateStrings"`
+		UpdateOption  string `json:"updateOption"`
+		CleanupMode   bool   `json:"cleanupMode"`
 	} `json:"attributes"`
 	CreatedAt  string `json:"createdAt"`
 	UpdatedAt  string `json:"updatedAt"`
@@ -321,9 +319,6 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	}
 	if o.StorageID == 0 {
 		return errors.New("storageId is required")
-	}
-	if o.BranchID == 0 && o.DirectoryID == 0 {
-		return errors.New("branchId or directoryId is required")
 	}
 	if o.BranchID != 0 && o.DirectoryID != 0 {
 		return errors.New("only one of branchId or directoryId may be set")

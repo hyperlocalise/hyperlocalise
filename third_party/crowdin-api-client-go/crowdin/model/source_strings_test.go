@@ -143,11 +143,6 @@ func TestSourceStringsAddRequestValidate(t *testing.T) {
 			err:  "text cannot be empty",
 		},
 		{
-			name: "missing identifiers",
-			req:  &SourceStringsAddRequest{Text: "Not all videos are shown to users.", Identifier: "name"},
-			err:  "fileId, branchId or directoryId is required",
-		},
-		{
 			name:  "valid request with fileId",
 			req:   &SourceStringsAddRequest{Text: "Not all videos are shown to users.", Identifier: "name", FileID: 1},
 			valid: true,
@@ -165,6 +160,11 @@ func TestSourceStringsAddRequestValidate(t *testing.T) {
 		{
 			name:  "valid request with MasterStringID",
 			req:   &SourceStringsAddRequest{Text: "Duplicate text", FileID: 1, MasterStringID: toPtr(123)},
+			valid: true,
+		},
+		{
+			name:  "valid request without identifiers for string-based projects",
+			req:   &SourceStringsAddRequest{Text: "String text", Identifier: "name"},
 			valid: true,
 		},
 		{
@@ -224,11 +224,6 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 			err:  "storageId is required",
 		},
 		{
-			name: "missing identifiers",
-			req:  &SourceStringsUploadRequest{StorageID: 1},
-			err:  "branchId or directoryId is required",
-		},
-		{
 			name: "invalid request",
 			req: &SourceStringsUploadRequest{
 				StorageID: 1, BranchID: 1, Type: "xlsx", ParserVersion: 1,
@@ -279,6 +274,11 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 					ImportTranslations:      toPtr(true), Scheme: map[string]int{"key": 0},
 				}, UpdateOption: "clear_translations_and_approvals",
 			},
+			valid: true,
+		},
+		{
+			name:  "valid request without identifiers for string-based projects",
+			req:   &SourceStringsUploadRequest{StorageID: 1},
 			valid: true,
 		},
 	}

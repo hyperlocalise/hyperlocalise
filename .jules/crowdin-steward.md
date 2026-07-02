@@ -209,3 +209,9 @@
 **Learning:** The Crowdin Tasks API v2 supports filtering by `creatorId` when listing project tasks and by `projectId` when listing user tasks. These parameters were missing from the SDK's `TasksListOptions` and `UserTasksListOptions` respectively.
 
 **Action:** Added `CreatorID` to `TasksListOptions` and `ProjectID` to `UserTasksListOptions` in `model/tasks.go`. Updated their `Values()` methods to correctly encode these parameters in query strings. Verified with updated unit tests in `tasks_test.go`.
+
+## 2026-11-07 - Improve Source Strings parity for string-based projects and updateOption
+
+**Learning:** The Crowdin Source Strings API v2 allows adding and uploading strings without specifying file, branch, or directory identifiers for string-based projects. The SDK was incorrectly enforcing these as mandatory. Additionally, the string upload status response includes an `updateOption` field which was missing from the SDK.
+
+**Action:** Removed client-side validation in `SourceStringsAddRequest.Validate()` and `SourceStringsUploadRequest.Validate()` that mandated at least one container identifier. Added the `UpdateOption` field to the `SourceStringsUpload` attributes struct in `model/source_strings.go`. Verified with updated unit tests and ensured all existing tests pass after formatting.
