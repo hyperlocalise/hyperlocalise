@@ -145,6 +145,22 @@ export async function resolveSlackRepositoryGitHubContext(input: {
       ? referencedRepository.repository
       : (configuredRepository ?? getSingleInstalledRepository(installedRepositories));
   if (!fallback) {
+    if (installedRepositories.length === 0) {
+      return unresolved(
+        "No GitHub repositories are enabled for this workspace.",
+        "Enable a repository in Agent → GitHub.",
+        "No GitHub repositories are enabled for this workspace. Open Agent → GitHub and enable at least one repository, then ask again.",
+      );
+    }
+
+    if (installedRepositories.length > 1) {
+      return unresolved(
+        "Multiple GitHub repositories are enabled and the request did not identify which one to use.",
+        "Reply with owner/repository, a GitHub URL, or the repository name from the list.",
+        buildMultipleRepositorySelectionFollowUp(installedRepositories),
+      );
+    }
+
     return unresolved(
       "No GitHub repository context was configured for this Slack request.",
       "Provide a GitHub pull request URL, repo name, or configure a project/channel repository fallback.",
@@ -442,14 +458,13 @@ function resolveSlackReferencedRepository(input: {
     };
   }
 
-  const matches = input.installedRepositories.filter((repository) =>
-    slackTextContainsRepositoryName(input.text, repository.repositoryFullName),
-  );
-  const uniqueMatches = uniqueRepositories(matches);
+  const matches = findRepositoriesReferencedInText(input.text, input.installedRepositories);
 
-  if (uniqueMatches.length === 0) {
+  if (matches.length === 0) {
     return { status: "not_found" };
   }
+
+  const uniqueMatches = uniqueRepositories(matches);
 
   if (uniqueMatches.length > 1) {
     return {
@@ -457,7 +472,7 @@ function resolveSlackReferencedRepository(input: {
       resolution: unresolved(
         "The Slack request matched multiple installed GitHub repositories.",
         "Please include owner/repository or a pull request URL.",
-        "I found multiple installed repositories matching that name. Please include owner/repository or send the PR URL so I know which repo to use.",
+        buildAmbiguousRepositoryMatchFollowUp(uniqueMatches),
       ),
     };
   }
@@ -498,16 +513,51 @@ function uniqueRepositories(repositories: EnabledGitHubRepository[]) {
   return [...unique.values()];
 }
 
-function slackTextContainsRepositoryName(text: string, repositoryFullName: string) {
-  const repositoryName = repositoryFullName.split("/")[1];
-  if (!repositoryName) {
+export function formatEnabledRepositoryList(repositories: EnabledGitHubRepository[]): string {
+  return uniqueRepositories(repositories)
+    .map((repository) => `\`${repository.repositoryFullName}\``)
+    .join(", ");
+}
+
+export function buildMultipleRepositorySelectionFollowUp(
+  repositories: EnabledGitHubRepository[],
+): string {
+  const repositoryList = formatEnabledRepositoryList(repositories);
+  return `Multiple GitHub repositories are enabled for this workspace: ${repositoryList}. Which repository should I use? Reply with owner/repository or the repository name.`;
+}
+
+function buildAmbiguousRepositoryMatchFollowUp(repositories: EnabledGitHubRepository[]): string {
+  const repositoryList = formatEnabledRepositoryList(repositories);
+  return `That message matches more than one enabled repository: ${repositoryList}. Please include owner/repository or send the PR URL so I know which repo to use.`;
+}
+
+function findRepositoriesReferencedInText(
+  text: string,
+  installedRepositories: EnabledGitHubRepository[],
+): EnabledGitHubRepository[] {
+  const byRepositoryName = installedRepositories.filter((repository) =>
+    slackTextContainsToken(text, repository.repositoryFullName.split("/")[1] ?? ""),
+  );
+  if (byRepositoryName.length > 0) {
+    return byRepositoryName;
+  }
+
+  const byOwnerName = installedRepositories.filter((repository) =>
+    slackTextContainsToken(text, repository.repositoryFullName.split("/")[0] ?? ""),
+  );
+  if (byOwnerName.length > 0) {
+    return byOwnerName;
+  }
+
+  return [];
+}
+
+function slackTextContainsToken(text: string, token: string) {
+  if (!token) {
     return false;
   }
 
-  return new RegExp(
-    `(^|[^A-Za-z0-9_.-])${escapeRegExp(repositoryName)}($|[^A-Za-z0-9_.-])`,
-    "i",
-  ).test(text);
+  return new RegExp(`(^|[^A-Za-z0-9_.-])${escapeRegExp(token)}($|[^A-Za-z0-9_.-])`, "i").test(text);
 }
 
 function repositoryFullNameFromConfigValue(value: unknown): string | null {

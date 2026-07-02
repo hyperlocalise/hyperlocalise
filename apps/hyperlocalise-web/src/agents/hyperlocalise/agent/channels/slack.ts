@@ -472,7 +472,11 @@ async function processSlackMessage(
               githubContextResolution.followUp,
             );
 
-            if (shouldRequireRepositoryContextClarification(classification)) {
+            if (
+              shouldRequireRepositoryContextClarification(classification, {
+                repositoryContextStatus: githubContextResolution.status,
+              })
+            ) {
               await removeEyesReaction(thread, message);
               wrapThreadPost(thread, interactionId);
               await thread.post({ markdown: githubContextResolution.followUp });
