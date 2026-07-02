@@ -84,7 +84,7 @@ describe("getTmsProviderLiveCatFile", () => {
     await fixture.cleanup();
   });
 
-  it("aggregates Crowdin strings, target translations, approvals, and unresolved comments", async () => {
+  it("aggregates Crowdin strings, target translations, approvals, and unresolved issue flags", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
@@ -172,6 +172,34 @@ describe("getTmsProviderLiveCatFile", () => {
                   labelIds: null,
                 },
               },
+              {
+                data: {
+                  id: 1002,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "hero.cta",
+                  text: { one: "Start", other: "Start all" },
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/projects/42/strings?") &&
+        path.includes("croql=") &&
+        path.includes("has+unresolved+issue")
+      ) {
+        return new Response(
+          JSON.stringify({
+            data: [
               {
                 data: {
                   id: 1002,
@@ -303,22 +331,22 @@ describe("getTmsProviderLiveCatFile", () => {
       key: "hero.title",
       sourceText: "Hello",
       target: { text: "Bonjour", externalTranslationId: "9001", isApproved: true },
-      comments: [{ externalCommentId: "501", type: "comment" }],
+      comments: [],
     });
     expect(catFile?.segments[1]).toMatchObject({
       externalStringId: "1002",
       sourceText: JSON.stringify({ one: "Start", other: "Start all" }),
       target: null,
-      comments: [{ externalCommentId: "502", type: "issue", status: "unresolved" }],
+      comments: [],
+      unresolvedIssueCount: 1,
     });
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
     expect(
       requestedPaths.some(
         (path) =>
-          path.includes("/projects/42/comments?") &&
-          path.includes("stringId=1001") &&
-          path.includes("type=comment") &&
-          !path.includes("languageId="),
+          path.includes("/projects/42/strings?") &&
+          path.includes("croql=") &&
+          path.includes("has+unresolved+issue"),
       ),
     ).toBe(true);
     expect(
@@ -333,12 +361,10 @@ describe("getTmsProviderLiveCatFile", () => {
       requestedPaths.some(
         (path) =>
           path.includes("/projects/42/comments?") &&
-          path.includes("stringId=1002") &&
-          path.includes("type=issue") &&
-          !path.includes("languageId=") &&
-          path.includes("issueStatus=unresolved"),
+          path.includes("stringId=1001") &&
+          path.includes("type=comment"),
       ),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("prefers approved Crowdin translations over newer unapproved suggestions", async () => {
@@ -1005,21 +1031,25 @@ describe("getTmsProviderLiveCatFile", () => {
     // buildCrowdinLiveCatFile currently issues parallel count + page requests; croql/fileId
     // assertions above guard the regression regardless of how many calls are made.
     expect(stringsRequests.length).toBeGreaterThanOrEqual(1);
-    expect(queueSummaryCroqls.sort()).toEqual(
-      [
-        buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "reviewed" }),
-        buildCrowdinFileQueueCroql({
-          fileId: 101,
-          targetLocale: "fr",
-          queueFilter: "untranslated",
-        }),
-        buildCrowdinFileQueueCroql({
-          fileId: 101,
-          targetLocale: "fr",
-          queueFilter: "needs_review",
-        }),
-        buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "has_issues" }),
-      ].sort(),
-    );
+    const expectedQueueSummaryCroqls = [
+      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "reviewed" }),
+      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "untranslated" }),
+      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "needs_review" }),
+      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "has_issues" }),
+    ];
+    for (const croql of expectedQueueSummaryCroqls) {
+      expect(queueSummaryCroqls).toContain(croql);
+    }
+    expect(
+      queueSummaryCroqls.filter(
+        (croql) =>
+          croql ===
+          buildCrowdinFileQueueCroql({
+            fileId: 101,
+            targetLocale: "fr",
+            queueFilter: "has_issues",
+          }),
+      ).length,
+    ).toBeGreaterThanOrEqual(2);
   });
 });

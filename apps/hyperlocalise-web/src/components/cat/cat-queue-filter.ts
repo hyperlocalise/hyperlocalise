@@ -61,6 +61,10 @@ export function isOpenIssueStatus(status: string | null | undefined) {
 }
 
 export function segmentHasOpenIssues(segment: CatSegment) {
+  if (segment.hasOpenIssues) {
+    return true;
+  }
+
   return (
     segment.comments?.some(
       (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
