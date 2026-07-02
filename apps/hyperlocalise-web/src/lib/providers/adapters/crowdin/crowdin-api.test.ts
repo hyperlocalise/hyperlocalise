@@ -1084,4 +1084,38 @@ describe("CrowdinApiClient", () => {
       "Crowdin API request",
     );
   });
+
+  it("uses globalThis.fetch when fetchFn is omitted", async () => {
+    const fetchMock = vi.fn(async () => {
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1,
+            username: "tester",
+            email: "tester@example.com",
+            fullName: "Tester",
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = fetchMock;
+
+    try {
+      const client = new CrowdinApiClient({
+        token: "test-token",
+        baseUrl: "https://api.crowdin.test/api/v2",
+      });
+      await client.getAuthenticatedUser();
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.crowdin.test/api/v2/user",
+      expect.objectContaining({ method: "GET", redirect: "error" }),
+    );
+  });
 });

@@ -12,6 +12,10 @@ import { normalizeProviderDownloadUrl } from "@/lib/providers/provider-url-safet
 
 const logger = createLogger("crowdin-api");
 
+function defaultCrowdinFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  return globalThis.fetch(input, init);
+}
+
 export interface CrowdinApiClientOptions {
   token: string;
   baseUrl?: string;
@@ -435,7 +439,7 @@ export class CrowdinApiClient {
   constructor(options: CrowdinApiClientOptions) {
     this.token = options.token;
     this.baseUrl = resolveCrowdinApiBaseUrl(options.baseUrl);
-    this.fetchFn = options.fetchFn ?? fetch;
+    this.fetchFn = options.fetchFn ?? defaultCrowdinFetch;
   }
 
   /**
