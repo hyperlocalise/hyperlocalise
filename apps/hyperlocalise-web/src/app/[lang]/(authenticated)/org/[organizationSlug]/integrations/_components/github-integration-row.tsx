@@ -386,6 +386,7 @@ export function GitHubIntegrationRow({
       onExpandedChange={setExpanded}
       onConnect={() => void handleConnect()}
       isConnecting={isCreatingInstallUrl}
+      isLoading={isLoading}
       isLast={isLast}
     >
       {isLoading ? (

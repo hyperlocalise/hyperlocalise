@@ -155,6 +155,7 @@ export function SlackIntegrationRow({
       onExpandedChange={setExpanded}
       onConnect={() => void handleConnect()}
       isConnecting={isCreatingInstallUrl}
+      isLoading={isLoading}
       isLast={isLast}
     >
       {isLoading ? (

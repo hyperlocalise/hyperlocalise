@@ -5,6 +5,7 @@ import { ArrowUpRightIcon, ChevronDownIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
 export type IntegrationRowAction = "connect" | "manage" | "coming-soon" | "view-only";
@@ -19,6 +20,7 @@ type IntegrationRowProps = {
   onExpandedChange?: (expanded: boolean) => void;
   onConnect?: () => void;
   isConnecting?: boolean;
+  isLoading?: boolean;
   isLast?: boolean;
   children?: ReactNode;
 };
@@ -65,6 +67,7 @@ export function IntegrationRow({
   onExpandedChange,
   onConnect,
   isConnecting = false,
+  isLoading = false,
   isLast = false,
   children,
 }: IntegrationRowProps) {
@@ -102,7 +105,9 @@ export function IntegrationRow({
         </div>
 
         <div className="shrink-0">
-          {action === "coming-soon" ? (
+          {isLoading && (action === "connect" || action === "manage") ? (
+            <Skeleton className="h-8 w-[5.75rem] rounded-md" aria-hidden />
+          ) : action === "coming-soon" ? (
             <Button type="button" variant="outline" size="sm" disabled>
               Coming soon
             </Button>
