@@ -218,7 +218,7 @@ export function ProjectFileCatWorkspace({
   const postComment = commentMutation.mutateAsync;
 
   const resolveCommentMutation = useMutation({
-    mutationFn: async (input: { externalCommentId: string }) => {
+    mutationFn: async (input: { externalStringId: string; externalCommentId: string }) => {
       const externalResourceId = catQuery.data?.provider
         ? requireProviderExternalResourceId(catQuery.data)
         : undefined;
@@ -244,18 +244,16 @@ export function ProjectFileCatWorkspace({
       const body = (await response.json()) as { comment: ProjectFileCatComment };
       return body.comment;
     },
-    onSuccess: async () => {
+    onSuccess: async (_data, variables) => {
       await invalidateCurrentPage();
-      if (activeSegmentId) {
-        await invalidateSegmentDetail({
-          organizationSlug,
-          projectId,
-          sourcePath,
-          targetLocale,
-          externalStringId: activeSegmentId,
-          repositoryFullName,
-        });
-      }
+      await invalidateSegmentDetail({
+        organizationSlug,
+        projectId,
+        sourcePath,
+        targetLocale,
+        externalStringId: variables.externalStringId,
+        repositoryFullName,
+      });
     },
   });
   const resolveComment = resolveCommentMutation.mutateAsync;
@@ -368,12 +366,12 @@ export function ProjectFileCatWorkspace({
   );
 
   const handleResolveComment = useCallback(
-    async (_segmentId: string, commentId: string) => {
+    async (segmentId: string, commentId: string) => {
       if (!catQuery.data?.canEditTranslations) {
         throw new Error("Your role cannot resolve issues in the provider.");
       }
 
-      await resolveComment({ externalCommentId: commentId });
+      await resolveComment({ externalStringId: segmentId, externalCommentId: commentId });
     },
     [catQuery.data?.canEditTranslations, resolveComment],
   );
