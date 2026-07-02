@@ -16,26 +16,33 @@ export function activeTmsProviderQueryKey(organizationSlug: string) {
   return ["tms-provider-connection", organizationSlug] as const;
 }
 
-export function useActiveTmsProvider(organizationSlug: string) {
+export async function fetchActiveTmsProviderConnection(
+  organizationSlug: string,
+): Promise<ActiveTmsProviderConnection | null> {
+  const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].connection.$get({
+    param: { organizationSlug },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error(`Failed to load TMS connection (${response.status})`);
+  }
+
+  const body = (await response.json()) as { connection: ActiveTmsProviderConnection };
+  return body.connection;
+}
+
+export function useActiveTmsProvider(
+  organizationSlug: string,
+  options?: { initialData?: ActiveTmsProviderConnection | null },
+) {
   return useQuery({
     queryKey: activeTmsProviderQueryKey(organizationSlug),
-    queryFn: async (): Promise<ActiveTmsProviderConnection | null> => {
-      const response = await apiClient.api.orgs[":organizationSlug"][
-        "tms-provider"
-      ].connection.$get({
-        param: { organizationSlug },
-      });
-
-      if (response.status === 404) {
-        return null;
-      }
-
-      if (!response.ok) {
-        throw new Error(`Failed to load TMS connection (${response.status})`);
-      }
-
-      const body = (await response.json()) as { connection: ActiveTmsProviderConnection };
-      return body.connection;
-    },
+    queryFn: () => fetchActiveTmsProviderConnection(organizationSlug),
+    initialData: options?.initialData,
+    staleTime: options?.initialData !== undefined ? 60_000 : undefined,
   });
 }

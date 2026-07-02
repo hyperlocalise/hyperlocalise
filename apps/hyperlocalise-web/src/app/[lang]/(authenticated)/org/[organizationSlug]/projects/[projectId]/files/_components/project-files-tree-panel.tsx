@@ -1,9 +1,10 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
+import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { TypographyP } from "@/components/ui/typography";
 import { readApiResponseError } from "@/lib/api-error";
@@ -13,12 +14,21 @@ import { ProjectSectionTitle } from "../../_components/project-page-shell";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import { ProjectFilesTree } from "./project-files-tree";
 
-export function projectFilesQueryKey(organizationSlug: string, projectId: string) {
-  return ["project-files", organizationSlug, projectId] as const;
+export const PROJECT_FILES_PAGE_SIZE = 50;
+export const PROJECT_FILES_MAX_LIMIT = 1_000;
+
+export function projectFilesQueryKey(organizationSlug: string, projectId: string, limit?: number) {
+  return limit === undefined
+    ? (["project-files", organizationSlug, projectId] as const)
+    : (["project-files", organizationSlug, projectId, limit] as const);
 }
 
-export async function fetchProjectFiles(organizationSlug: string, projectId: string) {
-  const response = await fetch(`${apiPath(organizationSlug, projectId)}?limit=500`, {
+export async function fetchProjectFiles(
+  organizationSlug: string,
+  projectId: string,
+  limit: number = PROJECT_FILES_PAGE_SIZE,
+) {
+  const response = await fetch(`${apiPath(organizationSlug, projectId)}?limit=${limit}`, {
     method: "GET",
   });
 
@@ -110,20 +120,47 @@ export function ProjectFilesTreePanel({
   projectId,
   selectedSourcePath,
   onSelectSourcePath,
+  onLoadedFilesChange,
 }: {
   organizationSlug: string;
   projectId: string;
   selectedSourcePath: string | null;
   onSelectSourcePath: (sourcePath: string | null) => void;
+  onLoadedFilesChange?: (files: ProjectFileRecord[]) => void;
 }) {
   const queryClient = useQueryClient();
-  const queryKey = projectFilesQueryKey(organizationSlug, projectId);
+  const [fileLimit, setFileLimit] = useState(PROJECT_FILES_PAGE_SIZE);
+  const queryKey = projectFilesQueryKey(organizationSlug, projectId, fileLimit);
   const filesQuery = useQuery({
     queryKey,
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId),
+    queryFn: () => fetchProjectFiles(organizationSlug, projectId, fileLimit),
   });
 
   const files = useMemo(() => sortFilesByPath(filesQuery.data ?? []), [filesQuery.data]);
+  const hasMoreFiles = files.length >= fileLimit && fileLimit < PROJECT_FILES_MAX_LIMIT;
+
+  useEffect(() => {
+    onLoadedFilesChange?.(files);
+  }, [files, onLoadedFilesChange]);
+
+  useEffect(() => {
+    if (!selectedSourcePath || filesQuery.isLoading || filesQuery.isFetching) {
+      return;
+    }
+
+    const selectedFileLoaded = files.some((file) => file.sourcePath === selectedSourcePath);
+    if (!selectedFileLoaded && hasMoreFiles) {
+      setFileLimit((currentLimit) =>
+        Math.min(currentLimit + PROJECT_FILES_PAGE_SIZE, PROJECT_FILES_MAX_LIMIT),
+      );
+    }
+  }, [files, filesQuery.isFetching, filesQuery.isLoading, hasMoreFiles, selectedSourcePath]);
+
+  const invalidateFiles = () => {
+    void queryClient.invalidateQueries({
+      queryKey: projectFilesQueryKey(organizationSlug, projectId),
+    });
+  };
 
   return (
     <>
@@ -135,7 +172,9 @@ export function ProjectFilesTreePanel({
               ? "Loading…"
               : filesQuery.isError
                 ? "Could not load files"
-                : `${files.length} file${files.length === 1 ? "" : "s"}`}
+                : hasMoreFiles
+                  ? `${files.length}+ files`
+                  : `${files.length} file${files.length === 1 ? "" : "s"}`}
           </TypographyP>
         </div>
         {filesQuery.isFetching && !filesQuery.isLoading ? <Spinner /> : null}
@@ -148,10 +187,8 @@ export function ProjectFilesTreePanel({
           organizationSlug={organizationSlug}
           scope="tree"
           resetKeys={queryKey}
-          onReset={() => {
-            void queryClient.invalidateQueries({ queryKey });
-          }}
-          className="min-h-0 flex-1"
+          onReset={invalidateFiles}
+          className="flex min-h-0 flex-1 flex-col"
         >
           <ProjectFilesTreeQueryResult
             error={filesQuery.isError ? filesQuery.error : null}
@@ -160,6 +197,31 @@ export function ProjectFilesTreePanel({
             selectedSourcePath={selectedSourcePath}
             onSelectSourcePath={onSelectSourcePath}
           />
+          {hasMoreFiles ? (
+            <div className="shrink-0 border-t border-foreground/8 p-2">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="w-full"
+                disabled={filesQuery.isFetching}
+                onClick={() => {
+                  setFileLimit((currentLimit) =>
+                    Math.min(currentLimit + PROJECT_FILES_PAGE_SIZE, PROJECT_FILES_MAX_LIMIT),
+                  );
+                }}
+              >
+                {filesQuery.isFetching ? (
+                  <>
+                    <Spinner />
+                    Loading more…
+                  </>
+                ) : (
+                  "Load more files"
+                )}
+              </Button>
+            </div>
+          ) : null}
         </ProjectFilesErrorBoundary>
       )}
     </>
