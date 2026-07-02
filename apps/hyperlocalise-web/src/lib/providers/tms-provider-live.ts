@@ -976,10 +976,11 @@ async function loadCrowdinStringIdsWithUnresolvedIssues(
   client: CrowdinApiClient,
   projectId: number,
   fileId: number,
+  targetLocale: string,
 ) {
   const croql = buildCrowdinFileQueueCroql({
     fileId,
-    targetLocale: "en",
+    targetLocale,
     queueFilter: "has_issues",
   });
   const stringIds = new Set<number>();
@@ -1129,7 +1130,7 @@ async function buildCrowdinLiveCatFile(input: {
 
     const [queueSummary, unresolvedIssueStringIds] = await Promise.all([
       queueSummaryPromise,
-      loadCrowdinStringIdsWithUnresolvedIssues(client, projectId, fileId),
+      loadCrowdinStringIdsWithUnresolvedIssues(client, projectId, fileId, input.targetLocale),
     ]);
 
     return {

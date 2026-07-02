@@ -77,7 +77,7 @@ export function ProjectFileCatWorkspace({
   className?: string;
 }) {
   const intl = useIntl();
-  const [activeSegmentId, setActiveSegmentId] = useState<string | null>(initialSegmentKey);
+  const [activeSegmentId, setActiveSegmentId] = useState<string | null>(null);
   const invalidateSegmentDetail = useInvalidateCatSegmentDetail();
   const [targetLocaleState, setTargetLocaleState] = useState(
     () => targetLocaleProp ?? initialTargetLocale(targetLocales ?? [], highlightLocale),
