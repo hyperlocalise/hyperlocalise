@@ -4,10 +4,6 @@ import "strings"
 
 // NormalizeList trims, splits on commas, and deduplicates locale or language codes.
 func NormalizeList(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-
 	// BOLT OPTIMIZATION: Heuristically estimate total capacity to reduce re-allocations.
 	capHint := 0
 	for _, v := range values {
