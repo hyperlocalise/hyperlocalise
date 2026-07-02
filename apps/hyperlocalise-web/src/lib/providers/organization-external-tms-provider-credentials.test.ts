@@ -19,8 +19,12 @@ import {
   upsertCrowdinOAuthProviderCredential,
   upsertCrowdinPatProviderCredential,
   upsertLokaliseOAuthProviderCredential,
+  upsertOrganizationExternalTmsProviderCredential,
   upsertPhraseOAuthProviderCredential,
 } from "./organization-external-tms-provider-credentials";
+import {
+  EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
+} from "./adapters/crowdin/crowdin-test-urls";
 import {
   getCrowdinUserConnection,
   upsertCrowdinUserConnection,
@@ -553,6 +557,27 @@ describe("organization external TMS provider credentials", () => {
       await expect(
         resolveExternalTmsSecretMaterial({ credential, fetchFn: fetchMock }),
       ).rejects.toThrow("lokalise_user_connection_required");
+      expect(fetchMock).not.toHaveBeenCalled();
+    });
+
+    it("rejects legacy Crowdin api_token credentials", async () => {
+      const identity = fixture.createWorkosIdentityWithRole("admin");
+      await fixture.authHeadersFor(identity);
+      const authContext = globalThis.__testApiAuthContext!;
+      const credential = await upsertOrganizationExternalTmsProviderCredential({
+        organizationId: authContext.organization.localOrganizationId,
+        userId: authContext.user.localUserId,
+        role: "admin",
+        providerKind: "crowdin",
+        displayName: "Crowdin",
+        secretMaterial: "legacy-shared-token",
+        baseUrl: EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
+      });
+      const fetchMock = vi.fn(async () => new Response("{}", { status: 200 }));
+
+      await expect(
+        resolveExternalTmsSecretMaterial({ credential, fetchFn: fetchMock }),
+      ).rejects.toThrow("crowdin_legacy_api_token_deprecated");
       expect(fetchMock).not.toHaveBeenCalled();
     });
   });

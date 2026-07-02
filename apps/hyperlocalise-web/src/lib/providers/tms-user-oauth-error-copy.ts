@@ -33,6 +33,21 @@ export const tmsUserOAuthErrorCopyByCode = {
     description:
       "That Crowdin user is already linked to another Hyperlocalise user in this workspace.",
   },
+  crowdin_legacy_api_token_mode: {
+    title: "Crowdin integration needs updating",
+    description:
+      "This workspace still uses legacy shared API token mode. Re-save Crowdin in Integrations using Personal access token mode, then connect again.",
+  },
+  crowdin_oauth_mode_active: {
+    title: "Crowdin OAuth is enabled",
+    description:
+      "This workspace uses Crowdin OAuth. Use Connect Crowdin to authorize with OAuth instead of pasting a personal access token.",
+  },
+  crowdin_pat_base_url_required: {
+    title: "Crowdin Enterprise base URL required",
+    description:
+      "Set your Crowdin Enterprise API base URL in Integrations (for example https://yourorg.api.crowdin.com/api/v2), then connect again with your personal access token.",
+  },
   missing_crowdin_user_oauth_code: {
     title: "Crowdin account link was cancelled",
     description: "Crowdin did not return an authorization code. Start the connection again.",

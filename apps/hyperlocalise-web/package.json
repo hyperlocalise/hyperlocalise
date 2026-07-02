@@ -12,7 +12,8 @@
     "dev": "next dev",
     "start": "next start",
     "storybook": "storybook dev -p 6006",
-    "workos:setup": "bun --env-file=.env src/lib/workos/run-workos-setup.ts"
+    "workos:setup": "bun --env-file=.env src/lib/workos/run-workos-setup.ts",
+    "crowdin:pat-test": "bun --env-file=.env src/lib/providers/adapters/crowdin/run-crowdin-pat-test.ts"
   },
   "dependencies": {
     "@ai-sdk/anthropic": "3.0.84",
