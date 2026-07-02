@@ -11,7 +11,7 @@ import { workosAuthMiddleware } from "@/api/auth/workos";
 import { resolveApiAuthContextFromSession } from "@/api/auth/workos-session";
 import {
   postStreamingAgentReply,
-  postWebAttachmentRequiredReply,
+  postWebClarificationReply,
   runWebChatAgentTurn,
 } from "@/agents/hyperlocalise/agent/channels/web";
 import { db } from "@/lib/database";
@@ -84,12 +84,8 @@ export function createChatStreamRoutes() {
 
         const hasTranslationAttachments =
           await interactionHasTranslationAttachments(conversationId);
-        if (!hasTranslationAttachments) {
-          await postWebAttachmentRequiredReply(thread, conversationId);
-          return;
-        }
 
-        const { textStream } = await runWebChatAgentTurn({
+        const turn = await runWebChatAgentTurn({
           conversationId,
           messageText: message.text,
           toolContext: {
@@ -103,7 +99,16 @@ export function createChatStreamRoutes() {
           hasTranslationAttachments,
         });
 
-        const text = await postStreamingAgentReply(thread, textStream);
+        if (turn.clarificationFollowUp) {
+          await postWebClarificationReply(thread, conversationId, turn.clarificationFollowUp);
+          return;
+        }
+
+        if (!turn.textStream) {
+          return;
+        }
+
+        const text = await postStreamingAgentReply(thread, turn.textStream);
 
         try {
           await addInteractionMessage({

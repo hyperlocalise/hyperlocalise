@@ -1,15 +1,17 @@
 import type { Thread } from "chat";
 
-import {
-  buildTranslationAttachmentRequiredMessage,
-  classifyConversation,
-  createConversationToolLoopAgent,
-  getRecentUserConversationText,
-  loadInteractionModelMessages,
-} from "@/lib/agent-runtime/loops/hyperlocalise-agent";
-import { resolveOrganizationHasTmsIntegration } from "@/lib/agent-runtime/skills/conversation-tms-integration";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
+import {
+  acquireWebRepositorySandboxLease,
+  getWebConversationRepositorySession,
+  setWebConversationRepositorySession,
+} from "@/lib/agent-runtime/loops/conversation-repository-session";
+import {
+  prepareConversationAgentTurn,
+  type PrepareConversationAgentTurnInput,
+  type PrepareConversationAgentTurnResult,
+} from "@/lib/agent-runtime/loops/conversation-turn";
 
 export async function postStreamingAgentReply(
   thread: Thread<Record<string, unknown>>,
@@ -29,46 +31,105 @@ export async function postStreamingAgentReply(
   return text;
 }
 
+async function* streamWithSandboxLeaseRelease(
+  stream: AsyncIterable<string>,
+  releaseLease: () => void,
+) {
+  try {
+    for await (const chunk of stream) {
+      yield chunk;
+    }
+  } finally {
+    releaseLease();
+  }
+}
+
+async function prepareAndCommitWebConversationTurn(
+  conversationId: string,
+  prepareInput: Omit<PrepareConversationAgentTurnInput, "repositorySession">,
+): Promise<PrepareConversationAgentTurnResult> {
+  let repositorySessionState = getWebConversationRepositorySession(conversationId);
+
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const prepared = await prepareConversationAgentTurn({
+      ...prepareInput,
+      repositorySession: repositorySessionState?.session ?? null,
+    });
+
+    if (!prepared.updatedRepositorySession) {
+      return prepared;
+    }
+
+    const committed = setWebConversationRepositorySession(conversationId, {
+      baseVersion: repositorySessionState?.version ?? null,
+      session: prepared.updatedRepositorySession,
+    });
+
+    if (committed) {
+      return prepared;
+    }
+
+    repositorySessionState = getWebConversationRepositorySession(conversationId);
+  }
+
+  return prepareConversationAgentTurn({
+    ...prepareInput,
+    repositorySession: getWebConversationRepositorySession(conversationId)?.session ?? null,
+    reuseCommittedRepositorySandboxOnly: true,
+  });
+}
+
 export async function runWebChatAgentTurn(input: {
   conversationId: string;
   messageText: string;
   toolContext: ToolContext;
   hasTranslationAttachments: boolean;
-  hasStoredRepositoryContext?: boolean;
 }) {
-  const chatMessages = await loadInteractionModelMessages(input.conversationId);
-  const conversationText = getRecentUserConversationText(chatMessages, input.messageText);
-  const classification = await classifyConversation({
-    currentMessage: input.messageText,
-    conversationText,
-    hasFileAttachments: input.hasTranslationAttachments,
-    hasStoredRepositoryContext: input.hasStoredRepositoryContext ?? false,
+  const prepared = await prepareAndCommitWebConversationTurn(input.conversationId, {
     surface: "web",
+    conversationId: input.conversationId,
+    organizationId: input.toolContext.organizationId,
+    localUserId: input.toolContext.localUserId,
+    membershipRole: input.toolContext.membershipRole,
+    projectId: input.toolContext.projectId,
+    messageText: input.messageText,
+    hasTranslationAttachments: input.hasTranslationAttachments,
+    repositorySource: "chat_ui",
+    db: input.toolContext.db,
   });
 
-  const hasTmsIntegration = await resolveOrganizationHasTmsIntegration(
-    input.toolContext.organizationId,
-  );
+  if (prepared.clarificationFollowUp) {
+    return {
+      classification: prepared.classification,
+      clarificationFollowUp: prepared.clarificationFollowUp,
+      textStream: null,
+    };
+  }
 
-  const agent = createConversationToolLoopAgent({
-    surface: "web",
-    toolContext: input.toolContext,
-    hasFileAttachments: input.hasTranslationAttachments,
-    hasTmsIntegration,
-  });
+  const releaseSandboxLease = prepared.repositorySandboxId
+    ? acquireWebRepositorySandboxLease(prepared.repositorySandboxId)
+    : null;
 
-  const result = await agent.stream({ messages: chatMessages });
-  return {
-    classification,
-    textStream: result.textStream,
-  };
+  try {
+    const result = await prepared.agent.stream({ messages: prepared.chatMessages });
+    return {
+      classification: prepared.classification,
+      clarificationFollowUp: null,
+      textStream: releaseSandboxLease
+        ? streamWithSandboxLeaseRelease(result.textStream, releaseSandboxLease)
+        : result.textStream,
+    };
+  } catch (error) {
+    releaseSandboxLease?.();
+    throw error;
+  }
 }
 
-export async function postWebAttachmentRequiredReply(
+export async function postWebClarificationReply(
   thread: Thread<Record<string, unknown>>,
   conversationId: string,
+  text: string,
 ) {
-  const text = buildTranslationAttachmentRequiredMessage("web");
   await thread.post(text);
   await addInteractionMessage({
     interactionId: conversationId,
