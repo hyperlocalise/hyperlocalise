@@ -42,10 +42,56 @@ type WebSessionEntry = {
 };
 
 const webRepositorySessions = new Map<string, WebSessionEntry>();
+const webRepositorySandboxLeaseCounts = new Map<string, number>();
+const pendingWebRepositorySandboxStops = new Set<string>();
+
+export function acquireWebRepositorySandboxLease(sandboxId: string): () => void {
+  const nextCount = (webRepositorySandboxLeaseCounts.get(sandboxId) ?? 0) + 1;
+  webRepositorySandboxLeaseCounts.set(sandboxId, nextCount);
+
+  let released = false;
+  return () => {
+    if (released) {
+      return;
+    }
+    released = true;
+    releaseWebRepositorySandboxLease(sandboxId);
+  };
+}
+
+function releaseWebRepositorySandboxLease(sandboxId: string) {
+  const currentCount = webRepositorySandboxLeaseCounts.get(sandboxId) ?? 0;
+  if (currentCount <= 1) {
+    webRepositorySandboxLeaseCounts.delete(sandboxId);
+  } else {
+    webRepositorySandboxLeaseCounts.set(sandboxId, currentCount - 1);
+  }
+
+  if (
+    (webRepositorySandboxLeaseCounts.get(sandboxId) ?? 0) === 0 &&
+    pendingWebRepositorySandboxStops.delete(sandboxId)
+  ) {
+    void stopRepositorySandbox(sandboxId).catch((error: unknown) => {
+      logger.warn(
+        { err: serializeErrorForLog(error), sandboxId },
+        "web repository sandbox cleanup failed during deferred session eviction",
+      );
+    });
+  }
+}
+
+function isWebRepositorySandboxInUse(sandboxId: string) {
+  return (webRepositorySandboxLeaseCounts.get(sandboxId) ?? 0) > 0;
+}
 
 function releaseWebSessionSandbox(session: ConversationRepositorySession) {
   const sandboxId = session.repositorySandboxSession?.sandboxId;
   if (!sandboxId) {
+    return;
+  }
+
+  if (isWebRepositorySandboxInUse(sandboxId)) {
+    pendingWebRepositorySandboxStops.add(sandboxId);
     return;
   }
 

@@ -16,6 +16,7 @@ vi.mock("@/lib/log", () => ({
 }));
 
 import {
+  acquireWebRepositorySandboxLease,
   getWebConversationRepositorySession,
   setWebConversationRepositorySession,
 } from "./conversation-repository-session";
@@ -181,5 +182,67 @@ describe("web conversation repository session", () => {
     expect(
       getWebConversationRepositorySession("conv_race")?.session.repositorySandboxSession,
     ).toMatchObject({ sandboxId: "sbx_winner" });
+  });
+
+  it("defers sandbox cleanup while a web turn holds an active lease", async () => {
+    setSession("conv_active", {
+      baseVersion: null,
+      session: {
+        repositorySandboxSession: {
+          sandboxId: "sbx_active",
+          repositoryContextKey: "ctx_active",
+          createdAt: "2026-07-01T12:00:00.000Z",
+          lastUsedAt: "2026-07-01T12:00:00.000Z",
+        },
+      },
+    });
+
+    const releaseLease = acquireWebRepositorySandboxLease("sbx_active");
+
+    vi.advanceTimersByTime(WEB_SESSION_TTL_MS + 1);
+    expect(getWebConversationRepositorySession("conv_active")).toBeNull();
+    expect(stopRepositorySandboxMock).not.toHaveBeenCalledWith("sbx_active");
+
+    releaseLease();
+    await vi.waitFor(() => {
+      expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sbx_active");
+    });
+  });
+
+  it("defers sandbox cleanup on cache eviction while a lease is active", async () => {
+    for (let index = 0; index < 200; index += 1) {
+      setSession(`conv_${index}`, {
+        baseVersion: null,
+        session: {
+          repositorySandboxSession: {
+            sandboxId: `sbx_${index}`,
+            repositoryContextKey: `ctx_${index}`,
+            createdAt: "2026-07-01T12:00:00.000Z",
+            lastUsedAt: "2026-07-01T12:00:00.000Z",
+          },
+        },
+      });
+    }
+
+    const releaseLease = acquireWebRepositorySandboxLease("sbx_0");
+
+    setSession("conv_overflow", {
+      baseVersion: null,
+      session: {
+        repositorySandboxSession: {
+          sandboxId: "sbx_overflow",
+          repositoryContextKey: "ctx_overflow",
+          createdAt: "2026-07-01T12:00:00.000Z",
+          lastUsedAt: "2026-07-01T12:00:00.000Z",
+        },
+      },
+    });
+
+    expect(stopRepositorySandboxMock).not.toHaveBeenCalledWith("sbx_0");
+
+    releaseLease();
+    await vi.waitFor(() => {
+      expect(stopRepositorySandboxMock).toHaveBeenCalledWith("sbx_0");
+    });
   });
 });

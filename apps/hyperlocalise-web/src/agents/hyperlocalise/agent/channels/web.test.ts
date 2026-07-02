@@ -19,6 +19,7 @@ vi.mock("@/lib/agent-runtime/loops/conversation-turn", () => ({
 vi.mock("@/lib/agent-runtime/loops/conversation-repository-session", () => ({
   getWebConversationRepositorySession: getWebConversationRepositorySessionMock,
   setWebConversationRepositorySession: setWebConversationRepositorySessionMock,
+  acquireWebRepositorySandboxLease: vi.fn(() => vi.fn()),
 }));
 
 import { runWebChatAgentTurn } from "./web";
@@ -63,6 +64,7 @@ describe("runWebChatAgentTurn", () => {
       clarificationFollowUp: null,
       updatedRepositorySession: updatedSession,
       staleSandboxId: "sandbox_stale",
+      repositorySandboxId: "sandbox_new",
     });
   });
 
@@ -110,6 +112,7 @@ describe("runWebChatAgentTurn", () => {
             "I'm still preparing repository access for this conversation. Please send your message again in a moment.",
           updatedRepositorySession: null,
           staleSandboxId: null,
+          repositorySandboxId: null,
         };
       }
 
@@ -120,6 +123,7 @@ describe("runWebChatAgentTurn", () => {
         clarificationFollowUp: null,
         updatedRepositorySession: updatedSession,
         staleSandboxId: "sandbox_stale",
+        repositorySandboxId: "sandbox_new",
       };
     });
 

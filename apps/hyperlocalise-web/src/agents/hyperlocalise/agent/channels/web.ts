@@ -3,6 +3,7 @@ import type { Thread } from "chat";
 import type { ToolContext } from "@/lib/agent-contracts/tool-context";
 import { addInteractionMessage } from "@/lib/conversations/interactions";
 import {
+  acquireWebRepositorySandboxLease,
   getWebConversationRepositorySession,
   setWebConversationRepositorySession,
 } from "@/lib/agent-runtime/loops/conversation-repository-session";
@@ -28,6 +29,19 @@ export async function postStreamingAgentReply(
   await thread.post(captureTextStream());
 
   return text;
+}
+
+async function* streamWithSandboxLeaseRelease(
+  stream: AsyncIterable<string>,
+  releaseLease: () => void,
+) {
+  try {
+    for await (const chunk of stream) {
+      yield chunk;
+    }
+  } finally {
+    releaseLease();
+  }
 }
 
 async function prepareAndCommitWebConversationTurn(
@@ -92,12 +106,23 @@ export async function runWebChatAgentTurn(input: {
     };
   }
 
-  const result = await prepared.agent.stream({ messages: prepared.chatMessages });
-  return {
-    classification: prepared.classification,
-    clarificationFollowUp: null,
-    textStream: result.textStream,
-  };
+  const releaseSandboxLease = prepared.repositorySandboxId
+    ? acquireWebRepositorySandboxLease(prepared.repositorySandboxId)
+    : null;
+
+  try {
+    const result = await prepared.agent.stream({ messages: prepared.chatMessages });
+    return {
+      classification: prepared.classification,
+      clarificationFollowUp: null,
+      textStream: releaseSandboxLease
+        ? streamWithSandboxLeaseRelease(result.textStream, releaseSandboxLease)
+        : result.textStream,
+    };
+  } catch (error) {
+    releaseSandboxLease?.();
+    throw error;
+  }
 }
 
 export async function postWebClarificationReply(

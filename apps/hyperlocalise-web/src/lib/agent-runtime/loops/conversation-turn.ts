@@ -276,6 +276,7 @@ export type PrepareConversationAgentTurnResult = {
   clarificationFollowUp: string | null;
   updatedRepositorySession: ConversationRepositorySession | null;
   staleSandboxId: string | null;
+  repositorySandboxId: string | null;
 };
 
 export async function prepareConversationAgentTurn(
@@ -377,5 +378,6 @@ export async function prepareConversationAgentTurn(
     clarificationFollowUp,
     updatedRepositorySession,
     staleSandboxId,
+    repositorySandboxId: sandboxId,
   };
 }
