@@ -136,7 +136,6 @@ describe("ensureOrganizationProjectRecord", () => {
       translationContext: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      openJobCount: 0,
     });
 
     const resolved = await ensureOrganizationProjectRecord({
@@ -191,7 +190,6 @@ describe("ensureOrganizationProjectRecord", () => {
       translationContext: null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      openJobCount: 0,
     });
 
     await db.insert(schema.projects).values({

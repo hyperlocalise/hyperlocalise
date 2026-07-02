@@ -117,7 +117,7 @@ describe("getTmsProviderLiveProject", () => {
     vi.clearAllMocks();
   });
 
-  it("returns the project with openJobCount 0 when job enrichment fails", async () => {
+  it("returns the live Crowdin project", async () => {
     vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue(
       crowdinCredential as never,
     );
@@ -135,16 +135,11 @@ describe("getTmsProviderLiveProject", () => {
       return { getProject } as never;
     });
 
-    vi.spyOn(tmsProviderLive, "listTmsProviderLiveJobsForProject").mockRejectedValue(
-      new TmsProviderLiveError("crowdin_rate_limited", "Rate limited"),
-    );
-
     const project = await getTmsProviderLiveProject("org-1", "42");
 
     expect(project).toMatchObject({
       name: "Crowdin Project",
       externalProjectId: "42",
-      openJobCount: 0,
     });
     expect(getProject).toHaveBeenCalledWith(42);
   });

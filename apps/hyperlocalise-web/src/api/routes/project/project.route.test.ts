@@ -13,7 +13,12 @@ import { encodeProviderProjectId } from "@/lib/providers/tms-provider-resource-i
 import { createProjectTestFixture } from "./project.fixture";
 import type { ProjectResponse } from "./project.schema";
 
-const { getTmsProviderLiveProjectMock, resolveApiAuthContextFromSessionMock } = vi.hoisted(() => ({
+const {
+  countTmsProviderLiveOpenJobsForProjectMock,
+  getTmsProviderLiveProjectMock,
+  resolveApiAuthContextFromSessionMock,
+} = vi.hoisted(() => ({
+  countTmsProviderLiveOpenJobsForProjectMock: vi.fn(),
   getTmsProviderLiveProjectMock: vi.fn(),
   resolveApiAuthContextFromSessionMock: vi.fn(
     (options) =>
@@ -36,6 +41,7 @@ vi.mock("@/lib/providers/tms-provider-live", async (importOriginal) => {
   return {
     ...actual,
     getTmsProviderLiveProject: getTmsProviderLiveProjectMock,
+    countTmsProviderLiveOpenJobsForProject: countTmsProviderLiveOpenJobsForProjectMock,
   };
 });
 
@@ -134,7 +140,51 @@ describe("project detail route", () => {
     });
   });
 
-  it("returns the live provider open job count when the provider lookup succeeds", async () => {
+  it("returns the live provider open job count from the dedicated endpoint", async () => {
+    const admin = projectFixture.createWorkosIdentityWithRole("admin");
+    const headers = await projectFixture.authHeadersFor(admin);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+    const userId = globalThis.__testApiAuthContext!.user.localUserId;
+    const externalProjectId = "902808";
+    const projectId = encodeProviderProjectId({
+      providerKind: "crowdin",
+      externalProjectId,
+    });
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    countTmsProviderLiveOpenJobsForProjectMock.mockResolvedValue(3);
+
+    const response = await client.api.orgs[":organizationSlug"].projects[":projectId"][
+      "open-job-count"
+    ].$get(
+      {
+        param: {
+          organizationSlug: admin.organization.slug ?? "missing-slug",
+          projectId,
+        },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    const body = (await response.json()) as { openJobCount: number };
+    expect(body).toEqual({ openJobCount: 3 });
+    expect(countTmsProviderLiveOpenJobsForProjectMock).toHaveBeenCalledWith(
+      organizationId,
+      externalProjectId,
+      { actorUserId: userId },
+    );
+  });
+
+  it("returns openJobCount 0 on the project payload for live provider projects", async () => {
     const admin = projectFixture.createWorkosIdentityWithRole("admin");
     const headers = await projectFixture.authHeadersFor(admin);
     const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
@@ -168,7 +218,6 @@ describe("project detail route", () => {
       targetLocales: ["fr"],
       externalProjectUrl: "https://crowdin.com/project/live",
       isActive: true,
-      openJobCount: 3,
     });
 
     const response = await client.api.orgs[":organizationSlug"].projects[":projectId"].$get(
@@ -187,7 +236,7 @@ describe("project detail route", () => {
       id: projectId,
       source: "external_tms",
       externalProjectId,
-      openJobCount: 3,
+      openJobCount: 0,
     });
   });
 });

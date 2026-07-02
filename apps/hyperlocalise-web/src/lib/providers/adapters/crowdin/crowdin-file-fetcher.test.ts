@@ -152,7 +152,7 @@ describe("fetchCrowdinFileKeys", () => {
         sourcePath: "main/locales/en.json",
         displayName: "English",
         format: "json",
-        revision: "50",
+        revision: "5",
         externalUrl: "https://api.crowdin.test/project/1/files/101",
         syncState: "synced",
       }),

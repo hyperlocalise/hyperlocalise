@@ -5,11 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { File01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
-import { jobsResponseSchema } from "@/api/routes/project/job.schema";
-import {
-  projectFilesResponseSchema,
-  type ProjectFileRecord,
-} from "@/api/routes/project/project.schema";
 import { buildProjectPath } from "@/components/app-shell/navigation-config";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -17,6 +12,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyH1, TypographyP } from "@/components/ui/typography";
 import { parseApiJsonResponse, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
+import { parseProviderProjectId } from "@/lib/providers/tms-provider-resource-id";
+import {
+  projectFilesResponseSchema,
+  type ProjectFileRecord,
+} from "@/api/routes/project/project.schema";
 
 import { OverviewActionCard } from "../../../_components/overview/overview-action-card";
 import {
@@ -41,6 +41,8 @@ import type { Tone } from "../../../_components/workspace-resource-shared";
 import { getJobName, jobTone, type ApiJob } from "../../../jobs/_components/jobs-page-view";
 import type { ProjectListRow } from "../../_components/project-list";
 import { ProjectPageShell, useProjectPageQuery } from "./project-page-shell";
+import { useProjectOpenJobCountQuery } from "./use-project-open-job-count";
+import { useProjectOverviewJobsQuery } from "./use-project-overview-jobs";
 
 function buildProjectJobHref(organizationSlug: string, projectId: string, jobId: string) {
   return `/org/${organizationSlug}/projects/${encodeURIComponent(projectId)}/jobs/${encodeURIComponent(jobId)}`;
@@ -63,11 +65,7 @@ function formatLocaleRoute(sourceLocale: string | null, targetLocales: readonly 
   return `${source} → ${preview}${suffix}`;
 }
 
-function buildHeroCopy(
-  project: ProjectListRow,
-  filesNeedingAttention: number,
-  pendingCount: number,
-) {
+function buildHeroCopy(filesNeedingAttention: number, pendingCount: number, openJobCount: number) {
   if (pendingCount === 0) {
     return {
       title: "You're all caught up",
@@ -79,8 +77,8 @@ function buildHeroCopy(
   }
 
   const parts: string[] = [];
-  if (project.openJobCount > 0) {
-    parts.push(`${project.openJobCount} open ${project.openJobCount === 1 ? "job" : "jobs"}`);
+  if (openJobCount > 0) {
+    parts.push(`${openJobCount} open ${openJobCount === 1 ? "job" : "jobs"}`);
   }
   if (filesNeedingAttention > 0) {
     parts.push(
@@ -134,6 +132,9 @@ export type ProjectOverviewPageContentViewProps = {
   project: ProjectListRow | null;
   isProjectLoading: boolean;
   isProjectError: boolean;
+  openJobCount: number;
+  isOpenJobCountLoading: boolean;
+  isOpenJobCountError: boolean;
   jobs: readonly ApiJob[];
   isJobsLoading: boolean;
   isJobsError: boolean;
@@ -148,6 +149,9 @@ export function ProjectOverviewPageContentView({
   project,
   isProjectLoading,
   isProjectError,
+  openJobCount,
+  isOpenJobCountLoading,
+  isOpenJobCountError,
   jobs,
   isJobsLoading,
   isJobsError,
@@ -156,13 +160,15 @@ export function ProjectOverviewPageContentView({
   isFilesError,
 }: ProjectOverviewPageContentViewProps) {
   const filesNeedingAttention = countFilesNeedingAttention(files);
-  const pendingCount = project ? computeProjectPendingActionCount(project, files) : 0;
+  const pendingCount = project ? computeProjectPendingActionCount({ openJobCount }, files) : 0;
   const ongoingJobs = selectOngoingJobs(jobs);
   const attentionFiles = selectFilesNeedingAttention(files);
   const ongoingCount = ongoingJobs.length + attentionFiles.length;
   const readyToPullCount = project ? countReadyToPullFiles(files, project.targetLocales.length) : 0;
 
-  const heroCopy = project ? buildHeroCopy(project, filesNeedingAttention, pendingCount) : null;
+  const heroCopy = project
+    ? buildHeroCopy(filesNeedingAttention, pendingCount, openJobCount)
+    : null;
 
   const projectDescription =
     project?.descriptionValue ||
@@ -184,7 +190,11 @@ export function ProjectOverviewPageContentView({
         },
         {
           label: "Open jobs",
-          value: String(project.openJobCount),
+          value: isOpenJobCountLoading
+            ? "…"
+            : isOpenJobCountError
+              ? "Unavailable"
+              : String(openJobCount),
         },
       ]
     : [];
@@ -373,30 +383,17 @@ export function ProjectOverviewPageContent({
   projectId: string;
 }) {
   const projectQuery = useProjectPageQuery(organizationSlug, projectId);
-
-  const jobsQuery = useQuery({
-    queryKey: ["project-overview-jobs", organizationSlug, projectId],
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"].projects[
-        ":projectId"
-      ].jobs.$get({
-        param: { organizationSlug, projectId },
-        query: { limit: "5", open: true },
-      });
-      if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load project jobs");
-      }
-      const { jobs } = await parseApiJsonResponse(
-        response,
-        jobsResponseSchema,
-        "Invalid project jobs response",
-      );
-      return jobs as ApiJob[];
-    },
+  const isLiveTmsProject = Boolean(parseProviderProjectId(projectId));
+  const openJobCountQuery = useProjectOpenJobCountQuery(organizationSlug, projectId, {
+    enabled: projectQuery.isSuccess,
+  });
+  const jobsQuery = useProjectOverviewJobsQuery(organizationSlug, projectId, {
+    enabled: projectQuery.isSuccess,
   });
 
   const filesQuery = useQuery({
     queryKey: ["project-overview-files", organizationSlug, projectId],
+    enabled: projectQuery.isSuccess && !isLiveTmsProject,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects[
         ":projectId"
@@ -423,6 +420,9 @@ export function ProjectOverviewPageContent({
       project={projectQuery.data ?? null}
       isProjectLoading={projectQuery.isLoading}
       isProjectError={projectQuery.isError}
+      openJobCount={openJobCountQuery.data ?? 0}
+      isOpenJobCountLoading={openJobCountQuery.isLoading}
+      isOpenJobCountError={openJobCountQuery.isError}
       jobs={jobsQuery.data ?? []}
       isJobsLoading={jobsQuery.isLoading}
       isJobsError={jobsQuery.isError}

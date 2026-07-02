@@ -130,6 +130,10 @@ export const projectResponseSchema = z.object({
   project: projectRecordSchema,
 });
 
+export const projectOpenJobCountResponseSchema = z.object({
+  openJobCount: z.number().int(),
+});
+
 export const projectsResponseSchema = z.object({
   projects: z.array(projectRecordSchema),
 });

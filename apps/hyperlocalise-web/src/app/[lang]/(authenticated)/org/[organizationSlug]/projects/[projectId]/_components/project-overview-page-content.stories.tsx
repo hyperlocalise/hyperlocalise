@@ -21,6 +21,9 @@ const meta = {
     project: projectOverviewFixture,
     isProjectLoading: false,
     isProjectError: false,
+    openJobCount: projectOverviewFixture.openJobCount,
+    isOpenJobCountLoading: false,
+    isOpenJobCountError: false,
     jobs: projectOverviewJobsFixture,
     isJobsLoading: false,
     isJobsError: false,
@@ -45,6 +48,7 @@ export const Default: Story = {
 export const CaughtUp: Story = {
   args: {
     project: projectOverviewCaughtUpFixture,
+    openJobCount: projectOverviewCaughtUpFixture.openJobCount,
     jobs: [],
     files: [projectOverviewFilesFixture[1]!],
   },
@@ -58,8 +62,10 @@ export const Loading: Story = {
   args: {
     project: null,
     isProjectLoading: true,
+    isOpenJobCountLoading: true,
     isJobsLoading: true,
     isFilesLoading: true,
+    openJobCount: 0,
     jobs: [],
     files: [],
   },
@@ -68,6 +74,7 @@ export const Loading: Story = {
 export const EmptyOngoing: Story = {
   args: {
     project: projectOverviewCaughtUpFixture,
+    openJobCount: projectOverviewCaughtUpFixture.openJobCount,
     jobs: [],
     files: [projectOverviewFilesFixture[1]!],
   },
