@@ -134,7 +134,7 @@ export function JobCatPageContent({
   const providerFilesQuery = useQuery({
     queryKey: projectJobCatProviderFilesQueryKey(organizationSlug, projectId, jobId),
     enabled: hasFileReference && !isNativeJob,
-    queryFn: () => loadJobCatProviderJobFiles({ organizationSlug, projectId, jobId }),
+    queryFn: () => loadJobCatProviderJobFiles({ organizationSlug, projectId, jobId, targetLocale }),
   });
 
   const repositoriesQuery = useQuery({

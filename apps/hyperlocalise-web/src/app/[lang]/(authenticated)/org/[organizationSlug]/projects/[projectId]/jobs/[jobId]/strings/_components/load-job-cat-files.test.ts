@@ -8,8 +8,10 @@ import {
 } from "../../_components/job-detail.fixture";
 import {
   PROJECT_FILES_FETCH_LIMIT,
+  assertProviderJobBelongsToProject,
   mapSyncedProviderSourceFiles,
   resolveJobCatTargetFromStoredFileId,
+  resolveSyncedProviderTargetLocales,
 } from "./load-job-cat-files";
 
 function createFile(overrides: Partial<ProjectFileRecord> = {}): ProjectFileRecord {
@@ -90,6 +92,30 @@ describe("mapSyncedProviderSourceFiles", () => {
     expect(files[0]?.sourcePath).toBe("locales/messages.po");
     expect(files[0]?.provider?.kind).toBe("crowdin");
     expect(files[0]?.provider?.externalProjectId).toBe("902807");
+    expect(files[0]?.provider?.targetLocales).toEqual(["fr-FR", "de-DE"]);
+  });
+
+  it("falls back to the requested target locale when synced job locales are missing", () => {
+    const job = createProviderBackedJobDetail({
+      externalTargetLocales: null,
+      providerSourceFiles: [
+        {
+          id: "42",
+          displayName: "messages.po",
+          sourcePath: "locales/messages.po",
+          resourceType: "file",
+          externalUrl: null,
+        },
+      ],
+    });
+
+    const files = mapSyncedProviderSourceFiles({
+      job,
+      projectId: "ext:crowdin:902807",
+      targetLocale: "fr-FR",
+    });
+
+    expect(files[0]?.provider?.targetLocales).toEqual(["fr-FR"]);
   });
 
   it("returns an empty list when the job has no provider kind", () => {
@@ -99,5 +125,39 @@ describe("mapSyncedProviderSourceFiles", () => {
     });
 
     expect(files).toEqual([]);
+  });
+});
+
+describe("resolveSyncedProviderTargetLocales", () => {
+  it("prefers external target locales from the job", () => {
+    expect(
+      resolveSyncedProviderTargetLocales(
+        createProviderBackedJobDetail({ externalTargetLocales: ["fr-FR", "de-DE"] }),
+        "ja-JP",
+      ),
+    ).toEqual(["fr-FR", "de-DE"]);
+  });
+
+  it("falls back to the requested locale when the job has none", () => {
+    expect(
+      resolveSyncedProviderTargetLocales(
+        createProviderBackedJobDetail({ externalTargetLocales: null }),
+        "fr-FR",
+      ),
+    ).toEqual(["fr-FR"]);
+  });
+});
+
+describe("assertProviderJobBelongsToProject", () => {
+  it("allows encoded provider jobs that match the encoded project id", () => {
+    expect(() =>
+      assertProviderJobBelongsToProject("ext:crowdin:902807:1204", "ext:crowdin:902807"),
+    ).not.toThrow();
+  });
+
+  it("rejects encoded provider jobs from a different project", () => {
+    expect(() =>
+      assertProviderJobBelongsToProject("ext:crowdin:902807:1204", "ext:crowdin:999999"),
+    ).toThrow("Task does not belong to this project");
   });
 });

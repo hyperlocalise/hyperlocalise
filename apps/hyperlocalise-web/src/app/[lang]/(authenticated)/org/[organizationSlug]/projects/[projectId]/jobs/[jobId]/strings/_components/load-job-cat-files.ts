@@ -155,19 +155,53 @@ async function fetchJobDetail(organizationSlug: string, jobId: string) {
   return body.job;
 }
 
-export function mapSyncedProviderSourceFiles(input: { job: JobDetailRecord; projectId: string }) {
+export function resolveSyncedProviderTargetLocales(
+  job: JobDetailRecord,
+  targetLocale: string | null = null,
+) {
+  if (job.externalTargetLocales && job.externalTargetLocales.length > 0) {
+    return [...job.externalTargetLocales];
+  }
+
+  return targetLocale ? [targetLocale] : [];
+}
+
+export function assertProviderJobBelongsToProject(encodedJobId: string, projectId: string) {
+  const parsedJob = parseProviderJobId(encodedJobId);
+  if (!parsedJob) {
+    return;
+  }
+
+  const parsedProject = parseProviderProjectId(projectId);
+  const projectMatches = parsedProject
+    ? parsedProject.providerKind === parsedJob.providerKind &&
+      parsedProject.externalProjectId === parsedJob.externalProjectId
+    : parsedJob.externalProjectId === projectId;
+
+  if (!projectMatches) {
+    throw new Error("Task does not belong to this project");
+  }
+}
+
+export function mapSyncedProviderSourceFiles(input: {
+  job: JobDetailRecord;
+  projectId: string;
+  targetLocale?: string | null;
+}) {
   if (!input.job.externalProviderKind) {
     return [];
   }
 
   const encodedProjectId = parseProviderProjectId(input.projectId);
   const externalProjectId = encodedProjectId?.externalProjectId ?? input.projectId;
+  const targetLocales = resolveSyncedProviderTargetLocales(input.job, input.targetLocale ?? null);
 
   return (input.job.providerSourceFiles ?? []).flatMap((file) => {
     const record = providerSourceFileToProjectFileRecord(
       file,
       input.job.externalProviderKind as string,
       externalProjectId,
+      targetLocales,
     );
     return record ? [record] : [];
   });
@@ -177,8 +211,11 @@ export async function loadJobCatProviderJobFiles(input: {
   organizationSlug: string;
   projectId: string;
   jobId: string;
+  targetLocale?: string | null;
 }) {
-  if (parseProviderJobId(input.jobId)) {
+  const parsedJobId = parseProviderJobId(input.jobId);
+  if (parsedJobId) {
+    assertProviderJobBelongsToProject(input.jobId, input.projectId);
     return fetchTmsProviderLiveJobFiles({
       organizationSlug: input.organizationSlug,
       encodedJobId: input.jobId,
@@ -199,11 +236,16 @@ export async function loadJobCatProviderJobFiles(input: {
   });
 
   if (encodedJobId) {
+    assertProviderJobBelongsToProject(encodedJobId, input.projectId);
     return fetchTmsProviderLiveJobFiles({
       organizationSlug: input.organizationSlug,
       encodedJobId,
     });
   }
 
-  return mapSyncedProviderSourceFiles({ job, projectId: input.projectId });
+  return mapSyncedProviderSourceFiles({
+    job,
+    projectId: input.projectId,
+    targetLocale: input.targetLocale ?? null,
+  });
 }
