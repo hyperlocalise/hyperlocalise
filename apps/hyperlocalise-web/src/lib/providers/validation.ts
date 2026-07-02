@@ -1,5 +1,4 @@
 import type { LlmProvider } from "@/lib/database/types";
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 
 const validationPrompt = "ping";
 
@@ -46,8 +45,7 @@ async function validateOpenAiCompatibleProvider(input: {
     mistral: "https://api.mistral.ai/v1/chat/completions",
   } as const;
 
-  // Use providerSafeFetch to protect against SSRF when validating provider credentials
-  const response = await providerSafeFetch(baseUrlByProvider[input.provider], {
+  const response = await fetch(baseUrlByProvider[input.provider], {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -59,6 +57,7 @@ async function validateOpenAiCompatibleProvider(input: {
       max_tokens: 1,
     }),
     signal: AbortSignal.timeout(15_000),
+    redirect: "error",
   });
 
   if (!response.ok) {
@@ -67,8 +66,7 @@ async function validateOpenAiCompatibleProvider(input: {
 }
 
 async function validateAnthropicProvider(input: { apiKey: string; model: string }) {
-  // Use providerSafeFetch to protect against SSRF when validating provider credentials
-  const response = await providerSafeFetch("https://api.anthropic.com/v1/messages", {
+  const response = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: {
       "content-type": "application/json",
@@ -81,6 +79,7 @@ async function validateAnthropicProvider(input: { apiKey: string; model: string 
       messages: [{ role: "user", content: validationPrompt }],
     }),
     signal: AbortSignal.timeout(15_000),
+    redirect: "error",
   });
 
   if (!response.ok) {

@@ -14,7 +14,6 @@ import {
   type ExternalTmsCredential,
   type ExternalTmsProviderKind,
 } from "./organization-external-tms-provider-credentials";
-import { providerSafeFetch } from "./provider-safe-fetch";
 import { normalizeProviderBaseUrl } from "./provider-url-safety";
 
 export type ExternalTmsHealthStatus = "connected" | "degraded" | "error";
@@ -131,7 +130,7 @@ export async function checkExternalTmsProviderHealth(input: {
     secretMaterial,
     baseUrl: credential.baseUrl,
     region: credential.region,
-    fetchFn: input.fetchFn ?? providerSafeFetch,
+    fetchFn: input.fetchFn ?? fetch,
   });
 
   return {

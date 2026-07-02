@@ -21,7 +21,7 @@ export function normalizeProviderBaseUrl(
   }
 }
 
-/** Syntactic URL checks only. Outbound fetches must use providerSafeFetch for DNS pinning. */
+/** Syntactic URL checks only. Does not validate DNS resolution. */
 export function normalizeProviderDownloadUrl(url: string) {
   try {
     const parsed = new URL(url);

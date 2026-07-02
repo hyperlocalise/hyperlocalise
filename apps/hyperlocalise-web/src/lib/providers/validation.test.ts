@@ -1,20 +1,15 @@
-import { afterEach, describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { validateProviderCredential } from "@/lib/providers/validation";
 
-vi.mock("@/lib/providers/provider-safe-fetch", () => ({
-  providerSafeFetch: vi.fn(),
-}));
-
 function mockSuccessfulProviderResponse() {
-  vi.mocked(providerSafeFetch).mockResolvedValueOnce(new Response(null, { status: 200 }));
+  vi.mocked(globalThis.fetch).mockResolvedValueOnce(new Response(null, { status: 200 }));
 }
 
 function getLastProviderFetchInit() {
-  const call = vi.mocked(providerSafeFetch).mock.calls.at(-1);
+  const call = vi.mocked(globalThis.fetch).mock.calls.at(-1);
   if (!call) {
-    throw new Error("providerSafeFetch was not called");
+    throw new Error("fetch was not called");
   }
 
   return call[1] as RequestInit;
@@ -29,7 +24,14 @@ function parseProviderFetchJsonBody(init: RequestInit) {
 }
 
 describe("validateProviderCredential", () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    globalThis.fetch = vi.fn(async () => new Response(null, { status: 200 })) as typeof fetch;
+  });
+
   afterEach(() => {
+    globalThis.fetch = originalFetch;
     vi.clearAllMocks();
   });
 
@@ -51,7 +53,7 @@ describe("validateProviderCredential", () => {
       url: "https://api.mistral.ai/v1/chat/completions",
     },
   ] as const) {
-    it(`validates ${testCase.provider} credentials through the safe provider fetch path`, async () => {
+    it(`validates ${testCase.provider} credentials through fetch`, async () => {
       mockSuccessfulProviderResponse();
 
       await validateProviderCredential({
@@ -60,7 +62,7 @@ describe("validateProviderCredential", () => {
         model: `${testCase.provider}-model`,
       });
 
-      expect(providerSafeFetch).toHaveBeenCalledWith(
+      expect(globalThis.fetch).toHaveBeenCalledWith(
         testCase.url,
         expect.objectContaining({
           method: "POST",
@@ -90,7 +92,7 @@ describe("validateProviderCredential", () => {
       model: "claude-test",
     });
 
-    expect(providerSafeFetch).toHaveBeenCalledWith(
+    expect(globalThis.fetch).toHaveBeenCalledWith(
       "https://api.anthropic.com/v1/messages",
       expect.objectContaining({
         method: "POST",
@@ -112,7 +114,7 @@ describe("validateProviderCredential", () => {
   });
 
   it("throws a stable validation error with a provider JSON error message", async () => {
-    vi.mocked(providerSafeFetch).mockResolvedValueOnce(
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
       new Response(JSON.stringify({ error: { message: "invalid api key" } }), { status: 401 }),
     );
 
@@ -129,7 +131,7 @@ describe("validateProviderCredential", () => {
   });
 
   it("falls back to the provider response text when error JSON is unavailable", async () => {
-    vi.mocked(providerSafeFetch).mockResolvedValueOnce(
+    vi.mocked(globalThis.fetch).mockResolvedValueOnce(
       new Response("rate limited", { status: 429 }),
     );
 
