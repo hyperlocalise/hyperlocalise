@@ -130,31 +130,61 @@ export function ProjectFilesTreePanel({
 }) {
   const queryClient = useQueryClient();
   const [fileLimit, setFileLimit] = useState(PROJECT_FILES_PAGE_SIZE);
-  const queryKey = projectFilesQueryKey(organizationSlug, projectId, fileLimit);
+  const [autoAdvanceExhausted, setAutoAdvanceExhausted] = useState(false);
+  const fetchLimit = Math.min(fileLimit + 1, PROJECT_FILES_MAX_LIMIT);
+  const queryKey = projectFilesQueryKey(organizationSlug, projectId, fetchLimit);
   const filesQuery = useQuery({
     queryKey,
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId, fileLimit),
+    queryFn: () => fetchProjectFiles(organizationSlug, projectId, fetchLimit),
   });
 
-  const files = useMemo(() => sortFilesByPath(filesQuery.data ?? []), [filesQuery.data]);
-  const hasMoreFiles = files.length >= fileLimit && fileLimit < PROJECT_FILES_MAX_LIMIT;
+  const fetchedFiles = filesQuery.data ?? [];
+  const hasMoreFiles = fetchedFiles.length > fileLimit && fileLimit < PROJECT_FILES_MAX_LIMIT;
+  const files = useMemo(
+    () => sortFilesByPath(fetchedFiles.slice(0, fileLimit)),
+    [fetchedFiles, fileLimit],
+  );
+
+  useEffect(() => {
+    setAutoAdvanceExhausted(false);
+  }, [selectedSourcePath]);
 
   useEffect(() => {
     onLoadedFilesChange?.(files);
   }, [files, onLoadedFilesChange]);
 
   useEffect(() => {
-    if (!selectedSourcePath || filesQuery.isLoading || filesQuery.isFetching) {
+    if (
+      autoAdvanceExhausted ||
+      !selectedSourcePath ||
+      filesQuery.isLoading ||
+      filesQuery.isFetching
+    ) {
       return;
     }
 
     const selectedFileLoaded = files.some((file) => file.sourcePath === selectedSourcePath);
-    if (!selectedFileLoaded && hasMoreFiles) {
-      setFileLimit((currentLimit) =>
-        Math.min(currentLimit + PROJECT_FILES_PAGE_SIZE, PROJECT_FILES_MAX_LIMIT),
-      );
+    if (selectedFileLoaded) {
+      return;
     }
-  }, [files, filesQuery.isFetching, filesQuery.isLoading, hasMoreFiles, selectedSourcePath]);
+
+    if (!hasMoreFiles || fileLimit >= PROJECT_FILES_MAX_LIMIT) {
+      setAutoAdvanceExhausted(true);
+      return;
+    }
+
+    setFileLimit((currentLimit) =>
+      Math.min(currentLimit + PROJECT_FILES_PAGE_SIZE, PROJECT_FILES_MAX_LIMIT),
+    );
+  }, [
+    autoAdvanceExhausted,
+    fileLimit,
+    files,
+    filesQuery.isFetching,
+    filesQuery.isLoading,
+    hasMoreFiles,
+    selectedSourcePath,
+  ]);
 
   const invalidateFiles = () => {
     void queryClient.invalidateQueries({

@@ -103,7 +103,7 @@ export function JobDetailTaskView({
     ) : null;
 
   const filesSection =
-    hasFilesTab && activeTab === "files"
+    hasFilesTab && activeTab === "files" && !isLoading
       ? renderFilesSection?.({ jobId, organizationSlug, projectId })
       : null;
 

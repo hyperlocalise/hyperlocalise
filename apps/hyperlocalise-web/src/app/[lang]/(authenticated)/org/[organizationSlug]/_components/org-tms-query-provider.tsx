@@ -6,10 +6,9 @@ import { useQuery } from "@tanstack/react-query";
 import {
   activeTmsProviderQueryKey,
   fetchActiveTmsProviderConnection,
+  TMS_PROVIDER_CONNECTION_STALE_TIME_MS,
   type ActiveTmsProviderConnection,
 } from "../_hooks/use-active-tms-provider";
-
-const TMS_PROVIDER_CONNECTION_STALE_TIME_MS = 60_000;
 
 export function OrgTmsQueryProvider({
   children,

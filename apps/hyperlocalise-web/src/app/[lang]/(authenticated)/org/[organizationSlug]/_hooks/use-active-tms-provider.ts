@@ -12,6 +12,8 @@ export type ActiveTmsProviderConnection = {
   validationMessage: string | null;
 };
 
+export const TMS_PROVIDER_CONNECTION_STALE_TIME_MS = 60_000;
+
 export function activeTmsProviderQueryKey(organizationSlug: string) {
   return ["tms-provider-connection", organizationSlug] as const;
 }
@@ -43,6 +45,6 @@ export function useActiveTmsProvider(
     queryKey: activeTmsProviderQueryKey(organizationSlug),
     queryFn: () => fetchActiveTmsProviderConnection(organizationSlug),
     initialData: options?.initialData,
-    staleTime: options?.initialData !== undefined ? 60_000 : undefined,
+    staleTime: TMS_PROVIDER_CONNECTION_STALE_TIME_MS,
   });
 }
