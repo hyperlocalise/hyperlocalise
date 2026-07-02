@@ -46,6 +46,27 @@ async function setupCrowdinPatCredential(input: {
   return credential;
 }
 
+function isCrowdinGetProjectRequest(path: string): boolean {
+  return /\/projects\/42(?:\?|$)/.test(path);
+}
+
+function mockCrowdinProject42Response(): Response {
+  return new Response(
+    JSON.stringify({
+      data: {
+        id: 42,
+        name: "Website",
+        identifier: "website",
+        sourceLanguageId: "en",
+        targetLanguageIds: ["fr"],
+        webUrl: "https://crowdin.test/project/website",
+        isSuspended: false,
+      },
+    }),
+    { status: 200 },
+  );
+}
+
 describe("getTmsProviderLiveCatFile", () => {
   let originalFetch: typeof fetch;
 
@@ -75,25 +96,8 @@ describe("getTmsProviderLiveCatFile", () => {
     const fetchMock = vi.fn(async (url, init) => {
       const path = String(url);
 
-      if (path.includes("/projects?")) {
-        return new Response(
-          JSON.stringify({
-            data: [
-              {
-                data: {
-                  id: 42,
-                  name: "Website",
-                  identifier: "website",
-                  sourceLanguageId: "en",
-                  targetLanguageIds: ["fr"],
-                  webUrl: "https://crowdin.test/project/website",
-                  isSuspended: false,
-                },
-              },
-            ],
-          }),
-          { status: 200 },
-        );
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
       }
 
       if (path.includes("/projects/42/branches?")) {
@@ -349,25 +353,8 @@ describe("getTmsProviderLiveCatFile", () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
-      if (path.includes("/projects?")) {
-        return new Response(
-          JSON.stringify({
-            data: [
-              {
-                data: {
-                  id: 42,
-                  name: "Website",
-                  identifier: "website",
-                  sourceLanguageId: "en",
-                  targetLanguageIds: ["fr"],
-                  webUrl: "https://crowdin.test/project/website",
-                  isSuspended: false,
-                },
-              },
-            ],
-          }),
-          { status: 200 },
-        );
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
       }
 
       if (path.includes("/projects/42/branches?")) {
@@ -501,25 +488,8 @@ describe("getTmsProviderLiveCatFile", () => {
     const fetchMock = vi.fn(async (url, init) => {
       const path = String(url);
 
-      if (path.includes("/projects?")) {
-        return new Response(
-          JSON.stringify({
-            data: [
-              {
-                data: {
-                  id: 42,
-                  name: "Website",
-                  identifier: "website",
-                  sourceLanguageId: "en",
-                  targetLanguageIds: ["fr"],
-                  webUrl: "https://crowdin.test/project/website",
-                  isSuspended: false,
-                },
-              },
-            ],
-          }),
-          { status: 200 },
-        );
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
       }
 
       if (path.includes("/projects/42/branches?")) {
@@ -677,25 +647,8 @@ describe("getTmsProviderLiveCatFile", () => {
     const fetchMock = vi.fn(async (url, init) => {
       const path = String(url);
 
-      if (path.includes("/projects?")) {
-        return new Response(
-          JSON.stringify({
-            data: [
-              {
-                data: {
-                  id: 42,
-                  name: "Website",
-                  identifier: "website",
-                  sourceLanguageId: "en",
-                  targetLanguageIds: ["fr"],
-                  webUrl: "https://crowdin.test/project/website",
-                  isSuspended: false,
-                },
-              },
-            ],
-          }),
-          { status: 200 },
-        );
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
       }
 
       if (path.includes("/projects/42/branches?")) {
@@ -848,25 +801,8 @@ describe("getTmsProviderLiveCatFile", () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
-      if (path.includes("/projects?")) {
-        return new Response(
-          JSON.stringify({
-            data: [
-              {
-                data: {
-                  id: 42,
-                  name: "Website",
-                  identifier: "website",
-                  sourceLanguageId: "en",
-                  targetLanguageIds: ["fr"],
-                  webUrl: "https://crowdin.test/project/website",
-                  isSuspended: false,
-                },
-              },
-            ],
-          }),
-          { status: 200 },
-        );
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
       }
 
       if (path.includes("/projects/42/branches?")) {
@@ -955,25 +891,8 @@ describe("getTmsProviderLiveCatFile", () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
-      if (path.includes("/projects?")) {
-        return new Response(
-          JSON.stringify({
-            data: [
-              {
-                data: {
-                  id: 42,
-                  name: "Website",
-                  identifier: "website",
-                  sourceLanguageId: "en",
-                  targetLanguageIds: ["fr"],
-                  webUrl: "https://crowdin.test/project/website",
-                  isSuspended: false,
-                },
-              },
-            ],
-          }),
-          { status: 200 },
-        );
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
       }
 
       if (path.includes("/projects/42/branches?")) {

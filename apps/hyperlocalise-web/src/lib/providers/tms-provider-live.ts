@@ -1453,15 +1453,10 @@ export async function listTmsProviderLiveProjects(
   return activeProjects.map((project) => mapLiveProject(context.providerKind, project));
 }
 
-export async function getTmsProviderLiveProject(
-  organizationId: string,
+async function resolveLiveProjectMetadata(
+  context: ActiveTmsProviderContext,
   externalProjectId: string,
-  options?: { actorUserId?: string | null },
-): Promise<TmsProviderLiveProject | null> {
-  const context = await loadActiveTmsProviderContext(organizationId, {
-    actorUserId: options?.actorUserId,
-  });
-
+): Promise<ExternalTmsProjectMetadata | null> {
   if (context.providerKind === "crowdin") {
     const crowdinProjectId = Number(externalProjectId);
     if (!Number.isFinite(crowdinProjectId) || crowdinProjectId <= 0) {
@@ -1475,7 +1470,7 @@ export async function getTmsProviderLiveProject(
 
     try {
       const project = await client.getProject(crowdinProjectId);
-      const projectMetadata: ExternalTmsProjectMetadata = {
+      return {
         externalProjectId: String(project.id),
         name: project.name,
         sourceLocale: project.sourceLanguageId,
@@ -1483,7 +1478,6 @@ export async function getTmsProviderLiveProject(
         externalProjectUrl: project.webUrl,
         isActive: !project.isSuspended,
       };
-      return mapLiveProject(context.providerKind, projectMetadata);
     } catch (error) {
       if (error instanceof CrowdinApiError && error.status === 404) {
         return null;
@@ -1492,18 +1486,31 @@ export async function getTmsProviderLiveProject(
     }
   }
 
-  const { context: liveContext, activeProjects } = await loadActiveLiveProjects(
-    organizationId,
-    options,
+  const projects = await fetchLiveProjects(context);
+  const activeProject = projects.find(
+    (project) => project.externalProjectId === externalProjectId && project.isActive !== false,
   );
-  const projectMetadata = activeProjects.find(
-    (project) => project.externalProjectId === externalProjectId,
-  );
+  if (activeProject) {
+    return activeProject;
+  }
+
+  return projects.find((project) => project.externalProjectId === externalProjectId) ?? null;
+}
+
+export async function getTmsProviderLiveProject(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveProject | null> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId);
   if (!projectMetadata) {
     return null;
   }
 
-  return mapLiveProject(liveContext.providerKind, projectMetadata);
+  return mapLiveProject(context.providerKind, projectMetadata);
 }
 
 function countOpenLiveJobs(jobs: TmsProviderLiveJob[]): number {
@@ -1620,10 +1627,10 @@ export async function listTmsProviderLiveFilesForProject(
     options?.context ??
     (await loadActiveTmsProviderContext(organizationId, { actorUserId: options?.actorUserId }));
 
-  const liveProject = await getTmsProviderLiveProject(organizationId, externalProjectId, {
-    actorUserId: options?.actorUserId,
-  });
-  if (!liveProject) {
+  const projectMetadata =
+    options?.projects?.find((project) => project.externalProjectId === externalProjectId) ??
+    (await resolveLiveProjectMetadata(context, externalProjectId));
+  if (!projectMetadata) {
     return [];
   }
 
@@ -1639,12 +1646,12 @@ export async function listTmsProviderLiveFilesForProject(
     organizationId: context.organizationId,
     credentialId: context.credential.id,
     providerKind: context.providerKind,
-    externalProjectId: liveProject.externalProjectId,
-    name: liveProject.name,
-    sourceLocale: liveProject.sourceLocale ?? "en",
-    targetLocales: liveProject.targetLocales ?? [],
-    externalProjectUrl: liveProject.externalProjectUrl,
-    isActive: liveProject.isActive,
+    externalProjectId: projectMetadata.externalProjectId,
+    name: projectMetadata.name,
+    sourceLocale: projectMetadata.sourceLocale ?? "en",
+    targetLocales: projectMetadata.targetLocales ?? [],
+    externalProjectUrl: projectMetadata.externalProjectUrl,
+    isActive: projectMetadata.isActive,
   });
 
   let files;
@@ -1667,14 +1674,7 @@ export async function listTmsProviderLiveFilesForProject(
       providerKind: context.providerKind,
       externalProjectId,
       file,
-      project: {
-        externalProjectId: liveProject.externalProjectId,
-        name: liveProject.name,
-        sourceLocale: liveProject.sourceLocale,
-        targetLocales: liveProject.targetLocales,
-        externalProjectUrl: liveProject.externalProjectUrl,
-        isActive: liveProject.isActive,
-      },
+      project: projectMetadata,
     }),
   );
 }
