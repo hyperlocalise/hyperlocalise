@@ -2,7 +2,6 @@
  * Phrase TMS (Memsource) API client for job and resource sync.
  */
 
-
 import { resolvePhraseTmsBaseUrl } from "./phrase-tms-base-url";
 
 export interface PhraseTmsApiClientOptions {

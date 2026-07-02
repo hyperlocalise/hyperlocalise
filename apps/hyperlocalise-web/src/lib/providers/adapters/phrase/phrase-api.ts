@@ -2,7 +2,6 @@
  * Phrase Strings API v2 client for TMS connector discovery and file/key sync.
  */
 
-
 import { resolvePhraseBaseUrl } from "./phrase-base-url";
 
 export interface PhraseApiClientOptions {

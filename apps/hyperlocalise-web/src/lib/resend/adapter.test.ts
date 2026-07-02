@@ -392,7 +392,7 @@ describe("createResendAdapter", () => {
       id: "raw_db_attachment_id",
     });
     expect(mocks.listReceivingAttachments).toHaveBeenCalledWith({ emailId: "email_123" });
-    expect(fetchMock).toHaveBeenCalledWith("https://example.com/banner.png");
+    expect(fetchMock).toHaveBeenCalledWith("https://example.com/banner.png", { redirect: "error" });
   });
 
   it("isolates thread metadata by org inbound address for the same sender and subject", async () => {
