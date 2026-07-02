@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TypographyP } from "@/components/ui/typography";
 import { cn } from "@/lib/primitives/cn";
 
@@ -170,6 +171,58 @@ function KanbanColumn({
   );
 }
 
+function KanbanColumnSkeleton({ label }: { label: string }) {
+  return (
+    <section className="flex min-w-[17rem] flex-1 flex-col rounded-xl border border-foreground/10 bg-foreground/2">
+      <header className="flex items-center justify-between gap-2 border-b border-foreground/8 px-3 py-3">
+        <TypographyP className="text-sm font-medium text-foreground">{label}</TypographyP>
+        <Skeleton className="h-5 w-8 rounded-full" />
+      </header>
+      <div className="flex flex-1 flex-col gap-3 p-3">
+        {Array.from({ length: 2 }, (_, index) => (
+          <div
+            key={index}
+            className="space-y-3 rounded-lg border border-foreground/10 bg-background p-3 shadow-sm"
+          >
+            <Skeleton className="h-4 w-4/5" />
+            <Skeleton className="h-3 w-2/5" />
+            <div className="flex gap-2">
+              <Skeleton className="h-5 w-16 rounded-full" />
+              <Skeleton className="h-5 w-20 rounded-full" />
+            </div>
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-3/4" />
+            <div className="border-t border-foreground/8 pt-3">
+              <Skeleton className="h-8 w-24 rounded-md" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function JobsKanbanBoardSkeleton() {
+  const skeletonColumns = [
+    "Queued",
+    "Running",
+    "Waiting for review",
+    "Succeeded",
+    "Failed",
+    "Cancelled",
+  ] as const;
+
+  return (
+    <div className="overflow-x-auto pb-1" aria-busy="true" aria-label="Loading jobs board">
+      <div className="flex min-w-max gap-3">
+        {skeletonColumns.map((label) => (
+          <KanbanColumnSkeleton key={label} label={label} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export function JobsKanbanBoard({
   buildJobDetailHref: buildDetailHref = buildJobDetailHref,
   emptyLabel,
@@ -190,9 +243,7 @@ export function JobsKanbanBoard({
   renderJobLink: JobsLinkRenderer;
 }) {
   if (isLoading) {
-    return (
-      <TypographyP className="px-3 py-8 text-sm text-foreground/58">Loading jobs…</TypographyP>
-    );
+    return <JobsKanbanBoardSkeleton />;
   }
 
   if (jobs.length === 0) {

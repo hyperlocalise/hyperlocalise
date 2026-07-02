@@ -788,8 +788,19 @@ async function resolveLiveCatFile(input: {
   externalProjectId: string;
   sourcePath: string;
   externalResourceId?: string | null;
+  resourceType?: "file" | "key";
   context: ActiveTmsProviderContext;
 }): Promise<TmsProviderLiveFile | null> {
+  if (input.externalResourceId && input.context.providerKind === "crowdin") {
+    return resolveLiveCatFileFromExternalResourceId({
+      providerKind: input.context.providerKind,
+      externalProjectId: input.externalProjectId,
+      externalResourceId: input.externalResourceId,
+      sourcePath: input.sourcePath,
+      resourceType: input.resourceType ?? "file",
+    });
+  }
+
   const files = await listTmsProviderLiveFilesForProject(
     input.organizationId,
     input.externalProjectId,
@@ -1524,6 +1535,7 @@ export async function countTmsProviderLiveOpenJobsForProject(
 ): Promise<number> {
   const jobs = await listTmsProviderLiveJobsForProject(organizationId, externalProjectId, {
     actorUserId: options?.actorUserId,
+    enrichResources: false,
   });
   return countOpenLiveJobs(jobs);
 }
@@ -1538,6 +1550,7 @@ export async function listTmsProviderLiveJobsForProject(
     context?: ActiveTmsProviderContext;
     projects?: ExternalTmsProjectMetadata[];
     actorUserId?: string | null;
+    enrichResources?: boolean;
   },
 ): Promise<TmsProviderLiveJob[]> {
   const context =
@@ -1551,9 +1564,10 @@ export async function listTmsProviderLiveJobsForProject(
     );
   }
 
-  const projects = options?.projects ?? (await fetchLiveProjects(context));
-  const project = projects.find((item) => item.externalProjectId === externalProjectId);
-  if (!project) {
+  const projectMetadata =
+    options?.projects?.find((project) => project.externalProjectId === externalProjectId) ??
+    (await resolveLiveProjectMetadata(context, externalProjectId));
+  if (!projectMetadata) {
     return [];
   }
 
@@ -1561,12 +1575,12 @@ export async function listTmsProviderLiveJobsForProject(
     organizationId: context.organizationId,
     credentialId: context.credential.id,
     providerKind: context.providerKind,
-    externalProjectId: project.externalProjectId,
-    name: project.name,
-    sourceLocale: project.sourceLocale ?? "en",
-    targetLocales: project.targetLocales ?? [],
-    externalProjectUrl: project.externalProjectUrl,
-    isActive: project.isActive,
+    externalProjectId: projectMetadata.externalProjectId,
+    name: projectMetadata.name,
+    sourceLocale: projectMetadata.sourceLocale ?? "en",
+    targetLocales: projectMetadata.targetLocales ?? [],
+    externalProjectUrl: projectMetadata.externalProjectUrl,
+    isActive: projectMetadata.isActive,
   });
 
   let tasks;
@@ -1579,6 +1593,7 @@ export async function listTmsProviderLiveJobsForProject(
       credential: context.credential,
       project: liveProject,
       secretMaterial: context.secretMaterial,
+      enrichResources: options?.enrichResources ?? false,
     });
   } catch (error) {
     rethrowProviderFetcherError(error);
@@ -1607,7 +1622,7 @@ export async function listTmsProviderLiveJobsForProject(
     mapLiveJob({
       providerKind: context.providerKind,
       externalProjectId,
-      projectName: project.name,
+      projectName: projectMetadata.name,
       task,
     }),
   );
@@ -1729,16 +1744,23 @@ export async function getTmsProviderLiveFileDetail(
   organizationId: string,
   externalProjectId: string,
   sourcePath: string,
-  options?: { actorUserId?: string | null },
+  options?: {
+    actorUserId?: string | null;
+    externalResourceId?: string | null;
+    resourceType?: "file" | "key";
+  },
 ): Promise<TmsProviderLiveFileDetail | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
-  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
+  const file = await resolveLiveCatFile({
+    organizationId,
+    externalProjectId,
+    sourcePath,
+    externalResourceId: options?.externalResourceId,
+    resourceType: options?.resourceType,
     context,
-    limit: 1000,
   });
-  const file = files.find((item) => item.sourcePath === sourcePath);
   if (!file) {
     return null;
   }
@@ -2116,6 +2138,7 @@ export async function getTmsProviderLiveJobDetail(
         credential: context.credential,
         project: liveProject,
         secretMaterial: context.secretMaterial,
+        enrichResources: true,
       });
     } catch (error) {
       rethrowProviderFetcherError(error);

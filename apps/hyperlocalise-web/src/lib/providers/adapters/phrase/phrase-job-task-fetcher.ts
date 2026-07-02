@@ -13,6 +13,7 @@ export const fetchPhraseJobTasks: ExternalTmsJobTaskFetcher = async ({
   externalProjectId,
   project,
   secretMaterial,
+  enrichResources = true,
 }) => {
   const tmsProjectUid = resolvePhraseTmsProjectUid(project, externalProjectId);
 
@@ -32,18 +33,20 @@ export const fetchPhraseJobTasks: ExternalTmsJobTaskFetcher = async ({
     throw mapPhraseTmsFetcherError(error);
   }
 
-  const projectTermBases = await loadProjectTermBases(client, tmsProjectUid);
+  const projectTermBases = enrichResources ? await loadProjectTermBases(client, tmsProjectUid) : [];
   const resourceCache = new Map<string, JobResourceBundle>();
 
   return Promise.all(
     jobParts.map(async (jobPart) => {
-      const resources = await loadJobResources({
-        client,
-        projectUid: tmsProjectUid,
-        jobPart,
-        projectTermBases,
-        cache: resourceCache,
-      });
+      const resources = enrichResources
+        ? await loadJobResources({
+            client,
+            projectUid: tmsProjectUid,
+            jobPart,
+            projectTermBases,
+            cache: resourceCache,
+          })
+        : { translationMemories: [], termBases: [] };
 
       const targetLocale = jobPart.targetLang;
       const externalJobId = buildPhraseExternalJobId(jobPart.innerId, targetLocale);
@@ -63,8 +66,12 @@ export const fetchPhraseJobTasks: ExternalTmsJobTaskFetcher = async ({
         providerPayload: {
           workflowStep: jobPart.workflowStep?.name ?? null,
           workflowStepDetails: jobPart.workflowStep,
-          translationMemories: resources.translationMemories,
-          termBases: resources.termBases,
+          ...(enrichResources
+            ? {
+                translationMemories: resources.translationMemories,
+                termBases: resources.termBases,
+              }
+            : {}),
           innerId: jobPart.innerId,
           filename: jobPart.filename,
           importStatus: jobPart.importStatus,

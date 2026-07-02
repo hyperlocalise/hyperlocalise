@@ -24,7 +24,7 @@ export { buildJobCatHref, canOpenJobCat, type JobCatTarget };
 
 export function readJobsViewMode(): JobsViewMode {
   if (typeof window === "undefined") {
-    return "row";
+    return "kanban";
   }
 
   try {
@@ -33,10 +33,10 @@ export function readJobsViewMode(): JobsViewMode {
       return stored;
     }
   } catch {
-    return "row";
+    return "kanban";
   }
 
-  return "row";
+  return "kanban";
 }
 
 export function writeJobsViewMode(mode: JobsViewMode) {

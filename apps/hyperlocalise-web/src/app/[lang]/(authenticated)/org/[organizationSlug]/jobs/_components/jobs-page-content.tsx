@@ -240,7 +240,7 @@ export function JobsPageContent({
   });
   const tmsJobsQuery = useQuery({
     queryKey: tmsJobsQueryKey,
-    enabled: isProviderProjectScope || scope !== "personal" || !projectId,
+    enabled: isProviderProjectScope || !projectId,
     queryFn: async () => {
       if (parsedProviderProject) {
         return fetchTmsProjectJobs(

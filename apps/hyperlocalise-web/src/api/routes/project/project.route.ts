@@ -1047,7 +1047,10 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
               c.var.auth.organization.localOrganizationId,
               target.externalProjectId,
               query.sourcePath,
-              { actorUserId: c.var.auth.user.localUserId },
+              {
+                actorUserId: c.var.auth.user.localUserId,
+                externalResourceId: query.externalResourceId,
+              },
             );
             if (!file) {
               return projectNotFoundResponse(c);

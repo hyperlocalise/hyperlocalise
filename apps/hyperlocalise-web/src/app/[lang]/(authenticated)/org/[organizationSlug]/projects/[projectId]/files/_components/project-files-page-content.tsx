@@ -23,16 +23,18 @@ import {
   ProjectSectionTitle,
 } from "../../_components/project-page-shell";
 import { ProjectFileDetailPanel } from "./project-file-detail-panel";
+import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
+import {
+  ProjectFilesTreePanel,
+  fetchProjectFiles,
+  projectFilesQueryKey,
+} from "./project-files-tree-panel";
 import { ProjectFilesTree } from "./project-files-tree";
 import { formatBytes } from "./project-files-shared";
 
 const FILE_ACCEPT =
   ".json,.jsonc,.yaml,.yml,.arb,.xlf,.xlif,.xliff,.po,.html,.md,.mdx,.strings,.stringsdict,.xcstrings,.csv";
 const MAX_UPLOAD_FILES = 10;
-
-function projectFilesQueryKey(organizationSlug: string, projectId: string) {
-  return ["project-files", organizationSlug, projectId] as const;
-}
 
 function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
@@ -160,22 +162,6 @@ export function ProjectFilesPageContent({
     [pathname, router, searchParams],
   );
 
-  const filesQuery = useQuery({
-    queryKey: projectFilesQueryKey(organizationSlug, projectId),
-    queryFn: async () => {
-      const response = await fetch(`${apiPath(organizationSlug, projectId)}?limit=500`, {
-        method: "GET",
-      });
-
-      if (!response.ok) {
-        throw await readApiResponseError(response, "Failed to load project files");
-      }
-
-      const body = (await response.json()) as { files: ProjectFileRecord[] };
-      return body.files;
-    },
-  });
-
   const uploadFiles = useMutation({
     mutationFn: async (files: File[]) => {
       for (const file of files) {
@@ -209,7 +195,6 @@ export function ProjectFilesPageContent({
     },
   });
 
-  const files = useMemo(() => sortFilesByPath(filesQuery.data ?? []), [filesQuery.data]);
   const addSelectedFiles = useCallback((nextFiles: File[]) => {
     setSelectedFiles((currentFiles) => {
       const existing = new Set(currentFiles.map(fileKey));
@@ -228,10 +213,9 @@ export function ProjectFilesPageContent({
     <ProjectFilesPageContentView
       organizationSlug={organizationSlug}
       projectId={projectId}
-      files={files}
-      isFilesLoading={filesQuery.isLoading}
-      isFilesFetching={filesQuery.isFetching}
-      filesError={filesQuery.isError ? filesQuery.error : undefined}
+      files={[]}
+      isFilesLoading={false}
+      isFilesFetching={false}
       selectedSourcePath={selectedSourcePath}
       highlightLocale={highlightLocale}
       selectedFiles={selectedFiles}
@@ -240,6 +224,14 @@ export function ProjectFilesPageContent({
       onAddSelectedFiles={addSelectedFiles}
       onRemoveSelectedFile={removeSelectedFile}
       onUploadSelectedFiles={() => uploadFiles.mutate(selectedFiles)}
+      filesTree={
+        <ProjectFilesTreePanel
+          organizationSlug={organizationSlug}
+          projectId={projectId}
+          selectedSourcePath={selectedSourcePath}
+          onSelectSourcePath={setSelectedSourcePath}
+        />
+      }
     />
   );
 }
@@ -262,6 +254,7 @@ export function ProjectFilesPageContentView({
   renderDetailPanel = defaultRenderDetailPanel,
   renderError = defaultRenderFilesError,
   renderFilesTree = defaultRenderFilesTree,
+  filesTree,
 }: {
   organizationSlug: string;
   projectId: string;
@@ -280,11 +273,21 @@ export function ProjectFilesPageContentView({
   renderDetailPanel?: ProjectFilesDetailPanelRenderer;
   renderError?: ProjectFilesErrorRenderer;
   renderFilesTree?: ProjectFilesTreeRenderer;
+  filesTree?: ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const cachedFilesQuery = useQuery({
+    queryKey: projectFilesQueryKey(organizationSlug, projectId),
+    queryFn: () => fetchProjectFiles(organizationSlug, projectId),
+    enabled: Boolean(filesTree),
+  });
+  const resolvedFiles = useMemo(
+    () => (filesTree ? sortFilesByPath(cachedFilesQuery.data ?? []) : files),
+    [cachedFilesQuery.data, files, filesTree],
+  );
   const selectedFile = useMemo(
-    () => files.find((file) => file.sourcePath === selectedSourcePath) ?? null,
-    [files, selectedSourcePath],
+    () => resolvedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? null,
+    [resolvedFiles, selectedSourcePath],
   );
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;
@@ -377,58 +380,85 @@ export function ProjectFilesPageContentView({
       ) : null}
 
       <section className="flex min-h-[min(28rem,70vh)] flex-col overflow-hidden rounded-lg border border-foreground/8 bg-foreground/2.5">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3">
-          <div>
-            <ProjectSectionTitle>Project files</ProjectSectionTitle>
-            <TypographyP className="mt-0.5 text-sm text-foreground/52">
-              {isFilesLoading
-                ? "Loading…"
-                : filesError
-                  ? "Could not load files"
-                  : `${files.length} file${files.length === 1 ? "" : "s"}`}
-            </TypographyP>
-          </div>
-          {isFilesFetching && !isFilesLoading ? <Spinner /> : null}
-        </header>
-
-        <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
-          <aside className="flex min-h-0 flex-col border-foreground/8 lg:border-e">
-            {isFilesLoading ? (
-              <TypographyP className="p-4 text-sm text-foreground/52">Loading files…</TypographyP>
-            ) : filesError ? (
-              <div className="p-4">{renderError({ organizationSlug, error: filesError })}</div>
-            ) : files.length === 0 ? (
-              <div className="flex flex-col gap-2 p-4">
-                <TypographyP className="text-sm font-medium text-foreground">
-                  No files yet
-                </TypographyP>
-                <TypographyP className="text-sm text-foreground/52">
-                  {isProviderProject
-                    ? "No provider files were found for this project."
-                    : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
-                </TypographyP>
-              </div>
-            ) : (
-              <div className="min-h-0 flex-1 p-2">
-                {renderFilesTree({
-                  files,
-                  selectedSourcePath,
-                  onSelectFile: onSelectSourcePath,
+        {filesTree ? (
+          <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
+            <aside className="flex min-h-0 flex-col border-foreground/8 lg:border-e">
+              {filesTree}
+            </aside>
+            <main className="min-h-0 overflow-y-auto bg-background/40">
+              <ProjectFilesErrorBoundary
+                organizationSlug={organizationSlug}
+                scope="detail"
+                resetKeys={[selectedSourcePath, highlightLocale, selectedFile?.sourcePath]}
+              >
+                {renderDetailPanel({
+                  organizationSlug,
+                  projectId,
+                  file: selectedFile,
+                  requestedSourcePath: selectedSourcePath,
+                  highlightLocale,
                 })}
+              </ProjectFilesErrorBoundary>
+            </main>
+          </div>
+        ) : (
+          <>
+            <header className="flex shrink-0 items-center justify-between gap-3 border-b border-foreground/8 px-4 py-3">
+              <div>
+                <ProjectSectionTitle>Project files</ProjectSectionTitle>
+                <TypographyP className="mt-0.5 text-sm text-foreground/52">
+                  {isFilesLoading
+                    ? "Loading…"
+                    : filesError
+                      ? "Could not load files"
+                      : `${files.length} file${files.length === 1 ? "" : "s"}`}
+                </TypographyP>
               </div>
-            )}
-          </aside>
+              {isFilesFetching && !isFilesLoading ? <Spinner /> : null}
+            </header>
 
-          <main className="min-h-0 overflow-y-auto bg-background/40">
-            {renderDetailPanel({
-              organizationSlug,
-              projectId,
-              file: selectedFile,
-              requestedSourcePath: selectedSourcePath,
-              highlightLocale,
-            })}
-          </main>
-        </div>
+            <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[minmax(14rem,18rem)_minmax(0,1fr)]">
+              <aside className="flex min-h-0 flex-col border-foreground/8 lg:border-e">
+                {isFilesLoading ? (
+                  <TypographyP className="p-4 text-sm text-foreground/52">
+                    Loading files…
+                  </TypographyP>
+                ) : filesError ? (
+                  <div className="p-4">{renderError({ organizationSlug, error: filesError })}</div>
+                ) : files.length === 0 ? (
+                  <div className="flex flex-col gap-2 p-4">
+                    <TypographyP className="text-sm font-medium text-foreground">
+                      No files yet
+                    </TypographyP>
+                    <TypographyP className="text-sm text-foreground/52">
+                      {isProviderProject
+                        ? "No provider files were found for this project."
+                        : "Use Add files above to upload JSON, YAML, XLIFF, PO, and other supported formats."}
+                    </TypographyP>
+                  </div>
+                ) : (
+                  <div className="min-h-0 flex-1 p-2">
+                    {renderFilesTree({
+                      files,
+                      selectedSourcePath,
+                      onSelectFile: onSelectSourcePath,
+                    })}
+                  </div>
+                )}
+              </aside>
+
+              <main className="min-h-0 overflow-y-auto bg-background/40">
+                {renderDetailPanel({
+                  organizationSlug,
+                  projectId,
+                  file: selectedFile,
+                  requestedSourcePath: selectedSourcePath,
+                  highlightLocale,
+                })}
+              </main>
+            </div>
+          </>
+        )}
       </section>
     </ProjectPageShell>
   );
