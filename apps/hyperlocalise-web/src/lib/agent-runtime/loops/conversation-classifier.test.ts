@@ -77,6 +77,24 @@ describe("conversation classifier", () => {
     ).toBe(true);
   });
 
+  it("requires clarification when repository tools are needed but context is unresolved", () => {
+    expect(
+      shouldRequireRepositoryContextClarification(
+        repositoryClassification({ shouldAskForRepositoryClarification: false }),
+        { repositoryContextStatus: "unresolved" },
+      ),
+    ).toBe(true);
+  });
+
+  it("does not require clarification when repository context resolved", () => {
+    expect(
+      shouldRequireRepositoryContextClarification(
+        repositoryClassification({ shouldAskForRepositoryClarification: false }),
+        { repositoryContextStatus: "resolved" },
+      ),
+    ).toBe(false);
+  });
+
   it("builds recent user conversation text for classification", () => {
     expect(
       getRecentUserConversationText(

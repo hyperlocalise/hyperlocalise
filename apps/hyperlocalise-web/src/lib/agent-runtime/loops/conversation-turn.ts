@@ -149,7 +149,10 @@ export async function resolveConversationRepositoryContext(
     const instructions = buildMissingRepositoryContextInstructions(
       githubContextResolution.followUp,
     );
-    const clarificationFollowUp = shouldRequireRepositoryContextClarification(input.classification)
+    const clarificationFollowUp = shouldRequireRepositoryContextClarification(
+      input.classification,
+      { repositoryContextStatus: githubContextResolution.status },
+    )
       ? githubContextResolution.followUp
       : null;
 

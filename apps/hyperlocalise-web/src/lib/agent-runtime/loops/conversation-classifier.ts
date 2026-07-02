@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { RepositoryAgentGitHubContext } from "@/lib/agent-contracts/repository-task";
 
+import type { RepositoryGitHubContextResolution } from "@/lib/agents/repository-context";
 import { getHyperlocaliseAgentModel } from "./model";
 
 export const conversationClassificationSchema = z.object({
@@ -171,6 +172,13 @@ export function shouldAttemptRepositoryContextResolution(input: {
 
 export function shouldRequireRepositoryContextClarification(
   classification: ConversationClassification,
+  input?: {
+    repositoryContextStatus?: RepositoryGitHubContextResolution["status"];
+  },
 ): boolean {
+  if (input?.repositoryContextStatus === "unresolved" && classification.needsRepositoryTools) {
+    return true;
+  }
+
   return classification.shouldAskForRepositoryClarification;
 }

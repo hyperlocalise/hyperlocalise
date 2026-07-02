@@ -42,7 +42,14 @@ vi.mock("./hyperlocalise-agent", () => ({
       classification.needsRepositoryTools,
   ),
   shouldRequireRepositoryContextClarification: vi.fn(
-    (classification: { shouldAskForRepositoryClarification: boolean }) =>
+    (
+      classification: {
+        needsRepositoryTools: boolean;
+        shouldAskForRepositoryClarification: boolean;
+      },
+      input?: { repositoryContextStatus?: string },
+    ) =>
+      (input?.repositoryContextStatus === "unresolved" && classification.needsRepositoryTools) ||
       classification.shouldAskForRepositoryClarification,
   ),
 }));
@@ -149,6 +156,35 @@ describe("conversation turn preparation", () => {
     });
 
     expect(result.clarificationFollowUp).toBe("Which GitHub repository should I search?");
+  });
+
+  it("returns clarification follow-up when repository tools are needed even if the classifier did not ask", async () => {
+    resolveConversationRepositoryGitHubContextMock.mockResolvedValue({
+      status: "unresolved",
+      context: {
+        resolved: false,
+        reason:
+          "Multiple GitHub repositories are enabled and the request did not identify which one to use.",
+        hint: "Reply with owner/repository",
+      },
+      followUp:
+        "Multiple GitHub repositories are enabled for this workspace: `acme/web`, `acme/api`. Which repository should I use?",
+    });
+
+    const result = await resolveConversationRepositoryContext({
+      surface: "web",
+      organizationId: "org_123",
+      projectId: null,
+      conversationText: 'What is the context of "Email agent"?',
+      classification: {
+        ...baseClassification,
+        needsRepositoryTools: true,
+        shouldAskForRepositoryClarification: false,
+      },
+      repositorySession: null,
+    });
+
+    expect(result.clarificationFollowUp).toContain("Which repository should I use?");
   });
 
   it("does not load Slack connector config for web repository resolution", async () => {
