@@ -57,7 +57,7 @@ describe("buildPhraseLiveCatFile", () => {
     vi.clearAllMocks();
   });
 
-  it("loads a single key file with source and target without comments", async () => {
+  it("loads a single key file with source and target while deferring comment bodies", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const path = String(url);
 
@@ -158,13 +158,14 @@ describe("buildPhraseLiveCatFile", () => {
         isApproved: true,
       },
       comments: [],
+      commentCount: 1,
     });
     expect(catFile.queueSummary).toMatchObject({
       total: 1,
       reviewed: 1,
-      hasIssues: 0,
+      hasIssues: 1,
     });
-    expect(fetchMock).not.toHaveBeenCalledWith(
+    expect(fetchMock).toHaveBeenCalledWith(
       expect.stringContaining("/keys/key-1/comments"),
       expect.anything(),
     );
@@ -395,6 +396,107 @@ describe("buildPhraseLiveCatFile", () => {
     expect(catFile.queueSummary).toMatchObject({
       total: 1,
       untranslated: 1,
+    });
+  });
+
+  it("filters segments with comments when queueFilter is has_issues", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "key-with-comment",
+              name: "home.hero.title",
+              description: null,
+              plural: false,
+              tags: ["app"],
+            },
+            {
+              id: "key-without-comment",
+              name: "home.footer.title",
+              description: null,
+              plural: false,
+              tags: ["app"],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (path.includes("/keys/key-with-comment/comments")) {
+        return new Response(
+          JSON.stringify([{ id: "comment-1", message: "Needs review", locales: [] }]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/comments")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await buildPhraseLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile({
+        sourcePath: "locales/en/home.json",
+        filename: "home.json",
+        metadata: {
+          id: "upload-1",
+          name: "home.json",
+          branch: null,
+          tags: ["app"],
+        },
+        provider: {
+          kind: "phrase",
+          resourceType: "file",
+          externalProjectId: "project-1",
+          externalResourceId: "upload-1",
+          externalUrl: null,
+          syncState: "synced",
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          localeReadiness: {},
+          revision: null,
+          format: "json",
+          lastSyncedAt: null,
+        },
+      }),
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 10,
+        queueFilter: "has_issues",
+        paginated: true,
+      },
+    });
+
+    expect(catFile.segments).toHaveLength(1);
+    expect(catFile.segments[0]?.key).toBe("home.hero.title");
+    expect(catFile.segments[0]?.commentCount).toBe(1);
+    expect(catFile.queueSummary).toMatchObject({
+      total: 2,
+      hasIssues: 1,
     });
   });
 
