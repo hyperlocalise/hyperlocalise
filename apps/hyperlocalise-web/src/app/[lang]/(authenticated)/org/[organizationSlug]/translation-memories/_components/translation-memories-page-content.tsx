@@ -27,10 +27,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { TypographyP } from "@/components/ui/typography";
 import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
+
+import { TmsLiveProjectPicker } from "../../_components/tms-live-project-picker";
 
 import {
   GLOSSARY_SYNC_FILTERS,
@@ -168,11 +171,13 @@ export function TranslationMemoriesPageContent({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<MemoryCreateForm>(() => createEmptyMemoryForm());
   const [createErrors, setCreateErrors] = useState<{ name?: string }>({});
+  const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
   const { data: activeTmsProvider } = useActiveTmsProvider(organizationSlug);
   const useLiveProviderMemories = Boolean(activeTmsProvider);
   const allowCreateMemories = canCreateMemories && !useLiveProviderMemories;
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
+    enabled: !useLiveProviderMemories,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
@@ -189,6 +194,7 @@ export function TranslationMemoriesPageContent({
 
   const credentialsQuery = useQuery({
     queryKey: credentialsQueryKey(organizationSlug),
+    enabled: !useLiveProviderMemories,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"][
         "external-tms-provider-credential"
@@ -209,14 +215,18 @@ export function TranslationMemoriesPageContent({
     queryKey: [
       ...memoriesQueryKey(organizationSlug, page),
       useLiveProviderMemories ? "live" : "native",
+      selectedExternalProjectId,
     ],
+    enabled: !useLiveProviderMemories || Boolean(selectedExternalProjectId),
     queryFn: async () => {
       if (useLiveProviderMemories && activeTmsProvider) {
         const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"][
           "translation-memories"
         ].$get({
           param: { organizationSlug },
-          query: {},
+          query: {
+            externalProjectId: selectedExternalProjectId,
+          },
         });
 
         if (!response.ok) {
@@ -334,7 +344,18 @@ export function TranslationMemoriesPageContent({
 
   useEffect(() => {
     setPage(1);
-  }, [organizationSlug, searchQuery, sourceFilter, providerFilter, syncFilter]);
+  }, [
+    organizationSlug,
+    searchQuery,
+    sourceFilter,
+    providerFilter,
+    syncFilter,
+    selectedExternalProjectId,
+  ]);
+
+  useEffect(() => {
+    setSelectedExternalProjectId("");
+  }, [organizationSlug, useLiveProviderMemories]);
 
   useEffect(() => {
     if (memoriesQuery.isSuccess && page > totalPages) {
@@ -346,7 +367,11 @@ export function TranslationMemoriesPageContent({
   const connectedCredentials = (credentialsQuery.data ?? []).filter(
     (credential) => credential.validationStatus === "connected",
   );
-  const hasConnectedProvider = credentialsQuery.isSuccess && connectedCredentials.length > 0;
+  const hasConnectedProvider = useLiveProviderMemories
+    ? Boolean(activeTmsProvider)
+    : credentialsQuery.isSuccess && connectedCredentials.length > 0;
+
+  const liveProjectSelectionRequired = useLiveProviderMemories && !selectedExternalProjectId;
 
   const emptyTitle = hasConnectedProvider
     ? "No translation memories yet"
@@ -393,6 +418,16 @@ export function TranslationMemoriesPageContent({
           ) : null
         }
       />
+
+      {useLiveProviderMemories ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
+          <TmsLiveProjectPicker
+            organizationSlug={organizationSlug}
+            value={selectedExternalProjectId}
+            onValueChange={setSelectedExternalProjectId}
+          />
+        </div>
+      ) : null}
 
       {memoriesQuery.isSuccess && memories.length > 0 ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
@@ -527,28 +562,41 @@ export function TranslationMemoriesPageContent({
         </div>
       ) : null}
 
-      <TranslationMemoriesTable
-        memories={filteredMemories}
-        memoriesQuery={memoriesQuery}
-        organizationSlug={organizationSlug}
-        emptyTitle={allowCreateMemories ? "No translation memories yet" : emptyTitle}
-        emptyDescription={
-          allowCreateMemories
-            ? "Create a workspace memory, import entries, then assign it to the projects that should use it."
-            : emptyDescription
-        }
-        emptyAction={
-          allowCreateMemories ? (
-            <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
-              Create memory
-            </Button>
-          ) : (
-            <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
-          )
-        }
-      />
+      {liveProjectSelectionRequired ? (
+        <div className="space-y-3 py-10">
+          <TypographyP className="text-sm font-medium text-foreground">
+            Choose a TMS project
+          </TypographyP>
+          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+            Select a project above to load live translation memories from your connected provider.
+          </TypographyP>
+        </div>
+      ) : (
+        <TranslationMemoriesTable
+          memories={filteredMemories}
+          memoriesQuery={memoriesQuery}
+          organizationSlug={organizationSlug}
+          emptyTitle={allowCreateMemories ? "No translation memories yet" : emptyTitle}
+          emptyDescription={
+            allowCreateMemories
+              ? "Create a workspace memory, import entries, then assign it to the projects that should use it."
+              : emptyDescription
+          }
+          emptyAction={
+            allowCreateMemories ? (
+              <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
+                Create memory
+              </Button>
+            ) : (
+              <TranslationMemoriesEmptyAction organizationSlug={organizationSlug} />
+            )
+          }
+        />
+      )}
 
-      {memoriesQuery.isSuccess && memoryTotal > MEMORIES_PAGE_SIZE ? (
+      {!liveProjectSelectionRequired &&
+      memoriesQuery.isSuccess &&
+      memoryTotal > MEMORIES_PAGE_SIZE ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-foreground/52">
             Showing {pageStart}–{pageEnd} of {memoryTotal} translation memories

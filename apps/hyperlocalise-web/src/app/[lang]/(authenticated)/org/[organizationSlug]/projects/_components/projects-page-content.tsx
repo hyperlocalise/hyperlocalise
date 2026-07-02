@@ -13,7 +13,6 @@ import { TypographyP } from "@/components/ui/typography";
 import { apiClient } from "@/lib/api-client-instance";
 import { readApiResponseError } from "@/lib/api-error";
 import { getTmsProviderBranding } from "@/lib/providers/tms-provider-branding";
-import { readTmsProviderListResponse } from "@/lib/providers/tms-provider-list-fetch";
 
 import {
   PageHeader,
@@ -21,6 +20,7 @@ import {
   WorkspacePageShell,
 } from "../../_components/workspace-resource-shared";
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
+import { fetchTmsLiveProjects, tmsLiveProjectsQueryKey } from "../../_hooks/use-tms-live-projects";
 import { DeleteProjectDialog } from "./delete-project-dialog";
 import {
   createEmptyProjectForm,
@@ -29,14 +29,11 @@ import {
   type ProjectFormValues,
 } from "./project-form";
 import { ProjectDialog } from "./project-dialog";
-import { mapProjectToListRow, type ApiProject, type ProjectListRow } from "./project-list";
+import { mapProjectToListRow, type ProjectListRow } from "./project-list";
 import { ProjectsTable } from "./projects-table";
 
 const nativeProjectsQueryKey = (organizationSlug: string) =>
   ["translation-projects", organizationSlug, "native"] as const;
-
-const tmsProjectsQueryKey = (organizationSlug: string) =>
-  ["translation-projects", organizationSlug, "tms-live"] as const;
 
 function useProjectSearch(projects: ProjectListRow[]) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -73,7 +70,6 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const [projectDialogMode, setProjectDialogMode] = useState<"create" | "edit" | null>(null);
   const [editingProject, setEditingProject] = useState<ProjectListRow | null>(null);
   const [deleteProject, setDeleteProject] = useState<ProjectListRow | null>(null);
-  const [tmsProjectsRequested, setTmsProjectsRequested] = useState(false);
   const nativeProjectsQuery = useQuery({
     queryKey: nativeProjectsQueryKey(organizationSlug),
     queryFn: async () => {
@@ -92,20 +88,10 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
   const activeTmsProviderQuery = useActiveTmsProvider(organizationSlug);
   const hasTmsConnection = Boolean(activeTmsProviderQuery.data);
   const tmsProjectsQuery = useQuery({
-    queryKey: tmsProjectsQueryKey(organizationSlug),
-    enabled: tmsProjectsRequested && hasTmsConnection,
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].projects.$get({
-        param: { organizationSlug },
-      });
-
-      const projects = await readTmsProviderListResponse<ApiProject>(
-        response,
-        "projects",
-        "Failed to load TMS projects",
-      );
-      return projects.map(mapProjectToListRow);
-    },
+    queryKey: tmsLiveProjectsQueryKey(organizationSlug),
+    enabled: hasTmsConnection,
+    queryFn: () => fetchTmsLiveProjects(organizationSlug),
+    select: (projects) => projects.map(mapProjectToListRow),
   });
   const createProject = useMutation({
     mutationFn: async (values: ProjectFormValues) => {
@@ -209,10 +195,9 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
     [editingProject, projectDialogMode],
   );
 
-  const hasAnyProjects =
-    nativeProjects.length > 0 || (tmsProjectsRequested && tmsProjects.length > 0);
-  const hasFilteredResults =
-    filteredNativeProjects.length > 0 || (tmsProjectsRequested && filteredTmsProjects.length > 0);
+  const hasAnyProjects = nativeProjects.length > 0 || tmsProjects.length > 0;
+  const hasFilteredResults = filteredNativeProjects.length > 0 || filteredTmsProjects.length > 0;
+  const isTmsProjectsLoading = tmsProjectsQuery.isLoading || tmsProjectsQuery.isFetching;
   const tmsProviderName = activeTmsProviderQuery.data
     ? getTmsProviderBranding(activeTmsProviderQuery.data.providerKind).name
     : "TMS";
@@ -311,33 +296,20 @@ export function ProjectsPageContent({ organizationSlug }: { organizationSlug: st
           />
         </section>
 
-        {hasTmsConnection ? (
+        {hasTmsConnection || isTmsProjectsLoading ? (
           <section className="space-y-4">
             <ProjectsSectionHeader
               title={`${tmsProviderName} projects`}
               description="Live projects fetched from your connected TMS provider."
             />
-            {tmsProjectsRequested ? (
-              <ProjectsTable
-                projects={filteredTmsProjects}
-                projectsQuery={tmsProjectsQuery}
-                isSavingProject={isSavingProject}
-                isDeletingProject={deleteProjectMutation.isPending}
-                organizationSlug={organizationSlug}
-                variant="tms"
-              />
-            ) : (
-              <div className="max-w-xl py-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setTmsProjectsRequested(true)}
-                >
-                  Show live TMS projects
-                </Button>
-              </div>
-            )}
+            <ProjectsTable
+              projects={filteredTmsProjects}
+              projectsQuery={tmsProjectsQuery}
+              isSavingProject={isSavingProject}
+              isDeletingProject={deleteProjectMutation.isPending}
+              organizationSlug={organizationSlug}
+              variant="tms"
+            />
           </section>
         ) : activeTmsProviderQuery.isSuccess ? (
           <section className="space-y-4">
