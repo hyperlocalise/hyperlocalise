@@ -23,8 +23,9 @@ func TestParserFeatureParitySubset(t *testing.T) {
 			msg:              "Date {ts, date, ::yyyyMMdd}",
 			wantPlaceholders: []string{"ts"},
 			wantICU: []BlockSignature{{
-				Arg:  "ts",
-				Type: "date",
+				Arg:     "ts",
+				Type:    "date",
+				Options: []string{"::yyyyMMdd"},
 			}},
 		},
 		{

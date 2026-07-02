@@ -181,23 +181,11 @@ func collectInvariantFromElement(el Element, inv *Invariant, pluralArg string) {
 	case ArgumentElement:
 		appendPlaceholder(inv, v.Value)
 	case NumberElement:
-		appendPlaceholder(inv, v.Value)
-		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
-			Arg:  v.Value,
-			Type: "number",
-		})
+		appendTypedBlockInvariant(inv, v.Value, "number", v.Style)
 	case DateElement:
-		appendPlaceholder(inv, v.Value)
-		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
-			Arg:  v.Value,
-			Type: "date",
-		})
+		appendTypedBlockInvariant(inv, v.Value, "date", v.Style)
 	case TimeElement:
-		appendPlaceholder(inv, v.Value)
-		inv.ICUBlocks = append(inv.ICUBlocks, BlockSignature{
-			Arg:  v.Value,
-			Type: "time",
-		})
+		appendTypedBlockInvariant(inv, v.Value, "time", v.Style)
 	case SelectElement:
 		appendSelectBlockInvariant(inv, v, pluralArg)
 	case PluralElement:
@@ -221,6 +209,18 @@ func appendPlaceholder(inv *Invariant, value string) {
 	if isPlaceholderName(value) {
 		inv.Placeholders = append(inv.Placeholders, value)
 	}
+}
+
+func appendTypedBlockInvariant(inv *Invariant, arg, kind, style string) {
+	appendPlaceholder(inv, arg)
+	sig := BlockSignature{
+		Arg:  arg,
+		Type: kind,
+	}
+	if style != "" {
+		sig.Options = []string{style}
+	}
+	inv.ICUBlocks = append(inv.ICUBlocks, sig)
 }
 
 func appendSelectBlockInvariant(inv *Invariant, v SelectElement, pluralArg string) {

@@ -115,3 +115,7 @@
 ## 2025-08-01 - [Preserving Path Relativity with Empty Tokens]
 **Learning:** Path resolution patterns starting with tokens (e.g., `{{localeDir}}/index.mdx`) can become absolute (e.g., `/index.mdx`) if the token resolves to an empty string. This causes "path escapes root" errors in security-sensitive CLI operations that expect relative paths.
 **Action:** When resolving paths, only trim leading slashes if the original pattern was relative. Use `strings.TrimPrefix(path, "/")` conditionally based on the original pattern's prefix to preserve both absolute paths and intended relativity.
+
+## 2025-08-05 - [ICU Invariant Styles]
+**Learning:** ICU invariant analysis must capture styles for typed elements (number, date, time) in the BlockSignature Options field. This ensures that changes to the formatting style are detected as invariant mismatches, which is critical for maintaining consistency between source and translations.
+**Action:** Always include the Style field from NumberElement, DateElement, and TimeElement in the ICUBlocks signature when collecting message invariants.
