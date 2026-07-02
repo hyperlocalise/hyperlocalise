@@ -5,10 +5,8 @@ import { toast } from "sonner";
 
 import { apiClient } from "@/lib/api-client-instance";
 import { getJobProviderActionAvailability } from "@/lib/providers/job-provider-actions";
-import type {
-  TmsProviderLiveJobComment,
-  TmsProviderLiveJobDetail,
-} from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
+import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
 
 import { ProviderJobDescriptionField } from "../../../../../jobs/_components/provider-job-description-field";
 import { ProviderLiveJobDetailView } from "./provider-live-job-detail-view";
@@ -40,7 +38,8 @@ export function ProviderLiveJobDetailContent({
 }) {
   const queryClient = useQueryClient();
   const jobQueryKey = ["tms-provider-job", organizationSlug, jobId] as const;
-  const commentsQueryKey = ["tms-provider-job-comments", organizationSlug, jobId] as const;
+  const showComments = parseProviderJobId(jobId)?.providerKind === "crowdin";
+
   const jobQuery = useQuery({
     queryKey: jobQueryKey,
     queryFn: async () => {
@@ -56,24 +55,6 @@ export function ProviderLiveJobDetailContent({
 
       const body = (await response.json()) as { job: TmsProviderLiveJobDetail };
       return body.job;
-    },
-  });
-  const commentsQuery = useQuery({
-    queryKey: commentsQueryKey,
-    enabled: jobQuery.data?.externalProviderKind === "crowdin",
-    queryFn: async () => {
-      const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
-        ":encodedJobId"
-      ].comments.$get({
-        param: { organizationSlug, encodedJobId: jobId },
-      });
-
-      if (!response.ok) {
-        throw new Error(`Failed to load task comments (${response.status})`);
-      }
-
-      const body = (await response.json()) as { comments: TmsProviderLiveJobComment[] };
-      return body.comments;
     },
   });
 
@@ -126,9 +107,7 @@ export function ProviderLiveJobDetailContent({
       onRefresh={() => {
         void queryClient.invalidateQueries({ queryKey: jobQueryKey });
       }}
-      comments={commentsQuery.data ?? []}
-      commentsLoading={commentsQuery.isLoading}
-      commentsError={commentsQuery.isError ? commentsQuery.error : undefined}
+      showComments={showComments}
       renderDescriptionField={({ description, editable }) => (
         <ProviderJobDescriptionField
           organizationSlug={organizationSlug}

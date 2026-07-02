@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect } from "storybook/test";
+import { expect, userEvent } from "storybook/test";
 import { AiMagicIcon, LinkSquare02Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -183,6 +183,22 @@ function liveFilesSection({
   );
 }
 
+function liveCommentsSection() {
+  const comments = createLiveCrowdinJobComments();
+
+  return (
+    <ul className="divide-y divide-border rounded-md border border-border bg-card">
+      {comments.map((comment) => (
+        <li key={comment.id} className="px-3 py-3">
+          <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-foreground">
+            {comment.text}
+          </p>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export const RunningFileTranslation: Story = {
   args: {
     ...taskViewArgsFromRecord(nativeJob),
@@ -198,6 +214,7 @@ export const RunningFileTranslation: Story = {
     await expect(canvas.getByText("Properties")).toBeInTheDocument();
     await expect(canvas.getByText("Task type")).toBeInTheDocument();
     await expect(canvas.getByText("Running")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "Files" }));
     await expect(canvas.getByText("home.json")).toBeInTheDocument();
   },
 };
@@ -297,14 +314,15 @@ export const LiveCrowdinTask: Story = {
     ),
     renderFilesSection: liveFilesSection,
     showComments: true,
-    comments: createLiveCrowdinJobComments(),
-    commentsLoading: false,
+    renderCommentsSection: liveCommentsSection,
   },
   play: async ({ canvas }) => {
     await expect(canvas.getByText("Translate marketing homepage")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Translate with agent" })).toBeInTheDocument();
     await expect(canvas.getByText("68%")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "Files" }));
     await expect(canvas.getByText("home.json")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("tab", { name: "Comments" }));
     await expect(canvas.getByText(/Preserve product name casing/)).toBeInTheDocument();
   },
 };
@@ -314,7 +332,11 @@ export const CommentsLoading: Story = {
     ...taskViewArgsFromLiveJob(liveJob),
     renderFilesSection: liveFilesSection,
     showComments: true,
-    commentsLoading: true,
+    renderCommentsSection: () => <p className="text-sm text-muted-foreground">Loading comments…</p>,
+  },
+  play: async ({ canvas }) => {
+    await userEvent.click(canvas.getByRole("tab", { name: "Comments" }));
+    await expect(canvas.getByText("Loading comments…")).toBeInTheDocument();
   },
 };
 

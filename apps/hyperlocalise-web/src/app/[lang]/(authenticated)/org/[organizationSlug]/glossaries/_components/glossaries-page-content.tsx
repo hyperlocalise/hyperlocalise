@@ -28,10 +28,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { Textarea } from "@/components/ui/textarea";
+import { TypographyP } from "@/components/ui/typography";
 import { readApiError, readApiResponseError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 import { useActiveTmsProvider } from "../../_hooks/use-active-tms-provider";
+
+import { TmsLiveProjectPicker } from "../../_components/tms-live-project-picker";
 
 import {
   GLOSSARY_SYNC_FILTERS,
@@ -227,6 +230,7 @@ export function GlossariesPageContent({
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createForm, setCreateForm] = useState<GlossaryCreateForm>(() => createEmptyGlossaryForm());
   const [createErrors, setCreateErrors] = useState<{ name?: string; targetLocales?: string }>({});
+  const [selectedExternalProjectId, setSelectedExternalProjectId] = useState("");
   const {
     filters,
     searchQuery,
@@ -248,6 +252,7 @@ export function GlossariesPageContent({
 
   const projectsQuery = useQuery({
     queryKey: projectsQueryKey(organizationSlug),
+    enabled: !useLiveProviderGlossaries,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"].projects.$get({
         param: { organizationSlug },
@@ -264,6 +269,7 @@ export function GlossariesPageContent({
 
   const credentialsQuery = useQuery({
     queryKey: credentialsQueryKey(organizationSlug),
+    enabled: !useLiveProviderGlossaries,
     queryFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"][
         "external-tms-provider-credential"
@@ -284,14 +290,18 @@ export function GlossariesPageContent({
     queryKey: [
       ...glossariesQueryKey(organizationSlug, page, filters),
       useLiveProviderGlossaries ? "live" : "native",
+      selectedExternalProjectId,
     ],
+    enabled: !useLiveProviderGlossaries || Boolean(selectedExternalProjectId),
     queryFn: async () => {
       if (useLiveProviderGlossaries && activeTmsProvider) {
         const response = await apiClient.api.orgs[":organizationSlug"][
           "tms-provider"
         ].glossaries.$get({
           param: { organizationSlug },
-          query: {},
+          query: {
+            externalProjectId: selectedExternalProjectId,
+          },
         });
 
         if (!response.ok) {
@@ -412,7 +422,11 @@ export function GlossariesPageContent({
 
   useEffect(() => {
     setPage(1);
-  }, [organizationSlug, filters]);
+  }, [organizationSlug, filters, selectedExternalProjectId]);
+
+  useEffect(() => {
+    setSelectedExternalProjectId("");
+  }, [organizationSlug, useLiveProviderGlossaries]);
 
   useEffect(() => {
     if (glossariesQuery.isSuccess && page > totalPages) {
@@ -424,7 +438,11 @@ export function GlossariesPageContent({
   const connectedCredentials = (credentialsQuery.data ?? []).filter(
     (credential) => credential.validationStatus === "connected",
   );
-  const hasConnectedProvider = credentialsQuery.isSuccess && connectedCredentials.length > 0;
+  const hasConnectedProvider = useLiveProviderGlossaries
+    ? Boolean(activeTmsProvider)
+    : credentialsQuery.isSuccess && connectedCredentials.length > 0;
+
+  const liveProjectSelectionRequired = useLiveProviderGlossaries && !selectedExternalProjectId;
 
   const emptyTitle = hasConnectedProvider ? "No glossaries yet" : "Connect a TMS provider";
   const emptyDescription = hasConnectedProvider
@@ -472,6 +490,16 @@ export function GlossariesPageContent({
           ) : null
         }
       />
+
+      {useLiveProviderGlossaries ? (
+        <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
+          <TmsLiveProjectPicker
+            organizationSlug={organizationSlug}
+            value={selectedExternalProjectId}
+            onValueChange={setSelectedExternalProjectId}
+          />
+        </div>
+      ) : null}
 
       {glossariesQuery.isSuccess && (glossaryTotal > 0 || hasActiveFilters) ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:gap-2">
@@ -637,28 +665,42 @@ export function GlossariesPageContent({
         </div>
       ) : null}
 
-      <GlossariesTable
-        glossaries={glossaries}
-        glossariesQuery={glossariesQuery}
-        organizationSlug={organizationSlug}
-        emptyTitle={allowCreateGlossaries ? "No glossaries yet" : emptyTitle}
-        emptyDescription={
-          allowCreateGlossaries
-            ? "Create a workspace glossary, import terms, then assign it to the projects that should use it."
-            : emptyDescription
-        }
-        emptyAction={
-          allowCreateGlossaries ? (
-            <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
-              Create glossary
-            </Button>
-          ) : (
-            <GlossariesEmptyAction organizationSlug={organizationSlug} />
-          )
-        }
-      />
+      {liveProjectSelectionRequired ? (
+        <div className="space-y-3 py-10">
+          <TypographyP className="text-sm font-medium text-foreground">
+            Choose a TMS project
+          </TypographyP>
+          <TypographyP className="max-w-xl text-sm leading-6 text-foreground/52">
+            Select a project above to load live glossaries and term bases from your connected
+            provider.
+          </TypographyP>
+        </div>
+      ) : (
+        <GlossariesTable
+          glossaries={glossaries}
+          glossariesQuery={glossariesQuery}
+          organizationSlug={organizationSlug}
+          emptyTitle={allowCreateGlossaries ? "No glossaries yet" : emptyTitle}
+          emptyDescription={
+            allowCreateGlossaries
+              ? "Create a workspace glossary, import terms, then assign it to the projects that should use it."
+              : emptyDescription
+          }
+          emptyAction={
+            allowCreateGlossaries ? (
+              <Button type="button" size="sm" onClick={() => setCreateDialogOpen(true)}>
+                Create glossary
+              </Button>
+            ) : (
+              <GlossariesEmptyAction organizationSlug={organizationSlug} />
+            )
+          }
+        />
+      )}
 
-      {glossariesQuery.isSuccess && glossaryTotal > GLOSSARIES_PAGE_SIZE ? (
+      {!liveProjectSelectionRequired &&
+      glossariesQuery.isSuccess &&
+      glossaryTotal > GLOSSARIES_PAGE_SIZE ? (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-foreground/52">
             Showing {pageStart}–{pageEnd} of {glossaryTotal} glossaries

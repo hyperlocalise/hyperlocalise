@@ -5,7 +5,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { File01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
@@ -26,7 +26,6 @@ import { ProjectFileDetailPanel } from "./project-file-detail-panel";
 import { ProjectFilesErrorBoundary } from "./project-files-error-boundary";
 import {
   ProjectFilesTreePanel,
-  fetchProjectFiles,
   projectFilesQueryKey,
   sortFilesByPath,
 } from "./project-files-tree-panel";
@@ -139,6 +138,7 @@ export function ProjectFilesPageContent({
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [loadedFiles, setLoadedFiles] = useState<ProjectFileRecord[]>([]);
 
   const selectedSourcePath = searchParams.get("sourcePath");
   const highlightLocale = searchParams.get("locale");
@@ -204,14 +204,7 @@ export function ProjectFilesPageContent({
     setSelectedFiles((currentFiles) => currentFiles.filter((item) => item !== file));
   }, []);
 
-  const cachedFilesQuery = useQuery({
-    queryKey: projectFilesQueryKey(organizationSlug, projectId),
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId),
-  });
-  const resolvedFiles = useMemo(
-    () => sortFilesByPath(cachedFilesQuery.data ?? []),
-    [cachedFilesQuery.data],
-  );
+  const resolvedFiles = useMemo(() => sortFilesByPath(loadedFiles), [loadedFiles]);
 
   return (
     <ProjectFilesPageContentView
@@ -235,6 +228,7 @@ export function ProjectFilesPageContent({
           projectId={projectId}
           selectedSourcePath={selectedSourcePath}
           onSelectSourcePath={setSelectedSourcePath}
+          onLoadedFilesChange={setLoadedFiles}
         />
       }
     />

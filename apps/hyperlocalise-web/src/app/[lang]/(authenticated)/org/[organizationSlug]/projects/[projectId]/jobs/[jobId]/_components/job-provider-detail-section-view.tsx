@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { AiMagicIcon, Comment01Icon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -148,6 +148,7 @@ export function JobProviderDetailSectionView({
   const visibleActions = (job.providerActions ?? []).filter((action) => action.visible);
   const crowdinDescription =
     getProviderPayloadString(job.externalProviderPayload, "description")?.trim() ?? "";
+  const [sourceFilesExpanded, setSourceFilesExpanded] = useState(false);
 
   return (
     <>
@@ -217,9 +218,27 @@ export function JobProviderDetailSectionView({
         </section>
       ) : null}
 
-      {projectId && renderSourceFiles
-        ? renderSourceFiles({ job, organizationSlug, projectId })
-        : null}
+      {projectId && renderSourceFiles ? (
+        <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <TypographyH2 className="font-heading text-lg font-medium text-foreground md:text-lg">
+              Source files
+            </TypographyH2>
+            {!sourceFilesExpanded ? (
+              <Button size="sm" variant="outline" onClick={() => setSourceFilesExpanded(true)}>
+                Show source files
+              </Button>
+            ) : null}
+          </div>
+          {sourceFilesExpanded ? (
+            renderSourceFiles({ job, organizationSlug, projectId })
+          ) : (
+            <p className="mt-3 text-sm text-foreground/48">
+              Load linked source files when you are ready to review or open them.
+            </p>
+          )}
+        </section>
+      ) : null}
 
       {showAgentActions && visibleActions.length > 0 ? (
         <section className="rounded-lg border border-foreground/8 bg-foreground/2.5 p-5">

@@ -6,10 +6,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type {
-  TmsProviderLiveJobComment,
-  TmsProviderLiveJobDetail,
-} from "@/lib/providers/tms-provider-live";
+import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live";
 
 import { getProviderPayloadString } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
@@ -39,9 +36,6 @@ export type ProviderLiveFilesSectionRenderer = (props: {
 export function ProviderLiveJobDetailView({
   buildJobsListHref: buildJobsListHrefProp = buildJobsListHref,
   canEditProviderJobDescription = false,
-  comments = [],
-  commentsError,
-  commentsLoading = false,
   error,
   isLoading,
   isRefreshing = false,
@@ -57,13 +51,11 @@ export function ProviderLiveJobDetailView({
   renderError = defaultRenderError,
   renderExternalLink,
   renderFilesSection,
+  showComments = false,
   translateWithAgentAction,
 }: {
   buildJobsListHref?: typeof buildJobsListHref;
   canEditProviderJobDescription?: boolean;
-  comments?: TmsProviderLiveJobComment[];
-  commentsError?: unknown;
-  commentsLoading?: boolean;
   error?: unknown;
   isLoading: boolean;
   isRefreshing?: boolean;
@@ -79,6 +71,7 @@ export function ProviderLiveJobDetailView({
   renderError?: JobDetailErrorRenderer;
   renderExternalLink?: (props: { href: string; label: string }) => ReactNode;
   renderFilesSection?: ProviderLiveFilesSectionRenderer;
+  showComments?: boolean;
   translateWithAgentAction?: ProviderActionAvailability | null;
 }) {
   const providerDescription = job
@@ -174,10 +167,7 @@ export function ProviderLiveJobDetailView({
       canEditDescription={canEditProviderDescription}
       renderDescriptionField={renderDescriptionField}
       renderFilesSection={filesRenderer}
-      showComments={job?.externalProviderKind === "crowdin"}
-      comments={comments}
-      commentsLoading={commentsLoading}
-      commentsError={commentsError}
+      showComments={showComments}
     />
   );
 }

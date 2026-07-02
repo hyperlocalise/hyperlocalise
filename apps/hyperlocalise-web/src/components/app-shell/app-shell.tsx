@@ -8,11 +8,15 @@ import {
   evaluateWorkspaceFeatureFlags,
   filterNavigationByWorkspaceFlags,
 } from "@/lib/flags/workspace-flags";
+import { getTmsProviderConnection } from "@/lib/providers/tms-provider-live";
 import {
   getTmsUserConnectCtaState,
   type TmsUserConnectCta,
 } from "@/lib/providers/tms-user-connection";
 import { requireAppAuthContext } from "@/lib/workos/app-auth";
+
+import { OrgTmsQueryProvider } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_components/org-tms-query-provider";
+import type { ActiveTmsProviderConnection } from "@/app/[lang]/(authenticated)/org/[organizationSlug]/_hooks/use-active-tms-provider";
 
 export type AppShellProps = {
   autumnConfigured?: boolean;
@@ -42,6 +46,19 @@ export async function AppShell({
         userId: auth.user.localUserId,
       })
     : { showConnectCta: false };
+  let initialTmsProviderConnection: ActiveTmsProviderConnection | null = null;
+  if (hasCapability(auth.membership.role, "provider_credentials:read")) {
+    try {
+      initialTmsProviderConnection = await getTmsProviderConnection(
+        auth.activeOrganization.localOrganizationId,
+      );
+    } catch (error) {
+      console.error("[app-shell] Failed to prefetch TMS provider connection", {
+        organizationId: auth.activeOrganization.localOrganizationId,
+        error,
+      });
+    }
+  }
 
   return (
     <AppShellClient
@@ -60,7 +77,12 @@ export async function AppShell({
         <AppShellNavigation organizationSlug={activeOrganizationSlug} groups={navigationGroups} />
       }
     >
-      {children}
+      <OrgTmsQueryProvider
+        organizationSlug={activeOrganizationSlug}
+        initialTmsProviderConnection={initialTmsProviderConnection}
+      >
+        {children}
+      </OrgTmsQueryProvider>
     </AppShellClient>
   );
 }
