@@ -20,8 +20,19 @@ import type {
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/types";
+import { isOpenIssueStatus } from "@/components/cat/cat-queue-filter";
 
 type CatFile = ProjectFileCatResponse["catFile"];
+
+function countOpenIssues(segment: ProjectFileCatSegment) {
+  if (segment.comments.length > 0) {
+    return segment.comments.filter(
+      (comment) => comment.type === "issue" && isOpenIssueStatus(comment.status),
+    ).length;
+  }
+
+  return segment.unresolvedIssueCount ?? 0;
+}
 
 function mapSegmentComments(segment: ProjectFileCatSegment): CatSegmentComment[] {
   return segment.comments.map((comment) => ({
@@ -40,9 +51,7 @@ export function segmentStatusFor(segment: ProjectFileCatSegment): CatSegment["st
     return "reviewed";
   }
 
-  const hasUnresolvedIssue =
-    (segment.unresolvedIssueCount ?? 0) > 0 ||
-    segment.comments.some((comment) => comment.type === "issue");
+  const hasUnresolvedIssue = countOpenIssues(segment) > 0;
 
   if (hasUnresolvedIssue) {
     return "needs_review";
@@ -220,10 +229,7 @@ function segmentIntelligenceFor(
   segment: ProjectFileCatSegment,
 ): CatSegmentIntelligence {
   const comments = segment.comments.length || segment.commentCount || 0;
-  const issues =
-    segment.comments.filter((comment) => comment.type === "issue").length ||
-    segment.unresolvedIssueCount ||
-    0;
+  const issues = countOpenIssues(segment);
   const context = segment.context?.trim();
   const repositoryContext = segment.repositoryContext?.trim();
   const providerKind = catFile.provider?.kind;
@@ -266,10 +272,7 @@ export function projectFileCatToWorkspaceState(
   const segmentOffset = catFile.pagination?.offset ?? 0;
   const segments = catFile.segments.map((segment, index): CatSegment => {
     const commentCount = segment.comments.length || segment.commentCount || 0;
-    const issueComments =
-      segment.comments.filter((comment) => comment.type === "issue").length ||
-      segment.unresolvedIssueCount ||
-      0;
+    const issueComments = countOpenIssues(segment);
     const tags = [
       segment.type,
       commentCount > 0 ? `${commentCount} comment${commentCount === 1 ? "" : "s"}` : null,
