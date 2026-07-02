@@ -3,7 +3,12 @@ import { describe, expect, it } from "vite-plus/test";
 import type { ProjectFileRecord } from "@/api/routes/project/project.schema";
 
 import {
+  createNativeJobDetail,
+  createProviderBackedJobDetail,
+} from "../../_components/job-detail.fixture";
+import {
   PROJECT_FILES_FETCH_LIMIT,
+  mapSyncedProviderSourceFiles,
   resolveJobCatTargetFromStoredFileId,
 } from "./load-job-cat-files";
 
@@ -52,5 +57,47 @@ describe("resolveJobCatTargetFromStoredFileId", () => {
       reference: "file_missing",
       fetchedCount: PROJECT_FILES_FETCH_LIMIT,
     });
+  });
+});
+
+describe("mapSyncedProviderSourceFiles", () => {
+  it("maps synced provider source files to project file records", () => {
+    const job = createProviderBackedJobDetail({
+      providerSourceFiles: [
+        {
+          id: "42",
+          displayName: "messages.po",
+          sourcePath: "locales/messages.po",
+          resourceType: "file",
+          externalUrl: null,
+        },
+        {
+          id: "99",
+          displayName: "missing-path",
+          sourcePath: null,
+          resourceType: "file",
+          externalUrl: null,
+        },
+      ],
+    });
+
+    const files = mapSyncedProviderSourceFiles({
+      job,
+      projectId: "ext:crowdin:902807",
+    });
+
+    expect(files).toHaveLength(1);
+    expect(files[0]?.sourcePath).toBe("locales/messages.po");
+    expect(files[0]?.provider?.kind).toBe("crowdin");
+    expect(files[0]?.provider?.externalProjectId).toBe("902807");
+  });
+
+  it("returns an empty list when the job has no provider kind", () => {
+    const files = mapSyncedProviderSourceFiles({
+      job: createNativeJobDetail({ externalProviderKind: null, providerSourceFiles: [] }),
+      projectId: "project_1",
+    });
+
+    expect(files).toEqual([]);
   });
 });
