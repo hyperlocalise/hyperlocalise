@@ -120,6 +120,7 @@ export function ProjectFileDetailPanel({
   encodedJobId?: string | null;
 }) {
   const sourcePath = file?.sourcePath ?? null;
+  const externalResourceId = file?.provider?.externalResourceId ?? null;
 
   const detailQuery = useQuery({
     queryKey: projectFileDetailQueryKey(
@@ -150,7 +151,10 @@ export function ProjectFileDetailPanel({
         ":projectId"
       ].files.detail.$get({
         param: { organizationSlug, projectId },
-        query: { sourcePath: sourcePath as string },
+        query: {
+          sourcePath: sourcePath as string,
+          ...(externalResourceId ? { externalResourceId } : {}),
+        },
       });
 
       if (!response.ok) {

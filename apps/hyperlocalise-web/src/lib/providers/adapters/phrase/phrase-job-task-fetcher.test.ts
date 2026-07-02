@@ -119,6 +119,65 @@ describe("fetchPhraseJobTasks", () => {
     });
   });
 
+  it("skips TM and term-base enrichment when enrichResources is false", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/jobs?")) {
+        const workflowLevel = Number(new URL(path).searchParams.get("workflowLevel") ?? "0");
+        if (workflowLevel === 1) {
+          return new Response(
+            JSON.stringify({
+              content: [
+                {
+                  uid: "task-1",
+                  innerId: "phrase-job-1",
+                  status: "NEW",
+                  targetLang: "fr-FR",
+                  filename: "App copy",
+                  workflowStep: { id: "step-1", name: "Translation", workflowLevel: 1 },
+                },
+              ],
+              totalPages: 1,
+            }),
+            { status: 200 },
+          );
+        }
+
+        return new Response(JSON.stringify({ content: [], totalPages: 0 }), { status: 200 });
+      }
+
+      throw new Error(`Unexpected fetch: ${path}`);
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchPhraseJobTasks({
+      organizationId: "org-1",
+      projectId: "project-1",
+      providerKind: "phrase",
+      externalProjectId: "phrase-project-1",
+      credential,
+      project: tmsProject,
+      secretMaterial: "secret-token",
+      enrichResources: false,
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.providerPayload).not.toHaveProperty("translationMemories");
+    expect(result[0]?.providerPayload).not.toHaveProperty("termBases");
+    expect(
+      vi
+        .mocked(fetchMock)
+        .mock.calls.some(([url]) => String(url as string | URL).includes("/transMemories")),
+    ).toBe(false);
+    expect(
+      vi
+        .mocked(fetchMock)
+        .mock.calls.some(([url]) => String(url as string | URL).includes("/termBases")),
+    ).toBe(false);
+  });
+
   it("maps review workflow steps to review job kind", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);

@@ -630,24 +630,18 @@ export function JobsPageView({
 }) {
   const searchId = useId();
   const [search, setSearch] = useState(initialSearch);
-  const [viewMode, setViewMode] = useState<JobsViewMode>("row");
+  const [viewMode, setViewMode] = useState<JobsViewMode>("kanban");
   const [uncontrolledStatusFilter, setUncontrolledStatusFilter] =
     useState<JobsStatusFilter>(initialStatusFilter);
   const statusFilter = controlledStatusFilter ?? uncontrolledStatusFilter;
 
   useEffect(() => {
-    if (!projectId) {
-      return;
-    }
-
     setViewMode(readJobsViewMode());
-  }, [projectId]);
+  }, []);
 
   const handleViewModeChange = (nextViewMode: JobsViewMode) => {
     setViewMode(nextViewMode);
-    if (projectId) {
-      writeJobsViewMode(nextViewMode);
-    }
+    writeJobsViewMode(nextViewMode);
   };
 
   const filterJobs = (jobs: JobRow[]) => {
@@ -671,7 +665,7 @@ export function JobsPageView({
 
   const isPersonalWork = scope === "personal";
   const showNativeSection = !isProviderProjectScope;
-  const showTmsSection = hasActiveTmsConnection || isProviderProjectScope;
+  const showTmsSection = isProviderProjectScope || (!projectId && hasActiveTmsConnection);
 
   const nativeEmptyLabel = projectId
     ? "No Hyperlocalise jobs found for this project yet."

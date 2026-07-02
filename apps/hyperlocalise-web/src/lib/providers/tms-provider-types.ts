@@ -77,6 +77,7 @@ export type ExternalTmsJobTaskFetcher = (input: {
   credential: ExternalTmsCredential;
   project: ExternalTmsProject;
   secretMaterial: string;
+  enrichResources?: boolean;
 }) => Promise<ExternalTmsJobTaskMetadata[]>;
 
 export type ExternalTmsGlossaryTermMetadata = {

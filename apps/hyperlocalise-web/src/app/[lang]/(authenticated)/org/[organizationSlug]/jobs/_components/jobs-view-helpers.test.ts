@@ -130,9 +130,9 @@ describe("jobs-view-helpers", () => {
     });
 
     try {
-      expect(readJobsViewMode()).toBe("row");
-      writeJobsViewMode("kanban");
       expect(readJobsViewMode()).toBe("kanban");
+      writeJobsViewMode("row");
+      expect(readJobsViewMode()).toBe("row");
     } finally {
       Object.defineProperty(globalThis, "window", {
         configurable: true,

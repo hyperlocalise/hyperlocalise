@@ -221,6 +221,7 @@ export const workspaceFilesResponseSchema = z.object({
 
 export const projectFileDetailQuerySchema = z.object({
   sourcePath: z.string().trim().min(1).max(2048),
+  externalResourceId: z.string().trim().min(1).max(128).optional(),
 });
 
 export const projectFileCatQueueFilterSchema = z.enum([
