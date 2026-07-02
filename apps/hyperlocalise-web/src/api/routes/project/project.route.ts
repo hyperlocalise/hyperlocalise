@@ -27,6 +27,7 @@ import { createLogger } from "@/lib/log";
 import { createRepositorySourceFileVersion, createStoredFile } from "@/lib/file-storage/records";
 import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
+  countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveCatFile,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
@@ -1499,6 +1500,41 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
         );
       },
     )
+    .get("/:projectId/open-job-count", validateProjectParams, async (c) => {
+      const params = c.req.valid("param");
+      const organizationId = c.var.auth.organization.localOrganizationId;
+      const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+
+      if (target.kind === "provider_unavailable") {
+        return providerProjectUnavailableResponse(c, target);
+      }
+
+      if (target.kind === "provider") {
+        try {
+          const openJobCount = await countTmsProviderLiveOpenJobsForProject(
+            organizationId,
+            target.externalProjectId,
+            { actorUserId: c.var.auth.user.localUserId },
+          );
+          return c.json({ openJobCount }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      }
+
+      const project = await getOwnedProject(c.var.auth, params.projectId);
+      if (!project) {
+        scheduleProjectNotFoundDiagnostics({
+          auth: c.var.auth,
+          projectId: params.projectId,
+          route: "project.open_job_count",
+        });
+        return projectNotFoundResponse(c);
+      }
+
+      const openJobCount = await countOpenJobs(c.var.auth, project.id);
+      return c.json({ openJobCount }, 200);
+    })
     .get("/:projectId", validateProjectParams, async (c) => {
       const rawPathProjectId = c.req.param("projectId");
       const params = c.req.valid("param");
@@ -1629,7 +1665,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             "live provider project lookup succeeded",
           );
 
-          return c.json({ project: { ...project, openJobCount: project.openJobCount } }, 200);
+          return c.json({ project: { ...project, openJobCount: 0 } }, 200);
         } catch (error) {
           projectDetailRouteLogger.warn(
             {

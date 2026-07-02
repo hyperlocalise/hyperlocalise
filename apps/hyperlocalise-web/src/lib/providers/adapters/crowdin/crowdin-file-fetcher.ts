@@ -81,20 +81,7 @@ export const fetchCrowdinFileKeys: ExternalTmsFileKeyFetcher = async ({
 
   for (const file of allFiles) {
     const sourcePath = sourcePathOf(file, branchMap, directoryPathById);
-
-    let revision: string | undefined;
-    try {
-      const revisions = await client.listFileRevisions(projectId, file.id);
-      if (revisions.length > 0) {
-        revision = String(revisions[0]?.id ?? file.revisionId);
-      } else {
-        // Fall back to file.revisionId when the revisions list is empty
-        revision = String(file.revisionId);
-      }
-    } catch {
-      // Fall back to file.revisionId if revision listing fails
-      revision = String(file.revisionId);
-    }
+    const revision = String(file.revisionId);
 
     results.push({
       externalResourceId: String(file.id),

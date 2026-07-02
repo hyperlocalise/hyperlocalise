@@ -1,6 +1,6 @@
+import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import { createLogger } from "@/lib/log";
 import { schema } from "@/lib/database";
-import { openJobStatusValues } from "@/api/routes/project/job.schema";
 import type {
   ProjectFileCatComment,
   ProjectFileCatResponse,
@@ -143,7 +143,6 @@ export type TmsProviderLiveProject = {
   targetLocales: string[];
   externalProjectUrl: string | null;
   isActive: boolean;
-  openJobCount: number;
 };
 
 export type TmsProviderLiveJob = {
@@ -600,7 +599,6 @@ function mapLiveProject(
     targetLocales,
     externalProjectUrl: project.externalProjectUrl ?? null,
     isActive: project.isActive ?? true,
-    openJobCount: 0,
   };
 }
 
@@ -1419,68 +1417,6 @@ async function fetchLiveProjects(context: ActiveTmsProviderContext) {
   }
 }
 
-function countOpenLiveJobs(jobs: TmsProviderLiveJob[]): number {
-  return jobs.filter((job) => openLiveJobStatuses.has(job.status)).length;
-}
-
-async function attachOpenJobCountsToLiveProjects(
-  organizationId: string,
-  projects: TmsProviderLiveProject[],
-  context: ActiveTmsProviderContext,
-  liveProjectMetadata: ExternalTmsProjectMetadata[],
-  options?: { actorUserId?: string | null },
-): Promise<TmsProviderLiveProject[]> {
-  if (projects.length === 0) {
-    return projects;
-  }
-
-  const counts = await mapWithConcurrency(
-    liveProjectMetadata,
-    LIVE_PROJECT_JOB_FANOUT_CONCURRENCY,
-    async (project) => {
-      try {
-        const jobs = await listTmsProviderLiveJobsForProject(
-          organizationId,
-          project.externalProjectId,
-          {
-            context,
-            projects: liveProjectMetadata,
-            actorUserId: options?.actorUserId,
-          },
-        );
-
-        return {
-          externalProjectId: project.externalProjectId,
-          openJobCount: countOpenLiveJobs(jobs),
-        };
-      } catch (error) {
-        logger.warn(
-          {
-            organizationId,
-            externalProjectId: project.externalProjectId,
-            error: error instanceof Error ? error.message : "unknown_error",
-          },
-          "failed to fetch live jobs for open job count enrichment",
-        );
-
-        return {
-          externalProjectId: project.externalProjectId,
-          openJobCount: 0,
-        };
-      }
-    },
-  );
-
-  const openJobCountByExternalProjectId = new Map(
-    counts.map((entry) => [entry.externalProjectId, entry.openJobCount]),
-  );
-
-  return projects.map((project) => ({
-    ...project,
-    openJobCount: openJobCountByExternalProjectId.get(project.externalProjectId) ?? 0,
-  }));
-}
-
 export async function getTmsProviderConnection(
   organizationId: string,
 ): Promise<TmsProviderConnection | null> {
@@ -1497,26 +1433,24 @@ export async function getTmsProviderConnection(
   };
 }
 
-export async function listTmsProviderLiveProjects(
+async function loadActiveLiveProjects(
   organizationId: string,
   options?: { actorUserId?: string | null },
-): Promise<TmsProviderLiveProject[]> {
+): Promise<{ context: ActiveTmsProviderContext; activeProjects: ExternalTmsProjectMetadata[] }> {
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
   const projects = await fetchLiveProjects(context);
   const activeProjects = projects.filter((project) => project.isActive !== false);
-  const mappedProjects = activeProjects.map((project) =>
-    mapLiveProject(context.providerKind, project),
-  );
+  return { context, activeProjects };
+}
 
-  return attachOpenJobCountsToLiveProjects(
-    organizationId,
-    mappedProjects,
-    context,
-    activeProjects,
-    options,
-  );
+export async function listTmsProviderLiveProjects(
+  organizationId: string,
+  options?: { actorUserId?: string | null },
+): Promise<TmsProviderLiveProject[]> {
+  const { context, activeProjects } = await loadActiveLiveProjects(organizationId, options);
+  return activeProjects.map((project) => mapLiveProject(context.providerKind, project));
 }
 
 export async function getTmsProviderLiveProject(
@@ -1549,15 +1483,7 @@ export async function getTmsProviderLiveProject(
         externalProjectUrl: project.webUrl,
         isActive: !project.isSuspended,
       };
-      const mappedProject = mapLiveProject(context.providerKind, projectMetadata);
-      const [projectWithOpenJobCount] = await attachOpenJobCountsToLiveProjects(
-        organizationId,
-        [mappedProject],
-        context,
-        [projectMetadata],
-        options,
-      );
-      return projectWithOpenJobCount ?? null;
+      return mapLiveProject(context.providerKind, projectMetadata);
     } catch (error) {
       if (error instanceof CrowdinApiError && error.status === 404) {
         return null;
@@ -1566,8 +1492,33 @@ export async function getTmsProviderLiveProject(
     }
   }
 
-  const projects = await listTmsProviderLiveProjects(organizationId, options);
-  return projects.find((project) => project.externalProjectId === externalProjectId) ?? null;
+  const { context: liveContext, activeProjects } = await loadActiveLiveProjects(
+    organizationId,
+    options,
+  );
+  const projectMetadata = activeProjects.find(
+    (project) => project.externalProjectId === externalProjectId,
+  );
+  if (!projectMetadata) {
+    return null;
+  }
+
+  return mapLiveProject(liveContext.providerKind, projectMetadata);
+}
+
+function countOpenLiveJobs(jobs: TmsProviderLiveJob[]): number {
+  return jobs.filter((job) => openLiveJobStatuses.has(job.status)).length;
+}
+
+export async function countTmsProviderLiveOpenJobsForProject(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { actorUserId?: string | null },
+): Promise<number> {
+  const jobs = await listTmsProviderLiveJobsForProject(organizationId, externalProjectId, {
+    actorUserId: options?.actorUserId,
+  });
+  return countOpenLiveJobs(jobs);
 }
 
 export async function listTmsProviderLiveJobsForProject(
@@ -1668,6 +1619,14 @@ export async function listTmsProviderLiveFilesForProject(
   const context =
     options?.context ??
     (await loadActiveTmsProviderContext(organizationId, { actorUserId: options?.actorUserId }));
+
+  const liveProject = await getTmsProviderLiveProject(organizationId, externalProjectId, {
+    actorUserId: options?.actorUserId,
+  });
+  if (!liveProject) {
+    return [];
+  }
+
   const fetcher = tmsProviderFileKeyFetchers[context.providerKind];
   if (!fetcher) {
     throw new TmsProviderLiveError(
@@ -1676,44 +1635,48 @@ export async function listTmsProviderLiveFilesForProject(
     );
   }
 
-  const projects = options?.projects ?? (await fetchLiveProjects(context));
-  const project = projects.find((item) => item.externalProjectId === externalProjectId);
-  if (!project) {
-    return [];
-  }
-
-  const liveProject = buildLiveProviderProject({
+  const liveProviderProject = buildLiveProviderProject({
     organizationId: context.organizationId,
     credentialId: context.credential.id,
     providerKind: context.providerKind,
-    externalProjectId: project.externalProjectId,
-    name: project.name,
-    sourceLocale: project.sourceLocale ?? "en",
-    targetLocales: project.targetLocales ?? [],
-    externalProjectUrl: project.externalProjectUrl,
-    isActive: project.isActive,
+    externalProjectId: liveProject.externalProjectId,
+    name: liveProject.name,
+    sourceLocale: liveProject.sourceLocale ?? "en",
+    targetLocales: liveProject.targetLocales ?? [],
+    externalProjectUrl: liveProject.externalProjectUrl,
+    isActive: liveProject.isActive,
   });
 
   let files;
   try {
     files = await fetcher({
       organizationId: context.organizationId,
-      projectId: liveProject.id,
+      projectId: liveProviderProject.id,
       providerKind: context.providerKind,
       externalProjectId,
       credential: context.credential,
-      project: liveProject,
+      project: liveProviderProject,
       secretMaterial: context.secretMaterial,
     });
   } catch (error) {
     rethrowProviderFetcherError(error);
   }
 
-  return files
-    .slice(0, options?.limit ?? 500)
-    .map((file) =>
-      mapLiveFile({ providerKind: context.providerKind, externalProjectId, file, project }),
-    );
+  return files.slice(0, options?.limit ?? 500).map((file) =>
+    mapLiveFile({
+      providerKind: context.providerKind,
+      externalProjectId,
+      file,
+      project: {
+        externalProjectId: liveProject.externalProjectId,
+        name: liveProject.name,
+        sourceLocale: liveProject.sourceLocale,
+        targetLocales: liveProject.targetLocales,
+        externalProjectUrl: liveProject.externalProjectUrl,
+        isActive: liveProject.isActive,
+      },
+    }),
+  );
 }
 
 async function buildTmsProviderLiveFileDetail(

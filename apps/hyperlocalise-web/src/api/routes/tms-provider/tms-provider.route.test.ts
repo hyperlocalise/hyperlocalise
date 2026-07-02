@@ -114,7 +114,6 @@ describe("tmsProviderRoutes", () => {
           targetLocales: ["fr"],
           externalProjectUrl: "https://crowdin.com/project/42",
           isActive: true,
-          openJobCount: 0,
         },
       ]);
 

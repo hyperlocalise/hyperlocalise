@@ -233,25 +233,27 @@ export function ProjectsTable({
                 </div>
               </div>
 
-              <dl className="mt-6 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
-                <div className="min-w-0">
-                  <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
-                    Open jobs
-                  </dt>
-                  <dd className="mt-1 truncate text-sm text-foreground/54">
-                    {project.openJobCount > 0 ? (
-                      <Link
-                        href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
-                        className="text-foreground/72 hover:text-foreground hover:underline"
-                      >
-                        {project.openJobCount} {project.openJobCount === 1 ? "job" : "jobs"}
-                      </Link>
-                    ) : (
-                      <span>None</span>
-                    )}
-                  </dd>
-                </div>
-              </dl>
+              {variant === "native" ? (
+                <dl className="mt-6 grid gap-3 border-t border-foreground/8 pt-4 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <dt className="text-xs font-medium tracking-[0.08em] text-foreground/34 uppercase">
+                      Open jobs
+                    </dt>
+                    <dd className="mt-1 truncate text-sm text-foreground/54">
+                      {project.openJobCount > 0 ? (
+                        <Link
+                          href={`/org/${organizationSlug}/projects/${project.id}/jobs`}
+                          className="text-foreground/72 hover:text-foreground hover:underline"
+                        >
+                          {project.openJobCount} {project.openJobCount === 1 ? "job" : "jobs"}
+                        </Link>
+                      ) : (
+                        <span>None</span>
+                      )}
+                    </dd>
+                  </div>
+                </dl>
+              ) : null}
             </article>
           ))}
         </div>
