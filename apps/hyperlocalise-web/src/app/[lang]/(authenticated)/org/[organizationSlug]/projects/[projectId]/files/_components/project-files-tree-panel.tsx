@@ -34,7 +34,7 @@ function apiPath(organizationSlug: string, projectId: string) {
   return `/api/orgs/${encodeURIComponent(organizationSlug)}/projects/${encodeURIComponent(projectId)}/files`;
 }
 
-function sortFilesByPath(files: ProjectFileRecord[]) {
+export function sortFilesByPath(files: ProjectFileRecord[]) {
   return [...files].toSorted((a, b) =>
     a.sourcePath.localeCompare(b.sourcePath, undefined, { sensitivity: "base" }),
   );

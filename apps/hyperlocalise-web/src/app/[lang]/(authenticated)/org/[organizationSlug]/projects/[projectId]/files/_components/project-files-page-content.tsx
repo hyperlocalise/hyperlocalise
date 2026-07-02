@@ -28,6 +28,7 @@ import {
   ProjectFilesTreePanel,
   fetchProjectFiles,
   projectFilesQueryKey,
+  sortFilesByPath,
 } from "./project-files-tree-panel";
 import { ProjectFilesTree } from "./project-files-tree";
 import { formatBytes } from "./project-files-shared";
@@ -47,12 +48,6 @@ function sourcePathForFile(file: File) {
 
 function fileKey(file: File) {
   return `${sourcePathForFile(file)}:${file.size}:${file.lastModified}`;
-}
-
-function sortFilesByPath(files: ProjectFileRecord[]) {
-  return [...files].toSorted((a, b) =>
-    a.sourcePath.localeCompare(b.sourcePath, undefined, { sensitivity: "base" }),
-  );
 }
 
 export type ProjectFilesTreeRenderer = (props: {
@@ -209,11 +204,21 @@ export function ProjectFilesPageContent({
     setSelectedFiles((currentFiles) => currentFiles.filter((item) => item !== file));
   }, []);
 
+  const cachedFilesQuery = useQuery({
+    queryKey: projectFilesQueryKey(organizationSlug, projectId),
+    queryFn: () => fetchProjectFiles(organizationSlug, projectId),
+  });
+  const resolvedFiles = useMemo(
+    () => sortFilesByPath(cachedFilesQuery.data ?? []),
+    [cachedFilesQuery.data],
+  );
+
   return (
     <ProjectFilesPageContentView
       organizationSlug={organizationSlug}
       projectId={projectId}
       files={[]}
+      resolvedFiles={resolvedFiles}
       isFilesLoading={false}
       isFilesFetching={false}
       selectedSourcePath={selectedSourcePath}
@@ -240,6 +245,7 @@ export function ProjectFilesPageContentView({
   organizationSlug,
   projectId,
   files,
+  resolvedFiles,
   isFilesLoading,
   isFilesFetching,
   filesError,
@@ -259,6 +265,7 @@ export function ProjectFilesPageContentView({
   organizationSlug: string;
   projectId: string;
   files: ProjectFileRecord[];
+  resolvedFiles?: ProjectFileRecord[];
   isFilesLoading: boolean;
   isFilesFetching: boolean;
   filesError?: unknown;
@@ -276,18 +283,10 @@ export function ProjectFilesPageContentView({
   filesTree?: ReactNode;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const cachedFilesQuery = useQuery({
-    queryKey: projectFilesQueryKey(organizationSlug, projectId),
-    queryFn: () => fetchProjectFiles(organizationSlug, projectId),
-    enabled: Boolean(filesTree),
-  });
-  const resolvedFiles = useMemo(
-    () => (filesTree ? sortFilesByPath(cachedFilesQuery.data ?? []) : files),
-    [cachedFilesQuery.data, files, filesTree],
-  );
+  const displayFiles = filesTree ? (resolvedFiles ?? []) : files;
   const selectedFile = useMemo(
-    () => resolvedFiles.find((file) => file.sourcePath === selectedSourcePath) ?? null,
-    [resolvedFiles, selectedSourcePath],
+    () => displayFiles.find((file) => file.sourcePath === selectedSourcePath) ?? null,
+    [displayFiles, selectedSourcePath],
   );
   const projectCapabilities = getProjectWorkspaceCapabilities({ projectId });
   const isProviderProject = projectCapabilities.isProviderProject;

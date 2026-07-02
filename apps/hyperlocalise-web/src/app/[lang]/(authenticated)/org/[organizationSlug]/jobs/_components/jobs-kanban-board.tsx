@@ -1,5 +1,7 @@
 "use client";
 
+import { useIntl } from "react-intl";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +26,7 @@ import {
   kanbanStatusColumns,
   type KanbanStatus,
 } from "./jobs-view-helpers";
+import { getKanbanStatusMessage } from "./jobs-kanban-board.messages";
 import { toneClass, type Tone } from "../../_components/workspace-resource-shared";
 
 type KanbanColumnDef = {
@@ -203,20 +206,16 @@ function KanbanColumnSkeleton({ label }: { label: string }) {
 }
 
 function JobsKanbanBoardSkeleton() {
-  const skeletonColumns = [
-    "Queued",
-    "Running",
-    "Waiting for review",
-    "Succeeded",
-    "Failed",
-    "Cancelled",
-  ] as const;
+  const intl = useIntl();
 
   return (
     <div className="overflow-x-auto pb-1" aria-busy="true" aria-label="Loading jobs board">
       <div className="flex min-w-max gap-3">
-        {skeletonColumns.map((label) => (
-          <KanbanColumnSkeleton key={label} label={label} />
+        {kanbanStatusColumns.map((status) => (
+          <KanbanColumnSkeleton
+            key={status}
+            label={intl.formatMessage(getKanbanStatusMessage(status))}
+          />
         ))}
       </div>
     </div>
