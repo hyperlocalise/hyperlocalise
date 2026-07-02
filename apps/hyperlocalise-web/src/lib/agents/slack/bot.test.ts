@@ -891,14 +891,15 @@ describe("handleNewConversation", () => {
       projectId: null,
     } as never);
     vi.mocked(addInteractionMessage).mockResolvedValue({ id: "msg-123" } as never);
-    const setStateCalls = vi.mocked(thread.setState);
-    setStateCalls.mockImplementation(async (newState: Record<string, unknown>) => {
-      const sandboxSession = newState.repositorySandboxSession as
-        | { sandboxId?: string }
-        | undefined;
-      if (sandboxSession?.sandboxId === "sbx_test") {
-        throw new Error("state write failed");
-      }
+    Object.assign(thread, {
+      setState: vi.fn(async (newState: Record<string, unknown>) => {
+        const sandboxSession = newState.repositorySandboxSession as
+          | { sandboxId?: string }
+          | undefined;
+        if (sandboxSession?.sandboxId === "sbx_test") {
+          throw new Error("state write failed");
+        }
+      }),
     });
 
     await handleSubscribedMessage(thread, message);

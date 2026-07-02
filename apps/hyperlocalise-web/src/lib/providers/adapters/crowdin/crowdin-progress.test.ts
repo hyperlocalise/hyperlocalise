@@ -24,8 +24,9 @@ vi.mock("@/lib/providers/tms-provider-content", () => ({
   resolveExternalTmsSecretMaterialForActor: vi.fn(async () => "token"),
 }));
 
-vi.mock("@/lib/providers/provider-safe-fetch", () => ({
-  providerSafeFetch: vi.fn(async (url: string) => {
+const { crowdinFetchMock } = vi.hoisted(() => ({
+  crowdinFetchMock: vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
     const listResponse = (items: unknown[]) =>
       new Response(JSON.stringify({ data: items.map((data) => ({ data })) }), { status: 200 });
     const getResponse = (data: unknown) => new Response(JSON.stringify({ data }), { status: 200 });
@@ -213,6 +214,8 @@ vi.mock("@/lib/providers/provider-safe-fetch", () => ({
   }),
 }));
 
+vi.stubGlobal("fetch", crowdinFetchMock);
+
 describe("checkCrowdinProgress", () => {
   beforeEach(async () => {
     const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
@@ -274,9 +277,8 @@ describe("checkCrowdinProgress", () => {
 
   it("uses the credential enterprise base URL for API requests", async () => {
     const { loadCrowdinProjectCredential } = await import("./load-crowdin-project-credential");
-    const { providerSafeFetch } = await import("@/lib/providers/provider-safe-fetch");
 
-    vi.mocked(providerSafeFetch).mockClear();
+    crowdinFetchMock.mockClear();
     vi.mocked(loadCrowdinProjectCredential).mockResolvedValueOnce({
       externalProjectId: "42",
       credential: {
@@ -293,7 +295,7 @@ describe("checkCrowdinProgress", () => {
 
     expect(result.ok).toBe(true);
     expect(
-      vi.mocked(providerSafeFetch).mock.calls.some((call) => {
+      crowdinFetchMock.mock.calls.some((call) => {
         const url = call[0];
         return (
           typeof url === "string" &&
@@ -436,8 +438,6 @@ describe("checkCrowdinProgress", () => {
   });
 
   it("returns string translation and approval status for an escaped Crowdin identifier", async () => {
-    const { providerSafeFetch } = await import("@/lib/providers/provider-safe-fetch");
-
     const result = await checkCrowdinProgress({
       organizationId: "org_1",
       projectId: "proj_1",
@@ -487,7 +487,7 @@ describe("checkCrowdinProgress", () => {
     }
 
     expect(
-      vi.mocked(providerSafeFetch).mock.calls.some((call) => {
+      crowdinFetchMock.mock.calls.some((call) => {
         const requestUrl = call[0];
         if (typeof requestUrl !== "string") {
           return false;

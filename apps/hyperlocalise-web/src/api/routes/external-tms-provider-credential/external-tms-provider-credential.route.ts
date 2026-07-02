@@ -44,7 +44,10 @@ import {
   checkExternalTmsProviderHealth,
   persistExternalTmsProviderHealth,
 } from "@/lib/providers/external-tms-health-check";
-import { isCrowdinEnterpriseApiBaseUrl, resolveCrowdinApiBaseUrl } from "@/lib/providers/adapters/crowdin/crowdin-base-url";
+import {
+  isCrowdinEnterpriseApiBaseUrl,
+  resolveCrowdinApiBaseUrl,
+} from "@/lib/providers/adapters/crowdin/crowdin-base-url";
 import { getCrowdinOAuthScopeString } from "@/lib/providers/adapters/crowdin/crowdin-oauth-scopes";
 import {
   CrowdinApiClient,

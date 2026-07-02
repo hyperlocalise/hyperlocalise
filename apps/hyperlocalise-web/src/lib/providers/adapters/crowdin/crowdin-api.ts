@@ -6,9 +6,11 @@
  * attempt to wrap the full Crowdin API surface.
  */
 
+import { createLogger } from "@/lib/log";
 import { resolveCrowdinApiBaseUrl } from "@/lib/providers/adapters/crowdin/crowdin-base-url";
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { normalizeProviderDownloadUrl } from "@/lib/providers/provider-url-safety";
+
+const logger = createLogger("crowdin-api");
 
 export interface CrowdinApiClientOptions {
   token: string;
@@ -433,7 +435,7 @@ export class CrowdinApiClient {
   constructor(options: CrowdinApiClientOptions) {
     this.token = options.token;
     this.baseUrl = resolveCrowdinApiBaseUrl(options.baseUrl);
-    this.fetchFn = options.fetchFn ?? providerSafeFetch;
+    this.fetchFn = options.fetchFn ?? fetch;
   }
 
   /**
@@ -1162,6 +1164,7 @@ export class CrowdinApiClient {
    */
   async addStorage(input: { fileName: string; content: Uint8Array; contentType?: string }) {
     const url = `${this.baseUrl}/storages`;
+    this.logRequest("POST", url);
     const response = await this.fetchFn(url, {
       method: "POST",
       redirect: "error",
@@ -1271,18 +1274,17 @@ export class CrowdinApiClient {
    * Export strings for a task and return a download link when available.
    */
   async exportTaskStrings(projectId: number, taskId: number): Promise<CrowdinDownloadLink | null> {
-    const response = await this.fetchFn(
-      `${this.baseUrl}/projects/${projectId}/tasks/${taskId}/exports`,
-      {
-        method: "POST",
-        redirect: "error",
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          "Content-Type": "application/json",
-        },
-        body: "",
+    const url = `${this.baseUrl}/projects/${projectId}/tasks/${taskId}/exports`;
+    this.logRequest("POST", url);
+    const response = await this.fetchFn(url, {
+      method: "POST",
+      redirect: "error",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: "",
+    });
 
     if (response.status === 204) {
       return null;
@@ -1316,6 +1318,7 @@ export class CrowdinApiClient {
       throw new CrowdinApiError("Crowdin download URL is invalid or unsafe", 400, null);
     }
 
+    this.logRequest("GET", safeUrl);
     const response = await this.fetchFn(safeUrl, { method: "GET", redirect: "error" });
     if (!response.ok) {
       throw new CrowdinApiError(
@@ -1555,8 +1558,13 @@ export class CrowdinApiClient {
     });
   }
 
+  private logRequest(method: string, endpoint: string): void {
+    logger.info({ method, endpoint }, "Crowdin API request");
+  }
+
   private async request<T>(path: string, init: RequestInit): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    this.logRequest(String(init.method ?? "GET"), url);
     const response = await this.fetchFn(url, { ...init, redirect: "error" });
 
     if (!response.ok) {

@@ -385,10 +385,7 @@ describe("externalTmsProviderCredentialRoutes", () => {
     const fetchMock = vi.fn(async (url: string | URL | Request) => {
       const href = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
       if (href === "https://api.crowdin.com/api/v2/user") {
-        return Response.json(
-          { error: { code: 401, message: "Unauthorized" } },
-          { status: 401 },
-        );
+        return Response.json({ error: { code: 401, message: "Unauthorized" } }, { status: 401 });
       }
 
       throw new Error(`Unexpected fetch: ${href}`);

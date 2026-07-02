@@ -22,9 +22,7 @@ import {
   upsertOrganizationExternalTmsProviderCredential,
   upsertPhraseOAuthProviderCredential,
 } from "./organization-external-tms-provider-credentials";
-import {
-  EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL,
-} from "./adapters/crowdin/crowdin-test-urls";
+import { EXAMPLE_CROWDIN_ENTERPRISE_API_BASE_URL } from "./adapters/crowdin/crowdin-test-urls";
 import {
   getCrowdinUserConnection,
   upsertCrowdinUserConnection,
