@@ -32,6 +32,7 @@ import { createPhraseStringsApiClient } from "./phrase-strings-client";
 
 const LOCALE_FETCH_CONCURRENCY = 8;
 const COMMENT_FETCH_CONCURRENCY = 8;
+const COMMENT_COUNT_SUMMARY_KEY_THRESHOLD = 50;
 
 export class PhraseLiveCatError extends Error {
   constructor(
@@ -252,6 +253,15 @@ async function loadTranslationsByKeyId(input: {
   return translationsByKeyId;
 }
 
+function shouldLoadCommentCounts(input: {
+  queueFilter: ProjectFileCatPaginationInput["queueFilter"];
+  keyCount: number;
+}) {
+  return (
+    input.queueFilter === "has_issues" || input.keyCount <= COMMENT_COUNT_SUMMARY_KEY_THRESHOLD
+  );
+}
+
 async function loadCommentCountsByKeyId(input: {
   client: ReturnType<typeof createPhraseStringsApiClient>;
   projectId: string;
@@ -272,10 +282,13 @@ async function loadCommentCountsByKeyId(input: {
         commentCountsByKeyId.set(key.id, comments.length);
       }
     } catch (error) {
-      if (error instanceof PhraseApiError && error.status === 404) {
+      if (error instanceof PhraseApiError) {
+        if (error.status === 401) {
+          mapPhraseApiError(error);
+        }
+        // Missing keys and transient provider failures should not fail the CAT file list.
         return;
       }
-      mapPhraseApiError(error);
     }
   });
 
@@ -423,21 +436,33 @@ export async function buildPhraseLiveCatFile(input: {
       .map((locale) => locale.name),
   );
 
-  const [translationsByKeyId, commentCountsByKeyId] = await Promise.all([
-    loadTranslationsByKeyId({
-      client,
-      projectId: scope.stringsProjectId,
-      localeNames,
-      branch: scope.branch,
-      keyIds,
-    }),
-    loadCommentCountsByKeyId({
-      client,
-      projectId: scope.stringsProjectId,
-      branch: scope.branch,
-      keys: scopedKeys,
-    }),
-  ]);
+  const paginationInput = input.pagination ?? {
+    offset: 0,
+    limit: legacyProviderCatSegmentLimit,
+    search: undefined,
+    queueFilter: "all",
+    paginated: false,
+  };
+
+  const translationsByKeyId = await loadTranslationsByKeyId({
+    client,
+    projectId: scope.stringsProjectId,
+    localeNames,
+    branch: scope.branch,
+    keyIds,
+  });
+
+  const commentCountsByKeyId = shouldLoadCommentCounts({
+    queueFilter: paginationInput.queueFilter,
+    keyCount: scopedKeys.length,
+  })
+    ? await loadCommentCountsByKeyId({
+        client,
+        projectId: scope.stringsProjectId,
+        branch: scope.branch,
+        keys: scopedKeys,
+      })
+    : new Map<string, number>();
 
   const allSegments = buildSegmentDrafts({
     keys: scopedKeys,
@@ -447,14 +472,6 @@ export async function buildPhraseLiveCatFile(input: {
     translationsByKeyId,
     commentCountsByKeyId,
   });
-
-  const paginationInput = input.pagination ?? {
-    offset: 0,
-    limit: legacyProviderCatSegmentLimit,
-    search: undefined,
-    queueFilter: "all",
-    paginated: false,
-  };
 
   const queueSummary = buildQueueSummary(allSegments);
   const filteredSegments = allSegments.filter(

@@ -399,6 +399,174 @@ describe("buildPhraseLiveCatFile", () => {
     });
   });
 
+  it("skips comment count fan-out for large files on queueFilter all", async () => {
+    const keys = Array.from({ length: 51 }, (_, index) => ({
+      id: `key-${index}`,
+      name: `home.key.${index}`,
+      description: null,
+      plural: false,
+      tags: ["app"],
+    }));
+
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys?")) {
+        return new Response(JSON.stringify(keys), { status: 200 });
+      }
+
+      if (path.includes("/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (path.includes("/comments")) {
+        throw new Error("comment fan-out should not run");
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await buildPhraseLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile({
+        sourcePath: "locales/en/home.json",
+        filename: "home.json",
+        metadata: {
+          id: "upload-1",
+          name: "home.json",
+          branch: null,
+          tags: ["app"],
+        },
+        provider: {
+          kind: "phrase",
+          resourceType: "file",
+          externalProjectId: "project-1",
+          externalResourceId: "upload-1",
+          externalUrl: null,
+          syncState: "synced",
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          localeReadiness: {},
+          revision: null,
+          format: "json",
+          lastSyncedAt: null,
+        },
+      }),
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 10,
+        queueFilter: "all",
+        paginated: true,
+      },
+    });
+
+    expect(catFile.segments).toHaveLength(10);
+    expect(catFile.queueSummary).toMatchObject({
+      total: 51,
+      hasIssues: 0,
+    });
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/comments"))).toBe(false);
+  });
+
+  it("treats transient comment fetch failures as zero counts", async () => {
+    const fetchMock = vi.fn(async (url: string) => {
+      const path = String(url);
+
+      if (path.includes("/locales")) {
+        return new Response(
+          JSON.stringify([
+            { id: "loc-en", name: "en", code: "en-US", default: true },
+            { id: "loc-fr", name: "fr", code: "fr-FR", default: false },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/keys?")) {
+        return new Response(
+          JSON.stringify([
+            {
+              id: "key-with-comment",
+              name: "home.hero.title",
+              description: null,
+              plural: false,
+              tags: ["app"],
+            },
+          ]),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/translations")) {
+        return new Response(JSON.stringify([]), { status: 200 });
+      }
+
+      if (path.includes("/comments")) {
+        return new Response(JSON.stringify({ message: "rate limited" }), { status: 429 });
+      }
+
+      return new Response(JSON.stringify([]), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await buildPhraseLiveCatFile({
+      secretMaterial: "token",
+      externalProjectId: "project-1",
+      file: createPhraseKeyFile({
+        sourcePath: "locales/en/home.json",
+        filename: "home.json",
+        metadata: {
+          id: "upload-1",
+          name: "home.json",
+          branch: null,
+          tags: ["app"],
+        },
+        provider: {
+          kind: "phrase",
+          resourceType: "file",
+          externalProjectId: "project-1",
+          externalResourceId: "upload-1",
+          externalUrl: null,
+          syncState: "synced",
+          sourceLocale: "en",
+          targetLocales: ["fr"],
+          localeReadiness: {},
+          revision: null,
+          format: "json",
+          lastSyncedAt: null,
+        },
+      }),
+      targetLocale: "fr",
+      canEditTranslations: true,
+      pagination: {
+        offset: 0,
+        limit: 10,
+        queueFilter: "has_issues",
+        paginated: true,
+      },
+    });
+
+    expect(catFile.segments).toHaveLength(0);
+    expect(catFile.queueSummary).toMatchObject({
+      total: 1,
+      hasIssues: 0,
+    });
+  });
+
   it("filters segments with comments when queueFilter is has_issues", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const path = String(url);
