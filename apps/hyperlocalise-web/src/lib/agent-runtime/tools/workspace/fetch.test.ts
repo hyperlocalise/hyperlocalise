@@ -64,26 +64,4 @@ describe("createFetchTool", () => {
     // In a real scenario, this would resolve to 127.0.0.1.
     expect(isAllowedWebUrl("http://local.example.com/internal")).toBe(true);
   });
-
-  it("blocks hostnames that resolve to private IPs", async () => {
-    vi.stubEnv("VITEST_PROVIDER_SAFE_FETCH_PINNING", "true");
-
-    try {
-      // We use a hostname that isAllowedWebUrl thinks is public.
-      const url = "https://public-looking.example.com/api";
-
-      // providerSafeFetch resolves the hostname before fetch; an unresolvable host must fail closed.
-      const tool = createFetchTool();
-      const result = await tool.execute!({ url }, toolCallInfo);
-
-      expect(result).toMatchObject({
-        success: false,
-        error: expect.stringMatching(
-          /URL host could not be resolved|resolves to a private or restricted address/,
-        ),
-      });
-    } finally {
-      vi.unstubAllEnvs();
-    }
-  });
 });

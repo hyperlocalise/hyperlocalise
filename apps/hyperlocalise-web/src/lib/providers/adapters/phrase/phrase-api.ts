@@ -2,7 +2,6 @@
  * Phrase Strings API v2 client for TMS connector discovery and file/key sync.
  */
 
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 
 import { resolvePhraseBaseUrl } from "./phrase-base-url";
 
@@ -199,7 +198,7 @@ export class PhraseApiClient {
       region: options.region,
       baseUrl: options.baseUrl,
     });
-    this.fetchFn = options.fetchFn ?? providerSafeFetch;
+    this.fetchFn = options.fetchFn ?? fetch;
   }
 
   get resolvedBaseUrl() {

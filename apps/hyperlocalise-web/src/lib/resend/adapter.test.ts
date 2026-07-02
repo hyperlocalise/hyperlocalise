@@ -1,6 +1,5 @@
-import { describe, expect, it, vi } from "vite-plus/test";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { providerSafeFetch } from "@/lib/providers/provider-safe-fetch";
 import { createResendAdapter } from "./adapter";
 
 const mocks = vi.hoisted(() => ({
@@ -8,10 +7,6 @@ const mocks = vi.hoisted(() => ({
   getReceivedEmail: vi.fn(),
   getReceivingAttachment: vi.fn(),
   listReceivingAttachments: vi.fn(),
-}));
-
-vi.mock("@/lib/providers/provider-safe-fetch", () => ({
-  providerSafeFetch: vi.fn(),
 }));
 
 vi.mock("resend", () => ({
@@ -32,6 +27,17 @@ vi.mock("resend", () => ({
 }));
 
 describe("createResendAdapter", () => {
+  const originalFetch = globalThis.fetch;
+
+  beforeEach(() => {
+    globalThis.fetch = vi.fn(async () => new Response(null, { status: 200 })) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+  });
+
   it("sets Reply-To from inbound thread metadata when posting a reply", async () => {
     const adapter = createResendAdapter({
       apiKey: "test-key",
@@ -343,7 +349,7 @@ describe("createResendAdapter", () => {
       error: null,
     });
     const fetchMock = vi
-      .mocked(providerSafeFetch)
+      .mocked(globalThis.fetch)
       .mockResolvedValueOnce(new Response("image-bytes"));
     const processMessage = vi.fn();
     const adapter = createResendAdapter({
