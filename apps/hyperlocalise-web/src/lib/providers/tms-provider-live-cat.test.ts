@@ -9,7 +9,11 @@ import { upsertCrowdinUserPatConnection } from "@/lib/providers/adapters/crowdin
 import { buildCrowdinFileQueueCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
 import { isErr } from "@/lib/primitives/result/results";
 import { upsertCrowdinPatProviderCredential } from "./organization-external-tms-provider-credentials";
-import { getTmsProviderLiveCatFile, saveTmsProviderLiveCatTranslation } from "./tms-provider-live";
+import {
+  getTmsProviderLiveCatFile,
+  getTmsProviderLiveCatSegmentDetail,
+  saveTmsProviderLiveCatTranslation,
+} from "./tms-provider-live";
 
 const fixture = createAuthTestFixture();
 
@@ -1051,5 +1055,223 @@ describe("getTmsProviderLiveCatFile", () => {
           }),
       ).length,
     ).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("getTmsProviderLiveCatSegmentDetail", () => {
+  let originalFetch: typeof fetch;
+
+  beforeAll(async () => {
+    await db.$client.query("select 1");
+  });
+
+  beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+
+  afterEach(async () => {
+    globalThis.fetch = originalFetch;
+    vi.clearAllMocks();
+    await fixture.cleanup();
+  });
+
+  it("scopes Crowdin comments and unresolved issues to the requested target locale", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const commentRequests: string[] = [];
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 7,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/strings?") && path.includes("croql=")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "hero.title",
+                  text: "Hello",
+                  type: "text",
+                  context: "Hero",
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/languages/fr/translations?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  stringId: 1001,
+                  contentType: "text",
+                  translationId: 9001,
+                  text: "Bonjour",
+                  createdAt: "2026-06-08T00:00:00Z",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/approvals?") && path.includes("stringId=1001")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/comments?")) {
+        commentRequests.push(path);
+
+        if (path.includes("type=comment")) {
+          return new Response(
+            JSON.stringify({
+              data: [
+                {
+                  data: {
+                    id: 501,
+                    text: "French note",
+                    userId: 1,
+                    stringId: 1001,
+                    languageId: "fr",
+                    type: "comment",
+                    createdAt: "2026-06-08T00:01:00Z",
+                    projectId: 42,
+                  },
+                },
+                {
+                  data: {
+                    id: 502,
+                    text: "German note",
+                    userId: 1,
+                    stringId: 1001,
+                    languageId: "de",
+                    type: "comment",
+                    createdAt: "2026-06-08T00:02:00Z",
+                    projectId: 42,
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+
+        if (path.includes("type=issue")) {
+          return new Response(
+            JSON.stringify({
+              data: [
+                {
+                  data: {
+                    id: 601,
+                    text: "French issue",
+                    userId: 1,
+                    stringId: 1001,
+                    languageId: "fr",
+                    type: "issue",
+                    issueStatus: "unresolved",
+                    createdAt: "2026-06-08T00:03:00Z",
+                    projectId: 42,
+                  },
+                },
+                {
+                  data: {
+                    id: 602,
+                    text: "German issue",
+                    userId: 1,
+                    stringId: 1001,
+                    languageId: "de",
+                    type: "issue",
+                    issueStatus: "unresolved",
+                    createdAt: "2026-06-08T00:04:00Z",
+                    projectId: 42,
+                  },
+                },
+              ],
+            }),
+            { status: 200 },
+          );
+        }
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const segment = await getTmsProviderLiveCatSegmentDetail(
+      organization.id,
+      "42",
+      "home.json",
+      "fr",
+      "1001",
+      { actorUserId: user.id },
+    );
+
+    expect(segment).toMatchObject({
+      externalStringId: "1001",
+      key: "hero.title",
+      unresolvedIssueCount: 1,
+    });
+    expect(segment?.comments).toHaveLength(2);
+    expect(segment?.comments.map((comment) => comment.locale)).toEqual(["fr", "fr"]);
+    expect(segment?.comments.map((comment) => comment.text)).toEqual([
+      "French issue",
+      "French note",
+    ]);
+    expect(commentRequests).toHaveLength(2);
+    for (const path of commentRequests) {
+      expect(path).toContain("targetLanguageId=fr");
+      expect(path).toContain("stringId=1001");
+    }
   });
 });

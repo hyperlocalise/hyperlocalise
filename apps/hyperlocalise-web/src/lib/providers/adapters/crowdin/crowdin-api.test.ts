@@ -589,6 +589,25 @@ describe("CrowdinApiClient", () => {
     await client.listStringCommentsForStrings(1, [1001], { type: "comment" });
   });
 
+  it("lists string comments scoped to targetLanguageId", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/projects/1/comments?");
+      expect(path).toContain("stringId=1001");
+      expect(path).toContain("type=issue");
+      expect(path).toContain("targetLanguageId=fr");
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await client.listStringComments(1, {
+      stringId: 1001,
+      type: "issue",
+      issueStatus: "unresolved",
+      targetLanguageId: "fr",
+    });
+  });
+
   it("lists translation approvals with fileId and languageId", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);

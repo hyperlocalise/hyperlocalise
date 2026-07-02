@@ -919,6 +919,13 @@ function sortTranslationsByNewest(
   });
 }
 
+function crowdinCatCommentsForTargetLocale(
+  comments: CrowdinStringComment[],
+  targetLocale: string,
+): CrowdinStringComment[] {
+  return comments.filter((comment) => !comment.languageId || comment.languageId === targetLocale);
+}
+
 function preferredLanguageTranslation(
   translations: CrowdinLanguageTranslation[],
   approvedTranslationIds: ReadonlySet<number>,
@@ -1210,11 +1217,16 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
           stringIds: [stringId],
         }),
         client.listTranslationApprovals(projectId, input.targetLocale, { stringId }),
-        client.listStringComments(projectId, { stringId, type: "comment" }),
+        client.listStringComments(projectId, {
+          stringId,
+          type: "comment",
+          targetLanguageId: input.targetLocale,
+        }),
         client.listStringComments(projectId, {
           stringId,
           type: "issue",
           issueStatus: "unresolved",
+          targetLanguageId: input.targetLocale,
         }),
       ]);
 
@@ -1225,7 +1237,15 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
 
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
     const target = preferredLanguageTranslation(translations, approvedTranslationIds);
-    const comments = [...plainComments, ...unresolvedIssues]
+    const localePlainComments = crowdinCatCommentsForTargetLocale(
+      plainComments,
+      input.targetLocale,
+    );
+    const localeUnresolvedIssues = crowdinCatCommentsForTargetLocale(
+      unresolvedIssues,
+      input.targetLocale,
+    );
+    const comments = [...localePlainComments, ...localeUnresolvedIssues]
       .toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .map((comment) => mapCrowdinStringComment(comment));
 
@@ -1246,7 +1266,7 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
         : null,
       comments,
       commentCount: comments.length,
-      unresolvedIssueCount: unresolvedIssues.length,
+      unresolvedIssueCount: localeUnresolvedIssues.length,
     };
   } catch (error) {
     if (error instanceof CrowdinApiError) {
