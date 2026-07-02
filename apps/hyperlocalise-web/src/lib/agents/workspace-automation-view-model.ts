@@ -241,6 +241,57 @@ export function applyTemplateToWorkspaceAutomationFormState(
   };
 }
 
+export function resolveWorkspaceAutomationHeaderProjectId(
+  form: WorkspaceAutomationFormState,
+): string {
+  if (form.contentfulEnabled && form.contentfulProjectId) {
+    return form.contentfulProjectId;
+  }
+
+  if (form.translationEnabled || form.triggerMode === "source_upload") {
+    return form.translationProjectId;
+  }
+
+  if (form.githubEnabled && form.githubMode === "sync") {
+    return form.githubProjectId;
+  }
+
+  return "";
+}
+
+export function applyWorkspaceAutomationProjectSelection(
+  form: WorkspaceAutomationFormState,
+  projectId: string,
+  project?: { sourceLocale: string | null; targetLocales: string[] },
+): WorkspaceAutomationFormState {
+  const next: WorkspaceAutomationFormState = { ...form };
+
+  if (form.githubEnabled && form.githubMode === "sync") {
+    next.githubProjectId = projectId;
+  }
+
+  if (form.translationEnabled || form.triggerMode === "source_upload") {
+    next.translationProjectId = projectId;
+  }
+
+  if (form.contentfulEnabled) {
+    next.contentfulProjectId = projectId;
+    if (project) {
+      next.contentfulSourceLocale = project.sourceLocale ?? form.contentfulSourceLocale;
+      next.contentfulTargetLocales =
+        project.targetLocales.length === 0
+          ? form.contentfulTargetLocales
+          : form.contentfulTargetLocales.length === 0
+            ? [...project.targetLocales]
+            : form.contentfulTargetLocales.filter((locale) =>
+                project.targetLocales.includes(locale),
+              );
+    }
+  }
+
+  return next;
+}
+
 export function formStateToWorkspaceAutomationPayload(form: WorkspaceAutomationFormState): {
   name: string;
   instructions: string;

@@ -9,7 +9,9 @@ import {
 import {
   createDefaultWorkspaceAutomationFormState,
   createWorkspaceAutomationFormStateFromTemplate,
+  applyWorkspaceAutomationProjectSelection,
   formStateToWorkspaceAutomationPayload,
+  resolveWorkspaceAutomationHeaderProjectId,
   validateWorkspaceAutomationFormState,
 } from "./workspace-automation-view-model";
 
@@ -223,5 +225,86 @@ describe("workspace automation view model", () => {
     expect(validateWorkspaceAutomationFormState(form)).toMatchObject({
       trigger: "Source upload triggers require translation jobs to be enabled.",
     });
+  });
+
+  it("applies header project selection to all enabled tool project fields", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Contentful automation",
+      instructions: "Translate updates.",
+      triggerMode: "contentful" as const,
+      contentfulEnabled: true,
+      contentfulConnectionId: "11111111-1111-4111-8111-111111111111",
+      contentfulTargetLocales: ["fr-FR"],
+      translationEnabled: true,
+    };
+
+    const next = applyWorkspaceAutomationProjectSelection(form, "project-1", {
+      sourceLocale: "en",
+      targetLocales: ["fr-FR", "de-DE"],
+    });
+
+    expect(next).toMatchObject({
+      contentfulProjectId: "project-1",
+      translationProjectId: "project-1",
+      contentfulSourceLocale: "en",
+    });
+    expect(resolveWorkspaceAutomationHeaderProjectId(next)).toBe("project-1");
+    expect(formStateToWorkspaceAutomationPayload(next).toolConfig.contentful?.projectId).toBe(
+      "project-1",
+    );
+    expect(formStateToWorkspaceAutomationPayload(next).toolConfig.translation?.projectId).toBe(
+      "project-1",
+    );
+  });
+
+  it("preserves Contentful target locales when the selected project has none configured", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      contentfulEnabled: true,
+      contentfulConnectionId: "11111111-1111-4111-8111-111111111111",
+      contentfulTargetLocales: ["fr-FR", "de-DE"],
+    };
+
+    const next = applyWorkspaceAutomationProjectSelection(form, "project-1", {
+      sourceLocale: "en",
+      targetLocales: [],
+    });
+
+    expect(next.contentfulTargetLocales).toEqual(["fr-FR", "de-DE"]);
+  });
+
+  it("resolves the header project from Contentful settings", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      contentfulEnabled: true,
+      contentfulProjectId: "project-2",
+      githubProjectId: "project-1",
+    };
+
+    expect(resolveWorkspaceAutomationHeaderProjectId(form)).toBe("project-2");
+  });
+
+  it("applies header project selection for GitHub sync automations", () => {
+    const form = {
+      ...createDefaultWorkspaceAutomationFormState(),
+      name: "Full localisation sync",
+      instructions: "Sync repository strings.",
+      triggerMode: "scheduled" as const,
+      githubEnabled: true,
+      githubMode: "sync" as const,
+      githubInstallationRepositoryId: "11111111-1111-4111-8111-111111111111",
+      pushSourceEnabled: true,
+      pullTranslationsEnabled: true,
+      validationEnabled: true,
+    };
+
+    const next = applyWorkspaceAutomationProjectSelection(form, "project-3");
+
+    expect(next.githubProjectId).toBe("project-3");
+    expect(resolveWorkspaceAutomationHeaderProjectId(next)).toBe("project-3");
+    expect(formStateToWorkspaceAutomationPayload(next).toolConfig.github?.projectId).toBe(
+      "project-3",
+    );
   });
 });
