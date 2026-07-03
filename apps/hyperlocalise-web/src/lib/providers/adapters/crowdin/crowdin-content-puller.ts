@@ -41,8 +41,7 @@ async function listSourceStringsByStringIds(
   projectId: number,
   stringIds: number[],
 ): Promise<CrowdinSourceString[]> {
-  const strings = await client.getSourceStringsByIds(projectId, stringIds);
-  return dedupeSourceStringsById(strings);
+  return client.getSourceStringsByIds(projectId, stringIds);
 }
 
 async function listSourceStringsByFileIds(
