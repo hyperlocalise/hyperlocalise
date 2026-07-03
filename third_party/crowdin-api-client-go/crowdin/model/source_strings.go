@@ -323,9 +323,6 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	if o.StorageID == 0 {
 		return errors.New("storageId is required")
 	}
-	if o.BranchID == 0 && o.DirectoryID == 0 {
-		return errors.New("branchId or directoryId is required")
-	}
 	if o.BranchID != 0 && o.DirectoryID != 0 {
 		return errors.New("only one of branchId or directoryId may be set")
 	}

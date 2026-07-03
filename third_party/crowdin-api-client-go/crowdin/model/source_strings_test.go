@@ -282,9 +282,9 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "missing identifiers",
-			req:  &SourceStringsUploadRequest{StorageID: 1},
-			err:  "branchId or directoryId is required",
+			name:  "valid request with storageId only for string-based projects",
+			req:   &SourceStringsUploadRequest{StorageID: 1},
+			valid: true,
 		},
 	}
 
