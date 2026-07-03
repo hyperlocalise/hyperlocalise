@@ -33,43 +33,38 @@ type Strategy struct {
 
 // NewDefaultStrategy returns a strategy preconfigured for supported locale file formats.
 func NewDefaultStrategy() *Strategy {
-	// BOLT OPTIMIZATION: Use a map literal with pre-defined capacity to avoid
-	// redundant Register() calls, which perform expensive string operations and
-	// map re-allocations during initialization.
-	return &Strategy{
-		parsersByExt: map[string]Parser{
-			".json":        JSONParser{},
-			".jsonc":       JSONCParser{},
-			".js":          JSTSLocaleModuleParser{},
-			".jsx":         JSTSLocaleModuleParser{},
-			".mjs":         JSTSLocaleModuleParser{},
-			".cjs":         JSTSLocaleModuleParser{},
-			".ts":          JSTSLocaleModuleParser{},
-			".tsx":         JSTSLocaleModuleParser{},
-			".mts":         JSTSLocaleModuleParser{},
-			".cts":         JSTSLocaleModuleParser{},
-			".yaml":        YAMLParser{},
-			".yml":         YAMLParser{},
-			".arb":         ARBParser{},
-			".xlf":         XLIFFParser{},
-			".xlif":        XLIFFParser{},
-			".xliff":       XLIFFParser{},
-			".po":          POFileParser{},
-			".html":        HTMLParser{},
-			".liquid":      LiquidParser{},
-			".md":          MarkdownParser{MDX: false},
-			".mdx":         MarkdownParser{MDX: true},
-			".strings":     AppleStringsParser{},
-			".stringsdict": AppleStringsdictParser{},
-			".xcstrings":   XCStringsParser{},
-			".csv":         CSVParser{},
-			".php":         PHPArrayParser{},
-			".ftl":         FluentParser{},
-			".xml":         XMLParser{},
-			".resx":        GenericXMLParser{},
-			".properties":  JavaPropertiesParser{},
-		},
+	// BOLT OPTIMIZATION: Use a pre-allocated map to avoid re-allocations
+	// during initialization. We use assignments for static extensions and
+	// a loop for JSTSLocaleModuleExts to maintain correctness and DRY.
+	parsers := make(map[string]Parser, 22+len(JSTSLocaleModuleExts))
+	parsers[".json"] = JSONParser{}
+	parsers[".jsonc"] = JSONCParser{}
+	parsers[".yaml"] = YAMLParser{}
+	parsers[".yml"] = YAMLParser{}
+	parsers[".arb"] = ARBParser{}
+	parsers[".xlf"] = XLIFFParser{}
+	parsers[".xlif"] = XLIFFParser{}
+	parsers[".xliff"] = XLIFFParser{}
+	parsers[".po"] = POFileParser{}
+	parsers[".html"] = HTMLParser{}
+	parsers[".liquid"] = LiquidParser{}
+	parsers[".md"] = MarkdownParser{MDX: false}
+	parsers[".mdx"] = MarkdownParser{MDX: true}
+	parsers[".strings"] = AppleStringsParser{}
+	parsers[".stringsdict"] = AppleStringsdictParser{}
+	parsers[".xcstrings"] = XCStringsParser{}
+	parsers[".csv"] = CSVParser{}
+	parsers[".php"] = PHPArrayParser{}
+	parsers[".ftl"] = FluentParser{}
+	parsers[".xml"] = XMLParser{}
+	parsers[".resx"] = GenericXMLParser{}
+	parsers[".properties"] = JavaPropertiesParser{}
+
+	for _, ext := range JSTSLocaleModuleExts {
+		parsers[ext] = JSTSLocaleModuleParser{}
 	}
+
+	return &Strategy{parsersByExt: parsers}
 }
 
 // XMLParser routes Android string resource XML files to the Android-specific
