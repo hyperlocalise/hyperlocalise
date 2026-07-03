@@ -9,6 +9,7 @@ import type { TmsProviderLiveJobDetail } from "@/lib/providers/tms-provider-live
 import { parseProviderJobId } from "@/lib/providers/tms-provider-resource-id";
 
 import { ProviderJobDescriptionField } from "../../../../../jobs/_components/provider-job-description-field";
+import { useCrowdinJobLocaleReadiness } from "../../../../../_hooks/use-crowdin-job-locale-readiness";
 import { ProviderLiveJobDetailView } from "./provider-live-job-detail-view";
 import { TmsLiveJobFilesSection } from "./tms/tms-live-job-files-section";
 
@@ -58,6 +59,15 @@ export function ProviderLiveJobDetailContent({
     },
   });
 
+  const parsedJobId = parseProviderJobId(jobId);
+  const localeReadinessQuery = useCrowdinJobLocaleReadiness({
+    organizationSlug,
+    externalProjectId: parsedJobId?.externalProjectId,
+    providerKind: jobQuery.data?.externalProviderKind,
+    providerPayload: jobQuery.data?.externalProviderPayload,
+    enabled: Boolean(jobQuery.data),
+  });
+
   const translateWithAgent = useMutation({
     mutationFn: async () => {
       const response = await apiClient.api.orgs[":organizationSlug"]["tms-provider"].jobs[
@@ -100,6 +110,8 @@ export function ProviderLiveJobDetailContent({
       job={jobQuery.data}
       isLoading={jobQuery.isLoading}
       error={jobQuery.isError ? jobQuery.error : undefined}
+      localeReadinessLoading={localeReadinessQuery.isLoading}
+      localeReadinessOverride={localeReadinessQuery.data ?? null}
       isRefreshing={jobQuery.isFetching}
       isTranslateWithAgentPending={translateWithAgent.isPending}
       translateWithAgentAction={translateAction}

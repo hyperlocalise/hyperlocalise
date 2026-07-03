@@ -317,6 +317,7 @@ async function syncProviderJobTasksFromLive(
     credential: context.value.credential,
     project: context.value.project,
     secretMaterial,
+    fetchAllTasks: true,
   });
   const { upserted, newlySyncedJobIds, removed } = await upsertExternalTmsJobRecords({
     organizationId: intent.organizationId,

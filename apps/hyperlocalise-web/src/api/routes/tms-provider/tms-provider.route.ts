@@ -26,6 +26,7 @@ import {
   listTmsProviderLiveJobComments,
   listTmsProviderLiveJobFiles,
   getTmsProviderLiveJobDetail,
+  getTmsProviderLiveProjectLocaleReadiness,
   updateTmsProviderLiveJobDescription,
   getTmsProviderLiveProject,
   listTmsProviderLiveFilesForProject,
@@ -52,6 +53,10 @@ const externalProjectIdQuerySchema = z.object({
 
 const projectFilesQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(1_000).optional().default(500),
+});
+
+const localeReadinessQuerySchema = z.object({
+  languageId: z.string().min(1).optional(),
 });
 
 const updateJobDescriptionBodySchema = z.object({
@@ -97,6 +102,15 @@ const validateExternalProjectIdQuery = validator("query", (value, c) => {
 
 const validateProjectFilesQuery = validator("query", (value, c) => {
   const parsed = projectFilesQuerySchema.safeParse(value);
+  if (!parsed.success) {
+    return c.json({ error: "invalid_query" }, 400);
+  }
+
+  return parsed.data;
+});
+
+const validateLocaleReadinessQuery = validator("query", (value, c) => {
+  const parsed = localeReadinessQuerySchema.safeParse(value);
   if (!parsed.success) {
     return c.json({ error: "invalid_query" }, 400);
   }
@@ -239,6 +253,31 @@ export function createTmsProviderRoutes(options: CreateTmsProviderRoutesOptions 
         return tmsProviderLiveErrorResponse(c, error);
       }
     })
+    .get(
+      "/projects/:externalProjectId/locale-readiness",
+      validateLocaleReadinessQuery,
+      async (c) => {
+        if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
+          return c.json({ error: "forbidden" }, 403);
+        }
+
+        const query = c.req.valid("query");
+
+        try {
+          const localeReadiness = await getTmsProviderLiveProjectLocaleReadiness(
+            c.var.auth.organization.localOrganizationId,
+            c.req.param("externalProjectId"),
+            {
+              languageId: query.languageId,
+              actorUserId: c.var.auth.user.localUserId,
+            },
+          );
+          return c.json({ localeReadiness }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
     .get("/jobs", validateMineQuery, async (c) => {
       if (!hasCapability(c.var.auth.membership.role, "jobs:read")) {
         return c.json({ error: "forbidden" }, 403);

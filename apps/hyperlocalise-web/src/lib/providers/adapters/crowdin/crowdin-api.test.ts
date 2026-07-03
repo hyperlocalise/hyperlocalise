@@ -656,8 +656,13 @@ describe("CrowdinApiClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("lists tasks", async () => {
-    const fetchMock = vi.fn(async () => {
+  it("lists tasks with live list defaults", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/projects/1/tasks?");
+      expect(path).toContain("limit=50");
+      expect(path).toContain("orderBy=createdAt%20desc");
+
       return new Response(
         JSON.stringify({
           data: [
@@ -693,11 +698,13 @@ describe("CrowdinApiClient", () => {
     });
   });
 
-  it("lists user tasks", async () => {
+  it("lists user tasks with live list defaults", async () => {
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
       expect(path).toContain("/user/tasks?");
       expect(path).toContain("projectId=1");
+      expect(path).toContain("limit=50");
+      expect(path).toContain("orderBy=createdAt%20desc");
 
       return new Response(
         JSON.stringify({

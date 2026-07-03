@@ -79,6 +79,7 @@ export type ExternalTmsJobTaskFetcher = (input: {
   secretMaterial: string;
   enrichResources?: boolean;
   includeLocaleProgress?: boolean;
+  fetchAllTasks?: boolean;
 }) => Promise<ExternalTmsJobTaskMetadata[]>;
 
 export type ExternalTmsGlossaryTermMetadata = {

@@ -42,6 +42,8 @@ export function ProviderLiveJobDetailView({
   isTranslateWithAgentPending = false,
   job,
   jobId,
+  localeReadinessLoading = false,
+  localeReadinessOverride,
   onRefresh,
   onTranslateWithAgent,
   organizationSlug,
@@ -62,6 +64,8 @@ export function ProviderLiveJobDetailView({
   isTranslateWithAgentPending?: boolean;
   job?: TmsProviderLiveJobDetail;
   jobId: string;
+  localeReadinessLoading?: boolean;
+  localeReadinessOverride?: Record<string, unknown> | null;
   onRefresh?: () => void;
   onTranslateWithAgent?: () => void;
   organizationSlug: string;
@@ -86,7 +90,12 @@ export function ProviderLiveJobDetailView({
   const translateWithAgentLabel = isTranslateWithAgentPending
     ? "Starting agent..."
     : (translateWithAgentAction?.label ?? "Translate with agent");
-  const layout = job ? jobDetailTaskLayoutFromLiveJob(job) : null;
+  const layout = job
+    ? jobDetailTaskLayoutFromLiveJob(job, {
+        localeReadinessLoading,
+        localeReadinessOverride,
+      })
+    : null;
 
   const headerActions = job ? (
     <>

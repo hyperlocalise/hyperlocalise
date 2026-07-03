@@ -32,6 +32,7 @@ import {
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import {
   fetchCrowdinUserJobTasks,
+  mapCrowdinLanguageProgressToLocaleReadiness,
   mapCrowdinTaskToJobTaskMetadata,
 } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
 import { fetchCrowdinProjectDetailMetadata } from "@/lib/providers/adapters/crowdin/crowdin-project-detail";
@@ -2356,24 +2357,42 @@ async function fetchCrowdinLiveJobTaskMetadata(input: {
     throw error;
   }
 
-  let progress: Awaited<ReturnType<typeof client.listProjectLanguageProgress>> = [];
+  return mapCrowdinTaskToJobTaskMetadata(crowdinTask, {});
+}
+
+export async function getTmsProviderLiveProjectLocaleReadiness(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { languageId?: string; actorUserId?: string | null },
+): Promise<Record<string, unknown> | null> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  if (context.providerKind !== "crowdin") {
+    return null;
+  }
+
+  const projectId = Number(externalProjectId);
+  if (!Number.isFinite(projectId) || projectId <= 0) {
+    return null;
+  }
+
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
+  });
+
+  const languageIds = options?.languageId?.trim() ? [options.languageId.trim()] : undefined;
+
   try {
-    progress = await client.listProjectLanguageProgress(projectId);
-  } catch {
-    // Best-effort progress for detail view
+    const progress = await client.listProjectLanguageProgress(projectId, { languageIds });
+    return mapCrowdinLanguageProgressToLocaleReadiness(progress);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    throw error;
   }
-
-  const localeReadiness: Record<string, unknown> = {};
-  for (const lang of progress) {
-    localeReadiness[lang.languageId] = {
-      translationProgress: lang.translationProgress,
-      approvalProgress: lang.approvalProgress,
-      words: lang.words,
-      phrases: lang.phrases,
-    };
-  }
-
-  return mapCrowdinTaskToJobTaskMetadata(crowdinTask, localeReadiness);
 }
 
 export async function getTmsProviderLiveJobDetail(

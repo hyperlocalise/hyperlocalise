@@ -48,14 +48,23 @@ export function mapCrowdinTaskToJobTaskMetadata(
 async function loadCrowdinLocaleReadiness(
   client: CrowdinApiClient,
   projectId: number,
+  languageIds?: string[],
 ): Promise<Record<string, unknown>> {
   let progress: Awaited<ReturnType<typeof client.listProjectLanguageProgress>> = [];
   try {
-    progress = await client.listProjectLanguageProgress(projectId);
+    progress = await client.listProjectLanguageProgress(projectId, {
+      languageIds,
+    });
   } catch {
     // Translation progress is best-effort; do not fail task sync if it is unavailable
   }
 
+  return mapCrowdinLanguageProgressToLocaleReadiness(progress);
+}
+
+export function mapCrowdinLanguageProgressToLocaleReadiness(
+  progress: Awaited<ReturnType<CrowdinApiClient["listProjectLanguageProgress"]>>,
+): Record<string, unknown> {
   const localeReadiness: Record<string, unknown> = {};
   for (const lang of progress) {
     localeReadiness[lang.languageId] = {
@@ -65,7 +74,6 @@ async function loadCrowdinLocaleReadiness(
       phrases: lang.phrases,
     };
   }
-
   return localeReadiness;
 }
 
@@ -84,6 +92,7 @@ export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
   externalProjectId,
   secretMaterial,
   includeLocaleProgress = false,
+  fetchAllTasks = false,
 }) => {
   const client = createCrowdinJobTaskClient({ credential, secretMaterial });
 
@@ -94,7 +103,7 @@ export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
 
   let tasks: Awaited<ReturnType<typeof client.listTasks>>;
   try {
-    tasks = await client.listTasks(projectId);
+    tasks = await client.listTasks(projectId, { fetchAll: fetchAllTasks });
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new Error("crowdin_auth_invalid");
@@ -113,6 +122,7 @@ export async function fetchCrowdinUserJobTasks(input: {
   credential: { baseUrl?: string | null };
   secretMaterial: string;
   externalProjectId?: string;
+  fetchAllTasks?: boolean;
 }): Promise<ExternalTmsJobTaskMetadata[]> {
   const client = createCrowdinJobTaskClient(input);
 
@@ -124,7 +134,10 @@ export async function fetchCrowdinUserJobTasks(input: {
 
   let tasks: Awaited<ReturnType<typeof client.listUserTasks>>;
   try {
-    tasks = await client.listUserTasks(projectId !== undefined ? { projectId } : undefined);
+    tasks = await client.listUserTasks({
+      ...(projectId !== undefined ? { projectId } : {}),
+      fetchAll: input.fetchAllTasks ?? false,
+    });
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new Error("crowdin_auth_invalid");
