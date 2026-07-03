@@ -218,6 +218,9 @@ func (r *SourceStringsAddRequest) Validate() error {
 		return errors.New("text must be a string or map of strings")
 	}
 
+	if r.FileID == 0 && r.BranchID == 0 && r.DirectoryID == 0 && r.Identifier == "" {
+		return errors.New("fileId, branchId, directoryId or identifier is required")
+	}
 	if (r.FileID != 0 && r.BranchID != 0) || (r.FileID != 0 && r.DirectoryID != 0) || (r.BranchID != 0 && r.DirectoryID != 0) {
 		return errors.New("only one of fileId, branchId or directoryId may be set")
 	}
@@ -319,6 +322,9 @@ func (o *SourceStringsUploadRequest) Validate() error {
 	}
 	if o.StorageID == 0 {
 		return errors.New("storageId is required")
+	}
+	if o.BranchID == 0 && o.DirectoryID == 0 {
+		return errors.New("branchId or directoryId is required")
 	}
 	if o.BranchID != 0 && o.DirectoryID != 0 {
 		return errors.New("only one of branchId or directoryId may be set")

@@ -63,48 +63,51 @@ func TestReportGenerateRequestValidate(t *testing.T) {
 		},
 		{
 			name: "required schema",
-			req:  &ReportGenerateRequest{Name: ReportTopMembers},
+			req:  &ReportGenerateRequest{Name: ReportCostsEstimationPostEditing},
 			err:  "schema is required",
-		},
-		{
-			name: "required schema.mode (ContributionRawDataSchema)",
-			req:  &ReportGenerateRequest{Name: ReportTopMembers, Schema: &ContributionRawDataSchema{}},
-			err:  "mode is required",
-		},
-		{
-			name: "valid schema (ContributionRawDataSchema)",
-			req: &ReportGenerateRequest{
-				Name:   ReportContributionRawData,
-				Schema: &ContributionRawDataSchema{Mode: ReportModeApprovals},
-			},
-			valid: true,
 		},
 		{
 			name: "valid schema (CostsEstimationPostEditingSchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportCostsEstimationPostEditing,
-				Schema: &CostsEstimationPostEditingSchema{Unit: ReportUnitWords},
+				Schema: &CostsEstimationPostEditingSchema{Unit: ReportUnitWords, Currency: "USD"},
 			},
 			valid: true,
 		},
 		{
-			name: "valid schema (ReportTransactionCostsPostEditing)",
+			name: "valid schema (TransactionCostsPostEditingSchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportTransactionCostsPostEditing,
-				Schema: &TransactionCostsPostEditingSchema{Unit: ReportUnitWords},
+				Schema: &TransactionCostsPostEditingSchema{Unit: ReportUnitWords, Currency: "USD"},
 			},
 			valid: true,
 		},
 		{
-			name: "valid schema (ReportTransactionCostsPostEditing)",
+			name: "valid schema (TopMembersSchema)",
 			req: &ReportGenerateRequest{
-				Name:   ReportTransactionCostsPostEditing,
-				Schema: &TopMembersSchema{Unit: ReportUnitStrings},
+				Name:   ReportTopMembers,
+				Schema: &TopMembersSchema{Unit: ReportUnitWords},
 			},
 			valid: true,
 		},
 		{
-			name: "valid schema (ReportSourceContentUpdates)",
+			name: "required schema (ContributionRawDataSchema)",
+			req: &ReportGenerateRequest{
+				Name:   ReportContributionRawData,
+				Schema: &ContributionRawDataSchema{Unit: ReportUnitWords},
+			},
+			err: "mode is required",
+		},
+		{
+			name: "valid schema (ContributionRawDataSchema)",
+			req: &ReportGenerateRequest{
+				Name:   ReportContributionRawData,
+				Schema: &ContributionRawDataSchema{Mode: ReportModeTranslations, Unit: ReportUnitWords},
+			},
+			valid: true,
+		},
+		{
+			name: "valid schema (SourceContentUpdatesSchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportSourceContentUpdates,
 				Schema: &SourceContentUpdatesSchema{Unit: ReportUnitWords},
@@ -112,39 +115,39 @@ func TestReportGenerateRequestValidate(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "valid schema (ReportProjectMembers)",
+			name: "valid schema (ProjectMembersSchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportProjectMembers,
-				Schema: &ProjectMembersSchema{Format: ReportFormatXLSX},
+				Schema: &ProjectMembersSchema{},
 			},
 			valid: true,
 		},
 		{
-			name: "valid schema (ReportEditorIssues)",
+			name: "valid schema (EditorIssuesSchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportEditorIssues,
-				Schema: &EditorIssuesSchema{IssueType: "general_question"},
+				Schema: &EditorIssuesSchema{IssueType: "all"},
 			},
 			valid: true,
 		},
 		{
-			name: "valid schema (ReportQACheckIssues)",
+			name: "valid schema (QACheckIssuesSchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportQACheckIssues,
-				Schema: &QACheckIssuesSchema{LanguageID: "ach"},
+				Schema: &QACheckIssuesSchema{LanguageID: "uk"},
 			},
 			valid: true,
 		},
 		{
-			name: "valid schema (ReportSavingActivity)",
+			name: "valid schema (SavingActivitySchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportSavingActivity,
-				Schema: &SavingActivitySchema{LanguageID: "ach", Unit: ReportUnitWords},
+				Schema: &SavingActivitySchema{LanguageID: "uk", Unit: ReportUnitWords},
 			},
 			valid: true,
 		},
 		{
-			name: "valid schema (ReportTranslationActivity)",
+			name: "valid schema (TranslationActivitySchema)",
 			req: &ReportGenerateRequest{
 				Name:   ReportTranslationActivity,
 				Schema: &TranslationActivitySchema{LanguageID: "ach", Unit: ReportUnitWords},
@@ -172,6 +175,22 @@ func TestReportGenerateRequestValidate(t *testing.T) {
 			req: &ReportGenerateRequest{
 				Name:   ReportPreTranslateEfficiency,
 				Schema: &PreTranslateEfficiencySchema{Unit: ReportUnitStrings, PostEditingCategories: []string{"0-10"}},
+			},
+			valid: true,
+		},
+		{
+			name: "valid schema (CostsEstimationSchema)",
+			req: &ReportGenerateRequest{
+				Name:   ReportCostsEstimation,
+				Schema: &CostsEstimationSchema{Unit: ReportUnitWords, Currency: "USD"},
+			},
+			valid: true,
+		},
+		{
+			name: "valid schema (TranslationCostsSchema)",
+			req: &ReportGenerateRequest{
+				Name:   ReportTranslationCosts,
+				Schema: &TranslationCostsSchema{Unit: ReportUnitWords, Currency: "USD"},
 			},
 			valid: true,
 		},
@@ -258,8 +277,8 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 		{
 			name: "valid request (GroupTopMembersSchema)",
 			req: &GroupReportGenerateRequest{
-				Name:   ReportGroupTranslationCostsPostEditing,
-				Schema: &GroupTopMembersSchema{ProjectIDs: []int{1, 2}, Unit: ReportUnitWords, LanguageID: "uk"},
+				Name:   ReportGroupTopMembers,
+				Schema: &GroupTopMembersSchema{ProjectIDs: []int{1}, Unit: ReportUnitWords},
 			},
 			valid: true,
 		},
@@ -267,7 +286,7 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 			name: "valid request (GroupTaskUsageSchema)",
 			req: &GroupReportGenerateRequest{
 				Name:   ReportGroupTaskUsage,
-				Schema: &GroupTaskUsageSchema{ProjectIDs: []int{1}, Type: "workload"},
+				Schema: &GroupTaskUsageSchema{ProjectIDs: []int{1}, Format: ReportFormatXLSX},
 			},
 			valid: true,
 		},
@@ -275,7 +294,7 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 			name: "valid request (GroupQACheckIssuesSchema)",
 			req: &GroupReportGenerateRequest{
 				Name:   ReportGroupQACheckIssues,
-				Schema: &GroupQACheckIssuesSchema{ProjectIDs: []int{1, 2}, Format: ReportFormatXLSX},
+				Schema: &GroupQACheckIssuesSchema{ProjectIDs: []int{1}, Format: ReportFormatXLSX},
 			},
 			valid: true,
 		},
@@ -284,6 +303,22 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 			req: &GroupReportGenerateRequest{
 				Name:   ReportGroupTranslationActivity,
 				Schema: &GroupTranslationActivitySchema{ProjectIDs: []int{1}, Unit: ReportUnitWords},
+			},
+			valid: true,
+		},
+		{
+			name: "valid request (GroupCostsEstimationSchema)",
+			req: &GroupReportGenerateRequest{
+				Name:   ReportGroupCostsEstimation,
+				Schema: &GroupCostsEstimationSchema{ProjectIDs: []int{1}, Unit: ReportUnitWords, Currency: "USD"},
+			},
+			valid: true,
+		},
+		{
+			name: "valid request (GroupTranslationCostsSchema)",
+			req: &GroupReportGenerateRequest{
+				Name:   ReportGroupTranslationCosts,
+				Schema: &GroupTranslationCostsSchema{ProjectIDs: []int{1}, Unit: ReportUnitWords, Currency: "USD"},
 			},
 			valid: true,
 		},

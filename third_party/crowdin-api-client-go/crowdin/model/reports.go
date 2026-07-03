@@ -227,6 +227,8 @@ type ReportGenerateRequest struct {
 	Name ReportName `json:"name"`
 	// Schema for the report generation request.
 	// Can be one of the following types:
+	//  - CostsEstimationSchema
+	//  - TranslationCostsSchema
 	//  - CostsEstimationPostEditingSchema
 	//  - TransactionCostsPostEditingSchema
 	//  - TopMembersSchema
@@ -250,6 +252,95 @@ type ReportSchema interface {
 }
 
 type (
+	// CostsEstimationSchema defines the schema for the costs estimation report.
+	CostsEstimationSchema struct {
+		// Report unit.
+		// Enum: strings, words, chars, chars_with_spaces. Default: words.
+		Unit ReportUnit `json:"unit,omitempty"`
+		// Report currency.
+		// Enum: USD, EUR, JPY, GBP, AUD, CAD, CHF, CNY, SEK, NZD, MXN,
+		// SGD, HKD, NOK, KRW, TRY, RUB, INR, BRL, ZAR, GEL, UAH, DDK
+		Currency string `json:"currency,omitempty"`
+		// Export file format.
+		// Enum: xlsx, csv, json. Default: xlsx.
+		Format ReportFormat `json:"format,omitempty"`
+		// Base rates.
+		BaseRates *ReportBaseRates `json:"baseRates,omitempty"`
+		// Individual rates (Custom rates for certain languages or users).
+		IndividualRates []*ReportIndividualRates `json:"individualRates,omitempty"`
+		// Net Rate Schemes (Percentage paid of full translation rate).
+		// Note: A new translation will be included in the report at the lowest rate
+		// if multiple scheme categories can be applied to the translation.
+		NetRateSchemes *ReportNetRateSchemes `json:"netRateSchemes,omitempty"`
+		// Calculate internal matches. Default: false.
+		CalculateInternalMatches *bool `json:"calculateInternalMatches,omitempty"`
+		// Include pre-translated strings. Default: false.
+		IncludePreTranslatedStrings *bool `json:"includePreTranslatedStrings,omitempty"`
+		// Language Identifier for which the report should be generated.
+		LanguageID string `json:"languageId,omitempty"`
+		// List of file identifiers.
+		FileIDs []int `json:"fileIds,omitempty"`
+		// List of directory identifiers.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
+		// List of branch identifiers.
+		BranchIDs []int `json:"branchIds,omitempty"`
+		// List of label identifiers.
+		LabelIDs []int `json:"labelIds,omitempty"`
+		// Defines which strings include in report.
+		// Enum: strings_with_label, strings_without_label. Default: strings_with_label.
+		LabelIncludeType string `json:"labelIncludeType,omitempty"`
+		// Report date from in UTC, ISO 8601.
+		DateFrom string `json:"dateFrom,omitempty"`
+		// Report date to in UTC, ISO 8601.
+		DateTo string `json:"dateTo,omitempty"`
+	}
+
+	// TranslationCostsSchema defines the schema for the translation costs report.
+	TranslationCostsSchema struct {
+		// Report unit.
+		// Enum: strings, words, chars, chars_with_spaces. Default: words.
+		Unit ReportUnit `json:"unit,omitempty"`
+		// Report currency.
+		// Enum: USD, EUR, JPY, GBP, AUD, CAD, CHF, CNY, SEK, NZD, MXN,
+		// SGD, HKD, NOK, KRW, TRY, RUB, INR, BRL, ZAR, GEL, UAH, DDK
+		Currency string `json:"currency,omitempty"`
+		// Export file format.
+		// Enum: xlsx, csv, json. Default: xlsx.
+		Format ReportFormat `json:"format,omitempty"`
+		// Base rates.
+		BaseRates *ReportBaseRates `json:"baseRates,omitempty"`
+		// Individual rates (Custom rates for certain languages or users).
+		IndividualRates []*ReportIndividualRates `json:"individualRates,omitempty"`
+		// Net Rate Schemes (Percentage paid of full translation rate).
+		// Note: A new translation will be included in the report at the lowest rate
+		// if multiple scheme categories can be applied to the translation.
+		NetRateSchemes *ReportNetRateSchemes `json:"netRateSchemes,omitempty"`
+		// Exclude approvals when the same user has made translations for the string.
+		ExcludeApprovalsForEditedTranslations *bool `json:"excludeApprovalsForEditedTranslations,omitempty"`
+		// Grouping parameter.
+		// Enum: user, language. Default: user.
+		GroupBy string `json:"groupBy,omitempty"`
+		// Language Identifier for which the report should be generated.
+		LanguageID string `json:"languageId,omitempty"`
+		// User Identifier for which the report should be generated.
+		UserIDs []int `json:"userIds,omitempty"`
+		// List of file identifiers.
+		FileIDs []int `json:"fileIds,omitempty"`
+		// List of directory identifiers.
+		DirectoryIDs []int `json:"directoryIds,omitempty"`
+		// List of branch identifiers.
+		BranchIDs []int `json:"branchIds,omitempty"`
+		// List of label identifiers.
+		LabelIDs []int `json:"labelIds,omitempty"`
+		// Defines which strings include in report.
+		// Enum: strings_with_label, strings_without_label. Default: strings_with_label.
+		LabelIncludeType string `json:"labelIncludeType,omitempty"`
+		// Report date from in UTC, ISO 8601.
+		DateFrom string `json:"dateFrom,omitempty"`
+		// Report date to in UTC, ISO 8601.
+		DateTo string `json:"dateTo,omitempty"`
+	}
+
 	// CostsEstimationPostEditingSchema defines the schema for the costs
 	// estimation post-editing report.
 	CostsEstimationPostEditingSchema struct {
@@ -556,6 +647,18 @@ func (r *ReportGenerateRequest) Validate() error {
 }
 
 // ValidateSchema implements the ReportSchema interface and checks if the
+// CostsEstimation schema is valid.
+func (r *CostsEstimationSchema) ValidateSchema() error {
+	return nil
+}
+
+// ValidateSchema implements the ReportSchema interface and checks if the
+// TranslationCosts schema is valid.
+func (r *TranslationCostsSchema) ValidateSchema() error {
+	return nil
+}
+
+// ValidateSchema implements the ReportSchema interface and checks if the
 // CostsEstimationPostEditing schema is valid.
 func (r *CostsEstimationPostEditingSchema) ValidateSchema() error {
 	return nil
@@ -644,6 +747,8 @@ type GroupReportGenerateRequest struct {
 	Name ReportName `json:"name"`
 	// Schema for the group report generation request.
 	// One of the following types:
+	//  - GroupCostsEstimationSchema
+	//  - GroupTranslationCostsSchema
 	//  - GroupTransactionCostsPostEditingSchema
 	//  - GroupTopMembersSchema
 	//  - GroupTaskUsageSchema
@@ -656,6 +761,8 @@ type GroupReportGenerateRequest struct {
 // for a group report generation request.
 //
 // Schema can be one of the following types:
+//   - GroupCostsEstimationSchema
+//   - GroupTranslationCostsSchema
 //   - GroupTransactionCostsPostEditingSchema
 //   - GroupTopMembersSchema
 //   - GroupTaskUsageSchema
@@ -666,6 +773,73 @@ type ReportGroupSchema interface {
 }
 
 type (
+	// GroupCostsEstimationSchema defines the schema for the group costs estimation report.
+	GroupCostsEstimationSchema struct {
+		// Project Identifier for which the report should be generated.
+		ProjectIDs []int `json:"projectIds,omitempty"`
+		// Report unit.
+		// Enum: strings, words, chars, chars_with_spaces. Default: words.
+		Unit ReportUnit `json:"unit,omitempty"`
+		// Report currency.
+		// Enum: USD, EUR, JPY, GBP, AUD, CAD, CHF, CNY, SEK, NZD, MXN,
+		// SGD, HKD, NOK, KRW, TRY, RUB, INR, BRL, ZAR, GEL, UAH, DDK
+		Currency string `json:"currency,omitempty"`
+		// Export file format.
+		// Enum: xlsx, csv, json. Default: xlsx.
+		Format ReportFormat `json:"format,omitempty"`
+		// Base rates.
+		BaseRates *ReportBaseRates `json:"baseRates,omitempty"`
+		// Individual rates (Custom rates for certain languages or users).
+		IndividualRates []*ReportIndividualRates `json:"individualRates,omitempty"`
+		// Net Rate Schemes (Percentage paid of full translation rate).
+		// Note: A new translation will be included in the report at the lowest rate
+		// if multiple scheme categories can be applied to the translation.
+		NetRateSchemes *ReportNetRateSchemes `json:"netRateSchemes,omitempty"`
+		// Calculate internal matches. Default: false.
+		CalculateInternalMatches *bool `json:"calculateInternalMatches,omitempty"`
+		// Include pre-translated strings. Default: false.
+		IncludePreTranslatedStrings *bool `json:"includePreTranslatedStrings,omitempty"`
+		// Report date from in UTC, ISO 8601.
+		DateFrom string `json:"dateFrom,omitempty"`
+		// Report date to in UTC, ISO 8601.
+		DateTo string `json:"dateTo,omitempty"`
+	}
+
+	// GroupTranslationCostsSchema defines the schema for the group translation costs report.
+	GroupTranslationCostsSchema struct {
+		// Project Identifier for which the report should be generated.
+		ProjectIDs []int `json:"projectIds,omitempty"`
+		// Report unit.
+		// Enum: strings, words, chars, chars_with_spaces. Default: words.
+		Unit ReportUnit `json:"unit,omitempty"`
+		// Report currency.
+		// Enum: USD, EUR, JPY, GBP, AUD, CAD, CHF, CNY, SEK, NZD, MXN,
+		// SGD, HKD, NOK, KRW, TRY, RUB, INR, BRL, ZAR, GEL, UAH, DDK
+		Currency string `json:"currency,omitempty"`
+		// Export file format.
+		// Enum: xlsx, csv, json. Default: xlsx.
+		Format ReportFormat `json:"format,omitempty"`
+		// Base rates.
+		BaseRates *ReportBaseRates `json:"baseRates,omitempty"`
+		// Individual rates (Custom rates for certain languages or users).
+		IndividualRates []*ReportIndividualRates `json:"individualRates,omitempty"`
+		// Net Rate Schemes (Percentage paid of full translation rate).
+		// Note: A new translation will be included in the report at the lowest rate
+		// if multiple scheme categories can be applied to the translation.
+		NetRateSchemes *ReportNetRateSchemes `json:"netRateSchemes,omitempty"`
+		// Exclude approvals when the same user has made translations for the string.
+		ExcludeApprovalsForEditedTranslations *bool `json:"excludeApprovalsForEditedTranslations,omitempty"`
+		// Grouping parameter.
+		// Enum: user, language. Default: user.
+		GroupBy string `json:"groupBy,omitempty"`
+		// Report date from in UTC, ISO 8601.
+		DateFrom string `json:"dateFrom,omitempty"`
+		// Report date to in UTC, ISO 8601.
+		DateTo string `json:"dateTo,omitempty"`
+		// User Identifier for which the report should be generated.
+		UserIDs []int `json:"userIds,omitempty"`
+	}
+
 	// GroupTransactionCostsPostEditingSchema defines the schema for the group
 	// translation costs post-editing report.
 	GroupTransactionCostsPostEditingSchema struct {
@@ -787,6 +961,16 @@ func (r *GroupReportGenerateRequest) Validate() error {
 	}
 
 	return r.Schema.ValidateGroupSchema()
+}
+
+// ValidateGroupSchema checks if the GroupCostsEstimation schema is valid.
+func (r *GroupCostsEstimationSchema) ValidateGroupSchema() error {
+	return nil
+}
+
+// ValidateGroupSchema checks if the GroupTranslationCosts schema is valid.
+func (r *GroupTranslationCostsSchema) ValidateGroupSchema() error {
+	return nil
 }
 
 // ValidateGroupSchema checks if the GroupCostsEstimationPostEditing schema is valid.
