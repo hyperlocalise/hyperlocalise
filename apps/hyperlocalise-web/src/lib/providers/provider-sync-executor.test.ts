@@ -373,6 +373,7 @@ describe("executeProviderSyncIntent", () => {
       credential,
       project,
       secretMaterial: "secret",
+      fetchAllTasks: true,
     });
     expect(upsertExternalTmsJobRecordsMock).toHaveBeenCalledWith({
       organizationId: "org_123",
