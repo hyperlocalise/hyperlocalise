@@ -7,6 +7,7 @@
  */
 
 import { createLogger } from "@/lib/log";
+import { mapWithConcurrency } from "@/lib/primitives/map-with-concurrency/map-with-concurrency";
 import { resolveCrowdinApiBaseUrl } from "@/lib/providers/adapters/crowdin/crowdin-base-url";
 import { normalizeProviderDownloadUrl } from "@/lib/providers/provider-url-safety";
 
@@ -707,6 +708,41 @@ export class CrowdinApiClient {
     }
 
     return strings;
+  }
+
+  /**
+   * Fetch a single source string by Crowdin numeric ID.
+   *
+   * Crowdin CROQL cannot filter by string id — use this instead of `croql: "id = …"`.
+   */
+  async getSourceString(projectId: number, stringId: number): Promise<CrowdinSourceString | null> {
+    try {
+      const response = await this.get<CrowdinGetResponse<CrowdinSourceString>>(
+        `/projects/${projectId}/strings/${stringId}`,
+      );
+      return response.data;
+    } catch (error) {
+      if (error instanceof CrowdinApiError && error.status === 404) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async getSourceStringsByIds(
+    projectId: number,
+    stringIds: number[],
+  ): Promise<CrowdinSourceString[]> {
+    const uniqueIds = [...new Set(stringIds)];
+    if (uniqueIds.length === 0) {
+      return [];
+    }
+
+    const results = await mapWithConcurrency(uniqueIds, 10, async (stringId) =>
+      this.getSourceString(projectId, stringId),
+    );
+
+    return results.filter((string): string is CrowdinSourceString => string !== null);
   }
 
   async listSourceStringsPage(

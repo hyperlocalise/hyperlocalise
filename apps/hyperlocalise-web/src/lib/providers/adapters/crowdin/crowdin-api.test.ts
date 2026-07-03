@@ -544,14 +544,103 @@ describe("CrowdinApiClient", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("gets a source string by numeric id", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      expect(String(url)).toBe("https://api.crowdin.test/api/v2/projects/1/strings/1001");
+      return new Response(
+        JSON.stringify({
+          data: {
+            id: 1001,
+            projectId: 1,
+            fileId: 101,
+            branchId: null,
+            directoryId: null,
+            identifier: "hello",
+            text: "Hello",
+            type: "text",
+            context: null,
+            labelIds: null,
+          },
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const string = await client.getSourceString(1, 1001);
+
+    expect(string).toMatchObject({ id: 1001, identifier: "hello", fileId: 101 });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns null when a source string id is not found", async () => {
+    const fetchMock = vi.fn(
+      async () => new Response(JSON.stringify({ errors: [] }), { status: 404 }),
+    ) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    await expect(client.getSourceString(1, 9999)).resolves.toBeNull();
+  });
+
+  it("gets multiple source strings by numeric id", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      if (path.endsWith("/strings/1001")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 1001,
+              projectId: 1,
+              fileId: 101,
+              branchId: null,
+              directoryId: null,
+              identifier: "hello",
+              text: "Hello",
+              type: "text",
+              context: null,
+              labelIds: null,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      if (path.endsWith("/strings/1002")) {
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: 1002,
+              projectId: 1,
+              fileId: 101,
+              branchId: null,
+              directoryId: null,
+              identifier: "world",
+              text: "World",
+              type: "text",
+              context: null,
+              labelIds: null,
+            },
+          }),
+          { status: 200 },
+        );
+      }
+      return new Response(JSON.stringify({ errors: [] }), { status: 404 });
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const strings = await client.getSourceStringsByIds(1, [1001, 1002, 9999]);
+
+    expect(strings.map((entry) => entry.id)).toEqual([1001, 1002]);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
   it("lists source strings by croql", async () => {
     const fetchMock = vi.fn(async (url) => {
-      expect(String(url)).toContain("croql=id+in+%281001%2C1002%29");
+      expect(String(url)).toContain("croql=identifier+%3D+%22hello%22");
       return new Response(JSON.stringify({ data: [] }), { status: 200 });
     }) as unknown as typeof fetch;
 
     const client = createClient(fetchMock);
-    await client.listSourceStrings(1, { croql: "id in (1001,1002)" });
+    await client.listSourceStrings(1, { croql: 'identifier = "hello"' });
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

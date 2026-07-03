@@ -1214,13 +1214,9 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
   });
 
   try {
-    const [sourceStringPage, translations, approvals, plainComments, unresolvedIssues] =
+    const [sourceString, translations, approvals, plainComments, unresolvedIssues] =
       await Promise.all([
-        client.listSourceStringsPage(projectId, {
-          croql: `id = ${stringId}`,
-          offset: 0,
-          limit: 1,
-        }),
+        client.getSourceString(projectId, stringId),
         client.listLanguageTranslations(projectId, input.targetLocale, {
           stringIds: [stringId],
         }),
@@ -1238,7 +1234,6 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
         }),
       ]);
 
-    const sourceString = sourceStringPage.strings[0];
     if (!sourceString) {
       return null;
     }
