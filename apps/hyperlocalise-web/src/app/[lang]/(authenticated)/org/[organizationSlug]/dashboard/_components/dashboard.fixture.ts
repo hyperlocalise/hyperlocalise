@@ -7,6 +7,7 @@ import {
   projectOverviewFixture,
 } from "../../projects/[projectId]/_components/project-overview.fixture";
 import type { ProjectListRow } from "../../projects/_components/project-list";
+import { providerLabel } from "../../_components/workspace-files-shared";
 
 import type {
   DashboardAutomationRunItem,
@@ -163,7 +164,10 @@ export const dashboardProjectsItemsFixture: DashboardProjectItem[] = dashboardPr
   .map((project) => ({
     id: project.id,
     name: project.name,
-    sourceLabel: project.externalProviderKind ?? "Native",
+    sourceLabel:
+      project.source === "external_tms" && project.externalProviderKind
+        ? providerLabel(project.externalProviderKind)
+        : "Native",
     localeRoute: formatDashboardLocaleRoute(project.sourceLocale, project.targetLocales),
     pendingActionCount: project.openJobCount,
     updatedAt: project.lastSyncedAt ?? project.updated,

@@ -220,7 +220,7 @@ export function DashboardPageContent({
   const tmsQuery = useQuery({
     queryKey: ["dashboard-tms-connected", organizationSlug, projectsQuery.data?.length ?? 0],
     queryFn: () => fetchTmsConnected(organizationSlug, projectsQuery.data?.length ?? 0),
-    enabled: projectsQuery.isSuccess,
+    enabled: projectsQuery.isFetched,
   });
 
   const automationsQuery = useQuery({
@@ -309,13 +309,23 @@ export function DashboardPageContent({
     [automationRunsQuery.data, automationsQuery.data, organizationSlug],
   );
 
+  const mappedJobs = useMemo(
+    () => mapDashboardJobs(organizationSlug, jobs),
+    [organizationSlug, jobs],
+  );
+
+  const mappedProjects = useMemo(
+    () => mapDashboardProjects(organizationSlug, projects),
+    [organizationSlug, projects],
+  );
+
   return (
     <DashboardPageView
       organizationSlug={organizationSlug}
       hero={hero}
       integrations={integrations}
-      jobs={mapDashboardJobs(organizationSlug, jobs)}
-      projects={mapDashboardProjects(organizationSlug, projects)}
+      jobs={mappedJobs}
+      projects={mappedProjects}
       automationStats={automationStats}
       automationRuns={automationRuns}
       automationsEnabled={automationsEnabled}

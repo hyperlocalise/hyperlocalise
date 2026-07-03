@@ -309,9 +309,16 @@ function DashboardAutomationsSection({
               ))}
             </div>
           ) : isError ? (
-            <TypographyP className="text-sm text-muted-foreground">
-              Automation runs could not be loaded.
-            </TypographyP>
+            <div className="flex items-start gap-3 rounded-lg border border-flame-700/20 bg-flame-700/10 px-4 py-4">
+              <HugeiconsIcon
+                icon={AlertCircleIcon}
+                strokeWidth={1.8}
+                className="mt-0.5 size-5 text-flame-100"
+              />
+              <TypographyP className="text-sm text-muted-foreground">
+                Automation runs could not be loaded.
+              </TypographyP>
+            </div>
           ) : (
             <>
               <TypographyP className="text-sm text-muted-foreground">
