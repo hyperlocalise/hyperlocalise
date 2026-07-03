@@ -19,10 +19,10 @@ import {
   formatReadinessProgress,
   formatWordsToDo,
   getCrowdinLanguageLabel,
-  getCrowdinLocaleReadiness,
   getCrowdinTargetLocales,
   getCrowdinTaskTypeLabel,
   getReadinessNumber,
+  resolveCrowdinLocaleReadiness,
 } from "../../../../../jobs/_components/provider-crowdin-job-display";
 
 import { formatJobDetailDate, isProviderBackedJob, type JobDetailRecord } from "./job-detail-types";
@@ -39,6 +39,8 @@ export type JobDetailTaskLayoutInput = {
   externalTaskId: string | null;
   id: string;
   kind: string;
+  localeReadinessLoading?: boolean;
+  localeReadinessOverride?: Record<string, unknown> | null;
   projectId: string | null;
   projectName: string | null;
   sourceFilesMetric?: string | null;
@@ -69,8 +71,15 @@ function formatProviderKind(kind: string | null | undefined) {
   return getTmsProviderBranding(kind).name;
 }
 
-function getProgressValue(payload: Record<string, unknown> | null) {
-  const readiness = getCrowdinLocaleReadiness(payload);
+function resolveTaskLocaleReadiness(input: JobDetailTaskLayoutInput) {
+  if (input.localeReadinessOverride) {
+    return input.localeReadinessOverride;
+  }
+
+  return resolveCrowdinLocaleReadiness(input.externalProviderPayload);
+}
+
+function getProgressValue(readiness: Record<string, unknown> | null) {
   const translationProgress = getReadinessNumber(readiness, "translationProgress");
   const approvalProgress = getReadinessNumber(readiness, "approvalProgress");
   return Math.max(0, Math.min(100, Math.round(translationProgress ?? approvalProgress ?? 0)));
@@ -92,6 +101,8 @@ export function jobDetailTaskTitle(input: JobDetailTaskLayoutInput) {
 export function jobDetailTaskMetrics(input: JobDetailTaskLayoutInput): JobDetailViewMetric[] {
   const providerKind = input.externalProviderKind;
   const payload = input.externalProviderPayload;
+  const readiness = resolveTaskLocaleReadiness(input);
+  const wordsToDo = formatWordsToDo(readiness);
   const taskLabel = providerKind
     ? `${formatProviderKind(providerKind)} task`
     : `${formatJobKind(input.kind)} task`;
@@ -111,7 +122,7 @@ export function jobDetailTaskMetrics(input: JobDetailTaskLayoutInput): JobDetail
     {
       icon: File01Icon,
       label:
-        formatWordsToDo(getCrowdinLocaleReadiness(payload)) ??
+        (input.localeReadinessLoading ? "Loading progress..." : wordsToDo) ??
         input.sourceFilesMetric ??
         "Source files linked",
     },
@@ -127,11 +138,12 @@ export function jobDetailTaskProperties(input: JobDetailTaskLayoutInput): {
   secondaryProperties: JobDetailViewProperty[];
 } {
   const payload = input.externalProviderPayload;
-  const readiness = getCrowdinLocaleReadiness(payload);
+  const readiness = resolveTaskLocaleReadiness(input);
   const hasReadiness = readiness !== null;
-  const progress = hasReadiness ? getProgressValue(payload) : null;
-  const progressLabel =
-    hasReadiness && progress !== null
+  const progress = hasReadiness ? getProgressValue(readiness) : null;
+  const progressLabel = input.localeReadinessLoading
+    ? "Loading progress..."
+    : hasReadiness && progress !== null
       ? (formatReadinessProgress(readiness) ?? `${progress}% translated`)
       : null;
   const providerName = formatProviderKind(input.externalProviderKind);
@@ -229,7 +241,13 @@ export function jobDetailTaskLayoutFromRecord(job: JobDetailRecord): {
   };
 }
 
-export function jobDetailTaskLayoutFromLiveJob(job: TmsProviderLiveJobDetail): {
+export function jobDetailTaskLayoutFromLiveJob(
+  job: TmsProviderLiveJobDetail,
+  options?: {
+    localeReadinessLoading?: boolean;
+    localeReadinessOverride?: Record<string, unknown> | null;
+  },
+): {
   input: JobDetailTaskLayoutInput;
   metrics: JobDetailViewMetric[];
   properties: JobDetailViewProperty[];
@@ -252,6 +270,8 @@ export function jobDetailTaskLayoutFromLiveJob(job: TmsProviderLiveJobDetail): {
     projectId: job.projectId,
     projectName: job.projectName,
     kind: job.kind,
+    localeReadinessLoading: options?.localeReadinessLoading,
+    localeReadinessOverride: options?.localeReadinessOverride,
   };
 
   const { properties, secondaryProperties } = jobDetailTaskProperties(input);

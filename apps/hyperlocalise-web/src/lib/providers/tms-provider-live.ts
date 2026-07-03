@@ -30,7 +30,12 @@ import {
   type CrowdinSourceString,
   type CrowdinStringComment,
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
-import { mapCrowdinTaskToJobTaskMetadata } from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
+import {
+  fetchCrowdinUserJobTasks,
+  mapCrowdinLanguageProgressToLocaleReadiness,
+  mapCrowdinTaskToJobTaskMetadata,
+} from "@/lib/providers/adapters/crowdin/crowdin-job-task-fetcher";
+import { fetchCrowdinProjectDetailMetadata } from "@/lib/providers/adapters/crowdin/crowdin-project-detail";
 import {
   getCrowdinUserConnection,
   resolveCrowdinUserConnectionSecretMaterial,
@@ -92,6 +97,7 @@ const logger = createLogger("tms-provider-live");
 
 const LIVE_PROJECT_JOB_FANOUT_CONCURRENCY = 5;
 const LIVE_GLOSSARY_TM_FANOUT_CONCURRENCY = 5;
+const LIVE_PROJECT_LIST_CACHE_TTL_MS = 60_000;
 const openLiveJobStatuses = new Set<string>(openJobStatusValues);
 const maxLiveProviderInlineTextBytes = 512 * 1024;
 const maxLiveProviderStringPreviewItems = 1_000;
@@ -145,6 +151,7 @@ export type TmsProviderLiveProject = {
   targetLocales: string[];
   externalProjectUrl: string | null;
   isActive: boolean;
+  metadata?: Record<string, unknown>;
 };
 
 export type TmsProviderLiveJob = {
@@ -601,6 +608,7 @@ function mapLiveProject(
     targetLocales,
     externalProjectUrl: project.externalProjectUrl ?? null,
     isActive: project.isActive ?? true,
+    metadata: project.metadata,
   };
 }
 
@@ -1537,6 +1545,98 @@ async function fetchLiveProjects(context: ActiveTmsProviderContext) {
   }
 }
 
+type LiveProjectListCacheEntry = {
+  expiresAt: number;
+  projects: ExternalTmsProjectMetadata[];
+};
+
+const liveProjectListCache = new Map<string, LiveProjectListCacheEntry>();
+
+function liveProjectListCacheKey(
+  context: ActiveTmsProviderContext,
+  options?: { actorUserId?: string | null },
+) {
+  return `${context.organizationId}:${context.credential.id}:${context.providerKind}:${options?.actorUserId ?? ""}`;
+}
+
+async function fetchLiveProjectsCached(
+  context: ActiveTmsProviderContext,
+  options?: { actorUserId?: string | null },
+): Promise<ExternalTmsProjectMetadata[]> {
+  const cacheKey = liveProjectListCacheKey(context, options);
+  const cached = liveProjectListCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) {
+    return cached.projects;
+  }
+
+  const projects = await fetchLiveProjects(context);
+  liveProjectListCache.set(cacheKey, {
+    projects,
+    expiresAt: Date.now() + LIVE_PROJECT_LIST_CACHE_TTL_MS,
+  });
+  return projects;
+}
+
+function shouldUseCrowdinUserTasksForMine(
+  context: ActiveTmsProviderContext,
+  mine?: boolean,
+): boolean {
+  return (
+    Boolean(mine) &&
+    context.providerKind === "crowdin" &&
+    crowdinUsesPerUserAuth(context.credential.authMode)
+  );
+}
+
+function readCrowdinTaskProjectId(task: ExternalTmsJobTaskMetadata): string | null {
+  const projectId = task.providerPayload?.projectId;
+  if (typeof projectId === "number" && Number.isFinite(projectId)) {
+    return String(projectId);
+  }
+  if (typeof projectId === "string" && projectId.trim()) {
+    return projectId.trim();
+  }
+  return null;
+}
+
+async function listCrowdinUserAssignedLiveJobs(input: {
+  context: ActiveTmsProviderContext;
+  projects: ExternalTmsProjectMetadata[];
+  externalProjectId?: string;
+}): Promise<TmsProviderLiveJob[]> {
+  const projectNameById = new Map(
+    input.projects.map((project) => [project.externalProjectId, project.name]),
+  );
+
+  let tasks;
+  try {
+    tasks = await fetchCrowdinUserJobTasks({
+      credential: input.context.credential,
+      secretMaterial: input.context.secretMaterial,
+      externalProjectId: input.externalProjectId,
+    });
+  } catch (error) {
+    rethrowProviderFetcherError(error);
+  }
+
+  return tasks.flatMap((task) => {
+    const taskProjectId = readCrowdinTaskProjectId(task) ?? input.externalProjectId ?? null;
+    if (!taskProjectId) {
+      return [];
+    }
+
+    const projectName = projectNameById.get(taskProjectId) ?? "Unknown project";
+    return [
+      mapLiveJob({
+        providerKind: input.context.providerKind,
+        externalProjectId: taskProjectId,
+        projectName,
+        task,
+      }),
+    ];
+  });
+}
+
 export async function getTmsProviderConnection(
   organizationId: string,
 ): Promise<TmsProviderConnection | null> {
@@ -1560,7 +1660,7 @@ async function loadActiveLiveProjects(
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
-  const projects = await fetchLiveProjects(context);
+  const projects = await fetchLiveProjectsCached(context, options);
   const activeProjects = projects.filter((project) => project.isActive !== false);
   return { context, activeProjects };
 }
@@ -1576,11 +1676,30 @@ export async function listTmsProviderLiveProjects(
 async function resolveLiveProjectMetadata(
   context: ActiveTmsProviderContext,
   externalProjectId: string,
+  options?: { includeBranches?: boolean },
 ): Promise<ExternalTmsProjectMetadata | null> {
   if (context.providerKind === "crowdin") {
     const crowdinProjectId = Number(externalProjectId);
     if (!Number.isFinite(crowdinProjectId) || crowdinProjectId <= 0) {
       return null;
+    }
+
+    if (options?.includeBranches) {
+      try {
+        return await fetchCrowdinProjectDetailMetadata({
+          projectId: crowdinProjectId,
+          token: context.secretMaterial,
+          baseUrl: context.credential.baseUrl ?? undefined,
+        });
+      } catch (error) {
+        if (error instanceof Error && error.message === "crowdin_auth_invalid") {
+          throw new TmsProviderLiveError(
+            "crowdin_auth_invalid",
+            "Crowdin credentials are invalid.",
+          );
+        }
+        throw error;
+      }
     }
 
     const client = new CrowdinApiClient({
@@ -1597,6 +1716,9 @@ async function resolveLiveProjectMetadata(
         targetLocales: project.targetLanguageIds,
         externalProjectUrl: project.webUrl,
         isActive: !project.isSuspended,
+        metadata: {
+          identifier: project.identifier,
+        },
       };
     } catch (error) {
       if (error instanceof CrowdinApiError && error.status === 404) {
@@ -1606,7 +1728,7 @@ async function resolveLiveProjectMetadata(
     }
   }
 
-  const projects = await fetchLiveProjects(context);
+  const projects = await fetchLiveProjectsCached(context);
   const activeProject = projects.find(
     (project) => project.externalProjectId === externalProjectId && project.isActive !== false,
   );
@@ -1625,7 +1747,9 @@ export async function getTmsProviderLiveProject(
   const context = await loadActiveTmsProviderContext(organizationId, {
     actorUserId: options?.actorUserId,
   });
-  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId);
+  const projectMetadata = await resolveLiveProjectMetadata(context, externalProjectId, {
+    includeBranches: true,
+  });
   if (!projectMetadata) {
     return null;
   }
@@ -1678,6 +1802,15 @@ export async function listTmsProviderLiveJobsForProject(
     (await resolveLiveProjectMetadata(context, externalProjectId));
   if (!projectMetadata) {
     return [];
+  }
+
+  if (shouldUseCrowdinUserTasksForMine(context, options?.mine)) {
+    const projects = options?.projects ?? (await fetchLiveProjectsCached(context, options));
+    return listCrowdinUserAssignedLiveJobs({
+      context,
+      projects,
+      externalProjectId,
+    });
   }
 
   const liveProject = buildLiveProviderProject({
@@ -2172,7 +2305,13 @@ export async function listTmsProviderLiveJobs(
   const context =
     options?.context ??
     (await loadActiveTmsProviderContext(organizationId, { actorUserId: options?.actorUserId }));
-  const projects = await fetchLiveProjects(context);
+
+  if (shouldUseCrowdinUserTasksForMine(context, options?.mine)) {
+    const projects = await fetchLiveProjectsCached(context, options);
+    return listCrowdinUserAssignedLiveJobs({ context, projects });
+  }
+
+  const projects = await fetchLiveProjectsCached(context, options);
   const activeProjects = projects.filter((project) => project.isActive !== false);
 
   const jobsByProject = await mapWithConcurrency(
@@ -2218,24 +2357,42 @@ async function fetchCrowdinLiveJobTaskMetadata(input: {
     throw error;
   }
 
-  let progress: Awaited<ReturnType<typeof client.listProjectLanguageProgress>> = [];
+  return mapCrowdinTaskToJobTaskMetadata(crowdinTask, {});
+}
+
+export async function getTmsProviderLiveProjectLocaleReadiness(
+  organizationId: string,
+  externalProjectId: string,
+  options?: { languageId?: string; actorUserId?: string | null },
+): Promise<Record<string, unknown> | null> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  if (context.providerKind !== "crowdin") {
+    return null;
+  }
+
+  const projectId = Number(externalProjectId);
+  if (!Number.isFinite(projectId) || projectId <= 0) {
+    return null;
+  }
+
+  const client = new CrowdinApiClient({
+    token: context.secretMaterial,
+    baseUrl: context.credential.baseUrl ?? undefined,
+  });
+
+  const languageIds = options?.languageId?.trim() ? [options.languageId.trim()] : undefined;
+
   try {
-    progress = await client.listProjectLanguageProgress(projectId);
-  } catch {
-    // Best-effort progress for detail view
+    const progress = await client.listProjectLanguageProgress(projectId, { languageIds });
+    return mapCrowdinLanguageProgressToLocaleReadiness(progress);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+    throw error;
   }
-
-  const localeReadiness: Record<string, unknown> = {};
-  for (const lang of progress) {
-    localeReadiness[lang.languageId] = {
-      translationProgress: lang.translationProgress,
-      approvalProgress: lang.approvalProgress,
-      words: lang.words,
-      phrases: lang.phrases,
-    };
-  }
-
-  return mapCrowdinTaskToJobTaskMetadata(crowdinTask, localeReadiness);
 }
 
 export async function getTmsProviderLiveJobDetail(
@@ -2255,7 +2412,7 @@ export async function getTmsProviderLiveJobDetail(
     return null;
   }
 
-  const projects = await fetchLiveProjects(context);
+  const projects = await fetchLiveProjectsCached(context, options);
   const project = projects.find((item) => item.externalProjectId === parsed.externalProjectId);
   if (!project) {
     return null;
@@ -2486,7 +2643,7 @@ export async function updateTmsProviderLiveJobDescription(
     return null;
   }
 
-  const projects = await fetchLiveProjects(context);
+  const projects = await fetchLiveProjectsCached(context, { actorUserId });
   const project = projects.find((item) => item.externalProjectId === parsed.externalProjectId);
   if (!project) {
     return null;
@@ -2605,7 +2762,7 @@ export async function listTmsProviderLiveGlossaries(
     );
   }
 
-  const projects = await fetchLiveProjects(context);
+  const projects = await fetchLiveProjectsCached(context, options);
   const scopedProjects = options?.externalProjectId
     ? projects.filter((project) => project.externalProjectId === options.externalProjectId)
     : projects.filter((project) => project.isActive !== false);
@@ -2694,7 +2851,7 @@ export async function listTmsProviderLiveTranslationMemories(
     );
   }
 
-  const projects = await fetchLiveProjects(context);
+  const projects = await fetchLiveProjectsCached(context, options);
   const scopedProjects = options?.externalProjectId
     ? projects.filter((project) => project.externalProjectId === options.externalProjectId)
     : projects.filter((project) => project.isActive !== false);

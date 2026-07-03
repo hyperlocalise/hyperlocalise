@@ -655,4 +655,56 @@ describe("tmsProviderRoutes", () => {
       message: "Connect your Crowdin account before using Crowdin.",
     });
   });
+
+  it("returns locale readiness for a Crowdin project language", async () => {
+    const identity = fixture.createWorkosIdentityWithRole("admin");
+    const headers = await fixture.authHeadersFor(identity);
+    const organizationId = globalThis.__testApiAuthContext!.organization.localOrganizationId;
+
+    await upsertOrganizationExternalTmsProviderCredential({
+      organizationId,
+      userId: globalThis.__testApiAuthContext!.user.localUserId,
+      role: "admin",
+      providerKind: "crowdin",
+      displayName: "Crowdin",
+      secretMaterial: "crowdin-secret",
+    });
+
+    vi.spyOn(tmsProviderLive, "getTmsProviderLiveProjectLocaleReadiness").mockResolvedValue({
+      fr: {
+        translationProgress: 42,
+        approvalProgress: 10,
+        words: { total: 100, translated: 42, approved: 10 },
+      },
+    });
+
+    const response = await client.api.orgs[":organizationSlug"]["tms-provider"].projects[
+      ":externalProjectId"
+    ]["locale-readiness"].$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing",
+          externalProjectId: "9",
+        },
+        query: { languageId: "fr" },
+      },
+      { headers },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      localeReadiness: {
+        fr: {
+          translationProgress: 42,
+          approvalProgress: 10,
+          words: { total: 100, translated: 42, approved: 10 },
+        },
+      },
+    });
+    expect(tmsProviderLive.getTmsProviderLiveProjectLocaleReadiness).toHaveBeenCalledWith(
+      organizationId,
+      "9",
+      expect.objectContaining({ languageId: "fr" }),
+    );
+  });
 });

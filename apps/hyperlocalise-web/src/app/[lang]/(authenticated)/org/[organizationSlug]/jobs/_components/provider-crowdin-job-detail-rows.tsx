@@ -7,10 +7,10 @@ import {
   formatReadinessProgress,
   formatWordsToDo,
   getCrowdinLanguageLabel,
-  getCrowdinLocaleReadiness,
   getCrowdinTargetLocales,
   getCrowdinTaskTypeLabel,
   getProviderPayloadString,
+  resolveCrowdinLocaleReadiness,
 } from "./provider-crowdin-job-display";
 import { ProviderJobDescriptionField } from "./provider-job-description-field";
 
@@ -59,6 +59,8 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   descriptionQueryKey,
   canEditDescription,
   showProviderLink = true,
+  localeReadinessLoading = false,
+  localeReadinessOverride,
   renderDescriptionField = renderProviderJobDescriptionField,
   extraRows,
 }: {
@@ -70,6 +72,8 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   descriptionQueryKey?: readonly unknown[];
   canEditDescription?: boolean;
   showProviderLink?: boolean;
+  localeReadinessLoading?: boolean;
+  localeReadinessOverride?: Record<string, unknown> | null;
   renderDescriptionField?: ProviderJobDescriptionFieldRenderer;
   extraRows?: ReactNode;
 }) {
@@ -82,9 +86,13 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
   const crowdinDescription = isCrowdin
     ? getProviderPayloadString(providerPayload, "description")
     : null;
-  const crowdinLocaleReadiness = isCrowdin ? getCrowdinLocaleReadiness(providerPayload) : null;
-  const crowdinProgress = formatReadinessProgress(crowdinLocaleReadiness);
-  const crowdinWordsToDo = formatWordsToDo(crowdinLocaleReadiness);
+  const crowdinLocaleReadiness = isCrowdin
+    ? (localeReadinessOverride ?? resolveCrowdinLocaleReadiness(providerPayload))
+    : null;
+  const crowdinProgress = localeReadinessLoading
+    ? "Loading progress..."
+    : formatReadinessProgress(crowdinLocaleReadiness);
+  const crowdinWordsToDo = localeReadinessLoading ? null : formatWordsToDo(crowdinLocaleReadiness);
   const canEditProviderDescription =
     isCrowdin && job.id.startsWith("ext:") && Boolean(descriptionQueryKey?.length);
 
@@ -110,7 +118,9 @@ export function ProviderCrowdinJobDetailRows<J extends CrowdinJobDetailSource>({
           </dd>
         </div>
       ) : null}
-      {crowdinProgress ? <JobDetailRow label="Progress" value={crowdinProgress} /> : null}
+      {crowdinProgress || localeReadinessLoading ? (
+        <JobDetailRow label="Progress" value={crowdinProgress ?? "Loading progress..."} />
+      ) : null}
       {crowdinWordsToDo ? <JobDetailRow label="Words to do" value={crowdinWordsToDo} /> : null}
       <JobDetailRow label="Due date" value={formatDateTime(job.externalDueDate)} />
       {job.externalJobId ? (

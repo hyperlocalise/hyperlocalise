@@ -12,6 +12,17 @@ import { normalizeProviderDownloadUrl } from "@/lib/providers/provider-url-safet
 
 const logger = createLogger("crowdin-api");
 
+export const CROWDIN_LIVE_TASK_LIST_LIMIT = 50;
+export const CROWDIN_LIVE_TASK_LIST_ORDER_BY = "createdAt desc";
+export const CROWDIN_SYNC_TASK_PAGE_LIMIT = 500;
+
+export type ListCrowdinTasksOptions = {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  fetchAll?: boolean;
+};
+
 function defaultCrowdinFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return globalThis.fetch(input, init);
 }
@@ -781,20 +792,59 @@ export class CrowdinApiClient {
 
   /**
    * List tasks for a given project.
+   *
+   * Live list views request a single page of the newest tasks. Sync passes
+   * `fetchAll: true` to paginate through the full task history.
    */
-  async listTasks(projectId: number): Promise<CrowdinTask[]> {
+  async listTasks(projectId: number, options?: ListCrowdinTasksOptions): Promise<CrowdinTask[]> {
+    const fetchAll = options?.fetchAll ?? false;
+    const limit =
+      options?.limit ?? (fetchAll ? CROWDIN_SYNC_TASK_PAGE_LIMIT : CROWDIN_LIVE_TASK_LIST_LIMIT);
+    const orderBy = options?.orderBy ?? (fetchAll ? undefined : CROWDIN_LIVE_TASK_LIST_ORDER_BY);
     const tasks: CrowdinTask[] = [];
-    let offset = 0;
-    const limit = 500;
+    let offset = options?.offset ?? 0;
 
     while (true) {
+      const orderParam = orderBy ? `&orderBy=${encodeURIComponent(orderBy)}` : "";
       const response = await this.get<CrowdinListResponse<CrowdinTask>>(
-        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}`,
+        `/projects/${projectId}/tasks?limit=${limit}&offset=${offset}${orderParam}`,
       );
       const page = response.data.map((item) => item.data);
       tasks.push(...page);
 
-      if (page.length < limit) {
+      if (!fetchAll || page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return tasks;
+  }
+
+  /**
+   * List tasks assigned to the authenticated user, optionally scoped to a project.
+   */
+  async listUserTasks(
+    options?: { projectId?: number } & ListCrowdinTasksOptions,
+  ): Promise<CrowdinTask[]> {
+    const fetchAll = options?.fetchAll ?? false;
+    const limit =
+      options?.limit ?? (fetchAll ? CROWDIN_SYNC_TASK_PAGE_LIMIT : CROWDIN_LIVE_TASK_LIST_LIMIT);
+    const orderBy = options?.orderBy ?? (fetchAll ? undefined : CROWDIN_LIVE_TASK_LIST_ORDER_BY);
+    const tasks: CrowdinTask[] = [];
+    let offset = options?.offset ?? 0;
+    const projectParam = options?.projectId !== undefined ? `&projectId=${options.projectId}` : "";
+
+    while (true) {
+      const orderParam = orderBy ? `&orderBy=${encodeURIComponent(orderBy)}` : "";
+      const response = await this.get<CrowdinListResponse<CrowdinTask>>(
+        `/user/tasks?limit=${limit}&offset=${offset}${projectParam}${orderParam}`,
+      );
+      const page = response.data.map((item) => item.data);
+      tasks.push(...page);
+
+      if (!fetchAll || page.length < limit) {
         break;
       }
 

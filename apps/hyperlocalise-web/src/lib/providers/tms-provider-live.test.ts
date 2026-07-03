@@ -29,6 +29,7 @@ vi.mock("@/lib/providers/adapters/crowdin/crowdin-api", () => ({
   CrowdinApiClient: vi.fn(function CrowdinApiClientMock() {
     return {
       getProject: vi.fn(),
+      listBranches: vi.fn(),
     };
   }),
   CrowdinApiError: class CrowdinApiError extends Error {
@@ -117,7 +118,7 @@ describe("getTmsProviderLiveProject", () => {
     vi.clearAllMocks();
   });
 
-  it("returns the live Crowdin project", async () => {
+  it("returns the live Crowdin project with branch metadata", async () => {
     vi.mocked(getActiveOrganizationExternalTmsProviderCredentialRow).mockResolvedValue(
       crowdinCredential as never,
     );
@@ -126,13 +127,17 @@ describe("getTmsProviderLiveProject", () => {
     const getProject = vi.fn().mockResolvedValue({
       id: 42,
       name: "Crowdin Project",
+      identifier: "crowdin-project",
       sourceLanguageId: "en",
       targetLanguageIds: ["fr"],
       webUrl: "https://crowdin.com/project/test",
       isSuspended: false,
     });
+    const listBranches = vi
+      .fn()
+      .mockResolvedValue([{ id: 10, name: "main", title: "Main Branch" }]);
     vi.mocked(CrowdinApiClient).mockImplementation(function () {
-      return { getProject } as never;
+      return { getProject, listBranches } as never;
     });
 
     const project = await getTmsProviderLiveProject("org-1", "42");
@@ -140,7 +145,12 @@ describe("getTmsProviderLiveProject", () => {
     expect(project).toMatchObject({
       name: "Crowdin Project",
       externalProjectId: "42",
+      metadata: {
+        identifier: "crowdin-project",
+        branches: [{ id: 10, name: "main", title: "Main Branch" }],
+      },
     });
     expect(getProject).toHaveBeenCalledWith(42);
+    expect(listBranches).toHaveBeenCalledWith(42);
   });
 });
