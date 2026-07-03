@@ -292,25 +292,21 @@ describe("pullCrowdinTaskContent", () => {
         return new Response(JSON.stringify({ data: [] }), { status: 200 });
       }
 
-      if (path.includes("/projects/42/strings?") && path.includes("croql=")) {
+      if (path.endsWith("/projects/42/strings/1001")) {
         return new Response(
           JSON.stringify({
-            data: [
-              {
-                data: {
-                  id: 1001,
-                  projectId: 42,
-                  fileId: 101,
-                  branchId: null,
-                  directoryId: null,
-                  identifier: "hello",
-                  text: "Hello",
-                  type: "text",
-                  context: null,
-                  labelIds: null,
-                },
-              },
-            ],
+            data: {
+              id: 1001,
+              projectId: 42,
+              fileId: 101,
+              branchId: null,
+              directoryId: null,
+              identifier: "hello",
+              text: "Hello",
+              type: "text",
+              context: null,
+              labelIds: null,
+            },
           }),
           { status: 200 },
         );
@@ -361,7 +357,7 @@ describe("pullCrowdinTaskContent", () => {
     expect(
       fetchMock.mock.calls.some(([requestUrl]) => {
         const requestPath = String(requestUrl);
-        return requestPath.includes("/projects/42/strings?") && requestPath.includes("croql=");
+        return requestPath.endsWith("/projects/42/strings/1001");
       }),
     ).toBe(true);
     expect(

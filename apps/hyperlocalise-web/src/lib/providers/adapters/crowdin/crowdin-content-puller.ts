@@ -41,16 +41,8 @@ async function listSourceStringsByStringIds(
   projectId: number,
   stringIds: number[],
 ): Promise<CrowdinSourceString[]> {
-  const uniqueIds = [...new Set(stringIds)];
-  const results: CrowdinSourceString[] = [];
-
-  for (const chunk of chunkArray(uniqueIds, 25)) {
-    const croql = `id in (${chunk.join(",")})`;
-    const page = await client.listSourceStrings(projectId, { croql });
-    results.push(...page);
-  }
-
-  return dedupeSourceStringsById(results);
+  const strings = await client.getSourceStringsByIds(projectId, stringIds);
+  return dedupeSourceStringsById(strings);
 }
 
 async function listSourceStringsByFileIds(

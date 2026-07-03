@@ -229,11 +229,7 @@ async function resolveCrowdinString(
   >
 > {
   if (input.stringId != null) {
-    const strings = await client.listSourceStrings(crowdinProjectId, {
-      croql: `id = ${input.stringId}`,
-      maxItems: 1,
-    });
-    const match = strings[0];
+    const match = await client.getSourceString(crowdinProjectId, input.stringId);
     if (!match) {
       return err({
         code: "crowdin_resource_not_found" as const,

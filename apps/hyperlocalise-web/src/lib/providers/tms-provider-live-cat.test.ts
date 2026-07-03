@@ -1123,25 +1123,21 @@ describe("getTmsProviderLiveCatSegmentDetail", () => {
         );
       }
 
-      if (path.includes("/projects/42/strings?") && path.includes("croql=")) {
+      if (path.endsWith("/projects/42/strings/1001")) {
         return new Response(
           JSON.stringify({
-            data: [
-              {
-                data: {
-                  id: 1001,
-                  projectId: 42,
-                  fileId: 101,
-                  branchId: null,
-                  directoryId: null,
-                  identifier: "hero.title",
-                  text: "Hello",
-                  type: "text",
-                  context: "Hero",
-                  labelIds: null,
-                },
-              },
-            ],
+            data: {
+              id: 1001,
+              projectId: 42,
+              fileId: 101,
+              branchId: null,
+              directoryId: null,
+              identifier: "hero.title",
+              text: "Hello",
+              type: "text",
+              context: "Hero",
+              labelIds: null,
+            },
           }),
           { status: 200 },
         );
