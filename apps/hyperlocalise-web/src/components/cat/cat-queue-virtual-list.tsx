@@ -20,6 +20,8 @@ export function CatQueueVirtualList({
   checkedSegmentIds,
   onToggleSegmentChecked,
   onSelectSegment,
+  hasMore = false,
+  isLoadingMore = false,
   onNearEnd,
   className,
 }: {
@@ -29,6 +31,8 @@ export function CatQueueVirtualList({
   checkedSegmentIds?: ReadonlySet<string>;
   onToggleSegmentChecked?: (segmentId: string, checked: boolean) => void;
   onSelectSegment: (segmentId: string) => void;
+  hasMore?: boolean;
+  isLoadingMore?: boolean;
   onNearEnd?: () => void;
   className?: string;
 }) {
@@ -54,9 +58,11 @@ export function CatQueueVirtualList({
     }
 
     if (lastItem.index >= Math.max(segments.length - 3, 0)) {
-      onNearEnd?.();
+      if (hasMore && !isLoadingMore) {
+        onNearEnd?.();
+      }
     }
-  }, [onNearEnd, segments.length, virtualizer]);
+  }, [hasMore, isLoadingMore, onNearEnd, segments.length, virtualizer]);
 
   return (
     <div ref={parentRef} className={cn("min-h-0 flex-1 overflow-auto px-4 pb-3", className)}>

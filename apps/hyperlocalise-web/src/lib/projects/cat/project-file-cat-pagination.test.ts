@@ -6,13 +6,13 @@ import {
 } from "./project-file-cat-pagination";
 
 describe("resolveProjectFileCatPagination", () => {
-  it("returns legacy mode when pagination params are omitted", () => {
+  it("defaults to paginated mode when pagination params are omitted", () => {
     expect(resolveProjectFileCatPagination({})).toEqual({
       offset: 0,
-      limit: 500,
+      limit: 50,
       search: undefined,
       queueFilter: "all",
-      paginated: false,
+      paginated: true,
     });
   });
 

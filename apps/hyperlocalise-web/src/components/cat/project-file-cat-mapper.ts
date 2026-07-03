@@ -21,6 +21,7 @@ import type {
   CatWorkspaceState,
 } from "@/components/cat/types";
 import { isOpenIssueStatus } from "@/components/cat/cat-queue-filter";
+import { getSegmentTagKind } from "@/components/cat/cat-segment-tags";
 
 type CatFile = ProjectFileCatResponse["catFile"];
 
@@ -270,13 +271,6 @@ export function projectFileCatToWorkspaceState(
 ): CatWorkspaceState {
   const sourceLocale = catFile.provider?.sourceLocale ?? "source";
   const segmentOffset = catFile.pagination?.offset ?? 0;
-  const queueSummary = catFile.queueSummary ?? {
-    total: 0,
-    reviewed: 0,
-    untranslated: 0,
-    needsReview: 0,
-    hasIssues: 0,
-  };
   const segments = catFile.segments.map((segment, index): CatSegment => {
     const commentCount = segment.comments.length || segment.commentCount || 0;
     const issueComments = countOpenIssues(segment);
@@ -308,7 +302,6 @@ export function projectFileCatToWorkspaceState(
   return {
     segments,
     selectedSegmentId: segments[0]?.id ?? "",
-    queueSummary,
     formatChecks: [],
     segmentFormatChecks: {},
     intelligence: intelligenceFor(catFile),
@@ -369,6 +362,54 @@ export function applyCatSegmentDetailToWorkspaceState(
         ...state.intelligence,
       },
     },
+  };
+}
+
+export function applyCatSegmentCommentsToWorkspaceState(
+  state: CatWorkspaceState,
+  segmentId: string,
+  comments: ProjectFileCatSegment["comments"],
+): CatWorkspaceState {
+  const existingSegment = state.segments.find((segment) => segment.id === segmentId);
+  if (!existingSegment) {
+    return state;
+  }
+
+  const apiSegment: ProjectFileCatSegment = {
+    externalStringId: segmentId,
+    key: existingSegment.key,
+    sourceText: existingSegment.sourceText,
+    context: existingSegment.contextLabel ?? null,
+    type: null,
+    target: existingSegment.targetText
+      ? { text: existingSegment.targetText, externalTranslationId: null, isApproved: false }
+      : null,
+    comments,
+  };
+  const mappedComments = mapSegmentComments(apiSegment);
+  const issueComments = countOpenIssues(apiSegment);
+  const commentCount = comments.length;
+  const tags = [
+    ...(existingSegment.tags ?? []).filter((tag) => {
+      const kind = getSegmentTagKind(tag);
+      return kind !== "comment" && kind !== "issue";
+    }),
+    commentCount > 0 ? `${commentCount} comment${commentCount === 1 ? "" : "s"}` : null,
+    issueComments > 0 ? `${issueComments} issue${issueComments === 1 ? "" : "s"}` : null,
+  ].filter((tag): tag is string => Boolean(tag));
+
+  return {
+    ...state,
+    segments: state.segments.map((segment) =>
+      segment.id === segmentId
+        ? {
+            ...segment,
+            comments: mappedComments,
+            hasOpenIssues: issueComments > 0,
+            tags,
+          }
+        : segment,
+    ),
   };
 }
 

@@ -3,14 +3,13 @@ import "dotenv/config";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
 import { createAuthTestFixture } from "@/api/test-auth.fixture";
-import { maxCrowdinSourceStringCountCeiling } from "@/api/routes/project/project.schema";
 import { db } from "@/lib/database";
 import { upsertCrowdinUserPatConnection } from "@/lib/providers/adapters/crowdin/crowdin-user-connections";
-import { buildCrowdinFileQueueCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
 import { isErr } from "@/lib/primitives/result/results";
 import { upsertCrowdinPatProviderCredential } from "./organization-external-tms-provider-credentials";
 import {
   getTmsProviderLiveCatFile,
+  getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentDetail,
   saveTmsProviderLiveCatTranslation,
 } from "./tms-provider-live";
@@ -88,7 +87,7 @@ describe("getTmsProviderLiveCatFile", () => {
     await fixture.cleanup();
   });
 
-  it("aggregates Crowdin strings, target translations, approvals, and unresolved issue flags", async () => {
+  it("loads Crowdin queue segments with translations and approvals without comment API calls", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
@@ -342,17 +341,8 @@ describe("getTmsProviderLiveCatFile", () => {
       sourceText: JSON.stringify({ one: "Start", other: "Start all" }),
       target: null,
       comments: [],
-      unresolvedIssueCount: 1,
     });
     const requestedPaths = fetchMock.mock.calls.map(([url]) => String(url));
-    expect(
-      requestedPaths.some(
-        (path) =>
-          path.includes("/projects/42/strings?") &&
-          path.includes("croql=") &&
-          path.includes("has+unresolved+issue"),
-      ),
-    ).toBe(true);
     expect(
       requestedPaths.some(
         (path) =>
@@ -802,7 +792,7 @@ describe("getTmsProviderLiveCatFile", () => {
     ).toBe(false);
   });
 
-  it("caps Crowdin source-string counting while preserving paginated hasMore", async () => {
+  it("loads paginated Crowdin queue pages without walking the full file for totals", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
@@ -901,10 +891,10 @@ describe("getTmsProviderLiveCatFile", () => {
       offset: 0,
       limit: 50,
       returnedCount: 50,
-      totalCount: maxCrowdinSourceStringCountCeiling,
+      totalCount: 51,
       hasMore: true,
     });
-    expect(stringsRequestCount).toBeLessThanOrEqual(maxCrowdinSourceStringCountCeiling / 500 + 1);
+    expect(stringsRequestCount).toBe(1);
   });
 
   it("uses CroQL for paginated Crowdin file search and omits fileId", async () => {
@@ -917,7 +907,6 @@ describe("getTmsProviderLiveCatFile", () => {
     });
 
     const stringsRequests: URL[] = [];
-    const queueSummaryCroqls: string[] = [];
     const fetchMock = vi.fn(async (url) => {
       const path = String(url);
 
@@ -969,8 +958,6 @@ describe("getTmsProviderLiveCatFile", () => {
             'id of file = 101 and (identifier contains "hero" or text contains "hero")',
           );
           expect(requestUrl.searchParams.has("fileId")).toBe(false);
-        } else if (croql) {
-          queueSummaryCroqls.push(croql);
         }
 
         return new Response(
@@ -1032,21 +1019,10 @@ describe("getTmsProviderLiveCatFile", () => {
       totalCount: 2,
       hasMore: false,
     });
-    // buildCrowdinLiveCatFile currently issues parallel count + page requests; croql/fileId
-    // assertions above guard the regression regardless of how many calls are made.
-    expect(stringsRequests.length).toBeGreaterThanOrEqual(1);
-    const expectedQueueSummaryCroqls = [
-      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "reviewed" }),
-      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "untranslated" }),
-      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "needs_review" }),
-      buildCrowdinFileQueueCroql({ fileId: 101, targetLocale: "fr", queueFilter: "has_issues" }),
-    ];
-    for (const croql of expectedQueueSummaryCroqls) {
-      expect(queueSummaryCroqls).toContain(croql);
-    }
+    expect(stringsRequests.length).toBe(1);
   });
 
-  it("marks every visible has_issues segment with unresolved issue flags", async () => {
+  it("marks every visible has_issues segment with unresolved issue flags without per-string comment calls", async () => {
     const { organization, user } = await fixture.createLocalWorkosIdentity(
       fixture.createWorkosIdentityWithRole("admin"),
     );
@@ -1191,7 +1167,6 @@ describe("getTmsProviderLiveCatFile", () => {
     const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
       actorUserId: user.id,
       canEditTranslations: true,
-      includeQueueSummary: false,
       pagination: {
         offset: 0,
         limit: 25,
@@ -1209,7 +1184,7 @@ describe("getTmsProviderLiveCatFile", () => {
     });
     expect(catFile?.segments).toHaveLength(2);
     expect(catFile?.segments.every((segment) => segment.unresolvedIssueCount === 1)).toBe(true);
-    expect(issueCommentRequests).toEqual(expect.arrayContaining(["1001", "1002"]));
+    expect(issueCommentRequests).toEqual([]);
   });
 });
 
@@ -1411,14 +1386,21 @@ describe("getTmsProviderLiveCatSegmentDetail", () => {
     expect(segment).toMatchObject({
       externalStringId: "1001",
       key: "hero.title",
-      unresolvedIssueCount: 1,
     });
-    expect(segment?.comments).toHaveLength(2);
-    expect(segment?.comments.map((comment) => comment.locale)).toEqual(["fr", "fr"]);
-    expect(segment?.comments.map((comment) => comment.text)).toEqual([
-      "French issue",
-      "French note",
-    ]);
+    expect(segment?.comments).toEqual([]);
+
+    const comments = await getTmsProviderLiveCatSegmentComments(
+      organization.id,
+      "42",
+      "home.json",
+      "fr",
+      "1001",
+      { actorUserId: user.id },
+    );
+
+    expect(comments).toHaveLength(2);
+    expect(comments.map((comment) => comment.locale)).toEqual(["fr", "fr"]);
+    expect(comments.map((comment) => comment.text)).toEqual(["French issue", "French note"]);
     expect(commentRequests).toHaveLength(2);
     for (const path of commentRequests) {
       expect(path).toContain("targetLanguageId=fr");

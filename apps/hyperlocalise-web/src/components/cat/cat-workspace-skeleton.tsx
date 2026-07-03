@@ -3,7 +3,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/primitives/cn";
 
-import { CatQueueSkeletonList, CatQueueSummarySkeleton } from "./cat-queue-skeleton-list";
+import { CatQueueSkeletonList } from "./cat-queue-skeleton-list";
 
 function CatEditorPanelSkeleton() {
   return (
@@ -142,12 +142,7 @@ function CatCompactWorkspaceSkeleton() {
             <Skeleton className="h-3 w-14 rounded-full bg-foreground/8" />
             <Skeleton className="h-4 w-32 rounded-full bg-foreground/8" />
           </div>
-          <div className="shrink-0 space-y-2 text-right">
-            <Skeleton className="ms-auto h-3 w-20 rounded-full bg-foreground/8" />
-            <Skeleton className="ms-auto h-3 w-16 rounded-full bg-foreground/8" />
-          </div>
         </div>
-        <CatQueueSummarySkeleton className="mt-3" />
       </div>
 
       <div className="mx-4 mt-3 grid h-10 grid-cols-3 gap-1 rounded-lg bg-muted p-1">

@@ -30,13 +30,6 @@ function catFile(
     targetLocale: "vi",
     canEditTranslations: true,
     truncated: false,
-    queueSummary: {
-      total: 2,
-      reviewed: 1,
-      untranslated: 1,
-      needsReview: 0,
-      hasIssues: 1,
-    },
     segments: [
       {
         externalStringId: "approved-string",
@@ -79,13 +72,6 @@ describe("projectFileCatToWorkspaceState", () => {
     const state = projectFileCatToWorkspaceState(catFile(), testIntl);
 
     expect(state.selectedSegmentId).toBe("approved-string");
-    expect(state.queueSummary).toEqual({
-      total: 2,
-      reviewed: 1,
-      untranslated: 1,
-      needsReview: 0,
-      hasIssues: 1,
-    });
     expect(state.formatChecks).toEqual([]);
     expect(state.segmentFormatChecks).toEqual({});
     expect(state.segments[1]).toMatchObject({
@@ -159,7 +145,7 @@ describe("projectFileCatToWorkspaceState", () => {
     expect(state.primaryActionLabel).toBe("Save to provider");
   });
 
-  it("uses pagination offset for segment indices and file-level queue totals", () => {
+  it("uses pagination offset for segment indices", () => {
     const state = projectFileCatToWorkspaceState(
       catFile({
         pagination: {
@@ -169,25 +155,11 @@ describe("projectFileCatToWorkspaceState", () => {
           totalCount: 120,
           hasMore: true,
         },
-        queueSummary: {
-          total: 120,
-          reviewed: 45,
-          untranslated: 30,
-          needsReview: 40,
-          hasIssues: 5,
-        },
       }),
       testIntl,
     );
 
     expect(state.segments[0]?.index).toBe(51);
-    expect(state.queueSummary).toEqual({
-      total: 120,
-      reviewed: 45,
-      untranslated: 30,
-      needsReview: 40,
-      hasIssues: 5,
-    });
   });
 
   it("maps maxLength from CAT segments into workspace state", () => {

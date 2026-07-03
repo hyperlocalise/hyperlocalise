@@ -17,11 +17,7 @@ import {
   buildCatFilePagination,
   type ProjectFileCatPaginationInput,
 } from "@/lib/projects/cat/project-file-cat-pagination";
-import { countCrowdinFileQueueSummary } from "@/lib/projects/cat/project-file-cat-queue-summary";
-import {
-  legacyProviderCatSegmentLimit,
-  maxCrowdinSourceStringCountCeiling,
-} from "@/api/routes/project/project.schema";
+import { legacyProviderCatSegmentLimit } from "@/api/routes/project/project.schema";
 import { buildCrowdinFileQueueCroql } from "@/lib/providers/adapters/crowdin/crowdin-croql";
 import {
   CrowdinApiClient,
@@ -46,6 +42,7 @@ import {
 } from "@/lib/providers/adapters/phrase/phrase-user-connections";
 import {
   buildPhraseLiveCatFile,
+  getPhraseLiveCatSegmentComments,
   getPhraseLiveCatSegmentDetail,
   PhraseLiveCatError,
   savePhraseLiveCatComment,
@@ -952,65 +949,6 @@ function preferredLanguageTranslation(
   return sortTranslationsByNewest(withText)[0] ?? null;
 }
 
-async function countCrowdinSourceStrings(
-  client: CrowdinApiClient,
-  projectId: number,
-  filter: {
-    fileId?: number;
-    croql?: string;
-  },
-  options?: {
-    maxCount?: number;
-  },
-) {
-  const ceiling = options?.maxCount ?? maxCrowdinSourceStringCountCeiling;
-  let total = 0;
-  let offset = 0;
-
-  while (total < ceiling) {
-    const page = await client.listSourceStringsPage(projectId, {
-      fileId: filter.fileId,
-      croql: filter.croql,
-      offset,
-      limit: 500,
-    });
-    total += page.strings.length;
-    if (!page.hasMore) {
-      return total;
-    }
-    if (total >= ceiling) {
-      return ceiling;
-    }
-    offset += page.strings.length;
-  }
-
-  return Math.min(total, ceiling);
-}
-
-async function loadCrowdinVisibleStringIdsWithUnresolvedIssues(
-  client: CrowdinApiClient,
-  projectId: number,
-  stringIds: number[],
-  targetLocale: string,
-) {
-  if (stringIds.length === 0) {
-    return new Set<number>();
-  }
-
-  const issues = await client.listStringCommentsForStrings(projectId, stringIds, {
-    type: "issue",
-    issueStatus: "unresolved",
-    targetLanguageId: targetLocale,
-  });
-
-  const unresolvedIssueStringIds = new Set<number>();
-  for (const issue of crowdinCatCommentsForTargetLocale(issues, targetLocale)) {
-    unresolvedIssueStringIds.add(issue.stringId);
-  }
-
-  return unresolvedIssueStringIds;
-}
-
 async function loadCrowdinTranslationsByStringId(
   client: CrowdinApiClient,
   projectId: number,
@@ -1044,38 +982,12 @@ async function loadCrowdinTranslationsByStringId(
   return translationsByStringId;
 }
 
-async function getCrowdinLiveCatQueueSummary(input: {
-  context: ActiveTmsProviderContext;
-  file: TmsProviderLiveFile;
-  targetLocale: string;
-}): Promise<ProjectFileCatResponse["catFile"]["queueSummary"]> {
-  const projectId = Number(input.file.provider?.externalProjectId);
-  const fileId = Number(input.file.provider?.externalResourceId);
-  if (Number.isNaN(projectId) || Number.isNaN(fileId)) {
-    throw new TmsProviderLiveError(
-      "invalid_crowdin_project_or_file_id",
-      "Crowdin project or file identifier is invalid.",
-    );
-  }
-
-  const client = new CrowdinApiClient({
-    token: input.context.secretMaterial,
-    baseUrl: input.context.credential.baseUrl ?? undefined,
-  });
-
-  const knownTotal = await countCrowdinSourceStrings(client, projectId, { fileId });
-  return countCrowdinFileQueueSummary(client, projectId, fileId, input.targetLocale, {
-    knownTotal,
-  });
-}
-
 async function buildCrowdinLiveCatFile(input: {
   context: ActiveTmsProviderContext;
   file: TmsProviderLiveFile;
   targetLocale: string;
   canEditTranslations: boolean;
   pagination?: ProjectFileCatPaginationInput;
-  includeQueueSummary?: boolean;
 }): Promise<TmsProviderLiveCatFile> {
   const projectId = Number(input.file.provider?.externalProjectId);
   const fileId = Number(input.file.provider?.externalResourceId);
@@ -1103,7 +1015,6 @@ async function buildCrowdinLiveCatFile(input: {
     let visibleStrings: CrowdinSourceString[] = [];
     let truncated = false;
     let pagination: ReturnType<typeof buildCatFilePagination> | undefined;
-    let knownFileTotal: number | undefined;
 
     if (!paginationInput.paginated) {
       const strings = await client.listSourceStrings(projectId, {
@@ -1123,23 +1034,17 @@ async function buildCrowdinLiveCatFile(input: {
               search: paginationInput.search,
             })
           : undefined;
-      const [countedTotal, page] = await Promise.all([
-        countCrowdinSourceStrings(client, projectId, {
-          fileId: croql ? undefined : fileId,
-          croql,
-        }),
-        client.listSourceStringsPage(projectId, {
-          fileId: croql ? undefined : fileId,
-          croql,
-          offset: paginationInput.offset,
-          limit: paginationInput.limit,
-        }),
-      ]);
+      const page = await client.listSourceStringsPage(projectId, {
+        fileId: croql ? undefined : fileId,
+        croql,
+        offset: paginationInput.offset,
+        limit: paginationInput.limit,
+      });
 
       visibleStrings = page.strings;
 
       const totalCount = page.hasMore
-        ? Math.max(countedTotal, paginationInput.offset + visibleStrings.length + 1)
+        ? paginationInput.offset + visibleStrings.length + 1
         : paginationInput.offset + visibleStrings.length;
 
       pagination = buildCatFilePagination({
@@ -1150,34 +1055,23 @@ async function buildCrowdinLiveCatFile(input: {
         hasMore: page.hasMore,
       });
       truncated = pagination.hasMore;
-      if (!croql) {
-        knownFileTotal = countedTotal;
-      }
     }
 
     const sourceStringIds = visibleStrings.map((sourceString) => sourceString.id);
-    const includeQueueSummary = input.includeQueueSummary !== false;
+    const queueFilter = paginationInput.queueFilter ?? "all";
+    const inferIssuesFromFilter = queueFilter === "has_issues";
 
-    const [translationsByStringId, approvals, unresolvedIssueStringIds, queueSummary] =
-      await Promise.all([
-        loadCrowdinTranslationsByStringId(client, projectId, input.targetLocale, sourceStringIds),
-        client.listTranslationApprovalsForSourceStrings(
-          projectId,
-          input.targetLocale,
-          visibleStrings,
-        ),
-        loadCrowdinVisibleStringIdsWithUnresolvedIssues(
-          client,
-          projectId,
-          sourceStringIds,
-          input.targetLocale,
-        ),
-        includeQueueSummary
-          ? countCrowdinFileQueueSummary(client, projectId, fileId, input.targetLocale, {
-              knownTotal: knownFileTotal,
-            })
-          : Promise.resolve(undefined),
-      ]);
+    const [translationsByStringId, approvals, unresolvedIssueStringIds] = await Promise.all([
+      loadCrowdinTranslationsByStringId(client, projectId, input.targetLocale, sourceStringIds),
+      client.listTranslationApprovalsForSourceStrings(
+        projectId,
+        input.targetLocale,
+        visibleStrings,
+      ),
+      inferIssuesFromFilter
+        ? Promise.resolve(new Set(sourceStringIds))
+        : Promise.resolve(new Set<number>()),
+    ]);
 
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
 
@@ -1189,7 +1083,6 @@ async function buildCrowdinLiveCatFile(input: {
       canEditTranslations: input.canEditTranslations,
       truncated,
       pagination,
-      ...(queueSummary ? { queueSummary } : {}),
       segments: visibleStrings.map((sourceString) => {
         const target = preferredLanguageTranslation(
           translationsByStringId.get(sourceString.id) ?? [],
@@ -1247,25 +1140,13 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
   });
 
   try {
-    const [sourceString, translations, approvals, plainComments, unresolvedIssues] =
-      await Promise.all([
-        client.getSourceString(projectId, stringId),
-        client.listLanguageTranslations(projectId, input.targetLocale, {
-          stringIds: [stringId],
-        }),
-        client.listTranslationApprovals(projectId, input.targetLocale, { stringId }),
-        client.listStringComments(projectId, {
-          stringId,
-          type: "comment",
-          targetLanguageId: input.targetLocale,
-        }),
-        client.listStringComments(projectId, {
-          stringId,
-          type: "issue",
-          issueStatus: "unresolved",
-          targetLanguageId: input.targetLocale,
-        }),
-      ]);
+    const [sourceString, translations, approvals] = await Promise.all([
+      client.getSourceString(projectId, stringId),
+      client.listLanguageTranslations(projectId, input.targetLocale, {
+        stringIds: [stringId],
+      }),
+      client.listTranslationApprovals(projectId, input.targetLocale, { stringId }),
+    ]);
 
     if (!sourceString) {
       return null;
@@ -1273,17 +1154,6 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
 
     const approvedTranslationIds = new Set(approvals.map((approval) => approval.translationId));
     const target = preferredLanguageTranslation(translations, approvedTranslationIds);
-    const localePlainComments = crowdinCatCommentsForTargetLocale(
-      plainComments,
-      input.targetLocale,
-    );
-    const localeUnresolvedIssues = crowdinCatCommentsForTargetLocale(
-      unresolvedIssues,
-      input.targetLocale,
-    );
-    const comments = [...localePlainComments, ...localeUnresolvedIssues]
-      .toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-      .map((comment) => mapCrowdinStringComment(comment));
 
     return {
       externalStringId: String(sourceString.id),
@@ -1300,9 +1170,7 @@ async function buildCrowdinLiveCatSegmentDetail(input: {
               target.translationId != null && approvedTranslationIds.has(target.translationId),
           }
         : null,
-      comments,
-      commentCount: comments.length,
-      unresolvedIssueCount: localeUnresolvedIssues.length,
+      comments: [],
     };
   } catch (error) {
     if (error instanceof CrowdinApiError) {
@@ -1377,6 +1245,67 @@ async function saveCrowdinLiveCatTranslation(input: {
   } catch (error) {
     if (error instanceof CrowdinApiError && error.status === 401) {
       throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+    }
+
+    throw error;
+  }
+}
+
+async function buildCrowdinLiveCatSegmentComments(input: {
+  context: ActiveTmsProviderContext;
+  file: TmsProviderLiveFile;
+  targetLocale: string;
+  externalStringId: string;
+}): Promise<ProjectFileCatComment[]> {
+  const projectId = Number(input.file.provider?.externalProjectId);
+  const stringId = Number(input.externalStringId);
+  if (Number.isNaN(projectId) || Number.isNaN(stringId)) {
+    throw new TmsProviderLiveError(
+      "invalid_crowdin_project_or_string_id",
+      "Crowdin project or string identifier is invalid.",
+    );
+  }
+
+  const client = new CrowdinApiClient({
+    token: input.context.secretMaterial,
+    baseUrl: input.context.credential.baseUrl ?? undefined,
+  });
+
+  try {
+    const [plainComments, unresolvedIssues] = await Promise.all([
+      client.listStringComments(projectId, {
+        stringId,
+        type: "comment",
+        targetLanguageId: input.targetLocale,
+      }),
+      client.listStringComments(projectId, {
+        stringId,
+        type: "issue",
+        issueStatus: "unresolved",
+        targetLanguageId: input.targetLocale,
+      }),
+    ]);
+
+    const localePlainComments = crowdinCatCommentsForTargetLocale(
+      plainComments,
+      input.targetLocale,
+    );
+    const localeUnresolvedIssues = crowdinCatCommentsForTargetLocale(
+      unresolvedIssues,
+      input.targetLocale,
+    );
+
+    return [...localePlainComments, ...localeUnresolvedIssues]
+      .toSorted((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .map((comment) => mapCrowdinStringComment(comment));
+  } catch (error) {
+    if (error instanceof CrowdinApiError) {
+      if (error.status === 401) {
+        throw new TmsProviderLiveError("crowdin_auth_invalid", "Crowdin credentials are invalid.");
+      }
+      if (error.status === 404) {
+        return [];
+      }
     }
 
     throw error;
@@ -2047,7 +1976,6 @@ export async function getTmsProviderLiveCatFile(
     actorUserId?: string | null;
     canEditTranslations?: boolean;
     pagination?: ProjectFileCatPaginationInput;
-    includeQueueSummary?: boolean;
   },
 ): Promise<TmsProviderLiveCatFile | null> {
   const context = await loadActiveTmsProviderContext(organizationId, {
@@ -2092,64 +2020,6 @@ export async function getTmsProviderLiveCatFile(
     targetLocale,
     canEditTranslations: options?.canEditTranslations ?? false,
     pagination: options?.pagination,
-    includeQueueSummary: options?.includeQueueSummary,
-  });
-}
-
-export async function getTmsProviderLiveCatQueueSummary(
-  organizationId: string,
-  externalProjectId: string,
-  sourcePath: string,
-  targetLocale: string,
-  options?: { actorUserId?: string | null },
-): Promise<ProjectFileCatResponse["catFile"]["queueSummary"] | null> {
-  const context = await loadActiveTmsProviderContext(organizationId, {
-    actorUserId: options?.actorUserId,
-  });
-  const files = await listTmsProviderLiveFilesForProject(organizationId, externalProjectId, {
-    context,
-    limit: 1000,
-  });
-  const file = files.find((item) => item.sourcePath === sourcePath);
-  if (!file) {
-    return null;
-  }
-
-  if (!supportsLiveProviderCat(context.providerKind, file)) {
-    throw new TmsProviderLiveError(
-      "provider_cat_unsupported",
-      "CAT editing is not available for this provider file yet.",
-    );
-  }
-
-  if (context.providerKind === "phrase") {
-    try {
-      const catFile = await buildPhraseLiveCatFile({
-        secretMaterial: context.secretMaterial,
-        region: context.credential.region,
-        baseUrl: context.credential.baseUrl,
-        externalProjectId,
-        file,
-        targetLocale,
-        canEditTranslations: false,
-      });
-      const queueSummary = catFile.queueSummary;
-      if (!queueSummary) {
-        throw new TmsProviderLiveError(
-          "phrase_cat_queue_summary_missing",
-          "Failed to compute CAT queue summary for this Phrase file.",
-        );
-      }
-      return queueSummary;
-    } catch (error) {
-      return mapPhraseLiveCatError(error);
-    }
-  }
-
-  return getCrowdinLiveCatQueueSummary({
-    context,
-    file,
-    targetLocale,
   });
 }
 
@@ -2198,6 +2068,58 @@ export async function getTmsProviderLiveCatSegmentDetail(
   }
 
   return buildCrowdinLiveCatSegmentDetail({
+    context,
+    file,
+    targetLocale,
+    externalStringId,
+  });
+}
+
+export async function getTmsProviderLiveCatSegmentComments(
+  organizationId: string,
+  externalProjectId: string,
+  sourcePath: string,
+  targetLocale: string,
+  externalStringId: string,
+  options?: { actorUserId?: string | null },
+): Promise<ProjectFileCatComment[]> {
+  const context = await loadActiveTmsProviderContext(organizationId, {
+    actorUserId: options?.actorUserId,
+  });
+  const file = await resolveLiveCatFile({
+    organizationId,
+    externalProjectId,
+    sourcePath,
+    context,
+  });
+  if (!file) {
+    return [];
+  }
+
+  if (!supportsLiveProviderCat(context.providerKind, file)) {
+    throw new TmsProviderLiveError(
+      "provider_cat_unsupported",
+      "CAT comments are not available for this provider file yet.",
+    );
+  }
+
+  if (context.providerKind === "phrase") {
+    try {
+      return await getPhraseLiveCatSegmentComments({
+        secretMaterial: context.secretMaterial,
+        region: context.credential.region,
+        baseUrl: context.credential.baseUrl,
+        externalProjectId,
+        file,
+        targetLocale,
+        externalStringId,
+      });
+    } catch (error) {
+      mapPhraseLiveCatError(error);
+    }
+  }
+
+  return buildCrowdinLiveCatSegmentComments({
     context,
     file,
     targetLocale,

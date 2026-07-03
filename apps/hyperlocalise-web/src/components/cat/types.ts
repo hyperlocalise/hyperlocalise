@@ -92,18 +92,9 @@ export interface CatSegmentIntelligence {
   visualContext?: CatVisualContext;
 }
 
-export interface CatQueueSummary {
-  total: number;
-  reviewed: number;
-  untranslated: number;
-  needsReview: number;
-  hasIssues: number;
-}
-
 export interface CatWorkspaceState {
   segments: CatSegment[];
   selectedSegmentId: string;
-  queueSummary: CatQueueSummary;
   formatChecks: CatFormatCheck[];
   segmentFormatChecks?: Record<string, CatFormatCheck[]>;
   intelligence: CatSegmentIntelligence;

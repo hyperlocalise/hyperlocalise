@@ -17,8 +17,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
@@ -26,7 +24,7 @@ import { CatQueueSkeletonList } from "./cat-queue-skeleton-list";
 import { CatQueueVirtualList } from "./cat-queue-virtual-list";
 import { catQueueFilterValues, type CatQueueFilter } from "./cat-queue-filter";
 import { catQueuePanelMessages } from "./cat.messages";
-import type { CatQueueSummary, CatSegment } from "./types";
+import type { CatSegment } from "./types";
 
 export type CatQueuePagination = {
   offset: number;
@@ -51,7 +49,6 @@ const queueFilterMessageByValue: Record<
 export function CatQueuePanel({
   segments,
   selectedSegmentId,
-  summary,
   dirtySegmentIds,
   onSelectSegment,
   search = "",
@@ -69,15 +66,12 @@ export function CatQueuePanel({
   isBulkActionPending = false,
   isFetchingPage = false,
   isQueueLoading = false,
-  isSummaryLoading = false,
   pagination = null,
-  onPreviousPage,
-  onNextPage,
-  onNearEnd,
+  hasMoreQueue = false,
+  onLoadMoreQueue,
 }: {
   segments: CatSegment[];
   selectedSegmentId: string;
-  summary: CatQueueSummary;
   dirtySegmentIds?: ReadonlySet<string>;
   onSelectSegment: (segmentId: string) => void;
   search?: string;
@@ -95,17 +89,12 @@ export function CatQueuePanel({
   isBulkActionPending?: boolean;
   isFetchingPage?: boolean;
   isQueueLoading?: boolean;
-  isSummaryLoading?: boolean;
   pagination?: CatQueuePagination | null;
-  onPreviousPage?: () => void;
-  onNextPage?: () => void;
-  onNearEnd?: () => void;
+  hasMoreQueue?: boolean;
+  onLoadMoreQueue?: () => void;
 }) {
   const intl = useIntl();
-  const progressValue =
-    summary.total > 0 ? Math.round((summary.reviewed / summary.total) * 100) : 0;
-  const rangeStart = pagination ? pagination.offset + 1 : 1;
-  const rangeEnd = pagination ? pagination.offset + pagination.returnedCount : segments.length;
+  const loadedCount = segments.length;
   const selectedCount = checkedSegmentIds?.size ?? 0;
   const hasBulkActions = Boolean(onBulkApprove || onBulkSkip);
   const hasActiveFilter = queueFilter !== "all";
@@ -121,22 +110,6 @@ export function CatQueuePanel({
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...catQueuePanelMessages.queueTitle} />
           </h2>
-          {isSummaryLoading ? (
-            <Skeleton className="mt-1 h-3 w-full max-w-48 rounded-full bg-foreground/8" />
-          ) : (
-            <p className="text-xs text-muted-foreground">
-              <FormattedMessage
-                {...catQueuePanelMessages.queueSummary}
-                values={{
-                  total: summary.total,
-                  reviewed: summary.reviewed,
-                  untranslated: summary.untranslated,
-                  needsReview: summary.needsReview,
-                  hasIssues: summary.hasIssues,
-                }}
-              />
-            </p>
-          )}
         </div>
 
         {onSearchChange ? (
@@ -269,14 +242,6 @@ export function CatQueuePanel({
         ) : null}
       </div>
 
-      <div className="shrink-0 px-4 py-3">
-        {isSummaryLoading ? (
-          <Skeleton className="h-1.5 w-full rounded-full bg-foreground/8" />
-        ) : (
-          <Progress value={progressValue} className="h-1.5" />
-        )}
-      </div>
-
       {isQueueLoading ? (
         <CatQueueSkeletonList rowCount={pagination?.limit ?? 8} />
       ) : segments.length === 0 ? (
@@ -291,7 +256,9 @@ export function CatQueuePanel({
           checkedSegmentIds={checkedSegmentIds}
           onToggleSegmentChecked={onToggleSegmentChecked}
           onSelectSegment={onSelectSegment}
-          onNearEnd={onNearEnd}
+          hasMore={hasMoreQueue}
+          isLoadingMore={isFetchingPage}
+          onNearEnd={onLoadMoreQueue}
         />
       )}
 
@@ -301,33 +268,12 @@ export function CatQueuePanel({
             <FormattedMessage
               {...catQueuePanelMessages.paginationSummary}
               values={{
-                start: rangeStart,
-                end: rangeEnd,
-                total: pagination.totalCount,
+                count: loadedCount,
+                more: hasMoreQueue ? "+" : "",
               }}
             />
           </p>
-          <div className="flex items-center gap-1">
-            {isFetchingPage ? <Spinner className="size-3.5" /> : null}
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={pagination.offset === 0 || isFetchingPage}
-              onClick={onPreviousPage}
-            >
-              <FormattedMessage {...catQueuePanelMessages.previousPage} />
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              disabled={!pagination.hasMore || isFetchingPage}
-              onClick={onNextPage}
-            >
-              <FormattedMessage {...catQueuePanelMessages.nextPage} />
-            </Button>
-          </div>
+          {isFetchingPage ? <Spinner className="size-3.5" /> : null}
         </div>
       ) : null}
     </div>

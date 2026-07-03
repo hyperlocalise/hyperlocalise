@@ -539,13 +539,6 @@ export function createCatWorkspaceState(
   return {
     segments,
     selectedSegmentId: overrides.selectedSegmentId ?? "seg-02",
-    queueSummary: overrides.queueSummary ?? {
-      total: segments.length,
-      reviewed: segments.filter((segment) => segment.status === "reviewed").length,
-      untranslated: segments.filter((segment) => segment.status === "pending").length,
-      needsReview: segments.filter((segment) => segment.status === "needs_review").length,
-      hasIssues: 0,
-    },
     formatChecks: catFormatChecksFixture,
     intelligence: catIntelligenceFixture,
     breadcrumbs: ["Project", "HL-Test", "Jobs", "Translate to Vietnamese"],

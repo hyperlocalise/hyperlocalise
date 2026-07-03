@@ -240,13 +240,8 @@ export const projectFileCatQuerySchema = z.object({
   queueFilter: projectFileCatQueueFilterSchema.optional(),
   offset: z.coerce.number().int().min(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
-  includeQueueSummary: z.enum(["true", "false"]).optional(),
-});
-
-export const projectFileCatQueueSummaryQuerySchema = z.object({
-  sourcePath: z.string().trim().min(1).max(2048),
-  targetLocale: z.string().trim().min(1).max(32),
-  repositoryFullName: z.string().trim().min(1).max(256).optional(),
+  phraseScanPage: z.coerce.number().int().min(1).optional(),
+  phraseScanSkip: z.coerce.number().int().min(0).optional(),
 });
 
 export const projectFileCatPaginationSchema = z.object({
@@ -255,18 +250,8 @@ export const projectFileCatPaginationSchema = z.object({
   returnedCount: z.number().int().min(0),
   totalCount: z.number().int().min(0),
   hasMore: z.boolean(),
-});
-
-export const projectFileCatQueueSummarySchema = z.object({
-  total: z.number().int().min(0),
-  reviewed: z.number().int().min(0),
-  untranslated: z.number().int().min(0),
-  needsReview: z.number().int().min(0),
-  hasIssues: z.number().int().min(0),
-});
-
-export const projectFileCatQueueSummaryResponseSchema = z.object({
-  queueSummary: projectFileCatQueueSummarySchema,
+  nextPhraseScanPage: z.number().int().min(1).optional(),
+  nextPhraseScanSkip: z.number().int().min(0).optional(),
 });
 
 export const defaultProjectFileCatPageLimit = 50;
@@ -588,6 +573,10 @@ export const projectFileCatSegmentResponseSchema = z.object({
   segment: projectFileCatSegmentSchema,
 });
 
+export const projectFileCatSegmentCommentsResponseSchema = z.object({
+  comments: z.array(projectFileCatCommentSchema),
+});
+
 export const projectFileCatResponseSchema = z.object({
   catFile: z.object({
     sourcePath: z.string(),
@@ -598,7 +587,6 @@ export const projectFileCatResponseSchema = z.object({
     truncated: z.boolean(),
     segments: z.array(projectFileCatSegmentSchema),
     pagination: projectFileCatPaginationSchema.optional(),
-    queueSummary: projectFileCatQueueSummarySchema.optional(),
   }),
 });
 
@@ -621,7 +609,6 @@ export type ProjectFilesResponse = z.infer<typeof projectFilesResponseSchema>;
 export type ProjectFilesQuery = z.infer<typeof projectFilesQuerySchema>;
 export type ProjectFileDetailQuery = z.infer<typeof projectFileDetailQuerySchema>;
 export type ProjectFileCatQuery = z.infer<typeof projectFileCatQuerySchema>;
-export type ProjectFileCatQueueSummaryQuery = z.infer<typeof projectFileCatQueueSummaryQuerySchema>;
 export type ProjectFileCatQueueFilter = z.infer<typeof projectFileCatQueueFilterSchema>;
 export type ProjectFileCatTranslationBody = z.infer<typeof projectFileCatTranslationBodySchema>;
 export type ProjectFileCatRecommendationBody = z.infer<
@@ -661,9 +648,8 @@ export type ProjectFileCatSegment = z.infer<typeof projectFileCatSegmentSchema>;
 export type ProjectFileCatSegmentParams = z.infer<typeof projectFileCatSegmentParamsSchema>;
 export type ProjectFileCatSegmentQuery = z.infer<typeof projectFileCatSegmentQuerySchema>;
 export type ProjectFileCatSegmentResponse = z.infer<typeof projectFileCatSegmentResponseSchema>;
-export type ProjectFileCatQueueSummary = z.infer<typeof projectFileCatQueueSummarySchema>;
-export type ProjectFileCatQueueSummaryResponse = z.infer<
-  typeof projectFileCatQueueSummaryResponseSchema
+export type ProjectFileCatSegmentCommentsResponse = z.infer<
+  typeof projectFileCatSegmentCommentsResponseSchema
 >;
 export type ProjectFileCatQueueResponse = z.infer<typeof projectFileCatQueueResponseSchema>;
 export type ProjectFileCatResponse = z.infer<typeof projectFileCatResponseSchema>;

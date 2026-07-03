@@ -5,15 +5,6 @@ import { cn } from "@/lib/primitives/cn";
 
 const DEFAULT_SKELETON_ROWS = 8;
 
-export function CatQueueSummarySkeleton({ className }: { className?: string }) {
-  return (
-    <div className={cn("space-y-3", className)}>
-      <Skeleton className="h-3 w-full max-w-48 rounded-full bg-foreground/8" />
-      <Skeleton className="h-1.5 w-full rounded-full bg-foreground/8" />
-    </div>
-  );
-}
-
 export function CatQueueSkeletonList({
   rowCount = DEFAULT_SKELETON_ROWS,
   className,

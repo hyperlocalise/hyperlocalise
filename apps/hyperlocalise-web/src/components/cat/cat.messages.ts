@@ -8,16 +8,6 @@ export const catWorkspaceMessages = defineMessages({
     id: "WrdM0sMy06",
     description: "Empty state when the CAT translation queue has no segments",
   },
-  reviewedProgress: {
-    defaultMessage: "{progress}% reviewed",
-    id: "IXl2JrsI/Q",
-    description: "Compact workspace header showing review completion percentage",
-  },
-  reviewedSummary: {
-    defaultMessage: "{reviewed} of {total}",
-    id: "mBxKladfFz",
-    description: "Compact workspace header showing reviewed segment count out of total",
-  },
   tabEdit: {
     defaultMessage: "Edit",
     id: "HrB9mIwARt",
@@ -40,12 +30,6 @@ export const catQueuePanelMessages = defineMessages({
     defaultMessage: "Queue",
     id: "EUZbcVhX5v",
     description: "Heading for the CAT segment queue panel",
-  },
-  queueSummary: {
-    defaultMessage:
-      "{reviewed}/{total} reviewed · {untranslated} untranslated · {needsReview} to review · {hasIssues} with issues",
-    id: "D/5RN82ldi",
-    description: "File-level segment queue summary showing review progress and status breakdown",
   },
   filterQueueAria: {
     defaultMessage: "Filter queue",
@@ -73,19 +57,9 @@ export const catQueuePanelMessages = defineMessages({
     description: "Empty state when CAT queue search returns no segments",
   },
   paginationSummary: {
-    defaultMessage: "{start}–{end} of {total}",
-    id: "7YdMLbBTSy",
-    description: "Pagination summary for CAT queue pages",
-  },
-  previousPage: {
-    defaultMessage: "Previous",
-    id: "oFQD3YDzBl",
-    description: "Previous page button label in CAT queue",
-  },
-  nextPage: {
-    defaultMessage: "Next",
-    id: "U/tZOaayjq",
-    description: "Next page button label in CAT queue",
+    defaultMessage: "{count} loaded{more}",
+    id: "f/b31Mw+9f",
+    description: "Infinite-scroll summary for loaded CAT queue segments",
   },
   unsavedChangesAria: {
     defaultMessage: "Unsaved changes",

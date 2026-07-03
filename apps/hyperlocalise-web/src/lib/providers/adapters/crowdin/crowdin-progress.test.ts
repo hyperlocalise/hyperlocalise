@@ -373,14 +373,6 @@ describe("checkCrowdinProgress", () => {
             words: { total: 20, translated: 8, approved: 4 },
           },
         ],
-        queueSummary: {
-          targetLocale: "fr",
-          total: 5,
-          reviewed: 2,
-          untranslated: 4,
-          needsReview: 3,
-          hasIssues: 1,
-        },
       });
     }
   });
