@@ -9,7 +9,6 @@ import type {
   CatSegmentIntelligence,
   CatWorkspaceState,
 } from "@/components/cat/shared/types";
-import type { CatWorkspaceDependencies } from "@/components/cat/shared/dependencies";
 
 const heroDemoSegments: CatSegment[] = [
   {
