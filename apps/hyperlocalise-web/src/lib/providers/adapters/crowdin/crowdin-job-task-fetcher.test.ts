@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
 
-import { fetchCrowdinJobTasks } from "./crowdin-job-task-fetcher";
+import { fetchCrowdinJobTasks, fetchCrowdinUserJobTasks } from "./crowdin-job-task-fetcher";
 
 describe("fetchCrowdinJobTasks", () => {
   let originalFetch: typeof fetch;
@@ -74,6 +74,7 @@ describe("fetchCrowdinJobTasks", () => {
       credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
       project: {} as never,
       secretMaterial: "test-token",
+      includeLocaleProgress: true,
     });
 
     expect(result).toHaveLength(1);
@@ -90,6 +91,60 @@ describe("fetchCrowdinJobTasks", () => {
         translationProgress: 80,
         approvalProgress: 60,
       },
+    });
+  });
+
+  it("skips language progress on list fetches by default", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/tasks?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 2001,
+                  projectId: 1,
+                  type: 0,
+                  status: "in_progress",
+                  title: "French translations",
+                  description: "Translate homepage",
+                  languageId: "fr",
+                  fileIds: [101],
+                  assignees: [],
+                  deadline: null,
+                  webUrl: "https://crowdin.com/project/1/tasks/2001",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/languages/progress?")) {
+        throw new Error("language progress should not be requested");
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchCrowdinJobTasks({
+      organizationId: "org-1",
+      projectId: "project-1",
+      providerKind: "crowdin",
+      externalProjectId: "1",
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      project: {} as never,
+      secretMaterial: "test-token",
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]?.providerPayload).toMatchObject({
+      localeReadiness: null,
     });
   });
 
@@ -184,5 +239,60 @@ describe("fetchCrowdinJobTasks", () => {
         secretMaterial: "test-token",
       }),
     ).rejects.toThrow("crowdin_auth_invalid");
+  });
+
+  it("lists user tasks without language progress", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (path.includes("/user/tasks?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 4001,
+                  projectId: 2,
+                  type: 0,
+                  status: "todo",
+                  title: "My task",
+                  description: null,
+                  languageId: "fr",
+                  fileIds: [],
+                  assignees: [{ id: 1, username: "translator1" }],
+                  deadline: null,
+                  webUrl: "https://crowdin.com/project/2/tasks/4001",
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    globalThis.fetch = fetchMock;
+
+    const result = await fetchCrowdinUserJobTasks({
+      credential: { baseUrl: "https://api.crowdin.test/api/v2" } as never,
+      secretMaterial: "test-token",
+      externalProjectId: "2",
+    });
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      externalJobId: "4001",
+      title: "My task",
+    });
+    expect(result[0]?.providerPayload).toMatchObject({
+      projectId: 2,
+      localeReadiness: null,
+    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      expect.stringMatching(/\/user\/tasks\?.*projectId=2/),
+      expect.anything(),
+    );
   });
 });

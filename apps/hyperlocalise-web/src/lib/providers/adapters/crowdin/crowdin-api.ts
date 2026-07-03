@@ -805,6 +805,32 @@ export class CrowdinApiClient {
   }
 
   /**
+   * List tasks assigned to the authenticated user, optionally scoped to a project.
+   */
+  async listUserTasks(options?: { projectId?: number }): Promise<CrowdinTask[]> {
+    const tasks: CrowdinTask[] = [];
+    let offset = 0;
+    const limit = 500;
+    const projectParam = options?.projectId !== undefined ? `&projectId=${options.projectId}` : "";
+
+    while (true) {
+      const response = await this.get<CrowdinListResponse<CrowdinTask>>(
+        `/user/tasks?limit=${limit}&offset=${offset}${projectParam}`,
+      );
+      const page = response.data.map((item) => item.data);
+      tasks.push(...page);
+
+      if (page.length < limit) {
+        break;
+      }
+
+      offset += limit;
+    }
+
+    return tasks;
+  }
+
+  /**
    * Get a single task by identifier.
    */
   async getTask(projectId: number, taskId: number): Promise<CrowdinTaskDetails> {

@@ -29,6 +29,7 @@ export function mapCrowdinTaskToJobTaskMetadata(
     assignedUsers: task.assignees?.map((a) => (a.username ? a.username : String(a.id))) ?? [],
     externalUrl: task.webUrl,
     providerPayload: {
+      projectId: task.projectId,
       type: task.type,
       description: task.description,
       fileIds: task.fileIds,
@@ -44,31 +45,10 @@ export function mapCrowdinTaskToJobTaskMetadata(
   };
 }
 
-export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
-  credential,
-  externalProjectId,
-  secretMaterial,
-}) => {
-  const client = new CrowdinApiClient({
-    token: secretMaterial,
-    baseUrl: credential.baseUrl ?? undefined,
-  });
-
-  const projectId = Number(externalProjectId);
-  if (Number.isNaN(projectId)) {
-    throw new Error("invalid_crowdin_project_id");
-  }
-
-  let tasks: Awaited<ReturnType<typeof client.listTasks>>;
-  try {
-    tasks = await client.listTasks(projectId);
-  } catch (error) {
-    if (error instanceof CrowdinApiError && error.status === 401) {
-      throw new Error("crowdin_auth_invalid");
-    }
-    throw error;
-  }
-
+async function loadCrowdinLocaleReadiness(
+  client: CrowdinApiClient,
+  projectId: number,
+): Promise<Record<string, unknown>> {
   let progress: Awaited<ReturnType<typeof client.listProjectLanguageProgress>> = [];
   try {
     progress = await client.listProjectLanguageProgress(projectId);
@@ -86,8 +66,74 @@ export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
     };
   }
 
+  return localeReadiness;
+}
+
+function createCrowdinJobTaskClient(input: {
+  credential: { baseUrl?: string | null };
+  secretMaterial: string;
+}) {
+  return new CrowdinApiClient({
+    token: input.secretMaterial,
+    baseUrl: input.credential.baseUrl ?? undefined,
+  });
+}
+
+export const fetchCrowdinJobTasks: ExternalTmsJobTaskFetcher = async ({
+  credential,
+  externalProjectId,
+  secretMaterial,
+  includeLocaleProgress = false,
+}) => {
+  const client = createCrowdinJobTaskClient({ credential, secretMaterial });
+
+  const projectId = Number(externalProjectId);
+  if (Number.isNaN(projectId)) {
+    throw new Error("invalid_crowdin_project_id");
+  }
+
+  let tasks: Awaited<ReturnType<typeof client.listTasks>>;
+  try {
+    tasks = await client.listTasks(projectId);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new Error("crowdin_auth_invalid");
+    }
+    throw error;
+  }
+
+  const localeReadiness = includeLocaleProgress
+    ? await loadCrowdinLocaleReadiness(client, projectId)
+    : {};
+
   return tasks.map((task) => mapCrowdinTaskToJobTaskMetadata(task, localeReadiness));
 };
+
+export async function fetchCrowdinUserJobTasks(input: {
+  credential: { baseUrl?: string | null };
+  secretMaterial: string;
+  externalProjectId?: string;
+}): Promise<ExternalTmsJobTaskMetadata[]> {
+  const client = createCrowdinJobTaskClient(input);
+
+  const projectId =
+    input.externalProjectId !== undefined ? Number(input.externalProjectId) : undefined;
+  if (projectId !== undefined && Number.isNaN(projectId)) {
+    throw new Error("invalid_crowdin_project_id");
+  }
+
+  let tasks: Awaited<ReturnType<typeof client.listUserTasks>>;
+  try {
+    tasks = await client.listUserTasks(projectId !== undefined ? { projectId } : undefined);
+  } catch (error) {
+    if (error instanceof CrowdinApiError && error.status === 401) {
+      throw new Error("crowdin_auth_invalid");
+    }
+    throw error;
+  }
+
+  return tasks.map((task) => mapCrowdinTaskToJobTaskMetadata(task, {}));
+}
 
 function mapTaskTypeToKind(
   taskType: number,

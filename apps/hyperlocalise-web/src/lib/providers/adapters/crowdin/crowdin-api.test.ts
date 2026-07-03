@@ -693,6 +693,47 @@ describe("CrowdinApiClient", () => {
     });
   });
 
+  it("lists user tasks", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/user/tasks?");
+      expect(path).toContain("projectId=1");
+
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 3001,
+                projectId: 1,
+                type: 0,
+                status: "todo",
+                title: "Assigned task",
+                description: null,
+                languageId: "de",
+                fileIds: [],
+                assignees: [{ id: 2, username: "me" }],
+                deadline: null,
+                webUrl: "https://crowdin.com/project/1/tasks/3001",
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const tasks = await client.listUserTasks({ projectId: 1 });
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({
+      id: 3001,
+      projectId: 1,
+      title: "Assigned task",
+    });
+  });
+
   it("gets a task and uploads translations through storage", async () => {
     const fetchMock = vi.fn(async (url, init) => {
       const path = String(url);
