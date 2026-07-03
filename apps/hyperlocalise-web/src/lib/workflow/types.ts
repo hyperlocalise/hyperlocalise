@@ -109,13 +109,6 @@ export type WorkspaceAutomationExecutionEventData = {
 
 export type WorkspaceAutomationExecutionQueue = JobQueue<WorkspaceAutomationExecutionEventData>;
 
-export type ProviderSyncEventData = {
-  providerSyncIntentId: string;
-  organizationId: string;
-};
-
-export type ProviderSyncQueue = JobQueue<ProviderSyncEventData>;
-
 export type SourceFileIngestEventData = {
   sourceFileVersionId: string;
   organizationId: string;

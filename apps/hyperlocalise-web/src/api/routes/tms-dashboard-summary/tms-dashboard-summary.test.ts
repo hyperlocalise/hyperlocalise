@@ -55,7 +55,6 @@ describe("tmsDashboardSummaryRoutes", () => {
     if ("error" in body) throw new Error(String(body.error));
     expect(body.tmsDashboardSummary.counts.connectedProviders).toBe(0);
     expect(body.tmsDashboardSummary.providers).toEqual([]);
-    expect(body.tmsDashboardSummary.localeReadiness).toEqual([]);
   });
 
   it("returns provider details when credentials exist", async () => {

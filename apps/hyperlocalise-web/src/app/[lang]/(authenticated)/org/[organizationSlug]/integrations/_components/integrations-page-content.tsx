@@ -177,7 +177,7 @@ const tmsIntegrations: readonly TmsIntegrationConfig[] = [
     logo: "/images/tms/crowdin.png",
     icon: siCrowdin,
     detail:
-      "Connect to browse Crowdin projects alongside native Hyperlocalise projects. Lists read from your local workspace copy while background sync keeps data current.",
+      "Connect to browse Crowdin projects alongside native Hyperlocalise projects. Project and job data is read live from Crowdin when you open it.",
   },
   {
     name: "Lokalise",

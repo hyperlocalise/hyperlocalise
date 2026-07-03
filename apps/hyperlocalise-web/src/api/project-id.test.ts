@@ -7,7 +7,6 @@ import {
 } from "@/lib/projects/identity/project-id";
 import { createConversationRequestSchema } from "@/api/routes/conversation/conversation.schema";
 import { createContentfulConnectionBodySchema } from "@/api/routes/contentful-connection/contentful-connection.schema";
-import { providerSyncObservabilityQuerySchema } from "@/api/routes/external-tms-provider-credential/external-tms-provider-credential.schema";
 import { upsertGithubRepositoryAutomationSettingsBodySchema } from "@/api/routes/github-installation/github-installation.schema";
 import {
   attachGlossaryProjectBodySchema,
@@ -78,9 +77,6 @@ describe("project id schemas", () => {
         accessToken: "token",
       }).displayName,
     ).toBe("Contentful");
-    expect(providerSyncObservabilityQuerySchema.parse({ projectId: encoded }).projectId).toBe(
-      decoded,
-    );
     expect(
       projectAutomationParamsSchema.parse({
         projectId: encoded,

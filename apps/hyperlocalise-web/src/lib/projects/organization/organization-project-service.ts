@@ -5,7 +5,6 @@ import { buildAccessibleProjectsWhere } from "@/api/auth/team-access";
 import { db, schema } from "@/lib/database";
 import type { Project } from "@/lib/database/types";
 import { getActiveOrganizationExternalTmsProviderCredentialRow } from "@/lib/providers/organization-external-tms-provider-credentials";
-import { enqueueProviderProjectMaterializationSyncIntents } from "@/lib/providers/provider-sync-intent";
 import { getTmsProviderLiveProject } from "@/lib/providers/tms-provider-live";
 import {
   encodeProviderProjectId,
@@ -188,22 +187,6 @@ export class OrganizationProjectService extends ProjectServiceBase {
       },
       "organization project materialized from external TMS provider",
     );
-
-    void enqueueProviderProjectMaterializationSyncIntents({
-      organizationId: input.organizationId,
-      providerCredentialId: credential.id,
-      providerKind: encodedProject.providerKind,
-      projectId: canonicalProjectId,
-    }).catch((error) => {
-      this.log.warn(
-        {
-          organizationId: input.organizationId,
-          projectId: canonicalProjectId,
-          error: error instanceof Error ? error.message : "unknown_error",
-        },
-        "failed to enqueue provider materialization sync intents",
-      );
-    });
 
     return ok(canonicalProjectId);
   }

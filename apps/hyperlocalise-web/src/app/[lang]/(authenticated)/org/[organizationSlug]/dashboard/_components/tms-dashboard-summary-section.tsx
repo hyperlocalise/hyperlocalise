@@ -209,8 +209,8 @@ export function TmsDashboardSummarySection({ organizationSlug }: { organizationS
                         <TypographyP className="mt-1 text-xs text-muted-foreground">
                           {providerLabel(credential.providerKind)} · {credential.projectCount}{" "}
                           projects
-                          {credential.lastSuccessfulSyncAt
-                            ? ` · last sync ${formatRelativeTimestamp(credential.lastSuccessfulSyncAt)}`
+                          {credential.lastMaterializedAt
+                            ? ` · last opened ${formatRelativeTimestamp(credential.lastMaterializedAt)}`
                             : ""}
                         </TypographyP>
                       </div>

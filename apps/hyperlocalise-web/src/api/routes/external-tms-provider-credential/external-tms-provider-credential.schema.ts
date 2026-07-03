@@ -1,7 +1,5 @@
 import { z } from "zod";
 
-import { optionalProjectIdSchema } from "@/lib/projects/identity/project-id";
-
 export const externalTmsProviderKindSchema = z.enum(["crowdin", "smartling", "phrase", "lokalise"]);
 
 export const upsertExternalTmsProviderCredentialBodySchema = z.object({
@@ -55,10 +53,6 @@ export const lokaliseUserOAuthStartBodySchema = crowdinUserOAuthStartBodySchema;
 export const revealExternalTmsProviderCredentialBodySchema = z.object({
   providerKind: externalTmsProviderKindSchema,
   confirmed: z.literal(true),
-});
-
-export const providerSyncObservabilityQuerySchema = z.object({
-  projectId: optionalProjectIdSchema,
 });
 
 export const externalTmsProviderHealthResponseSchema = z.object({
