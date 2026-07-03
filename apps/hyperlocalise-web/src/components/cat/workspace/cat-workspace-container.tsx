@@ -263,7 +263,6 @@ export interface CatWorkspaceContainerProps {
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
-  isSegmentDetailLoading?: boolean;
   queuePagination?: CatWorkspaceViewProps["queuePagination"];
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
@@ -302,7 +301,6 @@ export function CatWorkspaceContainer({
   isQueueSearchPending,
   isQueueFetchingPage,
   isQueueLoading,
-  isSegmentDetailLoading = false,
   queuePagination,
   hasMoreQueue = false,
   onLoadMoreQueue,
@@ -554,6 +552,7 @@ export function CatWorkspaceContainer({
       const includeAi = options?.includeAi === true && Boolean(generateAiRecommendation);
       const includeFormatChecks = Boolean(validateFormat || runQaChecks);
       const includeConcordance = Boolean(lookupSegmentConcordance);
+      const showFormatChecksLoading = includeFormatChecks && !includeAi;
 
       if (!includeAi && !includeFormatChecks && !includeConcordance) {
         return;
@@ -567,7 +566,7 @@ export function CatWorkspaceContainer({
       if (includeAi) {
         setIsGeneratingAiRecommendation(true);
       }
-      if (includeFormatChecks) {
+      if (showFormatChecksLoading) {
         setIsRunningFormatChecks(true);
       }
       try {
@@ -762,7 +761,7 @@ export function CatWorkspaceContainer({
           if (includeAi) {
             setIsGeneratingAiRecommendation(false);
           }
-          if (includeFormatChecks) {
+          if (showFormatChecksLoading) {
             setIsRunningFormatChecks(false);
           }
         }
@@ -1359,7 +1358,6 @@ export function CatWorkspaceContainer({
           isQueueSearchPending={isQueueSearchPending}
           isQueueFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
-          isSegmentDetailLoading={isSegmentDetailLoading}
           isCommentsLoading={isCommentsLoading}
           queuePagination={queuePagination}
           hasMoreQueue={hasMoreQueue}

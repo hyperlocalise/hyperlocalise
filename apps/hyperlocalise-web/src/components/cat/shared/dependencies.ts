@@ -113,7 +113,6 @@ export interface CatWorkspaceViewProps {
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
-  isSegmentDetailLoading?: boolean;
   queuePagination?: {
     offset: number;
     limit: number;
