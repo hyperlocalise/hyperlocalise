@@ -3,7 +3,12 @@ import { describe, expect, it } from "vite-plus/test";
 import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 
-import { projectFileCatToWorkspaceState, formatCheckForSegment } from "./project-file-cat-mapper";
+import {
+  applyCatSegmentCommentsToWorkspaceState,
+  applyCatSegmentDetailToWorkspaceState,
+  projectFileCatToWorkspaceState,
+  formatCheckForSegment,
+} from "./project-file-cat-mapper";
 
 const testIntl = getIntlShape("en");
 
@@ -204,6 +209,158 @@ describe("projectFileCatToWorkspaceState", () => {
     );
 
     expect(state.segments[0]?.maxLength).toBeUndefined();
+  });
+});
+
+describe("applyCatSegmentDetailToWorkspaceState", () => {
+  it("merges lazy segment detail without clobbering queue-only metadata", () => {
+    const file = catFile({
+      pagination: {
+        offset: 50,
+        limit: 25,
+        returnedCount: 2,
+        totalCount: 75,
+        hasMore: true,
+      },
+      segments: [
+        {
+          externalStringId: "segment-with-detail",
+          key: "auth.signIn.title",
+          sourceText: "Sign in to your workspace",
+          context: null,
+          type: "text",
+          target: null,
+          comments: [],
+          commentCount: 3,
+          unresolvedIssueCount: 1,
+        },
+        {
+          externalStringId: "untouched-segment",
+          key: "dashboard.title",
+          sourceText: "Dashboard",
+          context: null,
+          type: "text",
+          target: null,
+          comments: [],
+        },
+      ],
+    });
+    const state = projectFileCatToWorkspaceState(file, testIntl);
+    const untouchedSegment = state.segments[1];
+
+    const nextState = applyCatSegmentDetailToWorkspaceState(
+      state,
+      file,
+      {
+        externalStringId: "segment-with-detail",
+        key: "auth.signIn.title",
+        sourceText: "Sign in to your workspace",
+        context: "Heading on the sign-in screen",
+        type: "icu",
+        target: {
+          text: "Dang nhap vao khong gian lam viec",
+          externalTranslationId: "translation-1",
+          isApproved: false,
+        },
+        comments: [],
+        repositoryContext: "Rendered in the authentication flow hero.",
+      },
+      testIntl,
+    );
+
+    expect(nextState.segments[0]).toMatchObject({
+      id: "segment-with-detail",
+      index: 51,
+      contextLabel: "Heading on the sign-in screen",
+      targetText: "Dang nhap vao khong gian lam viec",
+      tags: ["icu", "3 comments", "1 issue"],
+      hasOpenIssues: true,
+    });
+    expect(nextState.segmentIntelligence?.["segment-with-detail"]).toMatchObject({
+      productMeaning: "Heading on the sign-in screen",
+      agentContext: "Rendered in the authentication flow hero.",
+    });
+    expect(nextState.segments[1]).toBe(untouchedSegment);
+  });
+
+  it("returns the existing state when detail does not match a queued segment", () => {
+    const file = catFile();
+    const state = projectFileCatToWorkspaceState(file, testIntl);
+
+    const nextState = applyCatSegmentDetailToWorkspaceState(
+      state,
+      file,
+      {
+        externalStringId: "missing-segment",
+        key: "missing",
+        sourceText: "Missing",
+        context: null,
+        type: "text",
+        target: null,
+        comments: [],
+      },
+      testIntl,
+    );
+
+    expect(nextState).toBe(state);
+  });
+});
+
+describe("applyCatSegmentCommentsToWorkspaceState", () => {
+  it("updates one segment's comments and issue tags while preserving other segments", () => {
+    const state = projectFileCatToWorkspaceState(catFile(), testIntl);
+    const untouchedSegment = state.segments[0];
+
+    const nextState = applyCatSegmentCommentsToWorkspaceState(state, "issue-string", [
+      {
+        externalCommentId: "comment-1",
+        type: "comment",
+        status: null,
+        text: "Please keep the concise tone.",
+        createdAt: "2026-06-11T00:00:00.000Z",
+        locale: "vi",
+      },
+      {
+        externalCommentId: "issue-resolved",
+        type: "issue",
+        status: "resolved",
+        text: "Resolved product context issue.",
+        createdAt: "2026-06-12T00:00:00.000Z",
+        locale: "vi",
+        author: "Reviewer",
+      },
+    ]);
+
+    expect(nextState.segments[0]).toBe(untouchedSegment);
+    expect(nextState.segments[1]).toMatchObject({
+      id: "issue-string",
+      hasOpenIssues: false,
+      tags: ["icu", "2 comments"],
+      comments: [
+        {
+          id: "comment-1",
+          type: "comment",
+          status: null,
+          text: "Please keep the concise tone.",
+          author: null,
+        },
+        {
+          id: "issue-resolved",
+          type: "issue",
+          status: "resolved",
+          text: "Resolved product context issue.",
+          author: "Reviewer",
+        },
+      ],
+    });
+  });
+
+  it("returns the existing state when comments target an unknown segment", () => {
+    const state = projectFileCatToWorkspaceState(catFile(), testIntl);
+
+    const nextState = applyCatSegmentCommentsToWorkspaceState(state, "missing-segment", []);
+
+    expect(nextState).toBe(state);
   });
 });
 
