@@ -5,7 +5,7 @@ import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   projectFileCatToWorkspaceState,
   requireProviderExternalResourceId,
-} from "@/components/cat/project-file-cat-mapper";
+} from "@/components/cat/project-file/project-file-cat-mapper";
 
 const testIntl = getIntlShape("en");
 

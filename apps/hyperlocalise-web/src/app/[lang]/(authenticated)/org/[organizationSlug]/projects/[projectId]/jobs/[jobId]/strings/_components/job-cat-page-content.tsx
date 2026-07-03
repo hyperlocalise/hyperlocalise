@@ -28,7 +28,7 @@ import {
 import { selectJobCatTargetLocale } from "./job-cat-target-locale";
 import { loadJobCatProviderJobFiles, loadJobCatTargetFile } from "./load-job-cat-files";
 import { selectJobCatRepository, sortJobCatProviderFiles } from "./select-job-cat-repository";
-import { ProjectFileCatWorkspace } from "@/components/cat/project-file-cat-workspace";
+import { ProjectFileCatWorkspace } from "@/components/cat/project-file/project-file-cat-workspace";
 
 import { JobCatSourceFilePicker } from "./job-cat-source-file-picker";
 

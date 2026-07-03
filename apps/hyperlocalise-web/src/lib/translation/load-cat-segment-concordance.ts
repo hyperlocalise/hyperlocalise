@@ -1,5 +1,5 @@
-import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/cat/types";
-import { inferTmMatchKind } from "@/components/cat/tm-match-quality";
+import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/cat/shared/types";
+import { inferTmMatchKind } from "@/components/cat/intelligence/tm-match-quality";
 import { searchCrowdinCatConcordance } from "@/lib/providers/adapters/crowdin/crowdin-cat-concordance";
 import { CrowdinApiClient } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import {

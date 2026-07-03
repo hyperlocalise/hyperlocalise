@@ -1,4 +1,4 @@
-import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/cat/types";
+import type { CatGlossaryTerm, CatTranslationMemoryMatch } from "@/components/cat/shared/types";
 
 import type { CatAiRecommendationInput } from "./generate-cat-ai-recommendation";
 
