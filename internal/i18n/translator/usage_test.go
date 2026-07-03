@@ -1,6 +1,7 @@
 package translator
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 
@@ -196,6 +197,34 @@ func TestUsageHasValues(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUsageContextHelpers(t *testing.T) {
+	t.Parallel()
+
+	t.Run("collects and normalizes usage", func(t *testing.T) {
+		var collected Usage
+		ctx := WithUsageCollector(context.Background(), &collected)
+
+		SetUsage(ctx, Usage{InputTokens: 10, OutputTokens: 5})
+
+		if collected.InputTokens != 10 || collected.OutputTokens != 5 || collected.TotalTokens != 15 {
+			t.Errorf("expected normalized usage in collector, got %+v", collected)
+		}
+	})
+
+	t.Run("nil collector returns original context", func(t *testing.T) {
+		ctx := context.Background()
+		got := WithUsageCollector(ctx, nil)
+		if got != ctx {
+			t.Errorf("expected original context when collector is nil")
+		}
+	})
+
+	t.Run("no collector in context is no-op", func(t *testing.T) {
+		// Should not panic
+		SetUsage(context.Background(), Usage{InputTokens: 10})
+	})
 }
 
 func TestNormalizeUsage(t *testing.T) {
