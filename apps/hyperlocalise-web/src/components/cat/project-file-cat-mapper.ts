@@ -270,6 +270,13 @@ export function projectFileCatToWorkspaceState(
 ): CatWorkspaceState {
   const sourceLocale = catFile.provider?.sourceLocale ?? "source";
   const segmentOffset = catFile.pagination?.offset ?? 0;
+  const queueSummary = catFile.queueSummary ?? {
+    total: 0,
+    reviewed: 0,
+    untranslated: 0,
+    needsReview: 0,
+    hasIssues: 0,
+  };
   const segments = catFile.segments.map((segment, index): CatSegment => {
     const commentCount = segment.comments.length || segment.commentCount || 0;
     const issueComments = countOpenIssues(segment);
@@ -301,7 +308,7 @@ export function projectFileCatToWorkspaceState(
   return {
     segments,
     selectedSegmentId: segments[0]?.id ?? "",
-    queueSummary: catFile.queueSummary,
+    queueSummary,
     formatChecks: [],
     segmentFormatChecks: {},
     intelligence: intelligenceFor(catFile),

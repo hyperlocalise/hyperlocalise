@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { FormattedMessage } from "react-intl";
 
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
 
@@ -63,6 +64,9 @@ export function CatWorkspaceView({
   onQueueSearchChange,
   isQueueSearchPending = false,
   isQueueFetchingPage = false,
+  isQueueLoading = false,
+  isQueueSummaryLoading = false,
+  isSegmentDetailLoading = false,
   queuePagination = null,
   onQueuePreviousPage,
   onQueueNextPage,
@@ -97,7 +101,7 @@ export function CatWorkspaceView({
       ? Math.round((fullState.queueSummary.reviewed / fullState.queueSummary.total) * 100)
       : 0;
 
-  if (!selectedSegment) {
+  if (!selectedSegment && !isQueueLoading) {
     return (
       <div
         className={cn(
@@ -108,6 +112,42 @@ export function CatWorkspaceView({
         <FormattedMessage {...catWorkspaceMessages.emptyQueue} />
       </div>
     );
+  }
+
+  if (!selectedSegment && isQueueLoading) {
+    return (
+      <div
+        className={cn(
+          "flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background",
+          className,
+        )}
+      >
+        <CatPanelErrorBoundary scope="queue" resetKeys={[queueSearch, queueFilter]}>
+          <CatQueuePanel
+            segments={[]}
+            selectedSegmentId=""
+            summary={fullState.queueSummary}
+            onSelectSegment={() => undefined}
+            search={queueSearch}
+            onSearchChange={onQueueSearchChange}
+            isSearching={isQueueSearchPending}
+            queueFilter={queueFilter}
+            onQueueFilterChange={onQueueFilterChange}
+            availableQueueFilters={availableQueueFilters}
+            isFetchingPage={isQueueFetchingPage}
+            isQueueLoading
+            isSummaryLoading={isQueueSummaryLoading}
+            pagination={queuePagination}
+            onPreviousPage={onQueuePreviousPage}
+            onNextPage={onQueueNextPage}
+          />
+        </CatPanelErrorBoundary>
+      </div>
+    );
+  }
+
+  if (!selectedSegment) {
+    return null;
   }
 
   const segmentPosition = queuePagination
@@ -147,6 +187,7 @@ export function CatWorkspaceView({
           isLookingUpContext={isLookingUpContext}
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
+          isSegmentDetailLoading={isSegmentDetailLoading}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}
@@ -229,6 +270,8 @@ export function CatWorkspaceView({
           onBulkSkip={onBulkSkip}
           isBulkActionPending={isBulkActionPending}
           isFetchingPage={isQueueFetchingPage}
+          isQueueLoading={isQueueLoading}
+          isSummaryLoading={isQueueSummaryLoading}
           pagination={queuePagination}
           onPreviousPage={onQueuePreviousPage}
           onNextPage={onQueueNextPage}
@@ -283,24 +326,37 @@ export function CatWorkspaceView({
                 </p>
               </div>
               <div className="shrink-0 text-right">
-                <p className="text-xs font-medium text-foreground">
-                  <FormattedMessage
-                    {...catWorkspaceMessages.reviewedProgress}
-                    values={{ progress: reviewedProgress }}
-                  />
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  <FormattedMessage
-                    {...catWorkspaceMessages.reviewedSummary}
-                    values={{
-                      reviewed: fullState.queueSummary.reviewed,
-                      total: fullState.queueSummary.total,
-                    }}
-                  />
-                </p>
+                {isQueueSummaryLoading ? (
+                  <div className="space-y-2">
+                    <Skeleton className="ms-auto h-3 w-20 rounded-full bg-foreground/8" />
+                    <Skeleton className="ms-auto h-3 w-16 rounded-full bg-foreground/8" />
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-xs font-medium text-foreground">
+                      <FormattedMessage
+                        {...catWorkspaceMessages.reviewedProgress}
+                        values={{ progress: reviewedProgress }}
+                      />
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      <FormattedMessage
+                        {...catWorkspaceMessages.reviewedSummary}
+                        values={{
+                          reviewed: fullState.queueSummary.reviewed,
+                          total: fullState.queueSummary.total,
+                        }}
+                      />
+                    </p>
+                  </>
+                )}
               </div>
             </div>
-            <Progress value={reviewedProgress} className="mt-3 h-1.5" />
+            {isQueueSummaryLoading ? (
+              <Skeleton className="mt-3 h-1.5 w-full rounded-full bg-foreground/8" />
+            ) : (
+              <Progress value={reviewedProgress} className="mt-3 h-1.5" />
+            )}
           </div>
 
           <Tabs
@@ -340,14 +396,18 @@ export function CatWorkspaceView({
           </Tabs>
         </div>
       ) : (
-        <div className="grid min-h-0 min-w-0 flex-1 grid-cols-[20rem_minmax(0,1fr)_22rem] overflow-hidden">
-          <div className="min-w-0 overflow-hidden">{renderQueuePanel()}</div>
-
-          <div className="flex min-w-0 flex-col overflow-hidden">
-            <div className="min-h-0 flex-1 overflow-hidden">{renderEditorPanel()}</div>
+        <div className="grid h-full min-h-0 min-w-0 flex-1 grid-cols-[minmax(0,20rem)_minmax(0,1fr)_minmax(0,22rem)] overflow-hidden">
+          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            {renderQueuePanel()}
           </div>
 
-          <div className="min-w-0 overflow-hidden">{renderIntelligencePanel()}</div>
+          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            {renderEditorPanel()}
+          </div>
+
+          <div className="flex h-full min-h-0 min-w-0 flex-col overflow-hidden">
+            {renderIntelligencePanel()}
+          </div>
         </div>
       )}
     </div>

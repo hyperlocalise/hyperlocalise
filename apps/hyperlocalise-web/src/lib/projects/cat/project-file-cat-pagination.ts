@@ -56,6 +56,12 @@ export function resolveProviderLegacyCatLimit(paginated: boolean) {
   return paginated ? maxProjectFileCatPageLimit : legacyProviderCatSegmentLimit;
 }
 
+export function resolveProjectFileCatIncludeQueueSummary(
+  query: Pick<ProjectFileCatQuery, "includeQueueSummary">,
+) {
+  return query.includeQueueSummary !== "false";
+}
+
 export function buildCatFilePagination(input: {
   offset: number;
   limit: number;

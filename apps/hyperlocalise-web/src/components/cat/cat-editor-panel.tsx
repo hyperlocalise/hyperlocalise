@@ -103,6 +103,7 @@ export function CatEditorPanel({
   isLookingUpContext = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
+  isSegmentDetailLoading = false,
   canApprove = true,
   canAddComment = false,
   canEditTranslations = true,
@@ -143,6 +144,7 @@ export function CatEditorPanel({
   isLookingUpContext?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
+  isSegmentDetailLoading?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
   canEditTranslations?: boolean;
@@ -607,11 +609,28 @@ export function CatEditorPanel({
               <h3 className="text-xs font-medium text-muted-foreground">
                 <FormattedMessage {...catEditorPanelMessages.comments} />
               </h3>
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {segmentComments.length}
-              </span>
+              {isSegmentDetailLoading ? (
+                <Skeleton className="h-3 w-6 rounded-full bg-foreground/8" />
+              ) : (
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {segmentComments.length}
+                </span>
+              )}
             </div>
-            {segmentComments.length > 0 ? (
+            {isSegmentDetailLoading ? (
+              <ul className="space-y-3" aria-busy="true">
+                {Array.from({ length: 2 }, (_, index) => (
+                  <li
+                    key={`comment-skeleton-${index}`}
+                    className="space-y-2 rounded-lg border border-foreground/8 p-3"
+                  >
+                    <Skeleton className="h-3 w-24 rounded-full bg-foreground/8" />
+                    <Skeleton className="h-4 w-full rounded-full bg-foreground/8" />
+                    <Skeleton className="h-3 w-32 rounded-full bg-foreground/8" />
+                  </li>
+                ))}
+              </ul>
+            ) : segmentComments.length > 0 ? (
               <ul className="space-y-3">
                 {segmentComments.map((comment) => (
                   <li

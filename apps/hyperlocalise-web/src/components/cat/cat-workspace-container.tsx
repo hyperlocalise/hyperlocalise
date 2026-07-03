@@ -262,6 +262,9 @@ export interface CatWorkspaceContainerProps {
   availableQueueFilters?: CatQueueFilter[];
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
+  isQueueLoading?: boolean;
+  isQueueSummaryLoading?: boolean;
+  isSegmentDetailLoading?: boolean;
   queuePagination?: CatWorkspaceViewProps["queuePagination"];
   onQueuePreviousPage?: () => void;
   onQueueNextPage?: () => void;
@@ -299,6 +302,9 @@ export function CatWorkspaceContainer({
   availableQueueFilters,
   isQueueSearchPending,
   isQueueFetchingPage,
+  isQueueLoading,
+  isQueueSummaryLoading = false,
+  isSegmentDetailLoading = false,
   queuePagination,
   onQueuePreviousPage,
   onQueueNextPage,
@@ -1368,6 +1374,9 @@ export function CatWorkspaceContainer({
           onQueueSearchChange={onQueueSearchChange}
           isQueueSearchPending={isQueueSearchPending}
           isQueueFetchingPage={isQueueFetchingPage}
+          isQueueLoading={isQueueLoading}
+          isQueueSummaryLoading={isQueueSummaryLoading}
+          isSegmentDetailLoading={isSegmentDetailLoading}
           queuePagination={queuePagination}
           onQueuePreviousPage={
             onQueuePreviousPage ? () => attemptPageNavigation(onQueuePreviousPage) : undefined

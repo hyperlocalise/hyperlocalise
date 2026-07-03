@@ -18,9 +18,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
+import { CatQueueSkeletonList } from "./cat-queue-skeleton-list";
 import { CatQueueVirtualList } from "./cat-queue-virtual-list";
 import { catQueueFilterValues, type CatQueueFilter } from "./cat-queue-filter";
 import { catQueuePanelMessages } from "./cat.messages";
@@ -66,6 +68,8 @@ export function CatQueuePanel({
   onBulkSkip,
   isBulkActionPending = false,
   isFetchingPage = false,
+  isQueueLoading = false,
+  isSummaryLoading = false,
   pagination = null,
   onPreviousPage,
   onNextPage,
@@ -90,6 +94,8 @@ export function CatQueuePanel({
   onBulkSkip?: () => void;
   isBulkActionPending?: boolean;
   isFetchingPage?: boolean;
+  isQueueLoading?: boolean;
+  isSummaryLoading?: boolean;
   pagination?: CatQueuePagination | null;
   onPreviousPage?: () => void;
   onNextPage?: () => void;
@@ -110,23 +116,27 @@ export function CatQueuePanel({
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-foreground/8">
-      <div className="space-y-3 border-b border-foreground/8 px-4 py-3">
+      <div className="shrink-0 space-y-3 border-b border-foreground/8 px-4 py-3">
         <div>
           <h2 className="text-sm font-semibold text-foreground">
             <FormattedMessage {...catQueuePanelMessages.queueTitle} />
           </h2>
-          <p className="text-xs text-muted-foreground">
-            <FormattedMessage
-              {...catQueuePanelMessages.queueSummary}
-              values={{
-                total: summary.total,
-                reviewed: summary.reviewed,
-                untranslated: summary.untranslated,
-                needsReview: summary.needsReview,
-                hasIssues: summary.hasIssues,
-              }}
-            />
-          </p>
+          {isSummaryLoading ? (
+            <Skeleton className="mt-1 h-3 w-full max-w-48 rounded-full bg-foreground/8" />
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              <FormattedMessage
+                {...catQueuePanelMessages.queueSummary}
+                values={{
+                  total: summary.total,
+                  reviewed: summary.reviewed,
+                  untranslated: summary.untranslated,
+                  needsReview: summary.needsReview,
+                  hasIssues: summary.hasIssues,
+                }}
+              />
+            </p>
+          )}
         </div>
 
         {onSearchChange ? (
@@ -259,11 +269,17 @@ export function CatQueuePanel({
         ) : null}
       </div>
 
-      <div className="px-4 py-3">
-        <Progress value={progressValue} className="h-1.5" />
+      <div className="shrink-0 px-4 py-3">
+        {isSummaryLoading ? (
+          <Skeleton className="h-1.5 w-full rounded-full bg-foreground/8" />
+        ) : (
+          <Progress value={progressValue} className="h-1.5" />
+        )}
       </div>
 
-      {segments.length === 0 ? (
+      {isQueueLoading ? (
+        <CatQueueSkeletonList rowCount={pagination?.limit ?? 8} />
+      ) : segments.length === 0 ? (
         <div className="flex min-h-0 flex-1 items-center justify-center px-4 pb-3 text-sm text-muted-foreground">
           <FormattedMessage {...emptyMessage} />
         </div>
@@ -280,7 +296,7 @@ export function CatQueuePanel({
       )}
 
       {pagination ? (
-        <div className="flex items-center justify-between gap-2 border-t border-foreground/8 px-4 py-3">
+        <div className="flex shrink-0 items-center justify-between gap-2 border-t border-foreground/8 px-4 py-3">
           <p className="text-xs text-muted-foreground">
             <FormattedMessage
               {...catQueuePanelMessages.paginationSummary}

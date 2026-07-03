@@ -802,6 +802,7 @@ export class CrowdinApiClient {
     filter: {
       type?: "comment" | "issue";
       issueStatus?: "resolved" | "unresolved";
+      targetLanguageId?: string;
     },
   ): Promise<CrowdinStringComment[]> {
     const comments: CrowdinStringComment[] = [];
@@ -814,6 +815,7 @@ export class CrowdinApiClient {
             stringId,
             type: filter.type,
             issueStatus: filter.issueStatus,
+            targetLanguageId: filter.targetLanguageId,
           }),
         ),
       );
