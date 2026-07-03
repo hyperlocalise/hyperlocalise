@@ -69,7 +69,7 @@ function draftToSegment(draft: PhraseCatSegmentDraft): ProjectFileCatSegment {
     type: draft.type,
     target: draft.target,
     comments: [],
-    ...(draft.commentCount > 0 ? { commentCount: draft.commentCount } : {}),
+    commentCount: draft.commentCount,
   };
 }
 
@@ -285,9 +285,13 @@ async function loadCommentCountsByKeyId(input: {
 
   await mapWithConcurrency(input.keys, COMMENT_FETCH_CONCURRENCY, async (key) => {
     try {
-      const comments = await input.client.listKeyComments(input.projectId, key.id, listOptions);
-      if (comments.length > 0) {
-        commentCountsByKeyId.set(key.id, comments.length);
+      const commentCount = await input.client.probeKeyCommentCount(
+        input.projectId,
+        key.id,
+        listOptions,
+      );
+      if (commentCount > 0) {
+        commentCountsByKeyId.set(key.id, commentCount);
       }
     } catch (error) {
       if (error instanceof PhraseApiError && error.status === 404) {
