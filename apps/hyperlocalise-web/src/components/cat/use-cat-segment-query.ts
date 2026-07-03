@@ -14,6 +14,7 @@ import {
   projectFileCatBaseQueryKey,
   projectFileCatQueryKey,
   type ProjectFileCatQueuePage,
+  type ProjectFileCatQueuePageParam,
 } from "./project-file-cat-api";
 
 type CatFilePagination = NonNullable<ProjectFileCatResponse["catFile"]["pagination"]>;
@@ -77,20 +78,24 @@ export function useCatSegmentQuery(input: {
   const catQuery = useInfiniteQuery<
     ProjectFileCatQueuePage,
     Error,
-    InfiniteData<ProjectFileCatQueuePage, number>,
+    InfiniteData<ProjectFileCatQueuePage, ProjectFileCatQueuePageParam>,
     ReturnType<typeof projectFileCatBaseQueryKey>,
-    number
+    ProjectFileCatQueuePageParam
   >({
     queryKey: baseQueryKey,
     enabled: input.enabled !== false && Boolean(input.targetLocale) && Boolean(input.sourcePath),
-    initialPageParam: 0,
+    initialPageParam: { offset: 0 },
     getNextPageParam: (lastPage) => {
       const pagePagination = lastPage.pagination;
       if (!pagePagination?.hasMore) {
         return undefined;
       }
 
-      return pagePagination.offset + pagePagination.returnedCount;
+      return {
+        offset: pagePagination.offset + pagePagination.returnedCount,
+        phraseScanPage: pagePagination.nextPhraseScanPage,
+        phraseScanSkip: pagePagination.nextPhraseScanSkip,
+      };
     },
     queryFn: ({ pageParam }) =>
       fetchProjectFileCatQueuePage({
@@ -102,7 +107,9 @@ export function useCatSegmentQuery(input: {
         search: debouncedSearch,
         queueFilter: serverQueueFilter,
         limit,
-        offset: pageParam,
+        offset: pageParam.offset,
+        phraseScanPage: pageParam.phraseScanPage,
+        phraseScanSkip: pageParam.phraseScanSkip,
       }),
   });
 

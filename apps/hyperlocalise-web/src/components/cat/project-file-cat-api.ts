@@ -58,6 +58,12 @@ export function projectFileCatBaseQueryKey(input: {
   ] as const;
 }
 
+export type ProjectFileCatQueuePageParam = {
+  offset: number;
+  phraseScanPage?: number;
+  phraseScanSkip?: number;
+};
+
 export async function fetchProjectFileCatQueuePage(input: {
   organizationSlug: string;
   projectId: string;
@@ -68,6 +74,8 @@ export async function fetchProjectFileCatQueuePage(input: {
   queueFilter: ProjectFileCatQueueFilter;
   limit: number;
   offset: number;
+  phraseScanPage?: number;
+  phraseScanSkip?: number;
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
@@ -81,6 +89,8 @@ export async function fetchProjectFileCatQueuePage(input: {
       ...(input.search ? { search: input.search } : {}),
       ...(input.queueFilter !== "all" ? { queueFilter: input.queueFilter } : {}),
       ...(input.repositoryFullName ? { repositoryFullName: input.repositoryFullName } : {}),
+      ...(input.phraseScanPage != null ? { phraseScanPage: input.phraseScanPage } : {}),
+      ...(input.phraseScanSkip != null ? { phraseScanSkip: input.phraseScanSkip } : {}),
     },
   });
 

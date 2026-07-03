@@ -61,16 +61,6 @@ export const catQueuePanelMessages = defineMessages({
     id: "f/b31Mw+9f",
     description: "Infinite-scroll summary for loaded CAT queue segments",
   },
-  previousPage: {
-    defaultMessage: "Previous",
-    id: "oFQD3YDzBl",
-    description: "Previous page button label in CAT queue",
-  },
-  nextPage: {
-    defaultMessage: "Next",
-    id: "U/tZOaayjq",
-    description: "Next page button label in CAT queue",
-  },
   unsavedChangesAria: {
     defaultMessage: "Unsaved changes",
     id: "CHs2ugz7iN",

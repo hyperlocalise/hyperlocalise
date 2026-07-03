@@ -4,7 +4,6 @@ import type {
 } from "@/api/routes/project/project.schema";
 import {
   defaultProjectFileCatPageLimit,
-  legacyNativeCatSegmentLimit,
   legacyProviderCatSegmentLimit,
   maxProjectFileCatPageLimit,
 } from "@/api/routes/project/project.schema";
@@ -15,6 +14,8 @@ export type ProjectFileCatPaginationInput = {
   search?: string;
   queueFilter?: ProjectFileCatQueueFilter;
   paginated: boolean;
+  phraseScanPage?: number;
+  phraseScanSkip?: number;
 };
 
 function normalizeQueueFilter(
@@ -24,7 +25,10 @@ function normalizeQueueFilter(
 }
 
 export function resolveProjectFileCatPagination(
-  query: Pick<ProjectFileCatQuery, "search" | "offset" | "limit" | "queueFilter">,
+  query: Pick<
+    ProjectFileCatQuery,
+    "search" | "offset" | "limit" | "queueFilter" | "phraseScanPage" | "phraseScanSkip"
+  >,
 ): ProjectFileCatPaginationInput {
   const queueFilter = normalizeQueueFilter(query.queueFilter);
   const hasPaginationParams =
@@ -49,6 +53,8 @@ export function resolveProjectFileCatPagination(
     search: query.search?.trim() || undefined,
     queueFilter,
     paginated: true,
+    phraseScanPage: query.phraseScanPage,
+    phraseScanSkip: query.phraseScanSkip,
   };
 }
 
@@ -62,6 +68,8 @@ export function buildCatFilePagination(input: {
   returnedCount: number;
   totalCount: number;
   hasMore?: boolean;
+  nextPhraseScanPage?: number;
+  nextPhraseScanSkip?: number;
 }) {
   const hasMore = input.hasMore ?? input.offset + input.returnedCount < input.totalCount;
 
@@ -71,5 +79,7 @@ export function buildCatFilePagination(input: {
     returnedCount: input.returnedCount,
     totalCount: input.totalCount,
     hasMore,
+    ...(input.nextPhraseScanPage != null ? { nextPhraseScanPage: input.nextPhraseScanPage } : {}),
+    ...(input.nextPhraseScanSkip != null ? { nextPhraseScanSkip: input.nextPhraseScanSkip } : {}),
   };
 }

@@ -250,40 +250,6 @@ async function loadTranslationsByKeyId(input: {
   return translationsByKeyId;
 }
 
-async function resolveScopedKeys(input: {
-  client: ReturnType<typeof createPhraseStringsApiClient>;
-  stringsProjectId: string;
-  branch: string | null;
-  file: TmsProviderLiveFile;
-}) {
-  const listOptions = input.branch ? { branch: input.branch } : {};
-  const resourceType = input.file.provider?.resourceType;
-  const parsedResource = parsePhraseExternalResourceId(
-    input.file.provider?.externalResourceId ?? "",
-  );
-  const metadata = readFileMetadata(input.file);
-
-  if (resourceType === "key") {
-    const key =
-      (await input.client.getKey(input.stringsProjectId, parsedResource.resourceId, listOptions)) ??
-      null;
-    return key ? [key] : [];
-  }
-
-  let keys: PhraseKey[];
-  try {
-    keys = await input.client.listKeys(input.stringsProjectId, listOptions);
-  } catch (error) {
-    mapPhraseApiError(error);
-  }
-
-  if (metadata.tags.length === 0) {
-    return keys;
-  }
-
-  return keys.filter((key) => key.tags.some((tag) => metadata.tags.includes(tag)));
-}
-
 function buildSegmentDrafts(input: {
   keys: PhraseKey[];
   sourceLocale: PhraseLocale | null;
@@ -330,7 +296,12 @@ async function loadPhraseQueuePage(input: {
   targetLocale: PhraseLocale;
   targetLocaleCode: string;
   paginationInput: ProjectFileCatPaginationInput;
-}): Promise<{ segments: PhraseCatSegmentDraft[]; hasMore: boolean }> {
+}): Promise<{
+  segments: PhraseCatSegmentDraft[];
+  hasMore: boolean;
+  nextPhraseScanPage?: number;
+  nextPhraseScanSkip?: number;
+}> {
   const metadata = readFileMetadata(input.file);
   const resourceType = input.file.provider?.resourceType;
   const parsedResource = parsePhraseExternalResourceId(
@@ -412,11 +383,20 @@ async function loadPhraseQueuePage(input: {
   }
 
   const collected: PhraseCatSegmentDraft[] = [];
-  let skipped = 0;
-  let phrasePage = 1;
+  const resumingScan = input.paginationInput.phraseScanPage != null;
+  let phrasePage = resumingScan ? input.paginationInput.phraseScanPage! : 1;
+  let skipMatches = resumingScan ? (input.paginationInput.phraseScanSkip ?? 0) : offset;
   let scanComplete = false;
+  let nextPhraseScanPage: number | undefined;
+  let nextPhraseScanSkip: number | undefined;
+  const scanPageBudget = resumingScan
+    ? phrasePage + PHRASE_MAX_SCAN_PAGES - 1
+    : Math.max(
+        PHRASE_MAX_SCAN_PAGES,
+        Math.ceil((offset + limit) / PHRASE_QUEUE_SCAN_PAGE_SIZE) + PHRASE_MAX_SCAN_PAGES,
+      );
 
-  while (collected.length < limit && phrasePage <= PHRASE_MAX_SCAN_PAGES) {
+  while (collected.length < limit && phrasePage <= scanPageBudget) {
     const { keys: rawKeys, hasMore } = await input.client.listKeysPage(
       input.scope.stringsProjectId,
       {
@@ -444,6 +424,7 @@ async function loadPhraseQueuePage(input: {
         commentsByKeyId: new Map(),
       });
 
+      let matchesSeenOnPage = 0;
       for (const draft of drafts) {
         if (!segmentMatchesQueueFilter(draft, queueFilter)) {
           continue;
@@ -451,16 +432,24 @@ async function loadPhraseQueuePage(input: {
         if (!segmentMatchesSearch(draft, search)) {
           continue;
         }
-        if (skipped < offset) {
-          skipped += 1;
+
+        matchesSeenOnPage += 1;
+        if (skipMatches > 0) {
+          skipMatches -= 1;
           continue;
         }
 
         collected.push({ ...draft, comments: [] });
         if (collected.length >= limit) {
+          nextPhraseScanPage = phrasePage;
+          nextPhraseScanSkip = matchesSeenOnPage;
           break;
         }
       }
+    }
+
+    if (collected.length >= limit) {
+      break;
     }
 
     if (!hasMore) {
@@ -468,16 +457,15 @@ async function loadPhraseQueuePage(input: {
       break;
     }
 
-    if (collected.length >= limit) {
-      break;
-    }
-
     phrasePage += 1;
+    skipMatches = 0;
   }
 
   return {
     segments: collected,
     hasMore: collected.length >= limit && !scanComplete,
+    nextPhraseScanPage,
+    nextPhraseScanSkip,
   };
 }
 
@@ -523,7 +511,7 @@ export async function buildPhraseLiveCatFile(input: {
     paginated: true,
   };
 
-  const { segments, hasMore } = await loadPhraseQueuePage({
+  const { segments, hasMore, nextPhraseScanPage, nextPhraseScanSkip } = await loadPhraseQueuePage({
     client,
     scope,
     file: input.file,
@@ -541,6 +529,8 @@ export async function buildPhraseLiveCatFile(input: {
       ? paginationInput.offset + segments.length + 1
       : paginationInput.offset + segments.length,
     hasMore,
+    nextPhraseScanPage,
+    nextPhraseScanSkip,
   });
 
   return {

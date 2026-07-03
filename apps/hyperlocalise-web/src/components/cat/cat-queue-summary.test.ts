@@ -25,6 +25,21 @@ describe("applyGlossaryTermToTarget", () => {
     ).toBe("Khong gian lam viec settings for Khong gian lam viec");
   });
 
+  it("replaces every source term occurrence in target text", () => {
+    expect(
+      applyGlossaryTermToTarget(
+        "Workspace settings for Workspace",
+        "Open Workspace and Workspace",
+        {
+          source: "Workspace",
+          target: "Khong gian lam viec",
+          approved: true,
+          forbidden: false,
+        },
+      ),
+    ).toBe("Open Khong gian lam viec and Khong gian lam viec");
+  });
+
   it("returns the glossary target when neither text contains the source term", () => {
     expect(
       applyGlossaryTermToTarget("Workspace settings for Workspace", "", {

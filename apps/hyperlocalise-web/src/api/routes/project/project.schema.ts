@@ -240,6 +240,8 @@ export const projectFileCatQuerySchema = z.object({
   queueFilter: projectFileCatQueueFilterSchema.optional(),
   offset: z.coerce.number().int().min(0).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
+  phraseScanPage: z.coerce.number().int().min(1).optional(),
+  phraseScanSkip: z.coerce.number().int().min(0).optional(),
 });
 
 export const projectFileCatPaginationSchema = z.object({
@@ -248,6 +250,8 @@ export const projectFileCatPaginationSchema = z.object({
   returnedCount: z.number().int().min(0),
   totalCount: z.number().int().min(0),
   hasMore: z.boolean(),
+  nextPhraseScanPage: z.number().int().min(1).optional(),
+  nextPhraseScanSkip: z.number().int().min(0).optional(),
 });
 
 export const defaultProjectFileCatPageLimit = 50;
