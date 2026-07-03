@@ -2,13 +2,14 @@
 
 import { motion, useReducedMotion } from "motion/react";
 
-import { CatWorkspaceContainer } from "@/components/cat";
+import { CatWorkspaceContainer } from "@/components/cat/workspace/cat-workspace-container";
 import type {
   CatFormatCheck,
   CatSegment,
   CatSegmentIntelligence,
   CatWorkspaceState,
-} from "@/components/cat";
+} from "@/components/cat/shared/types";
+import type { CatWorkspaceDependencies } from "@/components/cat/shared/dependencies";
 
 const heroDemoSegments: CatSegment[] = [
   {
@@ -430,7 +431,7 @@ const heroDemoState: CatWorkspaceState = {
       productMeaning: "Banner label for pending translation approvals in the review queue.",
       intent: "Avoid wording that implies public customer reviews.",
       locationBreadcrumb: "CAT workspace / Review queue",
-      filePath: "apps/hyperlocalise-web/src/components/cat/cat-queue-panel.tsx",
+      filePath: "apps/hyperlocalise-web/src/components/cat/queue/cat-queue-panel.tsx",
       componentName: "CatQueuePanel",
       constraints: "Short label · Avoid ambiguity around reviews",
       glossaryTerms: [
