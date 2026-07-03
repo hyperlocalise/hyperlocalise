@@ -115,6 +115,60 @@ export function getCrowdinLocaleReadiness(payload: Record<string, unknown> | nul
   return readiness as Record<string, unknown>;
 }
 
+export function getCrowdinTaskLanguageId(payload: Record<string, unknown> | null) {
+  return (
+    getProviderPayloadString(payload, "languageId") ??
+    getProviderPayloadString(payload, "targetLanguageId") ??
+    getProviderPayloadStringArray(payload, "targetLanguageIds")[0] ??
+    null
+  );
+}
+
+function isLocaleReadinessEntry(value: unknown): value is Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.translationProgress === "number" ||
+    typeof record.approvalProgress === "number" ||
+    (typeof record.words === "object" && record.words !== null && !Array.isArray(record.words))
+  );
+}
+
+export function extractCrowdinLocaleReadinessEntry(
+  localeReadiness: Record<string, unknown> | null | undefined,
+  languageId: string | null,
+): Record<string, unknown> | null {
+  if (!localeReadiness) {
+    return null;
+  }
+
+  if (isLocaleReadinessEntry(localeReadiness)) {
+    return localeReadiness;
+  }
+
+  if (languageId && isLocaleReadinessEntry(localeReadiness[languageId])) {
+    return localeReadiness[languageId] as Record<string, unknown>;
+  }
+
+  return null;
+}
+
+export function resolveCrowdinLocaleReadiness(
+  payload: Record<string, unknown> | null,
+  lazyReadinessByLanguage?: Record<string, unknown> | null,
+): Record<string, unknown> | null {
+  const languageId = getCrowdinTaskLanguageId(payload);
+  const fromLazy = extractCrowdinLocaleReadinessEntry(lazyReadinessByLanguage ?? null, languageId);
+  if (fromLazy) {
+    return fromLazy;
+  }
+
+  return extractCrowdinLocaleReadinessEntry(getCrowdinLocaleReadiness(payload), languageId);
+}
+
 export function getReadinessNumber(readiness: Record<string, unknown> | null, key: string) {
   const value = readiness?.[key];
   return typeof value === "number" && Number.isFinite(value) ? value : null;

@@ -656,8 +656,13 @@ describe("CrowdinApiClient", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("lists tasks", async () => {
-    const fetchMock = vi.fn(async () => {
+  it("lists tasks with live list defaults", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/projects/1/tasks?");
+      expect(path).toContain("limit=50");
+      expect(path).toContain("orderBy=createdAt%20desc");
+
       return new Response(
         JSON.stringify({
           data: [
@@ -690,6 +695,49 @@ describe("CrowdinApiClient", () => {
       id: 2001,
       title: "French translations",
       status: "in_progress",
+    });
+  });
+
+  it("lists user tasks with live list defaults", async () => {
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+      expect(path).toContain("/user/tasks?");
+      expect(path).toContain("projectId=1");
+      expect(path).toContain("limit=50");
+      expect(path).toContain("orderBy=createdAt%20desc");
+
+      return new Response(
+        JSON.stringify({
+          data: [
+            {
+              data: {
+                id: 3001,
+                projectId: 1,
+                type: 0,
+                status: "todo",
+                title: "Assigned task",
+                description: null,
+                languageId: "de",
+                fileIds: [],
+                assignees: [{ id: 2, username: "me" }],
+                deadline: null,
+                webUrl: "https://crowdin.com/project/1/tasks/3001",
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    }) as unknown as typeof fetch;
+
+    const client = createClient(fetchMock);
+    const tasks = await client.listUserTasks({ projectId: 1 });
+
+    expect(tasks).toHaveLength(1);
+    expect(tasks[0]).toMatchObject({
+      id: 3001,
+      projectId: 1,
+      title: "Assigned task",
     });
   });
 
