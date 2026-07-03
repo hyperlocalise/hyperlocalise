@@ -31,6 +31,7 @@ import {
 import { createPhraseStringsApiClient } from "./phrase-strings-client";
 
 const LOCALE_FETCH_CONCURRENCY = 8;
+const COMMENT_FETCH_CONCURRENCY = 8;
 
 export class PhraseLiveCatError extends Error {
   constructor(
@@ -57,7 +58,7 @@ type PhraseCatSegmentDraft = {
   context: string | null;
   type: string | null;
   target: ProjectFileCatTranslation | null;
-  comments: ProjectFileCatComment[];
+  commentCount: number;
 };
 
 function mapPhraseApiError(error: unknown): never {
@@ -181,7 +182,7 @@ function segmentMatchesQueueFilter(
   segment: PhraseCatSegmentDraft,
   filter: ProjectFileCatPaginationInput["queueFilter"],
 ) {
-  const hasComments = segment.comments.length > 0;
+  const hasComments = segment.commentCount > 0;
   const isApproved = segment.target?.isApproved ?? false;
   const hasTarget = Boolean(segment.target?.text?.trim());
 
@@ -251,6 +252,39 @@ async function loadTranslationsByKeyId(input: {
   return translationsByKeyId;
 }
 
+async function loadCommentCountsByKeyId(input: {
+  client: ReturnType<typeof createPhraseStringsApiClient>;
+  projectId: string;
+  branch: string | null;
+  keys: PhraseKey[];
+}) {
+  const commentCountsByKeyId = new Map<string, number>();
+  const listOptions = input.branch ? { branch: input.branch } : {};
+
+  if (input.keys.length === 0) {
+    return commentCountsByKeyId;
+  }
+
+  await mapWithConcurrency(input.keys, COMMENT_FETCH_CONCURRENCY, async (key) => {
+    try {
+      const comments = await input.client.listKeyComments(input.projectId, key.id, listOptions);
+      if (comments.length > 0) {
+        commentCountsByKeyId.set(key.id, comments.length);
+      }
+    } catch (error) {
+      if (error instanceof PhraseApiError) {
+        if (error.status === 401) {
+          mapPhraseApiError(error);
+        }
+        // Missing keys and transient provider failures should not fail the CAT file list.
+        return;
+      }
+    }
+  });
+
+  return commentCountsByKeyId;
+}
+
 async function resolveScopedKeys(input: {
   client: ReturnType<typeof createPhraseStringsApiClient>;
   stringsProjectId: string;
@@ -291,7 +325,7 @@ function buildSegmentDrafts(input: {
   targetLocale: PhraseLocale;
   targetLocaleCode: string;
   translationsByKeyId: Map<string, Map<string, PhraseTranslation>>;
-  commentsByKeyId: Map<string, ProjectFileCatComment[]>;
+  commentCountsByKeyId: Map<string, number>;
 }): PhraseCatSegmentDraft[] {
   return input.keys.map((key) => {
     const translationsByLocale = input.translationsByKeyId.get(key.id);
@@ -307,7 +341,7 @@ function buildSegmentDrafts(input: {
       context: key.description,
       type: key.dataType,
       target: mapPhraseTargetTranslation(targetTranslation),
-      comments: input.commentsByKeyId.get(key.id) ?? [],
+      commentCount: input.commentCountsByKeyId.get(key.id) ?? 0,
     };
   });
 }
@@ -321,7 +355,7 @@ function buildQueueSummary(segments: PhraseCatSegmentDraft[]): ProjectFileCatQue
   for (const segment of segments) {
     const hasTarget = Boolean(segment.target?.text?.trim());
     const isApproved = segment.target?.isApproved ?? false;
-    const hasComments = segment.comments.length > 0;
+    const hasComments = segment.commentCount > 0;
 
     if (!hasTarget) {
       untranslated += 1;
@@ -392,23 +426,6 @@ export async function buildPhraseLiveCatFile(input: {
       .map((locale) => locale.name),
   );
 
-  const translationsByKeyId = await loadTranslationsByKeyId({
-    client,
-    projectId: scope.stringsProjectId,
-    localeNames,
-    branch: scope.branch,
-    keyIds,
-  });
-
-  const allSegments = buildSegmentDrafts({
-    keys: scopedKeys,
-    sourceLocale,
-    targetLocale,
-    targetLocaleCode: input.targetLocale,
-    translationsByKeyId,
-    commentsByKeyId: new Map(),
-  });
-
   const paginationInput = input.pagination ?? {
     offset: 0,
     limit: legacyProviderCatSegmentLimit,
@@ -416,6 +433,31 @@ export async function buildPhraseLiveCatFile(input: {
     queueFilter: "all",
     paginated: false,
   };
+
+  const [translationsByKeyId, commentCountsByKeyId] = await Promise.all([
+    loadTranslationsByKeyId({
+      client,
+      projectId: scope.stringsProjectId,
+      localeNames,
+      branch: scope.branch,
+      keyIds,
+    }),
+    loadCommentCountsByKeyId({
+      client,
+      projectId: scope.stringsProjectId,
+      branch: scope.branch,
+      keys: scopedKeys,
+    }),
+  ]);
+
+  const allSegments = buildSegmentDrafts({
+    keys: scopedKeys,
+    sourceLocale,
+    targetLocale,
+    targetLocaleCode: input.targetLocale,
+    translationsByKeyId,
+    commentCountsByKeyId,
+  });
 
   const queueSummary = buildQueueSummary(allSegments);
   const filteredSegments = allSegments.filter(
@@ -441,6 +483,7 @@ export async function buildPhraseLiveCatFile(input: {
       segments: visibleSegments.map((segment) => ({
         ...segment,
         comments: [],
+        ...(segment.commentCount > 0 ? { commentCount: segment.commentCount } : {}),
       })),
     };
   }
@@ -468,6 +511,7 @@ export async function buildPhraseLiveCatFile(input: {
     segments: pageSegments.map((segment) => ({
       ...segment,
       comments: [],
+      ...(segment.commentCount > 0 ? { commentCount: segment.commentCount } : {}),
     })),
   };
 }
@@ -554,7 +598,7 @@ export async function getPhraseLiveCatSegmentDetail(input: {
     targetLocale,
     targetLocaleCode: input.targetLocale,
     translationsByKeyId,
-    commentsByKeyId: new Map([[key.id, comments]]),
+    commentCountsByKeyId: new Map([[key.id, comments.length]]),
   })[0];
 
   if (!segment) {
@@ -564,6 +608,7 @@ export async function getPhraseLiveCatSegmentDetail(input: {
   return {
     ...segment,
     sourceText: sourceTranslation?.content?.trim() || segment.sourceText,
+    comments,
     commentCount: comments.length,
     unresolvedIssueCount: 0,
   };
