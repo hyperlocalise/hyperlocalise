@@ -132,6 +132,20 @@ const { crowdinFetchMock } = vi.hoisted(() => ({
       ]);
     }
 
+    if (path.endsWith("/projects/42/strings/9001")) {
+      return getResponse(
+        sourceString({
+          id: 9001,
+          identifier: 'say "hi" \\ back',
+          text: { one: "Say hi" },
+        }),
+      );
+    }
+
+    if (path.endsWith("/projects/42/strings/9004")) {
+      return new Response(JSON.stringify({ message: "String not found" }), { status: 404 });
+    }
+
     if (path.endsWith("/projects/42/strings")) {
       const fileId = parsed.searchParams.get("fileId");
       const croql = parsed.searchParams.get("croql") ?? "";
@@ -488,6 +502,77 @@ describe("checkCrowdinProgress", () => {
         return parsed.searchParams.get("croql") === 'identifier = "say \\"hi\\" \\\\ back"';
       }),
     ).toBe(true);
+  });
+
+  it("fetches numeric string locators with the Get String endpoint", async () => {
+    crowdinFetchMock.mockClear();
+
+    const result = await checkCrowdinProgress({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      scope: "string",
+      stringId: 9001,
+      languageIds: ["fr"],
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.value).toMatchObject({
+        scope: "string",
+        resource: {
+          type: "string",
+          id: 9001,
+          identifier: 'say "hi" \\ back',
+          text: "Say hi",
+        },
+        languages: [
+          {
+            languageId: "fr",
+            translationProgress: 100,
+            approvalProgress: 100,
+          },
+        ],
+      });
+    }
+
+    expect(
+      crowdinFetchMock.mock.calls.some((call) => {
+        const requestUrl = call[0];
+        if (typeof requestUrl !== "string") {
+          return false;
+        }
+        return new URL(requestUrl).pathname.endsWith("/projects/42/strings/9001");
+      }),
+    ).toBe(true);
+    expect(
+      crowdinFetchMock.mock.calls.some((call) => {
+        const requestUrl = call[0];
+        if (typeof requestUrl !== "string") {
+          return false;
+        }
+        const parsed = new URL(requestUrl);
+        return (
+          parsed.pathname.endsWith("/projects/42/strings") && parsed.searchParams.has("croql")
+        );
+      }),
+    ).toBe(false);
+  });
+
+  it("returns not found when a numeric Crowdin string is missing", async () => {
+    const result = await checkCrowdinProgress({
+      organizationId: "org_1",
+      projectId: "proj_1",
+      scope: "string",
+      stringId: 9004,
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatchObject({
+        code: "crowdin_resource_not_found",
+        message: "Crowdin string 9004 was not found in this project.",
+      });
+    }
   });
 
   it("returns an ambiguity error when an exact string identifier matches multiple strings", async () => {
