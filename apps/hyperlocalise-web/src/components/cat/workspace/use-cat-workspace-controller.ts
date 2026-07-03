@@ -272,14 +272,6 @@ export function useCatWorkspaceController({
               store.setTargetText(segmentId, bestTmMatch.targetText);
               store.markSegmentSaved(segmentId, bestTmMatch.targetText);
               onTargetChange?.(segmentId, bestTmMatch.targetText);
-              const updatedSegment = store.segments.find((item) => item.id === segmentId);
-              if (updatedSegment && (validateFormat || runQaChecks)) {
-                void runSegmentChecks(
-                  updatedSegment,
-                  bestTmMatch.targetText,
-                  concordance.glossaryTerms,
-                );
-              }
             }
           } catch (error) {
             if (!store.isReviewCurrent(sequence)) {
@@ -302,11 +294,13 @@ export function useCatWorkspaceController({
           }
         }
 
+        const segmentForReview = store.segments.find((item) => item.id === segmentId) ?? segment;
+
         if (includeAi && generateAiRecommendation) {
           try {
             recommendation = await generateAiRecommendation(
-              segment,
-              segment.targetText,
+              segmentForReview,
+              segmentForReview.targetText,
               intelligenceForRecommendation,
             );
           } catch (error) {
@@ -332,13 +326,13 @@ export function useCatWorkspaceController({
           const [formatChecks, qaChecks] = await Promise.all([
             includeFormatChecks && validateFormat
               ? validateFormat(
-                  segment,
-                  segment.targetText,
+                  segmentForReview,
+                  segmentForReview.targetText,
                   intelligenceForRecommendation.glossaryTerms,
                 )
               : Promise.resolve([]),
             includeFormatChecks && runQaChecks
-              ? runQaChecks(segment, segment.targetText)
+              ? runQaChecks(segmentForReview, segmentForReview.targetText)
               : Promise.resolve([]),
           ]);
           if (!store.isReviewCurrent(sequence)) {
