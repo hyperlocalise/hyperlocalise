@@ -1044,17 +1044,172 @@ describe("getTmsProviderLiveCatFile", () => {
     for (const croql of expectedQueueSummaryCroqls) {
       expect(queueSummaryCroqls).toContain(croql);
     }
-    expect(
-      queueSummaryCroqls.filter(
-        (croql) =>
-          croql ===
-          buildCrowdinFileQueueCroql({
-            fileId: 101,
-            targetLocale: "fr",
-            queueFilter: "has_issues",
+  });
+
+  it("marks every visible has_issues segment with unresolved issue flags", async () => {
+    const { organization, user } = await fixture.createLocalWorkosIdentity(
+      fixture.createWorkosIdentityWithRole("admin"),
+    );
+    await setupCrowdinPatCredential({
+      organizationId: organization.id,
+      userId: user.id,
+    });
+
+    const issueCommentRequests: string[] = [];
+    const fetchMock = vi.fn(async (url) => {
+      const path = String(url);
+
+      if (isCrowdinGetProjectRequest(path)) {
+        return mockCrowdinProject42Response();
+      }
+
+      if (path.includes("/projects/42/branches?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/directories?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/files?")) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 101,
+                  branchId: null,
+                  directoryId: null,
+                  name: "home.json",
+                  title: "home.json",
+                  type: "json",
+                  path: "/home.json",
+                  status: "active",
+                  revisionId: 7,
+                },
+              },
+            ],
           }),
-      ).length,
-    ).toBeGreaterThanOrEqual(1);
+          { status: 200 },
+        );
+      }
+
+      if (path.includes("/projects/42/files/101/revisions?")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (
+        path.includes("/projects/42/strings?") &&
+        path.includes("croql=") &&
+        path.includes("has+unresolved+issue")
+      ) {
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: 1001,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "homepage.hero.title",
+                  text: "Hero title",
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+              {
+                data: {
+                  id: 1002,
+                  projectId: 42,
+                  fileId: 101,
+                  branchId: null,
+                  directoryId: null,
+                  identifier: "homepage.hero.cta",
+                  text: "Hero CTA",
+                  type: "text",
+                  context: null,
+                  labelIds: null,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      if (
+        path.includes("/projects/42/languages/fr/translations?") &&
+        path.includes("stringIds=1001%2C1002")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (
+        path.includes("/projects/42/approvals?") &&
+        path.includes("languageId=fr") &&
+        path.includes("fileId=101")
+      ) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+
+      if (path.includes("/projects/42/comments?") && path.includes("type=issue")) {
+        const requestUrl = new URL(path);
+        const stringId = requestUrl.searchParams.get("stringId");
+        if (stringId) {
+          issueCommentRequests.push(stringId);
+        }
+
+        return new Response(
+          JSON.stringify({
+            data: [
+              {
+                data: {
+                  id: Number(`50${stringId}`),
+                  text: `Issue on ${stringId}`,
+                  userId: 1,
+                  stringId: Number(stringId),
+                  languageId: "fr",
+                  type: "issue",
+                  issueStatus: "unresolved",
+                  createdAt: "2026-06-08T00:02:00Z",
+                  projectId: 42,
+                },
+              },
+            ],
+          }),
+          { status: 200 },
+        );
+      }
+
+      return new Response(JSON.stringify({ data: [] }), { status: 200 });
+    });
+    globalThis.fetch = fetchMock as typeof fetch;
+
+    const catFile = await getTmsProviderLiveCatFile(organization.id, "42", "home.json", "fr", {
+      actorUserId: user.id,
+      canEditTranslations: true,
+      includeQueueSummary: false,
+      pagination: {
+        offset: 0,
+        limit: 25,
+        paginated: true,
+        queueFilter: "has_issues",
+      },
+    });
+
+    expect(catFile?.pagination).toMatchObject({
+      offset: 0,
+      limit: 25,
+      returnedCount: 2,
+      totalCount: 2,
+      hasMore: false,
+    });
+    expect(catFile?.segments).toHaveLength(2);
+    expect(catFile?.segments.every((segment) => segment.unresolvedIssueCount === 1)).toBe(true);
+    expect(issueCommentRequests).toEqual(expect.arrayContaining(["1001", "1002"]));
   });
 });
 

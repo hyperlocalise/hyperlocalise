@@ -2087,7 +2087,7 @@ export async function getTmsProviderLiveCatFile(
         pagination: options?.pagination,
       });
     } catch (error) {
-      mapPhraseLiveCatError(error);
+      return mapPhraseLiveCatError(error);
     }
   }
 
@@ -2138,9 +2138,16 @@ export async function getTmsProviderLiveCatQueueSummary(
         targetLocale,
         canEditTranslations: false,
       });
-      return catFile.queueSummary;
+      const queueSummary = catFile.queueSummary;
+      if (!queueSummary) {
+        throw new TmsProviderLiveError(
+          "phrase_cat_queue_summary_missing",
+          "Failed to compute CAT queue summary for this Phrase file.",
+        );
+      }
+      return queueSummary;
     } catch (error) {
-      mapPhraseLiveCatError(error);
+      return mapPhraseLiveCatError(error);
     }
   }
 

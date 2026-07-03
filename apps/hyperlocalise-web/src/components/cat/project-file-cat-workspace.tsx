@@ -578,9 +578,9 @@ export function ProjectFileCatWorkspace({
   const isFullscreen = layout === "fullscreen";
   const isQueueSummaryLoading = queueSummaryQuery.isFetching && !queueSummaryQuery.data;
 
-  const isQueueLoading =
-    isSearchPending ||
-    (catQuery.isFetching && Boolean(catQuery.data) && catQuery.isPlaceholderData);
+  // useCatSegmentQuery seeds placeholderData with keepPreviousData, so isPlaceholderData
+  // stays true while paginating or changing filters/search with prior rows still visible.
+  const isQueueLoading = isSearchPending || (catQuery.isFetching && catQuery.isPlaceholderData);
 
   if (catQuery.isLoading && !catQuery.data) {
     return (
