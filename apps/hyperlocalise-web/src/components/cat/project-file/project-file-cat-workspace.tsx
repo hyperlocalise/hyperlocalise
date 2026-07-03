@@ -299,20 +299,6 @@ export function ProjectFileCatWorkspace({
     [catFile?.canEditTranslations, resolveComment],
   );
 
-  const handleBulkApprove = useCallback(
-    async (segmentIds: string[]) => {
-      for (const segmentId of segmentIds) {
-        const segment = workspaceState?.segments.find((item) => item.id === segmentId);
-        if (!segment) {
-          continue;
-        }
-
-        await handleApprove(segmentId, segment.targetText);
-      }
-    },
-    [handleApprove, workspaceState?.segments],
-  );
-
   const buildSegmentShareUrl = useCallback((segment: CatSegment) => {
     if (typeof window === "undefined") {
       return null;
@@ -559,7 +545,6 @@ export function ProjectFileCatWorkspace({
           onAddComment: handleAddComment,
           onResolveComment:
             catFile?.provider?.kind === "crowdin" ? handleResolveComment : undefined,
-          onBulkApprove: handleBulkApprove,
         }}
         initialSegmentKeyOrId={initialSegmentKey}
         buildSegmentShareUrl={buildSegmentShareUrl}

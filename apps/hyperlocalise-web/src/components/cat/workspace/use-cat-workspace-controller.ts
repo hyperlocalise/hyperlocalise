@@ -136,7 +136,14 @@ export function useCatWorkspaceController({
     lookupSegmentConcordance || generateAiRecommendation || validateFormat || runQaChecks,
   );
 
+  const isInitialHydrationRef = useRef(true);
+
   useEffect(() => {
+    if (isInitialHydrationRef.current) {
+      isInitialHydrationRef.current = false;
+      return;
+    }
+
     store.hydrateFromServerSnapshot(initialState, initialSegmentKeyOrId);
   }, [initialSegmentKeyOrId, initialState, store]);
 
@@ -185,9 +192,7 @@ export function useCatWorkspaceController({
         return;
       }
 
-      const sequence = store.validationSequence + 1;
-      store.validationSequence = sequence;
-      store.isValidating = true;
+      const sequence = store.beginValidation();
       try {
         const glossaryTerms =
           glossaryTermsOverride ?? glossaryTermsForSegment(store.workspaceState, segment.id);
@@ -195,15 +200,13 @@ export function useCatWorkspaceController({
           validateFormat ? validateFormat(segment, value, glossaryTerms) : Promise.resolve([]),
           runQaChecks ? runQaChecks(segment, value) : Promise.resolve([]),
         ]);
-        if (store.validationSequence !== sequence) {
+        if (!store.isValidationCurrent(sequence)) {
           return;
         }
         const checks = [...formatChecks, ...qaChecks];
         store.setFormatChecks(segment.id, checks, store.selectedSegmentId === segment.id);
       } finally {
-        if (store.validationSequence === sequence) {
-          store.isValidating = false;
-        }
+        store.completeValidation(sequence);
       }
     },
     [runQaChecks, store, validateFormat],
@@ -229,24 +232,17 @@ export function useCatWorkspaceController({
 
       const currentIntelligence = store.segmentIntelligence[segmentId] ?? store.intelligence;
 
-      const sequence = store.reviewSequence + 1;
-      store.reviewSequence = sequence;
-      if (includeAi) {
-        store.isGeneratingAiRecommendation = true;
-      }
-      if (showFormatChecksLoading) {
-        store.isRunningFormatChecks = true;
-      }
+      const sequence = store.beginReview({ includeAi, showFormatChecksLoading });
       try {
         let recommendation: CatAiRecommendationResult | undefined;
         let aiFailureCheck: CatFormatCheck | undefined;
         let intelligenceForRecommendation = currentIntelligence;
 
         if (lookupSegmentConcordance) {
-          store.isLoadingConcordance = true;
+          store.setReviewPhaseLoading(sequence, "concordance", true);
           try {
             const concordance = await lookupSegmentConcordance(segment);
-            if (store.reviewSequence !== sequence) {
+            if (!store.isReviewCurrent(sequence)) {
               return;
             }
 
@@ -286,7 +282,7 @@ export function useCatWorkspaceController({
               }
             }
           } catch (error) {
-            if (store.reviewSequence !== sequence) {
+            if (!store.isReviewCurrent(sequence)) {
               return;
             }
 
@@ -302,9 +298,7 @@ export function useCatWorkspaceController({
               category: "qa",
             });
           } finally {
-            if (store.reviewSequence === sequence) {
-              store.isLoadingConcordance = false;
-            }
+            store.setReviewPhaseLoading(sequence, "concordance", false);
           }
         }
 
@@ -316,7 +310,7 @@ export function useCatWorkspaceController({
               intelligenceForRecommendation,
             );
           } catch (error) {
-            if (store.reviewSequence !== sequence) {
+            if (!store.isReviewCurrent(sequence)) {
               return;
             }
 
@@ -347,7 +341,7 @@ export function useCatWorkspaceController({
               ? runQaChecks(segment, segment.targetText)
               : Promise.resolve([]),
           ]);
-          if (store.reviewSequence !== sequence) {
+          if (!store.isReviewCurrent(sequence)) {
             return;
           }
           const withoutAiFailure = (segmentChecks: CatFormatCheck[]) =>
@@ -368,14 +362,8 @@ export function useCatWorkspaceController({
           }
         }
       } finally {
-        if (store.reviewSequence === sequence) {
-          if (includeAi) {
-            store.isGeneratingAiRecommendation = false;
-          }
-          if (showFormatChecksLoading) {
-            store.isRunningFormatChecks = false;
-          }
-        }
+        store.setReviewPhaseLoading(sequence, "ai", false);
+        store.setReviewPhaseLoading(sequence, "formatChecks", false);
       }
     },
     [

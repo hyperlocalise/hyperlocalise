@@ -2,7 +2,6 @@ import { makeAutoObservable, runInAction } from "mobx";
 
 import {
   findSegmentIdByKeyOrId,
-  resolveSelectedSegmentId,
   type CatQueueFilter,
 } from "@/components/cat/queue/cat-queue-filter";
 import type {
@@ -450,16 +449,57 @@ export class CatWorkspaceStore {
     this.commentPostError = undefined;
   }
 
-  resolveInitialSelectedSegment(
-    segments: CatSegment[],
-    initialSegmentKeyOrId: string | null | undefined,
-    fallbackSelectedSegmentId: string,
-  ) {
-    this.selectedSegmentId = resolveSelectedSegmentId(
-      segments,
-      initialSegmentKeyOrId,
-      fallbackSelectedSegmentId,
-    );
+  beginValidation(): number {
+    this.validationSequence += 1;
+    this.isValidating = true;
+    return this.validationSequence;
+  }
+
+  isValidationCurrent(sequence: number): boolean {
+    return this.validationSequence === sequence;
+  }
+
+  completeValidation(sequence: number): void {
+    if (this.isValidationCurrent(sequence)) {
+      this.isValidating = false;
+    }
+  }
+
+  beginReview(options?: { includeAi?: boolean; showFormatChecksLoading?: boolean }): number {
+    this.reviewSequence += 1;
+    if (options?.includeAi) {
+      this.isGeneratingAiRecommendation = true;
+    }
+    if (options?.showFormatChecksLoading) {
+      this.isRunningFormatChecks = true;
+    }
+    return this.reviewSequence;
+  }
+
+  isReviewCurrent(sequence: number): boolean {
+    return this.reviewSequence === sequence;
+  }
+
+  setReviewPhaseLoading(
+    sequence: number,
+    phase: "concordance" | "ai" | "formatChecks",
+    loading: boolean,
+  ): void {
+    if (!this.isReviewCurrent(sequence)) {
+      return;
+    }
+
+    switch (phase) {
+      case "concordance":
+        this.isLoadingConcordance = loading;
+        break;
+      case "ai":
+        this.isGeneratingAiRecommendation = loading;
+        break;
+      case "formatChecks":
+        this.isRunningFormatChecks = loading;
+        break;
+    }
   }
 }
 
