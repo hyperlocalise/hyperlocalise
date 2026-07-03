@@ -32,7 +32,6 @@ import { createPhraseStringsApiClient } from "./phrase-strings-client";
 
 const LOCALE_FETCH_CONCURRENCY = 8;
 const COMMENT_FETCH_CONCURRENCY = 8;
-const COMMENT_COUNT_SUMMARY_KEY_THRESHOLD = 50;
 
 export class PhraseLiveCatError extends Error {
   constructor(
@@ -253,15 +252,6 @@ async function loadTranslationsByKeyId(input: {
   return translationsByKeyId;
 }
 
-function shouldLoadCommentCounts(input: {
-  queueFilter: ProjectFileCatPaginationInput["queueFilter"];
-  keyCount: number;
-}) {
-  return (
-    input.queueFilter === "has_issues" || input.keyCount <= COMMENT_COUNT_SUMMARY_KEY_THRESHOLD
-  );
-}
-
 async function loadCommentCountsByKeyId(input: {
   client: ReturnType<typeof createPhraseStringsApiClient>;
   projectId: string;
@@ -444,25 +434,21 @@ export async function buildPhraseLiveCatFile(input: {
     paginated: false,
   };
 
-  const translationsByKeyId = await loadTranslationsByKeyId({
-    client,
-    projectId: scope.stringsProjectId,
-    localeNames,
-    branch: scope.branch,
-    keyIds,
-  });
-
-  const commentCountsByKeyId = shouldLoadCommentCounts({
-    queueFilter: paginationInput.queueFilter,
-    keyCount: scopedKeys.length,
-  })
-    ? await loadCommentCountsByKeyId({
-        client,
-        projectId: scope.stringsProjectId,
-        branch: scope.branch,
-        keys: scopedKeys,
-      })
-    : new Map<string, number>();
+  const [translationsByKeyId, commentCountsByKeyId] = await Promise.all([
+    loadTranslationsByKeyId({
+      client,
+      projectId: scope.stringsProjectId,
+      localeNames,
+      branch: scope.branch,
+      keyIds,
+    }),
+    loadCommentCountsByKeyId({
+      client,
+      projectId: scope.stringsProjectId,
+      branch: scope.branch,
+      keys: scopedKeys,
+    }),
+  ]);
 
   const allSegments = buildSegmentDrafts({
     keys: scopedKeys,

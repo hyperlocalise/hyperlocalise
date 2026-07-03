@@ -399,7 +399,7 @@ describe("buildPhraseLiveCatFile", () => {
     });
   });
 
-  it("skips comment count fan-out for large files on queueFilter all", async () => {
+  it("reports hasIssues in queue summary for large files on queueFilter all", async () => {
     const keys = Array.from({ length: 51 }, (_, index) => ({
       id: `key-${index}`,
       name: `home.key.${index}`,
@@ -429,8 +429,15 @@ describe("buildPhraseLiveCatFile", () => {
         return new Response(JSON.stringify([]), { status: 200 });
       }
 
+      if (path.includes("/keys/key-0/comments")) {
+        return new Response(
+          JSON.stringify([{ id: "comment-1", message: "Needs review", locales: [] }]),
+          { status: 200 },
+        );
+      }
+
       if (path.includes("/comments")) {
-        throw new Error("comment fan-out should not run");
+        return new Response(JSON.stringify([]), { status: 200 });
       }
 
       return new Response(JSON.stringify([]), { status: 200 });
@@ -477,9 +484,9 @@ describe("buildPhraseLiveCatFile", () => {
     expect(catFile.segments).toHaveLength(10);
     expect(catFile.queueSummary).toMatchObject({
       total: 51,
-      hasIssues: 0,
+      hasIssues: 1,
     });
-    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/comments"))).toBe(false);
+    expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/comments"))).toBe(true);
   });
 
   it("treats transient comment fetch failures as zero counts", async () => {
