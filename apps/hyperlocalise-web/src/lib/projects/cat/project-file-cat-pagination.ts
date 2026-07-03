@@ -36,10 +36,10 @@ export function resolveProjectFileCatPagination(
   if (!hasPaginationParams) {
     return {
       offset: 0,
-      limit: legacyNativeCatSegmentLimit,
+      limit: defaultProjectFileCatPageLimit,
       search: undefined,
       queueFilter: "all",
-      paginated: false,
+      paginated: true,
     };
   }
 
@@ -54,12 +54,6 @@ export function resolveProjectFileCatPagination(
 
 export function resolveProviderLegacyCatLimit(paginated: boolean) {
   return paginated ? maxProjectFileCatPageLimit : legacyProviderCatSegmentLimit;
-}
-
-export function resolveProjectFileCatIncludeQueueSummary(
-  query: Pick<ProjectFileCatQuery, "includeQueueSummary">,
-) {
-  return query.includeQueueSummary !== "false";
 }
 
 export function buildCatFilePagination(input: {

@@ -159,18 +159,13 @@ describe("buildPhraseLiveCatFile", () => {
       },
       comments: [],
     });
-    expect(catFile.queueSummary).toMatchObject({
-      total: 1,
-      reviewed: 1,
-      hasIssues: 0,
-    });
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/keys/key-1/comments"),
       expect.anything(),
     );
   });
 
-  it("loads comments from the segment detail endpoint", async () => {
+  it("loads comments from the segment comments endpoint", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const path = String(url);
 
@@ -247,8 +242,8 @@ describe("buildPhraseLiveCatFile", () => {
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const { getPhraseLiveCatSegmentDetail } = await import("./phrase-live-cat");
-    const segment = await getPhraseLiveCatSegmentDetail({
+    const { getPhraseLiveCatSegmentComments } = await import("./phrase-live-cat");
+    const comments = await getPhraseLiveCatSegmentComments({
       secretMaterial: "token",
       externalProjectId: "project-1",
       file: createPhraseKeyFile(),
@@ -256,11 +251,9 @@ describe("buildPhraseLiveCatFile", () => {
       externalStringId: "key-1",
     });
 
-    expect(segment).toMatchObject({
-      externalStringId: "key-1",
-      comments: [{ externalCommentId: "comment-1", type: "comment", text: "Check tone" }],
-      commentCount: 1,
-    });
+    expect(comments).toMatchObject([
+      { externalCommentId: "comment-1", type: "comment", text: "Check tone" },
+    ]);
   });
 
   it("filters upload-scoped keys by tags and paginates search results", async () => {
@@ -392,10 +385,6 @@ describe("buildPhraseLiveCatFile", () => {
       totalCount: 1,
       hasMore: false,
     });
-    expect(catFile.queueSummary).toMatchObject({
-      total: 1,
-      untranslated: 1,
-    });
   });
 
   it("throws when the requested target locale cannot be matched", async () => {
@@ -483,8 +472,8 @@ describe("buildPhraseLiveCatFile", () => {
     });
     globalThis.fetch = fetchMock as typeof fetch;
 
-    const { getPhraseLiveCatSegmentDetail } = await import("./phrase-live-cat");
-    const segment = await getPhraseLiveCatSegmentDetail({
+    const { getPhraseLiveCatSegmentComments } = await import("./phrase-live-cat");
+    const comments = await getPhraseLiveCatSegmentComments({
       secretMaterial: "token",
       externalProjectId: "project-1",
       file: createPhraseKeyFile(),
@@ -492,7 +481,7 @@ describe("buildPhraseLiveCatFile", () => {
       externalStringId: "key-1",
     });
 
-    expect(segment?.comments[0]?.createdAt).toBeNull();
+    expect(comments[0]?.createdAt).toBeNull();
   });
 });
 

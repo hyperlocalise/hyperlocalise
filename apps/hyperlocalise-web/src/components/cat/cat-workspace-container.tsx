@@ -34,7 +34,7 @@ import {
   syncSavedTargetTexts,
   type SavedTargetTextMap,
 } from "./cat-dirty-state";
-import { adjustQueueSummaryForStatusChange, applyGlossaryTermToTarget } from "./cat-queue-summary";
+import { applyGlossaryTermToTarget } from "./cat-glossary-utils";
 import {
   findSegmentIdByKeyOrId,
   resolveSelectedSegmentId,
@@ -237,7 +237,6 @@ export function mergeCatWorkspaceState(
     ...nextInitialState,
     segments,
     selectedSegmentId,
-    queueSummary: nextInitialState.queueSummary,
     formatChecks:
       selectedSegmentId === currentState.selectedSegmentId
         ? currentState.formatChecks
@@ -263,12 +262,11 @@ export interface CatWorkspaceContainerProps {
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
-  isQueueSummaryLoading?: boolean;
   isSegmentDetailLoading?: boolean;
   queuePagination?: CatWorkspaceViewProps["queuePagination"];
-  onQueuePreviousPage?: () => void;
-  onQueueNextPage?: () => void;
-  onQueueNearEnd?: () => void;
+  hasMoreQueue?: boolean;
+  onLoadMoreQueue?: () => void;
+  isCommentsLoading?: boolean;
   initialSegmentKeyOrId?: string | null;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   tmAutoFillMinMatchPercent?: number;
@@ -303,12 +301,11 @@ export function CatWorkspaceContainer({
   isQueueSearchPending,
   isQueueFetchingPage,
   isQueueLoading,
-  isQueueSummaryLoading = false,
   isSegmentDetailLoading = false,
   queuePagination,
-  onQueuePreviousPage,
-  onQueueNextPage,
-  onQueueNearEnd,
+  hasMoreQueue = false,
+  onLoadMoreQueue,
+  isCommentsLoading = false,
   initialSegmentKeyOrId,
   buildSegmentShareUrl,
   tmAutoFillMinMatchPercent = TM_AUTO_FILL_MIN_MATCH_PERCENT_DEFAULT,
@@ -994,13 +991,6 @@ export function CatWorkspaceContainer({
               ...current,
               segments,
               selectedSegmentId: nextSelectedSegmentId,
-              queueSummary: previousSegment
-                ? adjustQueueSummaryForStatusChange(
-                    current.queueSummary,
-                    previousSegment.status,
-                    nextStatus,
-                  )
-                : current.queueSummary,
             };
           });
           setSavedTargetTexts((saved) => markSegmentTargetSaved(saved, segmentId, targetText));
@@ -1040,13 +1030,6 @@ export function CatWorkspaceContainer({
                   return {
                     ...current,
                     segments,
-                    queueSummary: previousSegment
-                      ? adjustQueueSummaryForStatusChange(
-                          current.queueSummary,
-                          previousSegment.status,
-                          nextStatus,
-                        )
-                      : current.queueSummary,
                   };
                 });
                 setSavedTargetTexts((saved) =>
@@ -1375,16 +1358,11 @@ export function CatWorkspaceContainer({
           isQueueSearchPending={isQueueSearchPending}
           isQueueFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
-          isQueueSummaryLoading={isQueueSummaryLoading}
           isSegmentDetailLoading={isSegmentDetailLoading}
+          isCommentsLoading={isCommentsLoading}
           queuePagination={queuePagination}
-          onQueuePreviousPage={
-            onQueuePreviousPage ? () => attemptPageNavigation(onQueuePreviousPage) : undefined
-          }
-          onQueueNextPage={
-            onQueueNextPage ? () => attemptPageNavigation(onQueueNextPage) : undefined
-          }
-          onQueueNearEnd={onQueueNearEnd}
+          hasMoreQueue={hasMoreQueue}
+          onLoadMoreQueue={onLoadMoreQueue}
           queueFilter={queueFilter}
           onQueueFilterChange={handleQueueFilterChange}
           availableQueueFilters={availableQueueFilters}

@@ -18,6 +18,7 @@ import type {
   ProjectFileCatCommentResponse,
   ProjectFileCatRecommendationResponse,
   ProjectFileCatResponse,
+  ProjectFileCatSegmentCommentsResponse,
   ProjectFileCatSegmentResponse,
   ProjectFileCatTranslationResponse,
 } from "./project.schema";
@@ -389,14 +390,32 @@ describe("project file CAT routes", () => {
 
     expect(detailResponse.status).toBe(200);
     const detailBody = (await detailResponse.json()) as ProjectFileCatSegmentResponse;
-    expect(detailBody.segment.comments).toMatchObject([
+    expect(detailBody.segment.comments).toEqual([]);
+
+    const commentsResponse = await client.api.orgs[":organizationSlug"].projects[
+      ":projectId"
+    ].files.detail.cat.segments[":externalStringId"].comments.$get(
+      {
+        param: {
+          organizationSlug: identity.organization.slug ?? "missing-slug",
+          projectId: project.id,
+          externalStringId: translationKey!.id,
+        },
+        query: { sourcePath, targetLocale: "fr-FR" },
+      },
+      { headers },
+    );
+
+    expect(commentsResponse.status).toBe(200);
+    const commentsBody = (await commentsResponse.json()) as ProjectFileCatSegmentCommentsResponse;
+    expect(commentsBody.comments).toMatchObject([
       {
         type: "comment",
         text: "Please clarify tone.",
         author: expect.any(String),
       },
     ]);
-    expect(detailBody.segment.comments[0]?.externalCommentId).toBeTruthy();
+    expect(commentsBody.comments[0]?.externalCommentId).toBeTruthy();
   });
 
   it("posts and resolves native CAT issues", async () => {
@@ -503,13 +522,6 @@ describe("project file CAT routes", () => {
       targetLocale: "fr",
       canEditTranslations: true,
       truncated: false,
-      queueSummary: {
-        total: 1,
-        reviewed: 1,
-        untranslated: 0,
-        needsReview: 0,
-        hasIssues: 1,
-      },
       segments: [
         {
           externalStringId: "1001",
@@ -551,7 +563,12 @@ describe("project file CAT routes", () => {
       "fr",
       expect.objectContaining({
         canEditTranslations: true,
-        pagination: expect.objectContaining({ paginated: false }),
+        pagination: expect.objectContaining({
+          paginated: true,
+          offset: 0,
+          limit: 50,
+          queueFilter: "all",
+        }),
       }),
     );
   });
@@ -584,13 +601,6 @@ describe("project file CAT routes", () => {
       targetLocale: "fr",
       canEditTranslations: true,
       truncated: false,
-      queueSummary: {
-        total: 120,
-        reviewed: 45,
-        untranslated: 30,
-        needsReview: 40,
-        hasIssues: 5,
-      },
       pagination: {
         offset: 50,
         limit: 25,

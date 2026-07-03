@@ -82,16 +82,6 @@ const checkCrowdinProgressOutputSchema = z.object({
           }),
         }),
       ),
-      queueSummary: z
-        .object({
-          targetLocale: z.string(),
-          total: z.number(),
-          reviewed: z.number(),
-          untranslated: z.number(),
-          needsReview: z.number(),
-          hasIssues: z.number(),
-        })
-        .optional(),
       stringTranslations: z
         .array(
           z.object({

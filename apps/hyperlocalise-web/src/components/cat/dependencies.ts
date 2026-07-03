@@ -113,7 +113,6 @@ export interface CatWorkspaceViewProps {
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
-  isQueueSummaryLoading?: boolean;
   isSegmentDetailLoading?: boolean;
   queuePagination?: {
     offset: number;
@@ -122,9 +121,9 @@ export interface CatWorkspaceViewProps {
     totalCount: number;
     hasMore: boolean;
   } | null;
-  onQueuePreviousPage?: () => void;
-  onQueueNextPage?: () => void;
-  onQueueNearEnd?: () => void;
+  hasMoreQueue?: boolean;
+  onLoadMoreQueue?: () => void;
+  isCommentsLoading?: boolean;
   queueFilter?: CatQueueFilter;
   onQueueFilterChange?: (filter: CatQueueFilter) => void;
   availableQueueFilters?: CatQueueFilter[];

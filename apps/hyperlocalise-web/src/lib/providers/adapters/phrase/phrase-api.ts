@@ -310,6 +310,26 @@ export class PhraseApiClient {
     });
   }
 
+  async listKeysPage(
+    projectId: string,
+    options: PhraseListOptions & { page?: number; perPage?: number } = {},
+  ): Promise<{ keys: PhraseKey[]; hasMore: boolean }> {
+    const page = options.page ?? 1;
+    const perPage = options.perPage ?? 100;
+    const pageItems = await this.get<unknown[]>(
+      this.buildPath(`/projects/${encodeURIComponent(projectId)}/keys`, {
+        page,
+        per_page: perPage,
+        branch: options.branch,
+      }),
+    );
+
+    return {
+      keys: pageItems.map((record) => normalizePhraseKey(record as PhraseKeyApiRecord)),
+      hasMore: pageItems.length >= perPage,
+    };
+  }
+
   async getKey(
     projectId: string,
     keyId: string,

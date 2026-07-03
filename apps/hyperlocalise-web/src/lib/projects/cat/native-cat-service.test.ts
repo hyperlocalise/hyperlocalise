@@ -119,13 +119,6 @@ describe("NativeCatService.getCatFile", () => {
       sourceText: "Welcome",
     });
     expect(result?.segments[0]?.maxLength).toBeUndefined();
-    expect(result?.queueSummary).toEqual({
-      total: 120,
-      reviewed: 45,
-      untranslated: 30,
-      needsReview: 40,
-      hasIssues: 5,
-    });
   });
 
   it("includes maxLength on segments when the translation key has one", async () => {

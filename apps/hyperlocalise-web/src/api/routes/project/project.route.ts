@@ -29,7 +29,7 @@ import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
   countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveCatFile,
-  getTmsProviderLiveCatQueueSummary,
+  getTmsProviderLiveCatSegmentComments,
   getTmsProviderLiveCatSegmentDetail,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
@@ -41,17 +41,14 @@ import {
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectCatFile,
-  getNativeProjectCatQueueSummary,
+  getNativeProjectCatSegmentComments,
   getNativeProjectCatSegmentDetail,
   resolveNativeProjectCatComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
-import {
-  resolveProjectFileCatIncludeQueueSummary,
-  resolveProjectFileCatPagination,
-} from "@/lib/projects/cat/project-file-cat-pagination";
+import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
 import {
   getProjectFileDetail,
   listFilteredProjectFiles,
@@ -79,7 +76,6 @@ import {
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
   projectFileCatQuerySchema,
-  projectFileCatQueueSummaryQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
@@ -407,16 +403,6 @@ const validateProjectFileCatQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
-const validateProjectFileCatQueueSummaryQuery = validator("query", (value, c) => {
-  const parsed = projectFileCatQueueSummaryQuerySchema.safeParse(value);
-
-  if (!parsed.success) {
-    return invalidProjectPayloadResponse(c);
-  }
-
-  return parsed.data;
-});
-
 const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
   const parsed = projectFileCatTranslationBodySchema.safeParse(value);
 
@@ -573,10 +559,8 @@ async function loadProjectFileCatQueue(
   auth: AuthVariables["auth"],
   projectId: string,
   query: ProjectFileCatQuery,
-  options?: { includeQueueSummary?: boolean },
 ) {
   const pagination = resolveProjectFileCatPagination(query);
-  const includeQueueSummary = options?.includeQueueSummary ?? false;
   const target = await resolveProjectResourceTarget(auth, projectId);
 
   if (target.kind === "provider_unavailable") {
@@ -596,7 +580,6 @@ async function loadProjectFileCatQueue(
       targetLocale: query.targetLocale,
       canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
       pagination,
-      includeQueueSummary,
     });
 
     if (!catQueue) {
@@ -616,7 +599,6 @@ async function loadProjectFileCatQueue(
         actorUserId: auth.user.localUserId,
         canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
         pagination,
-        includeQueueSummary,
       },
     );
 
@@ -685,69 +667,13 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .get(
-      "/:projectId/files/detail/cat/queue/summary",
-      validateProjectParams,
-      validateProjectFileCatQueueSummaryQuery,
-      async (c) => {
-        const params = c.req.valid("param");
-        const query = c.req.valid("query");
-        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
-        if (target.kind === "provider_unavailable") {
-          return providerProjectUnavailableResponse(c, target);
-        }
-
-        if (target.kind !== "provider") {
-          const project = await getOwnedProject(c.var.auth, params.projectId);
-          if (!project) {
-            return projectNotFoundResponse(c);
-          }
-
-          const queueSummary = await getNativeProjectCatQueueSummary({
-            organizationId: c.var.auth.organization.localOrganizationId,
-            projectId: params.projectId,
-            sourcePath: query.sourcePath,
-            targetLocale: query.targetLocale,
-          });
-
-          if (!queueSummary) {
-            return badRequestResponse(
-              c,
-              "source_file_not_found",
-              "Source file not found for the given path",
-            );
-          }
-
-          return c.json({ queueSummary }, 200);
-        }
-
-        try {
-          const queueSummary = await getTmsProviderLiveCatQueueSummary(
-            c.var.auth.organization.localOrganizationId,
-            target.externalProjectId,
-            query.sourcePath,
-            query.targetLocale,
-            { actorUserId: c.var.auth.user.localUserId },
-          );
-          if (!queueSummary) {
-            return projectNotFoundResponse(c);
-          }
-
-          return c.json({ queueSummary }, 200);
-        } catch (error) {
-          return tmsProviderLiveErrorResponse(c, error);
-        }
-      },
-    )
-    .get(
       "/:projectId/files/detail/cat/queue",
       validateProjectParams,
       validateProjectFileCatQuery,
       async (c) => {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
-        const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query, {
-          includeQueueSummary: false,
-        });
+        const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query);
 
         if (result.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, result.target);
@@ -776,9 +702,7 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
       async (c) => {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
-        const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query, {
-          includeQueueSummary: resolveProjectFileCatIncludeQueueSummary(query),
-        });
+        const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query);
 
         if (result.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, result.target);
@@ -849,6 +773,52 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
           }
 
           return c.json({ segment }, 200);
+        } catch (error) {
+          return tmsProviderLiveErrorResponse(c, error);
+        }
+      },
+    )
+    .get(
+      "/:projectId/files/detail/cat/segments/:externalStringId/comments",
+      validateProjectParams,
+      validateProjectFileCatSegmentParams,
+      validateProjectFileCatSegmentQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
+        if (target.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, target);
+        }
+
+        if (target.kind !== "provider") {
+          const project = await getOwnedProject(c.var.auth, params.projectId);
+          if (!project) {
+            return projectNotFoundResponse(c);
+          }
+
+          const comments = await getNativeProjectCatSegmentComments({
+            organizationId: c.var.auth.organization.localOrganizationId,
+            projectId: params.projectId,
+            sourcePath: query.sourcePath,
+            targetLocale: query.targetLocale,
+            externalStringId: params.externalStringId,
+          });
+
+          return c.json({ comments }, 200);
+        }
+
+        try {
+          const comments = await getTmsProviderLiveCatSegmentComments(
+            c.var.auth.organization.localOrganizationId,
+            target.externalProjectId,
+            query.sourcePath,
+            query.targetLocale,
+            params.externalStringId,
+            { actorUserId: c.var.auth.user.localUserId },
+          );
+
+          return c.json({ comments }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }

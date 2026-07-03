@@ -6,7 +6,6 @@ import {
 } from "@/lib/providers/adapters/crowdin/crowdin-api";
 import { escapeCrowdinCroqlString } from "@/lib/providers/adapters/crowdin/crowdin-croql";
 import { loadCrowdinProjectCredential } from "@/lib/providers/adapters/crowdin/load-crowdin-project-credential";
-import { countCrowdinFileQueueSummary } from "@/lib/projects/cat/project-file-cat-queue-summary";
 import { resolveExternalTmsSecretMaterialForActor } from "@/lib/providers/tms-provider-content";
 import { err, isErr, ok, type Result } from "@/lib/primitives/result/results";
 
@@ -51,14 +50,6 @@ export type CheckCrowdinProgressResult = {
     text?: string;
   };
   languages: CrowdinProgressLanguageSummary[];
-  queueSummary?: {
-    targetLocale: string;
-    total: number;
-    reviewed: number;
-    untranslated: number;
-    needsReview: number;
-    hasIssues: number;
-  };
   stringTranslations?: Array<{
     languageId: string;
     translated: boolean;
@@ -381,20 +372,6 @@ export async function checkCrowdinProgress(
         },
         languages: languages.map(toLanguageSummary),
       };
-
-      const targetLocale = input.targetLocale?.trim();
-      if (targetLocale) {
-        const queueSummary = await countCrowdinFileQueueSummary(
-          client,
-          crowdinProjectId,
-          file.id,
-          targetLocale,
-        );
-        result.queueSummary = {
-          targetLocale,
-          ...queueSummary,
-        };
-      }
 
       return ok(result);
     }

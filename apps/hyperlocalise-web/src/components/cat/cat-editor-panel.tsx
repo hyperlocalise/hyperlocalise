@@ -104,6 +104,7 @@ export function CatEditorPanel({
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
   isSegmentDetailLoading = false,
+  isCommentsLoading = false,
   canApprove = true,
   canAddComment = false,
   canEditTranslations = true,
@@ -145,6 +146,7 @@ export function CatEditorPanel({
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
   isSegmentDetailLoading?: boolean;
+  isCommentsLoading?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
   canEditTranslations?: boolean;
@@ -609,7 +611,7 @@ export function CatEditorPanel({
               <h3 className="text-xs font-medium text-muted-foreground">
                 <FormattedMessage {...catEditorPanelMessages.comments} />
               </h3>
-              {isSegmentDetailLoading ? (
+              {isCommentsLoading ? (
                 <Skeleton className="h-3 w-6 rounded-full bg-foreground/8" />
               ) : (
                 <span className="text-xs text-muted-foreground tabular-nums">
@@ -617,7 +619,7 @@ export function CatEditorPanel({
                 </span>
               )}
             </div>
-            {isSegmentDetailLoading ? (
+            {isCommentsLoading ? (
               <ul className="space-y-3" aria-busy="true">
                 {Array.from({ length: 2 }, (_, index) => (
                   <li

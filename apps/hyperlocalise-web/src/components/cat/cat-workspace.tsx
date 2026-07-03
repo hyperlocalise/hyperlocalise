@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { FormattedMessage } from "react-intl";
 
-import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/primitives/cn";
 
@@ -65,12 +63,11 @@ export function CatWorkspaceView({
   isQueueSearchPending = false,
   isQueueFetchingPage = false,
   isQueueLoading = false,
-  isQueueSummaryLoading = false,
   isSegmentDetailLoading = false,
+  isCommentsLoading = false,
   queuePagination = null,
-  onQueuePreviousPage,
-  onQueueNextPage,
-  onQueueNearEnd,
+  hasMoreQueue = false,
+  onLoadMoreQueue,
   queueFilter,
   onQueueFilterChange,
   availableQueueFilters,
@@ -96,10 +93,6 @@ export function CatWorkspaceView({
     ) ?? navigationSegments[selectedSegmentIndex >= 0 ? selectedSegmentIndex : 0];
   const isCompact = useIsCompactWorkspace();
   const [activePanel, setActivePanel] = useState<CatWorkspacePanel>("edit");
-  const reviewedProgress =
-    fullState.queueSummary.total > 0
-      ? Math.round((fullState.queueSummary.reviewed / fullState.queueSummary.total) * 100)
-      : 0;
 
   if (!selectedSegment && !isQueueLoading) {
     return (
@@ -126,7 +119,6 @@ export function CatWorkspaceView({
           <CatQueuePanel
             segments={[]}
             selectedSegmentId=""
-            summary={fullState.queueSummary}
             onSelectSegment={() => undefined}
             search={queueSearch}
             onSearchChange={onQueueSearchChange}
@@ -136,10 +128,9 @@ export function CatWorkspaceView({
             availableQueueFilters={availableQueueFilters}
             isFetchingPage={isQueueFetchingPage}
             isQueueLoading
-            isSummaryLoading={isQueueSummaryLoading}
             pagination={queuePagination}
-            onPreviousPage={onQueuePreviousPage}
-            onNextPage={onQueueNextPage}
+            hasMoreQueue={hasMoreQueue}
+            onLoadMoreQueue={onLoadMoreQueue}
           />
         </CatPanelErrorBoundary>
       </div>
@@ -150,14 +141,22 @@ export function CatWorkspaceView({
     return null;
   }
 
-  const segmentPosition = queuePagination
-    ? queuePagination.offset + (selectedSegmentIndex >= 0 ? selectedSegmentIndex + 1 : 1)
-    : selectedSegmentIndex >= 0
-      ? selectedSegmentIndex + 1
-      : 1;
-  const totalSegments = queuePagination?.totalCount ?? navigationSegments.length;
+  const segmentPosition =
+    selectedSegment.index ??
+    (queuePagination
+      ? queuePagination.offset + (selectedSegmentIndex >= 0 ? selectedSegmentIndex + 1 : 1)
+      : selectedSegmentIndex >= 0
+        ? selectedSegmentIndex + 1
+        : 1);
+  const totalSegments = hasMoreQueue
+    ? null
+    : (queuePagination?.totalCount ?? navigationSegments.length);
   const hasPreviousSegment = segmentPosition > 1;
-  const hasNextSegment = segmentPosition < totalSegments;
+  const hasNextSegment =
+    hasMoreQueue ||
+    (totalSegments != null
+      ? segmentPosition < totalSegments
+      : selectedSegmentIndex < navigationSegments.length - 1);
   const { navigation, editing, review } = dependencies;
   const selectedSegmentIntelligence =
     fullState.segmentIntelligence?.[selectedSegment.id] ?? fullState.intelligence;
@@ -178,7 +177,7 @@ export function CatWorkspaceView({
         <CatEditorPanel
           segment={selectedSegment}
           segmentPosition={segmentPosition}
-          totalSegments={totalSegments}
+          totalSegments={totalSegments ?? navigationSegments.length}
           formatChecks={selectedSegmentFormatChecks}
           intelligence={selectedSegmentIntelligence}
           isEditorBusy={isEditorBusy}
@@ -188,6 +187,7 @@ export function CatWorkspaceView({
           isAiSuggestionLoading={isAiSuggestionLoading}
           isFormatChecksLoading={isFormatChecksLoading}
           isSegmentDetailLoading={isSegmentDetailLoading}
+          isCommentsLoading={isCommentsLoading}
           isPostingComment={isPostingComment}
           isResolvingComment={isResolvingComment}
           resolvingCommentId={resolvingCommentId}
@@ -248,7 +248,6 @@ export function CatWorkspaceView({
         <CatQueuePanel
           segments={state.segments}
           selectedSegmentId={selectedSegment.id}
-          summary={fullState.queueSummary}
           dirtySegmentIds={dirtySegmentIds}
           onSelectSegment={(segmentId) => {
             navigation.onSelectSegment(segmentId);
@@ -271,11 +270,9 @@ export function CatWorkspaceView({
           isBulkActionPending={isBulkActionPending}
           isFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
-          isSummaryLoading={isQueueSummaryLoading}
           pagination={queuePagination}
-          onPreviousPage={onQueuePreviousPage}
-          onNextPage={onQueueNextPage}
-          onNearEnd={onQueueNearEnd}
+          hasMoreQueue={hasMoreQueue}
+          onLoadMoreQueue={onLoadMoreQueue}
         />
       </CatPanelErrorBoundary>
     );
@@ -315,48 +312,15 @@ export function CatWorkspaceView({
       {isCompact ? (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-foreground/8 px-4 py-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0 space-y-1">
-                <p className="font-mono text-xs text-muted-foreground tabular-nums">
-                  {String(segmentPosition).padStart(2, "0")} /{" "}
-                  {String(totalSegments).padStart(2, "0")}
-                </p>
-                <p className="truncate font-mono text-sm font-medium text-foreground">
-                  {selectedSegment.key}
-                </p>
-              </div>
-              <div className="shrink-0 text-right">
-                {isQueueSummaryLoading ? (
-                  <div className="space-y-2">
-                    <Skeleton className="ms-auto h-3 w-20 rounded-full bg-foreground/8" />
-                    <Skeleton className="ms-auto h-3 w-16 rounded-full bg-foreground/8" />
-                  </div>
-                ) : (
-                  <>
-                    <p className="text-xs font-medium text-foreground">
-                      <FormattedMessage
-                        {...catWorkspaceMessages.reviewedProgress}
-                        values={{ progress: reviewedProgress }}
-                      />
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      <FormattedMessage
-                        {...catWorkspaceMessages.reviewedSummary}
-                        values={{
-                          reviewed: fullState.queueSummary.reviewed,
-                          total: fullState.queueSummary.total,
-                        }}
-                      />
-                    </p>
-                  </>
-                )}
-              </div>
+            <div className="min-w-0 space-y-1">
+              <p className="font-mono text-xs text-muted-foreground tabular-nums">
+                {String(segmentPosition).padStart(2, "0")}
+                {totalSegments != null ? ` / ${String(totalSegments).padStart(2, "0")}` : "+"}
+              </p>
+              <p className="truncate font-mono text-sm font-medium text-foreground">
+                {selectedSegment.key}
+              </p>
             </div>
-            {isQueueSummaryLoading ? (
-              <Skeleton className="mt-3 h-1.5 w-full rounded-full bg-foreground/8" />
-            ) : (
-              <Progress value={reviewedProgress} className="mt-3 h-1.5" />
-            )}
           </div>
 
           <Tabs

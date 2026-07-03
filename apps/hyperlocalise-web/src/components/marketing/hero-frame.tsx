@@ -353,13 +353,6 @@ const heroDemoChecks: CatFormatCheck[] = [
 const heroDemoState: CatWorkspaceState = {
   segments: heroDemoSegments,
   selectedSegmentId: "hero-title",
-  queueSummary: {
-    total: heroDemoSegments.length,
-    reviewed: heroDemoSegments.filter((segment) => segment.status === "reviewed").length,
-    untranslated: heroDemoSegments.filter((segment) => segment.status === "pending").length,
-    needsReview: heroDemoSegments.filter((segment) => segment.status === "needs_review").length,
-    hasIssues: 0,
-  },
   formatChecks: heroDemoChecks,
   segmentFormatChecks: {
     "hero-title": [],

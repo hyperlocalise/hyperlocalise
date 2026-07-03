@@ -20,7 +20,6 @@ export type {
   CatFormatCheck,
   CatFormatCheckStatus,
   CatGlossaryTerm,
-  CatQueueSummary,
   CatRiskLevel,
   CatSegment,
   CatSegmentIntelligence,
