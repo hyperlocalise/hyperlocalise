@@ -554,6 +554,7 @@ export function CatWorkspaceContainer({
       const includeAi = options?.includeAi === true && Boolean(generateAiRecommendation);
       const includeFormatChecks = Boolean(validateFormat || runQaChecks);
       const includeConcordance = Boolean(lookupSegmentConcordance);
+      const showFormatChecksLoading = includeFormatChecks && !includeAi;
 
       if (!includeAi && !includeFormatChecks && !includeConcordance) {
         return;
@@ -567,7 +568,7 @@ export function CatWorkspaceContainer({
       if (includeAi) {
         setIsGeneratingAiRecommendation(true);
       }
-      if (includeFormatChecks) {
+      if (showFormatChecksLoading) {
         setIsRunningFormatChecks(true);
       }
       try {
@@ -762,7 +763,7 @@ export function CatWorkspaceContainer({
           if (includeAi) {
             setIsGeneratingAiRecommendation(false);
           }
-          if (includeFormatChecks) {
+          if (showFormatChecksLoading) {
             setIsRunningFormatChecks(false);
           }
         }

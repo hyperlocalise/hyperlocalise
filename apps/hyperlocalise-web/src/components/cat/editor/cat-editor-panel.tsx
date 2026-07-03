@@ -1,48 +1,21 @@
 "use client";
 
-import { lazy, Suspense, useMemo } from "react";
+import { useMemo } from "react";
 import { useIntl } from "react-intl";
 
-import { Skeleton } from "@/components/ui/skeleton";
 import { useIsMac } from "@/hooks/use-is-mac";
 
 import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
 
 import { CatEditorActions } from "./cat-editor-actions";
+import { CatEditorAiRecommendation } from "./cat-editor-ai-recommendation";
+import { CatEditorCommentsSection } from "./cat-editor-comments-section";
+import { CatEditorFormatChecksSection } from "./cat-editor-format-checks-section";
 import { CatEditorHeader } from "./cat-editor-header";
 import { useCatEditorHotkeys } from "./cat-editor-hotkeys";
 import type { CatEditorPanelProps } from "./cat-editor-panel.types";
 import { CatEditorSourceSection } from "./cat-editor-source-section";
 import { CatEditorTargetSection } from "./cat-editor-target-section";
-
-const CatEditorAiRecommendation = lazy(() =>
-  import("./cat-editor-ai-recommendation").then((module) => ({
-    default: module.CatEditorAiRecommendation,
-  })),
-);
-
-const CatEditorFormatChecksSection = lazy(() =>
-  import("./cat-editor-format-checks-section").then((module) => ({
-    default: module.CatEditorFormatChecksSection,
-  })),
-);
-
-const CatEditorCommentsSection = lazy(() =>
-  import("./cat-editor-comments-section").then((module) => ({
-    default: module.CatEditorCommentsSection,
-  })),
-);
-
-function CatEditorDeferredSectionSkeleton({ lines = 2 }: { lines?: number }) {
-  return (
-    <div className="space-y-3" aria-busy="true">
-      <Skeleton className="h-3 w-28 rounded-full bg-foreground/8" />
-      {Array.from({ length: lines }, (_, index) => (
-        <Skeleton key={index} className="h-16 w-full rounded-xl bg-foreground/8" />
-      ))}
-    </div>
-  );
-}
 
 export function CatEditorPanel({
   segment,
@@ -187,38 +160,32 @@ export function CatEditorPanel({
           />
 
           {canUseAiRecommendation ? (
-            <Suspense fallback={<CatEditorDeferredSectionSkeleton lines={3} />}>
-              <CatEditorAiRecommendation
-                intelligence={intelligence}
-                isLoading={isAiSuggestionLoading}
-                error={aiRecommendationError}
-                onUseAiSuggestion={onUseAiSuggestion}
-                onGenerateAiRecommendation={onGenerateAiRecommendation}
-              />
-            </Suspense>
+            <CatEditorAiRecommendation
+              intelligence={intelligence}
+              isLoading={isAiSuggestionLoading}
+              error={aiRecommendationError}
+              onUseAiSuggestion={onUseAiSuggestion}
+              onGenerateAiRecommendation={onGenerateAiRecommendation}
+            />
           ) : null}
 
-          <Suspense fallback={<CatEditorDeferredSectionSkeleton lines={3} />}>
-            <CatEditorFormatChecksSection
-              formatChecks={formatChecks}
-              isLoading={isFormatChecksLoading}
-            />
-          </Suspense>
+          <CatEditorFormatChecksSection
+            formatChecks={formatChecks}
+            isLoading={isFormatChecksLoading}
+          />
 
-          <Suspense fallback={<CatEditorDeferredSectionSkeleton lines={2} />}>
-            <CatEditorCommentsSection
-              segment={segment}
-              isLoading={isCommentsLoading}
-              canAddComment={canAddComment}
-              supportsIssueComments={supportsIssueComments}
-              isPostingComment={isPostingComment}
-              isResolvingComment={isResolvingComment}
-              resolvingCommentId={resolvingCommentId}
-              commentPostError={commentPostError}
-              onAddComment={onAddComment}
-              onResolveComment={onResolveComment}
-            />
-          </Suspense>
+          <CatEditorCommentsSection
+            segment={segment}
+            isLoading={isCommentsLoading}
+            canAddComment={canAddComment}
+            supportsIssueComments={supportsIssueComments}
+            isPostingComment={isPostingComment}
+            isResolvingComment={isResolvingComment}
+            resolvingCommentId={resolvingCommentId}
+            commentPostError={commentPostError}
+            onAddComment={onAddComment}
+            onResolveComment={onResolveComment}
+          />
         </div>
       </div>
     </div>

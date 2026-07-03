@@ -3,7 +3,7 @@
 import { FormattedMessage } from "react-intl";
 
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/primitives/cn";
 
 import { catEditorPanelMessages } from "@/components/cat/shared/cat.messages";
@@ -22,36 +22,24 @@ export function CatEditorAiRecommendation({
   onUseAiSuggestion: () => void;
   onGenerateAiRecommendation?: () => void;
 }) {
-  if (isLoading) {
-    return (
-      <aside className="space-y-3 rounded-xl border border-foreground/8 bg-foreground/2 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <Skeleton className="h-3 w-28 rounded-full bg-foreground/8" />
-          <Skeleton className="h-8 w-12 rounded-md bg-foreground/8" />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-11/12 rounded-full bg-foreground/8" />
-          <Skeleton className="h-4 w-8/12 rounded-full bg-foreground/8" />
-        </div>
-        <Skeleton className="h-3 w-10/12 rounded-full bg-foreground/8" />
-      </aside>
-    );
-  }
+  const hasSuggestion = Boolean(intelligence.aiSuggestion);
 
   return (
     <aside
       className={cn(
-        "border-l pl-4",
-        intelligence.aiSuggestion ? "border-grove-300/40" : "border-foreground/12",
+        "border-l pl-4 transition-opacity",
+        hasSuggestion ? "border-grove-300/40" : "border-foreground/12",
+        isLoading && "opacity-80",
       )}
+      aria-busy={isLoading}
     >
       <div className="mb-2 flex items-center justify-between gap-3">
         <p className="text-xs font-medium text-muted-foreground">
           <FormattedMessage {...catEditorPanelMessages.aiRecommendation} />
         </p>
         <div className="flex items-center gap-1">
-          {intelligence.aiSuggestion ? (
-            <Button variant="ghost" size="sm" onClick={onUseAiSuggestion}>
+          {hasSuggestion ? (
+            <Button variant="ghost" size="sm" onClick={onUseAiSuggestion} disabled={isLoading}>
               <FormattedMessage {...catEditorPanelMessages.use} />
             </Button>
           ) : null}
@@ -62,7 +50,8 @@ export function CatEditorAiRecommendation({
               onClick={onGenerateAiRecommendation}
               disabled={isLoading}
             >
-              {intelligence.aiSuggestion ? (
+              {isLoading ? <Spinner className="size-4" /> : null}
+              {hasSuggestion ? (
                 <FormattedMessage {...catEditorPanelMessages.regenerate} />
               ) : (
                 <FormattedMessage {...catEditorPanelMessages.getRecommendation} />
@@ -73,7 +62,7 @@ export function CatEditorAiRecommendation({
       </div>
       {error ? (
         <p className="text-sm leading-relaxed text-flame-100">{error}</p>
-      ) : intelligence.aiSuggestion ? (
+      ) : hasSuggestion ? (
         <>
           <p className="text-sm leading-relaxed text-foreground/88">{intelligence.aiSuggestion}</p>
           {intelligence.aiReasoning ? (
