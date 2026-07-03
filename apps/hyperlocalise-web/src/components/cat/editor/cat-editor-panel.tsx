@@ -29,7 +29,6 @@ export function CatEditorPanel({
   isLookingUpContext = false,
   isAiSuggestionLoading = false,
   isFormatChecksLoading = false,
-  isSegmentDetailLoading: _isSegmentDetailLoading = false,
   isCommentsLoading = false,
   canApprove = true,
   canAddComment = false,

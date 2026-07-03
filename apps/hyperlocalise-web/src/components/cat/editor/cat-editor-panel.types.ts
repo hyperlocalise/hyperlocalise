@@ -17,7 +17,6 @@ export type CatEditorPanelProps = {
   isLookingUpContext?: boolean;
   isAiSuggestionLoading?: boolean;
   isFormatChecksLoading?: boolean;
-  isSegmentDetailLoading?: boolean;
   isCommentsLoading?: boolean;
   canApprove?: boolean;
   canAddComment?: boolean;
@@ -47,17 +46,4 @@ export type CatEditorPanelProps = {
   hasNextSegment: boolean;
   segmentShareUrl?: string | null;
   providerKind?: string | null;
-};
-
-export type CatEditorActionState = {
-  isApproving: boolean;
-  isSavingDraft: boolean;
-  isPostingComment: boolean;
-  isLookingUpContext: boolean;
-  isAiSuggestionLoading: boolean;
-  isFormatChecksLoading: boolean;
-  canApprove: boolean;
-  canLookupContext: boolean;
-  canTriggerApprove: boolean;
-  canTriggerFindContext: boolean;
 };

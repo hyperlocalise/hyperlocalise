@@ -321,9 +321,6 @@ export function ProjectFileCatWorkspace({
     enabled: Boolean(catFile),
   });
 
-  const isSegmentDetailLoading =
-    Boolean(activeSegmentId) && segmentDetailQuery.isFetching && !segmentDetailQuery.data;
-
   const segmentCommentsQuery = useCatSegmentComments({
     organizationSlug,
     projectId,
@@ -709,7 +706,6 @@ export function ProjectFileCatWorkspace({
         isQueueSearchPending={isSearchPending}
         isQueueFetchingPage={isFetchingNextPage}
         isQueueLoading={isQueueLoading}
-        isSegmentDetailLoading={isSegmentDetailLoading}
         isCommentsLoading={isCommentsLoading}
         queuePagination={pagination}
         onLoadMoreQueue={loadNextPage}

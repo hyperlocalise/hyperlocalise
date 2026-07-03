@@ -263,7 +263,6 @@ export interface CatWorkspaceContainerProps {
   isQueueSearchPending?: boolean;
   isQueueFetchingPage?: boolean;
   isQueueLoading?: boolean;
-  isSegmentDetailLoading?: boolean;
   queuePagination?: CatWorkspaceViewProps["queuePagination"];
   hasMoreQueue?: boolean;
   onLoadMoreQueue?: () => void;
@@ -302,7 +301,6 @@ export function CatWorkspaceContainer({
   isQueueSearchPending,
   isQueueFetchingPage,
   isQueueLoading,
-  isSegmentDetailLoading = false,
   queuePagination,
   hasMoreQueue = false,
   onLoadMoreQueue,
@@ -1360,7 +1358,6 @@ export function CatWorkspaceContainer({
           isQueueSearchPending={isQueueSearchPending}
           isQueueFetchingPage={isQueueFetchingPage}
           isQueueLoading={isQueueLoading}
-          isSegmentDetailLoading={isSegmentDetailLoading}
           isCommentsLoading={isCommentsLoading}
           queuePagination={queuePagination}
           hasMoreQueue={hasMoreQueue}
