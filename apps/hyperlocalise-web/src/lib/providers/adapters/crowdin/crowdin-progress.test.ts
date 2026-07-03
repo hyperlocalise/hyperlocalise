@@ -551,9 +551,7 @@ describe("checkCrowdinProgress", () => {
           return false;
         }
         const parsed = new URL(requestUrl);
-        return (
-          parsed.pathname.endsWith("/projects/42/strings") && parsed.searchParams.has("croql")
-        );
+        return parsed.pathname.endsWith("/projects/42/strings") && parsed.searchParams.has("croql");
       }),
     ).toBe(false);
   });
