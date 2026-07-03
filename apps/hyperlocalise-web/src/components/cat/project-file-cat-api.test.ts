@@ -17,7 +17,7 @@ describe("projectFileCatQueryKey", () => {
         offset: 50,
       }),
     ).toEqual([
-      "project-file-cat",
+      "project-file-cat-queue",
       "acme",
       "project_1",
       "locales/en.json",

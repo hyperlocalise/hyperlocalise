@@ -29,6 +29,7 @@ import { sourceContentType } from "@/lib/file-storage/source-file-metadata";
 import {
   countTmsProviderLiveOpenJobsForProject,
   getTmsProviderLiveCatFile,
+  getTmsProviderLiveCatQueueSummary,
   getTmsProviderLiveCatSegmentDetail,
   getTmsProviderLiveFileDetail,
   getTmsProviderLiveProject,
@@ -40,13 +41,17 @@ import {
 import { listOrganizationProjects } from "@/lib/projects/organization/organization-project-service";
 import {
   getNativeProjectCatFile,
+  getNativeProjectCatQueueSummary,
   getNativeProjectCatSegmentDetail,
   resolveNativeProjectCatComment,
   saveNativeProjectCatComment,
   saveNativeProjectCatTranslation,
   updateNativeProjectTranslationStatus,
 } from "@/lib/projects/cat/native-cat-service";
-import { resolveProjectFileCatPagination } from "@/lib/projects/cat/project-file-cat-pagination";
+import {
+  resolveProjectFileCatIncludeQueueSummary,
+  resolveProjectFileCatPagination,
+} from "@/lib/projects/cat/project-file-cat-pagination";
 import {
   getProjectFileDetail,
   listFilteredProjectFiles,
@@ -74,6 +79,7 @@ import {
   projectFileCatSegmentParamsSchema,
   projectFileCatSegmentQuerySchema,
   projectFileCatQuerySchema,
+  projectFileCatQueueSummaryQuerySchema,
   projectFileCatConcordanceBodySchema,
   projectFileCatCommentBodySchema,
   projectFileCatCommentResolveBodySchema,
@@ -91,6 +97,7 @@ import {
   projectFileCatCommentIdParamsSchema,
   updateProjectBodySchema,
   type CreateProjectBody,
+  type ProjectFileCatQuery,
   type UpdateProjectBody,
 } from "./project.schema";
 import { getVisibleTeamIds, hasOrganizationWideProjectAccess } from "@/api/auth/team-access";
@@ -400,6 +407,16 @@ const validateProjectFileCatQuery = validator("query", (value, c) => {
   return parsed.data;
 });
 
+const validateProjectFileCatQueueSummaryQuery = validator("query", (value, c) => {
+  const parsed = projectFileCatQueueSummaryQuerySchema.safeParse(value);
+
+  if (!parsed.success) {
+    return invalidProjectPayloadResponse(c);
+  }
+
+  return parsed.data;
+});
+
 const validateProjectFileCatTranslationBody = validator("json", (value, c) => {
   const parsed = projectFileCatTranslationBodySchema.safeParse(value);
 
@@ -552,6 +569,67 @@ type CreateProjectRoutesOptions = {
   translationFileImportQueue?: TranslationFileImportQueue;
 };
 
+async function loadProjectFileCatQueue(
+  auth: AuthVariables["auth"],
+  projectId: string,
+  query: ProjectFileCatQuery,
+  options?: { includeQueueSummary?: boolean },
+) {
+  const pagination = resolveProjectFileCatPagination(query);
+  const includeQueueSummary = options?.includeQueueSummary ?? false;
+  const target = await resolveProjectResourceTarget(auth, projectId);
+
+  if (target.kind === "provider_unavailable") {
+    return { kind: "provider_unavailable" as const, target };
+  }
+
+  if (target.kind !== "provider") {
+    const project = await getOwnedProject(auth, projectId);
+    if (!project) {
+      return { kind: "project_not_found" as const };
+    }
+
+    const catQueue = await getNativeProjectCatFile({
+      organizationId: auth.organization.localOrganizationId,
+      projectId,
+      sourcePath: query.sourcePath,
+      targetLocale: query.targetLocale,
+      canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+      pagination,
+      includeQueueSummary,
+    });
+
+    if (!catQueue) {
+      return { kind: "source_file_not_found" as const };
+    }
+
+    return { kind: "ok" as const, catQueue };
+  }
+
+  try {
+    const catQueue = await getTmsProviderLiveCatFile(
+      auth.organization.localOrganizationId,
+      target.externalProjectId,
+      query.sourcePath,
+      query.targetLocale,
+      {
+        actorUserId: auth.user.localUserId,
+        canEditTranslations: isWriteBackTranslationAllowed(auth.membership.role),
+        pagination,
+        includeQueueSummary,
+      },
+    );
+
+    if (!catQueue) {
+      return { kind: "project_not_found" as const };
+    }
+
+    return { kind: "ok" as const, catQueue };
+  } catch (error) {
+    return { kind: "provider_error" as const, error };
+  }
+}
+
 export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
   const jobQueue = options.jobQueue ?? createTranslationJobEventQueue();
   const translationFileImportQueue =
@@ -607,13 +685,12 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
     })
     .route("/:projectId/jobs", createJobRoutes({ jobQueue }))
     .get(
-      "/:projectId/files/detail/cat",
+      "/:projectId/files/detail/cat/queue/summary",
       validateProjectParams,
-      validateProjectFileCatQuery,
+      validateProjectFileCatQueueSummaryQuery,
       async (c) => {
         const params = c.req.valid("param");
         const query = c.req.valid("query");
-        const pagination = resolveProjectFileCatPagination(query);
         const target = await resolveProjectResourceTarget(c.var.auth, params.projectId);
         if (target.kind === "provider_unavailable") {
           return providerProjectUnavailableResponse(c, target);
@@ -625,16 +702,14 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             return projectNotFoundResponse(c);
           }
 
-          const catFile = await getNativeProjectCatFile({
+          const queueSummary = await getNativeProjectCatQueueSummary({
             organizationId: c.var.auth.organization.localOrganizationId,
             projectId: params.projectId,
             sourcePath: query.sourcePath,
             targetLocale: query.targetLocale,
-            canEditTranslations: isWriteBackTranslationAllowed(c.var.auth.membership.role),
-            pagination,
           });
 
-          if (!catFile) {
+          if (!queueSummary) {
             return badRequestResponse(
               c,
               "source_file_not_found",
@@ -642,29 +717,87 @@ export function createProjectRoutes(options: CreateProjectRoutesOptions = {}) {
             );
           }
 
-          return c.json({ catFile }, 200);
+          return c.json({ queueSummary }, 200);
         }
 
         try {
-          const catFile = await getTmsProviderLiveCatFile(
+          const queueSummary = await getTmsProviderLiveCatQueueSummary(
             c.var.auth.organization.localOrganizationId,
             target.externalProjectId,
             query.sourcePath,
             query.targetLocale,
-            {
-              actorUserId: c.var.auth.user.localUserId,
-              canEditTranslations: isWriteBackTranslationAllowed(c.var.auth.membership.role),
-              pagination,
-            },
+            { actorUserId: c.var.auth.user.localUserId },
           );
-          if (!catFile) {
+          if (!queueSummary) {
             return projectNotFoundResponse(c);
           }
 
-          return c.json({ catFile }, 200);
+          return c.json({ queueSummary }, 200);
         } catch (error) {
           return tmsProviderLiveErrorResponse(c, error);
         }
+      },
+    )
+    .get(
+      "/:projectId/files/detail/cat/queue",
+      validateProjectParams,
+      validateProjectFileCatQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query, {
+          includeQueueSummary: false,
+        });
+
+        if (result.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, result.target);
+        }
+        if (result.kind === "project_not_found") {
+          return projectNotFoundResponse(c);
+        }
+        if (result.kind === "source_file_not_found") {
+          return badRequestResponse(
+            c,
+            "source_file_not_found",
+            "Source file not found for the given path",
+          );
+        }
+        if (result.kind === "provider_error") {
+          return tmsProviderLiveErrorResponse(c, result.error);
+        }
+
+        return c.json({ catQueue: result.catQueue }, 200);
+      },
+    )
+    .get(
+      "/:projectId/files/detail/cat",
+      validateProjectParams,
+      validateProjectFileCatQuery,
+      async (c) => {
+        const params = c.req.valid("param");
+        const query = c.req.valid("query");
+        const result = await loadProjectFileCatQueue(c.var.auth, params.projectId, query, {
+          includeQueueSummary: resolveProjectFileCatIncludeQueueSummary(query),
+        });
+
+        if (result.kind === "provider_unavailable") {
+          return providerProjectUnavailableResponse(c, result.target);
+        }
+        if (result.kind === "project_not_found") {
+          return projectNotFoundResponse(c);
+        }
+        if (result.kind === "source_file_not_found") {
+          return badRequestResponse(
+            c,
+            "source_file_not_found",
+            "Source file not found for the given path",
+          );
+        }
+        if (result.kind === "provider_error") {
+          return tmsProviderLiveErrorResponse(c, result.error);
+        }
+
+        return c.json({ catFile: result.catQueue }, 200);
       },
     )
     .get(

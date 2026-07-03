@@ -1,10 +1,14 @@
-import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
-import type { ProjectFileCatQueueFilter } from "@/api/routes/project/project.schema";
+import type {
+  ProjectFileCatQueueFilter,
+  ProjectFileCatQueueResponse,
+  ProjectFileCatResponse,
+} from "@/api/routes/project/project.schema";
 import { defaultProjectFileCatPageLimit } from "@/api/routes/project/project.schema";
 import { readApiError } from "@/lib/api-error";
 import { apiClient } from "@/lib/api-client-instance";
 
 export type ProjectFileCatPage = ProjectFileCatResponse["catFile"];
+export type ProjectFileCatQueuePage = ProjectFileCatQueueResponse["catQueue"];
 
 export function projectFileCatQueryKey(input: {
   organizationSlug: string;
@@ -18,7 +22,7 @@ export function projectFileCatQueryKey(input: {
   offset: number;
 }) {
   return [
-    "project-file-cat",
+    "project-file-cat-queue",
     input.organizationSlug,
     input.projectId,
     input.sourcePath,
@@ -42,7 +46,7 @@ export function projectFileCatBaseQueryKey(input: {
   limit: number;
 }) {
   return [
-    "project-file-cat",
+    "project-file-cat-queue",
     input.organizationSlug,
     input.projectId,
     input.sourcePath,
@@ -54,7 +58,7 @@ export function projectFileCatBaseQueryKey(input: {
   ] as const;
 }
 
-export async function fetchProjectFileCatPage(input: {
+export async function fetchProjectFileCatQueuePage(input: {
   organizationSlug: string;
   projectId: string;
   sourcePath: string;
@@ -67,7 +71,7 @@ export async function fetchProjectFileCatPage(input: {
 }) {
   const response = await apiClient.api.orgs[":organizationSlug"].projects[
     ":projectId"
-  ].files.detail.cat.$get({
+  ].files.detail.cat.queue.$get({
     param: { organizationSlug: input.organizationSlug, projectId: input.projectId },
     query: {
       sourcePath: input.sourcePath,
@@ -81,11 +85,14 @@ export async function fetchProjectFileCatPage(input: {
   });
 
   if (!response.ok) {
-    throw new Error(await readApiError(response, "Failed to load CAT workspace"));
+    throw new Error(await readApiError(response, "Failed to load CAT queue"));
   }
 
-  const body = (await response.json()) as ProjectFileCatResponse;
-  return body.catFile;
+  const body = (await response.json()) as ProjectFileCatQueueResponse;
+  return body.catQueue;
 }
+
+/** @deprecated Use fetchProjectFileCatQueuePage — queue panel loads via GET /cat/queue */
+export const fetchProjectFileCatPage = fetchProjectFileCatQueuePage;
 
 export const defaultCatPageLimit = defaultProjectFileCatPageLimit;

@@ -378,79 +378,72 @@ export function JobCatPageContent({
   };
 
   return (
-    <main className="-mx-4 -my-5 flex min-h-[calc(100svh-var(--app-shell-header-height))] flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
-      <div className="flex shrink-0 flex-col gap-3 border-b border-border px-4 py-3 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <Button variant="outline" size="sm" render={<Link href={taskHref} />}>
-              <ArrowLeftIcon />
-              Task
-            </Button>
-            <div className="min-w-0">
-              <TypographyP className="truncate text-xs text-muted-foreground">
-                {selectedFile.provider.kind} · {selectedFile.provider.format ?? "file"}
-              </TypographyP>
-            </div>
-          </div>
-        </div>
+    <main className="-mx-4 -my-5 flex h-[calc(100svh-var(--app-shell-header-height))] min-h-0 flex-col overflow-hidden bg-background sm:-mx-6 lg:-mx-8">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-3 py-2 sm:px-4 lg:px-6">
+        <Button
+          variant="outline"
+          size="icon-sm"
+          className="size-8 shrink-0"
+          render={<Link href={taskHref} />}
+        >
+          <ArrowLeftIcon className="size-4" />
+        </Button>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <div className="flex min-w-0 flex-col gap-1.5">
-            <TypographyP className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-              Source file
-            </TypographyP>
-            <Select value={selectedFile.sourcePath} onValueChange={handleFileChange}>
-              <SelectTrigger className="h-9 w-full font-mono text-xs">
-                <SelectValue placeholder="Select file" />
-              </SelectTrigger>
-              <SelectContent>
-                {providerFiles.map((file) => (
-                  <SelectItem key={file.sourcePath} value={file.sourcePath}>
-                    {file.sourcePath}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+        <Select value={selectedFile.sourcePath} onValueChange={handleFileChange}>
+          <SelectTrigger
+            className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
+            aria-label="Source file"
+          >
+            <SelectValue placeholder="Source file" />
+          </SelectTrigger>
+          <SelectContent>
+            {providerFiles.map((file) => (
+              <SelectItem key={file.sourcePath} value={file.sourcePath}>
+                {file.sourcePath}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          {enabledRepositoryFullNames.length > 0 ? (
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <TypographyP className="text-[10px] font-medium tracking-wide text-muted-foreground uppercase">
-                GitHub repository
-              </TypographyP>
-              <Select
-                value={selectedRepositoryFullName ?? ""}
-                onValueChange={handleRepositoryChange}
-              >
-                <SelectTrigger className="h-9 w-full font-mono text-xs">
-                  <SelectValue placeholder="Select repository" />
-                </SelectTrigger>
-                <SelectContent>
-                  {enabledRepositoryFullNames.map((repositoryFullName) => (
-                    <SelectItem key={repositoryFullName} value={repositoryFullName}>
-                      {repositoryFullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ) : null}
-        </div>
-
-        {repositoriesQuery.isError ? (
-          <TypographyP className="text-xs text-muted-foreground">
-            GitHub repositories could not be loaded. Repository context lookup is unavailable.
-          </TypographyP>
+        {enabledRepositoryFullNames.length > 0 ? (
+          <Select value={selectedRepositoryFullName ?? ""} onValueChange={handleRepositoryChange}>
+            <SelectTrigger
+              className="h-8 min-w-0 flex-1 basis-40 font-mono text-xs sm:max-w-xs"
+              aria-label="GitHub repository"
+            >
+              <SelectValue placeholder="GitHub repo" />
+            </SelectTrigger>
+            <SelectContent>
+              {enabledRepositoryFullNames.map((repositoryFullName) => (
+                <SelectItem key={repositoryFullName} value={repositoryFullName}>
+                  {repositoryFullName}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         ) : null}
 
-        {enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName ? (
-          <TypographyP className="text-xs text-muted-foreground">
-            Select a GitHub repository to look up string context for this file.
-          </TypographyP>
-        ) : null}
+        <TypographyP className="hidden min-w-0 truncate text-xs text-muted-foreground sm:block lg:max-w-48">
+          {selectedFile.provider.kind} · {selectedFile.provider.format ?? "file"}
+        </TypographyP>
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col px-4 py-3 sm:px-6 lg:px-8">
+      {(repositoriesQuery.isError ||
+        (enabledRepositoryFullNames.length > 1 && !selectedRepositoryFullName)) && (
+        <div className="shrink-0 border-b border-border px-3 py-1.5 sm:px-4 lg:px-6">
+          {repositoriesQuery.isError ? (
+            <TypographyP className="text-xs text-muted-foreground">
+              GitHub repositories could not be loaded. Repository context lookup is unavailable.
+            </TypographyP>
+          ) : (
+            <TypographyP className="text-xs text-muted-foreground">
+              Select a GitHub repository to look up string context.
+            </TypographyP>
+          )}
+        </div>
+      )}
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 py-2 sm:px-4 lg:px-6">
         <ProjectFileCatWorkspace
           key={`${selectedFile.sourcePath}:${selectedRepositoryFullName ?? "default"}`}
           organizationSlug={organizationSlug}
@@ -460,6 +453,7 @@ export function JobCatPageContent({
           repositoryFullName={selectedRepositoryFullName}
           initialSegmentKey={initialSegmentKey}
           layout="fullscreen"
+          className="min-h-0 flex-1"
         />
       </div>
     </main>

@@ -57,6 +57,7 @@ export class NativeCatService extends ProjectServiceBase {
     targetLocale: string;
     canEditTranslations: boolean;
     pagination?: ProjectFileCatPaginationInput;
+    includeQueueSummary?: boolean;
   }): Promise<ProjectFileCatResponse["catFile"] | null> {
     const sourceFile = await this.translations.getRepositorySourceFileByPath({
       organizationId: input.organizationId,
@@ -76,6 +77,8 @@ export class NativeCatService extends ProjectServiceBase {
       paginated: false,
     };
 
+    const includeQueueSummary = input.includeQueueSummary !== false;
+
     if (!paginationInput.paginated) {
       const keys = await this.translations.listKeysForFile({
         organizationId: input.organizationId,
@@ -86,12 +89,14 @@ export class NativeCatService extends ProjectServiceBase {
 
       const truncated = keys.length > legacyNativeCatSegmentLimit;
       const visibleKeys = truncated ? keys.slice(0, legacyNativeCatSegmentLimit) : keys;
-      const queueSummary = await countNativeFileQueueSummary(this.translations, {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        repositorySourceFileId: sourceFile.id,
-        targetLocale: input.targetLocale,
-      });
+      const queueSummary = includeQueueSummary
+        ? await countNativeFileQueueSummary(this.translations, {
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            repositorySourceFileId: sourceFile.id,
+            targetLocale: input.targetLocale,
+          })
+        : undefined;
 
       return this.buildCatFileResponse({
         input,
@@ -121,12 +126,14 @@ export class NativeCatService extends ProjectServiceBase {
         search: paginationInput.search,
         queueFilter: paginationInput.queueFilter,
       }),
-      countNativeFileQueueSummary(this.translations, {
-        organizationId: input.organizationId,
-        projectId: input.projectId,
-        repositorySourceFileId: sourceFile.id,
-        targetLocale: input.targetLocale,
-      }),
+      includeQueueSummary
+        ? countNativeFileQueueSummary(this.translations, {
+            organizationId: input.organizationId,
+            projectId: input.projectId,
+            repositorySourceFileId: sourceFile.id,
+            targetLocale: input.targetLocale,
+          })
+        : Promise.resolve(undefined),
     ]);
 
     const pagination = buildCatFilePagination({
@@ -156,7 +163,7 @@ export class NativeCatService extends ProjectServiceBase {
     visibleKeys: Awaited<ReturnType<ProjectTranslationService["listKeysForFile"]>>;
     truncated: boolean;
     pagination: ReturnType<typeof buildCatFilePagination> | undefined;
-    queueSummary: Awaited<ReturnType<typeof countNativeFileQueueSummary>>;
+    queueSummary: Awaited<ReturnType<typeof countNativeFileQueueSummary>> | undefined;
   }): Promise<ProjectFileCatResponse["catFile"]> {
     const translationKeyIds = input.visibleKeys.map((key) => key.id);
     const [translations, commentCounts] = await Promise.all([
@@ -185,7 +192,7 @@ export class NativeCatService extends ProjectServiceBase {
       canEditTranslations: input.input.canEditTranslations,
       truncated: input.truncated,
       pagination: input.pagination,
-      queueSummary: input.queueSummary,
+      ...(input.queueSummary ? { queueSummary: input.queueSummary } : {}),
       segments: input.visibleKeys.map((key) => {
         const translation = translationByKeyId.get(key.id);
         const counts = commentCounts.get(key.id);
@@ -520,12 +527,40 @@ export class NativeCatService extends ProjectServiceBase {
       segments: hydratedSegments,
     };
   }
+
+  async getQueueSummary(input: {
+    organizationId: string;
+    projectId: string;
+    sourcePath: string;
+    targetLocale: string;
+  }): Promise<ProjectFileCatResponse["catFile"]["queueSummary"] | null> {
+    const sourceFile = await this.translations.getRepositorySourceFileByPath({
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      sourcePath: input.sourcePath,
+    });
+
+    if (!sourceFile) {
+      return null;
+    }
+
+    return countNativeFileQueueSummary(this.translations, {
+      organizationId: input.organizationId,
+      projectId: input.projectId,
+      repositorySourceFileId: sourceFile.id,
+      targetLocale: input.targetLocale,
+    });
+  }
 }
 
 export const nativeCatService = new NativeCatService();
 
 export const getNativeProjectCatFile = (input: Parameters<NativeCatService["getCatFile"]>[0]) =>
   nativeCatService.getCatFile(input);
+
+export const getNativeProjectCatQueueSummary = (
+  input: Parameters<NativeCatService["getQueueSummary"]>[0],
+) => nativeCatService.getQueueSummary(input);
 
 export const getNativeProjectCatSegmentDetail = (
   input: Parameters<NativeCatService["getSegmentDetail"]>[0],

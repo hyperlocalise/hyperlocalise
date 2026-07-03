@@ -1054,7 +1054,7 @@ describe("getTmsProviderLiveCatFile", () => {
             queueFilter: "has_issues",
           }),
       ).length,
-    ).toBeGreaterThanOrEqual(2);
+    ).toBeGreaterThanOrEqual(1);
   });
 });
 
