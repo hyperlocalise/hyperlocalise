@@ -78,3 +78,29 @@ export const ActiveAndPaused: Story = {
     await expect(canvas.getByText("paused")).toBeInTheDocument();
   },
 };
+
+export const SingleAutomation: Story = {
+  args: {
+    automations: [automationsFixture[0]!],
+  },
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Validate localisation on push")).toBeInTheDocument();
+    await expect(canvas.queryByText("Weekly translation sync")).not.toBeInTheDocument();
+    await expect(canvas.getByText("1")).toBeInTheDocument();
+  },
+};
+
+export const MarketingTemplates: Story = {
+  play: async ({ canvas, userEvent }) => {
+    await userEvent.click(canvas.getByRole("tab", { name: "Marketing" }));
+    await expect(canvas.getByText("Market messaging brief")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Coming soon" })).toBeInTheDocument();
+  },
+};
+
+export const ActivatableTemplate: Story = {
+  play: async ({ canvas }) => {
+    await expect(canvas.getByText("Translate Contentful article")).toBeInTheDocument();
+    await expect(canvas.getAllByRole("button", { name: "Add" })).not.toHaveLength(0);
+  },
+};
