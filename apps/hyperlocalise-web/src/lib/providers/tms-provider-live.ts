@@ -820,7 +820,7 @@ async function enrichLiveCatFileWithProjectLocales(
       targetLocales:
         file.provider.targetLocales.length > 0
           ? file.provider.targetLocales
-          : projectMetadata.targetLocales,
+          : (projectMetadata.targetLocales ?? []),
     },
   };
 }
