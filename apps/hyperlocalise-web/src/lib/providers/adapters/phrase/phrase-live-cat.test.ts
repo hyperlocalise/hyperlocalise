@@ -57,7 +57,7 @@ describe("buildPhraseLiveCatFile", () => {
     vi.clearAllMocks();
   });
 
-  it("loads a single key file with source and target without comments", async () => {
+  it("loads a single key file without fetching translations or comments", async () => {
     const fetchMock = vi.fn(async (url: string) => {
       const path = String(url);
 
@@ -88,52 +88,6 @@ describe("buildPhraseLiveCatFile", () => {
         );
       }
 
-      if (path.includes("/keys/key-1/translations")) {
-        return new Response(
-          JSON.stringify([
-            {
-              id: "tr-en",
-              key_id: "key-1",
-              locale_name: "en",
-              content: "Hello",
-              state: "translated",
-              unverified: false,
-              excluded: false,
-            },
-            {
-              id: "tr-fr",
-              key_id: "key-1",
-              locale_name: "fr",
-              content: "Bonjour",
-              state: "translated",
-              unverified: false,
-              excluded: false,
-            },
-          ]),
-          { status: 200 },
-        );
-      }
-
-      if (path.includes("/translations")) {
-        return new Response(JSON.stringify([]), { status: 200 });
-      }
-
-      if (path.includes("/keys/key-1/comments")) {
-        return new Response(
-          JSON.stringify([
-            {
-              id: "comment-1",
-              message: "Check tone",
-              has_replies: false,
-              user: { id: "user-1", username: "reviewer", name: "Reviewer" },
-              created_at: "2026-06-08T00:01:00Z",
-              locales: [{ id: "loc-fr", name: "fr", code: "fr-FR" }],
-            },
-          ]),
-          { status: 200 },
-        );
-      }
-
       return new Response(JSON.stringify([]), { status: 200 });
     });
     globalThis.fetch = fetchMock as typeof fetch;
@@ -150,11 +104,15 @@ describe("buildPhraseLiveCatFile", () => {
     expect(catFile.segments[0]).toMatchObject({
       externalStringId: "key-1",
       key: "home.hero.title",
-      sourceText: "Hello",
+      sourceText: "home.hero.title",
       context: "Hero headline",
       comments: [],
     });
     expect(catFile.segments[0]).not.toHaveProperty("target");
+    expect(fetchMock).not.toHaveBeenCalledWith(
+      expect.stringContaining("/translations"),
+      expect.anything(),
+    );
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.stringContaining("/keys/key-1/comments"),
       expect.anything(),
@@ -289,37 +247,11 @@ describe("buildPhraseLiveCatFile", () => {
       }
 
       if (path.includes("/keys/key-hero/translations")) {
-        return new Response(
-          JSON.stringify([
-            {
-              id: "tr-en-hero",
-              key_id: "key-hero",
-              locale_name: "en",
-              content: "Hero",
-              state: "translated",
-              unverified: false,
-              excluded: false,
-            },
-          ]),
-          { status: 200 },
-        );
+        return new Response(JSON.stringify([]), { status: 200 });
       }
 
       if (path.includes("/keys/key-footer/translations")) {
-        return new Response(
-          JSON.stringify([
-            {
-              id: "tr-en-footer",
-              key_id: "key-footer",
-              locale_name: "en",
-              content: "Footer",
-              state: "translated",
-              unverified: false,
-              excluded: false,
-            },
-          ]),
-          { status: 200 },
-        );
+        return new Response(JSON.stringify([]), { status: 200 });
       }
 
       if (path.includes("/translations")) {
@@ -367,7 +299,7 @@ describe("buildPhraseLiveCatFile", () => {
         offset: 0,
         limit: 10,
         search: "hero",
-        queueFilter: "untranslated",
+        queueFilter: "all",
         paginated: true,
       },
     });
@@ -567,7 +499,7 @@ describe("buildPhraseLiveCatFile", () => {
         offset: 0,
         limit: 1,
         search: "home",
-        queueFilter: "untranslated",
+        queueFilter: "all",
         paginated: true,
       },
     });
@@ -592,7 +524,7 @@ describe("buildPhraseLiveCatFile", () => {
         offset: 1,
         limit: 1,
         search: "home",
-        queueFilter: "untranslated",
+        queueFilter: "all",
         paginated: true,
         phraseScanPage: firstPage.pagination?.nextPhraseScanPage,
         phraseScanSkip: firstPage.pagination?.nextPhraseScanSkip,

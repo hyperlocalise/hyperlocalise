@@ -25,10 +25,6 @@ import type {
 
 type CatFile = ProjectFileCatQueueFile;
 
-function segmentTarget(segment: CatFile["segments"][number] | ProjectFileCatSegment) {
-  return "target" in segment ? segment.target : null;
-}
-
 function countOpenIssues(segment: CatFile["segments"][number] | ProjectFileCatSegment) {
   if (segment.comments.length > 0) {
     return segment.comments.filter(
@@ -53,22 +49,31 @@ function mapSegmentComments(
   }));
 }
 
-export function segmentStatusFor(
-  segment: CatFile["segments"][number] | ProjectFileCatSegment,
+export function segmentStatusFromTarget(
+  segment: Pick<CatSegment, "hasOpenIssues">,
+  target: ProjectFileCatSegment["target"],
 ): CatSegment["status"] {
-  const target = segmentTarget(segment);
-
   if (target?.isApproved) {
     return "reviewed";
   }
 
+  if (segment.hasOpenIssues) {
+    return "needs_review";
+  }
+
+  return target?.text.trim() ? "needs_review" : "pending";
+}
+
+export function segmentStatusForQueue(
+  segment: CatFile["segments"][number] | ProjectFileCatSegment,
+): CatSegment["status"] {
   const hasUnresolvedIssue = countOpenIssues(segment) > 0;
 
   if (hasUnresolvedIssue) {
     return "needs_review";
   }
 
-  return target?.text.trim() ? "needs_review" : "pending";
+  return "pending";
 }
 
 export function formatCheckFromParityIssue(
@@ -295,11 +300,11 @@ export function projectFileCatToWorkspaceState(
       index: segmentOffset + index + 1,
       key: segment.key,
       sourceText: segment.sourceText,
-      targetText: segmentTarget(segment)?.text ?? "",
+      targetText: "",
       sourceLocale,
       targetLocale: catFile.targetLocale,
       contextLabel: segment.context ?? undefined,
-      status: segmentStatusFor(segment),
+      status: segmentStatusForQueue(segment),
       hasOpenIssues: issueComments > 0,
       tags,
       ...(segment.maxLength != null && segment.maxLength > 0
@@ -331,44 +336,28 @@ export function projectFileCatToWorkspaceState(
 
 export function applyCatSegmentTargetToWorkspaceState(
   state: CatWorkspaceState,
-  catFile: CatFile,
   segmentId: string,
   target: ProjectFileCatSegment["target"],
-  intl: CatFormatMessageIntl,
+  _intl: CatFormatMessageIntl,
 ): CatWorkspaceState {
-  const queueSegment = catFile.segments.find((segment) => segment.externalStringId === segmentId);
-  if (!queueSegment) {
+  const existingSegment = state.segments.find((segment) => segment.id === segmentId);
+  if (!existingSegment) {
     return state;
   }
 
-  const mergedSegment: ProjectFileCatSegment = {
-    ...queueSegment,
-    externalStringId: segmentId,
-    key: queueSegment.key,
-    sourceText: queueSegment.sourceText,
-    context: queueSegment.context,
-    type: queueSegment.type,
-    comments: [],
-    target,
-  };
-
-  const nextCatFile: CatFile = {
-    ...catFile,
-    segments: catFile.segments.map((segment) =>
-      segment.externalStringId === segmentId ? mergedSegment : segment,
-    ),
-  };
-  const targetState = projectFileCatToWorkspaceState(nextCatFile, intl);
-  const targetSegment = targetState.segments.find((segment) => segment.id === segmentId);
-
-  if (!targetSegment) {
-    return state;
-  }
+  const targetText = target?.text ?? "";
+  const status = segmentStatusFromTarget(existingSegment, target);
 
   return {
     ...state,
     segments: state.segments.map((segment) =>
-      segment.id === targetSegment.id ? targetSegment : segment,
+      segment.id === segmentId
+        ? {
+            ...segment,
+            targetText,
+            status,
+          }
+        : segment,
     ),
   };
 }

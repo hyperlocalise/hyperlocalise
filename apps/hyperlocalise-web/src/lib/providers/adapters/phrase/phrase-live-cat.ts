@@ -50,17 +50,27 @@ type PhraseLiveCatContext = {
   branch: string | null;
 };
 
-type PhraseCatSegmentDraft = {
+type PhraseQueueSegmentDraft = {
   externalStringId: string;
   key: string;
   sourceText: string;
   context: string | null;
   type: string | null;
-  target: ProjectFileCatTranslation | null;
   commentCount: number;
 };
 
-function draftToQueueSegment(draft: PhraseCatSegmentDraft): ProjectFileCatQueueSegment {
+function buildQueueSegmentFromKey(key: PhraseKey, commentCount: number): PhraseQueueSegmentDraft {
+  return {
+    externalStringId: key.id,
+    key: key.name,
+    sourceText: key.name,
+    context: key.description,
+    type: key.dataType,
+    commentCount,
+  };
+}
+
+function draftToQueueSegment(draft: PhraseQueueSegmentDraft): ProjectFileCatQueueSegment {
   return {
     externalStringId: draft.externalStringId,
     key: draft.key,
@@ -196,38 +206,26 @@ function mapPhraseKeyComment(
 }
 
 function segmentMatchesQueueFilter(
-  segment: PhraseCatSegmentDraft,
+  segment: PhraseQueueSegmentDraft,
   filter: ProjectFileCatPaginationInput["queueFilter"],
 ) {
-  const hasComments = segment.commentCount > 0;
-  const isApproved = segment.target?.isApproved ?? false;
-  const hasTarget = Boolean(segment.target?.text?.trim());
-
   switch (filter) {
-    case "untranslated":
-      return !hasTarget;
-    case "needs_review":
-      return hasTarget && !isApproved;
-    case "reviewed":
-      return isApproved;
     case "has_issues":
-      return hasComments;
+      return segment.commentCount > 0;
     case "all":
     default:
       return true;
   }
 }
 
-function segmentMatchesSearch(segment: PhraseCatSegmentDraft, search: string | undefined) {
+function segmentMatchesSearch(segment: PhraseQueueSegmentDraft, search: string | undefined) {
   const query = search?.trim().toLowerCase();
   if (!query) {
     return true;
   }
 
   return (
-    segment.key.toLowerCase().includes(query) ||
-    segment.sourceText.toLowerCase().includes(query) ||
-    (segment.target?.text?.toLowerCase().includes(query) ?? false)
+    segment.key.toLowerCase().includes(query) || segment.sourceText.toLowerCase().includes(query)
   );
 }
 
@@ -303,33 +301,6 @@ async function loadCommentCountsByKeyId(input: {
   return commentCountsByKeyId;
 }
 
-function buildSegmentDrafts(input: {
-  keys: PhraseKey[];
-  sourceLocale: PhraseLocale | null;
-  targetLocale: PhraseLocale;
-  targetLocaleCode: string;
-  translationsByKeyId: Map<string, Map<string, PhraseTranslation>>;
-  commentCountsByKeyId: Map<string, number>;
-}): PhraseCatSegmentDraft[] {
-  return input.keys.map((key) => {
-    const translationsByLocale = input.translationsByKeyId.get(key.id);
-    const sourceTranslation = input.sourceLocale
-      ? translationsByLocale?.get(input.sourceLocale.name)
-      : null;
-    const targetTranslation = translationsByLocale?.get(input.targetLocale.name);
-
-    return {
-      externalStringId: key.id,
-      key: key.name,
-      sourceText: sourceTranslation?.content?.trim() || key.name,
-      context: key.description,
-      type: key.dataType,
-      target: mapPhraseTargetTranslation(targetTranslation),
-      commentCount: input.commentCountsByKeyId.get(key.id) ?? 0,
-    };
-  });
-}
-
 function filterKeysByFileTags(keys: PhraseKey[], tags: string[]) {
   if (tags.length === 0) {
     return keys;
@@ -345,9 +316,6 @@ async function loadPhraseQueuePage(input: {
   client: ReturnType<typeof createPhraseStringsApiClient>;
   scope: PhraseLiveCatContext;
   file: TmsProviderLiveFile;
-  sourceLocale: PhraseLocale | null;
-  targetLocale: PhraseLocale;
-  targetLocaleCode: string;
   paginationInput: ProjectFileCatPaginationInput;
 }): Promise<{
   segments: ProjectFileCatQueueSegment[];
@@ -361,11 +329,6 @@ async function loadPhraseQueuePage(input: {
     input.file.provider?.externalResourceId ?? "",
   );
   const listOptions = input.scope.branch ? { branch: input.scope.branch } : {};
-  const localeNames = new Set(
-    [input.sourceLocale, input.targetLocale]
-      .filter((locale): locale is PhraseLocale => locale != null)
-      .map((locale) => locale.name),
-  );
   const { offset, limit, search, queueFilter } = input.paginationInput;
   const loadCommentCounts = needsCommentCountsForQueueFilter(queueFilter);
 
@@ -377,31 +340,16 @@ async function loadPhraseQueuePage(input: {
         listOptions,
       )) ?? null;
     const keys = key ? [key] : [];
-    const [translationsByKeyId, commentCountsByKeyId] = await Promise.all([
-      loadTranslationsByKeyId({
-        client: input.client,
-        projectId: input.scope.stringsProjectId,
-        localeNames,
-        branch: input.scope.branch,
-        keyIds: keys.map((entry) => entry.id),
-      }),
-      loadCommentCounts
-        ? loadCommentCountsByKeyId({
-            client: input.client,
-            projectId: input.scope.stringsProjectId,
-            branch: input.scope.branch,
-            keys,
-          })
-        : Promise.resolve(new Map<string, number>()),
-    ]);
-    const segments = buildSegmentDrafts({
-      keys,
-      sourceLocale: input.sourceLocale,
-      targetLocale: input.targetLocale,
-      targetLocaleCode: input.targetLocaleCode,
-      translationsByKeyId,
-      commentCountsByKeyId,
-    })
+    const commentCountsByKeyId = loadCommentCounts
+      ? await loadCommentCountsByKeyId({
+          client: input.client,
+          projectId: input.scope.stringsProjectId,
+          branch: input.scope.branch,
+          keys,
+        })
+      : new Map<string, number>();
+    const segments = keys
+      .map((entry) => buildQueueSegmentFromKey(entry, commentCountsByKeyId.get(entry.id) ?? 0))
       .filter(
         (segment) =>
           segmentMatchesQueueFilter(segment, queueFilter) && segmentMatchesSearch(segment, search),
@@ -416,7 +364,7 @@ async function loadPhraseQueuePage(input: {
   }
 
   const needsClientSideFilter =
-    queueFilter !== "all" || Boolean(search?.trim()) || metadata.tags.length > 0;
+    queueFilter === "has_issues" || Boolean(search?.trim()) || metadata.tags.length > 0;
 
   if (!needsClientSideFilter) {
     const phrasePage = Math.floor(offset / limit) + 1;
@@ -425,23 +373,9 @@ async function loadPhraseQueuePage(input: {
       page: phrasePage,
       perPage: limit,
     });
-    const translationsByKeyId = await loadTranslationsByKeyId({
-      client: input.client,
-      projectId: input.scope.stringsProjectId,
-      localeNames,
-      branch: input.scope.branch,
-      keyIds: keys.map((entry) => entry.id),
-    });
 
     return {
-      segments: buildSegmentDrafts({
-        keys,
-        sourceLocale: input.sourceLocale,
-        targetLocale: input.targetLocale,
-        targetLocaleCode: input.targetLocaleCode,
-        translationsByKeyId,
-        commentCountsByKeyId: new Map(),
-      }).map(draftToQueueSegment),
+      segments: keys.map((entry) => buildQueueSegmentFromKey(entry, 0)).map(draftToQueueSegment),
       hasMore,
     };
   }
@@ -472,31 +406,17 @@ async function loadPhraseQueuePage(input: {
     const keys = filterKeysByFileTags(rawKeys, metadata.tags);
 
     if (keys.length > 0) {
-      const [translationsByKeyId, commentCountsByKeyId] = await Promise.all([
-        loadTranslationsByKeyId({
-          client: input.client,
-          projectId: input.scope.stringsProjectId,
-          localeNames,
-          branch: input.scope.branch,
-          keyIds: keys.map((entry) => entry.id),
-        }),
-        loadCommentCounts
-          ? loadCommentCountsByKeyId({
-              client: input.client,
-              projectId: input.scope.stringsProjectId,
-              branch: input.scope.branch,
-              keys,
-            })
-          : Promise.resolve(new Map<string, number>()),
-      ]);
-      const drafts = buildSegmentDrafts({
-        keys,
-        sourceLocale: input.sourceLocale,
-        targetLocale: input.targetLocale,
-        targetLocaleCode: input.targetLocaleCode,
-        translationsByKeyId,
-        commentCountsByKeyId,
-      });
+      const commentCountsByKeyId = loadCommentCounts
+        ? await loadCommentCountsByKeyId({
+            client: input.client,
+            projectId: input.scope.stringsProjectId,
+            branch: input.scope.branch,
+            keys,
+          })
+        : new Map<string, number>();
+      const drafts = keys.map((entry) =>
+        buildQueueSegmentFromKey(entry, commentCountsByKeyId.get(entry.id) ?? 0),
+      );
 
       let matchesSeenOnPage = 0;
       for (const draft of drafts) {
@@ -574,8 +494,7 @@ export async function buildPhraseLiveCatFile(input: {
     mapPhraseApiError(error);
   }
 
-  const sourceLocale = locales.find((locale) => locale.default) ?? null;
-  const targetLocale = resolvePhraseTargetLocale(input.targetLocale, locales);
+  resolvePhraseTargetLocale(input.targetLocale, locales);
 
   const paginationInput = input.pagination ?? {
     offset: 0,
@@ -589,9 +508,6 @@ export async function buildPhraseLiveCatFile(input: {
     client,
     scope,
     file: input.file,
-    sourceLocale,
-    targetLocale,
-    targetLocaleCode: input.targetLocale,
     paginationInput,
   });
 

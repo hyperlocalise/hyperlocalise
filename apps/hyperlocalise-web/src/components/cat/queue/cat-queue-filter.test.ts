@@ -120,6 +120,13 @@ describe("resolveAvailableCatQueueFilters", () => {
   it("includes has issues for Phrase projects", () => {
     expect(resolveAvailableCatQueueFilters("phrase")).toContain("has_issues");
   });
+
+  it("omits translation status filters for Phrase projects", () => {
+    const filters = resolveAvailableCatQueueFilters("phrase");
+    expect(filters).not.toContain("untranslated");
+    expect(filters).not.toContain("needs_review");
+    expect(filters).not.toContain("reviewed");
+  });
 });
 
 describe("resolveVisibleQueueSegments", () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vite-plus/test";
 
-import type { ProjectFileCatResponse } from "@/api/routes/project/project.schema";
+import type { ProjectFileCatQueueFile } from "@/api/routes/project/project.schema";
 import { getIntlShape } from "@/lib/app-i18n/intl";
 import {
   projectFileCatToWorkspaceState,
@@ -9,7 +9,7 @@ import {
 
 const testIntl = getIntlShape("en");
 
-function catFile(): ProjectFileCatResponse["catFile"] {
+function catFile(): ProjectFileCatQueueFile {
   return {
     sourcePath: "en-US.json",
     filename: "en-US.json",
@@ -37,11 +37,6 @@ function catFile(): ProjectFileCatResponse["catFile"] {
         sourceText: "Sign in to your workspace",
         context: "Heading on the sign-in screen",
         type: "text",
-        target: {
-          text: "Dang nhap vao khong gian lam viec",
-          externalTranslationId: "translation-1",
-          isApproved: true,
-        },
         comments: [],
       },
       {
@@ -50,7 +45,6 @@ function catFile(): ProjectFileCatResponse["catFile"] {
         sourceText: "{count, plural, one {# review pending} other {# reviews pending}}",
         context: null,
         type: "icu",
-        target: null,
         comments: [
           {
             externalCommentId: "comment-1",
@@ -67,7 +61,7 @@ function catFile(): ProjectFileCatResponse["catFile"] {
 }
 
 describe("projectFileCatToWorkspaceState", () => {
-  it("maps live Crowdin CAT content into the next-gen CAT workspace shape", () => {
+  it("maps live Crowdin CAT queue content into the next-gen CAT workspace shape", () => {
     const state = projectFileCatToWorkspaceState(catFile(), testIntl);
 
     expect(state.selectedSegmentId).toBe("approved-string");
@@ -76,9 +70,9 @@ describe("projectFileCatToWorkspaceState", () => {
       key: "auth.signIn.title",
       sourceLocale: "en-US",
       targetLocale: "vi",
-      targetText: "Dang nhap vao khong gian lam viec",
+      targetText: "",
       contextLabel: "Heading on the sign-in screen",
-      status: "reviewed",
+      status: "pending",
     });
     expect(state.segments[1]).toMatchObject({
       id: "issue-string",

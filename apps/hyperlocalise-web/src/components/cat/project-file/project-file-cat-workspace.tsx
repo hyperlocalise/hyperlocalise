@@ -263,13 +263,7 @@ export function ProjectFileCatWorkspace({
           continue;
         }
 
-        nextState = applyCatSegmentTargetToWorkspaceState(
-          nextState,
-          catFile,
-          segmentId,
-          target,
-          intl,
-        );
+        nextState = applyCatSegmentTargetToWorkspaceState(nextState, segmentId, target, intl);
       }
     }
 

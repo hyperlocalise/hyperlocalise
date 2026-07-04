@@ -234,7 +234,6 @@ describe("applyCatSegmentTargetToWorkspaceState", () => {
 
     const nextState = applyCatSegmentTargetToWorkspaceState(
       state,
-      file,
       "segment-with-detail",
       {
         text: "Dang nhap vao khong gian lam viec",
@@ -250,17 +249,17 @@ describe("applyCatSegmentTargetToWorkspaceState", () => {
       targetText: "Dang nhap vao khong gian lam viec",
       tags: ["text", "3 comments", "1 issue"],
       hasOpenIssues: true,
+      status: "needs_review",
     });
     expect(nextState.segments[1]).toBe(untouchedSegment);
   });
 
-  it("returns the existing state when target does not match a queued segment", () => {
+  it("returns the existing state when target does not match a loaded segment", () => {
     const file = catFile();
     const state = projectFileCatToWorkspaceState(file, testIntl);
 
     const nextState = applyCatSegmentTargetToWorkspaceState(
       state,
-      file,
       "missing-segment",
       {
         text: "Missing",

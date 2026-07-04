@@ -25,6 +25,13 @@ export function isQueueFilterSupportedForProvider(
     return providerKind === "crowdin" || providerKind === "phrase" || providerKind === null;
   }
 
+  if (
+    providerKind === "phrase" &&
+    (filter === "untranslated" || filter === "needs_review" || filter === "reviewed")
+  ) {
+    return false;
+  }
+
   return true;
 }
 
