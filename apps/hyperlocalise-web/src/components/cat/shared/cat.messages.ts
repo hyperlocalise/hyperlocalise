@@ -61,6 +61,11 @@ export const catQueuePanelMessages = defineMessages({
     id: "f/b31Mw+9f",
     description: "Infinite-scroll summary for loaded CAT queue segments",
   },
+  loadMore: {
+    defaultMessage: "Load more",
+    id: "4mrug10+v6",
+    description: "Button label to load more CAT queue segments",
+  },
   unsavedChangesAria: {
     defaultMessage: "Unsaved changes",
     id: "CHs2ugz7iN",

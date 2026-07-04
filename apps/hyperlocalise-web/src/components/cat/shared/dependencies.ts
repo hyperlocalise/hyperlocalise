@@ -138,6 +138,7 @@ export interface CatWorkspaceViewProps {
   isBulkActionPending?: boolean;
   buildSegmentShareUrl?: (segment: CatSegment) => string | null;
   editorState?: CatWorkspaceState;
+  onIntelligencePanelVisible?: (segmentId: string) => void;
 }
 
 export const noopCatDependencies: CatWorkspaceDependencies = {

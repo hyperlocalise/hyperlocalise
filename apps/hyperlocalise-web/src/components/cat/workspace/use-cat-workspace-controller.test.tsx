@@ -109,7 +109,23 @@ describe("useCatWorkspaceController", () => {
     );
   });
 
-  it("auto-fills empty targets from high-confidence TM matches during concordance lookup", async () => {
+  it("waits for the intelligence panel before running concordance lookup", async () => {
+    const lookupSegmentConcordance = vi.fn().mockResolvedValue({
+      glossaryTerms: [],
+      translationMemoryMatches: [],
+    } satisfies CatSegmentConcordanceResult);
+
+    const { store } = renderController(undefined, {
+      services: {
+        lookupSegmentConcordance,
+      },
+    });
+
+    await waitFor(() => expect(store.segmentFormatChecks["seg-02"]?.length).toBeGreaterThan(0));
+    expect(lookupSegmentConcordance).not.toHaveBeenCalled();
+  });
+
+  it("auto-fills empty targets from high-confidence TM matches after intelligence loads", async () => {
     const concordance: CatSegmentConcordanceResult = {
       glossaryTerms: [],
       translationMemoryMatches: [
@@ -123,10 +139,14 @@ describe("useCatWorkspaceController", () => {
       ],
     };
 
-    const { store } = renderController(undefined, {
+    const { result, store } = renderController(undefined, {
       services: {
         lookupSegmentConcordance: vi.fn().mockResolvedValue(concordance),
       },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
     });
 
     await waitFor(() =>
@@ -137,12 +157,16 @@ describe("useCatWorkspaceController", () => {
     expect(store.autoFilledSegmentIds.has("seg-02")).toBe(true);
   });
 
-  it("records concordance lookup failures as format checks", async () => {
-    const { store } = renderController(undefined, {
+  it("records concordance lookup failures as format checks after intelligence loads", async () => {
+    const { result, store } = renderController(undefined, {
       services: {
         validateFormat: undefined,
         lookupSegmentConcordance: vi.fn().mockRejectedValue(new Error("TM unavailable")),
       },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
     });
 
     await waitFor(() =>
@@ -323,10 +347,14 @@ describe("useCatWorkspaceController", () => {
 
   it("lazy-loads cached agent context for the selected segment", async () => {
     const lookupSegmentContext = vi.fn().mockResolvedValue("Cached context from the repository.");
-    const { store } = renderController(undefined, {
+    const { result, store } = renderController(undefined, {
       services: {
         lookupSegmentContext,
       },
+    });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
     });
 
     await waitFor(() =>
@@ -344,12 +372,20 @@ describe("useCatWorkspaceController", () => {
     const lookupSegmentContext = vi.fn().mockResolvedValue(null);
     const nextLookupSegmentContext = vi.fn().mockResolvedValue("Cached context from another repo.");
     const services = { lookupSegmentContext };
-    const { rerender, store } = renderController(undefined, { services });
+    const { result, rerender, store } = renderController(undefined, { services });
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
 
     await waitFor(() => expect(lookupSegmentContext).toHaveBeenCalledTimes(1));
 
     services.lookupSegmentContext = nextLookupSegmentContext;
     rerender();
+
+    act(() => {
+      result.current.handleIntelligencePanelVisible("seg-02");
+    });
 
     await waitFor(() =>
       expect(store.segmentIntelligence["seg-02"]?.agentContext).toBe(

@@ -468,24 +468,6 @@ export function ProjectFileCatWorkspace({
     );
   }
 
-  if (
-    (!enrichedWorkspaceState || enrichedWorkspaceState.segments.length === 0) &&
-    !isQueueLoading &&
-    !catQuery.isFetching
-  ) {
-    return (
-      <div className="flex min-h-0 flex-1 items-center justify-center text-muted-foreground">
-        <TypographyP className="text-sm">
-          {search.trim()
-            ? "No strings match your search."
-            : queueFilter !== "all"
-              ? "No segments match this filter."
-              : "No source strings are available for this file."}
-        </TypographyP>
-      </div>
-    );
-  }
-
   const workspaceForRender = enrichedWorkspaceState ?? workspaceState;
   if (!workspaceForRender) {
     return null;

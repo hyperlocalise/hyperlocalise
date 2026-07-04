@@ -154,6 +154,7 @@ const CatWorkspaceContainerObserver = observer(function CatWorkspaceContainerObs
           onBulkSkip={() => void controller.handleBulkSkip()}
           isBulkActionPending={store.isBulkActionPending}
           buildSegmentShareUrl={controller.resolvedBuildSegmentShareUrl}
+          onIntelligencePanelVisible={controller.handleIntelligencePanelVisible}
         />
       </CatPanelErrorBoundary>
 

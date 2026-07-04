@@ -24,7 +24,7 @@ import { CatQueueSkeletonList } from "./cat-queue-skeleton-list";
 import { CatQueueVirtualList } from "./cat-queue-virtual-list";
 import { catQueueFilterValues, type CatQueueFilter } from "./cat-queue-filter";
 import { useCatQueueSelectionMode } from "./use-cat-queue-selection-mode";
-import { catQueuePanelMessages } from "@/components/cat/shared/cat.messages";
+import { catQueuePanelMessages, catWorkspaceMessages } from "@/components/cat/shared/cat.messages";
 import type { CatSegment } from "@/components/cat/shared/types";
 
 export type CatQueuePagination = {
@@ -101,10 +101,12 @@ export function CatQueuePanel({
   const hasBulkActions = Boolean(onToggleSegmentChecked && (onBulkApprove || onBulkSkip));
   const showSelection = selectionMode && Boolean(onToggleSegmentChecked);
   const hasActiveFilter = queueFilter !== "all";
-  const emptyMessage =
-    hasActiveFilter && !search.trim()
+  const hasSearch = search.trim().length > 0;
+  const emptyMessage = hasSearch
+    ? catQueuePanelMessages.emptySearchResults
+    : hasActiveFilter
       ? catQueuePanelMessages.emptyFilterResults
-      : catQueuePanelMessages.emptySearchResults;
+      : catWorkspaceMessages.emptyQueue;
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background lg:border-r lg:border-border">
@@ -291,7 +293,21 @@ export function CatQueuePanel({
               }}
             />
           </p>
-          {isFetchingPage ? <Spinner className="size-3.5" /> : null}
+          {hasMoreQueue && onLoadMoreQueue ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 gap-1.5 text-xs"
+              onClick={onLoadMoreQueue}
+              disabled={isFetchingPage}
+            >
+              {isFetchingPage ? <Spinner className="size-3.5" /> : null}
+              <FormattedMessage {...catQueuePanelMessages.loadMore} />
+            </Button>
+          ) : isFetchingPage ? (
+            <Spinner className="size-3.5" />
+          ) : null}
         </div>
       ) : null}
     </div>
