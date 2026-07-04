@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, isNotNull, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { db, schema, type DatabaseClient } from "@/lib/database";
@@ -855,7 +855,7 @@ export async function listDueWorkspaceAutomations(input: {
         eq(schema.githubInstallationRepositories.archived, false),
       ),
     )
-    .orderBy(schema.workspaceAutomations.nextRunAt)
+    .orderBy(asc(schema.workspaceAutomations.nextRunAt), asc(schema.workspaceAutomations.id))
     .limit(limit);
 
   return rows.map(({ automation, repository }) => ({
@@ -883,7 +883,7 @@ export async function listDueContentfulWorkspaceAutomations(input: {
         sql`${schema.workspaceAutomations.toolConfig}->'contentful'->>'enabled' = 'true'`,
       ),
     )
-    .orderBy(schema.workspaceAutomations.nextRunAt)
+    .orderBy(asc(schema.workspaceAutomations.nextRunAt), asc(schema.workspaceAutomations.id))
     .limit(limit);
 
   return rows
