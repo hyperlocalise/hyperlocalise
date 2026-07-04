@@ -163,18 +163,13 @@ func TestSourceStringsAddRequestValidate(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "missing identifiers",
-			req:  &SourceStringsAddRequest{Text: "Not all videos are shown to users."},
-			err:  "fileId, branchId or directoryId is required",
-		},
-		{
-			name: "identifier without container for file-based projects",
-			req:  &SourceStringsAddRequest{Text: "Not all videos are shown to users.", Identifier: "name"},
-			err:  "fileId, branchId or directoryId is required",
+			name:  "valid request with text only for string-based projects",
+			req:   &SourceStringsAddRequest{Text: "String text"},
+			valid: true,
 		},
 		{
 			name:  "valid request with identifier for string-based projects",
-			req:   &SourceStringsAddRequest{Text: "String text", Identifier: "name", StringBased: true},
+			req:   &SourceStringsAddRequest{Text: "String text", Identifier: "name"},
 			valid: true,
 		},
 		{
@@ -287,13 +282,8 @@ func TestSourceStringsUploadRequestValidate(t *testing.T) {
 			valid: true,
 		},
 		{
-			name: "missing branchId and directoryId for file-based projects",
-			req:  &SourceStringsUploadRequest{StorageID: 1},
-			err:  "branchId or directoryId is required",
-		},
-		{
 			name:  "valid request with storageId only for string-based projects",
-			req:   &SourceStringsUploadRequest{StorageID: 1, StringBased: true},
+			req:   &SourceStringsUploadRequest{StorageID: 1},
 			valid: true,
 		},
 	}

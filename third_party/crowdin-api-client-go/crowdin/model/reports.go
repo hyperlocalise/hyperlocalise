@@ -649,12 +649,30 @@ func (r *ReportGenerateRequest) Validate() error {
 // ValidateSchema implements the ReportSchema interface and checks if the
 // CostsEstimation schema is valid.
 func (r *CostsEstimationSchema) ValidateSchema() error {
+	if r.BaseRates == nil {
+		return errors.New("baseRates is required")
+	}
+	if r.IndividualRates == nil {
+		return errors.New("individualRates is required")
+	}
+	if r.NetRateSchemes == nil {
+		return errors.New("netRateSchemes is required")
+	}
 	return nil
 }
 
 // ValidateSchema implements the ReportSchema interface and checks if the
 // TranslationCosts schema is valid.
 func (r *TranslationCostsSchema) ValidateSchema() error {
+	if r.BaseRates == nil {
+		return errors.New("baseRates is required")
+	}
+	if r.IndividualRates == nil {
+		return errors.New("individualRates is required")
+	}
+	if r.NetRateSchemes == nil {
+		return errors.New("netRateSchemes is required")
+	}
 	return nil
 }
 
@@ -965,11 +983,29 @@ func (r *GroupReportGenerateRequest) Validate() error {
 
 // ValidateGroupSchema checks if the GroupCostsEstimation schema is valid.
 func (r *GroupCostsEstimationSchema) ValidateGroupSchema() error {
+	if r.BaseRates == nil {
+		return errors.New("baseRates is required")
+	}
+	if r.IndividualRates == nil {
+		return errors.New("individualRates is required")
+	}
+	if r.NetRateSchemes == nil {
+		return errors.New("netRateSchemes is required")
+	}
 	return nil
 }
 
 // ValidateGroupSchema checks if the GroupTranslationCosts schema is valid.
 func (r *GroupTranslationCostsSchema) ValidateGroupSchema() error {
+	if r.BaseRates == nil {
+		return errors.New("baseRates is required")
+	}
+	if r.IndividualRates == nil {
+		return errors.New("individualRates is required")
+	}
+	if r.NetRateSchemes == nil {
+		return errors.New("netRateSchemes is required")
+	}
 	return nil
 }
 

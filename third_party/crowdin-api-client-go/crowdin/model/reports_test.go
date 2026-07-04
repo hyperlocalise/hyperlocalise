@@ -179,18 +179,45 @@ func TestReportGenerateRequestValidate(t *testing.T) {
 			valid: true,
 		},
 		{
+			name: "required schema.baseRates (CostsEstimationSchema)",
+			req: &ReportGenerateRequest{
+				Name: ReportCostsEstimation,
+				Schema: &CostsEstimationSchema{
+					Unit:     ReportUnitWords,
+					Currency: "USD",
+				},
+			},
+			err: "baseRates is required",
+		},
+		{
 			name: "valid schema (CostsEstimationSchema)",
 			req: &ReportGenerateRequest{
-				Name:   ReportCostsEstimation,
-				Schema: &CostsEstimationSchema{Unit: ReportUnitWords, Currency: "USD"},
+				Name: ReportCostsEstimation,
+				Schema: &CostsEstimationSchema{
+					Unit:            ReportUnitWords,
+					Currency:        "USD",
+					BaseRates:       &ReportBaseRates{FullTranslation: 0.1, Proofread: 0.2},
+					IndividualRates: []*ReportIndividualRates{{UserIDs: []int{1}, FullTranslation: 0.1, Proofread: 0.2}},
+					NetRateSchemes: &ReportNetRateSchemes{
+						TMMatch: []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
+					},
+				},
 			},
 			valid: true,
 		},
 		{
 			name: "valid schema (TranslationCostsSchema)",
 			req: &ReportGenerateRequest{
-				Name:   ReportTranslationCosts,
-				Schema: &TranslationCostsSchema{Unit: ReportUnitWords, Currency: "USD"},
+				Name: ReportTranslationCosts,
+				Schema: &TranslationCostsSchema{
+					Unit:            ReportUnitWords,
+					Currency:        "USD",
+					BaseRates:       &ReportBaseRates{FullTranslation: 0.1, Proofread: 0.2},
+					IndividualRates: []*ReportIndividualRates{{UserIDs: []int{1}, FullTranslation: 0.1, Proofread: 0.2}},
+					NetRateSchemes: &ReportNetRateSchemes{
+						TMMatch: []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
+					},
+				},
 			},
 			valid: true,
 		},
@@ -309,16 +336,34 @@ func TestGroupReportGenerateRequestValidate(t *testing.T) {
 		{
 			name: "valid request (GroupCostsEstimationSchema)",
 			req: &GroupReportGenerateRequest{
-				Name:   ReportGroupCostsEstimation,
-				Schema: &GroupCostsEstimationSchema{ProjectIDs: []int{1}, Unit: ReportUnitWords, Currency: "USD"},
+				Name: ReportGroupCostsEstimation,
+				Schema: &GroupCostsEstimationSchema{
+					ProjectIDs:      []int{1},
+					Unit:            ReportUnitWords,
+					Currency:        "USD",
+					BaseRates:       &ReportBaseRates{FullTranslation: 0.1, Proofread: 0.2},
+					IndividualRates: []*ReportIndividualRates{{UserIDs: []int{1}, FullTranslation: 0.1, Proofread: 0.2}},
+					NetRateSchemes: &ReportNetRateSchemes{
+						TMMatch: []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
+					},
+				},
 			},
 			valid: true,
 		},
 		{
 			name: "valid request (GroupTranslationCostsSchema)",
 			req: &GroupReportGenerateRequest{
-				Name:   ReportGroupTranslationCosts,
-				Schema: &GroupTranslationCostsSchema{ProjectIDs: []int{1}, Unit: ReportUnitWords, Currency: "USD"},
+				Name: ReportGroupTranslationCosts,
+				Schema: &GroupTranslationCostsSchema{
+					ProjectIDs:      []int{1},
+					Unit:            ReportUnitWords,
+					Currency:        "USD",
+					BaseRates:       &ReportBaseRates{FullTranslation: 0.1, Proofread: 0.2},
+					IndividualRates: []*ReportIndividualRates{{UserIDs: []int{1}, FullTranslation: 0.1, Proofread: 0.2}},
+					NetRateSchemes: &ReportNetRateSchemes{
+						TMMatch: []ReportNetRateSchemeMatch{{MatchType: "perfect", Price: 0.1}},
+					},
+				},
 			},
 			valid: true,
 		},
