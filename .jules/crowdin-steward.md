@@ -209,3 +209,9 @@
 **Learning:** The Crowdin Tasks API v2 supports filtering by `creatorId` when listing project tasks and by `projectId` when listing user tasks. These parameters were missing from the SDK's `TasksListOptions` and `UserTasksListOptions` respectively.
 
 **Action:** Added `CreatorID` to `TasksListOptions` and `ProjectID` to `UserTasksListOptions` in `model/tasks.go`. Updated their `Values()` methods to correctly encode these parameters in query strings. Verified with updated unit tests in `tasks_test.go`.
+
+## 2026-07-07 - Add Language model parity for internalCode
+
+**Learning:** The Crowdin API v2 Language resource includes an `internalCode` field in its response, which was missing from the Go SDK's `Language` model. This field provides the internal Crowdin language code, which can differ from standard ISO codes.
+
+**Action:** Added `InternalCode` (string) to the `Language` struct in `model/languages.go`. Updated contract tests in `languages_test.go` to include the `internalCode` field in mock responses and verify correct unmarshaling across List, Get, and Add operations.

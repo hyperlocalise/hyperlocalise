@@ -38,7 +38,8 @@ func TestLanguageService_List(t *testing.T) {
 						"pluralRules": "(n != 1)",
 						"pluralExamples": ["0, 2-999; 1.2, 2.07..."],
 						"textDirection": "ltr",
-						"dialectOf": "es"
+						"dialectOf": "es",
+						"internalCode": "es"
 					}
 				},
 				{
@@ -56,7 +57,8 @@ func TestLanguageService_List(t *testing.T) {
 						"pluralRules": "(n != 1)",
 						"pluralExamples": ["0, 2-999; 1.2, 2.07..."],
 						"textDirection": "ltr",
-						"dialectOf": "uk"
+						"dialectOf": "uk",
+						"internalCode": "uk"
 					}
 				}
 			],
@@ -88,6 +90,7 @@ func TestLanguageService_List(t *testing.T) {
 			PluralExamples:      []string{"0, 2-999; 1.2, 2.07..."},
 			TextDirection:       "ltr",
 			DialectOf:           "es",
+			InternalCode:        "es",
 		},
 		{
 			ID:                  "uk",
@@ -104,6 +107,7 @@ func TestLanguageService_List(t *testing.T) {
 			PluralExamples:      []string{"0, 2-999; 1.2, 2.07..."},
 			TextDirection:       "ltr",
 			DialectOf:           "uk",
+			InternalCode:        "uk",
 		},
 	}
 	if !reflect.DeepEqual(languages, want) {
@@ -149,7 +153,8 @@ func TestLanguagesService_ListWithQueryParams(t *testing.T) {
 						"pluralRules": "(n != 1)",
 						"pluralExamples": ["0, 2-999; 1.2, 2.07..."],
 						"textDirection": "ltr",
-						"dialectOf": "uk"
+						"dialectOf": "uk",
+						"internalCode": "uk"
 					}
 				}
 			],
@@ -181,6 +186,7 @@ func TestLanguagesService_ListWithQueryParams(t *testing.T) {
 			PluralExamples:      []string{"0, 2-999; 1.2, 2.07..."},
 			TextDirection:       "ltr",
 			DialectOf:           "uk",
+			InternalCode:        "uk",
 		},
 	}
 	if !reflect.DeepEqual(languages, want) {
@@ -216,7 +222,8 @@ func TestLanguagesService_Get(t *testing.T) {
 				"pluralRules": "(n != 1)",
 				"pluralExamples": ["0, 2-999; 1.2, 2.07..."],
 				"textDirection": "ltr",
-				"dialectOf": "uk"
+				"dialectOf": "uk",
+				"internalCode": "uk"
 			}
 		}`)
 	})
@@ -241,6 +248,7 @@ func TestLanguagesService_Get(t *testing.T) {
 		PluralExamples:      []string{"0, 2-999; 1.2, 2.07..."},
 		TextDirection:       "ltr",
 		DialectOf:           "uk",
+		InternalCode:        "uk",
 	}
 	if !reflect.DeepEqual(language, want) {
 		t.Errorf("Languages.Get returned %+v, want %+v", language, want)
@@ -297,6 +305,7 @@ func TestLanguageService_Add(t *testing.T) {
 		PluralExamples:      []string{"0, 2-999; 1.2, 2.07..."},
 		TextDirection:       "ltr",
 		DialectOf:           "uk",
+		InternalCode:        "custom",
 	}
 
 	mux.HandleFunc("/api/v2/languages", func(w http.ResponseWriter, r *http.Request) {
@@ -320,7 +329,8 @@ func TestLanguageService_Add(t *testing.T) {
 				"pluralRules": "(n != 1)",
 				"pluralExamples": ["0, 2-999; 1.2, 2.07..."],
 				"textDirection": "ltr",
-				"dialectOf": "uk"
+				"dialectOf": "uk",
+				"internalCode": "custom"
 			}
 		}`)
 	})
@@ -368,7 +378,8 @@ func TestLanguagesService_Edit(t *testing.T) {
 				"pluralRules": "(n != 1)",
 				"pluralExamples": ["0, 2-999; 1.2, 2.07..."],
 				"textDirection": "ltr",
-				"dialectOf": "uk"
+				"dialectOf": "uk",
+				"internalCode": "custom"
 			}
 		}`)
 	})
