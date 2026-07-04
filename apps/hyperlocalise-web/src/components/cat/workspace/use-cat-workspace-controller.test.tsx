@@ -207,7 +207,7 @@ describe("useCatWorkspaceController", () => {
       formatChecks: [],
     });
 
-    const { result } = renderController(undefined, {
+    const { result, store } = renderController(undefined, {
       services: {
         lookupSegmentConcordance,
         generateAiRecommendation,
@@ -218,7 +218,7 @@ describe("useCatWorkspaceController", () => {
       result.current.handleIntelligencePanelVisible("seg-02");
     });
 
-    expect(lookupSegmentConcordance).toHaveBeenCalledTimes(1);
+    expect(store.isLoadingConcordance).toBe(true);
 
     await act(async () => {
       await result.current.dependencies.review.onReviewWithAi("seg-02");
